@@ -3,9 +3,10 @@
 // it gets back and a test drives it from a table.
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
-const SPEC_FALL_DB = 3; // shown spectrum fall per frame, ~30 dB/s at 10 Hz
+const SPEC_FALL_DBPS = 30; // shown spectrum fall, dB/s
 const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
-const SPEC_DECAY_DB = 1; // spectrum peak decay per frame once released
+const SPEC_DECAY_DBPS = 10; // spectrum peak decay once released, dB/s
+const BIN_STEP_DB = 0.5; // one bin byte's step below full scale on the feed (engine/meterfeed.py)
 const PEAK_FALL_DBPS = 20; // level peak fall, dB/s
 const RMS_TAU_S = 0.3; // level RMS integration time
 const HOLD_MS = 1500; // level hold before it decays
@@ -70,24 +71,26 @@ export function emptySpectrum(bins) {
 }
 
 /**
- * The spectrum after one frame of new bin levels: a rise shows at once, a fall shows falling a fixed step per frame
- * (or lands at once on a jump), and each held peak stays put for two seconds after it was last reached, then decays a
- * fixed step per frame, never below the shown level.
+ * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, a fall shows falling at a fixed
+ * rate (or lands at once on a jump), and each held peak stays put for two seconds after it was last reached, then
+ * decays at a fixed rate, never below the shown level.
  *
  * @param {SpectrumHold} prev
  * @param {ArrayLike<number>} levels  this frame's bin levels, dBFS
- * @param {number} now                ms
+ * @param {{ now: number, dt: number }} at  the frame's stamp, ms, and its length, s
  * @param {boolean} jump              show the new levels outright (reset, first paint)
  * @returns {SpectrumHold}
  */
-export function stepSpectrum(prev, levels, now, jump) {
+export function stepSpectrum(prev, levels, { now, dt }, jump) {
   const next = emptySpectrum(levels.length);
+  const fall = SPEC_FALL_DBPS * dt;
+  const decay = SPEC_DECAY_DBPS * dt;
   for (let i = 0; i < levels.length; i++) {
     const v = levels[i];
-    next.disp[i] = jump || v > prev.disp[i] ? v : Math.max(v, prev.disp[i] - SPEC_FALL_DB);
+    next.disp[i] = jump || v > prev.disp[i] ? v : Math.max(v, prev.disp[i] - fall);
     const d = next.disp[i];
     const released = now - prev.peakAt[i] > SPEC_HOLD_MS;
-    next.peak[i] = d >= prev.peak[i] ? d : released ? Math.max(d, prev.peak[i] - SPEC_DECAY_DB) : prev.peak[i];
+    next.peak[i] = d >= prev.peak[i] ? d : released ? Math.max(d, prev.peak[i] - decay) : prev.peak[i];
     next.peakAt[i] = d >= prev.peak[i] ? now : prev.peakAt[i];
   }
   return next;
@@ -124,7 +127,7 @@ export function stepLevel(v, t, now, dt) {
  * @returns {FrameStep}
  */
 export function stepFrame(loop, now, perCol, shown) {
-  const dt = Math.max(0, Math.min(MAX_DT_S, (now - loop.prev) / 1000));
+  const dt = frameDt(loop.prev, now);
   if (!shown) return { prev: now, acc: loop.acc, dt, cols: 0 };
   let acc = loop.acc + dt;
   let cols = 0;
@@ -133,4 +136,121 @@ export function stepFrame(loop, now, perCol, shown) {
     cols++;
   }
   return { prev: now, acc, dt, cols };
+}
+
+/**
+ * The seconds one animation frame stamped `now` runs the ballistics for after the frame stamped `prev`: clamped to
+ * [0, 100 ms], so a frame stamped before mount never runs them backwards and a stalled page never leaps.
+ *
+ * @param {number} prev  ms
+ * @param {number} now   ms
+ * @returns {number}
+ */
+export function frameDt(prev, now) {
+  return Math.max(0, Math.min(MAX_DT_S, (now - prev) / 1000));
+}
+
+/**
+ * One feed frame, or several folded into one: per channel its peak and RMS in dBFS and its transform bins in dBFS,
+ * DC first, and the frame time it covers.
+ *
+ * @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number }} MeterFrame
+ */
+
+const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
+const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
+
+/**
+ * A frame's bins off the wire: one byte per bin, base64, each `BIN_STEP_DB` per step below full scale.
+ *
+ * @param {string} text
+ * @returns {Float32Array}  dBFS
+ */
+export function decodeBins(text) {
+  const raw = atob(text);
+  const out = new Float32Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = -raw.charCodeAt(i) * BIN_STEP_DB;
+  return out;
+}
+
+/**
+ * The power average of several dB arrays of one length, element by element.
+ *
+ * @param {ArrayLike<number>[]} rows
+ * @returns {Float32Array}
+ */
+function powerMean(rows) {
+  const n = rows[0].length;
+  const acc = new Float64Array(n);
+  for (const row of rows) for (let k = 0; k < n; k++) acc[k] += toPower(row[k]);
+  return Float32Array.from(acc, (p) => toDb(p / rows.length));
+}
+
+/**
+ * Feed frames folded into one, as the feed folds a stride: per channel the loudest peak, and the RMS and each bin
+ * power-averaged; the frame time is theirs together. A single frame folds to itself.
+ *
+ * @param {MeterFrame[]} frames  at least one, all of one layout
+ * @returns {MeterFrame}
+ */
+export function foldFrames(frames) {
+  if (frames.length === 1) return frames[0];
+  const first = frames[0];
+  return {
+    channels: first.channels.map((_, c) => {
+      const chs = frames.map((f) => f.channels[c]);
+      return {
+        peak: Math.max(...chs.map((ch) => ch.peak)),
+        rms: powerMean(chs.map((ch) => [ch.rms]))[0],
+        bins: powerMean(chs.map((ch) => ch.bins)),
+      };
+    }),
+    ms: frames.reduce((sum, f) => sum + f.ms, 0),
+  };
+}
+
+/**
+ * The bins one channel pick shows: that channel's, or for `sum` (or a channel the frame lacks) the power average
+ * across channels, bin by bin.
+ *
+ * @param {MeterFrame} frame
+ * @param {string} pick
+ * @returns {Float32Array}
+ */
+export function pickBins(frame, pick) {
+  const ch = pick === "sum" ? undefined : frame.channels[Number(pick)];
+  return ch ? ch.bins : powerMean(frame.channels.map((c) => c.bins));
+}
+
+/**
+ * Bins laid onto `cols` columns from 0 Hz to Nyquist, bin `k` of `n` at `k/(n-1)` of the way: each column the loudest
+ * bin in its span, so a tone keeps its level however many bins share a column, and a column no bin falls in takes the
+ * bin nearest its centre.
+ *
+ * @param {ArrayLike<number>} bins  dBFS
+ * @param {number} cols
+ * @returns {Float32Array}
+ */
+export function traceColumns(bins, cols) {
+  const out = new Float32Array(cols).fill(-Infinity);
+  const last = bins.length - 1;
+  for (let k = 0; k <= last; k++) {
+    const c = Math.min(cols - 1, Math.floor((k / last) * cols));
+    if (bins[k] > out[c]) out[c] = bins[k];
+  }
+  for (let c = 0; c < cols; c++) {
+    if (out[c] === -Infinity) out[c] = bins[Math.round(((c + 0.5) / cols) * last)];
+  }
+  return out;
+}
+
+/**
+ * Where a level sits on a bar running from `floor` dB to full scale, from 0 to 1.
+ *
+ * @param {number} db
+ * @param {number} floor
+ * @returns {number}
+ */
+export function fraction(db, floor) {
+  return Math.min(1, Math.max(0, (db - floor) / -floor));
 }

@@ -43,7 +43,7 @@ function stream({ state = "2", metering = true, metadata = { samplerate: "44100"
 }
 
 /** @param {number} nyquist @param {number} channels */
-const geo = (nyquist, channels) => ({ nyquist, channels, centres: [1000, 2000] });
+const geo = (nyquist, channels) => ({ nyquist, channels, bins: 1025 });
 
 beforeEach(() => {
   useStorage();

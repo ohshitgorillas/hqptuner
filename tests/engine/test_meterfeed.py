@@ -2,11 +2,16 @@
 
 Every case packs its own frames in the 4322 layout (docs/protocol.md section
 7): a header of the eight values ``struct.unpack("<4I3fI")`` reads from the
-32-byte header (version 1, channels, xformLength 1025, transformBits,
-bandwidth, transformTime, gain, reserved 0), and a body of, per channel, four
-`f32` levels in dBFS (peakMax, peak, rms, rmsMax) then 1025 reals and 1025
-imaginaries, with bin ``k`` at ``k * bandwidth / 1024`` Hz. A channel's power
-sits in the bin nearest its tone and at the floor everywhere else.
+32-byte header (version 1, channels, xformLength, transformBits, bandwidth,
+transformTime, gain, reserved 0), and a body of, per channel, four `f32`
+levels in dBFS (peakMax, peak, rms, rmsMax) then the reals and the
+imaginaries, with bin ``k`` at ``k * bandwidth / (xformLength - 1)`` Hz. A
+channel's power sits in the bin nearest its tone and at its floor everywhere
+else. The transform time is one hop of ``xformLength - 1`` samples at twice
+the bandwidth.
+
+A `frame` item carries each channel's bins as standard padded base64 of one
+byte per bin, DC first, decoding to ``-byte * BIN_STEP_DB`` dBFS.
 
 The feed's items are ``(event, data)`` pairs read off the queue `subscribe()`
 hands back, drained after every `add`.
@@ -15,10 +20,12 @@ hands back, drained after every `add`.
 from __future__ import annotations
 
 import asyncio
+import base64
 import inspect
 import itertools
 import math
 import struct
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -37,6 +44,15 @@ RESERVED = 0
 
 FLOOR_REAL = 1e-3
 TONE_REAL = 1.0
+TONE_HZ = 3000.0
+
+#: dB per byte of a decoded bin.
+BIN_STEP_DB = 0.5
+
+#: Nyquist of a 44.1k, a 96k and a 192k source.
+NYQUIST_44K = 22050.0
+NYQUIST_96K = 48000.0
+NYQUIST_192K = 96000.0
 
 #: peakMax, peak, rms, rmsMax in dBFS, where a case does not sweep them.
 LEVELS = (-3.0, -6.0, -20.0, -18.0)
@@ -49,35 +65,41 @@ Frame = tuple[tuple[Any, ...], bytes]
 Item = tuple[str, Any]
 
 
-def _header(channels: int, bandwidth: float, transform_time: float) -> tuple[Any, ...]:
-    packed = struct.pack(HEADER, VERSION, channels, BINS, TRANSFORM_BITS, bandwidth, transform_time, GAIN, RESERVED)
+@dataclass(frozen=True)
+class Channel:
+    """One channel of a packed frame: its level block, its tone and the real part of every other bin."""
+
+    levels: tuple[float, float, float, float] = LEVELS
+    tone_hz: float = TONE_HZ
+    tone_real: float = TONE_REAL
+    floor_real: float = FLOOR_REAL
+
+
+def _header(channels: int, bins: int, bandwidth: float) -> tuple[Any, ...]:
+    transform_time = (bins - 1) / (2 * bandwidth)
+    packed = struct.pack(HEADER, VERSION, channels, bins, TRANSFORM_BITS, bandwidth, transform_time, GAIN, RESERVED)
     return struct.unpack(HEADER, packed)
 
 
-def _tone_bin(tone_hz: float, bandwidth: float) -> int:
-    return round(tone_hz / (bandwidth / (BINS - 1)))
+def _tone_bin(tone_hz: float, bandwidth: float, bins: int = BINS) -> int:
+    return round(tone_hz / (bandwidth / (bins - 1)))
 
 
-def _channel(levels: tuple[float, float, float, float], tone_hz: float, bandwidth: float) -> bytes:
-    reals = [FLOOR_REAL] * BINS
-    reals[_tone_bin(tone_hz, bandwidth)] = TONE_REAL
-    imaginaries = [0.0] * BINS
-    return struct.pack(f"<4f{BINS}f{BINS}f", *levels, *reals, *imaginaries)
+def _channel(channel: Channel, bandwidth: float, bins: int) -> bytes:
+    reals = [channel.floor_real] * bins
+    reals[_tone_bin(channel.tone_hz, bandwidth, bins)] = channel.tone_real
+    imaginaries = [0.0] * bins
+    return struct.pack(f"<4f{bins}f{bins}f", *channel.levels, *reals, *imaginaries)
 
 
-def _frame(
-    channels: list[tuple[tuple[float, float, float, float], float]],
-    bandwidth: float,
-    transform_time: float,
-) -> Frame:
-    """One frame: ``channels`` is each channel's (levels, tone_hz)."""
-    header = _header(len(channels), bandwidth, transform_time)
-    body = b"".join(_channel(levels, tone_hz, bandwidth) for levels, tone_hz in channels)
+def _frame(channels: list[Channel], bandwidth: float, bins: int = BINS) -> Frame:
+    header = _header(len(channels), bins, bandwidth)
+    body = b"".join(_channel(channel, bandwidth, bins) for channel in channels)
     return header, body
 
 
-def _mono(levels: tuple[float, float, float, float], bandwidth: float = 22050.0) -> Frame:
-    return _frame([(levels, 3000.0)], bandwidth, 1024 / (2 * bandwidth))
+def _mono(levels: tuple[float, float, float, float], bandwidth: float) -> Frame:
+    return _frame([Channel(levels=levels)], bandwidth)
 
 
 async def _resolved[T](value: T | Awaitable[T]) -> T:
@@ -125,44 +147,111 @@ def _first_frame(items: list[Item]) -> dict[str, Any]:
     return {}
 
 
-def _geometry_before_first_frame(items: list[Item]) -> dict[str, Any]:
-    geometry: dict[str, Any] = {}
-    for event, data in _until_first_frame(items):
+def _first_geometry(items: list[Item]) -> dict[str, Any]:
+    for event, data in items:
         if event == "geometry":
-            geometry = dict(data)
-    return geometry
+            return dict(data)
+    return {}
 
 
-# --- line 1: each channel's tone lights its own bar ------------------------
+def _bin_bytes(items: list[Item], channel: int) -> bytes:
+    """The raw bytes of one channel's bins in the first `frame` item; empty where it carries none."""
+    channels = list(_first_frame(items).get("channels", []))
+    text = dict(channels[channel]).get("bins", "") if channel < len(channels) else ""
+    return base64.b64decode(str(text), validate=True)
 
 
-def _loudest_bar(items: list[Item], channel: int) -> int:
-    bands = list(_first_frame(items)["channels"][channel]["bands"])
-    return max(range(len(bands)), key=bands.__getitem__)
+def _decoded(items: list[Item], channel: int) -> list[float]:
+    return [-byte * BIN_STEP_DB for byte in _bin_bytes(items, channel)]
 
 
-def _nearest_centre(items: list[Item], tone_hz: float, bandwidth: float) -> int:
-    centres = [float(centre) for centre in _geometry_before_first_frame(items)["centres"]]
-    frequency = _tone_bin(tone_hz, bandwidth) * (bandwidth / (BINS - 1))
-    return min(range(len(centres)), key=lambda index: abs(math.log(centres[index] / frequency)))
+def _loudest_bin(items: list[Item], channel: int) -> int:
+    """The index of one channel's loudest decoded bin; -1 where it carries none."""
+    decoded = _decoded(items, channel)
+    return max(range(len(decoded)), key=decoded.__getitem__, default=-1)
+
+
+def _bin_db(items: list[Item], channel: int, index: int) -> float:
+    """One bin of one channel, decoded to dBFS; NaN where it carries none."""
+    decoded = _decoded(items, channel)
+    return decoded[index] if index < len(decoded) else math.nan
+
+
+def _bin_byte(items: list[Item], channel: int, index: int) -> int:
+    """One bin of one channel as its raw byte; -1 where it carries none."""
+    raw = _bin_bytes(items, channel)
+    return raw[index] if index < len(raw) else -1
+
+
+# --- line 1: frame events run at the refresh rate of the source -------------
+
+
+#: Nyquist, then the `frame` items twelve frames of 1024 samples queue.
+EVENTS = [
+    pytest.param(NYQUIST_44K, 12, id="44.1 kHz, one per frame"),
+    pytest.param(NYQUIST_96K, 12, id="96 kHz, one per frame"),
+    pytest.param(NYQUIST_192K, 4, id="192 kHz, one per three frames"),
+]
+
+
+@pytest.mark.parametrize(("bandwidth", "events"), EVENTS)
+async def test_a_source_queues_one_frame_event_per_frame_until_frames_outrun_sixty_a_second(
+    bandwidth: float, events: int
+) -> None:
+    items = await _items([_mono(LEVELS, bandwidth)] * 12)
+    assert sum(1 for event, _ in items if event == "frame") == events
+
+
+# --- line 2: the geometry event states the bins and the Nyquist -------------
+
+
+@pytest.mark.parametrize("bins", [1025, 513], ids=["1025 bins", "513 bins"])
+async def test_the_geometry_event_states_the_bin_count_of_the_frames(bins: int) -> None:
+    items = await _items([_frame([Channel()], NYQUIST_44K, bins)])
+    assert _first_geometry(items).get("bins") == bins
+
+
+@pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
+async def test_the_geometry_event_states_the_nyquist_of_the_frames(bandwidth: float) -> None:
+    items = await _items([_mono(LEVELS, bandwidth)])
+    assert _first_geometry(items).get("nyquist") == bandwidth
+
+
+# --- line 3: each channel's tone decodes loudest in its own bin -------------
 
 
 @pytest.mark.parametrize("channel", [0, 1], ids=["left", "right"])
-@pytest.mark.parametrize("bandwidth", [22050.0, 48000.0], ids=["22.05 kHz", "48 kHz"])
+@pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
 @pytest.mark.parametrize(
     "tones",
     [(3000.0, 12000.0), (12000.0, 3000.0)],
     ids=["3 kHz left, 12 kHz right", "12 kHz left, 3 kHz right"],
 )
-async def test_each_channels_tone_lights_the_bar_whose_centre_is_nearest_it(
+async def test_each_channels_tone_decodes_loudest_in_its_own_bin(
     tones: tuple[float, float], bandwidth: float, channel: int
 ) -> None:
-    stereo = _frame([(LEVELS, tones[0]), (LEVELS, tones[1])], bandwidth, 1024 / (2 * bandwidth))
+    stereo = _frame([Channel(tone_hz=tones[0]), Channel(tone_hz=tones[1])], bandwidth)
     items = await _items([], then=stereo)
-    assert _loudest_bar(items, channel) == _nearest_centre(items, tones[channel], bandwidth)
+    assert _loudest_bin(items, channel) == _tone_bin(tones[channel], bandwidth)
 
 
-# --- line 2: a frame item holds the stride's peak and a blend of its rms ----
+@pytest.mark.parametrize("level", [-12.3, -37.8], ids=["-12.3 dB", "-37.8 dB"])
+@pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
+async def test_a_tone_decodes_within_half_a_db_of_its_level(bandwidth: float, level: float) -> None:
+    mono = _frame([Channel(tone_real=10 ** (level / 20))], bandwidth)
+    items = await _items([], then=mono)
+    assert _bin_db(items, 0, _tone_bin(TONE_HZ, bandwidth)) == pytest.approx(level, abs=0.5)
+
+
+@pytest.mark.parametrize("index", [0, BINS - 1], ids=["DC", "Nyquist"])
+@pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
+async def test_a_silent_bin_decodes_as_255(bandwidth: float, index: int) -> None:
+    mono = _frame([Channel(floor_real=0.0)], bandwidth)
+    items = await _items([], then=mono)
+    assert _bin_byte(items, 0, index) == 255
+
+
+# --- line 4: a frame item holds the stride's peak and a blend of its rms ----
 
 
 #: Two frames' (peak, rms) in dBFS: frame A first, then frame B repeated until a frame item is queued.
@@ -173,9 +262,9 @@ STRIDES = [
 
 
 async def _first_channel(a_peak: float, a_rms: float, b_peak: float, b_rms: float) -> dict[str, Any]:
-    """The first channel of the first frame item queued for frame A followed by frame B."""
-    first = _mono((a_peak, a_peak, a_rms, a_rms))
-    rest = _mono((b_peak, b_peak, b_rms, b_rms))
+    """The first channel of the first frame item a 192k source queues for frame A followed by frame B."""
+    first = _mono((a_peak, a_peak, a_rms, a_rms), NYQUIST_192K)
+    rest = _mono((b_peak, b_peak, b_rms, b_rms), NYQUIST_192K)
     items = await _items([first], then=rest)
     return dict(_first_frame(items)["channels"][0])
 
@@ -196,25 +285,13 @@ async def test_a_frame_item_holds_an_rms_between_the_frames_it_covers(
     assert b_rms < float(channel["rms"]) < a_rms
 
 
-# --- line 3: a faster source is thinned harder ------------------------------
+# --- line 5: a frame item states the frame time it covers -------------------
 
 
-async def _frame_items(bandwidth: float) -> int:
-    frames = [_mono(LEVELS, bandwidth)] * 8
-    return sum(1 for event, _ in await _items(frames) if event == "frame")
-
-
-async def test_a_96_khz_source_queues_fewer_frame_items_than_a_44_1_khz_one() -> None:
-    assert await _frame_items(48000.0) < await _frame_items(22050.0)
-
-
-# --- line 3a: a frame item states the frame time it covers ------------------
-
-
-#: Nyquist, then the frame time one item covers: whole frames of 1024 samples, the count nearest 40 ms.
+#: Nyquist, then the frame time one item covers: whole frames of 1024 samples.
 COVERS = [
-    pytest.param(22050.0, 2 * 1024 / 44100 * 1000, id="44.1 kHz, two frames"),
-    pytest.param(48000.0, 4 * 1024 / 96000 * 1000, id="96 kHz, four frames"),
+    pytest.param(NYQUIST_44K, 1024 / 44100 * 1000, id="44.1 kHz, one frame"),
+    pytest.param(NYQUIST_192K, 3 * 1024 / 192000 * 1000, id="192 kHz, three frames"),
 ]
 
 
@@ -224,7 +301,7 @@ async def test_a_frame_item_states_the_frame_time_of_the_frames_it_covers(bandwi
     assert _first_frame(items).get("ms") == pytest.approx(ms, abs=1e-3)
 
 
-# --- line 4: a channel change restarts the stride ---------------------------
+# --- line 6: a channel change restarts the stride ---------------------------
 
 
 def _events(items: list[Item]) -> list[tuple[str, Any]]:
@@ -239,7 +316,7 @@ async def test_a_channel_change_sends_the_new_geometry_before_a_frame_of_only_th
     peak: float,
 ) -> None:
     loud = (-1.0, -1.0, -20.0, -20.0)
-    stereo = _frame([(loud, 3000.0), (loud, 3000.0)], 22050.0, 1024 / 44100)
-    mono = _frame([((peak, peak, -40.0, -40.0), 3000.0)], 22050.0, 1024 / 44100)
+    stereo = _frame([Channel(levels=loud), Channel(levels=loud)], NYQUIST_192K)
+    mono = _mono((peak, peak, -40.0, -40.0), NYQUIST_192K)
     items = await _items([stereo], then=mono)
     assert _events(items) == [("geometry", 2), ("geometry", 1), ("frame", peak)]

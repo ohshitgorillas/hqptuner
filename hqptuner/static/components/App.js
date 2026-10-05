@@ -7,37 +7,22 @@
 // LIVE has no staged edits to show. The switch itself lives in the header
 // (Header.js), which is the one row present in both modes — so it neither moves
 // nor costs vertical space when the tab bar goes away.
-//
-// METER is the other mode, switched from the header's mini spectrum. It replaces
-// the tab bar and the tab body but keeps the pending bar, so a header preset pick
-// made in METER still has its Apply on screen.
 import { html } from "../lib/dom.js";
 import { Header } from "./Header.js";
 import { SignalPath } from "./SignalPath.js";
 import { AlertStrip } from "./AlertStrip.js";
 import { TabBar, TabBody } from "./tabs/index.js";
 import { LiveView } from "./live/View.js";
-import { MeterView } from "./meter/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { Setup } from "./Setup.js";
 import { setupOpen } from "../store/setup.js";
 import { ready } from "../store/signals.js";
 import { engineRestarting } from "../store/enginewrite.js";
-import { liveMode, meterMode } from "../store/ui/prefs.js";
+import { liveMode } from "../store/ui/prefs.js";
 
-/**
- * @param {boolean} live
- * @param {boolean} meter
- */
-function page(live, meter) {
-  if (meter) return html`<${MeterView} />`;
-  return live ? html`<${LiveView} />` : html`<${TabBody} />`;
-}
-
-/** Root layout: header, signal path and alert strip over the tab bar and body, the LIVE page or the METER page, with the pending bar below outside LIVE. */
+/** Root layout: header, signal path and alert strip over the tab bar and body or the LIVE page, with the pending bar below outside LIVE. */
 export function App() {
   const live = liveMode.value;
-  const meter = meterMode.value;
   return html`
     <!-- The dim says one thing: the engine is not there right now. That is true when a
          health reading says so, and it is true from the click of a write that takes the
@@ -55,9 +40,9 @@ export function App() {
              what closes the chrome off from the page below, and a rule that
              disappears with the tab bar would leave the LIVE page hanging off
              the signal path. -->
-        <div class="chrome-tabs">${live || meter ? null : html`<${TabBar} />`}</div>
+        <div class="chrome-tabs">${live ? null : html`<${TabBar} />`}</div>
       </div>
-      <main>${page(live, meter)}</main>
+      <main>${live ? html`<${LiveView} />` : html`<${TabBody} />`}</main>
       ${live ? null : html`<${PendingBar} />`}
     </div>
     <!-- Outside .app deliberately: .app.offline dims the whole tree at --o-dim,

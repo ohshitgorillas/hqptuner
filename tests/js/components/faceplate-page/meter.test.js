@@ -1,8 +1,8 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/SourceMeter.js: the page's Source section body. With a
 // stream it draws the Range column, the spectrum and one level bar per channel, and at 13″ the readings table under
 // the bars; slim, the table and the heads give way. With none it draws the no-stream line in the meter's place. Which
-// state holds, where a level sits and the trace's points are the store's (tests/js/store/faceplate-page/meter.test.js);
-// this suite covers what the section draws from them.
+// state holds is the store's (tests/js/store/faceplate-page/meter.test.js); what moves is painted each animation frame
+// (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. The stream reaches the store at the wire: METER feed events through the
@@ -48,17 +48,6 @@ function stream({ state = "2", nyquist = 22050, channels = 2 } = {}) {
   lastStream()?.emit("geometry", { nyquist, channels, centres: [1000, 2000] });
 }
 
-/**
- * One feed frame: every channel at the given peak and RMS.
- *
- * @param {number} peak
- * @param {number} rms
- */
-function frame(peak, rms) {
-  const ch = { peak, rms, bands: [-40, -50] };
-  lastStream()?.emit("frame", { channels: [ch, ch], ms: 100 });
-}
-
 const draw = () => elements(render(html`<${SourceMeter} />`));
 
 /**
@@ -74,17 +63,6 @@ const withClass = (cls) => draw().filter((e) => classes(e).includes(cls));
  * @param {MarkupElement | undefined} el
  */
 const num = (el) => (el ? parseFloat(text(el).replace("−", "-")) : NaN);
-
-/**
- * A percentage in an element's inline style for `prop`, or NaN.
- *
- * @param {MarkupElement | undefined} el
- * @param {string} prop
- */
-function stylePct(el, prop) {
-  const m = new RegExp(`${prop}:\\s*([\\d.]+)%`).exec((el && attr(el, "style")) || "");
-  return m ? Number(m[1]) : NaN;
-}
 
 /** The option values lit in the Range switch. */
 function lit() {
@@ -163,36 +141,9 @@ test("test_the_level_scale_ends_at_the_pages_range", () => {
   assert.equal(num(last), -60);
 });
 
-test("test_a_bars_peak_fill_reads_the_level_over_the_pages_range", () => {
-  setPageRange("60");
-  frame(-30, -45);
-  assert.equal(stylePct(withClass("pk")[0], "height"), 50);
-});
-
-test("test_a_bars_rms_fill_reads_the_rms_over_the_pages_range", () => {
-  setPageRange("60");
-  frame(-30, -45);
-  assert.equal(stylePct(withClass("rm")[0], "height"), 25);
-});
-
-test("test_a_bar_with_no_reading_draws_no_hold_mark", () => {
-  assert.equal(withClass("hd").length, 0);
-});
-
-test("test_a_bar_with_a_reading_draws_its_hold_mark", () => {
-  frame(-30, -45);
-  assert.equal(withClass("hd").length, 2);
-});
-
-test("test_the_readings_table_shows_the_held_peak", () => {
-  frame(-6.5, -20);
-  frame(-30, -20);
-  assert.equal(num(withClass("npk")[0]), -6.5);
-});
-
-test("test_the_readings_table_shows_the_rms", () => {
-  frame(-6.5, -20.25);
-  assert.equal(num(withClass("nrm")[1]), -20.3);
+test("test_a_bar_before_its_first_reading_hides_its_hold_mark", () => {
+  const marks = withClass("hd").map((e) => /visibility:\s*hidden/.test(attr(e, "style") || ""));
+  assert.deepEqual(marks, [true, true]);
 });
 
 test("test_a_13_inch_plate_draws_the_readings_table", () => {

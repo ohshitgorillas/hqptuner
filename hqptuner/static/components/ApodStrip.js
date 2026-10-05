@@ -24,7 +24,7 @@ import { Dropdown } from "./controls/index.js";
 // reading rather than an absence: a silent interval between two busy ones is
 // part of the field, and an unpainted one would read as a hole in a continuous
 // band.
-export const STOPS = ["--spec-0", "--spec-1", "--spec-2", "--spec-3", "--spec-4", "--spec-5"];
+const STOPS = ["--spec-0", "--spec-1", "--spec-2", "--spec-3", "--spec-4", "--spec-5"];
 
 // Interpolated in oklab rather than sRGB: mixing two saturated hues down the
 // RGB cube runs them through a muddy middle, and the midpoint of a density

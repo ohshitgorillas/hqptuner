@@ -1,14 +1,16 @@
 // The spectrogram's pixels, apart from any canvas: a colour ramp blended in
 // oklab between hex stops, and the raster a view paints with it. Time across,
-// newest at the right; frequency up, log from 20 Hz or linear from 0, to the view's top; level
+// newest at the right; frequency up, linear from 0 Hz to the view's top; level
 // as a step on the ramp, from the range's floor to full scale.
 //
-// A pixel blends the two nearest band centres in frequency and the two nearest
-// slices in time, so the field reads as continuous rather than as a grid of
-// bands and polls. An interval with no feed frame is left unpainted.
+// A slice is a column of rows from 0 Hz to the Nyquist it was measured at, one
+// byte a row at ROW_STEP_DB below full scale (store/meter/spectrogram.js). A
+// pixel blends the two nearest rows in frequency and the two nearest slices in
+// time, so the field reads as continuous rather than as a grid of rows and
+// slices. An interval with no feed frame is left unpainted.
 
 /**
- * @typedef {{ ms: number, slices: Float32Array[], centres: number[], nyquist: number }} Cell
+ * @typedef {{ ms: number, slices: Uint8Array[], nyquist: number }} Cell
  *   One visible column in one channel; `slices` is empty where the interval
  *   carried no frame.
  */
@@ -17,8 +19,8 @@
 // Raster pixels; CSS stretches them over the plot box.
 export const W = 1200;
 export const H = 480;
-export const LOW_HZ = 20;
 const STEPS = 256;
+const ROW_STEP_DB = 0.5;
 
 /** @param {number} c 0..1 */
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
@@ -79,34 +81,28 @@ export function rampFrom(hexStops) {
  * The frequency at the centre of each pixel row, top row first.
  *
  * @param {number} top
- * @param {string} scale
  * @returns {number[]}
  */
-const rowFreqs = (top, scale) =>
-  Array.from({ length: H }, (_, y) => {
-    const u = (H - 0.5 - y) / H;
-    return scale === "linear" ? top * u : LOW_HZ * (top / LOW_HZ) ** u;
-  });
+const rowFreqs = (top) => Array.from({ length: H }, (_, y) => (top * (H - 0.5 - y)) / H);
 
 /**
- * Each row's position among one column's bands, fractional so a row between two
- * centres blends them, or -1 above the column's Nyquist. Band centres sit 1/12
- * octave apart from the first.
+ * Each pixel row's position among a slice's rows, fractional so a pixel between
+ * two rows blends them, or -1 above the slice's Nyquist. Row r of `rows` spans
+ * [r, r + 1) of `rows` parts of the Nyquist, so its centre sits at r + 0.5.
  *
- * @param {Cell} cell
+ * @param {number} nyquist
+ * @param {number} rows
  * @param {number[]} freqs
  * @returns {Float32Array}
  */
-function rowBands(cell, freqs) {
-  const first = cell.centres[0] || 1;
-  const last = cell.centres.length - 1;
+function rowTable(nyquist, rows, freqs) {
   return Float32Array.from(freqs, (f) =>
-    f > cell.nyquist ? -1 : Math.min(last, Math.max(0, 12 * Math.log2(Math.max(f, 1) / first))),
+    f > nyquist ? -1 : Math.min(rows - 1, Math.max(0, (f / nyquist) * rows - 0.5)),
   );
 }
 
 /**
- * @typedef {{ start: number, end: number, levels: Float32Array | null, rows: Float32Array | null }} Span
+ * @typedef {{ start: number, end: number, levels: Uint8Array | null, rows: Float32Array | null }} Span
  *   One slice laid on the time axis, in milliseconds from the window's left
  *   edge; `levels` is null across an interval that carried no frame.
  */
@@ -123,17 +119,19 @@ function rowBands(cell, freqs) {
 function layoutSlices(cells, span, freqs) {
   /** @type {Span[]} */
   const out = [];
-  // One row table per band layout, so slices of one layout share it and blend
-  // across the columns' seams.
-  /** @type {Map<number[], Float32Array>} */
+  // One row table per Nyquist and row count, so slices measured alike share it
+  // and blend across the columns' seams.
+  /** @type {Map<string, Float32Array>} */
   const tables = new Map();
   let at = span - cells.reduce((sum, c) => sum + c.ms, 0);
   for (const cell of cells) {
     if (!cell.slices.length) {
       out.push({ start: at, end: at + cell.ms, levels: null, rows: null });
     } else {
-      const rows = tables.get(cell.centres) || rowBands(cell, freqs);
-      tables.set(cell.centres, rows);
+      const n = cell.slices[0].length;
+      const key = `${cell.nyquist}:${n}`;
+      const rows = tables.get(key) || rowTable(cell.nyquist, n, freqs);
+      tables.set(key, rows);
       const w = cell.ms / cell.slices.length;
       cell.slices.forEach((levels, j) => out.push({ start: at + j * w, end: at + (j + 1) * w, levels, rows }));
     }
@@ -143,16 +141,16 @@ function layoutSlices(cells, span, freqs) {
 }
 
 /**
- * A slice's level at a fractional band position, blended between the two
- * nearest centres.
+ * A slice's level in dBFS at a fractional row, blended between the two nearest
+ * rows.
  *
- * @param {Float32Array} levels
+ * @param {Uint8Array} levels
  * @param {number} pos
  */
 function levelAt(levels, pos) {
   const k = Math.floor(pos);
   const next = Math.min(levels.length - 1, k + 1);
-  return levels[k] + (levels[next] - levels[k]) * (pos - k);
+  return -(levels[k] + (levels[next] - levels[k]) * (pos - k)) * ROW_STEP_DB;
 }
 
 /**
@@ -180,12 +178,12 @@ function neighbour(slices, i, t) {
  * no slice covers stays transparent black.
  *
  * @param {Triple[]} ramp floor first, as `rampFrom` returns it
- * @param {{ cells: Cell[], span: number, range: number, top: number, scale: string }} view
+ * @param {{ cells: Cell[], span: number, range: number, top: number }} view
  * @returns {{ width: number, height: number, data: Uint8ClampedArray }}
  */
-export function rasterize(ramp, { cells, span, range, top, scale }) {
+export function rasterize(ramp, { cells, span, range, top }) {
   const data = new Uint8ClampedArray(W * H * 4);
-  const slices = layoutSlices(cells, span, rowFreqs(top, scale));
+  const slices = layoutSlices(cells, span, rowFreqs(top));
   let i = 0;
   for (let x = 0; x < W; x++) {
     const t = ((x + 0.5) / W) * span;

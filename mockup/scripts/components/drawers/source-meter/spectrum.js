@@ -2,7 +2,7 @@
 // hover / touch readout of frequency and level under the pointer.
 
 import { h, s } from "../../../lib/shell/dom.js";
-import { emptySpectrum, stepSpectrum } from "../../../../../hqptuner/static/model/gauges/meter.js";
+import { emptySpectrum, frameDt, stepSpectrum } from "../../../../../hqptuner/static/model/gauges/meter.js";
 import {
   freqTicks,
   freqX,
@@ -157,6 +157,7 @@ export function spectrumPainter(view, st, nyq, feed) {
   const { source, latest } = feed;
   const binHz = Array.from({ length: BINS }, (_, i) => Math.max(10, (nyq * i) / (BINS - 1)));
   let sp = emptySpectrum(BINS);
+  let last = 0;
   /** @returns {SpectrumPlot} */
   const plot = () => ({ nyq, range: st.range, w: SW, h: SH });
   const paint = () => paintSpectrum(view, sp, binHz, plot());
@@ -165,7 +166,8 @@ export function spectrumPainter(view, st, nyq, feed) {
    * @param {boolean} [jump]  land on the levels at once
    */
   function frame(now, jump = false) {
-    sp = stepSpectrum(sp, binLevels(latest(), binHz, st.channel, source), now, jump);
+    sp = stepSpectrum(sp, binLevels(latest(), binHz, st.channel, source), { now, dt: frameDt(last, now) }, jump);
+    last = now;
     paint();
   }
   wireReadout(view, binHz, () => sp);

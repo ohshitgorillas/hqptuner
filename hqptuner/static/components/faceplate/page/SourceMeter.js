@@ -1,21 +1,22 @@
 // The page's Source section body: the Range column, the spectrum and one level bar per channel, stretched to the
 // section's height; at 13″ each half carries its title and the bars their readings table, slim neither. Where there is
 // no stream to draw, the line saying why sits in an empty glass well in the meter's place. The Range is a view, not a
-// setting: it writes the page's own preference and nothing stages. What it shows is the store's
-// (store/faceplate/page/meter.js).
+// setting: it writes the page's own preference and nothing stages. What it renders holds still
+// (store/faceplate/page/meter.js); the trace, the bars and the readings are painted into it each animation frame
+// (sourcepaint.js).
 
+import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
+import { onMeterPaint } from "../../../store/meter/loop.js";
 import { PAGE_RANGES, setPageRange } from "../../../store/ui/faceplate.js";
 import { withXref } from "../Xref.js";
+import { SH, SW, paintSourcePage } from "./sourcepaint.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
-/** @typedef {import("../../../store/faceplate/page/meter.js").ChannelLevel} ChannelLevel */
 
-const SW = 600; // the spectrum's viewBox; the stylesheet stretches it over the plot
-const SH = 170;
 const STEREO = 2;
 
 /**
@@ -39,13 +40,6 @@ const dbText = (db) => (db === 0 ? "0 dBFS" : minusText(db));
  * @param {number} count
  */
 const channelName = (i, count) => (count === STEREO ? ["L", "R"][i] : String(i + 1));
-
-/**
- * A reading in dBFS to one place, blank while the channel has none.
- *
- * @param {number | null} db
- */
-const reading = (db) => (db === null ? "" : minusText(db.toFixed(1)));
 
 /**
  * The dB scale down an edge: one label per tick at its fraction from the top, the end labels marked so the stylesheet
@@ -88,23 +82,12 @@ function FreqScale({ freq }) {
 }
 
 /**
- * A trace's path in the viewBox, or undefined while it has no points.
- *
- * @param {[number, number][]} pts
- */
-function pathOf(pts) {
-  if (!pts.length) return undefined;
-  return "M" + pts.map(([x, y]) => `${(x * SW).toFixed(1)},${(y * SH).toFixed(1)}`).join(" L");
-}
-
-/**
  * The spectrum: its title at 13″, the dB scale beside a glass well holding the grid, the filled trace and the held
  * peaks, the frequency axis under it.
  *
  * @param {{ view: PageMeterView }} props
  */
 function Spectrum({ view }) {
-  const line = pathOf(view.trace.disp);
   return html`
     <div class="sside">
       ${!view.slim && html`<div class="mhead"><b class="mt">Spectrum</b></div>`}
@@ -116,9 +99,9 @@ function Spectrum({ view }) {
               ${view.db.slice(1, -1).map((t) => html`<line x1="0" x2=${SW} y1=${t.at * SH} y2=${t.at * SH} />`)}
               ${view.freq.ticks.slice(1).map((t) => html`<line x1=${t.at * SW} x2=${t.at * SW} y1="0" y2=${SH} />`)}
             </g>
-            <path class="sarea" d=${line && `${line} L${SW},${SH} L0,${SH} Z`} />
-            <path class="shold" d=${pathOf(view.trace.peak)} />
-            <path class="strace" d=${line} />
+            <path class="sarea" />
+            <path class="shold" />
+            <path class="strace" />
           </svg>
         </div>
         <span></span>
@@ -129,17 +112,17 @@ function Spectrum({ view }) {
 }
 
 /**
- * One channel's bar: the peak fill, the RMS bar inside it and, with a reading, the hold mark.
+ * One channel's bar: the peak fill, the RMS bar inside it and the hold mark, all painted.
  *
- * @param {{ lv: ChannelLevel, name: string }} props
+ * @param {{ name: string }} props
  */
-function Bar({ lv, name }) {
+function Bar({ name }) {
   return html`
     <div class="lvb">
       <div class="trough">
-        <i class="pk" style=${`height:${pct(lv.peak)}`}></i>
-        <i class="rm" style=${`height:${pct(lv.rms)}`}></i>
-        ${lv.peakDb !== null && html`<i class="hd" style=${`bottom:${pct(lv.hold)}`}></i>`}
+        <i class="pk"></i>
+        <i class="rm"></i>
+        <i class="hd" style="visibility:hidden"></i>
       </div>
       <span class="lvn">${name}</span>
     </div>
@@ -152,14 +135,14 @@ function Bar({ lv, name }) {
  * @param {{ view: PageMeterView }} props
  */
 function Levels({ view }) {
-  const n = view.levels.length;
-  const names = view.levels.map((_, i) => channelName(i, n));
+  const n = view.channels;
+  const names = Array.from({ length: n }, (_, i) => channelName(i, n));
   return html`
     <div class="lside">
       ${!view.slim && html`<div class="mhead"><b class="mt">Levels</b></div>`}
       <div class="lvwrap">
         <${DbScale} cls="lvs" db=${view.db} />
-        ${view.levels.map((lv, i) => html`<${Bar} lv=${lv} name=${names[i]} />`)}
+        ${names.map((name) => html`<${Bar} name=${name} />`)}
         ${
           !view.slim &&
           html`
@@ -167,9 +150,9 @@ function Levels({ view }) {
             <span class="u">dBFS</span>
             ${names.map((name) => html`<span class="lvh">${name}</span>`)}
             <span class="lvh l">Peak</span>
-            ${view.levels.map((lv) => html`<span class="npk">${reading(lv.peakDb)}</span>`)}
+            ${names.map(() => html`<span class="npk"></span>`)}
             <span class="lvh l">RMS</span>
-            ${view.levels.map((lv) => html`<span class="nrm">${reading(lv.rmsDb)}</span>`)}
+            ${names.map(() => html`<span class="nrm"></span>`)}
           </div>
         `
         }
@@ -201,9 +184,29 @@ function RangeColumn({ range }) {
   `;
 }
 
+/**
+ * Paint the meter loop's scenes into the section under `root` while it is mounted, at the Range in `range`.
+ *
+ * @param {{ current: HTMLElement | null }} root
+ * @param {{ current: number }} range
+ */
+function useSourcePaint(root, range) {
+  useEffect(
+    () =>
+      onMeterPaint((scene) => {
+        if (root.current) paintSourcePage(root.current, scene, range.current);
+      }),
+    [],
+  );
+}
+
 /** The page's Source section body, or the line saying why there is no meter. */
 export function SourceMeter() {
   const view = pageMeter();
+  const root = useRef(/** @type {HTMLElement | null} */ (null));
+  const range = useRef(view.range);
+  range.current = view.range;
+  useSourcePaint(root, range);
   if (view.state !== "live") {
     return html`
       <div class="pmeter" data-meter=${view.state}>
@@ -212,7 +215,7 @@ export function SourceMeter() {
     `;
   }
   return html`
-    <div class="pmeter" data-meter=${view.state}>
+    <div class="pmeter" data-meter=${view.state} ref=${root}>
       <div class="mblk mtop">
         <${RangeColumn} range=${view.range} />
         <${Spectrum} view=${view} />

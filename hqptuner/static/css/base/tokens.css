@@ -245,10 +245,6 @@
      bar. Compositor-only (transform), and disabled outright under
      prefers-reduced-motion. */
   --flow: 6s;
-  /* the fourth: a readout that tracks a continuous feed, moved on every frame.
-     One feed stride long and linear, so each reading is reached before the next
-     lands: the step between frames is smoothed and no reading is skipped. */
-  --follow: 40ms linear;
   /* ── Opacity (binding) ────────────────────────────────────────────────
      Two ladders sharing one scale, because opacity answers two questions.
      STATE — is this control in play? — dims a whole control or region.
@@ -380,10 +376,4 @@ input[type="radio"] {
 }
 .app.offline {
   opacity: var(--o-dim);
-}
-@media (prefers-reduced-motion: reduce) {
-  /* a feed-tracking readout snaps to each reading instead of gliding */
-  :root {
-    --follow: 0s linear;
-  }
 }

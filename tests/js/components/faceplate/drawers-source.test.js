@@ -107,7 +107,7 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
 });
 
 test("test_the_frequency_axis_labels_the_source_nyquist", () => {
-  stream({ geometry: { nyquist: 96000, channels: 2, centres: [1000] } });
+  stream({ geometry: { nyquist: 96000, channels: 2, bins: 1025 } });
   const nyq = draw().find((e) => hasAttr(e, "data-nyq"));
   assert.equal(nyq ? Number(text(nyq)) : NaN, 96);
 });

@@ -1,9 +1,9 @@
-"""The METER page's feed: metering frames reduced to per-channel levels and a 1/12-octave spectrum per stride.
+"""The meters' feed: metering frames reduced to per-channel levels and the transform's own bins per stride.
 
-Frames arrive at the transform hop rate (~43/s at 44.1k, 187/s at 192k). The feed folds a stride of them into one
-``frame`` event, so a page redraws at 20 to 30 events a second whatever the source rate: the stride is the number of
-frames covering 40 ms of the frame time the header declares. Across a stride the peak is max-held and the rms and the
-band spectrum are power-averaged.
+Frames arrive at the transform hop rate (~43/s at 44.1k, 187/s at 192k). A screen shows at most one picture per
+refresh, so the feed sends every frame until frames outrun ``REFRESH_HZ`` and folds the fewest whole frames that bring
+it back under: the stride. Across a stride the peak is max-held and the rms and each bin's power are power-averaged, so
+folding loses nothing a meter shows. Each bin travels as one byte, ``BIN_STEP_DB`` per step below full scale.
 
 A ``geometry`` event, carrying what a page needs to lay the bars out, always goes ahead of the first ``frame`` it
 describes. A geometry change mid-stride drops the partial stride rather than mixing two geometries in one event.
@@ -13,7 +13,7 @@ on overflow, so a stalled client never back-pressures the reader.
 """
 
 import asyncio
-import math
+import base64
 from dataclasses import dataclass
 from typing import NamedTuple, TypedDict
 
@@ -22,11 +22,11 @@ import numpy.typing as npt
 
 
 class ChannelLevels(TypedDict):
-    """One channel's share of a ``frame`` event: its max-held peak, mean rms, and band powers, all in dB."""
+    """One channel's share of a ``frame`` event: its max-held peak and mean rms in dB, and its bins as base64 bytes."""
 
     peak: float
     rms: float
-    bands: list[float]
+    bins: str
 
 
 class GeometryData(TypedDict):
@@ -34,7 +34,7 @@ class GeometryData(TypedDict):
 
     nyquist: float
     channels: int
-    centres: list[float]
+    bins: int
 
 
 class FrameData(TypedDict):
@@ -55,92 +55,56 @@ class Event(NamedTuple):
     data: EventData
 
 
-# Frame time one ``frame`` event covers, in milliseconds.
-STRIDE_MS = 40
+# The display refresh rate the stride folds frames down to.
+REFRESH_HZ = 60
+# One bin byte's step below full scale, dB: 255 steps reach the widest Range and a little past it.
+BIN_STEP_DB = 0.5
+BIN_MAX = 255
 # Events a subscriber's queue holds before its oldest is dropped.
 QUEUE_DEPTH = 8
-# The spectrum's lowest band is the first whose centre sits above this.
-LOWEST_CENTRE_HZ = 20.0
-# Bands per octave, centred on 1 kHz.
-BANDS_PER_OCTAVE = 12
 # Per-channel level block ahead of the transform values: peakMax, peak, rms, rmsMax.
 LEVELS = 4
-# Where a zero power lands, in dB. Deep enough for the page's widest spectrogram range: a 64-bit stream attenuated
-# upstream carries real content far below what a 24-bit one can.
+# Where a zero rms power lands, in dB: a 64-bit stream attenuated upstream carries real content far below what a
+# 24-bit one can.
 FEED_FLOOR_DB = -300.0
 
 
 @dataclass(frozen=True)
 class Geometry:
-    """What one frame layout reduces to: its channel count, bin count, Nyquist and the band table over its bins."""
+    """One frame layout: its channel count, bin count and Nyquist."""
 
     channels: int
     bins: int
     bandwidth: float
-    centres: list[float]
-    lo: npt.NDArray[np.intp]
-    hi: npt.NDArray[np.intp]
 
     def event(self) -> Event:
-        """Return the ``geometry`` event a page lays its bars out from."""
-        data: GeometryData = {
-            "nyquist": self.bandwidth,
-            "channels": self.channels,
-            "centres": [round(c, 1) for c in self.centres],
-        }
+        """Return the ``geometry`` event a page lays its bars and axes out from."""
+        data: GeometryData = {"nyquist": self.bandwidth, "channels": self.channels, "bins": self.bins}
         return Event("geometry", data)
 
 
-def geometry(channels: int, bins: int, bandwidth: float) -> Geometry:
-    """Build the band table for one frame layout.
-
-    Centres run at 1000·2^(k/12) Hz from the first above ``LOWEST_CENTRE_HZ`` to the last whose lower edge sits below
-    Nyquist. A band spans the bins from its lower edge up to its upper edge; a band holding no bin takes the nearest
-    one, so the low bands of a coarse transform share one bin's value rather than interpolating between bins.
-    """
-    per_bin = bandwidth / (bins - 1)
-    half = 2 ** (1 / (2 * BANDS_PER_OCTAVE))
-    first = math.floor(BANDS_PER_OCTAVE * math.log2(LOWEST_CENTRE_HZ / 1000)) + 1
-    last = math.ceil(BANDS_PER_OCTAVE * math.log2(bandwidth * half / 1000)) - 1
-    centres = [1000 * 2 ** (k / BANDS_PER_OCTAVE) for k in range(first, last + 1)]
-    lo: list[int] = []
-    hi: list[int] = []
-    for centre in centres:
-        start = min(bins, math.ceil(centre / half / per_bin))
-        end = min(bins, math.ceil(centre * half / per_bin))
-        if end <= start:
-            start = min(bins - 1, round(centre / per_bin))
-            end = start + 1
-        lo.append(start)
-        hi.append(end)
-    return Geometry(channels, bins, bandwidth, centres, np.array(lo, dtype=np.intp), np.array(hi, dtype=np.intp))
-
-
 def stride(bins: int, xform_time: float) -> int:
-    """Frames per ``STRIDE_MS`` of frame time, nearest with ties rounding up, at least 1.
+    """Whole frames per event: each frame alone up to ``REFRESH_HZ`` frames a second, else the most that fit a refresh.
 
     Counted from the source rate the header implies (a hop of ``bins - 1`` samples per ``xform_time``), rounded to
-    whole hertz, so the ``f32`` frame time cannot tip a tie such as 7.5 frames at 192k either way.
+    whole hertz, so the ``f32`` frame time cannot tip a boundary either way.
     """
     hop = bins - 1
     rate = round(hop / xform_time)
-    return max(1, (2 * STRIDE_MS * rate + 1000 * hop) // (2000 * hop))
+    return max(1, rate // (REFRESH_HZ * hop))
 
 
-def reduce_frame(body: bytes, channels: int, bins: int, geo: Geometry) -> npt.NDArray[np.float64]:
-    """One frame's per-channel linear levels: column 0 the peak in dB, column 1 the rms power, then the band powers.
+def reduce_frame(body: bytes, channels: int, bins: int) -> npt.NDArray[np.float64]:
+    """One frame's per-channel linear levels: column 0 the peak in dB, column 1 the rms power, then each bin's power.
 
-    The transform block is two consecutive halves, reals then imaginaries (protocol.md §7). A band's power is the mean
-    power of the bins the band table gives it.
+    The transform block is two consecutive halves, reals then imaginaries (protocol.md §7).
     """
     block = np.frombuffer(body, dtype="<f4", count=channels * (LEVELS + 2 * bins)).reshape(channels, LEVELS + 2 * bins)
     re = block[:, LEVELS : LEVELS + bins].astype(np.float64)
     im = block[:, LEVELS + bins :].astype(np.float64)
-    cumulative = np.concatenate([np.zeros((channels, 1)), np.cumsum(re * re + im * im, axis=1)], axis=1)
-    bands = (cumulative[:, geo.hi] - cumulative[:, geo.lo]) / (geo.hi - geo.lo)
     peak = block[:, 1].astype(np.float64)
     rms = np.power(10.0, block[:, 2].astype(np.float64) / 10)
-    return np.column_stack([peak, rms, bands])
+    return np.column_stack([peak, rms, re * re + im * im])
 
 
 def _db(power: npt.NDArray[np.float64]) -> list[float]:
@@ -150,10 +114,17 @@ def _db(power: npt.NDArray[np.float64]) -> list[float]:
     return [round(float(v), 1) for v in levels]
 
 
+def _bin_bytes(power: npt.NDArray[np.float64]) -> str:
+    """Bin powers as base64 bytes, each ``BIN_STEP_DB`` per step below full scale; a zero power is the last step."""
+    with np.errstate(divide="ignore"):
+        steps = np.rint(-10 * np.log10(power) / BIN_STEP_DB)
+    return base64.b64encode(np.clip(steps, 0, BIN_MAX).astype(np.uint8).tobytes()).decode("ascii")
+
+
 def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], ms: float) -> Event:
-    """Return a finished stride as a ``frame`` event: peak, rms and band powers in dB, and its frame time in ms."""
+    """Return a finished stride as a ``frame`` event: peak and rms in dB, bins as bytes, and its frame time in ms."""
     channels: list[ChannelLevels] = [
-        {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bands": _db(mean[ch, 1:])}
+        {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bins": _bin_bytes(mean[ch, 1:])}
         for ch in range(len(peak))
     ]
     data: FrameData = {"channels": channels, "ms": round(ms, 3)}
@@ -161,7 +132,7 @@ def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], m
 
 
 class MeterFeed:
-    """Stride accumulator and subscriber set for the METER page's event stream."""
+    """Stride accumulator and subscriber set for the meters' event stream."""
 
     def __init__(self) -> None:
         """Start with no geometry, no stride in hand and no subscriber."""
@@ -198,10 +169,10 @@ class MeterFeed:
         channels, bins, bandwidth = int(header[1]), int(header[2]), float(header[4])
         geo = self._geo
         if geo is None or (geo.channels, geo.bins, geo.bandwidth) != (channels, bins, bandwidth):
-            geo = self._geo = geometry(channels, bins, bandwidth)
+            geo = self._geo = Geometry(channels, bins, bandwidth)
             self._restart()
             self._send(geo.event())
-        levels = reduce_frame(body, channels, bins, geo)
+        levels = reduce_frame(body, channels, bins)
         peak, power = levels[:, 0], levels[:, 1:]
         if self._peak is not None and self._power is not None:
             peak, power = np.maximum(self._peak, peak), self._power + power

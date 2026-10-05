@@ -8,8 +8,6 @@ import { initFavicon } from "./store/ui/favicon.js";
 import { initHealth } from "./store/health.js";
 import { initSetup, pageHost } from "./store/setup.js";
 import { initApodHistory } from "./store/apodhistory.js";
-import { initSpectrogram } from "./store/meter/spectrogram.js";
-import { initMeterFeed } from "./store/meter/feed.js";
 
 initTheme();
 initFavicon();
@@ -20,7 +18,5 @@ initHealth();
 initSetup();
 pageHost.value = location.hostname;
 initApodHistory();
-initSpectrogram();
-initMeterFeed();
 startPolling();
 render(html`<${App} />`, document.getElementById("app"));

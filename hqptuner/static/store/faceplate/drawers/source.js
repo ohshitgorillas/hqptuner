@@ -23,7 +23,7 @@ const STEREO = 2;
 const MS_PER_S = 1000; // the time axis counts in milliseconds
 const MAX_EVENTS = 3; // the strip's hottest colour, model/gauges/meter-plot.js apodRamp
 
-/** The no-stream lines, by state, the drawer's and the page's (v1, components/meter/View.js). @type {Record<string, string>} */
+/** The no-stream lines, by state, the drawer's and the page's. @type {Record<string, string>} */
 export const METER_NOTES = {
   idle: "Start playback to see the meter.",
   off: "No metering available.",
@@ -54,7 +54,7 @@ export const METER_NOTES = {
  */
 
 /**
- * Which state the block is in, by v1's rules (components/meter/View.js).
+ * Which state the block is in.
  *
  * @returns {MeterState}
  */

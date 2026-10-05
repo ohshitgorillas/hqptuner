@@ -268,7 +268,7 @@ Lane reports returned inside a 200 body carry the same vocabulary per item: a fa
 
 ### 8.3 The meter feed streams only to an attached page
 
-`GET /api/meter/feed` (`api/routes/meter.py`) relays the metering reader's `engine/meterfeed.py` as server-sent events: a `geometry` event ahead of the frames it describes, then one `frame` per stride of whole frames nearest 40 ms of frame time, with peak max-held and rms and the 1/12-octave band spectrum power-averaged per channel, and the frame time the stride covers in milliseconds. Nothing is reduced while no subscriber is attached, each subscriber's queue drops its oldest event rather than hold the reader back, and the feed resets on every metering connect so a resume never mixes frames from before a pause. With metering off the route answers 204, which an `EventSource` does not retry.
+`GET /api/meter/feed` (`api/routes/meter.py`) relays the metering reader's `engine/meterfeed.py` as server-sent events: a `geometry` event (Nyquist, channel count, bin count) ahead of the frames it describes, then one `frame` per stride: every transform frame while frames come at 60 a second or slower, else the most whole frames that fit one 60 Hz refresh, with peak max-held and rms and each bin's power power-averaged per channel, the bins sent as base64 bytes at 0.5 dB a step below full scale, and the frame time the stride covers in milliseconds. Nothing is reduced while no subscriber is attached, each subscriber's queue drops its oldest event rather than hold the reader back, and the feed resets on every metering connect so a resume never mixes frames from before a pause. With metering off the route answers 204, which an `EventSource` does not retry.
 
 ## 9. Background tasks
 

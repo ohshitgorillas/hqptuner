@@ -78,7 +78,7 @@ function paintSpectrogram(canvas, colours, view) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const { span, range, nyquist } = view;
-  const raster = { cells: spectrogramCells.value, span, range, top: nyquist, scale: "linear" };
+  const raster = { cells: spectrogramCells.value, span, range, top: nyquist };
   const { width, height, data } = rasterize(colours.ramp, raster);
   for (let p = 0; p < width * height; p++) if (data[p * 4 + 3] === 0) put(data, p, colours.glass);
   const img = ctx.createImageData(width, height);
