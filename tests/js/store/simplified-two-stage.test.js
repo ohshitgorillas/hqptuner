@@ -1,5 +1,5 @@
-// Behavioral suite for the Simplified option style dropping every mention of
-// the two-stage variant.
+// Behavioral suite for the Simplified option style dropping the two-stage
+// clause from a filter's name while its description keeps both two-stage notes.
 //
 // The "Option style" pref (`plainNames` in store/ui/prefs.js) has two settings:
 // Standard shows the raw engine name, Simplified shows the plain-names
@@ -10,10 +10,9 @@
 // filter's own name (`two_stage_note`) and the SDM-chain note keyed by the
 // entry's `sdm_two_stage` flag (`sdm_two_stage_note`).
 //
-// Under Simplified none of those four appear: the trailing two-stage clause is
-// stripped off the leaf and off the short, and neither shared note joins the
-// description. Under Standard nothing changes at all, which the four regression
-// guards below hold.
+// Under Simplified the trailing two-stage clause is stripped off the leaf and
+// off the short; the notes describe what the filter does, so both join the
+// description in either style.
 //
 // Every string asserted here is invented by this file's own fixture and seeded
 // into the /api/metadata signal through the field harness's reset(), the way
@@ -34,7 +33,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { decorateOptions, plainClosedLabel } from "../../../hqptuner/static/store/plainnames.js";
-import { optionDescription, selectionDescription } from "../../../hqptuner/static/store/prose.js";
+import { selectionDescription } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { reset, META } from "../support/field-harness.js";
@@ -142,68 +141,24 @@ test("test_a_simplified_row_whose_leaf_does_not_end_in_a_two_stage_clause_is_lef
   assert.equal(await rowText("fix-c-2s"), "Long, two-stage, apodizing");
 });
 
-// --- N4/N5: the two shared notes leave the description ----------------------
+// --- the descriptions keep both notes in either style -------------------------
 
-test("test_a_simplified_two_stage_filter_selection_omits_the_shared_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is still in the Simplified description",
-  );
-});
+for (const plain of [false, true]) {
+  const style = plain ? "simplified" : "standard";
 
-test("test_a_simplified_flagged_filter_on_the_sdm_chain_omits_the_sdm_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is still in the Simplified description",
-  );
-});
+  test(`test_a_two_stage_filter_selection_carries_the_shared_two_stage_note_${style}`, async () => {
+    await seed(plain);
+    assert.ok(
+      selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
+      `the shared two-stage note is missing from the ${style} description`,
+    );
+  });
 
-// The option-row twin of each: Simplified mentions the variant NOWHERE, so the
-// dropdown's own descriptions drop the same two sentences the closed
-// selection's does.
-
-test("test_a_simplified_two_stage_filter_option_omits_the_shared_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !optionDescription(schema.pcm_filter_1x, { value: "0", label: "fix-a-2s" }, FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is still in the Simplified option description",
-  );
-});
-
-test("test_a_simplified_flagged_filter_option_on_the_sdm_chain_omits_the_sdm_two_stage_note", async () => {
-  await seed(true);
-  assert.ok(
-    !optionDescription(schema.sdm_filter_1x, { value: "0", label: "fix-b" }, FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is still in the Simplified option description",
-  );
-});
-
-// --- N6: only the two-stage sentences go ------------------------------------
-
-test("test_a_simplified_two_stage_filter_selection_keeps_its_own_description_and_notes", async () => {
-  await seed(true);
-  assert.equal(
-    selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META),
-    `${OWN_DESCRIPTION} ${OWN_NOTES}`,
-  );
-});
-
-// --- N7/N8: Standard is untouched -------------------------------------------
-
-test("test_a_standard_two_stage_filter_selection_still_carries_the_shared_two_stage_note", async () => {
-  await seed(false);
-  assert.ok(
-    selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
-    "the shared two-stage note is missing from the Standard description",
-  );
-});
-
-test("test_a_standard_flagged_filter_on_the_sdm_chain_still_carries_the_sdm_two_stage_note", async () => {
-  await seed(false);
-  assert.ok(
-    selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-    "the SDM two-stage note is missing from the Standard description",
-  );
-});
+  test(`test_a_flagged_filter_on_the_sdm_chain_carries_the_sdm_two_stage_note_${style}`, async () => {
+    await seed(plain);
+    assert.ok(
+      selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
+      `the SDM two-stage note is missing from the ${style} description`,
+    );
+  });
+}

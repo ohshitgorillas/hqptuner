@@ -126,11 +126,8 @@ test("test_a_filter_description_resolves_through_an_alias", async () => {
   assert.equal(line(field("pcm_filter_1x"), "field-desc"), "Extra transient.");
 });
 
-test("test_a_two_stage_filter_appends_the_two_stage_note_in_standard", async () => {
-  await reset({
-    fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M-2s" }] }],
-    plain: false,
-  });
+test("test_a_two_stage_filter_appends_the_two_stage_note", async () => {
+  await reset({ fields: [{ name: "filter1x", value: "0", options: [{ value: "0", label: "sinc-M-2s" }] }] });
   assert.equal(line(field("pcm_filter_1x"), "field-desc"), "A very long sinc. Two stage oversampling.");
 });
 

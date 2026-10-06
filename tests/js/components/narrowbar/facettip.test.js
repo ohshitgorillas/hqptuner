@@ -430,8 +430,8 @@ test("test_a_filter_option_tip_text_resolves_through_an_alias", async () => {
   assert.equal(tip({ value: "0", label: "poly-sinc-xtr-mp" }).text, "Extra transient.");
 });
 
-test("test_a_two_stage_filter_option_tip_appends_the_two_stage_note_in_standard", async () => {
-  await reset({ plain: false });
+test("test_a_two_stage_filter_option_tip_appends_the_two_stage_note", async () => {
+  await reset();
   const tip = resolver(schema.pcm_filter_1x, FILTER_META);
   assert.equal(tip({ value: "0", label: "sinc-M-2s" }).text, "A very long sinc. Two stage oversampling.");
 });

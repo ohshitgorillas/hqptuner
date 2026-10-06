@@ -115,8 +115,8 @@ test("test_a_filter_option_with_no_description_key_describes_the_notes_alone", a
 // two-stage ordering: description, notes, then the shared two-stage note
 // ============================================================================
 
-test("test_a_selected_two_stage_filter_orders_notes_before_the_two_stage_note_in_standard", async () => {
-  await reset({ plain: false });
+test("test_a_selected_two_stage_filter_orders_notes_before_the_two_stage_note", async () => {
+  await reset();
   assert.equal(
     selectionDescription(schema.pcm_filter_1x, "0", one("sinc-S-2s"), FILTER_META),
     "A short sinc. Not recommended. Two stage oversampling.",
@@ -125,16 +125,16 @@ test("test_a_selected_two_stage_filter_orders_notes_before_the_two_stage_note_in
 
 // The one combination where the notes join and the two-stage join could each
 // contribute a separator to a description that is not there.
-test("test_a_selected_two_stage_filter_with_an_empty_description_joins_notes_to_the_two_stage_note_in_standard", async () => {
-  await reset({ plain: false });
+test("test_a_selected_two_stage_filter_with_an_empty_description_joins_notes_to_the_two_stage_note", async () => {
+  await reset();
   assert.equal(
     selectionDescription(schema.pcm_filter_1x, "0", one("sinc-V-2s"), FILTER_META),
     "Only note. Two stage oversampling.",
   );
 });
 
-test("test_a_two_stage_filter_option_orders_notes_before_the_two_stage_note_in_standard", async () => {
-  await reset({ plain: false });
+test("test_a_two_stage_filter_option_orders_notes_before_the_two_stage_note", async () => {
+  await reset();
   assert.equal(
     optionDescription(schema.pcm_filter_1x, { value: "0", label: "sinc-S-2s" }, FILTER_META),
     "A short sinc. Not recommended. Two stage oversampling.",

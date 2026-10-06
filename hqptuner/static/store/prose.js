@@ -13,7 +13,7 @@
 
 import { metadata } from "./signals.js";
 import { schema } from "./schema.js";
-import { notesVisible, plainNames } from "./ui/prefs.js";
+import { notesVisible } from "./ui/prefs.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -193,10 +193,6 @@ function filterProse(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
   if (!entry) return NO_PROSE;
-  // Simplified mode says nothing about the two-stage variant: its names drop the
-  // clause (store/plainnames.js), so both notes go with them and the description
-  // keeps the filter's own prose alone. Standard mode is unchanged.
-  if (plainNames.value) return { text: joinProse(entry.description, entry.notes), more: [] };
   const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
   return { text: joinProse(entry.description, sdmNote, entry.notes), more: heldBack(twoStage, f.two_stage_note) };
 }

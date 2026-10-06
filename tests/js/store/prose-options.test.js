@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { optionDescription } from "../../../hqptuner/static/store/prose.js";
+import { optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { reset, META } from "../support/field-harness.js";
 
@@ -63,8 +63,8 @@ test("test_a_filter_option_label_resolves_through_an_alias", async () => {
   );
 });
 
-test("test_a_two_stage_filter_option_appends_the_shared_note_to_the_base_description_in_standard", async () => {
-  await reset({ plain: false });
+test("test_a_two_stage_filter_option_appends_the_shared_note_to_the_base_description", async () => {
+  await reset();
   assert.equal(
     optionDescription(schema.pcm_filter_1x, { value: "0", label: "sinc-M-2s" }, FILTER_META),
     "A very long sinc. Two stage oversampling.",
@@ -102,4 +102,21 @@ test("test_a_dither_label_the_overlay_does_not_know_describes_nothing", async ()
 test("test_a_modulator_label_the_overlay_does_not_know_describes_nothing", async () => {
   await reset();
   assert.equal(optionDescription(schema.sdm_modulator, { value: "9", label: "made-up" }, SHAPER_META), "");
+});
+
+// --- optionProse: the two-stage note held behind "see more" ------------------
+
+/** @param {string} label */
+const prose = (label) => optionProse(schema.pcm_filter_1x, { value: "0", label }, FILTER_META);
+
+for (const plain of [false, true]) {
+  test(`test_a_two_stage_filter_holds_the_two_stage_note_back_${plain ? "simplified" : "standard"}`, async () => {
+    await reset({ plain });
+    assert.deepEqual(prose("sinc-M-2s").more, [META.filters.two_stage_note]);
+  });
+}
+
+test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin", async () => {
+  await reset();
+  assert.equal(prose("sinc-M-2s").text, prose("sinc-M").text);
 });
