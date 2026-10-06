@@ -239,9 +239,9 @@ function rowReading(out, needle) {
 
 const PREFS_MODULE = new URL("../../../../hqptuner/static/store/ui/prefs.js", import.meta.url).href;
 
-test("test_an_unset_storage_reads_as_standard", async () => {
+test("test_an_unset_storage_reads_as_simplified", async () => {
   const fresh = await import(`${PREFS_MODULE.replace(/\.js$/, ".fresh-unset.js")}`);
-  assert.equal(fresh.plainNames.value, false);
+  assert.equal(fresh.plainNames.value, true);
 });
 
 // --- pref off: exactly as before ----------------------------------------------

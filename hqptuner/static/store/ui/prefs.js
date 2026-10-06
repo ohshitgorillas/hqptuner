@@ -100,9 +100,9 @@ export function setKeepOptionDescriptions(on) {
 
 // The "Option style" switch: Simplified re-renders the six chain dropdowns
 // (filters, dither, modulator) with the plain-English names from the
-// plain-names overlay (store/plainnames.js). Standard — the raw engine names —
-// is the default and what an unset or unavailable storage reads as.
-export const plainNames = signal(loadBool(K_SIMPLE, false));
+// plain-names overlay (store/plainnames.js). Simplified is the default and what
+// an unset or unavailable storage reads as; Standard shows the raw engine names.
+export const plainNames = signal(loadBool(K_SIMPLE, true));
 
 /**
  * Set the "Option style" pref (true = Simplified) and persist it.

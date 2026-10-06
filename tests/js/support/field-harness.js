@@ -21,7 +21,7 @@ import { html } from "../../../hqptuner/static/lib/dom.js";
 import { Field } from "../../../hqptuner/static/components/widgets/Field.js";
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions } from "../../../hqptuner/static/store/ui/prefs.js";
+import { showDescriptions, keepOptionDescriptions, plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { staticWire } from "./wire/wire.js";
 
@@ -151,6 +151,7 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
   matrixConfig.value = { fields: matrix };
   showDescriptions.value = desc;
   keepOptionDescriptions.value = keep;
+  plainNames.value = false;
   resetNarrowing();
   await discardAll();
 }

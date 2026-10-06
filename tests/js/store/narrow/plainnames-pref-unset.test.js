@@ -1,6 +1,6 @@
 // The "Option style" preference when localStorage is PRESENT but holds no
 // hqptuner.plainNames key at all — a browser that has never seen the switch.
-// The pref loads as Standard (off), and the load-time read writes nothing back.
+// The pref loads as Simplified (on), and the load-time read writes nothing back.
 //
 // Own process on purpose (tests/js/store/narrow/plainnames-pref.test.js pins the
 // pre-seeded storage; tests/js/components/combobox-plainnames.test.js pins the
@@ -21,8 +21,8 @@ const storage = useStorage();
 
 const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
-test("test_storage_present_but_key_unset_loads_as_standard", () => {
-  assert.equal(prefs.plainNames.value, false);
+test("test_storage_present_but_key_unset_loads_as_simplified", () => {
+  assert.equal(prefs.plainNames.value, true);
 });
 
 test("test_the_load_time_read_writes_no_key_back", () => {

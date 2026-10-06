@@ -18,6 +18,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Snapshots attach to Stations** and are selected in the same dropdown.
 - **Easy Mode is now the Filter Preset popover.**
 - **The Setting Switcher is now a permanent fixture** along the bottom bar of the program. Can optionally be disabled.
+- **Option style now defaults to Simplified.** Standard is still available in Settings.
 
 ## [1.18.0] — 2026-10-06
 
