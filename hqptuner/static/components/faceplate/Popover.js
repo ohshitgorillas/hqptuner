@@ -25,7 +25,24 @@ export const triggerProps = (id, haspopup) => ({
 });
 
 /**
- * Where a plate-level panel lands against its trigger, clamped inside the plate, in the plate's layout px.
+ * The corner of the box a panel's `left` and `top` count from, on the plate in layout px: its offset parent's, or the
+ * plate's own where it has none to measure.
+ *
+ * @param {HTMLElement} panel
+ * @param {Element} face  the plate
+ * @returns {import("../../model/shell/place.js").Origin}
+ */
+export function originOf(panel, face) {
+  const box = panel.offsetParent;
+  if (!box) return { x: 0, y: 0 };
+  const b = box.getBoundingClientRect(),
+    p = face.getBoundingClientRect();
+  const s = plate.value.scale;
+  return { x: (b.left - p.left) / s, y: (b.top - p.top) / s };
+}
+
+/**
+ * Where a panel lands against its trigger, clamped inside the plate, in layout px from its own containing block.
  *
  * @param {HTMLElement} panel
  * @param {{ side: Side, foot: Margin, at: Place }} how
@@ -43,6 +60,7 @@ export function parkAt(panel, how) {
     panel: { w: panel.offsetWidth, h: panel.offsetHeight },
     plate: { w: fit.w, h: fit.h },
     scale: fit.scale,
+    origin: originOf(panel, face),
     ...how,
   });
 }

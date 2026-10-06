@@ -39,22 +39,28 @@
 /** @param {Margin} m */
 const room = (m) => m ?? -Infinity;
 
+/** The top-left corner of the panel's containing block on the plate, in layout px. @typedef {{x: number, y: number}} Origin */
+
+/** A panel positioned against the plate itself. @type {Origin} */
+const ON_PLATE = { x: 0, y: 0 };
+
 /**
- * The panel's top-left corner on the plate, in layout px. A panel wider than the room between the side margins keeps
- * its left edge at the left margin.
+ * The panel's top-left corner, in layout px from its containing block's corner (`origin`, the plate's own by default).
+ * The margins and the clamp are the plate's whatever box the panel sits in. A panel wider than the room between the
+ * side margins keeps its left edge at the left margin.
  *
- * @param {{anchor: Rect, panel: Size, plate: Size, scale: number, side: Side, foot: Margin, at: Place}} o
+ * @param {{anchor: Rect, panel: Size, plate: Size, scale: number, side: Side, foot: Margin, at: Place, origin?: Origin}} o
  * @returns {{left: number, top: number}}
  */
-export function clampToPlate({ anchor, panel, plate, scale, side, foot, at }) {
+export function clampToPlate({ anchor, panel, plate, scale, side, foot, at, origin = ON_PLATE }) {
   const [l, r] = Array.isArray(side) ? side : [side, side];
   const x = anchor.left / scale,
     y = anchor.top / scale;
   const x0 = at.x === "before" ? x - panel.w - at.gap : x;
-  const left = Math.max(room(l), Math.min(x0, plate.w - room(r) - panel.w));
+  const left = Math.max(room(l), Math.min(x0, plate.w - room(r) - panel.w)) - origin.x;
   const floor = plate.h - room(foot);
-  if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) };
+  if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) - origin.y };
   const below = y + anchor.height / scale + at.gap;
-  if (at.y === "below") return { left, top: Math.min(below, floor - panel.h) };
-  return { left, top: below + panel.h > floor ? y - panel.h - at.gap : below };
+  if (at.y === "below") return { left, top: Math.min(below, floor - panel.h) - origin.y };
+  return { left, top: (below + panel.h > floor ? y - panel.h - at.gap : below) - origin.y };
 }

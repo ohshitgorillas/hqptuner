@@ -56,20 +56,15 @@ const wordsOf = (prose) => prose.split(/\s+/).filter(Boolean);
 // --- the fit (browser only) ---------------------------------------------------------------
 
 /**
- * Park a note popover under its link, in its positioned ancestor's layout px.
+ * Park a note popover under its link.
  *
  * @param {HTMLElement} panel
  */
 function park(panel) {
   const at = parkAt(panel, HOW);
-  const face = panel.closest(".plate");
-  const box = panel.offsetParent;
-  if (!at || !face || !box) return;
-  const k = plate.value.scale;
-  const f = face.getBoundingClientRect(),
-    b = box.getBoundingClientRect();
-  panel.style.left = `${Math.round(at.left - (b.left - f.left) / k)}px`;
-  panel.style.top = `${Math.round(at.top - (b.top - f.top) / k)}px`;
+  if (!at) return;
+  panel.style.left = `${Math.round(at.left)}px`;
+  panel.style.top = `${Math.round(at.top)}px`;
 }
 
 /**

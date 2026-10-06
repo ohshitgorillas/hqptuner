@@ -33,6 +33,7 @@ const FOOT = 14;
  * @property {number} [scale]
  * @property {Side} [side]
  * @property {Margin} [foot]
+ * @property {{x: number, y: number}} [origin]
  */
 
 /** @param {Row} row */
@@ -45,6 +46,7 @@ const placed = (row) =>
     side: row.side === undefined ? SIDE : row.side,
     foot: row.foot === undefined ? FOOT : row.foot,
     at: row.at,
+    origin: row.origin,
   });
 
 /** @type {Place} */
@@ -128,6 +130,22 @@ const LEFTS = [
     scale: 0.5,
     want: 200,
   },
+  {
+    name: "a_panel_in_a_nested_box_is_placed_from_that_box_left_edge",
+    anchor: { left: 100, top: 0, width: 40, height: 20 },
+    panel: { w: 300, h: 100 },
+    at: START,
+    origin: { x: 23, y: 109 },
+    want: 77,
+  },
+  {
+    name: "the_side_margin_holds_on_the_plate_not_on_the_nested_box",
+    anchor: { left: 0, top: 0, width: 40, height: 20 },
+    panel: { w: 300, h: 100 },
+    at: START,
+    origin: { x: 23, y: 109 },
+    want: -3,
+  },
 ];
 
 for (const row of LEFTS) {
@@ -209,6 +227,22 @@ const TOPS = [
     at: BELOW,
     scale: 0.5,
     want: 248,
+  },
+  {
+    name: "a_panel_in_a_nested_box_is_placed_from_that_box_top_edge",
+    anchor: { left: 0, top: 300, width: 40, height: 30 },
+    panel: { w: 300, h: 300 },
+    at: TOP,
+    origin: { x: 23, y: 109 },
+    want: 191,
+  },
+  {
+    name: "the_foot_holds_on_the_plate_not_on_the_nested_box",
+    anchor: { left: 0, top: 600, width: 40, height: 30 },
+    panel: { w: 300, h: 300 },
+    at: TOP,
+    origin: { x: 23, y: 109 },
+    want: 377,
   },
 ];
 

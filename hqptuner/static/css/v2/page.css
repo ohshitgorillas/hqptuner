@@ -125,7 +125,7 @@ button.vfd.cplate{height:52px;padding:5px 12px 4px;display:grid;grid-template-co
 .cpfam{flex-shrink:0;font:600 14px var(--f-body);color:var(--ink)}
 .cpsep{flex-shrink:0;font-size:13px;color:var(--ink-2)}
 .cpvar{min-width:0;font:500 14px var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
-.cpl{font:500 15px var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
+.cpl{font:500 15px var(--f-body);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
 .cplate.dim .cpl{color:var(--ink-2)}
 
 

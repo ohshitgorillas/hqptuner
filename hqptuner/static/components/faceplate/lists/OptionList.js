@@ -13,6 +13,7 @@ import { plainNames } from "../../../store/ui/prefs.js";
 import { openList, plate } from "../../../store/faceplate/view.js";
 import { closeOptionList, isPanel, kindOf } from "../../../store/faceplate/lists/open.js";
 import { listBlurbs, listOptions, narrowedOptions } from "../../../store/faceplate/lists/options.js";
+import { originOf } from "../Popover.js";
 import { Columns } from "./Columns.js";
 import { Console } from "./Console.js";
 import { FacetPopovers } from "./FacetPopover.js";
@@ -43,7 +44,8 @@ function onPlate(el, face) {
 
 /**
  * Lay the open list out on the plate: a sheet from the body's top to the plate's foot, a panel parked at its picker
- * (`data-list` names the key it opens), centered when the picker is not showing.
+ * (`data-list` names the key it opens), centered when the picker is not showing. Both are placed in plate px and
+ * written from the corner of the box that holds them.
  *
  * @param {HTMLElement | null} el
  * @param {ListRequest | null} req
@@ -51,11 +53,12 @@ function onPlate(el, face) {
 function place(el, req) {
   const face = el?.closest(".plate");
   if (!el || !face || !req) return;
+  const o = originOf(el, face);
   if (!isPanel(kindOf(req.key))) {
     const b = /** @type {HTMLElement | null} */ (face.querySelector(".body"));
     const top = b?.offsetTop ?? 0;
     el.style.left = "";
-    el.style.top = `${top}px`;
+    el.style.top = `${top - o.y}px`;
     el.style.height = `${face.clientHeight - top - 2}px`;
     return;
   }
@@ -64,8 +67,8 @@ function place(el, req) {
   const fit = plate.value;
   const trigger = tr?.offsetParent ? { ...onPlate(tr, face), h: tr.offsetHeight } : null;
   const at = parkAt({ panel: { w: el.offsetWidth, h: el.offsetHeight }, trigger, plate: { w: fit.w, h: fit.h } });
-  el.style.left = `${at.left}px`;
-  el.style.top = `${at.top}px`;
+  el.style.left = `${at.left - o.x}px`;
+  el.style.top = `${at.top - o.y}px`;
 }
 
 /**
