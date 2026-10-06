@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { railBreak, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
@@ -314,4 +314,8 @@ test("test_a_stage_the_preferences_hide_is_hidden", () => {
     idsWhere({ hidden: ["loudness", "speakers"] }, (s) => s.hidden),
     ["loudness", "speakers"],
   );
+});
+
+test("test_two_poly_sinc_filters_share_their_first_part", () => {
+  assert.equal(railBreak(CONV.filter1x)[0], railBreak("poly-sinc-xtr-short-mp-2s")[0]);
 });

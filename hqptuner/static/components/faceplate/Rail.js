@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { railNow, railStages, railValue } from "../../store/faceplate/chain.js";
+import { railBreak, railNow, railStages, railValue } from "../../store/faceplate/chain.js";
 import { openStage, toggleStage, plate } from "../../store/faceplate/view.js";
 import { lampDots, wirePath } from "../../model/gauges/wire.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
@@ -53,6 +53,18 @@ function drawWire(rail, scale) {
 }
 
 /**
+ * A value that wraps only between its parts: a lone part prints as text, and several print unbroken with a break
+ * opportunity between each.
+ *
+ * @param {string} value
+ */
+function valueParts(value) {
+  const parts = railBreak(value);
+  if (parts.length < 2) return value;
+  return parts.map((p, i) => html`${i ? html`<wbr />` : null}<span class="nb">${p}</span>`);
+}
+
+/**
  * One stage's button: `alert` the blink up on it, `dead` when the alerts darken it.
  *
  * @param {{ st: RailStage, open: boolean, alert: string | undefined, dead: boolean }} props
@@ -81,7 +93,7 @@ function Stage({ st, open, alert, dead }) {
     >
       <span class=${st.on ? "lamp on" : "lamp"}></span>
       <span class="n">${st.name}</span>
-      <span class="v">${railValue(st, dead)}</span>
+      <span class="v">${valueParts(railValue(st, dead))}</span>
     </button>
   `;
 }

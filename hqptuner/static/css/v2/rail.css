@@ -12,6 +12,7 @@
 /* A name that wraps (the DSD conversion stage): the lamp sits on its first line, 22px line (14px × --lh-eng). */
 .st.wrap .lamp{align-self:start;margin-top:6.5px}
 .st.sub{padding:1px 0 1px 20px}
+.st .v .nb{white-space:nowrap}   /* a value split into parts (store/faceplate/chain.js railBreak) wraps only between them */
 .st .v:empty{display:none}   /* a stage with no value (an unlit one, or a lit one with nothing to name) */
 .st.sub .n{font-size:12.5px;letter-spacing:.12em;font-weight:600}
 .st.sub2{padding-left:40px}

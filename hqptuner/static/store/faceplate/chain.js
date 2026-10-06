@@ -238,6 +238,17 @@ export function railStages(r) {
  */
 export const railValue = (st, dead) => (st.on && !st.byp && !dead ? st.value : "");
 
+const POLY_SINC = "poly-sinc-";
+
+/**
+ * A rail value in the parts it may wrap between: a poly-sinc filter's family prefix and the rest, anything else whole.
+ *
+ * @param {string} value
+ * @returns {string[]}
+ */
+export const railBreak = (value) =>
+  value.startsWith(POLY_SINC) && value.length > POLY_SINC.length ? [POLY_SINC, value.slice(POLY_SINC.length)] : [value];
+
 /**
  * The engine name of the enumeration item at the list index State reports for one attribute, "" when there is none.
  *
