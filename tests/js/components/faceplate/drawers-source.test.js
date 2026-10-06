@@ -24,6 +24,7 @@ import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/dr
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
+  METER_RANGES,
   apodWindow,
   meterChannel,
   meterRange,
@@ -40,6 +41,10 @@ import { attr, classes, elements, hasAttr, text } from "../../support/markup.js"
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const SCHEMA = { id: "source", title: "Source", aria: "Source", tabs: [{ id: "meter", label: "Meter", body: [] }] };
+
+// The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [FIRST = "", SECOND = ""] = METER_RANGES;
+const LAST = METER_RANGES.at(-1) ?? "";
 
 /**
  * Open a fresh feed over one /api/status object, and send the geometry event when one is given.
@@ -86,7 +91,7 @@ beforeEach(() => {
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");
-  setMeterRange("90");
+  setMeterRange(FIRST);
   stream();
 });
 
@@ -118,8 +123,8 @@ test("test_the_channel_switch_lights_the_picked_channel", () => {
 });
 
 test("test_the_range_switch_lights_the_picked_range", () => {
-  setMeterRange("200");
-  assert.deepEqual(lit("meter-range"), ["200"]);
+  setMeterRange(SECOND);
+  assert.deepEqual(lit("meter-range"), [SECOND]);
 });
 
 test("test_the_window_switch_lights_the_picked_window", () => {
@@ -133,8 +138,8 @@ test("test_tapping_a_channel_picks_it", () => {
 });
 
 test("test_tapping_a_range_picks_it", () => {
-  tap("200");
-  assert.equal(meterRange.value, "200");
+  tap(LAST);
+  assert.equal(meterRange.value, LAST);
 });
 
 test("test_tapping_a_window_picks_it", () => {

@@ -118,14 +118,36 @@ const TINY = { nyquist: NYQUIST, channels: 1, bins: 2 };
 const feedTiny = (count, ms) => feed(count, ms, [channel(new Float32Array(2).fill(-30))], TINY);
 
 /**
- * The loudest row of a slice and its byte.
+ * Every bin silent except the one nearest each of `hzs`, at `db`.
+ *
+ * @param {number[]} hzs
+ * @param {number} db
+ */
+function tones(hzs, db) {
+  const bins = flat(SILENT);
+  for (const hz of hzs) bins[Math.round((hz / NYQUIST) * (BINS - 1))] = db;
+  return bins;
+}
+
+/**
+ * The loudest row of a slice. A row counts down from full scale, so the loudest holds the smallest value.
  *
  * @param {ArrayLike<number>} bytes
  */
-function loudest(bytes) {
+function loudestRow(bytes) {
   const all = Array.from(bytes);
-  const byte = Math.min(...all);
-  return { row: all.indexOf(byte), byte };
+  return all.indexOf(Math.min(...all));
+}
+
+/**
+ * The value the first row of each drawn slice holds, after one slice per level of `levels` is fed as flat stereo
+ * frames, oldest first.
+ *
+ * @param {number[]} levels  dBFS
+ */
+function rowValues(levels) {
+  for (const db of levels) feed(5, 40, [channel(flat(db)), channel(flat(db))]);
+  return rows("0").map((slice) => slice[0]);
 }
 
 beforeEach(() => {
@@ -141,41 +163,57 @@ beforeEach(() => {
 
 // --- the slice's rows ----------------------------------------------------------------------------------------------
 
-const LEVELS = [
-  { name: "a_level_inside_the_byte_range", db: -30, byte: 60 },
-  { name: "a_level_past_the_last_byte", db: -150, byte: 255 },
-];
-
-for (const { name, db, byte } of LEVELS) {
-  test(`test_${name}_reads_as_480_rows_of_its_byte`, () => {
-    feed(5, 40, [channel(flat(db)), channel(flat(db))]);
-    assert.deepEqual(rows("0"), [new Uint8Array(ROWS).fill(byte)]);
-  });
-}
-
-const TONES = [
-  { name: "a_tone_near_a_quarter_of_nyquist", hz: 6025, db: -12, row: 120, byte: 24 },
-  { name: "a_tone_near_five_eighths_of_nyquist", hz: 15070, db: -30, row: 301, byte: 60 },
-];
-
-for (const { name, hz, db, row, byte } of TONES) {
-  test(`test_${name}_lands_in_the_row_its_frequency_falls_in_at_its_level`, () => {
-    feed(5, 40, [channel(tone(hz, db)), channel(flat(SILENT))]);
-    assert.deepEqual(rows("0").map(loudest), [{ row, byte }]);
-  });
-}
-
-test("test_the_sum_rows_are_the_power_average_across_channels", () => {
-  feed(5, 40, [channel(tone(6025, -12)), channel(tone(15070, -12))]);
+test("test_a_flat_level_reads_as_480_rows_alike", () => {
+  feed(5, 40, [channel(flat(-30)), channel(flat(-30))]);
   assert.deepEqual(
-    rows("sum").map((sum) => [sum[120], sum[301]]),
-    [[30, 30]],
+    rows("0").map((slice) => [slice.length, new Set(Array.from(slice)).size]),
+    [[ROWS, 1]],
   );
 });
 
+// A row counts down from full scale, so a deeper level keeps a larger value.
+test("test_levels_30_130_and_200_db_down_keep_rows_apart_and_in_order", () => {
+  const kept = rowValues([-30, -130, -200]);
+  assert.deepEqual(
+    [...new Set(kept)].sort((a, b) => a - b),
+    kept,
+  );
+});
+
+test("test_a_level_below_300_db_down_reads_as_300_db_down", () => {
+  const [floor, below] = rowValues([-300, -400]);
+  assert.equal(below, floor);
+});
+
+const TONES = [
+  { name: "a_tone_near_a_quarter_of_nyquist", hz: 6025, db: -12, row: 120 },
+  { name: "a_tone_near_five_eighths_of_nyquist", hz: 15070, db: -30, row: 301 },
+];
+
+for (const { name, hz, db, row } of TONES) {
+  test(`test_${name}_lands_in_the_row_its_frequency_falls_in`, () => {
+    feed(5, 40, [channel(tone(hz, db)), channel(flat(SILENT))]);
+    assert.deepEqual(rows("0").map(loudestRow), [row]);
+  });
+}
+
+// A -12 dB tone in one channel beside a silent one averages to -15.01 dB in power: the second slice carries that
+// level in both channels.
+test("test_the_sum_rows_are_the_power_average_across_channels", () => {
+  feed(5, 40, [channel(tone(6025, -12)), channel(tone(15070, -12))]);
+  const both = tones([6025, 15070], -15.01);
+  feed(5, 40, [channel(both), channel(both)]);
+  const [split, alike] = rows("sum").map((sum) => [sum[120], sum[301]]);
+  assert.deepEqual(split, alike);
+});
+
+// Three frames at -10 dB and two at -20 average to -11.94 dB in power, where their dB mean is -14: the second slice
+// carries the power average.
 test("test_the_frames_a_slice_covers_fold_as_their_power_average", () => {
   for (const db of [-10, -20, -10, -20, -10]) addSpectrumFrame(GEO, [channel(flat(db)), channel(flat(db))], 40);
-  assert.deepEqual(rows("0"), [new Uint8Array(ROWS).fill(24)]);
+  feed(5, 40, [channel(flat(-11.94)), channel(flat(-11.94))]);
+  const [folded, level] = rows("0").map((slice) => slice[0]);
+  assert.equal(folded, level);
 });
 
 // --- closing a slice -----------------------------------------------------------------------------------------------

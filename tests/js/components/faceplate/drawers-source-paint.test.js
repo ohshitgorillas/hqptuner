@@ -30,7 +30,12 @@ import {
   takeMeterFrames,
   toSpectrogram,
 } from "../../../../hqptuner/static/store/meter/feed.js";
-import { setApodWindow, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
+import {
+  METER_RANGES,
+  setApodWindow,
+  setMeterChannel,
+  setMeterRange,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 
@@ -39,7 +44,11 @@ import { useStorage } from "../../support/storage.js";
 /** @typedef {{ width: number, height: number, puts: Put[], draws: Draw[], getContext: () => unknown }} FakeCanvas */
 
 const STRIP_WIDTH = 600;
-const BINS = "AQY8/w==";
+const BINS = "AQAGADwAWAI=";
+
+// The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [FIRST_RANGE = ""] = METER_RANGES;
+const LAST_RANGE = METER_RANGES.at(-1) ?? "";
 
 /**
  * The global paint.js reads the stylesheet's tokens through, viewed as an optional member.
@@ -131,7 +140,7 @@ beforeEach(() => {
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");
-  setMeterRange("90");
+  setMeterRange(FIRST_RANGE);
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
@@ -179,7 +188,7 @@ test("test_closes_too_short_to_move_a_column_put_nothing_after_the_first_paint",
 
 test("test_a_change_of_range_repaints_the_full_width", () => {
   const { spec } = mounted();
-  setMeterRange("200");
+  setMeterRange(LAST_RANGE);
   assert.deepEqual(spec.puts, [
     { x: 0, width: SPEC_SIZE.width },
     { x: 0, width: SPEC_SIZE.width },

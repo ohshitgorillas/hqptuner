@@ -20,7 +20,7 @@
 export const W = 1200;
 export const H = 480;
 const STEPS = 256;
-const ROW_STEP_DB = 0.5;
+const ROW_STEP_DB = 1.2;
 
 /** @param {number} c 0..1 */
 const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);

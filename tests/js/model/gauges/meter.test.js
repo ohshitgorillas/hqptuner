@@ -158,12 +158,12 @@ const LONE = Float32Array.of(-100, -100, -100, -100, -10, -100, -100, -100, -100
 
 // ── Bin bytes ────────────────────────────────────────────────────────────
 
-test("test_each_bin_byte_decodes_to_half_a_db_below_full_scale_per_step_in_bin_order", () => {
-  assert.deepEqual(Array.from(decodeBins("ASj/")), [-0.5, -20, -127.5]);
+test("test_each_bin_decodes_from_two_bytes_low_first_to_half_a_db_below_full_scale_per_step_in_bin_order", () => {
+  assert.deepEqual(Array.from(decodeBins("AQAoAJAB")), [-0.5, -20, -200]);
 });
 
-test("test_a_padded_bin_string_decodes_every_byte_and_no_more", () => {
-  assert.deepEqual(Array.from(decodeBins("P/8=")), [-31.5, -127.5]);
+test("test_a_padded_bin_string_decodes_every_bin_and_no_more", () => {
+  assert.deepEqual(Array.from(decodeBins("PwBYAg==")), [-31.5, -300]);
 });
 
 // ── Folding feed frames ──────────────────────────────────────────────────

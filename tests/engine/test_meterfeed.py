@@ -10,8 +10,9 @@ channel's power sits in the bin nearest its tone and at its floor everywhere
 else. The transform time is one hop of ``xformLength - 1`` samples at twice
 the bandwidth.
 
-A `frame` item carries each channel's bins as standard padded base64 of one
-byte per bin, DC first, decoding to ``-byte * BIN_STEP_DB`` dBFS.
+A `frame` item carries each channel's bins as standard padded base64 of two
+bytes per bin, low byte first, DC first, each bin a count of steps decoding to
+``-step * BIN_STEP_DB`` dBFS.
 
 The feed's items are ``(event, data)`` pairs read off the queue `subscribe()`
 hands back, drained after every `add`.
@@ -46,7 +47,7 @@ FLOOR_REAL = 1e-3
 TONE_REAL = 1.0
 TONE_HZ = 3000.0
 
-#: dB per byte of a decoded bin.
+#: dB per step of a decoded bin.
 BIN_STEP_DB = 0.5
 
 #: Nyquist of a 44.1k, a 96k and a 192k source.
@@ -154,15 +155,16 @@ def _first_geometry(items: list[Item]) -> dict[str, Any]:
     return {}
 
 
-def _bin_bytes(items: list[Item], channel: int) -> bytes:
-    """The raw bytes of one channel's bins in the first `frame` item; empty where it carries none."""
+def _bin_steps(items: list[Item], channel: int) -> list[int]:
+    """One channel's bins in the first `frame` item, each as its steps below full scale; empty where it carries none."""
     channels = list(_first_frame(items).get("channels", []))
     text = dict(channels[channel]).get("bins", "") if channel < len(channels) else ""
-    return base64.b64decode(str(text), validate=True)
+    raw = base64.b64decode(str(text), validate=True)
+    return [low | high << 8 for low, high in zip(raw[::2], raw[1::2], strict=False)]
 
 
 def _decoded(items: list[Item], channel: int) -> list[float]:
-    return [-byte * BIN_STEP_DB for byte in _bin_bytes(items, channel)]
+    return [-step * BIN_STEP_DB for step in _bin_steps(items, channel)]
 
 
 def _loudest_bin(items: list[Item], channel: int) -> int:
@@ -177,10 +179,10 @@ def _bin_db(items: list[Item], channel: int, index: int) -> float:
     return decoded[index] if index < len(decoded) else math.nan
 
 
-def _bin_byte(items: list[Item], channel: int, index: int) -> int:
-    """One bin of one channel as its raw byte; -1 where it carries none."""
-    raw = _bin_bytes(items, channel)
-    return raw[index] if index < len(raw) else -1
+def _bin_step(items: list[Item], channel: int, index: int) -> int:
+    """One bin of one channel as its steps below full scale; -1 where it carries none."""
+    steps = _bin_steps(items, channel)
+    return steps[index] if index < len(steps) else -1
 
 
 # --- line 1: frame events run at the refresh rate of the source -------------
@@ -235,7 +237,7 @@ async def test_each_channels_tone_decodes_loudest_in_its_own_bin(
     assert _loudest_bin(items, channel) == _tone_bin(tones[channel], bandwidth)
 
 
-@pytest.mark.parametrize("level", [-12.3, -37.8], ids=["-12.3 dB", "-37.8 dB"])
+@pytest.mark.parametrize("level", [-12.3, -37.8, -200.0], ids=["-12.3 dB", "-37.8 dB", "-200 dB"])
 @pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
 async def test_a_tone_decodes_within_half_a_db_of_its_level(bandwidth: float, level: float) -> None:
     mono = _frame([Channel(tone_real=10 ** (level / 20))], bandwidth)
@@ -245,10 +247,10 @@ async def test_a_tone_decodes_within_half_a_db_of_its_level(bandwidth: float, le
 
 @pytest.mark.parametrize("index", [0, BINS - 1], ids=["DC", "Nyquist"])
 @pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
-async def test_a_silent_bin_decodes_as_255(bandwidth: float, index: int) -> None:
+async def test_a_silent_bin_travels_as_step_600(bandwidth: float, index: int) -> None:
     mono = _frame([Channel(floor_real=0.0)], bandwidth)
     items = await _items([], then=mono)
-    assert _bin_byte(items, 0, index) == 255
+    assert _bin_step(items, 0, index) == 600
 
 
 # --- line 4: a frame item holds the stride's peak and a blend of its rms ----

@@ -18,12 +18,21 @@ import { sourceMeter, stripEvents } from "../../../../hqptuner/static/store/face
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
-import { setApodWindow, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
+import {
+  METER_RANGES,
+  setApodWindow,
+  setMeterChannel,
+  setMeterRange,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { feed, setPollStep } from "../../support/apodpolls.js";
 
 const QUIET_MS = 2000; // the feed's silence threshold, store/meter/feed.js
+
+// The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [FIRST_RANGE = ""] = METER_RANGES;
+const LAST_RANGE = METER_RANGES.at(-1) ?? "";
 
 let now = 0;
 const clock = () => now;
@@ -50,7 +59,7 @@ beforeEach(() => {
   matrixConfig.value = null;
   setApodWindow("60");
   setMeterChannel("sum");
-  setMeterRange("90");
+  setMeterRange(FIRST_RANGE);
   setPollStep(1);
   stream();
 });
@@ -134,8 +143,8 @@ test("test_a_picked_channel_the_source_lacks_falls_back_to_the_sum", () => {
 // --- range and window ----------------------------------------------------------------------------------------------
 
 test("test_the_colour_span_is_the_picked_range", () => {
-  setMeterRange("200");
-  assert.equal(sourceMeter().range, 200);
+  setMeterRange(LAST_RANGE);
+  assert.equal(sourceMeter().range, Number(LAST_RANGE));
 });
 
 test("test_a_timed_window_spans_its_seconds", () => {

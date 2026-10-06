@@ -19,14 +19,20 @@ import assert from "node:assert/strict";
 import { pageMeter } from "../../../../hqptuner/static/store/faceplate/page/meter.js";
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { METER_RANGES, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { PAGE_RANGES, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 
 const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
+
+// The Ranges each switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [PAGE_FIRST = "", PAGE_SECOND = ""] = PAGE_RANGES;
+const PAGE_LAST = PAGE_RANGES.at(-1) ?? "";
+const [METER_FIRST = ""] = METER_RANGES;
+const METER_LAST = METER_RANGES.at(-1) ?? "";
 
 /**
  * A geometry event's data.
@@ -55,8 +61,8 @@ beforeEach(() => {
   useStorage();
   matrixConfig.value = null;
   setMeterChannel("sum");
-  setMeterRange("90");
-  setPageRange("90");
+  setMeterRange(METER_FIRST);
+  setPageRange(PAGE_FIRST);
   viewport.value = FULL;
   stream();
 });
@@ -75,27 +81,24 @@ test("test_nothing_playing_shows_the_idle_line", () => {
 // --- the page's range ----------------------------------------------------------------------------------------------
 
 test("test_the_range_is_the_pages_own_range", () => {
-  setPageRange("120");
-  assert.equal(pageMeter().range, 120);
+  setPageRange(PAGE_LAST);
+  assert.equal(pageMeter().range, Number(PAGE_LAST));
 });
 
 test("test_the_drawers_range_leaves_the_pages_range_standing", () => {
-  setPageRange("60");
-  setMeterRange("120");
-  assert.equal(pageMeter().range, 60);
+  setPageRange(PAGE_SECOND);
+  setMeterRange(METER_LAST);
+  assert.equal(pageMeter().range, Number(PAGE_SECOND));
 });
 
 // --- the dB scale --------------------------------------------------------------------------------------------------
 
-test("test_the_db_scale_ends_at_a_60_db_range", () => {
-  setPageRange("60");
-  assert.equal(pageMeter().db.at(-1)?.db, -60);
-});
-
-test("test_the_db_scale_ends_at_a_120_db_range", () => {
-  setPageRange("120");
-  assert.equal(pageMeter().db.at(-1)?.db, -120);
-});
+for (const range of PAGE_RANGES) {
+  test(`test_the_db_scale_ends_at_the_floor_of_the_offered_${range}_db_range`, () => {
+    setPageRange(range);
+    assert.equal(pageMeter().db.at(-1)?.db, -Number(range));
+  });
+}
 
 test("test_the_db_scale_runs_from_full_scale_on_top_to_the_floor_at_the_bottom", () => {
   const { db } = pageMeter();

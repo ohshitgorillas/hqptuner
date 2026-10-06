@@ -45,7 +45,7 @@ const CHOICES = [
   { pref: "dacChip", key: "hqptuner.dacChip", pick: "ess", other: "other", outside: "sabre" },
   { pref: "topOfPage", key: "hqptuner.topOfPage", pick: "spectrum", other: "profile", outside: "matrix" },
   { pref: "bottomBar", key: "hqptuner.bottomBar", pick: "none", other: "switcher", outside: "volume" },
-  { pref: "pageRange", key: "hqptuner.pageRange", pick: "120", other: "60", outside: "200" },
+  { pref: "pageRange", key: "hqptuner.pageRange", pick: "240", other: "180", outside: "90" },
 ];
 
 const K_HIDDEN = "hqptuner.hiddenStages";
@@ -103,8 +103,8 @@ test("test_a_stored_hidden_stage_list_loads_without_the_stage_the_rail_cannot_hi
   assert.deepEqual(HIDDEN_AT_LOAD, ["speakers"]);
 });
 
-test("test_a_browser_with_no_stored_page_range_loads_the_90_db_range", () => {
-  assert.equal(unset.pageRange.value, "90");
+test("test_a_browser_with_no_stored_page_range_loads_the_range_a_stored_one_outside_the_set_falls_back_to", () => {
+  assert.equal(unset.pageRange.value, outsider.pageRange.value);
 });
 
 test("test_a_stored_pinned_rates_opt_in_loads_on", () => {

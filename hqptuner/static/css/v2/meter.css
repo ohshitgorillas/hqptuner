@@ -84,7 +84,7 @@
 .pmeter>.mnone{min-height:0;background:var(--glass);border:1px solid var(--shade);border-radius:3px;box-shadow:var(--well)}
 /* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads (Range / Floor stay at their
    defaults) and no readout table; every other axis label drops so the short scales stay legible.
-   Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 90 dB span is a smear, not a reading; the
+   Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 120 dB span is a smear, not a reading; the
    floor makes the page overrun instead, and the overflow rule recovers it from the option copy (conversion.js fit). */
 .sec.psrc.slim{min-height:148px;gap:8px}
 .slim .pmeter .mhead,.slim .pmeter .lvtab{display:none}

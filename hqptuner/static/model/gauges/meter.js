@@ -6,7 +6,9 @@ const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_DBPS = 30; // shown spectrum fall, dB/s
 const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
 const SPEC_DECAY_DBPS = 10; // spectrum peak decay once released, dB/s
-const BIN_STEP_DB = 0.5; // one bin byte's step below full scale on the feed (engine/meterfeed.py)
+const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed (engine/meterfeed.py)
+const BIN_BYTES = 2; // bytes a bin's steps travel in, low byte first
+const HIGH_BYTE = 256; // steps one count of the high byte stands for
 const PEAK_FALL_DBPS = 20; // level peak fall, dB/s
 const RMS_TAU_S = 0.3; // level RMS integration time
 const HOLD_MS = 1500; // level hold before it decays
@@ -164,15 +166,18 @@ const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
 const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
 
 /**
- * A frame's bins off the wire: one byte per bin, base64, each `BIN_STEP_DB` per step below full scale.
+ * A frame's bins off the wire: two bytes per bin, low byte first, base64, each `BIN_STEP_DB` per step below full scale.
  *
  * @param {string} text
  * @returns {Float32Array}  dBFS
  */
 export function decodeBins(text) {
   const raw = atob(text);
-  const out = new Float32Array(raw.length);
-  for (let i = 0; i < raw.length; i++) out[i] = -raw.charCodeAt(i) * BIN_STEP_DB;
+  const out = new Float32Array(Math.floor(raw.length / BIN_BYTES));
+  for (let i = 0; i < out.length; i++) {
+    const steps = raw.charCodeAt(BIN_BYTES * i) + HIGH_BYTE * raw.charCodeAt(BIN_BYTES * i + 1);
+    out[i] = -steps * BIN_STEP_DB;
+  }
   return out;
 }
 

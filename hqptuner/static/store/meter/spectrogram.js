@@ -8,9 +8,9 @@
 //
 // A slice keeps every channel's levels and their power-average sum, so the
 // channel picker redraws the whole history, each as ROWS rows from 0 Hz to the
-// Nyquist it was measured at, one byte a row at the feed's 0.5 dB step: a
-// change of source rate mid-history leaves the older slices drawn at their own
-// frequencies.
+// Nyquist it was measured at, one byte a row at ROW_STEP_DB below full scale,
+// which reaches the feed's floor: a change of source rate mid-history leaves
+// the older slices drawn at their own frequencies.
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter.js";
@@ -27,8 +27,8 @@ const SLICE_MS = 200;
 const MAX_SLICES = 36000;
 // Rows a slice keeps from 0 Hz to its Nyquist.
 const ROWS = 480;
-const ROW_STEP_DB = 0.5;
-const ROW_MAX = 255;
+const ROW_STEP_DB = 1.2;
+const ROW_MAX = 250;
 
 /** @typedef {import("./feed.js").Geometry} Geometry */
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
@@ -93,7 +93,7 @@ function dropPartial(h) {
 }
 
 /**
- * Bins as a slice's rows: the loudest bin under each row, one byte a 0.5 dB step below full scale.
+ * Bins as a slice's rows: the loudest bin under each row, one byte a ROW_STEP_DB step below full scale.
  *
  * @param {Float32Array} bins  dBFS
  * @returns {Uint8Array}

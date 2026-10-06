@@ -3,7 +3,8 @@
 Frames arrive at the transform hop rate (~43/s at 44.1k, 187/s at 192k). A screen shows at most one picture per
 refresh, so the feed sends every frame until frames outrun ``REFRESH_HZ`` and folds the fewest whole frames that bring
 it back under: the stride. Across a stride the peak is max-held and the rms and each bin's power are power-averaged, so
-folding loses nothing a meter shows. Each bin travels as one byte, ``BIN_STEP_DB`` per step below full scale.
+folding loses nothing a meter shows. Each bin travels as two bytes, low byte first, ``BIN_STEP_DB`` per step below full
+scale.
 
 A ``geometry`` event, carrying what a page needs to lay the bars out, always goes ahead of the first ``frame`` it
 describes. A geometry change mid-stride drops the partial stride rather than mixing two geometries in one event.
@@ -57,9 +58,9 @@ class Event(NamedTuple):
 
 # The display refresh rate the stride folds frames down to.
 REFRESH_HZ = 60
-# One bin byte's step below full scale, dB: 255 steps reach the widest Range and a little past it.
+# One bin step below full scale, dB, and the last step a bin takes: 600 steps reach the widest Range.
 BIN_STEP_DB = 0.5
-BIN_MAX = 255
+BIN_MAX = 600
 # Events a subscriber's queue holds before its oldest is dropped.
 QUEUE_DEPTH = 8
 # Per-channel level block ahead of the transform values: peakMax, peak, rms, rmsMax.
@@ -115,10 +116,10 @@ def _db(power: npt.NDArray[np.float64]) -> list[float]:
 
 
 def _bin_bytes(power: npt.NDArray[np.float64]) -> str:
-    """Bin powers as base64 bytes, each ``BIN_STEP_DB`` per step below full scale; a zero power is the last step."""
+    """Bin powers as base64, two bytes a bin, low first, ``BIN_STEP_DB`` a step; a zero power is the last step."""
     with np.errstate(divide="ignore"):
         steps = np.rint(-10 * np.log10(power) / BIN_STEP_DB)
-    return base64.b64encode(np.clip(steps, 0, BIN_MAX).astype(np.uint8).tobytes()).decode("ascii")
+    return base64.b64encode(np.clip(steps, 0, BIN_MAX).astype("<u2").tobytes()).decode("ascii")
 
 
 def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], ms: float) -> Event:

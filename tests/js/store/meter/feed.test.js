@@ -46,7 +46,7 @@ const frame = (ms, ...bins) => ({ channels: bins.map((b) => ({ peak: -3.1, rms: 
  *
  * @param {...number} times
  */
-const send = (...times) => times.forEach((ms) => lastStream()?.emit("frame", frame(ms, "AQY8/w==")));
+const send = (...times) => times.forEach((ms) => lastStream()?.emit("frame", frame(ms, "AQAGADwAWAI=")));
 
 /** The frame time of each slice the spectrogram draws, oldest first. */
 const drawn = () => spectrogramCells.value.map((/** @type {{ ms: number }} */ c) => c.ms);
@@ -88,20 +88,20 @@ test("test_a_geometry_event_sets_the_nyquist_channel_count_and_bin_count", () =>
 });
 
 test("test_a_frames_base64_bins_come_back_in_dbfs_per_channel", () => {
-  lastStream()?.emit("frame", frame(21.333, "AQY8/w==", "AhTICg=="));
+  lastStream()?.emit("frame", frame(21.333, "AQAGADwAWAI=", "AgAUAJABCgA="));
   assert.deepEqual(
     takeMeterFrames().map((f) => f.channels.map((c) => Array.from(c.bins))),
     [
       [
-        [-0.5, -3, -30, -127.5],
-        [-1, -10, -100, -5],
+        [-0.5, -3, -30, -300],
+        [-1, -10, -200, -5],
       ],
     ],
   );
 });
 
 test("test_taken_frames_are_not_taken_again", () => {
-  lastStream()?.emit("frame", frame(21.333, "AQY8/w=="));
+  lastStream()?.emit("frame", frame(21.333, "AQAGADwAWAI="));
   assert.deepEqual([takeMeterFrames().length, takeMeterFrames().length], [1, 0]);
 });
 

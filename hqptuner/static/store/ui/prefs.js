@@ -238,8 +238,8 @@ const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
 export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
 export const METER_SCALES = ["log", "linear"];
 export const [meterScale, setMeterScale] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
-export const METER_RANGES = ["60", "90", "120", "200", "300"];
-export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "90");
+export const METER_RANGES = ["120", "180", "240", "300"];
+export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "120");
 
 // The LIVE switch. Persisted like every other pref, so a reload lands back on
 // the page the user was working from rather than dropping them into the tabs.

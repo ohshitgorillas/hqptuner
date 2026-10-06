@@ -22,7 +22,7 @@ export const DAC_TYPES = ["other", "r2r"];
 export const DAC_CHIPS = ["other", "ess"];
 export const TOP_OF_PAGE = ["auto", "profile", "spectrum"];
 export const BOTTOM_BARS = ["switcher", "none"];
-export const PAGE_RANGES = ["60", "90", "120"];
+export const PAGE_RANGES = ["120", "180", "240", "300"];
 export const HIDEABLE_STAGES = ["dsd", "speakers", "crossfeed", "loudness", "correction"];
 
 const K_HIDDEN = "hqptuner.hiddenStages";
@@ -32,7 +32,7 @@ export const [dacType, setDacType] = enumPref("hqptuner.dacType", DAC_TYPES, "ot
 export const [dacChip, setDacChip] = enumPref("hqptuner.dacChip", DAC_CHIPS, "other");
 export const [topOfPage, setTopOfPage] = enumPref("hqptuner.topOfPage", TOP_OF_PAGE, "auto");
 export const [bottomBar, setBottomBar] = enumPref("hqptuner.bottomBar", BOTTOM_BARS, "switcher");
-export const [pageRange, setPageRange] = enumPref("hqptuner.pageRange", PAGE_RANGES, "90");
+export const [pageRange, setPageRange] = enumPref("hqptuner.pageRange", PAGE_RANGES, "120");
 
 /**
  * The strings in a stored JSON list. Unset, junk, a value that is not a list

@@ -23,7 +23,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { pageRange, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { PAGE_RANGES, pageRange, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -34,6 +34,10 @@ import { attr, classes, elements, hasAttr, text } from "../../support/markup.js"
 
 const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
+
+// The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
+const [FIRST = "", SECOND = ""] = PAGE_RANGES;
+const LAST = PAGE_RANGES.at(-1) ?? "";
 
 /**
  * Open a fresh feed over one /api/status object, and send the geometry event.
@@ -87,7 +91,7 @@ function tap(v) {
 
 beforeEach(() => {
   useStorage();
-  setPageRange("90");
+  setPageRange(FIRST);
   viewport.value = FULL;
   stream();
 });
@@ -116,13 +120,13 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
 });
 
 test("test_the_range_switch_lights_the_pages_range", () => {
-  setPageRange("120");
-  assert.deepEqual(lit(), ["120"]);
+  setPageRange(SECOND);
+  assert.deepEqual(lit(), [SECOND]);
 });
 
 test("test_tapping_a_range_picks_it", () => {
-  tap("60");
-  assert.equal(pageRange.value, "60");
+  tap(LAST);
+  assert.equal(pageRange.value, LAST);
 });
 
 test("test_the_frequency_axis_labels_the_source_nyquist", () => {
@@ -131,14 +135,14 @@ test("test_the_frequency_axis_labels_the_source_nyquist", () => {
 });
 
 test("test_the_level_scale_ends_at_the_pages_range", () => {
-  setPageRange("60");
+  setPageRange(SECOND);
   const scale = withClass("lvs")[0];
   const last = scale
     ? elements(scale.html)
         .filter((e) => e.name === "span")
         .at(-1)
     : undefined;
-  assert.equal(num(last), -60);
+  assert.equal(num(last), -Number(SECOND));
 });
 
 test("test_a_bar_before_its_first_reading_hides_its_hold_mark", () => {

@@ -17,8 +17,8 @@ const RAMP = rampFrom(["#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#
 /** @type {[number, number, number][]} */
 const STEPS = Array.from({ length: 256 }, (_, i) => [i, 255 - i, 128]);
 
-// At this range a byte b (dBFS -b/2) takes step 255 - b: one step per byte.
-const BYTE_RANGE = 127.5;
+// At this range a byte b (dBFS -1.2 b) takes step 255 - b: one step per byte.
+const BYTE_RANGE = 306;
 
 const ROWS = 480;
 const NYQUIST = 22050;
@@ -93,10 +93,10 @@ test("test_a_band_at_full_scale_paints_the_ramps_top_colour", () => {
   assert.deepEqual(centreRgb(raster), RAMP[RAMP.length - 1]);
 });
 
-// Bytes 60, 240 and 250 are -30, -120 and -125 dBFS: three quarters up a
+// Bytes 25, 100 and 105 are -30, -120 and -126 dBFS: three quarters up a
 // 120 dB range, its floor, and below it.
 test("test_a_level_takes_its_step_from_the_ranges_floor_to_full_scale", () => {
-  const levels = slice((r) => ({ 479: 60, 478: 240, 477: 250 })[r] ?? 0);
+  const levels = slice((r) => ({ 479: 25, 478: 100, 477: 105 })[r] ?? 0);
   const raster = rasterize(STEPS, {
     cells: [{ ms: SPAN, nyquist: NYQUIST, slices: [levels] }],
     span: SPAN,

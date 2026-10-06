@@ -74,11 +74,12 @@ const step = () => {
 const stepAt30 = () => frame(STEP_MS);
 
 /**
- * Every bin of one channel at byte `byte`, encoded as the feed sends it: dB = -byte * 0.5.
+ * Every bin of one channel at step `byte`, under 256, encoded as the feed sends it, two bytes a bin with the low one
+ * first: dB = -byte * 0.5.
  *
  * @param {number} byte
  */
-const bins = (byte) => btoa(String.fromCharCode(...new Array(BINS).fill(byte)));
+const bins = (byte) => btoa(String.fromCharCode(...new Array(BINS).fill([byte, 0]).flat()));
 
 /**
  * Send one single-channel feed frame covering `ms` of frame time.

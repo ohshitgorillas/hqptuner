@@ -4,8 +4,7 @@
 const NO_DATA = -1; // spectrogram colour index for a pixel with no column under it
 const MAX_APOD = 3; // apodizing events one strip pixel tells apart
 const RAMP_SIZE = 256; // colour ramp entries
-/** @type {Record<number, number>} */
-const DB_STEP = { 60: 10, 90: 15, 120: 20, 200: 40, 300: 50 }; // spectrum dB grid step per range
+const DB_STEPS = 6; // spectrum dB grid steps from full scale to the range's floor
 const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
 
 /**
@@ -79,16 +78,17 @@ function khzTicks(nyq) {
 }
 
 /**
- * A spectrum plot's dB ticks (full scale down to the range at the range's step) and frequency ticks, placed.
+ * A spectrum plot's dB ticks (full scale down to the range in DB_STEPS even steps) and frequency ticks, placed.
  *
  * @param {SpectrumPlot} plot
  * @returns {{ db: { db: number, y: number }[], hz: { hz: number, x: number }[] }}
  */
 export function spectrumAxes(plot) {
-  const step = DB_STEP[plot.range];
-  /** @type {{ db: number, y: number }[]} */
-  const db = [];
-  for (let d = 0; d >= -plot.range; d -= step) db.push({ db: d, y: levelY(d, plot) });
+  const step = plot.range / DB_STEPS;
+  const db = Array.from({ length: DB_STEPS + 1 }, (_, i) => {
+    const d = 0 - i * step;
+    return { db: d, y: levelY(d, plot) };
+  });
   return { db, hz: khzTicks(plot.nyq).map((hz) => ({ hz, x: freqX(hz, plot) })) };
 }
 
