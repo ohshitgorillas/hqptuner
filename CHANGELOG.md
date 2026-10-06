@@ -9,6 +9,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Spectrum display and meters** on the main page, with the spectrogram and apodizing strip in the Source drawer.
 - **Spectrum delay** makes it possible to sync the spectrum and meters to playback.
 - **Clipping lamp**, similar to the apodizing lamp.
+- **Station, Snapshot, and Profile Builders** offer guided creation and management of settings.
 
 ### Changed
 
