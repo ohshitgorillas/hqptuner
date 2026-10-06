@@ -20,10 +20,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The Setting Switcher is now a permanent fixture** along the bottom bar of the program. Can optionally be disabled.
 - **Option style now defaults to Simplified.** Standard is still available in Settings.
 
-### Fixed
-
-- **Simplified option style shows the two-stage notes in filter descriptions again.**
-
 ## [1.18.0] — 2026-10-06
 
 ### Added
