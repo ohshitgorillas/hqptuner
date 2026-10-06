@@ -202,11 +202,25 @@ test("test_the_copy_carries_the_running_options_prose", () => {
 /** How many "see more" triggers Resampling's body shows. */
 const seeMores = () => bodyEls("resampling").filter((e) => attr(e, "data-testid") === "see-more").length;
 
+/** Run the two-stage variant of the open filter, with a two-stage note in the overlay. */
+function runTwoStage() {
+  enums.value = { ...enums.value, filters: ["minphaseFIR-2s", "sinc-L"].map(item) };
+  metadata.value = {
+    ...metadata.value,
+    filters: { ...metadata.value?.filters, two_stage_note: "fixture-lead: fixture-rest." },
+  };
+}
+
 test("test_a_two_stage_copy_shows_one_more_see_more_than_its_single_stage_twin", () => {
   const single = seeMores();
-  enums.value = { ...enums.value, filters: ["minphaseFIR-2s", "sinc-L"].map(item) };
-  metadata.value = { ...metadata.value, filters: { ...metadata.value?.filters, two_stage_note: "fixture-note" } };
+  runTwoStage();
   assert.equal(seeMores(), single + 1);
+});
+
+test("test_a_two_stage_copys_popover_holds_the_two_stage_note_alone", () => {
+  runTwoStage();
+  const pop = bodyEls("resampling").find((e) => e.name === "div" && attr(e, "role") === "dialog");
+  assert.equal((pop?.html.match(/<p>/g) ?? []).length, 1);
 });
 
 test("test_the_folded_filter_reads_the_engine_name_it_runs", () => {

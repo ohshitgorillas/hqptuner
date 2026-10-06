@@ -54,9 +54,6 @@ import { notesVisible } from "./ui/prefs.js";
  * @property {string[]} more  paragraphs held behind "see more", none where nothing is held
  */
 
-/** @type {OptionProse} */
-const NO_PROSE = { text: "", more: [] };
-
 /**
  * One control's label and tooltip from settings.json, falling back to the key
  * itself and no tooltip.
@@ -184,28 +181,39 @@ const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filt
 // store/schema.js), and the sentence is only true of the SDM pair. It reads as
 // part of the filter's own description and so sits directly after it.
 /**
+ * @typedef {{ base: string, note: string }} ProseParts  a description's own prose and the two-stage note after it,
+ *   "" where the name is no '-2s' variant
+ */
+
+/**
  * @param {string} name
  * @param {Metadata} md
  * @param {boolean} sdm whether the control sits on the SDM chain
- * @returns {OptionProse}  the two-stage note held back, the rest inline
+ * @returns {ProseParts}
  */
-function filterProse(name, md, sdm) {
+function filterParts(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
-  if (!entry) return NO_PROSE;
+  if (!entry) return { base: "", note: "" };
   const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
-  return { text: joinProse(entry.description, sdmNote, entry.notes), more: heldBack(twoStage, f.two_stage_note) };
+  return { base: joinProse(entry.description, sdmNote, entry.notes), note: (twoStage && f.two_stage_note) || "" };
 }
 
-/**
- * @param {boolean} twoStage  the name is a '-2s' variant
- * @param {string | undefined} note  the shared two-stage note
- * @returns {string[]}
- */
-const heldBack = (twoStage, note) => (twoStage && note ? [note] : []);
+/** @param {ProseParts} p */
+const whole = (p) => joinProse(p.base, p.note);
 
-/** @param {OptionProse} p */
-const joined = (p) => joinProse(p.text, ...p.more);
+/**
+ * The parts split for a surface that holds the note behind "see more": the note's lead, its words before the first
+ * colon, reads inline after the prose, and the note itself is held back.
+ *
+ * @param {ProseParts} p
+ * @returns {OptionProse}
+ */
+function heldBack(p) {
+  const colon = p.note.indexOf(":");
+  const lead = colon > 0 ? p.note.slice(0, colon) : "";
+  return { text: joinProse(p.base, lead), more: p.note ? [p.note] : [] };
+}
 
 /**
  * @param {string} name
@@ -213,7 +221,7 @@ const joined = (p) => joinProse(p.text, ...p.more);
  * @param {boolean} sdm whether the control sits on the SDM chain
  * @returns {string}
  */
-const filterDescription = (name, md, sdm) => joined(filterProse(name, md, sdm));
+const filterDescription = (name, md, sdm) => whole(filterParts(name, md, sdm));
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
 /**
@@ -270,7 +278,7 @@ export function selectionDescription(entry, value, options, meta) {
  * @returns {string}
  */
 export function optionDescription(entry, option, meta) {
-  return joined(optionProse(entry, option, meta));
+  return whole(optionParts(entry, option, meta));
 }
 
 /**
@@ -281,13 +289,21 @@ export function optionDescription(entry, option, meta) {
  * @param {ControlProse} meta
  * @returns {OptionProse}
  */
-export function optionProse(entry, option, meta) {
-  if (!entry.desc) return NO_PROSE;
+export const optionProse = (entry, option, meta) => heldBack(optionParts(entry, option, meta));
+
+/**
+ * @param {SchemaField} entry
+ * @param {{ value: string | number | undefined, label: string }} option
+ * @param {ControlProse} meta
+ * @returns {ProseParts}
+ */
+function optionParts(entry, option, meta) {
+  if (!entry.desc) return { base: "", note: "" };
   if (entry.desc === "config")
-    return { text: (meta && meta.options && meta.options[String(option.value)]) || "", more: [] };
-  if (!option.label) return NO_PROSE;
+    return { base: (meta && meta.options && meta.options[String(option.value)]) || "", note: "" };
+  if (!option.label) return { base: "", note: "" };
   const md = metadata.value || {};
   if (entry.desc === "filter" || entry.desc === "sdm_filter")
-    return filterProse(option.label, md, entry.desc === "sdm_filter");
-  return { text: shaperDescription(entry.desc, option.label, md), more: [] };
+    return filterParts(option.label, md, entry.desc === "sdm_filter");
+  return { base: shaperDescription(entry.desc, option.label, md), note: "" };
 }

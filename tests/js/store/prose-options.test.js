@@ -106,17 +106,21 @@ test("test_a_modulator_label_the_overlay_does_not_know_describes_nothing", async
 
 // --- optionProse: the two-stage note held behind "see more" ------------------
 
+const LEAD = "Fixture lead";
+const NOTE = `${LEAD}: the rest of the fixture note.`;
+const LEAD_META = { ...META, filters: { ...META.filters, two_stage_note: NOTE } };
+
 /** @param {string} label */
 const prose = (label) => optionProse(schema.pcm_filter_1x, { value: "0", label }, FILTER_META);
 
 for (const plain of [false, true]) {
   test(`test_a_two_stage_filter_holds_the_two_stage_note_back_${plain ? "simplified" : "standard"}`, async () => {
-    await reset({ plain });
-    assert.deepEqual(prose("sinc-M-2s").more, [META.filters.two_stage_note]);
+    await reset({ meta: LEAD_META, plain });
+    assert.deepEqual(prose("sinc-M-2s").more, [NOTE]);
   });
 }
 
-test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin", async () => {
-  await reset();
-  assert.equal(prose("sinc-M-2s").text, prose("sinc-M").text);
+test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin_then_the_notes_lead", async () => {
+  await reset({ meta: LEAD_META });
+  assert.equal(prose("sinc-M-2s").text, `${prose("sinc-M").text} ${LEAD}`);
 });
