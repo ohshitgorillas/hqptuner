@@ -10,13 +10,15 @@ import { setupOpen, closeSetup } from "../setup.js";
 
 /**
  * An option list as a chain picker opens it: the catalog key whose list shows, the stage narrowing reads, the value
- * running in that field, and what a pick does with the option value picked.
+ * running in that field, what a pick does with the option value picked, and the id of the element a panel parks at
+ * when it is not the key's own picker.
  *
  * @typedef {object} ListRequest
  * @property {string} key
  * @property {"1x" | "nx"} stage
  * @property {string} value
  * @property {(value: string) => unknown} pick
+ * @property {string} [anchor]
  */
 
 /** The window's inner size, CSS px. The entry writes it at load and on every resize. */
@@ -62,12 +64,13 @@ export function toggleStage(id) {
 
 /**
  * A chain picker's tap: its list opens over the body, refilled from any other picker's, or closes when it is the one
- * already open. A popover over the list closes with it.
+ * already open, the same key from the same anchor. A popover over the list closes with it.
  *
  * @param {ListRequest} req
  */
 export function openOptionList(req) {
-  openList.value = openList.value?.key === req.key ? null : req;
+  const cur = openList.value;
+  openList.value = cur?.key === req.key && cur.anchor === req.anchor ? null : req;
   openPopover.value = null;
 }
 

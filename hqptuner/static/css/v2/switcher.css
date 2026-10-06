@@ -5,7 +5,7 @@
 .switcher{height:68px;padding-bottom:4px;box-sizing:border-box;flex-shrink:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px}
 .switcher .target{display:flex;flex-direction:column;gap:5px}
 .switcher .target .eng{color:var(--ink)}
-.switcher .target select.vfd{height:34px;line-height:34px;font-size:13px;width:150px}
+.switcher .target button.vfd.vpick{height:34px;line-height:34px;font-size:13px;width:150px}
 
 .slots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 .slot{display:flex;height:52px;background:var(--glass);border:1px solid var(--shade);border-radius:5px;box-shadow:var(--well);overflow:hidden}

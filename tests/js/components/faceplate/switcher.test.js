@@ -184,30 +184,47 @@ const keyEvent = (key) => ({ key, preventDefault: () => {} });
 
 // --- the target --------------------------------------------------------------------------------------------------
 
-test("test_the_target_select_lists_the_targets_with_the_current_one_selected", () => {
-  setSwitcherTarget("Nx filter");
-  const [bar] = every(drawn(), "div", "switcher");
+/** The target button, `button.vfd` inside `div.target`. @param {MarkupElement[]} all */
+const targetButton = (all) => {
+  const [bar] = every(all, "div", "switcher");
   const [box] = every(kids(bar), "div", "target");
-  const [select] = every(kids(box), "select", "vfd");
-  const options = every(inside(select), "option");
+  return { box, button: every(kids(box), "button", "vfd")[0] };
+};
+
+test("test_the_target_button_names_the_current_target_over_a_closed_menu_of_the_targets", () => {
+  setSwitcherTarget("Nx filter");
+  const all = drawn();
+  const { box, button } = targetButton(all);
+  const [menu] = all.filter(
+    (e) => attr(e, "role") === "menu" && attr(e, "data-pop") === (button && attr(button, "data-pop")),
+  );
+  const rows = every(inside(menu), "button", "pmrow");
   assert.deepEqual(
     {
       eng: every(kids(box), "span", "eng").length,
-      id: select && attr(select, "id"),
-      label: select && hasAttr(select, "aria-label"),
-      options: options.map((o) => attr(o, "value") ?? text(o)),
-      selected: options.filter((o) => hasAttr(o, "selected")).map((o) => attr(o, "value") ?? text(o)),
+      label: button && hasAttr(button, "aria-label"),
+      popup: button && attr(button, "aria-haspopup"),
+      expanded: button && attr(button, "aria-expanded"),
+      hidden: menu && hasAttr(menu, "hidden"),
+      rows: rows.map((r) => attr(r, "data-target")),
+      checked: rows.filter((r) => attr(r, "aria-checked") === "true").map((r) => attr(r, "data-target")),
     },
-    { eng: 1, id: "swtarget", label: true, options: [...TARGETS], selected: ["Nx filter"] },
+    { eng: 1, label: true, popup: "menu", expanded: "false", hidden: true, rows: [...TARGETS], checked: ["Nx filter"] },
   );
 });
 
-test("test_changing_the_target_select_switches_the_target", async () => {
-  const [select] = renderTree(html`<${Switcher} />`).seen.filter((v) => v.type === "select");
-  const ev = { target: { value: "Volume" }, currentTarget: { value: "Volume" } };
-  await fire(select, "onInput", ev);
-  await fire(select, "onChange", ev);
-  assert.equal(switcherTarget.value, "Volume");
+test("test_tapping_the_target_button_opens_its_menu", async () => {
+  await fire(controls("button", "vpick")[0], "onClick");
+  const all = drawn();
+  const { button } = targetButton(all);
+  assert.deepEqual([button && attr(button, "aria-expanded"), openMenus(all).length], ["true", 1]);
+});
+
+test("test_a_target_menu_row_switches_the_target_and_closes_the_menu", async () => {
+  await fire(controls("button", "vpick")[0], "onClick");
+  const row = controls("button", "pmrow").find((v) => propsOf(v)["data-target"] === "Volume");
+  await fire(row, "onClick");
+  assert.deepEqual([switcherTarget.value, openMenus(drawn()).length], ["Volume", 0]);
 });
 
 // --- the slots ---------------------------------------------------------------------------------------------------
@@ -255,6 +272,18 @@ test("test_tapping_a_slot_body_sends_that_slot_live", async () => {
 test("test_tapping_a_slot_pick_opens_that_slots_list", async () => {
   await fire(controls("button", "spick")[1], "onClick");
   assert.deepEqual([openList.value?.key, openList.value?.value], ["sdm_modulator", "ASDM5"]);
+});
+
+test("test_a_list_slots_pick_is_the_picker_of_its_key_and_the_list_parks_at_it", async () => {
+  await fire(controls("button", "spick")[1], "onClick");
+  const picks = slots().map((s) => every(inside(s), "button", "spick")[0]);
+  assert.deepEqual(
+    picks.map((p) => [p && attr(p, "data-list"), p && attr(p, "id") === openList.value?.anchor]),
+    [
+      ["sdm_modulator", false],
+      ["sdm_modulator", true],
+    ],
+  );
 });
 
 // --- output mode -------------------------------------------------------------------------------------------------

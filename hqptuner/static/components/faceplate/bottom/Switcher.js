@@ -1,6 +1,8 @@
-// The Setting Switcher bar at the foot of the plate: the target select and its two slots, or the volume bar while the
-// target is Volume. A slot's body sends it live, an arrow key sends the other one live, and its ▾ opens its list; under
-// Matrix profile that list is a menu of the profiles, under Output mode the two slots are the fixed modes with no ▾.
+// The Setting Switcher bar at the foot of the plate: the target button with its menu of the targets, and the target's
+// two slots, or the volume bar while the target is Volume. A slot's body sends it live, an arrow key sends the other
+// one live, and its ▾ opens its list; under Matrix profile that list is a menu of the profiles, under Output mode the
+// two slots are the fixed modes with no ▾. Every menu is the plate's own, parked at its button and flipped above it
+// when the foot is too near.
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
@@ -13,11 +15,11 @@ import {
   setSlot,
   slotList,
   slotLive,
+  pickId,
 } from "../../../store/faceplate/bottom/switcher.js";
-import { Popover, parkAt } from "../Popover.js";
+import { Popover, parkAt, triggerProps } from "../Popover.js";
 import { VolumeBar } from "../Volume.js";
 
-/** @typedef {import("../../../lib/dom.js").ControlEvent} ControlEvent */
 /** @typedef {import("../../../store/faceplate/bottom/switcher.js").SwitcherView} SwitcherView */
 /** @typedef {import("../../../store/faceplate/bottom/switcher.js").Slot} Slot */
 /** @typedef {{ current: (HTMLElement | null)[] }} Bodies */
@@ -26,6 +28,7 @@ const PICKS = ["Choose the first setting", "Choose the second setting"];
 const ARROWS = new Set(["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]);
 /** @type {{ side: import("../../../model/shell/place.js").Side, foot: number, at: import("../../../model/shell/place.js").Place }} */
 const HOW = { side: 22, foot: 14, at: { x: "start", y: "flip", gap: 8 } };
+const TARGET_MENU = "swtarget";
 
 /**
  * The popover id of a slot's menu.
@@ -35,7 +38,7 @@ const HOW = { side: 22, foot: 14, at: { x: "start", y: "flip", gap: 8 } };
 const menuId = (i) => `swpick-${i}`;
 
 /**
- * Park a slot's menu against its ▾.
+ * Park a menu against its button.
  *
  * @param {HTMLElement} panel
  */
@@ -47,20 +50,41 @@ function park(panel) {
   }
 }
 
-/** The target select over the targets, the current one selected. */
+/**
+ * A target row's tap: the menu closes and the bar switches to it.
+ *
+ * @param {string} t
+ */
+function pickTarget(t) {
+  openPopover.value = null;
+  setSwitcherTarget(t);
+}
+
+/** The target button naming the current target, and its menu of the targets, the current one checked. */
 function Target() {
   const cur = switcherTarget.value;
   return html`
     <div class="target">
       <span class="eng">Setting Switcher</span>
-      <select
-        class="vfd"
-        id="swtarget"
-        aria-label="Setting to switch"
-        onChange=${(/** @type {ControlEvent} */ e) => setSwitcherTarget(e.target.value)}
-      >
-        ${TARGETS.map((t) => html`<option selected=${t === cur}>${t}</option>`)}
-      </select>
+      <button type="button" class="vfd vpick" aria-label="Setting to switch" ...${triggerProps(TARGET_MENU, "menu")}>
+        ${cur}
+      </button>
+      <${Popover} id=${TARGET_MENU} cls="pmenu" role="menu" label="Setting to switch" park=${park}>
+        ${TARGETS.map(
+          (t) => html`
+            <button
+              type="button"
+              class="pmrow"
+              role="menuitemradio"
+              data-target=${t}
+              aria-checked=${String(t === cur)}
+              onClick=${() => pickTarget(t)}
+            >
+              ${t}
+            </button>
+          `,
+        )}
+      <//>
     </div>
   `;
 }
@@ -90,11 +114,12 @@ function arrow(e, i, bodies) {
 }
 
 /**
- * One slot: its radio body naming the setting, and its ▾.
+ * One slot: its radio body naming the setting, and its ▾, the picker of a list target's key (`data-list`) where its
+ * list parks (`id`).
  *
- * @param {{ s: Slot, i: number, mode: boolean, menu: boolean, tab: boolean, bodies: Bodies }} p
+ * @param {{ s: Slot, i: number, mode: boolean, menu: boolean, key: string | null, tab: boolean, bodies: Bodies }} p
  */
-const slot = ({ s, i, mode, menu, tab, bodies }) => html`
+const slot = ({ s, i, mode, menu, key, tab, bodies }) => html`
   <div class=${["slot", s.on ? "on" : "", mode ? "mode" : ""].filter(Boolean).join(" ")}>
     <button
       class="sbody"
@@ -117,6 +142,8 @@ const slot = ({ s, i, mode, menu, tab, bodies }) => html`
       type="button"
       aria-haspopup="dialog"
       aria-label=${PICKS[i]}
+      id=${key ? pickId(i) : undefined}
+      data-list=${key ?? undefined}
       data-pop=${menu ? menuId(i) : undefined}
       aria-expanded=${menu ? String(openPopover.value === menuId(i)) : undefined}
       hidden=${mode}
@@ -180,7 +207,7 @@ function Slots({ v }) {
   );
   return html`
     <div class="slots" role="radiogroup" aria-label="Live setting">
-      ${v.slots.map((s, i) => slot({ s, i, mode, menu, tab: i === live, bodies }))}
+      ${v.slots.map((s, i) => slot({ s, i, mode, menu, key: v.key, tab: i === live, bodies }))}
     </div>
     ${menu ? v.slots.map((_, i) => html`<${SlotMenu} i=${i} />`) : null}
   `;

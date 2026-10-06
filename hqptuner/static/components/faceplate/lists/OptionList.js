@@ -43,9 +43,22 @@ function onPlate(el, face) {
 }
 
 /**
- * Lay the open list out on the plate: a sheet from the body's top to the plate's foot, a panel parked at its picker
- * (`data-list` names the key it opens), centered when the picker is not showing. Both are placed in plate px and
- * written from the corner of the box that holds them.
+ * The element a panel parks at: the request's anchor where it names one, else the key's picker (`data-list` names the
+ * key it opens).
+ *
+ * @param {Element} face  the plate
+ * @param {ListRequest} req
+ * @returns {HTMLElement | null}
+ */
+function triggerOf(face, req) {
+  const at = req.anchor ? face.querySelector(`#${req.anchor}`) : null;
+  return /** @type {HTMLElement | null} */ (at ?? face.querySelector(`[data-list="${req.key}"]`));
+}
+
+/**
+ * Lay the open list out on the plate: a sheet from the body's top to the plate's foot, a panel parked at its trigger,
+ * centered when the trigger is not showing. Both are placed in plate px and written from the corner of the box that
+ * holds them.
  *
  * @param {HTMLElement | null} el
  * @param {ListRequest | null} req
@@ -63,7 +76,7 @@ function place(el, req) {
     return;
   }
   el.style.height = "auto";
-  const tr = /** @type {HTMLElement | null} */ (face.querySelector(`[data-list="${req.key}"]`));
+  const tr = triggerOf(face, req);
   const fit = plate.value;
   const trigger = tr?.offsetParent ? { ...onPlate(tr, face), h: tr.offsetHeight } : null;
   const at = parkAt({ panel: { w: el.offsetWidth, h: el.offsetHeight }, trigger, plate: { w: fit.w, h: fit.h } });

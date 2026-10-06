@@ -22,7 +22,6 @@ let storage = useStorage();
 const { config, engineState, enums, matrixConfig } = await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { listOptions } = await import("../../../../hqptuner/static/store/faceplate/lists/options.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
 const { TARGETS, switcherTarget, setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
@@ -134,10 +133,15 @@ test("test_a_remembered_name_fills_its_slot_with_the_engine_name", () => {
   assert.equal(switcherView()?.slots[1]?.name, "ASDM5");
 });
 
-test("test_a_list_slot_labels_its_name_by_the_lists_plain_leaf", () => {
+/** The fixture's plain breakdown of two names: family, variant where one is, leaf. */
+const PLAIN = { ASDM5: ["Adaptive", "Fifth order", "Leaf asdm5"], IIR: ["Fam B", "Leaf iir"] };
+
+test("test_a_list_slot_labels_its_name_by_its_plain_family_variant_and_leaf", () => {
   setSlot(1, "ASDM5");
-  const leaf = listOptions("sdm_modulator").find((o) => o.v === "ASDM5")?.leaf;
-  assert.equal(switcherView()?.slots[1]?.label, leaf);
+  const modulator = switcherView()?.slots[1]?.label;
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  assert.deepEqual([modulator, switcherView()?.slots[0]?.label], [PLAIN.ASDM5.join(" · "), PLAIN.IIR.join(" · ")]);
 });
 
 test("test_a_list_slot_carries_no_aka", () => {
@@ -254,6 +258,14 @@ test("test_a_list_slots_list_opens_its_keys_option_list_on_its_name", () => {
   setSlot(0, "ASDM5");
   slotList(0);
   assert.deepEqual([openList.value?.key, openList.value?.value], ["sdm_modulator", "ASDM5"]);
+});
+
+test("test_the_other_slots_list_replaces_an_open_one_instead_of_closing_it", () => {
+  setSlot(0, "ASDM5");
+  setSlot(1, "ASDM7EC 512+fs");
+  slotList(0);
+  slotList(1);
+  assert.equal(openList.value?.value, "ASDM7EC 512+fs");
 });
 
 test("test_a_pick_from_a_slots_list_remembers_it_in_that_slot", () => {

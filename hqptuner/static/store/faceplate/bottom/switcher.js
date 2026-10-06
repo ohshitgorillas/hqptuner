@@ -2,6 +2,7 @@
 // sent live with a tap or replaced from the target's own list.
 
 import { signal } from "@preact/signals";
+import { schema } from "../../schema.js";
 import { enumPref, warnStorage } from "../../ui/prefs.js";
 import { bottomBar } from "../../ui/faceplate.js";
 import { runningValue } from "../../resolve.js";
@@ -9,9 +10,9 @@ import { writeLive } from "../../live/write.js";
 import { matrixActiveProfile } from "../../matrix/profiles.js";
 import { runningChain } from "../path.js";
 import { openOptionList } from "../view.js";
-import { pickOption } from "../page/conversion.js";
+import { pickOption, plainOf } from "../page/conversion.js";
 import { profileChoices, switchProfile } from "../page/profile.js";
-import { listOptions, rawOptions } from "../lists/options.js";
+import { rawOptions } from "../lists/options.js";
 
 /**
  * One slot of the bar: the name it sends, the label it shows, the name it is also known by, whether it is the one
@@ -130,8 +131,19 @@ function runningName(key) {
 }
 
 /**
- * A list target's slots: each remembered name labeled by its list's leaf, the running name in the first while both
- * are empty.
+ * A name's label: its plain family, variant and leaf, those it has, as the nameplate breaks it down.
+ *
+ * @param {string} key
+ * @param {string} name
+ */
+function plainLabel(key, name) {
+  const { fam, variant, leaf } = plainOf(schema[key].plainNames ?? "", name);
+  return [fam, variant, leaf].filter(Boolean).join(" · ");
+}
+
+/**
+ * A list target's slots: each remembered name labeled by its plain family, variant and leaf, the running name in the
+ * first while both are empty.
  *
  * @param {string} key
  * @param {string[]} names
@@ -140,10 +152,9 @@ function runningName(key) {
 function listSlots(key, names) {
   const run = runningName(key);
   const shown = names[0] || names[1] ? names : [run, ""];
-  const leaves = new Map(listOptions(key).map((o) => [o.v, o.leaf]));
   return shown.map((name, i) => ({
     name,
-    label: leaves.get(name) ?? name,
+    label: name === "" ? "" : plainLabel(key, name),
     aka: "",
     on: name !== "" && name === run,
     empty: names[i] === "",
@@ -232,8 +243,15 @@ export function slotLive(i) {
 }
 
 /**
- * A slot's list: a list target opens its option list over the body, a pick remembered in the slot, and returns null;
- * Matrix profile returns the profile choices; any other target opens nothing and returns null.
+ * The element id of a slot's ▾, where its list parks.
+ *
+ * @param {number} i
+ */
+export const pickId = (i) => `swlist-${i}`;
+
+/**
+ * A slot's list: a list target opens its option list over the body, parked at the slot's ▾, a pick remembered in the
+ * slot, and returns null; Matrix profile returns the profile choices; any other target opens nothing and returns null.
  *
  * @param {number} i
  * @returns {{ value: string, label: string, disabled: boolean, reason: string }[] | null}
@@ -247,6 +265,7 @@ export function slotList(i) {
       stage: t === "Nx filter" ? "nx" : "1x",
       value: v.slots[i]?.name ?? "",
       pick: (name) => remember(t, i, name),
+      anchor: pickId(i),
     });
     return null;
   }

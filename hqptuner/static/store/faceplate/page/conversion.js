@@ -69,7 +69,7 @@ effect(() => {
  * @param {string} name  the engine name
  * @returns {{ fam: string, variant: string | null, leaf: string }}
  */
-function plainOf(kind, name) {
+export function plainOf(kind, name) {
   const e = kind ? plainEntry(kind, name) : null;
   const shown = kind ? decorateOptions([{ label: name }], kind)[0] : { label: name };
   return {
