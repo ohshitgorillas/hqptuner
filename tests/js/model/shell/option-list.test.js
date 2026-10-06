@@ -561,6 +561,13 @@ const COLS = [
     want: false,
   },
   { name: "a_split_whose_family_is_absent_drops", place: SPLIT, fams: { A: [""] }, pick: (c) => c.length, want: 0 },
+  {
+    name: "a_split_lands_the_variants_no_half_names_in_its_last_half",
+    place: SPLIT,
+    fams: { S: ["v1", "v3", "v9", "v8"] },
+    pick: (c) => c[0].kind === "split" && c[0].halves,
+    want: [["v1"], ["v3", "v9", "v8"]],
+  },
 ];
 
 for (const row of COLS) {

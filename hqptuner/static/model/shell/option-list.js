@@ -209,7 +209,8 @@ export function groupTree(opts) {
 }
 
 /**
- * The placement's columns after narrowing: families the list lacks drop, and a column left with none drops.
+ * The placement's columns after narrowing: families the list lacks drop, and a column left with none drops. A split
+ * family's variants that no half names land in its last half, so no row the list holds goes undrawn.
  *
  * @param {Placement[]} place
  * @param {Map<string, Map<string, Opt[]>>} fams
@@ -225,7 +226,9 @@ export function columns(place, fams) {
     if (c.split) {
       const fam = fs[0];
       const vs = fams.get(fam) ?? new Map();
+      const named = new Set(c.split.flat());
       const halves = c.split.map((names) => names.filter((v) => vs.has(v)));
+      halves[halves.length - 1].push(...[...vs.keys()].filter((v) => !named.has(v)));
       out.push({ kind: "split", fam, halves, band: halves.every((half) => half.length > 0) });
       continue;
     }
