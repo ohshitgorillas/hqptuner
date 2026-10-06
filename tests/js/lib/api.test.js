@@ -111,7 +111,7 @@ test("test_a_refusal_that_is_not_json_falls_back_to_path_and_status", async () =
 
 test("test_a_preset_name_is_url_encoded_in_the_path", async () => {
   const seen = wire();
-  await api.deletePreset("Night / Loud");
+  await api.preset("Night / Loud");
   assert.equal(seen.path, "/api/preset/Night%20%2F%20Loud");
 });
 

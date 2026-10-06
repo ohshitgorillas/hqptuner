@@ -24,7 +24,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nQuality, nApod1x, narrowingActive, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
+import { nQuality, nApod1x, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { narrowOptions, narrowCount } from "../../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
@@ -151,20 +151,6 @@ test("test_any_quality_accepts_a_filter_whose_overlay_row_carries_no_rating", ()
 // --- what counts as "narrowed" ---------------------------------------------------
 // Narrowed means DEVIATES from the default: 0 with everything else at its own
 // default is not narrowed, while any explicit floor — 3, 4 or 5 — is.
-
-test("test_quality_at_its_default_of_0_is_not_active_narrowing", () => {
-  seed(RATED);
-  nQuality.value = 0;
-  assert.equal(narrowingActive.value, false);
-});
-
-for (const selection of [3, 4, 5]) {
-  test(`test_quality_at_${selection}_is_active_narrowing`, () => {
-    seed(RATED);
-    nQuality.value = selection;
-    assert.equal(narrowingActive.value, true);
-  });
-}
 
 // --- reset returns quality to its default ----------------------------------------
 

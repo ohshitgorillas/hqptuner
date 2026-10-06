@@ -38,13 +38,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  nLossy1x,
-  nApod1x,
-  nQuality,
-  narrowingActive,
-  resetNarrowing,
-} from "../../../../hqptuner/static/store/narrow/state.js";
+import { nLossy1x, nApod1x, nQuality, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions } from "../../../../hqptuner/static/store/narrow/match.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
@@ -206,20 +200,6 @@ for (const state of ["both", "lossless", "lossy"]) {
 }
 
 // --- narrowing reads as active only away from both -------------------------------------
-
-test("test_the_lossy_control_at_both_is_not_active_narrowing", () => {
-  reset();
-  nLossy1x.value = "both";
-  assert.equal(narrowingActive.value, false);
-});
-
-for (const state of ["lossless", "lossy"]) {
-  test(`test_the_lossy_control_at_${state}_is_active_narrowing`, () => {
-    reset();
-    nLossy1x.value = state;
-    assert.equal(narrowingActive.value, true);
-  });
-}
 
 // --- reset ------------------------------------------------------------------------------
 

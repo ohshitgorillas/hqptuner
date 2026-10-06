@@ -10,7 +10,7 @@
 //
 // Module load stays node-safe (the SSR harness imports the component graph with
 // no localStorage): the storage read is guarded.
-import { signal, computed } from "@preact/signals";
+import { signal } from "@preact/signals";
 
 const K_DESC = "hqptuner.showDescriptions";
 const K_KEEP = "hqptuner.keepOptionDescriptions";
@@ -121,23 +121,12 @@ export function setPlainNames(on) {
 // take that cadence unconditionally and have no pref of their own.
 export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 
-/**
- * Set the System page's faster-poll opt-in and persist it.
- *
- * @param {boolean} on
- * @returns {void}
- */
-export function setQuickSystemUpdates(on) {
-  quickSystemUpdates.value = !!on;
-  persist(K_QUICK_SYS, quickSystemUpdates.value);
-}
-
 // The header's apodizing indicator, in three states: dark, lit by every
 // apodizing event, or lit only by what the running filter left uncorrected.
 // Off by default: it is a monitor for a question most listening does not ask,
 // and an indicator nobody switched on has no business flashing in the chrome.
 // components/widgets/ApodLamp.js chooses its lit state by this list's index.
-export const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
+const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
 
 // An existing install may hold persist()'s boolean "1" or "0" on this key. "1"
 // is the lamp on for every event, which is "all"; everything else, junk and unset
@@ -229,142 +218,21 @@ export function enumPref(key, allowed, dflt) {
 export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
 
 // The METER level bars' floor, in dB below full scale.
-export const METER_FLOORS = ["-48", "-60", "-90"];
-export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
+const METER_FLOORS = ["-48", "-60", "-90"];
+export const [,] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
 // The METER spectrogram: which channel it draws ("sum" or a channel index), its
 // frequency scale, and how many dB below full scale its color ramp reaches.
 const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
 export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
-export const METER_SCALES = ["log", "linear"];
-export const [meterScale, setMeterScale] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
+const METER_SCALES = ["log", "linear"];
+export const [,] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
 export const METER_RANGES = ["120", "180", "240", "300"];
 export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "120");
 
 // The LIVE switch. Persisted like every other pref, so a reload lands back on
 // the page the user was working from rather than dropping them into the tabs.
 export const liveMode = signal(loadBool(K_LIVE, false));
-
-/**
- * Set the LIVE switch and persist it, so a reload lands back on the same page.
- * @param {boolean} on
- */
-export function setLiveMode(on) {
-  liveMode.value = !!on;
-  persist(K_LIVE, liveMode.value);
-}
-
-// LIVE page card disclosure. Five cards on that page collapse so the page can be
-// cut down to the controls in use: with Narrow filters, Playback and Engine
-// health folded away, the output mode switch and the matrix profile picker sit
-// on one screen and switching between them costs no scrolling. Open by default —
-// a first visit shows the whole page — and persisted per card, because a
-// cut-down page that reverts on reload is not cut down.
-const K_LIVE_CARD = {
-  narrow: "hqptuner.liveCollapse.narrow",
-  playback: "hqptuner.liveCollapse.playback",
-  health: "hqptuner.liveCollapse.health",
-  matrix: "hqptuner.liveCollapse.matrix",
-  ab: "hqptuner.liveCollapse.ab",
-};
-
-export const liveNarrowOpen = signal(loadBool(K_LIVE_CARD.narrow, true));
-export const livePlaybackOpen = signal(loadBool(K_LIVE_CARD.playback, true));
-export const liveHealthOpen = signal(loadBool(K_LIVE_CARD.health, true));
-export const liveMatrixOpen = signal(loadBool(K_LIVE_CARD.matrix, true));
-export const liveAbOpen = signal(loadBool(K_LIVE_CARD.ab, true));
-
-const LIVE_CARD_SIGNAL = {
-  narrow: liveNarrowOpen,
-  playback: livePlaybackOpen,
-  health: liveHealthOpen,
-  matrix: liveMatrixOpen,
-  ab: liveAbOpen,
-};
-
-/**
- * Set one LIVE card's disclosure and persist it.
- *
- * @param {"narrow" | "playback" | "health" | "matrix" | "ab"} card
- * @param {boolean} open
- * @returns {void}
- */
-export function setLiveCardOpen(card, open) {
-  const sig = LIVE_CARD_SIGNAL[card];
-  sig.value = !!open;
-  persist(K_LIVE_CARD[card], sig.value);
-}
-
-// Static feature notes follow the master only.
-export const notesVisible = computed(() => showDescriptions.value);
-// Per-selection option descriptions survive a hidden master when kept.
-export const descVisible = computed(() => showDescriptions.value || keepOptionDescriptions.value);
-
-// The LIVE page's block order. The page is a locked top row (LIVE MODE and
-// Mode) over five movable blocks the user arranges. Stored as a
-// JSON list of block keys rather than an index per block so that a release
-// which adds or drops a block reconciles rather than strands: an unknown key is
-// dropped and a missing one is appended in default order, both on load and on
-// every set, so the stored list can never render a block off the page.
-const K_LIVE_ORDER = "hqptuner.liveOrder";
-
-/** Default top-to-bottom order of the five movable LIVE blocks. */
-export const LIVE_BLOCK_ORDER = ["health", "chains", "ab", "playback", "matrix"];
-
-/**
- * @param {string[]} keys
- * @returns {string[]}
- */
-function reconcileOrder(keys) {
-  const known = keys.filter((k) => LIVE_BLOCK_ORDER.includes(k));
-  return [...known, ...LIVE_BLOCK_ORDER.filter((k) => !known.includes(k))];
-}
-
-/** @returns {string[]} */
-function loadOrder() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(K_LIVE_ORDER);
-  } catch {
-    warnStorage("read");
-    return [...LIVE_BLOCK_ORDER];
-  }
-  if (raw == null) return [...LIVE_BLOCK_ORDER];
-  try {
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [...LIVE_BLOCK_ORDER];
-    return reconcileOrder(parsed.filter((/** @type {unknown} */ k) => typeof k === "string"));
-  } catch {
-    // A junk value reads as unset, the same way a junk boolean does.
-    return [...LIVE_BLOCK_ORDER];
-  }
-}
-
-export const liveOrder = signal(loadOrder());
-
-/**
- * Set the LIVE block order, reconciled against the default. Does not persist —
- * the order is written once, when the user leaves layout-edit mode.
- *
- * @param {string[]} keys
- * @returns {void}
- */
-export function setLiveOrder(keys) {
-  liveOrder.value = reconcileOrder(keys.filter((k) => typeof k === "string"));
-}
-
-/**
- * Persist the current LIVE block order.
- *
- * @returns {void}
- */
-export function commitLiveOrder() {
-  try {
-    localStorage.setItem(K_LIVE_ORDER, JSON.stringify(liveOrder.value));
-  } catch {
-    warnStorage("written");
-  }
-}
 
 // Collapsed dropdown groups (Simplified option style). One JSON list of
 // "<kind>|<family>" and "<kind>|<family>|<variant>" keys; a key's absence

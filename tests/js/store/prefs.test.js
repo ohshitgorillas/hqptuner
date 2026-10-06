@@ -15,7 +15,7 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage, dropStorage } from "../support/storage.js";
+import { dropStorage } from "../support/storage.js";
 
 /** @type {string[]} */
 const warns = [];
@@ -56,23 +56,6 @@ test("test_quick_system_updates_default_off_without_storage", () => {
 
 // --- the quick/fast setters ----------------------------------------------------------
 
-test("test_the_quick_setter_keeps_its_value_when_storage_is_disabled", () => {
-  prefs.setQuickSystemUpdates(true);
-  assert.equal(prefs.quickSystemUpdates.value, true);
-});
-
-test("test_the_quick_setter_persists_when_storage_works", () => {
-  useStorage();
-  prefs.setQuickSystemUpdates(true);
-  assert.equal(globalThis.localStorage.getItem("hqptuner.quickSystemUpdates"), "1");
-});
-
-test("test_the_quick_setter_persists_off_as_zero", () => {
-  useStorage();
-  prefs.setQuickSystemUpdates(false);
-  assert.equal(globalThis.localStorage.getItem("hqptuner.quickSystemUpdates"), "0");
-});
-
 // The volume page is fast unconditionally now, so there is no volume opt-in to
 // store, no key to persist it under, and nothing for a caller to read. Membership
 // rather than a property read: after the export goes, naming it directly is a
@@ -87,15 +70,3 @@ test("test_the_store_offers_no_fast_volume_setter", () => {
 });
 
 // --- the derived visibility flags ------------------------------------------------------
-
-test("test_option_descriptions_survive_a_hidden_master_when_kept", () => {
-  prefs.setShowDescriptions(false);
-  prefs.setKeepOptionDescriptions(true);
-  assert.equal(prefs.descVisible.value, true);
-});
-
-test("test_static_notes_follow_the_master_only", () => {
-  prefs.setShowDescriptions(false);
-  prefs.setKeepOptionDescriptions(true);
-  assert.equal(prefs.notesVisible.value, false);
-});

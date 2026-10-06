@@ -1,36 +1,14 @@
-// Gate: card markup is written once, in components/common.js.
+// Gate: the faceplate has neither a card frame nor a `.pack` two-track grid, so
+// the rule refuses the class tokens `card`, `card-head`, `card-body` and `pack`
+// wherever they can reach an element's class list: a template `class="…"`
+// attribute in any position among its classes, the value of an object property
+// keyed `class` or `className` (a string, a template, or the string arguments of
+// a call such as `classNames(…)`), an assignment to `.className`, and
+// `classList.add|toggle|remove|contains`. The same words in any other string are
+// prose and pass.
 //
-// Hand-rolled card markup carries two costs. A surface or structure fix has to
-// be found and applied at every call site — the 0.9.1 shading bug was exactly
-// that, a collapsible head painting the card BODY shade because two idioms had
-// drifted. And cards.css's .span hairline mask has to enumerate every card-like
-// container class by hand, so a new container silently paints the page color
-// over a card and reads as a dark band across the row.
-//
-// Two modes.
-//
-// Default (the served v1 frontend): one component means one place to fix and
-// one selector to mask. The rule refuses `class="card"`, `class="card-head"`
-// and `class="card-body"` in a template outside the module that owns them.
-//
-// `{ v2: true }` (the v2 mockup): v2 has neither v1's card frame nor its `.pack`
-// two-track grid, so the rule refuses the class tokens `card`, `card-head`,
-// `card-body` and `pack` wherever they can reach an element's class list: a
-// template `class="…"` attribute in any position among its classes, the value of
-// an object property keyed `class` or `className` (a string, a template, or the
-// string arguments of a call such as `classNames(…)`), an assignment to
-// `.className`, and `classList.add|toggle|remove|contains`. The same words in
-// any other string are prose and pass.
-//
-// Escape hatch: a file whose card genuinely cannot be expressed by Card puts
-// `/* eslint-disable hqptuner/no-hand-rolled-card -- <reason> */` at the top.
-// It must carry a reason — an exemption you cannot justify in a clause is a
-// capability that belongs in the component.
-//
-// `card-grid`, `card-title`, `packed` and friends are untouched in both modes:
-// they are other classes, not the card frame or the pack grid.
-const CARD_CLASS = /class="card(-head|-body)?["\s]/;
-
+// `card-grid`, `card-title`, `packed` and friends are untouched: they are other
+// classes, not the card frame or the pack grid.
 const V2_TOKENS = new Set(["card", "card-head", "card-body", "pack"]);
 const CLASS_ATTR = /\bclass="([^"]*)"/g;
 const CLASS_KEYS = new Set(["class", "className"]);
@@ -138,20 +116,7 @@ function isClassListCall(node) {
 }
 
 /**
- * Visitors for the v1 default: a template naming the card frame's classes.
- * @param {import("eslint").Rule.RuleContext} context
- * @returns {import("eslint").Rule.RuleListener}
- */
-function v1Visitors(context) {
-  return {
-    TemplateElement(node) {
-      if (CARD_CLASS.test(node.value.raw)) context.report({ node, messageId: "handRolled" });
-    },
-  };
-}
-
-/**
- * Visitors for `{ v2: true }`: a refused token in any class position. A template
+ * Visitors for a refused token in any class position. A template
  * that is itself a class value is claimed when its position is entered, which
  * precedes the template, so it is read as a class list and never scanned again
  * for `class="…"` attributes.
@@ -197,15 +162,13 @@ function v2Visitors(context) {
 export default {
   meta: {
     type: "problem",
-    docs: { description: "card markup belongs to components/common.js (docs/design-system.md)" },
-    schema: [{ type: "object", properties: { v2: { type: "boolean" } }, additionalProperties: false }],
+    docs: { description: "no card frame or pack grid classes (docs/design-system.md)" },
+    schema: [],
     messages: {
-      handRolled:
-        "hand-rolled card markup — import Card from components/common.js. A second copy of the card frame is how its surface drifts.",
       v2Card: "v1 class `{{token}}` in v2 code — v2 ships neither v1's card frame nor its .pack grid.",
     },
   },
   create(context) {
-    return context.options[0]?.v2 ? v2Visitors(context) : v1Visitors(context);
+    return v2Visitors(context);
   },
 };

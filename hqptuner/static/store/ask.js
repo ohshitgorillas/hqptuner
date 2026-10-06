@@ -60,16 +60,6 @@ function open(owner, kind, message, cancelled) {
   });
 }
 
-// Ask for a name. Resolves the trimmed name, or null if the user backs out.
-/** Open a name question, resolving the trimmed name or null if the user backs out. */
-export const askName = (/** @type {string} */ owner, /** @type {string} */ message) =>
-  open(owner, "name", message, null);
-
-// Ask for a yes/no. Resolves true only on an explicit confirm.
-/** Open a yes/no question, resolving true only on an explicit confirm. */
-export const askConfirm = (/** @type {string} */ owner, /** @type {string} */ message) =>
-  open(owner, "confirm", message, false);
-
 // Warn before a hazardous edit. Same yes/no contract as a confirm, but the UI
 // renders it as a top-layer popover with explicit consequence wording instead
 // of an inline Confirm/Cancel line.
@@ -93,45 +83,6 @@ export function askWarn(owner, message, labels = WARN_LABELS) {
   const q = open(owner, "warn", message, false);
   question.value = { ...question.value, confirm: labels.confirm, decline: labels.decline };
   return q;
-}
-
-// Ask for a subset of options: [{value, label, checked, disabled}]. Resolves
-// the checked values in option order, or null if the user backs out. A disabled
-// option's checked state is pinned — rendered for honesty, immune to clicks.
-// With `{name: true}` the panel also carries a name field and resolves
-// {name, values} instead; a blank name is refused the way askName refuses it.
-/**
- * Open a multiple-choice question, resolving the checked values in option order
- * (or {name, values} when a name is asked for too) or null if the user backs out.
- *
- * @param {string} owner
- * @param {string} message
- * @param {ChoiceOption[]} options
- * @param {{ name?: boolean }} [opts]
- * @returns {Promise<unknown>}
- */
-export function askChoices(owner, message, options, opts = {}) {
-  const q = open(owner, "choices", message, null);
-  question.value = { ...question.value, options: options.map((o) => ({ ...o })), named: !!opts.name };
-  return q;
-}
-
-// Flip one choice by value. Disabled options stay as offered.
-/**
- * Flip one choice's checked state by value, leaving disabled options as offered.
- *
- * @param {string} value
- * @returns {void}
- */
-export function toggleChoice(value) {
-  const q = question.value;
-  if (!q || q.kind !== "choices") return;
-  question.value = {
-    ...q,
-    options: q.options.map((/** @type {ChoiceOption} */ o) =>
-      o.value === value && !o.disabled ? { ...o, checked: !o.checked } : o,
-    ),
-  };
 }
 
 // Commit the answer. A blank or whitespace-only name is REFUSED: nothing is
@@ -165,14 +116,6 @@ export function answer(value) {
   }
   if (name) close(name);
   else question.value = { ...q, refused: true };
-}
-
-// Withdraw a standing refusal — the user is typing, so the complaint about an
-// empty field has stopped being true.
-/** Clear a standing blank-name refusal, called as the user types. */
-export function clearRefusal() {
-  const q = question.value;
-  if (q && q.refused) question.value = { ...q, refused: false };
 }
 
 // Withdraw the question, resolving whatever "no answer" means for its kind.

@@ -286,5 +286,10 @@ def test_spa_assets_demand_revalidation(api_client: TestClient) -> None:
     assert api_client.get("/").headers["cache-control"] == "no-cache"
 
 
+def test_the_root_page_links_the_faceplate_tokens_first(api_client: TestClient) -> None:
+    page = api_client.get("/").text
+    assert page.split('rel="stylesheet" href="')[1].split('"')[0] == "/css/v2/tokens.css"
+
+
 def test_metadata_serves_the_static_databases(api_client: TestClient) -> None:
     assert "filters" in api_client.get("/api/metadata").json()

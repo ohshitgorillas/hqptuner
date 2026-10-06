@@ -12,8 +12,6 @@
 // from here and neither writes prose of its own.
 
 import { metadata } from "./signals.js";
-import { schema } from "./schema.js";
-import { notesVisible } from "./ui/prefs.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -108,24 +106,6 @@ export function paragraphs(text) {
     .filter(Boolean);
 }
 
-// A card gate's note, addressed by control key, for that card's subtitle. The
-// subtitle is the same prose a row note carries, so it follows the same pref:
-// with the manual text switched off there is no subtitle either. Returns ''
-// rather than null so a call site can pass it
-// straight to Card (an empty subtitle renders nothing).
-/**
- * A card gate's tooltip for use as the card subtitle, empty when the manual text
- * pref is off.
- *
- * @param {string} key
- * @returns {string}
- */
-export function noteFor(key) {
-  if (!notesVisible.value) return "";
-  const entry = schema[key];
-  return entry ? describe(entry, key).tooltip : "";
-}
-
 // The overlays are keyed by the ENGINE's own name, which reaches us as the
 // selected option's label.
 /**
@@ -215,14 +195,6 @@ function heldBack(p) {
   return { text: joinProse(p.base, lead), more: p.note ? [p.note] : [] };
 }
 
-/**
- * @param {string} name
- * @param {Metadata} md
- * @param {boolean} sdm whether the control sits on the SDM chain
- * @returns {string}
- */
-const filterDescription = (name, md, sdm) => whole(filterParts(name, md, sdm));
-
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
 /**
  * @param {string} kind "dither" | "modulator"
@@ -235,35 +207,6 @@ function shaperDescription(kind, name, md) {
   const db = kind === "modulator" ? shapers.sdm_modulators : shapers.pcm_dithers;
   const e = db && db[name];
   return e ? joinProse(e.description, e.notes) : "";
-}
-
-// Inline manual description for the current selection.
-//   desc = filter|sdm_filter|dither|modulator -> name-keyed prose from the
-//     metadata overlay (filters.json / shapers.json), joined by the selected
-//     option's label. filter vs sdm_filter names the chain the control sits on,
-//     the way dither vs modulator names the shaper database.
-//   desc = config -> per-value prose from this control's settings.json `options`
-//     map, keyed by the selected form value (integrator, noise filter, SDM/PCM
-//     conversion — enums whose meaning is per-value, not per-control).
-/**
- * The inline manual prose for a control's current selection, empty when the
- * control carries no `desc` source or nothing joins.
- *
- * @param {SchemaField} entry
- * @param {string | number | boolean | undefined} value
- * @param {{ value: string | number | undefined, label: string }[] | undefined} options absent on the non-list widgets
- * @param {ControlProse} meta
- * @returns {string}
- */
-export function selectionDescription(entry, value, options, meta) {
-  if (!entry.desc) return "";
-  if (entry.desc === "config") return (meta && meta.options && meta.options[String(value)]) || "";
-  const name = selectedLabel(options, value);
-  if (!name) return "";
-  const md = metadata.value || {};
-  if (entry.desc === "filter" || entry.desc === "sdm_filter")
-    return filterDescription(name, md, entry.desc === "sdm_filter");
-  return shaperDescription(entry.desc, name, md);
 }
 
 // Same joins, addressed by one option instead of the current selection — the

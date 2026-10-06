@@ -11,7 +11,7 @@
 // joins by name (architecture §3.1). Resolving a name to the id a lane wants is
 // the last thing that happens, against the option list that lane is showing.
 import { schema } from "../schema.js";
-import { effective, runningValue } from "../resolve.js";
+import { effective } from "../resolve.js";
 import { optionsFor } from "../ui/options.js";
 import { selectedLabel } from "../prose.js";
 import { edit } from "../actions.js";
@@ -158,16 +158,4 @@ function liveLane() {
  */
 export function easyLane(lane) {
   return lane === "live" ? liveLane() : configLane();
-}
-
-/**
- * What the engine is running on one of those two pages, staged edits and preset
- * preview ignored. On the LIVE lane that is the lane's own values, which never
- * stage.
- *
- * @param {string} lane "config" (the Output tab, staged) | "live" (the LIVE page, written through)
- * @returns {{ mode: string, values: Record<string, string> }}
- */
-export function easyRunning(lane) {
-  return lane === "live" ? liveShape() : configShape(runningValue);
 }

@@ -38,14 +38,3 @@ env.document = {
   },
   body: { addEventListener() {}, removeEventListener() {} },
 };
-
-/**
- * @param {string} type
- * @param {unknown} target
- * @param {Record<string, unknown>} [extra]
- * @returns {void}
- */
-export function documentSees(type, target, extra = {}) {
-  const event = { type, target, ...extra };
-  for (const fn of registered.get(type) || []) fn(event);
-}

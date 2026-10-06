@@ -114,7 +114,7 @@ export const STATE = (chain, rate = "1") => ({
   active_chain: chain,
 });
 
-export const ENUMS = {
+const ENUMS = {
   filters: [
     { index: "0", value: "0", name: "none" },
     { index: "1", value: "40", name: "poly-sinc-gauss-long" },
@@ -126,26 +126,6 @@ export const ENUMS = {
   ],
   junk_filters: [{ index: "0", value: "0", name: "none" }],
   mode: { name: "PCM" },
-};
-
-// settings.json's per-control label and tooltip, plus the name-keyed overlays:
-// same SHAPE as the shipped prose, cut to a sentence each.
-export const METADATA = {
-  settings: {
-    output: {
-      output_mode: { label: "Output mode", tooltip: "Selects default output mode." },
-      rate: { label: "Output rate", tooltip: "Output sample rate request, or upper limit." },
-      junk_filter: { label: "High-frequency filter", tooltip: "Playback filters for noise.", options: { 0: "None." } },
-    },
-    dsp: {
-      filter_1x: { label: "1x filter", tooltip: "Oversampling filter for base-rate sources." },
-      filter_nx: { label: "Nx filter", tooltip: "Oversampling filter above the base rates." },
-      shaper: { label: "Dither", tooltip: "Noise shaping applied at the output word length." },
-    },
-    volume: { adaptive_volume: { label: "Adaptive volume", tooltip: "Applies the source's ReplayGain 2.0 offset." } },
-  },
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
 };
 
 // PUT and DELETE move the list the fake HOLDS, the way the backend's store

@@ -28,7 +28,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { nSrcFormat, narrowingActive, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { nSrcFormat, resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions } from "../../../hqptuner/static/store/narrow/match.js";
 import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
@@ -108,19 +108,6 @@ test("test_a_fresh_bar_holds_the_source_format_control_at_pcm", () => {
 });
 
 // --- narrowing reads as active only away from pcm --------------------------------
-
-test("test_the_source_format_control_at_both_is_active_narrowing", () => {
-  reset();
-  nSrcFormat.value = "both";
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_the_source_format_control_back_at_pcm_is_not_active_narrowing", () => {
-  reset();
-  nSrcFormat.value = "both";
-  nSrcFormat.value = "pcm";
-  assert.equal(narrowingActive.value, false);
-});
 
 // --- reset ------------------------------------------------------------------------------
 

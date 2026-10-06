@@ -5,7 +5,6 @@ The target is `mockup/spec.md`, with `mockup/` as its visual reference. Where th
 ## Strategy
 
 - Work lands on branch `v2`. The store, schema, lanes and API carry over. The shell, the components and the CSS are rebuilt.
-- The v2 shell has its own entry (a second `index.html` and `app.js`) beside v1 until cutover. Both entries stay reachable, so knip, css-dead and the coverage floors stay green without exemptions.
 - The mockup divides into what v2 lifts and what v2 rewrites. `mockup/scripts/model/` holds every decision as a typed function with no DOM access and its tests under `tests/js/mockup/`; a phase moves the modules it needs into `hqptuner/static/` with their tests, unchanged. Everything else under `mockup/scripts/` (`app/`, `components/`, `lib/`) is plain DOM code over the hard-coded tables in `data/`, and is rewritten in preact and signals against the real store.
 - `mockup/` passes the same JavaScript gates as `hqptuner/static/`: eslint, prettier, strict `tsc --checkJs`, knip, jscpd, filepawl and the comment gates. An eslint layer rule keeps `mockup/scripts/model/` from importing a DOM module. The CSS gates do not read `mockup/styles/` until Phase 0 retargets them.
 - Wire names (`preset`, `livepresets`) stay. Station and Snapshot are UI names.

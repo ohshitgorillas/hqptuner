@@ -62,7 +62,7 @@ export function presetOffered(preset, mode) {
  *
  * @returns {Knob[]}
  */
-export function cardKnobs() {
+function cardKnobs() {
   /** @type {Knob[]} */
   const out = [];
   for (const preset of presetsFor()) {

@@ -1,4 +1,4 @@
-// Rendered suite for the v2 entry, hqptuner/static/v2/app.js: the plate it mounts carries the size the window holds
+// Rendered suite for the entry, hqptuner/static/app.js: the plate it mounts carries the size the window holds
 // and the scale that fits it. Under node there is no #app to mount into, so the entry only exports its root.
 //
 // Not reachable here: the window's resize listener and the document's Escape and outside-click listeners, which the
@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Faceplate } from "../../../../hqptuner/static/v2/app.js";
+import { Faceplate } from "../../../../hqptuner/static/app.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, classes } from "../../support/markup.js";
 

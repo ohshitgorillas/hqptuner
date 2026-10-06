@@ -271,6 +271,7 @@ select.vfd.pkind{height:30px;line-height:30px;width:180px;font-size:13px;text-al
 input.vfd.pq{height:36px;width:100%;text-align:left;font-size:13px}
 .phits{display:flex;flex-direction:column}
 .pimpf{display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--line)}
+.mtx-lib-hit.selected{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
 /* Crossfeed blocks in the grid: dashed pins (the locked chips' dashed edge; hatch is reserved for unavailable, as on the
    rate dial); one line naming the block on its crosspoints; its own chips locked. */
 .pin.gen{border:1px dashed var(--acc-dim)}

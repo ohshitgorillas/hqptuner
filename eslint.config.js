@@ -109,17 +109,12 @@ const JSDOC_RULES = {
 // Import layering, the frontend peer of the Python contract in pyproject.toml
 // under [tool.importlinter]. Highest first:
 //
-//   app.js + components/App.js   the shell
-//   components/tabs
+//   app.js   the shell
 //   components
-//   components/controls
 //   store
 //   lib
 //
-// A layer imports below it and never above. App.js is the shell rather than a
-// component: static/app.js renders it, it assembles the header, the tab bar and
-// the pending bar, and it is the only module under components/ that may reach
-// into tabs/.
+// A layer imports below it and never above.
 //
 // The eqstage node CLI sits on the vendored eqlab and reaches into neither
 // store/ nor components/.
@@ -130,7 +125,6 @@ const JSDOC_RULES = {
 const ABOVE = {
   app: "**/app.js",
   components: ["**/components/*.js", "**/components/**/*.js"],
-  tabs: ["**/tabs/*.js", "**/tabs/**/*.js"],
   store: ["**/store/*.js", "**/store/**/*.js"],
 };
 
@@ -173,11 +167,6 @@ export default [
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
     plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
     rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
-  },
-  {
-    // The module that OWNS the card frame is the one place allowed to write it.
-    files: ["hqptuner/static/components/common.js"],
-    rules: { "hqptuner/no-hand-rolled-card": "off" },
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The
@@ -224,14 +213,11 @@ export default [
   },
   {
     // The v2 mockup: plain DOM code under the same rule set as the served
-    // frontend. The hand-rolled-card rule runs in its v2 mode here: it refuses
-    // v1's card frame classes (card, card-head, card-body) and its pack grid
-    // class wherever they would reach an element's class list, since the mockup
-    // ships neither.
+    // frontend.
     files: ["mockup/scripts/**/*.js"],
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
     plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
-    rules: { ...RULES, "hqptuner/no-hand-rolled-card": ["error", { v2: true }] },
+    rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
   },
   {
     // mockup/scripts/model is what v2 lifts as it stands, so it reaches no
@@ -249,25 +235,7 @@ export default [
     rules: noUp([ABOVE.app, ...ABOVE.components], LAYER_MSG),
   },
   {
-    // Controls sit under the components that compose them. `../*.js` is a flat
-    // sibling of components/, one level up from here, and `../*/*.js` is one
-    // inside a concern directory (matrix/, xfeed/, live/, …) — both are
-    // components. `../../lib/…` is deeper and unaffected, and `*` does not
-    // match a `/`, so neither pattern reaches it.
-    files: ["hqptuner/static/components/controls/**/*.js"],
-    rules: noUp([ABOVE.app, ...ABOVE.tabs, "../*.js", "../*/*.js"], LAYER_MSG),
-  },
-  {
     files: ["hqptuner/static/components/**/*.js"],
-    ignores: [
-      "hqptuner/static/components/App.js",
-      "hqptuner/static/components/tabs/**",
-      "hqptuner/static/components/controls/**",
-    ],
-    rules: noUp([ABOVE.app, ...ABOVE.tabs], LAYER_MSG),
-  },
-  {
-    files: ["hqptuner/static/components/tabs/**/*.js"],
     rules: noUp([ABOVE.app], LAYER_MSG),
   },
   {

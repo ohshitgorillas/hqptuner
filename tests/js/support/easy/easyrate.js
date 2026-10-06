@@ -112,24 +112,6 @@ export const enumerations = (vocab, modeName, ratios = {}) => ({
 });
 
 /**
- * What the Output tab's lane finds in `enums`. The tab is driven off the daemon's
- * form, but a filter's ratio class is stated in the running engine's enumeration
- * and the app polls that on every page, so a case handing `ratios` — even an
- * EMPTY map, an enumeration describing no filter's class at all — gets that
- * enumeration seeded, and a case handing none gets the bare tab the other suites
- * drive, with nothing enumerated. The reported mode name is the engine's own
- * word for our output mode (`[SOURCE]` for auto, `SDM` for DSD out,
- * store/live/derive.js), so form and enumeration say the same thing twice rather
- * than a pair the daemon never serves together.
- *
- * @param {Vocab} vocab
- * @param {string} mode
- * @param {Record<string, string> | null} ratios
- */
-export const tabEnums = (vocab, mode, ratios) =>
-  ratios === null ? null : enumerations(vocab, { pcm: "PCM", sdm: "SDM", auto: "[SOURCE]" }[mode] || "PCM", ratios);
-
-/**
  * What State reports for one chain end: the LIST INDEX of the filter the engine
  * has loaded there (docs/protocol.md §4, never the id), or the "0" of a chain
  * end holding nothing.

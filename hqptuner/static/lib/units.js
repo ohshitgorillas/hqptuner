@@ -33,13 +33,6 @@ export function hz(n, dp) {
 }
 
 /**
- * An absolute level. A level is not an offset, so a positive carries no sign.
- * @param {number | string} v decibels
- * @param {number} dp decimals
- */
-export const db = (v, dp) => `${Number(v).toFixed(dp)} dB`;
-
-/**
  * A relative offset. A positive carries "+" so the direction reads at a glance.
  * @param {number | string} v decibels
  * @param {number} dp decimals

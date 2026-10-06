@@ -131,7 +131,6 @@ export const api = {
   // Live snapshots — HQPTuner's own record, never the daemon's. A save sends, at most, which settings to keep,
   // which stations to keep them under and the values the Snapshot builder edited; the backend snapshots the rest.
   livePresets: () => getJSON("/api/livepresets"),
-  liveSnapshot: () => getJSON("/api/livepresets/snapshot"),
   // `fields` names the settings the preset keeps; omitted, the backend keeps them all.
   // `stations` names the stations it is saved under; omitted, the loaded one. The
   // `station` an apply or delete names is the one whose snapshot it means;
@@ -185,14 +184,10 @@ export const api = {
   saveMatrixMode: (/** @type {string} */ name, /** @type {string} */ mode) =>
     send("/api/matrixmodes", "PUT", { name, mode }),
   refreshDevices: () => send("/api/config/refresh", "POST"),
-  setAutosave: (/** @type {boolean} */ enabled) => send("/api/autosave", "POST", { enabled }),
   // The high-frequency filter's auto-pilot. Write only: /api/status carries the flag on
   // every poll, because the backend switches it off by itself when the filter is set by hand.
   setAutopilot: (/** @type {boolean} */ enabled) => send("/api/autopilot", "POST", { enabled }),
-  profile: (/** @type {string} */ action, /** @type {string} */ name) =>
-    send(`/api/profile/${action}`, "POST", { name }),
   preset: (/** @type {string} */ name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
-  deletePreset: (/** @type {string} */ name) => send(`/api/preset/${encodeURIComponent(name)}`, "DELETE"),
   autoeq: () => getJSON("/api/autoeq"),
   uploadFilter: (/** @type {File} */ file) => upload("/api/matrix/filter", "file", file),
   matrixProfile: (/** @type {string} */ action, /** @type {string} */ name) =>

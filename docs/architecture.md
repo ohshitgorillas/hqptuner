@@ -166,14 +166,6 @@ The control set is **not enumerated in prose**. Three checked artifacts own it:
 - `hqptuner/data/settings.json`: tooltip prose for every exposed control, plus a `_comment` block listing settings with upstream prose HQPTuner deliberately does not expose.
 - `docs/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
 
-### 7.2 Tabs
-
-Tabs are **Output · Volume · Resampling · DSP · System**; the registry `static/components/tabs/index.js` is the authority, not this list. Loudness lives on Volume; crossfeed and matrix pipelines on DSP.
-
-### 7.3 LIVE is a mode, not a tab
-
-A header switch (`store/prefs.liveMode`) replaces the whole tabbed body with one page of the settings the running engine can change in place (`static/components/live/View.js`, fed by `store/live/model.js`). No staging and no Apply: every control writes on change and shows what the engine reported back, not what was requested. The page is not a second control surface: each control names its `schema.js` key and so carries the same label, note and per-selection prose as its tab twin. Both filter chains render at once; edits to the chain the engine has not loaded are held per chain and applied when it loads, which is also how auto mode before playback works.
-
 ### 7.4 METER is a mode, not a tab
 
 A header switch on the mini spectrum (`store/prefs.meterMode`, not persisted) replaces the tab bar and tab body with the METER page (`static/components/meter/View.js`); the pending bar stays. LIVE and METER exclude each other: each setter, turning its mode on, turns the other off.
@@ -186,7 +178,7 @@ The signal path bar shows the live chain in physical processing order:
 source → matrix → Bauer crossfeed → conversion stages → DAC correction → output rate
 ```
 
-Crossfeed is input-side and operates on the source-rate signal. **DAC correction is output-rate-dependent**, so it runs *after* the conversion stages and cannot precede the filter. Disabled post-process stages are omitted from the bar entirely. Implementation and data sources: `hqptuner/static/components/SignalPath.js`.
+Crossfeed is input-side and operates on the source-rate signal. **DAC correction is output-rate-dependent**, so it runs *after* the conversion stages and cannot precede the filter. Disabled post-process stages are omitted from the bar entirely.
 
 ### 7.6 Graying reacts to staged values
 
@@ -211,7 +203,7 @@ Flipping PCM ↔ SDM swaps the rate option set and the shaper card (label and op
 
 ### 7.10 Rate-aware shaper graying and conflict alerts
 
-SDM modulator options whose floor is above the selected SDM rate are grayed **with a short reason** (e.g. "needs ≥ 40.96 MHz"), never hidden: visible-but-disabled teaches the constraint. The rule is the same in both views, off one schema field (`rateGray`), applied by `components/widgets/Field.js` on the tabs and `store/live/chains.js` on LIVE. Rate constraints come from static metadata; the engine ships shaper names only.
+SDM modulator options whose floor is above the selected SDM rate are grayed **with a short reason** (e.g. "needs ≥ 40.96 MHz"), never hidden: visible-but-disabled teaches the constraint. The rule comes off one schema field (`rateGray`), applied by `store/live/chains.js`. Rate constraints come from static metadata; the engine ships shaper names only.
 
 **PCM dithers gray nowhere**: their floors are the manual's recommendations, and a dither below its floor still produces output, so every dither stays selectable at every rate. **Rates never gray by shaper**, in either family: that would lock the user into the higher rate, a worse failure than the one it fixes.
 

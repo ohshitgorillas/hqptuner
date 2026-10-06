@@ -2,55 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>HQPTuner</title>
     <!-- default slider glyph; store/ui/favicon.js swaps it per the active preset -->
     <link id="favicon" rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%9A%EF%B8%8F%3C/text%3E%3C/svg%3E" />
-    <!-- CSS is split by concern; THIS ORDER IS THE CASCADE ORDER. It is the
-         source order of the former single app.css and must not be reordered. -->
-    <link rel="stylesheet" href="/css/base/tokens.css" />
-    <link rel="stylesheet" href="/css/base/marks.css" />
-    <link rel="stylesheet" href="/css/base/header.css" />
-    <link rel="stylesheet" href="/css/base/signal-path.css" />
-    <link rel="stylesheet" href="/css/base/chrome.css" />
-    <link rel="stylesheet" href="/css/base/fields.css" />
-    <link rel="stylesheet" href="/css/base/hero.css" />
-    <!-- the four control modules were one controls.css; they load consecutively
-         and in this order so the cascade is the one that file had. -->
-    <link rel="stylesheet" href="/css/controls/primitives.css" />
-    <link rel="stylesheet" href="/css/controls/apod.css" />
-    <link rel="stylesheet" href="/css/controls/combobox.css" />
-    <link rel="stylesheet" href="/css/controls/combotip.css" />
-    <link rel="stylesheet" href="/css/controls/sliders.css" />
-    <link rel="stylesheet" href="/css/controls/ask.css" />
-    <link rel="stylesheet" href="/css/cards/cards.css" />
-    <link rel="stylesheet" href="/css/cards/packs.css" />
-    <link rel="stylesheet" href="/css/base/pending-bar.css" />
-    <link rel="stylesheet" href="/css/cards/narrowing.css" />
-    <link rel="stylesheet" href="/css/cards/multiselect.css" />
-    <link rel="stylesheet" href="/css/controls/knobs.css" />
-    <link rel="stylesheet" href="/css/cards/plots.css" />
-    <link rel="stylesheet" href="/css/base/aesthetic.css" />
-    <link rel="stylesheet" href="/css/features/volume.css" />
-    <link rel="stylesheet" href="/css/features/volume-panels.css" />
-    <link rel="stylesheet" href="/css/features/matrix.css" />
-    <link rel="stylesheet" href="/css/features/matrix-panels.css" />
-    <link rel="stylesheet" href="/css/features/crossfeed.css" />
-    <link rel="stylesheet" href="/css/features/speakers.css" />
-    <link rel="stylesheet" href="/css/features/live.css" />
-    <link rel="stylesheet" href="/css/features/easy.css" />
-    <link rel="stylesheet" href="/css/features/easy-cost.css" />
-    <link rel="stylesheet" href="/css/features/easy-tips.css" />
-    <link rel="stylesheet" href="/css/features/easy-filter.css" />
-    <link rel="stylesheet" href="/css/features/primer.css" />
-    <link rel="stylesheet" href="/css/features/setup.css" />
-    <!-- typography.css is deliberately LAST: it owns the size + color of every
-         text role and must win over the per-module declarations it replaced.
-         This is the only module whose slot is "the end"; see its header. -->
-    <link rel="stylesheet" href="/css/base/typography.css" />
-    <!-- No-build ES modules. The importmap resolves every bare specifier to a
-         vendored file so preact, its hooks, and signals all share ONE preact
-         instance (required for signals' auto-subscribe). All local — CSP-clean. -->
+    <!-- The faceplate's stylesheets. This order is the cascade order: tokens, the frame and its
+         primitives, then one sheet per region. -->
+    <link rel="stylesheet" href="/css/v2/tokens.css" />
+    <link rel="stylesheet" href="/css/v2/base.css" />
+    <link rel="stylesheet" href="/css/v2/primitives.css" />
+    <link rel="stylesheet" href="/css/v2/header.css" />
+    <link rel="stylesheet" href="/css/v2/rail.css" />
+    <link rel="stylesheet" href="/css/v2/page.css" />
+    <link rel="stylesheet" href="/css/v2/popovers.css" />
+    <link rel="stylesheet" href="/css/v2/drawer.css" />
+    <link rel="stylesheet" href="/css/v2/meter.css" />
+    <link rel="stylesheet" href="/css/v2/matrix.css" />
+    <link rel="stylesheet" href="/css/v2/sheets.css" />
+    <link rel="stylesheet" href="/css/v2/settings.css" />
+    <link rel="stylesheet" href="/css/v2/switcher.css" />
+    <link rel="stylesheet" href="/css/v2/builder.css" />
+    <!-- No-build ES modules, resolved by one importmap so preact, its hooks and signals share one
+         preact instance. -->
     <script type="importmap">
       {
         "imports": {

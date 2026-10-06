@@ -1,5 +1,5 @@
 // Behavioral suite for store/actions.js's loadPreset, the verb the header's station tree calls: a station is loaded on
-// the spot in either mode, where the v1 picker's pickPreset only previews outside LIVE and keeps doing so.
+// the spot in either mode.
 //
 // A fetch fake answers the real REST paths with their real shapes and records every request; no store function is
 // stubbed. `switch_to` is a wire identifier (docs/testing.md rule 9).
@@ -11,7 +11,7 @@ import assert from "node:assert/strict";
 
 import { config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { loadPreset, pickPreset, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { loadPreset, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 
 /** @type {{ fetch?: unknown }} */
@@ -68,10 +68,5 @@ test("test_loading_a_preset_outside_live_switches_to_it_on_the_wire", async () =
 
 test("test_loading_the_preset_already_loaded_sends_no_apply", async () => {
   await loadPreset("Day");
-  assert.equal(applies().length, 0);
-});
-
-test("test_picking_a_preset_outside_live_still_sends_no_apply", async () => {
-  await pickPreset("Night");
   assert.equal(applies().length, 0);
 });

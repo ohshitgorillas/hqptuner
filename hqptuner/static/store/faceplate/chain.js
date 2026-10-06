@@ -109,7 +109,7 @@ function fmtRate(rate) {
  * @param {Metadata} md
  * @returns {string}
  */
-export function sourceLabel(md) {
+function sourceLabel(md) {
   if (!md.samplerate) return DASH;
   return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
 }
@@ -120,7 +120,7 @@ export function sourceLabel(md) {
  * @param {Status} st
  * @returns {string}
  */
-export function outputLabel(st) {
+function outputLabel(st) {
   const rate = st.active_rate;
   const bits = Number(st.active_bits);
   if (!Number(rate)) return DASH;
@@ -135,7 +135,7 @@ export function outputLabel(st) {
  * @param {string} key
  * @returns {string}
  */
-export function configLabel(key) {
+function configLabel(key) {
   const raw = runningValue(key);
   if (raw === undefined || raw === "") return "";
   const entry = schema[key];

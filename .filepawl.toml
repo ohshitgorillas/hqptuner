@@ -3,10 +3,6 @@ version = 1
 
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
-"hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
-"hqptuner/static/css/features/volume.css" = { lines = 407 }
-"hqptuner/static/store/actions.js" = { lines = 413 }
-"hqptuner/static/store/ui/prefs.js" = { lines = 419 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

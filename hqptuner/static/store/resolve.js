@@ -5,7 +5,7 @@
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
 import { truthy } from "../lib/coerce.js";
-import { config, engineState, matrixConfig, staged, liveOverride, previewConfig, pendingPreset } from "./signals.js";
+import { config, engineState, matrixConfig, staged, liveOverride, previewConfig } from "./signals.js";
 
 // A form's fields keyed by name — the baseline/constraint source a control
 // reads from. Empty until that form has been polled at least once.
@@ -323,8 +323,6 @@ export function cleanStagedKeys() {
 // --- derived: the pending-changes bar ---
 const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
 export const stagedCount = computed(() => dirtyKeys.value.length);
-// Apply is warranted by staged tweaks OR a previewed preset waiting to commit.
-export const hasPending = computed(() => stagedCount.value > 0 || pendingPreset.value !== null);
 export const split = computed(() => {
   let live = 0;
   let restart = 0;

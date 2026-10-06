@@ -50,12 +50,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import {
-  initApodHistory,
-  apodBins,
-  apodStripVisible,
-  apodVisibleBins,
-} from "../../../../hqptuner/static/store/apodhistory.js";
+import { initApodHistory, apodBins, apodVisibleBins } from "../../../../hqptuner/static/store/apodhistory.js";
 import {
   STOPPED,
   PAUSED,
@@ -112,12 +107,6 @@ test("test_a_silent_poll_appends_a_zero_bin", () => {
   setPollStep(1);
   const deltas = feed([0]);
   assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_the_strip_is_not_visible_before_any_apodizing_event", () => {
-  setPollStep(1);
-  feed([0, 0, 0]);
-  assert.equal(apodStripVisible.value, false);
 });
 
 // --- what a bin counts ---------------------------------------------------------
@@ -298,33 +287,6 @@ test("test_a_longer_step_records_a_wider_bin", () => {
 
 // --- the auto-hide flag -----------------------------------------------------------
 
-test("test_the_strip_becomes_visible_once_a_non_zero_bin_is_appended", () => {
-  setPollStep(1);
-  feed([0, 2]);
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_the_strip_stays_visible_across_a_track_change_while_playback_continues", () => {
-  setPollStep(1);
-  feed([3]);
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_the_strip_is_not_visible_once_the_engine_stops", () => {
-  setPollStep(1);
-  feed([3]);
-  poll({ state: STOPPED });
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_the_strip_is_not_visible_once_the_engine_pauses", () => {
-  setPollStep(1);
-  feed([3]);
-  poll({ state: PAUSED });
-  assert.equal(apodStripVisible.value, false);
-});
-
 // What survives a track change is decided by the OUTGOING track's own bins and
 // by nothing else. The daemon's remain_min/remain_sec are never consulted: they
 // go negative on any stream of unknown length (a live capture reports
@@ -333,100 +295,9 @@ test("test_the_strip_is_not_visible_once_the_engine_pauses", () => {
 // The cases below therefore pin the counted-events rule, and pin that those two
 // fields move nothing whatever value they carry.
 
-test("test_a_track_change_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_track_change_from_a_track_that_counted_events_early_keeps_the_strip", () => {
-  // the events came at the head of the outgoing track and nothing followed: it
-  // is whether the track counted ANY event that decides, not what its last bin
-  // happened to be
-  setPollStep(1);
-  feed([3, 0, 0]);
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_negative_remain_fields_leave_a_silent_track_hidden", () => {
-  // the shape a stream of unknown length reports, which a remain-based rule
-  // would read as "not finished" and wrongly keep on screen
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "-55", remain_sec: "-41" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_remain_fields_reading_zero_leave_a_silent_track_hidden", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "0", remain_sec: "0" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_remain_fields_reading_zero_do_not_hide_a_track_that_counted_events", () => {
-  setPollStep(1);
-  feed([2, 3], { remain_min: "0", remain_sec: "0" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_junk_remain_fields_leave_a_silent_track_hidden", () => {
-  // the outgoing track counted nothing and its remain fields are unreadable —
-  // a rule that read them and treated the unreadable pair as "not finished"
-  // would keep the strip on screen here, which is the whole point of the case
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0], { remain_min: "nonsense", remain_sec: "" });
-  newTrack();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_junk_remain_fields_do_not_hide_a_track_that_counted_events", () => {
-  setPollStep(1);
-  feed([2, 3], { remain_min: "nonsense", remain_sec: "" });
-  newTrack();
-  assert.equal(apodStripVisible.value, true);
-});
-
 // The same rule answers to the wider definition of a track ending: a track that
 // counted nothing retires the strip when it ends, and "ends" includes a boundary
 // the serial never reported.
-
-test("test_a_position_restart_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  restartPosition();
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_counter_restart_from_a_silent_track_hides_the_strip", () => {
-  setPollStep(1);
-  feed([3]);
-  feed([0, 0]);
-  restartCounter(0);
-  assert.equal(apodStripVisible.value, false);
-});
-
-test("test_a_position_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
-  setPollStep(1);
-  feed([3, 0, 0]);
-  restartPosition();
-  assert.equal(apodStripVisible.value, true);
-});
-
-test("test_a_counter_restart_from_a_track_that_counted_events_keeps_the_strip", () => {
-  setPollStep(1);
-  feed([3, 0, 0]);
-  restartCounter(0);
-  assert.equal(apodStripVisible.value, true);
-});
 
 // --- the window slice ---------------------------------------------------------------
 // The slice keeps the newest bins whose recorded widths sum to no more than the

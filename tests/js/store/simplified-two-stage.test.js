@@ -32,9 +32,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { decorateOptions, plainClosedLabel } from "../../../hqptuner/static/store/plainnames.js";
-import { selectionDescription } from "../../../hqptuner/static/store/prose.js";
-import { schema } from "../../../hqptuner/static/store/schema.js";
+import { decorateOptions } from "../../../hqptuner/static/store/plainnames.js";
 import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { reset, META } from "../support/field-harness.js";
 
@@ -82,18 +80,11 @@ const FIXTURE_META = {
   },
 };
 
-// settings.json prose for the control being described; the two-stage sentences
-// come from the filters overlay, never from here.
-const FILTER_META = META.settings.dsp.filter_1x;
-
 const OPTIONS = [
   { value: "0", label: "fix-a" },
   { value: "1", label: "fix-a-2s" },
   { value: "2", label: "fix-c-2s" },
 ];
-
-/** @param {string} label */
-const one = (label) => [{ value: "0", label }];
 
 /**
  * Seed the overlays and the option-style pref.
@@ -132,33 +123,6 @@ test("test_a_simplified_two_stage_row_drops_the_trailing_two_stage_clause_from_t
   assert.equal(await rowText("fix-a-2s"), "Long");
 });
 
-test("test_a_simplified_two_stage_closed_control_drops_the_trailing_two_stage_clause_from_the_short", async () => {
-  await seed(true);
-  assert.equal(plainClosedLabel("filters", "fix-a-2s"), "Fix L");
-});
-
 test("test_a_simplified_row_whose_leaf_does_not_end_in_a_two_stage_clause_is_left_alone", async () => {
   assert.equal(await rowText("fix-c-2s"), "Long, two-stage, apodizing");
 });
-
-// --- the descriptions keep both notes in either style -------------------------
-
-for (const plain of [false, true]) {
-  const style = plain ? "simplified" : "standard";
-
-  test(`test_a_two_stage_filter_selection_carries_the_shared_two_stage_note_${style}`, async () => {
-    await seed(plain);
-    assert.ok(
-      selectionDescription(schema.pcm_filter_1x, "0", one("fix-a-2s"), FILTER_META).includes(TWO_STAGE_NOTE),
-      `the shared two-stage note is missing from the ${style} description`,
-    );
-  });
-
-  test(`test_a_flagged_filter_on_the_sdm_chain_carries_the_sdm_two_stage_note_${style}`, async () => {
-    await seed(plain);
-    assert.ok(
-      selectionDescription(schema.sdm_filter_1x, "0", one("fix-b"), FILTER_META).includes(SDM_TWO_STAGE_NOTE),
-      `the SDM two-stage note is missing from the ${style} description`,
-    );
-  });
-}

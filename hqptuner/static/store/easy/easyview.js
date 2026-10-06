@@ -14,7 +14,6 @@
 // leaves the in-memory signal driving the session.
 import { signal } from "@preact/signals";
 
-const K_MODE = "hqptuner.easyMode";
 const K_KNOBS = "hqptuner.easyKnobs";
 const K_MATERIAL = "hqptuner.easyMaterial";
 
@@ -41,34 +40,6 @@ function write(key, value) {
   } catch {
     /* storage disabled — the in-memory value drives the session */
   }
-}
-
-/** Whether the Easy Mode card is showing in place of the filter cards. */
-export const easyMode = signal(read(K_MODE) === "1");
-
-// The one thing in this module that is NOT remembered. Which face of the
-// controls someone prefers is a property of the person; having once read the
-// help is not, and a panel that reopened itself on every load would be a page
-// element rather than an answer to a question.
-/** Whether the help panel is open under the Easy Mode card. */
-export const easyHelp = signal(false);
-
-/**
- * Open the help panel, or close it if it is already open.
- * @returns {void}
- */
-export function toggleEasyHelp() {
-  easyHelp.value = !easyHelp.value;
-}
-
-/**
- * Show or hide the Easy Mode card, and remember which for next time.
- * @param {boolean} on
- * @returns {void}
- */
-export function setEasyMode(on) {
-  easyMode.value = !!on;
-  write(K_MODE, easyMode.value ? "1" : "0");
 }
 
 // The card's one knob: what material is playing. A fact about the source, not

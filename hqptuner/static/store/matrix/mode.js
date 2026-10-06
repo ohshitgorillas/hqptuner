@@ -34,11 +34,8 @@
 // accounts for. Only the hand-driven switcher suppresses and restores.
 import { signal, computed, effect } from "@preact/signals";
 
-import { effective, effectivePipelines, canonPipelines, activePreset } from "../resolve.js";
-import { stagePipelines, edit } from "../actions.js";
-import { structuralBlock, removeStructural, disableBauer } from "../xfeed/mode.js";
+import { activePreset } from "../resolve.js";
 import { pendingPreset } from "../signals.js";
-import { truthy } from "../../lib/coerce.js";
 import { api } from "../../lib/api.js";
 
 // DELIBERATELY still says dspMode, and must stay that way. This module, its
@@ -48,7 +45,6 @@ import { api } from "../../lib/api.js";
 // choice filed under it. Renaming it to match would silently orphan that value
 // and drop everyone back to the default on upgrade. Leave it.
 const KEY = "hqptuner.dspMode";
-const SNAPSHOT_KEY = "hqptuner.crossfeedSuppressed";
 
 function load() {
   try {
@@ -58,20 +54,6 @@ function load() {
   }
 }
 
-// What the switch took away: the pipelines as they stood, the crossfeed flag as
-// it stood, and the rows the suppression left behind (the guard for putting them
-// back). Null when there was nothing to suppress.
-function loadSnapshot() {
-  try {
-    const v = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || "null");
-    return v && Array.isArray(v.rows) && Array.isArray(v.after) ? v : null;
-  } catch {
-    return null;
-  }
-}
-
-let snapshot = loadSnapshot();
-
 /**
  * @typedef {object} Suppressed
  *   What the trip to the speaker side took away — the guard for putting exactly
@@ -80,20 +62,6 @@ let snapshot = loadSnapshot();
  * @property {string | number | boolean | undefined} crossfeed the Bauer flag as it stood
  * @property {import("../resolve.js").PipelineRow[]} after what the suppression left behind
  */
-
-/**
- * @param {Suppressed | null} v
- * @returns {void}
- */
-function saveSnapshot(v) {
-  snapshot = v;
-  try {
-    if (v) localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(v));
-    else localStorage.removeItem(SNAPSHOT_KEY);
-  } catch {
-    /* storage disabled — in-memory value drives the session */
-  }
-}
 
 export const matrixMode = signal(load());
 
@@ -144,75 +112,6 @@ function rememberLast(mode) {
   } catch {
     /* storage disabled — in-memory value drives the session */
   }
-}
-
-// Record the hand-driven choice against the preset it was made on. Nothing to key
-// it to means nothing to store — an install with no preset loaded still switches,
-// it just switches for this browser only.
-/**
- * @param {string} mode
- * @returns {void}
- */
-function remember(mode) {
-  const name = boundPreset.value;
-  if (!name) return;
-  presetModes.value = { ...presetModes.value, [name]: mode };
-  void api.saveMatrixMode(name, mode).catch(() => {
-    /* refused write leaves the switch where the user put it — a view choice
-       costs nothing to be wrong about until the next reload */
-  });
-}
-
-// EVERY crossfeed carrier, since any of them may be installed: the structural
-// block is sixteen matrix rows, Bauer is a post-process flag PLUS the eight
-// compensation rows built to correct for it. Dropping only the flag left that
-// correction running against a crossfeed that was no longer there — and since
-// the headphone EQ profile lives inside those eight rows, dismantling them is
-// also what hands the profile back to pipelines 1+2 intact.
-function suppress() {
-  const rows = effectivePipelines.value;
-  const crossfeed = effective("crossfeed_enabled");
-  const rec = structuralBlock(rows);
-  if (rec) removeStructural(rows, rec);
-  // Re-read: removing the block restaged the pipelines under us.
-  disableBauer(effectivePipelines.value);
-  const after = effectivePipelines.value;
-  const took = canonPipelines(after) !== canonPipelines(rows) || truthy(crossfeed);
-  saveSnapshot(took ? { rows, crossfeed, after } : null);
-}
-
-// Put back what the trip to the speaker side took, and only that. A pipeline set
-// that no longer matches what the suppression left is one the user has worked on
-// since — theirs, not ours to overwrite, so the snapshot is dropped instead.
-function restore() {
-  const snap = snapshot;
-  saveSnapshot(null);
-  if (!snap || canonPipelines(effectivePipelines.value) !== canonPipelines(snap.after)) return;
-  stagePipelines(snap.rows);
-  edit("pipelines", String(Math.max(2, snap.rows.length)));
-  if (truthy(snap.crossfeed)) edit("crossfeed_enabled", "1");
-}
-
-/**
- * Switch the Matrix tab's view and persist it, suppressing crossfeed on the way to
- * speakers and putting back exactly what was suppressed on the way to headphones.
- * @param {string} next "speakers" | "headphones"
- * @returns {void}
- */
-export function setMatrixMode(next) {
-  const mode = next === "speakers" ? "speakers" : "headphones";
-  const prev = matrixMode.value;
-  matrixMode.value = mode;
-  rememberLast(mode);
-  // Records even when the mode did not change. Clicking the half already on
-  // screen is how an unrecorded preset gets bound to the side it opened on —
-  // the click IS the choice, and refusing it because nothing moved would leave
-  // that preset unrecorded forever. Suppression is the other way round: nothing
-  // changed, so there is nothing to suppress or put back.
-  remember(mode);
-  if (mode === prev) return;
-  if (mode === "speakers") suppress();
-  else restore();
 }
 
 // Read the map once, at load. Guarded on `fetch` because this module is imported

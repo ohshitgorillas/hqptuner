@@ -12,7 +12,7 @@ import { signal } from "@preact/signals";
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
 const KEY_DYSLEXIC = "hqptuner.dyslexic";
-export const ACCENTS = ["blue", "green", "amber", "violet"];
+const ACCENTS = ["blue", "green", "amber", "violet"];
 const DEFAULT = "amber";
 // each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
 // hex box when a swatch is picked, so custom colors start from the preset
@@ -155,11 +155,4 @@ export function applyDyslexic(on) {
   } catch {
     /* storage disabled (private mode) — keep the in-memory value */
   }
-}
-
-/** Stamp the root attributes (accent, any custom hex, dyslexic font) at boot — no first-paint flash. */
-export function initTheme() {
-  document.documentElement.dataset.accent = accent.value;
-  if (accentHex.value) setInline(accentHex.value);
-  stampDyslexic(dyslexic.value);
 }

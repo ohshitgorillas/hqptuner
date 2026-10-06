@@ -139,15 +139,3 @@ test("test_options_the_flat_overlay_does_not_know_come_last_in_input_order", asy
 });
 
 // --- the closed control ---------------------------------------------------------
-
-test("test_plain_closed_label_reads_a_family_less_entrys_short_when_simplified", async () => {
-  await reset({ meta: META_FLAT });
-  plainNames.value = true;
-  assert.equal(plainnames.plainClosedLabel("sdm_conversion", "XFi"), "Crossfeed");
-});
-
-test("test_plain_closed_label_reads_the_raw_label_when_standard", async () => {
-  await reset({ meta: META_FLAT });
-  plainNames.value = false;
-  assert.equal(plainnames.plainClosedLabel("sdm_conversion", "XFi"), "XFi");
-});

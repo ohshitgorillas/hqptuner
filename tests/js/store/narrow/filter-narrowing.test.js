@@ -30,14 +30,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  nSrcFormat,
-  narrowingActive,
-  filterNarrowingActive,
-  resetNarrowing,
-} from "../../../../hqptuner/static/store/narrow/state.js";
+import { nSrcFormat, filterNarrowingActive, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { MOVED_FACETS } from "../../support/narrowfacets.js";
 
 // Rated 4/5 with ratio "Any" and apodizing set, so no facet at its default
 // trims the list and a predicate reading a shortened list rather than a moved
@@ -89,11 +83,3 @@ test("test_the_source_format_control_at_both_is_not_active_filter_narrowing", ()
 //
 // Which facets the list holds and which it deliberately leaves out is stated
 // once, in tests/js/support/narrowfacets.js.
-
-for (const [name, facet, moved] of MOVED_FACETS) {
-  test(`test_a_moved_${name}_facet_is_active_filter_narrowing`, () => {
-    reset();
-    facet.value = moved;
-    assert.deepEqual({ filter: filterNarrowingActive.value, any: narrowingActive.value }, { filter: true, any: true });
-  });
-}

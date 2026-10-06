@@ -18,71 +18,10 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import { elements, classes, attr } from "../markup.js";
-
 /** @typedef {import("../markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../wheel.js").VNode} VNode */
 
 // --- the markup half ---------------------------------------------------------
-
-/**
- * Where an element ends in the fragment it was scanned from.
- *
- * @param {MarkupElement} el
- * @returns {number}
- */
-export const endOf = (el) => el.start + el.html.length;
-
-/**
- * Whether `a` encloses `b` in the fragment (and is not `b` itself).
- *
- * @param {MarkupElement} a
- * @param {MarkupElement} b
- * @returns {boolean}
- */
-export const encloses = (a, b) =>
-  a.start <= b.start && endOf(a) >= endOf(b) && !(a.start === b.start && a.html.length === b.html.length);
-
-/**
- * The dd-opt option rows of a render, in document order.
- *
- * @param {string} out
- * @returns {MarkupElement[]}
- */
-export const rows = (out) =>
-  elements(out)
-    .filter((el) => classes(el).includes("dd-opt"))
-    .sort((a, b) => a.start - b.start);
-
-/**
- * The option row for one wire value, named by the `data-v` the row carries and
- * never by the words in it (docs/testing.md rule 9). Throws when no row carries
- * it, so an absence fails loudly instead of comparing against nothing.
- *
- * @param {string} out
- * @param {string} needle
- * @returns {MarkupElement}
- */
-export function rowIncluding(out, needle) {
-  const hit = rows(out).find((el) => attr(el, "data-v") === needle);
-  if (!hit) throw new Error(`no option row carries data-v="${needle}"`);
-  return hit;
-}
-
-/**
- * Text a user reads off the CLOSED combobox button: the dd-box element's own
- * content, tags stripped, so the caret the shape draws in its own element does
- * not ride along. Cases ask what that text EQUALS — "names the selection" is
- * only half the contract, and a button reading "0 sinc-M" satisfies a contains.
- *
- * @param {string} out
- * @returns {string}
- */
-export function boxText(out) {
-  const m = /<button\b[^<>]*\bclass="[^"]*\bdd-box\b[^"]*"[^<>]*>([\s\S]*?)<\/button>/.exec(out || "");
-  if (!m) throw new Error("no closed combobox button in the rendered output");
-  return m[1].replace(/<[^<>]*>/g, "").trim();
-}
 
 // --- the vnode half ------------------------------------------------------------
 
@@ -96,14 +35,6 @@ export const classTokens = (vnode) => {
   const cls = (vnode.props && (vnode.props.class || vnode.props.className)) || "";
   return typeof cls === "string" ? cls.split(/\s+/) : [];
 };
-
-/**
- * The dd-opt option rows among the vnodes one render built.
- *
- * @param {VNode[]} seen
- * @returns {VNode[]}
- */
-export const vnodeRows = (seen) => seen.filter((v) => v && v.props && classTokens(v).includes("dd-opt"));
 
 /**
  * Every clickable vnode strictly inside a subtree (never the subtree root).

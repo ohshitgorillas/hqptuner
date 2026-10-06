@@ -1,7 +1,6 @@
-// The renderer's vnode seam shared by the combobox suites that activate an
-// affordance SSR renders but cannot click (stars, header toggles, badges):
-// one render of a Field with every vnode preact builds along the way,
-// collected through preact's own `options.vnode` creation hook — the
+// The renderer's vnode seam shared by the suites that activate an affordance
+// SSR renders but cannot click: one render of a tree with every vnode preact
+// builds along the way, collected through preact's own `options.vnode` creation hook — the
 // renderer's public seam, nothing of HQPTuner's stubbed (docs/testing.md
 // rule 4) — plus the subtree-text reader an affordance is found by.
 //
@@ -9,9 +8,6 @@
 
 import { options } from "preact";
 import { render } from "preact-render-to-string";
-
-import { html } from "../../../hqptuner/static/lib/dom.js";
-import { Field } from "../../../hqptuner/static/components/widgets/Field.js";
 
 /** @typedef {import("./wheel.js").VNode} VNode */
 
@@ -36,14 +32,6 @@ export function renderTree(tree) {
     options.vnode = previous;
   }
 }
-
-/**
- * One render of a Field, with every vnode preact builds along the way.
- *
- * @param {string} k
- * @returns {{ out: string, seen: VNode[] }}
- */
-export const renderField = (k) => renderTree(html`<${Field} k=${k} />`);
 
 /**
  * Concatenated text of a vnode subtree.

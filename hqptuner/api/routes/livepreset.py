@@ -101,14 +101,6 @@ class LivePresetList:
 
 
 @dataclass(frozen=True)
-class LiveSnapshotView:
-    """``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``."""
-
-    chain: str
-    fields: dict[str, dict[str, str]]
-
-
-@dataclass(frozen=True)
 class LivePresetDeleted:
     """``DELETE /api/livepresets/{name}``: the key the store held."""
 
@@ -257,19 +249,6 @@ async def _switch_profile(manager: ConnectionManager, profile: str | None) -> No
         await matrixlane.switch_profile(manager, profile)
     except ControlError as exc:
         raise refuse(MatrixSwitchRefusedError(error=exc)) from exc
-
-
-@router.get("/livepresets/snapshot")
-def live_snapshot(manager: Mgr) -> LiveSnapshotView:
-    """Return what a save would store right now, per setting with its display name — what the save popover lists.
-
-    409 when the loaded chain is unknowable, the same refusal a save gives.
-    """
-    try:
-        taken = snapshot.live_snapshot(manager)
-    except ChainUnknownError as exc:
-        raise refuse(exc, exc.reasons) from exc
-    return LiveSnapshotView(taken.chain, taken.fields)
 
 
 @router.get("/livepresets")

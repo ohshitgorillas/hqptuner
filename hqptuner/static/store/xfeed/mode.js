@@ -34,7 +34,7 @@ import { compileRows } from "../../vendor/eqlab/core/binaural/compile.js";
 import { SPEAKER_ANGLE, HEAD_RADIUS } from "../../vendor/eqlab/core/binaural/geometry.js";
 import { recognizeRows } from "../../vendor/eqlab/core/binaural/recognize.js";
 import { blockConflicts, pairInfo, REFUSAL } from "../../lib/binaural-setup.js";
-import { effective, effectivePipelines, pipelineBaseline } from "../resolve.js";
+import { effective } from "../resolve.js";
 import { stagePipelines, edit } from "../actions.js";
 import { xfeedBlock, removeBlock as removeCompBlock } from "./block.js";
 import { truthy } from "../../lib/coerce.js";
@@ -168,21 +168,6 @@ export function stageStructural(rows, params) {
   return null;
 }
 
-// The Structural gate's dirty state. The gate is ENGAGE/BYPASS, so the question
-// it asks is whether the BLOCK's presence is staged-different from the applied
-// one — not whether the rows changed. Retuning an installed block restages all
-// sixteen rows and leaves the gate clean on purpose: the crossfeed is engaged
-// either way, and the pending bar counts the row edit under matrix_pipelines.
-//
-// Presence rather than the "pipelines" row-count field:
-// that field is the Matrix tab's own count dropdown, so reading it (or a DSP-mode
-// restore) lights this gate with no crossfeed change staged, while install and
-// removal only register because 2 <-> 16 happens to move the count.
-/** Whether the block's staged presence differs from the applied one — the Structural gate's dirty state. */
-export function pipelinesDirty() {
-  return !!structuralBlock(effectivePipelines.value) !== !!structuralBlock(pipelineBaseline.value);
-}
-
 // --- which mode the user is LOOKING AT ---------------------------------------
 //
 // STORED, not derived from the rows. Deriving it makes the segment a mutator:
@@ -226,7 +211,7 @@ export function activeMode(rows) {
  *
  * @param {PipelineRow[]} rows
  */
-export function disableBauer(rows) {
+function disableBauer(rows) {
   const { rec } = xfeedBlock(rows);
   if (rec) removeCompBlock(rows, rec);
   if (truthy(effective("crossfeed_enabled"))) edit("crossfeed_enabled", "0");

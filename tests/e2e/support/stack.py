@@ -80,7 +80,7 @@ class NotifyingState(dict[str, Any]):
         self.condition = threading.Condition()
 
     def __setitem__(self, key: str, value: object) -> None:
-        """Record the value and wake every `wait_for_state` blocked on it."""
+        """Record the value and wake every waiter blocked on it."""
         with self.condition:
             super().__setitem__(key, value)
             self.condition.notify_all()
@@ -107,14 +107,6 @@ class Stack:
         """
         with self.control_log.condition:
             return self.control_log.condition.wait_for(predicate, timeout=timeout)
-
-    def wait_for_state(self, predicate: Callable[[], bool], timeout: float) -> bool:
-        """Block until `predicate()` holds or `timeout` seconds pass, woken by every write to `http_state`.
-
-        Quiet on a timeout, the same as `wait_for_command`.
-        """
-        with self.http_state.condition:
-            return self.http_state.condition.wait_for(predicate, timeout=timeout)
 
 
 def _free_port() -> int:

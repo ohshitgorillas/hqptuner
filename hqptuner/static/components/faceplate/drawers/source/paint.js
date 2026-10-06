@@ -21,7 +21,6 @@ import { spectrogramCells, spectrogramEnd, spectrogramTier } from "../../../../s
 /** The spectrogram canvas's pixel size; CSS stretches it over the plot. */
 export const SPEC_SIZE = { width: W, height: H };
 
-const RAMP = ["--spec-0", "--spec-1", "--spec-2", "--spec-3", "--spec-4", "--spec-5"];
 const OPAQUE = 255;
 
 /**
@@ -46,7 +45,15 @@ function rgb(value, fallback) {
  */
 function readColours(el) {
   const cs = getComputedStyle(el);
-  const lut = rampLut(RAMP.map((n, i) => rgb(cs.getPropertyValue(n), [i * 50, i * 40, i * 20])));
+  const stops = [
+    cs.getPropertyValue("--spec-0"),
+    cs.getPropertyValue("--spec-1"),
+    cs.getPropertyValue("--spec-2"),
+    cs.getPropertyValue("--spec-3"),
+    cs.getPropertyValue("--spec-4"),
+    cs.getPropertyValue("--spec-5"),
+  ];
+  const lut = rampLut(stops.map((v, i) => rgb(v, [i * 50, i * 40, i * 20])));
   const glass = rgb(cs.getPropertyValue("--glass"), [8, 9, 11]);
   const bad = rgb(cs.getPropertyValue("--bad"), [224, 88, 75]);
   const ramp = Array.from(

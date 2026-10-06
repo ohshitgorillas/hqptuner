@@ -1,8 +1,7 @@
 """The gate that holds a stylesheet to its tokens (``docs/design-system.md``).
 
 ``scripts/gates/css/check_css_tokens.py`` reads one stylesheet and reports
-every declaration off the rules its directory is held to: the v1 ladder in a
-v1 concern directory, the faceplate rules everywhere else.
+every declaration off the faceplate rules.
 
 The seam is ``check_file(path) -> list[str]``; the observable contract is the
 list of complaint lines it hands back, each opening ``<path>:<line>:``. Every
@@ -33,9 +32,8 @@ def _load_gate_module() -> ModuleType:
 GATE = _load_gate_module()
 
 
-#: A directory outside every v1 concern directory, and one inside.
+#: The directory a stylesheet under test is written to.
 FACEPLATE_DIR = "styles"
-V1_DIR = "static/css/features"
 
 
 def sheet(tmp_path: Path, directory: str, css: str) -> Path:
@@ -64,6 +62,7 @@ def sheet(tmp_path: Path, directory: str, css: str) -> Path:
         (".a{transition:opacity .12s ease-out}", 1),
         (".a{animation:alarm var(--blink)}", 0),
         (".a{animation:alarm 1s step-end infinite}.b{animation-duration:250ms}", 2),
+        (".a {\n  font-size: 13px;\n  padding: 4px 10px;\n  border-radius: 3px;\n}\n", 0),
     ],
 )
 def test_a_faceplate_stylesheet_is_held_to_colour_line_height_family_and_motion_tokens(
@@ -71,18 +70,6 @@ def test_a_faceplate_stylesheet_is_held_to_colour_line_height_family_and_motion_
 ) -> None:
     """Each declaration off a faceplate rule is one complaint, wherever it sits on its line."""
     assert len(GATE.check_file(sheet(tmp_path, FACEPLATE_DIR, css))) == complaints
-
-
-#: Literal sizes: off the v1 ladder three times over, legal on the faceplate.
-LITERAL_SIZES = ".a {\n  font-size: 13px;\n  padding: 4px 10px;\n  border-radius: 3px;\n}\n"
-
-
-@pytest.mark.parametrize(("directory", "complaints"), [(FACEPLATE_DIR, 0), (V1_DIR, 3)])
-def test_literal_sizes_are_refused_in_a_v1_concern_directory_and_legal_on_the_faceplate(
-    tmp_path: Path, directory: str, complaints: int
-) -> None:
-    """The faceplate is laid out in pixels at its design size; the v1 ladder refuses each literal."""
-    assert len(GATE.check_file(sheet(tmp_path, directory, LITERAL_SIZES))) == complaints
 
 
 @pytest.mark.parametrize(

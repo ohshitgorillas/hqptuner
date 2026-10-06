@@ -29,8 +29,6 @@ import {
   livePresetsBusy,
   livePresetError,
   applyLivePreset,
-  saveLivePreset,
-  deleteLivePreset,
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, presetWire, settle } from "../../support/wire/livepresetwire.js";
 
@@ -194,38 +192,6 @@ test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
 
 // --- saving and deleting --------------------------------------------------------
 
-test("test_saving_a_preset_puts_to_its_endpoint", async () => {
-  const w = reset();
-  await saveLivePreset("Den");
-  assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Den" && c.method === "PUT").length, 1);
-});
-
-test("test_a_save_sends_no_request_body", async () => {
-  // The backend snapshots the running engine itself; a body would be the
-  // frontend's idea of the settings instead of the engine's.
-  const w = reset();
-  await saveLivePreset("Den");
-  assert.equal(w.calls.find((c) => c.method === "PUT")?.body, undefined);
-});
-
-test("test_a_save_re_reads_the_preset_list", async () => {
-  reset({ presets: [rec("Living Room", "pcm")] });
-  await saveLivePreset("Den");
-  assert.deepEqual(names(), ["Living Room", "Den"]);
-});
-
-test("test_deleting_a_preset_sends_a_delete_to_its_endpoint", async () => {
-  const w = reset({ presets: [rec("Den", "pcm")] });
-  await deleteLivePreset("Den");
-  assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Den" && c.method === "DELETE").length, 1);
-});
-
-test("test_a_delete_re_reads_the_preset_list", async () => {
-  reset({ presets: [rec("Living Room", "pcm"), rec("Den", "pcm")] });
-  await deleteLivePreset("Den");
-  assert.deepEqual(names(), ["Living Room"]);
-});
-
 // --- stations -------------------------------------------------------------------
 //
 // The list is the loaded station's; the book beside it holds every station's.
@@ -256,21 +222,4 @@ test("test_an_apply_names_the_station_its_list_was_read_for", async () => {
   await settle();
   await applyLivePreset("Warm");
   assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Warm/apply?station=Den").length, 1);
-});
-
-test("test_a_delete_names_the_station_its_list_was_read_for", async () => {
-  const w = reset({ presets: [rec("Warm", "pcm")], station: "Den" });
-  liveMode.value = true;
-  await settle();
-  await deleteLivePreset("Warm");
-  assert.equal(
-    w.calls.filter((c) => c.path === "/api/livepresets/Warm?station=Den" && c.method === "DELETE").length,
-    1,
-  );
-});
-
-test("test_a_save_naming_stations_sends_them", async () => {
-  const w = reset();
-  await saveLivePreset("Warm", undefined, ["", "Den"]);
-  assert.equal(w.calls.find((c) => c.method === "PUT")?.body, JSON.stringify({ stations: ["", "Den"] }));
 });

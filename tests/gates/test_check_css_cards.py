@@ -1,9 +1,8 @@
-"""The gate that keeps the card frame out of every stylesheet but its own (``docs/design-system.md``).
+"""The gate that keeps the card frame off the faceplate (``docs/design-system.md``).
 
-``scripts/gates/css/check_css_cards.py`` reads one stylesheet. In a v1 concern
-directory it reports a rule repainting the card frame under another name.
-Everywhere else there is no card at all: it reports a selector naming a card
-or pack class, and a rule painting the plate's fill with a corner radius.
+``scripts/gates/css/check_css_cards.py`` reads one stylesheet and reports a
+selector naming a card or pack class, and a rule painting the plate's fill with
+a corner radius.
 
 The seam is ``check_file(path) -> list[str]``; the observable contract is the
 list of complaint lines it hands back. Every selector below is invented here
@@ -63,21 +62,10 @@ def test_a_faceplate_stylesheet_has_no_card_no_pack_and_one_plate(tmp_path: Path
     assert len(GATE.check_file(sheet(tmp_path, "styles", css))) == complaints
 
 
-#: The v1 frame under another name, and the v1 class names, as a v1 stylesheet writes them.
-V1_FRAME = ".tile {\n  background: var(--surface-card);\n  border-radius: var(--r-lg);\n}\n"
-V1_CLASSES = ".card {\n  padding: 0;\n}\n.pack {\n  display: grid;\n}\n"
+#: The refused class names, one declaration to a line.
+SPREAD_CLASSES = ".card {\n  padding: 0;\n}\n.pack {\n  display: grid;\n}\n"
 
 
-@pytest.mark.parametrize(
-    ("directory", "css", "complaints"),
-    [
-        ("static/css/features", V1_FRAME, 1),
-        ("static/css/features", V1_CLASSES, 0),
-        ("styles", V1_CLASSES, 2),
-    ],
-)
-def test_a_v1_concern_directory_keeps_its_card_and_is_refused_only_a_second_frame(
-    tmp_path: Path, directory: str, css: str, complaints: int
-) -> None:
-    """The v1 directories own a card; the same class names anywhere else are complaints."""
-    assert len(GATE.check_file(sheet(tmp_path, directory, css))) == complaints
+def test_refused_class_names_spread_over_lines_are_each_a_complaint(tmp_path: Path) -> None:
+    """A rule laid out over several lines is read the same as one written on one line."""
+    assert len(GATE.check_file(sheet(tmp_path, "styles", SPREAD_CLASSES))) == 2

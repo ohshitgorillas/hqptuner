@@ -19,7 +19,6 @@ import {
   applyAccentHex,
   applyDyslexic,
   dyslexic,
-  initTheme,
 } from "../../../hqptuner/static/store/ui/theme.js";
 
 const KEY = "hqptuner.accent";
@@ -217,30 +216,3 @@ test("test_switching_the_dyslexic_font_off_clears_the_root_attribute", () => {
 });
 
 // --- initTheme: the boot-time stamp -------------------------------------------------
-
-test("test_init_stamps_the_dyslexic_attribute_from_the_stored_preference", () => {
-  const { root } = setup();
-  dyslexic.value = true;
-  initTheme();
-  assert.equal(root.dataset.dyslexic, "1");
-});
-
-test("test_init_stamps_the_root_attribute_from_the_stored_accent", () => {
-  const { root } = setup();
-  accent.value = "green";
-  initTheme();
-  assert.equal(root.dataset.accent, "green");
-});
-
-test("test_init_reapplies_a_stored_custom_hex_inline", () => {
-  const { root } = setup();
-  accentHex.value = "#123456";
-  initTheme();
-  assert.equal(root.style.vars.get("--accent"), "#123456");
-});
-
-test("test_init_without_a_custom_hex_leaves_the_inline_variable_unset", () => {
-  const { root } = setup();
-  initTheme();
-  assert.equal(root.style.vars.has("--accent"), false);
-});

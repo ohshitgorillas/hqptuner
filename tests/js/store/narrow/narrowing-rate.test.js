@@ -53,7 +53,6 @@ import {
   nHideLimited,
   nOddRateOnly,
   nDownsafeOnly,
-  narrowingActive,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, rateAutoHide, effHideLimited } from "../../../../hqptuner/static/store/narrow/match.js";
@@ -439,35 +438,6 @@ test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
 // --- selection state -----------------------------------------------------------
 // Auto engaging on its own is the engine's doing, not the user's: it never
 // reads as active narrowing. Any EXPLICIT setting — "on" or "off" alike — does.
-
-test("test_auto_engaged_hides_are_not_active_narrowing", () => {
-  classes(SDM_44_NET);
-  assert.equal(narrowingActive.value, false);
-});
-
-test("test_hide_limited_on_is_active_narrowing", () => {
-  classes();
-  nHideLimited.value = "on";
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_hide_limited_off_is_active_narrowing", () => {
-  classes();
-  nHideLimited.value = "off";
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_an_engaged_odd_rate_switch_is_active_narrowing", () => {
-  classes();
-  nOddRateOnly.value = true;
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_an_engaged_downsample_safe_switch_is_active_narrowing", () => {
-  classes();
-  nDownsafeOnly.value = true;
-  assert.equal(narrowingActive.value, true);
-});
 
 test("test_reset_returns_hide_limited_to_auto", () => {
   classes();

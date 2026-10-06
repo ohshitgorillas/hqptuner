@@ -66,9 +66,6 @@ const visible = signal(false);
 /** This track's bins, oldest first. */
 export const apodBins = computed(() => bins.value);
 
-/** Whether the density strip shows at all. */
-export const apodStripVisible = computed(() => visible.value);
-
 /** How many bins have ever been recorded, counting past the window's slide. */
 export const apodBinSeq = computed(() => seq.value);
 

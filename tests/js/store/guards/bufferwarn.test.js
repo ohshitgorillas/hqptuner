@@ -23,7 +23,7 @@ import assert from "node:assert/strict";
 
 import { config, engineState } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
-import { question, askWarn, askConfirm, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { question, askWarn, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 
 async function reset() {
@@ -183,28 +183,4 @@ test("askWarn resolves declined on cancel", async () => {
   const p = askWarn("short_buffer", "minimum short buffer");
   cancel();
   assert.ok(!(await p));
-});
-
-test("a superseding question resolves a pending askWarn as declined", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  askConfirm("pending", "Replace the staged set?");
-  const verdict = await p;
-  cancel();
-  assert.ok(!verdict);
-});
-
-// The one-question-at-a-time contract, end to end: a question opened over a
-// pending buffer warning declines the guard, so the dangerous edit never lands
-// — and, as with an explicit cancel, what was already staged stays staged.
-test("a question opened over a pending buffer warning stages nothing", async () => {
-  const w = await reset();
-  const { held: pre } = await stage(w, "short_buffer", "1");
-  await pre;
-  const { held } = await stage(w, "short_buffer", "2");
-  askConfirm("pending", "Replace the staged set?");
-  await held;
-  await quiesce(w);
-  cancel();
-  assert.equal(w.staged.http.short_buffer, "1");
 });

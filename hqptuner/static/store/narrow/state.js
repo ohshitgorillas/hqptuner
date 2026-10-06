@@ -114,15 +114,6 @@ export const filterNarrowingActive = computed(
     ),
 );
 
-// Two predicates, because the bar renders in two places and source format only
-// means something in one of them. The Live view's chain cards have no DSD
-// Sources subsection for it to open (components/live/View.js ChainBody), so its
-// bar drops the control and reads filterNarrowingActive — otherwise a facet set
-// on the Output tab would raise a Reset button in Live with nothing on the page
-// to explain it. Every other facet narrows dropdowns both bars render, so the
-// split stops here.
-export const narrowingActive = computed(() => filterNarrowingActive.value || nSrcFormat.value !== SRC_FORMAT_DEFAULT);
-
 /** Clear every narrow-bar facet, putting the per-stage switches back to their defaults rather than blank. */
 export function resetNarrowing() {
   nGenre.value = [];

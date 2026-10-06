@@ -53,7 +53,6 @@ import {
   nLength,
   nApod1x,
   nApodNx,
-  narrowingActive,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../../hqptuner/static/store/narrow/match.js";
@@ -369,37 +368,6 @@ test("test_an_option_with_no_facet_record_survives_a_length_pick", () => {
 });
 
 // --- selection state ------------------------------------------------------------
-
-test("test_nothing_picked_is_not_active_narrowing", () => {
-  reset(PLAIN);
-  assert.equal(narrowingActive.value, false);
-});
-
-test("test_a_picked_length_is_active_narrowing", () => {
-  reset(LENGTHS);
-  nLength.value = ["long"];
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_a_picked_phase_is_active_narrowing", () => {
-  reset(PHASES);
-  nPhase.value = ["minimum"];
-  assert.equal(narrowingActive.value, true);
-});
-
-test("test_an_empty_phase_selection_is_not_active_narrowing", () => {
-  reset(PHASES);
-  nPhase.value = ["minimum"];
-  nPhase.value = [];
-  assert.equal(narrowingActive.value, false);
-});
-
-test("test_an_empty_length_selection_is_not_active_narrowing", () => {
-  reset(LENGTHS);
-  nLength.value = ["long"];
-  nLength.value = [];
-  assert.equal(narrowingActive.value, false);
-});
 
 test("test_reset_returns_length_to_not_narrowed", () => {
   reset(LENGTHS);

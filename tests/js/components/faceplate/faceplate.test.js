@@ -1,4 +1,4 @@
-// Rendered suite for the frame the v2 entry composes (hqptuner/static/v2/app.js): the header and the engine row stay
+// Rendered suite for the frame the entry composes (hqptuner/static/app.js): the header and the engine row stay
 // whatever body shows, the chain body holds the rail, the page and one drawer per rail stage, and a builder or the
 // gear swaps the whole body away. One drawer is open at a time, the one whose stage was tapped.
 //
@@ -10,7 +10,7 @@ import { render } from "preact-render-to-string";
 
 import "../../support/domseam.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Faceplate } from "../../../../hqptuner/static/v2/app.js";
+import { Faceplate } from "../../../../hqptuner/static/app.js";
 import {
   body,
   openStage,

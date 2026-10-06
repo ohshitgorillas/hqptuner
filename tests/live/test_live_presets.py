@@ -244,11 +244,9 @@ def test_a_full_save_stores_every_live_setting_the_engine_reports_but_the_junk_f
     assert set(fields) == {"mode", "filter1x", "filter", "dither", "adaptive_volume", "matrix_profile"}
 
 
-#: Each snapshot surface's response keys: the record, and the preview a save
-#: would store. Neither carries an auto-pilot member.
+#: Each snapshot surface's response keys. None carries an auto-pilot member.
 SNAPSHOT_KEYS = [
     pytest.param("PUT", "/api/livepresets/Warm", {"name", "chain", "fields", "names"}, id="save"),
-    pytest.param("GET", "/api/livepresets/snapshot", {"chain", "fields"}, id="preview"),
 ]
 
 

@@ -12,7 +12,6 @@ import { config, volume, staged, liveOverride, previewConfig, pendingPreset, eng
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { mirror, refreshConfig } from "./sync.js";
-import { liveMode } from "./ui/prefs.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
@@ -217,17 +216,13 @@ export async function previewPreset(name) {
   pendingPreset.value = name;
 }
 
-// The v1 picker previews outside LIVE and waits for Apply; LIVE has no Apply, so there a pick loads. Whatever else
-// is staged rides along with a load: the staged set lives on the server and every apply drains it. Nothing pending
-// means the name was the active preset, and an apply with no switch and nothing staged is a 400.
+// Whatever else is staged rides along with a load: the staged set lives on the server and every apply drains it.
+// Nothing pending means the name was the active preset, and an apply with no switch and nothing staged is a 400.
 /** Preview a preset and commit the switch to it at once. */
 export async function loadPreset(/** @type {string} */ name) {
   await previewPreset(name);
   if (pendingPreset.value !== null) await commitApply();
 }
-
-/** Preview a preset, and in LIVE mode commit the switch immediately. */
-export const pickPreset = (/** @type {string} */ name) => (liveMode.value ? loadPreset(name) : previewPreset(name));
 
 // Kept exported with no current caller: it is the symmetric half of the exported
 // previewPreset, and a preview API that can start but not clear is a trap.
@@ -239,21 +234,6 @@ export const pickPreset = (/** @type {string} */ name) => (liveMode.value ? load
 export function clearPreview() {
   pendingPreset.value = null;
   previewConfig.value = null;
-}
-
-// Delete a stored preset (store + daemon mirror), then refresh so the picker
-// drops it. Clears the preview if the deleted preset was the one being previewed.
-/**
- * Delete a stored preset and refresh the config so the picker drops it.
- *
- * @param {string} name
- * @returns {Promise<void>}
- */
-export async function deletePreset(name) {
-  if (!name) return;
-  await api.deletePreset(name);
-  if (pendingPreset.value === name) clearPreview();
-  await refreshConfig();
 }
 
 // apply lifecycle, shared so the pill and the pending bar both reflect it
@@ -345,39 +325,8 @@ async function commitApply(save) {
   );
 }
 
-// Standalone save — persist the CURRENT running config to a named preset with
-// nothing staged (the "I like this, keep it" path). Reuses the applying signal:
-// the save lane POSTs /restore, so the daemon briefly restarts just like an apply.
-/**
- * Persist the running config to a named preset without applying anything staged.
- *
- * @param {string} name
- * @returns {Promise<import("./apply-summary.js").SaveResult>}
- */
-export async function savePresetOnly(name) {
-  return applyLane(
-    async () => {
-      const r = await api.profile("save", name).finally(refreshConfig);
-      lastApply.value = { ok: true, code: "saved", text: `Saved to "${r.name}"`, preset: r.name, save: "ok" };
-      return r;
-    },
-    "Save",
-    true,
-  );
-}
-
 // Auto-save: with this preset-store flag on, the backend folds every successful apply/live write into the active preset.
 export const autosave = computed(() => !!(config.value && config.value.autosave));
-/**
- * Turn the preset store's auto-save flag on or off, then re-mirror the config.
- *
- * @param {boolean} enabled
- * @returns {Promise<void>}
- */
-export async function setAutosave(enabled) {
-  await api.setAutosave(enabled);
-  await mirror(api.config, config);
-}
 
 // The high-frequency filter's auto-pilot: with this on, the backend engages and disengages the filter from the
 // metering advisor's verdict while a track plays. Read off /api/status rather than remembered here, because the

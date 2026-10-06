@@ -87,7 +87,7 @@ const W = stagingWire({
   },
 });
 
-const { matrixMode, setMatrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
+const { matrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
 
 /**
  * Put the module back to a stated starting state: the config naming the applied
@@ -212,66 +212,7 @@ test("test_looking_at_a_preset_with_no_recorded_mode_leaves_speakers_alone", asy
 
 // --- the hand-driven switcher records the choice ----------------------------------------
 
-test("test_switching_by_hand_records_the_new_mode_for_the_preset_being_looked_at", async () => {
-  await reset({ mode: "speakers", active: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: SPK, mode: "headphones" });
-});
-
-test("test_switching_by_hand_sends_exactly_one_put", async () => {
-  await reset({ mode: "speakers", active: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.equal(PUTS.length, 1);
-});
-
-// Every click records, including one on the half already displayed: that is how
-// a preset with no recorded mode gets bound to the side it opened on. A store
-// that skipped the write when the requested mode matches the current one leaves
-// that preset unbound for ever, and no case that flips sides can see it.
-test("test_clicking_the_half_already_displayed_still_records_it", async () => {
-  await reset({ mode: "speakers", active: UNRECORDED });
-  await setMatrixMode("speakers");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: UNRECORDED, mode: "speakers" });
-});
-
-test("test_switching_by_hand_records_the_choice_against_a_previewed_preset", async () => {
-  await reset({ mode: "speakers", active: HP, pending: SPK });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS.at(-1), { name: SPK, mode: "headphones" });
-});
-
 // --- nothing to key the choice to ----------------------------------------------------------
-
-test("test_switching_by_hand_with_no_preset_being_looked_at_records_nothing", async () => {
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.deepEqual(PUTS, []);
-});
-
-test("test_switching_by_hand_with_no_preset_being_looked_at_still_moves_the_tab", async () => {
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  assert.equal(matrixMode.value, "headphones");
-});
-
-// With no preset to key the choice to, the browser's own memory is all there is:
-// the click still has to leave the last-used side behind, or a reload with no
-// preset lands the user back on the other half.
-test("test_switching_by_hand_with_no_preset_being_looked_at_still_remembers_the_side", async () => {
-  const storage = useStorage();
-  await reset({ mode: "speakers", active: "" });
-  await setMatrixMode("headphones");
-  await quiesce(W);
-  const stored = storage.getItem(MODE_KEY);
-  dropStorage();
-  assert.equal(stored, "headphones");
-});
 
 // --- the map is read once, when the module loads ---------------------------------------
 // Nothing polls it: a choice made in another browser turns up on reload, not by

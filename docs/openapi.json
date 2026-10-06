@@ -1814,31 +1814,6 @@
         "title": "LiveRecord",
         "type": "object"
       },
-      "LiveSnapshotView": {
-        "description": "``GET /api/livepresets/snapshot``: what a save would store now, per setting ``{value, name}``.",
-        "properties": {
-          "chain": {
-            "title": "Chain",
-            "type": "string"
-          },
-          "fields": {
-            "additionalProperties": {
-              "additionalProperties": {
-                "type": "string"
-              },
-              "type": "object"
-            },
-            "title": "Fields",
-            "type": "object"
-          }
-        },
-        "required": [
-          "chain",
-          "fields"
-        ],
-        "title": "LiveSnapshotView",
-        "type": "object"
-      },
       "LiveWriteFailed": {
         "description": "A live-lane setter that did not verify, with the reason and its code. The fields are the wire keys.",
         "properties": {
@@ -4448,25 +4423,6 @@
           }
         },
         "summary": "Live Presets"
-      }
-    },
-    "/api/livepresets/snapshot": {
-      "get": {
-        "description": "Return what a save would store right now, per setting with its display name \u2014 what the save popover lists.\n\n409 when the loaded chain is unknowable, the same refusal a save gives.",
-        "operationId": "live_snapshot_api_livepresets_snapshot_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/LiveSnapshotView"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Live Snapshot"
       }
     },
     "/api/livepresets/{name}": {

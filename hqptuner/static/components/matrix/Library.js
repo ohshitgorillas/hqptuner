@@ -65,7 +65,7 @@ function Hit({ p }) {
       onClick=${() => (isSel ? clearLibrarySelection() : select(p))}
     >
       <span>${p.model}</span>
-      <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
+      <span>${p.source}${p.form ? ` · ${p.form}` : ""}</span>
     </button>
   `;
 }
@@ -78,15 +78,15 @@ function Selection({ applyText }) {
   if (!p) return null;
   const parsed = parseEqText(p.text);
   return html`
-    <div class="mtx-lib-sel">
+    <div>
       <span>${p.model}</span>
-      <span class="mtx-lib-src">${p.source}${p.form ? ` · ${p.form}` : ""}</span>
-      <span class="mtx-lib-bands"
+      <span>${p.source}${p.form ? ` · ${p.form}` : ""}</span>
+      <span
         >${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on
         the Response card</span
       >
-      <button type="button" class="mtx-tool mtx-primary" onClick=${() => applyText(p.text)}>Load profile</button>
-      <button type="button" class="mtx-tool" onClick=${clearLibrarySelection}>Clear</button>
+      <button type="button" onClick=${() => applyText(p.text)}>Load profile</button>
+      <button type="button" onClick=${clearLibrarySelection}>Clear</button>
     </div>
   `;
 }
@@ -102,15 +102,15 @@ export function LibraryPicker({ applyText }) {
   const { hits, more } = results();
   const meta = db.value && db.value.meta;
   return html`
-    <div class="mtx-lib">
-      <div class="mtx-profile-row">
+    <div>
+      <div>
         <input
           type="text"
           placeholder="Search headphone model — e.g. HD 650…"
           value=${query.value}
           onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => (query.value = e.target.value)}
         />
-        <span class="mtx-lib-credit">
+        <span>
           profiles:
           <a href="https://github.com/jaakkopasanen/AutoEq" target="_blank" rel="noreferrer">AutoEq</a> ${" "}(<a
             href="/vendor/autoeq-LICENSE.txt"
@@ -119,12 +119,12 @@ export function LibraryPicker({ applyText }) {
           >)${meta ? ` · ${meta.profiles} models @ ${meta.sha.slice(0, 7)}` : ""}
         </span>
       </div>
-      ${dbState.value ? html`<div class="mtx-issues">${dbState.value}</div>` : null}
+      ${dbState.value ? html`<div>${dbState.value}</div>` : null}
       ${
         hits.length
-          ? html`<div class="mtx-lib-hits">
+          ? html`<div>
               ${hits.map((p) => html`<${Hit} p=${p} />`)}
-              ${more ? html`<div class="mtx-lib-more">…${more} more — refine the search</div>` : null}
+              ${more ? html`<div>…${more} more — refine the search</div>` : null}
             </div>`
           : null
       }

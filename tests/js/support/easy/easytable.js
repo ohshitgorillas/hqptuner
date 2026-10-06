@@ -38,21 +38,6 @@ export const everyWrite = () =>
     combos(preset.knobs).map((knobs) => writeSet(preset.id, "auto", knobs)),
   );
 
-/**
- * Every distinct filter name the card's presets can write, across all four
- * schema keys and every knob combination — the whole vocabulary Easy Mode can
- * put in front of the daemon.
- *
- * @returns {string[]}
- */
-export const namesWritten = () => [
-  ...new Set(
-    everyWrite()
-      .flatMap((set) => Object.values(set))
-      .filter(Boolean),
-  ),
-];
-
 // --- picking a subject preset out of the table, without naming one -----------------
 //
 // A case about the SDM chain needs A preset whose SDM writes it can class in the
@@ -120,48 +105,6 @@ function sdmSubjects() {
 export function sdmSubject(least = 1) {
   const hit = sdmSubjects().find((id) => sdmNames(id).length >= least);
   if (hit === undefined) throw new Error(`no preset writes ${least} SDM filters of its own`);
-  return hit;
-}
-
-/**
- * The SDM filter names a preset writes at its OWN default knob positions — the
- * one combination a tile shows before anything is pressed. Stated through each
- * knob's `default` rather than through an empty knob map, so it is the table's
- * declared resting position and not a coincidence of how a missing position is
- * resolved.
- *
- * @param {string} presetId
- * @returns {string[]}
- */
-function sdmDefaultNames(presetId) {
-  const preset = presetOf(presetId);
-  const resting = Object.fromEntries(preset.knobs.map((knob) => [knob.id, knob.default]));
-  return [...new Set(SDM_KEYS.map((key) => writeSet(preset.id, "sdm", resting)[key]).filter(Boolean))];
-}
-
-/**
- * The SDM filter names a preset reaches ONLY away from its default knob
- * positions. A case classing one of these is asking whether the reader swept the
- * preset's other combinations at all: an implementation looking only at the
- * resting position never meets the name.
- *
- * @param {string} presetId
- * @returns {string[]}
- */
-export function sdmOffDefaultNames(presetId) {
-  const resting = new Set(sdmDefaultNames(presetId));
-  return sdmNames(presetId).filter((name) => !resting.has(name));
-}
-
-/**
- * A preset to hang a SWEEP case on: one of its own filters (`sdmSubject`'s
- * disjointness) that it reaches only by moving a knob off its default.
- *
- * @returns {string}
- */
-export function sdmSweepSubject() {
-  const hit = sdmSubjects().find((id) => sdmOffDefaultNames(id).length > 0);
-  if (hit === undefined) throw new Error("no preset of its own reaches an SDM filter off its default knobs");
   return hit;
 }
 

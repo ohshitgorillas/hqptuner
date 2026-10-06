@@ -44,7 +44,7 @@ import {
   toggleFavorite,
   hydrateFavorites,
 } from "../../../../hqptuner/static/store/narrow/favorites.js";
-import { nFocus, narrowingActive, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
+import { nFocus, resetNarrowing } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../../hqptuner/static/store/narrow/match.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
@@ -413,13 +413,6 @@ test("test_a_preview_count_includes_only_favorites_while_engaged", async () => {
 });
 
 // --- favorites-only as narrowing state ------------------------------------------
-
-test("test_favorites_only_is_active_narrowing", async () => {
-  reset(PLAIN);
-  await toggleFavorite("gauss-a");
-  nFavOnly.value = true;
-  assert.equal(narrowingActive.value, true);
-});
 
 test("test_reset_turns_favorites_only_off", async () => {
   reset(PLAIN);

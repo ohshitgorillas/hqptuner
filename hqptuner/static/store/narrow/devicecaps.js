@@ -215,14 +215,6 @@ effect(() => {
 // needs to know whether the device can play it. Same question, asked one value
 // at a time — and the same answer to an unknown announcement, which is yes.
 
-/**
- * Whether the selected output device can reach any DSD rate at all, natively or over DoP.
- * @returns {boolean}
- */
-export function sdmReachableByDevice() {
-  return !sdmReason();
-}
-
 // Gray the SDM button on a mode segment when the device cannot do DSD. Auto is
 // left alone: in auto the engine picks the family per track and will settle on
 // PCM by itself, so there is nothing unreachable to warn about.

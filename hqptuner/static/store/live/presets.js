@@ -130,29 +130,6 @@ export async function applyLivePreset(name) {
   );
 }
 
-// The backend snapshots the engine itself, so a save sends a name and, at
-// most, which settings to keep and which stations to keep them under.
-/**
- * Save the engine's current live settings under a name, then re-read the list.
- * @param {string} name
- * @param {string[]} [fields] the settings to keep; omitted keeps every one
- * @param {string[]} [stations] the stations to save under; omitted saves under the loaded one
- * @param {Record<string, string>} [values] the settings' values to store; omitted stores the engine's
- * @returns {Promise<void>}
- */
-export async function saveLivePreset(name, fields, stations, values) {
-  await run(name, () => api.saveLivePreset(name, fields, stations, values), refreshLivePresets);
-}
-
-/**
- * Delete a saved live snapshot, then re-read the list.
- * @param {string} name
- * @returns {Promise<void>}
- */
-export async function deleteLivePreset(name) {
-  await run(name, () => api.deleteLivePreset(name, listed()), refreshLivePresets);
-}
-
 // Read the list when LIVE opens, and again whenever the loaded station changes
 // while it is open. Leaving with it read is fine — the card is not rendered — and
 // coming back re-reads, which is what picks up a preset saved in another browser

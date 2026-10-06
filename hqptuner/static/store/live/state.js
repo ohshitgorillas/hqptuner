@@ -5,7 +5,7 @@
 // invalidate what. It is separate because both the write path and every reader
 // depend on it, and nothing here depends on them: it is the bottom of the lane.
 
-import { signal, computed, effect } from "@preact/signals";
+import { signal, effect } from "@preact/signals";
 import { health } from "../signals.js";
 
 // The control currently mid-write ("" = none), and the last error per control.
@@ -17,12 +17,6 @@ export const liveErrors = signal({});
 // Writes whose own success invalidates an enumeration, in config-form terms.
 // Mirrors lane._REENUMERATES, which names the same three by setter key.
 export const REENUMERATES = new Set(["mode", "filter1x", "filter", "oversampling1x", "oversampling"]);
-// True while a write that invalidates the lists is in flight. Every control
-// whose options come from an enumeration is unsafe for that whole window: its
-// list is the pre-write one, and the IDs in it stop meaning what they meant the
-// moment the engine re-enumerates. Disabling them is the surfacing — an in-row
-// text note would reflow the row for the seconds a mode write takes.
-export const liveEnumBusy = computed(() => REENUMERATES.has(liveBusy.value));
 // Writes that change what the running config reports for the two rate limits.
 export const RATE_MIRRORED = new Set(["mode"]);
 

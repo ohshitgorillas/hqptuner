@@ -174,8 +174,8 @@ repos:
         exclude: ^hqptuner/static/vendor/
 
       # Cross-cutting: a custom property is declared in CSS and may be read from
-      # either side — theme.js writes --accent through setProperty and
-      # controls/index.js reads var(--accent) out of a string — so the gate has
+      # either side — theme.js writes --accent through setProperty and a
+      # component may read var(--accent) out of a string — so the gate has
       # to run when EITHER side moves.
       - id: css-dead
         name: css dead-property/keyframe gate
@@ -184,15 +184,6 @@ repos:
         pass_filenames: false
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
         exclude: ^hqptuner/static/vendor/
-
-      # Cross-cutting: the widget kinds live in schema.js and their staged-edit
-      # marking lives in the stylesheets, so the gate has to run when either moves.
-      - id: css-dirty
-        name: staged-edit marking gate
-        entry: .venv/bin/python scripts/gates/css/check_css_dirty.py
-        language: system
-        pass_filenames: false
-        files: ^hqptuner/static/(css/.*\.css|store/schema\.js)$
 
       # Cross-cutting: a clone has two ends and either one can move, and the
       # threshold is a whole-tree percentage, so the gate reads the entire

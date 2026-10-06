@@ -12,7 +12,7 @@ import { errText } from "../../lib/errtext.js";
 import { duringEngineWrite } from "../enginewrite.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
-export const speakersStale = signal(false);
+const speakersStale = signal(false);
 export const speakersError = signal("");
 export const speakersBusy = signal(false);
 

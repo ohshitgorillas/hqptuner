@@ -10,14 +10,9 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
-import { volumeShown } from "../store/signals.js";
-import { effective } from "../store/resolve.js";
-import { setLive, edit } from "../store/actions.js";
-import { loudnessSide } from "../store/ui/ui.js";
-import { crossfeedMagDb, loudnessMagDb, shelfScale, F0, F1, bandFreqs } from "../vendor/eqlab/core/dsp/curves.js";
-import { clamp, num } from "../lib/coerce.js";
-import { db as fmtLevel, dbOffset } from "../lib/units.js";
-import { percentApplied } from "../model/gauges/loudness.js";
+import { F0, F1 } from "../vendor/eqlab/core/dsp/curves.js";
+import { clamp } from "../lib/coerce.js";
+import { dbOffset } from "../lib/units.js";
 
 /**
  * @typedef {PlotTrace & { ghost?: boolean }} FrameTrace
@@ -137,7 +132,7 @@ export function PlotFrame({ traces, yMin, yMax, dbStep, height, caption, y2Min =
         )}
         <${DragHud} yOf=${yOf} />
       </svg>
-      ${caption ? html`<div class="plot-caption mono">${caption}</div>` : null}
+      ${caption ? html`<div class="mono">${caption}</div>` : null}
     </div>
   `;
 }
@@ -171,9 +166,9 @@ function PlotGrid({ dbLines, yOf, height, plotH, axes }) {
           (f) =>
             html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${fmtHz(f)}</text>`,
         )}
-        <text class="plot-lbl plot-axis" x=${PADL - 4} y="10" text-anchor="end">dB</text>
-        <text class="plot-lbl plot-axis" x=${(xOf(F1) + 14).toFixed(1)} y=${height - 6}>Hz</text>
-        ${y2Min !== undefined ? html`<text class="plot-lbl plot-axis" x=${W - PADR + 4} y="10">°</text>` : null}
+        <text class="plot-lbl" x=${PADL - 4} y="10" text-anchor="end">dB</text>
+        <text class="plot-lbl" x=${(xOf(F1) + 14).toFixed(1)} y=${height - 6}>Hz</text>
+        ${y2Min !== undefined ? html`<text class="plot-lbl" x=${W - PADR + 4} y="10">°</text>` : null}
         ${
           yMin < 0 && yMax > 0
             ? html`<line class="plot-zero" x1=${PADL} y1=${yOf(0).toFixed(1)} x2=${W - PADR} y2=${yOf(0).toFixed(1)} />`
@@ -230,7 +225,7 @@ function DragHud({ yOf }) {
   const x = clamp(xOf(clamp(d.f, F0, F1)), PADL + 56, W - PADR - 56);
   const y1 = Math.max(yOf(d.db) - 26, PADT + 10);
   return html`
-    <text class="plot-hud" x=${x.toFixed(1)} y=${y1.toFixed(1)} text-anchor="middle">
+    <text x=${x.toFixed(1)} y=${y1.toFixed(1)} text-anchor="middle">
       <tspan x=${x.toFixed(1)}>${d.label ? `${d.label} · ` : ""}${fmtF(d.f)} · ${dbOffset(d.db, 1)}</tspan>
       <tspan x=${x.toFixed(1)} dy="12">Δ ${fmtDeltaF(d.f - d.f0)} · ${dbOffset(d.db - d.db0, 1)}</tspan>
     </text>
@@ -292,109 +287,4 @@ function dragStarter({ yMin, yMax, height, plotH }) {
     window.addEventListener("pointerup", up, { once: true });
     e.preventDefault();
   };
-}
-
-/**
- * Renders the crossfeed card's plot: the flat direct path against the cross-fed
- * path's magnitude at the effective crossfeed frequency and level.
- */
-export function CrossfeedPlot() {
-  const fc = num(effective("crossfeed_frequency"), 700);
-  const level = num(effective("crossfeed_level"), 4.5);
-  const freqs = bandFreqs(128);
-  return PlotFrame({
-    traces: [
-      { points: freqs.map((f) => /** @type {[number, number]} */ ([f, 0])), kind: "ghost", label: "direct", dy: -3 },
-      {
-        points: freqs.map((f) => /** @type {[number, number]} */ ([f, crossfeedMagDb(f, fc, level)])),
-        kind: "applied",
-        label: "cross-fed",
-        dy: 3,
-      },
-    ],
-    yMin: -24,
-    yMax: 0,
-    dbStep: 6,
-    height: 190,
-  });
-}
-
-// Loudness runs at the output rate; the digital-biquad shape is near rate-
-// independent across 20 Hz–20 kHz once the rate is well above audio, so a fixed
-// 48 kHz reference is used (validated offline against exact RBJ coefficients).
-const LOUDNESS_FS = 48000;
-
-/**
- * Renders the loudness plot: the maximum shelving curve against the amount
- * actually applied at the shown volume, with a drag handle on each shelf.
- */
-export function LoudnessPlot() {
-  const p = {
-    lowType: /** @type {string} */ (effective("loudness_low_type")),
-    lowFreq: num(effective("loudness_low_freq"), 80),
-    lowLevel: num(effective("loudness_low_level"), 0),
-    lowSteep: num(effective("loudness_low_steep"), 0.5),
-    highType: /** @type {string} */ (effective("loudness_high_type")),
-    highFreq: num(effective("loudness_high_freq"), 5000),
-    highLevel: num(effective("loudness_high_level"), 0),
-    highSteep: num(effective("loudness_high_steep"), 1),
-  };
-  const rangeLow = num(effective("loudness_range_low"), -60);
-  const rangeHigh = num(effective("loudness_range_high"), -20);
-  // volumeShown, not volume: the applied curve has to follow the knob under the
-  // pointer, and the engine's own report only lands on the poll
-  const vol = num(volumeShown.value, rangeHigh);
-  const scale = shelfScale(vol, rangeLow, rangeHigh);
-  const freqs = bandFreqs(256);
-  // REW-style drag handles at each band's (frequency, level) corner — dragging
-  // streams live overrides (instant repaint) and stages both params on release.
-  // Steepness/Q/type stay on their own controls.
-  const r1 = (/** @type {number} */ v) => Math.round(v * 10) / 10;
-  /**
-   * @param {string} side
-   * @param {string[]} keys the frequency key and the level key for this band
-   * @param {number} f
-   * @param {number} lvl
-   * @returns {FrameHandle}
-   */
-  const handle = (side, [fk, lk], f, lvl) => ({
-    f,
-    db: lvl,
-    label: `${side} shelf`,
-    // grabbing a dot points the Loudness strip at that dot's side
-    onSelect: () => (loudnessSide.value = side),
-    onDrag: (nf, ndb) => {
-      setLive(fk, Math.round(nf));
-      setLive(lk, r1(ndb));
-    },
-    onEnd: (nf, ndb) => {
-      edit(fk, Math.round(nf));
-      edit(lk, r1(ndb));
-    },
-  });
-  return PlotFrame({
-    traces: [
-      {
-        points: freqs.map((f) => /** @type {[number, number]} */ ([f, loudnessMagDb(p, f, LOUDNESS_FS, 1)])),
-        kind: "ghost",
-        label: "max",
-        dy: -3,
-      },
-      {
-        points: freqs.map((f) => /** @type {[number, number]} */ ([f, loudnessMagDb(p, f, LOUDNESS_FS, scale)])),
-        kind: "applied",
-        label: "applied",
-        dy: 3,
-      },
-    ],
-    yMin: -3,
-    yMax: 24,
-    dbStep: 6,
-    height: 210,
-    caption: `at ${fmtLevel(vol, 1)} volume: ${percentApplied(scale)}% of maximum shelving applied`,
-    handles: [
-      handle("low", ["loudness_low_freq", "loudness_low_level"], p.lowFreq, p.lowLevel),
-      handle("high", ["loudness_high_freq", "loudness_high_level"], p.highFreq, p.highLevel),
-    ],
-  });
 }

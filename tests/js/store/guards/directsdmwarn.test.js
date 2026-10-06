@@ -32,7 +32,7 @@ import assert from "node:assert/strict";
 
 import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
 import { applyAll, discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
-import { question, askConfirm, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../../hqptuner/static/store/schema/gray.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
 
@@ -368,21 +368,6 @@ test("turning direct sdm off stages immediately", async () => {
   assert.equal(w.staged.http.direct_sdm, "0");
   cancel();
   await held;
-});
-
-// The one-question-at-a-time contract, end to end: a question opened over a
-// pending Direct SDM warning declines the guard, so the dangerous edit never
-// lands — and, as with an explicit cancel, what was already staged stays staged.
-test("a question opened over a pending direct sdm warning stages nothing", async () => {
-  const w = await reset(FREE_WITH_DIRECT_SDM_ON);
-  const { held: pre } = await stage(w, "0");
-  await pre;
-  const { held } = await stage(w, "1");
-  askConfirm("pending", "Replace the staged set?");
-  await held;
-  await quiesce(w);
-  cancel();
-  assert.equal(w.staged.http.direct_sdm, "0");
 });
 
 // --- the askWarn defaults ----------------------------------------------------
