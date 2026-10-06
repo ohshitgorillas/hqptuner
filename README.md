@@ -4,21 +4,19 @@ A polished and enhanced configuration interface for HQPlayer Embedded.
 
 [Discord](https://discord.gg/9ncNefPXnV)
 
-![The Output tab during DSD512 playback](docs/images/hqptuner-output-green.png)
-
-*The Output tab, upsampling a CD-quality file to DSD512 using the poly-sinc-ext2-long filter. The filter list is shown expanded in Simplified mode, converting the list of confusing filter shorthand into plain English. The list has also been narrowed to only show apodizing filters rated 3/5 or greater quality.*
-
 ## Inspiration
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
-1. You may go broke trying to afford CPUs and GPUs to feed it the power it craves.
-2. The UI is about as bad as it can be without crossing into outright malicious.
+1. Hitting the highest rates requires significant expenditure on hardware that is not getting any cheaper.
+2. The minimalist, brtutalist UI makes learning and using the program more difficult than it needs to be: HQPlayer isn't hard, it just _looks_ hard.
 
-The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped and wasted potential that I knew would never be acted on otherwise.
+The second point is the inspiration for HQPTuner: it's not just that the UI holds HQPlayer's usability back, but that there is so much _great_ and untapped UI/UX potential under the surface.
 
-Let's take filter narrowing as an example. This is one of HQPTuner's flagship features and the one thing most badly missing from the stock UI.
+Let's take filter narrowing as an example. This is one of HQPTuner's flagship features and I think the one thing most badly missing from the default UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 75 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what "minimum phase" means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The dropdown won't tell you. There's a wealth of information in the manual, including which filters are apodizing, but if you want to cross-reference anything you're doing it in your head. The closest the stock UI gets to helping you here is that clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through, same as the manual.
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 66 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. 
+
+The closest the stock UI gets to helping you here is that clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through, same as the manual. Features and their descriptions are kept apart as if the knowledge to control the program were some arcane, forbidden lore.
 
 HQPTuner instead integrates all of the manual's filter knowledge directly into the interface, so the lists can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple switch restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
 
