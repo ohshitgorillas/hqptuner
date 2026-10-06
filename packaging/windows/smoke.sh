@@ -1,19 +1,24 @@
 #!/usr/bin/env bash
 # Install a built installer silently, run the app once, stop it, then uninstall.
 # Given a bundle directory instead, run the app from it with no install around it.
-# usage: packaging/windows/smoke.sh <setup.exe|bundle-dir> <x64|arm64>
+# With --signed, Windows must also accept the signature on the installer, the
+# executable and the uninstaller, each with a timestamp.
+# usage: packaging/windows/smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed]
 set -euo pipefail
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
-[ $# -eq 2 ] || die "usage: smoke.sh <setup.exe|bundle-dir> <x64|arm64>"
+USAGE="usage: smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed]"
+[ $# -eq 2 ] || [ $# -eq 3 ] || die "$USAGE"
+[ "${3:---signed}" = --signed ] || die "$USAGE"
 [ -e "$1" ] || die "step 1: target not found: $1"
 TARGET=$1
 case "$2" in
   x64)   MACHINE=8664 ;;
   arm64) MACHINE=aa64 ;;
-  *) die "usage: smoke.sh <setup.exe|bundle-dir> <x64|arm64>" ;;
+  *) die "$USAGE" ;;
 esac
+SIGNED=${3:-}
 BASE_URL="http://127.0.0.1:8090"
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"
 PID=""
@@ -34,12 +39,24 @@ machine() {
   od -An -tx2 -j"$((at + 4))" -N2 "$1" | tr -d ' '
 }
 
+# Under --signed, a file passes with a signature Windows accepts that carries a
+# timestamp. The path travels in the environment because PowerShell reads
+# everything after -Command as script text.
+signed() {
+  [ -n "$SIGNED" ] || return 0
+  local verdict
+  verdict=$(SIGNED_FILE="$(cygpath -w "$1")" powershell -NoProfile -Command \
+    '$s = Get-AuthenticodeSignature -LiteralPath $env:SIGNED_FILE; "$($s.Status) $($null -ne $s.TimeStamperCertificate)"' | tr -d '\r') || true
+  [ "$verdict" = "Valid True" ] || die "$2: the signature on $1 is '$verdict', not 'Valid True'"
+}
+
 # ---- 1. install, unless the target is a bundle ------------------------------
 # Git Bash rewrites an argument that starts with a slash into a path, and every
 # Inno Setup switch is one, so the conversion is off for those calls.
 if [ -d "$TARGET" ]; then
   APP=$TARGET
 else
+  signed "$TARGET" "step 1"
   APP="$WORK/app"
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TARGET" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
     "/DIR=$(cygpath -w "$APP")" || die "step 1: the installer failed"
@@ -51,6 +68,8 @@ BIN="$APP/HQPTuner.exe"
 [ -f "$BIN" ] || die "step 2: $BIN missing"
 FOUND=$(machine "$BIN")
 [ "$FOUND" = "$MACHINE" ] || die "step 2: the executable's machine type is $FOUND, not $MACHINE"
+signed "$BIN" "step 2"
+if [ ! -d "$TARGET" ]; then signed "$APP/unins000.exe" "step 2"; fi
 
 # ---- 3. start the binary ----------------------------------------------------
 # The stores go under LOCALAPPDATA, so the run gets its own. BROWSER keeps the
