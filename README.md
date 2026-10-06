@@ -14,25 +14,28 @@ The second point is the inspiration for HQPTuner: it's not just that the UI hold
 
 Let's take filter narrowing as an example. This is one of HQPTuner's flagship features and I think the one thing most badly missing from the default UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 66 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. 
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 66 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. From there, you're asked to decide between, say, `poly-sinc-ext2`, `poly-sinc-xtr-short-lp-2s`, `sinc-M`, `sinc-MG`, `sinc-MGa`, `sinc-Mx`, and others. How do you decide among them if you don't know what an "extended frequency response" is or what "extreme roll-off and attenuation" means? What on earth does "Gauss" or "half-band"—or "Gaussian half-band" for that matter—actually mean?
 
-The closest the stock UI gets to helping you here is that clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through, same as the manual. Features and their descriptions are kept apart as if the knowledge to control the program were some arcane, forbidden lore.
+Filter science is a complex and nuanced topic that will take most people several passes to grasp… and none of it is required to use HQPTuner.
 
-HQPTuner instead integrates all of the manual's filter knowledge directly into the interface, so the lists can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple switch restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
+Here's the HQPTuner approach to selecting a filter:
+1. **Filter Presets** offer a jargon-free way to select from among the best filters in the program, and a few curiosities as well.
+2. If you're brave enough to face the jargon of the full filter list, HQPTuner's **Simplified options** mode translates HQPlayer's shorthand into plain English: filters are organized into families and classes with short descriptions of each, then separated by what makes a filter unique within its class. For example, `poly-sinc-gauss-long` becomes Polyphase sinc family, Gaussian class, Long linear phase. Yes, it's still filter jargon, but at least it's _legible_ filter jargon! Hold your mouse over a filter to see its full description and list of qualities from the manual.
+3. Use the **Narrowing system** to cut the list down to only filters appropriate for your genre and tastes. Your list goes from 60+ to a handful in just a few clicks.
+4. If you still can't decide, use the **Setting Switcher** to try two filters side-by-side!
+5. When you find a sound you love, store it as a Snapshot and/or use the Favorites toggle to save it for later.
 
-HQPlayer is a complex program that takes time to learn and knowledge to optimize. A bad UI doesn't just frustrate experienced users, it holds newbies back and drives away potential new users. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
+In short, whether you're brand new to HQPlayer or an experienced user tired of the default UI, HQPTuner makes HQPlayer's configuration easier, more flexible, and better looking.
 
 ## Features and Improvements
 
 HQPTuner offers the following features and improvements over the stock web configuration UI.
 
-**1. Option names in plain English.** HQPTuner offers "Simplified" option types, converting the list of baffling filter shorthand like `poly-sinc-hb-xs-2s` into the "Extra-short two-stage option within the Half-band variants of the Polyphase Sinc filter family". Filters are sorted by family (Analog-style, Conventional, Polyphase Sinc, Interpolation, Pure Sinc, and Misc), optionally categorized by variant class (e.g., "Extreme roll-off and attenuation" or "Extended frequency response"), then by their distinguishing features within that class, e.g., phase and length. This makes it vastly simpler to parse the filter list into reasonable choices. Yes, those choices are still filter jargon, but at least it's legible filter jargon!
+**1. Option names in plain English.** HQPTuner offers "Simplified" option types, converting the list of baffling filter shorthand like `poly-sinc-hb-xs-2s` into the "Extra-short two-stage option within the Half-band class of the Polyphase Sinc filter family".
 
-**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
+**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 66+ opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
 
-**3. Easy Mode.** Jargon-free filter selection. Nine curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play. Tiles name and describe their filters, error correction levels, and relative resource consumption ("cost").
-
-![Easy Mode with the Lifelike preset selected](docs/images/hqptuner-easy-amber.png)
+**3. Filter Presets.** Jargon-free filter selection. Curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play.
 
 *Easy Mode, with the Lifelike preset selected. The Lossless/Lossy switch at the top swaps in filters optimized for lossy sources, and the Emphasis knob on a tile chooses between linear and minimum phase.*
 
@@ -42,26 +45,18 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 The above five features are my flagships, but the following benefits are offered as well:
 
-* **Surface the manual's knowledge**: Every feature has its manual's description printed right underneath it. This can be converted to hover tips for those who prefer a cleaner interface.
-* **More sensible organization**: Settings are organized into four tabs: Output, Volume, Matrix, and System. Stop wondering where to find a certain feature.
+* **Surface the manual's knowledge**: Every feature has its manual's description printed somewhere nearby.
+* **Small surface area**: The entire interface can fit on tablets as small as an iPad Mini with no scroll bars.
+* **More sensible organization**: The main features are always on the front page; other settings are organized into "drawers" opened by clicking on that portion of the signal chain.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the output rate menu.
 * **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out.
-* **Full matrix pipeline editing**: Visual signal-flow editing of matrix pipelines, with a stage editor for every plugin type, headphone EQ import, and live response plots.
+* **Full matrix pipeline editing**: Visual signal-flow editing of matrix DSP pipelines, organized into routing blocks and output channels with a stage editor for every plugin type and live response plot.
 * **Live response plots**: Crossfeed, loudness, and matrix pipelines all render their frequency response as you adjust them — and EQ bands are draggable dots right on the plot, REW-style.
 * **Live volume control**: For those who rely on HQPlayer for volume adjustment.
-* **LIVE mode**: A switch at the top drops the tabs for a single page of everything the running engine can change in place — mode, both filter chains, dither, modulator, volume, matrix profile. No Apply: each control writes when you change it. Save the lot as a **live snapshot** and load it back in one click.
 * **Exposes more options**: Critical hardware acceleration options like multicore DSP, CUDA mode, and E-core modes are all exposed and explained.
 * **Consistent behavior**: No unexpected profile switches or surprise default profile loads; HQPTuner always comes back with the settings you sent.
-* **Log tail in the browser**: The daemon's log, right in the System tab.
+* **Log tail in the browser**: The daemon's log can always be found in Settings, or can be brought up with a custom hotkey.
 * **Customizable accent color**: Choose from one of four presets, or roll your own with a hex code.
-
-![The Volume tab](docs/images/hqptuner-volume-blue.png)
-
-*The Volume tab shown with volume-adaptive loudness enabled. A response plot below tracks the boost live with the volume knob above, while the Range slider visualizes the limits, loudness bounds, and current level.*
-
-![LIVE mode](docs/images/hqptuner-live-amber.png)
-
-*LIVE mode concatenates every setting the engine can change live on one rearrangeable page. Settings apply immediately upon selection. Live snapshots allow the user to switch all settings on the page in a single click.*
 
 ## Drawbacks of HQPTuner
 
