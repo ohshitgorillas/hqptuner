@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { railNow, railStages } from "../../store/faceplate/chain.js";
+import { railNow, railStages, railValue } from "../../store/faceplate/chain.js";
 import { openStage, toggleStage, plate } from "../../store/faceplate/view.js";
 import { lampDots, wirePath } from "../../model/gauges/wire.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
@@ -81,7 +81,7 @@ function Stage({ st, open, alert, dead }) {
     >
       <span class=${st.on ? "lamp on" : "lamp"}></span>
       <span class="n">${st.name}</span>
-      <span class="v">${st.value}</span>
+      <span class="v">${railValue(st)}</span>
     </button>
   `;
 }

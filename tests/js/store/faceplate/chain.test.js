@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
@@ -237,6 +237,28 @@ for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
     assert.equal(stage({ ...ENGAGED, ...off }, id).value, "");
   });
 }
+
+for (const [id, why, off] of /** @type {[string, string, Partial<Running>][]} */ ([
+  ["pipelines", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["loudness", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["loudness", "switched_off", { loudness: false }],
+])) {
+  test(`test_the_rail_prints_nothing_under_${id}_${why}`, () => {
+    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id)), "");
+  });
+}
+
+test("test_the_rail_prints_the_count_under_lit_dsp_pipelines", () => {
+  assert.match(railValue(stage({ pipelines: 7 }, "pipelines")), /\b7\b/);
+});
+
+test("test_the_rail_prints_the_percent_under_lit_loudness", () => {
+  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness")), /\b37%/);
+});
+
+test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {
+  assert.match(stage({ matrix: false, pipelines: 7 }, "pipelines").value, /\b7\b/);
+});
 
 test("test_crossfeed_engaged_leaves_its_value_empty_for_want_of_a_running_mode", () => {
   assert.equal(stage({ crossfeed: true }, "crossfeed").value, "");
