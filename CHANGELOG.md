@@ -6,7 +6,17 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Added
 
+- **Spectrum display and meters** on the main page, with the spectrogram and apodizing strip in the Source drawer.
 - **Spectrum delay** makes it possible to sync the spectrum and meters to playback.
+- **Clipping lamp**, similar to the apodizing lamp.
+
+### Changed
+
+- **A new, compact interface** that fits on screens as small as an iPad Mini (at full screen), puts main controls on the front page, and organizes other settings in "drawers" accessed by clicking on the signal chain.
+- **Presets are now "Stations".**
+- **Snapshots attach to Stations** and are selected in the same dropdown.
+- **Easy Mode is now the Filter Preset popover.**
+- **The Setting Switcher is now a permanent fixture** along the bottom bar of the program. Can optionally be disabled.
 
 ## [1.17.0] — 2026-10-05
 
