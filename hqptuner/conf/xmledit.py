@@ -94,6 +94,8 @@ PARENT: dict[str, str] = {
     "engine": ROOT,
     "defaults": "engine",
     "alsa": "engine",
+    "asio": "engine",
+    "wasapi": "engine",
     "network": "engine",
     "matrix": "engine",
     "post_process": "matrix",

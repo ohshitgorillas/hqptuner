@@ -1,0 +1,5 @@
+#!/bin/sh
+# $1 is the count of copies left after this step; 0 means full removal.
+if [ "$1" -eq 0 ] && [ -d /run/systemd/system ]; then
+    systemctl disable --now hqptuner.service || :
+fi

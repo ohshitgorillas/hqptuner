@@ -41,7 +41,12 @@ _FORMAT_RE = re.compile(r"output (?:\w+ )?format: (\d+)/\d+/\d+ \[(pcm|dsd)\]")
 # The form field naming the device each backend drives. Combo is deliberately
 # absent: it drives both devices and the daemon announces one, so which device's
 # limits bind is unknown and combo narrows nothing.
-_DEVICE_FIELD = {"network": "net_device", "alsa": "alsa_device"}
+_DEVICE_FIELD = {
+    "network": "net_device",
+    "alsa": "alsa_device",
+    "asio": "asio_device",
+    "wasapi": "wasapi_device",
+}
 
 
 def parse_caps(text: str) -> DeviceCaps | None:

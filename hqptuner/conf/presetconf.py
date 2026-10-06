@@ -144,6 +144,22 @@ FIELD_MAP: dict[str, tuple[str, str]] = {
     "upnp_freewheel": ("upnp", "freewheel"),
 }
 
+# A Windows daemon's two local backends: the ALSA section's six settings, once
+# per backend, each on an element named for it. Apart from FIELD_MAP because a
+# Linux daemon's form carries none of them.
+_LOCAL_BACKEND_ATTRS = {
+    "device": "device",
+    "bits": "dac_bits",
+    "period": "period_time",
+    "offset": "channel_offset",
+    "anydsd": "any_dsd",
+    "dop": "pack_sdm",
+}
+LOCAL_BACKEND_MAP: dict[str, tuple[str, str]] = {
+    f"{tag}_{suffix}": (tag, attr) for tag in ("asio", "wasapi") for suffix, attr in _LOCAL_BACKEND_ATTRS.items()
+}
+_ATTRIBUTE_MAP = {**FIELD_MAP, **LOCAL_BACKEND_MAP}
+
 # PLUGIN_MAP (<post_process><plugin type="X">) is imported from matrixconf and
 # re-exported here, where ``_route`` and ``read_config`` read it.
 
@@ -192,8 +208,8 @@ def _route(xml: bytes, field: str, value: str) -> bytes:
         return edit_element(xml, "network", "device", device)
     if field in PLUGIN_MAP:
         return edit_plugin(xml, *PLUGIN_MAP[field], value)
-    if field in FIELD_MAP:
-        return edit_element(xml, *FIELD_MAP[field], value)
+    if field in _ATTRIBUTE_MAP:
+        return edit_element(xml, *_ATTRIBUTE_MAP[field], value)
     raise UnknownFieldError(field=field)
 
 
@@ -299,7 +315,7 @@ def read_config(xml: bytes) -> dict[str, str]:
     ``net_device`` is recombined as ``address/device``.
     """
     out: dict[str, str] = {}
-    for field, (tag_name, attr) in FIELD_MAP.items():
+    for field, (tag_name, attr) in _ATTRIBUTE_MAP.items():
         val = _read_attr(xml, tag_name, attr)
         if val is not None:
             out[field] = val

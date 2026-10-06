@@ -2,7 +2,8 @@ name: check
 
 on:
   # dev only on push: beta, main and v* tags reach this same job through
-  # docker.yml's `needs: check`, so listing them here would run it twice.
+  # `needs: check` in docker.yml and release.yml, so listing them here would
+  # run it once more.
   push:
     branches: [dev]
   pull_request:

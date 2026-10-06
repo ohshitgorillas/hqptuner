@@ -222,6 +222,86 @@ test("test_a_closed_backend_section_hides_its_device_list", async () => {
   assert.equal(section(tab(), NET).includes("Living room NAA"), false);
 });
 
+// --- a Windows daemon's local backends ----------------------------------------
+// A Windows daemon's form carries `asio_device` and `wasapi_device` where a
+// Linux one carries `alsa_device`, and lists its own backends on the `backend`
+// select. Which sections stand on the tab follows the form.
+
+const ASIO = "asio-backend";
+const WASAPI = "wasapi-backend";
+const ASIO_DEVICES = [
+  { value: "", label: "" },
+  { value: "asio:1", label: "Studio ASIO" },
+];
+const WASAPI_DEVICES = [
+  { value: "", label: "" },
+  { value: "wasapi:1", label: "Desk speakers" },
+];
+/** @param {string} value */
+const asioDev = (value) => ({ value, options: ASIO_DEVICES });
+/** @param {string} value */
+const wasapiDev = (value) => ({ value, options: WASAPI_DEVICES });
+const WINDOWS = { asio_device: asioDev("asio:1"), wasapi_device: wasapiDev("wasapi:1"), net_device: netDev("naa:1") };
+const WINDOWS_BACKENDS = ["asio", "wasapi", "network", "combo"];
+/** @param {string} value */
+const offered = (value) => ({ value, options: WINDOWS_BACKENDS.map((v) => ({ value: v, label: v })) });
+
+// The values the backend switch offers, in order, off each option's `data-v`.
+/** @param {string} out */
+const backendValues = (out) =>
+  elements(section(out, BACKEND))
+    .filter((el) => el.name === "button" && attr(el, "data-v") !== undefined)
+    .map((el) => attr(el, "data-v"));
+
+test("test_the_backend_switch_offers_the_backends_the_form_lists", async () => {
+  await reset({ cfg: { backend: offered("asio"), ...WINDOWS } });
+  assert.deepEqual(backendValues(tab()), WINDOWS_BACKENDS);
+});
+
+test("test_the_asio_section_opens_for_the_asio_backend", async () => {
+  await reset({ cfg: { backend: "asio", ...WINDOWS } });
+  assert.equal(stateOf(tab(), ASIO), "open");
+});
+
+test("test_the_wasapi_section_opens_for_the_wasapi_backend", async () => {
+  await reset({ cfg: { backend: "wasapi", ...WINDOWS } });
+  assert.equal(stateOf(tab(), WASAPI), "open");
+});
+
+test("test_the_asio_section_closes_for_the_wasapi_backend", async () => {
+  await reset({ cfg: { backend: "wasapi", ...WINDOWS } });
+  assert.equal(stateOf(tab(), ASIO), "closed");
+});
+
+for (const card of [ASIO, WASAPI]) {
+  test(`test_the_${card}_section_opens_for_the_combo_backend`, async () => {
+    await reset({ cfg: { backend: "combo", ...WINDOWS } });
+    assert.equal(stateOf(tab(), card), "open");
+  });
+}
+
+test("test_the_asio_section_carries_the_asio_device_list", async () => {
+  await reset({ cfg: { backend: "asio", ...WINDOWS } });
+  assert.ok(section(tab(), ASIO).includes("Studio ASIO"));
+});
+
+test("test_a_form_with_no_alsa_device_renders_no_alsa_section", async () => {
+  await reset({ cfg: { backend: "asio", ...WINDOWS } });
+  assert.equal(cardHeadAt(tab(), ALSA), -1);
+});
+
+test("test_a_blank_asio_device_warns_that_the_backend_has_no_output", async () => {
+  await reset({ cfg: { backend: "asio", ...WINDOWS, asio_device: asioDev("") } });
+  assert.equal(alertBackends(tab()), "asio");
+});
+
+test("test_combo_names_every_windows_backend_that_has_no_device", async () => {
+  await reset({
+    cfg: { backend: "combo", asio_device: asioDev(""), wasapi_device: wasapiDev(""), net_device: netDev("") },
+  });
+  assert.deepEqual(String(alertBackends(tab())).split(" "), ["asio", "wasapi", "network"]);
+});
+
 // The rescan control, by its own `data-testid` — the words on the button are
 // owner copy (docs/testing.md rule 9). Both backend sections render one, so the
 // case reads the ALSA section's own fragment rather than the whole tab.

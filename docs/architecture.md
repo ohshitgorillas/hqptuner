@@ -136,7 +136,7 @@ Two asymmetries are deliberate. A **write** refuses an unknown or out-of-domain 
 
 ### 5.6 Where stores live
 
-In a frozen build the shipped `data/*.json` travels inside the bundle and is read from there, while every store this document names (`state/*.json`, `presets/`, `backups/`) sits under the platform's per-user data directory, since the installed program is not the user's to write (`hqptuner/paths.py`). A checkout and the container keep the paths written here.
+In a frozen build the shipped `data/*.json` travels inside the bundle and is read from there, while every store this document names (`state/*.json`, `presets/`, `backups/`) sits under the platform's per-user data directory, since the installed program is not the user's to write (`hqptuner/paths.py`). The Linux package's systemd unit points that directory at `/var/lib/hqptuner` (`packaging/linux/hqptuner.service`). A checkout and the container keep the paths written here.
 
 ## 6. Static metadata
 

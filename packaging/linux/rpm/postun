@@ -1,0 +1,11 @@
+#!/bin/sh
+# Run only when systemd is the running init.
+if [ -d /run/systemd/system ]; then
+    # Reload unit files after the package changed or removed the unit.
+    systemctl --system daemon-reload >/dev/null 2>&1 || true
+    # $1 is the count of installed versions left: 1 or more means upgrade.
+    if [ "$1" -ge 1 ]; then
+        # Restart the service only if it is running.
+        systemctl try-restart hqptuner.service >/dev/null 2>&1 || true
+    fi
+fi

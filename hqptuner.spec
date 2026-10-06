@@ -1,4 +1,7 @@
-# PyInstaller build of the desktop binary: pyinstaller hqptuner.spec
+# PyInstaller build of the frozen bundle: pyinstaller hqptuner.spec, which
+# scripts/package-linux.sh runs before packing the deb and the rpm,
+# scripts/package-macos.sh before packing the dmg, and
+# scripts/package-windows.sh before packing the installer.
 #
 # One-folder, so the assets land beside the executable rather than in a temp
 # directory that goes away at exit. The bundle destinations are "static" and
@@ -12,6 +15,19 @@
 # each reached through import_from_string). No `import` statement points at
 # them, so a static analyzer sees no edge and the binary fails at launch rather
 # than at build.
+
+import os
+import sys
+import tomllib
+from pathlib import Path
+
+# A Developer ID identity signs the macOS bundle and turns on the hardened
+# runtime, which the entitlements then apply to. Without one the bundle is
+# ad-hoc signed and carries no entitlements.
+codesign_identity = os.environ.get("HQPTUNER_CODESIGN_IDENTITY") or None
+entitlements_file = (
+    str(Path(SPECPATH, "packaging/macos/entitlements.plist")) if codesign_identity else None
+)
 
 a = Analysis(
     ["hqptuner/__main__.py"],
@@ -28,6 +44,7 @@ a = Analysis(
         ("hqptuner/data/shapers.json", "data"),
         ("hqptuner/data/settings.json", "data"),
         ("hqptuner/data/easy-presets.json", "data"),
+        ("hqptuner/data/tray.png", "data"),
         ("hqptuner/data/*-plain-names.json", "data"),
     ],
     hiddenimports=[
@@ -35,6 +52,9 @@ a = Analysis(
         "uvicorn.protocols.http.auto",
         "uvicorn.protocols.websockets.auto",
         "uvicorn.lifespan.on",
+        # hqptuner/desktop.py loads the tray backend by name, and only macOS and
+        # Windows installs carry it.
+        *(["pystray", "PIL.Image"] if sys.platform != "linux" else []),
     ],
     hookspath=[],
     hooksconfig={},
@@ -55,7 +75,14 @@ exe = EXE(
     bootloader_ignore_signals=False,
     strip=False,
     upx=False,
-    console=True,
+    # A macOS or Windows launch has no terminal behind it: the app lives in the
+    # menu bar or the tray.
+    console=sys.platform == "linux",
+    # Not an ico: PyInstaller converts it with Pillow, which a Windows install
+    # already carries for the tray. The macOS icon is set on the bundle below.
+    icon=str(Path(SPECPATH, "packaging/desktop/icon.png")) if sys.platform == "win32" else None,
+    codesign_identity=codesign_identity,
+    entitlements_file=entitlements_file,
 )
 
 coll = COLLECT(
@@ -66,3 +93,26 @@ coll = COLLECT(
     upx=False,
     name="HQPTuner",
 )
+
+if sys.platform == "darwin":
+    app = BUNDLE(
+        coll,
+        name="HQPTuner.app",
+        # Not an icns: PyInstaller converts it with Pillow, which a macOS
+        # install already carries for the tray.
+        icon=str(Path(SPECPATH, "packaging/desktop/icon.png")),
+        bundle_identifier="net.ohshitgorillas.hqptuner",
+        version=tomllib.loads(Path(SPECPATH, "pyproject.toml").read_text())["project"]["version"],
+        info_plist={
+            # Menu bar only, no Dock icon.
+            "LSUIElement": True,
+            # A frozen bundle supports the macOS it was built on and later, and
+            # .github/workflows/release.yml builds on macOS 15.
+            "LSMinimumSystemVersion": "15.0",
+            # The text of the system's local network alert, which the daemon
+            # connection and discovery both raise on a launch from Finder.
+            "NSLocalNetworkUsageDescription": (
+                "HQPTuner connects to and controls HQPlayer Embedded over the local network."
+            ),
+        },
+    )

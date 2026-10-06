@@ -1,7 +1,96 @@
 // Control catalog, Output group. Assembled into `schema` by store/schema.js.
 
 import { isPcm, isSdm } from "./gray.js";
-import { BACKENDS, DISCOVERY, DSD_RATE_FAMILIES, DSD_RATES, DSD_TRANSPORT, MODES, PCM_RATES } from "./options.js";
+import { DISCOVERY, DSD_RATE_FAMILIES, DSD_RATES, DSD_TRANSPORT, MODES, PCM_RATES } from "./options.js";
+
+// The six settings of a local output backend. ALSA on a Linux daemon, ASIO and
+// WASAPI on a Windows one: the daemon's form carries the same six per backend,
+// each named with the backend's own prefix.
+/**
+ * @param {string} prefix the backend's wire value, which its form fields carry
+ * @returns {Record<string, SchemaField>}
+ */
+const localBackend = (prefix) => ({
+  [`${prefix}_device`]: {
+    label: "Output Device",
+    group: "output",
+    widget: "dropdown",
+    lane: "http",
+    field: `${prefix}_device`,
+    optionsFrom: "config",
+    wide: true,
+    rescan: true,
+    span: true,
+  },
+  [`${prefix}_offset`]: {
+    label: "Channel offset",
+    group: "output",
+    note: "channel_offset",
+    widget: "number",
+    lane: "http",
+    field: `${prefix}_offset`,
+  },
+  [`${prefix}_bits`]: {
+    label: "DAC bits",
+    sublabel: "Noise-shaping target depth",
+    group: "output",
+    note: "dac_bits",
+    widget: "number",
+    lane: "http",
+    field: `${prefix}_bits`,
+    // advisory, never grayed — see adviseWhen in the header: a PCM bit depth set
+    // while the output is in SDM is a perfectly reasonable thing to stage.
+    adviseWhen: isSdm,
+  },
+  [`${prefix}_period`]: {
+    label: "Buffer time",
+    group: "output",
+    note: "buffer_time",
+    widget: "number",
+    lane: "http",
+    field: `${prefix}_period`,
+    unit: "ms",
+    hint: "−1 = minimum, 0 = default",
+  },
+  ...localDsd(prefix),
+});
+
+// The two DSD transport switches of a local output backend.
+/**
+ * @param {string} prefix
+ * @returns {Record<string, SchemaField>}
+ */
+function localDsd(prefix) {
+  return {
+    [`${prefix}_dop`]: {
+      label: "DSD support",
+      bool: true,
+      group: "output",
+      widget: "segment",
+      options: DSD_TRANSPORT,
+      note: "dop",
+      lane: "http",
+      field: `${prefix}_dop`,
+      // NOT grayed in PCM, unlike its neighbors. On a device with no native DSD
+      // path this switch is the only thing that makes SDM reachable at all, and
+      // SDM grays until it is on (store/narrow/devicecaps.js) — graying it in PCM
+      // too locks the user out of DSD entirely, with both controls pointing at
+      // each other. Same reasoning as volume min/max under a bypassed volume:
+      // never gray the one control that escapes the state.
+    },
+    [`${prefix}_anydsd`]: {
+      label: "DSD rates",
+      bool: true,
+      group: "output",
+      widget: "segment",
+      options: DSD_RATE_FAMILIES,
+      note: "dsd_48k",
+      lane: "http",
+      field: `${prefix}_anydsd`,
+      adviseWhen: isPcm, // see the bits entry — staged in PCM, live once the mode is SDM
+    },
+  };
+}
 
 /** @type {Record<string, SchemaField>} */
 export const output = {
@@ -23,7 +112,8 @@ export const output = {
     widget: "segment",
     lane: "http",
     field: "backend",
-    options: BACKENDS,
+    // the daemon's own list, under fixed labels (store/ui/backends.js)
+    optionsFrom: "backends",
     hoverNote: true,
   },
   idle_time: {
@@ -136,75 +226,10 @@ export const output = {
     hoverNote: true,
   },
 
-  // --- Output: ALSA backend section (backend alsa|combo) ---
-  alsa_device: {
-    label: "Output Device",
-    group: "output",
-    widget: "dropdown",
-    lane: "http",
-    field: "alsa_device",
-    optionsFrom: "config",
-    wide: true,
-    rescan: true,
-    span: true,
-  },
-  alsa_offset: {
-    label: "Channel offset",
-    group: "output",
-    note: "channel_offset",
-    widget: "number",
-    lane: "http",
-    field: "alsa_offset",
-  },
-  alsa_bits: {
-    label: "DAC bits",
-    sublabel: "Noise-shaping target depth",
-    group: "output",
-    note: "dac_bits",
-    widget: "number",
-    lane: "http",
-    field: "alsa_bits",
-    // advisory, never grayed — see adviseWhen in the header: a PCM bit depth set
-    // while the output is in SDM is a perfectly reasonable thing to stage.
-    adviseWhen: isSdm,
-  },
-  alsa_period: {
-    label: "Buffer time",
-    group: "output",
-    note: "buffer_time",
-    widget: "number",
-    lane: "http",
-    field: "alsa_period",
-    unit: "ms",
-    hint: "−1 = minimum, 0 = default",
-  },
-  alsa_dop: {
-    label: "DSD support",
-    bool: true,
-    group: "output",
-    widget: "segment",
-    options: DSD_TRANSPORT,
-    note: "dop",
-    lane: "http",
-    field: "alsa_dop",
-    // NOT grayed in PCM, unlike its neighbors. On a device with no native DSD
-    // path this switch is the only thing that makes SDM reachable at all, and
-    // SDM grays until it is on (store/narrow/devicecaps.js) — graying it in PCM too
-    // locks the user out of DSD entirely, with both controls pointing at each
-    // other. Same reasoning as volume min/max under a bypassed volume: never
-    // gray the one control that escapes the state.
-  },
-  alsa_anydsd: {
-    label: "DSD rates",
-    bool: true,
-    group: "output",
-    widget: "segment",
-    options: DSD_RATE_FAMILIES,
-    note: "dsd_48k",
-    lane: "http",
-    field: "alsa_anydsd",
-    adviseWhen: isPcm, // see alsa_bits — staged in PCM, live once the mode is SDM
-  },
+  // --- Output: local backend sections (that backend, or combo) ---
+  ...localBackend("alsa"),
+  ...localBackend("asio"),
+  ...localBackend("wasapi"),
 
   // --- Output: Network Audio backend section (backend network|combo) ---
   net_device: {

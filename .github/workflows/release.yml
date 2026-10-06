@@ -1,0 +1,401 @@
+name: release
+
+on:
+  push:
+    branches: [dev]
+    tags: ["v*"]
+    paths:
+      - "packaging/**"
+      - scripts/package-linux.sh
+      - scripts/package-macos.sh
+      - scripts/package-windows.sh
+      - hqptuner.spec
+      - pyproject.toml
+      - .github/workflows/release.yml
+
+permissions:
+  contents: read
+
+jobs:
+  # A red tree must not publish a release, so tags are gated on the same
+  # `make check` as the image. Pushes to dev skip it.
+  check:
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/check.yml
+
+  # glibc 2.28 is the floor the packages promise, so the bundle is frozen on
+  # AlmaLinux 8 and runs on anything newer.
+  build:
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+            nfpm: x86_64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+            nfpm: arm64
+    runs-on: ${{ matrix.runner }}
+    container: almalinux:8
+    steps:
+      - run: dnf -y install git binutils tar gzip
+
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - run: curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+      - run: uv venv --python 3.14 .venv
+      - run: uv pip install . pyinstaller
+
+      - name: Install nfpm
+        env:
+          NFPM_VERSION: 2.47.0
+        run: |
+          tarball="nfpm_${NFPM_VERSION}_Linux_${{ matrix.nfpm }}.tar.gz"
+          base="https://github.com/goreleaser/nfpm/releases/download/v${NFPM_VERSION}"
+          curl -LsSfO "$base/$tarball"
+          curl -LsSfO "$base/checksums.txt"
+          grep " $tarball\$" checksums.txt | sha256sum -c -
+          tar -xzf "$tarball" -C /usr/local/bin nfpm
+
+      - run: scripts/package-linux.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: linux-${{ matrix.arch }}
+          path: |
+            dist/*.deb
+            dist/*.rpm
+          if-no-files-found: error
+
+  # Install, run and remove in a container with no systemd, on the oldest
+  # supported release of each family and the newest Fedora.
+  smoke:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { runner: ubuntu-24.04, arch: amd64 }
+          - { runner: ubuntu-24.04-arm, arch: arm64 }
+        distro:
+          - { image: "debian:12", ext: deb }
+          - { image: "ubuntu:22.04", ext: deb }
+          - { image: "almalinux:8", ext: rpm }
+          - { image: "fedora:latest", ext: rpm }
+    runs-on: ${{ matrix.platform.runner }}
+    container: ${{ matrix.distro.image }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.platform.arch }}
+          path: dist
+
+      - name: Install curl
+        run: |
+          if command -v curl >/dev/null; then
+            exit 0
+          fi
+          if [ "${{ matrix.distro.ext }}" = deb ]; then
+            apt-get update
+            apt-get install -y curl
+          else
+            dnf -y install curl
+          fi
+
+      - run: bash packaging/linux/smoke.sh dist/*.${{ matrix.distro.ext }}
+
+  # The runner VM boots systemd, so the deb lifecycle runs on it directly.
+  lifecycle-deb:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist
+
+      - run: sudo GITHUB_ACTIONS=true bash packaging/linux/lifecycle.sh dist/*.deb
+
+  # The rpm lifecycle needs systemd as PID 1 in an rpm distro, which a
+  # `container:` job cannot give, so it boots one with docker.
+  lifecycle-rpm:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            arch: amd64
+          - runner: ubuntu-24.04-arm
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux-${{ matrix.arch }}
+          path: dist
+
+      - name: Start AlmaLinux 8 with systemd
+        run: |
+          docker run -d --name alma --privileged --cgroupns=host \
+            -v /sys/fs/cgroup:/sys/fs/cgroup:rw almalinux/8-init
+          rpm=(dist/*.rpm)
+          docker cp "${rpm[0]}" alma:/tmp/hqptuner.rpm
+          docker cp packaging/linux/lifecycle.sh alma:/tmp/lifecycle.sh
+          docker exec alma systemctl is-system-running --wait || true
+
+      - run: docker exec -e GITHUB_ACTIONS=true alma bash /tmp/lifecycle.sh /tmp/hqptuner.rpm
+
+      - if: always()
+        run: docker rm -f alma
+
+  # PyInstaller does not cross-compile, so each architecture freezes on its own
+  # runner. The dmgs are signed with the Developer ID certificate and notarized,
+  # and publish attaches them to the release.
+  build-macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install uv
+        run: |
+          curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR="$RUNNER_TEMP/uv" sh
+          echo "$RUNNER_TEMP/uv" >> "$GITHUB_PATH"
+      - run: uv venv --python 3.14 .venv
+      - run: uv pip install . pyinstaller
+
+      # The certificate goes into a keychain of its own, and codesign takes the
+      # identity by the hash read back from it.
+      - name: Import the signing certificate and the notary key
+        env:
+          MACOS_CERT_P12_BASE64: ${{ secrets.MACOS_CERT_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+          NOTARY_KEY_P8_BASE64: ${{ secrets.NOTARY_KEY_P8_BASE64 }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          keychain_password=$(openssl rand -hex 24)
+          echo -n "$MACOS_CERT_P12_BASE64" | base64 --decode -o "$RUNNER_TEMP/certificate.p12"
+          echo -n "$NOTARY_KEY_P8_BASE64" | base64 --decode -o "$RUNNER_TEMP/notary.p8"
+          security create-keychain -p "$keychain_password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$keychain_password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$MACOS_CERT_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
+          security list-keychain -d user -s "$keychain"
+          identity=$(security find-identity -v -p codesigning "$keychain" | grep -o -m1 '[0-9A-F]\{40\}' || true)
+          if [ -z "$identity" ]; then
+            echo "No valid signing identity in the imported certificate" >&2
+            exit 1
+          fi
+          echo "HQPTUNER_CODESIGN_IDENTITY=$identity" >> "$GITHUB_ENV"
+          echo "HQPTUNER_NOTARY_KEY=$RUNNER_TEMP/notary.p8" >> "$GITHUB_ENV"
+
+      - run: scripts/package-macos.sh
+        env:
+          HQPTUNER_NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          HQPTUNER_NOTARY_ISSUER: ${{ secrets.NOTARY_ISSUER_ID }}
+
+      - name: Remove the signing certificate and the notary key
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/signing.keychain-db" || true
+          rm -f "$RUNNER_TEMP/certificate.p12" "$RUNNER_TEMP/notary.p8"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  # Each dmg runs on the macOS it was built on and on every newer one a runner
+  # offers. The xcode-27 image is the one that runs macOS 27.
+  smoke-macos:
+    needs: build-macos
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-26
+            arch: arm64
+          - runner: xcode-27
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+          - runner: macos-26-intel
+            arch: x86_64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: macos-${{ matrix.arch }}
+          path: dist
+
+      - run: bash packaging/macos/smoke.sh dist/*.dmg --notarized
+
+  # Each architecture freezes on its own runner, with a Python of that
+  # architecture named outright: uv may otherwise pick an x64 one on Arm64.
+  build-windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            arch: x64
+            python: cpython-3.14-windows-x86_64-none
+          - runner: windows-11-arm
+            arch: arm64
+            python: cpython-3.14-windows-aarch64-none
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: true
+
+      - name: Install uv
+        shell: pwsh
+        run: |
+          $env:UV_INSTALL_DIR = "$env:RUNNER_TEMP\uv"
+          irm https://astral.sh/uv/install.ps1 | iex
+          "$env:RUNNER_TEMP\uv" >> $env:GITHUB_PATH
+      - run: uv venv --python ${{ matrix.python }} .venv
+      - run: uv pip install . pyinstaller
+
+      - run: scripts/package-windows.sh
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-bundle-${{ matrix.arch }}
+          path: dist/windows
+          if-no-files-found: error
+
+  # One installer carries both bundles. It is unsigned and stays a workflow
+  # artifact: publish attaches nothing unsigned.
+  package-windows:
+    needs: build-windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: windows-bundle-*
+          path: dist/windows
+          merge-multiple: true
+
+      - run: scripts/package-windows.sh installer
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: windows-installer
+          path: dist/*-setup.exe
+          if-no-files-found: error
+
+  # The installer picks the bundle of the machine it runs on, so each runner
+  # exercises its own. The x64 bundle also runs on Arm64, under emulation.
+  smoke-windows:
+    needs: package-windows
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            artifact: windows-installer
+            target: dist/*-setup.exe
+            arch: x64
+          - runner: windows-11-arm
+            artifact: windows-installer
+            target: dist/*-setup.exe
+            arch: arm64
+          - runner: windows-11-arm
+            artifact: windows-bundle-x64
+            target: dist/x64/HQPTuner
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist
+
+      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }}
+
+  # The release notes are that version's CHANGELOG.md section, verbatim.
+  publish:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+
+      # The Windows installer is not signed, so it is not downloaded.
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: linux-*
+          path: dist
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: macos-*
+          path: dist
+          merge-multiple: true
+
+      - name: Extract release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v h="## [$version]" '
+            index($0, "## [") == 1 { if (found) exit; if (index($0, h) == 1) { found = 1; next } }
+            found
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "No CHANGELOG.md section for $version" >&2
+            exit 1
+          fi
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md dist/*.deb dist/*.rpm dist/*.dmg

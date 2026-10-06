@@ -1,0 +1,8 @@
+Template: hqptuner/purge-data
+Type: boolean
+Default: false
+Description: Delete HQPTuner's saved data?
+ Presets, backups, favorites and the saved connection are kept in
+ /var/lib/hqptuner.
+ .
+ Answering yes deletes them permanently.

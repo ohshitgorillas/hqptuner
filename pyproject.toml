@@ -1,6 +1,6 @@
 [project]
 name = "hqptuner"
-version = "1.15.4"
+version = "1.17.0"
 description = "Web configurator for HQPlayer Embedded — backend"
 requires-python = ">=3.12"
 dependencies = [
@@ -11,6 +11,8 @@ dependencies = [
     "defusedxml",
     "python-multipart",
     "numpy",
+    "pystray; sys_platform == 'darwin' or sys_platform == 'win32'",
+    "pillow; sys_platform == 'darwin' or sys_platform == 'win32'",
 ]
 
 [project.optional-dependencies]
@@ -33,7 +35,7 @@ dev = [
     # the length, directory-count, barrel and nesting gates; the mv extra is
     # rope, which `filepawl mv` uses to rewrite Python imports
     "filepawl[mv] @ git+https://github.com/ohshitgorillas/filepawl.git@v0.11.0",
-    # hqptuner.spec builds the desktop binary with it
+    # hqptuner.spec builds the frozen bundle with it
     "pyinstaller",
     # the layering contract in [tool.importlinter] below is only enforced if the
     # gate that reads it is installed
@@ -335,7 +337,7 @@ packages = [
 # a wheel install has no frontend to serve and no filter/shaper prose to join
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
-hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json"]
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tray.png"]
 
 [tool.setuptools.exclude-package-data]
 # The eqlab submodule ships only core/, the part the browser imports.

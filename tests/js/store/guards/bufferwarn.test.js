@@ -61,6 +61,8 @@ const DANGEROUS = [
   { key: "short_buffer", value: "2", staged: "2", safe: "1" },
   { key: "alsa_period", value: -1, staged: "-1", safe: 100 },
   { key: "net_period", value: -5, staged: "-5", safe: 100 },
+  { key: "asio_period", value: -1, staged: "-1", safe: 100 },
+  { key: "wasapi_period", value: -1, staged: "-1", safe: 100 },
 ];
 
 for (const { key, value } of DANGEROUS) {

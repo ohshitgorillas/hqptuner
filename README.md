@@ -2,6 +2,8 @@
 
 A polished and enhanced configuration interface for HQPlayer Embedded.
 
+[Discord](https://discord.gg/9ncNefPXnV)
+
 ![The Output tab during DSD512 playback](docs/images/hqptuner-output-green.png)
 
 *The Output tab, upsampling a CD-quality file to DSD512 using the poly-sinc-ext2-long filter. The filter list is shown expanded in Simplified mode, converting the list of confusing filter shorthand into plain English. The list has also been narrowed to only show apodizing filters rated 3/5 or greater quality.*
@@ -90,7 +92,7 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 * A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
-* Either Docker with Compose v2 OR Python v3.12+ (developed on v3.14)
+* Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR Python v3.12+
 
 ## Install & run
 
@@ -156,6 +158,36 @@ To try a beta build, point the image at `ohshitgorillas/hqptuner:beta` in your `
 
 **Docker Pro Tip:** Use [Watchtower](https://watchtower.nickfedor.com/) for automated updates of HQPTuner and your other containers.
 
+### Linux package (deb or rpm)
+
+Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries a deb and an rpm for amd64 and arm64. Download the one for your system, then install it:
+
+```sh
+# Debian, Ubuntu
+sudo apt install ./hqptuner_X.Y.Z_amd64.deb
+
+# Fedora, RHEL, AlmaLinux
+sudo dnf install ./hqptuner-X.Y.Z-1.x86_64.rpm
+```
+
+HQPTuner starts right away, and again at every boot. Open `http://yourserverIP:8090` in your favorite browser.
+
+To update, install the newer package the same way. To set anything from the configuration reference below, run `sudo systemctl edit hqptuner` and add an `Environment=` line under `[Service]`.
+
+Presets, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
+
+The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL 8, or anything later.
+
+### macOS app
+
+Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries two dmgs: `HQPTuner-X.Y.Z-apple-silicon.dmg` for Apple silicon Macs and `HQPTuner-X.Y.Z-intel.dmg` for Intel Macs. Both need macOS 15 or later. Open the one for your Mac and drag HQPTuner into Applications.
+
+Launching HQPTuner puts an icon in the menu bar and opens the UI in your default browser, at `http://127.0.0.1:8090`. It is reachable from that Mac only. macOS asks once whether HQPTuner may find devices on your local network; choose Allow, since that is how it reaches HQPlayer. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
+
+The menu bar icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
+
+To update, quit HQPTuner and drag the newer app into Applications. Presets, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
+
 ### From a clone (no Docker)
 
 Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
@@ -204,7 +236,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 
 ## Status
 
-**Stable.** Currently at v1.0.0. Backend and frontend are feature-complete and live-validated against hqplayerd 6.0.4, and Docker images ship for amd64 and arm64 on the `:latest` tag.
+**Stable.** Backend and frontend are feature-complete. Docker images and Linux deb and rpm packages ship for amd64 and arm64, and a macOS app ships for Apple silicon and Intel Macs.
 
 Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` for contribution guidelines.
 

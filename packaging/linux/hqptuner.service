@@ -1,0 +1,17 @@
+[Unit]
+Description=HQPTuner
+Documentation=https://github.com/ohshitgorillas/hqptuner
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/opt/hqptuner/HQPTuner
+DynamicUser=yes
+StateDirectory=hqptuner
+Environment=XDG_DATA_HOME=/var/lib
+Environment=HQPTUNER_LISTEN_HOST=0.0.0.0
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
