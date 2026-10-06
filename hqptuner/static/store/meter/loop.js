@@ -1,8 +1,9 @@
 // The meters' animation loop: thirty times a second it takes the feed frames that arrived since its last step
-// (store/meter/feed.js) into its own queue and paces them out on their frame time, the spectrum delay behind
-// (model/gauges/pace.js), since the daemon sends them in clumps. Each step folds the frames handed out, steps the level
-// bars toward them on the real time elapsed, eases the spectrum toward that reading smoothed across frequency while its
-// held peaks hold and decay, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
+// (store/meter/feed.js) into its own queue and paces them out on their frame time, the engine's reported output delay
+// plus the user's offset behind the feed (model/gauges/pace.js), since the daemon sends them in clumps. Each step
+// folds the frames handed out, steps the level bars toward them on the real time elapsed, eases the spectrum toward
+// that reading smoothed across frequency while its held peaks hold and decay, adds the frames to the spectrogram's
+// history, and hands the scene to every registered painter.
 //
 // The loop runs on the Clock it is started with (lib/clock.js). Playback stopping, or the feed's geometry changing,
 // sends the frames still queued to the spectrogram and empties the scene, so a restart never falls from the last
@@ -24,7 +25,7 @@ import {
 import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
 import { engineStatus } from "../signals.js";
 import { meterChannel } from "../ui/prefs.js";
-import { spectrumDelay } from "./delay.js";
+import { effectiveDelay } from "./delay.js";
 import { meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
 
 /** Spectrum columns the trace carries across the plot. */
@@ -98,14 +99,14 @@ function drain() {
 }
 
 /**
- * The frames `ms` of real time hands out, the spectrum delay behind; every frame leaving the queue reaches the
+ * The frames `ms` of real time hands out, the effective delay behind; every frame leaving the queue reaches the
  * spectrogram, the dropped ones first.
  *
  * @param {number} ms
  * @returns {MeterFrame[]}
  */
 function handOut(ms) {
-  const step = pace(paced, queue.concat(takeMeterFrames()), { dt: ms, delay: spectrumDelay.peek() * 1000 });
+  const step = pace(paced, queue.concat(takeMeterFrames()), { dt: ms, delay: effectiveDelay.peek() * 1000 });
   paced = step.state;
   queue = step.rest;
   batch(() => toSpectrogram(step.dropped.concat(step.out)));

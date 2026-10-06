@@ -10,7 +10,7 @@ import { ACCENTS } from "../../../store/faceplate/settings/visual.js";
 import { hiddenStages, setStageHidden } from "../../../store/ui/faceplate.js";
 import { openStage } from "../../../store/faceplate/view.js";
 import { labelHead } from "../drawer/controls.js";
-import { setSpectrumDelay, spectrumDelay } from "../../../store/meter/delay.js";
+import { setSpectrumOffset, spectrumOffset } from "../../../store/meter/delay.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -45,12 +45,12 @@ export function DelayBlock(_props) {
           <${TypedInput}
             type="number"
             class="vfd"
-            min="0"
+            min="-5"
             max="5"
             step="0.01"
             aria-label="Spectrum delay, seconds"
-            value=${spectrumDelay.value}
-            onChange=${(/** @type {ChangeEv} */ e) => setSpectrumDelay(e.target.value)}
+            value=${spectrumOffset.value}
+            onChange=${(/** @type {ChangeEv} */ e) => setSpectrumOffset(e.target.value)}
           />
           <span class="u">s</span>
         </div>

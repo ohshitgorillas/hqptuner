@@ -1,5 +1,5 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the animation-frame loop that steps the scene at most once per
-// 1/30 s, paces the feed frames out to it behind the spectrum delay, hands the scene to the painters on each step, and
+// 1/30 s, paces the feed frames out to it behind the effective delay, hands the scene to the painters on each step, and
 // passes every frame it takes on to the spectrogram exactly once.
 //
 // Feed frames arrive through openMeterFeed() on the EventSource fake (tests/js/support/eventsource.js), as the
@@ -7,9 +7,9 @@
 // whose frame() moves time one frame, 16.7 ms unless told otherwise, and runs what was queued for it; its timers never
 // fire. Two 16.7 ms frames make one step, 33.4 ms long; a case that states its numbers at 30 fps steps on single
 // frames exactly 1/30 s apart instead. The loop starts once for the whole file on that clock. Each case runs at no
-// spectrum delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and runs one frame a whole
-// step long, so the reset lands on a step before the case sends anything. The spectrogram is read through
-// spectrogramEnd, the frame time its fine slices have closed on.
+// offset and no reported output delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and
+// runs one frame a whole step long, so the reset lands on a step before the case sends anything. The spectrogram is
+// read through spectrogramEnd, the frame time its fine slices have closed on.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/loop.test.js
 
@@ -22,7 +22,7 @@ import { spectrogramEnd } from "../../../../hqptuner/static/store/meter/spectrog
 import { stepLevel } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { setSpectrumDelay } from "../../../../hqptuner/static/store/meter/delay.js";
+import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
@@ -106,7 +106,7 @@ before(() => {
 
 beforeEach(() => {
   useStorage();
-  setSpectrumDelay(0);
+  setSpectrumOffset(0);
   engineStatus.value = { ...PLAYING };
   useEventSource();
   openMeterFeed(clock.now);
@@ -188,11 +188,20 @@ test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () =
   assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.peak ?? [])], [-10]);
 });
 
-test("test_a_clump_of_ten_frames_at_a_0_1_s_delay_gives_a_different_trace_at_each_of_the_next_3_steps", () => {
-  setSpectrumDelay(0.1);
+test("test_a_clump_of_ten_frames_at_a_0_1_s_offset_gives_a_different_trace_at_each_of_the_next_3_steps", () => {
+  setSpectrumOffset(0.1);
   for (const byte of [20, 20, 20, 40, 40, 40, 60, 60, 60, 80]) send({ peak: -10, rms: -20, byte, ms: 10.667 });
   for (let k = 0; k < 6; k++) frame();
   assert.deepEqual(scenes.map(traceDb), [-10, -14, -21]);
+});
+
+test("test_at_a_0_1_s_engine_output_delay_a_clump_shorter_than_it_shows_nothing_until_the_feed_covers_it", () => {
+  engineStatus.value = { status: { state: "2", output_delay: "100000" } };
+  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, ms: 10.667 });
+  for (let k = 0; k < 6; k++) frame();
+  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 60, ms: 10.667 });
+  step();
+  assert.deepEqual(scenes.map(traceDb), [NaN, NaN, NaN, -10]);
 });
 
 test("test_a_painter_runs_once_per_step_until_it_is_unregistered", () => {
@@ -222,7 +231,7 @@ test("test_playback_stopping_empties_the_scene", () => {
 
 test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () => {
   setApodWindow("300");
-  setSpectrumDelay(0.1);
+  setSpectrumOffset(0.1);
   const start = spectrogramEnd.value;
   for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
   step();

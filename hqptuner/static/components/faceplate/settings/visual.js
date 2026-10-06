@@ -13,7 +13,7 @@ import {
   setShowDescriptions,
   showDescriptions,
 } from "../../../store/ui/prefs.js";
-import { spectrumDelay } from "../../../store/meter/delay.js";
+import { spectrumOffset } from "../../../store/meter/delay.js";
 import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
 import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "../../../store/ui/faceplate.js";
 
@@ -193,7 +193,7 @@ export const VISUAL_READOUTS = [
     id: "vdelay",
     label: "Spectrum delay",
     control: { type: "number", unit: "s" },
-    value: () => String(spectrumDelay.value),
+    value: () => String(spectrumOffset.value),
   },
   { id: "vdys", label: "Dyslexic font", control: { type: "seg", options: OFF_ON }, value: dysValue },
   { id: "vacc", label: "Accent color", control: { type: "accent" }, value: () => accentHex.value || accent.value },

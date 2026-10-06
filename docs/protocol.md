@@ -198,7 +198,7 @@ Request: `<Status subscribe="0"/>` — one-shot. `subscribe="1"` puts the connec
 Response attributes (superset):
 
 - Playback: `state`, `track`, `track_id`, `min`, `sec`, `tracks_total`, `track_serial`, `transport_serial`, `queued`, `position`, `length`, `begin_min`, `begin_sec`, `remain_min`, `remain_sec`, `total_min`, `total_sec`
-- Settings/DSP: `volume`, `clips`, `output_delay` (samples), `apod` (apodizing event counter), `active_mode` (string), `active_filter` (string name), `active_shaper` (string name), `active_rate`, `active_bits`, `active_channels`, `filter_junk`, `correction` (0/1), `random`, `repeat`
+- Settings/DSP: `volume`, `clips`, `output_delay` (microseconds), `apod` (apodizing event counter), `active_mode` (string), `active_filter` (string name), `active_shaper` (string name), `active_rate`, `active_bits`, `active_channels`, `filter_junk`, `correction` (0/1), `random`, `repeat`
 - Load: `input_fill`, `output_fill` (0.0–1.0), `process_speed` (× realtime)
 
 Note the type split: `State` reports settings as numeric list indices, `Status` reports the *active* filter/shaper/mode as display strings (`State filterNx="72"` ↔ `Status active_filter="sinc-Lh"`, list index 72).

@@ -30,7 +30,7 @@ import {
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { spectrumDelay } from "../../../../hqptuner/static/store/meter/delay.js";
+import { spectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { dropStorage, useStorage } from "../../support/storage.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements } from "../../support/markup.js";
@@ -52,7 +52,7 @@ beforeEach(() => {
   accentHex.value = "";
   hiddenStages.value = [];
   openStage.value = null;
-  spectrumDelay.value = 0.25;
+  spectrumOffset.value = 0.25;
 });
 
 afterEach(() => {
@@ -142,9 +142,19 @@ test("test_a_hidden_stage_lights_its_toggle", () => {
   assert.deepEqual(lit, ["speakers"]);
 });
 
-test("test_a_delay_change_writes_the_spectrum_delay_in_seconds", () => {
+test("test_a_delay_change_writes_the_spectrum_offset_in_seconds", () => {
   fire(DelayBlock, (type) => type === "input", "onChange", { target: { value: "0.5" } });
-  assert.equal(spectrumDelay.value, 0.5);
+  assert.equal(spectrumOffset.value, 0.5);
+});
+
+test("test_the_delay_box_takes_an_offset_down_to_minus_five_seconds", () => {
+  const box = markup(DelayBlock).find((e) => e.name === "input");
+  assert.equal(box ? attr(box, "min") : undefined, "-5");
+});
+
+test("test_a_negative_delay_change_writes_a_negative_spectrum_offset", () => {
+  fire(DelayBlock, (type) => type === "input", "onChange", { target: { value: "-0.5" } });
+  assert.equal(spectrumOffset.value, -0.5);
 });
 
 /** A node of the fake document: the tree members preact's diff walks. */
@@ -275,7 +285,7 @@ function typedAcross(typed, next) {
   const shown = box ? box.value : "";
   page.activeElement = box;
   if (box) box.value = typed;
-  spectrumDelay.value = next;
+  spectrumOffset.value = next;
   paint();
   const kept = box ? box.value : "";
   mount(null, /** @type {ParentNode} */ (/** @type {unknown} */ (root)));
