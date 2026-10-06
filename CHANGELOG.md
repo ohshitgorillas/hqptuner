@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.18.0] — 2026-10-06
+
 ### Added
 
 - **Windows app.** Each release now carries a signed installer for Windows on x64 and Arm64.
