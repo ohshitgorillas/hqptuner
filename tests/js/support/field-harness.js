@@ -1,5 +1,5 @@
 // Shared harness for the components/widgets/Field.js suites — field.test.js (binding,
-// classes, values, constraints, option sources, graying, unit/hint/rescan) and
+// classes, values, constraints, option sources, graying, unit/rescan) and
 // fielddesc.test.js (hover titles, inline notes, per-selection descriptions).
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.

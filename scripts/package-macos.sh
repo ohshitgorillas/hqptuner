@@ -47,25 +47,29 @@ if [ -n "$IDENTITY" ]; then
   fi
 fi
 
-# Apple's timestamp service drops a request now and then, and a signing that
-# gets no timestamp fails. That one failure is tried again; any other is final.
+# Two failures come and go on a hosted runner: Apple's timestamp service drops
+# a request, so a signing gets no timestamp, and hdiutil finds the folder it is
+# given busy. A command that fails with the error named for it is tried again;
+# any other failure is final.
 TIMESTAMP_ERROR="A timestamp was expected but was not found"
-SIGN_ATTEMPTS=3
-SIGN_RETRY_SECONDS=20
-SIGN_LOG="build/signing.log"
-with_timestamp_retry() {
-  local attempt=1
-  until "$@" 2>&1 | tee "$SIGN_LOG"; do
-    grep -q "$TIMESTAMP_ERROR" "$SIGN_LOG" || return 1
-    [ "$attempt" -lt "$SIGN_ATTEMPTS" ] || die "the timestamp service failed $attempt signings in a row."
+BUSY_ERROR="Resource busy"
+RETRY_ATTEMPTS=3
+RETRY_SECONDS=20
+RETRY_LOG="build/retry.log"
+retry_on() {
+  local error=$1 attempt=1
+  shift
+  until "$@" 2>&1 | tee "$RETRY_LOG"; do
+    grep -q "$error" "$RETRY_LOG" || return 1
+    [ "$attempt" -lt "$RETRY_ATTEMPTS" ] || die "'$error' on $attempt attempts in a row."
     attempt=$((attempt + 1))
-    sleep "$SIGN_RETRY_SECONDS"
+    sleep "$RETRY_SECONDS"
   done
 }
 
 say "[1/4] PyInstaller"
 mkdir -p build
-with_timestamp_retry "$PYTHON" -m PyInstaller --noconfirm --distpath dist --workpath build/pyinstaller hqptuner.spec || die "PyInstaller failed."
+retry_on "$TIMESTAMP_ERROR" "$PYTHON" -m PyInstaller --noconfirm --distpath dist --workpath build/pyinstaller hqptuner.spec || die "PyInstaller failed."
 [ -d "$APP" ] || die "PyInstaller did not write $APP."
 
 say "[2/4] hdiutil"
@@ -73,11 +77,11 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 ditto "$APP" "$STAGE/HQPTuner.app"
 ln -s /Applications "$STAGE/Applications"
-hdiutil create -volname HQPTuner -srcfolder "$STAGE" -fs APFS -format UDZO -ov "$DMG"
+retry_on "$BUSY_ERROR" hdiutil create -volname HQPTuner -srcfolder "$STAGE" -fs APFS -format UDZO -ov "$DMG" || die "hdiutil create failed."
 
 say "[3/4] sign and notarize"
 if [ -n "$IDENTITY" ]; then
-  with_timestamp_retry codesign --sign "$IDENTITY" --timestamp "$DMG" || die "codesign failed on $DMG."
+  retry_on "$TIMESTAMP_ERROR" codesign --sign "$IDENTITY" --timestamp "$DMG" || die "codesign failed on $DMG."
   SUBMISSION=$(xcrun notarytool submit "$DMG" "${NOTARY[@]}" --output-format json | json_field id)
   [ -n "$SUBMISSION" ] || die "the notary service returned no submission id."
   echo "  submission $SUBMISSION"

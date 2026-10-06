@@ -50,7 +50,6 @@ const localBackend = (prefix) => ({
     lane: "http",
     field: `${prefix}_period`,
     unit: "ms",
-    hint: "−1 = minimum, 0 = default",
   },
   ...localDsd(prefix),
 });
@@ -261,7 +260,6 @@ export const output = {
     lane: "http",
     field: "net_period",
     unit: "ms",
-    hint: "−1 = minimum, 0 = default",
   },
   net_dop: {
     label: "DSD support",

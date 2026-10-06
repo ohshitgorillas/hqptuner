@@ -301,11 +301,13 @@ jobs:
           path: dist/windows
           if-no-files-found: error
 
-  # One installer carries both bundles. It is unsigned and stays a workflow
-  # artifact: publish attaches nothing unsigned.
+  # One installer carries both bundles. Both executables, the installer and its
+  # uninstaller are signed here, the one job that reads the SimplySign login,
+  # with the certificate named by the thumbprint the login step exports.
   package-windows:
     needs: build-windows
     runs-on: windows-latest
+    environment: signing
     defaults:
       run:
         shell: bash
@@ -318,7 +320,19 @@ jobs:
           path: dist/windows
           merge-multiple: true
 
+      - name: Log in to SimplySign
+        shell: pwsh
+        env:
+          SIMPLYSIGN_EMAIL: ${{ secrets.SIMPLYSIGN_EMAIL }}
+          SIMPLYSIGN_OTPAUTH_URI: ${{ secrets.SIMPLYSIGN_OTPAUTH_URI }}
+        run: ./packaging/windows/simplysign-login.ps1
+
       - run: scripts/package-windows.sh installer
+
+      - name: Log out of SimplySign
+        if: always()
+        shell: pwsh
+        run: Get-Process -Name 'SimplySignDesktop*' -ErrorAction SilentlyContinue | Stop-Process -Force
 
       - uses: actions/upload-artifact@v7
         with:
@@ -327,7 +341,8 @@ jobs:
           if-no-files-found: error
 
   # The installer picks the bundle of the machine it runs on, so each runner
-  # exercises its own. The x64 bundle also runs on Arm64, under emulation.
+  # exercises its own. The x64 bundle also runs on Arm64, under emulation, and
+  # is the copy build-windows uploaded, which no job signs.
   smoke-windows:
     needs: package-windows
     strategy:
@@ -338,10 +353,12 @@ jobs:
             artifact: windows-installer
             target: dist/*-setup.exe
             arch: x64
+            signed: --signed
           - runner: windows-11-arm
             artifact: windows-installer
             target: dist/*-setup.exe
             arch: arm64
+            signed: --signed
           - runner: windows-11-arm
             artifact: windows-bundle-x64
             target: dist/x64/HQPTuner
@@ -358,24 +375,28 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist
 
-      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }}
+      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }} ${{ matrix.signed }}
 
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos]
+    needs: [check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos, package-windows, smoke-windows]
     runs-on: ubuntu-24.04
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v5
 
-      # The Windows installer is not signed, so it is not downloaded.
       - uses: actions/download-artifact@v8
         with:
           pattern: linux-*
           path: dist
           merge-multiple: true
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: windows-installer
+          path: dist
 
       - uses: actions/download-artifact@v8
         with:
@@ -398,4 +419,4 @@ jobs:
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md dist/*.deb dist/*.rpm dist/*.dmg
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file notes.md dist/*.deb dist/*.rpm dist/*.dmg dist/*-setup.exe

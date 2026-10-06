@@ -1,6 +1,8 @@
 ; One installer for both architectures: the Arm64 files on Arm64 Windows and the
 ; x64 files everywhere else. scripts/package-windows.sh installer compiles it,
-; with HQPTUNER_VERSION in the environment.
+; with HQPTUNER_VERSION in the environment. With HQPTUNER_SIGN_THUMBPRINT there
+; too, the installer and the uninstaller are signed by the sign tool that
+; script defines as "hqptuner".
 ;
 ; The install is per user, so it asks for no elevation. Removing it leaves the
 ; stores under %LOCALAPPDATA%\HQPTuner where they are.
@@ -27,6 +29,10 @@ SolidCompression=yes
 SourceDir=..\..
 OutputDir=dist
 OutputBaseFilename=HQPTuner-{#Version}-setup
+#if GetEnv("HQPTUNER_SIGN_THUMBPRINT") != ""
+SignTool=hqptuner
+SignedUninstaller=yes
+#endif
 
 [Files]
 Source: "dist\windows\arm64\HQPTuner\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; Check: PreferArm64Files

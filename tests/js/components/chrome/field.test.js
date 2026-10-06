@@ -408,7 +408,7 @@ test("test_an_inline_gray_field_is_still_disabled_when_grayed", async () => {
 });
 
 // ============================================================================
-// unit, hint, rescan
+// unit, rescan
 // ============================================================================
 
 test("test_a_unit_renders_beside_the_control", async () => {
@@ -419,11 +419,6 @@ test("test_a_unit_renders_beside_the_control", async () => {
 test("test_a_knob_carries_its_own_unit_rather_than_a_sibling_span", async () => {
   await reset({ matrix: [{ name: "post_bauer_frequency", value: "600" }] });
   assert.equal(span(field("crossfeed_frequency"), "unit"), null);
-});
-
-test("test_a_hint_renders_beside_the_control", async () => {
-  await reset();
-  assert.equal(span(field("alsa_period"), "field-hint"), schema.alsa_period.hint);
 });
 
 test("test_a_rescan_field_offers_a_rescan_button", async () => {

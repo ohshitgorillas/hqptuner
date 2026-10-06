@@ -39,7 +39,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../hqptuner/static/lib/dom.js";
-import { PendingBar } from "../../../hqptuner/static/components/PendingBar.js";
+import { PendingBar, saveOffered } from "../../../hqptuner/static/components/PendingBar.js";
 import { askName, askConfirm, answer, cancel, clearRefusal } from "../../../hqptuner/static/store/ask.js";
 import { health, config, engineState, pendingPreset } from "../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll, edit } from "../../../hqptuner/static/store/actions.js";
@@ -418,6 +418,10 @@ test("test_save_targets_the_previewed_preset_not_the_active_one", async () => {
   await reset({ active: "Day" });
   pendingPreset.value = "Night";
   assert.ok(buttons(bar())[SAVE].includes("Night"));
+});
+
+test("test_save_is_not_offered_while_autosave_writes_to_an_active_preset", () => {
+  assert.equal(saveOffered(true, "Speakers"), false);
 });
 
 test("test_save_as_new_is_disabled_while_the_daemon_is_unreachable", async () => {

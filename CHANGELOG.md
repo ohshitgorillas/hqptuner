@@ -19,6 +19,20 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Easy Mode is now the Filter Preset popover.**
 - **The Setting Switcher is now a permanent fixture** along the bottom bar of the program. Can optionally be disabled.
 
+## [1.18.0] — 2026-10-06
+
+### Added
+
+- **Windows app.** Each release now carries a signed installer for Windows on x64 and Arm64.
+
+### Changed
+
+- **Auto-save hides Apply & Save.**
+
+### Removed
+
+- **Buffer time hint.** The Output tab no longer prints "−1 = minimum, 0 = default" beside Buffer time.
+
 ## [1.17.0] — 2026-10-05
 
 ### Added

@@ -64,14 +64,6 @@ const formatRows = (p) => [
   { key: `${p}_bits`, band: "pcm", sub: catalog[`${p}_bits`].sublabel, hint: BITS_HINT },
 ];
 
-/**
- * A buffer time row with the catalog's hint.
- *
- * @param {"net" | "alsa"} p
- * @returns {RowSpec}
- */
-const bufferRow = (p) => ({ key: `${p}_period`, hint: catalog[`${p}_period`].hint });
-
 /** @type {DrawerSchema} */
 export const OUTPUT_DRAWER = {
   id: "output",
@@ -99,10 +91,10 @@ export const OUTPUT_DRAWER = {
         {
           group: "network",
           label: BACKEND_NAMES.network,
-          rows: [{ key: "net_ipv6", options: DISCOVERY_OPTIONS }, bufferRow("net")],
+          rows: [{ key: "net_ipv6", options: DISCOVERY_OPTIONS }, { key: "net_period" }],
         },
         { block: "alsadev", keys: ["alsa_device"] },
-        { group: "alsa", label: BACKEND_NAMES.alsa, rows: [{ key: "alsa_offset" }, bufferRow("alsa")] },
+        { group: "alsa", label: BACKEND_NAMES.alsa, rows: [{ key: "alsa_offset" }, { key: "alsa_period" }] },
       ],
     },
   ],

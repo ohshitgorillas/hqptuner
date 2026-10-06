@@ -350,7 +350,6 @@ export function Field({ k }) {
           onCommit=${(/** @type {string | number} */ v) => edit(k, v)}
         />
         ${entry.unit && entry.widget !== "knob" ? html`<span class="unit">${entry.unit}</span>` : null}
-        ${entry.hint ? html`<span class="field-hint">${entry.hint}</span>` : null}
         <${Ask} owner=${k} />
         <${ControlCaptions} entry=${entry} reason=${reason} advice=${advice} />
       </div>
