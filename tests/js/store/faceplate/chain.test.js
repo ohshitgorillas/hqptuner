@@ -239,21 +239,33 @@ for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
 }
 
 for (const [id, why, off] of /** @type {[string, string, Partial<Running>][]} */ ([
+  ["matrix", "bypassed", { matrix: false }],
   ["pipelines", "under_a_bypassed_matrix_engine", { matrix: false }],
   ["loudness", "under_a_bypassed_matrix_engine", { matrix: false }],
   ["loudness", "switched_off", { loudness: false }],
+  ["correction", "under_a_bypassed_matrix_engine", { matrix: false }],
+  ["dsd", "off_the_playing_path", { path: "pcm-pcm" }],
+  ["volume", "under_direct_sdm", { path: "direct", chain: "sdm", direct: true }],
 ])) {
   test(`test_the_rail_prints_nothing_under_${id}_${why}`, () => {
-    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id)), "");
+    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id), false), "");
   });
 }
 
+test("test_the_rail_prints_nothing_under_a_stage_the_alerts_darken", () => {
+  assert.equal(railValue(stage({}, "output"), true), "");
+});
+
+test("test_the_rail_prints_the_noise_filter_under_dsd_processing_on_the_playing_path", () => {
+  assert.match(railValue(stage({ path: "dsd-pcm" }, "dsd"), false), new RegExp(CONV.noise));
+});
+
 test("test_the_rail_prints_the_count_under_lit_dsp_pipelines", () => {
-  assert.match(railValue(stage({ pipelines: 7 }, "pipelines")), /\b7\b/);
+  assert.match(railValue(stage({ pipelines: 7 }, "pipelines"), false), /\b7\b/);
 });
 
 test("test_the_rail_prints_the_percent_under_lit_loudness", () => {
-  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness")), /\b37%/);
+  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness"), false), /\b37%/);
 });
 
 test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {

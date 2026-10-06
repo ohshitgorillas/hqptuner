@@ -1,4 +1,4 @@
-/* Signal-chain rail. Every stage always shown; an off stage differs only by its unlit lamp (no graying),
+/* Signal-chain rail. Every stage always shown; an off stage is its name under an unlit lamp, no value (no graying),
    still tappable. Drawers open only from here. Colour rule: names neutral, values amber (readout).
    Spacing: stages share the rail's height (flex-grow), so the chain fills it and can never push into the Setting Switcher,
    whatever the fonts measure. No rail note. Minimum padding is small (3px; 2px children; 2px name → value) so the
@@ -12,7 +12,7 @@
 /* A name that wraps (the DSD conversion stage): the lamp sits on its first line, 22px line (14px × --lh-eng). */
 .st.wrap .lamp{align-self:start;margin-top:6.5px}
 .st.sub{padding:1px 0 1px 20px}
-.st .v:empty{display:none}   /* a stage with no value (the DSD conversion parent, a stage switched off) */
+.st .v:empty{display:none}   /* a stage with no value (an unlit one, or a lit one with nothing to name) */
 .st.sub .n{font-size:12.5px;letter-spacing:.12em;font-weight:600}
 .st.sub2{padding-left:40px}
 .st:hover .n{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}

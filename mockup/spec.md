@@ -40,11 +40,11 @@ Current state only. Mockup: https://claude.ai/artifact/TDCf3zE1nWfFgKFvui58G7. C
   - DSD Processing: always shown, hideable; in the path (lit) only while a DSD source plays processed. Value = what it runs for the running mode (`noise · decimation` / the integrator / `Direct`). It comes first because the matrix runs after the conversion to PCM (Jussi).
   - Resampling is the source rate | output rate seam. DAC correction runs at the output rate (Jussi) and needs the matrix (its lamp goes dark with it). Volume sits before Shaping (manual §2.15); its order against DAC correction is unconfirmed.
 - Speakers sits after Shaping because delays run at the target rate and apply to Direct SDM's bit-perfect DSD. It is not a matrix plugin.
-- Every stage always shows. Off differs only by its unlit lamp, never grayed. Stages flex to fill the rail.
-- HF filter, Crossfeed, Loudness, DAC correction and Speakers print no value while switched off.
+- Every stage always shows. Off is the name under an unlit lamp, never grayed. Stages flex to fill the rail.
+- A stage whose lamp reads unlit prints no value: off, bypassed on the playing path, or darkened by an alert.
 - Drawers open only from the rail. One open at a time, one wipe at a time.
 - Open stage: name in accent + left bar. One stage, one drawer.
-- Matrix bypassed: the children's lamps go dark, DSP pipelines and Loudness print no value on the rail, the page section leaves.
+- Matrix bypassed: the children's lamps go dark, the page section leaves.
 - A long value (a DAC model) wraps to a second line rather than being cut off.
 - Values: Volume = level only (the mode word only under Fixed volume); Loudness = `x% applied` at the live volume; DSP pipelines = `n active`.
 

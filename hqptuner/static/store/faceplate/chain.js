@@ -228,16 +228,15 @@ export function railStages(r) {
   }));
 }
 
-/** The Matrix engine parts the rail prints no value under while their lamp is unlit. */
-const SILENT_UNLIT = ["pipelines", "loudness"];
-
 /**
- * What the rail prints under a stage's name: its value, and nothing under an unlit DSP pipelines or Loudness.
+ * What the rail prints under a stage's name: its value while its lamp reads lit, nothing while the stage is off,
+ * bypassed by the playing path or darkened by an alert.
  *
  * @param {RailStage} st
+ * @param {boolean} dead  the alerts darken the stage
  * @returns {string}
  */
-export const railValue = (st) => (!st.on && SILENT_UNLIT.includes(st.id) ? "" : st.value);
+export const railValue = (st, dead) => (st.on && !st.byp && !dead ? st.value : "");
 
 /**
  * The engine name of the enumeration item at the list index State reports for one attribute, "" when there is none.

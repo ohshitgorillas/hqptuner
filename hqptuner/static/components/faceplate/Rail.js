@@ -2,8 +2,8 @@
 // their lamps. A tap opens the stage's drawer, or closes it when it is the open one. A bypassed stage's lamp reads unlit
 // and the wire drops its tap, as for an off stage; a hidden stage leaves the chain and the wire. A raised alert blinks
 // its stage's lamp in the alert's colour, and a stage the alerts darken (no output past an SDM modulator below its
-// floor) reads unlit and drops its tap as a bypassed one does. A stage whose name runs past one line puts its lamp on
-// the first, measured with the wire and again once the fonts land.
+// floor) reads unlit and drops its tap as a bypassed one does. A stage whose lamp reads unlit prints no value. A stage
+// whose name runs past one line puts its lamp on the first, measured with the wire and again once the fonts land.
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
@@ -81,7 +81,7 @@ function Stage({ st, open, alert, dead }) {
     >
       <span class=${st.on ? "lamp on" : "lamp"}></span>
       <span class="n">${st.name}</span>
-      <span class="v">${railValue(st)}</span>
+      <span class="v">${railValue(st, dead)}</span>
     </button>
   `;
 }
