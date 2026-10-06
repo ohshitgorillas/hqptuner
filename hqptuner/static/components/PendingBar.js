@@ -203,6 +203,19 @@ function saveTitle(target, pend) {
   return pend ? `Apply and save to "${target}"` : `Save the current settings to "${target}"`;
 }
 
+/**
+ * Whether the bar offers its save button. Auto-save into an active preset
+ * already writes every apply there, which leaves the button nothing of its own
+ * to do.
+ *
+ * @param {boolean} autosaving
+ * @param {unknown} active the active preset's name, falsy on "(no preset)"
+ * @returns {boolean}
+ */
+export function saveOffered(autosaving, active) {
+  return !(autosaving && active);
+}
+
 /** Footer bar carrying the staged-edit count and status line with the Discard, Apply, Save and Save as New buttons. */
 export function PendingBar() {
   const n = stagedCount.value;
@@ -223,9 +236,13 @@ export function PendingBar() {
       <${AutosaveToggle} />
       <button data-testid="discard" onClick=${discardAll} disabled=${off.discard}>Discard</button>
       <button data-testid="apply" class="primary" onClick=${onApply} disabled=${off.apply}>${busy ? "Applying…" : "Apply"}</button>
-      <button onClick=${() => onApplySave(pend)} disabled=${off.save} title=${saveTitle(target, pend)}>
-        ${pend ? "Apply & Save" : "Save"}
-      </button>
+      ${
+        saveOffered(autosave.value, config.value && config.value.active)
+          ? html`<button onClick=${() => onApplySave(pend)} disabled=${off.save} title=${saveTitle(target, pend)}>
+            ${pend ? "Apply & Save" : "Save"}
+          </button>`
+          : null
+      }
       <button onClick=${() => onSaveNew(pend)} disabled=${off.saveNew}>Save as New…</button>
     </footer>
   `;

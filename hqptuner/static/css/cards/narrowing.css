@@ -174,8 +174,8 @@
 .narrow-stage-row .t-label {
   min-width: 1.5rem;
 }
-/* static field hint (e.g. buffer time "−1 = minimum") — inline, to the right of
-   the unit label, not stacked under the control */
+/* static field hint — inline, to the right of the control it annotates, not
+   stacked under it */
 .field-hint {
   margin-left: var(--sp-2);
   white-space: nowrap;

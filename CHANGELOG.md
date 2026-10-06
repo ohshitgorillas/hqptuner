@@ -4,6 +4,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Auto-save hides Apply & Save.**
+
+### Removed
+
+- **Buffer time hint.** The Output tab no longer prints "−1 = minimum, 0 = default" beside Buffer time.
+
 ## [1.17.0] — 2026-10-05
 
 ### Added
