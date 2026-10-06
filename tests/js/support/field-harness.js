@@ -139,10 +139,18 @@ const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
  *   meta?: import("../../../hqptuner/static/store/prose.js").Metadata,
  *   desc?: boolean,
  *   keep?: boolean,
- * }} [fixture]
+ *   plain?: boolean,
+ * }} [fixture]  `plain` is the option style, Simplified when true; a case whose result depends on it passes it
  * @returns {Promise<void>}
  */
-export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META, desc = true, keep = true } = {}) {
+export async function reset({
+  fields = [],
+  matrix = MATRIX_ENGAGED,
+  meta = META,
+  desc = true,
+  keep = true,
+  plain = false,
+} = {}) {
   wire();
   engineState.value = {};
   enums.value = null;
@@ -151,7 +159,7 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
   matrixConfig.value = { fields: matrix };
   showDescriptions.value = desc;
   keepOptionDescriptions.value = keep;
-  plainNames.value = false;
+  plainNames.value = plain;
   resetNarrowing();
   await discardAll();
 }

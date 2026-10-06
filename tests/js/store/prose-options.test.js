@@ -63,8 +63,8 @@ test("test_a_filter_option_label_resolves_through_an_alias", async () => {
   );
 });
 
-test("test_a_two_stage_filter_option_appends_the_shared_note_to_the_base_description", async () => {
-  await reset();
+test("test_a_two_stage_filter_option_appends_the_shared_note_to_the_base_description_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     optionDescription(schema.pcm_filter_1x, { value: "0", label: "sinc-M-2s" }, FILTER_META),
     "A very long sinc. Two stage oversampling.",

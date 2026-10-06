@@ -54,16 +54,16 @@ const one = (label) => [{ value: "0", label }];
 // the note rides the SDM chain only
 // ============================================================================
 
-test("test_a_flagged_filter_selected_on_the_sdm_chain_appends_the_sdm_two_stage_note", async () => {
-  await reset();
+test("test_a_flagged_filter_selected_on_the_sdm_chain_appends_the_sdm_two_stage_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     selectionDescription(schema.sdm_filter_1x, "0", one("sdm-A"), FILTER_META),
     "A flagged sinc. Two stage for SDM.",
   );
 });
 
-test("test_a_flagged_filter_selected_on_the_sdm_nx_chain_appends_the_sdm_two_stage_note", async () => {
-  await reset();
+test("test_a_flagged_filter_selected_on_the_sdm_nx_chain_appends_the_sdm_two_stage_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     selectionDescription(schema.sdm_filter_nx, "0", one("sdm-A"), FILTER_META),
     "A flagged sinc. Two stage for SDM.",
@@ -114,13 +114,13 @@ test("test_a_filter_flagged_false_option_on_the_sdm_chain_describes_the_descript
 // neither join contributes a separator to a string it is alone in
 // ============================================================================
 
-test("test_a_flagged_filter_with_an_empty_description_selected_on_the_sdm_chain_describes_the_sentence_alone", async () => {
-  await reset();
+test("test_a_flagged_filter_with_an_empty_description_selected_on_the_sdm_chain_describes_the_sentence_alone_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(selectionDescription(schema.sdm_filter_1x, "0", one("sdm-D"), FILTER_META), "Two stage for SDM.");
 });
 
-test("test_a_flagged_filter_option_with_an_empty_description_on_the_sdm_chain_describes_the_sentence_alone", async () => {
-  await reset();
+test("test_a_flagged_filter_option_with_an_empty_description_on_the_sdm_chain_describes_the_sentence_alone_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     optionDescription(schema.sdm_filter_1x, { value: "0", label: "sdm-D" }, FILTER_META),
     "Two stage for SDM.",
@@ -131,8 +131,8 @@ test("test_a_flagged_filter_option_with_an_empty_description_on_the_sdm_chain_de
 // ordering: description, sdm note, notes, then the -2s variant note
 // ============================================================================
 
-test("test_a_flagged_two_stage_filter_selected_orders_the_sdm_note_before_notes_and_the_variant_note", async () => {
-  await reset();
+test("test_a_flagged_two_stage_filter_selected_orders_the_sdm_note_before_notes_and_the_variant_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     selectionDescription(schema.sdm_filter_1x, "0", one("sdm-B-2s"), FILTER_META),
     "A flagged short sinc. Two stage for SDM. Flagged caveat. Two stage oversampling.",
@@ -157,16 +157,16 @@ test("test_a_flagged_filter_selected_with_an_empty_shared_sentence_describes_the
 // optionDescription obeys the same rules
 // ============================================================================
 
-test("test_a_flagged_filter_option_on_the_sdm_chain_appends_the_sdm_two_stage_note", async () => {
-  await reset();
+test("test_a_flagged_filter_option_on_the_sdm_chain_appends_the_sdm_two_stage_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     optionDescription(schema.sdm_filter_1x, { value: "0", label: "sdm-A" }, FILTER_META),
     "A flagged sinc. Two stage for SDM.",
   );
 });
 
-test("test_a_flagged_filter_option_on_the_sdm_nx_chain_appends_the_sdm_two_stage_note", async () => {
-  await reset();
+test("test_a_flagged_filter_option_on_the_sdm_nx_chain_appends_the_sdm_two_stage_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     optionDescription(schema.sdm_filter_nx, { value: "0", label: "sdm-A" }, FILTER_META),
     "A flagged sinc. Two stage for SDM.",
@@ -194,8 +194,8 @@ test("test_an_unflagged_filter_option_on_the_sdm_chain_describes_the_description
   );
 });
 
-test("test_a_flagged_two_stage_filter_option_orders_the_sdm_note_before_notes_and_the_variant_note", async () => {
-  await reset();
+test("test_a_flagged_two_stage_filter_option_orders_the_sdm_note_before_notes_and_the_variant_note_in_standard", async () => {
+  await reset({ plain: false });
   assert.equal(
     optionDescription(schema.sdm_filter_1x, { value: "0", label: "sdm-B-2s" }, FILTER_META),
     "A flagged short sinc. Two stage for SDM. Flagged caveat. Two stage oversampling.",

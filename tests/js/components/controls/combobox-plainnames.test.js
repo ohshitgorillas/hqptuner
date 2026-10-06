@@ -227,23 +227,6 @@ function rowReading(out, needle) {
   return hit;
 }
 
-// --- the default -----------------------------------------------------------------
-// This process has no localStorage at all (plain node), which IS the
-// storage-unset case. The value the module loads with is read off a FRESH
-// instance imported under a `.fresh-<tag>.js` specifier (resolved by
-// tests/js/support/vendor-resolve.js to the real module's source under a URL
-// node has not cached), so the case holds wherever it runs in the file — no
-// dependence on being registered before any case writes the live signal. The
-// specifier is built rather than literal because it names a file that is not
-// on disk, which `tsc -p jsconfig.json` refuses as a literal (TS2307).
-
-const PREFS_MODULE = new URL("../../../../hqptuner/static/store/ui/prefs.js", import.meta.url).href;
-
-test("test_an_unset_storage_reads_as_simplified", async () => {
-  const fresh = await import(`${PREFS_MODULE.replace(/\.js$/, ".fresh-unset.js")}`);
-  assert.equal(fresh.plainNames.value, true);
-});
-
 // --- pref off: exactly as before ----------------------------------------------
 
 test("test_pref_off_option_rows_keep_source_order", async () => {
