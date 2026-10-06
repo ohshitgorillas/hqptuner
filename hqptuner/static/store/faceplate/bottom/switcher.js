@@ -91,15 +91,16 @@ function remembered(t) {
 }
 
 /**
- * Remember a name in one slot of a target and persist the slot memory.
+ * Remember a name in one slot of a target, the other slot keeping its name from a pair, and persist the slot memory.
  *
  * @param {string} t
  * @param {number} i
  * @param {string} name
+ * @param {string[]} [from]  the pair the other slot keeps its name from, the remembered one when omitted
  */
-function remember(t, i, name) {
+function remember(t, i, name, from = remembered(t)) {
   if (i !== 0 && i !== 1) return;
-  const pair = remembered(t);
+  const pair = [...from];
   pair[i] = name;
   slots.value = { ...slots.value, [t]: pair };
   try {
@@ -160,6 +161,15 @@ function listSlots(key, names) {
     empty: names[i] === "",
   }));
 }
+
+/**
+ * The two names a list target's slots show.
+ *
+ * @param {string} key
+ * @param {string} t
+ * @returns {string[]}
+ */
+const shownNames = (key, t) => listSlots(key, remembered(t)).map((s) => s.name);
 
 /**
  * Matrix profile's slots: each remembered profile, on while it runs.
@@ -251,7 +261,8 @@ export const pickId = (i) => `swlist-${i}`;
 
 /**
  * A slot's list: a list target opens its option list over the body, parked at the slot's ▾, a pick remembered in the
- * slot, and returns null; Matrix profile returns the profile choices; any other target opens nothing and returns null.
+ * slot beside the name the other slot shows, and returns null; Matrix profile returns the profile choices; any other
+ * target opens nothing and returns null.
  *
  * @param {number} i
  * @returns {{ value: string, label: string, disabled: boolean, reason: string }[] | null}
@@ -259,12 +270,13 @@ export const pickId = (i) => `swlist-${i}`;
 export function slotList(i) {
   const v = view();
   const t = v.target;
-  if (v.key) {
+  const key = v.key;
+  if (key) {
     openOptionList({
-      key: v.key,
+      key,
       stage: t === "Nx filter" ? "nx" : "1x",
       value: v.slots[i]?.name ?? "",
-      pick: (name) => remember(t, i, name),
+      pick: (name) => remember(t, i, name, shownNames(key, t)),
       anchor: pickId(i),
     });
     return null;

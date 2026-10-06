@@ -245,8 +245,7 @@ test("test_each_slot_draws_a_radio_body_naming_its_setting_and_a_pick", () => {
           on: classes(s).includes("on"),
           role: body && attr(body, "role"),
           checked: body && attr(body, "aria-checked"),
-          l: textIn(tx, "span", "l"),
-          v: textIn(tx, "span", "v"),
+          tx: tx && text(tx),
           pick: pick && text(pick),
           popup: pick && attr(pick, "aria-haspopup"),
         };
@@ -257,8 +256,8 @@ test("test_each_slot_draws_a_radio_body_naming_its_setting_and_a_pick", () => {
       label: true,
       picks: 2,
       slots: [
-        { on: true, role: "radio", checked: "true", l: "ASDM7EC 512+fs", v: label(0), pick: "▾", popup: "dialog" },
-        { on: false, role: "radio", checked: "false", l: "ASDM5", v: label(1), pick: "▾", popup: "dialog" },
+        { on: true, role: "radio", checked: "true", tx: label(0), pick: "▾", popup: "dialog" },
+        { on: false, role: "radio", checked: "false", tx: label(1), pick: "▾", popup: "dialog" },
       ],
     },
   );
@@ -296,7 +295,6 @@ test("test_under_output_mode_each_slot_shows_its_mode_with_no_pick", () => {
       const [pick] = every(inside(s), "button", "spick");
       return {
         mode: classes(s).includes("mode"),
-        l: textIn(s, "span", "l"),
         v: textIn(s, "span", "v"),
         aka: textIn(s, "span", "aka"),
         hidden: pick && hasAttr(pick, "hidden"),
@@ -304,7 +302,6 @@ test("test_under_output_mode_each_slot_shows_its_mode_with_no_pick", () => {
     }),
     [0, 1].map((i) => ({
       mode: true,
-      l: "",
       v: view?.slots[i]?.label,
       aka: view?.slots[i]?.aka,
       hidden: true,

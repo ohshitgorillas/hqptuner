@@ -1,7 +1,7 @@
 /* Setting Switcher (bottom bar): target dropdown | slot | slot. No A/B keys: the slots ARE the switch.
    Slot = body (tap → goes live; radio) + ▾ end (tap → its picker, any time). Live slot: amber frame +
-   amber name; no lamp (enough lamps on the page). Body shows the engine's true name small (.l) and the full
-   simplified name (.v), wrapping to a second line rather than truncating. */
+   amber name; no lamp (enough lamps on the page). Body shows the full simplified name (.v), wrapping to a second
+   line rather than truncating. */
 .switcher{height:68px;padding-bottom:4px;box-sizing:border-box;flex-shrink:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px}
 .switcher .target{display:flex;flex-direction:column;gap:5px}
 .switcher .target .eng{color:var(--ink)}
@@ -13,8 +13,6 @@
 
 .sbody{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;padding:0 12px;border:0;background:none;text-align:left;font:inherit;cursor:pointer}
 .sbody .tx{display:flex;flex-direction:column;min-width:0;gap:1px}
-.sbody .l:empty{display:none}
-.sbody .l{font-family:var(--f-mono);font-size:10.5px;line-height:1.25;color:var(--ink-2)}
 .sbody .v{font-family:var(--f-body);font-size:13px;line-height:var(--lh-text);font-weight:500;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .slot.on .sbody .v{color:var(--acc)}
 .sbody .aka:empty{display:none}

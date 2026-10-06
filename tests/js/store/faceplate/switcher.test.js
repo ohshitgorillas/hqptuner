@@ -275,6 +275,12 @@ test("test_a_pick_from_a_slots_list_remembers_it_in_that_slot", () => {
   assert.equal(switcherView()?.slots[1]?.name, "IIR");
 });
 
+test("test_a_pick_into_the_second_slot_keeps_the_running_value_the_first_shows", () => {
+  slotList(1);
+  openList.value?.pick("ASDM5");
+  assert.deepEqual(slotField("name"), ["ASDM7EC 512+fs", "ASDM5"]);
+});
+
 test("test_a_profile_slots_list_is_the_profile_choices", () => {
   setSwitcherTarget("Matrix profile");
   assert.deepEqual(

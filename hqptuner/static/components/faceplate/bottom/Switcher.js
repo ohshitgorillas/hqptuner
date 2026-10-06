@@ -132,9 +132,7 @@ const slot = ({ s, i, mode, menu, key, tab, bodies }) => html`
       onKeyDown=${(/** @type {KeyboardEvent} */ e) => arrow(e, i, bodies)}
     >
       <span class="tx"
-        ><span class="l">${s.name}</span><span class="v">${s.label}</span>${
-          mode ? html`<span class="aka">${s.aka}</span>` : null
-        }</span
+        ><span class="v">${s.label}</span>${mode ? html`<span class="aka">${s.aka}</span>` : null}</span
       >
     </button>
     <button
