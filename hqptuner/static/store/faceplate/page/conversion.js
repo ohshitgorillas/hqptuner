@@ -5,7 +5,7 @@
 // select follows through the live overlay.
 
 import { signal, computed, effect } from "@preact/signals";
-import { describe, optionDescription } from "../../prose.js";
+import { describe, optionProse } from "../../prose.js";
 import { plainEntry, decorateOptions } from "../../plainnames.js";
 import { chainControls } from "../../live/chains.js";
 import { CHAINS, sourceIsNx } from "../../live/derive.js";
@@ -30,7 +30,8 @@ import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/c
  * @property {string} fam       the running option's plain family, "" where the overlay has none
  * @property {string | null} variant  its plain variant, null where it has none
  * @property {string} leaf      its name as the option style prints it: the plain row text, or the engine name
- * @property {string} prose     its manual prose, "" where the overlay has none
+ * @property {string} prose     its manual prose that reads inline, "" where the overlay has none
+ * @property {string[]} more    its manual paragraphs held behind "see more", none where nothing is held
  *
  * @typedef {object} ConvSection
  * @property {FieldId[]} open   the open fields, in order
@@ -90,6 +91,7 @@ export function plainOf(kind, name) {
 function fieldOf(c, id, play) {
   const opt = c.optionsRaw.find((o) => String(o.value) === String(c.value));
   const value = opt ? opt.label : "";
+  const words = opt ? optionProse(c.entry, opt, describe(c.entry, c.key)) : { text: "", more: [] };
   return {
     id,
     key: c.key,
@@ -97,7 +99,8 @@ function fieldOf(c, id, play) {
     value,
     idle: !fieldRuns(play, play.run, id),
     ...plainOf(c.entry.plainNames || "", value),
-    prose: opt ? optionDescription(c.entry, opt, describe(c.entry, c.key)) : "",
+    prose: words.text,
+    more: words.more,
   };
 }
 

@@ -199,6 +199,16 @@ test("test_the_copy_carries_the_running_options_prose", () => {
   assert.match(textOf("man"), /fixture-copy/);
 });
 
+/** How many "see more" triggers Resampling's body shows. */
+const seeMores = () => bodyEls("resampling").filter((e) => attr(e, "data-testid") === "see-more").length;
+
+test("test_a_two_stage_copy_shows_one_more_see_more_than_its_single_stage_twin", () => {
+  const single = seeMores();
+  enums.value = { ...enums.value, filters: ["minphaseFIR-2s", "sinc-L"].map(item) };
+  metadata.value = { ...metadata.value, filters: { ...metadata.value?.filters, two_stage_note: "fixture-note" } };
+  assert.equal(seeMores(), single + 1);
+});
+
 test("test_the_folded_filter_reads_the_engine_name_it_runs", () => {
   assert.equal(textOf("fn"), "sinc-L");
 });

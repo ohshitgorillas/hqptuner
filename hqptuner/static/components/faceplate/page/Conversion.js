@@ -185,7 +185,8 @@ function scheduleFit(host) {
 // --- the bodies ---------------------------------------------------------------------------
 
 /**
- * The open field's copy: its engine name and prose, or the prose cut short with `… see more` opening it whole.
+ * The open field's copy: its engine name and prose, ending in `… see more` that opens the whole of it where the prose
+ * is cut short or holds paragraphs back.
  *
  * @param {object} props
  * @param {string} props.id  the copy's id on the page
@@ -199,13 +200,16 @@ function Copy({ id, field }) {
     if (ref.current) scheduleFit(ref.current);
   });
   const pop = `copy-${id}`;
+  const shown = cut === undefined ? field.prose : wordsOf(field.prose).slice(0, cut).join(" ");
   const rest =
-    cut === undefined
+    cut === undefined && field.more.length === 0
       ? field.prose
-      : html`${wordsOf(field.prose).slice(0, cut).join(" ")}${" "}
-          <button type="button" class="seemore" ...${triggerProps(pop, "dialog")}>${SEE_MORE}</button>
+      : html`${shown}${" "}
+          <button type="button" class="seemore" data-testid="see-more" ...${triggerProps(pop, "dialog")}>
+            ${SEE_MORE}
+          </button>
           <${Popover} id=${pop} cls="notepop" role="dialog" label=${field.value} park=${park}>
-            <p>${field.prose}</p>
+            ${[field.prose, ...field.more].filter(Boolean).map((p) => html`<p>${p}</p>`)}
           <//>`;
   return html`
     <div ref=${ref} class="man" data-copy=${id} data-name=${field.value} data-prose=${field.prose}>

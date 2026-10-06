@@ -47,7 +47,15 @@ import { notesVisible, plainNames } from "./ui/prefs.js";
  * @property {Record<string, unknown>} [easy] Easy Mode's tile copy, a nested tree keyed by preset id
  *   and knob id (data/easy-presets.json). Deliberately not typed further: the tiles that read the
  *   leaves arrive in a later phase, and a shape written before them would be a guess.
+ *
+ * @typedef {object} OptionProse
+ *   One option's prose, split for a surface that can hold some of it back.
+ * @property {string} text    what reads inline
+ * @property {string[]} more  paragraphs held behind "see more", none where nothing is held
  */
+
+/** @type {OptionProse} */
+const NO_PROSE = { text: "", more: [] };
 
 /**
  * One control's label and tooltip from settings.json, falling back to the key
@@ -179,19 +187,37 @@ const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filt
  * @param {string} name
  * @param {Metadata} md
  * @param {boolean} sdm whether the control sits on the SDM chain
- * @returns {string}
+ * @returns {OptionProse}  the two-stage note held back, the rest inline
  */
-function filterDescription(name, md, sdm) {
+function filterProse(name, md, sdm) {
   const f = md.filters || {};
   const { entry, twoStage } = joinFilter(name, f.filters || {}, f.aliases || {});
-  if (!entry) return "";
+  if (!entry) return NO_PROSE;
   // Simplified mode says nothing about the two-stage variant: its names drop the
   // clause (store/plainnames.js), so both notes go with them and the description
   // keeps the filter's own prose alone. Standard mode is unchanged.
-  const twoStageNotes = !plainNames.value;
-  const sdmNote = twoStageNotes && sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
-  return joinProse(entry.description, sdmNote, entry.notes, twoStageNotes && twoStage ? f.two_stage_note : "");
+  if (plainNames.value) return { text: joinProse(entry.description, entry.notes), more: [] };
+  const sdmNote = sdm && entry.sdm_two_stage ? f.sdm_two_stage_note : "";
+  return { text: joinProse(entry.description, sdmNote, entry.notes), more: heldBack(twoStage, f.two_stage_note) };
 }
+
+/**
+ * @param {boolean} twoStage  the name is a '-2s' variant
+ * @param {string | undefined} note  the shared two-stage note
+ * @returns {string[]}
+ */
+const heldBack = (twoStage, note) => (twoStage && note ? [note] : []);
+
+/** @param {OptionProse} p */
+const joined = (p) => joinProse(p.text, ...p.more);
+
+/**
+ * @param {string} name
+ * @param {Metadata} md
+ * @param {boolean} sdm whether the control sits on the SDM chain
+ * @returns {string}
+ */
+const filterDescription = (name, md, sdm) => joined(filterProse(name, md, sdm));
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
 /**
@@ -248,11 +274,24 @@ export function selectionDescription(entry, value, options, meta) {
  * @returns {string}
  */
 export function optionDescription(entry, option, meta) {
-  if (!entry.desc) return "";
-  if (entry.desc === "config") return (meta && meta.options && meta.options[String(option.value)]) || "";
-  if (!option.label) return "";
+  return joined(optionProse(entry, option, meta));
+}
+
+/**
+ * The same prose as optionDescription, split for a surface that holds the two-stage note behind "see more".
+ *
+ * @param {SchemaField} entry
+ * @param {{ value: string | number | undefined, label: string }} option
+ * @param {ControlProse} meta
+ * @returns {OptionProse}
+ */
+export function optionProse(entry, option, meta) {
+  if (!entry.desc) return NO_PROSE;
+  if (entry.desc === "config")
+    return { text: (meta && meta.options && meta.options[String(option.value)]) || "", more: [] };
+  if (!option.label) return NO_PROSE;
   const md = metadata.value || {};
   if (entry.desc === "filter" || entry.desc === "sdm_filter")
-    return filterDescription(option.label, md, entry.desc === "sdm_filter");
-  return shaperDescription(entry.desc, option.label, md);
+    return filterProse(option.label, md, entry.desc === "sdm_filter");
+  return { text: shaperDescription(entry.desc, option.label, md), more: [] };
 }
