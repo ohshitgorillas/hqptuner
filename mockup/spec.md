@@ -41,6 +41,7 @@ Current state only. Mockup: https://claude.ai/artifact/TDCf3zE1nWfFgKFvui58G7. C
   - Resampling is the source rate | output rate seam. DAC correction runs at the output rate (Jussi) and needs the matrix (its lamp goes dark with it). Volume sits before Shaping (manual §2.15); its order against DAC correction is unconfirmed.
 - Speakers sits after Shaping because delays run at the target rate and apply to Direct SDM's bit-perfect DSD. It is not a matrix plugin.
 - Every stage always shows. Off differs only by its unlit lamp, never grayed. Stages flex to fill the rail.
+- HF filter, Crossfeed, DAC correction and Speakers print no value while switched off.
 - Drawers open only from the rail. One open at a time, one wipe at a time.
 - Open stage: name in accent + left bar. One stage, one drawer.
 - Matrix bypassed: the children's lamps go dark, Loudness reads `0% applied`, the page section leaves.

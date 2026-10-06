@@ -106,10 +106,6 @@ test("test_the_hf_filter_at_none_is_unlit", () => {
   assert.equal(stage({ hf: "none" }, "hf").on, false);
 });
 
-test("test_the_hf_filter_at_none_does_not_print_the_engine_name", () => {
-  assert.doesNotMatch(stage({ hf: "none" }, "hf").value, /^none$/);
-});
-
 test("test_dsd_processing_on_the_pcm_chain_names_the_noise_filter", () => {
   assert.match(stage({ path: "dsd-pcm" }, "dsd").value, new RegExp(CONV.noise));
 });
@@ -231,9 +227,16 @@ for (const [id, flag] of [
   });
 }
 
-test("test_crossfeed_engaged_reads_differently_from_crossfeed_off", () => {
-  assert.notEqual(stage({ crossfeed: true }, "crossfeed").value, stage({ crossfeed: false }, "crossfeed").value);
-});
+for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
+  ["hf", { hf: "none" }],
+  ["crossfeed", { crossfeed: false }],
+  ["correction", { correction: false }],
+  ["speakers", { speakers: false }],
+])) {
+  test(`test_${id}_switched_off_prints_no_value`, () => {
+    assert.equal(stage({ ...ENGAGED, ...off }, id).value, "");
+  });
+}
 
 test("test_crossfeed_engaged_leaves_its_value_empty_for_want_of_a_running_mode", () => {
   assert.equal(stage({ crossfeed: true }, "crossfeed").value, "");
@@ -247,10 +250,6 @@ test("test_dac_correction_engaged_names_the_running_model", () => {
   assert.equal(stage({ correction: true, model: "D90" }, "correction").value, "D90");
 });
 
-test("test_dac_correction_off_does_not_name_the_model", () => {
-  assert.doesNotMatch(stage({ correction: false, model: "D90" }, "correction").value, /D90/);
-});
-
 for (const text of ["-12.5 dB", "Pinned: -3.0 dB"]) {
   test(`test_volume_reads_the_running_rail_text_${text.replace(/\W+/g, "_")}`, () => {
     assert.equal(stage({ volume: text }, "volume").value, text);
@@ -259,10 +258,6 @@ for (const text of ["-12.5 dB", "Pinned: -3.0 dB"]) {
 
 test("test_speakers_engaged_are_lit", () => {
   assert.equal(stage({ speakers: true }, "speakers").on, true);
-});
-
-test("test_speakers_engaged_read_differently_from_speakers_off", () => {
-  assert.notEqual(stage({ speakers: true }, "speakers").value, stage({ speakers: false }, "speakers").value);
 });
 
 test("test_speakers_engaged_leave_their_value_empty_for_want_of_a_running_layout", () => {

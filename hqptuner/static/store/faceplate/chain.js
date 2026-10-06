@@ -185,7 +185,8 @@ function conversion(r) {
 const part = (r, engaged, value) => ({ value, on: engaged && r.matrix });
 
 /**
- * A lit stage's value: the source and output describe a stream, and the rest name what runs.
+ * A lit stage's value: the source and output describe a stream, and the rest name what runs. A stage switched off
+ * has none.
  *
  * @type {Record<string, (r: Running, p: Paths) => Reading>}
  */
@@ -193,18 +194,18 @@ const READ = {
   source: (r) => ({ value: r.path === "idle" ? DASH : sourceLabel(r.metadata), on: true }),
   hf: (r) => {
     const on = r.hf !== "" && r.hf !== "none";
-    return { value: on ? r.hf : "Inactive", on };
+    return { value: on ? r.hf : "", on };
   },
   dsd: (_r, p) => ({ value: p.dsd, on: true }),
   matrix: (r) => ({ value: r.profile, on: r.matrix }),
   pipelines: (r) => part(r, true, `${r.pipelines} active`),
-  crossfeed: (r) => part(r, r.crossfeed, r.crossfeed ? "" : "Off"),
+  crossfeed: (r) => part(r, r.crossfeed, ""),
   loudness: (r) => part(r, r.loudness, `${r.applied}% applied`),
   resampling: (_r, p) => ({ value: p.resampling, on: true }),
-  correction: (r) => part(r, r.correction, r.correction ? r.model || "[none]" : "Bypassed"),
+  correction: (r) => part(r, r.correction, r.correction ? r.model || "[none]" : ""),
   volume: (r) => ({ value: r.volume, on: true }),
   shaping: (_r, p) => ({ value: p.shaping, on: true }),
-  speakers: (r) => ({ value: r.speakers ? "" : "Bypassed", on: r.speakers }),
+  speakers: (r) => ({ value: "", on: r.speakers }),
   output: (r) => ({ value: r.path === "idle" ? DASH : outputLabel(r.status), on: true }),
 };
 
