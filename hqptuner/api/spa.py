@@ -1,5 +1,7 @@
 """SPA static-asset mount — the bundled frontend, served with revalidation forced."""
 
+import mimetypes
+
 from fastapi import FastAPI, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import Match, Mount
@@ -46,6 +48,8 @@ def mount_spa(app: FastAPI, cfg: Config) -> None:
     # Appended last, so the /api routes win; the SPA's static assets and
     # index.html fall through to here. app.mount builds a plain Mount, so the
     # subclass goes onto the route table by hand.
+    # Not every Python's MIME table knows the web app manifest.
+    mimetypes.add_type("application/manifest+json", ".webmanifest")
     static_dir = bundled("static", bundle=cfg.bundle)
     if static_dir.is_dir():
         app.router.routes.append(SpaMount("/", app=NoCacheStaticFiles(directory=static_dir, html=True), name="spa"))

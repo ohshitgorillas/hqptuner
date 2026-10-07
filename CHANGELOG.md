@@ -10,6 +10,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Spectrum delay** makes it possible to sync the spectrum and meters to playback.
 - **The clipping lamp**, similar to the apodizing lamp, flashes on clipping events.
 - **Station, Snapshot, and Profile Builders** offer guided creation and management of settings.
+- **Home screen app.** HQPTuner can be added to the home screen of a tablet to open full screen.
 
 ### Changed
 

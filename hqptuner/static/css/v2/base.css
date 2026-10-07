@@ -7,7 +7,7 @@ button,input,select,textarea{line-height:inherit}
 
 /* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: at exactly 1080×810 it renders 1:1. */
 #stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:14px 22px 0;display:flex;flex-direction:column;
+.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(14px + env(safe-area-inset-top)) 22px 0;display:flex;flex-direction:column;
   background:var(--plate-face);border:1px solid var(--edge);border-radius:10px;
   box-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums}
 .rule{height:1px;background:var(--line);flex-shrink:0}
