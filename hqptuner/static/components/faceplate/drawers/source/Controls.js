@@ -16,7 +16,7 @@ import {
 const STEREO = 2;
 
 /** @type {Record<string, string>} */
-const WINDOW_LABELS = { 30: "30 s", 60: "1 min", 120: "2 min", 300: "5 min", all: "All" };
+const WINDOW_LABELS = { 30: "30 s", 60: "1 min", 120: "2 min", 300: "5 min" };
 
 /**
  * A segmented switch, the option matching `value` lit; tapping another reports it.

@@ -3,14 +3,12 @@
 // channel drawn, the colour span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
 //
-// The window is one span for both charts: the chosen seconds, or for All the playback the apodizing history holds,
-// which clears on a track change (store/apodhistory.js). Both charts end on the newest playback they hold.
+// The window is one span for both charts, the chosen seconds. Both charts end on the newest playback they hold.
 
 import { truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
 import { freqTicks, timeTicks } from "../../../model/gauges/meter-plot.js";
 import { metering } from "../../actions.js";
-import { apodVisibleBins } from "../../apodhistory.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
 import { engineStatus } from "../../signals.js";
@@ -50,7 +48,7 @@ export const METER_NOTES = {
  * @property {number} range  dB, the colour span
  * @property {string} channel  the channel drawn, `sum` or an index
  * @property {string[]} channels  the channel switch's choices, the sum first
- * @property {string} window  the window picked, seconds or `all`
+ * @property {string} window  the window picked, seconds
  */
 
 /**
@@ -84,14 +82,13 @@ export function sourceMeter() {
   const nyquist = geo ? geo.nyquist : CD_NYQUIST;
   const channels = channelChoices(geo ? geo.channels : STEREO);
   const window = apodWindow.value;
-  const all = window === "all";
-  const span = windowSpan(apodVisibleBins.value, window);
+  const span = windowSpan(window);
   return {
     state: stateOf(),
     nyquist,
     freq: freqTicks(nyquist, (f) => 1 - f / nyquist),
     span,
-    time: timeTicks(span, span, MS_PER_S, all),
+    time: timeTicks(span, MS_PER_S),
     range: Number(meterRange.value),
     channel: channels.includes(meterChannel.value) ? meterChannel.value : "sum",
     channels,

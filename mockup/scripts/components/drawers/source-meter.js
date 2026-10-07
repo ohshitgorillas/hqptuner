@@ -42,8 +42,8 @@ import { spectrumPainter, spectrumView } from "./source-meter/spectrum.js";
  * @property {number[]} pageRanges     the page's Range options, dB
  * @property {number} pageRange        dB
  * @property {string} channel          '0' | '1' | 'sum'
- * @property {{ v: number | 'all', label: string }[]} windows  spectrogram time windows, s
- * @property {number | 'all'} window   s
+ * @property {{ v: number, label: string }[]} windows  spectrogram time windows, s
+ * @property {number} window           s
  * @property {number} colsPerSec
  * @property {number} trackElapsedSec
  * @property {boolean} [compact]       the page's Source section rather than the drawer
@@ -56,7 +56,7 @@ import { spectrumPainter, spectrumView } from "./source-meter/spectrum.js";
  * @property {number} floor           dBFS
  * @property {number} range           dB
  * @property {string} channel         '0' | '1' | 'sum'
- * @property {number | 'all'} window  s
+ * @property {number} window  s
  */
 
 /**
@@ -172,7 +172,7 @@ function meterActions(st, parts) {
       parts().gram.paint();
     },
     window: (v) => {
-      st.window = v === "all" ? "all" : Number(v);
+      st.window = Number(v);
       parts().gram.paint();
     },
   };

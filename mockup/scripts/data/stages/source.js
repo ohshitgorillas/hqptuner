@@ -28,14 +28,13 @@ export const METER = {
   pageRanges: [60, 90, 120],
   pageRange: 90, // the page's one Range: spectrum span and level floor (−range), dB
   channel: "sum", // '0' | '1' | 'sum'
-  /** @type {{ v: number | "all", label: string }[]} */
+  /** @type {{ v: number, label: string }[]} */
   windows: [
-    // spectrogram + apodizing strip time axis; 'all' = since track start
+    // spectrogram + apodizing strip time axis
     { v: 30, label: "30 s" },
     { v: 60, label: "1 min" },
     { v: 120, label: "2 min" },
     { v: 300, label: "5 min" },
-    { v: "all", label: "All" },
   ],
   window: 60,
   colsPerSec: 10,

@@ -14,23 +14,13 @@
 export const rateOf = (bin) => (bin.ms > 0 ? (bin.n * 1000) / bin.ms : 0);
 
 /**
- * How much time a run of bins covers, in milliseconds.
- *
- * @param {{ ms: number }[]} bins
- * @returns {number}
- */
-const spanOf = (bins) => bins.reduce((sum, b) => sum + b.ms, 0);
-
-/**
  * The time axis's width in milliseconds, shared by the apodizing strip and the
- * spectrogram: the chosen duration, or for the whole-history window, whatever
- * the visible bins cover.
+ * spectrogram: the chosen duration.
  *
- * @param {{ ms: number }[]} bins
- * @param {string} window
+ * @param {string} window  s
  * @returns {number}
  */
-export const windowSpan = (bins, window) => (window === "all" ? spanOf(bins) : Number(window) * 1000);
+export const windowSpan = (window) => Number(window) * 1000;
 
 /**
  * @typedef {{ x: number, rate: number }} GridColumn

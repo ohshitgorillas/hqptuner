@@ -8,7 +8,6 @@ import {
   rampLut,
   spectrogramIndex,
   timeTicks,
-  windowSpan,
 } from "../../../../../hqptuner/static/model/gauges/meter-plot.js";
 import { minusText } from "../../../../../hqptuner/static/model/shell/format.js";
 import { edgeLabels, freqLabels } from "./axes.js";
@@ -133,7 +132,7 @@ function fillPixels(d, a, idx, colours) {
 }
 
 /**
- * The time axis under the window: absolute track position for 'all', seconds or minutes back to now otherwise.
+ * The time axis under the window: seconds or minutes back to now.
  *
  * @param {HTMLElement} tAxis
  * @param {ReturnType<typeof timeTicks>} tt
@@ -164,14 +163,13 @@ export function spectrogramPainter(view, st, cfg, src) {
   /** @type {Colours} set by `ramp`, which runs before the first paint */
   let colours;
   function paint() {
-    const total = src.firstIdx + src.hist.length; // columns since track start
-    const span = windowSpan(st.window, total, cfg.colsPerSec);
+    const span = st.window * cfg.colsPerSec;
     const off = (st.channel === "sum" ? 2 : Number(st.channel)) * ROWS;
     const idx = spectrogramIndex(src.hist, src.firstIdx, { cols: COLS, rows: ROWS, span, off, range: st.range });
     fillPixels(img.data, aimg.data, idx, colours);
     sctx.putImageData(img, 0, 0);
     actx.putImageData(aimg, 0, 0);
-    paintTimeAxis(view.tAxis, timeTicks(span, total, cfg.colsPerSec, st.window === "all"));
+    paintTimeAxis(view.tAxis, timeTicks(span, cfg.colsPerSec));
   }
   return {
     paint,

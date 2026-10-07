@@ -108,16 +108,6 @@ export function freqTicks(nyq, at) {
 }
 
 /**
- * History columns a spectrogram window spans: every column since track start for 'all', else its seconds' worth.
- *
- * @param {number | 'all'} window  s
- * @param {number} total           columns since track start
- * @param {number} colsPerSec
- * @returns {number}
- */
-export const windowSpan = (window, total, colsPerSec) => (window === "all" ? total : window * colsPerSec);
-
-/**
  * The held columns under pixel column `x`: those of its share of the span still in history.
  *
  * @template {{ db: ArrayLike<number>, apod: number }} C
@@ -176,16 +166,14 @@ export function spectrogramIndex(hist, firstIdx, view) {
 
 /**
  * The time axis under a spectrogram window: a tick step keeping at most five per span, minutes past two minutes, and
- * the ticks at their fraction across, each with its value in that unit. 'All' counts from track start to the newest
- * column; a timed window counts back from it to zero. A tick crowding the right edge gives way to the end label.
+ * the ticks at their fraction across, each with its value in that unit, counting back from the newest column to zero.
+ * A tick crowding the right edge gives way to the end label.
  *
  * @param {number} span        columns shown
- * @param {number} total       columns since track start
  * @param {number} colsPerSec
- * @param {boolean} all
  * @returns {{ inMin: boolean, ticks: { at: number, value: number }[] }}
  */
-export function timeTicks(span, total, colsPerSec, all) {
+export function timeTicks(span, colsPerSec) {
   const spanS = span / colsPerSec;
   const step = TIME_STEPS_S.find((v) => spanS / v <= 5) || 600;
   const inMin = spanS > 120;
@@ -193,14 +181,8 @@ export function timeTicks(span, total, colsPerSec, all) {
   const value = (sec) => (inMin ? +(sec / 60).toFixed(1) : Math.round(sec));
   /** @type {{ at: number, value: number }[]} */
   const ticks = [];
-  if (all) {
-    const endS = total / colsPerSec;
-    for (let t = 0; t < endS - step * 0.35; t += step) ticks.push({ at: t / spanS, value: value(t) });
-    ticks.push({ at: 1, value: value(endS) });
-  } else {
-    for (let t = spanS; t > step * 0.35; t -= step) ticks.push({ at: 1 - t / spanS, value: value(-t) });
-    ticks.push({ at: 1, value: value(0) });
-  }
+  for (let t = spanS; t > step * 0.35; t -= step) ticks.push({ at: 1 - t / spanS, value: value(-t) });
+  ticks.push({ at: 1, value: value(0) });
   return { inMin, ticks };
 }
 

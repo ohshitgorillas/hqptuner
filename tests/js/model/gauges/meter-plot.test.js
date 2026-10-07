@@ -14,7 +14,6 @@ import {
   spectrumAxes,
   spectrumPoints,
   timeTicks,
-  windowSpan,
 } from "../../../../hqptuner/static/model/gauges/meter-plot.js";
 import { near } from "../../support/near.js";
 
@@ -173,28 +172,18 @@ test("test_a_pixel_column_caps_its_apodizing_count_at_three", () => {
   assert.equal(spectrogramIndex(HIST, 0, { ...VIEW, cols: 1 }).events[0], 3);
 });
 
-test("test_the_all_window_spans_every_column_since_track_start", () => {
-  assert.equal(windowSpan("all", 2000, 10), 2000);
-});
-
-test("test_a_timed_window_spans_its_seconds_of_columns", () => {
-  assert.equal(windowSpan(60, 2000, 10), 600);
-});
-
 // ── Time axis ────────────────────────────────────────────────────────────
 
 /**
  * The time axis's ticks as [position, value] pairs.
  *
  * @param {number} spanS
- * @param {number} totalS
- * @param {boolean} all
  * @returns {number[][]}
  */
-const ticksOf = (spanS, totalS, all) => timeTicks(spanS * 10, totalS * 10, 10, all).ticks.map((t) => [t.at, t.value]);
+const ticksOf = (spanS) => timeTicks(spanS * 10, 10).ticks.map((t) => [t.at, t.value]);
 
 test("test_a_one_minute_window_ticks_every_15_seconds_back_to_its_left_edge", () => {
-  assert.deepEqual(ticksOf(60, 200, false), [
+  assert.deepEqual(ticksOf(60), [
     [0, -60],
     [0.25, -45],
     [0.5, -30],
@@ -205,47 +194,37 @@ test("test_a_one_minute_window_ticks_every_15_seconds_back_to_its_left_edge", ()
 
 test("test_a_thirty_second_window_ticks_every_10_seconds", () => {
   assert.deepEqual(
-    ticksOf(30, 200, false).map(([, v]) => v),
+    ticksOf(30).map(([, v]) => v),
     [-30, -20, -10, 0],
   );
 });
 
 test("test_a_window_over_two_minutes_reads_in_minutes", () => {
-  assert.equal(timeTicks(3000, 4000, 10, false).inMin, true);
+  assert.equal(timeTicks(3000, 10).inMin, true);
 });
 
 test("test_a_two_minute_window_reads_in_seconds", () => {
-  assert.equal(timeTicks(1200, 4000, 10, false).inMin, false);
+  assert.equal(timeTicks(1200, 10).inMin, false);
 });
 
 test("test_a_five_minute_window_ticks_every_minute", () => {
   assert.deepEqual(
-    ticksOf(300, 400, false).map(([, v]) => v),
+    ticksOf(300).map(([, v]) => v),
     [-5, -4, -3, -2, -1, 0],
   );
 });
 
-test("test_the_all_window_ticks_from_track_start_and_ends_on_the_track_position", () => {
-  assert.deepEqual(ticksOf(40, 40, true), [
-    [0, 0],
-    [0.25, 10],
-    [0.5, 20],
-    [0.75, 30],
-    [1, 40],
-  ]);
-});
-
 test("test_a_tick_crowding_the_right_edge_gives_way_to_the_end_label", () => {
   assert.deepEqual(
-    ticksOf(42, 42, true).map(([, v]) => v),
-    [0, 10, 20, 30, 42],
+    ticksOf(42).map(([, v]) => v),
+    [-42, -32, -22, -12, 0],
   );
 });
 
 test("test_a_tick_clear_of_the_right_edge_stays", () => {
   assert.deepEqual(
-    ticksOf(44, 44, true).map(([, v]) => v),
-    [0, 10, 20, 30, 40, 44],
+    ticksOf(44).map(([, v]) => v),
+    [-44, -34, -24, -14, -4, 0],
   );
 });
 

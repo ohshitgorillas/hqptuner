@@ -204,9 +204,7 @@ function accumulate(st) {
 // answer — that window holds no complete observation.
 export const apodVisibleBins = computed(() => {
   const all = apodBins.value;
-  const w = apodWindow.value;
-  if (w === "all") return all;
-  const budget = (num(w) || 0) * 1000;
+  const budget = (num(apodWindow.value) || 0) * 1000;
   let used = 0;
   let i = all.length;
   while (i > 0 && used + all[i - 1].ms <= budget) {

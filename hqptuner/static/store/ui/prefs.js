@@ -167,9 +167,9 @@ export function setApodLight(mode) {
 }
 
 // Time window of the Engine health card's apodizing-events density strip: how
-// much recent playback the strip covers, in seconds, or "all" for the whole
-// current track. An unset or junk value reads as the 60 s default.
-export const APOD_WINDOWS = ["30", "60", "120", "300", "all"];
+// much recent playback the strip covers, in seconds, at most the spectrogram's
+// 300 s history. An unset or junk value reads as the 60 s default.
+export const APOD_WINDOWS = ["30", "60", "120", "300"];
 
 /**
  * A stored choice from `allowed`, or `dflt` where nothing valid is stored.

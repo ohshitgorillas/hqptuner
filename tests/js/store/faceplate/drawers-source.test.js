@@ -17,7 +17,6 @@ import assert from "node:assert/strict";
 import { sourceMeter, stripEvents } from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import {
   METER_RANGES,
   setApodWindow,
@@ -26,7 +25,7 @@ import {
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
-import { feed, setPollStep } from "../../support/apodpolls.js";
+import { setPollStep } from "../../support/apodpolls.js";
 
 const QUIET_MS = 2000; // the feed's silence threshold, store/meter/feed.js
 
@@ -150,20 +149,6 @@ test("test_the_colour_span_is_the_picked_range", () => {
 test("test_a_timed_window_spans_its_seconds", () => {
   setApodWindow("120");
   assert.equal(sourceMeter().span, 120000);
-});
-
-test("test_the_all_window_spans_the_playback_the_history_holds", () => {
-  initApodHistory();
-  feed([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-  setApodWindow("all");
-  assert.equal(sourceMeter().span, 10000);
-});
-
-test("test_the_all_window_axis_ends_on_the_playback_since_the_track_began", () => {
-  initApodHistory();
-  feed([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-  setApodWindow("all");
-  assert.equal(sourceMeter().time.ticks.at(-1)?.value, 10);
 });
 
 test("test_a_timed_window_axis_counts_back_from_its_span_to_now", () => {

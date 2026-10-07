@@ -128,8 +128,8 @@ test("test_the_range_switch_lights_the_picked_range", () => {
 });
 
 test("test_the_window_switch_lights_the_picked_window", () => {
-  setApodWindow("all");
-  assert.deepEqual(lit("meter-window"), ["all"]);
+  setApodWindow("30");
+  assert.deepEqual(lit("meter-window"), ["30"]);
 });
 
 test("test_tapping_a_channel_picks_it", () => {
@@ -143,6 +143,6 @@ test("test_tapping_a_range_picks_it", () => {
 });
 
 test("test_tapping_a_window_picks_it", () => {
-  tap("all");
-  assert.equal(apodWindow.value, "all");
+  tap("30");
+  assert.equal(apodWindow.value, "30");
 });

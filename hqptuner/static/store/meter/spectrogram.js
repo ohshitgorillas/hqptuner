@@ -1,4 +1,4 @@
-// The spectrogram's histories: runs of slices, each the power average of the
+// The spectrogram's history: a run of slices, each the power average of the
 // feed frames that cover its slice time of playback, laid along the time axis by the
 // frame time the feed says those frames cover. Playback time is what both the
 // spectrogram and the apodizing strip above it are drawn on, so neither the
@@ -14,17 +14,13 @@
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter.js";
-import { apodBins, apodVisibleBins } from "../apodhistory.js";
+import { apodBins } from "../apodhistory.js";
 import { apodWindow, meterChannel } from "../ui/prefs.js";
 
-// The fine history: a slice per FINE_MS of playback, as fine as the 30 s window's
-// pixel columns, kept for FINE_SPAN_MS, the widest window but All.
+// A slice per FINE_MS of playback, as fine as the 30 s window's pixel columns,
+// kept for FINE_SPAN_MS, the widest window.
 const FINE_MS = 25;
 const FINE_SPAN_MS = 300000;
-// The coarse history: a slice per SLICE_MS, about two hours of slices, the reach
-// of the apodizing history's own cap; All draws it once it outgrows the fine one.
-const SLICE_MS = 200;
-const MAX_SLICES = 36000;
 // Rows a slice keeps from 0 Hz to its Nyquist.
 const ROWS = 480;
 const ROW_STEP_DB = 1.2;
@@ -68,10 +64,6 @@ const dropFront = (h) => {
 const fine = history(FINE_MS, (h) => {
   while (h.held > FINE_SPAN_MS) dropFront(h);
 });
-const coarse = history(SLICE_MS, (h) => {
-  while (h.list.length > MAX_SLICES) dropFront(h);
-});
-const HISTORIES = [fine, coarse];
 
 // Bumps on every close and clear, so what reads the histories reads them again.
 const version = signal(0);
@@ -155,8 +147,8 @@ function addTo(h, geo, channels, ms) {
 }
 
 /**
- * Fold one decoded feed frame into both histories. A frame whose layout differs
- * from the slices' in hand starts them again.
+ * Fold one decoded feed frame into the history. A frame whose layout differs
+ * from the slice's in hand starts it again.
  *
  * @param {Geometry | null} geo
  * @param {MeterFrame["channels"]} channels
@@ -166,20 +158,17 @@ export function addSpectrumFrame(geo, channels, ms) {
   if (!geo || !channels.length) return;
   if (geo !== geoHeld) {
     geoHeld = geo;
-    HISTORIES.forEach(dropPartial);
+    dropPartial(fine);
   }
-  const closed = HISTORIES.map((h) => addTo(h, geo, channels, ms));
-  if (closed.some(Boolean)) version.value = version.peek() + 1;
+  if (addTo(fine, geo, channels, ms)) version.value = version.peek() + 1;
 }
 
-/** Empty both histories and their slices in hand. */
-function clearHistories() {
-  for (const h of HISTORIES) {
-    h.list = [];
-    h.held = 0;
-    h.end = 0;
-    dropPartial(h);
-  }
+/** Empty the history and its slice in hand. */
+function clearHistory() {
+  fine.list = [];
+  fine.held = 0;
+  fine.end = 0;
+  dropPartial(fine);
   version.value = version.peek() + 1;
 }
 
@@ -196,7 +185,7 @@ export function initSpectrogram() {
   if (dispose) return dispose;
   const registered = effect(() => {
     if (apodBins.value.length) return;
-    clearHistories();
+    clearHistory();
   });
   dispose = registered;
   return registered;
@@ -232,21 +221,16 @@ export function visibleCells(all, span, pick) {
   return all.slice(i).map((s) => ({ ms: s.ms, nyquist: s.nyquist, slices: [levelsOf(s, pick)] }));
 }
 
-const span = computed(() => windowSpan(apodVisibleBins.value, apodWindow.value));
-
-/** Which history the window draws: the fine one while it reaches across the window's span. */
-export const spectrogramTier = computed(() => (span.value <= FINE_SPAN_MS ? "fine" : "coarse"));
-
-const drawn = () => (spectrogramTier.value === "fine" ? fine : coarse);
+const span = computed(() => windowSpan(apodWindow.value));
 
 /** The cells the spectrogram draws across the strip's window. */
 export const spectrogramCells = computed(() => {
   version.value;
-  return visibleCells(drawn().list, span.value, meterChannel.value);
+  return visibleCells(fine.list, span.value, meterChannel.value);
 });
 
-/** Frame time, ms, of every slice closed into the drawn history since it last cleared. */
+/** Frame time, ms, of every slice closed into the history since it last cleared. */
 export const spectrogramEnd = computed(() => {
   version.value;
-  return drawn().end;
+  return fine.end;
 });

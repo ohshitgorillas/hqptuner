@@ -347,14 +347,6 @@ test("test_a_history_shorter_than_the_window_is_shown_whole", () => {
   assert.deepEqual(counts(apodVisibleBins.value), deltas);
 });
 
-test("test_the_all_window_shows_every_retained_bin_of_the_track", () => {
-  setPollStep(1);
-  setApodWindow("all");
-  // longer than the longest fixed window
-  const deltas = feed(series(Math.floor(300000 / STEP_MS) + 50, (i) => i % 3));
-  assert.deepEqual(counts(apodVisibleBins.value), deltas);
-});
-
 // --- the retention cap ---------------------------------------------------------------
 
 test("test_the_history_is_capped_at_thirty_six_hundred_bins", () => {
