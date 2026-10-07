@@ -19,10 +19,9 @@ Signature = tuple[int, int] | None
 
 def signature(path: Path) -> Signature:
     """Return ``path``'s ``(st_mtime_ns, st_size)``, ``None`` when it does not exist."""
-    try:
-        st = path.stat()
-    except FileNotFoundError:
+    if not path.exists():
         return None
+    st = path.stat()
     return (st.st_mtime_ns, st.st_size)
 
 

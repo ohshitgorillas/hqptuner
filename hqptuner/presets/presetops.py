@@ -239,15 +239,17 @@ class PresetOps:
         """
         held: dict[str, tuple[Signature, list[str]]] = {}
         for name in self.store.names():
-            sig = self.store.signature(name)
             entry = self._profiles.get(name)
-            if entry is None or entry[0] != sig:
-                try:
-                    profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
-                except (PresetError, OSError, ValueError):
-                    profiles = {}
-                entry = (sig, sorted(profiles))
-            held[name] = entry
+            sig: Signature = None
+            try:
+                sig = self.store.signature(name)
+                if entry is not None and entry[0] == sig:
+                    held[name] = entry
+                    continue
+                profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
+            except (PresetError, OSError, ValueError):
+                profiles = {}
+            held[name] = (sig, sorted(profiles))
         self._profiles = held
         return {name: entry[1] for name, entry in held.items()}
 
