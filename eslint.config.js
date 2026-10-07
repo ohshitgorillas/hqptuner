@@ -112,6 +112,7 @@ const JSDOC_RULES = {
 //   app.js   the shell
 //   components
 //   store
+//   model    DOM-free decisions
 //   lib
 //
 // A layer imports below it and never above.
@@ -126,6 +127,7 @@ const ABOVE = {
   app: "**/app.js",
   components: ["**/components/*.js", "**/components/**/*.js"],
   store: ["**/store/*.js", "**/store/**/*.js"],
+  model: ["**/model/*.js", "**/model/**/*.js"],
 };
 
 /**
@@ -228,6 +230,10 @@ export default [
   // --- the layering contract ---------------------------------------------
   {
     files: ["hqptuner/static/lib/**/*.js"],
+    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store, ...ABOVE.model], LAYER_MSG),
+  },
+  {
+    files: ["hqptuner/static/model/**/*.js"],
     rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
   },
   {
