@@ -27,7 +27,9 @@
       "Bash(git commit *)"
     ]
   },
-  "enabledMcpjsonServers": ["hqpdoc"],
+  "enabledMcpjsonServers": [
+    "hqpdoc"
+  ],
   "hooks": {
     "PreToolUse": [
       {
@@ -79,6 +81,21 @@
     ]
   },
   "enabledPlugins": {
-    "filepawl@filepawl": true
+    "filepawl@filepawl": true,
+    "triviajudge@triviajudge": true
+  },
+  "extraKnownMarketplaces": {
+    "filepawl": {
+      "source": {
+        "source": "github",
+        "repo": "ohshitgorillas/filepawl"
+      }
+    },
+    "triviajudge": {
+      "source": {
+        "source": "github",
+        "repo": "ohshitgorillas/triviajudge"
+      }
+    }
   }
 }
