@@ -260,9 +260,9 @@ export function slotLive(i) {
 export const pickId = (i) => `swlist-${i}`;
 
 /**
- * A slot's list: a list target opens its option list over the body, parked at the slot's ▾, a pick remembered in the
- * slot beside the name the other slot shows, and returns null; Matrix profile returns the profile choices; any other
- * target opens nothing and returns null.
+ * A slot's list: a list target opens its option list over the body, parked at the slot's ▾, without the name the
+ * other slot shows, a pick remembered in the slot beside that name, and returns null; Matrix profile returns the
+ * profile choices without the profile the other slot remembers; any other target opens nothing and returns null.
  *
  * @param {number} i
  * @returns {{ value: string, label: string, disabled: boolean, reason: string }[] | null}
@@ -278,10 +278,13 @@ export function slotList(i) {
       value: v.slots[i]?.name ?? "",
       pick: (name) => remember(t, i, name, shownNames(key, t)),
       anchor: pickId(i),
+      omit: shownNames(key, t)[1 - i],
     });
     return null;
   }
-  return t === "Matrix profile" ? profileChoices().options : null;
+  if (t !== "Matrix profile") return null;
+  const other = remembered(t)[1 - i];
+  return profileChoices().options.filter((o) => other === "" || o.value !== other);
 }
 
 /**

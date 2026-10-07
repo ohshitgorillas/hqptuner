@@ -109,6 +109,12 @@ test("test_the_running_value_survives_a_facet_that_narrows_it_out", () => {
   assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", "sinc-M")), ["poly-sinc-gauss-long", "sinc-M", "IIR"]);
 });
 
+test("test_an_omitted_option_stays_out_even_when_it_is_the_running_value", () => {
+  const OMITTED = "IIR";
+  const expected = names(listOptions("sdm_filter_1x")).filter((v) => v !== OMITTED);
+  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", OMITTED, OMITTED)), expected);
+});
+
 test("test_an_apodizing_facet_narrows_only_the_stage_it_names", () => {
   setFacet("apod1x", "only");
   const sizes = ["1x", "nx"].map((s) => narrowedOptions("sdm_filter_1x", /** @type {"1x" | "nx"} */ (s), "").length);

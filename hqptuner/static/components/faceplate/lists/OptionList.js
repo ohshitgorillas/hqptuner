@@ -132,7 +132,7 @@ function contents(shown, std) {
   if (!shown) return { kind: kindOf(""), n: 0, head: null, cols: null, pops: null };
   const kind = kindOf(shown.key);
   const full = listOptions(shown.key);
-  const opts = narrowedOptions(shown.key, shown.stage, shown.value);
+  const opts = narrowedOptions(shown.key, shown.stage, shown.value, shown.omit);
   const blurbs = listBlurbs(shown.key);
   return {
     kind,

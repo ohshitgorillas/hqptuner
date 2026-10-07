@@ -289,6 +289,21 @@ test("test_a_profile_slots_list_is_the_profile_choices", () => {
   );
 });
 
+test("test_a_list_slots_list_omits_the_name_the_other_slot_holds", () => {
+  setSlot(0, "ASDM5");
+  slotList(1);
+  assert.equal(openList.value?.omit, "ASDM5");
+});
+
+test("test_a_profile_slots_list_omits_the_profile_the_other_slot_holds", () => {
+  setSwitcherTarget("Matrix profile");
+  setSlot(0, "Desk");
+  assert.deepEqual(
+    slotList(1)?.map((o) => o.value),
+    ["", "Lounge"],
+  );
+});
+
 test("test_a_slot_list_under_volume_opens_nothing", () => {
   setSwitcherTarget("Volume");
   slotList(0);

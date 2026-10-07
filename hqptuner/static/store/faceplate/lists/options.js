@@ -122,16 +122,18 @@ export function listBlurbs(key) {
 }
 
 /**
- * The options narrowing keeps at a stage, the value running in the field always among them.
+ * The options narrowing keeps at a stage, the value running in the field always among them unless it is the one
+ * omitted.
  *
  * @param {string} key
  * @param {"1x" | "nx"} stage
  * @param {string} keep
+ * @param {string} [omit]  an option dropped whatever narrowing and the running value say
  * @returns {Opt[]}
  */
-export function narrowedOptions(key, stage, keep) {
+export function narrowedOptions(key, stage, keep, omit = "") {
   const kind = kindOf(key);
-  const opts = listOptions(key);
+  const opts = listOptions(key).filter((o) => omit === "" || o.v !== omit);
   if (kind === "filters") {
     const kept = new Set(narrowOptions(rawOptions(key), stage, key).map((o) => o.label));
     return opts.filter((o) => o.v === keep || kept.has(o.v));

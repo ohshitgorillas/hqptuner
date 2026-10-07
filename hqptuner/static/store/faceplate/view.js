@@ -19,6 +19,7 @@ import { setupOpen, closeSetup } from "../setup.js";
  * @property {string} value
  * @property {(value: string) => unknown} pick
  * @property {string} [anchor]
+ * @property {string} [omit]
  */
 
 /** The window's inner size, CSS px. The entry writes it at load and on every resize. */
