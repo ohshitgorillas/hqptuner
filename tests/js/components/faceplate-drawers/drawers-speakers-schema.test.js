@@ -8,7 +8,7 @@
 // `POST /api/speakers`, answered by a fake recording the body. Buttons are reached through preact's own
 // `options.vnode` hook (tests/js/support/vnodeseam.js).
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-speakers-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-speakers-schema.test.js
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

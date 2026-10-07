@@ -16,7 +16,7 @@
 // 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colours are paint.js's fallbacks; no case
 // reads a pixel's colour.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-source-paint.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-source-paint.test.js
 
 import "../../support/domseam.js";
 import test, { afterEach, beforeEach } from "node:test";

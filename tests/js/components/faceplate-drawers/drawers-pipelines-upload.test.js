@@ -4,7 +4,7 @@
 //
 // The wire is faked at the real REST path (tests/js/support/wire/wire.js); nothing of the drawer's is stubbed.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-pipelines-upload.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-pipelines-upload.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -6,7 +6,7 @@
 // Renders through preact-render-to-string over the /matrix form in `matrixConfig`, staged edits going through `edit`
 // against the staging fake.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-matrix-family-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-matrix-family-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

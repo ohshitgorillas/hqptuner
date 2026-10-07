@@ -9,7 +9,7 @@
 // (`data-field`), tabs by id (`data-tab`), options by value (`data-v`); every string asserted is a wire value or a
 // number the fixture put on the wire.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-modes-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-modes-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

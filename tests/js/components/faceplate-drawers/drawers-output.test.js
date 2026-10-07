@@ -12,7 +12,7 @@
 // Not reachable here: the needle's glide and the drag class, which a stylesheet and a live element own. A browser run
 // closes both.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-output.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

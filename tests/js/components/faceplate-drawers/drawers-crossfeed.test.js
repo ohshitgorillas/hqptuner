@@ -10,7 +10,7 @@
 // Not reachable here: a slider drag and its release, which fire input and change events SSR never fires, and the
 // plot's size, which follows the box it is laid out in. A browser run closes both.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-crossfeed.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-crossfeed.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

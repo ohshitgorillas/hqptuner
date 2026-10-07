@@ -10,7 +10,7 @@
 // Not reachable here: dragging a bound on the bar or a dot on the plot (pointer events SSR never fires), and the
 // drawings' size, which follows the box they are laid out in. A browser run closes both.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-loudness.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-loudness.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

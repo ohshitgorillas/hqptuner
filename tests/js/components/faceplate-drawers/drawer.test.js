@@ -11,7 +11,7 @@
 // Not reachable here: the mode menu's placement under its key, which is a stylesheet's, and the menu closing on a
 // click outside it, which the plate's document listener owns. A browser run closes both.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawer.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

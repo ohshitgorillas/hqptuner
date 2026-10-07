@@ -7,7 +7,7 @@
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
 // their value (`data-v`); every string asserted is one the test put on the wire or into the schema.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawer-rows.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer-rows.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

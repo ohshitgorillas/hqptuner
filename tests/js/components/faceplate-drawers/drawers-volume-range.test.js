@@ -11,7 +11,7 @@
 // Not reachable here: a drag on the bar, which reads the bar's on-screen box and takes pointer capture, and the bar
 // redrawn at the width its well measures, which a resize observer reports. A browser run closes both.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-volume-range.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-volume-range.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

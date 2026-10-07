@@ -6,7 +6,7 @@
 // (tests/js/support/vnodeseam.js) and the store is driven at the wire by the staging fake. Rows are found by catalog key
 // (`data-k`), the field by its id (`data-field`), options by value (`data-v`); every string asserted is a wire value.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-hf-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-hf-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

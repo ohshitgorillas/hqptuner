@@ -7,7 +7,7 @@
 // and the store is driven at the wire by the staging fake. A field is found by its id (`data-field`), a choice line by
 // its value (`data-v`), a group by its backend (`data-be`); every string asserted is one the test put into the schema.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawer-items.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer-items.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

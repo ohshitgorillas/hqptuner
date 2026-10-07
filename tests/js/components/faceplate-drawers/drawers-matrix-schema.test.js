@@ -7,7 +7,7 @@
 // form in `matrixConfig`. Rows are found by catalog key (`data-k`), tabs by id (`data-tab`); every string asserted is a
 // wire value.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-matrix-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-matrix-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

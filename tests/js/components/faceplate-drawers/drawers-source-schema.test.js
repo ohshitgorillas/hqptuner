@@ -1,11 +1,11 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/source-drawer.js: the Source drawer drawn from its schema
 // by the generic drawer. Its one tab holds the meter block, mounted from the schema's blocks, and nothing in it stages,
-// so the apply group never shows. What the meter draws is tests/js/components/faceplate/drawers-source.test.js's.
+// so the apply group never shows. What the meter draws is tests/js/components/faceplate-drawers/drawers-source.test.js's.
 //
 // Renders through preact-render-to-string, with no stream open, so the meter is in its idle state. Panels are found by
 // `data-tab`, the block by `data-block`, the meter's state by `data-meter` and the apply group by its `data-testid`.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-source-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-source-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

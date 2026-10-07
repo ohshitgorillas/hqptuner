@@ -7,7 +7,7 @@
 // store is driven at the wire by the staging fake. Rows and controls are found by their catalog key (`data-k`), backend
 // (`data-be`), block name (`data-block`), tab id (`data-tab`) or option value (`data-v`).
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-output-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

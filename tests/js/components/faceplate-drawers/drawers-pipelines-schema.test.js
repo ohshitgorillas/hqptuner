@@ -1,12 +1,12 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/pipelines-drawer.js: the DSP pipelines drawer drawn
 // from its schema by the generic drawer. Its tabs are the Overview and one per output the pipeline set feeds, and a
 // staged pipeline set dots the tab it shows. What the Overview and an output tab draw is
-// tests/js/components/faceplate/drawers-pipelines.test.js's.
+// tests/js/components/faceplate-drawers/drawers-pipelines.test.js's.
 //
 // Renders through preact-render-to-string; the store is driven at the wire by the staging fake, the pipeline set
 // reaching it as the config file's canonical JSON. Tabs are found by `role` and `data-tab`.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-pipelines-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-pipelines-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

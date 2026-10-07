@@ -13,7 +13,7 @@
 // colours read from the stylesheet's tokens. The painting rules are the model's (model/gauges/meter-plot.js,
 // lib/spectroraster.js) and tested there; a browser run closes the wiring.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-source.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-source.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

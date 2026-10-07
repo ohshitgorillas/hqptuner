@@ -12,7 +12,7 @@
 // Not reachable here: the form's first read, which runs in an effect that server rendering never fires. A browser run
 // closes it.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-speakers.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-speakers.test.js
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

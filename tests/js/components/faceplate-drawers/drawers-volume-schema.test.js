@@ -1,14 +1,14 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/volume.js, the Volume drawer's schema drawn by the
 // generic drawer: its Level, Gain and Range tabs, the Fixed volume choice lighting the line the staged store picks, a
 // staged edit to a line's detail key dotting the Level tab, and the Range tab mounting the range block. What the block
-// draws is pinned in tests/js/components/faceplate/drawers-volume-range.test.js, the line picked and a pick's staging
+// draws is pinned in tests/js/components/faceplate-drawers/drawers-volume-range.test.js, the line picked and a pick's staging
 // in tests/js/store/faceplate/drawers-volume.test.js.
 //
 // Renders through preact-render-to-string; the store is driven at the wire by the staging fake. Tabs are found by
 // `data-tab`, the choice by `data-choice`, its lines by `data-v` and the block by `data-block`; nothing asserted is
 // copy.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-volume-schema.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-volume-schema.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

@@ -13,7 +13,7 @@
 // finding its own panel, which reads the mounted DOM; server rendered, an output tab draws the shown tab's output. A
 // browser run closes them.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/drawers-pipelines.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-pipelines.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
