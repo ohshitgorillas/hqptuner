@@ -23,7 +23,7 @@ This file is the project's rule sheet; procedure lives in the skills it names, l
 
 ## Delegation
 
-- **Always delegate** the locating of the lines a plan will cite. **The plan stays yours**: once the owner approves it, each step goes red-first to `test-writer`, then to the specialist that owns its craft (`frontend`, `backend`, `modeler`, `memoizer`, `pacer`, or a `~/dev` specialist). The general test is `~/dev/CLAUDE.md` 7.3.
+- **Always delegate** the locating of the lines a plan will cite. **The plan stays yours**: once the owner approves it, each step goes red-first to `test-writer`, then to the specialist that owns its craft (`frontend`, `backend`, `modeler`, `memoizer`, `pacer`, or a user-scope specialist in `~/.claude/agents/`). The general test is `~/dev/CLAUDE.md` 7.3.
 - Prefer the read-only locator agent type; ask for pointers (`file:line` plus one-line role), not prose. Grounding is one investigator per plan, every question in one brief, so returns reach the same agent; every other question is one delegation each, independent questions spawned in one message.
 - **Change budget and plan gate follow you into delegation** (`~/dev/CLAUDE.md` 7.6 owns the rest).
 - **`SendMessage` continuation (`~/dev/CLAUDE.md` 7.5) has one exception here**: a refusal for a steered or leading brief finishes that agent, since the steering is in its context — the bare brief goes to a fresh one, named as abandoned in the report. An evasion call does not finish it: the reviewer stays open holding its findings, and the answer, the repair or the citation, goes back to that same reviewer.
