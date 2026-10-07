@@ -412,6 +412,43 @@ async def test_a_forced_refresh_reads_the_log_again(
     assert announcing_daemon["_log_reads"] == already_read + 1
 
 
+#: Hourly retries for longer than any miss bound could last: a selected device
+#: that never announces itself has stopped costing log reads well before the end.
+UNANSWERED_RETRIES = 100
+RETRY_STEP = 3600.0
+
+
+async def _retried_out(manager: ConnectionManager, clock: VirtualClock) -> None:
+    """Load the forms, then retry the capability read once an hour, each retry due."""
+    await manager.refresh_http_forms()
+    for _ in range(UNANSWERED_RETRIES):
+        await clock.advance(RETRY_STEP)
+        await engineread.refresh_device_caps(manager)
+
+
+async def test_a_selected_device_that_never_announces_itself_stops_costing_log_reads(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], clock: VirtualClock
+) -> None:
+    # the stock daemon's form selects a device its log never announces
+    manager = _manager(http_manager_factory, http_daemon)
+    await _retried_out(manager, clock)
+    already_read = http_daemon["_log_reads"]
+    await clock.advance(RETRY_STEP)
+    await engineread.refresh_device_caps(manager)
+    assert http_daemon["_log_reads"] == already_read
+
+
+async def test_a_forced_refresh_reads_the_log_once_the_retries_are_spent(
+    http_manager_factory: ManagerFactory, http_daemon: dict[str, Any], clock: VirtualClock
+) -> None:
+    # a connect: the daemon may have opened the device since the last retry
+    manager = _manager(http_manager_factory, http_daemon)
+    await _retried_out(manager, clock)
+    already_read = http_daemon["_log_reads"]
+    await engineread.refresh_device_caps(manager, force=True)
+    assert http_daemon["_log_reads"] == already_read + 1
+
+
 # --- the manager, with both config views in hand ----------------------------
 
 

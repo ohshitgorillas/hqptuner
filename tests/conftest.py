@@ -300,6 +300,7 @@ async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIter
     and preset directories land in ``tmp_path``, never in the repo.
     """
     clients: list[HttpConfigClient] = []
+    managers: list[ConnectionManager] = []
 
     def build(daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
         http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
@@ -309,9 +310,13 @@ async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIter
             "backup_dir": tmp_path,
             "preset_dir": tmp_path / "presets",
         }
-        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        managers.append(manager)
+        return manager
 
     yield build
+    for manager in managers:
+        await manager.aclose()
     for http in clients:
         await http.aclose()
 
