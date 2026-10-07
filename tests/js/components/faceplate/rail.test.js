@@ -2,7 +2,8 @@
 // its lamp, the stage whose drawer is open, a bypassed stage and a hidden one, and a tap that opens its drawer.
 //
 // The wire is the seam: /api/state into `engineState`, the junk filter enumeration into `enums`, the Status frame into
-// `engineStatus`, the /config and /matrix forms into `config` and `matrixConfig`.
+// `engineStatus`, the /config and /matrix forms into `config` and `matrixConfig`, and the backend's readiness into
+// `health`.
 //
 // Not reachable here: the wire drawn through the lamps, which measures the rendered rail in an effect; server rendering
 // lays nothing out and runs no effects. A browser run closes that gap.
@@ -22,6 +23,7 @@ import {
   engineState,
   engineStatus,
   enums,
+  health,
   matrixConfig,
   staged,
   volume,
@@ -33,12 +35,15 @@ import { renderTree } from "../../support/vnodeseam.js";
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 
 /**
- * A PCM source playing with the HF filter at the junk filter enumeration's item `junk`.
+ * A PCM source playing, or in the transport `state` given, with the HF filter at the junk filter enumeration's item
+ * `junk`.
  *
  * @param {string} junk
+ * @param {string} [state]  /api/state `state`: "2" is playing
  */
-function playing(junk) {
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: junk };
+function playing(junk, state = "2") {
+  health.value = { ready: true };
+  engineState.value = { state, active_chain: "pcm", filter_junk: junk };
   enums.value = { junk_filters: ["none", "30k"].map((name, i) => ({ index: String(i), name })) };
   engineStatus.value = { status: { active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
   config.value = { fields: [] };
@@ -148,4 +153,9 @@ test("test_tapping_a_stage_opens_its_drawer", () => {
   const onClick = /** @type {(() => void) | undefined} */ (hit && hit.props.onClick);
   if (onClick) onClick();
   assert.equal(openStage.value, "output");
+});
+
+test("test_paused_the_source_lamp_carries_pause", () => {
+  playing("1", "1");
+  assert.ok(classes(partOf("source", "lamp")).includes("pause"));
 });

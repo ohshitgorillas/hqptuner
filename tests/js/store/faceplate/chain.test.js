@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { railBreak, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { railBreak, railLamp, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
@@ -248,24 +248,24 @@ for (const [id, why, off] of /** @type {[string, string, Partial<Running>][]} */
   ["volume", "under_direct_sdm", { path: "direct", chain: "sdm", direct: true }],
 ])) {
   test(`test_the_rail_prints_nothing_under_${id}_${why}`, () => {
-    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id), false), "");
+    assert.equal(railValue(stage({ ...ENGAGED, ...off }, id), false, "playing"), "");
   });
 }
 
 test("test_the_rail_prints_nothing_under_a_stage_the_alerts_darken", () => {
-  assert.equal(railValue(stage({}, "output"), true), "");
+  assert.equal(railValue(stage({}, "output"), true, "playing"), "");
 });
 
 test("test_the_rail_prints_the_noise_filter_under_dsd_processing_on_the_playing_path", () => {
-  assert.match(railValue(stage({ path: "dsd-pcm" }, "dsd"), false), new RegExp(CONV.noise));
+  assert.match(railValue(stage({ path: "dsd-pcm" }, "dsd"), false, "playing"), new RegExp(CONV.noise));
 });
 
 test("test_the_rail_prints_the_count_under_lit_dsp_pipelines", () => {
-  assert.match(railValue(stage({ pipelines: 7 }, "pipelines"), false), /\b7\b/);
+  assert.match(railValue(stage({ pipelines: 7 }, "pipelines"), false, "playing"), /\b7\b/);
 });
 
 test("test_the_rail_prints_the_percent_under_lit_loudness", () => {
-  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness"), false), /\b37%/);
+  assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness"), false, "playing"), /\b37%/);
 });
 
 test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {
@@ -318,4 +318,44 @@ test("test_a_stage_the_preferences_hide_is_hidden", () => {
 
 test("test_two_poly_sinc_filters_share_their_first_part", () => {
   assert.equal(railBreak(CONV.filter1x)[0], railBreak("poly-sinc-xtr-short-mp-2s")[0]);
+});
+
+/**
+ * The ids of a decided rail's stages whose lamp does not read unlit under one transport.
+ *
+ * @param {Partial<Running>} over
+ * @param {import("../../../../hqptuner/static/store/faceplate/path.js").Transport} transport
+ * @returns {string[]}
+ */
+const showing = (over, transport) =>
+  railStages(running({ ...ENGAGED, ...over }))
+    .filter((s) => railLamp(s, false, transport) !== "off")
+    .map((s) => s.id);
+
+test("test_a_running_stage_reads_lit_while_the_source_plays", () => {
+  assert.equal(railLamp(stage({ hf: "20k" }, "hf"), false, "playing"), "on");
+});
+
+test("test_a_stage_the_playing_path_bypasses_reads_unlit", () => {
+  assert.equal(railLamp(stage({ path: "pcm-pcm" }, "dsd"), false, "playing"), "off");
+});
+
+test("test_a_stage_the_alerts_darken_reads_unlit", () => {
+  assert.equal(railLamp(stage({}, "output"), true, "playing"), "off");
+});
+
+test("test_every_lamp_reads_unlit_with_the_engine_off", () => {
+  assert.deepEqual(showing({ hf: "20k" }, "off"), []);
+});
+
+test("test_paused_the_source_lamp_alone_shows", () => {
+  assert.deepEqual(showing({ hf: "20k" }, "paused"), ["source"]);
+});
+
+test("test_paused_the_source_lamp_reads_paused", () => {
+  assert.equal(railLamp(stage({}, "source"), false, "paused"), "pause");
+});
+
+test("test_the_rail_prints_nothing_with_the_engine_off", () => {
+  assert.equal(railValue(stage({ hf: "20k" }, "hf"), false, "off"), "");
 });

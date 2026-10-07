@@ -19,6 +19,8 @@ import { hz } from "../../lib/units.js";
 
 /**
  * @typedef {import("./path.js").Path} Path
+ * @typedef {import("./path.js").Transport} Transport
+ * @typedef {"on" | "pause" | "off"} Lamp  a rail lamp: lit, paused or unlit
  * @typedef {{ samplerate?: string, bits?: string }} Metadata  the `<metadata>` child's attributes read here
  * @typedef {{ active_rate?: string, active_bits?: string }} Status  the Status-frame attributes read here
  * @typedef {object} Conversion  the running filters and shaper by engine name, and the running DSD settings by label
@@ -229,14 +231,28 @@ export function railStages(r) {
 }
 
 /**
- * What the rail prints under a stage's name: its value while its lamp reads lit, nothing while the stage is off,
- * bypassed by the playing path or darkened by an alert.
+ * A stage's lamp on the rail. Playing, it reads lit while the stage runs, and unlit while the stage is off, bypassed by
+ * the playing path or darkened by an alert. Paused, the Source lamp alone reads paused. Off, every lamp is unlit.
  *
  * @param {RailStage} st
  * @param {boolean} dead  the alerts darken the stage
+ * @param {Transport} transport
+ * @returns {Lamp}
+ */
+export function railLamp(st, dead, transport) {
+  if (transport === "paused") return st.id === "source" ? "pause" : "off";
+  return transport === "playing" && st.on && !st.byp && !dead ? "on" : "off";
+}
+
+/**
+ * What the rail prints under a stage's name: its value while its lamp reads lit, nothing otherwise.
+ *
+ * @param {RailStage} st
+ * @param {boolean} dead  the alerts darken the stage
+ * @param {Transport} transport
  * @returns {string}
  */
-export const railValue = (st, dead) => (st.on && !st.byp && !dead ? st.value : "");
+export const railValue = (st, dead, transport) => (railLamp(st, dead, transport) === "on" ? st.value : "");
 
 const POLY_SINC = "poly-sinc-";
 

@@ -2,15 +2,22 @@
 // read off what the engine reports and what the daemon is running, never off a staged edit.
 //
 // The wire is the seam: each case writes /api/state into `engineState`, the Status frame and its metadata child into
-// `engineStatus`, and the daemon's /config form fields into `config`.
+// `engineStatus`, the daemon's /config form fields into `config`, and the backend's readiness into `health`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/path.test.js
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState, engineStatus, staged, liveOverride } from "../../../../hqptuner/static/store/signals.js";
-import { playbackPath, runningChain } from "../../../../hqptuner/static/store/faceplate/path.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  health,
+  staged,
+  liveOverride,
+} from "../../../../hqptuner/static/store/signals.js";
+import { playbackPath, runningChain, transportNow } from "../../../../hqptuner/static/store/faceplate/path.js";
 
 const CD = "44100";
 const DSD64 = "2822400";
@@ -75,5 +82,22 @@ for (const [name, playing, chain] of CHAINS) {
   test(`test_${name}_runs_that_chain`, () => {
     play(playing);
     assert.equal(runningChain(), chain);
+  });
+}
+
+/** @type {[string, boolean, string, string][]} */
+const TRANSPORTS = [
+  ["an_unready_daemon_reporting_playing", false, "2", "off"],
+  ["a_stopped_engine", true, "0", "off"],
+  ["a_paused_engine", true, "1", "paused"],
+  ["a_playing_engine", true, "2", "playing"],
+  ["an_engine_stopping", true, "3", "off"],
+];
+
+for (const [name, isReady, state, now] of TRANSPORTS) {
+  test(`test_${name}_reads_${now}`, () => {
+    play({ state });
+    health.value = { ready: isReady };
+    assert.equal(transportNow(), now);
   });
 }

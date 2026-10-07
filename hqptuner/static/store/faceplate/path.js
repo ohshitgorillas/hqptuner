@@ -3,7 +3,7 @@
 // disjoint sets of controls (manual §4.4, §4.5, §4.6), and Direct SDM takes a DSD source to an SDM output with no
 // processing at all.
 
-import { engineState, engineStatus } from "../signals.js";
+import { engineState, engineStatus, ready } from "../signals.js";
 import { runningValue } from "../resolve.js";
 import { loadedChain } from "../live/rates.js";
 import { truthy } from "../../lib/coerce.js";
@@ -14,6 +14,7 @@ import { truthy } from "../../lib/coerce.js";
  * @typedef {"idle" | "pcm-pcm" | "pcm-sdm" | "dsd-pcm" | "sdm-sdm" | "direct"} Path
  */
 
+const PAUSED = 1;
 const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64), the lowest 1-bit bitstream rate
 
@@ -50,4 +51,18 @@ export function runningChain() {
   const path = playbackPath();
   if (path === "idle") return loadedChain() === "sdm" ? "sdm" : "pcm";
   return path === "pcm-pcm" || path === "dsd-pcm" ? "pcm" : "sdm";
+}
+
+/** @typedef {"playing" | "paused" | "off"} Transport */
+
+/**
+ * The transport as the rail's lamps follow it: `off` while the daemon is not ready, stopped or stopping.
+ *
+ * @returns {Transport}
+ */
+export function transportNow() {
+  if (!ready.value) return "off";
+  const state = Number((engineState.value || {}).state);
+  if (state === PLAYING) return "playing";
+  return state === PAUSED ? "paused" : "off";
 }
