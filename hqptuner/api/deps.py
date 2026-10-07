@@ -70,8 +70,14 @@ def require_credentials(request: Request) -> None:
     installs the new client (``POST /api/connection``); a copy on the app state would still read "no credentials"
     after the pair arrived.
     """
-    if manager_of(request).http_client is None:
+    credentialed(manager_of(request))
+
+
+def credentialed(manager: ConnectionManager) -> ConnectionManager:
+    """Return ``manager``, refusing with ``no_credentials`` while it holds no 8088 client."""
+    if manager.http_client is None:
         raise refuse(NoCredentialsConfiguredError())
+    return manager
 
 
 def _http_manager(request: Request) -> ConnectionManager:

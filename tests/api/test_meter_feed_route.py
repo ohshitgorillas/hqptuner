@@ -3,25 +3,23 @@
 Each case builds the app on two fakes: a threaded control daemon whose `State`
 reports the engine playing, and a 4322 stream of frames the case packs itself
 in the layout of docs/protocol.md section 7. The route is an endless event
-stream, so the case speaks ASGI to the app directly, on the app's own loop:
-it reads the response until the first complete server-sent event and then
-hangs up.
+stream, so the case reads it through `sse.open_stream` until the first
+complete server-sent event and then hangs up.
 """
 
 from __future__ import annotations
 
-import asyncio
 import contextlib
 import json
 import struct
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import fake_metering
 import pytest
 from apps import advance_app, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
-from narrow import FixtureError
+from sse import any_event, events, open_stream
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -29,10 +27,8 @@ from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK
 
 if TYPE_CHECKING:
-    from collections.abc import Iterator, MutableMapping
+    from collections.abc import Iterator
     from pathlib import Path
-
-    from starlette.types import ASGIApp
 
 BINS = 1025
 TRANSFORM_BITS = 16
@@ -54,9 +50,6 @@ PLAYING = "2"
 #: Frames the fake streams per connection: enough that the stream is still
 #: flowing whenever the case subscribes.
 FRAMES = 100_000
-
-#: A ceiling on each read from the app; only a stream that never sends reaches it.
-READ_CEILING = 10.0
 
 PATH = "/api/meter/feed"
 
@@ -90,86 +83,12 @@ def _frame(channels: int) -> bytes:
     return header + channel * channels
 
 
-def _first_complete_event(text: str) -> tuple[str, str]:
-    """The (event name, data) of the first dispatched server-sent event in
-    ``text``, per the event-stream format: blocks end at a blank line, and a
-    block with no data field dispatches nothing. ``NO_EVENT`` itself, compared
-    by identity, where ``text`` dispatches none yet."""
-    blocks = text.replace("\r\n", "\n").replace("\r", "\n").split("\n\n")
-    for block in blocks[:-1]:
-        name = "message"
-        data: list[str] = []
-        for line in block.split("\n"):
-            field, _, value = line.partition(":")
-            value = value.removeprefix(" ")
-            if field == "event":
-                name = value
-            elif field == "data":
-                data.append(value)
-        if data:
-            return name, "\n".join(data)
-    return NO_EVENT
-
-
-async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, str]:
-    """GET the feed, read until its first event, hang up; ``NO_EVENT`` where the
-    response ends without one."""
-    sent: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-    hung_up = asyncio.Event()
-    requested = False
-
-    async def receive() -> MutableMapping[str, Any]:
-        nonlocal requested
-        if not requested:
-            requested = True
-            return {"type": "http.request", "body": b"", "more_body": False}
-        await hung_up.wait()
-        return {"type": "http.disconnect"}
-
-    async def send(message: MutableMapping[str, Any]) -> None:
-        await sent.put(dict(message))
-
-    scope = {
-        "type": "http",
-        "asgi": {"version": "3.0"},
-        "http_version": "1.1",
-        "method": "GET",
-        "scheme": "http",
-        "path": PATH,
-        "raw_path": PATH.encode(),
-        "query_string": b"",
-        "root_path": "",
-        "headers": [(b"host", b"testserver"), (b"accept", b"text/event-stream")],
-        "client": ("127.0.0.1", 50000),
-        "server": ("testserver", 80),
-        "state": state,
-    }
-    task = asyncio.ensure_future(app(scope, receive, send))
-    body = ""
-    event = NO_EVENT
-    try:
-        while event is NO_EVENT:
-            message = await asyncio.wait_for(sent.get(), timeout=READ_CEILING)
-            if message["type"] != "http.response.body":
-                continue
-            body += bytes(message.get("body", b"")).decode()
-            event = _first_complete_event(body)
-            if not message.get("more_body", False):
-                break
-    finally:
-        hung_up.set()
-        task.cancel()
-        with contextlib.suppress(BaseException):
-            await task
-    return event
-
-
 def _first_event(client: TestClient) -> tuple[str, str]:
-    portal = client.portal
-    if portal is None:
-        raise FixtureError(reason="the client is not running its app")
-    event: tuple[str, str] = portal.call(_read_first_event, client.app, dict(getattr(client, "app_state", {})))
-    return event
+    """The (event name, data) of the stream's first event, or ``NO_EVENT``
+    where the response ends without one."""
+    with open_stream(client, PATH) as stream:
+        found = events(stream.until(any_event))
+    return NO_EVENT if not found else (found[0].name, found[0].data)
 
 
 def _first_event_name(client: TestClient) -> str:

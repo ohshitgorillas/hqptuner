@@ -8,6 +8,7 @@ from contextlib import AbstractAsyncContextManager
 
 from fastapi import FastAPI
 
+from hqptuner.api.push import PushFeed
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
@@ -60,8 +61,9 @@ async def _finish(task: asyncio.Task[None], grace: float) -> None:
 def make_lifespan(
     cfg: Config,
     manager: ConnectionManager,
+    feed: PushFeed,
 ) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
-    """Build the lifespan handler bound to the app's manager and config.
+    """Build the lifespan handler bound to the app's manager, config and push feed.
 
     The 8088 client is read off the manager at shutdown rather than captured here: a runtime credential change
     installs a new one, and a captured client would leave the live one open and close one nobody is using.
@@ -72,6 +74,8 @@ def make_lifespan(
         # Before the poll loop and the metering reader, both of which read the host as it stands now.
         await _adopt_alias(cfg, app.state.connections, manager)
         task = manager.clock.spawn(manager.run())
+        # The page's push stream recomputes off the manager's edges and never reads the daemon itself.
+        push_task = manager.clock.spawn(feed.run(manager.clock, manager.changed))
         # The metering reader feeds the meters and the junk-filter advisor — best-effort
         # alongside the poll loop; an absent 4322 stream just means nothing to show.
         # Switched off entirely, nothing is constructed and nothing ever connects.
@@ -99,6 +103,7 @@ def make_lifespan(
                 junkcal_task = manager.clock.spawn(junkcal.run(manager, cfg.junkcal_dir))
         yield
         manager.stop()
+        await _finish(push_task, 0)
         if junkcal_task is not None:
             await _finish(junkcal_task, 0)
         if autopilot_task is not None:

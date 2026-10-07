@@ -15,6 +15,7 @@ from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import DaemonReadFailedError, NotLoadedError, refuse
 from hqptuner.core import engineread
 from hqptuner.core.engineread import LogTail
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.lanes.live import chain
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
@@ -142,10 +143,15 @@ def enumerations(request: Request, manager: Mgr) -> deps.Snapshot[MergedEnums]:
 
     The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
     """
+    return merged_enumerations(manager, request.app.state.static)
+
+
+def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> deps.Snapshot[MergedEnums]:
+    """Answer ``GET /api/enumerations``'s body off the manager and the static overlay, refusing until they loaded."""
     if manager.readings.enums is None:
         raise refuse(NotLoadedError())
     mode_name = engineread.current_mode_name(manager)
-    merged = merge_enumerations(manager.readings.enums, request.app.state.static, mode_name)
+    merged = merge_enumerations(manager.readings.enums, static, mode_name)
     mode = ModeInfo(index=(manager.readings.state or {}).get("mode"), name=mode_name)
     return deps.snapshot(manager, replace(merged, mode=mode))
 

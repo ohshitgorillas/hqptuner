@@ -5027,6 +5027,23 @@
         "summary": "Profile"
       }
     },
+    "/api/push": {
+      "get": {
+        "description": "Stream the page's read snapshots as ``text/event-stream``, each again whenever its content changes.",
+        "operationId": "push_api_push_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Push"
+      }
+    },
     "/api/restore": {
       "post": {
         "description": "Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.\n\nThe daemon self-restarts on it, interrupting playback. The one thing taken out of the archive first is\nHQPTuner's own descriptions member, which ``GET /api/backup`` put there: it is folded into this install's store\nand never handed to hqplayerd, which did not write it and has no idea what it is. Everything else \u2014 including a\nbare XML upload, which is not an archive at all \u2014 reaches the daemon exactly as the user sent it.",
