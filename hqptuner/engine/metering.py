@@ -26,6 +26,9 @@ import struct
 from collections import deque
 from collections.abc import Awaitable, Callable
 
+import numpy as np
+import numpy.typing as npt
+
 from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
@@ -153,7 +156,8 @@ class MeteringReader:
 
         ``pace`` is the manager's clock: it idles the reader for a number of seconds or until the event it is given
         is set. ``advisor`` says whether the junk-filter advisor reads the stream; without it the reader holds the
-        socket only while the feed has a subscriber, and a subscriber attaching wakes an idle reader at once.
+        socket only while the feed has a subscriber, a subscriber attaching wakes an idle reader at once, and no
+        aggregate or verdict is ever kept.
         """
         self._host = host
         self._port = port
@@ -299,17 +303,21 @@ class MeteringReader:
         return read.done()
 
     def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
-        channels, bins = int(header[1]), int(header[2])
-        bandwidth, xform_time = float(header[4]), float(header[5])
+        """Reduce one frame once, fold it into the advisor's aggregate where the advisor is on, and feed the meters."""
+        levels = reduce_frame(body, int(header[1]), int(header[2]))
+        if self._advisor:
+            self._fold(levels, int(header[2]), float(header[4]), float(header[5]))
+        self.feed.add(header, levels)
+
+    def _fold(self, levels: npt.NDArray[np.float64], bins: int, bandwidth: float, xform_time: float) -> None:
+        """Fold one reduced frame into the aggregate, classifying the window each time the frame closes a block."""
         agg = self._agg
         if agg is None or agg.bins != bins or agg.bandwidth != bandwidth:
             self._verdict = None
             agg = self._agg = SpectralAggregate(bins, bandwidth)
-        levels = reduce_frame(body, channels, bins)
         silent = bool((levels[:, 1] < SILENT_RMS_POWER).all())
         if agg.add(levels[:, 2:].sum(axis=0).tolist(), xform_time, silent=silent):
             self._verdict = self._classify(agg)
-        self.feed.add(header, levels)
 
     def _classify(self, agg: SpectralAggregate) -> junkadvisor.JunkVerdict | None:
         """Classify the window just closed against the track context in hand, None while there is none."""

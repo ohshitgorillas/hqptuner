@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from hqptuner.engine.meterfeed import MeterFeed
+    from hqptuner.engine.metering import MeteringReader
 
 BINS = 1025
 BANDWIDTH = 22050.0
@@ -51,11 +52,15 @@ def _reachable(client: TestClient) -> bool:
     return bool(client.get("/api/health").json()["reachable"])
 
 
-def _feed(client: TestClient) -> MeterFeed:
+def _reader(client: TestClient) -> MeteringReader:
     reader = app_manager(client).metering
     if reader is None:
         raise FixtureError(reason="the app runs no metering reader")
-    return reader.feed
+    return reader
+
+
+def _feed(client: TestClient) -> MeterFeed:
+    return _reader(client).feed
 
 
 def _on_app_loop(client: TestClient, act: Callable[[], object]) -> None:
@@ -84,8 +89,16 @@ def _page_leaves_and_returns(client: TestClient) -> None:
     _idle(client)
 
 
-def _dials(tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestClient], None] = _idle) -> int:
-    """Connections the fake accepted over an app's whole life, the app driven by ``drive`` once reachable."""
+def _holds_an_aggregate_while_read(client: TestClient) -> bool:
+    """Whether the reader holds an aggregate once a subscriber has kept the stream dialled for a few rechecks."""
+    feed = _feed(client)
+    _on_app_loop(client, feed.subscribe)
+    _idle(client)
+    return _reader(client).aggregate() is not None
+
+
+def _session[T](tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestClient], T]) -> tuple[T, int]:
+    """What ``drive`` read off the app once reachable, and the connections the fake accepted over the app's life."""
     accepted = fake_metering.Accepted()
     daemon = spawn_threaded_daemon({"state": PLAYING})
     stream = fake_metering.spawn(FRAME, frames=1, accepted=accepted)
@@ -105,11 +118,16 @@ def _dials(tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestClient
         )
         with TestClient(create_app(cfg, VirtualClock())) as client:
             wait_for_api(client, _reachable)
-            drive(client)
+            read = drive(client)
     finally:
         next(stream, None)
         next(daemon, None)
-    return accepted.count
+    return read, accepted.count
+
+
+def _dials(tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestClient], None] = _idle) -> int:
+    """Connections the fake accepted over an app's whole life, the app driven by ``drive`` once reachable."""
+    return _session(tmp_path, advisor_enabled=advisor_enabled, drive=drive)[1]
 
 
 @pytest.mark.parametrize(("advisor_enabled", "dials"), [(False, 0), (True, 1)], ids=["advisor off", "advisor on"])
@@ -124,3 +142,10 @@ def test_a_feed_subscriber_leaving_and_returning_redials_only_where_the_advisor_
     tmp_path: Path, *, advisor_enabled: bool, dials: int
 ) -> None:
     assert _dials(tmp_path, advisor_enabled=advisor_enabled, drive=_page_leaves_and_returns) == dials
+
+
+@pytest.mark.parametrize(("advisor_enabled", "held"), [(False, False), (True, True)], ids=["advisor off", "advisor on"])
+def test_the_reader_keeps_spectral_evidence_from_a_dialled_stream_only_for_the_advisor(
+    tmp_path: Path, *, advisor_enabled: bool, held: bool
+) -> None:
+    assert _session(tmp_path, advisor_enabled=advisor_enabled, drive=_holds_an_aggregate_while_read)[0] is held
