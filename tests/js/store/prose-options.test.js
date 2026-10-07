@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
+import { idFor, optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
 import { reset, META } from "../support/field-harness.js";
 
@@ -123,4 +123,15 @@ for (const plain of [false, true]) {
 test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin_then_the_notes_lead", async () => {
   await reset({ meta: LEAD_META });
   assert.equal(prose("sinc-M-2s").text, `${prose("sinc-M").text} ${LEAD}`);
+});
+
+// --- idFor: an option's form value, found by its engine name ----------------
+
+const MGA_NAME = "sinc-MGa";
+const MGA_VALUE = 50;
+const MGA_ID = "50";
+const MGA_LIST = [{ value: MGA_VALUE, label: MGA_NAME }];
+
+test("test_idfor_returns_the_form_value_of_the_option_carrying_the_name", () => {
+  assert.equal(idFor(MGA_LIST, MGA_NAME), MGA_ID);
 });

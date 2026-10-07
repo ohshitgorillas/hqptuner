@@ -417,16 +417,27 @@ test("test_tapping_a_list_picker_opens_the_option_list_on_the_snapshots_chain_ke
   assert.deepEqual(
     [desk, [s01?.key, s01?.value]],
     [
-      ["pcm_filter_1x", "40"],
-      ["sdm_filter_1x", "38"],
+      ["pcm_filter_1x", "poly-sinc-gauss-long"],
+      ["sdm_filter_1x", "poly-sinc-gauss-long"],
     ],
   );
 });
 
-test("test_a_pick_from_the_open_list_writes_the_edit", async () => {
+test("test_a_pick_from_the_open_list_writes_the_picked_names_enum_id_into_the_edit", async () => {
   await fire(pickerOf("1x"));
-  await openList.value?.pick("42");
+  await openList.value?.pick("IIR");
   assert.equal(editNow()?.vals?.pcm?.["1x"], "42");
+});
+
+test("test_the_1x_picker_names_the_list_it_opens_for_the_panel_to_park_at", async () => {
+  const picker = first(
+    rows().find((r) => attr(r, "data-id") === "1x"),
+    "button",
+    "vpick",
+  );
+  const named = picker && attr(picker, "data-list");
+  await fire(pickerOf("1x"));
+  assert.equal(named, openList.value?.key ?? "no-list-opened");
 });
 
 /** The profile row's select in the markup. */

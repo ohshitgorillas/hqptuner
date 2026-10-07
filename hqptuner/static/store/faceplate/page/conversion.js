@@ -5,7 +5,7 @@
 // select follows through the live overlay.
 
 import { signal, computed, effect } from "@preact/signals";
-import { describe, optionProse } from "../../prose.js";
+import { describe, idFor, optionProse } from "../../prose.js";
 import { plainEntry, decorateOptions } from "../../plainnames.js";
 import { chainControls } from "../../live/chains.js";
 import { CHAINS, sourceIsNx } from "../../live/derive.js";
@@ -157,6 +157,6 @@ export async function pickOption(key, value) {
   const chain = Object.keys(CHAINS).find((ch) => CHAINS[ch].some((c) => c.key === key));
   if (!chain) return;
   const c = chainControls(chain, loadedChain() || null).find((x) => x.key === key);
-  const opt = c?.optionsRaw.find((o) => o.label === value);
-  if (c && opt) await writeLive(c.field, String(opt.value));
+  const id = c ? idFor(c.optionsRaw, value) : "";
+  if (c && id) await writeLive(c.field, id);
 }

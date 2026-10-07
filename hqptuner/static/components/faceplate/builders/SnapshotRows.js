@@ -6,7 +6,9 @@ import { Fragment } from "preact";
 import { html } from "../../../lib/dom.js";
 import { classNames } from "../../../model/shell/format.js";
 import { isChain } from "../../../model/builders/snapshot.js";
+import { idFor, selectedLabel } from "../../../store/prose.js";
 import { openOptionList } from "../../../store/faceplate/view.js";
+import { rawOptions } from "../../../store/faceplate/lists/options.js";
 import { SNAP_ROWS, change, editNow, liveNow, takeAll } from "../../../store/faceplate/builders/snapshot.js";
 import { snapshotRows } from "../../../store/faceplate/builders/rows.js";
 import { segButtons } from "../drawer/controls.js";
@@ -63,20 +65,33 @@ const heads = () => html`
 `;
 
 /**
- * A list row's picker: the snapshot's value, opening the option list on the snapshot's chain key.
+ * A list row's picker: the snapshot's value, opening the option list on the snapshot's chain key at the held ID's
+ * engine name; a pick writes the picked name's enum ID, and a name the key's list does not carry writes nothing.
  *
  * @param {SnapView} v
  * @param {Set} set
  */
 function picker(v, set) {
+  const key = chainKey(v.id);
+  /** @param {string} name */
+  const pick = (name) => {
+    const id = idFor(rawOptions(key), name);
+    if (id) set(id);
+  };
   const open = () =>
-    openOptionList({ key: chainKey(v.id), stage: v.id === "nx" ? "nx" : "1x", value: v.value, pick: set });
+    openOptionList({
+      key,
+      stage: v.id === "nx" ? "nx" : "1x",
+      value: selectedLabel(rawOptions(key), v.value),
+      pick,
+    });
   return html`
     <button
       type="button"
       class="vfd vpick"
       aria-label=${v.label}
       aria-haspopup="dialog"
+      data-list=${key}
       disabled=${!v.on}
       onClick=${open}
     >

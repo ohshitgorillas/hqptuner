@@ -120,6 +120,18 @@ export function selectedLabel(options, value) {
   return (opt && opt.label) || "";
 }
 
+/**
+ * The form value an option list carries under an engine name, "" when it carries none.
+ *
+ * @param {{ value: string | number | undefined, label: string }[]} options
+ * @param {string} name
+ * @returns {string}
+ */
+export function idFor(options, name) {
+  const hit = options.find((o) => o.label === name);
+  return hit === undefined || hit.value === undefined ? "" : String(hit.value);
+}
+
 // Filter join rules (data/filters.json _join_rules): exact -> alias -> strip a
 // '-2s' suffix and retry, which flags the two-stage variant. Returns the joined
 // entry (null on a miss) plus that flag.

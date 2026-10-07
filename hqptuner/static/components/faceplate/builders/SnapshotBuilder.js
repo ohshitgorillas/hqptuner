@@ -140,8 +140,12 @@ function askLine() {
   `;
 }
 
-/** The Snapshot builder's body: rail, hairline, page. */
-export function SnapshotBuilder() {
+/**
+ * The Snapshot builder's body: rail, hairline, page, then what the entry mounts over the page.
+ *
+ * @param {{ children?: unknown }} props
+ */
+export function SnapshotBuilder({ children }) {
   useEffect(() => {
     openOn(snapshotBook(), home());
     bookWanted.value = true;
@@ -157,6 +161,7 @@ export function SnapshotBuilder() {
         ${askLine()}
         <${SnapshotRows} />
       </main>
+      ${children}
     </div>
   `;
 }

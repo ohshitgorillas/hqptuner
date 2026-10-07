@@ -13,7 +13,7 @@
 import { schema } from "../schema.js";
 import { effective } from "../resolve.js";
 import { optionsFor } from "../ui/options.js";
-import { selectedLabel } from "../prose.js";
+import { idFor, selectedLabel } from "../prose.js";
 import { edit } from "../actions.js";
 import { modeValue } from "../live/derive.js";
 import { liveModel } from "../live/model.js";
@@ -48,18 +48,6 @@ const FILTER_KEYS = ["pcm_filter_1x", "pcm_filter_nx", "sdm_filter_1x", "sdm_fil
  * @returns {OptionItem[]}
  */
 const configOptions = (key) => optionsFor("config", (schema[key] || {}).field || "");
-
-/**
- * The enum id an option list carries under a filter name, "" when it carries none.
- *
- * @param {{ value: string | number | undefined, label: string }[]} options
- * @param {string} name
- * @returns {string}
- */
-function idFor(options, name) {
-  const hit = options.find((o) => o.label === name);
-  return hit === undefined || hit.value === undefined ? "" : String(hit.value);
-}
 
 // The tabs lane answers two different questions out of the same four fields, and
 // the reader handed in is the whole difference: `effective` folds the pending

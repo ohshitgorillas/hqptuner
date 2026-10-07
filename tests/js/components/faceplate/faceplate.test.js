@@ -107,6 +107,20 @@ test("test_the_snapshot_builder_draws_its_rail_and_page_in_the_builder_body", ()
   );
 });
 
+test("test_the_snapshot_builder_body_holds_the_option_list", () => {
+  config.value = {
+    fields: [],
+    file: {},
+    profiles: { options: [{ value: "" }, { value: "Desk" }] },
+    active: "Desk",
+  };
+  liveBook.value = { Desk: { Near: { chain: "pcm", fields: { mode: "pcm" }, names: {} } } };
+  showBody("snapshots");
+  const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "snapshots");
+  const inner = shown ? elements(shown.html) : [];
+  assert.ok(inner.some((e) => attr(e, "data-testid") === "option-list"));
+});
+
 test("test_the_profile_builder_draws_its_rail_and_page_in_the_builder_body", () => {
   config.value = {
     fields: [],

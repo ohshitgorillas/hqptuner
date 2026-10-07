@@ -1,10 +1,10 @@
 // The entry, served at /: the faceplate's root, mounted where the page has a mount point.
 // Header and engine row stay; under them the chain body (rail, page, one drawer per rail stage over the page, each
 // drawn from its registered schema, the page's plate-level popovers, and the option list a chain picker opens over the
-// body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body, the Profile builder's
-// body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The connection
-// panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
-// first render.
+// body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body with the same option list
+// and tip for its list pickers, the Profile builder's body, or the empty body any other builder swaps in. Under the
+// body, a hairline and the bottom bar. The connection panel the brand knob opens is a sheet over the body. The
+// faceplate theme is stamped on the document root before the first render.
 import { render } from "preact";
 import { html } from "./lib/dom.js";
 import { Plate } from "./components/faceplate/Plate.js";
@@ -64,7 +64,14 @@ function ChainBody() {
 function shownBody(shown) {
   if (shown === "chain") return html`<${ChainBody} />`;
   if (shown === "settings") return html`<${SettingsBody} />`;
-  if (shown === "snapshots") return html`<${SnapshotBuilder} />`;
+  if (shown === "snapshots") {
+    return html`
+      <${SnapshotBuilder}>
+        <${OptionList} />
+        <${ListTip} />
+      <//>
+    `;
+  }
   if (shown === "profile") return html`<${ProfileBuilder} />`;
   return html`<div class="body" data-body=${shown}></div>`;
 }
