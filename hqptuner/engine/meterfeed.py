@@ -95,14 +95,14 @@ class Geometry:
 
 
 def stride(bins: int, xform_time: float) -> int:
-    """Whole frames per event: each frame alone up to ``REFRESH_HZ`` frames a second, else the most that fit a refresh.
+    """Whole frames per event: one up to ``REFRESH_HZ`` frames a second, else the fewest that keep events under it.
 
     Counted from the source rate the header implies (a hop of ``bins - 1`` samples per ``xform_time``), rounded to
     whole hertz, so the ``f32`` frame time cannot tip a boundary either way.
     """
     hop = bins - 1
     rate = round(hop / xform_time)
-    return max(1, rate // (REFRESH_HZ * hop))
+    return max(1, -(-rate // (REFRESH_HZ * hop)))
 
 
 def reduce_frame(body: bytes, channels: int, bins: int) -> npt.NDArray[np.float64]:

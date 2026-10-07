@@ -197,8 +197,8 @@ def _bin_step(items: list[Item], channel: int, index: int) -> int:
 #: Nyquist, then the `frame` items twelve frames of 1024 samples queue.
 EVENTS = [
     pytest.param(NYQUIST_44K, 12, id="44.1 kHz, one per frame"),
-    pytest.param(NYQUIST_96K, 12, id="96 kHz, one per frame"),
-    pytest.param(NYQUIST_192K, 4, id="192 kHz, one per three frames"),
+    pytest.param(NYQUIST_96K, 6, id="96 kHz, one per two frames"),
+    pytest.param(NYQUIST_192K, 3, id="192 kHz, one per four frames"),
 ]
 
 
@@ -299,7 +299,7 @@ async def test_a_frame_item_holds_an_rms_between_the_frames_it_covers(
 #: Nyquist, then the frame time one item covers: whole frames of 1024 samples.
 COVERS = [
     pytest.param(NYQUIST_44K, 1024 / 44100 * 1000, id="44.1 kHz, one frame"),
-    pytest.param(NYQUIST_192K, 3 * 1024 / 192000 * 1000, id="192 kHz, three frames"),
+    pytest.param(NYQUIST_192K, 4 * 1024 / 192000 * 1000, id="192 kHz, four frames"),
 ]
 
 
