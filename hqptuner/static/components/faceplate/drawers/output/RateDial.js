@@ -5,13 +5,22 @@
 // running now. Every decision is the store's (store/faceplate/drawers/output.js); the arithmetic of where things sit is
 // model/gauges/output.js.
 //
-// Each band is its own slider, a transparent region over its half of the glass: press or drag onto a tier, arrow keys
+// The drawing keeps its own aspect, fitted whole and centered in the glass; its box carries the drawing and the band
+// sliders, so each slider is a transparent region over its half of the drawing: press or drag onto a tier, arrow keys
 // step, Home and End go to the band's ends. Layers: hatch, seam, band legends, rule and minor ticks, needles, tier
 // printing, playing lamp, band sliders.
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
-import { bandEdges, bandSpan, dialScale, minorTicks, nearestTier, seamX } from "../../../../model/gauges/output.js";
+import {
+  bandEdges,
+  bandSpan,
+  dialScale,
+  drawingX,
+  minorTicks,
+  nearestTier,
+  seamX,
+} from "../../../../model/gauges/output.js";
 import { dialView, pickTier } from "../../../../store/faceplate/drawers/output.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/output.js").DialTier} DialTier */
@@ -20,14 +29,15 @@ import { dialView, pickTier } from "../../../../store/faceplate/drawers/output.j
 /** @typedef {import("../../../../model/gauges/output.js").TierSpan} TierSpan */
 /** @typedef {{ id: "pcm" | "sdm", legend: string }} Band */
 /**
- * A pointer or key event on a band slider, the members read here; the slider's parent is the dial's box.
+ * A pointer or key event on a band slider, the members read here; the slider's parent is the drawing's box, and its
+ * parent the glass.
  *
  * @typedef {object} SliderEvent
  * @property {number} [clientX]
  * @property {number} [pointerId]
  * @property {string} [key]
  * @property {() => void} [preventDefault]
- * @property {{ setPointerCapture?: (id: number) => void, parentElement: Element }} currentTarget
+ * @property {{ setPointerCapture?: (id: number) => void, parentElement: { parentElement: Element } }} currentTarget
  */
 
 const W = 806; // viewBox width: the Format row at the 1080 plate, so the printing is 1:1
@@ -36,6 +46,7 @@ const X0 = 38; // x of the first tier
 const RULE_Y = 56;
 const INSET = 8; // a band's legend and rule stop this far inside its outer tiers' cells
 const HATCH = "rate-dial-hatch";
+const VIEWBOX = { w: W, h: H };
 
 /** @type {Band[]} */
 const BANDS = [
@@ -101,15 +112,20 @@ function BandGlass({ b, view, scale }) {
   `;
 }
 
+/** The glass a slider sits in. @param {SliderEvent} e */
+const glassOf = (e) => e.currentTarget.parentElement.parentElement;
+
 /**
- * The tier under a pointer, measured against the dial's box.
+ * The tier under a pointer: the drawing x it falls on inside the glass's inner box, which the drawing is fitted into.
  *
  * @param {DialScale} scale
  * @param {SliderEvent} e
  */
 function tierAt(scale, e) {
-  const r = e.currentTarget.parentElement.getBoundingClientRect();
-  return nearestTier(scale, ((Number(e.clientX) - r.left) / r.width) * W);
+  const glass = glassOf(e);
+  const r = glass.getBoundingClientRect();
+  const inner = { left: r.left + glass.clientLeft, width: glass.clientWidth, height: glass.clientHeight };
+  return nearestTier(scale, drawingX(Number(e.clientX), inner, VIEWBOX));
 }
 
 /**
@@ -124,7 +140,7 @@ function useBandInput(band, { scale, span, cur }) {
   /** @param {SliderEvent} e @param {boolean} on */
   const drag = (e, on) => {
     dragging.current = on;
-    e.currentTarget.parentElement.classList[on ? "add" : "remove"]("drag");
+    glassOf(e).classList[on ? "add" : "remove"]("drag");
   };
   return {
     onPointerDown: (/** @type {SliderEvent} */ e) => {
@@ -145,7 +161,7 @@ function useBandInput(band, { scale, span, cur }) {
 }
 
 /**
- * A band's slider: a transparent region over its half of the glass, reporting the needle's tier.
+ * A band's slider: a transparent region over its half of the drawing, reporting the needle's tier.
  *
  * @param {{ b: Band, view: DialView, scale: DialScale, seam: number }} props
  */
@@ -204,16 +220,18 @@ export function RateDial() {
       aria-label="Output rate"
       data-dirty=${view.dirty.pcm || view.dirty.sdm ? "" : undefined}
     >
-      <svg viewBox=${`0 0 ${W} ${H}`} width="100%" height=${H} aria-hidden="true">
-        <${Hatch} view=${view} scale=${scale} />
-        <g class="seam">
-          <line class="sd" x1=${seam} y1="0" x2=${seam} y2=${H} />
-          <line class="sl" x1=${seam + 1.5} y1="0" x2=${seam + 1.5} y2=${H} />
-        </g>
-        ${BANDS.map((b) => html`<${BandGlass} b=${b} view=${view} scale=${scale} />`)}
-        ${view.playing == null ? null : html`<circle class="playing" cx=${scale.xs[view.playing]} cy="96" r="3.5" />`}
-      </svg>
-      ${BANDS.map((b) => html`<${BandSlider} b=${b} view=${view} scale=${scale} seam=${seam} />`)}
+      <div class="dwg" style=${`aspect-ratio:${W} / ${H}`}>
+        <svg viewBox=${`0 0 ${W} ${H}`} width="100%" height="100%" aria-hidden="true">
+          <${Hatch} view=${view} scale=${scale} />
+          <g class="seam">
+            <line class="sd" x1=${seam} y1="0" x2=${seam} y2=${H} />
+            <line class="sl" x1=${seam + 1.5} y1="0" x2=${seam + 1.5} y2=${H} />
+          </g>
+          ${BANDS.map((b) => html`<${BandGlass} b=${b} view=${view} scale=${scale} />`)}
+          ${view.playing == null ? null : html`<circle class="playing" cx=${scale.xs[view.playing]} cy="96" r="3.5" />`}
+        </svg>
+        ${BANDS.map((b) => html`<${BandSlider} b=${b} view=${view} scale=${scale} seam=${seam} />`)}
+      </div>
     </div>
   `;
 }

@@ -133,6 +133,21 @@ export function nearestTier(scale, x) {
 }
 
 /**
+ * The drawing x under a pointer at page x `clientX`, for a drawing fitted whole inside `rect` at its own aspect and
+ * centered: scaled by the tighter of the two axes, measured from the drawing's left edge. Not clamped to the drawing.
+ *
+ * @param {number} clientX
+ * @param {{ left: number, width: number, height: number }} rect  the box the drawing is fitted into
+ * @param {{ w: number, h: number }} viewBox  the drawing's own size
+ * @returns {number}
+ */
+export function drawingX(clientX, rect, viewBox) {
+  const s = Math.min(rect.width / viewBox.w, rect.height / viewBox.h);
+  const margin = (rect.width - viewBox.w * s) / 2;
+  return (clientX - rect.left - margin) / s;
+}
+
+/**
  * Where a needle at `cur` settles when sent to `target`: clamped into its band, and whether that differs from `cur`.
  *
  * @param {TierSpan} span

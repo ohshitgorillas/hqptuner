@@ -1,7 +1,8 @@
 // Behavioral suite for hqptuner/static/model/gauges/output.js: which tiers belong to a rate family, where each tier and band
 // sits on the rate dial and which tier a pointer lands on, how a needle settles inside its band, which rates the output
 // tuner marks pinned and playing, how an engine device string splits into its group, main and detail parts, how a
-// device list falls under its group headers, and where a value sits along a range as a percentage.
+// device list falls under its group headers, where a value sits along a range as a percentage, and which drawing x a
+// pointer falls on when the drawing is fitted and centered inside its glass.
 //
 // Tiers, dial geometry and device lists are tables the test writes; no shipped data supplies an input or an expected
 // value.
@@ -16,6 +17,7 @@ import {
   bandSpan,
   deviceParts,
   dialScale,
+  drawingX,
   groupDevices,
   minorTicks,
   moveNeedle,
@@ -58,6 +60,22 @@ const FAMS = ["f44", "f48"];
 const TUNER = [{ family: "pcm" }, { family: "sdm" }, { family: "sdm" }, { family: "sdm", unavailable: true }];
 //: The SDM band runs tier 1 from a 48k-family source.
 const PLAYING_1 = { run: "sdm", tier: 1, src: 0, fam: "f48" };
+
+//: The drawing's viewBox, and the x of its first tier in drawing units.
+const VIEWBOX = { w: 806, h: 106 };
+const FIRST_TIER_X = 38;
+//: A glass wider than the drawing at equal height: scale 1, a 143px margin each side.
+const WIDE_GLASS = { left: 0, width: 1092, height: 106 };
+//: A glass the drawing fills exactly: scale 1, no margin.
+const EXACT_GLASS = { left: 0, width: 806, height: 106 };
+//: The wide glass moved 100px right in the page.
+const SHIFTED_GLASS = { left: 100, width: 1092, height: 106 };
+//: A glass of the drawing's width at half its height: scale 0.5, 403 wide, a 201.5px margin each side.
+const SHORT_GLASS = { left: 0, width: 806, height: 53 };
+//: A glass of half the drawing's width at full height: scale 0.5, no horizontal margin.
+const NARROW_GLASS = { left: 0, width: 403, height: 106 };
+//: (220 - 201.5) / 0.5 in the short glass.
+const SHORT_GLASS_X = 37;
 
 /**
  * `tier:family` for every rate the columns mark with `key`, in column order.
@@ -298,4 +316,34 @@ test("test_a_range_above_zero_measures_from_its_own_minimum", () => {
 
 test("test_a_value_past_the_top_is_not_clamped", () => {
   assert.ok(...near(percentOf(6, -60, 0), 110, EPS));
+});
+
+// ── drawingX ─────────────────────────────────────────────────────────────
+
+test("test_a_pointer_in_a_wide_glass_is_measured_from_the_centered_drawing_s_edge", () => {
+  assert.equal(drawingX(181, WIDE_GLASS, VIEWBOX), FIRST_TIER_X);
+});
+
+test("test_a_pointer_in_a_glass_the_drawing_fills_maps_one_to_one", () => {
+  assert.equal(drawingX(FIRST_TIER_X, EXACT_GLASS, VIEWBOX), FIRST_TIER_X);
+});
+
+test("test_a_pointer_is_measured_from_the_glass_s_left_edge_in_the_page", () => {
+  assert.equal(drawingX(281, SHIFTED_GLASS, VIEWBOX), FIRST_TIER_X);
+});
+
+test("test_a_short_glass_scales_the_drawing_by_its_height_and_centers_it", () => {
+  assert.equal(drawingX(220, SHORT_GLASS, VIEWBOX), SHORT_GLASS_X);
+});
+
+test("test_a_narrow_glass_scales_the_drawing_by_its_width", () => {
+  assert.equal(drawingX(19, NARROW_GLASS, VIEWBOX), FIRST_TIER_X);
+});
+
+test("test_a_pointer_in_the_left_margin_falls_before_the_drawing_unclamped", () => {
+  assert.equal(drawingX(100, WIDE_GLASS, VIEWBOX), -43);
+});
+
+test("test_a_pointer_in_the_right_margin_falls_past_the_drawing_unclamped", () => {
+  assert.equal(drawingX(1000, WIDE_GLASS, VIEWBOX), 857);
 });

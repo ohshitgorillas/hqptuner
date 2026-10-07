@@ -87,7 +87,9 @@
    Hatched = device announced it cannot carry that tier; greyed, never blocked.
    Layers (rate-dial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
 .dial{position:relative;height:106px;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
-/* Each band is its own slider: a transparent region over its half of the glass (rate-dial.js). */
+/* The drawing's box: its own aspect (set inline from the viewBox), as tall as the glass, centered, never wider than it.
+   Each band is its own slider: a transparent region over its half of the drawing. */
+.dwg{position:relative;height:100%;max-width:100%;margin:0 auto}
 .bandsl{position:absolute;top:0;bottom:0;touch-action:none}
 .bandsl:focus-visible{outline:2px solid var(--acc);outline-offset:-2px;border-radius:4px}
 /* Band legends (engraved, over a bracket spanning the band) + bezel seam at the 32x|64x family boundary.

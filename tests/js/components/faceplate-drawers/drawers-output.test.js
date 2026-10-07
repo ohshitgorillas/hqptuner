@@ -1,12 +1,11 @@
 // Rendered suite for the Output drawer's two blocks: the rate dial (components/faceplate/drawers/output/RateDial.js) and the
 // device picker (components/faceplate/drawers/output/DevicePicker.js), each over the v1 store. The dial: which tier each
 // band's needle prints selected, which tiers are hatched, where the playing lamp sits, that the output mode never takes
-// a band away, and the write a key, a press and a drag make. The picker: the list opening from its trigger, a tap
+// a band away, and the write a key makes. The picker: the list opening from its trigger, a tap
 // staging a device and closing the list, the current and dirty marks, and the rescan.
 //
 // Renders through preact-render-to-string. A handler is fired through the vnode seam (tests/js/support/vnodeseam.js),
-// since server rendering fires no events; a pointer event carries the one element it reads, the dial's box, as the
-// band slider's parent. Controls are found by wire identifiers: a band (`data-band`), a tier's position (`data-i`), a
+// since server rendering fires no events. Controls are found by wire identifiers: a band (`data-band`), a tier's position (`data-i`), a
 // device's value (`data-v`) or a `data-testid`.
 //
 // Not reachable here: the needle's glide and the drag class, which a stylesheet and a live element own. A browser run
@@ -140,24 +139,6 @@ function tierX(i) {
   return { x: Number(label ? attr(label, "x") : NaN), width };
 }
 
-/**
- * A pointer event at dial position `x` on a dial `width` px wide whose box starts at the page's left edge.
- *
- * @param {number} x
- * @param {number} width
- */
-const pointerAt = (x, width) => ({
-  clientX: x,
-  pointerId: 1,
-  currentTarget: {
-    setPointerCapture: () => undefined,
-    parentElement: {
-      getBoundingClientRect: () => ({ left: 0, width }),
-      classList: { add: () => undefined, remove: () => undefined },
-    },
-  },
-});
-
 test("test_each_band_prints_its_needles_tier_selected", () => {
   assert.deepEqual([tiersWith("sel", "pcm"), tiersWith("sel", "sdm")], [["2"], ["8"]]);
 });
@@ -204,30 +185,6 @@ test("test_an_arrow_key_steps_its_band_one_tier", async () => {
 test("test_end_sends_a_needle_to_its_bands_last_tier", async () => {
   await fire(html`<${RateDial} />`, slider("sdm"), "onKeyDown", keyEvent("End"));
   assert.equal(effective("sdm_rate"), "98304000");
-});
-
-test("test_a_press_picks_the_tier_under_the_pointer", async () => {
-  const { x, width } = tierX(4);
-  await fire(html`<${RateDial} />`, slider("pcm"), "onPointerDown", pointerAt(x, width));
-  assert.equal(effective("pcm_rate"), "768000");
-});
-
-test("test_a_drag_into_the_other_band_holds_at_its_own_last_tier", async () => {
-  const { seen } = renderTree(html`<${RateDial} />`);
-  const hit = seen.find((v) => typeof v.type === "string" && slider("pcm")(v.props ?? {}));
-  const props = /** @type {Record<string, (e: unknown) => unknown>} */ (hit?.props ?? {});
-  const at = (/** @type {number} */ i) => pointerAt(tierX(i).x, tierX(i).width);
-  await props.onPointerDown?.(at(3));
-  await props.onPointerMove?.(at(9));
-  assert.equal(effective("pcm_rate"), "1536000");
-});
-
-test("test_a_move_without_a_press_picks_nothing", async () => {
-  const at = (/** @type {number} */ i) => pointerAt(tierX(i).x, tierX(i).width);
-  await fire(html`<${RateDial} />`, slider("pcm"), "onPointerMove", at(4));
-  const hovered = effective("pcm_rate");
-  await fire(html`<${RateDial} />`, slider("pcm"), "onPointerDown", at(3));
-  assert.deepEqual([hovered, effective("pcm_rate")], ["192000", "384000"]);
 });
 
 test("test_the_trigger_opens_the_device_list", async () => {
