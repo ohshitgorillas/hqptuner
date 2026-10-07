@@ -4,7 +4,7 @@
 // render. Read as text, because what is pinned is the call's shape: a missing
 // array is legal Preact and renders the same, only more often.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/layout-effect-deps.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-layout/layout-effect-deps.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
