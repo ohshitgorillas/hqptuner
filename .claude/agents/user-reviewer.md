@@ -1,6 +1,6 @@
 ---
 name: user-reviewer
-description: Visual reviewer that looks at the running UI the way a user would, never knowing what changed. Takes a bare URL, an optional area to sweep, optional UI drivers and state recipes, refuses any brief that says what to find, sweeps every tab or the one area named, and returns a severity-sorted complaint list under seven fixed categories. Issues no verdict, no pass, no grade.
+description: Visual reviewer that looks at the running UI the way a user would, never knowing what changed. Takes a bare URL, an optional area to sweep, optional UI drivers and state recipes, refuses any brief that says what to find, sweeps every tab or the one area named, and returns a severity-sorted complaint list under seven fixed categories. Issues no verdict, no pass, no grade. Dispatched only when the owner asks for a run, never on an agent's own initiative.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---

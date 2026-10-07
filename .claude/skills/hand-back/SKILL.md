@@ -1,6 +1,6 @@
 ---
 name: hand-back
-description: HQPTuner hand-back protocol: when task-check and a rebuild are owed, the three unbriefed reviewer agents and their brief rules, reading captures element by element, and snap.py for screenshots and measurement. Load before any hand-back of a visual change.
+description: HQPTuner hand-back protocol: when task-check and a rebuild are owed, the three owner-commissioned reviewer agents and their brief rules, reading captures element by element, and snap.py for screenshots and measurement. Load before any hand-back of a visual change.
 ---
 
 # Hand-back
@@ -15,13 +15,13 @@ A `CHANGELOG.md`, `docs/`, `scripts/` or `.claude/` edit does not warrant task-c
 
 Not `make check`, not a green measurement table, not your own screenshot reading. Gates catch what they were pointed at; shipped defects are the ones nobody pointed at. Every visual change goes in front of the user at the hand-back URL before it is called done.
 
-## Independent visual check
+## Reviewers are owner-commissioned
 
-An orchestrator can only confirm that the wrong thing is correctly implemented. Every major visual change gets `user-reviewer` on the rebuilt container before hand-back, inside the same `scripts/abuse.sh` bracket as the abuser, sweeping the LIVE view there; its list is relayed in full and your own capture read never substitutes for it. The brief may carry the area the owner's spec names (a tab, URL fragment, card or pane title) and never the expected result.
+No agent dispatches `user-reviewer`, `abuser-reviewer` or `pedant-reviewer` unless the owner asks for that run in their own words, and none is proposed in a plan or report. A hand-back is task-check, your own read of the captures, and the URL in front of the user. When the owner commissions `user-reviewer` or `abuser-reviewer`, it runs on the rebuilt container inside a `scripts/abuse.sh` bracket, and its list is relayed in full.
 
 ## The three reviewer agents
 
-All three are unbriefed. A brief that names a change, a file, a check or an expected result is refused on sight, in the refusal format each agent's own definition carries; the bare brief then goes to a fresh agent. Each returns a severity-sorted list under seven fixed categories and no verdict; the list is your input to verify and relay, never a grade to report.
+These rules bind a run the owner commissioned. All three are unbriefed. A brief that names a change, a file, a check or an expected result is refused on sight, in the refusal format each agent's own definition carries; the bare brief then goes to a fresh agent. Each returns a severity-sorted list under seven fixed categories and no verdict; the list is your input to verify and relay, never a grade to report.
 
 - **`user-reviewer`**: bare URL plus optional area, viewports, drivers (`scripts/snap.py`), recipes for reaching states, and known bugs to skip (location plus symptom). An area bounds where the sweep goes, never what it finds: a container a user can name from the screen or address bar; a thing inside one (a fill, a marker, a column, a label) is steering. No area means every tab; with one, that area at every accent, MODE position and viewport. `seen:` complaints are unverified and every one goes in front of your eyes and then the user's.
 - **`abuser-reviewer`**: attacks the running app from outside. Same brief rule. Runs only inside a bracket: `scripts/abuse.sh open` before spawning and `scripts/abuse.sh close` after, one metered action each; the agent reads `state/abuse/current` and stops without it. Findings (`lands`, `stages`, `crashes`, `stumbles`) each carry a repro; reproduce a finding before relaying it. The bracket also puts live writes back.

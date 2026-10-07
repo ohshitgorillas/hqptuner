@@ -33,10 +33,10 @@ This file is the project's rule sheet; procedure lives in the skills it names, l
 
 ## Verification and hand-back
 
-- **An orchestrator can only confirm that the wrong thing is correctly implemented.** Every major visual change gets an independent check by `user-reviewer` on the rebuilt container before hand-back; your own capture read never substitutes for it. The brief may carry the area the owner's spec names, never the expected result. Subagent measurements (computed styles, geometry, counts) are trustworthy; still read every screenshot with your own eyes, element by element.
+- **Reviewers are the owner's to commission (hard rule).** `user-reviewer`, `abuser-reviewer` and `pedant-reviewer` run only when the owner asks for that run in their own words. No agent dispatches one on its own initiative, at hand-back or anywhere else, and none is proposed in a plan or report. Subagent measurements (computed styles, geometry, counts) are trustworthy; still read every screenshot with your own eyes, element by element.
 - **The user's eyes are the final say.** Every visual change goes in front of the user at the hand-back URL before it is called done.
 - **After any edit to `hqptuner/`, static assets or dependencies, run `/task-check` (`bash .claude/task-check.sh`) before reporting done**: `make check`, then rebuild `hqptuner:dev` and health-check `:8090`, hand-back URL to the user. A `CHANGELOG.md`, `docs/`, `scripts/` or `.claude/` edit runs its own free gate only, no rebuild, no URL.
-- **`user-reviewer`, `abuser-reviewer` and `pedant-reviewer` are unbriefed.** Brief is a bare URL or topic plus optional viewports, drivers, recipes and known bugs; a brief naming a change, a file, a check or an expected result is refused and reported. The first two run only inside a `scripts/abuse.sh` bracket. Each returns a severity-sorted list and no verdict; it is your input to verify and relay, never a grade. Load `hand-back` before any visual hand-back.
+- **When the owner commissions one, `user-reviewer`, `abuser-reviewer` and `pedant-reviewer` are unbriefed.** Brief is a bare URL or topic plus optional viewports, drivers, recipes and known bugs; a brief naming a change, a file, a check or an expected result is refused and reported. The first two run only inside a `scripts/abuse.sh` bracket. Each returns a severity-sorted list and no verdict; it is your input to verify and relay, never a grade. Load `hand-back` before any visual hand-back.
 
 ## Change budget (hard rule)
 
