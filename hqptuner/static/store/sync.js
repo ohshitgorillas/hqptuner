@@ -129,6 +129,17 @@ export async function refreshConfig() {
   await mirror(api.pending, staged, raw);
 }
 
+/** @returns {boolean} whether the browser has hidden the page; false where there is no document */
+const pageHidden = () => typeof document !== "undefined" && document.hidden;
+
+// `ready` rather than `reachable`: these four are the 8088 configuration lane, and the
+// 4321 handshake that decides `reachable` carries no authentication, so it cannot speak
+// for whether that lane answers (api/routes/status.py). The gate is written here rather
+// than inside `refreshConfig`, which the write paths call directly and must keep.
+function configWhenReady() {
+  if (health.value && health.value.ready) refreshConfig();
+}
+
 /** Take the first snapshot of every endpoint and start the fast and config poll timers. */
 export function startPolling(interval = 2000) {
   safe(api.metadata).then((m) => {
@@ -139,18 +150,24 @@ export function startPolling(interval = 2000) {
   // The fast (status/volume) cadence is reactive: the volume page, LIVE, and the
   // System page with quick updates ticked run at 1 s (store/ui/ui.js). Reschedule the
   // timer whenever the derived cadence changes; the config poll stays fixed.
+  // Both timers skip their tick while the page is hidden, and the page coming back
+  // takes one reading of each at once rather than waiting out the next tick.
   /** @type {ReturnType<typeof setInterval>} */
   let fastTimer;
   effect(() => {
     const ms = fastPollMs.value;
     if (fastTimer) clearInterval(fastTimer);
-    fastTimer = setInterval(refreshFast, ms);
+    fastTimer = setInterval(() => {
+      if (!pageHidden()) refreshFast();
+    }, ms);
   });
-  // `ready` rather than `reachable`: these four are the 8088 configuration lane, and the
-  // 4321 handshake that decides `reachable` carries no authentication, so it cannot speak
-  // for whether that lane answers (api/routes/status.py). The gate is written here rather
-  // than inside `refreshConfig`, which the write paths call directly and must keep.
   setInterval(() => {
-    if (health.value && health.value.ready) refreshConfig();
+    if (!pageHidden()) configWhenReady();
   }, interval * 2);
+  if (typeof document === "undefined") return;
+  document.addEventListener("visibilitychange", () => {
+    if (pageHidden()) return;
+    refreshFast();
+    configWhenReady();
+  });
 }
