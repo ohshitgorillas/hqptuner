@@ -9,7 +9,8 @@
 // frames exactly 1/30 s apart instead. The loop starts once for the whole file on that clock. Each case runs at no
 // offset and no reported output delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and
 // runs one frame a whole step long, so the reset lands on a step before the case sends anything. The spectrogram is
-// read through spectrogramEnd, the frame time its fine slices have closed on.
+// read through spectrogramEnd, the frame time its fine slices have closed on. The loop requests animation frames only
+// while a painter is registered and the feed is open, so the fake clock also says how many frame callbacks it holds.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/loop.test.js
 
@@ -17,7 +18,7 @@ import test, { afterEach, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { onMeterPaint, startMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
-import { openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { spectrogramEnd } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { stepLevel } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
@@ -36,7 +37,10 @@ const BINS = 8;
 const PLAYING = { status: { state: "2" } };
 const STOPPED = { status: { state: "0" } };
 
-/** A clock that moves only on `frame`: each call is one animation frame, `ms` after the last. */
+/**
+ * A clock that moves only on `frame`: each call is one animation frame, `ms` after the last; `waiting` is the number of
+ * animation-frame callbacks queued for the next one.
+ */
 function frameClock() {
   let now = 0;
   /** @type {Array<(now: number) => void>} */
@@ -59,10 +63,10 @@ function frameClock() {
     due.forEach((fn) => fn(now));
     return now;
   };
-  return { clock, frame };
+  return { clock, frame, waiting: () => queued.length };
 }
 
-const { clock, frame } = frameClock();
+const { clock, frame, waiting } = frameClock();
 
 /** Run two 16.7 ms animation frames, the second of which steps the scene, and return the step's stamp. */
 const step = () => {
@@ -240,4 +244,54 @@ test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () =
   engineStatus.value = { ...STOPPED };
   step();
   assert.ok(...near(spectrogramEnd.value - start, 200, 1e-9));
+});
+
+test("test_with_its_last_painter_unregistered_the_loop_queues_no_frame_after_the_next_one", () => {
+  unpaint();
+  frame();
+  assert.equal(waiting(), 0);
+});
+
+test("test_a_painter_registered_on_an_idle_loop_queues_exactly_one_frame", () => {
+  unpaint();
+  frame();
+  const idle = waiting();
+  unpaint = onMeterPaint((scene) => scenes.push(scene));
+  assert.deepEqual([idle, waiting()], [0, 1]);
+});
+
+test("test_with_the_feed_closed_the_loop_queues_no_frame_after_the_next_one", () => {
+  closeMeterFeed();
+  frame();
+  assert.equal(waiting(), 0);
+});
+
+test("test_with_the_engine_stopped_the_loop_queues_no_frame_after_the_next_one", () => {
+  engineStatus.value = { ...STOPPED };
+  frame();
+  assert.equal(waiting(), 0);
+});
+
+test("test_playback_starting_again_queues_exactly_one_frame", () => {
+  engineStatus.value = { ...STOPPED };
+  frame();
+  const idle = waiting();
+  engineStatus.value = { ...PLAYING };
+  assert.deepEqual([idle, waiting()], [0, 1]);
+});
+
+test("test_playback_stopping_hands_the_painters_the_empty_scene_with_no_frame_run", () => {
+  send({ peak: -10, rms: -20, byte: 20 });
+  step();
+  engineStatus.value = { ...STOPPED };
+  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null });
+});
+
+test("test_the_frames_the_loop_holds_when_its_last_painter_unregisters_reach_the_spectrogram", () => {
+  setSpectrumOffset(0.1);
+  const start = spectrogramEnd.value;
+  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
+  step();
+  unpaint();
+  assert.ok(...near(spectrogramEnd.value - start, 150, 1e-9));
 });

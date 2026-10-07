@@ -1,8 +1,8 @@
 // Store suite for hqptuner/static/store/meter/feed.js: initMeterFeed() holds the METER feed open while metering runs
-// and closed while it is off, and a repeated call registers nothing further. A `geometry` event sets meterGeometry; each
-// `frame` event's base64 bins come back from takeMeterFrames() in dBFS, once, carrying the geometry they arrived under.
-// A frame reaches the spectrogram from the feed only by leaving the queue there: pushed out past 6000 ms of queued frame
-// time, or flushed when the engine leaves playing.
+// and closed while it is off, meterFeedOpen saying which, and a repeated call registers nothing further. A `geometry`
+// event sets meterGeometry; each `frame` event's base64 bins come back from takeMeterFrames() in dBFS, once, carrying
+// the geometry they arrived under. A frame reaches the spectrogram from the feed only by leaving the queue there: pushed
+// out past 6000 ms of queued frame time, or flushed when the engine leaves playing.
 //
 // Metering and playback reach the store at the wire, through fresh /api/status objects on engineStatus, written by the
 // poll seam (tests/js/support/apodpolls.js); the feed is the EventSource fake (tests/js/support/eventsource.js). The
@@ -19,7 +19,12 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { initMeterFeed, meterGeometry, takeMeterFrames } from "../../../../hqptuner/static/store/meter/feed.js";
+import {
+  initMeterFeed,
+  meterFeedOpen,
+  meterGeometry,
+  takeMeterFrames,
+} from "../../../../hqptuner/static/store/meter/feed.js";
 import { initSpectrogram, spectrogramCells } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
@@ -74,6 +79,12 @@ test("test_metering_on_holds_one_stream_open_on_the_feed", () => {
 test("test_metering_switched_off_closes_the_stream", () => {
   engineStatus.value = { metering: false };
   assert.equal(lastStream()?.closed, true);
+});
+
+test("test_meter_feed_open_is_true_while_metering_runs_and_false_once_it_is_switched_off", () => {
+  const open = meterFeedOpen.value;
+  engineStatus.value = { metering: false };
+  assert.deepEqual([open, meterFeedOpen.value], [true, false]);
 });
 
 test("test_a_second_init_opens_no_second_stream", () => {

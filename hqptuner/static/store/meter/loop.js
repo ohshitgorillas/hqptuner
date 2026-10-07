@@ -5,11 +5,12 @@
 // that reading smoothed across frequency while its held peaks hold and decay, adds the frames to the spectrogram's
 // history, and hands the scene to every registered painter.
 //
-// The loop runs on the Clock it is started with (lib/clock.js). Playback stopping, or the feed's geometry changing,
-// sends the frames still queued to the spectrogram and empties the scene, so a restart never falls from the last
-// track's reading.
+// The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
+// registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
+// frames still queued to the spectrogram and empties the scene, so a restart never falls from the last reading; going
+// idle also hands the painters the empty scene, so the meters clear rather than hold the last reading.
 
-import { batch } from "@preact/signals";
+import { batch, effect, signal } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import {
   easeTrace,
@@ -26,7 +27,7 @@ import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
 import { engineStatus } from "../signals.js";
 import { meterChannel } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
-import { meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
+import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
 
 /** Spectrum columns the trace carries across the plot. */
 const TRACE_COLS = 600;
@@ -48,6 +49,7 @@ const EMPTY = { levels: [], spectrum: null };
 
 /** @type {Set<Painter>} */
 const painters = new Set();
+const painterCount = signal(0);
 /** @type {MeterScene} */
 let scene = EMPTY;
 /** @type {MeterFrame | null} */
@@ -72,8 +74,10 @@ let stopper = null;
  */
 export function onMeterPaint(fn) {
   painters.add(fn);
+  painterCount.value = painters.size;
   return () => {
     painters.delete(fn);
+    painterCount.value = painters.size;
   };
 }
 
@@ -129,6 +133,13 @@ function traceStep(held, t, at) {
   return stepSpectrum(was || emptySpectrum(cols.length), shown, at, true);
 }
 
+/** Send the queued frames to the spectrogram and empty the scene and its target. */
+function idle() {
+  target = null;
+  scene = EMPTY;
+  drain();
+}
+
 /**
  * The scene one step stamped `now` moves to, `ms` after the last.
  *
@@ -138,15 +149,11 @@ function traceStep(held, t, at) {
  */
 function advance(now, ms) {
   const dt = frameDt(now - ms, now);
-  const playing = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
   const g = meterGeometry.peek();
-  if (!playing || g !== geo) {
+  if (g !== geo) {
     geo = g;
-    target = null;
-    scene = EMPTY;
-    drain();
+    idle();
   }
-  if (!playing) return EMPTY;
   const frames = handOut(ms);
   if (frames.length) target = foldFrames(frames);
   if (!target) return EMPTY;
@@ -160,28 +167,52 @@ function advance(now, ms) {
 }
 
 /**
- * Start the loop on `clock`, once; a second call starts nothing and hands back the same stopper.
+ * Start the loop on `clock`, once: it requests animation frames while a painter is registered, the feed is open and the
+ * engine plays, and otherwise goes idle and hands the painters the empty scene. A second call starts nothing and hands
+ * back the same stopper.
  *
  * @param {Clock} [clock]
  * @returns {() => void}
  */
 export function startMeterLoop(clock = PLATFORM) {
   if (stopper) return stopper;
-  let running = true;
-  let prev = clock.now();
+  let live = false;
+  let requested = false;
+  let prev = 0;
+  function request() {
+    requested = true;
+    clock.requestAnimationFrame(tick);
+  }
   /** @param {number} now */
-  const tick = (now) => {
-    if (!running) return;
+  function tick(now) {
+    requested = false;
+    if (!live) return;
     if (now - prev >= STEP_MS - SLACK_MS) {
       scene = advance(now, now - prev);
       prev = now;
       painters.forEach((fn) => fn(scene));
     }
-    clock.requestAnimationFrame(tick);
-  };
-  clock.requestAnimationFrame(tick);
+    request();
+  }
+  /** @param {boolean} on */
+  function run(on) {
+    if (on === live) return;
+    live = on;
+    if (!on) {
+      idle();
+      painters.forEach((fn) => fn(EMPTY));
+      return;
+    }
+    prev = clock.now();
+    if (!requested) request();
+  }
+  const dispose = effect(() => {
+    const playing = Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
+    run(meterFeedOpen.value && painterCount.value > 0 && playing);
+  });
   const stop = () => {
-    running = false;
+    dispose();
+    run(false);
     stopper = null;
   };
   stopper = stop;

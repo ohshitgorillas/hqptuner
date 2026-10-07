@@ -30,6 +30,8 @@ const MAX_PENDING_MS = 6000;
 /** @typedef {{ channels: Array<{ peak: number, rms: number, bins: string }>, ms: number }} WireFrame */
 
 export const meterGeometry = signal(/** @type {Geometry | null} */ (null));
+/** Whether a feed is open, from openMeterFeed() until closeMeterFeed(). */
+export const meterFeedOpen = signal(false);
 
 /** @type {EventSource | null} */
 let source = null;
@@ -99,6 +101,7 @@ export function openMeterFeed(now = () => performance.now()) {
     if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
   });
+  meterFeedOpen.value = true;
 }
 
 /** Close the feed, if one is open. */
@@ -107,6 +110,7 @@ export function closeMeterFeed() {
   source = null;
   if (unwatch) unwatch();
   unwatch = null;
+  meterFeedOpen.value = false;
 }
 
 /**
