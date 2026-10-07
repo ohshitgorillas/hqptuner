@@ -154,6 +154,14 @@ export const byChain = (v, ch) => (typeof v === "string" ? v : v[ch]);
 const asChain = (v) => (v === "sdm" ? "sdm" : "pcm");
 
 /**
+ * The chain a record's rows sit on: its Mode where it holds one, else the chain it was taken on.
+ *
+ * @param {SnapRecord} rec
+ * @returns {Chain}
+ */
+export const recordChain = (rec) => asChain(rec.fields.mode ?? rec.chain);
+
+/**
  * One chain's rows as enum IDs, read the way its chain card reads them.
  *
  * @param {Chain} ch
@@ -248,7 +256,7 @@ function heldOf(rec, vals) {
  */
 export function fromRecord(rec) {
   const L = liveNow();
-  const mode = rec ? asChain(rec.fields.mode ?? rec.chain) : L.run;
+  const mode = rec ? recordChain(rec) : L.run;
   /** @type {Edit['vals']} */
   const vals = { mode, adaptive: String(L.adaptive), profile: String(L.profile), pcm: { ...L.pcm }, sdm: { ...L.sdm } };
   if (!rec) return { name: "", stations: [home()], inc: new Set(SNAP_ROWS.map((r) => r.id)), vals };

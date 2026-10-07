@@ -2,9 +2,11 @@
 // (./snapshot.js) for the rows, the edit showing and the engine now.
 
 import { snapRow } from "../../../model/builders/snapshot.js";
+import { schema } from "../../schema.js";
 import { MODES } from "../../schema/options.js";
+import { decorateOptions } from "../../plainnames.js";
 import { plainNames } from "../../ui/prefs.js";
-import { rawOptions, listOptions } from "../lists/options.js";
+import { rawOptions } from "../lists/options.js";
 import { profileChoices } from "../page/profile.js";
 import { SNAP_ROWS, byChain, editNow, liveNow } from "./snapshot.js";
 
@@ -31,6 +33,19 @@ import { SNAP_ROWS, byChain, editNow, liveNow } from "./snapshot.js";
 const AUTO = MODES.filter((m) => m.value === "auto").map((m) => ({ v: m.value, label: m.label }));
 
 /**
+ * Engine name `name` on catalog key `key` as a list shows it: its plain leaf in Simplified, else the name itself.
+ *
+ * @param {string} key
+ * @param {string} name
+ * @returns {string}
+ */
+export function plainName(key, name) {
+  if (!plainNames.value) return name;
+  const [o] = decorateOptions([{ label: name }], schema[key].plainNames ?? "");
+  return "display" in o ? o.display : name;
+}
+
+/**
  * A list row's text for enum ID `v` on catalog key `key`: the option's plain leaf in Simplified, else its engine name;
  * the ID itself where no option holds it.
  *
@@ -40,9 +55,7 @@ const AUTO = MODES.filter((m) => m.value === "auto").map((m) => ({ v: m.value, l
  */
 function listText(key, v) {
   const name = rawOptions(key).find((o) => String(o.value) === v)?.label;
-  if (!name) return v;
-  if (!plainNames.value) return name;
-  return listOptions(key).find((o) => o.v === name)?.leaf ?? name;
+  return name ? plainName(key, name) : v;
 }
 
 /**

@@ -28,7 +28,7 @@ import {
   livePresetsBusy,
   livePresetError,
 } from "../../../../hqptuner/static/store/live/presets.js";
-import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
+import { unfolded, snapshotTip } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
@@ -200,6 +200,44 @@ test("test_tapping_a_snapshot_under_the_loaded_station_applies_it", async () => 
 test("test_tapping_a_snapshot_under_another_station_applies_nothing", async () => {
   await tap("snapshot", "Quiet");
   assert.equal(sent("POST", "/api/livepresets/").length, 0);
+});
+
+test("test_a_snapshot_button_under_the_loaded_station_applies_that_snapshot", async () => {
+  const { seen } = renderTree(html`<${Header} />`);
+  const hit = seen.find((v) => v.type === "button" && v.props["data-testid"] === "snapshot" && textOf(v) === "Warm");
+  const onClick = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
+  if (typeof onClick === "function") await onClick();
+  assert.deepEqual(
+    sent("POST", "/api/livepresets/").map((c) => c.path),
+    ["/api/livepresets/Warm/apply"],
+  );
+});
+
+test("test_only_the_loaded_station_snapshots_are_buttons", () => {
+  const rows = marked("snapshot");
+  assert.deepEqual(
+    ["Warm", "Quiet"].map((n) => rows.filter((e) => text(e) === n).map((e) => e.name === "button")),
+    [[true], [false]],
+  );
+});
+
+test("test_each_snapshot_row_is_titled_with_its_own_records_tip", () => {
+  const warm = { chain: "pcm", fields: { mode: "pcm" }, names: {} };
+  const quiet = { chain: "sdm", fields: { mode: "sdm" }, names: {} };
+  liveBook.value = { Day: { Warm: warm }, Night: { Quiet: quiet } };
+  const { seen } = renderTree(html`<${Header} />`);
+  const titles = seen
+    .filter((v) => v.props["data-testid"] === "snapshot")
+    .map((v) => [textOf(v), v.props.title])
+    .sort(([a], [b]) => String(a).localeCompare(String(b)));
+  assert.deepEqual(titles, [
+    ["Quiet", snapshotTip(quiet)],
+    ["Warm", snapshotTip(warm)],
+  ]);
+});
+
+test("test_every_station_name_is_a_button", () => {
+  assert.deepEqual([...new Set(marked("station-name").map((e) => e.name))], ["button"]);
 });
 
 test("test_a_folded_station_hides_its_snapshots", () => {

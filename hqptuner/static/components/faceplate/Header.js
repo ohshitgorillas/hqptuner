@@ -6,7 +6,7 @@
 
 import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
-import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
+import { stationTree, toggleStation, snapshotTip } from "../../store/faceplate/stations.js";
 import { body, showBody, openPopover, plate } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
@@ -127,16 +127,30 @@ function park(panel) {
 }
 
 /**
- * A snapshot's row. Under the loaded station a tap applies it; under any other it waits for that station to load.
+ * A snapshot's row, titled with what it holds. Under the loaded station it is a button whose tap applies it; under any
+ * other it waits for that station to load.
  *
  * @param {Station} st
- * @param {{ name: string }} sn
+ * @param {Station["snapshots"][number]} sn
  */
-const snapshotRow = (st, sn) => html`
-  <div class="srow" data-testid="snapshot" onClick=${st.active ? () => applyLivePreset(sn.name) : undefined}>
-    <span class="pn">${sn.name}</span>
-  </div>
-`;
+const snapshotRow = (st, sn) =>
+  st.active
+    ? html`
+        <button
+          type="button"
+          class="srow"
+          data-testid="snapshot"
+          title=${snapshotTip(sn.rec)}
+          onClick=${() => applyLivePreset(sn.name)}
+        >
+          <span class="pn">${sn.name}</span>
+        </button>
+      `
+    : html`
+        <div class="srow" data-testid="snapshot" title=${snapshotTip(sn.rec)}>
+          <span class="pn">${sn.name}</span>
+        </div>
+      `;
 
 /**
  * A station's snapshots, shown while it is unfolded.
@@ -170,7 +184,9 @@ function stationRows(st) {
       >
         ${st.open ? "▾" : "▸"}
       </button>
-      <span class="pn" data-testid="station-name" onClick=${() => loadPreset(st.name)}>${st.name}</span>
+      <button type="button" class="pn" data-testid="station-name" onClick=${() => loadPreset(st.name)}>
+        ${st.name}
+      </button>
       ${st.active ? html`<span class="lamp on"></span>` : html`<span class="rs">↻ restart</span>`}
     </div>
     ${has ? snapshotGroup(st) : null}
