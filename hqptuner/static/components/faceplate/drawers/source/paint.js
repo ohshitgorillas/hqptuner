@@ -1,7 +1,9 @@
 // The Source meter's two canvases, painted outside preact's render, each by a signals effect of its own. The
 // spectrogram scrolls: a slice closing moves the painted pixels left by the columns its playback covers and paints only
 // those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of channel, range, window or the
-// source's geometry repaints it whole. The apodizing strip repaints when its events or the window change. Colours
+// source's geometry repaints it whole. The apodizing strip repaints when its events or the window change. Neither is
+// painted while the Source drawer is closed, nor subscribed to what it paints, and reopening the drawer repaints the
+// spectrogram whole. Colours
 // come from the stylesheet's tokens, read once on mount: the spectrogram's --spec-* ramp, the glass where no slice
 // lies, and the strip's events from the glass toward --bad.
 
@@ -11,6 +13,7 @@ import { H, W, rasterize, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp, rampLut } from "../../../../model/gauges/meter-plot.js";
 import { apodVisibleBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
+import { openStage } from "../../../../store/faceplate/view.js";
 import { spectrogramCells, spectrogramEnd } from "../../../../store/meter/spectrogram.js";
 
 /** @typedef {[number, number, number]} Triple */
@@ -22,6 +25,9 @@ import { spectrogramCells, spectrogramEnd } from "../../../../store/meter/spectr
 export const SPEC_SIZE = { width: W, height: H };
 
 const OPAQUE = 255;
+
+/** The rail stage whose drawer holds both canvases. */
+const STAGE = "source";
 
 /**
  * A colour token's value as [r, g, b], or `fallback` when it is not a hex colour.
@@ -125,7 +131,7 @@ function paintStrip(canvas, colours, span) {
 }
 
 /**
- * Keep both canvases painted while they are mounted.
+ * Keep both canvases painted while they are mounted and the Source drawer is open.
  *
  * @param {CanvasRef} spec
  * @param {CanvasRef} strip
@@ -139,6 +145,10 @@ export function useMeterPaint(spec, strip) {
     /** @type {{ key: string, end: number, carry: number } | null} */
     let painted = null;
     const spectrogram = effect(() => {
+      if (openStage.value !== STAGE) {
+        painted = null;
+        return;
+      }
       const view = sourceMeter();
       const cells = spectrogramCells.value;
       const end = spectrogramEnd.value;
@@ -152,7 +162,9 @@ export function useMeterPaint(spec, strip) {
         paintSpectrogram(s, colours, { ...view, cells }, plan.from);
       }
     });
-    const stripe = effect(() => paintStrip(a, colours, sourceMeter().span));
+    const stripe = effect(() => {
+      if (openStage.value === STAGE) paintStrip(a, colours, sourceMeter().span);
+    });
     return () => {
       spectrogram();
       stripe();

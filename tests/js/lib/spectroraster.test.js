@@ -214,6 +214,49 @@ for (const from of [1, 700, W - 1]) {
   });
 }
 
+// Forty cells of one slice each, a tenth of a second and 30 columns apiece, the
+// newest spanning columns 1170 to 1199, as the history hands them over.
+const CELL_COUNT = 40;
+const CELL_MS = SPAN / CELL_COUNT;
+
+/**
+ * The forty cells, each slice its own level, noting in `read` the index of
+ * every cell whose slices are read.
+ *
+ * @param {Set<number>} read
+ */
+function countedCells(read) {
+  return Array.from({ length: CELL_COUNT }, (_, k) => {
+    const slices = [slice((r) => (r + 6 * k) % 256)];
+    return {
+      ms: CELL_MS,
+      nyquist: NYQUIST,
+      get slices() {
+        read.add(k);
+        return slices;
+      },
+    };
+  });
+}
+
+// Columns 1195 to 1199 lie in the newest cell; the one before it is the seam's.
+test("test_a_raster_from_column_W_minus_5_reads_only_the_newest_cell_and_the_one_before_it", () => {
+  /** @type {Set<number>} */
+  const read = new Set();
+  rasterize(STEPS, view(countedCells(read)), W - 5);
+  assert.equal(read.size, 2);
+});
+
+// Column 1170 lies left of the newest slice's centre, so it blends toward the
+// slice before it.
+test("test_a_raster_from_the_newest_cells_first_column_is_the_full_rasters_columns_from_there", () => {
+  const cells = view(countedCells(new Set()));
+  assert.deepEqual(
+    fingerprint(rasterize(STEPS, cells, W - 30)),
+    fingerprint(columnsFrom(rasterize(STEPS, cells), W - 30)),
+  );
+});
+
 const FULL = { full: true, shift: 0, from: 0, carry: 0 };
 
 // A span of W ms makes one column a millisecond, so frame times and carries in

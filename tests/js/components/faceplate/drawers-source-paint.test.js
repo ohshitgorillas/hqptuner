@@ -2,7 +2,8 @@
 // meter's two canvases are painted with as the history grows. The first paint covers the spectrogram's full width; a
 // close that moves the window by whole columns moves the canvas's pixels left by that many and paints only the new
 // columns and the seam column before them; a close too short to move a column paints nothing; a change of range
-// repaints the full width; and no spectrogram close repaints the apodizing strip.
+// repaints the full width; and no spectrogram close repaints the apodizing strip. While the Source drawer is closed
+// neither canvas is painted, and reopening it paints the spectrogram's full width once.
 //
 // The hook is mounted through preact's own client render on a container with no children, since server rendering
 // runs no effects; the render compares its container against the document tests/js/support/domseam.js installs. Effects after paint are run through preact's `options.requestAnimationFrame` seam, which the test
@@ -23,6 +24,7 @@ import assert from "node:assert/strict";
 import { h, options, render } from "preact";
 
 import { SPEC_SIZE, useMeterPaint } from "../../../../hqptuner/static/components/faceplate/drawers/source/paint.js";
+import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import {
   closeMeterFeed,
@@ -137,6 +139,7 @@ function mounted() {
 }
 
 beforeEach(() => {
+  openStage.value = "source";
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");
@@ -199,5 +202,32 @@ test("test_a_spectrogram_close_never_repaints_the_strip", () => {
   const { strip } = mounted();
   frame(200);
   frame(100);
+  assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
+});
+
+test("test_closes_that_would_move_whole_columns_put_nothing_while_the_drawer_is_closed", () => {
+  openStage.value = null;
+  const { spec } = mounted();
+  frame(200);
+  frame(100);
+  assert.deepEqual(spec.puts, []);
+});
+
+test("test_reopening_the_drawer_after_closes_puts_one_full_width_image", () => {
+  const { spec } = mounted();
+  openStage.value = null;
+  frame(200);
+  frame(100);
+  openStage.value = "source";
+  assert.deepEqual(spec.puts, [
+    { x: 0, width: SPEC_SIZE.width },
+    { x: 0, width: SPEC_SIZE.width },
+  ]);
+});
+
+test("test_a_change_of_window_never_repaints_the_strip_while_the_drawer_is_closed", () => {
+  const { strip } = mounted();
+  openStage.value = null;
+  setApodWindow("300");
   assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
 });

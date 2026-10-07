@@ -110,13 +110,16 @@ function rowTable(nyquist, rows, freqs) {
 /**
  * The visible slices laid out along the window, oldest first: each column
  * right-aligned to its bin's slot, its slot divided evenly among its slices.
+ * Only the cells that reach past `after` ms are laid out, and the one before
+ * them, whose last slice the first of them blends toward.
  *
  * @param {Cell[]} cells
  * @param {number} span
  * @param {number[]} freqs
+ * @param {number} after
  * @returns {Span[]}
  */
-function layoutSlices(cells, span, freqs) {
+function layoutSlices(cells, span, freqs, after) {
   /** @type {Span[]} */
   const out = [];
   // One row table per Nyquist and row count, so slices measured alike share it
@@ -124,19 +127,26 @@ function layoutSlices(cells, span, freqs) {
   /** @type {Map<string, Float32Array>} */
   const tables = new Map();
   let at = span - cells.reduce((sum, c) => sum + c.ms, 0);
-  for (const cell of cells) {
-    if (!cell.slices.length) {
-      out.push({ start: at, end: at + cell.ms, levels: null, rows: null });
-    } else {
-      const n = cell.slices[0].length;
-      const key = `${cell.nyquist}:${n}`;
-      const rows = tables.get(key) || rowTable(cell.nyquist, n, freqs);
-      tables.set(key, rows);
-      const w = cell.ms / cell.slices.length;
-      cell.slices.forEach((levels, j) => out.push({ start: at + j * w, end: at + (j + 1) * w, levels, rows }));
-    }
+  const starts = cells.map((cell) => {
+    const start = at;
     at += cell.ms;
-  }
+    return start;
+  });
+  const reach = cells.findIndex((cell, k) => starts[k] + cell.ms > after);
+  const first = reach < 0 ? cells.length : Math.max(0, reach - 1);
+  cells.slice(first).forEach((cell, k) => {
+    const start = starts[first + k];
+    if (!cell.slices.length) {
+      out.push({ start, end: start + cell.ms, levels: null, rows: null });
+      return;
+    }
+    const n = cell.slices[0].length;
+    const key = `${cell.nyquist}:${n}`;
+    const rows = tables.get(key) || rowTable(cell.nyquist, n, freqs);
+    tables.set(key, rows);
+    const w = cell.ms / cell.slices.length;
+    cell.slices.forEach((levels, j) => out.push({ start: start + j * w, end: start + (j + 1) * w, levels, rows }));
+  });
   return out;
 }
 
@@ -186,7 +196,7 @@ function neighbour(slices, i, t) {
 export function rasterize(ramp, { cells, span, range, top }, from = 0) {
   const width = W - from;
   const data = new Uint8ClampedArray(width * H * 4);
-  const slices = layoutSlices(cells, span, rowFreqs(top));
+  const slices = layoutSlices(cells, span, rowFreqs(top), ((from + 0.5) / W) * span);
   /** @param {number} db */
   const color = (db) => ramp[rampIndex(db, range)];
   let i = 0;
