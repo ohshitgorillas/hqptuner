@@ -6,12 +6,14 @@ For the routes answering a ``deps.Snapshot`` the content is its ``data`` member,
 poll pass; for the other three it is the whole body. A body its route would refuse is withheld, and the text held for
 it forgotten, so the next body that route answers goes out however it compares with the last one sent.
 
-The feed recomputes whenever the manager reports an edge (``changed``) and whenever the staging buffer is written, and
-never asks the daemon anything itself. A keepalive interval with nothing to send writes an SSE comment instead, which
-is how a client gone without hanging up is found: the write to its dead socket ends its stream.
+While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``) and whenever the
+staging buffer is written, and never asks the daemon anything itself; with none, it reads nothing. A keepalive interval
+with nothing to send writes an SSE comment instead, which is how a client gone without hanging up is found: the write
+to its dead socket ends its stream.
 
-Each event's text is written once and that same string is queued for every subscriber; a subscriber attaching gets
-every held text at once, in route order. Each queue is bounded and drops its oldest text on overflow, so a stalled
+Each event's text is written once and that same string is queued for every subscriber. A subscriber attaching first
+has the feed recompute, so the subscribers already attached get whatever moved, then gets every held text at once, in
+route order. Each queue is bounded and drops its oldest text on overflow, so a stalled
 client never holds the feed back.
 """
 
@@ -90,8 +92,13 @@ class PushFeed:
         self._loop: asyncio.AbstractEventLoop | None = None
 
     def subscribe(self) -> "asyncio.Queue[str]":
-        """Attach a subscriber; its queue receives every held text at once, in route order."""
+        """Recompute, then attach a subscriber whose queue receives every held text at once, in route order.
+
+        The recompute runs before the new queue is attached, so the subscribers already attached receive whatever
+        moved and the new one receives each event once.
+        """
         queue: asyncio.Queue[str] = asyncio.Queue(maxsize=QUEUE_DEPTH)
+        self.publish()
         for source in self._sources:
             held = self._held.get(source.name)
             if held is not None:
@@ -120,17 +127,24 @@ class PushFeed:
     def poke(self) -> None:
         """Recompute on the feed's own loop, from whatever thread wrote the staging buffer; before ``run``, nothing."""
         if self._loop is not None:
-            self._loop.call_soon_threadsafe(self.publish)
+            self._loop.call_soon_threadsafe(self._publish_watched)
 
     async def run(self, clock: Clock, changed: asyncio.Event) -> None:
-        """Publish now, then again on every edge of ``changed``, writing a keepalive where an interval sent nothing."""
+        """Publish now, then again on every edge of ``changed``, writing a keepalive where an interval sent nothing.
+
+        Each publish here is skipped while the feed has no subscriber.
+        """
         self._loop = asyncio.get_running_loop()
-        self.publish()
+        self._publish_watched()
         while True:
             woke = await clock.pace(changed, KEEPALIVE)
             changed.clear()
-            if not self.publish() and not woke:
+            if not self._publish_watched() and not woke:
                 self._send(KEEPALIVE_TEXT)
+
+    def _publish_watched(self) -> int:
+        """``publish`` while the feed has a subscriber, answering how many were sent; with none, read nothing."""
+        return self.publish() if self._subscribers else 0
 
     def _refresh(self, source: Source) -> bool:
         """Send ``source``'s body where its content moved, and answer whether it did; a route's refusal propagates."""
