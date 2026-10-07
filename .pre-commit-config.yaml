@@ -187,6 +187,15 @@ repos:
         files: ^hqptuner/static/(css/.*\.css|.*\.js)$
         exclude: ^hqptuner/static/vendor/
 
+      # Cross-cutting like css-classes: a producer is JS, its mark is CSS.
+      - id: css-dirty
+        name: css staged-edit mark gate
+        entry: .venv/bin/python scripts/gates/css/check_css_dirty.py
+        language: system
+        pass_filenames: false
+        files: ^hqptuner/static/(css/.*\.css|.*\.js)$
+        exclude: ^hqptuner/static/vendor/
+
       # Cross-cutting: a clone has two ends and either one can move, and the
       # threshold is a whole-tree percentage, so the gate reads the entire
       # source set from .jscpd.json rather than the staged filenames.

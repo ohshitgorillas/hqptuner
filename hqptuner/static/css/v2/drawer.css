@@ -30,7 +30,7 @@
 .amenu .pmrow::before{content:"";width:12px;flex-shrink:0;text-align:center;color:var(--acc)}
 .amenu .pmrow[aria-checked="true"]::before{content:"✓"}
 .dtabs button{position:relative;height:36px;font-size:13.5px;padding:0 16px}
-.dtabs button.dirty::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+.dtabs button.dirty::after,.bandsl[data-dirty]::after{content:"";position:absolute;top:5px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
 .dhead .t{position:relative}
 .dhead .t.dirty::after{content:"";position:absolute;top:2px;right:-10px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
 
@@ -248,7 +248,12 @@
 .cvbar .t{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.18em;text-transform:uppercase;white-space:nowrap;line-height:var(--lh-eng)}
 .cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:11.5px;color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .cvbar .ar{color:var(--ink-2);font-size:12px}
-.cvbar.dirty .t::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
+/* A staged row, device or rate dial dots its row's label; a staged volume box dots its own label. */
+.cvbar.dirty .t::after,
+.drow[data-dirty] > .ctl > .fh > b::after,
+.drow > .ctl > .fh:has(~ .devpick[data-dirty]) > b::after,
+.drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
+.vrbox:has(> input.vfd[data-dirty]) > .cl::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
 /* Rules between rows, not after the last visible one (the FFT row may be the hidden last child). */
 .cvpanel .cvrow{border-bottom:0;border-top:1px solid var(--row-rule)}
 .cvpanel .cvrow:first-child{border-top:0}

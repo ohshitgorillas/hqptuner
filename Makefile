@@ -53,6 +53,7 @@ lint-js:
 	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py
 	$(VENV)/python scripts/gates/css/check_css_dead.py
+	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
 # The coverage floor is per file and lives in the gate below, not in
