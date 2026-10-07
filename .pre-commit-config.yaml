@@ -1,4 +1,6 @@
 default_install_hook_types: [pre-commit, commit-msg]
+# The mockup is a sketch, not product: no gate reads it.
+exclude: ^mockup/
 
 repos:
   - repo: local
@@ -155,13 +157,13 @@ repos:
         name: css design-token gate
         entry: .venv/bin/python scripts/gates/css/check_css_tokens.py
         language: system
-        files: ^(hqptuner/static/css|mockup/styles)/.*\.css$
+        files: ^hqptuner/static/css/.*\.css$
 
       - id: css-cards
         name: css one-card-component gate
         entry: .venv/bin/python scripts/gates/css/check_css_cards.py
         language: system
-        files: ^(hqptuner/static/css|mockup/styles)/.*\.css$
+        files: ^hqptuner/static/css/.*\.css$
 
       # Cross-cutting: a class is a string on the JS side and a selector on the
       # CSS side, so the gate has to run when EITHER side moves.

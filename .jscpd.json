@@ -1,5 +1,5 @@
 {
-  "path": ["hqptuner", "mockup", "scripts", "tests"],
+  "path": ["hqptuner", "scripts", "tests"],
   "format": ["python", "javascript", "css"],
   "ignore": ["hqptuner/static/vendor/**", "**/node_modules/**", "**/*.mjs"],
   "minTokens": 50,

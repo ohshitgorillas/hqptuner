@@ -12,8 +12,8 @@ lint:
 	$(VENV)/python scripts/gates/testing/check_test_assertions.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_test_clocks.py $$(git ls-files 'tests/*.py')
 	$(VENV)/python scripts/gates/testing/check_no_copy_assertions.py $$(git ls-files 'tests/*.py')
-	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/')
-	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
+	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.md' | grep -v 'static/vendor/' | grep -v '^mockup/')
+	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/' | grep -v '^mockup/')
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
@@ -44,13 +44,13 @@ lint:
 # exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
 lint-js:
 	npx eslint .
-	npx prettier --check "hqptuner/static/**/*.js" "mockup/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
+	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" "scripts/**/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx tsc -p tsconfig.node.json
 	npx knip
 	npx jscpd
-	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css' 'mockup/styles/*.css')
-	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css' 'mockup/styles/*.css')
+	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
+	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py
 	$(VENV)/python scripts/gates/css/check_css_dead.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
@@ -95,6 +95,7 @@ test-js:
 	node --experimental-test-coverage \
 	  --test-coverage-exclude='tests/**' \
 	  --test-coverage-exclude='**/vendor/**' \
+	  --test-coverage-exclude='mockup/**' \
 	  --test-coverage-lines=95 \
 	  --test-coverage-branches=90 \
 	  --test-coverage-functions=85 \

@@ -8,7 +8,7 @@
     "tests/js/support/vendor-resolve.js"
   ],
   "project": ["hqptuner/static/**/*.js", "mockup/scripts/**/*.js", "scripts/eqstage/**/*.js", "tests/js/**/*.js"],
-  "ignore": ["hqptuner/static/vendor/**"],
+  "ignore": ["hqptuner/static/vendor/**", "mockup/**"],
   "ignoreDependencies": ["prettier", "jscpd"],
   "exclude": ["unlisted", "binaries"]
 }

@@ -161,6 +161,8 @@ export default [
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
       "**/*.mjs",
+      // The mockup is a sketch, not product: no gate reads it.
+      "mockup/**",
     ],
   },
   js.configs.recommended,
@@ -209,23 +211,9 @@ export default [
   {
     // Production JS: the served frontend, the eqstage node CLI and the local
     // eslint rules. tests/js is deliberately absent.
-    files: ["hqptuner/static/**/*.js", "mockup/scripts/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
+    files: ["hqptuner/static/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
     plugins: { jsdoc },
     rules: JSDOC_RULES,
-  },
-  {
-    // The v2 mockup: plain DOM code under the same rule set as the served
-    // frontend.
-    files: ["mockup/scripts/**/*.js"],
-    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
-    plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
-    rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
-  },
-  {
-    // mockup/scripts/model is what v2 lifts as it stands, so it reaches no
-    // module that touches the DOM.
-    files: ["mockup/scripts/model/**/*.js"],
-    rules: noUp(["**/lib/*.js", "**/lib/**/*.js", "**/app/*.js", ...ABOVE.components, "**/main.js"], LAYER_MSG),
   },
   // --- the layering contract ---------------------------------------------
   {
