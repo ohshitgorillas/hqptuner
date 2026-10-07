@@ -122,10 +122,10 @@ button.vfd.cplate{height:52px;padding:5px 12px 4px;display:grid;grid-template-co
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:28px}
 .cplate:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .cpf{display:flex;align-items:baseline;gap:7px;min-width:0;white-space:nowrap;overflow:hidden;line-height:var(--lh-text)}
-.cpfam{flex-shrink:0;font:600 14px var(--f-body);color:var(--ink)}
-.cpsep{flex-shrink:0;font-size:13px;color:var(--ink-2)}
-.cpvar{min-width:0;font:500 14px var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
-.cpl{font:500 15px var(--f-body);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
+.cpfam{flex-shrink:0;font:600 var(--fs-face) var(--f-body);color:var(--ink)}
+.cpsep{flex-shrink:0;font-size:var(--fs-face-sep);color:var(--ink-2)}
+.cpvar{min-width:0;font:500 var(--fs-face) var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+.cpl{font:500 var(--fs-face-leaf) var(--f-body);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
 .cplate.dim .cpl{color:var(--ink-2)}
 /* A name with no family line spans both rows, so it sits centered in the plate. */
 .cplate>.cpl:only-child{grid-row:1/-1}

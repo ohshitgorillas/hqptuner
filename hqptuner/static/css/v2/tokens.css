@@ -149,6 +149,10 @@
   /* Small-print roles, one size each. */
   --fs-cl:12px;            /* control label beside or above a box or segment */
   --fs-u:11.5px;           /* unit after a value */
+  /* Nameplate face (NameFace.js), one size per line on every surface that draws it. */
+  --fs-face:14px;          /* family and variant */
+  --fs-face-sep:13px;      /* separator between family and variant */
+  --fs-face-leaf:15px;     /* leaf line under the family */
 
   /* Blacks, glints and one-off shades */
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */

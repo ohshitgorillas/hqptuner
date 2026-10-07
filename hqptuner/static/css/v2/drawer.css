@@ -50,11 +50,8 @@
 .dpanel>.drow+.begrp,.begrp+.begrp{border-top:1px solid var(--row-rule)}
 .drow .ctl{display:flex;flex-direction:column;gap:7px;min-width:0}
 .drow .ctl>.seg{align-self:flex-start}
-/* A list key's nameplate in place of its select: the page's face a size down, 46px against the select's 40. */
-.drow .ctl>button.vfd.cplate{width:100%;height:46px;padding:4px 28px 3px 12px}
-.drow .cplate .cpfam,.drow .cplate .cpvar{font-size:13px}
-.drow .cplate .cpsep{font-size:12px}
-.drow .cplate .cpl{font-size:14px}
+/* A list key's nameplate in place of its select: the page's face at the page plate's 52px. */
+.drow .ctl>button.vfd.cplate{width:100%;height:52px;padding:4px 28px 3px 12px}
 .drow .seg button{height:36px;font-size:13px;padding:0 12px;white-space:nowrap}
 .drow .man{padding-top:1px;max-width:none;line-height:1.45}
 
