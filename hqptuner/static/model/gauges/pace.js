@@ -2,7 +2,9 @@
 // second between them; played as they arrive, a meter freezes through each gap and then jumps. pace() keeps the frames
 // in a queue `delay` ms deep and hands out, per call, as much frame time as real time has passed, so the meters move at
 // the music's pace `delay` behind it. A slow trim of at most 2% holds the average depth at the delay, so the browser's
-// clock and the daemon's never drift apart.
+// clock and the daemon's never drift apart. A step later than RESUME_MS is a page coming back from hidden, whose queue
+// ran past what the trim can bring back: it cuts the queue to the delay and hands out nothing, so the meters land on
+// the delay at once rather than at the feed's edge.
 //
 // Pure: the caller owns the queue and the clock, and hands in the real time elapsed.
 
@@ -21,6 +23,8 @@ export const PACE_IDLE = { primed: false, budget: 0, avg: 0, delay: 0 };
 
 // How far past the delay the queue may run before its oldest frames are dropped, ms.
 const CATCHUP_MS = 1000;
+// A step later than this, ms, starts the pacing again at the delay.
+const RESUME_MS = 500;
 // The span the depth is averaged over, ms.
 const AVG_MS = 2000;
 // The depth excess, ms, at which the trim reaches its full TRIM.
@@ -67,7 +71,8 @@ function spend(rest, budget) {
 
 /**
  * Hand out the frame time `dt` ms of real time is worth from `queue`, oldest first, keeping it `delay` ms deep. An
- * emptied queue forgets the budget, so an underrun never turns into a burst later.
+ * emptied queue forgets the budget, so an underrun never turns into a burst later. A `dt` past RESUME_MS cuts the
+ * queue to the delay and hands out nothing.
  *
  * @param {PaceState} state
  * @param {MeterFrame[]} queue  oldest first; left untouched
@@ -79,14 +84,16 @@ export function pace(state, queue, { dt, delay }) {
   /** @type {MeterFrame[]} */
   const dropped = [];
   const full = depth(rest);
-  const buffered = delay < state.delay || full > delay + CATCHUP_MS ? dropTo(rest, dropped, delay) : full;
-  const primed = state.primed && delay <= state.delay;
+  const resumed = dt > RESUME_MS;
+  const cut = resumed || delay < state.delay || full > delay + CATCHUP_MS;
+  const buffered = cut ? dropTo(rest, dropped, delay) : full;
+  const primed = state.primed && delay <= state.delay && !resumed;
   if (!primed && buffered < delay) {
     return { state: { primed: false, budget: 0, avg: state.avg, delay }, out: [], dropped, rest };
   }
   const start = primed ? state : { budget: 0, avg: buffered };
   const avg = start.avg + (buffered - start.avg) * Math.min(1, dt / AVG_MS);
   const trim = 1 + Math.max(-TRIM, Math.min(TRIM, (avg - delay) / TRIM_SPAN_MS));
-  const { out, budget } = spend(rest, start.budget + dt * trim);
+  const { out, budget } = spend(rest, resumed ? 0 : start.budget + dt * trim);
   return { state: { primed: true, budget, avg, delay }, out, dropped, rest };
 }

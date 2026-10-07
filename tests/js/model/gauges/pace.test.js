@@ -75,6 +75,20 @@ const firstN = (n) => Array.from({ length: n }, (_, i) => i);
  */
 const last = (steps) => steps[steps.length - 1];
 
+/**
+ * How many frames a step handed out, and whether what it left queued holds at least `delay` ms and less than one more
+ * `ms` frame on top of it.
+ *
+ * @param {Step} step
+ * @param {number} delay
+ * @param {number} ms
+ * @returns {{ out: number, cut: boolean }}
+ */
+function cut(step, delay, ms) {
+  const held = step.rest.reduce((sum, f) => sum + f.ms, 0);
+  return { out: step.out.length, cut: held >= delay && held < delay + ms };
+}
+
 test("ten frames under a 250 ms delay all stay queued", () => {
   const step = last(run([{ add: 10, dt: STEP_DT, delay: 250 }]));
   assert.equal(step.rest.length, 10);
@@ -130,4 +144,24 @@ test("a step that empties the queue leaves no budget, so frames after an underru
     ]),
   );
   assert.equal(step.out.length, 3);
+});
+
+test("a 30 s step over 6.5 s of queued 16 ms frames hands out nothing and drops the oldest down to the delay", () => {
+  const step = last(
+    run([
+      { add: 32, ms: 16, dt: STEP_DT, delay: 500 },
+      { add: 376, ms: 16, dt: 30000, delay: 500 },
+    ]),
+  );
+  assert.deepEqual(cut(step, 500, 16), { out: 0, cut: true });
+});
+
+test("a 1 s step over 500 ms queued and 62 newly arrived 16 ms frames hands out nothing and drops down to the delay", () => {
+  const step = last(
+    run([
+      { add: 53, ms: 10, dt: STEP_DT, delay: 500 },
+      { add: 62, ms: 16, dt: 1000, delay: 500 },
+    ]),
+  );
+  assert.deepEqual(cut(step, 500, 16), { out: 0, cut: true });
 });
