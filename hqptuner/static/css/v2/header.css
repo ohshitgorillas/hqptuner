@@ -1,34 +1,34 @@
 /* Header row (connection knob, mark, Station · Snapshot tree trigger, builders, gear) and engine row (gauge, buffers, counters, volume). */
-.hdr{height:42px;flex-shrink:0;display:flex;align-items:center;gap:10px}
-.mark{font-family:var(--f-eng);font-weight:700;font-size:26px;letter-spacing:.14em;color:var(--ink);text-shadow:0 1px 0 var(--shade),0 -1px 0 var(--highlight);line-height:var(--lh-eng)}
-.ver{font-size:12px;color:var(--ink-2);margin-left:-6px;align-self:flex-end;padding-bottom:6px}
+.hdr{height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;gap:var(--sp-5)}
+.mark{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-mark);letter-spacing:var(--ls-2);color:var(--ink);text-shadow:var(--engrave),0 calc(-1 * var(--hair)) 0 var(--highlight);line-height:var(--lh-eng)}
+.ver{font-size:var(--fs-3);color:var(--ink-2);margin-left:calc(-1 * var(--sp-3));align-self:flex-end;padding-bottom:var(--sp-3)}
 /* Brand knob = connection lamp: v1's knob glyph (ring + pointer) on a raised round face, its ring the
    light. ok: green ring, pointer at v1's 45°; busy (applying): amber ring, pointer sweeping; lost (unreachable): red ring,
    pointer turned down to off. Semantic colours (lamps), never the accent. Tap → connection settings. */
-.conn{width:38px;height:38px;flex-shrink:0;padding:0;border-radius:50%;border:1px solid var(--line-2);background:var(--raised);box-shadow:var(--raised-shadow);cursor:pointer;display:grid;place-items:center;margin-right:2px}
-.conn svg{width:30px;height:30px;overflow:visible}
+.conn{width:var(--ctl-h-hdr);height:var(--ctl-h-hdr);flex-shrink:0;padding:0;border-radius:var(--r-round);border:var(--hair) solid var(--line-2);background:var(--raised);box-shadow:var(--raised-shadow);cursor:pointer;display:grid;place-items:center;margin-right:var(--sp-1)}
+.conn svg{width:var(--knob-glyph);height:var(--knob-glyph);overflow:visible}
 .conn .ring{fill:var(--glass);stroke:var(--lamp-off);stroke-width:2.5}
-.conn .ptr{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;transform-origin:16px 16px;transform:rotate(45deg);transition:transform var(--knob-turn)}
+.conn .ptr{stroke:var(--ink);stroke-width:2.5;stroke-linecap:round;transform-origin:center;transform:rotate(45deg);transition:transform var(--knob-turn)}
 .conn .hub{fill:var(--ink)}
-.conn[data-state="ok"] .ring{stroke:var(--ok);filter:drop-shadow(0 0 3px var(--ok))}
-.conn[data-state="busy"] .ring{stroke:var(--busy);filter:drop-shadow(0 0 3px var(--busy))}
+.conn[data-state="ok"] .ring{stroke:var(--ok);filter:drop-shadow(0 0 var(--sp-1) var(--ok))}
+.conn[data-state="busy"] .ring{stroke:var(--busy);filter:drop-shadow(0 0 var(--sp-1) var(--busy))}
 .conn[data-state="busy"] .ptr{animation:conn-sweep var(--knob-sweep)}
-.conn[data-state="lost"] .ring{stroke:var(--bad);filter:drop-shadow(0 0 3px var(--bad))}
+.conn[data-state="lost"] .ring{stroke:var(--bad);filter:drop-shadow(0 0 var(--sp-1) var(--bad))}
 .conn[data-state="lost"] .ptr{transform:rotate(-135deg);stroke:var(--ink-2)}
-.conn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.conn:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
 @keyframes conn-sweep{from{transform:rotate(45deg)}to{transform:rotate(405deg)}}
 @media (prefers-reduced-motion:reduce){.conn .ptr{transition:none}.conn[data-state="busy"] .ptr{animation:none}}
 
 /* Station · Snapshot: label + tree trigger. Positioned so the tree popover can anchor to the trigger. */
-.station{display:flex;align-items:center;gap:10px;position:relative;flex:1 1 auto;min-width:0;margin-left:14px}
-button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;padding:0 12px}
-.tree .v{font-size:14px}
+.station{display:flex;align-items:center;gap:var(--sp-5);position:relative;flex:1 1 auto;min-width:0;margin-left:var(--sp-7)}
+button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hdr);flex-direction:row;align-items:center;justify-content:space-between;cursor:pointer;text-align:left;padding:0 var(--sp-6)}
+.tree .v{font-size:var(--fs-5)}
 .tree .sep,.tree .ar{color:var(--acc-dim)}
-.tree .ar{font-size:11px}
+.tree .ar{font-size:var(--fs-2)}
 
 /* Engine row */
-.engine{height:50px;flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 6px}
-.gauge{display:flex;align-items:center;gap:10px}
+.engine{height:var(--engine-h);flex-shrink:0;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 var(--sp-3)}
+.gauge{display:flex;align-items:center;gap:var(--sp-5)}
 .gauge .trk{stroke:var(--lamp-off)}
 .gauge .z-bad{stroke:var(--bad)}
 .gauge .z-warn{stroke:var(--warn)}
@@ -36,34 +36,34 @@ button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-
 .gauge .ndl{stroke:var(--ink)}
 .gauge .hub{fill:var(--ink)}
 .readout{display:flex;flex-direction:column}
-.gauge .val{font-size:17px;line-height:1;color:var(--ink-2)}
+.gauge .val{font-size:var(--fs-gauge);line-height:1;color:var(--ink-2)}
 /* Zones (main.js zone()): the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colours,
    never the accent; no zone (nothing playing) = neutral ink. */
 [data-zone="bad"]{--z:var(--bad)} [data-zone="warn"]{--z:var(--warn)} [data-zone="ok"]{--z:var(--ok)}
 .gauge .val[data-zone]:not([data-zone=""]){color:var(--z)}   /* gauge 62×34 (smaller) */
 
-.meters{display:flex;flex-direction:column;gap:5px}
-.meter{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--ink-2)}
-.meter .ml{width:76px}
-.meter .bar{display:block;flex-shrink:0;width:72px;height:8px;background:var(--glass);border:1px solid var(--shade);border-radius:2px;box-shadow:inset 0 1px 3px var(--shade);overflow:hidden}
+.meters{display:flex;flex-direction:column;gap:var(--sp-2)}
+.meter{display:flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-2);color:var(--ink-2)}
+.meter .ml{width:var(--meter-l-w)}
+.meter .bar{display:block;flex-shrink:0;width:var(--meter-w);height:var(--meter-h);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade);overflow:hidden}
 .meter .fill{display:block;height:100%;background:linear-gradient(90deg,color-mix(in srgb,var(--z,var(--ink-3)) 47%,var(--shade)),var(--z,var(--ink-3)))}
-.meter .mv{width:34px;text-align:right;font-family:var(--f-mono);color:var(--z,var(--ink-2));line-height:var(--lh-text)}
+.meter .mv{width:var(--meter-v-w);text-align:right;font-family:var(--f-mono);color:var(--z,var(--ink-2));line-height:var(--lh-text)}
 
 /* Event counter: big lamp, its name centred beside it, then the counts stacked to the right:
    "N this track" over "M total". */
-.counter{display:flex;align-items:center;gap:10px}
+.counter{display:flex;align-items:center;gap:var(--sp-5)}
 .counter .eng{color:var(--ink)}
-.counter .cnts{display:flex;flex-direction:column;gap:1px;margin-left:2px}
+.counter .cnts{display:flex;flex-direction:column;gap:0;margin-left:var(--sp-1)}
 .counter .cnts .cnt{line-height:1.25}
 
 /* Volume: the engine row's one control. Hairline sets it apart from the readouts; ends flush with the page's right edge.
    Readout = labelled VFD window (same pattern as Output's Rate); tapping it opens the slider popover. */
-.volc{display:flex;align-items:center;gap:6px;padding-left:14px;border-left:1px solid var(--line);height:40px}
-.volc .round{width:38px;height:38px}
+.volc{display:flex;align-items:center;gap:var(--sp-3);padding-left:var(--sp-7);border-left:var(--hair) solid var(--line);height:var(--ctl-h)}
+.volc .round{width:var(--ctl-h-hdr);height:var(--ctl-h-hdr)}
 .volc .round:disabled{color:var(--ink-4);cursor:default}
-.volrd{width:104px;height:40px;cursor:pointer;text-align:left;align-items:flex-start}
-.volrd{gap:2px}
-.volrd .v{font-size:15px;line-height:1.1}
+.volrd{width:var(--volrd-w);height:var(--ctl-h);cursor:pointer;text-align:left;align-items:flex-start}
+.volrd{gap:var(--sp-1)}
+.volrd .v{font-size:var(--fs-6);line-height:1.1}
 .volrd[aria-expanded="true"]{border-color:var(--acc-dim)}
 
 /* Alerts (alerts.js) on the header homes: the knob's ring, the gear's glyph, the speed figure
@@ -71,16 +71,16 @@ button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-
    (Unreachable). A home with an alert takes taps (popover). */
 .conn[data-alert="crit"] .ring{animation:al-ring-crit var(--blink)}
 .conn[data-alert="warn"] .ring{animation:al-ring-warn var(--blink)}
-@keyframes al-ring-crit{0%{stroke:var(--bad);filter:drop-shadow(0 0 4px var(--bad))}50%{stroke:var(--lamp-off);filter:none}}
-@keyframes al-ring-warn{0%{stroke:var(--warn);filter:drop-shadow(0 0 4px var(--warn))}50%{stroke:var(--lamp-off);filter:none}}
+@keyframes al-ring-crit{0%{stroke:var(--bad);filter:drop-shadow(0 0 var(--sp-2) var(--bad))}50%{stroke:var(--lamp-off);filter:none}}
+@keyframes al-ring-warn{0%{stroke:var(--warn);filter:drop-shadow(0 0 var(--sp-2) var(--warn))}50%{stroke:var(--lamp-off);filter:none}}
 .gear[data-alert="crit"]{animation:al-ink-crit var(--blink)}
 .gear[data-alert="warn"]{animation:al-ink-warn var(--blink)}
 .gauge[data-alert="crit"] .val{animation:al-ink-crit var(--blink)}
 .gauge[data-alert="warn"] .val{animation:al-ink-warn var(--blink)}
-@keyframes al-ink-crit{0%{color:var(--bad);text-shadow:0 0 6px var(--bad)}50%{color:var(--ink-2);text-shadow:none}}
-@keyframes al-ink-warn{0%{color:var(--warn);text-shadow:0 0 6px var(--warn)}50%{color:var(--ink-2);text-shadow:none}}
+@keyframes al-ink-crit{0%{color:var(--bad);text-shadow:0 0 var(--sp-3) var(--bad)}50%{color:var(--ink-2);text-shadow:none}}
+@keyframes al-ink-warn{0%{color:var(--warn);text-shadow:0 0 var(--sp-3) var(--warn)}50%{color:var(--ink-2);text-shadow:none}}
 .gauge[data-alert]{cursor:pointer}
-.gauge[data-alert]:focus-visible{outline:2px solid var(--acc);outline-offset:4px;border-radius:4px}
+.gauge[data-alert]:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-2);border-radius:var(--r-2)}
 @media (prefers-reduced-motion:reduce){
   .conn[data-alert] .ring,.gear[data-alert],.gauge[data-alert] .val{animation:none}
   .conn[data-alert="crit"] .ring{animation:al-ring-crit var(--blink-slow)}   /* steady red = Unreachable: keep a slow blink */
@@ -89,19 +89,19 @@ button.tree{flex:1 1 230px;min-width:230px;height:38px;flex-direction:row;align-
 }
 
 /* Buffer bars take part of the spare width the larger displays give the engine row (lib/plate.js SIZES). */
-.plate[data-size="11"] .meter .bar{width:130px}
-.plate[data-size="13"] .meter .bar{width:240px}
+.plate[data-size="11"] .meter .bar{width:var(--meter-w-11)}
+.plate[data-size="13"] .meter .bar{width:var(--meter-w-13)}
 
 /* Connection panel (components/faceplate/ConnPanel.js): a sheet from the body's top (set inline) to the plate's foot, v1's
    fields in one column. Text fields are the builders' name windows, radios `.chk`, prose `.man`. */
 .csheet{bottom:0}
-.cbody{flex-grow:1;min-height:0;display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding:16px 22px}
-.cbody .bname{width:320px}
+.cbody{flex-grow:1;min-height:0;display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-6);padding:var(--sp-7) var(--sp-9)}
+.cbody .bname{width:var(--name-w)}
 .cbody .bnin::placeholder{color:var(--ink-2);opacity:1}
 .cbody a{color:var(--acc)}
-.crow{display:flex;align-items:center;gap:10px}
-.copts{margin:0;padding:0 0 0 18px;display:flex;flex-direction:column;gap:4px}
+.crow{display:flex;align-items:center;gap:var(--sp-5)}
+.copts{margin:0;padding:0 0 0 var(--sp-8);display:flex;flex-direction:column;gap:var(--sp-2)}
 .cfill{border:0;background:none;padding:0;font-family:var(--f-body);font-size:inherit;line-height:inherit;color:var(--acc);text-decoration:underline;cursor:pointer}
-.cfill:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
-.crem{display:flex;gap:18px}
-.cbtns{display:flex;gap:10px}
+.cfill:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
+.crem{display:flex;gap:var(--sp-8)}
+.cbtns{display:flex;gap:var(--sp-5)}

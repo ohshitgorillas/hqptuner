@@ -1,24 +1,24 @@
 /* Page frame, plate, and type utilities. */
 html,body{height:100%}
 [hidden]{display:none!important}
-body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:13px;overflow:hidden;line-height:var(--lh-text)}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:var(--fs-4);overflow:hidden;line-height:var(--lh-text)}
 /* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
 button,input,select,textarea{line-height:inherit}
 
 /* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: at exactly 1080×810 it renders 1:1. */
 #stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
-.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(14px + env(safe-area-inset-top)) 22px 0;display:flex;flex-direction:column;
-  background:var(--plate-face);border:1px solid var(--edge);border-radius:10px;
-  box-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);transform-origin:center;font-variant-numeric:tabular-nums;transition:opacity var(--fade)}
+.plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(var(--sp-7) + env(safe-area-inset-top)) var(--sp-9) 0;display:flex;flex-direction:column;
+  background:var(--plate-face);border:var(--hair) solid var(--edge);border-radius:var(--r-plate);
+  box-shadow:var(--plate-shadow);transform-origin:center;font-variant-numeric:tabular-nums;transition:opacity var(--fade)}
 /* The engine is down for a restart: the plate dims and every control stays live. */
-.plate[data-restarting]{opacity:.6}
-.rule{height:1px;background:var(--line);flex-shrink:0}
+.plate[data-restarting]{opacity:var(--op-2)}
+.rule{height:var(--hair);background:var(--line);flex-shrink:0}
 
 /* Engraved legend text. */
-.eng{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);text-shadow:0 1px 0 var(--shade);white-space:nowrap;line-height:var(--lh-eng)}
+.eng{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);text-shadow:var(--engrave);white-space:nowrap;line-height:var(--lh-eng)}
 .mono{font-family:var(--f-mono);line-height:var(--lh-text)}
 .acc{color:var(--acc)}
-.cnt{font-family:var(--f-mono);font-size:11px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.cnt{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 .grow{flex-grow:1}
 
-select.vfd:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+select.vfd:focus-visible,button:focus-visible,input:focus-visible,summary:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}

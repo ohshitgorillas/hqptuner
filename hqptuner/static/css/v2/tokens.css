@@ -146,13 +146,79 @@
      sets its line height or inherits one. */
   --lh-eng:1.575;          /* Saira Extra Condensed */
   --lh-text:1.3;           /* IBM Plex Sans and Mono */
+  /* Font-size scale. A size between two steps takes the lower one. */
+  --fs-1:10px; --fs-2:11px; --fs-3:12px; --fs-4:13px; --fs-5:14px; --fs-6:15px;
   /* Small-print roles, one size each. */
-  --fs-cl:12px;            /* control label beside or above a box or segment */
-  --fs-u:11.5px;           /* unit after a value */
+  --fs-cl:var(--fs-3);     /* control label beside or above a box or segment */
+  --fs-u:var(--fs-2);      /* unit after a value */
   /* Nameplate face (NameFace.js), one size per line on every surface that draws it. */
-  --fs-face:14px;          /* family and variant */
-  --fs-face-sep:13px;      /* separator between family and variant */
-  --fs-face-leaf:15px;     /* leaf line under the family */
+  --fs-face:var(--fs-5);       /* family and variant */
+  --fs-face-sep:var(--fs-4);   /* separator between family and variant */
+  --fs-face-leaf:var(--fs-6);  /* leaf line under the family */
+  /* Sizes above the scale, one per role. */
+  --fs-mark:26px;          /* the HQPTUNER mark */
+  --fs-gauge:17px;         /* the process-speed figure */
+  --fs-vol:18px;           /* the volume bar's readout */
+  --fs-title:16px;         /* a sheet or bar title */
+  --fs-glyph:20px;         /* the glyph on a round key: volume ±, drawer close */
+  /* Weights */
+  --fw-regular:400; --fw-medium:500; --fw-semi:600; --fw-bold:700;
+  /* Letter-spacing of uppercase lettering: a step between two takes the lower one. */
+  --ls-1:.08em; --ls-2:.12em; --ls-3:.16em;
+  --ls-title:.18em;        /* a sheet or bar title */
+
+  /* Spacing scale: gaps, margins, padding, and the offsets and blurs of shadows. A space between two
+     steps takes the lower one. */
+  --sp-1:2px; --sp-2:4px; --sp-3:6px; --sp-4:8px; --sp-5:10px;
+  --sp-6:12px; --sp-7:14px; --sp-8:18px; --sp-9:22px;
+  --hair:1px;              /* hairline borders, rules and offsets */
+  --stroke:2px;            /* a heavy line: focus ring, selection bar, a view pick's foot, the big lamp's bezel */
+  /* Radius */
+  --r-1:2px; --r-2:4px; --r-round:50%;
+  --r-plate:10px;          /* the plate's corners */
+  /* Opacity */
+  --op-1:.4; --op-2:.6;
+
+  /* Control heights */
+  --ctl-h:40px;            /* a control: button, segment, VFD window, round key */
+  --ctl-h-hdr:38px;        /* a header-row control: knob, tree trigger, header button; the engine row's round keys */
+  --ctl-h-sm:34px;         /* popover footer button, the Setting Switcher's target pick */
+  --ctl-h-xs:32px;         /* inline row action */
+  --ctl-h-mini:20px;       /* mini segment */
+  --ctl-h-lg:44px;         /* the volume bar's keys and readout */
+  --legend-h:28px;         /* backlit legend */
+  --tag-h:24px;            /* removable tag */
+  --check:16px;            /* checkbox and radio */
+  --chev:5px;              /* each half of a select's ▾ */
+  --lamp-d:10px;           /* round lamp */
+  --lamp-d-rail:9px;       /* rail stage lamp */
+  --lamp-d-big:15px;       /* bezelled engine-row lamp */
+  --lamp-well:inset 0 1px 2px var(--shade);   /* an unlit lamp's sunken face */
+  /* Rows and their parts */
+  --hdr-h:42px;            /* header row */
+  --engine-h:50px;         /* engine row */
+  --switcher-h:68px;       /* Setting Switcher bar */
+  --slot-h:52px;           /* Setting Switcher slot */
+  --target-w:150px;        /* Setting Switcher target pick */
+  --key-w:46px;            /* the ▾ key at a slot's end */
+  --tree-w:230px;          /* Station · Snapshot tree trigger, least width */
+  --knob-glyph:30px;       /* the brand knob's glyph */
+  --wire-col:14px;         /* the rail's lamp and wire column */
+  --meter-l-w:76px;        /* buffer meter label */
+  --meter-w:72px;          /* buffer bar at 10.2" */
+  --meter-w-11:130px;      /* buffer bar at 11" */
+  --meter-w-13:240px;      /* buffer bar at 13" */
+  --meter-h:8px;           /* buffer bar */
+  --meter-v-w:34px;        /* buffer meter value */
+  --volrd-w:104px;         /* engine-row volume readout */
+  --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout */
+  --range-h:28px;          /* volume bar slider */
+  --num-w:92px;            /* number input */
+  --name-w:320px;          /* connection panel text field */
+  --measure:560px;         /* manual copy block */
+  --measure-lede:640px;    /* lede */
+  --plate-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);
+  --engrave:0 1px 0 var(--shade);              /* engraved lettering */
 
   /* Blacks, glints and one-off shades */
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */

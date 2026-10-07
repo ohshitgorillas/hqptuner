@@ -2,30 +2,30 @@
    Slot = body (tap → goes live; radio) + ▾ end (tap → its picker, any time). Live slot: amber frame +
    amber name; no lamp (enough lamps on the page). Body shows the full simplified name (.v), wrapping to a second
    line rather than truncating. */
-.switcher{height:68px;padding-bottom:4px;box-sizing:border-box;flex-shrink:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:18px}
-.switcher .target{display:flex;flex-direction:column;gap:5px}
+.switcher{height:var(--switcher-h);padding-bottom:var(--sp-2);box-sizing:border-box;flex-shrink:0;display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:var(--sp-8)}
+.switcher .target{display:flex;flex-direction:column;gap:var(--sp-2)}
 .switcher .target .eng{color:var(--ink)}
-.switcher .target button.vfd.vpick{height:34px;line-height:34px;font-size:13px;width:150px}
+.switcher .target button.vfd.vpick{height:var(--ctl-h-sm);line-height:var(--ctl-h-sm);font-size:var(--fs-4);width:var(--target-w)}
 
-.slots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
-.slot{display:flex;height:52px;background:var(--glass);border:1px solid var(--shade);border-radius:5px;box-shadow:var(--well);overflow:hidden}
-.slot.on{border-color:var(--acc);box-shadow:var(--well),0 0 0 1px var(--acc-dim),0 0 10px var(--acc-halo)}
+.slots{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:var(--sp-7)}
+.slot{display:flex;height:var(--slot-h);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);overflow:hidden}
+.slot.on{border-color:var(--acc);box-shadow:var(--well),0 0 0 var(--hair) var(--acc-dim),0 0 var(--sp-5) var(--acc-halo)}
 
-.sbody{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px;padding:0 12px;border:0;background:none;text-align:left;font:inherit;cursor:pointer}
-.sbody .tx{display:flex;flex-direction:column;min-width:0;gap:1px}
-.sbody .v{font-family:var(--f-body);font-size:13px;line-height:var(--lh-text);font-weight:500;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.sbody{flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:var(--sp-6);padding:0 var(--sp-6);border:0;background:none;text-align:left;font:inherit;cursor:pointer}
+.sbody .tx{display:flex;flex-direction:column;min-width:0;gap:0}
+.sbody .v{font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text);font-weight:var(--fw-medium);color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .slot.on .sbody .v{color:var(--acc)}
 .sbody .aka:empty{display:none}
 /* A list target's slot: the nameplate's face (family › variant over the leaf) at the page's sizes. */
-.sbody .sface{flex:1 1 auto;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:1px}
+.sbody .sface{flex:1 1 auto;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
 /* Output mode target (main.js): the two modes spelled out, centred, no ▾. */
 .slot.mode .sbody{justify-content:center}
 .slot.mode .tx{align-items:center;text-align:center}
-.slot.mode .v{font-family:var(--f-eng);font-weight:600;font-size:14px;letter-spacing:.12em;text-transform:uppercase;line-height:var(--lh-eng)}
-.slot.mode .aka{font-family:var(--f-eng);font-weight:500;font-size:12px;letter-spacing:.08em;line-height:var(--lh-eng);color:var(--ink-2)}
-.sbody:focus-visible,.spick:focus-visible{outline:2px solid var(--acc);outline-offset:-3px}
+.slot.mode .v{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;line-height:var(--lh-eng)}
+.slot.mode .aka{font-family:var(--f-eng);font-weight:var(--fw-medium);font-size:var(--fs-3);letter-spacing:var(--ls-1);line-height:var(--lh-eng);color:var(--ink-2)}
+.sbody:focus-visible,.spick:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(-1 * var(--sp-1))}
 
-.spick{flex:0 0 46px;border:0;border-left:1px solid var(--seam);background:var(--key);color:var(--acc-dim);font-size:13px;cursor:pointer}
+.spick{flex:0 0 var(--key-w);border:0;border-left:var(--hair) solid var(--seam);background:var(--key);color:var(--acc-dim);font-size:var(--fs-4);cursor:pointer}
 .slot.on .spick{color:var(--acc)}
 .spick:hover{background:var(--hover)}
 /* Bottom bar (Visual settings): plate[data-bottom] = switcher (default) | volume | none. Volume swaps the Setting Switcher
@@ -36,16 +36,16 @@
 /* Setting Switcher → Volume target: the volume bar takes the slots' place (−, slider + scale, +, readout); the target
    dropdown names it, so no title. The engine-row volume hides meanwhile. */
 .plate[data-sw="volume"] .switcher .slots,.plate[data-sw="volume"] .engine .volc,.plate[data-sw="volume"] .vbar .vbt{display:none}
-.plate[data-sw="volume"] .switcher>.vbar{display:grid;grid-column:2;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:14px;min-width:0}
-.plate[data-sw="volume"] .switcher>.vbar .vbrd{height:44px}
-.vbar .vbt{font-family:var(--f-eng);font-weight:700;font-size:16px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}   /* = .sh .t */
-.vbar .round{width:44px;height:44px}
-.vbsl{display:flex;flex-direction:column;gap:2px;min-width:0;padding-top:12px}
-.vbsl input[type=range]{accent-color:var(--acc);height:28px;margin:0;width:100%}
-.vbsl .scale{position:relative;height:13px;margin:0 7px;font-family:var(--f-mono);font-size:10px;color:var(--ink-2);line-height:var(--lh-text)}
+.plate[data-sw="volume"] .switcher>.vbar{display:grid;grid-column:2;grid-template-columns:auto minmax(0,1fr) auto auto;align-items:center;gap:var(--sp-7);min-width:0}
+.plate[data-sw="volume"] .switcher>.vbar .vbrd{height:var(--ctl-h-lg)}
+.vbar .vbt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}   /* = .sh .t */
+.vbar .round{width:var(--ctl-h-lg);height:var(--ctl-h-lg)}
+.vbsl{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0;padding-top:var(--sp-6)}
+.vbsl input[type=range]{accent-color:var(--acc);height:var(--range-h);margin:0;width:100%}
+.vbsl .scale{position:relative;height:calc(var(--fs-1) * var(--lh-text));margin:0 var(--sp-3);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);line-height:var(--lh-text)}
 .vbsl .scale span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-.vbsl .scale span:first-child{transform:none;margin-left:-7px}
-.vbsl .scale span:last-child{transform:translateX(-100%);margin-left:7px}
-.vbrd{width:112px;height:48px;align-items:flex-end}
-.vbrd .v{font-size:18px}
-.plate[data-bottom="none"]{padding-bottom:12px}   /* the body ends clear of the bezel */
+.vbsl .scale span:first-child{transform:none;margin-left:calc(-1 * var(--sp-3))}
+.vbsl .scale span:last-child{transform:translateX(-100%);margin-left:var(--sp-3)}
+.vbrd{width:var(--vbrd-w);height:var(--vbrd-h);align-items:flex-end}
+.vbrd .v{font-size:var(--fs-vol)}
+.plate[data-bottom="none"]{padding-bottom:var(--sp-6)}   /* the body ends clear of the bezel */

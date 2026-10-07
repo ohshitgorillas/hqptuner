@@ -1,41 +1,41 @@
 /* Signal-chain rail. Every stage always shown; an off stage is its name under an unlit lamp, no value (no graying),
    still tappable. Drawers open only from here. Colour rule: names neutral, values amber (readout).
    Spacing: stages share the rail's height (flex-grow), so the chain fills it and can never push into the Setting Switcher,
-   whatever the fonts measure. No rail note. Minimum padding is small (3px; 2px children; 2px name → value) so the
+   whatever the fonts measure. No rail note. Minimum padding is small (--sp-1; none on children; --sp-1 name → value) so the
    longest chain (a DSD path adds its conversion stage, often on two lines) still fits; spare height is spread by flex.
    Nesting: .sub = child of a top-level stage (only the Matrix engine has any), .sub2 = grandchild (unused; rail.js sets both from data level). */
 .rail{position:relative;display:flex;flex-direction:column;padding-top:0;min-height:0}
-.st{position:relative;z-index:1;display:grid;grid-template-columns:14px minmax(0,1fr);gap:2px 8px;align-items:center;align-content:center;padding:3px 0;flex:1 0 auto;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
-.st .n{font-family:var(--f-eng);font-weight:700;font-size:14px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:6px;line-height:var(--lh-eng)}
-.st .v{grid-column:2;font-family:var(--f-mono);font-size:10.5px;color:var(--acc);overflow:hidden;line-height:var(--lh-text);
+.st{position:relative;z-index:1;display:grid;grid-template-columns:var(--wire-col) minmax(0,1fr);gap:var(--sp-1) var(--sp-4);align-items:center;align-content:center;padding:var(--sp-1) 0;flex:1 0 auto;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
+.st .n{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-3);line-height:var(--lh-eng)}
+.st .v{grid-column:2;font-family:var(--f-mono);font-size:var(--fs-1);color:var(--acc);overflow:hidden;line-height:var(--lh-text);
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}   /* a long value (DAC model) wraps to a second line, never cut off */
-/* A name that wraps (the DSD conversion stage): the lamp sits on its first line, 22px line (14px × --lh-eng). */
-.st.wrap .lamp{align-self:start;margin-top:6.5px}
-.st.sub{padding:1px 0 1px 20px}
+/* A name that wraps (the DSD conversion stage): the lamp sits centred on its first line. */
+.st.wrap .lamp{align-self:start;margin-top:calc((var(--fs-5) * var(--lh-eng) - var(--lamp-d-rail)) / 2)}
+.st.sub{padding:0 0 0 var(--sp-8)}
 .st .v .nb{white-space:nowrap}   /* a value split into parts (store/faceplate/chain.js railBreak) wraps only between them */
 .st .v:empty{display:none}   /* a stage with no value (an unlit one, or a lit one with nothing to name) */
-.st.sub .n{font-size:12.5px;letter-spacing:.12em;font-weight:600}
-.st.sub2{padding-left:40px}
-.st:hover .n{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
+.st.sub .n{font-size:var(--fs-3);letter-spacing:var(--ls-2);font-weight:var(--fw-semi)}
+.st.sub2{padding-left:calc(2 * var(--sp-8))}
+.st:hover .n{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
 
 /* Stage whose drawer is open: amber name + a selection bar on the LEFT edge, outside the wire, in the plate margin
    (selection bars are left-hand everywhere, like the drawers' option rows; a right-edge bar touching
-   the drawer read as a reflection of them). */
+   the drawer read as a reflection of them). The bar is centred in the plate's side padding. */
 .st.open .n{color:var(--acc)}
-.st.open::after{content:"";position:absolute;left:-12px;top:5px;bottom:5px;width:2px;border-radius:1px;background:var(--acc);box-shadow:0 0 6px var(--acc-glow-hi)}
+.st.open::after{content:"";position:absolute;left:calc(var(--sp-9) / -2 - var(--stroke) / 2);top:var(--sp-2);bottom:var(--sp-2);width:var(--stroke);background:var(--acc);box-shadow:0 0 var(--sp-3) var(--acc-glow-hi)}
 /* Two adjacent stages open on one drawer (Resampling + Shaping): their bars join into one, bracketing both. */
 /* Hidden stages between them don't break the join: on DSD → SDM, Remodulator (the dsd stage) sits two hidden children
    (dsda, dsdb) ahead of Rate conversion, and Remodulator · Rate conversion · Shaping is one drawer, one bar. */
-.st.open:is(:has(+ .st.open),:has(+ .st[hidden] + .st.open),:has(+ .st[hidden] + .st[hidden] + .st.open))::after{bottom:0;border-radius:1px 1px 0 0}
-:is(.st.open + .st.open,.st.open + .st[hidden] + .st.open,.st.open + .st[hidden] + .st[hidden] + .st.open)::after{top:0;border-radius:0 0 1px 1px}
+.st.open:is(:has(+ .st.open),:has(+ .st[hidden] + .st.open),:has(+ .st[hidden] + .st[hidden] + .st.open))::after{bottom:0}
+:is(.st.open + .st.open,.st.open + .st[hidden] + .st.open,.st.open + .st[hidden] + .st[hidden] + .st.open)::after{top:0}
 
 /* Stage dots: a touch smaller than header/engine lamps, centred on the wire column. */
-.rail .lamp{width:9px;height:9px;justify-self:center}   /* bigger */
-.rail .lamp.on{box-shadow:0 0 5px var(--ok),inset 0 0 1px var(--glint)}
-.rail .lamp.pause{background:var(--warn);box-shadow:0 0 5px var(--warn),inset 0 0 1px var(--glint)}   /* paused: Source alone, solid amber */
+.rail .lamp{width:var(--lamp-d-rail);height:var(--lamp-d-rail);justify-self:center}
+.rail .lamp.on{box-shadow:0 0 var(--sp-2) var(--ok),inset 0 0 var(--hair) var(--glint)}
+.rail .lamp.pause{background:var(--warn);box-shadow:0 0 var(--sp-2) var(--warn),inset 0 0 var(--hair) var(--glint)}   /* paused: Source alone, solid amber */
 
 /* Mock scenario: an engaged stage this track's path doesn't run (Direct SDM) reads unlit, like an off stage; never grayed. */
-.rail .st.byp .lamp.on,.rail .st.dead .lamp.on{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}
+.rail .st.byp .lamp.on,.rail .st.dead .lamp.on{background:var(--lamp-off);box-shadow:var(--lamp-well)}
 
 /* Chain wire: silkscreen trace drawn by rail.js from the dot positions; dots sit above it. */
 .wire{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
@@ -47,10 +47,10 @@
    accent. Reduced motion: steady. Keyframes shared with the header homes (header.css). */
 .rail .st[data-alert="crit"] .lamp{animation:al-crit var(--blink)}
 .rail .st[data-alert="warn"] .lamp{animation:al-warn var(--blink)}
-@keyframes al-crit{0%{background:var(--bad);box-shadow:0 0 7px var(--bad),inset 0 0 1px var(--glint)}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}}
-@keyframes al-warn{0%{background:var(--warn);box-shadow:0 0 7px var(--warn),inset 0 0 1px var(--glint)}50%{background:var(--lamp-off);box-shadow:inset 0 1px 2px var(--shade)}}
+@keyframes al-crit{0%{background:var(--bad);box-shadow:0 0 var(--sp-3) var(--bad),inset 0 0 var(--hair) var(--glint)}50%{background:var(--lamp-off);box-shadow:var(--lamp-well)}}
+@keyframes al-warn{0%{background:var(--warn);box-shadow:0 0 var(--sp-3) var(--warn),inset 0 0 var(--hair) var(--glint)}50%{background:var(--lamp-off);box-shadow:var(--lamp-well)}}
 @media (prefers-reduced-motion:reduce){
   .rail .st[data-alert] .lamp{animation:none}
-  .rail .st[data-alert="crit"] .lamp{background:var(--bad);box-shadow:0 0 7px var(--bad)}
-  .rail .st[data-alert="warn"] .lamp{background:var(--warn);box-shadow:0 0 7px var(--warn)}
+  .rail .st[data-alert="crit"] .lamp{background:var(--bad);box-shadow:0 0 var(--sp-3) var(--bad)}
+  .rail .st[data-alert="warn"] .lamp{background:var(--warn);box-shadow:0 0 var(--sp-3) var(--warn)}
 }
