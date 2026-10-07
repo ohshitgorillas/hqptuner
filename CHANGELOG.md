@@ -11,6 +11,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The clipping lamp**, similar to the apodizing lamp, flashes on clipping events.
 - **Station, Snapshot, and Profile Builders** offer guided creation and management of settings.
 - **Home screen app.** HQPTuner can be added to the home screen of a tablet to open full screen.
+- **Output rate pinning** is now possible through the "Allow Rate Pinning" setting.
 
 ### Changed
 
