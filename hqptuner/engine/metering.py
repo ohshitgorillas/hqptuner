@@ -95,7 +95,7 @@ class SpectralAggregate:
         self._blocks: deque[blockstats.BlockRecord] = deque(maxlen=WINDOW_BLOCKS)
         self._latest: blockstats.BlockRecord | None = None
         self._rows: list[list[float]] = []
-        self._block_min: list[float] | None = None
+        self._block_min: npt.NDArray[np.float64] | None = None
         self._block_seconds = 0.0
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> bool:
@@ -108,12 +108,11 @@ class SpectralAggregate:
         self.seconds += covered_seconds
         if not silent:
             self._rows.append(mags_sq)
+            row = np.array(mags_sq, dtype=np.float64)
             if self._block_min is None:
-                self._block_min = list(mags_sq)
+                self._block_min = row
             else:
-                block = self._block_min
-                for i, p in enumerate(mags_sq):
-                    block[i] = min(block[i], p)
+                np.minimum(self._block_min, row, out=self._block_min)
         self._block_seconds += covered_seconds
         if self._block_seconds < BLOCK_SECONDS:
             return False
@@ -134,7 +133,7 @@ class SpectralAggregate:
         """
         arrays: list[list[float]] = [record.minimum for record in self._blocks]
         if self._block_min is not None:
-            arrays.append([10 * math.log10(p) if p > 0 else -200.0 for p in self._block_min])
+            arrays.append([10 * math.log10(p) if p > 0 else -200.0 for p in self._block_min.tolist()])
         if not arrays:
             return []
         return [min(vals) for vals in zip(*arrays, strict=True)]
