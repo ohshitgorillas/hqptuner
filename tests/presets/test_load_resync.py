@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory
+from fake_control import restart_into
 from narrow import FixtureError, present
 from virtual_clock import VirtualClock
 
@@ -60,18 +61,19 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
     """A connected manager on both lanes — 4321 for the engine picture, 8088 for
     the restore a preset load rides — settled before it comes back.
 
-    Keyword arguments are the control fake's State overrides. The poll interval
+    Keyword arguments are the control fake's State overrides, bar
+    ``alarm_threshold``, which bounds the post-restore wait. The poll interval
     is left at the production pacing deliberately: the manager's own poll would
     otherwise refresh the picture the load is supposed to refresh."""
     built: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
 
-    async def build(**overrides: str) -> tuple[ConnectionManager, dict[str, str]]:
+    async def build(*, alarm_threshold: float = 1.0, **overrides: str) -> tuple[ConnectionManager, dict[str, str]]:
         port, _log, state = await daemon(**overrides)
         http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=port,
-            alarm_threshold=1.0,
+            alarm_threshold=alarm_threshold,
             backup_dir=tmp_path / "backups",
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
@@ -167,3 +169,31 @@ async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _submitted(await manager.applyops.apply_engine({"cuda": "0"}))
     assert present(manager.readings.state).get("filterNx") == "2"
+
+
+# --- what a preset load costs the 8088 lane ----------------------------------
+# The restart a load triggers is followed by a whole connect body on the engine
+# that came back, and that body already reads the settings archive, the forms and
+# the device capability. A load that waited for it re-reads none of them.
+
+#: A post-restore wait long enough for the reconnect after one refused connect
+#: (the manager retries every ``RECONNECT_FAST`` second inside the window).
+RECONNECT_WINDOW = 5.0
+
+
+async def test_a_preset_load_whose_restart_reconnects_reads_the_settings_archive_twice(
+    dual_lane: DualLane, http_daemon: dict[str, Any]
+) -> None:
+    # the restart as the wire sees it: the control fake severs every connection,
+    # turns the first reconnect away and comes back on the restored file. The
+    # wait outlasts the manager's fast reconnect, so it sees the fresh connect.
+    manager, state = await dual_lane(alarm_threshold=RECONNECT_WINDOW, _cfg_dither="0", _cfg_modulator="0")
+    http_daemon["_on_restore"] = lambda: restart_into(
+        state, http_daemon["mode"], http_daemon["dither"], http_daemon["modulator"]
+    )
+    await manager.connected.wait()
+    await manager.presetops.save_preset("Stored")
+    already_read = http_daemon["_backup_reads"]
+    await presetlane.load(manager, "Stored")
+    # the pre-restore backup the restore is built from, and the connect body's
+    assert http_daemon["_backup_reads"] == already_read + 2

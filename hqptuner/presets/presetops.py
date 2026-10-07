@@ -325,11 +325,14 @@ class PresetOps:
         """Remove preset ``name`` from the store and drop its mirror on the daemon."""
         return await presetlane.delete(self._mgr, name)
 
-    async def migrate_once(self, active_hint: str | None = None) -> None:
-        """Import the daemon's own ``data/cfgs`` presets into the store, at most once per process and only over HTTP."""
+    async def migrate_once(self, active_hint: str | None = None, *, backup: bytes | None = None) -> None:
+        """Import the daemon's own ``data/cfgs`` presets into the store, at most once per process and only over HTTP.
+
+        ``backup`` is a settings archive the caller already fetched; without one it is fetched for the import.
+        """
         if self._migrated or self._mgr.http_client is None:
             return
         self._migrated = True
-        imported = await presetlane.migrate(self._mgr, active_hint)
+        imported = await presetlane.migrate(self._mgr, active_hint, backup=backup)
         if imported:
             log.info("migrated presets into store: %s", ", ".join(imported))

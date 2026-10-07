@@ -24,12 +24,14 @@ async def read_engine(mgr: "ConnectionManager") -> dict[str, str]:
     return readings.engine
 
 
-async def load_file_config(mgr: "ConnectionManager") -> dict[str, str]:
+async def load_file_config(mgr: "ConnectionManager", *, backup: bytes | None = None) -> dict[str, str]:
     """Read running config from the backup archive's working ``hqplayerd.xml``, in form-field terms.
 
     Serves the fields the ``/config`` form renders lossily (``volume_fixed``: 0/1/2 in XML, a
-    bare checkbox on the form).
+    bare checkbox on the form). ``backup`` is an archive the caller already fetched; without one
+    the archive is fetched here.
     """
-    backup = await mgr.require_http().backup()
+    if backup is None:
+        backup = await mgr.require_http().backup()
     mgr.readings.file_config = presetconf.read_config(engineconf.base_config_xml(backup, mgr.readings.active_config))
     return mgr.readings.file_config

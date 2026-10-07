@@ -18,6 +18,7 @@ from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError, NotConnectedError
+from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import PresetError
@@ -107,19 +108,26 @@ async def _load_http_lane(mgr: "ConnectionManager") -> None:
     """Fill the 8088 half of a connect: forms, device capability, file config, preset migration.
 
     Best-effort throughout — a failure here must not undo the 4321 connect.
+
+    The forms are refreshed without ``refresh_http_forms``, whose own unforced capability read would
+    fetch the whole log a second time ahead of the forced one a connect owes. The settings archive is
+    fetched once and handed to both readers of it.
     """
-    # refresh_http_forms populates config/matrix/speakers (+ their *_error).
-    await mgr.refresh_http_forms()
+    # forms.refresh populates config/matrix/speakers (+ their *_error).
+    await forms.refresh(mgr)
     await engineread.refresh_device_caps(mgr, force=True)
+    backup: bytes | None = None
     try:
-        await fileconfig.load_file_config(mgr)
+        backup = await mgr.require_http().backup()
+        await fileconfig.load_file_config(mgr, backup=backup)
     except (httpx.HTTPError, ControlError) as exc:
         # the form still carries every field; only the lossy ones degrade.
         # A corrupt archive is not in this set on purpose: engineconf.base_config_xml
         # raises UnreadableArchiveError on unreadable bytes, caught inside the load.
         log.warning("file-config read failed: %s", exc)
     try:
-        await mgr.presetops.migrate_once(mgr.readings.active_config)
+        # an archive the read above could not fetch is fetched again here, as the migration always did
+        await mgr.presetops.migrate_once(mgr.readings.active_config, backup=backup)
     except (httpx.HTTPError, PresetError, OSError, zipfile.BadZipFile) as exc:
         # the daemon's own snapshots stay unimported; the store keeps whatever it had.
         # BadZipFile belongs here and not above: presetzip.snapshot_members opens the
