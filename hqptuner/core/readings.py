@@ -85,3 +85,5 @@ class Readings:
     # Which device the last capability read was for, and when it ran.
     caps_device: str | None = None
     caps_at: float = 0.0
+    # Reads in a row that found no announcement for `caps_device`; the retry stops at its bound.
+    caps_misses: int = 0

@@ -89,7 +89,7 @@ def make_lifespan(
                 cfg.hqp_metering_port,
                 lambda: context_from(manager),
                 pace=manager.clock.pace,
-                monotonic=manager.clock.monotonic,
+                advisor=cfg.advisor_enabled,
             )
             manager.metering = reader
             metering_task = manager.clock.spawn(reader.run())

@@ -56,12 +56,11 @@ class HealthReport:
 
 @dataclass(frozen=True)
 class StatusReport:
-    """``GET /api/status`` data: the Status frame, its track metadata, the advisor's note, bands, and auto-pilot."""
+    """``GET /api/status`` data: the Status frame, its track metadata, the advisor's note, and auto-pilot."""
 
     status: dict[str, str]
     metadata: dict[str, str] | None
     junk: JunkVerdict | None
-    bands: list[float]
     autopilot: bool
     metering: bool
     advisor: bool
@@ -113,17 +112,15 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     only asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;
     a corrupt one refuses with ``store_corrupt``. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
-    against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``bands`` carries the
-    header readout's three levels, empty while the reader has nothing in front of it. ``advisor`` says whether the
-    advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, the recommendation is
-    null and auto-pilot reads as off whatever its store holds.
+    against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``advisor`` says whether
+    the advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, the recommendation
+    is null and auto-pilot reads as off whatever its store holds.
     """
     frame = manager.readings.status
     if frame is None:
         raise refuse(NotLoadedError())
     advisor = manager.cfg.advisor_enabled
     junk = manager.metering.recommendation() if advisor and manager.metering is not None else None
-    bands = manager.metering.bands() if manager.metering is not None else []
     autopilot = False
     if advisor:
         with contextlib.suppress(AutopilotError):
@@ -132,7 +129,6 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
         status=frame,
         metadata=manager.readings.status_metadata,
         junk=junk,
-        bands=bands,
         autopilot=autopilot,
         metering=manager.metering is not None,
         advisor=advisor,

@@ -7,6 +7,7 @@ values are unescaped once more after parsing.
 import contextlib
 import re
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 
 from defusedxml import DefusedXmlException
 from defusedxml.ElementTree import fromstring as _safe_fromstring
@@ -78,6 +79,87 @@ def _document_complete(body: str, tag: str) -> bool:
     if re.match(rf"<{re.escape(tag)}\b{_OPEN_TAG_BODY}/>\s*$", body):
         return True
     return re.search(rf"</{re.escape(tag)}>\s*$", body) is not None
+
+
+class FrameBuffer:
+    """One response's bytes as they arrive, parsed once, when its root element has closed.
+
+    The root's open tag is located once, re-tried only while it is still arriving; after that each chunk costs a look
+    at the buffer's tail, not a re-read of everything received, so a large reply is not quadratic in its size. The
+    complete frame goes through ``parse_frame`` unchanged.
+    """
+
+    def __init__(self) -> None:
+        """Start empty, with no root located yet."""
+        self._data = bytearray()
+        self._root: _Root | None = None
+
+    def __len__(self) -> int:
+        """Return how many bytes have arrived."""
+        return len(self._data)
+
+    def feed(self, chunk: bytes) -> ET.Element | None:
+        """Append one chunk and return the parsed frame once it is complete, or None while it is still arriving.
+
+        Raises ``ControlError`` where the complete frame cannot be recovered, as ``parse_frame`` does.
+        """
+        self._data += chunk
+        if self._root is None:
+            self._root = _find_root(self._data)
+        if self._root is None or not self._root.closed(self._data):
+            return None
+        text = self._data.decode("utf-8", errors="replace")
+        return parse_frame(text.split("?>", 1)[-1].strip() if "?>" in text else text.strip())
+
+
+#: Characters a slice of UTF-8 can start with that a cut multi-byte sequence left undecodable.
+_CUT_CHARS = 3
+
+
+@dataclass
+class _Root:
+    """Where a frame's root open tag ends, in bytes, and what closes the root."""
+
+    end_tag: str
+    open_end: int
+    self_closing: bool
+    trailing_text: bool = False
+
+    def closed(self, data: bytearray) -> bool:
+        """Whether the root has closed: self-closing with only whitespace after it, or its end tag ends the data."""
+        if self.self_closing and not self.trailing_text:
+            rest = _decode(data[self.open_end :])
+            if not rest.strip():
+                return True
+            # only the last few characters can still change as bytes arrive
+            self.trailing_text = bool(rest[:-_CUT_CHARS].strip())
+        return _ends_with(data, self.end_tag)
+
+
+def _decode(data: bytes | bytearray) -> str:
+    """Decode losslessly, so a character offset converts back to the byte offset it came from."""
+    return bytes(data).decode("utf-8", errors="surrogateescape")
+
+
+def _find_root(data: bytearray) -> _Root | None:
+    """Locate the root's open tag past the XML declaration, or None while that tag has not fully arrived."""
+    text = _decode(data)
+    header = text.find("?>")
+    match = _ROOT_OPEN.search(text, header + 2 if header >= 0 else 0)
+    if match is None or not text.startswith(">", match.end()):
+        return None
+    open_end = len(text[: match.end() + 1].encode("utf-8", errors="surrogateescape"))
+    return _Root(f"</{match.group(1)}>", open_end, match.group(0).endswith("/"))
+
+
+def _ends_with(data: bytearray, end_tag: str) -> bool:
+    """Whether ``data`` ends with ``end_tag`` and whitespace, read off a tail widened only past trailing whitespace."""
+    width = len(end_tag.encode()) + _CUT_CHARS
+    while True:
+        tail = _decode(data[-width:]).rstrip()
+        if len(tail) >= len(end_tag) + _CUT_CHARS or width >= len(data):
+            return tail.endswith(end_tag)
+        width *= 2
 
 
 def _recover_root(root_open: re.Match[str]) -> ET.Element:

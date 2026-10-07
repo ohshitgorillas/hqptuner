@@ -30,6 +30,7 @@ from hqptuner.core.clock import Clock
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError, HttpCredentialsMissingError
+from hqptuner.engine.logtail import LogReader
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.presetops import PresetOps
@@ -120,6 +121,9 @@ class ConnectionManager:
         # Everything the daemon last told us (core/readings). Refilled from scratch
         # on every fresh connection; read by every route and lane.
         self.readings = Readings()
+        # The one GET /log reader (engine/logtail): the log tail and the device-capability read share its
+        # client, its held text and any fetch in flight. It fetches from `http_base_url` as of each call.
+        self.log_reader = LogReader(self.clock.monotonic)
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
         self.metering: MeteringReader | None = None
@@ -155,6 +159,7 @@ class ConnectionManager:
             self._client = None
         while self._retired:
             await self._retired.pop().aclose()
+        await self.log_reader.aclose()
 
     async def run(self) -> None:
         """Run the connect-load-poll loop until stopped, dropping the connection and retrying on any failure.

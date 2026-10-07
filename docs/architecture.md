@@ -280,7 +280,7 @@ Detection (`classify`) and treatment (`treats`) are separate and the caller comb
 
 Each verdict holds differently:
 
-- **Ramp**: a property of the spectrum in front of the rules, recomputed on every read and held by nothing, so the note clears as soon as the current minimum stops carrying the signature.
+- **Ramp**: a property of the spectrum in front of the rules, recomputed as each block closes and held by nothing, so the note clears at the first closed block whose minimum stops carrying the signature.
 - **20k**: a run over closed block readings (`engine/junkrun.py`), engaging on the second block that reads junk within three blocks of the first, standing through blocks that read nothing at all, and clearing on the first block that reads real.
 - **Spur**: held per bin, each bin engaging when its excess over the local baseline crosses the engage split and releasing once that excess falls under the lower release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a tone does not drop the advice and bring it back.
 

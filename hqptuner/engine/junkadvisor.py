@@ -154,8 +154,7 @@ def classify(  # noqa: PLR0913
     """Return the signature this spectrum carries, or None when there is nothing to say.
 
     ``min_levels_db`` is the windowed per-bin minimum spectrum (dB, one value per bin up to ``bandwidth`` = the source
-    Nyquist), or empty while no frame has been folded at all — the reader has no other readiness gate, so the first
-    frame past the decimator already carries a spectrum the rules can read. The verdict is spectrum-only — the
+    Nyquist), or empty while no frame has been folded at all. The verdict is spectrum-only — the
     metering tap sees the source, so engaging a filter never changes what the detector sees — which is why detection
     says nothing about what the engine has engaged. Whether
     the engaged settings already treat the signature is ``treats``, and the caller applies it: the advisor's note goes

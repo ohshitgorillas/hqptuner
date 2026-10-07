@@ -10,6 +10,7 @@ Types live in ``metadata_types``, the isinstance narrowing that builds them from
 """
 
 import json
+import weakref
 from pathlib import Path
 
 from hqptuner import metadata_json
@@ -141,12 +142,30 @@ class StaticMetadata:
         return self._shapers_db.sdm_modulators.get(name)
 
 
-def merge_enumerations(enums: dict[str, list[dict[str, str]]], static: StaticMetadata, mode_name: str) -> MergedEnums:
+Enums = dict[str, list[dict[str, str]]]
+
+#: Each ``StaticMetadata``'s last merge: the very ``enums`` object it read (held, so its id cannot be reused by
+#: another), the mode name, and the result.
+_LAST_MERGE: weakref.WeakKeyDictionary[StaticMetadata, tuple[Enums, str, MergedEnums]] = weakref.WeakKeyDictionary()
+
+
+def merge_enumerations(enums: Enums, static: StaticMetadata, mode_name: str) -> MergedEnums:
     """Attach static prose to live enumeration items.
 
     Unmatched engine entries still render (static: null). Live facets (quality/focus/ratio in the description,
-    apodizing in arg bit 0) stay on the engine item.
+    apodizing in arg bit 0) stay on the engine item. The live enumerations are only ever replaced whole, never edited
+    in place, so the same ``enums`` object under the same mode returns the merge already built for it.
     """
+    last = _LAST_MERGE.get(static)
+    if last is not None and last[0] is enums and last[1] == mode_name:
+        return last[2]
+    merged = _merge(enums, static, mode_name)
+    _LAST_MERGE[static] = (enums, mode_name, merged)
+    return merged
+
+
+def _merge(enums: Enums, static: StaticMetadata, mode_name: str) -> MergedEnums:
+    """Build the merged lists ``merge_enumerations`` serves."""
     filters: list[EnumFilterItem] = [
         {
             "index": item.get("index", ""),

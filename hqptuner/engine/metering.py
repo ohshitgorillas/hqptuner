@@ -10,10 +10,12 @@ with a fixed backoff and throws the aggregate away whenever the stream breaks
 or the frame geometry changes; a track change is neither, so the evidence in
 hand survives one.
 
-The connection is held only while the engine is playing. The daemon cannot be
-asked to send less, so the socket is the only throttle there is, and an idle
-stream is pure cost — megabytes a second of it once the traffic leaves loopback
-for a Docker bridge. ``Config.metering_enabled`` turns the whole reader off.
+The connection is held only while the engine is playing and something reads
+the stream: the advisor, or a subscriber to the meters' feed. The daemon cannot
+be asked to send less, so the socket is the only throttle there is, and an
+unread stream is pure cost — megabytes a second of it once the traffic leaves
+loopback for a Docker bridge. ``Config.metering_enabled`` turns the whole reader
+off.
 """
 
 import asyncio
@@ -25,13 +27,9 @@ from collections import deque
 from collections.abc import Awaitable, Callable
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
-from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, band_levels, frame_power, frame_silent
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.engine.meterfeed import MeterFeed
+from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
 from hqptuner.engine.trackcontext import TrackContext
-
-#: the reader's public surface, the band level and its ring included
-__all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "band_levels"]
 
 log = logging.getLogger(__name__)
 
@@ -45,6 +43,9 @@ IDLE_RECHECK = 1.0
 DECIMATE = 1
 MAX_CHANNELS = 32
 MAX_BINS = 65_536
+# Frames quieter than this on every channel (RMS dBFS) carry no tone; the reduced frame carries the rms as power.
+SILENT_RMS_DB = -90.0
+SILENT_RMS_POWER = 10 ** (SILENT_RMS_DB / 10)
 
 # The detector's persistence window: per-bin minima are folded into blocks of
 # BLOCK_SECONDS coverage, and the window spectrum is the minimum over the last
@@ -94,8 +95,8 @@ class SpectralAggregate:
         self._block_min: list[float] | None = None
         self._block_seconds = 0.0
 
-    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
-        """Keep one frame's per-bin power, unless silent, in the open block.
+    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> bool:
+        """Keep one frame's per-bin power, unless silent, in the open block, and say whether this frame closed it.
 
         Once the block has BLOCK_SECONDS of coverage it is read into a record and a fresh one starts; a block that
         saw only silent frames closes carrying no record.
@@ -111,14 +112,16 @@ class SpectralAggregate:
                 for i, p in enumerate(mags_sq):
                     block[i] = min(block[i], p)
         self._block_seconds += covered_seconds
-        if self._block_seconds >= BLOCK_SECONDS:
-            self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
-            if self._latest is not None:
-                self._blocks.append(self._latest)
-            self.junk_run.observe(self._latest, self.bandwidth)
-            self._rows = []
-            self._block_min = None
-            self._block_seconds = 0.0
+        if self._block_seconds < BLOCK_SECONDS:
+            return False
+        self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
+        if self._latest is not None:
+            self._blocks.append(self._latest)
+        self.junk_run.observe(self._latest, self.bandwidth)
+        self._rows = []
+        self._block_min = None
+        self._block_seconds = 0.0
+        return True
 
     def window_min_db(self) -> list[float]:
         """Per-bin minimum (dB) over whatever coverage is in hand, empty while no frame has been folded at all.
@@ -144,25 +147,25 @@ class MeteringReader:
         context: Callable[[], TrackContext | None],
         *,
         pace: Callable[[asyncio.Event, float], Awaitable[bool]],
-        monotonic: Callable[[], float],
+        advisor: bool,
     ) -> None:
         """Record where the metering port is and how to read track context; nothing connects until ``run``.
 
-        ``pace`` and ``monotonic`` are the manager's clock: ``pace`` idles the reader for a number of
-        seconds or until the event it is given is set, and ``monotonic`` is what the band readout ages on, since a
-        stream that goes quiet without stopping leaves the ring standing and only a clock says it is stale.
+        ``pace`` is the manager's clock: it idles the reader for a number of seconds or until the event it is given
+        is set. ``advisor`` says whether the junk-filter advisor reads the stream; without it the reader holds the
+        socket only while the feed has a subscriber, and a subscriber attaching wakes an idle reader at once.
         """
         self._host = host
         self._port = port
         self._context = context
         self._pace = pace
+        self._advisor = advisor
         self._stop = asyncio.Event()
+        self._wake = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
-        self._monotonic = monotonic
-        self._ring = BandRing()
-        self._ring_at: float | None = None
-        self.feed = MeterFeed()
+        self._verdict: junkadvisor.JunkVerdict | None = None
+        self.feed = MeterFeed(on_subscribe=self._wake.set)
 
     def retarget(self, host: str, port: int) -> None:
         """Point the reader at another daemon; the next dial uses it.
@@ -174,28 +177,22 @@ class MeteringReader:
         self._port = port
 
     def stop(self) -> None:
-        """Ask the reader to shut down: the stream loop and the backoff wait both end at the next check."""
+        """Ask the reader to shut down: the stream loop, the idle wait and the backoff all end at the next check."""
         self._stop.set()
+        self._wake.set()
 
     def aggregate(self) -> SpectralAggregate | None:
         """Return the aggregate the reader is accumulating, or None while there is no evidence to read."""
         return self._agg
 
-    def bands(self) -> list[float]:
-        """Return the mean of the last window of band triples, empty while the reading is empty or stale.
-
-        A stream that stops arriving without the engine leaving the playing state leaves the ring standing, so the
-        reading ages here rather than at a seam that never fires.
-        """
-        if self._ring_at is None or self._monotonic() - self._ring_at > BAND_WINDOW_SECONDS:
-            return []
-        return self._ring.mean()
-
     def verdict(self) -> junkadvisor.JunkVerdict | None:
-        """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
+        """Return the signature the windowed minimum spectrum carried when the last block closed, whatever is engaged.
 
-        The cliff and the ramp are recomputed on every call and held by nothing: each is a property of the spectrum in
-        front of the rules, so it appears when the window carries the signature and is None again once it does not. The
+        The verdict is classified once per closed block, on the reader's own task, and held until the next block
+        closes; this returns that held value and touches neither the aggregate nor the spur holder, so every caller,
+        on whatever thread, reads the same verdict. None while the engine is unreachable, while no aggregate stands,
+        and before the first block of one has closed. The ramp is a property of the spectrum in front of the rules,
+        so it appears at the block whose window carries the signature and is gone at the first that does not. The
         spur is held per bin by the reader's ``SpurHolder`` until the tone's excess over the local baseline falls under
         the release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a
         tone no longer drops the advice and brings it back. The holder carries no track identity and neither does the
@@ -205,17 +202,9 @@ class MeteringReader:
         asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
         filter is still earning its place.
         """
-        ctx, agg = self._context(), self._agg
-        if ctx is None or agg is None:
+        if self._context() is None or self._agg is None:
             return None
-        return junkadvisor.classify(
-            agg.window_min_db(),
-            agg.bandwidth,
-            samplerate=ctx.samplerate,
-            sdm=ctx.sdm,
-            holder=self._holder,
-            run=agg.junk_run,
-        )
+        return self._verdict
 
     def recommendation(self) -> junkadvisor.JunkVerdict | None:
         """Return the advisor's note for the current track, or None.
@@ -230,41 +219,47 @@ class MeteringReader:
         return verdict
 
     async def run(self) -> None:
-        """Hold the stream only while the engine is playing, and reconnect after a backoff whenever it breaks.
+        """Hold the stream only while the engine is playing and something reads it, reconnecting after a backoff.
 
         The daemon streams unconditionally on bare accept (protocol.md §7) — there is no way to ask it for less, so
         the only way to stop paying for frames nobody ingests is to close the socket. The reader therefore connects
-        when the engine reports playing and disconnects when it stops, which on a bridged Docker network is the
-        difference between megabytes a second of idle traffic and none.
+        when the engine reports playing and the advisor or a feed subscriber is there to read, and disconnects when
+        either stops, which on a bridged Docker network is the difference between megabytes a second of idle traffic
+        and none. The idle wait ends early when a subscriber attaches; the backoff after a break does not.
 
         A broken stream is not an error: it is logged at debug and the aggregate and verdict are discarded, so a
         verdict is only ever computed over one unbroken run of frames. A *deliberate* disconnect at the idle gate is
-        not a break — a pause leaves the evidence standing, so the verdict survives it, and so does a track change.
+        not a break — a pause, or the last subscriber leaving, leaves the evidence standing, and so does a track change.
         """
         while not self._stop.is_set():
+            self._wake.clear()
             keep = False
-            delay = IDLE_RECHECK
+            delay, wake = IDLE_RECHECK, self._wake
             try:
                 ctx = self._context()
                 if ctx is None:
                     pass  # unreachable daemon: nothing to stream, and no evidence worth keeping
-                elif ctx.playing:
+                elif ctx.playing and self._wanted():
                     keep = await self._stream()
                 else:
-                    keep = True  # paused: keep the aggregate for the resume
-                    self._clear_bands()  # the level readout is of the moment, and a stopped engine has none
+                    keep = True  # paused or unread: keep the aggregate for the resume
             except (OSError, asyncio.IncompleteReadError, ControlError) as exc:
                 log.debug("metering stream unavailable: %s", exc)
-                delay = RECONNECT_DELAY  # a refused or broken stream, an unparseable poll, not merely an idle engine
+                # a refused or broken stream, an unparseable poll: a backoff no subscriber cuts short
+                delay, wake = RECONNECT_DELAY, self._stop
             if not keep:
-                self._agg = None  # a broken stream ends the track's evidence
+                self._verdict = None  # a broken stream ends the track's evidence, the verdict read off it first
+                self._agg = None
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
-                self._clear_bands()
             if not self._stop.is_set():
-                await self._pace(self._stop, delay)
+                await self._pace(wake, delay)
+
+    def _wanted(self) -> bool:
+        """Whether anything reads the stream: the advisor, or a subscriber to the feed."""
+        return self._advisor or self.feed.attached()
 
     async def _stream(self) -> bool:
-        """Ingest frames until the engine stops playing (True) or the loop is stopped (False).
+        """Ingest frames until the engine stops playing or nothing reads them (True), or the loop is stopped (False).
 
         The play state is checked on a tick of its own rather than after each frame: a stream that goes quiet must
         still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
@@ -278,8 +273,8 @@ class MeteringReader:
             frame = 0
             while not self._stop.is_set():
                 ctx = self._context()
-                if ctx is None or not ctx.playing:
-                    return ctx is not None  # paused keeps the evidence; unreachable does not
+                if ctx is None or not ctx.playing or not self._wanted():
+                    return ctx is not None  # paused or unread keeps the evidence; unreachable does not
                 if read is None:
                     read = asyncio.create_task(_read_frame(reader))
                 if not await self._arrived(read):
@@ -303,22 +298,32 @@ class MeteringReader:
         await self._pace(arrived, IDLE_RECHECK)
         return read.done()
 
-    def _clear_bands(self) -> None:
-        """Drop the ring, so the bars park rather than hold the last thing that played."""
-        self._ring = BandRing()
-        self._ring_at = None
-
     def _ingest(self, header: tuple[float, ...], body: bytes) -> None:
         channels, bins = int(header[1]), int(header[2])
         bandwidth, xform_time = float(header[4]), float(header[5])
         agg = self._agg
         if agg is None or agg.bins != bins or agg.bandwidth != bandwidth:
+            self._verdict = None
             agg = self._agg = SpectralAggregate(bins, bandwidth)
-        power = frame_power(body, channels, bins)
-        agg.add(power, xform_time, silent=frame_silent(body, channels, bins))
-        self._ring.add(band_levels(power, bandwidth), xform_time)
-        self._ring_at = self._monotonic()
-        self.feed.add(header, body)
+        levels = reduce_frame(body, channels, bins)
+        silent = bool((levels[:, 1] < SILENT_RMS_POWER).all())
+        if agg.add(levels[:, 2:].sum(axis=0).tolist(), xform_time, silent=silent):
+            self._verdict = self._classify(agg)
+        self.feed.add(header, levels)
+
+    def _classify(self, agg: SpectralAggregate) -> junkadvisor.JunkVerdict | None:
+        """Classify the window just closed against the track context in hand, None while there is none."""
+        ctx = self._context()
+        if ctx is None:
+            return None
+        return junkadvisor.classify(
+            agg.window_min_db(),
+            agg.bandwidth,
+            samplerate=ctx.samplerate,
+            sdm=ctx.sdm,
+            holder=self._holder,
+            run=agg.junk_run,
+        )
 
 
 async def _read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:

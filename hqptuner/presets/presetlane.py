@@ -159,7 +159,7 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     await settle.restore(mgr, archive, mark=mark, scope="system")
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
-    await settle.await_ready(mgr, mark)
+    reconnected = await settle.await_ready(mgr, mark)
     # the restore restarted the daemon: every live reading we hold is the previous
     # engine's, and an auto-save riding this load would fold those into the preset
     # it just loaded (settle.resync_engine_state)
@@ -167,11 +167,15 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     # what the daemon came back on. Null means resync could not reach the engine,
     # which is itself the answer to "what was it running after the restart".
     voltrace.observe(mgr, "post_restart_state", voltrace.live_volume(mgr), name=name)
-    await fileconfig.load_file_config(mgr)
+    if not reconnected:
+        # A reconnect's connect body has already refilled the file config, the
+        # forms and the device capability from the restarted daemon; only a wait
+        # that gave up leaves them to be read here.
+        await fileconfig.load_file_config(mgr)
+        await mgr.refresh_http_forms()
     # and what the config file says once the restart settled — the pair that
     # answers which of the two came back wrong
     voltrace.observe(mgr, "post_restart_file", voltrace.subset(mgr.readings.file_config), name=name)
-    await mgr.refresh_http_forms()
     _restore_autopilot(mgr, name)
     return PresetActivation(name)
 
@@ -365,13 +369,16 @@ async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
     return PresetDeleted(name)
 
 
-async def migrate(mgr: ConnectionManager, active_hint: str | None) -> list[str]:
+async def migrate(mgr: ConnectionManager, active_hint: str | None, *, backup: bytes | None = None) -> list[str]:
     """One-time import of hqplayerd's existing ``data/cfgs`` presets into the store so nothing is orphaned.
 
     Idempotent — existing store presets win. Seeds the active pointer from the daemon's reported active config when
-    the store has none. Returns the imported names.
+    the store has none. Returns the imported names. ``backup`` is a settings archive the caller already fetched;
+    without one it is fetched here.
     """
-    snapshots = presetzip.snapshot_members(await mgr.require_http().backup())
+    if backup is None:
+        backup = await mgr.require_http().backup()
+    snapshots = presetzip.snapshot_members(backup)
     imported = mgr.presetops.store.import_missing(snapshots)
     if mgr.presetops.store.active is None and active_hint and mgr.presetops.store.exists(active_hint):
         mgr.presetops.store.set_active(active_hint)

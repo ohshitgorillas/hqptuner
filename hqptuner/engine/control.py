@@ -28,7 +28,7 @@ from hqptuner.engine.controlerrors import (
     ResponseTooLargeError,
     StateMismatchError,
 )
-from hqptuner.engine.frames import parse_frame
+from hqptuner.engine.frames import FrameBuffer
 
 log = logging.getLogger(__name__)
 
@@ -161,19 +161,15 @@ class ControlClient:
         reader = self._reader
         if reader is None:
             raise NotConnectedError()
-        data = b""
+        buffer = FrameBuffer()
         while True:
             chunk = await asyncio.wait_for(reader.read(65536), self._timeout)
             if not chunk:
                 raise ConnectionClosedError()
-            data += chunk
-            text = data.decode("utf-8", errors="replace")
-            body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
-            if body:
-                frame = parse_frame(body)
-                if frame is not None:
-                    return frame
-            if len(data) > MAX_RESPONSE:
+            frame = buffer.feed(chunk)
+            if frame is not None:
+                return frame
+            if len(buffer) > MAX_RESPONSE:
                 raise ResponseTooLargeError()
 
     # --- typed helpers -------------------------------------------------

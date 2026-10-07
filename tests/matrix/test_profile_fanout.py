@@ -23,7 +23,9 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from narrow import FixtureError
+from virtual_clock import VirtualClock
 
+from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
@@ -306,3 +308,23 @@ def test_api_matrix_serves_each_stored_presets_profile_names_sorted(
     seed_presets(tmp_path / "presets", presets)
     http_client.post("/api/config/refresh")  # makes the form routes servable
     assert http_client.get("/api/matrix").json()["data"]["preset_profiles"] == expected
+
+
+def offline_manager(tmp_path: Path) -> ConnectionManager:
+    """A manager with no daemon lane, its preset store under ``tmp_path``."""
+    return ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
+
+
+def test_preset_profiles_serves_an_unchanged_presets_list_without_rebuilding_it(tmp_path: Path) -> None:
+    seed_presets(tmp_path / "presets", {"Office": {"Alpha": [FILE_ROW]}})
+    ops = offline_manager(tmp_path).presetops
+    first = ops.preset_profiles()["Office"]
+    assert ops.preset_profiles()["Office"] is first
+
+
+def test_preset_profiles_follows_a_save_of_that_preset_with_another_profile_set(tmp_path: Path) -> None:
+    seed_presets(tmp_path / "presets", {"Office": {"Alpha": [FILE_ROW]}})
+    ops = offline_manager(tmp_path).presetops
+    ops.preset_profiles()
+    ops.store.save("Office", preset_xml({"Bravo Two": [FILE_ROW]}))
+    assert ops.preset_profiles()["Office"] == ["Bravo Two"]
