@@ -7,6 +7,9 @@
 // `metadata`, the snapshot book into `liveBook`. The record being edited and its staged edits are the shell's `cur` and
 // `staged` (./shell.js), loaded only by the cases that edit.
 //
+// A snapshot's tip is read off one /api/livepresets record: its `names` are the fixture's own wire data, and the
+// Simplified name rides the /api/metadata overlay (`plain_names`) as an invented leaf.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-builders/snapshot.test.js
 
 import { test, beforeEach } from "node:test";
@@ -22,6 +25,7 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
+import { schema } from "../../../../hqptuner/static/store/schema.js";
 import { keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import {
   SNAP_ROWS,
@@ -36,7 +40,7 @@ import {
   recordOf,
   takeAll,
 } from "../../../../hqptuner/static/store/faceplate/builders/snapshot.js";
-import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
+import { snapshotRows, snapshotTip } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
 import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
 
@@ -79,6 +83,10 @@ const formField = (name, value, items) => ({
   options: items.map((i) => ({ value: i.value, label: i.name })),
 });
 
+/** The invented Simplified leaf the overlay carries for sinc-MGa, and its short, kept distinct. */
+const MGA_LEAF = "Leaf MGa";
+const MGA_SHORT = "Short MGa";
+
 /** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
 const overlays = () => ({
   settings: {},
@@ -90,6 +98,7 @@ const overlays = () => ({
         "poly-sinc-gauss-long": { family: "Fam A", variant: "Var A", leaf: "Leaf gauss", short: "gauss" },
         "sinc-M": { family: "Fam A", variant: "Var B", leaf: "Leaf sinc", short: "sinc" },
         IIR: { family: "Fam B", variant: null, leaf: "Leaf iir", short: "iir" },
+        "sinc-MGa": { family: "Fam MGa", variant: null, leaf: MGA_LEAF, short: MGA_SHORT },
       },
       families: {},
       variants: {},
@@ -137,6 +146,22 @@ const book = () => ({
     Bed: { chain: "pcm", fields: { filter1x: "41", adaptive_volume: "1" }, names: {} },
   },
 });
+
+/** One SDM snapshot record as /api/livepresets serves it, holding both filters, the modulator and Mode. */
+const sdmRecord = () => ({
+  chain: "sdm",
+  fields: { oversampling1x: "50", oversampling: "50", modulator: "12", mode: "sdm" },
+  names: { oversampling1x: "sinc-MGa", oversampling: "sinc-MGa", modulator: "AMSDM7EC 512+fs", mode: "SDM (DSD)" },
+});
+
+/** The SDM record's tip: each held row's schema label and its `rec.names` value, in SNAP_ROWS order. */
+const SDM_TIP = [
+  `${schema.sdm_filter_1x.label}: sinc-MGa`,
+  `${schema.sdm_filter_nx.label}: sinc-MGa`,
+  `${schema.sdm_modulator.label}: AMSDM7EC 512+fs`,
+  `${schema.output_mode.label}: SDM (DSD)`,
+].join("\n");
+const SDM_TIP_1X_SIMPLIFIED = `${schema.sdm_filter_1x.label}: ${MGA_LEAF}`;
 
 /**
  * @typedef {object} Running
@@ -582,6 +607,17 @@ test("test_the_profile_row_is_a_select", async () => {
 test("test_the_profile_row_without_mode_is_not_gated", async () => {
   await editing({ st: "Headphones", name: "Bed" });
   assert.equal(viewOf("profile")?.gated, false);
+});
+
+// --- a snapshot's tip ----------------------------------------------------------------------------
+
+test("test_a_snapshots_tip_is_one_label_and_name_line_per_held_field_in_row_order", () => {
+  assert.equal(snapshotTip(sdmRecord()), SDM_TIP);
+});
+
+test("test_a_snapshots_tip_names_the_1x_filter_by_its_simplified_name_with_plain_names_on", () => {
+  plainNames.value = true;
+  assert.equal(snapshotTip(sdmRecord()).split("\n")[0], SDM_TIP_1X_SIMPLIFIED);
 });
 
 // --- the rail ------------------------------------------------------------------------------------

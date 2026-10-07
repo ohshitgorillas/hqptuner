@@ -1,5 +1,5 @@
-// The Snapshot builder's rows: each row's view against the edit showing and the engine now. Sits on the store half
-// (./snapshot.js) for the rows, the edit showing and the engine now.
+// The Snapshot builder's rows: each row's view against the edit showing and the engine now, and a stored record's tip.
+// Sits on the store half (./snapshot.js) for the rows, the edit showing and the engine now.
 
 import { snapRow } from "../../../model/builders/snapshot.js";
 import { schema } from "../../schema.js";
@@ -8,12 +8,13 @@ import { decorateOptions } from "../../plainnames.js";
 import { plainNames } from "../../ui/prefs.js";
 import { rawOptions } from "../lists/options.js";
 import { profileChoices } from "../page/profile.js";
-import { SNAP_ROWS, byChain, editNow, liveNow } from "./snapshot.js";
+import { SNAP_ROWS, byChain, recordChain, editNow, liveNow } from "./snapshot.js";
 
 /** @typedef {import('../../../model/builders/snapshot.js').Chain} Chain */
 /** @typedef {import('../../../model/builders/snapshot.js').RowView} RowView */
 /** @typedef {import('./snapshot.js').Option} Option */
 /** @typedef {import('./snapshot.js').SnapRow} SnapRow */
+/** @typedef {import('../stations.js').SnapRecord} SnapRecord */
 
 /**
  * One row of the page: the row against the engine, plus what it shows.
@@ -39,10 +40,27 @@ const AUTO = MODES.filter((m) => m.value === "auto").map((m) => ({ v: m.value, l
  * @param {string} name
  * @returns {string}
  */
-export function plainName(key, name) {
+function plainName(key, name) {
   if (!plainNames.value) return name;
   const [o] = decorateOptions([{ label: name }], schema[key].plainNames ?? "");
   return "display" in o ? o.display : name;
+}
+
+/**
+ * A snapshot's tip: one `<row label>: <name>` line per row the record holds, in row order, on the record's chain. A list
+ * row's name is its plain leaf in Simplified; a field the record names nothing for shows its stored value.
+ *
+ * @param {SnapRecord} rec
+ * @returns {string}
+ */
+export function snapshotTip(rec) {
+  const ch = recordChain(rec);
+  return SNAP_ROWS.flatMap((row) => {
+    const f = byChain(row.field, ch);
+    if (!Object.hasOwn(rec.fields, f)) return [];
+    const name = rec.names[f] ?? rec.fields[f];
+    return [`${byChain(row.label, ch)}: ${row.kind === "list" ? plainName(byChain(row.key, ch), name) : name}`];
+  }).join("\n");
 }
 
 /**

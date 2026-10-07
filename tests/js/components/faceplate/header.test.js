@@ -28,7 +28,8 @@ import {
   livePresetsBusy,
   livePresetError,
 } from "../../../../hqptuner/static/store/live/presets.js";
-import { unfolded, snapshotTip } from "../../../../hqptuner/static/store/faceplate/stations.js";
+import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
+import { snapshotTip } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";

@@ -6,7 +6,8 @@
 
 import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
-import { stationTree, toggleStation, snapshotTip } from "../../store/faceplate/stations.js";
+import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
+import { snapshotTip } from "../../store/faceplate/builders/rows.js";
 import { body, showBody, openPopover, plate } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";

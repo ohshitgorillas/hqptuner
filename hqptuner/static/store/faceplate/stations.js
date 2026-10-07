@@ -5,10 +5,13 @@ import { signal } from "@preact/signals";
 import { config } from "../signals.js";
 import { activePreset } from "../resolve.js";
 import { liveBook } from "../live/presets.js";
-import { SNAP_ROWS, byChain, recordChain } from "./builders/snapshot.js";
-import { plainName } from "./builders/rows.js";
 
-/** @typedef {import("./builders/snapshot.js").SnapRecord} SnapRecord */
+/**
+ * A stored snapshot as the book holds it: the chain it was taken on, the settings it carries keyed by wire field, and
+ * their display names.
+ *
+ * @typedef {{ chain: string, fields: Record<string, string>, names: Record<string, string> }} SnapRecord
+ */
 
 /**
  * @typedef {object} Station  one station of the tree
@@ -47,21 +50,4 @@ export function stationTree() {
       open: o.value === unfolded.value,
       snapshots: Object.entries(book[o.value] ?? {}).map(([name, rec]) => ({ name, rec })),
     }));
-}
-
-/**
- * A snapshot's tip: one `<row label>: <name>` line per row the record holds, in row order, on the record's chain. A list
- * row's name is its plain leaf in Simplified; a field the record names nothing for shows its stored value.
- *
- * @param {SnapRecord} rec
- * @returns {string}
- */
-export function snapshotTip(rec) {
-  const ch = recordChain(rec);
-  return SNAP_ROWS.flatMap((row) => {
-    const f = byChain(row.field, ch);
-    if (!Object.hasOwn(rec.fields, f)) return [];
-    const name = rec.names[f] ?? rec.fields[f];
-    return [`${byChain(row.label, ch)}: ${row.kind === "list" ? plainName(byChain(row.key, ch), name) : name}`];
-  }).join("\n");
 }

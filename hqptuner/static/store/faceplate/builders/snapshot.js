@@ -21,6 +21,7 @@ import { cur, staged, stage, refused } from "./shell.js";
 /** @typedef {import('../../../model/builders/snapshot.js').Edit} Edit */
 /** @typedef {import('../../../model/builders/snapshot.js').Engine} Engine */
 /** @typedef {import('../../live/chains.js').ChainControl} ChainControl */
+/** @typedef {import('../stations.js').SnapRecord} SnapRecord */
 /** @typedef {{ v: string, label: string, disabled?: boolean }} Option  a seg's or select's option: the wire value and its label */
 
 /**
@@ -36,13 +37,6 @@ import { cur, staged, stage, refused } from "./shell.js";
  * @property {boolean} [gate]      the row the chain rows need (Output mode)
  * @property {string | Record<Chain, string>} field  the live lane's wire field
  * @property {string | Record<Chain, string>} key    the catalog key
- */
-
-/**
- * A stored snapshot as the book holds it: the chain it was taken on, the settings it carries keyed by wire field, and
- * their display names.
- *
- * @typedef {{ chain: string, fields: Record<string, string>, names: Record<string, string> }} SnapRecord
  */
 
 /**

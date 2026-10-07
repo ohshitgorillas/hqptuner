@@ -6,24 +6,15 @@
 // book the LIVE store reads. Where the book is read off the wire, a fetch fake answers /api/livepresets in its real
 // shape. Preset and snapshot names are the fixture's own wire data.
 //
-// A snapshot's tip is read off one /api/livepresets record: its `names` are the fixture's own wire data, and the
-// Simplified name rides the /api/metadata overlay (`plain_names`) as an invented leaf.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/stations.test.js
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode, plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
-import { schema } from "../../../../hqptuner/static/store/schema.js";
-import {
-  stationTree,
-  unfolded,
-  toggleStation,
-  snapshotTip,
-} from "../../../../hqptuner/static/store/faceplate/stations.js";
+import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { rec, presetWire, settle } from "../../support/wire/livepresetwire.js";
 
 /** @type {{ fetch?: unknown }} */
@@ -50,47 +41,9 @@ const offering = (active, names) => ({
 /** A live snapshot record as the book holds it. */
 const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
-/** The invented Simplified leaf the overlay carries for sinc-MGa, and its short, kept distinct. */
-const MGA_LEAF = "Leaf MGa";
-const MGA_SHORT = "Short MGa";
-
-/** A fresh /api/metadata payload whose filters overlay knows sinc-MGa: the same object written twice does not notify. */
-const overlays = () => ({
-  settings: {},
-  filters: { filters: {}, aliases: {} },
-  shapers: { pcm_dithers: {}, sdm_modulators: {} },
-  plain_names: {
-    filters: {
-      entries: { "sinc-MGa": { family: "Fam MGa", variant: null, leaf: MGA_LEAF, short: MGA_SHORT } },
-      families: {},
-      variants: {},
-    },
-    dithers: { entries: {}, families: {}, variants: {} },
-    modulators: { entries: {}, families: {}, variants: {} },
-  },
-});
-
-/** One SDM snapshot record as /api/livepresets serves it, holding both filters, the modulator and Mode. */
-const sdmRecord = () => ({
-  chain: "sdm",
-  fields: { oversampling1x: "50", oversampling: "50", modulator: "12", mode: "sdm" },
-  names: { oversampling1x: "sinc-MGa", oversampling: "sinc-MGa", modulator: "AMSDM7EC 512+fs", mode: "SDM (DSD)" },
-});
-
-/** The SDM record's tip: each held row's schema label and its `rec.names` value, in SNAP_ROWS order. */
-const SDM_TIP = [
-  `${schema.sdm_filter_1x.label}: sinc-MGa`,
-  `${schema.sdm_filter_nx.label}: sinc-MGa`,
-  `${schema.sdm_modulator.label}: AMSDM7EC 512+fs`,
-  `${schema.output_mode.label}: SDM (DSD)`,
-].join("\n");
-const SDM_TIP_1X_SIMPLIFIED = `${schema.sdm_filter_1x.label}: ${MGA_LEAF}`;
-
 beforeEach(() => {
   bookWanted.value = false;
   liveMode.value = false;
-  plainNames.value = false;
-  metadata.value = overlays();
   config.value = offering("Night", ["Day", "Night"]);
   liveBook.value = { Day: { Warm: snap(), Bright: snap() }, Night: { Quiet: snap() }, "": { Loose: snap() } };
   unfolded.value = null;
@@ -158,13 +111,4 @@ test("test_unfolding_the_open_station_again_folds_it", () => {
   toggleStation("Night");
   toggleStation("Night");
   assert.equal(station("Night")?.open, false);
-});
-
-test("test_a_snapshots_tip_is_one_label_and_name_line_per_held_field_in_row_order", () => {
-  assert.equal(snapshotTip(sdmRecord()), SDM_TIP);
-});
-
-test("test_a_snapshots_tip_names_the_1x_filter_by_its_simplified_name_with_plain_names_on", () => {
-  plainNames.value = true;
-  assert.equal(snapshotTip(sdmRecord()).split("\n")[0], SDM_TIP_1X_SIMPLIFIED);
 });
