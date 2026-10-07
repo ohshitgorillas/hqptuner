@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presets.store.presets import PresetError, PresetStore
+from hqptuner.presets.store.presets import PresetError, PresetSchemaError, PresetStore
 
 PAYLOAD = b"<hqplayerd/>"
 
@@ -238,3 +238,43 @@ def test_an_unstamped_store_is_adopted_rather_than_refused(tmp_path: Path) -> No
     store_at(tmp_path).save("alpha", PAYLOAD)
     (tmp_path / "presets" / "store.json").unlink()
     assert PresetStore(tmp_path / "presets").read("alpha") == PAYLOAD
+
+
+def test_a_store_already_listed_refuses_once_a_newer_hqptuner_stamps_it(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.save("alpha", PAYLOAD)
+    store.names()
+    (tmp_path / "presets" / "store.json").write_text(json.dumps({"schema": 99}))
+    with pytest.raises(PresetSchemaError):
+        store.names()
+
+
+# --- reads that follow the directory -----------------------------------------
+#
+# The store answers repeated reads without re-reading files nobody touched, so
+# each test below reads once, changes the backing file, and reads again.
+
+
+def test_names_lists_a_preset_file_added_from_outside_the_store(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.save("alpha", PAYLOAD)
+    store.names()
+    (tmp_path / "presets" / "bravo.xml").write_bytes(PAYLOAD)
+    assert store.names() == ["alpha", "bravo"]
+
+
+def test_active_reads_an_active_file_rewritten_from_outside_the_store(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.save("alpha", PAYLOAD)
+    store.set_active("alpha")
+    _ = store.active
+    (tmp_path / "presets" / "active.json").write_text(json.dumps({"active": "bravo two"}))
+    assert store.active == "bravo two"
+
+
+def test_autosave_reads_the_flag_set_since_the_last_read(tmp_path: Path) -> None:
+    store = store_at(tmp_path)
+    store.save("alpha", PAYLOAD)
+    _ = store.autosave
+    store.set_autosave(enabled=True)
+    assert store.autosave is True

@@ -26,6 +26,7 @@ from hqptuner.presets.store.presets import PresetError, PresetStore
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.config import Config
     from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets.store.signed import Signature
 
 log = logging.getLogger(__name__)
 
@@ -147,6 +148,8 @@ class PresetOps:
         self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
         self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
         self._migrated = False
+        # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
+        self._profiles: dict[str, tuple[Signature, list[str]]] = {}
 
     # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
 
@@ -231,16 +234,22 @@ class PresetOps:
     def preset_profiles(self) -> dict[str, list[str]]:
         """Each stored preset's saved matrix-profile names, sorted.
 
-        This is the read model behind the save/delete target pickers.
+        This is the read model behind the save/delete target pickers. A preset's list is re-parsed only when its
+        file's signature moved since the last call, and a preset no longer stored drops out of what is held.
         """
-        out: dict[str, list[str]] = {}
+        held: dict[str, tuple[Signature, list[str]]] = {}
         for name in self.store.names():
-            try:
-                profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
-            except (PresetError, OSError, ValueError):
-                profiles = {}
-            out[name] = sorted(profiles)
-        return out
+            sig = self.store.signature(name)
+            entry = self._profiles.get(name)
+            if entry is None or entry[0] != sig:
+                try:
+                    profiles = json.loads(matrixprofiles.read_profiles(self.store.read(name)))
+                except (PresetError, OSError, ValueError):
+                    profiles = {}
+                entry = (sig, sorted(profiles))
+            held[name] = entry
+        self._profiles = held
+        return {name: entry[1] for name, entry in held.items()}
 
     # --- backup persistence ------------------------------------------------
 
