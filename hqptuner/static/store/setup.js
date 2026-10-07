@@ -14,13 +14,11 @@
 //   so the first reading of a perfectly healthy install says exactly that. The
 //   panel waits GRACE_MS of elapsed browser time before believing it.
 //
-// The grace is elapsed time rather than a count of polls because the poll's
-// cadence is not a constant — store/sync.js reschedules the fast timer off
-// `fastPollMs`, 1 s on the volume page, in LIVE and on System with quick
-// updates, 2 s otherwise. Counting polls would buy one user twice the grace of
-// the next. It is browser time rather than the age of `unreachable_since`,
-// which is a server wall-clock stamp: subtracting it here would put two clocks
-// in one comparison.
+// The grace is elapsed time rather than a count of readings because readings
+// have no cadence: the push stream (store/sync.js) sends health only when it
+// changes, so a count of readings measures nothing. It is browser time rather
+// than the age of `unreachable_since`, which is a server wall-clock stamp:
+// subtracting it here would put two clocks in one comparison.
 //
 // A page that has seen the daemon connected is never auto-opened again. The
 // pill and the alert strip already report a daemon that goes away mid-session,

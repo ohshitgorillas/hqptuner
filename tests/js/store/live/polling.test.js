@@ -1,25 +1,20 @@
-// Behavioral suite for store/sync.js, the polling layer — startPolling's initial
-// prime, the reactive fast-cadence reschedule (store/ui/ui.js fastPollMs), the
-// mirror's keep-last-good-value contract (via the exported refreshConfig), and
-// the two immediate write paths that ride the same signals: setVolume's
+// Behavioral suite for store/sync.js, the push layer: startSync's one stream on
+// /api/push and the signal each of its events writes, the metadata it primes
+// once over REST, and the write paths that ride the same signals: the mirror's
+// keep-last-good-value contract (via the exported refreshConfig), setVolume's
 // readback echo and refreshDevices' rescan-then-repull.
 //
-// Fakes go at the wire and the environment seams only (docs/testing.md):
-// globalThis.fetch answers the real REST paths with real shapes, and
-// globalThis.setInterval/clearInterval are captured the same way — no test
-// waits on the wall clock, and no store function is stubbed.
+// Fakes go at the wire and the environment seams only (docs/testing.md): the
+// stream is the EventSource fake (tests/js/support/eventsource.js) carrying the
+// bodies api/push.py sends, the page is the document fake
+// (tests/js/support/page.js), and globalThis.fetch answers the real REST paths
+// with real shapes. No test waits on the wall clock, and no store function is
+// stubbed.
 //
-// The timer fakes are installed for the LIFE OF THIS FILE, deliberately:
-// startPolling registers a reactive effect it never disposes, so any later
-// fastPollMs change would re-fire it — restoring the real setInterval mid-file
-// would let that leak schedule a real repeating poll that keeps the process
-// alive. The fakes never execute a scheduled callback, so every case below is
-// deterministic. Files run in their own child process, so nothing escapes.
+// startSync is called exactly once, at module load, and every event case reads
+// the one stream it opened.
 //
-// Like health.test.js's initHealth, startPolling is called exactly once, at
-// module load; the cadence cases below share that one registration in sequence.
-//
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/polling.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/polling.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -32,53 +27,25 @@ import {
   config,
   matrixConfig,
   engineState,
+  engineStatus,
+  enums,
+  staged,
 } from "../../../../hqptuner/static/store/signals.js";
-import { startPolling, refreshConfig, refreshDevices } from "../../../../hqptuner/static/store/sync.js";
+import { startSync, refreshConfig, refreshDevices } from "../../../../hqptuner/static/store/sync.js";
 import { setVolume } from "../../../../hqptuner/static/store/actions.js";
-import { activeTab } from "../../../../hqptuner/static/store/ui/ui.js";
-import { quickSystemUpdates, liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { usePage } from "../../support/page.js";
 import { ok, bad } from "../../support/wire/wire.js";
 
-// --- the timer seam, faked for the file's life (see header) -------------------
+// --- the wire ------------------------------------------------------------------
 
-/** @type {{ id: number, ms: number }[]} */
-const intervals = []; // every setInterval registration, in order: {id, ms}
-/** @type {number[]} */
-const cleared = []; // every clearInterval'd id
-let nextId = 1;
 /**
- * The globals these fakes install over: setInterval/clearInterval as the
- * store calls them, and fetch, all viewed as optional members since the DOM
- * lib's own signatures don't match these fakes' simplified ones.
+ * The global the fetch fake is installed on, viewed as an optional member: the
+ * DOM lib declares it returning a real `Response`, which these fakes do not build.
  *
- * @type {{ setInterval?: unknown, clearInterval?: unknown, fetch?: unknown }}
+ * @type {{ fetch?: unknown }}
  */
 const env = globalThis;
-env.setInterval = (/** @type {unknown} */ _fn, /** @type {number} */ ms) => {
-  const id = nextId++;
-  intervals.push({ id, ms });
-  return id;
-};
-env.clearInterval = (/** @type {number} */ id) => {
-  cleared.push(id);
-};
-
-// `Array.prototype.at` types its result as possibly undefined for any array;
-// the cases below know the registration list is never empty by the time they
-// run, and read this rather than the array method to say so once instead of
-// at every call site.
-/**
- * @template T
- * @param {T[]} arr
- * @returns {T}
- */
-function last(arr) {
-  const v = arr.at(-1);
-  if (v === undefined) throw new Error("last() called on an empty array");
-  return v;
-}
-
-// --- the wire ------------------------------------------------------------------
 
 const REAL_FETCH = env.fetch;
 afterEach(() => {
@@ -89,10 +56,6 @@ afterEach(() => {
 
 /** @type {Record<string, FakeResponse>} */
 const DEFAULTS = {
-  "GET /api/health": ok({ reachable: true, alarm: false, unreachable_since: null, info: {} }),
-  "GET /api/state": ok({ stale: false, data: { adaptive: "0" } }),
-  "GET /api/status": ok({ stale: false, data: { status: {} } }),
-  "GET /api/volume": ok({ volume: "-20.5", min: -60, max: 0, enabled: true, adaptive: false }),
   "GET /api/metadata": ok({ filters: [] }),
   "GET /api/enumerations": ok({ data: null }),
   "GET /api/config": ok({ data: { fields: [], file: {}, active: "" } }),
@@ -112,113 +75,88 @@ function wire(routes = {}) {
 // whole await chain — no wall-clock wait anywhere.
 const drain = () => new Promise((resolve) => setImmediate(resolve));
 
-// One registration for the whole file; the default fast cadence needs the
-// default inputs, pinned here rather than assumed.
-activeTab.value = "output";
-quickSystemUpdates.value = false;
-liveMode.value = false;
+useEventSource();
+usePage();
 wire();
-startPolling(2000);
+startSync();
 await drain();
 
-// --- what startPolling schedules ------------------------------------------------
+// --- what startSync opens and primes ---------------------------------------------
 
-test("test_polling_starts_the_fast_lane_at_the_default_cadence", () => {
-  assert.equal(intervals[0].ms, 2000);
+test("test_sync_opens_its_stream_on_the_push_route", () => {
+  assert.equal(lastStream()?.url, "/api/push");
 });
 
-test("test_the_config_poll_runs_at_twice_the_interval", () => {
-  assert.equal(intervals[1].ms, 4000);
-});
-
-// --- what startPolling primes immediately ---------------------------------------
-
-test("test_polling_primes_health_before_the_first_tick", () => {
-  assert.equal(health.value.reachable, true);
-});
-
-test("test_polling_primes_the_static_metadata_once", () => {
+test("test_sync_primes_the_static_metadata_once", () => {
   assert.deepEqual(metadata.value, { filters: [] });
 });
 
-test("test_the_volume_endpoint_feeds_the_level_signal", () => {
+// --- each event lands in the signal its route's poll wrote -----------------------
+// The snapshot routes arrive wrapped as {stale, loaded_at, data} and land as their
+// `data`; health, volume and pending arrive raw and land whole.
+
+const EVENTS = [
+  {
+    event: "health",
+    body: { reachable: true, ready: true, alarm: false, unreachable_since: 1700000000, info: {} },
+    read: () => health.value?.unreachable_since,
+    want: 1700000000,
+  },
+  {
+    event: "state",
+    body: { stale: false, loaded_at: 1, data: { adaptive: "1" } },
+    read: () => engineState.value?.adaptive,
+    want: "1",
+  },
+  {
+    event: "status",
+    body: { stale: false, loaded_at: 1, data: { status: { state: 2 } } },
+    read: () => engineStatus.value?.status?.state,
+    want: 2,
+  },
+  {
+    event: "enumerations",
+    body: { stale: false, loaded_at: 1, data: { mode: { name: "PCM" } } },
+    read: () => enums.value?.mode?.name,
+    want: "PCM",
+  },
+  {
+    event: "config",
+    body: { stale: false, loaded_at: 1, data: { fields: [], file: {}, active: "Desk" } },
+    read: () => config.value?.active,
+    want: "Desk",
+  },
+  {
+    event: "matrix",
+    body: { stale: false, loaded_at: 1, data: { fields: [], active: "Room" } },
+    read: () => matrixConfig.value?.active,
+    want: "Room",
+  },
+  {
+    event: "pending",
+    body: { live: {}, http: { filter: "staged-value" } },
+    read: () => staged.value.http.filter,
+    want: "staged-value",
+  },
+];
+
+for (const c of EVENTS) {
+  test(`test_a_push_event_lands_in_its_signal: ${c.event}`, () => {
+    lastStream()?.emit(c.event, c.body);
+    assert.equal(c.read(), c.want);
+  });
+}
+
+const VOLUME = { volume: "-20.5", min: -60, max: 0, enabled: true, adaptive: false };
+
+test("test_the_volume_event_feeds_the_level_signal", () => {
+  lastStream()?.emit("volume", VOLUME);
   assert.equal(volume.value, "-20.5");
 });
 
-test("test_the_volume_endpoint_feeds_the_range_signal_from_the_same_answer", () => {
-  assert.equal(volumeRange.value.min, -60);
-});
-
-// --- the reactive fast cadence (store/ui/ui.js fastPollMs) --------------------------
-// Sequence-dependent by design: each case advances the shared registration the
-// way the app would (the user changes page / flips the opt-in).
-
-test("test_quick_updates_on_the_shown_system_page_poll_every_second", () => {
-  activeTab.value = "system";
-  quickSystemUpdates.value = true;
-  assert.equal(last(intervals).ms, 1000);
-});
-
-test("test_the_reschedule_clears_the_previous_fast_timer", () => {
-  assert.equal(cleared.includes(intervals[0].id), true);
-});
-
-test("test_a_quick_opt_in_for_a_page_not_shown_keeps_the_default_cadence", () => {
-  activeTab.value = "output"; // system's opt-in is still on, but system is not shown
-  assert.equal(last(intervals).ms, 2000);
-});
-
-// The volume page is fast unconditionally: there is no opt-in gating it, so the
-// system opt-in is switched OFF first — nothing but the tab itself can account
-// for the cadence below.
-
-test("test_the_volume_page_polls_every_second_with_no_opt_in_at_all", () => {
-  quickSystemUpdates.value = false;
-  activeTab.value = "volume";
-  assert.equal(last(intervals).ms, 1000);
-});
-
-test("test_the_system_page_without_its_opt_in_polls_at_the_default_cadence", () => {
-  activeTab.value = "system"; // the opt-in went off just above
-  assert.equal(last(intervals).ms, 2000);
-});
-
-// LIVE has no opt-in and needs none. It is a mode rather than a tab, so
-// `activeTab` still names the tab the user left while LIVE is shown — the page
-// polled at the default cadence no matter what until fastPollMs read the mode
-// itself. `activeTab` is left on `system` with its opt-in off, so only the mode
-// can account for the cadence below.
-
-test("test_live_mode_polls_every_second", () => {
-  liveMode.value = true;
-  assert.equal(last(intervals).ms, 1000);
-});
-
-test("test_leaving_live_returns_the_page_underneath_to_its_own_cadence", () => {
-  liveMode.value = false;
-  assert.equal(last(intervals).ms, 2000);
-});
-
-// LIVE is fast regardless of the tab underneath, not only on a tab that has a
-// fast rule of its own. The output page has no rule and no opt-in, so it is
-// pinned at the default cadence first: the second cadence below can only come
-// from the mode.
-
-test("test_live_mode_polls_every_second_over_a_page_with_no_fast_rule_of_its_own", () => {
-  activeTab.value = "output"; // no fast rule, no opt-in: the default cadence
-  liveMode.value = true;
-  assert.equal(last(intervals).ms, 1000);
-});
-
-// A tab opt-in switched on while LIVE is shown survives LIVE being switched
-// off: the opt-in is left SET across the toggle here, so the page underneath
-// keeps the fast cadence instead of falling back to the default.
-
-test("test_a_tab_opt_in_still_holds_after_live_is_switched_off", () => {
-  activeTab.value = "system";
-  quickSystemUpdates.value = true;
-  liveMode.value = false;
-  assert.equal(last(intervals).ms, 1000);
+test("test_the_volume_event_feeds_the_range_signal_from_the_same_body", () => {
+  lastStream()?.emit("volume", { ...VOLUME, min: -70 });
+  assert.equal(volumeRange.value?.min, -70);
 });
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------
@@ -230,7 +168,7 @@ test("test_a_failed_config_fetch_keeps_the_last_good_snapshot", async () => {
   assert.equal(config.value.active, "LastGood");
 });
 
-test("test_the_next_successful_poll_replaces_the_held_snapshot", async () => {
+test("test_the_next_successful_fetch_replaces_the_held_snapshot", async () => {
   config.value = { fields: [], file: {}, active: "LastGood" };
   wire({ "GET /api/config": ok({ data: { fields: [], file: {}, active: "Fresh" } }) });
   await refreshConfig();

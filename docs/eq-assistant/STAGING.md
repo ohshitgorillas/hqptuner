@@ -1,6 +1,6 @@
 # Staging from the CLI — operating doc for assistant agents
 
-What "staging" means here: HQPTuner's pending-changes buffer is **server-side** — `PendingStore` on `app.state.pending` (`hqptuner/api/routes/pending.py:19-36`), two dicts: `live` (Control-API edits keyed by live setting) and `http` (persistent config fields keyed by field name). It survives browser reloads because it lives on the backend, and the web UI mirrors it every ~2 s (`static/store/sync.js:61`). Therefore anything staged into the store shows up in the user's open browser tab within a poll tick, lights the pending bar, and arms Apply — no page interaction by the agent required.
+What "staging" means here: HQPTuner's pending-changes buffer is **server-side** — `PendingStore` on `app.state.pending` (`hqptuner/api/routes/pending.py:19-36`), two dicts: `live` (Control-API edits keyed by live setting) and `http` (persistent config fields keyed by field name). It survives browser reloads because it lives on the backend, and the web UI mirrors it as the push stream sends it (`static/store/sync.js`, `hqptuner/api/push.py`). Therefore anything staged into the store shows up in the user's open browser tab at once, lights the pending bar, and arms Apply — no page interaction by the agent required.
 
 ## Use the tool
 

@@ -25,7 +25,7 @@ import { ConnPanel } from "./components/faceplate/ConnPanel.js";
 import { body } from "./store/faceplate/view.js";
 import { watchFaceplateTheme } from "./store/faceplate/settings/visual.js";
 import { railStages, railNow } from "./store/faceplate/chain.js";
-import { startPolling } from "./store/sync.js";
+import { startSync } from "./store/sync.js";
 import { initFavicon } from "./store/ui/favicon.js";
 import { initHealth } from "./store/health.js";
 import { initApodHistory } from "./store/apodhistory.js";
@@ -97,7 +97,7 @@ if (root) {
   loadSpeakers();
   initSetup();
   pageHost.value = location.hostname;
-  startPolling();
+  startSync();
   watchFaceplateTheme(document.documentElement);
   render(html`<${Faceplate} />`, root);
 }

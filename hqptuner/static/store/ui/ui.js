@@ -1,10 +1,10 @@
 // Client-only UI state shared between the store and components: the active tab
 // and the derived fast-poll cadence. Kept in the store (not in the tab
-// component) so store/sync.js can read it without a component->store import cycle.
+// component) so the store can read it without a component->store import cycle.
 import { signal, computed } from "@preact/signals";
 import { quickSystemUpdates, liveMode } from "./prefs.js";
 
-export const activeTab = signal("output");
+const activeTab = signal("output");
 
 // Which shelf the Loudness strip edits ("low" | "high") — client-only UI
 // state, never touches the store trees or the server. Lives here so the plot
