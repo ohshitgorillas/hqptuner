@@ -95,8 +95,8 @@ class SpectralAggregate:
         self._block_min: list[float] | None = None
         self._block_seconds = 0.0
 
-    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> None:
-        """Keep one frame's per-bin power, unless silent, in the open block.
+    def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> bool:
+        """Keep one frame's per-bin power, unless silent, in the open block, and say whether this frame closed it.
 
         Once the block has BLOCK_SECONDS of coverage it is read into a record and a fresh one starts; a block that
         saw only silent frames closes carrying no record.
@@ -112,14 +112,16 @@ class SpectralAggregate:
                 for i, p in enumerate(mags_sq):
                     block[i] = min(block[i], p)
         self._block_seconds += covered_seconds
-        if self._block_seconds >= BLOCK_SECONDS:
-            self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
-            if self._latest is not None:
-                self._blocks.append(self._latest)
-            self.junk_run.observe(self._latest, self.bandwidth)
-            self._rows = []
-            self._block_min = None
-            self._block_seconds = 0.0
+        if self._block_seconds < BLOCK_SECONDS:
+            return False
+        self._latest = blockstats.block_record(self._rows, self.bandwidth) if self._rows else None
+        if self._latest is not None:
+            self._blocks.append(self._latest)
+        self.junk_run.observe(self._latest, self.bandwidth)
+        self._rows = []
+        self._block_min = None
+        self._block_seconds = 0.0
+        return True
 
     def window_min_db(self) -> list[float]:
         """Per-bin minimum (dB) over whatever coverage is in hand, empty while no frame has been folded at all.
@@ -162,6 +164,7 @@ class MeteringReader:
         self._wake = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
+        self._verdict: junkadvisor.JunkVerdict | None = None
         self.feed = MeterFeed(on_subscribe=self._wake.set)
 
     def retarget(self, host: str, port: int) -> None:
@@ -183,10 +186,13 @@ class MeteringReader:
         return self._agg
 
     def verdict(self) -> junkadvisor.JunkVerdict | None:
-        """Return the signature the current windowed minimum spectrum carries, whatever the engine has engaged.
+        """Return the signature the windowed minimum spectrum carried when the last block closed, whatever is engaged.
 
-        The cliff and the ramp are recomputed on every call and held by nothing: each is a property of the spectrum in
-        front of the rules, so it appears when the window carries the signature and is None again once it does not. The
+        The verdict is classified once per closed block, on the reader's own task, and held until the next block
+        closes; this returns that held value and touches neither the aggregate nor the spur holder, so every caller,
+        on whatever thread, reads the same verdict. None while the engine is unreachable, while no aggregate stands,
+        and before the first block of one has closed. The ramp is a property of the spectrum in front of the rules,
+        so it appears at the block whose window carries the signature and is gone at the first that does not. The
         spur is held per bin by the reader's ``SpurHolder`` until the tone's excess over the local baseline falls under
         the release split or the bin stops standing clear of the floor, so a loud passage that lifts the baseline over a
         tone no longer drops the advice and brings it back. The holder carries no track identity and neither does the
@@ -196,17 +202,9 @@ class MeteringReader:
         asks for and has to keep seeing that signature afterwards, or it would lose the very evidence that says the
         filter is still earning its place.
         """
-        ctx, agg = self._context(), self._agg
-        if ctx is None or agg is None:
+        if self._context() is None or self._agg is None:
             return None
-        return junkadvisor.classify(
-            agg.window_min_db(),
-            agg.bandwidth,
-            samplerate=ctx.samplerate,
-            sdm=ctx.sdm,
-            holder=self._holder,
-            run=agg.junk_run,
-        )
+        return self._verdict
 
     def recommendation(self) -> junkadvisor.JunkVerdict | None:
         """Return the advisor's note for the current track, or None.
@@ -250,7 +248,8 @@ class MeteringReader:
                 # a refused or broken stream, an unparseable poll: a backoff no subscriber cuts short
                 delay, wake = RECONNECT_DELAY, self._stop
             if not keep:
-                self._agg = None  # a broken stream ends the track's evidence
+                self._verdict = None  # a broken stream ends the track's evidence, the verdict read off it first
+                self._agg = None
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
             if not self._stop.is_set():
                 await self._pace(wake, delay)
@@ -304,11 +303,27 @@ class MeteringReader:
         bandwidth, xform_time = float(header[4]), float(header[5])
         agg = self._agg
         if agg is None or agg.bins != bins or agg.bandwidth != bandwidth:
+            self._verdict = None
             agg = self._agg = SpectralAggregate(bins, bandwidth)
         levels = reduce_frame(body, channels, bins)
         silent = bool((levels[:, 1] < SILENT_RMS_POWER).all())
-        agg.add(levels[:, 2:].sum(axis=0).tolist(), xform_time, silent=silent)
+        if agg.add(levels[:, 2:].sum(axis=0).tolist(), xform_time, silent=silent):
+            self._verdict = self._classify(agg)
         self.feed.add(header, levels)
+
+    def _classify(self, agg: SpectralAggregate) -> junkadvisor.JunkVerdict | None:
+        """Classify the window just closed against the track context in hand, None while there is none."""
+        ctx = self._context()
+        if ctx is None:
+            return None
+        return junkadvisor.classify(
+            agg.window_min_db(),
+            agg.bandwidth,
+            samplerate=ctx.samplerate,
+            sdm=ctx.sdm,
+            holder=self._holder,
+            run=agg.junk_run,
+        )
 
 
 async def _read_frame(reader: asyncio.StreamReader) -> tuple[tuple[float, ...], bytes]:
