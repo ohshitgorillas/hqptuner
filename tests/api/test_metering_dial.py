@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
     from pathlib import Path
 
-    from hqptuner.engine.meterfeed import Event, MeterFeed
+    from hqptuner.engine.meterfeed import MeterFeed
 
 BINS = 1025
 BANDWIDTH = 22050.0
@@ -75,7 +75,7 @@ def _idle(client: TestClient) -> None:
 def _page_leaves_and_returns(client: TestClient) -> None:
     """A subscriber attaches, the reader rechecks, it detaches, the reader rechecks, and one attaches again."""
     feed = _feed(client)
-    queues: list[asyncio.Queue[Event]] = []
+    queues: list[asyncio.Queue[str]] = []
     _on_app_loop(client, lambda: queues.append(feed.subscribe()))
     _idle(client)
     _on_app_loop(client, lambda: feed.unsubscribe(queues[0]))

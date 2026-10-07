@@ -14,8 +14,9 @@ A `frame` item carries each channel's bins as standard padded base64 of two
 bytes per bin, low byte first, DC first, each bin a count of steps decoding to
 ``-step * BIN_STEP_DB`` dBFS.
 
-The feed's items are ``(event, data)`` pairs read off the queue `subscribe()`
-hands back, drained after every `add`.
+The feed's items are ``(event, data)`` pairs parsed from the server-sent event
+text read off the queue `subscribe()` hands back, drained after every `add`:
+an ``event:`` line, a ``data:`` line of JSON, then a blank line.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ import asyncio
 import base64
 import inspect
 import itertools
+import json
 import math
 import struct
 from dataclasses import dataclass
@@ -31,7 +33,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from hqptuner.engine.meterfeed import Event, MeterFeed, reduce_frame
+from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -109,12 +111,16 @@ async def _resolved[T](value: T | Awaitable[T]) -> T:
     return value
 
 
-async def _drain(queue: asyncio.Queue[Event]) -> list[Item]:
+def _parsed(text: str) -> Item:
+    fields = dict(line.split(": ", 1) for line in text.splitlines() if line)
+    return fields["event"], json.loads(fields["data"])
+
+
+async def _drain(queue: asyncio.Queue[str]) -> list[Item]:
     await asyncio.sleep(0)
     items: list[Item] = []
     while not queue.empty():
-        event, data = queue.get_nowait()
-        items.append((event, data))
+        items.append(_parsed(queue.get_nowait()))
     return items
 
 
