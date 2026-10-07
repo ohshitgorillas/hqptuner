@@ -2,7 +2,7 @@
 name: pacer
 description: Paces bursty event streams, such as meter and spectrum updates, on playback time behind a delay queue, so the screen shows each event when its audio plays rather than when the packet arrived. Use for a stream that arrives in bursts, ahead of or behind the audio, or that stutters when the network batches; not for timeouts or retries on external calls (`clocksmith`).
 tools: Read, Edit, Write, Grep, Glob, Bash, Skill
-model: inherit
+model: opus
 skills:
   - clock-seams
 ---
