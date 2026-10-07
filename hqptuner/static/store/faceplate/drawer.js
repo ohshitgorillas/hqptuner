@@ -24,7 +24,7 @@ import { openPopover } from "./view.js";
 import { shownKeys, tabKeys } from "./drawer/grammar.js";
 
 export { groupShown, rowShown } from "./drawer/grammar.js";
-export { rowLines, rowOptions, rowValue } from "./drawer/rows.js";
+export { drawerPick, drawerPlate, rowLines, rowOptions, rowValue } from "./drawer/rows.js";
 export { showTab, shownTab } from "./drawer/tabs.js";
 
 /** @typedef {import("./drawer/grammar.js").RowOption} RowOption */

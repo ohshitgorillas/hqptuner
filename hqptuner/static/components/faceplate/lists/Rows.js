@@ -1,9 +1,10 @@
 // An option list's rows: one option's name, its marks and its heart, and the key to the filter rows' marks. A filter
 // row marks its apodizing (v1's circled A or ½) and its quality stars, a modulator row the DSD rate floor it needs, a
-// dither row nothing. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking.
+// dither or DSD row nothing. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking,
+// on the kinds that keep favorites.
 
 import { html } from "../../../lib/dom.js";
-import { hideTip, pickFromList, showTip } from "../../../store/faceplate/lists/open.js";
+import { hasFavorites, hideTip, pickFromList, showTip } from "../../../store/faceplate/lists/open.js";
 import { isListFavorite, toggleListFavorite } from "../../../store/faceplate/lists/options.js";
 
 /** @typedef {import("../../../model/shell/option-list.js").Opt} Opt */
@@ -113,7 +114,7 @@ export function Row({ o, req, kind, std }) {
       onBlur=${() => hideTip(o.v)}
     >
       <span class="nm">${std ? o.v : o.leaf}</span>
-      ${marks(kind, o)} ${kind === "dithers" ? null : heart(req, o)}
+      ${marks(kind, o)} ${hasFavorites(kind) ? heart(req, o) : null}
     </div>
   `;
 }

@@ -15,10 +15,19 @@ import { profileChoices, switchProfile } from "../page/profile.js";
 import { rawOptions } from "../lists/options.js";
 
 /**
- * One slot of the bar: the name it sends, the label it shows, the name it is also known by, whether it is the one
- * running, and whether nothing is remembered for it.
+ * One slot of the bar: the name it sends, what it shows (a list target's plain family, variant and leaf, any other
+ * target's label), the name it is also known by, whether it is the one running, and whether nothing is remembered for
+ * it.
  *
- * @typedef {{ name: string, label: string, aka: string, on: boolean, empty: boolean }} Slot
+ * @typedef {object} Slot
+ * @property {string} name
+ * @property {string} [label]
+ * @property {string} [fam]
+ * @property {string | null} [variant]
+ * @property {string} [leaf]
+ * @property {string} aka
+ * @property {boolean} on
+ * @property {boolean} empty
  */
 
 /**
@@ -132,19 +141,8 @@ function runningName(key) {
 }
 
 /**
- * A name's label: its plain family, variant and leaf, those it has, as the nameplate breaks it down.
- *
- * @param {string} key
- * @param {string} name
- */
-function plainLabel(key, name) {
-  const { fam, variant, leaf } = plainOf(schema[key].plainNames ?? "", name);
-  return [fam, variant, leaf].filter(Boolean).join(" · ");
-}
-
-/**
- * A list target's slots: each remembered name labeled by its plain family, variant and leaf, the running name in the
- * first while both are empty.
+ * A list target's slots: each remembered name broken down as the nameplate breaks it, its plain family, variant and
+ * leaf, the running name in the first while both are empty.
  *
  * @param {string} key
  * @param {string[]} names
@@ -153,9 +151,10 @@ function plainLabel(key, name) {
 function listSlots(key, names) {
   const run = runningName(key);
   const shown = names[0] || names[1] ? names : [run, ""];
+  const kind = schema[key].plainNames ?? "";
   return shown.map((name, i) => ({
     name,
-    label: name === "" ? "" : plainLabel(key, name),
+    ...(name === "" ? { fam: "", variant: null, leaf: "" } : plainOf(kind, name)),
     aka: "",
     on: name !== "" && name === run,
     empty: names[i] === "",

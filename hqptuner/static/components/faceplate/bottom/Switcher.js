@@ -17,6 +17,7 @@ import {
   slotLive,
   pickId,
 } from "../../../store/faceplate/bottom/switcher.js";
+import { NameFace } from "../NameFace.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 import { VolumeBar } from "../Volume.js";
 
@@ -114,8 +115,27 @@ function arrow(e, i, bodies) {
 }
 
 /**
- * One slot: its radio body naming the setting, and its ▾, the picker of a list target's key (`data-list`) where its
- * list parks (`id`).
+ * A list target's slot body: the name face of its name.
+ *
+ * @param {Slot} s
+ */
+const listFace = (s) => html`
+  <span class="sface"><${NameFace} fam=${s.fam ?? ""} variant=${s.variant ?? null} leaf=${s.leaf ?? ""} /></span>
+`;
+
+/**
+ * Any other target's slot body: its label, and under Output mode its aka.
+ *
+ * @param {Slot} s
+ * @param {boolean} mode
+ */
+const slotText = (s, mode) => html`
+  <span class="tx"><span class="v">${s.label}</span>${mode ? html`<span class="aka">${s.aka}</span>` : null}</span>
+`;
+
+/**
+ * One slot: its radio body naming the setting, a list target's by its name face, and its ▾, the picker of a list
+ * target's key (`data-list`) where its list parks (`id`).
  *
  * @param {{ s: Slot, i: number, mode: boolean, menu: boolean, key: string | null, tab: boolean, bodies: Bodies }} p
  */
@@ -131,9 +151,7 @@ const slot = ({ s, i, mode, menu, key, tab, bodies }) => html`
       onClick=${() => slotLive(i)}
       onKeyDown=${(/** @type {KeyboardEvent} */ e) => arrow(e, i, bodies)}
     >
-      <span class="tx"
-        ><span class="v">${s.label}</span>${mode ? html`<span class="aka">${s.aka}</span>` : null}</span
-      >
+      ${key ? listFace(s) : slotText(s, mode)}
     </button>
     <button
       class="spick"

@@ -22,6 +22,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { facetsMoved, narrowState, setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { narrowingWire } from "../../support/wire/narrowingwire.js";
@@ -146,9 +147,27 @@ test("test_reset_on_a_shaper_list_leaves_the_filter_narrowing_alone", () => {
 
 test("test_each_list_kind_shows_its_own_console", () => {
   const has = (/** @type {string} */ id) => windowOf(id) !== undefined;
-  const filters = [has("quality"), has("modTier")];
+  const bar = () => markup().some((e) => classes(e).includes("fbar"));
+  const filters = [has("quality"), has("modTier"), bar()];
   open("sdm_modulator");
-  assert.deepEqual([...filters, has("modTier"), has("quality")], [true, false, true, false]);
+  const shapers = [has("modTier"), has("quality")];
+  config.value = {
+    ...config.value,
+    fields: [
+      ...config.value.fields,
+      {
+        name: "pcm_conversion",
+        type: "select",
+        value: "0",
+        options: [
+          { value: "0", label: "traditional" },
+          { value: "9", label: "sinc-M" },
+        ],
+      },
+    ],
+  };
+  open("pcm_conversion");
+  assert.deepEqual([...filters, ...shapers, bar()], [true, false, true, true, false, false]);
 });
 
 test("test_the_favorites_window_switches_favorites_only", () => {

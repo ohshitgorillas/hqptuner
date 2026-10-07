@@ -1,11 +1,14 @@
 // The controls a drawer draws: segment buttons over an option list, and the control a catalog key's widget is drawn as.
-// A segment or a checkbox is segment buttons, a dropdown or a steps widget a select, a number, slidernum or knob widget
-// a number box, a text widget a text box; each writes through edit(). Also the label head and the gray reason line
+// A segment or a checkbox is segment buttons, a dropdown or a steps widget a select (a nameplate opening the key's
+// option list where the key has a plain-names overlay), a number, slidernum or knob widget a number box, a text widget a
+// text box; each writes through edit(). Also the label head and the gray reason line
 // every row-shaped item shares, with the link to the place the reason names.
 
 import { html, TypedInput } from "../../../lib/dom.js";
 import { edit } from "../../../store/actions.js";
-import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
+import { drawerPick, drawerPlate, rowLines, rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
+import { openOptionList } from "../../../store/faceplate/view.js";
+import { NameFace } from "../NameFace.js";
 import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").RowOption} RowOption */
@@ -85,11 +88,53 @@ const segment = (c) =>
   });
 
 /**
- * A select over the key's options, the effective one selected.
+ * The element id of a key's nameplate, where its list parks.
+ *
+ * @param {string} key
+ */
+const plateId = (key) => `dplate-${key}`;
+
+/**
+ * A nameplate naming the staged option by its plain family, variant and leaf; a tap opens the key's option list, and a
+ * pick from it is staged.
  *
  * @param {KeyCtl} c
  */
-function select({ key, label, off, options }) {
+function nameplate({ key, label, off }) {
+  const face = drawerPlate(key);
+  const open = () =>
+    openOptionList({
+      key,
+      stage: key.endsWith("_nx") ? "nx" : "1x",
+      value: rowLines(key).find((l) => l.cur)?.label ?? "",
+      pick: (name) => drawerPick(key, name),
+      anchor: plateId(key),
+    });
+  return html`
+    <button
+      type="button"
+      class=${off ? "vfd cplate grayed" : "vfd cplate"}
+      id=${plateId(key)}
+      data-list=${key}
+      aria-label=${`${label}: ${face.leaf}`}
+      aria-haspopup="dialog"
+      disabled=${off}
+      onClick=${open}
+    >
+      <${NameFace} ...${face} />
+    </button>
+  `;
+}
+
+/**
+ * A select over the key's options, the effective one selected; a key with a plain-names overlay draws its nameplate
+ * instead.
+ *
+ * @param {KeyCtl} c
+ */
+function select(c) {
+  if (c.entry.plainNames) return nameplate(c);
+  const { key, label, off, options } = c;
   const value = rowValue(key);
   return html`
     <select

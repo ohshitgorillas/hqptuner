@@ -22,7 +22,8 @@ import { Legend, Row } from "./Rows.js";
 /**
  * Custom placement per list kind, columns left to right. Filters: Polyphase sinc split by lineage over two columns, Pure
  * sinc (PCM's Misc under it, then Analog-style under its own `Other` title), then Conventional and Interpolation under
- * the last column's. Modulators: Hybrid over Fixed, then Adaptive over two. Dithers: one column, families stacked.
+ * the last column's. Modulators: Hybrid over Fixed, then Adaptive over two. Dithers: one column, families stacked. DSD
+ * lists name no family, so theirs stack in the one column after the placed ones.
  *
  * @type {Record<ListKind, Placement[]>}
  */
@@ -40,10 +41,11 @@ const PLACE = {
   ],
   modulators: [{ fams: ["Hybrid", "Fixed"] }, { fams: ["Adaptive"], split: [["Fifth order"], ["Seventh order"]] }],
   dithers: [{ fams: ["Noise shaping", "Additive", "None"] }],
+  dsd: [],
 };
 
 /** Standard: columns per list kind. */
-const STD_COLS = { filters: 3, modulators: 2, dithers: 1 };
+const STD_COLS = { filters: 3, modulators: 2, dithers: 1, dsd: 1 };
 
 /**
  * The kind's placement, with a column after it for the families it does not name.

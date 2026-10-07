@@ -1,5 +1,5 @@
-// The option list a chain picker opens: the whole filter, modulator or dither list in place of a dropdown. A filter list
-// fills a sheet risen from the plate's foot over the body; a modulator or dither list opens as a panel parked at its
+// The option list a picker opens: the whole filter, modulator, dither or DSD processing list in place of a dropdown. A
+// filter list fills a sheet risen from the plate's foot over the body; any other list opens as a panel parked at its
 // picker, sized to its list. One list at a time (store/faceplate/view.js `openList`), refilled for whichever picker
 // opens it. The head carries the list's name over its count, the narrowing console and ×; the body its columns. The
 // console's popovers sit beside the sheet on the plate. A tap outside an open panel closes it, unless it lands on a
@@ -11,7 +11,7 @@ import { parkAt } from "../../../model/shell/option-list.js";
 import { schema } from "../../../store/schema.js";
 import { plainNames } from "../../../store/ui/prefs.js";
 import { openList, plate } from "../../../store/faceplate/view.js";
-import { closeOptionList, isPanel, kindOf } from "../../../store/faceplate/lists/open.js";
+import { closeOptionList, hasConsole, isPanel, kindOf } from "../../../store/faceplate/lists/open.js";
 import { listBlurbs, listOptions, narrowedOptions } from "../../../store/faceplate/lists/options.js";
 import { originOf } from "../Popover.js";
 import { Columns } from "./Columns.js";
@@ -103,7 +103,8 @@ function listen() {
 }
 
 /**
- * The open list's head: its name (its sublabel as the tooltip) over its count, the console, and ×.
+ * The open list's head: its name (its sublabel as the tooltip) over its count, the console where its kind has one, and
+ * ×.
  *
  * @param {ListRequest} req
  * @param {number} n
@@ -111,12 +112,13 @@ function listen() {
  */
 function head(req, n, total) {
   const entry = schema[req.key];
+  const kind = kindOf(req.key);
   return html`
     <span class="ttl">
       <span class="t" title=${SUB[req.key] ?? entry.sublabel}>${entry.label}</span>
       <span class="tsub"><span class="ocount">${n} of ${total}</span></span>
     </span>
-    <${Console} kind=${kindOf(req.key)} stage=${req.stage} />
+    ${hasConsole(kind) ? html`<${Console} kind=${kind} stage=${req.stage} />` : null}
     <button type="button" class="round dx" aria-label="Close list" onClick=${closeOptionList}>×</button>
   `;
 }

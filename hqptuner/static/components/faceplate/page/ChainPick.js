@@ -6,6 +6,7 @@
 import { html } from "../../../lib/dom.js";
 import { openOptionList } from "../../../store/faceplate/view.js";
 import { pickOption } from "../../../store/faceplate/page/conversion.js";
+import { NameFace } from "../NameFace.js";
 
 /** @typedef {import("../../../store/faceplate/page/conversion.js").ConvField} ConvField */
 
@@ -30,11 +31,7 @@ export function ChainPick({ field, label }) {
         aria-haspopup="dialog"
         onClick=${open}
       >
-        <span class="cpf">
-          <b class="cpfam">${fam}</b>
-          ${variant && html`<span class="cpsep">›</span><span class="cpvar">${variant}</span>`}
-        </span>
-        <span class="cpl">${leaf}</span>
+        <${NameFace} fam=${fam} variant=${variant} leaf=${leaf} />
       </button>
     </div>
   `;

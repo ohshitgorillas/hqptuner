@@ -1,11 +1,14 @@
-// What a drawer row's control renders: the options it lists, the value it shows, and each option's line. An option's
-// line is the one the settings metadata holds for it (store/prose.js), else the one the schema wrote for it.
+// What a drawer row's control renders: the options it lists, the value it shows, each option's line, and for a key with
+// a plain-names overlay the nameplate of its staged option and the pick its list hands back. An option's line is the
+// one the settings metadata holds for it (store/prose.js), else the one the schema wrote for it.
 
 import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../schema.js";
-import { describe, optionDescription } from "../../prose.js";
+import { describe, idFor, optionDescription } from "../../prose.js";
 import { effective, formFieldName } from "../../resolve.js";
+import { edit } from "../../actions.js";
 import { enumOptions, optionsFor } from "../../ui/options.js";
+import { plainOf } from "../page/conversion.js";
 
 /** @typedef {import("./grammar.js").RowOption} RowOption */
 
@@ -55,6 +58,31 @@ export function rowValue(key) {
   const v = effective(key);
   if (e && (e.widget === "checkbox" || e.bool)) return truthy(v) ? "1" : "0";
   return v === undefined ? "" : String(v);
+}
+
+/**
+ * The nameplate of a row's staged option: its plain family, variant and leaf, as the page's nameplates break it down.
+ *
+ * @param {string} key
+ * @returns {{ fam: string, variant: string | null, leaf: string }}
+ */
+export function drawerPlate(key) {
+  const value = rowValue(key);
+  const name = rowOptions(key).find((o) => String(o.value) === value)?.label ?? "";
+  return plainOf(catalog[key]?.plainNames ?? "", name);
+}
+
+/**
+ * A pick from a row's list: the picked engine name's enum ID staged through edit(). A name the row does not list
+ * stages nothing.
+ *
+ * @param {string} key
+ * @param {string} name  the engine name picked
+ * @returns {Promise<void>}
+ */
+export async function drawerPick(key, name) {
+  const id = idFor(rowOptions(key), name);
+  if (id) await edit(key, id);
 }
 
 /**

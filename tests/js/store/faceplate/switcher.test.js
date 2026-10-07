@@ -133,15 +133,34 @@ test("test_a_remembered_name_fills_its_slot_with_the_engine_name", () => {
   assert.equal(switcherView()?.slots[1]?.name, "ASDM5");
 });
 
-/** The fixture's plain breakdown of two names: family, variant where one is, leaf. */
-const PLAIN = { ASDM5: ["Adaptive", "Fifth order", "Leaf asdm5"], IIR: ["Fam B", "Leaf iir"] };
+/** The fixture's plain breakdown of a modulator name: family, variant, leaf. */
+const PLAIN_ASDM5 = { fam: "Adaptive", variant: "Fifth order", leaf: "Leaf asdm5" };
 
-test("test_a_list_slot_labels_its_name_by_its_plain_family_variant_and_leaf", () => {
+/** The fixture's plain breakdown of two filter names, one with no variant and one with a variant. */
+const PLAIN_FILTERS = {
+  IIR: { fam: "Fam B", variant: null, leaf: "Leaf iir" },
+  "sinc-M": { fam: "Fam A", variant: "Var B", leaf: "Leaf sinc" },
+};
+
+test("test_a_modulator_slot_carries_its_names_plain_family_variant_and_leaf", () => {
   setSlot(1, "ASDM5");
-  const modulator = switcherView()?.slots[1]?.label;
+  /** @type {Record<string, unknown> | undefined} */
+  const slot = switcherView()?.slots[1];
+  assert.deepEqual({ fam: slot?.fam, variant: slot?.variant, leaf: slot?.leaf }, PLAIN_ASDM5);
+});
+
+test("test_a_filter_slot_carries_its_names_plain_family_variant_and_leaf", () => {
   setSwitcherTarget("1x filter");
   setSlot(0, "IIR");
-  assert.deepEqual([modulator, switcherView()?.slots[0]?.label], [PLAIN.ASDM5.join(" · "), PLAIN.IIR.join(" · ")]);
+  setSlot(1, "sinc-M");
+  assert.deepEqual(
+    switcherView()?.slots.map((/** @type {Record<string, unknown>} */ s) => ({
+      fam: s.fam,
+      variant: s.variant,
+      leaf: s.leaf,
+    })),
+    [PLAIN_FILTERS.IIR, PLAIN_FILTERS["sinc-M"]],
+  );
 });
 
 test("test_a_list_slot_carries_no_aka", () => {

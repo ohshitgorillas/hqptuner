@@ -256,7 +256,7 @@ const DITHER_FACETS = [
 export const popId = (f) => `facet-${f.id}`;
 
 /** Each list kind's console. @type {Record<import("../../../store/faceplate/lists/open.js").ListKind, BarFacet[]>} */
-export const CONSOLES = { filters: FILTER_FACETS, modulators: MODULATOR_FACETS, dithers: DITHER_FACETS };
+export const CONSOLES = { filters: FILTER_FACETS, modulators: MODULATOR_FACETS, dithers: DITHER_FACETS, dsd: [] };
 
 /**
  * The tip's facet labels: each chips facet's option labels by value, the words the console itself prints.

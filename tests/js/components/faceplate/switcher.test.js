@@ -229,37 +229,81 @@ test("test_a_target_menu_row_switches_the_target_and_closes_the_menu", async () 
 
 // --- the slots ---------------------------------------------------------------------------------------------------
 
-test("test_each_slot_draws_a_radio_body_naming_its_setting_and_a_pick", () => {
+/** Each slot's body, `button.sbody`. */
+const slotBodies = () => slots().map((s) => every(inside(s), "button", "sbody")[0]);
+
+/** Each slot's pick, `button.spick`. */
+const slotPicks = () => slots().map((s) => every(inside(s), "button", "spick")[0]);
+
+/**
+ * The text of the first element inside `e` carrying class `cls`, or null where none is drawn.
+ *
+ * @param {MarkupElement | undefined} e
+ * @param {string} cls
+ */
+const classText = (e, cls) => {
+  const hit = inside(e).find((k) => classes(k).includes(cls));
+  return hit ? text(hit) : null;
+};
+
+test("test_the_slots_group_is_a_radiogroup", () => {
   const [group] = every(drawn(), "div", "slots");
-  const label = (/** @type {number} */ i) => switcherView()?.slots[i]?.label;
+  assert.equal(group ? attr(group, "role") : null, "radiogroup");
+});
+
+test("test_the_slots_group_carries_an_accessible_name", () => {
+  const [group] = every(drawn(), "div", "slots");
+  assert.equal(group ? hasAttr(group, "aria-label") : null, true);
+});
+
+test("test_each_slot_body_is_a_radio", () => {
   assert.deepEqual(
-    {
-      role: group && attr(group, "role"),
-      label: group && hasAttr(group, "aria-label"),
-      picks: new Set(slots().map((s) => every(inside(s), "button", "spick").map((b) => attr(b, "aria-label"))[0])).size,
-      slots: slots().map((s) => {
-        const [body] = every(inside(s), "button", "sbody");
-        const [pick] = every(inside(s), "button", "spick");
-        const [tx] = every(inside(body), "span", "tx");
-        return {
-          on: classes(s).includes("on"),
-          role: body && attr(body, "role"),
-          checked: body && attr(body, "aria-checked"),
-          tx: tx && text(tx),
-          pick: pick && text(pick),
-          popup: pick && attr(pick, "aria-haspopup"),
-        };
-      }),
-    },
-    {
-      role: "radiogroup",
-      label: true,
-      picks: 2,
-      slots: [
-        { on: true, role: "radio", checked: "true", tx: label(0), pick: "▾", popup: "dialog" },
-        { on: false, role: "radio", checked: "false", tx: label(1), pick: "▾", popup: "dialog" },
-      ],
-    },
+    slotBodies().map((b) => b && attr(b, "role")),
+    ["radio", "radio"],
+  );
+});
+
+test("test_only_the_running_slots_body_is_checked", () => {
+  assert.deepEqual(
+    slotBodies().map((b) => b && attr(b, "aria-checked")),
+    ["true", "false"],
+  );
+});
+
+test("test_only_the_running_slot_is_marked_on", () => {
+  assert.deepEqual(
+    slots().map((s) => classes(s).includes("on")),
+    [true, false],
+  );
+});
+
+/** The fixture's plain breakdown of its two modulators, as a slot body draws it. */
+const FACES = {
+  ASDM5: { fam: "Adaptive", variant: "Fifth order", leaf: "Leaf asdm5" },
+  "ASDM7EC 512+fs": { fam: "Adaptive", variant: "Seventh order", leaf: "Leaf asdm7" },
+};
+
+test("test_each_slot_body_draws_its_names_plain_family_variant_and_leaf", () => {
+  setSlot(0, "ASDM5");
+  setSlot(1, "ASDM7EC 512+fs");
+  assert.deepEqual(
+    slotBodies().map((b) => ({
+      fam: classText(b, "cpfam"),
+      variant: classText(b, "cpvar"),
+      leaf: classText(b, "cpl"),
+    })),
+    [FACES.ASDM5, FACES["ASDM7EC 512+fs"]],
+  );
+});
+
+test("test_each_slot_pick_names_its_own_slot", () => {
+  assert.equal(new Set(slotPicks().map((p) => p && attr(p, "aria-label"))).size, 2);
+});
+
+test("test_each_slot_pick_opens_a_dialog", () => {
+  assert.deepEqual(
+    slotPicks().map((p) => p && attr(p, "aria-haspopup")),
+    ["dialog", "dialog"],
   );
 });
 
