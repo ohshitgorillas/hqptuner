@@ -6,6 +6,7 @@ import { useEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { plate, viewport, closeTop, closeOutside } from "../../store/faceplate/view.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
+import { engineRestarting } from "../../store/enginewrite.js";
 
 /** Read the window's inner size into the store. */
 function measure() {
@@ -45,9 +46,19 @@ export function Plate({ children }) {
   const p = plate.value;
   const b = plateBottom();
   const style = `--plate-w:${p.w}px;--plate-h:${p.h}px;transform:scale(${p.scale})`;
+  const restarting = engineRestarting.value ? "" : undefined;
   return html`
     <div id="stage">
-      <div class="plate" data-size=${p.id} data-bottom=${b?.bottom} data-sw=${b?.sw} style=${style}>${children}</div>
+      <div
+        class="plate"
+        data-size=${p.id}
+        data-bottom=${b?.bottom}
+        data-sw=${b?.sw}
+        data-restarting=${restarting}
+        style=${style}
+      >
+        ${children}
+      </div>
     </div>
   `;
 }

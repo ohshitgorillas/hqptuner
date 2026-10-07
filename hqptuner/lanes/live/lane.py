@@ -233,7 +233,13 @@ async def _after_mode(mgr: ConnectionManager, client: ControlClient) -> list[Liv
 
 
 async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> LiveApplyReport:
-    """Resolve, apply and readback-verify a batch of LIVE config-form fields.
+    """Apply one batch of LIVE config-form fields under ``mgr.live_writes`` (``_apply_batch``)."""
+    async with mgr.live_writes:
+        return await _apply_batch(mgr, fields)
+
+
+async def _apply_batch(mgr: ConnectionManager, fields: dict[str, str]) -> LiveApplyReport:
+    """Resolve, apply and readback-verify a batch of LIVE config-form fields; the caller holds ``mgr.live_writes``.
 
     Fields for the chain the engine has not loaded are held rather than refused —
     LIVE shows both chains at once — and come back under `stored` so the caller
@@ -283,11 +289,12 @@ async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> LiveAp
     """
     mode = fields.get("mode")
     rest = {field: value for field, value in fields.items() if field != "mode"}
-    if mode is None or not rest:
-        return await apply_now(mgr, fields)
-    first = LiveApplyReport() if mode_already_running(mgr, mode) else await apply_now(mgr, {"mode": mode})
-    second = await apply_now(mgr, rest)
-    return LiveApplyReport([*first.live, *second.live], {**first.stored, **second.stored})
+    async with mgr.live_writes:
+        if mode is None or not rest:
+            return await _apply_batch(mgr, fields)
+        first = LiveApplyReport() if mode_already_running(mgr, mode) else await _apply_batch(mgr, {"mode": mode})
+        second = await _apply_batch(mgr, rest)
+        return LiveApplyReport([*first.live, *second.live], {**first.stored, **second.stored})
 
 
 def _mode_apart(http_fields: dict[str, str]) -> str | None:

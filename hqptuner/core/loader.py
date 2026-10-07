@@ -144,26 +144,34 @@ async def poll(mgr: "ConnectionManager") -> None:
     client = mgr.control
     if client is None:
         raise NotConnectedError()
+    readings = mgr.readings
+    # Taken from the previous tick's readings before State is read: they are the
+    # trace's memory for the volume comparison, so a volume that is not moving
+    # writes nothing at all, and the chain the engine had loaded is the one the
+    # chain-entered check compares against.
+    known = readings.state is not None
+    previous = readings.state or {}
+    before = chain.active_chain(mgr)
     state = await client.get_state()
+    # Stored before any further await: a live write that lands while this tick
+    # waits on the engine stores its own read-back State, which a later
+    # assignment of this earlier read would overwrite.
+    readings.state = state
+    voltrace.observe_change(mgr, "state", {"volume": state.get("volume")}, {"volume": previous.get("volume")})
     # A mode switch swaps the lists wholesale (architecture §3.3), and playback
     # state moves the rate list: what fills that one is the transport as well
     # as the mode (manual p.18 §4.4), so an idle network backend answers
     # GetRates with auto alone where the same daemon serves thirteen PCM tiers
     # once asked again (verified live on 6.0.4) — and the page grayed every tier.
-    readings = mgr.readings
-    previous = readings.state or {}
-    moved = readings.state is not None and any(state.get(a) != previous.get(a) for a in ("mode", "state"))
+    moved = known and any(state.get(a) != previous.get(a) for a in ("mode", "state"))
     if moved:
         log.info("engine moved (mode %s, state %s), re-enumerating", state.get("mode"), state.get("state"))
         readings.enums = await client.get_all_enumerations()
-    status, meta = await client.get_status()
-    before = chain.active_chain(mgr)
-    # BEFORE the assignment below, which is what still leaves the previous tick's
-    # volume in hand: the readings are the trace's memory for this comparison, so
-    # a volume that is not moving writes nothing at all.
-    voltrace.observe_change(mgr, "state", {"volume": state.get("volume")}, {"volume": previous.get("volume")})
-    readings.state, readings.status, readings.status_metadata = state, status, meta
-    await lane.chain_entered(mgr, client, before, reenumerated=moved)
+    readings.status, readings.status_metadata = await client.get_status()
+    # The re-assert is a live-setter batch like any other: its State readback
+    # verifies its own SetFilter only while no other batch's write lands first.
+    async with mgr.live_writes:
+        await lane.chain_entered(mgr, client, before, reenumerated=moved)
     readings.volume_range = await client.get_volume_range()
     with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
         readings.matrix_profiles = await client.get_matrix_profiles()

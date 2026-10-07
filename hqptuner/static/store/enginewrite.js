@@ -19,7 +19,7 @@ export const engineBusy = signal(false);
 
 // The subset of those writes that actually takes the daemon down. The page dim reads
 // this alone, so the dim keeps one meaning: the engine is not there right now.
-const engineRestarting = signal(false);
+export const engineRestarting = signal(false);
 
 /**
  * Hold the pill in its Applying… state for the length of a write, and read health back

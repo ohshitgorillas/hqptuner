@@ -25,6 +25,35 @@ import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./
 
 /** @typedef {import("./state.js").LiveReport} LiveReport */
 
+// Latest-wins across overlapping re-mirrors: State is whatever the most recent
+// read of it said, so only the newest call to start installs what it read.
+let remirrorSeq = 0;
+
+// What superseded re-mirrors still owe. A call that loses to a newer one installs
+// nothing, so a mode write overlapped by a volume write would otherwise never land
+// its new menus or its rate limits. Each call records its needs here before its
+// first await, and the winner does them all; a flag clears only once its work is in.
+const owed = { enums: false, config: false };
+
+/**
+ * Add one re-mirror's needs to what the winning call owes.
+ * @param {string[]} fields
+ * @param {LiveReport} [report]
+ */
+function recordOwed(fields, report) {
+  // An edit to the chain the engine has not loaded is HELD, not applied
+  // (lanes/live/routing.resolve_live) — so State cannot show it and no engine list
+  // moved. The running config's live overlay is where a held edit appears, and
+  // that overlay is what the dormant chain's card reads back.
+  const held = !!(report && report.stored && Object.keys(report.stored).length);
+  if (!held && fields.some((f) => REENUMERATES.has(f))) owed.enums = true;
+  // A mode write moves what the running config reports for BOTH rate limits
+  // (routing.live_overrides), and that overlay is what the Output tab's rate
+  // columns read. Its own poll is on the slow cadence, so pull it here rather
+  // than leave them showing the pre-switch tier for a few seconds.
+  if (held || fields.some((f) => RATE_MIRRORED.has(f))) owed.config = true;
+}
+
 // Re-read what a live write moved. Takes the batch's fields rather than one
 // name because a live snapshot applies several at once (store/live/presets.js) and
 // must re-mirror by exactly the rules a hand-made write already follows —
@@ -37,25 +66,26 @@ import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./
  * @returns {Promise<void>}
  */
 export async function remirrorLive(fields, report) {
+  const seq = ++remirrorSeq;
+  recordOwed(fields, report);
   const state = await api.state();
-  // An edit to the chain the engine has not loaded is HELD, not applied
-  // (lanes/live/routing.resolve_live) — so State cannot show it and no engine list
-  // moved. The running config's live overlay is where a held edit appears, and
-  // that overlay is what the dormant chain's card reads back.
-  const held = !!(report && report.stored && Object.keys(report.stored).length);
   // The new lists are pulled BEFORE either signal is installed, and the pair is
   // then installed together. State carries the new active_chain, so installing
   // it first rendered the new chain's card against the pre-switch lists for as
   // long as the enumerations request took — a filter picked in that window
   // posted an ID from a list the engine had already replaced.
-  const fresh = !held && fields.some((f) => REENUMERATES.has(f)) ? await api.enumerations() : null;
+  const fresh = owed.enums ? await api.enumerations() : null;
+  if (seq !== remirrorSeq) return;
   engineState.value = state.data;
-  if (fresh) enums.value = fresh.data;
-  // A mode write moves what the running config reports for BOTH rate limits
-  // (routing.live_overrides), and that overlay is what the Output tab's rate
-  // columns read. Its own poll is on the slow cadence, so pull it here rather
-  // than leave them showing the pre-switch tier for a few seconds.
-  if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
+  if (fresh) {
+    enums.value = fresh.data;
+    owed.enums = false;
+  }
+  if (!owed.config) return;
+  await refreshConfig();
+  // A call that started during the refresh may have read its own write after
+  // this one did, so its debt stays for it to settle.
+  if (seq === remirrorSeq) owed.config = false;
 }
 
 // Write one live control. Returns nothing on purpose: the outcome lives on the

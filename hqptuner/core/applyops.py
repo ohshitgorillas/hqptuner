@@ -81,12 +81,13 @@ async def _write_live(
     mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]], staged: dict[str, str]
 ) -> list[LiveWriteResult]:
     """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on."""
-    client = mgr.require_control()
-    report = await apply_live(client, live_edits, mgr.audit)
-    _trace_live_volume(mgr, live_edits, report)
-    await lane.refresh_after_live(mgr, client, live_edits)
-    lane.remember_routed(mgr, report, staged)
-    return report
+    async with mgr.live_writes:
+        client = mgr.require_control()
+        report = await apply_live(client, live_edits, mgr.audit)
+        _trace_live_volume(mgr, live_edits, report)
+        await lane.refresh_after_live(mgr, client, live_edits)
+        lane.remember_routed(mgr, report, staged)
+        return report
 
 
 @dataclass(frozen=True)

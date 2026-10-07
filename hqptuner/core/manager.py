@@ -89,6 +89,10 @@ class ConnectionManager:
         # lanes would otherwise sleep through to its deadline. A wake, never a verdict:
         # waiters re-read the counters and `ready` themselves.
         self.changed = asyncio.Event()
+        # Held by every live-setter writer for its whole batch, bookkeeping included: a batch
+        # resolves its indices against the State the batch before it refreshed, so two in
+        # flight at once would put the earlier batch's index back over its own write.
+        self.live_writes = asyncio.Lock()
         # The one audit log (audit.py). ONE instance, built before anything that
         # writes through it: each instance resumes its sequence counter from the
         # file, so a second copy would hand out numbers the first already used.
