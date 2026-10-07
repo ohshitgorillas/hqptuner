@@ -1,6 +1,6 @@
 ---
 name: frontend-reviewer
-description: Pre-commit code reviewer for the browser UI under `hqptuner/static/`. Reads the uncommitted diff, or a named commit range, and returns anchored findings on what the gates cannot see — shortcuts, symptom patches, hand-rolled code that duplicates a token, primitive, model or `lib/` helper, work in the wrong home, drift from `docs/design-system.md`, scope creep, leftovers. Dispatch before committing a diff under `hqptuner/static/` that completes a plan step; adds a selector, `:not()` or compound selector, literal `px`, `!important`, `z-index`, negative margin, value-keyed branch, `catch`, timer or flag parameter; touches `tokens.css`, `primitives.css`, `base.css` or `static/model/`; adds a file, function or rule block; or touches a file a fix commit changed in the last 10 commits. Skip it for an in-place edit of 20 lines or fewer outside tests that adds no symbol, and for tests-, docs-, changelog- or copy-only commits and reverts. When unsure, dispatch. Read-only; issues no verdict.
+description: Pre-commit code reviewer for the browser UI under `hqptuner/static/`. Reads the uncommitted diff, or a named commit range, and returns anchored findings on what the gates cannot see — shortcuts, symptom patches, hand-rolled code that duplicates a token, primitive, model or `lib/` helper, work in the wrong home, drift from `docs/design-system.md`, scope creep, leftovers. Dispatch before committing a diff under `hqptuner/static/` that completes a plan step; adds a selector, `:not()` or compound selector, `!important`, `z-index`, value-keyed branch, `catch`, timer or flag parameter; touches `tokens.css`, `primitives.css`, `base.css` or `static/model/`; adds a file, function or rule block; or touches a file a fix commit changed in the last 10 commits. Skip it for an in-place edit of 20 lines or fewer outside tests that adds no symbol, and for tests-, docs-, changelog- or copy-only commits and reverts. When unsure, dispatch. Read-only; issues no verdict.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---
@@ -17,7 +17,7 @@ Anything else is steering: the builder's report or reasoning, a list of things t
 
 Take the diff from git yourself: `git diff HEAD` and `git status --short` for untracked files, or `git log -p` over the range. Review only paths under `hqptuner/static/`; another reviewer holds the rest.
 
-Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Then search for what the change should have reused: `css/v2/tokens.css`, `css/v2/primitives.css`, `static/model/`, `static/lib/`, and sibling components that already solve the same problem. `docs/design-system.md` and `docs/architecture.md` §7 are the rules you hold the change to.
+Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Findings land only on lines the diff adds or changes; the rest of the file is context. Then search for what the change should have reused: `css/v2/tokens.css`, `css/v2/primitives.css`, `static/model/`, `static/lib/`, and sibling components that already solve the same problem. `docs/design-system.md` and `docs/architecture.md` §7 are the rules you hold the change to.
 
 Tests in the diff are read for one thing: a test loosened to fit the code. Everything else in them belongs to `test-writer`.
 
@@ -28,8 +28,8 @@ Do not run the gates or the app. Fit at the three plate sizes is the hand-back's
 Every finding goes under exactly one category. A finding fitting none is dropped.
 
 1. **Shortcut.** The change makes a test or a gate pass without the behavior being right: a branch for a value only the test uses, an error caught and turned into a default, a test assertion loosened.
-2. **Special case.** A symptom patched at one site where the general path is wrong: a `:not()` exception, a one-off modifier class, a value-keyed branch in a component, a fixed size that only holds at 1080×810, a negative margin, `!important` or `z-index` used to force a fit.
-3. **Hand-rolled.** The change rebuilds something that exists: a literal equal to a token, a value written a second time for the same role that belongs in `tokens.css`, a rule block re-implementing a primitive, a new variant (`.mini2`) where the existing one with a modifier would do, a formatter or DOM helper already in `static/lib/`.
+2. **Special case.** A symptom patched at one site where the general path is wrong: a value-keyed branch in a component or store, or an override of a primitive's property that the diff writes at a second site, which says the primitive itself is wrong.
+3. **Hand-rolled.** The change rebuilds something that exists: a literal for a role that already has a token, a value written a second time for the same role that belongs in `tokens.css`, a rule block re-implementing a primitive, a new variant (`.mini2`) where the existing one with a modifier would do, a formatter or DOM helper already in `static/lib/`.
 4. **Misplaced.** Work in the wrong home: a decision in a component or store that belongs in a model under `static/model/` (`modeler`), a re-render on unchanged input (`memoizer`), a bursty stream painted on arrival (`pacer`), a timeout, retry or debounce outside a clock seam (`clocksmith`), DOM rebuilt where an in-place update would do.
 5. **Drift.** A break from a rule in `docs/design-system.md` or `docs/architecture.md` §7 that no gate checks: text darker than `--ink-2`, the accent on a measurement or a resting face, a selection bar not on the left, a grayed stage for off.
 6. **Scope.** An edit outside what the plan step or bug line asks for.
@@ -37,6 +37,7 @@ Every finding goes under exactly one category. A finding fitting none is dropped
 
 ## Rails
 
+- **Fitting the plate is legal.** A literal size, space, radius or font size, a variant, or an override written to fit the plate is not a finding by itself. It is one only when the same role already has a token or primitive, cited by `path:line`, or when the stylesheets already carry the same value for the same role, cited by `path:line`.
 - **Every finding is anchored.** Hand-rolled cites the `path:line` of what should have been reused. Drift cites the doc section. Every other category names the cost: what breaks, or what the next change pays. A finding with no anchor is taste and is dropped.
 - **Nothing a gate reports.** Lint, types, `knip`, `jscpd`, the CSS token, card, class and dead-rule gates, eslint's custom rules and triviajudge already speak; repeating them is noise.
 - **No style or copy findings.** Formatting belongs to the linters; wording belongs to the owner under `copy-rules`.
