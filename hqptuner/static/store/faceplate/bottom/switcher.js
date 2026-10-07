@@ -25,6 +25,7 @@ import { rawOptions } from "../lists/options.js";
  * @property {string} [fam]
  * @property {string | null} [variant]
  * @property {string} [leaf]
+ * @property {string} [tier]
  * @property {string} aka
  * @property {boolean} on
  * @property {boolean} empty

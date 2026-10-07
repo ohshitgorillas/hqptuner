@@ -6,7 +6,8 @@
 
 import { signal, computed, effect } from "@preact/signals";
 import { describe, idFor, optionProse } from "../../prose.js";
-import { plainEntry, decorateOptions } from "../../plainnames.js";
+import { plainEntry, decorateOptions, withoutRate } from "../../plainnames.js";
+import { modulatorTier } from "../../ui/options.js";
 import { chainControls } from "../../live/chains.js";
 import { CHAINS, sourceIsNx } from "../../live/derive.js";
 import { loadedChain } from "../../live/rates.js";
@@ -30,6 +31,7 @@ import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/c
  * @property {string} fam       the running option's plain family, "" where the overlay has none
  * @property {string | null} variant  its plain variant, null where it has none
  * @property {string} leaf      its name as the option style prints it: the plain row text, or the engine name
+ * @property {string} tier      its rate tier, "512+" for a modulator with a DSD512 floor, "" where it has none
  * @property {string} prose     its manual prose that reads inline, "" where the overlay has none
  * @property {string[]} more    its manual paragraphs held behind "see more", none where nothing is held
  *
@@ -64,19 +66,22 @@ effect(() => {
 });
 
 /**
- * The running option's plain breakdown: family and variant whatever the option style, the name as the style prints it.
+ * The running option's plain breakdown: family and variant whatever the option style, the name as the style prints it,
+ * and a modulator's rate tier. A Simplified leaf drops the trailing rate clause that names its own tier.
  *
  * @param {string} kind  the overlay section
  * @param {string} name  the engine name
- * @returns {{ fam: string, variant: string | null, leaf: string }}
+ * @returns {{ fam: string, variant: string | null, leaf: string, tier: string }}
  */
 export function plainOf(kind, name) {
   const e = kind ? plainEntry(kind, name) : null;
   const shown = kind ? decorateOptions([{ label: name }], kind)[0] : { label: name };
+  const tier = kind === "modulators" ? (modulatorTier(name) ?? "") : "";
   return {
     fam: e?.family ?? "",
     variant: e?.variant ?? null,
-    leaf: "display" in shown ? String(shown.display) : name,
+    leaf: "display" in shown ? withoutRate(String(shown.display), tier) : name,
+    tier,
   };
 }
 

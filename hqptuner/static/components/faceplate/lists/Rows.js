@@ -6,6 +6,7 @@
 import { html } from "../../../lib/dom.js";
 import { hasFavorites, hideTip, pickFromList, showTip } from "../../../store/faceplate/lists/open.js";
 import { isListFavorite, toggleListFavorite } from "../../../store/faceplate/lists/options.js";
+import { TierMark } from "../NameFace.js";
 
 /** @typedef {import("../../../model/shell/option-list.js").Opt} Opt */
 /** @typedef {import("../../../store/faceplate/view.js").ListRequest} ListRequest */
@@ -57,16 +58,7 @@ function marks(kind, o) {
     `;
   }
   if (kind !== "modulators") return null;
-  const tier = o.tier;
-  return html`
-    <span class="mk">
-      ${
-        tier
-          ? html`<span class="otier" role="img" aria-label=${`Needs DSD${tier.slice(0, -1)} or higher`}>${tier}</span>`
-          : null
-      }
-    </span>
-  `;
+  return html`<span class="mk"><${TierMark} tier=${o.tier} /></span>`;
 }
 
 /**

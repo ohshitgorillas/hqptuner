@@ -18,7 +18,7 @@ import { NameFace } from "../NameFace.js";
  * @param {string} props.label  the field's name, which leads the nameplate's accessible name
  */
 export function ChainPick({ field, label }) {
-  const { key, stage, value, idle, fam, variant, leaf } = field;
+  const { key, stage, value, idle, fam, variant, leaf, tier } = field;
   const open = () => openOptionList({ key, stage, value, pick: (v) => pickOption(key, v) });
   return html`
     <div class="cpk">
@@ -31,7 +31,7 @@ export function ChainPick({ field, label }) {
         aria-haspopup="dialog"
         onClick=${open}
       >
-        <${NameFace} fam=${fam} variant=${variant} leaf=${leaf} />
+        <${NameFace} fam=${fam} variant=${variant} leaf=${leaf} tier=${tier} />
       </button>
     </div>
   `;

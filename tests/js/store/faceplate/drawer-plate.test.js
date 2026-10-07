@@ -33,10 +33,10 @@ const FORM_FIELD = "filter1x";
 const NONE = "none";
 const GAUSS = "poly-sinc-gauss-long";
 
-/** The fixture's plain-names breakdown of each, as the plate carries it. */
+/** The fixture's plain-names breakdown of each, as the plate carries it; a filter has no rate-floor tier. */
 const PLATE = {
-  [NONE]: { fam: "Fam B", variant: null, leaf: "Leaf none" },
-  [GAUSS]: { fam: "Fam A", variant: "Var A", leaf: "Leaf gauss" },
+  [NONE]: { fam: "Fam B", variant: null, leaf: "Leaf none", tier: "" },
+  [GAUSS]: { fam: "Fam A", variant: "Var A", leaf: "Leaf gauss", tier: "" },
 };
 
 /** @type {import("../../support/wire/wire.js").StagingWire} */

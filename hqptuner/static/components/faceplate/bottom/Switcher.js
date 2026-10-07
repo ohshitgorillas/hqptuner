@@ -120,7 +120,9 @@ function arrow(e, i, bodies) {
  * @param {Slot} s
  */
 const listFace = (s) => html`
-  <span class="sface"><${NameFace} fam=${s.fam ?? ""} variant=${s.variant ?? null} leaf=${s.leaf ?? ""} /></span>
+  <span class="sface"
+    ><${NameFace} fam=${s.fam ?? ""} variant=${s.variant ?? null} leaf=${s.leaf ?? ""} tier=${s.tier ?? ""}
+  /></span>
 `;
 
 /**

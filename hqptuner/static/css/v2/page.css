@@ -125,6 +125,8 @@ button.vfd.cplate{height:52px;padding:5px 12px 4px;display:grid;grid-template-co
 .cpfam{flex-shrink:0;font:600 var(--fs-face) var(--f-body);color:var(--ink)}
 .cpsep{flex-shrink:0;font-size:var(--fs-face-sep);color:var(--ink-2)}
 .cpvar{min-width:0;font:500 var(--fs-face) var(--f-body);color:var(--ink);overflow:hidden;text-overflow:ellipsis}
+/* The rate badge closes the family line on its baseline; a long variant ellipsizes before it gives. */
+.cpf>.otier{flex-shrink:0;margin-left:-2px}
 .cpl{font:500 var(--fs-face-leaf) var(--f-body);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text);align-self:center}
 .cplate.dim .cpl{color:var(--ink-2)}
 /* A name with no family line spans both rows, so it sits centered in the plate. */
