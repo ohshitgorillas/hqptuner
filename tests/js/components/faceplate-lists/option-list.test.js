@@ -1,13 +1,15 @@
 // Rendered suite for hqptuner/static/components/faceplate/lists/OptionList.js with its columns and rows: the list a
 // chain picker opens over the body, drawn from the wire's enumeration. The rows a list draws and the one selected, the
-// pick a row's tap fires and the close that follows, sheet for a filter list and panel for a shaper list, a narrowed-out
+// pick a row's tap fires and the close that follows, sheet for a filter list and panel for a shaper list, the close
+// button a sheet's head draws and a panel's does not, a narrowed-out
 // option dropping its row, the Simplified outline's variant heads and the fold a tap or a DAC preference applies, a
 // modulator's rate floor badge, and the heart that stars a row through the favorites wire.
 //
 // Renders through preact-render-to-string; a tap is fired through the vnode seam (tests/js/support/vnodeseam.js). The
 // store is driven at the wire (tests/js/support/listsfixture.js) and the open list is the view's `openList` signal.
 // Rows are found by `role="option"` and their engine name (`data-v`), hearts by `data-fav`, variant heads by
-// `data-var`, the list itself by its test id. Every string asserted is a fixture name or a number derived from one.
+// `data-var`, the list itself and its close button by their test ids. Every string asserted is a fixture name, a test
+// id or a number derived from a fixture.
 //
 // Not reachable here: the sheet's height and the panel's parking at its picker, which measure the mounted plate, and
 // the tap outside a panel that closes it, a document listener. A browser run closes them.
@@ -21,6 +23,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
 import { hydrateFavorites, isFavorite } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { setDacType } from "../../../../hqptuner/static/store/ui/faceplate.js";
@@ -31,6 +34,9 @@ import { attr, classes, elements, hasAttr, text } from "../../support/markup.js"
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+/** The test id of the button that closes a list. */
+const CLOSE_TESTID = "close-list";
 
 /** @type {string[]} */
 let picked = [];
@@ -67,6 +73,31 @@ const rows = () => rowEls().map((e) => attr(e, "data-v"));
 
 /** The list's own element: the sheet, or the panel. */
 const sheet = () => markup().find((e) => attr(e, "data-testid") === "option-list");
+
+/** The test ids of the close buttons the list draws. */
+const closeButtons = () =>
+  markup()
+    .map((e) => attr(e, "data-testid"))
+    .filter((id) => id === CLOSE_TESTID);
+
+/** Put a `pcm_conversion` field with two options on the /config form, so its list has rows. */
+function serveConversion() {
+  config.value = {
+    ...config.value,
+    fields: [
+      ...config.value.fields,
+      {
+        name: "pcm_conversion",
+        type: "select",
+        value: "0",
+        options: [
+          { value: "0", label: "traditional" },
+          { value: "9", label: "sinc-M" },
+        ],
+      },
+    ],
+  };
+}
 
 /**
  * Fire the handler of the first element vnode matching `pred`, or nothing when none matches.
@@ -215,4 +246,20 @@ test("test_a_filter_row_carries_a_heart_and_a_dither_row_none", () => {
   const filters = hearts();
   open("pcm_dither", "none");
   assert.deepEqual([filters, hearts()], [3, 0]);
+});
+
+test("test_a_modulator_panel_draws_no_close_button", () => {
+  open("sdm_modulator", "ASDM5");
+  assert.deepEqual(closeButtons(), []);
+});
+
+test("test_a_dsd_processing_panel_draws_no_close_button", () => {
+  serveConversion();
+  open("pcm_conversion", "0");
+  assert.deepEqual(closeButtons(), []);
+});
+
+test("test_a_filter_sheet_draws_its_close_button", () => {
+  open("pcm_filter_1x", "poly-sinc-gauss-long");
+  assert.deepEqual(closeButtons(), [CLOSE_TESTID]);
 });

@@ -104,7 +104,7 @@ function listen() {
 
 /**
  * The open list's head: its name (its sublabel as the tooltip) over its count, the console where its kind has one, and
- * ×.
+ * × on a sheet; a panel closes on a tap outside it.
  *
  * @param {ListRequest} req
  * @param {number} n
@@ -119,7 +119,11 @@ function head(req, n, total) {
       <span class="tsub"><span class="ocount">${n} of ${total}</span></span>
     </span>
     ${hasConsole(kind) ? html`<${Console} kind=${kind} stage=${req.stage} />` : null}
-    <button type="button" class="round dx" aria-label="Close list" onClick=${closeOptionList}>×</button>
+    ${
+      isPanel(kind)
+        ? null
+        : html`<button type="button" class="round dx" aria-label="Close list" data-testid="close-list" onClick=${closeOptionList}>×</button>`
+    }
   `;
 }
 

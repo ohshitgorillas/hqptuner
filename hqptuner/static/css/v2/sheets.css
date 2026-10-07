@@ -166,7 +166,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
    over the body. A popover's frame; the sheet's head, rows and narrowing. Rows 25px (touch). park() sets left / top. */
 .sheet.opanel{right:auto;width:max-content;max-width:calc(var(--plate-w) - 24px);border:1px solid var(--line-2);border-radius:7px;background:var(--pop);box-shadow:var(--pop-shadow);clip-path:none;transition:opacity var(--fade)}
 .sheet.opanel[data-closed]{opacity:0;clip-path:none}
-.opanel .shead{gap:12px;padding:0 6px 0 16px}
+.opanel .shead{gap:12px;padding:0 16px}
 .opanel .fbar{flex:0 0 auto}
 .opanel .ocols{position:static;inset:auto;padding:8px 14px 12px;justify-content:flex-start;gap:0 18px}
 .opanel .osubs{gap:0 12px}
