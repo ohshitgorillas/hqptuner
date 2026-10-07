@@ -20,7 +20,7 @@ import {
   toggleFavoriteModulator,
 } from "../../narrow/favorites.js";
 import { decorateOptions } from "../../plainnames.js";
-import { optionDescription } from "../../prose.js";
+import { describe, optionDescription } from "../../prose.js";
 import { modulatorTier } from "../../ui/options.js";
 import { rowOptions } from "../drawer/rows.js";
 import { kindOf } from "./open.js";
@@ -32,9 +32,6 @@ import { ditherRate, modTier, shaperKeeps } from "./shapers.js";
 /** @typedef {import("../../live/derive.js").MenuOption} MenuOption */
 /** @typedef {{ families: Record<string, string>, variants: Record<string, string> }} Blurbs */
 /** @typedef {MenuOption & { display?: string, group?: string, subgroup?: string | null }} Decorated */
-
-/** No settings.json row: the chain keys' prose is name-keyed, never per value. */
-const NO_PROSE = { label: "", tooltip: "" };
 
 /**
  * The chain a catalog key sits on, undefined for a key no chain holds.
@@ -105,6 +102,7 @@ export function listOptions(key) {
   const entry = schema[key];
   const kind = kindOf(key);
   const facets = filterFacets.value;
+  const meta = describe(entry, key);
   /** @type {Decorated[]} */
   const listed = decorateOptions(rawOptions(key), entry.plainNames ?? "");
   return listed.map((o) => ({
@@ -112,7 +110,7 @@ export function listOptions(key) {
     fam: o.group ?? "",
     var: o.subgroup ?? null,
     leaf: o.display ?? o.label,
-    d: optionDescription(entry, o, NO_PROSE),
+    d: optionDescription(entry, o, meta),
     ...(kind === "filters" ? { f: facetsOf(facets[o.label]) } : {}),
     ...(kind === "modulators" ? shaperMarks(o.label) : {}),
   }));
