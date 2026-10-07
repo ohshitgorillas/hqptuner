@@ -1,4 +1,4 @@
-"""Matrix pipeline editing through the faithful fake (matrix-spec §8 step 3).
+"""Matrix pipeline editing through the faithful fake (matrix-spec.md "Pipeline flow rows").
 
 The pipeline set stages as one atomic ``matrix_pipelines`` JSON field; the
 restore lane replaces the ``<matrix>`` element's ``<pipeline>`` children and the

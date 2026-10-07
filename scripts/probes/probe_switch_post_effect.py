@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe what a live ``MatrixSetProfile`` does to the running post-process chain.
 
-``docs/matrix-spec.md`` line 105 asserts the switch installs the profile's whole
+``docs/protocol.md`` "Matrix profile commands" asserts the switch installs the profile's whole
 matrix context, ``<post_process>`` included, and derives it from the readme's
 content model (§1.12 -> §1.11) rather than from a measurement. Everything that
 decides how a saved profile should carry DAC correction rests on that assertion,
@@ -15,8 +15,7 @@ is written, no daemon restart, no ``sudo``:
   QB  switching to a profile that carries one with ``enabled="1"`` — is it
       installed into the running engine?
 
-The switch is memory-only (matrix-spec.md "Probe findings — form lane, checkbox
-encoding and the live lane"), so the only
+The switch is memory-only (protocol.md "Matrix profile commands"), so the only
 cleanup is switching back to the profile that was active, verified by readback.
 Correction state is read from ``GET /matrix``, which is the running form.
 

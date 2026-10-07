@@ -27,8 +27,8 @@ export const MATRIX_PLOT = {
 
 // ── Matrix engine family drawers ────────────────────────────────────────────
 // One drawer per rail stage (Matrix engine, Crossfeed, Loudness, DAC correction; DSP pipelines not drawn yet). All of
-// them edit the matrix profile in focus (the profile carries the whole matrix context, post-process included: v1
-// matrix-spec "4321 MatrixSetProfile"), so they form one drawer family: staging is
+// them edit the matrix profile in focus (the profile carries the whole matrix context, post-process included:
+// protocol.md "Matrix profile commands"), so they form one drawer family: staging is
 // profile-wide, one Apply writes the profile. Every setting here is a restart-lane edit (restore lane, ~5.6 s); nothing
 // is live. Strings: v1 data/settings.json (manual §7 / readme §1.11, verbatim), v1 store/schema/postprocess.js + dsp.js
 // labels, v1 store/schema/gray.js reasons, v1 components/xfeed (owner copy). Engine tokens from the 6.0.4 /matrix form.

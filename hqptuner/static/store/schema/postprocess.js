@@ -302,7 +302,7 @@ export const postprocess = {
     field: "matrix_pipelines",
     fileTruth: true,
   },
-  // The two saved-profile verbs (matrix-spec.md "Probe findings — saved"). HQPTuner owns the
+  // The two saved-profile verbs (protocol.md "Saved matrix profiles do not persist"). HQPTuner owns the
   // <matrix_profile> element — hqplayerd keeps a saved profile in memory only and
   // never writes it — so a save or a delete is a staged config edit rather than a
   // daemon route. Staged by the profile card, never rendered as a Field; the

@@ -4,7 +4,7 @@
 //   structural  16 rows, Brown & Duda head model (v1 docs/crossfeed-math.md §6.1). Per output ear, 8 rows: near / far
 //               source × {flat, lp1, delay, lp1 + delay}; lp1 corner = 2ω₀ (ω₀ = c/a), delay = the ray ITD; Lin gains
 //               from λ (center character) and the near / far α.
-//   comp        8 rows, mid / side (v1 matrix-spec "Crossfeed compensation (M/S)", wire shape table): Bauer stays the
+//   comp        8 rows, mid / side (crossfeed-compensation.md "Wire shape"): Bauer stays the
 //               post-process; the M rows carry the compensation (two treble shelves; v1 fits them to bs2b's center tilt,
 //               the mock uses its seed corners with the tilt split evenly), the S rows don't.
 // Rows reuse the ear's EQ stage objects, so editing that EQ in any of its rows edits them all (v1's shared prefix).

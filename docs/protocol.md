@@ -67,7 +67,7 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | `/config/profile/delete` | POST | Delete the selected configuration | `profile=<name>` |
 | `/backup/settings.zip` | GET | Full settings archive (zip): base `hqplayerd.xml` + every preset snapshot under `data/cfgs/` + library. **⚠ Returns empty after a named `profile/load` — see the daemon-bug note below** | — |
 | `/restore` | POST | Restore a settings archive; **multipart/form-data**, self-restarts the daemon | `scope` (`system`/`user`), `cfgfile` (zip or xml), `libfile` (xml) |
-| `/matrix`, `/matrix/{load,save,delete,plot}` | POST | Matrix form lane — see `docs/matrix-spec.md` | — |
+| `/matrix`, `/matrix/{load,save,delete,plot}` | POST | Matrix form lane (§3.7) | — |
 | `/speakers` | POST | Speaker processing form (~3 s engine reload) | — |
 | `/input`, `/library`, `/convolution`, `/log`, `/about`, `/auth`, `/key` | GET | Other stock UI pages | — |
 
@@ -118,6 +118,106 @@ hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **no
 
 HQPTuner's model is described in `docs/architecture.md` §5.1; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
 
+## 3.7. Matrix routes (port 8088)
+
+The matrix page is a second form on the 8088 server and follows the `/config` pattern: one `POST` form, `enctype="multipart/form-data"` (its file inputs force it), and a nameless Apply submit, so the route alone signals Apply. Field names are from a live 6.0.4 daemon; the XML each one lands in is readme §1.11.
+
+### Matrix form fields
+
+| Control | Widget | Wire field | XML (readme §1.11) |
+|---|---|---|---|
+| Matrix enabled | checkbox | `enabled` | `<matrix enabled>` |
+| Engine | select | `engine` = 0 overlap-save / 1 overlap-add | `<matrix engine>` |
+| Expand HF | checkbox | `expand_hf` | `<matrix expand_hf>` |
+| IIR to FIR | select | `iir2fir` = 0 none / 1 direct / 2 linear | `<matrix iir2fir>` |
+| Profile | text + datalist + 3 submits | `profile`; `formaction=/matrix/{load,save,delete}` | top-level `<matrix_profile name>` elements |
+| Pipeline rows ×N | table | `source_i`, `gain_i`, `gainunit_i` (dB/Lin), `mixdown_i`, `process_i`, `plot_i`, `filter_i` (file, wav/txt, multiple) | `<pipeline channel source gain mixdown process/>` inside `<matrix>` |
+| Plot | submit | `formaction=/matrix/plot` | magnitude and phase response per checked row (manual §7) |
+
+The row count follows `channels`. Source and mixdown selects span wire values 0–127, labelled 1–128. A `matrix_profile` element carries a full 16-row set whatever the active channel count. The daemon emits malformed HTML in the gainunit options (`value="dB""`, a stray quote), so a parser has to tolerate it.
+
+**Gain unit encoding.** The XML `gain` attribute stores linear gain with an `L` prefix (`gain="L0.5"`, `gain="L-1"`); a bare number is dB. Both forms round-trip through the form and the XML, and negative linear gain (polarity inversion, mid/side) works.
+
+### Matrix semantics (manual §7)
+
+- A pipeline is a virtual channel: it copies a source channel through a process chain and a gain into a target channel, and pipelines with the same target sum. At most 128; the active count is the `pipelines`/`channels` setting.
+- A process chain is comma-separated: plugin specs (`iir:` with 11 types including a raw biquad, args `f`/`q`/`bw`/`s`/`g`/`b0`..`a2`, case-sensitive; `delay:` with `s`/`t`/`d`/`v`; `riaa:` with subsonic), convolution impulse WAV filenames (352.8 kHz recommended; Expand HF extends low-rate filters), or a REW/AutoEq ParametricEQ `.txt` directly.
+- IIR to FIR converts parametric EQ to convolution, which offloads to a GPU; the linear option adds pre-ringing and suits gentle EQ.
+- The manual advises against running the matrix and the separate convolution engine at once.
+
+### Matrix filter upload
+
+The daemon renames an uploaded filter to `impulse_<pipeline>-<n>.wav`, stores it under its home directory (`/var/lib/hqplayer/home/` by default), and writes the **absolute path** into the pipeline's `process` attribute; the form shows the basename. The file also appears in `/backup/settings.zip` as `data/impulse_0-0.wav`, so the restore lane can carry filter files as archive members and an upload does not need the form lane.
+
+### Matrix form lane: reload, partial submits and checkboxes
+
+Idle-gated, live 6.0.4.
+
+**A complete `POST /matrix`** applies and persists immediately to the working config XML and triggers an internal config reload: 4321 drops at about 2.9 s and is back at about 6.5 s, consistently across probes. It is not a full restart, but the Control API connection drops and playback is interrupted, so a form-lane apply is never "live, no restart".
+
+**A partial `POST /matrix` is silently ignored**: HTTP 200, no `Failed` marker, no reload, state unchanged. The complete-form contract holds as for `/config`, but the rejection is fully silent where `/config` at least says `Failed!`.
+
+**Checkbox encoding: daemon bug.** Submitting `enabled=on` (the HTML default checkbox value) instead of `enabled=1` makes the daemon write the invalid value verbatim into `hqplayerd.xml` (`<matrix enabled="on">`) and then fail engine init on the reload and on every later startup, since it re-reads the broken file. Symptoms: 4321 refused indefinitely, `/matrix` 307-redirects to `/config`, `/backup/settings.zip` returns 401. A service restart alone does not recover; the config file must be repaired. A writer must guarantee `1` or omission for every matrix checkbox.
+
+**The device list lags a reload.** Right after a matrix reload the DAC-correction select can render with an empty option list while the output device re-discovers, so an early readback shows `post_correction_dac0=""`, and a matrix-form read right after apply is one poll behind. Verification has to retry and settle before judging device-derived fields.
+
+**`/matrix/load` replaces the whole matrix context, post-process included.** Loading a pipelines-only profile clears the bauer and correction enables and `dac0`.
+
+### `/matrix/plot` as a numeric oracle
+
+The route is usable as a numeric oracle, not as a plot source. It is read-only: after a POST the form fields, the matrix XML and `GET /matrix` are byte-identical, with no reload and the engine untouched, so it is safe to call freely.
+
+**It computes from the submitted form, not the stored config.** A `process_0` the daemon never saw changes the result, so an arbitrary chain can be evaluated by the daemon's own DSP without writing anything.
+
+**Embedded renders no plot.** The POST returns a "Success! Please wait 0 seconds…" interstitial that refreshes to an unchanged `/matrix`. `GET /matrix/plot`, `/matrix/plot.html` and `/plot` all return the daemon's empty shell page (1978 B, identical before and after a plot POST); `/files/plot.*` 404s; `/var/lib/hqplayer/web/` is static. The graph dialog the manual describes (§7, p.48) is Desktop-only, so a convolution response has to be plotted client-side.
+
+**The only output is the journal**, one pair of lines per plotted row:
+
+```
+plot magnitude value range: <min>,<max>      # the data
+plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
+```
+
+**The reported quantity is row gain (dB) plus chain magnitude**, min and max over the plot grid:
+
+| submitted chain | predicted | daemon |
+|---|---|---|
+| `hshelf;f=1000;q=0.7;g=6` @ gain `Lin 0.242086` | −12.3205 → −6.3205 | −12.320555, −6.320863 |
+| `peak;f=2000;q=1;g=-9` @ same gain | −21.3205 → −12.3205 | −21.320607, −12.321677 |
+
+**The daemon's `iir` is the RBJ cookbook and `q` is RBJ Q.** Six chains (a single peak, two overlapping peaks, high Q, ultrasonic, `lp`, `hp`) fitted against an RBJ implementation give `q` 0.019 dB RMS over 12 numbers, against 2.66 dB for `bw` and 0.18 dB for `s`.
+
+**The grid is 20 Hz – 20 kHz at a fixed rate of about 96–99 kHz, not the source rate.** A submitted `peak;f=30000` chain returns a valid result, impossible below a ~60 kHz Nyquist, and a joint fit for rate and grid bounds lands at about 99 kHz over 20 Hz – 20 kHz. The route cannot say what a filter does at the actual source rate. Bilinear warping at the running rate is unverified: negligible for low-frequency work (a 700 Hz pole moves under 0.01 dB across every rate), possibly material near Nyquist.
+
+**Min and max only, no curve.** A chain whose extremes encode the answer can verify a filter's shape parameterization, but the route cannot render a response. The lines reach the journal (`journalctl -u hqplayerd`) and never the daemon's own `/log`.
+
+### Saved matrix profiles do not persist
+
+**A profile saved through `/matrix/save` registers in daemon memory only and is lost on the next daemon restart.** Four form-lane operations, with the `/backup` disk state after each:
+
+| op | `MatrixListProfiles` | `<matrix_profile>` in `hqplayerd.xml` | config mtime |
+|---|---|---|---|
+| — | Default, Mch-to-Stereo mixdown | Default, Mch-to-Stereo mixdown | 23:15:14 |
+| save P1 | + P1 | unchanged | 02:44:10 |
+| save P2 | + P1, P2 | unchanged | 02:44:55 |
+| delete P2 | + P1 | unchanged | 02:45:04 |
+| delete P1 | Default, Mch-to-Stereo mixdown | unchanged | 02:45:13 |
+
+- **Every operation rewrites the config file** (the mtime bumps each time), and the rewrite never carries the saved profile.
+- **There is no shutdown flush.** A profile saved before a daemon restart is absent from the pre-restart file and from the post-restart list; the only residue is an empty `data/<name>/` member in the backup archive.
+- **The two profiles that survive are stock**, shipped verbatim in the packaged template `/var/lib/hqplayer/hqplayerd.xml`.
+- **The payload is not at fault.** The daemon's own form buttons carry a `value` but no `name`, so a browser submits nothing for them either; the daemon accepts the name, lists it in `MatrixListProfiles` and the datalist, and keeps it in memory only.
+
+**`/matrix/save` to an existing name is a silent no-op** (HTTP 200, profile unchanged), like the config lane's `profile/save`, which is why the daemon's own UI cannot overwrite a profile.
+
+**Profiles register only at process start, seconds after HTTP is back.** A profile written into the config file becomes switchable at the next daemon start and not before, and a `MatrixListProfiles` read taken as soon as the daemon serves HTTP again is stale. A profile-list read across a restart must settle before it is believed.
+
+**`POST /matrix` and `POST /matrix/save` require multipart.** An urlencoded body returns HTTP 200 and is silently ignored. A 200 from either route proves nothing; readback is the only evidence a write landed.
+
+### The matrix form has one writer
+
+A concurrent Apply from the stock `/matrix` page submits its complete form and silently reverts a pipeline edit another client just applied. Simultaneous writers are unsupported by the daemon itself.
+
 ## 4. Response conventions
 
 - **Simple commands** (setters, transport actions): the daemon echoes the command element with a `result` attribute — `"OK"` or `"Error"`. On error, the element text carries a reason message. On 6.0.4:
@@ -146,7 +246,7 @@ HQPTuner's model is described in `docs/architecture.md` §5.1; the daemon's `dat
 
 Covered in §6: `GetInfo`, `GetLicense`, `State`, `Status`, `SetMode`/`GetModes`, `SetFilter`/`GetFilters`, `SetShaping`/`GetShapers`, `SetRate`/`GetRates`, `SetJunkFilter`/`GetJunkFilters`, `SetConvolution`, `SetAdaptiveVolume`, `Volume`/`VolumeUp`/`VolumeDown`/`VolumeMute`/`VolumeRange`, `ConfigurationList`/`ConfigurationGet`/`ConfigurationLoad`, `GetInputs`, `GetTransport`, `Reset`.
 
-Matrix commands (`MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile`) are documented in `docs/matrix-spec.md`. Everything else the daemon speaks is playback, library and playlist surface — out of HQPTuner's scope (§8).
+Also covered in §6: `MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile`. Everything else the daemon speaks is playback, library and playlist surface — out of HQPTuner's scope (§8).
 
 ## 6. Commands
 
@@ -270,6 +370,14 @@ Caveat: a setter can return `result="OK"` without the setting actually applying.
 - `<ConfigurationGet/>` → `<ConfigurationGet value="activename"/>`.
 - `<ConfigurationLoad value="..." nonce="..."/>` — switches profile; the value is the ChaCha20Poly1305-encrypted profile name and **requires an authenticated session** (§3), so it is unavailable to HQPTuner. The HTTP route `/config/profile/load` (§3.6) does the same job under Digest auth.
 
+### Matrix profile commands
+
+`MatrixListProfiles`, `MatrixGetProfile` and `MatrixSetProfile` work **unauthenticated, live, with zero reload**. `State.matrix_profile` reports the active name, and the stock UI's active label tracks a switch. The working XML is untouched: a switch is memory-only and reverts on daemon restart, like every Control API change.
+
+**A switch installs the profile's whole matrix context, `<post_process>` chain included.** A profile element's content model is `<matrix>`'s minus `enabled` (readme §1.12, §1.11), so crossfeed, DAC correction and loudness move with it. Switching to a profile whose element carries `correction enabled="1" dac0="Holo Audio Cyan 2"` installs exactly that; switching to one with no `<post_process>` gives `correction=0`, `dac0=""` and loudness off, with zero reload both ways. A chain-less profile therefore installs an **empty** chain rather than leaving the running one alone.
+
+**`MatrixSetProfile` accepts a name the daemon does not have: daemon bug.** An unknown name answers `result="OK"`, `State.matrix_profile` reports it back, and the stock UI shows it active. The engine then fails `clHQPlayerEngine::InitMatrix(): specified profile not found!` on its next reinit and every one after, stopping and re-running the playback engine in a loop until something switches to a real profile. The switch is memory-only, so a daemon restart clears it. Readback is not evidence on this command: a switch must check the name against `MatrixListProfiles` first.
+
 ### GetInputs
 
 `<GetInputs/>` → `<InputsItem name="..."/>`* — configured input names.
@@ -296,8 +404,6 @@ Because the daemon offers no way to ask for less, the socket is the only throttl
 ## 8. Out of scope
 
 HQPTuner is a configurator, so the daemon's playback surface is not implemented: transport (`Play`, `Pause`, `Stop`, `Previous`, `Next`, `Backward`, `Forward`, `Seek`, `SelectTrack`, `PlayNextURI`, `LoadRemovable`), the `Playlist*` family, the `Library*` family, and `SetRepeat` / `SetRandom` / `SetDisplay` / `GetDisplay` / `SetTransport*`. Command spellings are in the `hqp-control` source.
-
-The `Matrix*` commands are the live profile-switch lane and are documented in `docs/matrix-spec.md`.
 
 ## 9. Open questions
 

@@ -6,7 +6,7 @@ added/removed as a set — the daemon accepts only complete pipeline tables — 
 the whole set stages as ONE atomic field: ``matrix_pipelines``, a JSON array of
 {source, gain, gainunit, mixdown, process} rows. Gain serializes bare = dB,
 ``L``-prefixed = linear, and negative linear = polarity inversion
-(``matrix-spec.md`` "Wire truth").
+(``protocol.md`` "Matrix form fields").
 
 This module edits the live ``<matrix>`` pipeline table and its post-process
 chain. Its row serializer and live-chain reader also serve saved profiles

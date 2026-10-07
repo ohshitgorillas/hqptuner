@@ -5,7 +5,7 @@ A preset is a whole hqplayerd config, and whether it drives speakers or
 headphones is a property of that preset rather than of the browser that last
 looked at it. hqplayerd re-serializes its config from its own model, so an
 HQPTuner attribute added to the XML would not survive (docs/architecture.md
-§2, docs/matrix-spec.md:31) — the choice therefore lives in HQPTuner's own
+§2, docs/matrix-spec.md "Speakers / headphones") — the choice therefore lives in HQPTuner's own
 sidecar file, keyed by preset NAME, the stable join key.
 
 This file covers the store surface alone: reading an install that never chose,

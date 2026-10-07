@@ -1,4 +1,4 @@
-// DSP pipelines drawer: data + copy. Wire truth = the 6.0.4 /matrix form (v1 docs/matrix-spec.md "Wire truth"): each
+// DSP pipelines drawer: data + copy. Wire truth = the 6.0.4 /matrix form (docs/protocol.md "Matrix form fields"): each
 // pipeline = Source Ch (wire 0–127), Gain (dB | Lin; negative Lin = polarity inversion), Mix Ch, Process (comma list of
 // plugin specs `iir:` / `delay:` / `riaa:`, WAV impulse files, REW ParametricEQ .txt). Pipelines feeding one Mix Ch sum.
 // Strings: v1 settings.json matrix_pipelines (manual §7 / readme §1.11.1, verbatim, minus v1's own last sentence),

@@ -102,7 +102,7 @@ HQPTuner never refuses a user action because the daemon is playing; see the bind
 
 Presets are full-config XML snapshots in a directory HQPTuner owns (`hqptuner/presets/store/presets.py`), driven through one reliable daemon primitive, `POST /restore` onto `[default]`.
 
-hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops the daemon to `[default]` and ignores the named working member, `profile/save` to an existing name silently no-ops, and `/backup` empties after a profile load. The daemon's own `data/cfgs/<name>.xml` files are kept **mirrored** so its native web UI stays populated, but they are never HQPTuner's load/save path. Matrix profiles are separate and switch cleanly live, via 4321 `MatrixSetProfile` (`docs/matrix-spec.md`).
+hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops the daemon to `[default]` and ignores the named working member, `profile/save` to an existing name silently no-ops, and `/backup` empties after a profile load. The daemon's own `data/cfgs/<name>.xml` files are kept **mirrored** so its native web UI stays populated, but they are never HQPTuner's load/save path. Matrix profiles are separate and switch cleanly live, via 4321 `MatrixSetProfile` (`docs/protocol.md` "Matrix profile commands").
 
 ### 5.2 Preset operations
 

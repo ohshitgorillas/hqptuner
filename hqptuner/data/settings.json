@@ -185,12 +185,12 @@
     "matrix_profile_save": {
       "label": "Save matrix profile",
       "tooltip": "Stores the matrix you are looking at, staged edits included, as a named profile in HQPlayer's configuration. Saving onto a name that already exists replaces it. HQPlayer's own save registers the profile in memory only and drops it when the daemon restarts, so HQPTuner writes the profile element into the configuration itself.",
-      "source": "readme §1.12, docs/matrix-spec.md round 5"
+      "source": "readme §1.12, docs/protocol.md §3.7"
     },
     "matrix_profile_delete": {
       "label": "Delete matrix profile",
       "tooltip": "Removes a saved profile from HQPlayer's configuration for good, rather than until the next daemon start. Deleting does not disturb the running matrix.",
-      "source": "readme §1.12, docs/matrix-spec.md round 5"
+      "source": "readme §1.12, docs/protocol.md §3.7"
     },
     "matrix_iir2fir": {
       "label": "IIR to FIR",

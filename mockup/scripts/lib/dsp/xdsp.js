@@ -1,9 +1,9 @@
-// Response maths for the Crossfeed and Loudness plots. Shapes only, client-side (Embedded has no daemon plot: v1
-// matrix-spec "Probe findings — /matrix/plot"). Sources:
-//   Bauer   = libbs2b (HQPlayer's bauer post-process; v1 docs/matrix-spec.md "Model"): first-order lowpass on the cross
-//             path, first-order high-boost on the direct path, normalized; M/S diagonalizes it exactly.
+// Response maths for the Crossfeed and Loudness plots. Shapes only, client-side (Embedded has no daemon plot:
+// protocol.md "/matrix/plot"). Sources:
+//   Bauer   = libbs2b (HQPlayer's bauer post-process; crossfeed-compensation.md "Model"): first-order lowpass on
+//             the cross path, first-order high-boost on the direct path, normalized; M/S diagonalizes it exactly.
 //   Structural = Brown & Duda head-shadow filter + Woodworth ITD (v1 docs/crossfeed-math.md §2, §3, §6.1).
-//   Loudness = RBJ cookbook biquads (the daemon's iir is RBJ, measured: matrix-spec "numeric oracle"), at 48 kHz like v1.
+//   Loudness = RBJ cookbook biquads (the daemon's iir is RBJ, measured: protocol.md "/matrix/plot"), at 48 kHz like v1.
 
 const C = 343; // m/s, the constant the Brown & Duda fit travels with (crossfeed-math §2)
 
@@ -33,7 +33,7 @@ const mag = (a) => Math.hypot(a[0], a[1]);
 export const toDb = (m) => 20 * Math.log10(Math.max(m, 1e-9));
 
 /**
- * Bauer presets (bs2b constants; v1 matrix-spec "Model"). Custom uses the form's frequency + level.
+ * Bauer presets (bs2b constants; crossfeed-compensation.md "Model"). Custom uses the form's frequency + level.
  *
  * @type {import('../../../../hqptuner/static/model/gauges/crossfeed.js').BauerCorners}
  */
@@ -115,7 +115,7 @@ export function loudnessDb(p, f, amount) {
 
 // ── Pipelines ───────────────────────────────────────────────────────────────
 // Complex response of one pipeline (process chain × gain) at its source rate, for the DSP pipelines plot. iir = RBJ
-// cookbook (the daemon's, measured: matrix-spec "numeric oracle"); lp1/hp1 = bilinear first order; delay = linear phase;
+// cookbook (the daemon's, measured: protocol.md "/matrix/plot"); lp1/hp1 = bilinear first order; delay = linear phase;
 // riaa and convolution are not modelled (flat; the plot says so).
 
 /**

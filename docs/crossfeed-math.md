@@ -2,7 +2,7 @@
 
 Research output. Grounds question "should HQPTuner bypass HQPlayer's Bauer post-process and build own crossfeed in matrix pipelines?" in real psychoacoustic and filter math.
 
-**Implemented** as Structural mode of Crossfeed card. Implementation notes marked as such. Companion: `docs/matrix-spec.md` (matrix wire contract, probe findings, existing crossfeed-compensation design of record).
+**Implemented** as Structural mode of Crossfeed card. Implementation notes marked as such. Companion: `docs/protocol.md` §3.7 (matrix wire contract, probe findings) and `docs/crossfeed-compensation.md` (crossfeed-compensation design of record).
 
 ## Provenance
 
@@ -10,7 +10,7 @@ Research output. Grounds question "should HQPTuner bypass HQPlayer's Bauer post-
 |---|---|
 | Brown & Duda structural model (eqs. 1–5, numeric constants) | Matches paper verbatim (IEEE TSAP 6(5), 1998, pp. 476–480) |
 | Woodworth/Kuhn ITD limits | eq. (2) same paper, Kuhn's ~50 % LF excess quoted there |
-| bs2b parameter model | Matches libbs2b source; see `matrix-spec.md` |
+| bs2b parameter model | Matches libbs2b source; see `crossfeed-compensation.md` |
 | Matrix realizability | From wire grammar — 24 rows applied and read back byte-exact, see §5 |
 | Numeric agreement between structural model and bs2b default preset | See §4, worth independent check |
 | HRTF dataset licenses | **Secondhand** from search summaries; each needs reading before vendoring |
@@ -88,7 +88,7 @@ Two corroborations. Bauer's original 1961 network delayed crossfeed signal "by a
 
 ## 4 · What bs2b actually is, and its relation to this model
 
-HQPlayer's `bauer` post-process is libbs2b (documented — see `matrix-spec.md`). Structure: first-order lowpass on cross path plus first-order high-boost on direct path, with scalar normalization. **No delay line**, but not delay-free: filters minimum-phase, so phase response supplies frequency-dependent delay — larger at LF, smaller at HF, qualitatively right shape. bs2b's own docs show this as "time delay response" curve.
+HQPlayer's `bauer` post-process is libbs2b (documented — see `crossfeed-compensation.md`). Structure: first-order lowpass on cross path plus first-order high-boost on direct path, with scalar normalization. **No delay line**, but not delay-free: filters minimum-phase, so phase response supplies frequency-dependent delay — larger at LF, smaller at HF, qualitatively right shape. bs2b's own docs show this as "time delay response" curve.
 
 bs2b does not "lack ITD"; it lacks **explicit, independently-controllable** ITD.
 
@@ -299,7 +299,7 @@ Only two, both bite measured route alone:
 1. **Does `expand_hf` rate-adapt a convolution IR**, or must IR match source rate? Decides whether measured route ships one IR set or many.
 2. **Dataset licenses** (§6.5) — secondhand; each needs reading before anything vendored.
 
-Not blocking, honest about status: daemon's `lp1` live-checked only to extent that it parses and produces lowpass shape — numeric match against `dsp.js` *not* asserted. `/matrix/plot` oracle (`matrix-spec.md` "Probe findings — `/matrix/plot` as a numeric oracle") can settle it, having confirmed RBJ shelf/peak family at 0.019 dB, though it evaluates at fixed ~96–99 kHz and so grounds coefficients rather than source-rate warping. Low risk: `lp1` carries whole head-shadow decomposition, but also least exotic filter in set.
+Not blocking, honest about status: daemon's `lp1` live-checked only to extent that it parses and produces lowpass shape — numeric match against `dsp.js` *not* asserted. `/matrix/plot` oracle (`protocol.md` "`/matrix/plot` as a numeric oracle") can settle it, having confirmed RBJ shelf/peak family at 0.019 dB, though it evaluates at fixed ~96–99 kHz and so grounds coefficients rather than source-rate warping. Low risk: `lp1` carries whole head-shadow decomposition, but also least exotic filter in set.
 
 Where on λ scale anyone wants to sit, and whether measured HRTF beats model, are listening questions. λ being continuous means they get settled by turning knob rather than committing to architecture.
 

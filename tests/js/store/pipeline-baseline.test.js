@@ -6,7 +6,7 @@
 // rows (`matrixConfig.rows`, what the engine is running right now). They diverge
 // whenever a matrix profile has been switched live — the switch rides 4321
 // `MatrixSetProfile`, which is memory-only and never rewrites the config file
-// (docs/matrix-spec.md, "4321 MatrixSetProfile — clean live lane"), so the
+// (docs/protocol.md "Matrix profile commands"), so the
 // engine runs the profile's rows while the file still holds its own.
 //
 // The wire is faked, not the store: `stagingWire` holds the pending buffer the

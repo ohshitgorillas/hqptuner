@@ -223,14 +223,14 @@ class ControlClient:
         """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty = the unnamed [Default]).
 
         Probe-verified on 6.0.4: unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
-        restart (docs/matrix-spec.md probe findings).
+        restart (docs/protocol.md "Matrix profile commands").
         """
         await self.set_command("MatrixSetProfile", value=name)
 
     async def get_matrix_profiles(self) -> list[str]:
         """`<MatrixListProfiles/>` -> saved matrix profile names (`MatrixProfile` children).
 
-        Verified live on 6.0.4 (docs/matrix-spec.md probe findings): unauthenticated, live lane, no reload.
+        Verified live on 6.0.4 (docs/protocol.md "Matrix profile commands"): unauthenticated, live lane, no reload.
         """
         root = await self.request("<MatrixListProfiles/>")
         return [item.attrib.get("name", "") for item in root]

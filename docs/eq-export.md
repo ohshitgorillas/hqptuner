@@ -21,7 +21,7 @@ Pipeline row's EQ lives in comma-separated `process` string of `<pipeline>` elem
 | `lp1` / `hp1` | `f` | — (first-order) | — |
 | `biquad` | `b0 b1 b2 a0 a1 a2` | — (raw coeffs) | — |
 
-Units: `f` Hz, `q` RBJ Q (dimensionless — grounded, `matrix-spec.md`), `bw` octaves, `s` shelf slope, `g` dB. **All arg values verbatim decimal strings** — export preserves source precision by construction. Row `gain` (dB) is natural `Preamp:`.
+Units: `f` Hz, `q` RBJ Q (dimensionless — grounded, `protocol.md` §3.7), `bw` octaves, `s` shelf slope, `g` dB. **All arg values verbatim decimal strings** — export preserves source precision by construction. Row `gain` (dB) is natural `Preamp:`.
 
 ### Loudness plugin (NOT a general PEQ source)
 

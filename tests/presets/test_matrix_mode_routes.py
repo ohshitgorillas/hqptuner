@@ -8,7 +8,7 @@ store file does.
 
 A mode is keyed by preset NAME, the stable join key (docs/architecture.md §3.1),
 and lives in HQPTuner's own state because hqplayerd re-serializes its config from
-its own model and would drop an attribute of ours (docs/matrix-spec.md:31). So
+its own model and would drop an attribute of ours (docs/matrix-spec.md "Speakers / headphones"). So
 the pair never touches hqplayerd: the client below is built with no credentials
 and a control lane pointed at a closed port, and a route that answers at all
 answered without the daemon.

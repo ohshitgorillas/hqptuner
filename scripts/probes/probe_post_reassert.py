@@ -109,7 +109,7 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
     """Echo the daemon's own /matrix form back complete, with ``overlay`` applied.
 
     Checkbox contract enforced: ``1`` when on, OMITTED when off — a stray ``on``
-    or ``0`` is written verbatim and wedges engine init (matrix-spec.md:99).
+    or ``0`` is written verbatim and wedges engine init (protocol.md "Matrix form lane").
     """
     form = await client.get("/matrix")
     form.raise_for_status()
@@ -135,7 +135,7 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
 async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> dict[str, object]:
     """Poll the matrix form until the correction plugin moves off ``was``, giving up after 20 passes.
 
-    The reload takes ~6.5 s (matrix-spec.md:95) and /config keeps serving through
+    The reload takes ~6.5 s (protocol.md "Matrix form lane") and /config keeps serving through
     it, so the form is read repeatedly rather than once.
     """
     current = was

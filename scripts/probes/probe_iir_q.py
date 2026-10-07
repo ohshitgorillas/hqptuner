@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe whether hqplayerd's ``iir`` peaking ``q`` is the RBJ cookbook Q or the classic EE Q.
 
-``docs/matrix-spec.md`` established that ``q`` occupies the Q slot rather than the
+``docs/protocol.md`` "/matrix/plot as a numeric oracle" established that ``q`` occupies the Q slot rather than the
 bandwidth or shelf-slope slot (0.019 dB RMS against ``lib/dsp/biquad.js`` vs 2.66 / 0.18).
 It did NOT discriminate the two *Q conventions*, because the oracle reports only
 min/max over the plot grid and an isolated peaking filter's extremes are ``{0, g}``
@@ -25,8 +25,7 @@ alpha is visible, rather than on the peak, where it is not:
                                     doing what we think and A/C/E mean nothing.
 
 Read-only. POSTs to ``/matrix/plot`` only, which computes from the submitted form
-and never touches stored config (matrix-spec: "Read-only: nine POSTs, each
-readback-verified... no reload, engine untouched"). ``GET /matrix`` is captured
+and never touches stored config (protocol.md "/matrix/plot"). ``GET /matrix`` is captured
 before and compared after; the run fails loudly if a single byte moved. Nothing
 here POSTs to ``/matrix`` itself, which WOULD write and reload.
 
@@ -45,7 +44,7 @@ from hqptuner.conf.httpconf import serialize_matrix_form
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
 HTTP_PORT = int(os.environ.get("HQPTUNER_HQP_HTTP_PORT", "8088"))
-# matrix-spec: joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz - 20 kHz.
+# protocol.md "/matrix/plot": joint fit for (rate, grid bounds) lands ~99 kHz / 20 Hz - 20 kHz.
 # Both plausible rates are evaluated so a prediction that depends on the guess is
 # visible as a spread rather than passed off as a single number.
 GRID_LO, GRID_HI = 20.0, 20000.0
@@ -124,7 +123,7 @@ def _predict(chain: str, fs: float, *, as_ee_q: bool) -> tuple[float, float]:
 
 
 def _row_gain_db(fields: dict[str, str]) -> float:
-    """Return the reported quantity, 'row gain (dB) + chain magnitude' (matrix-spec)."""
+    """Return the reported quantity, 'row gain (dB) + chain magnitude' (protocol.md "/matrix/plot")."""
     raw = float(fields.get("gain_0") or 0.0)
     unit = (fields.get("gainunit_0") or "").strip().lower()
     if unit.startswith("db"):
@@ -150,8 +149,8 @@ async def _tail_log() -> str:
 
     The daemon's own ``/log`` page does NOT carry it — that page is the engine
     log, and a plot never reaches it. Measured here 2026-07-28: four plot POSTs
-    produced four journal lines and zero ``/log`` lines. ``matrix-spec.md`` says
-    "journalctl -u hqplayerd or daemon's own /log"; the second half is wrong.
+    produced four journal lines and zero ``/log`` lines. ``protocol.md`` "/matrix/plot as a numeric oracle"
+    names the journal for that reason.
     """
     proc = await asyncio.create_subprocess_exec(
         "journalctl",
@@ -172,7 +171,7 @@ async def _tail_log() -> str:
 async def _measure(client: httpx.AsyncClient, fields: dict[str, str], chain: str) -> tuple[float, float] | None:
     before = len(_RANGE_RE.findall(await _tail_log()))
     # The daemon's /matrix form is enctype="multipart/form-data". A urlencoded
-    # body is silently ignored here exactly as a partial POST is (matrix-spec),
+    # body is silently ignored here exactly as a partial POST is (protocol.md "Saved matrix profiles"),
     # so this must go out as multipart to be seen at all. (None, value) gives a
     # filename-less part — what a browser sends for a plain text field.
     payload = {k: (None, v) for k, v in _plot_fields(fields, chain).items()}

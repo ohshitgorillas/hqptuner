@@ -1,4 +1,4 @@
-// Saved matrix profiles (matrix-spec.md "Probe findings — saved"). Nothing here
+// Saved matrix profiles (protocol.md "Saved matrix profiles do not persist"). Nothing here
 // reaches into the store core's private signals — it
 // stages through `edit` and reads staged values through `effective`, the same
 // public seams every other store module uses.

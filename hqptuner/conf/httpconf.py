@@ -59,7 +59,7 @@ def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
 
     Checked checkboxes only (submitting their ``value`` attr — the daemon
     persists a stray ``on`` verbatim into its XML and wedges engine init,
-    matrix-spec probe findings), the selected option per select, text/number
+    protocol.md "Matrix form lane"), the selected option per select, text/number
     values as-is. Returns ``(fields, file_input_names)`` — the daemon silently
     ignores any partial POST, so every write must carry the whole thing.
     """
@@ -208,7 +208,7 @@ class HttpConfigClient:
 
         Carries pipeline rows, matrix profiles, Bauer crossfeed, DAC correction
         and loudness. The daemon silently ignores a partial POST here too
-        (docs/matrix-spec.md probe findings), so writes overlay a fresh read
+        (docs/protocol.md "Matrix form lane"), so writes overlay a fresh read
         (manager).
         """
         return self._matrix(await self._get("/matrix"))
@@ -231,7 +231,7 @@ class HttpConfigClient:
         COMPLETE GET (a partial POST is silently ignored, same contract as
         /config and /matrix) and enforces the checkbox contract: ``enabled=1`` when on, the field
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
-        verbatim and wedges engine init (matrix-spec probe). Levels are validated
+        verbatim and wedges engine init (protocol.md "Matrix form lane"). Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
         sent. The daemon reloads the engine (~3 s), interrupting playback.
         """

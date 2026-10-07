@@ -3,7 +3,7 @@
 //
 // A preset is a whole hqplayerd config, so which transducer it is for is a
 // property of that preset. hqplayerd re-serializes its config from its own model
-// and would drop an attribute of ours (docs/matrix-spec.md:31), so the choice
+// and would drop an attribute of ours (docs/matrix-spec.md "Speakers / headphones"), so the choice
 // lives in HQPTuner's own sidecar, keyed by preset NAME — the stable join key
 // (docs/architecture.md §3.1) — and reaches the client over one REST pair,
 // GET/PUT /api/matrixmodes.
