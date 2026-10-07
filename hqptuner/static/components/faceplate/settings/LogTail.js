@@ -51,10 +51,11 @@ export function LogTailBlock({ clock = PLATFORM }) {
     const timer = clock.setInterval(() => refreshLogTail(LINES), POLL_MS);
     return () => clock.clearInterval(timer);
   }, [open, clock]);
+  const message = logMessage.value;
   useLayoutEffect(() => {
     const node = pre.current;
     if (node && stick.current) node.scrollTop = node.scrollHeight;
-  });
+  }, [text, message]);
   const copy = async () => {
     try {
       await copyToClipboard(text);
@@ -74,11 +75,7 @@ export function LogTailBlock({ clock = PLATFORM }) {
       </div>
       <div class="man"><p>Live stream of the hqplayerd log (file or journal). Read-only.</p></div>
     </div>
-    ${
-      logMessage.value
-        ? html`<p class="mnote">${logMessage.value}</p>`
-        : html`<pre class="logtail" ref=${pre}>${text}</pre>`
-    }
+    ${message ? html`<p class="mnote">${message}</p>` : html`<pre class="logtail" ref=${pre}>${text}</pre>`}
   `;
 }
 

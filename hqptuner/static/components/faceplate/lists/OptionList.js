@@ -122,19 +122,21 @@ function head(req, n, total) {
 }
 
 /**
- * What a list shows: its kind, its head, its columns and its console's popovers; nothing before any list has opened.
+ * What a list shows: its kind, how many options it lists, its head, its columns and its console's popovers; nothing
+ * before any list has opened.
  *
  * @param {ListRequest | null} shown
  * @param {boolean} std  option style Standard
  */
 function contents(shown, std) {
-  if (!shown) return { kind: kindOf(""), head: null, cols: null, pops: null };
+  if (!shown) return { kind: kindOf(""), n: 0, head: null, cols: null, pops: null };
   const kind = kindOf(shown.key);
   const full = listOptions(shown.key);
   const opts = narrowedOptions(shown.key, shown.stage, shown.value);
   const blurbs = listBlurbs(shown.key);
   return {
     kind,
+    n: opts.length,
     head: head(shown, opts.length, full.length),
     cols: html`<${Columns} req=${shown} kind=${kind} std=${std} opts=${opts} full=${full} blurbs=${blurbs} />`,
     pops: html`<${FacetPopovers} kind=${kind} />`,
@@ -147,10 +149,11 @@ export function OptionList() {
   const last = useRef(/** @type {ListRequest | null} */ (null));
   if (req) last.current = req;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
-  useLayoutEffect(() => place(ref.current, req));
-  useEffect(listen, []);
   const std = !plainNames.value;
   const view = contents(req ?? last.current, std);
+  const fit = plate.value;
+  useLayoutEffect(() => place(ref.current, req), [req, std, view.n, fit]);
+  useEffect(listen, []);
   return html`
     <aside
       ref=${ref}

@@ -39,10 +39,12 @@ function land(tip, v) {
 export function ListTip() {
   const req = openList.value;
   const v = hoverTip.value;
+  const std = !plainNames.value;
   const o = req && v !== null ? listOptions(req.key).find((x) => x.v === v) : undefined;
-  const c = o ? tipContent(o, !plainNames.value, FACET_LABELS) : null;
+  const c = o ? tipContent(o, std, FACET_LABELS) : null;
+  const fit = plate.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
-  useLayoutEffect(() => land(ref.current, v));
+  useLayoutEffect(() => land(ref.current, v), [req, v, std, fit]);
   return html`
     <div ref=${ref} class="otip" role="tooltip" data-testid="option-tip" hidden=${!c}>${c ? parts(c) : null}</div>
   `;

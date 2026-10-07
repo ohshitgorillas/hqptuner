@@ -44,8 +44,21 @@ async function safe(fn) {
 // the payload under `.data`; `unwrap` names the ones that answer raw.
 const raw = (/** @type {Payload} */ r) => r;
 /**
+ * Write `next` into `sig` only where it reads differently from what the signal
+ * holds. Every poll parses a fresh object, so the comparison is by content: a
+ * reference compare would notify every subscriber on every poll.
+ *
+ * @param {{ value: unknown }} sig
+ * @param {unknown} next
+ */
+function assignChanged(sig, next) {
+  if (JSON.stringify(next) !== JSON.stringify(sig.value)) sig.value = next;
+}
+
+/**
  * Copy one polled endpoint's payload into its signal, leaving the last good
- * value in place when the call fails.
+ * value in place when the call fails and the signal untouched when the payload
+ * reads the same as the one it holds.
  *
  * @param {() => Promise<Payload>} fn
  * @param {{ value: unknown }} sig
@@ -54,7 +67,7 @@ const raw = (/** @type {Payload} */ r) => r;
  */
 export async function mirror(fn, sig, unwrap = (r) => r.data) {
   const r = await safe(fn);
-  if (r) sig.value = unwrap(r);
+  if (r) assignChanged(sig, unwrap(r));
 }
 
 /**
@@ -83,7 +96,7 @@ async function refreshFast() {
   const v = await safe(api.volume);
   if (v) {
     volume.value = v.volume;
-    volumeRange.value = v;
+    assignChanged(volumeRange, v);
   }
 }
 

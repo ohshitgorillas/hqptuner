@@ -13,6 +13,7 @@ import { classNames } from "../../../model/shell/format.js";
 import { home, editNow } from "../../../store/faceplate/builders/snapshot.js";
 import { railView } from "../../../store/faceplate/builders/rail.js";
 import { cur, staged, go } from "../../../store/faceplate/builders/shell.js";
+import { plate } from "../../../store/faceplate/view.js";
 
 /** @typedef {import("../../../model/builders/builder.js").Ref} Ref */
 /** @typedef {import("../../../model/builders/snapshot.js").Edit} Edit */
@@ -149,9 +150,10 @@ function NewEntry({ e }) {
  */
 export function SnapshotRail({ height }) {
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
+  const fit = plate.value;
   useLayoutEffect(() => {
     if (height === undefined && ref.current) measured.value = ref.current.clientHeight;
-  });
+  }, [height, fit]);
   const open = openSt.value === undefined ? home() : openSt.value;
   const { per, folds } = railView(height ?? measured.value, { open, pages: pages.value });
   const e = editNow();

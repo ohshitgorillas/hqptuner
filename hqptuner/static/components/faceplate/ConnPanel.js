@@ -3,6 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
+import { plate } from "../../store/faceplate/view.js";
 import {
   setupOpen,
   discovering,
@@ -144,8 +145,9 @@ function place(el) {
 /** The connection panel, always drawn; closed, it carries `data-closed`. */
 export function ConnPanel() {
   const open = setupOpen.value;
+  const fit = plate.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
-  useLayoutEffect(() => place(ref.current));
+  useLayoutEffect(() => place(ref.current), [open, fit]);
   useEffect(() => {
     if (open) ref.current?.querySelector("input")?.focus();
   }, [open]);

@@ -194,11 +194,14 @@ function scheduleFit(host) {
  */
 function Copy({ id, field }) {
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
-  const cut = cuts.value.by[id];
-  void plate.value;
+  const now = cuts.value;
+  const cut = now.by[id];
+  const fit = plate.value;
+  // `now`, not only `cut`: the fit advances one pass per write to `cuts`, and a fresh key's write leaves every cut
+  // where it was.
   useLayoutEffect(() => {
     if (ref.current) scheduleFit(ref.current);
-  });
+  }, [now, cut, fit, field.value, field.prose, field.more.length]);
   const pop = `copy-${id}`;
   const shown = cut === undefined ? field.prose : wordsOf(field.prose).slice(0, cut).join(" ");
   const rest =
