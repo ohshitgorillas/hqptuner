@@ -11,34 +11,57 @@ hangs up.
 The server runs in its own thread over real TCP, like `conftest`'s
 `spawn_threaded_daemon`: the app under test runs its own event loop inside
 `TestClient`'s thread, where an in-loop asyncio fake is unreachable.
+
+A caller that hands in an ``Accepted`` reads how many connections the fake
+took. The count is final once the fake is torn down: teardown wakes the
+server thread with a connection of its own, which the thread recognises by
+its address and does not count, and the thread drains every connection
+queued ahead of it before it ends.
 """
 
 import contextlib
 import socket
 import threading
 from collections.abc import Iterator
+from dataclasses import dataclass
 
 #: How long a torn-down server thread gets to notice, in seconds. Only a
 #: deadlock reaches it; the shutdown below is by socket, not by waiting.
 JOIN_SECONDS = 5.0
 
 
-def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[int]:
+@dataclass
+class Accepted:
+    """How many client connections the fake accepted, final once it is torn down."""
+
+    count: int = 0
+
+
+def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1", accepted: Accepted | None = None) -> Iterator[int]:
     """Serve the 4322 stream on an ephemeral port; shaped for a yield fixture."""
+    tally = Accepted() if accepted is None else accepted
     listener = socket.socket()
     listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     listener.bind((host, 0))
-    listener.listen(1)
+    listener.listen(2)
     port: int = listener.getsockname()[1]
     stopping = threading.Event()
     live: list[socket.socket] = []
+    waker: list[tuple[str, int]] = []
 
     def serve() -> None:
-        while not stopping.is_set():
+        while True:
             try:
-                connection, _peer = listener.accept()
+                connection, peer = listener.accept()
             except OSError:
                 return
+            if peer in waker:
+                connection.close()
+                return
+            tally.count += 1
+            if stopping.is_set():
+                connection.close()
+                continue
             live.append(connection)
             with connection, contextlib.suppress(OSError):
                 for _ in range(frames):
@@ -52,7 +75,11 @@ def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[
     for connection in live:
         with contextlib.suppress(OSError):
             connection.shutdown(socket.SHUT_RDWR)
-    with contextlib.suppress(OSError):  # unblock a thread parked in accept()
-        socket.create_connection((host, port)).close()
+    wake = socket.socket()
+    wake.bind((host, 0))
+    waker.append(wake.getsockname())
+    with wake, contextlib.suppress(OSError):  # unblock a thread parked in accept()
+        wake.connect((host, port))
+        thread.join(JOIN_SECONDS)
     listener.close()
     thread.join(JOIN_SECONDS)

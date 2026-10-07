@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 
-from hqptuner.engine.meterfeed import Event, MeterFeed
+from hqptuner.engine.meterfeed import Event, MeterFeed, reduce_frame
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable
@@ -127,7 +127,7 @@ async def _items(frames: list[Frame], then: Frame | None = None) -> list[Item]:
     tail = itertools.repeat(then, MAX_ADDS) if then is not None else iter(())
     items: list[Item] = []
     for header, body in itertools.chain(frames, tail):
-        feed.add(header, body)
+        feed.add(header, reduce_frame(body, int(header[1]), int(header[2])))
         items.extend(await _drain(queue))
         if then is not None and any(event == "frame" for event, _ in items):
             break

@@ -9,12 +9,14 @@ scale.
 A ``geometry`` event, carrying what a page needs to lay the bars out, always goes ahead of the first ``frame`` it
 describes. A geometry change mid-stride drops the partial stride rather than mixing two geometries in one event.
 
-Nothing is reduced while no subscriber is attached. Each subscriber holds a bounded queue that drops its oldest event
-on overflow, so a stalled client never back-pressures the reader.
+Nothing is folded while no subscriber is attached, and a subscriber attaching tells the reader at once, so a reader
+idling for want of one dials without waiting out its recheck. Each subscriber holds a bounded queue that drops its
+oldest event on overflow, so a stalled client never back-pressures the reader.
 """
 
 import asyncio
 import base64
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import NamedTuple, TypedDict
 
@@ -135,8 +137,9 @@ def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], m
 class MeterFeed:
     """Stride accumulator and subscriber set for the meters' event stream."""
 
-    def __init__(self) -> None:
-        """Start with no geometry, no stride in hand and no subscriber."""
+    def __init__(self, on_subscribe: Callable[[], None] = lambda: None) -> None:
+        """Start with no geometry, no stride in hand and no subscriber; ``on_subscribe`` runs as each one attaches."""
+        self._on_subscribe = on_subscribe
         self._subscribers: list[asyncio.Queue[Event]] = []
         self._geo: Geometry | None = None
         self._count = 0
@@ -149,7 +152,12 @@ class MeterFeed:
         self._subscribers.append(queue)
         if self._geo is not None:
             queue.put_nowait(self._geo.event())
+        self._on_subscribe()
         return queue
+
+    def attached(self) -> bool:
+        """Whether any subscriber is attached."""
+        return bool(self._subscribers)
 
     def unsubscribe(self, queue: "asyncio.Queue[Event]") -> None:
         """Detach a subscriber; the last one leaving drops the partial stride, since nothing reduced it for anyone."""
@@ -163,8 +171,8 @@ class MeterFeed:
         self._geo = None
         self._restart()
 
-    def add(self, header: tuple[float, ...], body: bytes) -> None:
-        """Fold one frame into the stride, and send a ``frame`` event once the stride is complete."""
+    def add(self, header: tuple[float, ...], levels: npt.NDArray[np.float64]) -> None:
+        """Fold one frame, as ``reduce_frame`` reduced it, into the stride; send a ``frame`` event once that is full."""
         if not self._subscribers:
             return
         channels, bins, bandwidth = int(header[1]), int(header[2]), float(header[4])
@@ -173,7 +181,6 @@ class MeterFeed:
             geo = self._geo = Geometry(channels, bins, bandwidth)
             self._restart()
             self._send(geo.event())
-        levels = reduce_frame(body, channels, bins)
         peak, power = levels[:, 0], levels[:, 1:]
         if self._peak is not None and self._power is not None:
             peak, power = np.maximum(self._peak, peak), self._power + power
