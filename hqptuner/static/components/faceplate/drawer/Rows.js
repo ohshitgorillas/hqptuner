@@ -87,7 +87,7 @@ function row(spec, here) {
     .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
   return html`
     <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
-      <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(gray, here)}</div>
+      <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
       <div class="man"><p>${tooltip}</p></div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry)}
     </div>
