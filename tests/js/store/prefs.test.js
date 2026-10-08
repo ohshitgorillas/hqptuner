@@ -39,16 +39,12 @@ test("test_loading_without_storage_warns_exactly_once", () => {
 
 test("test_a_setter_does_not_repeat_the_warning", () => {
   console.warn = (msg) => warns.push(String(msg));
-  prefs.setShowDescriptions(true);
+  prefs.setPlainNames(true);
   console.warn = realWarn;
   assert.equal(warns.length, 1);
 });
 
 // --- defaults when storage is unreadable ------------------------------------------
-
-test("test_descriptions_default_on_without_storage", () => {
-  assert.equal(prefs.showDescriptions.value, true);
-});
 
 test("test_quick_system_updates_default_off_without_storage", () => {
   assert.equal(prefs.quickSystemUpdates.value, false);

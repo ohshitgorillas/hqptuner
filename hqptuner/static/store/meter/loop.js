@@ -33,7 +33,7 @@ import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./
 const TRACE_COLS = 600;
 const PLAYING = 2;
 /** The time between two steps, ms, and how early an animation frame may land and still step. */
-const STEP_MS = 1000 / 30;
+export const STEP_MS = 1000 / 30;
 const SLACK_MS = 4;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */

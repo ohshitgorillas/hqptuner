@@ -10,11 +10,12 @@
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { H, W, rasterize, scrollPlan } from "../../../../lib/spectroraster.js";
-import { apodRamp, rampLut } from "../../../../model/gauges/meter-plot.js";
+import { apodRamp } from "../../../../model/gauges/meter-plot.js";
 import { apodVisibleBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";
 import { spectrogramCells, spectrogramEnd } from "../../../../store/meter/spectrogram.js";
+import { rgb, specRamp } from "../../tokencolours.js";
 
 /** @typedef {[number, number, number]} Triple */
 /** @typedef {import("../../../../lib/spectroraster.js").Cell} Cell */
@@ -30,20 +31,6 @@ const OPAQUE = 255;
 const STAGE = "source";
 
 /**
- * A colour token's value as [r, g, b], or `fallback` when it is not a hex colour.
- *
- * @param {string} value
- * @param {number[]} fallback
- * @returns {number[]}
- */
-function rgb(value, fallback) {
-  const m = value.trim().replace("#", "");
-  if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(m)) return fallback;
-  const full = m.length === 3 ? [...m].map((c) => c + c).join("") : m;
-  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
-}
-
-/**
  * The colours both canvases paint with, read from the tokens in force on `el`.
  *
  * @param {Element} el
@@ -51,15 +38,7 @@ function rgb(value, fallback) {
  */
 function readColours(el) {
   const cs = getComputedStyle(el);
-  const stops = [
-    cs.getPropertyValue("--spec-0"),
-    cs.getPropertyValue("--spec-1"),
-    cs.getPropertyValue("--spec-2"),
-    cs.getPropertyValue("--spec-3"),
-    cs.getPropertyValue("--spec-4"),
-    cs.getPropertyValue("--spec-5"),
-  ];
-  const lut = rampLut(stops.map((v, i) => rgb(v, [i * 50, i * 40, i * 20])));
+  const lut = specRamp(cs);
   const glass = rgb(cs.getPropertyValue("--glass"), [8, 9, 11]);
   const bad = rgb(cs.getPropertyValue("--bad"), [224, 88, 75]);
   const ramp = Array.from(

@@ -42,8 +42,6 @@ A profile name is a filename-shaped thing and the conditions a filter set was me
 
 **A carried payload is refused by its envelope and cleaned by its entries (binding).** Bytes that are not readable JSON, or that are not a descriptions store at all, are refused whole and change nothing, which is the case the user needs telling about. An entry inside a readable store that is not storable is dropped on the way in and the rest merges, exactly as a corrupt entry in the store's own file is dropped rather than raising. Refusing a whole archive over one malformed row would cost the user every other description in it, and the two roads into the store must not disagree about the same bytes.
 
-Nothing here is gated on the descriptions preference (`notesVisible`): that preference hides prose HQPTuner wrote, and this is prose the user wrote.
-
 ### Pipeline flow rows
 
 Each pipeline is one row: source channel, its ordered stages, its gain, and its target channel. Rows are grouped by target so summing is visible, and the section header shows the active and maximum count. Source and target cover wire values 0–127, shown as 1–128 ("In n" / "Out n"). Gain ships in **dB and Lin**, negative Lin included for polarity inversion. Clearing a chain empties its process chain and resets its gain to 0 dB while keeping its routing. Edits stage through the ordinary apply lane.

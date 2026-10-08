@@ -1,17 +1,15 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages. Display holds the description, option-style and apodizing-indicator switches,
-// the spectrum delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks, then the
-// block hiding chain stages.
+// that writes at once and never stages. Display holds the spectrum-style pick, the option-style and apodizing-indicator
+// switches, the spectrum delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks,
+// then the block hiding chain stages.
 
 import {
   apodLight,
-  keepOptionDescriptions,
   plainNames,
   setApodLight,
-  setKeepOptionDescriptions,
   setPlainNames,
-  setShowDescriptions,
-  showDescriptions,
+  setSpectrumStyle,
+  spectrumStyle,
 } from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
 import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
@@ -22,9 +20,7 @@ import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "
 /** @typedef {{ v: string, label: string }} Opt */
 
 const MAN = {
-  showDesc:
-    "Show the description from the manual beside each setting. Disabling this converts those descriptions to hover tips.",
-  keepOpt: "Keep filter and DSD source option descriptions when setting descriptions are hidden",
+  spec: "Adjust how the spectrum is drawn.",
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
   apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
@@ -35,9 +31,13 @@ const MAN = {
 };
 
 /** @type {Opt[]} */
-const ON_OFF = [
-  { v: "1", label: "On" },
-  { v: "0", label: "Off" },
+const SPECTRA = [
+  { v: "trace", label: "Trace" },
+  { v: "bars", label: "Bars" },
+  { v: "soft", label: "Soft bars" },
+  { v: "waterfall", label: "Waterfall" },
+  { v: "ridges", label: "Ridges" },
+  { v: "aurora", label: "Aurora" },
 ];
 /** @type {Opt[]} */
 const OFF_ON = [
@@ -80,8 +80,7 @@ const fieldOptions = (opts) => opts.map(({ v, label }) => ({ value: v, label }))
 /** @param {boolean} on */
 const bit = (on) => (on ? "1" : "0");
 
-const descValue = () => bit(showDescriptions.value);
-const optValue = () => bit(keepOptionDescriptions.value);
+const specValue = () => spectrumStyle.value;
 const styleValue = () => (plainNames.value ? "simplified" : "standard");
 const apodValue = () => apodLight.value;
 const dysValue = () => bit(dyslexic.value);
@@ -100,23 +99,12 @@ export const VISUAL_DRAWER = {
       body: [
         {
           field: {
-            id: "vdesc",
-            label: "Setting descriptions",
-            man: [MAN.showDesc],
-            options: fieldOptions(ON_OFF),
-            value: descValue,
-            set: (v) => setShowDescriptions(v === "1"),
-          },
-        },
-        {
-          field: {
-            id: "vopt",
-            label: "Option descriptions",
-            man: [MAN.keepOpt],
-            options: fieldOptions(ON_OFF),
-            value: optValue,
-            set: (v) => setKeepOptionDescriptions(v === "1"),
-            gray: () => (showDescriptions.value ? " " : ""),
+            id: "vspec",
+            label: "Spectrum style",
+            man: [MAN.spec],
+            options: fieldOptions(SPECTRA),
+            value: specValue,
+            set: setSpectrumStyle,
           },
         },
         {
@@ -185,8 +173,7 @@ export const VISUAL_DRAWER = {
 
 /** @type {readonly SettingsReadout[]} */
 export const VISUAL_READOUTS = [
-  { id: "vdesc", label: "Setting descriptions", control: { type: "seg", options: ON_OFF }, value: descValue },
-  { id: "vopt", label: "Option descriptions", control: { type: "seg", options: ON_OFF }, value: optValue },
+  { id: "vspec", label: "Spectrum style", control: { type: "seg", options: SPECTRA }, value: specValue },
   { id: "vstyle", label: "Option style", control: { type: "seg", options: STYLES }, value: styleValue },
   { id: "vapod", label: "Apodizing indicator", control: { type: "seg", options: APOD }, value: apodValue },
   {

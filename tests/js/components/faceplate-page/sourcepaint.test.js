@@ -23,6 +23,7 @@ import { paintSourcePage } from "../../../../hqptuner/static/components/faceplat
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -295,6 +296,7 @@ function stream() {
 beforeEach(() => {
   useStorage();
   setPageRange("90");
+  setSpectrumStyle("trace");
   viewport.value = { w: 1366, h: 1024 };
   stream();
 });
@@ -401,4 +403,42 @@ test("test_the_peak_readings_are_the_held_peaks_to_one_place", () => {
 test("test_the_rms_readings_are_the_rms_to_one_place", () => {
   const root = painted(scene({ levels: [{ rms: -20.06 }, { rms: -9.94 }] }), 90);
   assert.deepEqual(readings(root, "nrm"), [-20.1, -9.9]);
+});
+
+// --- the styles ----------------------------------------------------------------------------------------------------
+
+/**
+ * Paint `sc` at `range` under spectrum style `style` into a freshly rendered section, and hand the section back.
+ *
+ * @param {ReturnType<typeof scene>} sc
+ * @param {number} range  dB
+ * @param {string} style
+ */
+function styled(sc, range, style) {
+  const root = section();
+  paintSourcePage(/** @type {Element} */ (/** @type {unknown} */ (root)), sc, range, style);
+  return root;
+}
+
+/** A scene with something to draw in every path: the trace at -45 dBFS, a held peak at -9 dBFS on column 300. */
+const busy = () => scene({ disp: columns(-45), peak: columns(-45, { 300: -9 }) });
+
+for (const style of ["bars", "soft", "waterfall", "ridges", "aurora"]) {
+  for (const cls of ["strace", "sarea"]) {
+    test(`test_a_${style}_paint_blanks_the_${cls}_path`, () => {
+      assert.equal(styled(busy(), 90, style).querySelector(`path.${cls}`)?.getAttribute("d"), "");
+    });
+  }
+}
+
+for (const style of ["bars", "soft", "ridges", "aurora"]) {
+  test(`test_a_${style}_paint_blanks_the_held_peaks_path`, () => {
+    assert.equal(styled(busy(), 90, style).querySelector("path.shold")?.getAttribute("d"), "");
+  });
+}
+
+test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace", () => {
+  setSpectrumStyle("aurora");
+  const grid = styled(busy(), 90, "trace").querySelector(".sgrid1");
+  assert.equal(grid?.getAttribute("data-style"), "trace");
 });

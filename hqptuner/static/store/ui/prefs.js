@@ -1,19 +1,10 @@
-// Client-only UI prefs: which inline manual text shows. Two layers, persisted in
-// localStorage, no daemon involvement.
-//   showDescriptions       — master toggle for the static per-control feature
-//                            notes (.field-note, incl. the hardware card) AND the
-//                            per-selection option descriptions (.field-desc).
-//   keepOptionDescriptions — when the master is OFF, still show the filter /
-//                            dither / modulator / DSD-source per-selection option
-//                            descriptions. Only meaningful while the master is off.
-// Derived: notesVisible = master; descVisible = master || keepOptions.
+// Client-only UI prefs, persisted in localStorage, no daemon involvement.
 //
 // Module load stays node-safe (the SSR harness imports the component graph with
 // no localStorage): the storage read is guarded.
 import { signal } from "@preact/signals";
 
-const K_DESC = "hqptuner.showDescriptions";
-const K_KEEP = "hqptuner.keepOptionDescriptions";
+const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
@@ -70,32 +61,6 @@ export function persist(key, on) {
     // storage disabled (private mode) — keep the in-memory value
     warnStorage("written");
   }
-}
-
-export const showDescriptions = signal(loadBool(K_DESC, true));
-export const keepOptionDescriptions = signal(loadBool(K_KEEP, true));
-
-/**
- * Set the master inline-manual-text pref and persist it.
- *
- * @param {boolean} on
- * @returns {void}
- */
-export function setShowDescriptions(on) {
-  showDescriptions.value = !!on;
-  persist(K_DESC, showDescriptions.value);
-}
-
-/**
- * Set whether per-selection option descriptions survive a hidden master, and
- * persist it.
- *
- * @param {boolean} on
- * @returns {void}
- */
-export function setKeepOptionDescriptions(on) {
-  keepOptionDescriptions.value = !!on;
-  persist(K_KEEP, keepOptionDescriptions.value);
 }
 
 // The "Option style" switch: Simplified re-renders the six chain dropdowns
@@ -216,6 +181,10 @@ export function enumPref(key, allowed, dflt) {
 }
 
 export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
+
+// How the spectrum is drawn. An unset or junk value reads as the trace.
+const SPECTRUM_STYLES = ["trace", "bars", "soft", "waterfall", "ridges", "aurora"];
+export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
 // The METER level bars' floor, in dB below full scale.
 const METER_FLOORS = ["-48", "-60", "-90"];

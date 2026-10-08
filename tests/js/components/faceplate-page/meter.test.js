@@ -25,6 +25,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { PAGE_RANGES, pageRange, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -92,6 +93,7 @@ function tap(v) {
 beforeEach(() => {
   useStorage();
   setPageRange(FIRST);
+  setSpectrumStyle("trace");
   viewport.value = FULL;
   stream();
 });
@@ -163,3 +165,24 @@ test("test_a_slim_plate_still_draws_the_range_column", () => {
   viewport.value = SLIM;
   assert.equal(withClass("mrange").length, 1);
 });
+
+test("test_the_spectrum_plot_stacks_the_spectrum_svg_then_the_effects_canvas_then_the_shader_canvas", () => {
+  const layers = ["svg.spectrum", "canvas.sfx", "canvas.sgl"];
+  const plot = withClass("splot")[0];
+  const order = plot
+    ? elements(plot.html)
+        .flatMap((e) => classes(e).map((c) => ({ start: e.start, layer: `${e.name}.${c}` })))
+        .filter((e) => layers.includes(e.layer))
+        .sort((a, b) => a.start - b.start)
+        .map((e) => e.layer)
+    : [];
+  assert.deepEqual(order, layers);
+});
+
+for (const style of ["waterfall", "ridges"]) {
+  test(`test_the_spectrum_grid_carries_the_${style}_style_when_it_is_picked`, () => {
+    setSpectrumStyle(style);
+    const grid = withClass("sgrid1")[0];
+    assert.equal(grid ? attr(grid, "data-style") : undefined, style);
+  });
+}
