@@ -421,7 +421,7 @@ function styled(sc, range, style) {
 /** A scene with something to draw in every path: the trace at -45 dBFS, a held peak at -9 dBFS on column 300. */
 const busy = () => scene({ disp: columns(-45), peak: columns(-45, { 300: -9 }) });
 
-for (const style of ["bars", "soft", "waterfall", "ridges"]) {
+for (const style of ["bars", "soft", "waterfall", "ridges", "aurora"]) {
   for (const cls of ["strace", "sarea"]) {
     test(`test_a_${style}_paint_blanks_the_${cls}_path`, () => {
       assert.equal(styled(busy(), 90, style).querySelector(`path.${cls}`)?.getAttribute("d"), "");
@@ -429,7 +429,7 @@ for (const style of ["bars", "soft", "waterfall", "ridges"]) {
   }
 }
 
-for (const style of ["bars", "soft", "ridges"]) {
+for (const style of ["bars", "soft", "ridges", "aurora"]) {
   test(`test_a_${style}_paint_blanks_the_held_peaks_path`, () => {
     assert.equal(styled(busy(), 90, style).querySelector("path.shold")?.getAttribute("d"), "");
   });

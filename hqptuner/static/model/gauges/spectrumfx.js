@@ -1,8 +1,9 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
 // fractions and bands; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under
-// acceleration, a waterfall row takes its colours from a lookup table, and ridge rows stack on a cadence. Every height
-// is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs
-// alone, so a painter draws what it gets back and a test drives it from a table.
+// acceleration, a waterfall row takes its colours from a lookup table, ridge rows stack on a cadence, and aurora gives
+// way to the trace without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every
+// step returns a new state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from
+// a table.
 
 import { fraction } from "./meter.js";
 
@@ -177,4 +178,16 @@ export function stepRidges(prev, row) {
   const tick = prev.tick + 1;
   if (prev.tick % RIDGE_EVERY !== 0) return { rows: prev.rows, tick };
   return { rows: [Float32Array.from(row), ...prev.rows].slice(0, RIDGE_ROWS), tick };
+}
+
+/**
+ * The style a page draws for the picked `style`: the trace in place of aurora where there is no WebGL2 to draw it
+ * with, the pick itself otherwise.
+ *
+ * @param {string} style
+ * @param {boolean} gl  whether the page has WebGL2
+ * @returns {string}
+ */
+export function effectiveStyle(style, gl) {
+  return style === "aurora" && !gl ? "trace" : style;
 }

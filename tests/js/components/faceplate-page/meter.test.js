@@ -166,19 +166,17 @@ test("test_a_slim_plate_still_draws_the_range_column", () => {
   assert.equal(withClass("mrange").length, 1);
 });
 
-test("test_the_spectrum_plot_draws_its_effects_canvas_after_the_spectrum_svg", () => {
+test("test_the_spectrum_plot_stacks_the_spectrum_svg_then_the_effects_canvas_then_the_shader_canvas", () => {
+  const layers = ["svg.spectrum", "canvas.sfx", "canvas.sgl"];
   const plot = withClass("splot")[0];
   const order = plot
     ? elements(plot.html)
-        .filter(
-          (e) =>
-            (e.name === "svg" && classes(e).includes("spectrum")) ||
-            (e.name === "canvas" && classes(e).includes("sfx")),
-        )
+        .flatMap((e) => classes(e).map((c) => ({ start: e.start, layer: `${e.name}.${c}` })))
+        .filter((e) => layers.includes(e.layer))
         .sort((a, b) => a.start - b.start)
-        .map((e) => e.name)
+        .map((e) => e.layer)
     : [];
-  assert.deepEqual(order, ["svg", "canvas"]);
+  assert.deepEqual(order, layers);
 });
 
 for (const style of ["waterfall", "ridges"]) {

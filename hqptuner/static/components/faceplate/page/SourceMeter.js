@@ -3,28 +3,34 @@
 // no stream to draw, the line saying why sits in an empty glass well in the meter's place. The Range is a view, not a
 // setting: it writes the page's own preference and nothing stages. What it renders holds still
 // (store/faceplate/page/meter.js); the trace, the bars and the readings are painted into it each animation frame
-// (sourcepaint.js), and the picked spectrum style onto the canvas over the trace (spectrumfx.js).
+// (sourcepaint.js), and the picked spectrum style onto the canvases over the trace (spectrumfx.js, aurora.js).
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
+import { effectiveStyle } from "../../../model/gauges/spectrumfx.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
 import { PAGE_RANGES, setPageRange } from "../../../store/ui/faceplate.js";
 import { spectrumStyle } from "../../../store/ui/prefs.js";
-import { specRamp } from "../tokencolours.js";
+import { rgb, specRamp } from "../tokencolours.js";
 import { withXref } from "../Xref.js";
+import { auroraPainter } from "./aurora.js";
 import { SH, SW, paintSourcePage } from "./sourcepaint.js";
 import { fitCanvas, fxPainter } from "./spectrumfx.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
 /** @typedef {import("./spectrumfx.js").FxColours} FxColours */
 /** @typedef {ReturnType<typeof fxPainter>} FxPainter */
+/** @typedef {ReturnType<typeof auroraPainter>} AuroraPainter */
+/** @typedef {{ fx: FxPainter, aurora: AuroraPainter }} Painters */
 /** @typedef {{ current: HTMLCanvasElement | null }} CanvasRef */
 /** @typedef {{ current: HTMLElement | null }} BoxRef */
 
 const STEREO = 2;
+const METER_RGB = [233, 166, 60]; // --meter, where the token is not a hex colour
+const CHANNEL_MAX = 255;
 
 /**
  * A fraction of an axis as a CSS percentage.
@@ -90,11 +96,11 @@ function FreqScale({ freq }) {
 
 /**
  * The spectrum: its title at 13″, the dB scale beside a glass well holding the grid, the filled trace and the held
- * peaks under the effects canvas the picked style draws on, the frequency axis under it.
+ * peaks under the effects canvas and the shader canvas the picked style draws on, the frequency axis under it.
  *
- * @param {{ view: PageMeterView, plot: BoxRef, fx: CanvasRef }} props
+ * @param {{ view: PageMeterView, plot: BoxRef, fx: CanvasRef, sgl: CanvasRef }} props
  */
-function Spectrum({ view, plot, fx }) {
+function Spectrum({ view, plot, fx, sgl }) {
   return html`
     <div class="sside">
       ${!view.slim && html`<div class="mhead"><b class="mt">Spectrum</b></div>`}
@@ -111,6 +117,7 @@ function Spectrum({ view, plot, fx }) {
             <path class="strace" />
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>
+          <canvas class="sgl" ref=${sgl}></canvas>
         </div>
         <span></span>
         <${FreqScale} freq=${view.freq} />
@@ -211,55 +218,86 @@ function fxColours(el) {
 }
 
 /**
- * A painter for the effects canvas while it is mounted, its backing size kept to the plot's box at the device's
- * pixel ratio; null while there is no canvas.
+ * A colour token's value as RGB, each 0 to 1, or `fallback` scaled the same way when it is not a hex colour.
+ *
+ * @param {string} value
+ * @param {number[]} fallback  RGB, each 0 to 255
+ * @returns {number[]}
+ */
+const unitRgb = (value, fallback) => rgb(value, fallback).map((c) => c / CHANNEL_MAX);
+
+/**
+ * Size `canvas`'s backing store to `size`, leaving a matching side alone so the canvas keeps what it holds.
+ *
+ * @param {HTMLCanvasElement} canvas
+ * @param {{ width: number, height: number }} size
+ */
+function fit(canvas, size) {
+  if (canvas.width !== size.width) canvas.width = size.width;
+  if (canvas.height !== size.height) canvas.height = size.height;
+}
+
+/**
+ * The painters for the effects canvas and the shader canvas while they are mounted, both canvases' backing size kept
+ * to the plot's box at the device's pixel ratio; null while there are no canvases. The aurora painter is null where
+ * the page has no WebGL2.
  *
  * @param {BoxRef} plot
  * @param {CanvasRef} fx
+ * @param {CanvasRef} sgl
  * @param {boolean} live
- * @returns {{ current: FxPainter | null }}
+ * @returns {{ current: Painters | null }}
  */
-function useFxPainter(plot, fx, live) {
-  const painter = useRef(/** @type {FxPainter | null} */ (null));
+function useFxPainter(plot, fx, sgl, live) {
+  const painters = useRef(/** @type {Painters | null} */ (null));
   useEffect(() => {
     const box = plot.current;
     const canvas = fx.current;
-    if (!box || !canvas) return undefined;
-    painter.current = fxPainter(canvas, fxColours(canvas));
+    const glCanvas = sgl.current;
+    if (!box || !canvas || !glCanvas) return undefined;
+    const colours = fxColours(canvas);
+    painters.current = {
+      fx: fxPainter(canvas, colours),
+      aurora: auroraPainter(glCanvas, unitRgb(colours.meter, METER_RGB)),
+    };
     const ro = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;
       if (!rect) return;
       const size = fitCanvas(rect, devicePixelRatio);
-      if (canvas.width !== size.width) canvas.width = size.width;
-      if (canvas.height !== size.height) canvas.height = size.height;
+      fit(canvas, size);
+      fit(glCanvas, size);
     });
     ro.observe(box);
     return () => {
       ro.disconnect();
-      painter.current = null;
+      painters.current = null;
     };
   }, [live]);
-  return painter;
+  return painters;
 }
 
 /**
- * Paint the meter loop's scenes into the section under `root` and onto the effects canvas while they are mounted, at
- * the Range in `range` and the picked spectrum style.
+ * Paint the meter loop's scenes into the section under `root` and onto the effects and shader canvases while they are
+ * mounted, at the Range in `range` and the style the page draws for the picked one. The shader canvas is emptied once,
+ * on the frame the drawn style leaves aurora.
  *
  * @param {BoxRef} root
  * @param {{ current: number }} range
- * @param {{ current: FxPainter | null }} painter
+ * @param {{ current: Painters | null }} painters
  */
-function useSourcePaint(root, range, painter) {
-  useEffect(
-    () =>
-      onMeterPaint((scene) => {
-        const style = spectrumStyle.value;
-        if (root.current) paintSourcePage(root.current, scene, range.current, style);
-        painter.current?.paint(scene.spectrum, range.current, style);
-      }),
-    [],
-  );
+function useSourcePaint(root, range, painters) {
+  useEffect(() => {
+    let last = "";
+    return onMeterPaint((scene) => {
+      const aurora = painters.current?.aurora ?? null;
+      const style = effectiveStyle(spectrumStyle.value, aurora !== null);
+      if (root.current) paintSourcePage(root.current, scene, range.current, style);
+      painters.current?.fx.paint(scene.spectrum, range.current, style);
+      if (style === "aurora") aurora?.paint(scene.spectrum, range.current);
+      else if (last === "aurora") aurora?.clear();
+      last = style;
+    });
+  }, []);
 }
 
 /** The page's Source section body, or the line saying why there is no meter. */
@@ -268,9 +306,10 @@ export function SourceMeter() {
   const root = useRef(/** @type {HTMLElement | null} */ (null));
   const plot = useRef(/** @type {HTMLElement | null} */ (null));
   const fx = useRef(/** @type {HTMLCanvasElement | null} */ (null));
+  const sgl = useRef(/** @type {HTMLCanvasElement | null} */ (null));
   const range = useRef(view.range);
   range.current = view.range;
-  useSourcePaint(root, range, useFxPainter(plot, fx, view.state === "live"));
+  useSourcePaint(root, range, useFxPainter(plot, fx, sgl, view.state === "live"));
   if (view.state !== "live") {
     return html`
       <div class="pmeter" data-meter=${view.state}>
@@ -282,7 +321,7 @@ export function SourceMeter() {
     <div class="pmeter" data-meter=${view.state} ref=${root}>
       <div class="mblk mtop">
         <${RangeColumn} range=${view.range} />
-        <${Spectrum} view=${view} plot=${plot} fx=${fx} />
+        <${Spectrum} view=${view} plot=${plot} fx=${fx} sgl=${sgl} />
         <${Levels} view=${view} />
       </div>
     </div>

@@ -1,6 +1,7 @@
 // Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
-// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars, waterfall rows and ridge rows.
-// Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
+// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars, waterfall rows and ridge rows,
+// and the style a page draws when the picked one needs WebGL2 it lacks. Every height is a fraction of the plot, 0 on the
+// floor and 1 at full scale.
 //
 // Run: node --test tests/js/model/gauges/spectrumfx.test.js
 
@@ -16,6 +17,7 @@ import {
   RIDGE_ROWS,
   SPILL,
   bandsOf,
+  effectiveStyle,
   fractionsOf,
   softBars,
   stepCaps,
@@ -297,3 +299,19 @@ test("test_a_full_ridge_stack_drops_its_oldest_rows", () => {
   // Rows 0, E, … (ROWS + 1)·E were pushed; the two oldest fell off, so 2·E is the last kept.
   assert.equal(drive((RIDGE_ROWS + 1) * RIDGE_EVERY + 1).rows[RIDGE_ROWS - 1][0], 2 * RIDGE_EVERY);
 });
+
+// ── effectiveStyle ───────────────────────────────────────────────────────
+
+test("test_aurora_without_webgl2_falls_back_to_the_trace", () => {
+  assert.equal(effectiveStyle("aurora", false), "trace");
+});
+
+test("test_aurora_with_webgl2_stays_aurora", () => {
+  assert.equal(effectiveStyle("aurora", true), "aurora");
+});
+
+for (const style of ["bars", "ridges"]) {
+  test(`test_${style}_without_webgl2_stays_${style}`, () => {
+    assert.equal(effectiveStyle(style, false), style);
+  });
+}

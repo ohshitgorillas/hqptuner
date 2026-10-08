@@ -50,12 +50,12 @@ function setOn(root, sel, name, value) {
 }
 
 /** The spectrum styles the SVG draws the trace and its area under, and those it draws the held peaks under. */
-const TRACED = new Set(["trace", "aurora"]);
-const HELD = new Set(["trace", "aurora", "waterfall"]);
+const TRACED = new Set(["trace"]);
+const HELD = new Set(["trace", "waterfall"]);
 
 /**
  * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
- * effects canvas instead.
+ * effects or shader canvas instead.
  *
  * @param {Element} root
  * @param {MeterScene} scene

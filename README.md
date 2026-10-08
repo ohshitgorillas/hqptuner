@@ -247,4 +247,4 @@ Bug reports and contributions are welcome and encouraged. See `CONTRIBUTING.md` 
 
 ## License
 
-[MIT](LICENSE). The Control API implementation is derived from Jussi Laako's official `hqp-control` utility source, itself MIT-licensed, with attribution. The vendored headphone EQ database is from [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT).
+[MIT](LICENSE). The Control API implementation is derived from Jussi Laako's official `hqp-control` utility source, itself MIT-licensed, with attribution. The vendored headphone EQ database is from [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT). The Aurora spectrum style's shader is ported from [cava](https://github.com/karlstav/cava)'s `northern_lights.frag` (MIT).
