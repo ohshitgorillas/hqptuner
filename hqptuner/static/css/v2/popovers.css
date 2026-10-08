@@ -1,121 +1,123 @@
 /* Popover sheets. All are direct children of the plate (so the page's overflow clip can't cut them),
    except the station tree, which anchors inside the header's .station group. popover.js parks them. */
-.pop{position:absolute;left:132px;top:50px;width:330px;background:var(--pop);border:1px solid var(--line-2);border-radius:6px;box-shadow:var(--pop-shadow);padding:6px;display:flex;flex-direction:column;z-index:5}
+.pop{position:absolute;left:var(--pop-at-x);top:var(--pop-at-y);width:var(--pop-w);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);padding:var(--sp-3);display:flex;flex-direction:column;z-index:5}
 .pn{flex-grow:1}
 
 /* ── Station · Snapshot tree ─────────────────────────────────────────────
    Station rows (engraved) with a chevron that folds their snapshots; snapshot rows indented (mono).
-   .cur = active. Non-active stations carry "↻ restart". */
-.prow,.srow{display:flex;align-items:center;gap:8px;height:36px;padding:0 8px;border-radius:4px;font-size:13.5px;color:var(--ink)}
-.prow{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;line-height:var(--lh-eng)}
-.srow{padding-left:40px;font-family:var(--f-mono);font-size:12.5px;color:var(--ink-2);line-height:var(--lh-text)}
-.prow.cur,.srow.cur{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
+   .cur = active. Non-active stations carry "↻ restart". A snapshot's name starts under its station's: past the row's
+   padding, the chevron and the gap after it. */
+.prow,.srow{display:flex;align-items:center;gap:var(--sp-4);height:var(--pop-row-h);padding:0 var(--sp-4);border-radius:var(--r-2);font-size:var(--fs-4);color:var(--ink)}
+.prow{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-2);text-transform:uppercase;line-height:var(--lh-eng)}
+.srow{padding-left:calc(var(--sp-4) + var(--tree-chev-w) + var(--sp-4));font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.prow.cur,.srow.cur{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
 .prow.cur .pn,.srow.cur .pn{color:var(--acc)}
 /* The loaded station's snapshots and every station name are buttons, drawn as the rows they sit in. */
 button.srow{width:100%;margin:0;border:0;background:none;text-align:left;font-weight:inherit;font-style:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
-.prow button.pn{align-self:stretch;margin:0;padding:0;border:0;border-radius:4px;background:none;color:inherit;text-align:left;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.prow button.pn{align-self:stretch;margin:0;padding:0;border:0;border-radius:var(--r-2);background:none;color:inherit;text-align:left;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
 button.srow:hover,.prow button.pn:hover{background:var(--hover)}
-.chev{width:24px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);border-radius:3px;font-family:var(--f-body);font-size:12px;font-weight:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;flex-shrink:0;line-height:var(--lh-text)}
+.chev{width:var(--tree-chev-w);height:var(--tree-chev-h);padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);border-radius:var(--r-1);font-family:var(--f-body);font-size:var(--fs-3);font-weight:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;flex-shrink:0;line-height:var(--lh-text)}
 .chev:hover{background:var(--line)}
 .chev.none{visibility:hidden}
-.pfoot{display:flex;gap:8px;padding:8px 4px 2px;border-top:1px solid var(--line);margin-top:6px}
+.pfoot{display:flex;gap:var(--sp-4);padding:var(--sp-4) var(--sp-2) var(--sp-1);border-top:var(--hair) solid var(--line);margin-top:var(--sp-3)}
 
 /* ── Filter presets ──────────────────────────────────────────────────────
    One vertical list, every description in view. Emoji spans the name + description lines.
    Columns: preset | filter | adjust (knobs) | correction | resources. Lit row = running and selected. */
-.fpop{--fcols:minmax(0,1fr) 176px 196px 64px 104px;left:auto;top:auto;width:940px;padding:6px 6px 8px}
-.fhead{display:grid;grid-template-columns:var(--fcols);gap:0 12px;padding:4px 8px 6px 76px;border-bottom:1px solid var(--line);margin-bottom:4px}
-.fhead span{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
+.fpop{left:auto;top:auto;width:var(--fp-w);padding:var(--sp-3) var(--sp-3) var(--sp-4)}
+.fhead{display:grid;grid-template-columns:var(--fp-cols);gap:0 var(--sp-6);padding:var(--sp-2) var(--sp-4) var(--sp-3) var(--fp-name-x);border-bottom:var(--hair) solid var(--line);margin-bottom:var(--sp-2)}
+.fhead span{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
 .fhead .r{text-align:right}
-.frow{display:grid;grid-template-columns:var(--fcols);align-items:center;gap:0 12px;padding:0 8px 0 0;border-radius:4px;color:var(--ink)}
-.frow.cur{background:var(--acc-lo);box-shadow:inset 2px 0 0 var(--acc)}
-.frow .pick{display:grid;grid-template-columns:10px 36px minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:1px 12px;padding:5px 8px;background:none;border:0;color:inherit;cursor:pointer;text-align:left;font:inherit;min-width:0;border-radius:4px}
+.frow{display:grid;grid-template-columns:var(--fp-cols);align-items:center;gap:0 var(--sp-6);padding:0 var(--sp-4) 0 0;border-radius:var(--r-2);color:var(--ink)}
+.frow.cur{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}
+.frow .pick{display:grid;grid-template-columns:var(--lamp-d) var(--fp-em-w) minmax(0,1fr);grid-template-rows:auto auto;align-items:center;gap:0 var(--sp-6);padding:var(--sp-2) var(--sp-4);background:none;border:0;color:inherit;cursor:pointer;text-align:left;font:inherit;min-width:0;border-radius:var(--r-2)}
 .frow .pick:hover{background:var(--hover)}
 .frow .pick .lamp{grid-row:1/3}
-.frow .em{grid-row:1/3;font-size:24px;line-height:1;text-align:center}
-.frow .pn{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.12em;text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;gap:8px;line-height:1.1}
+.frow .em{grid-row:1/3;font-size:var(--fs-emoji);line-height:1;text-align:center}
+.frow .pn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-2);text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;gap:var(--sp-4);line-height:1.1}
 .frow.cur .pn{color:var(--acc)}
-.frow .ds{grid-column:3;font-size:11.5px;line-height:1.3;color:var(--ink-2)}
-.frow .fl{display:flex;flex-direction:column;gap:2px;font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.frow .ds{grid-column:3;font-size:var(--fs-2);line-height:1.3;color:var(--ink-2)}
+.frow .fl{display:flex;flex-direction:column;gap:var(--sp-1);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
 .frow .fl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.frow .fl .k{font-family:var(--f-eng);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);margin-right:5px;line-height:var(--lh-eng)}
-.frow .kn{display:flex;flex-direction:column;gap:3px;align-items:flex-start}
-.frow .ap{display:flex;align-items:center;justify-self:start;padding-left:16px}
+.frow .fl .k{font-family:var(--f-eng);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);margin-right:var(--sp-2);line-height:var(--lh-eng)}
+.frow .kn{display:flex;flex-direction:column;gap:var(--sp-1);align-items:flex-start}
+.frow .ap{display:flex;align-items:center;justify-self:start;padding-left:var(--sp-7)}
 .frow .seg{display:inline-flex}
-.frow .seg button{height:22px;font-size:11px;padding:0 8px;letter-spacing:.08em}
-.hires{font-family:var(--f-eng);font-weight:600;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);border:1px solid var(--line-2);border-radius:3px;padding:1px 4px;line-height:1.2;white-space:nowrap}
-.kseg{display:flex;align-items:center;gap:6px}
-.kseg .kl{font-family:var(--f-eng);font-weight:600;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);width:62px;white-space:nowrap;line-height:var(--lh-eng)}
-.apod{width:14px;height:14px;flex-shrink:0;display:block}
-.pips{display:flex;align-items:center;gap:2px;justify-content:flex-end;white-space:nowrap;justify-self:end}
-.pip{width:4px;height:4px;border-radius:50%;background:var(--ink-3);flex-shrink:0}
+.frow .seg button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-4);letter-spacing:var(--ls-1)}
+.hires{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:var(--hair) var(--sp-2);line-height:1.2;white-space:nowrap}
+.kseg{display:flex;align-items:center;gap:var(--sp-3)}
+.kseg .kl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--fp-knob-l);white-space:nowrap;line-height:var(--lh-eng)}
+.apod{width:var(--apod-mark);height:var(--apod-mark);flex-shrink:0;display:block}
+.pips{display:flex;align-items:center;gap:var(--sp-1);justify-content:flex-end;white-space:nowrap;justify-self:end}
+.pip{width:var(--pip);height:var(--pip);border-radius:var(--r-round);background:var(--ink-3);flex-shrink:0}
 .frow.cur .pip{background:var(--acc)}
 
 /* Subsets (filter-presets.js): Concert Hall and The Crucible fold under each flagship. Folded: one
    fold line on the name column (▸, emoji + name each; the picked one amber). Open: both as nested rows, stepped in with a
-   rule down their left like a tree; ▾ in the first one's gutter folds them. One flagship open at a time. */
-.fsubs{display:flex;align-items:center;gap:18px;width:100%;height:26px;margin:-4px 0 2px;padding:0 0 0 76px;border:0;border-radius:4px;background:none;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;text-align:left;position:relative}
-.fsubs::before{content:"▸";position:absolute;left:58px;font-size:12px;color:var(--ink-2)}
+   rule down their left like a tree; ▾ in the first one's gutter folds them. One flagship open at a time. The ▸ sits one
+   gap before the names; the ▾ key sits in the step, --sp-7 clear of the rule. */
+.fsubs{display:flex;align-items:center;gap:var(--sp-8);width:100%;height:var(--fold-h);margin:calc(-1 * var(--sp-2)) 0 var(--sp-1);padding:0 0 0 var(--fp-name-x);border:0;border-radius:var(--r-2);background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-3);cursor:pointer;text-align:left;position:relative}
+.fsubs::before{content:"▸";position:absolute;left:calc(var(--fp-name-x) - var(--sp-8));font-size:var(--fs-3);color:var(--ink-2)}
 .fsubs:hover{background:var(--hover);color:var(--ink)}
-.fsubs>span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.fsubs .em{font-size:14px;line-height:1}
+.fsubs>span{display:inline-flex;align-items:center;gap:var(--sp-3);white-space:nowrap}
+.fsubs .em{font-size:var(--fs-5);line-height:1}
 .fsubs .cur{color:var(--acc)}
-.frow.sub{position:relative;margin-left:48px;border-left:1px solid var(--line-2);border-radius:0 4px 4px 0}
-.frow.sub .pick{grid-template-columns:10px 28px minmax(0,1fr)}
-.frow.sub .em{font-size:19px}
-.frow.sub .pn{font-size:13.5px}
-.fsubx{position:absolute;left:-34px;top:8px;width:20px;height:20px;padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:12px}
+.frow.sub{position:relative;margin-left:var(--fp-sub-indent);border-left:var(--hair) solid var(--line-2);border-radius:0 var(--r-2) var(--r-2) 0}
+.frow.sub .pick{grid-template-columns:var(--lamp-d) var(--fp-em-w-sub) minmax(0,1fr)}
+.frow.sub .em{font-size:var(--fs-emoji-sub)}
+.frow.sub .pn{font-size:var(--fs-4)}
+.fsubx{position:absolute;left:calc(-1 * (var(--ctl-h-mini) + var(--sp-7)));top:var(--sp-4);width:var(--ctl-h-mini);height:var(--ctl-h-mini);padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:var(--fs-3)}
 .fsubx::before{content:"▾"}
 .fsubx:hover{color:var(--ink)}
 
-.pips .w{font-family:var(--f-mono);font-size:10.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.pips .w{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);line-height:var(--lh-text)}
 
 /* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
    Ordered / per-stage facets are segments. Counts preview the list sizes the click would leave (1x·Nx, or that stage's
-   for a staged row); the head readout is the live result. */
-.ng{display:flex;flex-direction:column;gap:5px}
-.ngh{display:flex;align-items:center;gap:10px;height:18px}
-.ngl{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
-.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:10.5px;color:var(--ink-2)}
-.nchips{display:flex;flex-wrap:wrap;gap:5px}
-.nchip{display:inline-flex;align-items:center;gap:7px;height:26px;padding:0 9px 0 10px;border:1px solid var(--line-2);border-radius:13px;background:none;color:var(--ink-2);font:inherit;font-size:12px;cursor:pointer;white-space:nowrap}
-.nchip .c{font-family:var(--f-mono);font-size:10px;color:var(--ink-2);letter-spacing:0;line-height:var(--lh-text)}
+   for a staged row); the head readout is the live result. A group's head is one engraved line tall. */
+.ng{display:flex;flex-direction:column;gap:var(--sp-2)}
+.ngh{display:flex;align-items:center;gap:var(--sp-5);height:calc(var(--fs-2) * var(--lh-eng))}
+.ngl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
+.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-1);color:var(--ink-2)}
+.nchips{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
+.nchip{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--chip-h);padding:0 var(--sp-4) 0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-3);cursor:pointer;white-space:nowrap}
+.nchip .c{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;line-height:var(--lh-text)}
 .nchip:hover{border-color:var(--ink-2);color:var(--ink)}
 .nchip[aria-pressed="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
 .nchip[aria-pressed="true"] .c{color:var(--ink-2)}
-.nchip:disabled{opacity:.4;cursor:default}
+.nchip:disabled{opacity:var(--op-1);cursor:default}
 .nchip:disabled:hover{border-color:var(--line-2);color:var(--ink-2)}
-.nrow{display:flex;align-items:center;gap:10px;min-height:26px}
-.nrow .stg{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);width:22px;line-height:var(--lh-eng)}
-.nrow .seg button{height:26px;font-size:12px;padding:0 10px;white-space:nowrap}
-.nrow .chk{font-size:12px;white-space:normal;align-items:flex-start;line-height:1.3}
-.nrow .chk input{margin-top:1px}
-.nrow .chk .c{font-family:var(--f-mono);font-size:10px;color:var(--ink-2);margin-left:4px;line-height:var(--lh-text)}
+.nrow{display:flex;align-items:center;gap:var(--sp-5);min-height:var(--chip-h)}
+.nrow .stg{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--nrow-stg-w);line-height:var(--lh-eng)}
+.nrow .seg button{height:var(--chip-h);font-size:var(--fs-3);padding:0 var(--sp-5);white-space:nowrap}
+.nrow .chk{font-size:var(--fs-3);white-space:normal;align-items:flex-start;line-height:1.3}
+.nrow .chk input{margin-top:var(--hair)}
+.nrow .chk .c{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);margin-left:var(--sp-2);line-height:var(--lh-text)}
 
 /* Volume popover: slider only. Drops from the engine-row readout, right edge flush with it. */
-.vpop{width:340px;padding:12px 14px 10px;gap:8px}
+.vpop{width:var(--vpop-w);padding:var(--sp-6) var(--sp-7) var(--sp-5);gap:var(--sp-4)}
 .vpop .vh{display:flex;align-items:baseline;justify-content:space-between}
-.vpop .vh .v{font-family:var(--f-mono);font-size:20px;font-weight:500;color:var(--acc);line-height:var(--lh-text)}
-.vpop input[type=range]{accent-color:var(--acc);height:28px;margin:0;width:100%}
+.vpop .vh .v{font-family:var(--f-mono);font-size:var(--fs-vol);font-weight:var(--fw-medium);color:var(--acc);line-height:var(--lh-text)}
+.vpop input[type=range]{accent-color:var(--acc);height:var(--range-h);margin:0;width:100%}
 /* Scale marks sit at their true linear positions (left set from data); end marks anchor to the track ends. */
-.vpop .scale{position:relative;height:13px;margin:0 7px;font-family:var(--f-mono);font-size:10px;color:var(--ink-2);line-height:var(--lh-text)}
+.vpop .scale{position:relative;height:calc(var(--fs-1) * var(--lh-text));margin:0 var(--thumb-half);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);line-height:var(--lh-text)}
 .vpop .scale span{position:absolute;top:0;transform:translateX(-50%);white-space:nowrap}
-.vpop .scale span:first-child{transform:none;margin-left:-7px}
-.vpop .scale span:last-child{transform:translateX(-100%);margin-left:7px}
+.vpop .scale span:first-child{transform:none;margin-left:calc(-1 * var(--thumb-half))}
+.vpop .scale span:last-child{transform:translateX(-100%);margin-left:var(--thumb-half)}
 
 /* Two-stage note popover (vselect.js): the full filters.json note, parked under its `see more` link. */
-.notepop{width:400px;padding:10px 14px}
-.notepop p{margin:0;font-size:12.5px;line-height:1.5;color:var(--ink)}
-.notepop p+p{margin-top:8px}
+.notepop{width:var(--notepop-w);padding:var(--sp-5) var(--sp-7)}
+.notepop p{margin:0;font-size:var(--fs-3);line-height:1.5;color:var(--ink)}
+.notepop p+p{margin-top:var(--sp-4)}
 
 /* Loudness bounds on the volume sliders (popover + bottom bar; volume.js loudMarks): the Range bar's grammar, ink-2
    reference marks. ( and ) straddle the track at the bounds; a strip under the track joins them. 7px insets = the native
    thumb's half width, the same inset the scale marks use. Only while loudness is in effect. */
 .vsl{position:relative}
-.lmk{position:absolute;inset:0 7px;pointer-events:none}
-.lmk .lband{position:absolute;bottom:3px;height:3px;background:var(--ink-2);opacity:.6;border-radius:1px}
-.lmk .lpw{position:absolute;top:50%;width:10px;height:18px;margin:-9px 0 0 -10px}
+.lmk{position:absolute;inset:0 var(--thumb-half);pointer-events:none}
+.lmk .lband{position:absolute;bottom:var(--sp-1);height:var(--stroke);background:var(--ink-2);opacity:var(--op-2)}
+.lmk .lpw{position:absolute;top:50%;width:var(--paren-w);height:var(--paren-h);margin:calc(var(--paren-h) / -2) 0 0 calc(-1 * var(--paren-w))}
 .lmk .lpw.r{margin-left:0}
 .lmk .lp{display:block}
 .lmk .lp path{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
@@ -123,9 +125,9 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .vpop input[type=range]:disabled,.vbsl input[type=range]:disabled{accent-color:var(--ink-4);cursor:default}
 .round.vbtn:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 .volrd.fixed{cursor:default}
-.vbar.fixed .vbsl{opacity:.45}
+.vbar.fixed .vbsl{opacity:var(--op-1)}
 /* The rows' host; a flagship opened over its two nested rows joins them; a preset the engine cannot run reads dead. */
 .frows{display:flex;flex-direction:column}
-.frow.opened{border-radius:4px 4px 0 0}
-.frow.sub.first{margin-top:1px}
+.frow.opened{border-radius:var(--r-2) var(--r-2) 0 0}
+.frow.sub.first{margin-top:var(--hair)}
 .frow[data-grayed] .pick{color:var(--ink-2)}

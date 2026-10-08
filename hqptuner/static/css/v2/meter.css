@@ -6,34 +6,34 @@
 .dpanel:has(>.dblock){display:flex;flex-direction:column}
 .dblock{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
 .dblock>.mblk:last-child{flex:1 1 auto;min-height:0;border-bottom:0}
-.mblk{display:flex;flex-direction:column;gap:8px;padding:10px 0 12px;border-bottom:1px solid var(--row-rule)}
-.mtop{display:grid;grid-template-columns:minmax(0,1fr) 286px;gap:0 28px}
-.sside,.lside{display:flex;flex-direction:column;gap:8px;min-width:0}
-.mhead{display:flex;align-items:center;gap:14px;min-height:30px}
-.mt{font-weight:600;font-size:14px;color:var(--ink);white-space:nowrap}
-.mctl{display:flex;align-items:center;gap:6px}
-.mctl .eng{font-size:11.5px;color:var(--ink-2)}
+.mblk{display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-5) 0 var(--sp-6);border-bottom:var(--hair) solid var(--row-rule)}
+.mtop{display:grid;grid-template-columns:minmax(0,1fr) var(--levels-w);gap:0 var(--sp-10)}
+.sside,.lside{display:flex;flex-direction:column;gap:var(--sp-4);min-width:0}
+.mhead{display:flex;align-items:center;gap:var(--sp-7);min-height:var(--mhead-h)}
+.mt{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink);white-space:nowrap}
+.mctl{display:flex;align-items:center;gap:var(--sp-3)}
+.mctl .eng{font-size:var(--fs-2);color:var(--ink-2)}
 .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
-.mctl .u{margin-right:2px}
-.mblk .seg button{height:28px;font-size:12px;padding:0 8px;letter-spacing:.08em;white-space:nowrap}
-.mblk .seg.lc button{text-transform:none;font-size:13px;letter-spacing:.06em}
+.mctl .u{margin-right:var(--sp-1)}
+.mblk .seg button{height:var(--ctl-h-view);font-size:var(--fs-3);padding:0 var(--sp-4);letter-spacing:var(--ls-1);white-space:nowrap}
+.mblk .seg.lc button{text-transform:none;font-size:var(--fs-4);letter-spacing:0}
 
 /* Shared axis type: tick labels in mono, legible ink. .first/.last keep end labels inside their track. */
 .gut,.xaxis{position:relative}
-.gut span,.xaxis span{position:absolute;font-family:var(--f-mono);font-size:10px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
-.gut span{right:8px;transform:translateY(-50%)}
+.gut span,.xaxis span{position:absolute;font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.gut span{right:var(--sp-4);transform:translateY(-50%)}
 .gut span.first{transform:none}
 .gut span.last{transform:translateY(-100%)}
-.gut span::after{content:"";position:absolute;right:-8px;top:50%;width:5px;height:1px;background:var(--line-2)}
+.gut span::after{content:"";position:absolute;right:calc(-1 * var(--sp-4));top:50%;width:var(--sp-2);height:var(--hair);background:var(--line-2)}
 .gut span.first::after{top:0}
 .gut span.last::after{top:100%}
-.xaxis span{top:1px;transform:translateX(-50%)}
+.xaxis span{top:var(--hair);transform:translateX(-50%)}
 .xaxis span.first{transform:none}
 .xaxis span.last{transform:translateX(-100%)}
 
 /* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold line. */
-.sgrid1{display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:160px 14px;gap:4px 8px}
-.splot{position:relative;background:var(--glass);border:1px solid var(--shade);border-radius:3px;box-shadow:var(--well);overflow:hidden}
+.sgrid1{display:grid;grid-template-columns:var(--gutter-w) minmax(0,1fr);grid-template-rows:var(--spectrum-h) var(--axis-h);gap:var(--sp-2) var(--sp-4)}
+.splot{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well);overflow:hidden}
 .spectrum{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 .spectrum line,.spectrum path{vector-effect:non-scaling-stroke}
 .sgridl line{stroke:var(--grid);stroke-width:1}
@@ -41,74 +41,76 @@
 .strace{fill:none;stroke:var(--meter);stroke-width:1.5;stroke-linejoin:round}
 .shold{fill:none;stroke:var(--meter-hi);stroke-opacity:.55;stroke-width:1}
 .scross{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
-.sread{position:absolute;top:6px;right:8px;padding:2px 6px;background:var(--glass);border:1px solid var(--line);border-radius:3px;font-family:var(--f-mono);font-size:11px;color:var(--meter);pointer-events:none;line-height:var(--lh-text)}
+.sread{position:absolute;top:var(--sp-3);right:var(--sp-4);padding:var(--sp-1) var(--sp-3);background:var(--glass);border:var(--hair) solid var(--line);border-radius:var(--r-1);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--meter);pointer-events:none;line-height:var(--lh-text)}
 
 /* Levels: vertical bars, 0 dBFS at top. Peak = dim fill, RMS = bright inner bar, hold = pale tick.
-   Scale column | L | R, same columns as the readout table under it. */
-.lvwrap{display:grid;grid-template-columns:48px 34px 34px minmax(0,1fr);gap:0 4px;height:174px}
-.lvs{position:relative;height:calc(100% - 18px)}
-.lvs span{position:absolute;right:6px;transform:translateY(-50%);font-family:var(--f-mono);font-size:10px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+   Scale column | L | R, same columns as the readout table under it. The levels stand a spectrum plot and an axis row
+   tall; a bar's column is its trough and a margin. */
+.lvwrap{display:grid;grid-template-columns:var(--lv-scale-w) calc(var(--lv-bar) + var(--sp-5)) calc(var(--lv-bar) + var(--sp-5)) minmax(0,1fr);gap:0 var(--sp-2);height:calc(var(--spectrum-h) + var(--axis-h))}
+/* The scale stops above the L / R row and its gap. */
+.lvs{position:relative;height:calc(100% - var(--axis-h) - var(--sp-2))}
+.lvs span{position:absolute;right:var(--sp-3);transform:translateY(-50%);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 .lvs span.first{transform:none}
 .lvs span.last{transform:translateY(-100%)}
-.lvb{display:flex;flex-direction:column;align-items:center;gap:4px}
-.lvb .trough{position:relative;flex-grow:1;width:24px;background:var(--glass);border:1px solid var(--shade);border-radius:2px;box-shadow:inset 0 1px 3px var(--shade);overflow:hidden}
+.lvb{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2)}
+.lvb .trough{position:relative;flex-grow:1;width:var(--lv-bar);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade);overflow:hidden}
 .lvb .trough i{position:absolute;bottom:0;display:block}
-.lvb .pk{left:0;right:0;background:var(--meter-lo);border-top:1px solid var(--meter-dim)}
-.lvb .rm{left:5px;right:5px;background:linear-gradient(0deg,var(--meter-dim),var(--meter))}
-.lvb .hd{left:0;right:0;height:2px;margin-bottom:-1px;background:var(--meter-hi);box-shadow:0 0 4px var(--meter)}
-.lvn{font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:.1em;color:var(--ink-2);line-height:14px}
-.lvtab{align-self:end;display:grid;grid-template-columns:44px 1fr 1fr;align-items:baseline;gap:6px 0;padding:0 0 22px 12px}
-.lvtab .u{text-align:right;padding-right:6px}
-.lvh{font-family:var(--f-eng);font-weight:600;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-2);text-align:center;line-height:var(--lh-eng)}
-.lvh.l{text-align:right;padding-right:6px}
-.npk,.nrm{font-family:var(--f-mono);font-size:13px;text-align:center;white-space:nowrap;line-height:var(--lh-text)}
+.lvb .pk{left:0;right:0;background:var(--meter-lo);border-top:var(--hair) solid var(--meter-dim)}
+.lvb .rm{left:var(--sp-2);right:var(--sp-2);background:linear-gradient(0deg,var(--meter-dim),var(--meter))}
+.lvb .hd{left:0;right:0;height:var(--stroke);margin-bottom:calc(-1 * var(--hair));background:var(--meter-hi);box-shadow:0 0 var(--sp-2) var(--meter)}
+.lvn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);color:var(--ink-2);line-height:var(--axis-h)}
+.lvtab{align-self:end;display:grid;grid-template-columns:var(--lvtab-l) 1fr 1fr;align-items:baseline;gap:var(--sp-3) 0;padding:0 0 var(--sp-9) var(--sp-6)}
+.lvtab .u{text-align:right;padding-right:var(--sp-3)}
+.lvh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);text-align:center;line-height:var(--lh-eng)}
+.lvh.l{text-align:right;padding-right:var(--sp-3)}
+.npk,.nrm{font-family:var(--f-mono);font-size:var(--fs-4);text-align:center;white-space:nowrap;line-height:var(--lh-text)}
 .npk{color:var(--meter)}
 .nrm{color:var(--ink)}
 
 /* Spectrogram grid: gutter | plot. Row 1 apodizing strip, row 2 spectrogram (kHz, linear), row 3 time axis. */
-.sgrid2{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:58px minmax(0,1fr);grid-template-rows:12px minmax(0,1fr) 14px;gap:4px 8px}
-.rowl{font-family:var(--f-eng);font-weight:600;font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:12px}
-.spec,.apodstrip{display:block;width:100%;height:100%;border:1px solid var(--shade);border-radius:2px;box-sizing:border-box;box-shadow:var(--well)}
+.sgrid2{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:var(--gutter-w) minmax(0,1fr);grid-template-rows:var(--strip-h) minmax(0,1fr) var(--axis-h);gap:var(--sp-2) var(--sp-4)}
+.rowl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:0;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:var(--strip-h)}
+.spec,.apodstrip{display:block;width:100%;height:100%;border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-sizing:border-box;box-shadow:var(--well)}
 
 /* No meter (mock scenario: nothing plays, or a DSD source with the matrix bypassed): v1's owner copy, centred in the drawer. */
-.mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:200px}
-.mnone p{margin:0;font-size:14px;color:var(--ink-2)}
+.mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:var(--mnone-min)}
+.mnone p{margin:0;font-size:var(--fs-5);color:var(--ink-2)}
 
 /* Page Source section (source-meter.js compact): spectrum | levels, stretched to the section's height; no spectrogram.
    With no stream, the reason line sits in an empty glass well the size the meter would take. */
 .pmeter{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .pmeter>.mblk.mtop{flex:1 1 0;min-height:0;padding:0;border:0;grid-template-rows:minmax(0,1fr)}
 .pmeter .sside,.pmeter .lside{min-height:0}
-.pmeter .sgrid1{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) 14px}
+.pmeter .sgrid1{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) var(--axis-h)}
 .pmeter .lvwrap{flex:1 1 0;height:auto;min-height:0}
-.pmeter>.mnone{min-height:0;background:var(--glass);border:1px solid var(--shade);border-radius:3px;box-shadow:var(--well)}
+.pmeter>.mnone{min-height:0;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well)}
 /* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads (Range / Floor stay at their
    defaults) and no readout table; every other axis label drops so the short scales stay legible.
    Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 120 dB span is a smear, not a reading; the
    floor makes the page overrun instead, and the overflow rule recovers it from the option copy (conversion.js fit). */
-.sec.psrc.slim{min-height:148px;gap:8px}
+.sec.psrc.slim{min-height:var(--psrc-min);gap:var(--sp-4)}
 .slim .pmeter .mhead,.slim .pmeter .lvtab{display:none}
-.slim .pmeter>.mblk.mtop{grid-template-columns:minmax(0,1fr) auto;gap:0 18px}
-.slim .pmeter .lvwrap{grid-template-columns:48px 26px 26px}
-.slim .pmeter .lvb .trough{width:18px}
+.slim .pmeter>.mblk.mtop{grid-template-columns:minmax(0,1fr) auto;gap:0 var(--sp-8)}
+.slim .pmeter .lvwrap{grid-template-columns:var(--lv-scale-w) calc(var(--lv-bar-slim) + var(--sp-4)) calc(var(--lv-bar-slim) + var(--sp-4))}
+.slim .pmeter .lvb .trough{width:var(--lv-bar-slim)}
 .slim .pmeter :is(.gy,.lvs) span:nth-child(even):not(.last){display:none}
 .slim .pmeter>.mtop{container:pmslim/size}
 @container pmslim (max-height:100px){.pmeter :is(.gy,.lvs) span:not(.first):not(.last){display:none}}
-.slim .pmeter>.mnone p{font-size:13px}
+.slim .pmeter>.mnone p{font-size:var(--fs-4)}
 
 /* Page meter's Range column (source-meter.js compact): left of the spectrum, label on one line over a stacked seg; one
    Range for the spectrum's span and the levels' floor. Touch-sized: the seg fills the column's height (≈30px buttons at
    10.2″, the room the slim meter has), capped at 40px where the meter is taller; 60px wide. */
-.pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) 286px}
+.pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) var(--levels-w)}
 .slim .pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) auto}
-.mrange{display:flex;flex-direction:column;align-items:stretch;gap:4px;min-height:0;overflow:visible;padding-bottom:1px}
-.mrange .lbl{display:flex;align-items:baseline;gap:4px;white-space:nowrap}
-.mrange .eng{font-size:11.5px;color:var(--ink-2);line-height:var(--lh-eng)}
-.pmeter:not(.slim *) .mrange{padding-top:38px}   /* full: the heads' row above the plots */
+.mrange{display:flex;flex-direction:column;align-items:stretch;gap:var(--sp-2);min-height:0;overflow:visible;padding-bottom:0}
+.mrange .lbl{display:flex;align-items:baseline;gap:var(--sp-2);white-space:nowrap}
+.mrange .eng{font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-eng)}
+.pmeter:not(.slim *) .mrange{padding-top:calc(var(--mhead-h) + var(--sp-4))}   /* full: the heads' row above the plots */
 .seg.vert{flex-direction:column;flex:1 1 auto;min-height:0;align-self:stretch;justify-content:flex-start}
-.seg.vert button{border-right:0;border-bottom:1px solid var(--seam)}
+.seg.vert button{border-right:0;border-bottom:var(--hair) solid var(--seam)}
 .seg.vert button:last-child{border-bottom:0}
-.mblk .seg.vert button{flex:1 1 0;height:auto;min-height:0;max-height:40px;width:60px;padding:0;font-size:13px}   /* min 0: the stack always fits the column (it shrinks rather than overflow and clip) */
+.mblk .seg.vert button{flex:1 1 0;height:auto;min-height:0;max-height:var(--ctl-h);width:var(--range-w);padding:0;font-size:var(--fs-4)}   /* min 0: the stack always fits the column (it shrinks rather than overflow and clip) */
 .pmeter:not(.slim *) .seg.vert{flex:0 0 auto}
-.slim .pmeter .seg.vert{max-height:calc(3 * 40px + 2px)}   /* the cap is the stack's, not just its buttons': past 40px buttons the well ends at 120, no dead glass under it */
-.pmeter:not(.slim *) .mblk .seg.vert button,.pmeter:not(.slim *) .seg.vert button{flex:0 0 40px}
+.slim .pmeter .seg.vert{max-height:calc(3 * var(--ctl-h) + 2 * var(--hair))}   /* the cap is the stack's, not just its buttons': past 40px buttons the well ends at 120, no dead glass under it */
+.pmeter:not(.slim *) .mblk .seg.vert button,.pmeter:not(.slim *) .seg.vert button{flex:0 0 var(--ctl-h)}

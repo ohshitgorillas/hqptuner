@@ -136,6 +136,7 @@
   --key:linear-gradient(180deg,#121418,#0b0c0e);   /* glass key face: the ▾ end of a split control */
   --well:inset 0 2px 8px #000;
   --pop-shadow:0 14px 40px #000c;
+  --hatch-unav:repeating-linear-gradient(45deg,transparent 0 var(--sp-1),var(--hatch) var(--sp-1) var(--sp-2));   /* stripes over what cannot run */
 
   /* Type */
   --f-eng:'Saira Extra Condensed',sans-serif;   /* engraved legends */
@@ -158,42 +159,48 @@
   /* Sizes above the scale, one per role. */
   --fs-mark:26px;          /* the HQPTUNER mark */
   --fs-gauge:17px;         /* the process-speed figure */
-  --fs-vol:18px;           /* the volume bar's readout */
-  --fs-title:16px;         /* a sheet or bar title */
-  --fs-glyph:20px;         /* the glyph on a round key: volume ±, drawer close */
+  --fs-vol:18px;           /* the volume readout: the bar's and the popover's */
+  --fs-title:16px;         /* a sheet, bar or page section title */
+  --fs-glyph:20px;         /* the glyph on a round key: volume ±, a close key */
+  --fs-glyph-sm:18px;      /* the glyph on a small round key: a sheet's or drawer's close */
+  --fs-emoji:24px;         /* a filter preset's emoji */
+  --fs-emoji-sub:19px;     /* a nested filter preset's emoji */
   /* Weights */
   --fw-regular:400; --fw-medium:500; --fw-semi:600; --fw-bold:700;
   /* Letter-spacing of uppercase lettering: a step between two takes the lower one. */
   --ls-1:.08em; --ls-2:.12em; --ls-3:.16em;
-  --ls-title:.18em;        /* a sheet or bar title */
+  --ls-title:.18em;        /* a sheet, bar or page section title */
 
   /* Spacing scale: gaps, margins, padding, and the offsets and blurs of shadows. A space between two
      steps takes the lower one. */
   --sp-1:2px; --sp-2:4px; --sp-3:6px; --sp-4:8px; --sp-5:10px;
-  --sp-6:12px; --sp-7:14px; --sp-8:18px; --sp-9:22px;
+  --sp-6:12px; --sp-7:14px; --sp-8:18px; --sp-9:22px; --sp-10:28px;
   --hair:1px;              /* hairline borders, rules and offsets */
   --stroke:2px;            /* a heavy line: focus ring, selection bar, a view pick's foot, the big lamp's bezel */
   /* Radius */
-  --r-1:2px; --r-2:4px; --r-round:50%;
+  --r-1:2px; --r-2:4px; --r-3:6px; --r-round:50%;
   --r-plate:10px;          /* the plate's corners */
+  --r-bar:1px;             /* the rounded ends of a pin's gain fill */
   /* Opacity */
   --op-1:.4; --op-2:.6;
 
   /* Control heights */
   --ctl-h:40px;            /* a control: button, segment, VFD window, round key */
   --ctl-h-hdr:38px;        /* a header-row control: knob, tree trigger, header button; the engine row's round keys */
-  --ctl-h-sm:34px;         /* popover footer button, the Setting Switcher's target pick */
+  --ctl-h-sm:34px;         /* a compact control: popover footer button, the Setting Switcher's target pick, the number box beside a slider, a drawer's tab and segment, a small round key (sheet and drawer close, the builder's ←), a search box, a choice line holding a compact control */
   --ctl-h-xs:32px;         /* inline row action */
-  --ctl-h-mini:20px;       /* mini segment */
-  --ctl-h-lg:44px;         /* the volume bar's keys and readout */
+  --ctl-h-mini:20px;       /* mini segment, a filter preset's knob segment, the subsets' fold key, a pipeline page key */
+  --ctl-h-lg:44px;         /* the volume bar's keys and readout; the snapshot builder's two-line picker and live window */
   --legend-h:28px;         /* backlit legend */
-  --tag-h:24px;            /* removable tag */
+  --tag-h:24px;            /* removable tag; an EQ band key */
   --check:16px;            /* checkbox and radio */
   --chev:5px;              /* each half of a select's ▾ */
   --lamp-d:10px;           /* round lamp */
   --lamp-d-rail:9px;       /* rail stage lamp */
   --lamp-d-big:15px;       /* bezelled engine-row lamp */
   --lamp-well:inset 0 1px 2px var(--shade);   /* an unlit lamp's sunken face */
+  --dot:5px;               /* the dirty dot on a staged edit */
+  --dot-inset:4px;         /* the dirty dot's inset from the corner of a tab or segment */
   /* Rows and their parts */
   --hdr-h:42px;            /* header row */
   --engine-h:50px;         /* engine row */
@@ -201,7 +208,7 @@
   --slot-h:52px;           /* Setting Switcher slot */
   --target-w:150px;        /* Setting Switcher target pick */
   --key-w:46px;            /* the ▾ key at a slot's end */
-  --tree-w:230px;          /* Station · Snapshot tree trigger, least width */
+  --tree-w:230px;          /* Station · Snapshot tree trigger, least width; the snapshot builder's Stations window */
   --knob-glyph:30px;       /* the brand knob's glyph */
   --wire-col:14px;         /* the rail's lamp and wire column */
   --meter-l-w:76px;        /* buffer meter label */
@@ -211,14 +218,87 @@
   --meter-h:8px;           /* buffer bar */
   --meter-v-w:34px;        /* buffer meter value */
   --volrd-w:104px;         /* engine-row volume readout */
-  --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout */
-  --range-h:28px;          /* volume bar slider */
+  --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout; the height of a builder's labelled VFD window */
+  --range-h:28px;          /* volume slider: the bar's and the popover's */
   --num-w:92px;            /* number input */
   --name-w:320px;          /* connection panel text field */
   --measure:560px;         /* manual copy block */
   --measure-lede:640px;    /* lede */
   --plate-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);
   --engrave:0 1px 0 var(--shade);              /* engraved lettering */
+  /* The page */
+  --rail-w:168px;          /* the chain rail's column */
+  --srail-w:220px;         /* the settings rail's column */
+  --fill-min:150px;        /* the stretching page section's least height */
+  --ctl-col:440px;         /* a page section's control column */
+  --col-gap:40px;          /* between two columns: a page section's controls and its copy, a Standard option list's columns */
+  --fold-w:460px;          /* a fold line, a folded secondary control */
+  --fold-h:24px;           /* a one-line row: a fold line, a snapshot in the builder rail, an EQ search hit, an option list row at touch size */
+  --fold-mark:10px;        /* a line's leading mark column: a fold line's ▸, the builder's station fold, a check menu's ✓ */
+  --cplate-h:52px;         /* a chain picker's nameplate; the output device button */
+  --desc-min:44px;         /* the profile description well, least height: on the page and in the profile builder */
+  --pencil:12px;           /* the edit pencil in a description well; the apodizing mark in a dense option row and in the list's key */
+  --plot-min:100px;        /* the matrix response plot, least height */
+  --pin-h:20px;            /* a row of the output rate picker; a pipeline list line */
+  /* The Source meter */
+  --levels-w:286px;        /* the levels column */
+  --mhead-h:30px;          /* a head row: over a plot, a station's fold in the builder rail, a drawer head's section name */
+  --ctl-h-view:28px;       /* a small control: a view segment on the meter, the facet bar's reset, a pipeline dock's fields, selects and keys, a folded choice line */
+  --gutter-w:58px;         /* a plot's y-axis gutter */
+  --spectrum-h:160px;      /* the drawer's spectrum plot */
+  --axis-h:14px;           /* a plot's x-axis row; the L / R row under the level bars */
+  --strip-h:12px;          /* the apodizing strip */
+  --lv-scale-w:48px;       /* the level scale column */
+  --lv-bar:24px;           /* a level bar's trough */
+  --lv-bar-slim:18px;      /* a level bar's trough, slim page meter */
+  --lvtab-l:44px;          /* a short label's column: the readout table's, the loudness range boxes', the pipeline pager's page label, least */
+  --range-w:60px;          /* the page meter's Range column */
+  --mnone-min:200px;       /* the no-meter well in the drawer, least height */
+  --psrc-min:148px;        /* the slim page Source section, least height */
+  /* Settings */
+  --drow-col:360px;        /* a drawer row's control column */
+  --drow-col-gpu:300px;    /* the same, narrowed: to the CUDA offload segment; Loudness and its bands, Output device, a chain's rows */
+  --drow-col-visual:280px; /* the same, narrowed to the accent picker */
+  --drow-col-cpu:240px;    /* the same, narrowed: to the E-core allocation segment; the Matrix engine drawer */
+  --swatch:30px;           /* an accent swatch */
+  --swatch-dot:8px;        /* the accent swatch in a settings readout */
+  --hex-w:100px;           /* the accent's hex box */
+  --slx-num-w:72px;        /* a compact number box: beside a settings slider, in a grouped row, a range box and its readout, a speaker row */
+  --idrow-h:54px;          /* an About HQPlayer identity window */
+  --logtail-min:60px;      /* the live log tail, least height */
+  --key-mark-w:22px; --key-mark-h:12px;   /* a mark in the signal path's key */
+  /* Popovers */
+  --pop-at-x:132px; --pop-at-y:50px;   /* where an unparked popover sits on the plate */
+  --pop-w:330px;           /* a popover sheet */
+  --pop-row-h:36px;        /* a station tree row */
+  --tree-chev-w:24px; --tree-chev-h:28px;   /* a station tree row's fold chevron; the width of a pipeline chip's × key */
+  --shead-h:42px;          /* a sheet's head row */
+  --fp-w:940px;            /* the filter presets sheet */
+  --fp-cols:minmax(0,1fr) 176px 196px 64px 104px;   /* preset | filter | adjust | correction | resources */
+  --fp-name-x:76px;        /* where a preset's name starts in its row */
+  --fp-em-w:36px;          /* a preset's emoji column */
+  --fp-em-w-sub:28px;      /* a nested preset's emoji column */
+  --fp-knob-l:62px;        /* a preset knob's label */
+  --fp-sub-indent:48px;    /* a nested preset's step in */
+  --apod-mark:14px;        /* a mark's box: the apodizing mark; in a dense option row the heart's column and the tier tag's height; an alert line's glyph column */
+  --pip:4px;               /* a resource pip */
+  --chip-h:26px;           /* a chip: a narrowing chip or segment, a pipeline stage chip and its + key; a small key: a pipeline file, a round page key; a page or band key's least width */
+  --nrow-stg-w:22px;       /* a narrowing row's stage label */
+  --vpop-w:340px;          /* the volume popover; a list row's hover tip, at most */
+  --notepop-w:400px;       /* a note popover: the two-stage note, an alert's note */
+  --thumb-half:7px;        /* half a native range thumb: the inset of marks along a slider */
+  --paren-w:10px; --paren-h:18px;   /* a loudness bound's parenthesis */
+  /* Option lists */
+  --fam-line:21px;         /* an option list's family head and title line */
+  --fold-tri:4px; --fold-tri-d:5px;   /* an option list's fold triangle: half its base, its depth */
+  /* Drawers */
+  --devlamp-col:10px;      /* the device list's lamp column */
+  /* Builders */
+  --pbchain-dot:7px;       /* a step's dot in the profile overview's chain */
+  /* DSP pipelines */
+  --pgrid-key-h:34px;      /* the pin grid's corner, its height */
+  --phead-h:34px;          /* an output's head row over its pipeline list, least height */
+  --pstrip-h:33px;         /* a pipeline's chip strip, least height */
 
   /* Blacks, glints and one-off shades */
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */

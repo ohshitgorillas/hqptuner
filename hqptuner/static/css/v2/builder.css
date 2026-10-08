@@ -2,210 +2,210 @@
    body (rail | hairline | page). components/snapshot-builder.js. */
 
 /* Header button while the builder is up: lit like the gear while Settings is up. */
-.btn.hb[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 8px color-mix(in srgb,var(--acc) 35%,transparent)}
+.btn.hb[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 var(--sp-4) color-mix(in srgb,var(--acc) 35%,transparent)}
 
 /* Rail: the active station's snapshots, then New snapshot. Rail stage grammar (engraved name, amber readout, left-hand
    selection bar while it is the one edited); entries stack from the top (a handful, not a chain to fill the rail). */
-.brail{padding-top:8px;gap:2px}
+.brail{padding-top:var(--sp-4);gap:var(--sp-1)}
 /* Station fold (the station tree's chevron): ▸ name — rule — count; one open at a time. */
-.brh{display:flex;align-items:center;gap:8px;width:100%;height:30px;padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
-  font-family:var(--f-eng);font-weight:600;font-size:12.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
-.brh .chv{width:10px;font-size:11px;letter-spacing:0}
-.brh .cnt{font-family:var(--f-mono);font-size:11px;letter-spacing:0;color:var(--ink-2);line-height:var(--lh-text)}
-.brh:hover .sn{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
-.brh.dirty .sn::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
-.brh .ln{flex:1 1 0;height:1px;background:var(--line)}
+.brh{display:flex;align-items:center;gap:var(--sp-4);width:100%;height:30px;padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
+  font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
+.brh .chv{width:var(--fold-mark);font-size:var(--fs-2);letter-spacing:0}
+.brh .cnt{font-family:var(--f-mono);font-size:var(--fs-2);letter-spacing:0;color:var(--ink-2);line-height:var(--lh-text)}
+.brh:hover .sn{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
+.brh.dirty .sn::after{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.brh .ln{flex:1 1 0;height:var(--hair);background:var(--line)}
 .brh.cur{color:var(--acc)}   /* the loaded station: amber lettering (no lamp) */
-.st.bst + .brh{margin-top:4px}
-.st.bst{grid-template-columns:minmax(0,1fr);gap:0;height:26px;padding:0 0 0 18px;flex:0 0 auto}
+.st.bst + .brh{margin-top:var(--sp-2)}
+.st.bst{grid-template-columns:minmax(0,1fr);gap:0;height:26px;padding:0 0 0 var(--sp-8);flex:0 0 auto}
 .bfill{height:26px;flex-shrink:0}
-.st.bst .n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;padding-right:10px}
-.st.bst.dirty .n::after{content:"";display:inline-block;vertical-align:top;margin-left:6px;width:5px;height:5px;border-radius:50%;background:var(--acc);box-shadow:0 0 4px var(--acc)}
-.st.bnew{margin-top:6px;border-top:1px solid var(--line);height:auto;padding:12px 0 4px}
+.st.bst .n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;padding-right:var(--sp-5)}
+.st.bst.dirty .n::after{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.st.bnew{margin-top:var(--sp-3);border-top:var(--hair) solid var(--line);height:auto;padding:var(--sp-6) 0 var(--sp-2)}
 /* The open station's pager (DSP pipelines list grammar): ‹ 1 2 › under its lines. */
-.bpg{padding:4px 0 6px 18px;height:34px;box-sizing:border-box}
+.bpg{padding:var(--sp-2) 0 var(--sp-3) var(--sp-8);height:34px;box-sizing:border-box}
 .st.bnew:not(.open) .n{color:var(--ink-2)}
-.st.bnew .plus{margin-right:6px}
+.st.bnew .plus{margin-right:var(--sp-3)}
 
 /* Page: head (name window, its line, Delete / Discard / Save), the confirm line when asked, then the rows. */
 .bpage{gap:0}
 /* Title: the section header grammar (engraved + rule), the snapshot's actions at its right (as Resampling's header carries
    Filter presets). */
-.btitle{margin-bottom:12px}
+.btitle{margin-bottom:var(--sp-6)}
 .btitle .btn.sm{flex-shrink:0}
-.bhead{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-.bname{width:220px;height:48px;padding:5px 12px;flex-shrink:0}
+.bhead{display:flex;align-items:center;gap:var(--sp-7);margin-bottom:var(--sp-7)}
+.bname{width:220px;height:48px;padding:var(--sp-2) var(--sp-6);flex-shrink:0}
 /* Stations: the stations Save writes to (VFD window; tap → a menu of every station, ✓ = ticked, the action menu's
    grammar; a station already holding this name shows it at the right). */
 .bstw{position:relative;flex-shrink:0}
-button.vfd.bstn{width:230px;height:48px;padding:5px 30px 0 12px;justify-content:flex-start;text-align:left;cursor:pointer;
-  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 17px) 60%,calc(100% - 12px) 60%;background-size:5px 5px;background-repeat:no-repeat;background-color:var(--glass)}
-.bstn .v{font-size:13px}
+button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(--sp-6);justify-content:flex-start;text-align:left;cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 60%,calc(100% - var(--sp-6)) 60%;background-size:var(--chev) var(--chev);background-repeat:no-repeat;background-color:var(--glass)}
+.bstn .v{font-size:var(--fs-4)}
 .pop.bstmenu{left:0;top:54px;width:240px;z-index:6}
 .bstmenu .pmrow span{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:22px;font:500 15px var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
+.bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:22px;font:var(--fw-medium) var(--fs-6) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
 .bnin:focus-visible{outline:none}
-.bname:focus-within{outline:2px solid var(--acc);outline-offset:2px}
-.bcap{flex:1 1 0;font-size:12.5px;color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.bname:focus-within{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
+.bcap{flex:1 1 0;font-size:var(--fs-3);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
 .bref{color:var(--ink)}
-.bask{display:flex;align-items:center;gap:12px;margin:-4px 0 14px;padding:6px 6px 6px 12px;border-left:2px solid var(--acc);background:var(--acc-lo);font-size:13px;color:var(--ink);line-height:var(--lh-text)}
+.bask{display:flex;align-items:center;gap:var(--sp-6);margin:calc(-1 * var(--sp-2)) 0 var(--sp-7);padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-6);border-left:var(--stroke) solid var(--acc);background:var(--acc-lo);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
 .bask span{flex:1 1 auto}
 
 /* Rows: include | stage + setting | the snapshot's value | ← | live. One grid for every row and the column heads. */
-.brow{display:grid;grid-template-columns:22px 150px minmax(0,1fr) 34px minmax(0,1fr);gap:0 14px;align-items:center;padding:6px 0;border-top:1px solid var(--row-rule)}
+.brow{display:grid;grid-template-columns:22px 150px minmax(0,1fr) var(--ctl-h-sm) minmax(0,1fr);gap:0 var(--sp-7);align-items:center;padding:var(--sp-3) 0;border-top:var(--hair) solid var(--row-rule)}
 /* The rows share the height under the head: each grows alike (Nx, a continuation of Resampling, too). */
 .brows{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .brows > .brow{flex:1 1 0}
 .brow.cont{border-top-color:transparent;padding-top:0}
-.brows > .brow:last-child{border-bottom:1px solid var(--row-rule)}
-.brow.bcols{border-top:0;padding:0 0 6px}
-.bct{font-family:var(--f-eng);font-weight:700;font-size:13px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
-.bct.blh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.brows > .brow:last-child{border-bottom:var(--hair) solid var(--row-rule)}
+.brow.bcols{border-top:0;padding:0 0 var(--sp-3)}
+.bct{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.bct.blh{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-5)}
 
 /* Include box: a recessed square, amber tick while the snapshot holds the setting. */
-.binc{width:22px;height:22px;padding:0;border-radius:4px;border:1px solid var(--shade);background:var(--glass);box-shadow:inset 0 1px 4px var(--shade);cursor:pointer;display:grid;place-items:center;color:var(--acc);font:700 14px/1 var(--f-body)}
+.binc{width:22px;height:22px;padding:0;border-radius:var(--r-2);border:var(--hair) solid var(--shade);background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade);cursor:pointer;display:grid;place-items:center;color:var(--acc);font:var(--fw-bold) var(--fs-5)/1 var(--f-body)}
 .binc[aria-checked="true"]{background:var(--acc-lo);border-color:var(--acc-dim)}
 .binc[aria-checked="true"]::after{content:"✓"}
-.binc:disabled{opacity:.4;cursor:not-allowed}
+.binc:disabled{opacity:var(--op-1);cursor:not-allowed}
 
-.bset{display:flex;flex-direction:column;gap:1px;min-width:0}
-.bst2{font-family:var(--f-eng);font-weight:600;font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
-.bl{display:flex;align-items:center;gap:8px;min-width:0}
-.bl b{font-weight:600;font-size:13px;color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}
+.bset{display:flex;flex-direction:column;gap:var(--hair);min-width:0}
+.bst2{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.bl{display:flex;align-items:center;gap:var(--sp-4);min-width:0}
+.bl b{font-weight:var(--fw-semi);font-size:var(--fs-4);color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}
 .brow.off .bl b{color:var(--ink-2)}
 
 .bval{min-width:0}
 .bval > .vpick,.bval > select.vfd{width:100%}
 /* Picker and live window: the whole name, wrapping to a second line rather than cut off (the Setting Switcher slots'
    rule); both columns share the width alike, in the same Option style. */
-.bval > button.vfd.vpick{height:44px;line-height:16px;font-size:12px;white-space:normal;display:grid;align-items:center;padding:0 26px 0 12px;text-overflow:clip;background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%}
+.bval > button.vfd.vpick{height:44px;line-height:16px;font-size:var(--fs-3);white-space:normal;display:grid;align-items:center;padding:0 var(--sp-9) 0 var(--sp-6);text-overflow:clip;background-position:calc(100% - var(--sp-4) - var(--chev)) 50%,calc(100% - var(--sp-4)) 50%}
 
 /* ←: take this row's live value; live only where the two differ. */
-.round.btake{width:34px;height:34px;font:600 16px/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
+.round.btake{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font:var(--fw-semi) var(--fs-6)/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
 .round.btake:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 
 /* Live: the engine's value now, a readout (rail readout grammar: engine names). Brighter, amber-edged where it differs. */
-.blive{height:44px;padding:0 12px;color:var(--ink-2)}
-.blive .v{font-size:12px;font-weight:500;display:flex;align-items:baseline;gap:6px;white-space:normal;line-height:16px}
+.blive{height:44px;padding:0 var(--sp-6);color:var(--ink-2)}
+.blive .v{font-size:var(--fs-3);font-weight:var(--fw-medium);display:flex;align-items:baseline;gap:var(--sp-3);white-space:normal;line-height:16px}
 .blive .bt{min-width:0}
 .blive.diff{color:var(--ink);border-color:var(--acc-dim)}
-.bidle{flex-shrink:0;font-family:var(--f-body);font-size:11.5px;color:var(--ink-2)}
+.bidle{flex-shrink:0;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
 
 /* ── Profile builder (Matrix engine section's button): swaps the chain body for #pbody. components/profile-builder.js.
    A guided walk: rail = the steps in the chain rail's grammar; page = the overview or one step, every
    setting in the drawers' row grammar with the manual's own copy; Back / Next. */
 /* Rail: Overview, then the steps, stacked from the top at the chain's rhythm; no lamps or wire (it isn't the chain).
    The page showing: amber name + left-hand bar (the open-stage grammar). */
-.prail{padding-top:8px}
-.prail .st{flex:0 0 auto;grid-template-columns:minmax(0,1fr);padding:9px 0}
+.prail{padding-top:var(--sp-4)}
+.prail .st{flex:0 0 auto;grid-template-columns:minmax(0,1fr);padding:var(--sp-4) 0}
 .prail .st .v{grid-column:1}
-.prail .st[data-stage="overview"]{padding:2px 0 12px;margin-bottom:6px;border-bottom:1px solid var(--line)}
-.prail .st[data-stage="overview"]::after{bottom:9px}
+.prail .st[data-stage="overview"]{padding:var(--sp-1) 0 var(--sp-6);margin-bottom:var(--sp-3);border-bottom:var(--hair) solid var(--line)}
+.prail .st[data-stage="overview"]::after{bottom:var(--sp-4)}
 .prail .st.skip .n{color:var(--ink-2)}
 .prail .st.skip .v{color:var(--ink-2)}
 
 /* Page: a column, the title on top, the nav at the foot. */
 .pbpage{gap:0}
 .pbov,.pbstepp{display:flex;flex-direction:column;flex:1 1 0;min-height:0}
-.pbpage .btitle{margin-bottom:10px}
-.pbn{font-family:var(--f-mono);font-size:12px;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.pbpage .btitle{margin-bottom:var(--sp-5)}
+.pbn{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 
 /* Overview: intro + what it holds | the chain with the matrix engine's part lit; then which profile and the ways on. */
-.pbovtop{display:grid;grid-template-columns:minmax(0,1fr) 196px;gap:0 28px}
-.pbovl{display:flex;flex-direction:column;gap:12px;min-width:0}
-.pbintro{margin:0;font-size:14px;line-height:1.5;color:var(--ink)}
-.pbholds{display:flex;flex-direction:column;border-top:1px solid var(--row-rule)}
-.pbhh{font-family:var(--f-eng);font-weight:600;font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);padding:8px 0 4px;line-height:var(--lh-eng)}
-.pbhold{display:grid;grid-template-columns:150px minmax(0,1fr) 14px;align-items:baseline;gap:0 12px;padding:6px 0;border:0;border-bottom:1px solid var(--row-rule);
+.pbovtop{display:grid;grid-template-columns:minmax(0,1fr) 196px;gap:0 var(--sp-10)}
+.pbovl{display:flex;flex-direction:column;gap:var(--sp-6);min-width:0}
+.pbintro{margin:0;font-size:var(--fs-5);line-height:1.5;color:var(--ink)}
+.pbholds{display:flex;flex-direction:column;border-top:var(--hair) solid var(--row-rule)}
+.pbhh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);padding:var(--sp-4) 0 var(--sp-2);line-height:var(--lh-eng)}
+.pbhold{display:grid;grid-template-columns:150px minmax(0,1fr) var(--sp-7);align-items:baseline;gap:0 var(--sp-6);padding:var(--sp-3) 0;border:0;border-bottom:var(--hair) solid var(--row-rule);
   background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
-.pbhold b{font-weight:600;font-size:13.5px;color:var(--ink);line-height:var(--lh-text)}
-.pbhold .pa{font:500 13px var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
-.pbhold .pgo{font-size:16px;color:var(--ink-2);line-height:1}
-.pbhold:hover b{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:3px}
-.pbhold.pbpl{margin-top:8px;border-top:1px solid var(--row-rule)}
+.pbhold b{font-weight:var(--fw-semi);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
+.pbhold .pa{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.pbhold .pgo{font-size:var(--fs-6);color:var(--ink-2);line-height:1}
+.pbhold:hover b{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
+.pbhold.pbpl{margin-top:var(--sp-4);border-top:var(--hair) solid var(--row-rule)}
 /* The chain, small: every stage named; the matrix engine's part lit and bracketed; the four outside it plain. */
-.pbchain{list-style:none;margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:5px;display:flex;flex-direction:column;gap:3px;align-self:start}
-.pbchain li{display:flex;align-items:center;gap:8px;font-family:var(--f-eng);font-weight:600;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);position:relative}
-.pbchain li.sub{padding-left:16px}
-.pbchain .d{width:7px;height:7px;border-radius:50%;border:1px solid var(--line-2);flex-shrink:0}
+.pbchain{list-style:none;margin:0;padding:var(--sp-5) var(--sp-6);border:var(--hair) solid var(--line);border-radius:var(--r-2);display:flex;flex-direction:column;gap:var(--sp-1);align-self:start}
+.pbchain li{display:flex;align-items:center;gap:var(--sp-4);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);position:relative}
+.pbchain li.sub{padding-left:var(--sp-7)}
+.pbchain .d{width:var(--pbchain-dot);height:var(--pbchain-dot);border-radius:var(--r-round);border:var(--hair) solid var(--line-2);flex-shrink:0}
 .pbchain li.mx{color:var(--acc)}
-.pbchain li.mx .d{border-color:var(--acc);background:var(--acc);box-shadow:0 0 5px var(--acc)}
-.pbchain li.mx::before{content:"";position:absolute;left:-12px;top:-2px;bottom:-2px;width:2px;background:var(--acc-dim)}
+.pbchain li.mx .d{border-color:var(--acc);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
+.pbchain li.mx::before{content:"";position:absolute;left:calc(-1 * var(--sp-6));top:calc(-1 * var(--sp-1));bottom:calc(-1 * var(--sp-1));width:var(--stroke);background:var(--acc-dim)}
 .pbchain li.out{color:var(--ink-2)}
 
-.pbsavebox{display:flex;flex-direction:column;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);flex:1 1 0;min-height:0}
-.pbid{display:grid;grid-template-columns:200px minmax(0,1fr) 180px;gap:10px}
-label.vfd.pbpick{height:48px;padding:5px 26px 0 10px;cursor:pointer;
-  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - 15px) 60%,calc(100% - 10px) 60%;background-size:5px 5px;background-repeat:no-repeat}
+.pbsavebox{display:flex;flex-direction:column;gap:var(--sp-4);margin-top:var(--sp-7);padding-top:var(--sp-6);border-top:var(--hair) solid var(--line);flex:1 1 0;min-height:0}
+.pbid{display:grid;grid-template-columns:200px minmax(0,1fr) 180px;gap:var(--sp-5)}
+label.vfd.pbpick{height:48px;padding:var(--sp-2) var(--sp-9) 0 var(--sp-5);cursor:pointer;
+  background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-5) - var(--chev)) 60%,calc(100% - var(--sp-5)) 60%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
 .pbpick select{appearance:none;-webkit-appearance:none;display:block;width:100%;height:22px;margin:0;padding:0;border:0;outline:0;background:transparent;cursor:pointer;
-  font:500 14px var(--f-mono);color:var(--acc);line-height:var(--lh-text);text-overflow:ellipsis}
-.pbpick:focus-within{outline:2px solid var(--acc);outline-offset:2px}
-.pbid .bname{width:auto;height:48px;padding:5px 10px}
-.pbid .bnin{font-size:14px}
+  font:var(--fw-medium) var(--fs-5) var(--f-mono);color:var(--acc);line-height:var(--lh-text);text-overflow:ellipsis}
+.pbpick:focus-within{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
+.pbid .bname{width:auto;height:48px;padding:var(--sp-2) var(--sp-5)}
+.pbid .bnin{font-size:var(--fs-5)}
 .pbid button.vfd.bstn{width:100%;height:48px}
-.pbdesc{flex:1 1 0;min-height:44px}
-.pbdesc textarea{font-size:12.5px}
-.pbfoot{display:flex;align-items:center;gap:8px}
-.pbstw{display:flex;flex-direction:column;gap:1px;min-width:0}
-.pbstate{font-size:12.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.pbdesc{flex:1 1 0;min-height:var(--desc-min)}
+.pbdesc textarea{font-size:var(--fs-3)}
+.pbfoot{display:flex;align-items:center;gap:var(--sp-4)}
+.pbstw{display:flex;flex-direction:column;gap:var(--hair);min-width:0}
+.pbstate{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .pbstate.dirty{color:var(--ink)}
-.pbcap{font-size:12px;line-height:var(--lh-text)}
+.pbcap{font-size:var(--fs-3);line-height:var(--lh-text)}
 .pbcap:empty{display:none}
-.pbact{gap:10px}
+.pbact{gap:var(--sp-5)}
 .pbask .bask{margin:0}
-.pbadvlink{align-self:flex-start;margin-top:8px;padding:0;border:0;background:none;cursor:pointer;font-size:12px;color:var(--ink-2);line-height:var(--lh-text)}
-.pbadvlink:hover{color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.pbadvlink{align-self:flex-start;margin-top:var(--sp-4);padding:0;border:0;background:none;cursor:pointer;font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.pbadvlink:hover{color:var(--ink);text-decoration:underline;text-underline-offset:var(--sp-1)}
 
 /* Step pages: what the step decides (or why it's skipped), its rows in the drawers' grammar, Back / Next at the foot. */
-.pbguide{margin:0 0 6px;font-size:14px;line-height:1.5;color:var(--ink)}
+.pbguide{margin:0 0 var(--sp-3);font-size:var(--fs-5);line-height:1.5;color:var(--ink)}
 .pbguide.skip{color:var(--ink-2)}
-.pbsrows{flex:1 1 0;min-height:0;display:flex;flex-direction:column;border-top:1px solid var(--row-rule)}
-.pbsrows .drow{grid-template-columns:330px minmax(0,1fr);gap:0 28px}
+.pbsrows{flex:1 1 0;min-height:0;display:flex;flex-direction:column;border-top:var(--hair) solid var(--row-rule)}
+.pbsrows .drow{grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10)}
 .pbsrows .drow:last-child{border-bottom:0}
-.pbsrows .drow .man{font-size:12.5px;color:var(--ink-2)}
+.pbsrows .drow .man{font-size:var(--fs-3);color:var(--ink-2)}
 .pbsrows .drow .seg{align-self:flex-start}
-.pbsrows .chline{grid-template-columns:330px minmax(0,1fr);gap:0 28px}
-.pbchoice{padding-bottom:6px}
+.pbsrows .chline{grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10)}
+.pbchoice{padding-bottom:var(--sp-3)}
 .pbsrows select.vfd{width:100%}
 .pbsrows .drow .man:empty{display:none}
-.pbnav{display:flex;align-items:center;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+.pbnav{display:flex;align-items:center;gap:var(--sp-4);padding-top:var(--sp-5);border-top:var(--hair) solid var(--line)}
 
 /* EQ step: Headphone Auto EQ (search, hits, the picked one's strip) | files; under them what the pair holds + the plot. */
-.peqsearch{display:flex;flex-direction:column;gap:6px}
-input.vfd.pq.peqq{width:100%;height:34px;font-size:13px;text-align:left}
-.aeqcred{font-size:11.5px;color:var(--ink-2);line-height:var(--lh-text)}
+.peqsearch{display:flex;flex-direction:column;gap:var(--sp-3)}
+input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-align:left}
+.aeqcred{font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
 .aeqcred a{color:var(--ink-2);text-decoration-color:var(--line-2)}
-.peqhits{display:flex;flex-direction:column;border:1px solid var(--shade);border-radius:4px;background:var(--glass);box-shadow:var(--well)}
-.peqhit{display:flex;align-items:center;border-left:2px solid transparent}
-.peqhit + .peqhit{border-top:1px solid var(--row-rule)}
+.peqhits{display:flex;flex-direction:column;border:var(--hair) solid var(--shade);border-radius:var(--r-2);background:var(--glass);box-shadow:var(--well)}
+.peqhit{display:flex;align-items:center;border-left:var(--stroke) solid transparent}
+.peqhit + .peqhit{border-top:var(--hair) solid var(--row-rule)}
 .peqhit.on{border-left-color:var(--acc);background:var(--acc-lo)}
-.peqpick{display:flex;align-items:baseline;gap:8px;flex:1 1 auto;min-width:0;height:26px;padding:0 8px;border:0;background:none;cursor:pointer;font:500 12.5px var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
+.peqpick{display:flex;align-items:baseline;gap:var(--sp-4);flex:1 1 auto;min-width:0;height:26px;padding:0 var(--sp-4);border:0;background:none;cursor:pointer;font:var(--fw-medium) var(--fs-3) var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
 .peqhit.on .peqpick{color:var(--acc)}
-.peqpick .src{margin-left:auto;font-family:var(--f-body);font-size:11.5px;color:var(--ink-2)}
-.peqmore{padding:2px 10px;font-size:11.5px;color:var(--ink-2);border-top:1px solid var(--row-rule)}
-.peqsel{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 10px;border-left:2px solid var(--acc);background:var(--acc-lo)}
-.peqsel .cap{font-size:12px;color:var(--ink-2);line-height:var(--lh-text)}
-.peqfiles{display:flex;flex-direction:column;gap:8px}
-.peqf{display:flex;gap:8px;flex-wrap:wrap}
-.pbeqout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:0 28px;padding:8px 0 0;flex:1 1 0;min-height:110px}
-.peqhold{display:flex;flex-direction:column;gap:2px}
-.peqhold b{font:500 13px var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
-.peqhold span{font:12px var(--f-mono);color:var(--ink-2);white-space:pre;line-height:var(--lh-text)}
+.peqpick .src{margin-left:auto;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
+.peqmore{padding:var(--sp-1) var(--sp-5);font-size:var(--fs-2);color:var(--ink-2);border-top:var(--hair) solid var(--row-rule)}
+.peqsel{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-5);border-left:var(--stroke) solid var(--acc);background:var(--acc-lo)}
+.peqsel .cap{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.peqfiles{display:flex;flex-direction:column;gap:var(--sp-4)}
+.peqf{display:flex;gap:var(--sp-4);flex-wrap:wrap}
+.pbeqout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-4) 0 0;flex:1 1 0;min-height:110px}
+.peqhold{display:flex;flex-direction:column;gap:var(--sp-1)}
+.peqhold b{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
+.peqhold span{font:var(--fs-3) var(--f-mono);color:var(--ink-2);white-space:pre;line-height:var(--lh-text)}
 .peqplot{min-height:0}
 /* Fitted (1080×810): grouped values, the advanced option lists, the EQ rows. */
 /* Grouped values: two to a line in the 330px control column (four loudness values overflowed into the copy on one line). */
-.pbsrows .cgrp{display:grid;grid-template-columns:repeat(2,max-content);gap:8px 22px}
-.pbsrows .cgrp input.vfd{width:78px;height:36px;font-size:14px}
-.pbsrows .cgrp .num{gap:4px}
-.pbsrows .drow .man p+p{margin-top:2px}
-.pbsrows .optlist{margin-top:6px}
-.pbsrows .optrow{grid-template-columns:104px minmax(0,1fr);padding:2px 8px 2px 10px;line-height:1.42}
-.pbsrows .drow{padding:7px 0}
-.pbsrows .chl{min-height:34px}
+.pbsrows .cgrp{display:grid;grid-template-columns:repeat(2,max-content);gap:var(--sp-4) var(--sp-9)}
+.pbsrows .cgrp input.vfd{width:78px;height:36px;font-size:var(--fs-5)}
+.pbsrows .cgrp .num{gap:var(--sp-2)}
+.pbsrows .drow .man p+p{margin-top:var(--sp-1)}
+.pbsrows .optlist{margin-top:var(--sp-3)}
+.pbsrows .optrow{grid-template-columns:104px minmax(0,1fr);padding:var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-5);line-height:1.42}
+.pbsrows .drow{padding:var(--sp-3) 0}
+.pbsrows .chl{min-height:var(--ctl-h-sm)}
 .peqhits[hidden]{display:none}
-.peqfiles{gap:6px}
-.peqf{flex-wrap:nowrap;gap:6px}
-.peqf .btn.xs{padding:0 8px;white-space:nowrap}
+.peqfiles{gap:var(--sp-3)}
+.peqf{flex-wrap:nowrap;gap:var(--sp-3)}
+.peqf .btn.xs{padding:0 var(--sp-4);white-space:nowrap}
 .pbeqout{min-height:96px}
 .pbsrows .chline.fold .man{display:none}
 .pbsrows .chline.fold .chl{min-height:28px}

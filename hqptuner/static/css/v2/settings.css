@@ -4,73 +4,73 @@
    while its drawer is open (rail.css .st.open). */
 
 /* Gear while settings is up: lit like an open stage (amber), so the way back is the button that brought you here. */
-.round.gear[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 8px color-mix(in srgb,var(--acc) 35%,transparent)}
+.round.gear[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 var(--sp-4) color-mix(in srgb,var(--acc) 35%,transparent)}
 
-.srail{padding-top:8px}
-.st.sst{grid-template-columns:minmax(0,1fr);gap:7px 0;padding:6px 0}   /* entries flex to fill; 6px: Visual settings holds nine readouts (Top of page) and must clear the foot at 10.2″ */
+.srail{padding-top:var(--sp-4)}
+.st.sst{grid-template-columns:minmax(0,1fr);gap:var(--sp-3) 0;padding:var(--sp-3) 0}   /* entries flex to fill; 6px: Visual settings holds nine readouts (Top of page) and must clear the foot at 10.2″ */
 .st.sst .n{line-height:1.15}
-.sro{margin:0;display:flex;flex-direction:column;gap:2px;min-width:0}   /* 2: Behavior + Option style joined; worst case (every stage hidden, long values) fits */
-.sro>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 8px;min-width:0}   /* value drops under its label when both don't fit */
-.sro dt{font-size:11px;color:var(--ink-2);white-space:nowrap}
-.sro dd{margin:0 0 0 auto;font-family:var(--f-mono);font-size:10.5px;color:var(--acc);text-align:right;min-width:0;display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;line-height:var(--lh-text)}
-.sro .wide{flex-direction:column;align-items:flex-start;gap:1px}
+.sro{margin:0;display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}   /* 2: Behavior + Option style joined; worst case (every stage hidden, long values) fits */
+.sro>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 var(--sp-4);min-width:0}   /* value drops under its label when both don't fit */
+.sro dt{font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap}
+.sro dd{margin:0 0 0 auto;font-family:var(--f-mono);font-size:var(--fs-1);color:var(--acc);text-align:right;min-width:0;display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;line-height:var(--lh-text)}
+.sro .wide{flex-direction:column;align-items:flex-start;gap:0}
 .sro .wide dd{margin:0;text-align:left;justify-content:flex-start;overflow-wrap:anywhere}
-.sro i.sw,.st .sro i.sw{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--sw);border:1px solid var(--shade);margin-right:5px}
+.sro i.sw,.st .sro i.sw{display:inline-block;width:var(--swatch-dot);height:var(--swatch-dot);border-radius:var(--r-round);background:var(--sw);border:var(--hair) solid var(--shade);margin-right:var(--sp-2)}
 
 /* Page: About (engine identity + Backup / restore), About HQPTuner. Same two-column grammar as the chain page. */
-dl.about{margin:0;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:7px 18px;align-items:baseline}
+dl.about{margin:0;display:grid;grid-template-columns:max-content minmax(0,1fr);gap:var(--sp-3) var(--sp-8);align-items:baseline}
 dl.about>div{display:contents}
-dl.about dt{font-family:var(--f-eng);font-weight:600;font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
-dl.about dd{margin:0;font-family:var(--f-mono);font-size:13px;color:var(--ink);line-height:var(--lh-text)}
-.two.pairs{row-gap:16px}
+dl.about dt{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+dl.about dd{margin:0;font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
+.two.pairs{row-gap:var(--sp-7)}
 .spage .man p{margin:0}
-.spage .man p+p{margin-top:8px}
-.spage a{color:var(--acc);text-decoration-color:var(--acc-dim);text-underline-offset:3px}
-.spage .cap{font-size:12px;color:var(--ink-2)}
+.spage .man p+p{margin-top:var(--sp-4)}
+.spage a{color:var(--acc);text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
+.spage .cap{font-size:var(--fs-3);color:var(--ink-2)}
 
 /* Drawer controls added for settings: a text box (Log path) and the accent picker (v1 AccentPicker). */
-input.vfd.txt{width:100%;text-align:left;font-size:13px;font-weight:400}
+input.vfd.txt{width:100%;text-align:left;font-size:var(--fs-4);font-weight:var(--fw-regular)}
 input.vfd.txt:disabled{color:var(--acc-dim)}
-.accpick{display:flex;align-items:center;gap:10px}
-.swatch{width:30px;height:30px;padding:0;border-radius:50%;border:1px solid var(--shade);background:var(--sw);box-shadow:inset 0 1px 0 var(--glint-lo),0 1px 3px var(--shade-soft);cursor:pointer}
-.swatch[aria-pressed="true"]{outline:2px solid var(--ink);outline-offset:3px}
-input.vfd.hex{width:100px;text-align:left;font-size:13px;margin-left:6px}
+.accpick{display:flex;align-items:center;gap:var(--sp-5)}
+.swatch{width:var(--swatch);height:var(--swatch);padding:0;border-radius:var(--r-round);border:var(--hair) solid var(--shade);background:var(--sw);box-shadow:inset 0 var(--hair) 0 var(--glint-lo),0 var(--hair) var(--sp-1) var(--shade-soft);cursor:pointer}
+.swatch[aria-pressed="true"]{outline:var(--stroke) solid var(--ink);outline-offset:var(--sp-1)}
+input.vfd.hex{width:var(--hex-w);text-align:left;font-size:var(--fs-4);margin-left:var(--sp-3)}
 
 /* Logging: the live tail fills the drawer height left under the rows (as the spectrogram does in Source). */
-.dblock[data-block="logtail"]{border-top:1px solid var(--row-rule)}
+.dblock[data-block="logtail"]{border-top:var(--hair) solid var(--row-rule)}
 .ltrow{border-bottom:0}
 .ltrow .act{flex-wrap:wrap}
-pre.logtail{flex:1 1 0;min-height:60px;margin:2px 0 6px;overflow:auto;background:var(--glass);border:1px solid var(--shade);border-radius:4px;box-shadow:var(--well);
-  padding:8px 12px;font:11.5px/1.5 var(--f-mono);color:var(--ink-2);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--sp-3);overflow:auto;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);
+  padding:var(--sp-4) var(--sp-6);font:var(--fs-2)/1.5 var(--f-mono);color:var(--ink-2);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 
 /* Overflow rule: copy in closer to its setting first (control column 300, the CUDA offload seg's width); then tabs. */
-#drawer-hardware .drow{grid-template-columns:300px minmax(0,1fr);gap:0 28px}
+#drawer-hardware .drow{grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10)}
 /* CPU tab: copy in closer again once Apply to all stations joined it: 240px, the E-core allocation
    seg's width (the 300 is GPU's CUDA offload seg). */
-#hardware-p-cpu .drow{grid-template-columns:240px minmax(0,1fr)}
+#hardware-p-cpu .drow{grid-template-columns:var(--drow-col-cpu) minmax(0,1fr)}
 
 /* Slider control (Blocks per cycle): `Set manually` box, then crossfeed's slider + box; grayed while automatic. */
-.slctl{display:flex;flex-direction:column;gap:6px;min-width:0}
+.slctl{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
 .slctl .slx{grid-template-columns:minmax(0,1fr) auto}
-.slctl .slx input.vfd{width:72px;height:36px}
+.slctl .slx input.vfd{width:var(--slx-num-w);height:var(--ctl-h-sm)}
 
 /* About HQPlayer: identity as labelled VFD windows across the full width (Rate / Volume window grammar). */
 .two.pairs > .span{grid-column:1/-1}
-.idrow{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));gap:12px}   /* product never clips */
-.idrow .vfd{height:54px;padding:6px 12px}
-.idrow .vfd .v{font-size:15px}
+.idrow{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));gap:var(--sp-6)}   /* product never clips */
+.idrow .vfd{height:var(--idrow-h);padding:var(--sp-3) var(--sp-6)}
+.idrow .vfd .v{font-size:var(--fs-6)}
 
 
 /* Settings rail wider than the chain's (readouts like `Phosphor green` ran long), settings body only;
-   its drawers start after it (rail + 26 gap + 1 rule). */
-.setbody{grid-template-columns:220px 1px minmax(0,1fr)}
-.setbody .drawer{left:247px}
+   its drawers start after it (rail + gap + rule). */
+.setbody{grid-template-columns:var(--srail-w) var(--hair) minmax(0,1fr)}
+.setbody .drawer{left:calc(var(--srail-w) + var(--hair) + var(--sp-9))}
 
 /* Visual settings: copy in closer (overflow rule) once Hide Speakers joined it: 280px control column, the accent picker's width. */
-#drawer-visual .drow{grid-template-columns:280px minmax(0,1fr);gap:0 28px;padding:6px 0}   /* + rhythm one step tighter */
+#drawer-visual .drow{grid-template-columns:var(--drow-col-visual) minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-3) 0}   /* + rhythm one step tighter */
 /* Layout tab: the four stage toggles need the room; back to the 360 control column (the drawers' default). */
-#visual-p-layout .drow{grid-template-columns:360px minmax(0,1fr)}
-#visual-p-layout .drow.drow-full{grid-template-columns:minmax(0,1fr);gap:8px 0}   /* Hide from signal chain: five toggles, the copy under them */
+#visual-p-layout .drow{grid-template-columns:var(--drow-col) minmax(0,1fr)}
+#visual-p-layout .drow.drow-full{grid-template-columns:minmax(0,1fr);gap:var(--sp-4) 0}   /* Hide from signal chain: five toggles, the copy under them */
 .seg.tgl{align-self:flex-start}
 
 /* Settings rail category holding an alert (alerts.js; the gear blinks with it): its name blinks red / amber. */
@@ -80,39 +80,39 @@ pre.logtail{flex:1 1 0;min-height:60px;margin:2px 0 6px;overflow:auto;background
 
 /* Signal path (components/signal-path.js): the whole map, the path playing now lit. Running state is lettering + wire in ink,
    never the accent (accent = what you set, where you are). Dim = ink-2 lettering on line-2 wire. */
-.dblock[data-block="sigpath"]{display:flex;flex-direction:column;gap:10px;padding:8px 0 4px;min-height:0;flex:1 1 auto}
+.dblock[data-block="sigpath"]{display:flex;flex-direction:column;gap:var(--sp-5);padding:var(--sp-4) 0 var(--sp-2);min-height:0;flex:1 1 auto}
 svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-height:0}
 .sgg{fill:none;stroke:var(--line);stroke-width:1}
-.sggt{font-family:var(--f-eng);font-weight:700;font-size:13.5px;letter-spacing:.1em;fill:var(--ink-2)}
-.sggs{font-family:var(--f-body);font-weight:400;font-size:13px;letter-spacing:0;text-transform:none;fill:var(--ink-2)}
+.sggt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);fill:var(--ink-2)}
+.sggs{font-family:var(--f-body);font-weight:var(--fw-regular);font-size:var(--fs-4);letter-spacing:0;text-transform:none;fill:var(--ink-2)}
 .sge{fill:none;stroke:var(--line-2);stroke-width:2;stroke-linecap:round}
 .sge.lit{stroke:var(--ink);stroke-width:3}
-.sgel{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.16em;fill:var(--ink-2);paint-order:stroke;stroke:var(--plate);stroke-width:6px}
+.sgel{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-3);fill:var(--ink-2);paint-order:stroke;stroke:var(--plate);stroke-width:var(--sp-3)}
 .sgn rect{fill:var(--glass);stroke:var(--line-2);stroke-width:1}
 .sgn rect.hx{fill:url(#sg-hatch);stroke:none;display:none}
 .sgn.unv>rect:first-child{stroke-dasharray:5 4}
-.sgl{font-family:var(--f-body);font-size:15px;fill:var(--ink-2)}
-.sgs{font-family:var(--f-mono);font-size:12.5px;fill:var(--ink-2)}
+.sgl{font-family:var(--f-body);font-size:var(--fs-6);fill:var(--ink-2)}
+.sgs{font-family:var(--f-mono);font-size:var(--fs-3);fill:var(--ink-2)}
 .sgtb{fill:var(--plate);stroke:var(--line-2);stroke-width:1}
-.sgt{font-family:var(--f-eng);font-weight:700;font-size:12.5px;letter-spacing:.12em;fill:var(--ink-2)}
+.sgt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-2);fill:var(--ink-2)}
 .sgn.lit rect:first-child{stroke:var(--ink-2);stroke-width:2}
-.sgn.lit .sgl{fill:var(--ink);font-weight:600}
+.sgn.lit .sgl{fill:var(--ink);font-weight:var(--fw-semi)}
 .sgn.lit .sgs{fill:var(--ink)}
 .sgn.lit .sgt{fill:var(--ink)}
 .sgn.off rect.hx{display:block}
-.sgn.off .sgl{font-weight:400;fill:var(--ink-2)}
+.sgn.off .sgl{font-weight:var(--fw-regular);fill:var(--ink-2)}
 .sghb{fill:var(--glass)}
 .sghl{stroke:var(--hatch);stroke-width:3}
 /* Key: one line per mark, the marks drawn as the map draws them. */
-.sgkey{display:flex;flex-wrap:wrap;gap:6px 22px;font-size:11.5px;color:var(--ink-2);line-height:var(--lh-text);border-top:1px solid var(--row-rule);padding-top:8px}
-.sgkey span{display:inline-flex;align-items:center;gap:7px}
-.sgkey i{display:inline-block;width:22px;height:12px;border-radius:2px;background:var(--glass);border:1px solid var(--line-2)}
-.sgkey i.k-lit{border:1.5px solid var(--ink-2);background:linear-gradient(var(--ink),var(--ink)) center/100% 2px no-repeat,var(--glass)}
-.sgkey i.k-tag{width:auto;height:auto;background:var(--plate);font:700 9.5px/13px var(--f-eng);letter-spacing:.12em;font-style:normal;padding:0 4px;color:var(--ink-2)}
+.sgkey{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-9);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text);border-top:var(--hair) solid var(--row-rule);padding-top:var(--sp-4)}
+.sgkey span{display:inline-flex;align-items:center;gap:var(--sp-3)}
+.sgkey i{display:inline-block;width:var(--key-mark-w);height:var(--key-mark-h);border-radius:var(--r-1);background:var(--glass);border:var(--hair) solid var(--line-2)}
+.sgkey i.k-lit{border:var(--hair) solid var(--ink-2);background:linear-gradient(var(--ink),var(--ink)) center/100% var(--stroke) no-repeat,var(--glass)}
+.sgkey i.k-tag{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--key-mark-h) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
 .sgkey i.k-tag::before{content:"PCM"}
-.sgkey i.k-tags{width:auto;height:auto;background:var(--plate);font:700 9.5px/13px var(--f-eng);letter-spacing:.12em;font-style:normal;padding:0 4px;color:var(--ink-2)}
+.sgkey i.k-tags{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--key-mark-h) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
 .sgkey i.k-tags::before{content:"PCM · SDM"}
-.sgkey i.k-hatch{background:repeating-linear-gradient(45deg,var(--glass) 0 3px,var(--hatch) 3px 5px)}
+.sgkey i.k-hatch{background-image:var(--hatch-unav)}
 .sgkey i.k-dash{border-style:dashed}
 /* Rate zones under the map: source rate | output rate, seam through Resampling (it converts one to the other). Fixed
    plate tints, never the accent; labels engraved like the group titles. */
@@ -120,4 +120,4 @@ svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-h
 .sgz.zs{fill:var(--plate)}
 .sgz.zo{fill:var(--plate-2)}
 .sgseam{stroke:var(--ink-3);stroke-width:1.5;stroke-dasharray:6 5}
-.sgzt{font-family:var(--f-eng);font-weight:700;font-size:15px;letter-spacing:.18em;fill:var(--ink-2)}
+.sgzt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-3);fill:var(--ink-2)}
