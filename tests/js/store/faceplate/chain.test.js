@@ -90,6 +90,12 @@ test("test_a_playing_source_reads_its_rate", () => {
   assert.notEqual(a, b);
 });
 
+test("test_a_playing_source_reads_its_channel_count", () => {
+  const stereo = stage({ metadata: { samplerate: "44100", bits: "16", channels: "2" } }, "source").value;
+  const surround = stage({ metadata: { samplerate: "44100", bits: "16", channels: "6" } }, "source").value;
+  assert.notEqual(stereo, surround);
+});
+
 test("test_a_playing_source_reads_differently_from_an_idle_one", () => {
   assert.notEqual(stage({}, "source").value, stage({ path: "idle" }, "source").value);
 });
@@ -302,6 +308,15 @@ test("test_the_output_reads_its_rate", () => {
   const a = stage({ status: { active_rate: "352800", active_bits: "32" } }, "output").value;
   const b = stage({ status: { active_rate: "22579200", active_bits: "1" } }, "output").value;
   assert.notEqual(a, b);
+});
+
+test("test_the_output_reads_its_channel_count", () => {
+  const stereo = stage({ status: { active_rate: "352800", active_bits: "32", active_channels: "2" } }, "output").value;
+  const surround = stage(
+    { status: { active_rate: "352800", active_bits: "32", active_channels: "6" } },
+    "output",
+  ).value;
+  assert.notEqual(stereo, surround);
 });
 
 test("test_an_idle_output_prints_nothing_of_the_rate_the_engine_left_behind", () => {
