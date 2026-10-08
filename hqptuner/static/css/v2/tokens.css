@@ -244,6 +244,8 @@
   /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
      accent, like the spectrogram ramp. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
+  /* Visualizer bars, floor to full scale: green → yellow → red (Winamp's default skin), whatever the accent. */
+  --vis-lo:#29ce10; --vis-mid:#d6b521; --vis-hi:#ef3110;
 
   /* Narrowing console and facet windows (the narrow-filters sheet). */
   --shade-soft:#0008;          /* cast shadow under a raised part */

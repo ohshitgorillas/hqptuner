@@ -40,6 +40,10 @@
 .sarea{fill:var(--meter);fill-opacity:.16;stroke:none}
 .strace{fill:none;stroke:var(--meter);stroke-width:1.5;stroke-linejoin:round}
 .shold{fill:none;stroke:var(--meter-hi);stroke-opacity:.55;stroke-width:1}
+/* The picked style's effects canvas lies over the SVG and lets the pointer through to it. Waterfall and ridges stack
+   their rows by time, not dB: their dB grid lines and scale labels go, the kHz axis stays. */
+.sfx{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
+.sgrid1:is([data-style="waterfall"],[data-style="ridges"]) :is(.sgridl .gdb,.gy span){visibility:hidden}
 .scross{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
 .sread{position:absolute;top:6px;right:8px;padding:2px 6px;background:var(--glass);border:1px solid var(--line);border-radius:3px;font-family:var(--f-mono);font-size:11px;color:var(--meter);pointer-events:none;line-height:var(--lh-text)}
 

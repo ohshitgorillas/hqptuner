@@ -402,3 +402,35 @@ test("test_the_rms_readings_are_the_rms_to_one_place", () => {
   const root = painted(scene({ levels: [{ rms: -20.06 }, { rms: -9.94 }] }), 90);
   assert.deepEqual(readings(root, "nrm"), [-20.1, -9.9]);
 });
+
+// --- the styles ----------------------------------------------------------------------------------------------------
+
+/**
+ * Paint `sc` at `range` under spectrum style `style` into a freshly rendered section, and hand the section back.
+ *
+ * @param {ReturnType<typeof scene>} sc
+ * @param {number} range  dB
+ * @param {string} style
+ */
+function styled(sc, range, style) {
+  const root = section();
+  paintSourcePage(/** @type {Element} */ (/** @type {unknown} */ (root)), sc, range, style);
+  return root;
+}
+
+/** A scene with something to draw in every path: the trace at -45 dBFS, a held peak at -9 dBFS on column 300. */
+const busy = () => scene({ disp: columns(-45), peak: columns(-45, { 300: -9 }) });
+
+for (const style of ["bars", "soft", "waterfall", "ridges"]) {
+  for (const cls of ["strace", "sarea"]) {
+    test(`test_a_${style}_paint_blanks_the_${cls}_path`, () => {
+      assert.equal(styled(busy(), 90, style).querySelector(`path.${cls}`)?.getAttribute("d"), "");
+    });
+  }
+}
+
+for (const style of ["bars", "soft", "ridges"]) {
+  test(`test_a_${style}_paint_blanks_the_held_peaks_path`, () => {
+    assert.equal(styled(busy(), 90, style).querySelector("path.shold")?.getAttribute("d"), "");
+  });
+}

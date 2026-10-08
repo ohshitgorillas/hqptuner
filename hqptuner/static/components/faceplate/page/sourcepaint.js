@@ -49,18 +49,24 @@ function setOn(root, sel, name, value) {
   if (el) el.setAttribute(name, value);
 }
 
+/** The spectrum styles the SVG draws the trace and its area under, and those it draws the held peaks under. */
+const TRACED = new Set(["trace", "aurora"]);
+const HELD = new Set(["trace", "aurora", "waterfall"]);
+
 /**
- * Write one scene into the section rendered under `root`.
+ * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
+ * effects canvas instead.
  *
  * @param {Element} root
  * @param {MeterScene} scene
  * @param {number} range  dB, the page's Range
+ * @param {string} [style]  the spectrum style
  */
-export function paintSourcePage(root, scene, range) {
+export function paintSourcePage(root, scene, range, style = "trace") {
   const sp = scene.spectrum;
-  const line = sp ? pathOf(sp.disp, range) : "";
+  const line = sp && TRACED.has(style) ? pathOf(sp.disp, range) : "";
   setOn(root, "path.strace", "d", line);
-  setOn(root, "path.shold", "d", sp ? pathOf(sp.peak, range) : "");
+  setOn(root, "path.shold", "d", sp && HELD.has(style) ? pathOf(sp.peak, range) : "");
   setOn(root, "path.sarea", "d", line && `${line} L${SW},${SH} L0,${SH} Z`);
   const floor = -range;
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => {
