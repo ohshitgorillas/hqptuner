@@ -5,6 +5,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { tipAt, tipContent } from "../../../model/shell/option-list.js";
+import { originOf } from "../Popover.js";
 import { plainNames } from "../../../store/ui/prefs.js";
 import { openList, plate } from "../../../store/faceplate/view.js";
 import { hoverTip } from "../../../store/faceplate/lists/open.js";
@@ -30,6 +31,7 @@ function land(tip, v) {
     rowY: (row.getBoundingClientRect().top - p.top) / fit.scale,
     tip: { w: tip.offsetWidth, h: tip.offsetHeight },
     plate: { w: fit.w, h: fit.h },
+    origin: originOf(tip, face),
   });
   tip.style.left = `${at.left}px`;
   tip.style.top = `${at.top}px`;

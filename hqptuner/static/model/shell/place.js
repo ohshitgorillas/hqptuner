@@ -42,7 +42,7 @@ const room = (m) => m ?? -Infinity;
 /** The top-left corner of the panel's containing block on the plate, in layout px. @typedef {{x: number, y: number}} Origin */
 
 /** A panel positioned against the plate itself. @type {Origin} */
-const ON_PLATE = { x: 0, y: 0 };
+export const ON_PLATE = { x: 0, y: 0 };
 
 /**
  * The panel's top-left corner, in layout px from its containing block's corner (`origin`, the plate's own by default).
