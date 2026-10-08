@@ -1,23 +1,24 @@
 // The Setting Switcher, the faceplate's bottom bar: one target setting at a time, two remembered choices for it, each
-// sent live with a tap or replaced from the target's own list.
+// sent live with a tap unless it already runs and no write to it is still settling, or replaced from the target's own
+// list.
 
 import { signal } from "@preact/signals";
 import { schema } from "../../schema.js";
 import { enumPref, warnStorage } from "../../ui/prefs.js";
 import { bottomBar } from "../../ui/faceplate.js";
-import { runningValue } from "../../resolve.js";
+import { chainControlOf } from "../../live/chains.js";
+import { liveUnsettled } from "../../live/state.js";
 import { writeLive } from "../../live/write.js";
 import { matrixActiveProfile } from "../../matrix/profiles.js";
 import { runningChain } from "../path.js";
 import { openOptionList } from "../view.js";
-import { pickOption, plainOf } from "../page/conversion.js";
-import { profileChoices, switchProfile } from "../page/profile.js";
-import { rawOptions } from "../lists/options.js";
+import { fieldRunsNow, pickOption, plainOf } from "../page/conversion.js";
+import { profileChoices, profileUnsettled, switchProfile } from "../page/profile.js";
 
 /**
  * One slot of the bar: the name it sends, what it shows (a list target's plain family, variant and leaf, any other
- * target's label), the name it is also known by, whether it is the one running, and whether nothing is remembered for
- * it.
+ * target's label), the name it is also known by, whether it is the one running, whether it is lit (running, and on
+ * this track's path), and whether nothing is remembered for it.
  *
  * @typedef {object} Slot
  * @property {string} name
@@ -28,6 +29,7 @@ import { rawOptions } from "../lists/options.js";
  * @property {string} [tier]
  * @property {string} aka
  * @property {boolean} on
+ * @property {boolean} lit
  * @property {boolean} empty
  */
 
@@ -43,11 +45,15 @@ export const TARGETS = ["1x filter", "Nx filter", "Modulator", "Matrix profile",
 const K_TARGET = "hqptuner.switcherTarget";
 const K_SLOTS = "hqptuner.switcherSlots";
 
-/** Each list target's catalog key on each chain. @type {Record<string, Record<"pcm" | "sdm", string>>} */
+/**
+ * Each list target's catalog key on each chain, and the chain field it is.
+ *
+ * @type {Record<string, { pcm: string, sdm: string, field: import("../page/conversion.js").FieldId }>}
+ */
 const LIST_KEYS = {
-  "1x filter": { pcm: "pcm_filter_1x", sdm: "sdm_filter_1x" },
-  "Nx filter": { pcm: "pcm_filter_nx", sdm: "sdm_filter_nx" },
-  Modulator: { pcm: "pcm_dither", sdm: "sdm_modulator" },
+  "1x filter": { pcm: "pcm_filter_1x", sdm: "sdm_filter_1x", field: "1x" },
+  "Nx filter": { pcm: "pcm_filter_nx", sdm: "sdm_filter_nx", field: "nx" },
+  Modulator: { pcm: "pcm_dither", sdm: "sdm_modulator", field: "sh" },
 };
 
 /** The targets that lay out a bar of their own. @type {Record<string, "mode" | "volume">} */
@@ -137,29 +143,37 @@ export function setSwitcherTarget(t) {
  * @returns {string}
  */
 function runningName(key) {
-  const id = String(runningValue(key) ?? "");
-  return rawOptions(key).find((o) => String(o.value) === id)?.label ?? "";
+  const c = chainControlOf(key);
+  const id = String(c?.value ?? "");
+  return c?.optionsRaw.find((o) => String(o.value) === id)?.label ?? "";
 }
 
 /**
  * A list target's slots: each remembered name broken down as the nameplate breaks it, its plain family, variant and
- * leaf, the running name in the first while both are empty.
+ * leaf, the running name in the first while both are empty, the running one lit while this track's path runs its
+ * field.
  *
+ * @param {string} t
  * @param {string} key
  * @param {string[]} names
  * @returns {Slot[]}
  */
-function listSlots(key, names) {
+function listSlots(t, key, names) {
   const run = runningName(key);
+  const runs = fieldRunsNow(LIST_KEYS[t].field);
   const shown = names[0] || names[1] ? names : [run, ""];
   const kind = schema[key].plainNames ?? "";
-  return shown.map((name, i) => ({
-    name,
-    ...(name === "" ? { fam: "", variant: null, leaf: "" } : plainOf(kind, name)),
-    aka: "",
-    on: name !== "" && name === run,
-    empty: names[i] === "",
-  }));
+  return shown.map((name, i) => {
+    const on = name !== "" && name === run;
+    return {
+      name,
+      ...(name === "" ? { fam: "", variant: null, leaf: "" } : plainOf(kind, name)),
+      aka: "",
+      on,
+      lit: on && runs,
+      empty: names[i] === "",
+    };
+  });
 }
 
 /**
@@ -169,27 +183,33 @@ function listSlots(key, names) {
  * @param {string} t
  * @returns {string[]}
  */
-const shownNames = (key, t) => listSlots(key, remembered(t)).map((s) => s.name);
+const shownNames = (key, t) => listSlots(t, key, remembered(t)).map((s) => s.name);
 
 /**
- * Matrix profile's slots: each remembered profile, on while it runs.
+ * Matrix profile's slots: each remembered profile, on and lit while it runs.
  *
  * @param {string[]} names
  * @returns {Slot[]}
  */
 function profileSlots(names) {
   const active = matrixActiveProfile.value;
-  return names.map((name) => ({ name, label: name, aka: "", on: name !== "" && name === active, empty: name === "" }));
+  return names.map((name) => {
+    const on = name !== "" && name === active;
+    return { name, label: name, aka: "", on, lit: on, empty: name === "" };
+  });
 }
 
 /**
- * Output mode's two fixed slots, the running chain's on.
+ * Output mode's two fixed slots, the running chain's on and lit.
  *
  * @returns {Slot[]}
  */
 function modeSlots() {
   const run = runningChain();
-  return MODES.map((m) => ({ name: "", label: m.label, aka: m.aka, on: run === m.wire, empty: false }));
+  return MODES.map((m) => {
+    const on = run === m.wire;
+    return { name: "", label: m.label, aka: m.aka, on, lit: on, empty: false };
+  });
 }
 
 /**
@@ -200,7 +220,7 @@ function modeSlots() {
  * @returns {Slot[]}
  */
 function slotsOf(t, key) {
-  if (key) return listSlots(key, remembered(t));
+  if (key) return listSlots(t, key, remembered(t));
   if (t === "Matrix profile") return profileSlots(remembered(t));
   if (t === "Output mode") return modeSlots();
   return [];
@@ -238,7 +258,16 @@ export function setSlot(i, name) {
 }
 
 /**
- * A slot's tap: its name sent live to the target. An empty slot sends nothing.
+ * Whether a write on a target's own path has not settled: Matrix profile's switch, any other target's live write.
+ *
+ * @param {string} t
+ * @returns {boolean}
+ */
+const unsettled = (t) => (t === "Matrix profile" ? profileUnsettled() : liveUnsettled.value) > 0;
+
+/**
+ * A slot's tap: its name sent live to the target. An empty slot sends nothing, nor does the one running while no write
+ * on its path is unsettled.
  *
  * @param {number} i
  * @returns {Promise<void> | null}
@@ -246,7 +275,7 @@ export function setSlot(i, name) {
 export function slotLive(i) {
   const v = view();
   const s = v.slots[i];
-  if (!s) return null;
+  if (!s || (s.on && !unsettled(v.target))) return null;
   if (v.layout === "mode") return writeLive("mode", MODES[i].wire);
   if (s.empty) return null;
   return v.key ? pickOption(v.key, s.name) : switchProfile(s.name);

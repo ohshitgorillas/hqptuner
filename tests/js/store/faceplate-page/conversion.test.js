@@ -30,6 +30,7 @@ import {
   pickOption,
 } from "../../../../hqptuner/static/store/faceplate/page/conversion.js";
 import { ok } from "../../support/wire/wire.js";
+import { settle } from "../../support/wire/livepresetwire.js";
 
 const CD = "44100";
 const HIRES = "96000";
@@ -118,14 +119,15 @@ function wire({
 /** The same engine playing to an SDM rate, the SDM chain loaded. */
 const sdm = () => wire({ output: DSD256, chain: "sdm" });
 
-// A live-lane server: every POST /api/config/live body is recorded and answered verified, and the re-mirror reads
-// answer the State and enumerations the case seeded.
-function liveWire() {
+// A live-lane server: every POST /api/config/live body is recorded and answered verified, once `held` resolves where a
+// case passes one, and the re-mirror reads answer the State and enumerations the case seeded.
+function liveWire(/** @type {Promise<void> | null} */ held = null) {
   /** @type {unknown[]} */
   const posts = [];
   env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
     if (path === "/api/config/live") {
       posts.push(JSON.parse(String(opts.body)));
+      if (held) await held;
       return ok({ report: { live: [], stored: {} } });
     }
     if (path === "/api/state") return ok({ data: { ...engineState.value } });
@@ -287,4 +289,27 @@ test("test_picking_a_modulator_writes_its_enum_id_live", async () => {
   const posts = liveWire();
   await pickOption("sdm_modulator", "TPDF");
   assert.deepEqual(posts, [{ fields: { modulator: "100" } }]);
+});
+
+test("test_picking_the_running_option_writes_nothing", async () => {
+  const posts = liveWire();
+  await pickOption("pcm_filter_1x", FILTERS[1]);
+  assert.deepEqual(posts, []);
+});
+
+test("test_picking_the_running_option_while_a_pick_is_unsettled_writes_it", async () => {
+  /** @type {() => void} */
+  let release = () => {};
+  const posts = liveWire(
+    new Promise((resolve) => {
+      release = () => resolve();
+    }),
+  );
+  const first = pickOption("pcm_filter_1x", FILTERS[2]);
+  await settle();
+  const second = pickOption("pcm_filter_1x", FILTERS[1]);
+  await settle();
+  release();
+  await Promise.all([first, second]);
+  assert.deepEqual(posts, [{ fields: { filter1x: "102" } }, { fields: { filter1x: "101" } }]);
 });

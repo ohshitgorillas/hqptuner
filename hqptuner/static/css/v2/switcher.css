@@ -18,6 +18,8 @@
 .sbody .aka:empty{display:none}
 /* A list target's slot: the nameplate's face (family › variant over the leaf) at the page's sizes. */
 .sbody .sface{flex:1 1 auto;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
+.sbody .cpl{color:var(--ink-2)}
+.slot.on .sbody .cpl{color:var(--acc)}
 /* Output mode target: the two modes spelled out, centred, no ▾. */
 .slot.mode .sbody{justify-content:center}
 .slot.mode .tx{align-items:center;text-align:center}

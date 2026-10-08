@@ -9,6 +9,7 @@ import { optionsFor, grayShapersByRate, stripRateSuffix, dropSupersededTwoStage 
 import { narrowOptions, narrowCount, favOnlyModulators } from "../narrow/match.js";
 import { decorateOptions } from "../plainnames.js";
 import { CHAINS, idOptions, idValue } from "./derive.js";
+import { loadedChain } from "./rates.js";
 
 /**
  * @typedef {import("./derive.js").MenuOption} MenuOption
@@ -111,4 +112,16 @@ export function chainControls(chain, loaded) {
       enumBacked: live,
     };
   });
+}
+
+/**
+ * The chain control a catalog key names, on the chain that holds it: its value the engine State on the loaded chain,
+ * the running form on the dormant one. Undefined where no chain holds the key.
+ *
+ * @param {string} key
+ * @returns {ReturnType<typeof chainControls>[number] | undefined}
+ */
+export function chainControlOf(key) {
+  const chain = Object.keys(CHAINS).find((ch) => CHAINS[ch].some((c) => c.key === key));
+  return chain ? chainControls(chain, loadedChain() || null).find((x) => x.key === key) : undefined;
 }

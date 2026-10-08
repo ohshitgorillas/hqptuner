@@ -118,7 +118,7 @@ const overlays = () => ({
  */
 export function loadLists({ chain = "sdm", plain = false } = {}) {
   const sdm = chain === "sdm";
-  engineState.value = { state: "0", active_chain: chain, filter1x: "0", filterNx: "0", shaper: "0" };
+  engineState.value = { state: "0", active_chain: chain, filter1x: "0", filterNx: "0", shaper: "1" };
   engineStatus.value = {};
   enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
   config.value = {

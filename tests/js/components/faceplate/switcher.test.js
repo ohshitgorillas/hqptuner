@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
-import { ok } from "../../support/wire/wire.js";
+import { ok, quiesce } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
@@ -31,7 +31,7 @@ import { propsOf } from "../../support/wheel.js";
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { config, engineState, enums, matrixConfig, volume, volumeDrag, volumeRange } =
+const { config, engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
@@ -75,9 +75,28 @@ async function answer(path, opts = {}) {
 /** The bodies posted to one path. @param {string} path */
 const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
 
+/** The wire's requests handed over and not yet answered. */
+const wire = { inflight: new Set() };
+
+/**
+ * One request answered as `answer` answers it, kept in `wire.inflight` until it is.
+ *
+ * @param {string} path
+ * @param {{ body?: string }} [opts]
+ */
+function tracked(path, opts) {
+  const req = answer(path, opts);
+  wire.inflight.add(req);
+  req.then(
+    () => wire.inflight.delete(req),
+    () => wire.inflight.delete(req),
+  );
+  return req;
+}
+
 beforeEach(() => {
   useStorage();
-  env.fetch = answer;
+  env.fetch = tracked;
   loadLists({ chain: "sdm", plain: true });
   resetLists();
   matrixConfig.value = { fields: [], rows: [], live_profiles: ["Desk", "Lounge"], live_active: "Lounge" };
@@ -270,11 +289,29 @@ test("test_only_the_running_slots_body_is_checked", () => {
   );
 });
 
+const CD = "44100";
+const DSD256 = "11289600";
+
 test("test_only_the_running_slot_is_marked_on", () => {
+  engineState.value = { ...engineState.value, state: "2" };
+  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: CD } };
   assert.deepEqual(
     slots().map((s) => classes(s).includes("on")),
     [true, false],
   );
+});
+
+/** The loaded SDM chain's running Nx filter, the fixture's own. */
+const RUNNING_NX = "poly-sinc-gauss-long";
+
+test("test_an_unlit_running_slot_has_no_on_class", () => {
+  engineState.value = { ...engineState.value, state: "2" };
+  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: CD } };
+  setSwitcherTarget("Nx filter");
+  setSlot(0, RUNNING_NX);
+  const [slot] = slots();
+  const [body] = slotBodies();
+  assert.deepEqual([slot && classes(slot).includes("on"), body && attr(body, "aria-checked")], [false, "true"]);
 });
 
 /** The fixture's plain breakdown of its two modulators, as a slot body draws it. */
@@ -427,7 +464,8 @@ test("test_the_volume_readout_prints_the_level", () => {
 test("test_an_arrow_key_on_a_slot_body_sends_the_other_slot_live", async () => {
   const bodies = controls("button", "sbody");
   await fire(bodies[0], "onKeyDown", keyEvent("ArrowRight"));
+  await quiesce(wire);
   await fire(bodies[1], "onKeyDown", keyEvent("ArrowUp"));
   await fire(bodies[0], "onKeyDown", keyEvent("Enter"));
-  assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }, { fields: { modulator: "3" } }]);
+  assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }]);
 });

@@ -21,7 +21,7 @@ import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { engineState, enums } from "../signals.js";
 import { refreshConfig } from "../sync.js";
-import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./state.js";
+import { liveBusy, liveUnsettled, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./state.js";
 
 /** @typedef {import("./state.js").LiveReport} LiveReport */
 
@@ -98,6 +98,7 @@ export async function remirrorLive(fields, report) {
  * @returns {Promise<void>}
  */
 export async function writeLive(field, value) {
+  liveUnsettled.value += 1;
   liveBusy.value = field;
   setError(field, "");
   try {
@@ -114,5 +115,6 @@ export async function writeLive(field, value) {
     setError(field, errText(e));
   } finally {
     liveBusy.value = "";
+    liveUnsettled.value -= 1;
   }
 }

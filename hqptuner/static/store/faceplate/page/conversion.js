@@ -8,9 +8,10 @@ import { signal, computed, effect } from "@preact/signals";
 import { describe, idFor, optionProse } from "../../prose.js";
 import { plainEntry, decorateOptions, withoutRate } from "../../plainnames.js";
 import { modulatorTier } from "../../ui/options.js";
-import { chainControls } from "../../live/chains.js";
-import { CHAINS, sourceIsNx } from "../../live/derive.js";
+import { chainControlOf, chainControls } from "../../live/chains.js";
+import { sourceIsNx } from "../../live/derive.js";
 import { loadedChain } from "../../live/rates.js";
+import { liveUnsettled } from "../../live/state.js";
 import { writeLive } from "../../live/write.js";
 import { playbackPath, runningChain } from "../path.js";
 import { plate } from "../view.js";
@@ -151,17 +152,28 @@ export function openField(section, field) {
 }
 
 /**
+ * Field id of the running chain runs for what plays now.
+ *
+ * @param {FieldId} id
+ * @returns {boolean}
+ */
+export function fieldRunsNow(id) {
+  const play = playNow();
+  return fieldRuns(play, play.run, id);
+}
+
+/**
  * A pick from a field's option list: the option's enum ID written live to the field's chain control. A key no chain
- * holds, or a name its list does not carry, writes nothing.
+ * holds, a name its list does not carry, or the option already running while no live write is unsettled writes
+ * nothing.
  *
  * @param {string} key    the field's catalog key
  * @param {string} value  the engine name picked
  * @returns {Promise<void>}
  */
 export async function pickOption(key, value) {
-  const chain = Object.keys(CHAINS).find((ch) => CHAINS[ch].some((c) => c.key === key));
-  if (!chain) return;
-  const c = chainControls(chain, loadedChain() || null).find((x) => x.key === key);
+  const c = chainControlOf(key);
   const id = c ? idFor(c.optionsRaw, value) : "";
-  if (c && id) await writeLive(c.field, id);
+  const runs = id === String(c?.value) && liveUnsettled.value === 0;
+  if (c && id && !runs) await writeLive(c.field, id);
 }

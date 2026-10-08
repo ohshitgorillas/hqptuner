@@ -1,8 +1,8 @@
 // The Setting Switcher bar at the foot of the plate: the target button with its menu of the targets, and the target's
-// two slots, or the volume bar while the target is Volume. A slot's body sends it live, an arrow key sends the other
-// one live, and its ▾ opens its list; under Matrix profile that list is a menu of the profiles, under Output mode the
-// two slots are the fixed modes with no ▾. Every menu is the plate's own, parked at its button and flipped above it
-// when the foot is too near.
+// two slots, or the volume bar while the target is Volume. A slot's body sends it live unless it already runs and no
+// write to it is still settling, an arrow key sends the other one live, and its ▾ opens its list; under Matrix profile
+// that list is a menu of the profiles, under Output mode the two slots are the fixed modes with no ▾. Every menu is the
+// plate's own, parked at its button and flipped above it when the foot is too near.
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
@@ -142,7 +142,7 @@ const slotText = (s, mode) => html`
  * @param {{ s: Slot, i: number, mode: boolean, menu: boolean, key: string | null, tab: boolean, bodies: Bodies }} p
  */
 const slot = ({ s, i, mode, menu, key, tab, bodies }) => html`
-  <div class=${["slot", s.on ? "on" : "", mode ? "mode" : ""].filter(Boolean).join(" ")}>
+  <div class=${["slot", s.lit ? "on" : "", mode ? "mode" : ""].filter(Boolean).join(" ")}>
     <button
       class="sbody"
       type="button"

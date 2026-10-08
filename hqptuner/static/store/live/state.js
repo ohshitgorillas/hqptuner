@@ -12,6 +12,9 @@ import { health } from "../signals.js";
 // One error per control and latest wins: the page has no toast stack, and a
 // failed write is about the control the user just touched.
 export const liveBusy = signal("");
+// How many live writes have not settled: up from a write's start until its
+// re-mirror is in, so the mirrors are current only while it reads 0.
+export const liveUnsettled = signal(0);
 export const liveErrors = signal({});
 
 // Writes whose own success invalidates an enumeration, in config-form terms.

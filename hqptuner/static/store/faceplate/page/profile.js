@@ -22,6 +22,8 @@ const UNNAMED = "[Default]";
 
 /** A switch is in flight. */
 const busy = signal(false);
+/** How many switches have not settled: up from a switch's start until the forms are re-read behind it. */
+const switching = signal(0);
 /** The last refused switch, as the server's own sentence; "" once a switch goes through. */
 const error = signal("");
 /** What the user typed into the well and for which profile, until the stored copy catches up. */
@@ -57,6 +59,7 @@ export function profileChoices() {
  * @returns {Promise<void>}
  */
 export async function switchProfile(name) {
+  switching.value += 1;
   busy.value = true;
   error.value = "";
   try {
@@ -66,8 +69,16 @@ export async function switchProfile(name) {
     error.value = errText(e);
   } finally {
     busy.value = false;
+    switching.value -= 1;
   }
 }
+
+/**
+ * How many profile switches have not settled; the running profile read is current only while it is 0.
+ *
+ * @returns {number}
+ */
+export const profileUnsettled = () => switching.value;
 
 /**
  * The running profile's description: what the user is typing for it, else its stored text, else "".

@@ -7,9 +7,7 @@
 
 import { schema } from "../../schema.js";
 import { metadata } from "../../signals.js";
-import { chainControls } from "../../live/chains.js";
-import { CHAINS } from "../../live/derive.js";
-import { loadedChain } from "../../live/rates.js";
+import { chainControlOf } from "../../live/chains.js";
 import { narrowOptions } from "../../narrow/match.js";
 import { filterFacets } from "../../narrow/facets.js";
 import {
@@ -34,15 +32,6 @@ import { ditherRate, modTier, shaperKeeps } from "./shapers.js";
 /** @typedef {MenuOption & { display?: string, group?: string, subgroup?: string | null }} Decorated */
 
 /**
- * The chain a catalog key sits on, undefined for a key no chain holds.
- *
- * @param {string} key
- * @returns {"pcm" | "sdm" | undefined}
- */
-const chainOf = (key) =>
-  /** @type {("pcm" | "sdm")[]} */ (["pcm", "sdm"]).find((ch) => CHAINS[ch].some((c) => c.key === key));
-
-/**
  * A key's options before any narrowing, valued by enum ID and labeled by engine name: a chain key's as its chain card
  * lists them, any other key's as its drawer row does.
  *
@@ -50,10 +39,7 @@ const chainOf = (key) =>
  * @returns {MenuOption[]}
  */
 export function rawOptions(key) {
-  const chain = chainOf(key);
-  if (!chain) return rowOptions(key);
-  const c = chainControls(chain, loadedChain() || null).find((x) => x.key === key);
-  return c ? c.optionsRaw : [];
+  return chainControlOf(key)?.optionsRaw ?? rowOptions(key);
 }
 
 /**

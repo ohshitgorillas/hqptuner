@@ -16,10 +16,12 @@ import assert from "node:assert/strict";
 
 import { useStorage } from "../../support/storage.js";
 import { ok } from "../../support/wire/wire.js";
+import { settle } from "../../support/wire/livepresetwire.js";
 
 let storage = useStorage();
 
-const { config, engineState, enums, matrixConfig } = await import("../../../../hqptuner/static/store/signals.js");
+const { config, engineState, engineStatus, enums, matrixConfig } =
+  await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
@@ -49,6 +51,19 @@ const READS = {
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };
 
+/** What a write's answer waits on while a case holds the writes open; null answers at once. @type {Promise<void> | null} */
+let held = null;
+
+/** Hold every write's answer open until the returned call releases them. */
+function hold() {
+  /** @type {() => void} */
+  let release = () => {};
+  held = new Promise((resolve) => {
+    release = () => resolve();
+  });
+  return release;
+}
+
 /**
  * The answer to one request, each body recorded first.
  *
@@ -57,6 +72,7 @@ const READS = {
  */
 async function answer(path, opts = {}) {
   if (opts.body) posts.push({ path, body: JSON.parse(opts.body) });
+  if (opts.body && held) await held;
   if (path === "/api/config/live") return ok({ report: { live: [], stored: {} } });
   if (path === "/api/matrix/profile") return ok({ ok: true });
   return READS[path] ? READS[path]() : ok({});
@@ -79,6 +95,7 @@ beforeEach(() => {
   }
   setSwitcherTarget("Modulator");
   posts = [];
+  held = null;
 });
 
 /** One field of both slots of the current view. @param {"name" | "label" | "aka" | "on" | "empty"} f */
@@ -264,11 +281,107 @@ test("test_live_on_a_profile_slot_switches_the_matrix_to_it", async () => {
   assert.deepEqual(sent("/api/matrix/profile"), [{ action: "switch", name: "Desk" }]);
 });
 
-test("test_live_on_the_output_mode_slots_writes_pcm_then_sdm", async () => {
+test("test_live_on_the_idle_output_mode_slot_writes_its_mode", async () => {
   setSwitcherTarget("Output mode");
   await slotLive(0);
+  assert.deepEqual(sent("/api/config/live"), [{ fields: { mode: "pcm" } }]);
+});
+
+test("test_tapping_the_running_slot_writes_nothing_on_a_list_target", async () => {
+  setSlot(0, "ASDM7EC 512+fs");
+  await slotLive(0);
+  assert.deepEqual(sent("/api/config/live"), []);
+});
+
+test("test_tapping_the_running_slot_writes_nothing_under_output_mode", async () => {
+  setSwitcherTarget("Output mode");
   await slotLive(1);
+  assert.deepEqual(sent("/api/config/live"), []);
+});
+
+test("test_tapping_the_running_slot_writes_nothing_under_matrix_profile", async () => {
+  setSwitcherTarget("Matrix profile");
+  setSlot(1, "Lounge");
+  await slotLive(1);
+  assert.deepEqual(sent("/api/matrix/profile"), []);
+});
+
+/**
+ * Tap the idle slot, then, its write still unanswered, the running one; the writes answer once both taps are in.
+ *
+ * @param {number} idle
+ * @param {number} running
+ */
+async function tapBothWhileUnsettled(idle, running) {
+  const release = hold();
+  const first = slotLive(idle);
+  await settle();
+  const second = slotLive(running);
+  await settle();
+  release();
+  await Promise.all([first, second]);
+}
+
+test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_on_a_list_target", async () => {
+  setSlot(0, "ASDM7EC 512+fs");
+  setSlot(1, "ASDM5");
+  await tapBothWhileUnsettled(1, 0);
+  assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }, { fields: { modulator: "3" } }]);
+});
+
+test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_output_mode", async () => {
+  setSwitcherTarget("Output mode");
+  await tapBothWhileUnsettled(0, 1);
   assert.deepEqual(sent("/api/config/live"), [{ fields: { mode: "pcm" } }, { fields: { mode: "sdm" } }]);
+});
+
+test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_matrix_profile", async () => {
+  setSwitcherTarget("Matrix profile");
+  setSlot(0, "Desk");
+  setSlot(1, "Lounge");
+  await tapBothWhileUnsettled(0, 1);
+  assert.deepEqual(sent("/api/matrix/profile"), [
+    { action: "switch", name: "Desk" },
+    { action: "switch", name: "Lounge" },
+  ]);
+});
+
+// --- lit -----------------------------------------------------------------------------------------------------------
+
+const CD = "44100";
+const HIRES = "96000";
+const DSD256 = "11289600";
+
+/** The loaded SDM chain's running Nx filter, the fixture's own. */
+const RUNNING_NX = "poly-sinc-gauss-long";
+
+/**
+ * Play one source on the loaded SDM chain to a DSD256 output.
+ *
+ * @param {string} source  the source's sample rate, Hz
+ */
+function play(source) {
+  engineState.value = { ...engineState.value, state: "2" };
+  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: source } };
+}
+
+/** The first slot's on and lit, under the Nx filter target with the running Nx filter in it. */
+function nxSlot() {
+  setSwitcherTarget("Nx filter");
+  setSlot(0, RUNNING_NX);
+  /** @type {Record<string, unknown> | undefined} */
+  const slot = switcherView()?.slots[0];
+  return [slot?.on, slot?.lit];
+}
+
+test("test_an_nx_filter_slot_is_unlit_while_a_base_rate_source_plays", () => {
+  play(CD);
+  assert.deepEqual(nxSlot(), [true, false]);
+});
+
+test("test_an_nx_filter_slot_is_lit_while_a_high_rate_source_plays", () => {
+  play(HIRES);
+  assert.deepEqual(nxSlot(), [true, true]);
 });
 
 // --- lists ---------------------------------------------------------------------------------------------------------
