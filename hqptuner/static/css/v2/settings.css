@@ -108,9 +108,9 @@ svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-h
 .sgkey span{display:inline-flex;align-items:center;gap:var(--sp-3)}
 .sgkey i{display:inline-block;width:var(--key-mark-w);height:var(--key-mark-h);border-radius:var(--r-1);background:var(--glass);border:var(--hair) solid var(--line-2)}
 .sgkey i.k-lit{border:var(--hair) solid var(--ink-2);background:linear-gradient(var(--ink),var(--ink)) center/100% var(--stroke) no-repeat,var(--glass)}
-.sgkey i.k-tag{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--key-mark-h) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
+.sgkey i.k-tag{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--lh-eng) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
 .sgkey i.k-tag::before{content:"PCM"}
-.sgkey i.k-tags{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--key-mark-h) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
+.sgkey i.k-tags{width:auto;height:auto;background:var(--plate);font:var(--fw-bold) var(--fs-1)/var(--lh-eng) var(--f-eng);letter-spacing:var(--ls-2);font-style:normal;padding:0 var(--sp-2);color:var(--ink-2)}
 .sgkey i.k-tags::before{content:"PCM · SDM"}
 .sgkey i.k-hatch{background-image:var(--hatch-unav)}
 .sgkey i.k-dash{border-style:dashed}

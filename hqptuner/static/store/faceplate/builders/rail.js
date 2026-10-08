@@ -11,8 +11,8 @@ import { staged } from "./shell.js";
 const PAD_PX = 8;
 const GAP_PX = 2;
 const HEADER_PX = 30;
-const LINE_PX = 26;
-const FILL_PX = 26;
+const LINE_PX = 24;
+const FILL_PX = 24;
 const PAGER_PX = 34;
 const NEW_PX = 42;
 

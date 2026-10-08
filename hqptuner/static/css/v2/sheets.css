@@ -38,7 +38,7 @@
 .ohd{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-3);text-transform:uppercase;line-height:var(--fam-line);padding-left:0;cursor:default}
 .ohd.static{padding-left:0;cursor:default}
 .ofam.sub .ohd{font-size:var(--fs-3);letter-spacing:var(--ls-2);line-height:var(--lh-eng)}
-.osub{display:block;font-family:var(--f-body);font-weight:var(--fw-semi);font-size:var(--fs-3);line-height:18px;margin-top:var(--sp-1)}
+.osub{display:block;font-family:var(--f-body);font-weight:var(--fw-semi);font-size:var(--fs-3);line-height:var(--orow-h);margin-top:var(--sp-1)}
 .osub::before{content:"";position:absolute;left:var(--hair);top:50%;width:0;height:0;border-left:var(--fold-tri) solid transparent;border-right:var(--fold-tri) solid transparent;border-top:var(--fold-tri-d) solid var(--ink-2);margin-top:calc(var(--sp-1)*-1)}
 .osub[aria-expanded="false"]::before{border-top:var(--fold-tri) solid transparent;border-bottom:var(--fold-tri) solid transparent;border-left:var(--fold-tri-d) solid var(--ink-2);border-right:0;margin:calc(var(--sp-2)*-1) 0 0 var(--sp-1)}
 .oblurb{contain:inline-size;padding:0 0 var(--hair) var(--sp-7);font-size:var(--fs-2);line-height:1.22;color:var(--ink-2)}
@@ -50,22 +50,22 @@
 
 /* Option row on one grid: name (one line) | apodizing mark | stars (v1: one ★ per point, left-aligned in a five-star box,
    centred on the text line) | heart (♡ muted, ♥ ink; v1). */
-.orow{position:relative;display:grid;grid-template-columns:1fr 13px 46px 14px;align-items:center;gap:0 var(--sp-1);height:18px;padding:0 var(--hair) 0 var(--sp-7);border-radius:var(--r-1);cursor:pointer}
-.osheet[data-kind="modulators"] .orow{grid-template-columns:1fr 40px 14px}
+.orow{position:relative;display:grid;grid-template-columns:1fr var(--pencil) var(--stars-w) var(--apod-mark);align-items:center;gap:0 var(--sp-1);height:var(--orow-h);padding:0 var(--hair) 0 var(--sp-7);border-radius:var(--r-1);cursor:pointer}
+.osheet[data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--apod-mark)}
 .osheet[data-kind="dithers"] .orow{grid-template-columns:1fr}
-.orow .nm{font-size:var(--fs-3);line-height:18px;color:var(--ink);white-space:nowrap;padding-right:var(--sp-3)}
+.orow .nm{font-size:var(--fs-3);line-height:var(--orow-h);color:var(--ink);white-space:nowrap;padding-right:var(--sp-3)}
 .orow:hover{background:var(--hover)}
 .orow[aria-selected="true"]{background:var(--acc-lo)}
 .orow[aria-selected="true"] .nm{color:var(--acc);font-weight:var(--fw-medium)}
 .orow[aria-selected="true"]::before{content:"";position:absolute;left:0;top:var(--sp-1);bottom:var(--sp-1);width:var(--stroke);border-radius:var(--hair);background:var(--acc)}   /* left-hand selection bar, as everywhere */
 .orow .mk{display:flex;align-items:center;justify-content:center}
-.orow .qst{display:flex;align-items:center;padding-left:var(--sp-1);height:18px;font-size:8.5px;letter-spacing:-.4px;color:var(--ink-2);white-space:nowrap;line-height:1}
-.amark{display:inline-flex;width:13px;height:13px;color:var(--acc)}
+.orow .qst{display:flex;align-items:center;padding-left:var(--sp-1);height:var(--orow-h);font-size:var(--fs-1);letter-spacing:var(--ls-stars);color:var(--ink-2);white-space:nowrap;line-height:1}
+.amark{display:inline-flex;width:var(--pencil);height:var(--pencil);color:var(--acc)}
 .amark svg{width:100%;height:100%}
 .amark circle{fill:none;stroke:currentColor;stroke-width:1.3}
 .amark path{fill:currentColor}
-.otier{display:inline-flex;align-items:center;height:14px;padding:0 var(--sp-1);border:var(--hair) solid currentColor;border-radius:var(--r-1);color:var(--acc);font-family:var(--f-mono);font-size:var(--fs-1);font-weight:var(--fw-semi);line-height:1}
-.fav{display:flex;align-items:center;justify-content:center;width:14px;height:18px;padding:0;border:0;background:none;color:var(--ink-2);font-size:var(--fs-3);line-height:1;cursor:pointer}
+.otier{display:inline-flex;align-items:center;height:var(--apod-mark);padding:0 var(--sp-1);border:var(--hair) solid currentColor;border-radius:var(--r-1);color:var(--acc);font-family:var(--f-mono);font-size:var(--fs-1);font-weight:var(--fw-semi);line-height:1}
+.fav{display:flex;align-items:center;justify-content:center;width:var(--apod-mark);height:var(--orow-h);padding:0;border:0;background:none;color:var(--ink-2);font-size:var(--fs-3);line-height:1;cursor:pointer}
 .fav.on,.fav:hover{color:var(--ink)}
 
 /* ── Facet bar (narrow-filters.js mountFacetBar): narrowing in the list sheet's head ────────────────────────
@@ -79,15 +79,15 @@
   border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--facet);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 var(--hair) 0 var(--glint-faint);cursor:pointer;text-align:left}
 .fbtn:hover{border-color:var(--ink-2);background:var(--facet-hover)}
 .fbtn .fl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:1.3}
-.fbtn .fv2{font-family:var(--f-mono);font-size:var(--fs-1);letter-spacing:-.02em;color:var(--ink-2);white-space:nowrap;line-height:1.3}   /* gray only while at its default */
+.fbtn .fv2{font-family:var(--f-mono);font-size:var(--fs-1);letter-spacing:var(--ls-facet-state);color:var(--ink-2);white-space:nowrap;line-height:1.3}   /* gray only while at its default */
 .fbtn.on{border-color:var(--acc);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 0 0 var(--hair) var(--acc-dim),0 0 var(--sp-5) var(--acc-halo)}
 .fbtn.on .fv2{color:var(--acc);text-shadow:0 0 var(--sp-3) var(--acc-glow-hi)}
 .fbtn[aria-expanded="true"]{border-color:var(--acc);background:linear-gradient(180deg,color-mix(in srgb,var(--acc-lo) 60%,var(--key-lo)),var(--key-lo));box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 0 0 var(--hair) var(--acc-dim),0 0 var(--sp-6) var(--acc-halo)}
-.fbreset{margin-left:var(--sp-4);height:30px;padding:0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--raised);box-shadow:var(--raised-shadow);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
+.fbreset{margin-left:var(--sp-4);height:var(--ctl-h-view);padding:0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--raised);box-shadow:var(--raised-shadow);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
 .fbreset:hover{border-color:var(--ink-2)}
 .fbreset.idle{visibility:hidden}
 
-.pop.fpop2{left:auto;top:auto;width:380px;padding:var(--sp-5) var(--sp-7) var(--sp-6);gap:var(--sp-4);z-index:8}
+.pop.fpop2{left:auto;top:auto;width:var(--pop-w-wide);padding:var(--sp-5) var(--sp-7) var(--sp-6);gap:var(--sp-4);z-index:8}
 .fph{display:flex;align-items:center;gap:var(--sp-5)}
 .fph .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink);line-height:var(--lh-eng)}
 .fph .mode{margin-left:auto}
@@ -117,7 +117,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .seg button.on .amk .amark{color:var(--on-acc)}
 .shead .round.dx{margin-left:auto}
 /* Dithers: one column, families stacked, at a readable width (blurbs wrap at it). */
-.osheet[data-kind="dithers"] .ocol{width:300px}
+.osheet[data-kind="dithers"] .ocol{width:var(--ocol-w-dithers)}
 /* No family caret (families don't fold), so the family's blurb sits on its header's text edge. Families
    under the Other title step in one level, like variants under their family. */
 .ofam>.oblurb{padding-left:0}
@@ -127,7 +127,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 
 /* Hover tip beside a list row (option-list.js; v1 Combobox TipPop): engine name (while Simplified hides it), the option's
    manual prose, then facet rows in the narrowing bar's words, then chips. A popover sheet, above the list sheet. */
-.otip{position:absolute;z-index:9;width:max-content;max-width:340px;box-sizing:border-box;padding:var(--sp-5) var(--sp-6);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);display:grid;gap:var(--sp-4);pointer-events:none}
+.otip{position:absolute;z-index:9;width:max-content;max-width:var(--vpop-w);box-sizing:border-box;padding:var(--sp-5) var(--sp-6);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);display:grid;gap:var(--sp-4);pointer-events:none}
 .otip .tn{font-family:var(--f-mono);font-size:var(--fs-3);font-weight:var(--fw-semi);color:var(--ink);line-height:var(--lh-text)}
 .otip .td{font-size:var(--fs-3);line-height:1.45;color:var(--ink)}
 .otip .tr{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-1) var(--sp-5);font-size:var(--fs-2);line-height:1.3}
@@ -135,46 +135,46 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .otip .tk{color:var(--ink-2)}
 .otip .tv{color:var(--ink)}
 .otip .tc{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
-.otip .tc span{border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);font-size:var(--fs-2);line-height:17px;color:var(--ink-2)}
+.otip .tc span{border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);font-size:var(--fs-2);line-height:var(--lh-tip-chip);color:var(--ink-2)}
 .orow:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(var(--stroke)*-1)}
 
 /* Filter list: key to the row marks under the Polyphase sinc family (option-list.js legend()). ink-2, row-mark sizes. */
 .olegend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2) var(--sp-7);margin-top:var(--sp-5);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
 .olegend>span{display:inline-flex;align-items:center;gap:var(--sp-2);white-space:nowrap}
-.olegend .amark{width:13px;height:13px}
+.olegend .amark{width:var(--pencil);height:var(--pencil)}
 .olegend .lq{font-size:var(--fs-1)}
 .olegend .lf{font-size:var(--fs-3)}
 
 /* Option style Standard (option-list.js flat()): one flat list in engine order, down fixed-width columns left to right; a
-   narrowed list reflows into fewer columns. The freed height goes to the rows (25px: bigger touch targets). The marks' key
+   narrowed list reflows into fewer columns. The freed height goes to the rows (--fold-h: bigger touch targets). The marks' key
    sits along the sheet's foot. */
 .osheet[data-style="standard"] .ocols{display:grid;grid-template-columns:repeat(var(--std-cols),var(--std-cw));grid-auto-flow:column;justify-content:start;align-items:start;gap:0 var(--col-gap)}
-.osheet[data-style="standard"][data-kind="filters"]{--std-cols:3;--std-cw:280px}
-.osheet[data-style="standard"][data-kind="modulators"]{--std-cols:2;--std-cw:240px}
-.osheet[data-style="standard"][data-kind="dithers"]{--std-cols:1;--std-cw:240px}
+.osheet[data-style="standard"][data-kind="filters"]{--std-cols:3;--std-cw:var(--ocol-w-wide)}
+.osheet[data-style="standard"][data-kind="modulators"]{--std-cols:2;--std-cw:var(--ocol-w)}
+.osheet[data-style="standard"][data-kind="dithers"]{--std-cols:1;--std-cw:var(--ocol-w)}
 .osheet[data-style="standard"] .ocol.flat{width:auto}
-.osheet[data-style="standard"] .orow{height:25px;padding-left:var(--sp-5)}
-.osheet[data-style="standard"] .orow .nm{font-size:var(--fs-4);line-height:25px;overflow:hidden;text-overflow:ellipsis}
-.osheet[data-style="standard"] .orow .qst,.osheet[data-style="standard"] .fav{height:25px}
+.osheet[data-style="standard"] .orow{height:var(--fold-h);padding-left:var(--sp-5)}
+.osheet[data-style="standard"] .orow .nm{font-size:var(--fs-4);line-height:var(--fold-h);overflow:hidden;text-overflow:ellipsis}
+.osheet[data-style="standard"] .orow .qst,.osheet[data-style="standard"] .fav{height:var(--fold-h)}
 .osheet[data-style="standard"] .orow .qst{font-size:var(--fs-1)}
-.osheet[data-style="standard"] .fav{width:20px;font-size:var(--fs-4)}
-.osheet[data-style="standard"][data-kind="filters"] .orow{grid-template-columns:1fr var(--apod-mark) 50px 20px}
-.osheet[data-style="standard"][data-kind="modulators"] .orow{grid-template-columns:1fr 40px 20px}
+.osheet[data-style="standard"] .fav{width:var(--fav-w-touch);font-size:var(--fs-4)}
+.osheet[data-style="standard"][data-kind="filters"] .orow{grid-template-columns:1fr var(--apod-mark) var(--stars-w-touch) var(--fav-w-touch)}
+.osheet[data-style="standard"][data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
 .osheet[data-style="standard"] .olegend{position:absolute;left:0;right:0;bottom:var(--sp-6);margin:0}
 
 /* Panel (option-list.js PANEL: modulators, dithers): the list parked at its picker, sized to its content, instead of a sheet
-   over the body. A popover's frame; the sheet's head, rows and narrowing. Rows 25px (touch). park() sets left / top. */
+   over the body. A popover's frame; the sheet's head, rows and narrowing. Rows --fold-h (touch). park() sets left / top. */
 .sheet.opanel{right:auto;width:max-content;max-width:calc(var(--plate-w) - 2 * var(--sp-6));border:var(--hair) solid var(--line-2);border-radius:var(--r-3);background:var(--pop);box-shadow:var(--pop-shadow);clip-path:none;transition:opacity var(--fade)}
 .sheet.opanel[data-closed]{opacity:0;clip-path:none}
 .opanel .shead{gap:var(--sp-6);padding:0 var(--sp-7)}
 .opanel .fbar{flex:0 0 auto}
 .opanel .ocols{position:static;inset:auto;padding:var(--sp-4) var(--sp-7) var(--sp-6);justify-content:flex-start;gap:0 var(--sp-8)}
 .opanel .osubs{gap:0 var(--sp-6)}
-.opanel .orow{height:25px}
-.opanel .orow .nm{line-height:25px}
-.opanel .fav{width:20px;height:25px;font-size:var(--fs-4)}
-.opanel .osub{line-height:22px}
-.osheet.opanel[data-kind="modulators"] .orow{grid-template-columns:1fr 40px 20px}
+.opanel .orow{height:var(--fold-h)}
+.opanel .orow .nm{line-height:var(--fold-h)}
+.opanel .fav{width:var(--fav-w-touch);height:var(--fold-h);font-size:var(--fs-4)}
+.opanel .osub{line-height:var(--lh-variant-panel)}
+.osheet.opanel[data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
 /* A titled block under a column's families (filters: `Other` → Analog-style under Pure sinc). */
 .othen{margin-top:var(--sp-7)}
 

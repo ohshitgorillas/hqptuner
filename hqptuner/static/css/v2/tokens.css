@@ -1,84 +1,16 @@
 /* tokens: the faceplate's definition site. Self-hosted faces, latin subset; the
    --f-* family tokens name them. */
-@font-face {
-  font-family: "Saira Extra Condensed";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/saira-500.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Saira Extra Condensed";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/saira-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Saira Extra Condensed";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url("/fonts/saira-700.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/plexsans-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/plexsans-500.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Sans";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/plexsans-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Mono";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url("/fonts/plexmono-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Mono";
-  font-style: normal;
-  font-weight: 500;
-  font-display: swap;
-  src: url("/fonts/plexmono-500.woff2") format("woff2");
-}
-@font-face {
-  font-family: "IBM Plex Mono";
-  font-style: normal;
-  font-weight: 600;
-  font-display: swap;
-  src: url("/fonts/plexmono-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Atkinson Hyperlegible";
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  size-adjust: 108%;
-  src: url("/fonts/atkinson-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Atkinson Hyperlegible";
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  size-adjust: 108%;
-  src: url("/fonts/atkinson-700.woff2") format("woff2");
-}
+@font-face { font-family: "Saira Extra Condensed"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/saira-500.woff2") format("woff2"); }
+@font-face { font-family: "Saira Extra Condensed"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/saira-600.woff2") format("woff2"); }
+@font-face { font-family: "Saira Extra Condensed"; font-style: normal; font-weight: 700; font-display: swap; src: url("/fonts/saira-700.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/plexsans-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/plexsans-500.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Sans"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/plexsans-600.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 400; font-display: swap; src: url("/fonts/plexmono-400.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("/fonts/plexmono-500.woff2") format("woff2"); }
+@font-face { font-family: "IBM Plex Mono"; font-style: normal; font-weight: 600; font-display: swap; src: url("/fonts/plexmono-600.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 400; font-display: swap; size-adjust: 108%; src: url("/fonts/atkinson-400.woff2") format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 700; font-display: swap; size-adjust: 108%; src: url("/fonts/atkinson-700.woff2") format("woff2"); }
 
 /* The faceplate's tokens. Dark only. The plate is laid out at an iPad landscape size in points;
    model/shell/plate.js picks the size and sets --plate-w and --plate-h on the plate. */
@@ -147,6 +79,11 @@
      sets its line height or inherits one. */
   --lh-eng:1.575;          /* Saira Extra Condensed */
   --lh-text:1.3;           /* IBM Plex Sans and Mono */
+  --lh-wrap:16px;          /* a name wrapping to two lines in the snapshot builder's picker and live window */
+  --lh-band:16px;          /* the band tag on a family-only row */
+  --lh-tag:15px;           /* a boxed status word in a drawer's tab */
+  --lh-tip-chip:17px;      /* a chip's line in a list row's hover tip */
+  --lh-variant-panel:22px; /* a variant's header line in an option panel */
   /* Font-size scale. A size between two steps takes the lower one. */
   --fs-1:10px; --fs-2:11px; --fs-3:12px; --fs-4:13px; --fs-5:14px; --fs-6:15px;
   /* Small-print roles, one size each. */
@@ -170,6 +107,8 @@
   /* Letter-spacing of uppercase lettering: a step between two takes the lower one. */
   --ls-1:.08em; --ls-2:.12em; --ls-3:.16em;
   --ls-title:.18em;        /* a sheet, bar or page section title */
+  --ls-stars:-.4px;        /* the star rating's tracking in a dense option row */
+  --ls-facet-state:-.02em; /* a facet window's state line */
 
   /* Spacing scale: gaps, margins, padding, and the offsets and blurs of shadows. A space between two
      steps takes the lower one. */
@@ -187,20 +126,26 @@
   /* Control heights */
   --ctl-h:40px;            /* a control: button, segment, VFD window, round key */
   --ctl-h-hdr:38px;        /* a header-row control: knob, tree trigger, header button; the engine row's round keys */
+  --ctl-h-grp:36px;        /* a grouped value's number box in the profile builder's steps */
   --ctl-h-sm:34px;         /* a compact control: popover footer button, the Setting Switcher's target pick, the number box beside a slider, a drawer's tab and segment, a small round key (sheet and drawer close, the builder's ←), a search box, a choice line holding a compact control */
   --ctl-h-xs:32px;         /* inline row action */
+  --ctl-h-mid:30px;        /* a mid control: a loudness band's type segment, a pipeline editor's enum segment and plot scope, a pipeline strip's process string */
   --ctl-h-mini:20px;       /* mini segment, a filter preset's knob segment, the subsets' fold key, a pipeline page key */
   --ctl-h-lg:44px;         /* the volume bar's keys and readout; the snapshot builder's two-line picker and live window */
+  --pstrip-key:28px;       /* a key in a pipeline strip: Raw, the round × that drops the pipeline; the + key's width */
+  --fold-key:18px;         /* a pipeline block's fold key */
   --legend-h:28px;         /* backlit legend */
   --tag-h:24px;            /* removable tag; an EQ band key */
   --check:16px;            /* checkbox and radio */
+  --radio-dot:8px;         /* a radio's lit dot */
   --chev:5px;              /* each half of a select's ▾ */
   --lamp-d:10px;           /* round lamp */
   --lamp-d-rail:9px;       /* rail stage lamp */
   --lamp-d-big:15px;       /* bezelled engine-row lamp */
+  --lamp-d-sm:7px;         /* a device's lamp in the device list */
   --lamp-well:inset 0 1px 2px var(--shade);   /* an unlit lamp's sunken face */
   --dot:5px;               /* the dirty dot on a staged edit */
-  --dot-inset:4px;         /* the dirty dot's inset from the corner of a tab or segment */
+  --dot-inset:4px;         /* the dirty dot's inset from the corner of a tab, a segment or a rate band */
   /* Rows and their parts */
   --hdr-h:42px;            /* header row */
   --engine-h:50px;         /* engine row */
@@ -220,10 +165,20 @@
   --volrd-w:104px;         /* engine-row volume readout */
   --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout; the height of a builder's labelled VFD window */
   --range-h:28px;          /* volume slider: the bar's and the popover's */
+  --range-h-sm:24px;       /* a slider beside a number box: crossfeed */
   --num-w:92px;            /* number input */
+  --num-w-sm:84px;         /* a number box in a drawer row: a loudness band's, a mode drawer's */
+  --xf-num-w:86px;         /* the number box beside a crossfeed slider */
+  --unit-w:20px;           /* a unit's fixed slot after the crossfeed slider's box */
+  --ro-w:64px; --ro-h:28px;   /* the loudness range's Playback readout */
+  --sel-w:200px;           /* a VFD window: the crossfeed preset, the profile pick; a pipeline stage's file or value, least width */
+  --sel-w-sm:180px;        /* a narrow VFD window: the profile builder's Stations, a pipeline stage's kind */
+  --sel-w-wide:260px;      /* a wide VFD select: the speaker set */
   --name-w:320px;          /* connection panel text field */
   --measure:560px;         /* manual copy block */
   --measure-lede:640px;    /* lede */
+  --measure-drawer:880px;  /* a drawer's intro */
+  --measure-note:380px;    /* a note under a drawer's rows: the speakers' Direct SDM note */
   --plate-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);
   --engrave:0 1px 0 var(--shade);              /* engraved lettering */
   /* The page */
@@ -239,6 +194,9 @@
   --desc-min:44px;         /* the profile description well, least height: on the page and in the profile builder */
   --pencil:12px;           /* the edit pencil in a description well; the apodizing mark in a dense option row and in the list's key */
   --plot-min:100px;        /* the matrix response plot, least height */
+  --plot-min-sm:90px;      /* the DSP pipelines drawer's response plot, least height */
+  --plot-min-xf:120px;     /* the crossfeed plot and the crossfeed cartoon, least height */
+  --plot-min-loud:140px;   /* the loudness plot, least height */
   --pin-h:20px;            /* a row of the output rate picker; a pipeline list line */
   /* The Source meter */
   --levels-w:286px;        /* the levels column */
@@ -260,16 +218,21 @@
   --drow-col-gpu:300px;    /* the same, narrowed: to the CUDA offload segment; Loudness and its bands, Output device, a chain's rows */
   --drow-col-visual:280px; /* the same, narrowed to the accent picker */
   --drow-col-cpu:240px;    /* the same, narrowed: to the E-core allocation segment; the Matrix engine drawer */
+  --drow-col-pb:330px;     /* the same, in the profile builder's steps: a row, a choice line, the EQ step's pair */
+  --drow-col-format:220px; /* the same, narrowed to the DSD support segment */
   --swatch:30px;           /* an accent swatch */
   --swatch-dot:8px;        /* the accent swatch in a settings readout */
   --hex-w:100px;           /* the accent's hex box */
-  --slx-num-w:72px;        /* a compact number box: beside a settings slider, in a grouped row, a range box and its readout, a speaker row */
+  --slx-num-w:72px;        /* a compact number box: beside a settings slider, in a grouped row */
+  --spk-num-w:76px;        /* a speaker row's number box */
+  --vrange-num-w:74px;     /* a Volume Range box and its readout */
   --idrow-h:54px;          /* an About HQPlayer identity window */
   --logtail-min:60px;      /* the live log tail, least height */
   --key-mark-w:22px; --key-mark-h:12px;   /* a mark in the signal path's key */
   /* Popovers */
   --pop-at-x:132px; --pop-at-y:50px;   /* where an unparked popover sits on the plate */
   --pop-w:330px;           /* a popover sheet */
+  --pop-w-wide:380px;      /* a wider popover: a facet's narrowing, Import EQ */
   --pop-row-h:36px;        /* a station tree row */
   --tree-chev-w:24px; --tree-chev-h:28px;   /* a station tree row's fold chevron; the width of a pipeline chip's × key */
   --shead-h:42px;          /* a sheet's head row */
@@ -288,17 +251,52 @@
   --notepop-w:400px;       /* a note popover: the two-stage note, an alert's note */
   --thumb-half:7px;        /* half a native range thumb: the inset of marks along a slider */
   --paren-w:10px; --paren-h:18px;   /* a loudness bound's parenthesis */
+  --menu-min:150px;        /* a check menu, least width */
+  --menu-w:200px;          /* a pipeline + menu: a stage's kind, an input to add */
+  --stmenu-w:240px;        /* the snapshot builder's Stations menu */
+  --held-name-w:110px;     /* the name a station already holds, at the right of a Stations menu row */
   /* Option lists */
   --fam-line:21px;         /* an option list's family head and title line */
   --fold-tri:4px; --fold-tri-d:5px;   /* an option list's fold triangle: half its base, its depth */
+  --orow-h:18px;           /* a dense option row: its height, its name's line, a variant's header line, its stars and heart */
+  --stars-w:46px;          /* an option row's star rating */
+  --stars-w-touch:50px;    /* an option row's star rating at touch size: the Standard filter list */
+  --fav-w-touch:20px;      /* the heart's column in an option row at touch size */
+  --optkey-w:40px;         /* a short token column in an option row: a drawer option's engine token, a modulator's tier tag */
+  --row-key-w:104px;       /* a row's key column widened to a word: a loudness band's parameter, the Matrix engine's option tokens */
+  --ocol-w:240px;          /* a Standard option list's column: modulators, dithers */
+  --ocol-w-wide:280px;     /* a Standard option list's column: filters */
+  --ocol-w-dithers:300px;  /* the dithers list's one column */
   /* Drawers */
   --devlamp-col:10px;      /* the device list's lamp column */
+  --dial-h:106px;          /* the rate dial's glass */
+  --dhead-h:52px;          /* a drawer's head row */
+  --key-w-sm:30px;         /* the ▾ key at the end of the drawer's split Apply */
+  --devlist-w:560px;       /* the output device list */
+  --chn-w:118px;           /* a choice line's name */
+  --box-l:58px;            /* a Volume range box's label */
+  --lgr-min:26px;          /* the loudness bands' gray reason line, least height */
+  --spk-name-w:96px;       /* a speaker row's name column */
   /* Builders */
   --pbchain-dot:7px;       /* a step's dot in the profile overview's chain */
+  --pbchain-w:196px;       /* the profile overview's chain column */
+  --pbeq-min:96px;         /* the profile builder's EQ step: the pair it holds and their plot, least height */
+  --include:22px;          /* the snapshot builder's include box, and its column */
+  --vfd-line:22px;         /* the value line inside a labelled VFD window: the snapshot builder's name, the profile pick */
+  --bname-w:220px;         /* the snapshot builder's name window */
+  --bpager-h:34px;         /* the open station's pager row in the snapshot builder's rail */
+  --bset-w:150px;          /* a builder row's setting-name column: the snapshot builder's rows, the profile overview's holdings */
   /* DSP pipelines */
+  --pgrid-key-w:48px;      /* the pin grid's corner, over its row names */
   --pgrid-key-h:34px;      /* the pin grid's corner, its height */
   --phead-h:34px;          /* an output's head row over its pipeline list, least height */
   --pstrip-h:33px;         /* a pipeline's chip strip, least height */
+  --ptype-w:270px;         /* a pipeline stage's type select */
+  --pin-jewel:12px;        /* a routed pin's jewel in the pin grid */
+  --ppn-w:24px; --ppn-w-list:30px;   /* a pipeline's number: in a strip, in the list */
+  --gain-w:76px;           /* a pipeline line's gain, least width */
+  --pplot-min:50px;        /* the DSP pipelines plot's glass under its scope row, least height */
+  --pdock-head-h:30px;     /* a pipeline dock's head row, least height */
 
   /* Blacks, glints and one-off shades */
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */

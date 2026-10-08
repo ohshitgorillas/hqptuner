@@ -8,7 +8,7 @@
    selection bar while it is the one edited); entries stack from the top (a handful, not a chain to fill the rail). */
 .brail{padding-top:var(--sp-4);gap:var(--sp-1)}
 /* Station fold (the station tree's chevron): ▸ name — rule — count; one open at a time. */
-.brh{display:flex;align-items:center;gap:var(--sp-4);width:100%;height:30px;padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
+.brh{display:flex;align-items:center;gap:var(--sp-4);width:100%;height:var(--mhead-h);padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
   font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
 .brh .chv{width:var(--fold-mark);font-size:var(--fs-2);letter-spacing:0}
 .brh .cnt{font-family:var(--f-mono);font-size:var(--fs-2);letter-spacing:0;color:var(--ink-2);line-height:var(--lh-text)}
@@ -17,13 +17,13 @@
 .brh .ln{flex:1 1 0;height:var(--hair);background:var(--line)}
 .brh.cur{color:var(--acc)}   /* the loaded station: amber lettering (no lamp) */
 .st.bst + .brh{margin-top:var(--sp-2)}
-.st.bst{grid-template-columns:minmax(0,1fr);gap:0;height:26px;padding:0 0 0 var(--sp-8);flex:0 0 auto}
-.bfill{height:26px;flex-shrink:0}
+.st.bst{grid-template-columns:minmax(0,1fr);gap:0;height:var(--fold-h);padding:0 0 0 var(--sp-8);flex:0 0 auto}
+.bfill{height:var(--fold-h);flex-shrink:0}
 .st.bst .n{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;padding-right:var(--sp-5)}
 .st.bst.dirty .n::after{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 .st.bnew{margin-top:var(--sp-3);border-top:var(--hair) solid var(--line);height:auto;padding:var(--sp-6) 0 var(--sp-2)}
 /* The open station's pager (DSP pipelines list grammar): ‹ 1 2 › under its lines. */
-.bpg{padding:var(--sp-2) 0 var(--sp-3) var(--sp-8);height:34px;box-sizing:border-box}
+.bpg{padding:var(--sp-2) 0 var(--sp-3) var(--sp-8);height:var(--bpager-h);box-sizing:border-box}
 .st.bnew:not(.open) .n{color:var(--ink-2)}
 .st.bnew .plus{margin-right:var(--sp-3)}
 
@@ -34,16 +34,16 @@
 .btitle{margin-bottom:var(--sp-6)}
 .btitle .btn.sm{flex-shrink:0}
 .bhead{display:flex;align-items:center;gap:var(--sp-7);margin-bottom:var(--sp-7)}
-.bname{width:220px;height:48px;padding:var(--sp-2) var(--sp-6);flex-shrink:0}
+.bname{width:var(--bname-w);height:var(--vbrd-h);padding:var(--sp-2) var(--sp-6);flex-shrink:0}
 /* Stations: the stations Save writes to (VFD window; tap → a menu of every station, ✓ = ticked, the action menu's
    grammar; a station already holding this name shows it at the right). */
 .bstw{position:relative;flex-shrink:0}
-button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(--sp-6);justify-content:flex-start;text-align:left;cursor:pointer;
+button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var(--sp-10) 0 var(--sp-6);justify-content:flex-start;text-align:left;cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 60%,calc(100% - var(--sp-6)) 60%;background-size:var(--chev) var(--chev);background-repeat:no-repeat;background-color:var(--glass)}
 .bstn .v{font-size:var(--fs-4)}
-.pop.bstmenu{left:0;top:54px;width:240px;z-index:6}
-.bstmenu .pmrow span{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:22px;font:var(--fw-medium) var(--fs-6) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
+.pop.bstmenu{left:0;top:calc(var(--vbrd-h) + var(--sp-3));width:var(--stmenu-w);z-index:6}
+.bstmenu .pmrow span{max-width:var(--held-name-w);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:var(--vfd-line);font:var(--fw-medium) var(--fs-6) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
 .bnin:focus-visible{outline:none}
 .bname:focus-within{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
 .bcap{flex:1 1 0;font-size:var(--fs-3);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
@@ -52,7 +52,7 @@ button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(-
 .bask span{flex:1 1 auto}
 
 /* Rows: include | stage + setting | the snapshot's value | ← | live. One grid for every row and the column heads. */
-.brow{display:grid;grid-template-columns:22px 150px minmax(0,1fr) var(--ctl-h-sm) minmax(0,1fr);gap:0 var(--sp-7);align-items:center;padding:var(--sp-3) 0;border-top:var(--hair) solid var(--row-rule)}
+.brow{display:grid;grid-template-columns:var(--include) var(--bset-w) minmax(0,1fr) var(--ctl-h-sm) minmax(0,1fr);gap:0 var(--sp-7);align-items:center;padding:var(--sp-3) 0;border-top:var(--hair) solid var(--row-rule)}
 /* The rows share the height under the head: each grows alike (Nx, a continuation of Resampling, too). */
 .brows{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .brows > .brow{flex:1 1 0}
@@ -63,7 +63,7 @@ button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(-
 .bct.blh{display:flex;align-items:center;justify-content:space-between;gap:var(--sp-5)}
 
 /* Include box: a recessed square, amber tick while the snapshot holds the setting. */
-.binc{width:22px;height:22px;padding:0;border-radius:var(--r-2);border:var(--hair) solid var(--shade);background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade);cursor:pointer;display:grid;place-items:center;color:var(--acc);font:var(--fw-bold) var(--fs-5)/1 var(--f-body)}
+.binc{width:var(--include);height:var(--include);padding:0;border-radius:var(--r-2);border:var(--hair) solid var(--shade);background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade);cursor:pointer;display:grid;place-items:center;color:var(--acc);font:var(--fw-bold) var(--fs-5)/1 var(--f-body)}
 .binc[aria-checked="true"]{background:var(--acc-lo);border-color:var(--acc-dim)}
 .binc[aria-checked="true"]::after{content:"✓"}
 .binc:disabled{opacity:var(--op-1);cursor:not-allowed}
@@ -78,15 +78,15 @@ button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(-
 .bval > .vpick,.bval > select.vfd{width:100%}
 /* Picker and live window: the whole name, wrapping to a second line rather than cut off (the Setting Switcher slots'
    rule); both columns share the width alike, in the same Option style. */
-.bval > button.vfd.vpick{height:44px;line-height:16px;font-size:var(--fs-3);white-space:normal;display:grid;align-items:center;padding:0 var(--sp-9) 0 var(--sp-6);text-overflow:clip;background-position:calc(100% - var(--sp-4) - var(--chev)) 50%,calc(100% - var(--sp-4)) 50%}
+.bval > button.vfd.vpick{height:var(--ctl-h-lg);line-height:var(--lh-wrap);font-size:var(--fs-3);white-space:normal;display:grid;align-items:center;padding:0 var(--sp-9) 0 var(--sp-6);text-overflow:clip;background-position:calc(100% - var(--sp-4) - var(--chev)) 50%,calc(100% - var(--sp-4)) 50%}
 
 /* ←: take this row's live value; live only where the two differ. */
 .round.btake{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font:var(--fw-semi) var(--fs-6)/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
 .round.btake:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 
 /* Live: the engine's value now, a readout (rail readout grammar: engine names). Brighter, amber-edged where it differs. */
-.blive{height:44px;padding:0 var(--sp-6);color:var(--ink-2)}
-.blive .v{font-size:var(--fs-3);font-weight:var(--fw-medium);display:flex;align-items:baseline;gap:var(--sp-3);white-space:normal;line-height:16px}
+.blive{height:var(--ctl-h-lg);padding:0 var(--sp-6);color:var(--ink-2)}
+.blive .v{font-size:var(--fs-3);font-weight:var(--fw-medium);display:flex;align-items:baseline;gap:var(--sp-3);white-space:normal;line-height:var(--lh-wrap)}
 .blive .bt{min-width:0}
 .blive.diff{color:var(--ink);border-color:var(--acc-dim)}
 .bidle{flex-shrink:0;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
@@ -111,12 +111,12 @@ button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(-
 .pbn{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 
 /* Overview: intro + what it holds | the chain with the matrix engine's part lit; then which profile and the ways on. */
-.pbovtop{display:grid;grid-template-columns:minmax(0,1fr) 196px;gap:0 var(--sp-10)}
+.pbovtop{display:grid;grid-template-columns:minmax(0,1fr) var(--pbchain-w);gap:0 var(--sp-10)}
 .pbovl{display:flex;flex-direction:column;gap:var(--sp-6);min-width:0}
 .pbintro{margin:0;font-size:var(--fs-5);line-height:1.5;color:var(--ink)}
 .pbholds{display:flex;flex-direction:column;border-top:var(--hair) solid var(--row-rule)}
 .pbhh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);padding:var(--sp-4) 0 var(--sp-2);line-height:var(--lh-eng)}
-.pbhold{display:grid;grid-template-columns:150px minmax(0,1fr) var(--sp-7);align-items:baseline;gap:0 var(--sp-6);padding:var(--sp-3) 0;border:0;border-bottom:var(--hair) solid var(--row-rule);
+.pbhold{display:grid;grid-template-columns:var(--bset-w) minmax(0,1fr) var(--sp-7);align-items:baseline;gap:0 var(--sp-6);padding:var(--sp-3) 0;border:0;border-bottom:var(--hair) solid var(--row-rule);
   background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
 .pbhold b{font-weight:var(--fw-semi);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
 .pbhold .pa{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
@@ -134,15 +134,15 @@ button.vfd.bstn{width:230px;height:48px;padding:var(--sp-2) var(--sp-10) 0 var(-
 .pbchain li.out{color:var(--ink-2)}
 
 .pbsavebox{display:flex;flex-direction:column;gap:var(--sp-4);margin-top:var(--sp-7);padding-top:var(--sp-6);border-top:var(--hair) solid var(--line);flex:1 1 0;min-height:0}
-.pbid{display:grid;grid-template-columns:200px minmax(0,1fr) 180px;gap:var(--sp-5)}
-label.vfd.pbpick{height:48px;padding:var(--sp-2) var(--sp-9) 0 var(--sp-5);cursor:pointer;
+.pbid{display:grid;grid-template-columns:var(--sel-w) minmax(0,1fr) var(--sel-w-sm);gap:var(--sp-5)}
+label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp-5);cursor:pointer;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-5) - var(--chev)) 60%,calc(100% - var(--sp-5)) 60%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
-.pbpick select{appearance:none;-webkit-appearance:none;display:block;width:100%;height:22px;margin:0;padding:0;border:0;outline:0;background:transparent;cursor:pointer;
+.pbpick select{appearance:none;-webkit-appearance:none;display:block;width:100%;height:var(--vfd-line);margin:0;padding:0;border:0;outline:0;background:transparent;cursor:pointer;
   font:var(--fw-medium) var(--fs-5) var(--f-mono);color:var(--acc);line-height:var(--lh-text);text-overflow:ellipsis}
 .pbpick:focus-within{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
-.pbid .bname{width:auto;height:48px;padding:var(--sp-2) var(--sp-5)}
+.pbid .bname{width:auto;height:var(--vbrd-h);padding:var(--sp-2) var(--sp-5)}
 .pbid .bnin{font-size:var(--fs-5)}
-.pbid button.vfd.bstn{width:100%;height:48px}
+.pbid button.vfd.bstn{width:100%;height:var(--vbrd-h)}
 .pbdesc{flex:1 1 0;min-height:var(--desc-min)}
 .pbdesc textarea{font-size:var(--fs-3)}
 .pbfoot{display:flex;align-items:center;gap:var(--sp-4)}
@@ -160,11 +160,11 @@ label.vfd.pbpick{height:48px;padding:var(--sp-2) var(--sp-9) 0 var(--sp-5);curso
 .pbguide{margin:0 0 var(--sp-3);font-size:var(--fs-5);line-height:1.5;color:var(--ink)}
 .pbguide.skip{color:var(--ink-2)}
 .pbsrows{flex:1 1 0;min-height:0;display:flex;flex-direction:column;border-top:var(--hair) solid var(--row-rule)}
-.pbsrows .drow{grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10)}
+.pbsrows .drow{grid-template-columns:var(--drow-col-pb) minmax(0,1fr);gap:0 var(--sp-10)}
 .pbsrows .drow:last-child{border-bottom:0}
 .pbsrows .drow .man{font-size:var(--fs-3);color:var(--ink-2)}
 .pbsrows .drow .seg{align-self:flex-start}
-.pbsrows .chline{grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10)}
+.pbsrows .chline{grid-template-columns:var(--drow-col-pb) minmax(0,1fr);gap:0 var(--sp-10)}
 .pbchoice{padding-bottom:var(--sp-3)}
 .pbsrows select.vfd{width:100%}
 .pbsrows .drow .man:empty{display:none}
@@ -179,7 +179,7 @@ input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-a
 .peqhit{display:flex;align-items:center;border-left:var(--stroke) solid transparent}
 .peqhit + .peqhit{border-top:var(--hair) solid var(--row-rule)}
 .peqhit.on{border-left-color:var(--acc);background:var(--acc-lo)}
-.peqpick{display:flex;align-items:baseline;gap:var(--sp-4);flex:1 1 auto;min-width:0;height:26px;padding:0 var(--sp-4);border:0;background:none;cursor:pointer;font:var(--fw-medium) var(--fs-3) var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
+.peqpick{display:flex;align-items:baseline;gap:var(--sp-4);flex:1 1 auto;min-width:0;height:var(--fold-h);padding:0 var(--sp-4);border:0;background:none;cursor:pointer;font:var(--fw-medium) var(--fs-3) var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
 .peqhit.on .peqpick{color:var(--acc)}
 .peqpick .src{margin-left:auto;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
 .peqmore{padding:var(--sp-1) var(--sp-5);font-size:var(--fs-2);color:var(--ink-2);border-top:var(--hair) solid var(--row-rule)}
@@ -187,7 +187,7 @@ input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-a
 .peqsel .cap{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .peqfiles{display:flex;flex-direction:column;gap:var(--sp-4)}
 .peqf{display:flex;gap:var(--sp-4);flex-wrap:wrap}
-.pbeqout{display:grid;grid-template-columns:330px minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-4) 0 0;flex:1 1 0;min-height:110px}
+.pbeqout{display:grid;grid-template-columns:var(--drow-col-pb) minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-4) 0 0;flex:1 1 0}
 .peqhold{display:flex;flex-direction:column;gap:var(--sp-1)}
 .peqhold b{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
 .peqhold span{font:var(--fs-3) var(--f-mono);color:var(--ink-2);white-space:pre;line-height:var(--lh-text)}
@@ -195,17 +195,17 @@ input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-a
 /* Fitted (1080×810): grouped values, the advanced option lists, the EQ rows. */
 /* Grouped values: two to a line in the 330px control column (four loudness values overflowed into the copy on one line). */
 .pbsrows .cgrp{display:grid;grid-template-columns:repeat(2,max-content);gap:var(--sp-4) var(--sp-9)}
-.pbsrows .cgrp input.vfd{width:78px;height:36px;font-size:var(--fs-5)}
+.pbsrows .cgrp input.vfd{width:var(--slx-num-w);height:var(--ctl-h-grp);font-size:var(--fs-5)}
 .pbsrows .cgrp .num{gap:var(--sp-2)}
 .pbsrows .drow .man p+p{margin-top:var(--sp-1)}
 .pbsrows .optlist{margin-top:var(--sp-3)}
-.pbsrows .optrow{grid-template-columns:104px minmax(0,1fr);padding:var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-5);line-height:1.42}
+.pbsrows .optrow{grid-template-columns:var(--row-key-w) minmax(0,1fr);padding:var(--sp-1) var(--sp-4) var(--sp-1) var(--sp-5);line-height:1.42}
 .pbsrows .drow{padding:var(--sp-3) 0}
 .pbsrows .chl{min-height:var(--ctl-h-sm)}
 .peqhits[hidden]{display:none}
 .peqfiles{gap:var(--sp-3)}
 .peqf{flex-wrap:nowrap;gap:var(--sp-3)}
 .peqf .btn.xs{padding:0 var(--sp-4);white-space:nowrap}
-.pbeqout{min-height:96px}
+.pbeqout{min-height:var(--pbeq-min)}
 .pbsrows .chline.fold .man{display:none}
-.pbsrows .chline.fold .chl{min-height:28px}
+.pbsrows .chline.fold .chl{min-height:var(--ctl-h-view)}

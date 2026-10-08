@@ -630,6 +630,14 @@ test("test_a_page_holds_the_lines_that_fit_a_short_rail", () => {
   assert.equal(railView(262, { open: "Speakers", pages: new Map() })?.per, 4);
 });
 
+// A rail 338px tall: the fixed stack (153.05px) leaves room for seven 24px lines with their 2px gaps.
+const RAIL_SEVEN_FOLD_LINES = 338;
+const SEVEN_LINES = 7;
+
+test("test_a_page_holds_the_fold_height_lines_that_fit_the_rail", () => {
+  assert.equal(railView(RAIL_SEVEN_FOLD_LINES, { open: "Speakers", pages: new Map() })?.per, SEVEN_LINES);
+});
+
 test("test_the_open_station_lists_its_first_page", () => {
   assert.deepEqual(railView(318, { open: "Speakers", pages: new Map() })?.folds?.[0]?.items, SPEAKER_NAMES.slice(0, 6));
 });
