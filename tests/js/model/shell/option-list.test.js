@@ -229,6 +229,7 @@ test("test_tip_content_carries_the_option_rows", () => {
  * @property {{x: number, w: number}} col
  * @property {number} rowY
  * @property {{w: number, h: number}} tip
+ * @property {{x: number, y: number}} [origin]
  * @property {'left' | 'top'} at
  * @property {number} want
  */
@@ -300,11 +301,32 @@ const TIPS = [
     want: 12,
   },
   { name: "a_tip_top_is_rounded", col: { x: 100, w: 200 }, rowY: 200.7, tip: { w: 300, h: 100 }, at: "top", want: 197 },
+  {
+    name: "a_tip_counts_left_from_its_containing_block",
+    col: { x: 100, w: 200 },
+    rowY: 200,
+    tip: { w: 300, h: 100 },
+    origin: { x: 30, y: 109 },
+    at: "left",
+    want: 280,
+  },
+  {
+    name: "a_tip_counts_top_from_its_containing_block",
+    col: { x: 100, w: 200 },
+    rowY: 200,
+    tip: { w: 300, h: 100 },
+    origin: { x: 30, y: 109 },
+    at: "top",
+    want: 87,
+  },
 ];
 
 for (const row of TIPS) {
   test(`test_${row.name}`, () => {
-    assert.equal(tipAt({ col: row.col, rowY: row.rowY, tip: row.tip, plate: PLATE })[row.at], row.want);
+    assert.equal(
+      tipAt({ col: row.col, rowY: row.rowY, tip: row.tip, plate: PLATE, origin: row.origin })[row.at],
+      row.want,
+    );
   });
 }
 

@@ -2,6 +2,8 @@
 // picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, and how the
 // Standard style fills its columns in engine order.
 
+import { ON_PLATE } from "./place.js";
+
 /**
  * An option's narrowing facets (filters).
  *
@@ -152,17 +154,18 @@ export function tipContent(o, std, facet) {
 }
 
 /**
- * The tip's corner on the plate, beside its row's column: right of it when there's room, else left; its top on the row,
- * clamped inside the plate.
+ * The tip's corner beside its row's column, in layout px from its containing block's corner (`origin`, the plate's own
+ * by default): right of the column when there's room, else left; its top on the row, clamped inside the plate.
  *
- * @param {{col: {x: number, w: number}, rowY: number, tip: Size, plate: Size}} o   the column's plate x and width, the
- *   row's plate y
+ * @param {{col: {x: number, w: number}, rowY: number, tip: Size, plate: Size, origin?: import("./place.js").Origin}} o
+ *   the column's plate x and width, the row's plate y
  * @returns {{left: number, top: number}}
  */
-export function tipAt({ col, rowY, tip, plate }) {
+export function tipAt({ col, rowY, tip, plate, origin = ON_PLATE }) {
   const right = col.x + col.w + 10;
   const x = right + tip.w <= plate.w - MARGIN ? right : Math.max(MARGIN, col.x - tip.w - 10);
-  return { left: Math.round(x), top: Math.round(Math.max(MARGIN, Math.min(rowY - 4, plate.h - MARGIN - tip.h))) };
+  const y = Math.max(MARGIN, Math.min(rowY - 4, plate.h - MARGIN - tip.h));
+  return { left: Math.round(x - origin.x), top: Math.round(y - origin.y) };
 }
 
 /**
