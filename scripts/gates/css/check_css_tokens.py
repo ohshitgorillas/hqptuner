@@ -6,10 +6,15 @@
   which differ by browser, and moves text off the plate;
 - ``font-family`` names a ``--f-*`` token;
 - a ``transition`` or ``animation`` carries no literal duration: it is
-  ``none`` or it names a motion token.
+  ``none`` or it names a motion token;
+- no literal size on any property, custom ones included: a non-zero px, rem
+  or em length is refused wherever it sits in the value, inside ``calc()``,
+  a transform or a shorthand alike, and so is a bare number on
+  ``font-weight`` or ``opacity`` other than an opacity of ``0`` or ``1``.
+  Zero in any unit, a percentage, ``var()``, ``auto``, ``none`` and the
+  CSS-wide keywords carry no size and stay legal.
 
-The faceplate is laid out in pixels at its design size, so a literal size,
-space or radius is legal there.
+A declaration breaking more than one rule is one complaint.
 
 Escape hatch: put `/* token-exempt: <reason> */` on the offending line. It
 must carry a reason — an exemption you cannot justify in a clause is a
@@ -40,12 +45,35 @@ DECL = re.compile(r"(--)?([a-zA-Z][\w-]*)\s*:\s*(.+)", re.DOTALL)
 #: (line the declaration starts on, custom property?, property, value)
 Declaration = tuple[int, bool, str, str]
 COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
+#: a px, rem or em length; the lookbehind keeps a digit inside a name or a
+#: longer number from starting a match of its own
+LENGTH = re.compile(r"(?<![\w.-])-?(\d*\.?\d+)(?:px|rem|em)\b", re.IGNORECASE)
+NUMBER = re.compile(r"-?\d*\.?\d+")
+#: properties whose bare number is a design value: a weight or a shade
+NUMERIC_PROPS = frozenset({"font-weight", "opacity"})
+#: fully hidden and fully painted carry no shading decision
+OPACITY_OK = frozenset({0.0, 1.0})
+
+
+def literal_size(prop: str, value: str) -> bool:
+    """Report whether a value spends a size that belongs in tokens.css.
+
+    Any non-zero px, rem or em length counts, wherever it sits in the value,
+    and so does a bare number on a property that takes one as its design value.
+    """
+    if any(float(match.group(1)) for match in LENGTH.finditer(value)):
+        return True
+    if prop not in NUMERIC_PROPS or not NUMBER.fullmatch(value):
+        return False
+    return prop != "opacity" or float(value) not in OPACITY_OK
 
 
 def faceplate_complaint(prop: str, value: str) -> str:
     """Return a complaint about one faceplate declaration, or '' if it is clean."""
     if COLOUR.search(value):
         return f"{prop}: {value} — use a color token from {DEFINITION_SITE}"
+    if literal_size(prop, value):
+        return f"{prop}: {value} — name a size, space, weight or opacity token from {DEFINITION_SITE}"
     if prop == "line-height" and value == "normal":
         return f"{prop}: {value} — pin it: var(--lh-eng), var(--lh-text) or a number"
     if prop == "font-family" and value not in CSS_WIDE and not value.startswith("var(--f-"):
