@@ -73,6 +73,15 @@ test("test_apodizing_reads_this_tracks_delta_and_the_total", () => {
   assert.deepEqual(read(PLAYING).apod, { track: 12, total: 5410 });
 });
 
+test("test_a_counter_whose_track_delta_equals_the_total_reads_no_track_count", () => {
+  const frame = { ...PLAYING, clips: "5" };
+  assert.deepEqual(engineReadings(frame, { ...DELTAS, clips: 5 }, true).clips, { track: null, total: 5 });
+});
+
+test("test_a_counter_with_an_unreadable_total_reads_no_track_count", () => {
+  assert.deepEqual([read(PLAYING).apod.track, read({ ...PLAYING, apod: "" }).apod.track], [12, null]);
+});
+
 test("test_a_stopped_engine_reads_no_counts", () => {
   assert.deepEqual(
     [read(PLAYING).apod, read(STOPPED).apod],

@@ -49,22 +49,27 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .meter .fill{display:block;height:100%;background:linear-gradient(90deg,color-mix(in srgb,var(--z,var(--ink-3)) 47%,var(--shade)),var(--z,var(--ink-3)))}
 .meter .mv{width:var(--meter-v-w);text-align:right;font-family:var(--f-mono);color:var(--z,var(--ink-2));line-height:var(--lh-text)}
 
-/* Event counter: big lamp, its name centred beside it, then the counts stacked to the right:
-   "N this track" over "M total". */
-.counter{display:flex;align-items:center;gap:var(--sp-5)}
+/* Event counters: Clipping over Apodizing on one grid, a row each, spaced like the buffers. Columns are the big lamp,
+   the name, and the one figure ("N/M", or "M" alone) right-aligned so the two figures end flush. */
+.counters{display:grid;grid-template-columns:auto auto auto;grid-template-rows:auto auto;align-items:center;column-gap:var(--sp-5);row-gap:var(--sp-2)}
+.counter{display:contents}
 .counter .eng{color:var(--ink)}
-.counter .cnts{display:flex;flex-direction:column;gap:0;margin-left:var(--sp-1)}
-.counter .cnts .cnt{line-height:1.25}
+.counter .cnt{text-align:right}
 
-/* Volume: the engine row's one control. Hairline sets it apart from the readouts; ends flush with the page's right edge.
-   Readout = labelled VFD window (same pattern as Output's Rate); tapping it opens the slider popover. */
-.volc{display:flex;align-items:center;gap:var(--sp-3);padding-left:var(--sp-7);border-left:var(--hair) solid var(--line);height:var(--ctl-h)}
+/* The HF filter and the volume: the engine row's two controls. A hairline sets each apart from what stands before it;
+   the volume ends flush with the page's right edge. Each readout = labelled VFD window (same pattern as Output's Rate);
+   tapping it opens its popover, the HF filter's menu or the volume's slider. */
+.volc,.hfc{display:flex;align-items:center;padding-left:var(--sp-7);border-left:var(--hair) solid var(--line);height:var(--ctl-h)}
+.volc{gap:var(--sp-3)}
 .volc .round{width:var(--ctl-h-hdr);height:var(--ctl-h-hdr)}
 .volc .round:disabled{color:var(--ink-4);cursor:default}
-.volrd{width:var(--volrd-w);height:var(--ctl-h);cursor:pointer;text-align:left;align-items:flex-start}
-.volrd{gap:var(--sp-1)}
-.volrd .v{font-size:var(--fs-6);line-height:1.1}
-.volrd[aria-expanded="true"]{border-color:var(--acc-dim)}
+.volrd,.hfrd{width:var(--volrd-w);height:var(--ctl-h);cursor:pointer;text-align:left;align-items:flex-start}
+.volrd,.hfrd{gap:var(--sp-1)}
+.volrd .v,.hfrd .v{font-size:var(--fs-6);line-height:1.1}
+.volrd[aria-expanded="true"],.hfrd[aria-expanded="true"]{border-color:var(--acc-dim)}
+/* HF filter menu: a check menu (drawer.css .amenu), the running filter ticked. Each row is the engine's name for the
+   filter, so it reads in the engine-string face, on one line in the menu's fixed row height. */
+.hfpop .pmrow{font-family:var(--f-mono);line-height:var(--lh-text);white-space:nowrap}
 
 /* Alerts on the header homes: the knob's ring, the gear's glyph, the speed figure
    blink red (crit) or amber (warn), dark between blinks. The knob's blink (credentials rejected) never reads as its steady red
