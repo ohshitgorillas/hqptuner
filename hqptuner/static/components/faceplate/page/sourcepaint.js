@@ -55,7 +55,8 @@ const HELD = new Set(["trace", "waterfall"]);
 
 /**
  * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
- * effects or shader canvas instead.
+ * effects or shader canvas instead. `style` is written to the grid's `data-style` on every paint, so the stylesheet
+ * follows the style actually drawn rather than the one picked.
  *
  * @param {Element} root
  * @param {MeterScene} scene
@@ -64,6 +65,7 @@ const HELD = new Set(["trace", "waterfall"]);
  */
 export function paintSourcePage(root, scene, range, style = "trace") {
   const sp = scene.spectrum;
+  setOn(root, ".sgrid1", "data-style", style);
   const line = sp && TRACED.has(style) ? pathOf(sp.disp, range) : "";
   setOn(root, "path.strace", "d", line);
   setOn(root, "path.shold", "d", sp && HELD.has(style) ? pathOf(sp.peak, range) : "");

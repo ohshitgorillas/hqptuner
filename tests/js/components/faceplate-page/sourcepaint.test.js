@@ -23,6 +23,7 @@ import { paintSourcePage } from "../../../../hqptuner/static/components/faceplat
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -295,6 +296,7 @@ function stream() {
 beforeEach(() => {
   useStorage();
   setPageRange("90");
+  setSpectrumStyle("trace");
   viewport.value = { w: 1366, h: 1024 };
   stream();
 });
@@ -434,3 +436,9 @@ for (const style of ["bars", "soft", "ridges", "aurora"]) {
     assert.equal(styled(busy(), 90, style).querySelector("path.shold")?.getAttribute("d"), "");
   });
 }
+
+test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace", () => {
+  setSpectrumStyle("aurora");
+  const grid = styled(busy(), 90, "trace").querySelector(".sgrid1");
+  assert.equal(grid?.getAttribute("data-style"), "trace");
+});
