@@ -215,7 +215,7 @@ function scene({ levels = [{}, {}], disp = columns(-200), peak = disp } = {}) {
   /** @type {SpectrumHold} */
   const spectrum = { disp, peak, peakAt: new Float32Array(COLS) };
   const full = levels.map((lv) => ({ peak: -200, rms: -200, hold: -200, holdAt: 0, ...lv }));
-  return { levels: full, spectrum };
+  return { levels: full, spectrum, raw: null };
 }
 
 /**

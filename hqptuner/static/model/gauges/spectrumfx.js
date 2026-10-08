@@ -1,8 +1,8 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
 // fractions and bands; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under
-// acceleration, ridge rows stack on a cadence, and aurora gives way to the trace without WebGL2. Every height is a
-// fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone,
-// so a painter draws what it gets back and a test drives it from a table.
+// acceleration, aurora bands fall under their own, ridge rows stack on a cadence, and aurora gives way to the trace
+// without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new
+// state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from a table.
 
 import { fraction } from "./meter.js";
 
@@ -11,6 +11,7 @@ export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
 export const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
 export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outward
 export const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
+export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
 export const RIDGE_ROWS = 24; // ridge rows kept, newest first
 export const RIDGE_EVERY = 4; // steps between ridge rows
 
@@ -116,21 +117,22 @@ export function softBars(bands) {
 
 /**
  * Gravity bars after a step of `dt` seconds: a band at or above its bar lifts it and stops its fall; otherwise the bar
- * gains GRAVITY times the step in speed and drops by its new speed times the step, never below its band. Without a
+ * gains `gravity` times the step in speed and drops by its new speed times the step, never below its band. Without a
  * `prev` of the same length every bar sits on its band at rest.
  *
  * @param {GravityState | null} prev
  * @param {ArrayLike<number>} bands  plot fractions
  * @param {number} dt  s
+ * @param {number} [gravity]  plot fractions/s², GRAVITY unless given
  * @returns {GravityState}
  */
-export function stepGravity(prev, bands, dt) {
+export function stepGravity(prev, bands, dt, gravity = GRAVITY) {
   const n = bands.length;
   const next = { lvl: Float32Array.from(bands), v: new Float32Array(n) };
   if (!prev || prev.lvl.length !== n) return next;
   for (let i = 0; i < n; i++) {
     if (bands[i] >= prev.lvl[i]) continue;
-    next.v[i] = prev.v[i] + GRAVITY * dt;
+    next.v[i] = prev.v[i] + gravity * dt;
     next.lvl[i] = Math.max(bands[i], prev.lvl[i] - next.v[i] * dt);
   }
   return next;

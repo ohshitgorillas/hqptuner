@@ -102,6 +102,10 @@ HERE = Path(__file__).parent
 #: what tells a static dead-code sweep it is live.
 __all__ = ["browser", "clean_slate", "page", "pytest_collection_modifyitems", "session_start", "stack"]
 
+#: Chromium flags that give the headless shell a software WebGL2 context, so a
+#: test can compile and draw the app's shaders with no GPU on the host.
+CHROMIUM_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
+
 #: Ceiling on one reset call. Generous — the app is on loopback and answering
 #: already, so a reset that takes this long is a hang worth failing on.
 RESET_TIMEOUT = 10.0
@@ -191,10 +195,14 @@ def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool,
 
 @pytest.fixture(scope="module")
 def browser() -> Iterator[Browser]:
-    """Headless chromium, preferring the binary named by HQPTUNER_CHROMIUM."""
+    """Headless chromium with software WebGL2, preferring the binary named by HQPTUNER_CHROMIUM."""
     binary = os.environ.get("HQPTUNER_CHROMIUM")
     with sync_playwright() as pw:
-        launched = pw.chromium.launch(executable_path=binary) if binary else pw.chromium.launch()
+        launched = (
+            pw.chromium.launch(executable_path=binary, args=CHROMIUM_ARGS)
+            if binary
+            else pw.chromium.launch(args=CHROMIUM_ARGS)
+        )
         try:
             yield launched
         finally:

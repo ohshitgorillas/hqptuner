@@ -277,7 +277,8 @@ function useFxPainter(plot, fx, sgl, live) {
 
 /**
  * Paint the meter loop's scenes into the section under `root` and onto the effects and shader canvases while they are
- * mounted, at the Range in `range` and the style the page draws for the picked one. The shader canvas is emptied once,
+ * mounted, at the Range in `range` and the style the page draws for the picked one; aurora draws from the scene's
+ * columns before the trace's smoothing and easing, every other style from the trace. The shader canvas is emptied once,
  * on the frame the drawn style leaves aurora.
  *
  * @param {BoxRef} root
@@ -292,7 +293,7 @@ function useSourcePaint(root, range, painters) {
       const style = effectiveStyle(spectrumStyle.value, aurora !== null);
       if (root.current) paintSourcePage(root.current, scene, range.current, style);
       painters.current?.fx.paint(scene.spectrum, range.current, style);
-      if (style === "aurora") aurora?.paint(scene.spectrum, range.current);
+      if (style === "aurora") aurora?.paint(scene.raw, range.current);
       else if (last === "aurora") aurora?.clear();
       last = style;
     });

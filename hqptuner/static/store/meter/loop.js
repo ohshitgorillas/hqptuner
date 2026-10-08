@@ -2,8 +2,8 @@
 // (store/meter/feed.js) into its own queue and paces them out on their frame time, the engine's reported output delay
 // plus the user's offset behind the feed (model/gauges/pace.js), since the daemon sends them in clumps. Each step
 // folds the frames handed out, steps the level bars toward them on the real time elapsed, eases the spectrum toward
-// that reading smoothed across frequency while its held peaks hold and decay, adds the frames to the spectrogram's
-// history, and hands the scene to every registered painter.
+// that reading smoothed across frequency while its held peaks hold and decay, keeps the reading's columns as they
+// came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
 //
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
 // registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
@@ -41,11 +41,16 @@ const SLACK_MS = 4;
 /** @typedef {import("../../model/gauges/meter.js").LevelReading} LevelReading */
 /** @typedef {import("../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../model/gauges/pace.js").PaceState} PaceState */
-/** @typedef {{ levels: LevelReading[], spectrum: SpectrumHold | null }} MeterScene */
+/**
+ * One step's scene: the level bars, the eased and smoothed trace with its held peaks, and the held target's trace
+ * columns before that smoothing and easing, dBFS.
+ *
+ * @typedef {{ levels: LevelReading[], spectrum: SpectrumHold | null, raw: Float32Array | null }} MeterScene
+ */
 /** @typedef {(scene: MeterScene) => void} Painter */
 
 /** @type {MeterScene} */
-const EMPTY = { levels: [], spectrum: null };
+const EMPTY = { levels: [], spectrum: null, raw: null };
 
 /** @type {Set<Painter>} */
 const painters = new Set();
@@ -163,7 +168,7 @@ function advance(now, ms) {
     const t = { peak: ch.peak, rms: ch.rms };
     return was ? stepLevel(was, t, now, dt) : { peak: t.peak, rms: t.rms, hold: t.peak, holdAt: now };
   });
-  return { levels, spectrum: traceStep(prev.spectrum, target, { now, dt }) };
+  return { levels, spectrum: traceStep(prev.spectrum, target, { now, dt }), raw: traceOf(target) };
 }
 
 /**

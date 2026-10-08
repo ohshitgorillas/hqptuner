@@ -1,6 +1,7 @@
 // Painter suite for hqptuner/static/components/faceplate/page/aurora.js: the page spectrum's aurora style, drawn by a
-// WebGL2 shader on its own canvas. A canvas with no WebGL2 context gets no painter. With one, a paint of a spectrum
-// uploads one bar value per band in one array and draws once; a paint with no spectrum and a clear only clear.
+// WebGL2 shader on its own canvas. A canvas with no WebGL2 context gets no painter. With one, a paint of a spectrum's
+// column levels uploads one bar value per band in one array and draws once; a paint with no spectrum and a clear only
+// clear. The bars sit on the bands of the first paint's levels and fall under aurora's own gravity, one step a paint.
 //
 // The canvas is a fake whose WebGL2 context records every method called on it by name and arguments. Names in capitals
 // are the context's constants and read as numbers; the shader and program checks pass unless a test fails one, and
@@ -13,11 +14,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/page/aurora.js";
-import { BANDS } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import { BANDS, bandsOf, fractionsOf } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import * as spectrumfx from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import { STEP_MS } from "../../../../hqptuner/static/store/meter/loop.js";
+import { near } from "../../support/near.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
 /** @typedef {{ width: number, height: number, calls: Call[], getContext: (kind: string) => unknown }} FakeCanvas */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").SpectrumHold} SpectrumHold */
 
 //: The canvas, in device pixels.
 const W = 480;
@@ -30,6 +33,10 @@ const RANGE = 60;
 const MID_DB = -RANGE / 2;
 //: The colour a painter is built with.
 const COLOUR = [0.2, 0.6, 0.4];
+//: One meter step, s.
+const DT = STEP_MS / 1000;
+//: Tolerance for float32 rounding in the last place.
+const EPS = 1e-6;
 //: The calls that put pixels on the canvas or take them off.
 const DRAWS = new Set(["clear", "drawArrays", "drawElements"]);
 
@@ -89,21 +96,26 @@ function fakeCanvas(gl = true, made = MADE) {
 }
 
 /**
- * A spectrum hold with every column at `db`.
+ * Column levels, dBFS, every column at `db`.
  *
  * @param {number} db
- * @returns {SpectrumHold}
+ * @returns {Float32Array}
  */
-function hold(db) {
-  const disp = new Float32Array(COLS).fill(db);
-  return { disp, peak: new Float32Array(COLS).fill(db), peakAt: new Float32Array(COLS) };
-}
+const flat = (db) => new Float32Array(COLS).fill(db);
+
+/**
+ * Column levels, dBFS, rising from the floor of the plot at the first column toward full scale at the last, so every
+ * band holds a different value.
+ *
+ * @returns {Float32Array}
+ */
+const ramp = () => Float32Array.from({ length: COLS }, (_, k) => -RANGE + (RANGE * k) / COLS);
 
 /**
  * The calls recorded while `act` runs on a painter built on a fresh fake canvas, the painter's setup forgotten. With no
  * painter built, nothing is recorded.
  *
- * @param {(fx: { paint: (s: SpectrumHold | null, r: number) => void, clear: () => void }) => void} act
+ * @param {(fx: { paint: (levels: ArrayLike<number> | null, r: number) => void, clear: () => void }) => void} act
  * @returns {Call[]}
  */
 function during(act) {
@@ -128,6 +140,18 @@ const named = (calls, name) => calls.filter((c) => c.name === name);
  * @param {Call[]} calls
  */
 const draws = (calls) => calls.filter((c) => DRAWS.has(c.name)).map((c) => c.name);
+
+/**
+ * The bar values uploaded among `calls`, one array a paint, in order.
+ *
+ * @param {Call[]} calls
+ * @returns {number[][]}
+ */
+const bars = (calls) =>
+  named(calls, "uniform1fv")
+    .map((c) => /** @type {ArrayLike<number>} */ (c.args[1]))
+    .filter((xs) => xs.length === BANDS)
+    .map((xs) => Array.from(xs));
 
 // ── no WebGL2 ────────────────────────────────────────────────────────────
 
@@ -167,16 +191,34 @@ test("test_a_canvas_whose_program_fails_to_link_gets_no_painter", () => {
 
 test("test_a_paint_uploads_one_array_of_one_value_per_band", () => {
   const uploads = named(
-    during((fx) => fx.paint(hold(MID_DB), RANGE)),
+    during((fx) => fx.paint(flat(MID_DB), RANGE)),
     "uniform1fv",
   ).map((c) => /** @type {ArrayLike<number>} */ (c.args[1]).length);
   assert.deepEqual(uploads, [BANDS]);
 });
 
+test("test_the_first_paint_uploads_the_bands_of_the_levels_it_is_given", () => {
+  const levels = ramp();
+  const first = bars(during((fx) => fx.paint(levels, RANGE)))[0];
+  assert.deepEqual(first, Array.from(bandsOf(fractionsOf(levels, RANGE), BANDS)));
+});
+
+test("test_a_band_dropping_to_the_floor_falls_by_aurora_gravity_times_one_step_squared", () => {
+  const uploads = bars(
+    during((fx) => {
+      fx.paint(flat(MID_DB), RANGE);
+      fx.paint(flat(-RANGE), RANGE);
+    }),
+  );
+  const dropped = uploads[1]?.[0] ?? NaN;
+  const expected = (uploads[0]?.[0] ?? NaN) - spectrumfx.AURORA_GRAVITY * DT * DT;
+  assert.ok(...near(dropped, expected, EPS));
+});
+
 test("test_a_paint_draws_once", () => {
   assert.equal(
     named(
-      during((fx) => fx.paint(hold(MID_DB), RANGE)),
+      during((fx) => fx.paint(flat(MID_DB), RANGE)),
       "drawArrays",
     ).length,
     1,

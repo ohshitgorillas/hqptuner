@@ -1,4 +1,6 @@
-// cava's northern lights shader and its pass-through vertex shader, ported from GLSL 330 to GLSL ES 3.00 for WebGL2.
+// cava's pass-through vertex shader, ported from GLSL 330 to GLSL ES 3.00 for WebGL2, and a fragment shader adapted
+// from cava's northern lights shader: each pixel's level blends between the two nearest band centres, column edges
+// fall to half the centre brightness rather than to black, and brightness follows a power curve of level.
 //
 // Source: output/shaders/northern_lights.frag and output/shaders/pass_through.vert,
 // https://github.com/karlstav/cava/blob/master/output/shaders/northern_lights.frag
@@ -36,13 +38,20 @@ void main()
 {
     int bar = min(int(float(bars_count) * fragCoord.x), bars_count - 1);
 
+    float pos = float(bars_count) * fragCoord.x - 0.5;
+    float pos_floor = floor(pos);
+    int i0 = clamp(int(pos_floor), 0, bars_count - 1);
+    int i1 = clamp(int(pos_floor) + 1, 0, bars_count - 1);
+    float level = mix(bars[i0], bars[i1], smoothstep(0.0, 1.0, pos - pos_floor));
+
     float bar_y = 1.0 - abs((fragCoord.y - 0.5)) * 2.0;
-    float y = (bars[bar]) * bar_y;
+    float base = level * bar_y;
+    float y = base > 0.0 ? pow(base, 0.6) : 0.0;
 
     float bar_x = (fragCoord.x - float(bar) / float(bars_count)) * float(bars_count);
     float bar_r = 1.0 - abs((bar_x - 0.5)) * 2.0;
 
-    bar_r = bar_r * bar_r * 2.0;
+    bar_r = (0.5 + 0.5 * bar_r * bar_r) * 2.0;
 
     vec3 colour = clamp(fg_color * y * bar_r, 0.0, 1.0);
     fragColor = vec4(colour, max(colour.r, max(colour.g, colour.b)));

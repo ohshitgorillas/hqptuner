@@ -44,6 +44,9 @@ const LOW = 0.25;
 const RISEN = 0.75;
 //: A falling bar's speed before the step, in fractions per second.
 const FALLING_V = 1;
+//: Two accelerations a gravity step is handed, in fractions per second squared, neither of them the default.
+const LIGHT_G = 2;
+const HEAVY_G = 8;
 
 /**
  * @param {number[]} xs
@@ -217,6 +220,12 @@ test("test_a_band_touching_its_gravity_bar_stops_the_fall", () => {
 test("test_a_falling_gravity_bar_never_drops_below_its_band", () => {
   const prev = { lvl: f32(HIGH), v: f32(100 * FALLING_V) };
   assert.equal(stepGravity(prev, f32(LOW), DT).lvl[0], LOW);
+});
+
+test("test_a_bar_at_rest_falls_by_the_given_gravity_times_the_step_squared", () => {
+  const rest = { lvl: f32(HIGH), v: f32(0) };
+  const fallen = [LIGHT_G, HEAVY_G].map((g) => stepGravity(rest, f32(0), DT, g).lvl[0]);
+  assert.deepEqual(fallen, [HIGH - LIGHT_G * DT * DT, HIGH - HEAVY_G * DT * DT]);
 });
 
 // ── stepRidges ───────────────────────────────────────────────────────────

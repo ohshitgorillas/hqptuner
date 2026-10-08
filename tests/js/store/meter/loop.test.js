@@ -36,6 +36,17 @@ const STEP_MS = 1000 / 30;
 const BINS = 8;
 const PLAYING = { status: { state: "2" } };
 const STOPPED = { status: { state: "0" } };
+//: The trace's column count.
+const TRACE_COLS = 600;
+//: A bin count that puts one bin on each trace column's lower edge, the bin at Nyquist sharing the last column.
+const EDGE_BINS = TRACE_COLS + 1;
+//: The column at half Nyquist, and the bin on its lower edge.
+const SPIKE_AT = TRACE_COLS / 2;
+//: The lone loud bin's byte and level, and every other bin's byte, far enough below that smoothing pulls the loud
+//: column down.
+const LOUD_BYTE = 20;
+const LOUD_DB = -10;
+const QUIET_BYTE = 120;
 
 /**
  * A clock that moves only on `frame`: each call is one animation frame, `ms` after the last; `waiting` is the number of
@@ -84,6 +95,14 @@ const stepAt30 = () => frame(STEP_MS);
  * @param {number} byte
  */
 const bins = (byte) => btoa(String.fromCharCode(...new Array(BINS).fill([byte, 0]).flat()));
+
+/**
+ * `n` bins of one channel, every one at step `quiet` but bin `at` at step `loud`, encoded as `bins` encodes them.
+ *
+ * @param {{ n: number, at: number, loud: number, quiet: number }} shape
+ */
+const spike = ({ n, at, loud, quiet }) =>
+  btoa(String.fromCharCode(...Array.from({ length: n }, (_, k) => [k === at ? loud : quiet, 0]).flat()));
 
 /**
  * Send one single-channel feed frame covering `ms` of frame time.
@@ -185,6 +204,15 @@ test("test_the_first_reading_after_playback_restarts_lands_outright", () => {
   assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -10, 0.005));
 });
 
+test("test_the_scene_carries_a_lone_loud_column_at_the_frames_level_before_smoothing", () => {
+  lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: EDGE_BINS });
+  frame(STEP_MS);
+  const loud = spike({ n: EDGE_BINS, at: SPIKE_AT, loud: LOUD_BYTE, quiet: QUIET_BYTE });
+  lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: loud }], ms: 16.667 });
+  step();
+  assert.ok(...near(scenes.at(-1)?.raw?.[SPIKE_AT] ?? NaN, LOUD_DB, 1e-3));
+});
+
 test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () => {
   send({ peak: -10, rms: -20, byte: 20 });
   step();
@@ -231,7 +259,7 @@ test("test_playback_stopping_empties_the_scene", () => {
   step();
   engineStatus.value = { ...STOPPED };
   step();
-  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null });
+  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null, raw: null });
 });
 
 test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () => {
@@ -284,7 +312,7 @@ test("test_playback_stopping_hands_the_painters_the_empty_scene_with_no_frame_ru
   send({ peak: -10, rms: -20, byte: 20 });
   step();
   engineStatus.value = { ...STOPPED };
-  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null });
+  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null, raw: null });
 });
 
 test("test_the_frames_the_loop_holds_when_its_last_painter_unregisters_reach_the_spectrogram", () => {

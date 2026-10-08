@@ -1,12 +1,12 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
-// spectrum into bands falling under gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as
-// columns that glow brightest half way up the plot, in the painter's colour, over a transparent clear.
+// spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
+// gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as columns that glow brightest half way up
+// the plot, in the painter's colour, over a transparent clear.
 
-import { BANDS, bandsOf, fractionsOf, stepGravity } from "../../../model/gauges/spectrumfx.js";
+import { AURORA_GRAVITY, BANDS, bandsOf, fractionsOf, stepGravity } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";
 
-/** @typedef {import("../../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../../model/gauges/spectrumfx.js").GravityState} GravityState */
 
 /** The time between two meter paints, s: the loop paints at most once a step. */
@@ -90,8 +90,8 @@ function quad(gl) {
 
 /**
  * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
- * one meter scene's spectrum at `range` dB as northern lights in `colour`, `clear` empties the canvas. A paint with no
- * spectrum, or a clear, starts the bands' fall afresh.
+ * one meter scene's spectrum column levels at `range` dB as northern lights in `colour`, `clear` empties the canvas. A
+ * paint with no levels, or a clear, starts the bands' fall afresh.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {ArrayLike<number>} colour  RGB, each 0 to 1
@@ -114,14 +114,14 @@ export function auroraPainter(canvas, colour) {
     gl.clear(gl.COLOR_BUFFER_BIT);
   };
   /**
-   * @param {SpectrumHold | null} spectrum
+   * @param {ArrayLike<number> | null} levels  dBFS, one per column
    * @param {number} range  dB
    */
-  const paint = (spectrum, range) => {
+  const paint = (levels, range) => {
     const prev = gravity;
     clear();
-    if (!spectrum) return;
-    gravity = stepGravity(prev, bandsOf(fractionsOf(spectrum.disp, range), BANDS), DT);
+    if (!levels) return;
+    gravity = stepGravity(prev, bandsOf(fractionsOf(levels, range), BANDS), DT, AURORA_GRAVITY);
     gl.useProgram(program);
     gl.bindVertexArray(vao);
     gl.uniform1fv(bars, gravity.lvl);
