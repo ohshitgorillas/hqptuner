@@ -186,8 +186,7 @@
   --plate-shadow:0 30px 80px var(--shade-deep),inset 0 1px 0 var(--highlight);
   --engrave:0 1px 0 var(--shade);              /* engraved lettering */
   /* The page */
-  --rail-w:198px;          /* the chain rail's column */
-  --body-gap:var(--sp-5);  /* the gap either side of the hairline between a rail and its page */
+  --rail-w:198px;       /* the chain rail's column */
   --srail-w:220px;         /* the settings rail's column */
   --fill-min:150px;        /* the stretching page section's least height */
   --ctl-col:440px;         /* a page section's control column */

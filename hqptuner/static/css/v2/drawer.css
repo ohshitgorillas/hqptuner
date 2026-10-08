@@ -1,8 +1,8 @@
 /* Stage drawer: a sheet out of the rail's right edge, over the page only.
    Rail, header, engine row and Setting Switcher stay in view. Tabs = the parts of one stage.
    Every drawer setting is restart-lane, so it stages (dirty dot on its tab).
-   left = rail + gap + rule. */
-.drawer{position:absolute;top:0;bottom:0;left:calc(var(--rail-w) + var(--body-gap) + var(--hair));right:0;z-index:4;display:flex;flex-direction:column;
+   left = rail 168 + gap 26 + rule 1. */
+.drawer{position:absolute;top:0;bottom:0;left:calc(var(--rail-w) + var(--sp-9) + var(--hair));right:0;z-index:4;display:flex;flex-direction:column;
   background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));border-left:var(--hair) solid var(--line-2);box-shadow:inset var(--hair) 0 0 var(--highlight-lo);
   clip-path:inset(0 0 0 0);transition:clip-path var(--wipe)}
 .drawer[data-closed]{clip-path:inset(0 100% 0 0);pointer-events:none}

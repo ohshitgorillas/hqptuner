@@ -1,5 +1,5 @@
 /* Body: rail | hairline | page. The page shows engaged stages only; each section = engraved header + rule. */
-.body{position:relative;flex-grow:1;min-height:0;display:grid;grid-template-columns:var(--rail-w) var(--hair) minmax(0,1fr);gap:0 var(--body-gap)}
+.body{position:relative;flex-grow:1;min-height:0;display:grid;grid-template-columns:var(--rail-w) var(--hair) minmax(0,1fr);gap:0 var(--sp-9)}
 .vrule{background:var(--line)}
 /* Spare height is never spread as random gaps between sections: spacing is fixed (--sp-9 between sections, --sp-5 header→body),
    and the one section with stretchable content (.fill: plot + text) takes whatever height is left. */
