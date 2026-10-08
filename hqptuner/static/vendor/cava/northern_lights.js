@@ -51,7 +51,7 @@ void main()
     float bar_x = (fragCoord.x - float(bar) / float(bars_count)) * float(bars_count);
     float bar_r = 1.0 - abs((bar_x - 0.5)) * 2.0;
 
-    bar_r = (0.5 + 0.5 * bar_r * bar_r) * 2.0;
+    bar_r = 0.5 + 0.5 * bar_r * bar_r;
 
     vec3 colour = clamp(fg_color * y * bar_r, 0.0, 1.0);
     fragColor = vec4(colour, max(colour.r, max(colour.g, colour.b)));

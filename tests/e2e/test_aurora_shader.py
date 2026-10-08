@@ -48,7 +48,7 @@ HALF = 0.5
 #: A colour dim enough that no channel clamps at the levels below.
 DIM = (0.2, 0.2, 0.2)
 
-#: A bright colour for the boundary case, where only "lit or not" is read.
+#: Full colour, for the cases that read whether a pixel is lit or saturated.
 BRIGHT = (1.0, 1.0, 1.0)
 
 #: The two levels whose brightnesses are compared; a linear response gives 4.
@@ -59,9 +59,18 @@ LOW_LEVEL = 0.1
 #: when the dimmer one reads 6 or more: (4 * 6 - 0.5) / (6 + 0.5) = 3.6.
 CONCAVE_CEILING = 3.6
 
-#: Compiles the pair, draws once and answers the alpha byte at one pixel.
+#: What 8-bit rounding can take off "boundary >= centre / 2": half a step on
+#: the boundary plus half of half a step on the centre, 0.75, taken up to 1.
+SEAM_ROUNDING = 1
+
+#: Two levels below full scale, both high enough that a clamping response
+#: saturates on them at full colour.
+UPPER_LEVEL = 0.9
+LOWER_LEVEL = 0.6
+
+#: Compiles the pair, draws once and answers the alpha byte at each column, on one row.
 DRAW_JS = """
-async ({ url, bands, size, levels, colour, column, row }) => {
+async ({ url, bands, size, levels, colour, columns, row }) => {
   const { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } = await import(url);
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -102,17 +111,23 @@ async ({ url, bands, size, levels, colour, column, row }) => {
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  const pixel = new Uint8Array(4);
-  gl.readPixels(column, row, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-  return pixel[3];
+  return columns.map((column) => {
+    const pixel = new Uint8Array(4);
+    gl.readPixels(column, row, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    return pixel[3];
+  });
 }
 """
 
 
-def _alpha(
-    page: Page, stack: stack_support.Stack, levels: list[float], colour: tuple[float, float, float], column: int
-) -> int:
-    """The alpha byte the shader writes at `column`, half way up, for one set of band levels."""
+def _alphas(
+    page: Page,
+    stack: stack_support.Stack,
+    levels: list[float],
+    colour: tuple[float, float, float],
+    columns: list[int],
+) -> list[int]:
+    """The alpha bytes one draw writes at each of `columns`, half way up, for one set of band levels."""
     url = f"{stack.base_url}{MODULE_PATH}"
     page.goto(url)
     args: dict[str, Any] = {
@@ -121,10 +136,17 @@ def _alpha(
         "size": SIZE,
         "levels": levels,
         "colour": list(colour),
-        "column": column,
+        "columns": columns,
         "row": MIDDLE_ROW,
     }
-    return int(page.evaluate(DRAW_JS, args))
+    return [int(alpha) for alpha in page.evaluate(DRAW_JS, args)]
+
+
+def _alpha(
+    page: Page, stack: stack_support.Stack, levels: list[float], colour: tuple[float, float, float], column: int
+) -> int:
+    """The alpha byte the shader writes at `column`, half way up, for one set of band levels."""
+    return _alphas(page, stack, levels, colour, [column])[0]
 
 
 def _two_lit_neighbours() -> list[float]:
@@ -135,9 +157,12 @@ def _two_lit_neighbours() -> list[float]:
     return levels
 
 
-def test_the_boundary_between_two_lit_neighbouring_bands_is_lit(page: Page, stack: stack_support.Stack) -> None:
-    """Neighbouring bands blend and column edges are soft, so no dark seam opens between two lit bands."""
-    assert _alpha(page, stack, _two_lit_neighbours(), BRIGHT, BOUNDARY_COLUMN) > 0
+def test_the_boundary_between_two_lit_neighbouring_bands_is_half_as_bright_as_their_centre(
+    page: Page, stack: stack_support.Stack
+) -> None:
+    """Neighbouring bands blend and column edges are soft, so the seam between two equal bands is half their centre."""
+    boundary, centre = _alphas(page, stack, _two_lit_neighbours(), BRIGHT, [BOUNDARY_COLUMN, BAND_CENTRE_COLUMN])
+    assert boundary >= centre / 2 - SEAM_ROUNDING
 
 
 def test_brightness_rises_more_slowly_than_level(page: Page, stack: stack_support.Stack) -> None:
@@ -145,3 +170,10 @@ def test_brightness_rises_more_slowly_than_level(page: Page, stack: stack_suppor
     high = _alpha(page, stack, [HIGH_LEVEL] * BANDS, DIM, BAND_CENTRE_COLUMN)
     low = _alpha(page, stack, [LOW_LEVEL] * BANDS, DIM, BAND_CENTRE_COLUMN)
     assert high / low < CONCAVE_CEILING
+
+
+def test_brightness_keeps_rising_below_full_scale(page: Page, stack: stack_support.Stack) -> None:
+    """Below full scale a louder level is brighter at full colour, so the response has not clamped."""
+    upper = _alpha(page, stack, [UPPER_LEVEL] * BANDS, BRIGHT, BAND_CENTRE_COLUMN)
+    lower = _alpha(page, stack, [LOWER_LEVEL] * BANDS, BRIGHT, BAND_CENTRE_COLUMN)
+    assert upper > lower
