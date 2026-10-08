@@ -40,14 +40,15 @@ The target is `docs/faceplate-spec.md`. A tuner or integrated-amp faceplate, dar
 
 - **Three families, by role:** `--f-eng` (Saira Extra Condensed, engraved legends) · `--f-mono` (IBM Plex Mono, readouts and engine strings) · `--f-body` (IBM Plex Sans). `font-family` names one of these tokens and nothing else (gated). The three are self-hosted under `hqptuner/static/fonts/`, each with its license, and declared in `hqptuner/static/css/v2/tokens.css`.
 - **Line heights are pinned, never `normal` (gated):** `--lh-eng` for Saira, `--lh-text` for the Plex faces, or a number. `normal` follows each font file's own metrics, which differ by browser and by fallback, and moves text off the plate. A rule that sets a font family sets its line height or inherits one.
-- **Small print has one size per role:** `--fs-cl` (a control's label) and `--fs-u` (a unit after a value). Other sizes are literal pixels at the design size.
+- **Font sizes are the `--fs-1`..`--fs-6` scale in `tokens.css`.** A size between two steps takes the lower one. Small print has one size per role: `--fs-cl` (a control's label) and `--fs-u` (a unit after a value). A size off the scale is a role token under "Sizes above the scale" in `tokens.css`, one per role.
+- **Weights are `--fw-regular`, `--fw-medium`, `--fw-semi` and `--fw-bold`.**
 - **Every control, axis and readout labels its unit.** Units keep their own case inside an uppercase legend.
 
 ### Spacing
 
-- **Spacing is fixed, in pixels at the design size:** 22px between page sections, 10px from a section's header to its body. Spare height is never spread as gaps between sections; the one `.fill` section takes it.
+- **Spacing is the `--sp-1`..`--sp-10` scale in `tokens.css`.** A space between two steps takes the lower one. `--sp-9` separates page sections (the `.page` gap) and `--sp-5` separates a section's header from its body (the `.sec` gap). Spare height is never spread as gaps between sections; the one `.fill` section takes it.
 - **A drawer that overflows first narrows its control column**, bringing the copy closer to its control, before anything else gives.
-- **Sizes that recur are tokens.** A literal size, space or radius is legal in a faceplate stylesheet; a value written a second time for the same role moves to `tokens.css`.
+- **No literal size outside `tokens.css` (gated).** A length, space, radius, weight or opacity used once still gets a name there: a step of its scale, or a role token beside it.
 
 ### Motion
 
@@ -59,10 +60,11 @@ The target is `docs/faceplate-spec.md`. A tuner or integrated-amp faceplate, dar
 
 ### Gates
 
-- `scripts/gates/css/check_css_tokens.py` holds a faceplate stylesheet to the gated rules above: color, line height, font family, motion.
+- `scripts/gates/css/check_css_tokens.py` holds a faceplate stylesheet to the gated rules above: color, line height, font family, motion, and size: no non-zero px, rem or em length anywhere in a value, no bare `font-weight`, no `opacity` other than `0` or `1`.
+- The one escape is `/* token-exempt: <reason> */` on the offending line, with a reason. Each exempt site ships only with the owner's approval of that site.
 - `scripts/gates/css/check_css_cards.py` refuses a `.card`, `.card-head`, `.card-body` or `.pack` selector and a rounded rule in a `--plate*` fill outside `.plate`.
 - `eslint-rules/no-hand-rolled-card.js` refuses the same four class names in markup and in DOM code.
-- Text darker than `--ink-2`, the accent's reach and the size tokens are review rules, not gated.
+- Text darker than `--ink-2`, the accent's reach and the choice of size token (the right step, a role token held to its one role) are review rules, not gated.
 
 ### Hand-back
 
