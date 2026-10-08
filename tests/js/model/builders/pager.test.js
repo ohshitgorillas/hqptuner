@@ -1,9 +1,7 @@
-// Behavioral suite for mockup/scripts/model/pager.js: how many pages a list fills, which page is shown once the asked one
-// is clamped into range, which items that page holds, whether ‹ and › are live, and where they go.
+// Behavioral suite: how many pages a list fills, which page is shown once the asked one is clamped into range, which
+// items that page holds, whether ‹ and › are live, and where they go.
 //
 // The lists are ones the test writes: a count of items and a page size, nothing else.
-//
-// Run: node --test tests/js/mockup/pager.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

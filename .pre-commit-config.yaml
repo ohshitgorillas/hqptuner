@@ -1,6 +1,4 @@
 default_install_hook_types: [pre-commit, commit-msg]
-# The mockup is a sketch, not product: no gate reads it.
-exclude: ^mockup/
 
 repos:
   - repo: local

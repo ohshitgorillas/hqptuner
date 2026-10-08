@@ -1,6 +1,6 @@
 // Paging decisions, free of the DOM: how many pages a list fills, which page is shown, which items it holds, and whether
-// ‹ and › are live. ‹ and › wrap, so either goes somewhere whenever there is more than one page. lib/pager.js draws
-// what it gets back; a test drives it from a table.
+// ‹ and › are live. ‹ and › wrap, so either goes somewhere whenever there is more than one page. A test
+// drives it from a table.
 
 /**
  * A list's paging at one asked-for page.

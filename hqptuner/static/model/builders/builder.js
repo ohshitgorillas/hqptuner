@@ -1,4 +1,4 @@
-// DOM-free decisions the builders' shared shell (lib/builder.js) makes: which station is home, how an edit keys its
+// DOM-free decisions the builders' shared shell makes: which station is home, how an edit keys its
 // staged buffer, where Next and Back land, whether a record reads dirty, what the state line and its buttons say, how
 // the stations menu ticks, whether Save refuses, asks or writes, and the record book after a save or a remove. Each
 // returns the new state as a value and leaves its arguments as they were.

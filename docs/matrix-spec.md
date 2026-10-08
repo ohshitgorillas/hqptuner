@@ -1,6 +1,6 @@
 # Matrix pipeline editing — design of record
 
-The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/protocol.md` §3.7 and §6; crossfeed compensation is `docs/crossfeed-compensation.md`; layout is `mockup/spec.md`.
+The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/protocol.md` §3.7 and §6; crossfeed compensation is `docs/crossfeed-compensation.md`; layout is `docs/faceplate-spec.md`.
 
 **Headings are the citation contract.** Code cites this file by heading text, and `scripts/gates/check_doc_refs.py` fails the build when a cited heading vanishes. Reword a heading and update its citers in the same commit.
 

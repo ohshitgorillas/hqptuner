@@ -1,4 +1,4 @@
-// An option list's columns. Simplified is v1's outline in the mockup's custom placement (PLACE): each family's header
+// An option list's columns. Simplified is v1's outline in the custom placement (PLACE): each family's header
 // (`<Family> family`) and blurb, each variant's head and blurb, then its rows; a variant head folds its rows, and so
 // does a dither family's header, the dithers having no variants. A family the placement does not name lands in a
 // column of its own after the placed ones. Standard drops the outline for one flat list in the engine's order, down a

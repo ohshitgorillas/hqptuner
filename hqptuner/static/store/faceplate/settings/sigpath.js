@@ -4,7 +4,7 @@
 // Signal path (Settings → Signal path): every path HQPlayer can take, one map, drawn in the faceplate's grammar, with the
 // path playing now lit. The chain rail shows the running path one stage at a time; this is the whole map behind it.
 //   Lit (playing now)   wire and lettering in ink; the rest stays dim (ink-2 lettering, line-2 wire). No accent: this is
-//                       running state, not a setting (spec: accent marks what you set and where you are).
+//                       running state, not a setting (accent marks what you set and where you are).
 //   PCM / SDM tag       runs only in that output mode (the Output drawer's band-tag grammar). `PCM · SDM` = both modes, each
 //                       its own list (the 1x / Nx filters).
 //   Hatched             on the path but bypassed (gate off, filter none): hatch is for what doesn't run.
@@ -13,8 +13,6 @@
 // Sources: manual 6 §2.8 (HF filter: 2x and higher sources), §5 (Speakers at target rate), §7.2 (pipelines at source
 // rate), §2.15 (volume before dither); Jussi (Audiophile Style, as Miska): convolution "at the source rate … after
 // conversion to PCM" for DSD → PCM; "DAC correction runs at the output rate"; DAC correction needs the matrix enabled.
-// State: main.js emits `sigpath` {p, stage} on the bus on every path change; gates are read off the chain rail's lamps on
-// every `relayout` (railSet emits one), so the map follows Apply without its own wiring.
 
 import { railStages } from "../chain.js";
 import { pathLamps } from "../../../model/gauges/wire.js";
@@ -113,7 +111,7 @@ export const EDGES = [
 ];
 
 /**
- * What each path runs (main.js / data/scenarios.js path ids; stage = the source's 1x | nx).
+ * What each path runs (stage = the source's 1x | nx).
  *
  * @param {string} p
  * @param {string} stage

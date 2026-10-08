@@ -1,10 +1,8 @@
-// Behavioral suite for mockup/scripts/model/conversion.js: which field of which chain runs on a playback path, what the
-// page opens on, which rows a section shows (one field open, or both filters open), the rail value per stage, and the
-// fit arithmetic (overrun from measured bottoms, which copy gives height back and how much).
+// Behavioral suite: which field of which chain runs on a playback path, what the page opens on, which rows a section
+// shows (one field open, or both filters open), the rail value per stage, and the fit arithmetic (overrun from measured
+// bottoms, which copy gives height back and how much).
 //
 // Plays, picks and measured sizes are tables the test writes; no shipped data supplies an input or an expected value.
-//
-// Run: node --test tests/js/mockup/conversion.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

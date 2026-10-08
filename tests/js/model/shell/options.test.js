@@ -1,7 +1,5 @@
-// Behavioral suite for mockup/scripts/model/options.js: finding the option a control's value names, where the value may
-// arrive as a string or a number and the option's own value as either.
-//
-// Run: node --test tests/js/mockup/options.test.js
+// Behavioral suite: finding the option a control's value names, where the value may arrive as a string or a number and
+// the option's own value as either.
 
 import test from "node:test";
 import assert from "node:assert/strict";

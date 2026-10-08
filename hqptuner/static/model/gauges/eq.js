@@ -1,6 +1,5 @@
 // AutoEq / REW EQ on a pipeline, free of the DOM: bands as iir stages, an EQ landed on one pipeline, and the hit search
-// over the AutoEq library. The EQ step (components/autoeq.js), the DSP pipelines drawer (components/pipelines.js) and
-// the mock profiles (data/profiles.js) share them.
+// over the AutoEq library. The EQ step and the DSP pipelines drawer share them.
 
 /** The iir stage types a parametric EQ is made of: the peak and the two shelves. */
 export const PEQ_TYPES = new Set(["peak", "lshelf", "hshelf"]);

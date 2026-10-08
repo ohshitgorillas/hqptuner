@@ -3,10 +3,9 @@
 // backend's device picker and device rows. Only the effective backend's groups and picker show; Combo shows all.
 //
 // Labels and paragraphs come from the settings metadata through the generic drawer; the strings below are the ones the
-// metadata does not hold, verbatim from the mockup (mockup/scripts/data/stages/output.js). A backend group carries
-// rows only, so each device picker is a block of its own ahead of its backend's group, and hides itself with it. A row
-// has no gray of its own, so Channels is a block: the layout segment beside the `channels` number, the number grayed
-// unless the layout is Manual.
+// metadata does not hold. A backend group carries rows only, so each device picker is a block of its own ahead of its
+// backend's group, and hides itself with it. A row has no gray of its own, so Channels is a block: the layout segment
+// beside the `channels` number, the number grayed unless the layout is Manual.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
@@ -22,17 +21,17 @@ import { DevicePicker } from "./output/DevicePicker.js";
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").RowSpec} RowSpec */
 
-/** The section header over each backend's rows (output.js:171). */
+/** The section header over each backend's rows. */
 const BACKEND_NAMES = { network: "Network Audio", alsa: "ALSA" };
 
-/** The Rate row's label and its paragraph, an owner consolidation of the manual's two rate lines (output.js:95,207). */
+/** The Rate row's label and its paragraph, an owner consolidation of the manual's two rate lines. */
 const RATE = {
   label: "Rate",
   k: "Output rate",
   text: "PCM and SDM target rates. Real values can be equal or lower when auto rate-family is used.",
 };
 
-/** The layout segment: the common layouts by channel count, Manual opening the number (output.js:251-258). */
+/** The layout segment: the common layouts by channel count, Manual opening the number. */
 const LAYOUT = {
   aria: "Channel layout",
   options: [
@@ -43,13 +42,13 @@ const LAYOUT = {
   ],
 };
 
-/** The hint after a DAC bits box (output.js:168). */
+/** The hint after a DAC bits box. */
 const BITS_HINT = "0 = default";
 
 /** The output modes the drawer offers: no Auto. */
 const MODE_OPTIONS = MODES.filter((o) => o.value !== "auto");
 
-/** Discovery with its default, IPv6 on, leftmost (output.js:289-295). */
+/** Discovery with its default, IPv6 on, leftmost. */
 const DISCOVERY_OPTIONS = [...DISCOVERY].reverse();
 
 /**

@@ -1,6 +1,5 @@
 // What a stage drawer decides, free of the DOM: staged against applied values, gray reasons and their links, the
-// apply group's state, what Apply commits across a drawer family and what Discard puts back. components/drawer.js
-// executes these decisions on its elements.
+// apply group's state, what Apply commits across a drawer family and what Discard puts back.
 
 /** @typedef {Record<string, unknown>} Values */
 /** @typedef {{ gray: (vals: Values) => string }} Grayable */

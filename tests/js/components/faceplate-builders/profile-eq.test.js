@@ -11,8 +11,7 @@
 // profiles of the fixture's own, which the one-token query matches all of. Listening is the store's `setListen`. Taps
 // and typing are fired through the renderer's vnode seam, since render-to-string fires no events. The search's query
 // and the picked hit live inside the component; each headphones case starts by typing an empty query, which drops the
-// pick as the mockup's search does (mockup/scripts/components/builders/autoeq.js:259-262). Every copy string is read
-// from profile-data.js or the component's own exports, never retyped.
+// pick. Every copy string is read from profile-data.js or the component's own exports, never retyped.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-builders/profile-eq.test.js
 
@@ -102,7 +101,7 @@ const LIBRARY = { meta: { profiles: PROFILES.length, sha: "0123456789abcdef" }, 
 
 /** A one-token query every model holds. */
 const QUERY = "hd";
-/** How many hits the step lists (mockup/scripts/components/builders/autoeq.js:46). */
+/** How many hits the step lists. */
 const SHOWN = 3;
 /** The hit a pick taps: the second listed. */
 const PICK = 1;

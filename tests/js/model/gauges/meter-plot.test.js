@@ -1,7 +1,5 @@
-// Behavioral suite for the mockup's meter plots (mockup/scripts/model/gauges/meter-plot.js): where each plot puts what
-// it paints (spectrum points and axes, the spectrogram's colour indices, the time axis, the colour ramp).
-//
-// Run: node --test tests/js/mockup/gauges/meter-plot.test.js
+// Behavioral suite for the meter plots: where each plot puts what it paints (spectrum points and axes, the
+// spectrogram's colour indices, the time axis, the colour ramp).
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -4,8 +4,7 @@
 // engine row, never here.
 //
 // The choice's label and paragraphs come from the settings metadata, read when the drawer draws, since the metadata
-// arrives after this module loads; the strings written here are the ones the metadata does not hold, verbatim from the
-// mockup's Volume drawer (mockup/scripts/data/stages/volume.js).
+// arrives after this module loads; the strings written here are the ones the metadata does not hold.
 
 import { schema as catalog } from "../../../store/schema.js";
 import { ISO_LEVELS } from "../../../store/schema/options.js";

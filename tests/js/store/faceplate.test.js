@@ -38,7 +38,7 @@ const MODULE = "../../../hqptuner/static/store/ui/faceplate.js";
 // One row per choice-of-one preference: its signal's export name, its storage
 // key, a value from the set that is not the one a fresh browser starts on, a
 // second value from the set, and a stored value from outside it. The outside
-// values are plausible on purpose: the mockup's own "0"/"1" encoding of the DAC
+// values are plausible on purpose: a "0"/"1" encoding of the DAC
 // type row, and names that read like a member.
 const CHOICES = [
   { pref: "dacType", key: "hqptuner.dacType", pick: "r2r", other: "other", outside: "1" },

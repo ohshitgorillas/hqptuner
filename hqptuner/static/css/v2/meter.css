@@ -77,11 +77,11 @@
 .rowl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:0;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:var(--strip-h)}
 .spec,.apodstrip{display:block;width:100%;height:100%;border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-sizing:border-box;box-shadow:var(--well)}
 
-/* No meter (mock scenario: nothing plays, or a DSD source with the matrix bypassed): v1's owner copy, centred in the drawer. */
+/* No meter (nothing plays, or a DSD source with the matrix bypassed): v1's owner copy, centred in the drawer. */
 .mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:var(--mnone-min)}
 .mnone p{margin:0;font-size:var(--fs-5);color:var(--ink-2)}
 
-/* Page Source section (source-meter.js compact): spectrum | levels, stretched to the section's height; no spectrogram.
+/* Page Source section: spectrum | levels, stretched to the section's height; no spectrogram.
    With no stream, the reason line sits in an empty glass well the size the meter would take. */
 .pmeter{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .pmeter>.mblk.mtop{flex:1 1 0;min-height:0;padding:0;border:0;grid-template-rows:minmax(0,1fr)}
@@ -92,7 +92,7 @@
 /* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads (Range / Floor stay at their
    defaults) and no readout table; every other axis label drops so the short scales stay legible.
    Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 120 dB span is a smear, not a reading; the
-   floor makes the page overrun instead, and the overflow rule recovers it from the option copy (conversion.js fit). */
+   floor makes the page overrun instead, and the overflow rule recovers it from the option copy. */
 .sec.psrc.slim{min-height:var(--psrc-min);gap:var(--sp-4)}
 .slim .pmeter .mhead,.slim .pmeter .lvtab{display:none}
 .slim .pmeter>.mblk.mtop{grid-template-columns:minmax(0,1fr) auto;gap:0 var(--sp-8)}
@@ -103,7 +103,7 @@
 @container pmslim (max-height:100px){.pmeter :is(.gy,.lvs) span:not(.first):not(.last){display:none}}
 .slim .pmeter>.mnone p{font-size:var(--fs-4)}
 
-/* Page meter's Range column (source-meter.js compact): left of the spectrum, label on one line over a stacked seg; one
+/* Page meter's Range column: left of the spectrum, label on one line over a stacked seg; one
    Range for the spectrum's span and the levels' floor. Touch-sized: the seg fills the column's height (≈30px buttons at
    10.2″, the room the slim meter has), capped at 40px where the meter is taller; 60px wide. */
 .pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) var(--levels-w)}

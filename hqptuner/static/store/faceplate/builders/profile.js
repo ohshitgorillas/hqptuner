@@ -40,7 +40,7 @@ export {
 /** @typedef {import("../../../model/builders/profile.js").StepContext} StepContext */
 /** @typedef {import("../../resolve.js").PipelineRow} PipelineRow */
 
-/** Crossfeed's implementations as the rail names them (mockup/scripts/data/stages/matrix.js:259-263). */
+/** Crossfeed's implementations as the rail names them. */
 const XF_MODES = [
   { v: "off", label: "Off" },
   { v: "bauer", label: "Bauer" },
@@ -48,8 +48,7 @@ const XF_MODES = [
 ];
 
 /**
- * Each step's answer from the profile's summary, worded as mockup/scripts/components/builders/profile-builder/
- * values.js:152-156 words them.
+ * Each step's answer from the profile's summary.
  *
  * @type {Record<string, (x: Summary) => string>}
  */
@@ -61,7 +60,7 @@ const ANSWER = {
 };
 
 /**
- * The EQ step's answer: its band count, else None (mockup/scripts/components/builders/autoeq.js:297-304).
+ * The EQ step's answer: its band count, else None.
  *
  * @param {number} n
  */

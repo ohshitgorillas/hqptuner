@@ -73,12 +73,12 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
 #visual-p-layout .drow.drow-full{grid-template-columns:minmax(0,1fr);gap:var(--sp-4) 0}   /* Hide from signal chain: five toggles, the copy under them */
 .seg.tgl{align-self:flex-start}
 
-/* Settings rail category holding an alert (alerts.js; the gear blinks with it): its name blinks red / amber. */
+/* Settings rail category holding an alert (the gear blinks with it): its name blinks red / amber. */
 .sst[data-alert="crit"] .n{animation:al-ink-crit var(--blink)}
 .sst[data-alert="warn"] .n{animation:al-ink-warn var(--blink)}
 @media (prefers-reduced-motion:reduce){.sst[data-alert] .n{animation:none}.sst[data-alert="crit"] .n{color:var(--bad)}.sst[data-alert="warn"] .n{color:var(--warn)}}
 
-/* Signal path (components/signal-path.js): the whole map, the path playing now lit. Running state is lettering + wire in ink,
+/* Signal path: the whole map, the path playing now lit. Running state is lettering + wire in ink,
    never the accent (accent = what you set, where you are). Dim = ink-2 lettering on line-2 wire. */
 .dblock[data-block="sigpath"]{display:flex;flex-direction:column;gap:var(--sp-5);padding:var(--sp-4) 0 var(--sp-2);min-height:0;flex:1 1 auto}
 svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-height:0}

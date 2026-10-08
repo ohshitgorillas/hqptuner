@@ -1,6 +1,6 @@
 // Wire and map geometry, free of the DOM: where the chain rail's lamp dots land and the path joining them, the frame a
-// signal-path group draws around its nodes, and which map nodes and edges read lit or bypassed. components/rail.js and
-// components/signal-path.js measure and paint; a test drives these from tables.
+// signal-path group draws around its nodes, and which map nodes and edges read lit or bypassed. A test drives these
+// from tables.
 
 const CHAMFER = 5;
 

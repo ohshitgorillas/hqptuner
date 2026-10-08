@@ -1,6 +1,5 @@
 // What the facet bar reads off the narrowing state, free of the DOM: which facets show at a stage, which chips read
-// picked or dead, whether a set of facets is narrowing, the state keys a set owns, and each facet's state as data
-// (components/narrow-filters.js turns the data into the bar's text and marks).
+// picked or dead, whether a set of facets is narrowing, the state keys a set owns, and each facet's state as data.
 
 /** @typedef {Record<string, unknown>} State */
 /** @typedef {{ v: unknown, label: string }} Option */
@@ -8,7 +7,7 @@
 /** @typedef {{ key: string, tag: string }} Item */
 
 /**
- * A facet as data/narrow-facets.js writes it: kind seg (rows), chips (options, `combine` for an AND/OR mode), toggle,
+ * A facet: kind seg (rows), chips (options, `combine` for an AND/OR mode), toggle,
  * or checks (items); `apod` marks the Apodizing segment.
  *
  * @typedef {object} Facet

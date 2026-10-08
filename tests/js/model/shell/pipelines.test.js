@@ -1,11 +1,9 @@
-// Behavioral suite for mockup/scripts/model/pipelines.js: which pins of the routing grid are lit and what they carry,
-// the overview's and an output tab's summaries, the stage dock's field values and whether they resolve against their
-// tables, and the inputs the response plot draws.
+// Behavioral suite: which pins of the routing grid are lit and what they carry, the overview's and an output tab's
+// summaries, the stage dock's field values and whether they resolve against their tables, and the inputs the response
+// plot draws.
 //
 // Pipelines, iir and delay tables and channel names are tables the test writes; no shipped data supplies an input or
 // an expected value.
-//
-// Run: node --test tests/js/mockup/pipelines.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -1,11 +1,11 @@
-// DOM-free derivations for the conversion page (components/conversion.js): which field of which chain runs on a
-// playback path, what the page opens on, which rows a section shows, the rail value per stage, and how far the page
-// runs past the plate and which copy gives that height back.
+// DOM-free derivations for the conversion page: which field of which chain runs on a playback path, what the page
+// opens on, which rows a section shows, the rail value per stage, and how far the page runs past the plate and which
+// copy gives that height back.
 
 /**
  * @typedef {object} Play
  * @property {string} run    the running chain: 'pcm' | 'sdm'
- * @property {string} path   the scenario path (data/scenarios.js pathOf)
+ * @property {string} path   the scenario path
  * @property {string} stage  the filter stage the source rate selects: '1x' | 'nx'
  */
 

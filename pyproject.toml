@@ -102,11 +102,11 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # the Makefile's archaeology line; both the hook modes and the console scripts
 # read it from here. The changelog gate is not scoped here: it reads CHANGELOG.md
 # from its own module constant. copy-before-after.md is a record of
-# owner-approved wording, so it takes no judge. The mockup is a sketch, not
-# product: no gate reads it.
-md_skip = ["CHANGELOG.md", "docs/copy-before-after.md", "mockup/spec.md"]
+# owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
+# not product: no gate reads it.
+md_skip = ["CHANGELOG.md", "docs/copy-before-after.md", "docs/faceplate-spec.md"]
 suffixes = [".py", ".js", ".css"]
-excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/", "mockup/"]
+excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
 cache_dir = ".claude/logs"
 

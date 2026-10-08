@@ -1,4 +1,4 @@
-// The Profile builder's copy and tables, as the mockup draws them.
+// The Profile builder's copy and tables.
 // Plain data: no imports, no behavior beyond the step functions' string choices.
 
 /** @typedef {import("../../../model/builders/profile.js").StepContext} StepContext */

@@ -1,10 +1,10 @@
 # Design system — frontend layout (binding)
 
-The faceplate rules bind `mockup/styles/` and every stylesheet under `hqptuner/static/css/`. All visual work conforms or flags deviation.
+The faceplate rules bind every stylesheet under `hqptuner/static/css/`. All visual work conforms or flags deviation.
 
 ## The faceplate
 
-The target is `mockup/spec.md`, drawn in `mockup/`. A tuner or integrated-amp faceplate, dark only.
+The target is `docs/faceplate-spec.md`. A tuner or integrated-amp faceplate, dark only.
 
 ### Plate
 

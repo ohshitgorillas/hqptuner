@@ -1,6 +1,6 @@
 // The narrowing console's facets, one console per list kind, each facet a window in the list's head that opens its
-// controls with its hint. Copy is the mockup's (mockup/scripts/data/lists/narrow-facets.js), verbatim, and the hints are
-// v1's own (components/narrowbar/Facets.js, narrowbar/Stages.js, the settings.json apodizing tooltip).
+// controls with its hint. The hints are v1's own (components/narrowbar/Facets.js, narrowbar/Stages.js, the
+// settings.json apodizing tooltip).
 //
 // Facet kinds:
 //   chips   multi-select chips; the state is the picks. `combine` adds an AND / OR mode (state key `<key>Mode`).

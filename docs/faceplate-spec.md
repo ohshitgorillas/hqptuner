@@ -1,6 +1,6 @@
 # HQPTuner v2 redesign spec
 
-Current state only. Mockup: https://claude.ai/artifact/TDCf3zE1nWfFgKFvui58G7. Code map and conventions: `claude/hqptuner-v2-mockup/README.md`. Mock-only data (stations, numbers, scenarios) lives in `scripts/data/` and isn't repeated here.
+Current state only.
 
 ## Constraints
 - Cohesion through the signal chain. No cards, no parts-bin reorganisation.

@@ -1,8 +1,6 @@
-// Behavioral suite for mockup/scripts/model/narrow-view.js: what the facet bar reads off the narrowing state, free of
-// the DOM (which facets show at a stage, which chips read picked, which chips are dead, whether a set of facets is
-// narrowing, the state keys a set of facets owns, and each facet's state summary as data).
-//
-// Run: node --test tests/js/mockup/narrow-view.test.js
+// Behavioral suite: what the facet bar reads off the narrowing state, free of the DOM (which facets show at a stage,
+// which chips read picked, which chips are dead, whether a set of facets is narrowing, the state keys a set of facets
+// owns, and each facet's state summary as data).
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -1,4 +1,4 @@
-// Behavioral suite for the mockup's meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
+// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
 // bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
 // easing the trace toward them, where a level sits on a bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
 // spectrogram columns.

@@ -1,10 +1,7 @@
-// Behavioral suite for mockup/scripts/model/range-axis.js: where a range bar puts a dB value and what value a pointer
-// reads, its ticks and their lengths, the end labels' anchors, which handle a press takes, and the clamps a drag or a
-// typed value passes through.
+// Behavioral suite: where a range bar puts a dB value and what value a pointer reads, its ticks and their lengths, the
+// end labels' anchors, which handle a press takes, and the clamps a drag or a typed value passes through.
 //
 // The bar is a row the test writes: 232 px wide with a 16 px inset leaves 200 px of track.
-//
-// Run: node --test tests/js/mockup/range-axis.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

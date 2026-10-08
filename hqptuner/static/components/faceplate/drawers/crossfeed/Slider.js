@@ -1,4 +1,4 @@
-// The Crossfeed block's slider and number box over one value (v1 SliderNumber, the mockup's .xsl grammar): a drag
+// The Crossfeed block's slider and number box over one value (v1 SliderNumber, the .xsl grammar): a drag
 // streams, the release or a typed number commits, held to the slider's range.
 
 import { html, userEdit, wheelGuard, TypedInput } from "../../../../lib/dom.js";

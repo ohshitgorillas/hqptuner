@@ -1,6 +1,6 @@
 // Response plot geometry, free of the DOM: log frequency across, linear dB up, dB labels in a left gutter and
 // frequency labels in a bottom band. Every function takes the box in px and the scale in Hz / dB as arguments, so the
-// plots (components/matrix-plot.js, components/resp-plot.js) draw what they get back and a test drives it from a table.
+// plots draw what they get back and a test drives it from a table.
 
 export const GUTTER = 28; // left, for dB labels
 const BAND = 16; // bottom, for frequency labels

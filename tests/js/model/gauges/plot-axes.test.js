@@ -1,10 +1,8 @@
-// Behavioral suite for mockup/scripts/model/plot-axes.js: where a response plot puts a frequency and a level, the
-// level grid it draws, the trace it samples and the point a handle drag lands on.
+// Behavioral suite: where a response plot puts a frequency and a level, the level grid it draws, the trace it samples
+// and the point a handle drag lands on.
 //
 // Every box is a row the test writes. W = 332 leaves 300 px of frequency over 20 Hz to 20 kHz (100 px a decade);
 // H = 122 leaves 100 px of level, 2.5 px a dB over −10 … +30 dB.
-//
-// Run: node --test tests/js/mockup/plot-axes.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

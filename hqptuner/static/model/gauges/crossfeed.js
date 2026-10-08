@@ -202,7 +202,7 @@ export function listeningGeometry(angle, circ) {
 }
 
 /**
- * The view's readouts from the path parameters (lib/xdsp.js pathParams) and center character `lambda`: the ray
+ * The view's readouts from the path parameters and center character `lambda`: the ray
  * ear-to-ear delay and its low-frequency value (plus the far path's excess head-shadow group delay), both in whole
  * µs; the far-ear treble in dB; and the center shift in dB at `lambda`.
  *

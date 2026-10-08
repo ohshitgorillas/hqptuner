@@ -1,7 +1,6 @@
 // The Speakers room plan, free of the DOM: where each speaker of the set sits and how far the plan's box reaches. The
 // listener is at the origin facing up the page (negative y); a speaker sits at its layout angle, clockwise from front,
-// at a radius set by its distance (6 m spans the ring), the sub pushed out past the mains. components/speakers.js draws
-// what this returns.
+// at a radius set by its distance (6 m spans the ring), the sub pushed out past the mains.
 
 /** The listener's head radius on the plan: where a speaker at no distance sits. */
 export const HEAD = 13;

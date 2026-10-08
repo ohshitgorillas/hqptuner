@@ -1,7 +1,6 @@
 // The Hardware acceleration drawer's two blocks over the hardware draft. Blocks per cycle: a `Set manually` box gating
 // the slider, automatic (0, the daemon's own configuration) until ticked, which seeds 8. CUDA devices: the DSP and
-// convolution device boxes, both grayed while CUDA offload is off and the DSP box alone under convolution-only. Copy
-// verbatim from the mockup's hardware drawer (mockup/scripts/data/settings/hardware.js).
+// convolution device boxes, both grayed while CUDA offload is off and the DSP box alone under convolution-only.
 
 import { html, TypedInput } from "../../../lib/dom.js";
 import { hardwareDraft, setHardware } from "../../../store/faceplate/settings/hardware.js";

@@ -1,8 +1,6 @@
-// Behavioral suite for mockup/scripts/model/eq.js: AutoEq / REW bands turned into iir stages, an EQ landed on one
-// pipeline (its peak and shelf stages replaced by the band stages given, its gain set to the preamp), the AutoEq hit
-// search and the hits it shows, a picked hit's band summary and preview pipeline, and a pipeline's band count.
-//
-// Run: node --test tests/js/mockup/eq.test.js
+// Behavioral suite: AutoEq / REW bands turned into iir stages, an EQ landed on one pipeline (its peak and shelf stages
+// replaced by the band stages given, its gain set to the preamp), the AutoEq hit search and the hits it shows, a
+// picked hit's band summary and preview pipeline, and a pipeline's band count.
 
 import test from "node:test";
 import assert from "node:assert/strict";

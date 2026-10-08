@@ -1,7 +1,6 @@
 // Range bar geometry and handle rules, free of the DOM: one linear dB axis across a track inset from both ends, the
 // ticks and end labels under it, which handle a press takes, and the clamps a dragged or typed value passes through.
-// The bars (components/volume-range.js, components/loudness.js) draw what they get back and a test drives it from a
-// table.
+// The bars draw what they get back and a test drives it from a table.
 
 const TICK_LEN = { minor: 5, major: 9, strong: 13 };
 

@@ -3,7 +3,7 @@
    Spacing: stages share the rail's height (flex-grow), so the chain fills it and can never push into the Setting Switcher,
    whatever the fonts measure. No rail note. Minimum padding is small (--sp-1; none on children; --sp-1 name → value) so the
    longest chain (a DSD path adds its conversion stage, often on two lines) still fits; spare height is spread by flex.
-   Nesting: .sub = child of a top-level stage (only the Matrix engine has any), .sub2 = grandchild (unused; rail.js sets both from data level). */
+   Nesting: .sub = child of a top-level stage (only the Matrix engine has any), .sub2 = grandchild (unused). */
 .rail{position:relative;display:flex;flex-direction:column;padding-top:0;min-height:0}
 .st{position:relative;z-index:1;display:grid;grid-template-columns:var(--wire-col) minmax(0,1fr);gap:var(--sp-1) var(--sp-4);align-items:center;align-content:center;padding:var(--sp-1) 0;flex:1 0 auto;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
 .st .n{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-3);line-height:var(--lh-eng)}
@@ -34,16 +34,16 @@
 .rail .lamp.on{box-shadow:0 0 var(--sp-2) var(--ok),inset 0 0 var(--hair) var(--glint)}
 .rail .lamp.pause{background:var(--warn);box-shadow:0 0 var(--sp-2) var(--warn),inset 0 0 var(--hair) var(--glint)}   /* paused: Source alone, solid amber */
 
-/* Mock scenario: an engaged stage this track's path doesn't run (Direct SDM) reads unlit, like an off stage; never grayed. */
+/* An engaged stage this track's path doesn't run (Direct SDM) reads unlit, like an off stage; never grayed. */
 .rail .st.byp .lamp.on,.rail .st.dead .lamp.on{background:var(--lamp-off);box-shadow:var(--lamp-well)}
 
-/* Chain wire: silkscreen trace drawn by rail.js from the dot positions; dots sit above it. */
+/* Chain wire: silkscreen trace drawn from the dot positions; dots sit above it. */
 .wire{position:absolute;left:0;top:0;pointer-events:none;overflow:visible;z-index:0}
 .wire path{fill:none;stroke:var(--line-2);stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
 
 
 
-/* Alerts (alerts.js): the stage's lamp blinks over its state, red = crit, amber = warn / advice. Fixed colours, never the
+/* Alerts: the stage's lamp blinks over its state, red = crit, amber = warn / advice. Fixed colours, never the
    accent. Reduced motion: steady. Keyframes shared with the header homes (header.css). */
 .rail .st[data-alert="crit"] .lamp{animation:al-crit var(--blink)}
 .rail .st[data-alert="warn"] .lamp{animation:al-warn var(--blink)}

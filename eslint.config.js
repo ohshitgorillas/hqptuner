@@ -161,8 +161,6 @@ export default [
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
       "**/*.mjs",
-      // The mockup is a sketch, not product: no gate reads it.
-      "mockup/**",
     ],
   },
   js.configs.recommended,

@@ -1,6 +1,6 @@
 // Popover placement on the plate, free of the DOM: where a plate-level panel lands against the element that opened it,
-// and how the plate's side and foot margins pull it back inside. lib/plate.js measures and calls this; a test drives it
-// from a table.
+// and how the plate's side and foot margins pull it back inside. A test drives it from a
+// table.
 
 /**
  * An anchor's box in screen px, measured from the plate's top-left corner (the scale has not been divided out).

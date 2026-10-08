@@ -1,6 +1,6 @@
 // Option lists, free of the DOM: what the hover tip says and where it lands beside its row, where a panel parks at its
 // picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, and how the
-// Standard style fills its columns in engine order. components/option-list.js measures, builds and calls these.
+// Standard style fills its columns in engine order.
 
 /**
  * An option's narrowing facets (filters).

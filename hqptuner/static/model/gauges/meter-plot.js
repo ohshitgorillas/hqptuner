@@ -43,7 +43,7 @@ const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at 
  * @param {SpectrumPlot} plot
  * @returns {number}
  */
-export const freqX = (f, plot) => (f / plot.nyq) * plot.w;
+const freqX = (f, plot) => (f / plot.nyq) * plot.w;
 
 /**
  * Where a level sits down a spectrum plot: full scale on the top edge, the range's floor and below on the bottom one.

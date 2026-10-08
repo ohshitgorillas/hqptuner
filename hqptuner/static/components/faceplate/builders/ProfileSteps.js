@@ -97,7 +97,7 @@ function choiceLine(l, on, fold, pick) {
 }
 
 /**
- * Choice lines under their label, spanning the row (the mockup's choice grammar).
+ * Choice lines under their label, spanning the row.
  *
  * @param {{ label: string, lines: Line[], cur: string, pick: (v: string) => unknown, fold?: boolean }} c
  */

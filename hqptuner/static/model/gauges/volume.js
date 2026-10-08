@@ -1,6 +1,6 @@
 // Playback volume decisions, free of the DOM: the level a request lands on (clamped to the range, snapped to the step),
 // Fixed volume and Direct SDM pinning it (Direct SDM wins while it lasts), which ± buttons disable, what the windows and
-// the rail print, and where the loudness bounds sit along a slider (components/volume.js paints them).
+// the rail print, and where the loudness bounds sit along a slider.
 
 import { minus } from "../shell/format.js";
 import { percentOf } from "./output.js";

@@ -64,7 +64,7 @@
 /** @typedef {import('./alerts.js').Sev} Sev */
 
 /**
- * The alert lines, as data/alerts.js writes them.
+ * The alert lines.
  *
  * @typedef {object} AlertCopy
  * @property {string} credentials

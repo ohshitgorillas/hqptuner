@@ -1,15 +1,13 @@
-// Behavioral suite for mockup/scripts/model/crossfeed.js: the name a crossfeed mode shows, the Bauer preset a stored
-// value names, and the Structural preset a speaker angle and center character land on, exactly or within a tolerance;
-// the corner a Bauer line installs, the values each folded line summarizes, what the Bauer response plot draws, which
-// fields the drawer leaves enabled, the listening-geometry coordinates of the top-down view, and its readouts.
+// Behavioral suite: the name a crossfeed mode shows, the Bauer preset a stored value names, and the Structural preset
+// a speaker angle and center character land on, exactly or within a tolerance; the corner a Bauer line installs, the
+// values each folded line summarizes, what the Bauer response plot draws, which fields the drawer leaves enabled, the
+// listening-geometry coordinates of the top-down view, and its readouts.
 //
 // Every expected number is a row the test writes. The geometry rows use the view's own frame as the contract: the head
 // centred at (200, 140), the speakers on a 112 radius, ticks from 96 to 128 at ±30°, the angle arc on a 40 radius and
 // its label on a 54 radius, the head radius 15 at a 6.5 cm radius or less, 25 at 10.5 cm or more, 2.5 per cm between.
 // sin 30° is 0.5 and cos 30° is 0.8660254037844386. The far-path tangency rows assert relations (the tangent point on
 // the head circle, its radius square to the path) rather than a coordinate.
-//
-// Run: node --test tests/js/mockup/crossfeed.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

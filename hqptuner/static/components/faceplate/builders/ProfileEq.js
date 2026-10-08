@@ -24,12 +24,12 @@ import { responsePlot } from "../page/MatrixProfile.js";
 /** @typedef {{ model: string, source: string, text: string }} Profile  one AutoEq entry as GET /api/autoeq carries it */
 /** @typedef {{ currentTarget: HTMLInputElement }} InputEv */
 
-/** The correction files row's label (mockup/scripts/components/builders/profile-builder/steps.js:55). */
+/** The correction files row's label. */
 export const FILES_LABEL = "Correction files";
-/** The response plot's accessible name (mockup/scripts/components/builders/autoeq.js:282). */
+/** The response plot's accessible name. */
 export const PLOT_ARIA = "EQ response";
 
-/** How many hits the search lists (mockup/scripts/components/builders/autoeq.js:46). */
+/** How many hits the search lists. */
 const HITS = 3;
 /** The plot's grid step in dB, the window `responsePlot` answers widening by it. */
 const STEP = 6;

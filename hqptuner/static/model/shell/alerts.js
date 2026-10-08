@@ -1,6 +1,5 @@
 // Where raised alerts land, free of the DOM: which homes blink and in what colour, which drawers and page sections pin
 // which alert lines, which drawer rows light, which stages go dark, and which header homes open a popover.
-// components/alerts.js paints these decisions on the plate; the homes table is data/alerts.js HOMES.
 
 /** @typedef {'crit' | 'warn' | 'advice'} Sev */
 /** @typedef {'crit' | 'warn'} Blink */

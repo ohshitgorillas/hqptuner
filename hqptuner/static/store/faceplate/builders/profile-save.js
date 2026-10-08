@@ -69,7 +69,7 @@ const wireOf = (k) => {
 };
 
 /**
- * The listening a profile's values read as: crossfeed engaged reads headphones (mockup records.js:143).
+ * The listening a profile's values read as: crossfeed engaged reads headphones.
  *
  * @param {Vals} v
  */

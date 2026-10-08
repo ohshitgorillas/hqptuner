@@ -83,6 +83,6 @@ select option{background:var(--glass);color:var(--acc)}
 
 /* "↻ restart" mark: setting or station that needs an engine restart. */
 .rs{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:var(--fw-regular);line-height:var(--lh-text)}
-/* Two-stage note collapsed to its lead-in (vselect.js optCopy): `… see more` expands it in place. */
+/* Two-stage note collapsed to its lead-in: `… see more` expands it in place. */
 .seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .seemore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}

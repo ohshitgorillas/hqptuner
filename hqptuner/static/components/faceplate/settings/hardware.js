@@ -1,8 +1,7 @@
 // The Hardware acceleration drawer's schema and its Settings rail readouts. The settings are engine attributes held by
 // store/faceplate/settings/hardware.js, never in the staged set: the engine's own POST restarts the daemon, so the
 // apply group runs that form (`own`). The block count and the CUDA devices are blocks the caller mounts by name. The
-// all-stations switch sits at the foot of both tabs over one value. Strings verbatim from
-// mockup/scripts/data/settings/hardware.js.
+// all-stations switch sits at the foot of both tabs over one value.
 
 import {
   allStations,
@@ -21,7 +20,7 @@ import {
 /** @typedef {import("../../../store/faceplate/settings/hardware.js").HardwareKey} HardwareKey */
 /** @typedef {import("../../../model/shell/settings.js").Control} Control */
 
-/** The settings' paragraphs (mockup hardware.js MAN). */
+/** The settings' paragraphs. */
 const MAN = {
   cuda: 'Utilizes an NVIDIA GPU to partially offload processing from the CPU to the GPU. CUDA offload requires an NVIDIA GPU with a minimum Compute Capability level of 5.2, 2 GB of graphics RAM, and the latest official NVIDIA drivers. When CUDA offload is enabled, Multicore DSP should also be enabled, or left at the automatic setting, to achieve the best performance. With "convolution only", only convolution algorithms are offloaded to the GPU.',
   multicore:
@@ -137,7 +136,7 @@ const seg = (options) => ({ type: "seg", options: options.map((o) => ({ v: o.val
  */
 const readout = (key, label, control) => ({ id: key, label, control, value: () => hardwareDraft().base[key] });
 
-/** The rail readouts, in the drawer's order (mockup settings/rail.js `show`). @type {SettingsReadout[]} */
+/** The rail readouts, in the drawer's order. @type {SettingsReadout[]} */
 export const HARDWARE_READOUTS = [
   readout("multicore", "Multicore DSP", seg(MULTICORE)),
   readout("ecores", "E-core allocation", seg(ECORES)),

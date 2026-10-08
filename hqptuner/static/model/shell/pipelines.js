@@ -1,5 +1,5 @@
-// DOM-free decisions of the DSP pipelines drawer (components/pipelines.js): a pipeline's chain as chips, which pins of
-// the routing grid are lit and what they carry, and the overview's and an output tab's summaries.
+// DOM-free decisions of the DSP pipelines drawer: a pipeline's chain as chips, which pins of the routing grid are lit
+// and what they carry, and the overview's and an output tab's summaries.
 
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus, signed } from "./format.js";

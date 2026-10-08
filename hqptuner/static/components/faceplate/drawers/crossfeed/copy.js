@@ -1,5 +1,5 @@
 // The Crossfeed block's strings the settings metadata does not hold, verbatim from the v1 lines each cites (owner
-// copy) or from the mockup line it names. Labels and paragraphs the metadata holds come through store/prose.js.
+// copy). Labels and paragraphs the metadata holds come through store/prose.js.
 
 /** v1 xfeed/Card.js BauerMode, the compensation heading's title. */
 export const COMP_MAN =
@@ -60,7 +60,7 @@ export const TRACE = {
   sides: "stereo sides",
 };
 
-/** mockup/scripts/components/drawers/crossfeed.js, the gate's name and the accessible names it writes. */
+/** The gate's name and the accessible names. */
 export const NAME = {
   gate: "Crossfeed",
   lines: "Crossfeed implementation",

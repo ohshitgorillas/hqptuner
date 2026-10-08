@@ -24,7 +24,7 @@ import { Xref, withXref } from "../Xref.js";
 /** @typedef {import("../../../store/faceplate/drawers/volume.js").VolumeRangeView} VolumeRangeView */
 /** @typedef {import("./volume/marks.js").KeyGlyph} KeyGlyph */
 
-/** The volume row's paragraphs, in the mockup's order. */
+/** The volume row's paragraphs. */
 const VOLUME_MAN = [RANGE_KEYS.min, RANGE_KEYS.max, RANGE_KEYS.startup];
 const LOUD_MAN = ["loudness_range_low", "loudness_range_high"];
 

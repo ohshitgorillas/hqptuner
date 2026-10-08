@@ -1,5 +1,5 @@
-// DOM-free decisions of the DSP pipelines drawer's editing surfaces (components/pipelines/dock.js, plot.js): the stage
-// dock's field values and whether they resolve against their tables, and the inputs the response plot draws.
+// DOM-free decisions of the DSP pipelines drawer's editing surfaces: the stage dock's field values and whether they
+// resolve against their tables, and the inputs the response plot draws.
 
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus } from "./format.js";

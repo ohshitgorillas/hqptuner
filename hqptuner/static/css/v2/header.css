@@ -37,7 +37,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .gauge .hub{fill:var(--ink)}
 .readout{display:flex;flex-direction:column}
 .gauge .val{font-size:var(--fs-gauge);line-height:1;color:var(--ink-2)}
-/* Zones (main.js zone()): the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colours,
+/* Zones: the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colours,
    never the accent; no zone (nothing playing) = neutral ink. */
 [data-zone="bad"]{--z:var(--bad)} [data-zone="warn"]{--z:var(--warn)} [data-zone="ok"]{--z:var(--ok)}
 .gauge .val[data-zone]:not([data-zone=""]){color:var(--z)}   /* gauge 62×34 (smaller) */
@@ -66,7 +66,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .volrd .v{font-size:var(--fs-6);line-height:1.1}
 .volrd[aria-expanded="true"]{border-color:var(--acc-dim)}
 
-/* Alerts (alerts.js) on the header homes: the knob's ring, the gear's glyph, the speed figure
+/* Alerts on the header homes: the knob's ring, the gear's glyph, the speed figure
    blink red (crit) or amber (warn), dark between blinks. The knob's blink (credentials rejected) never reads as its steady red
    (Unreachable). A home with an alert takes taps (popover). */
 .conn[data-alert="crit"] .ring{animation:al-ring-crit var(--blink)}
@@ -88,7 +88,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
   .gear[data-alert="crit"],.gauge[data-alert="crit"] .val{color:var(--bad)} .gear[data-alert="warn"],.gauge[data-alert="warn"] .val{color:var(--warn)}
 }
 
-/* Buffer bars take part of the spare width the larger displays give the engine row (lib/plate.js SIZES). */
+/* Buffer bars take part of the spare width the larger displays give the engine row. */
 .plate[data-size="11"] .meter .bar{width:var(--meter-w-11)}
 .plate[data-size="13"] .meter .bar{width:var(--meter-w-13)}
 

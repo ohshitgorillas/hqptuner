@@ -1,7 +1,6 @@
-// The DSP pipelines drawer's copy and plugin tables, carried from the faceplate mockup (mockup/scripts/data/stages/
-// pipelines.js and its pipelines/ components): the manual's Pipelines, gain and plugin paragraphs (v1 settings.json
-// matrix_pipelines, manual §7 / readme §1.11.1, verbatim), the manual's plugin tables (§7.2-7.4, verbatim), v1's stage
-// kind labels (StageEditor), and the drawer's own names for the crossfeed blocks.
+// The DSP pipelines drawer's copy and plugin tables: the manual's Pipelines, gain and plugin paragraphs (v1
+// settings.json matrix_pipelines, manual §7 / readme §1.11.1, verbatim), the manual's plugin tables (§7.2-7.4,
+// verbatim), v1's stage kind labels (StageEditor), and the drawer's own names for the crossfeed blocks.
 
 export const PMAN = {
   pipelines:

@@ -1,11 +1,8 @@
-// Behavioral suite for mockup/scripts/model/option-list.js: what an option list decides, free of the DOM. Which rows and
-// chips a hover tip carries and where it lands beside its row, where a panel parks at its picker, how the narrowed list
-// groups into families and variants, which placement columns survive narrowing, and how the Standard style fills its
-// columns in engine order.
+// Behavioral suite: what an option list decides, free of the DOM. Which rows and chips a hover tip carries and where it
+// lands beside its row, where a panel parks at its picker, how the narrowed list groups into families and variants,
+// which placement columns survive narrowing, and how the Standard style fills its columns in engine order.
 //
 // The plate, the facet labels, the options, the placement table and the engine order are all ones this file writes.
-//
-// Run: node --test tests/js/mockup/option-list.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

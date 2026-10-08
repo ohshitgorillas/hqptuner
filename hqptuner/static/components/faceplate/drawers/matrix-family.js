@@ -1,15 +1,14 @@
 // The Crossfeed and Loudness drawers' schemas, two members of the matrix family: an edit in either lights every
 // member's apply group, and Apply in any member applies all. Crossfeed is one block (components/faceplate/drawers/
 // Crossfeed.js); Loudness is its gate row, then its block (Loudness.js). Each block names the catalog keys it stages,
-// so the tab takes the dot and the apply group follows. Strings verbatim from mockup/scripts/data/stages/matrix.js as
-// cited; the gate's label and paragraph come from the settings metadata.
+// so the tab takes the dot and the apply group follows. The gate's label and paragraph come from the settings metadata.
 
 import { CrossfeedBody } from "./Crossfeed.js";
 import { LoudnessBody } from "./Loudness.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
-/** The matrix family's gate options, bypass leftmost (mockup matrix.js:94-97). */
+/** The matrix family's gate options, bypass leftmost. */
 const ENGAGE_BYPASS = [
   { value: "0", label: "Bypass" },
   { value: "1", label: "Engage" },
@@ -37,21 +36,21 @@ const LOUDNESS_KEYS = [
 export const CROSSFEED_DRAWER = {
   id: "crossfeed",
   family: "matrix",
-  title: "Crossfeed", // mockup matrix.js:331
-  aria: "Crossfeed settings", // :332
-  tabs: [{ id: "crossfeed", label: "Crossfeed", body: [{ block: "crossfeed", keys: CROSSFEED_KEYS }] }], // :335
+  title: "Crossfeed",
+  aria: "Crossfeed settings",
+  tabs: [{ id: "crossfeed", label: "Crossfeed", body: [{ block: "crossfeed", keys: CROSSFEED_KEYS }] }],
 };
 
 /** @type {DrawerSchema} */
 export const LOUDNESS_DRAWER = {
   id: "loudness",
   family: "matrix",
-  title: "Loudness", // mockup matrix.js:300
-  aria: "Loudness settings", // :301
+  title: "Loudness",
+  aria: "Loudness settings",
   tabs: [
     {
       id: "loudness",
-      label: "Loudness", // :306
+      label: "Loudness",
       body: [{ row: { key: "loudness_enabled", options: ENGAGE_BYPASS } }, { block: "loudness", keys: LOUDNESS_KEYS }],
     },
   ],

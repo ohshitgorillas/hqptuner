@@ -12,7 +12,7 @@
 .sh .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-4);white-space:nowrap;line-height:var(--lh-eng)}
 .sh .ln{flex-grow:1;height:var(--hair);background:var(--line)}
 /* Narrowing tags: as many as fit between the rule and the buttons; the rest fold into a `+n` tag that opens Narrow filters
-   (too many facets pushed the buttons off the page). narrow-filters.js measures. */
+   (too many facets pushed the buttons off the page). */
 .sh .ln{min-width:var(--sp-9)}
 .sh > .btn{flex-shrink:0}
 .tag.tmore{background:none;font:inherit;font-size:var(--fs-2);cursor:pointer;flex-shrink:0}
@@ -27,7 +27,7 @@
 
 /* Field: head + control, stacked. */
 .fld,.stack{display:flex;flex-direction:column;gap:var(--sp-3);max-width:100%}
-/* Resampling with the matrix engine bypassed (conversion.js setBoth): 1x and Nx both open, a row each. */
+/* Resampling with the matrix engine bypassed: 1x and Nx both open, a row each. */
 .rsboth{display:flex;flex-direction:column;gap:var(--sp-7)}
 .inline{display:flex;gap:var(--sp-5);align-items:center}
 
@@ -45,7 +45,7 @@
 .desc:hover svg{color:var(--ink-2)}
 .desc:focus-within svg{color:var(--acc)}
 
-/* Matrix response plot (±12 dB, 20 Hz–20 kHz, log f). Stretches with the section; matrix-plot.js redraws 1:1 on resize. */
+/* Matrix response plot (±12 dB, 20 Hz–20 kHz, log f). Stretches with the section. */
 .eq{position:relative;min-height:var(--plot-min);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);overflow:hidden;background:var(--glass)}
 .eq svg{position:absolute;inset:0;display:block}
 .eq .grid{stroke:var(--grid)}
@@ -54,7 +54,7 @@
 .eq .trace{fill:none;stroke:var(--acc);stroke-width:1.75;stroke-linejoin:round}
 .eq .lbl{fill:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-1);line-height:var(--lh-text)}
 
-/* One-line fold (conversion.js): a field or chain that isn't open — ▸, its name, why, its value; tapping opens it and
+/* One-line fold: a field or chain that isn't open — ▸, its name, why, its value; tapping opens it and
    folds the open one (one open per section, so the height never changes). Never accented. */
 .fline{display:flex;align-items:center;gap:var(--sp-5);width:var(--fold-w);max-width:100%;height:var(--fold-h);padding:0;border:0;background:none;
   color:var(--ink-2);font:inherit;font-size:var(--fs-4);white-space:nowrap;text-align:left;cursor:pointer}
@@ -76,13 +76,13 @@ details.fold[open] summary::before{content:"▾"}
 details.fold summary b{font-weight:var(--fw-semi);color:var(--ink-2)}
 details.fold summary .fn{margin-left:auto;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 details.fold summary .band{flex-shrink:0}
-/* Resampling / Shaping bodies are mount points (conversion.js); their .two sits in the section as if written there. One
+/* Resampling / Shaping bodies are mount points; their .two sits in the section as if written there. One
    section holds both (the drawer's name); a rule between the two bodies keeps the two stages apart. */
 #rs-body,#sh-body{display:contents}
 /* The body steps in under the summary's name: past the ▸ column and its gap. */
 details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));display:flex;flex-direction:column;gap:var(--sp-3)}
 
-/* Output rate picker (output-tuner.js; only while Allow pinned rates is On). Two rows. Head column (Auto | 44.1k · 48k) | a
+/* Output rate picker (only while Allow pinned rates is On). Two rows. Head column (Auto | 44.1k · 48k) | a
    column per tier of the running band: name, then its two rates side by side as pins + the tier's unit once. Playing =
    ringed (ink); pin = accent. Rows fixed height. */
 .otglass{flex-direction:row;align-items:stretch;gap:0;padding:var(--sp-2) var(--sp-6);color:var(--ink)}
@@ -109,15 +109,15 @@ details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));di
 .otp:focus-visible,.otautop:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--hair)}
 
 
-/* Alert glyph on a page section's title (alerts.js): the stage's alert, in its colour; the text is the title tooltip. */
-/* Section alert (alerts.js): the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
+/* Alert glyph on a page section's title: the stage's alert, in its colour; the text is the title tooltip. */
+/* Section alert: the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
 .sh .salert{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-1)}
-/* Matrix engine folded to its header line (main.js paintFill: the spectrum has the top of the page): the profile picker
+/* Matrix engine folded to its header line (the spectrum has the top of the page): the profile picker
    and Profile builder sit on the header, after the hairline; the section body is gone. */
 .sec.mxfold .sh > .inline{flex-shrink:0}
 
 /* Chain picker (Resampling 1x / Nx, Shaping): nameplate glass.
-   components/chain-pick.js. The ▾ is two --chev halves, --sp-5 in from the right edge; the text keeps --sp-4 clear of it. */
+   The ▾ is two --chev halves, --sp-5 in from the right edge; the text keeps --sp-4 clear of it. */
 .cpk{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
 .fld>.cpk+.fline{margin-top:var(--sp-2)}
 button.vfd.cplate{height:var(--cplate-h);padding:var(--sp-2) var(--sp-6);display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto;align-items:center;justify-content:stretch;justify-items:stretch;align-content:stretch;gap:0;text-align:left;cursor:pointer;

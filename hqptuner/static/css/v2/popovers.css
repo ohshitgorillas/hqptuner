@@ -1,5 +1,5 @@
 /* Popover sheets. All are direct children of the plate (so the page's overflow clip can't cut them),
-   except the station tree, which anchors inside the header's .station group. popover.js parks them. */
+   except the station tree, which anchors inside the header's .station group. */
 .pop{position:absolute;left:var(--pop-at-x);top:var(--pop-at-y);width:var(--pop-w);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);padding:var(--sp-3);display:flex;flex-direction:column;z-index:5}
 .pn{flex-grow:1}
 
@@ -52,7 +52,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .pip{width:var(--pip);height:var(--pip);border-radius:var(--r-round);background:var(--ink-3);flex-shrink:0}
 .frow.cur .pip{background:var(--acc)}
 
-/* Subsets (filter-presets.js): Concert Hall and The Crucible fold under each flagship. Folded: one
+/* Subsets: Concert Hall and The Crucible fold under each flagship. Folded: one
    fold line on the name column (▸, emoji + name each; the picked one amber). Open: both as nested rows, stepped in with a
    rule down their left like a tree; ▾ in the first one's gutter folds them. One flagship open at a time. The ▸ sits one
    gap before the names; the ▾ key sits in the step, --sp-7 clear of the rule. */
@@ -106,12 +106,12 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .vpop .scale span:first-child{transform:none;margin-left:calc(-1 * var(--thumb-half))}
 .vpop .scale span:last-child{transform:translateX(-100%);margin-left:var(--thumb-half)}
 
-/* Two-stage note popover (vselect.js): the full filters.json note, parked under its `see more` link. */
+/* Two-stage note popover: the full filters.json note, parked under its `see more` link. */
 .notepop{width:var(--notepop-w);padding:var(--sp-5) var(--sp-7)}
 .notepop p{margin:0;font-size:var(--fs-3);line-height:1.5;color:var(--ink)}
 .notepop p+p{margin-top:var(--sp-4)}
 
-/* Loudness bounds on the volume sliders (popover + bottom bar; volume.js loudMarks): the Range bar's grammar, ink-2
+/* Loudness bounds on the volume sliders (popover + bottom bar): the Range bar's grammar, ink-2
    reference marks. ( and ) straddle the track at the bounds; a strip under the track joins them. 7px insets = the native
    thumb's half width, the same inset the scale marks use. Only while loudness is in effect. */
 .vsl{position:relative}

@@ -1,4 +1,4 @@
-// DOM-free decisions the Snapshot builder (components/snapshot-builder.js) makes: how many lines a rail page holds from
+// DOM-free decisions the Snapshot builder makes: how many lines a rail page holds from
 // the heights measured at each size, which page a save reveals, which station folds are open and what each lists, which
 // rail entries light with the edit, and each row's value, live value and whether the two differ. Each returns a value
 // and leaves its arguments as they were.

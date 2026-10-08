@@ -1,10 +1,8 @@
-// Behavioral suite for mockup/scripts/model/speakers.js: where each speaker of a set sits on the top-down room plan
-// (the listener at the origin facing up the page, each speaker at its layout angle, at a radius set by its distance,
-// the sub pushed out) and how far the plan's box reaches to fit them.
+// Behavioral suite: where each speaker of a set sits on the top-down room plan (the listener at the origin facing up
+// the page, each speaker at its layout angle, at a radius set by its distance, the sub pushed out) and how far the
+// plan's box reaches to fit them.
 //
 // The layout is one the test writes: channel 0 straight ahead, 1 at the right, 2 at the left, 3 the sub straight ahead.
-//
-// Run: node --test tests/js/mockup/speakers.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

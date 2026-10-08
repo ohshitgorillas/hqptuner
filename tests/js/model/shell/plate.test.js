@@ -1,6 +1,6 @@
 // Behavioral suite for hqptuner/static/model/shell/plate.js: which iPad landscape size the plate is laid out at for a
-// window, and how far it scales down when the window is smaller than the smallest size. The sizes are the spec's
-// three, in points.
+// window, and how far it scales down when the window is smaller than the smallest size. The sizes are three, in
+// points.
 //
 // Run: node --test tests/js/model/shell/plate.test.js
 
