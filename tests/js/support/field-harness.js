@@ -17,7 +17,7 @@
 
 import { config, matrixConfig, metadata, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { showDescriptions, keepOptionDescriptions, plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
+import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { staticWire } from "./wire/wire.js";
 
@@ -133,28 +133,17 @@ const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
  *   fields?: ConfigField[],
  *   matrix?: ConfigField[],
  *   meta?: import("../../../hqptuner/static/store/prose.js").Metadata,
- *   desc?: boolean,
- *   keep?: boolean,
  *   plain?: boolean,
  * }} [fixture]  `plain` is the option style, Simplified when true; a case whose result depends on it passes it
  * @returns {Promise<void>}
  */
-export async function reset({
-  fields = [],
-  matrix = MATRIX_ENGAGED,
-  meta = META,
-  desc = true,
-  keep = true,
-  plain = false,
-} = {}) {
+export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META, plain = false } = {}) {
   wire();
   engineState.value = {};
   enums.value = null;
   metadata.value = meta;
   config.value = { fields, file: {}, active: "", profiles: null };
   matrixConfig.value = { fields: matrix };
-  showDescriptions.value = desc;
-  keepOptionDescriptions.value = keep;
   plainNames.value = plain;
   resetNarrowing();
   await discardAll();

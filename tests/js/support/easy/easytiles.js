@@ -32,7 +32,7 @@ import { writeSet, presetsFor } from "../../../../hqptuner/static/store/easy/eas
 import { easyKnobs, setEasyMaterial } from "../../../../hqptuner/static/store/easy/easyview.js";
 import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { liveMode, showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
@@ -259,10 +259,9 @@ export async function flush(w) {
  * RENDERS seeds its own stand-in text here and never meets what ships.
  *
  * @param {boolean} keepKnobs
- * @param {boolean} notes
  * @param {Record<string, object>} copy
  */
-function common(keepKnobs, notes, copy) {
+function common(keepKnobs, copy) {
   if (!keepKnobs) easyKnobs.value = {};
   // The card's material position is module-level like the record and outlives
   // a case; a case wanting it off its default sets it AFTER the reset.
@@ -275,8 +274,6 @@ function common(keepKnobs, notes, copy) {
   signals.previewConfig.value = null;
   signals.pendingPreset.value = null;
   signals.health.value = { reachable: true, info: {} };
-  showDescriptions.value = notes;
-  keepOptionDescriptions.value = true;
   liveErrors.value = {};
   liveBusy.value = "";
   narrow.resetNarrowing();
@@ -325,10 +322,8 @@ export async function resetLive({
   ratios = {},
 } = {}) {
   const w = stagingWire({ routes });
-  // No copy and no descriptions preference: the LIVE lane's cases are about the
-  // wire, and what a description RENDERS is read on the tabs lane
-  // (tests/js/components/easytiles-desc.test.js).
-  common(keepKnobs, false, {});
+  // No copy: the LIVE lane's cases are about the wire.
+  common(keepKnobs, {});
   signals.enums.value = enumerations(VOCAB, mode, ratios);
   signals.engineState.value = {
     mode: "1",
