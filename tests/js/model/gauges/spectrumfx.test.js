@@ -1,5 +1,5 @@
 // Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
-// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars, waterfall rows and ridge rows,
+// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars and ridge rows,
 // and the style a page draws when the picked one needs WebGL2 it lacks. Every height is a fraction of the plot, 0 on the
 // floor and 1 at full scale.
 //
@@ -23,7 +23,6 @@ import {
   stepCaps,
   stepGravity,
   stepRidges,
-  waterfallRow,
 } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
 import { near } from "../../support/near.js";
 
@@ -45,11 +44,6 @@ const LOW = 0.25;
 const RISEN = 0.75;
 //: A falling bar's speed before the step, in fractions per second.
 const FALLING_V = 1;
-//: Three RGB entries, every channel distinct and non-zero.
-const LUT = Uint8ClampedArray.from([40, 41, 42, 120, 121, 122, 200, 201, 202]);
-//: Red channel of the first and last LUT entries.
-const FIRST_RED = 40;
-const LAST_RED = 200;
 
 /**
  * @param {number[]} xs
@@ -223,26 +217,6 @@ test("test_a_band_touching_its_gravity_bar_stops_the_fall", () => {
 test("test_a_falling_gravity_bar_never_drops_below_its_band", () => {
   const prev = { lvl: f32(HIGH), v: f32(100 * FALLING_V) };
   assert.equal(stepGravity(prev, f32(LOW), DT).lvl[0], LOW);
-});
-
-// ── waterfallRow ─────────────────────────────────────────────────────────
-
-test("test_a_waterfall_pixel_takes_the_lut_entry_at_its_fraction", () => {
-  assert.deepEqual(list(waterfallRow(f32(0.5), LUT, 1).slice(0, 3)), [120, 121, 122]);
-});
-
-test("test_a_waterfall_pixel_rounds_to_the_nearest_lut_entry", () => {
-  assert.equal(waterfallRow(f32(0.75), LUT, 1)[0], LAST_RED);
-});
-
-test("test_every_waterfall_pixel_is_opaque_through_the_last", () => {
-  const width = 3;
-  assert.equal(waterfallRow(f32(HIGH), LUT, width)[width * 4 - 1], 255);
-});
-
-test("test_a_waterfall_pixel_reads_the_column_its_position_floors_to", () => {
-  // Four pixels over two columns: pixel 1 sits at column 0.5, which floors to the floor column.
-  assert.equal(waterfallRow(f32(0, 1), LUT, 4)[4], FIRST_RED);
 });
 
 // ── stepRidges ───────────────────────────────────────────────────────────

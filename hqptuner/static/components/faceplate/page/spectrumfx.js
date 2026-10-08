@@ -1,8 +1,8 @@
 // The page spectrum's effects canvas, laid over the SVG trace: each meter paint draws the picked spectrum style from
 // the per-frame steps in model/gauges/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars and
-// soft draw one bar per band, bars with peak caps over a floor-to-full-scale gradient; the waterfall moves its image
-// down a pixel under a new row; ridges stack their rows up the plot, each newer row lower and in front. A change of
-// style, or a paint with no spectrum, starts the next style's state afresh.
+// soft draw one bar per band, bars with peak caps over a floor-to-full-scale gradient; ridges stack their rows up the
+// plot, each newer row lower and in front. A change of style, or a paint with no spectrum, starts the next style's
+// state afresh.
 
 import {
   BANDS,
@@ -13,7 +13,6 @@ import {
   stepCaps,
   stepGravity,
   stepRidges,
-  waterfallRow,
 } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 
@@ -23,7 +22,7 @@ import { STEP_MS } from "../../../store/meter/loop.js";
 /** @typedef {import("../../../model/gauges/spectrumfx.js").RidgeState} RidgeState */
 
 /**
- * The colours a painter draws with: CSS colours for the canvas, and the waterfall's lookup table.
+ * The CSS colours a painter draws with.
  *
  * @typedef {object} FxColours
  * @property {string} lo     bar gradient at the floor
@@ -31,7 +30,6 @@ import { STEP_MS } from "../../../store/meter/loop.js";
  * @property {string} hi     bar gradient at full scale
  * @property {string} meter  soft bars, peak caps and ridge lines
  * @property {string} glass  the fill under each ridge, hiding the rows behind it
- * @property {ArrayLike<number>} ramp  RGB entries, floor first
  */
 
 /** @typedef {{ caps: CapState | null, gravity: GravityState | null, ridges: RidgeState | null }} FxState */
@@ -119,19 +117,6 @@ function soft(f) {
 }
 
 /**
- * Waterfall: the image moved down one pixel and one canvas-wide row on top.
- *
- * @param {Frame} f
- */
-function waterfall(f) {
-  const { ctx, canvas } = f;
-  ctx.drawImage(canvas, 0, 1);
-  const row = ctx.createImageData(canvas.width, 1);
-  row.data.set(waterfallRow(f.fracs, f.colours.ramp, canvas.width));
-  ctx.putImageData(row, 0, 0);
-}
-
-/**
  * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide.
  *
  * @param {Frame} f
@@ -159,7 +144,7 @@ function ridges(f) {
 }
 
 /** @type {Record<string, (f: Frame) => void>} */
-const STYLES = { bars, soft, waterfall, ridges };
+const STYLES = { bars, soft, ridges };
 
 /** @returns {FxState} */
 const fresh = () => ({ caps: null, gravity: null, ridges: null });

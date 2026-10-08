@@ -19,9 +19,9 @@ const storage = useStorage();
 const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
 
 const KEY = "hqptuner.spectrumStyle";
-const WATERFALL = "waterfall";
+const RIDGES = "ridges";
 
 test("test_choosing_a_spectrum_style_persists_it", () => {
-  prefs.setSpectrumStyle(WATERFALL);
-  assert.equal(storage.getItem(KEY), WATERFALL);
+  prefs.setSpectrumStyle(RIDGES);
+  assert.equal(storage.getItem(KEY), RIDGES);
 });

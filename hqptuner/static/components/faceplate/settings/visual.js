@@ -35,7 +35,6 @@ const SPECTRA = [
   { v: "trace", label: "Trace" },
   { v: "bars", label: "Bars" },
   { v: "soft", label: "Soft bars" },
-  { v: "waterfall", label: "Waterfall" },
   { v: "ridges", label: "Ridges" },
   { v: "aurora", label: "Aurora" },
 ];

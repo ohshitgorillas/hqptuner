@@ -14,7 +14,7 @@ import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
 import { PAGE_RANGES, setPageRange } from "../../../store/ui/faceplate.js";
 import { spectrumStyle } from "../../../store/ui/prefs.js";
-import { rgb, specRamp } from "../tokencolours.js";
+import { rgb } from "../tokencolours.js";
 import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
 import { SH, SW, paintSourcePage } from "./sourcepaint.js";
@@ -213,7 +213,6 @@ function fxColours(el) {
     hi: cs.getPropertyValue("--vis-hi").trim(),
     meter: cs.getPropertyValue("--meter").trim(),
     glass: cs.getPropertyValue("--glass").trim(),
-    ramp: specRamp(cs),
   };
 }
 

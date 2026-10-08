@@ -1,13 +1,13 @@
 // Painter suite for hqptuner/static/components/faceplate/page/spectrumfx.js: how big the page spectrum's canvas is
 // drawn for a box and a pixel ratio, and what one paint draws on it under each spectrum style. "trace" and "aurora"
 // leave the canvas clear for the SVG under it; "bars" and "soft" clear and fill one rect per band, bars adding a peak
-// cap per band; "waterfall" moves the image down a pixel and puts one row on top; "ridges" clears and strokes one line
-// per ridge row, a row more every RIDGE_EVERY paints. A change of style starts the new style's state afresh.
+// cap per band; "ridges" clears and strokes one line per ridge row, a row more every RIDGE_EVERY paints. A change of
+// style starts the new style's state afresh.
 //
 // The canvas is a fake whose 2D context records every method called on it by name and arguments; every property write
 // is kept and read back, and `createImageData` hands back a plain image of the asked size. Only the drawing calls are
 // read back (`DRAWS`), so how the painter sets up a path or a colour is never asserted. The canvas is 480 by 170, a
-// width unlike the 600 columns the spectrum carries, so a row sized by columns instead of pixels is caught.
+// width unlike the 600 columns the spectrum carries.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/spectrumfx-paint.test.js
 
@@ -43,14 +43,13 @@ const DRAWS = new Set([
   "strokeText",
 ]);
 
-/** The colours a painter is built with: five CSS colours and a 256-entry RGB ramp. */
+/** The colours a painter is built with: five CSS colours. */
 const COLOURS = {
   lo: "#2a8",
   mid: "#cc4",
   hi: "#d43",
   meter: "#999",
   glass: "#fff",
-  ramp: new Uint8ClampedArray(256 * 3).fill(128),
 };
 
 /**
@@ -199,34 +198,6 @@ test("test_a_bars_paint_fills_a_bar_and_a_peak_cap_for_every_band", () => {
 
 test("test_a_soft_paint_fills_one_bar_for_every_band_and_no_caps", () => {
   assert.equal(count(lastPaint("soft"), "fillRect"), BANDS);
-});
-
-// ── waterfall ────────────────────────────────────────────────────────────
-
-test("test_a_waterfall_paint_moves_the_image_then_puts_a_row_and_never_clears", () => {
-  assert.deepEqual(
-    lastPaint("waterfall").map((c) => c.name),
-    ["drawImage", "putImageData"],
-  );
-});
-
-test("test_a_waterfall_paint_moves_the_canvas_onto_itself_one_pixel_down", () => {
-  const { canvas, fx } = painter();
-  fx.paint(hold(MID_DB), RANGE, "waterfall");
-  const moves = canvas.calls
-    .filter((c) => c.name === "drawImage")
-    .map((c) => ({ self: c.args[0] === canvas, at: c.args.slice(1) }));
-  assert.deepEqual(moves, [{ self: true, at: [0, 1] }]);
-});
-
-test("test_a_waterfall_paint_puts_one_canvas_wide_row_at_the_top_left", () => {
-  const puts = lastPaint("waterfall")
-    .filter((c) => c.name === "putImageData")
-    .map((c) => {
-      const img = /** @type {{ width: number, height: number }} */ (c.args[0]);
-      return { width: img.width, height: img.height, at: c.args.slice(1) };
-    });
-  assert.deepEqual(puts, [{ width: W, height: 1, at: [0, 0] }]);
 });
 
 // ── ridges ───────────────────────────────────────────────────────────────

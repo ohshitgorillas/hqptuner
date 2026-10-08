@@ -186,7 +186,7 @@ test("test_tapping_spectrum_puts_the_spectrum_at_the_top_of_the_page", async () 
 
 /** Per readout, the state that lights a non-default option of its field. */
 const LIT = {
-  vspec: () => (spectrumStyle.value = "waterfall"),
+  vspec: () => (spectrumStyle.value = "ridges"),
   vstyle: () => (plainNames.value = true),
   vapod: () => (apodLight.value = "uncorrected"),
   vdys: () => (dyslexic.value = true),

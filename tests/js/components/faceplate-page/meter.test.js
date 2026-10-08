@@ -35,6 +35,8 @@ import { attr, classes, elements, hasAttr, text } from "../../support/markup.js"
 
 const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
+//: A spectrum style other than the trace, so the grid's data-style shows the pick.
+const RIDGES = "ridges";
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST = "", SECOND = ""] = PAGE_RANGES;
@@ -179,10 +181,8 @@ test("test_the_spectrum_plot_stacks_the_spectrum_svg_then_the_effects_canvas_the
   assert.deepEqual(order, layers);
 });
 
-for (const style of ["waterfall", "ridges"]) {
-  test(`test_the_spectrum_grid_carries_the_${style}_style_when_it_is_picked`, () => {
-    setSpectrumStyle(style);
-    const grid = withClass("sgrid1")[0];
-    assert.equal(grid ? attr(grid, "data-style") : undefined, style);
-  });
-}
+test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => {
+  setSpectrumStyle(RIDGES);
+  const grid = withClass("sgrid1")[0];
+  assert.equal(grid ? attr(grid, "data-style") : undefined, RIDGES);
+});

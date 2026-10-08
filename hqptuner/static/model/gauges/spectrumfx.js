@@ -1,9 +1,8 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
 // fractions and bands; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under
-// acceleration, a waterfall row takes its colours from a lookup table, ridge rows stack on a cadence, and aurora gives
-// way to the trace without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every
-// step returns a new state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from
-// a table.
+// acceleration, ridge rows stack on a cadence, and aurora gives way to the trace without WebGL2. Every height is a
+// fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone,
+// so a painter draws what it gets back and a test drives it from a table.
 
 import { fraction } from "./meter.js";
 
@@ -14,9 +13,6 @@ export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outwa
 export const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const RIDGE_ROWS = 24; // ridge rows kept, newest first
 export const RIDGE_EVERY = 4; // steps between ridge rows
-const RGB = 3; // colour lookup table channels per entry
-const RGBA = 4; // waterfall row channels per pixel
-const OPAQUE = 255; // waterfall pixel alpha
 
 /**
  * Peak caps, one per band: where each sits and how long since its band last reached it. Float32 storage is part of the
@@ -138,30 +134,6 @@ export function stepGravity(prev, bands, dt) {
     next.lvl[i] = Math.max(bands[i], prev.lvl[i] - next.v[i] * dt);
   }
   return next;
-}
-
-/**
- * One waterfall row `width` pixels wide, RGBA: pixel `x` reads the column `floor(x·len/width)` and takes the lookup
- * table entry nearest that column's fraction of the table, fully opaque.
- *
- * @param {ArrayLike<number>} fracs  plot fractions
- * @param {ArrayLike<number>} lut    RGB entries, floor first
- * @param {number} width  pixels
- * @returns {Uint8ClampedArray}
- */
-export function waterfallRow(fracs, lut, width) {
-  const out = new Uint8ClampedArray(width * RGBA);
-  const last = lut.length / RGB - 1;
-  for (let x = 0; x < width; x++) {
-    const f = fracs[Math.floor((x * fracs.length) / width)];
-    const e = RGB * Math.min(last, Math.max(0, Math.round(f * last)));
-    const p = RGBA * x;
-    out[p] = lut[e];
-    out[p + 1] = lut[e + 1];
-    out[p + 2] = lut[e + 2];
-    out[p + 3] = OPAQUE;
-  }
-  return out;
 }
 
 /**
