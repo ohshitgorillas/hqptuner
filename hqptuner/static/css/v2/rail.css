@@ -7,14 +7,14 @@
 .rail{position:relative;display:flex;flex-direction:column;padding-top:0;min-height:0}
 .st{position:relative;z-index:1;display:grid;grid-template-columns:var(--wire-col) minmax(0,1fr);gap:var(--sp-1) var(--sp-4);align-items:center;align-content:center;padding:var(--sp-1) 0;flex:1 0 auto;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer;width:100%}
 .st .n{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-3);line-height:var(--lh-eng)}
-.st .v{grid-column:2;font-family:var(--f-mono);font-size:var(--fs-1);color:var(--acc);overflow:hidden;line-height:var(--lh-text);
+.st .v{grid-column:2;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);overflow:hidden;line-height:var(--lh-text);
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}   /* a long value (DAC model) wraps to a second line, never cut off */
 /* A name that wraps (the DSD conversion stage): the lamp sits centred on its first line. */
 .st.wrap .lamp{align-self:start;margin-top:calc((var(--fs-5) * var(--lh-eng) - var(--lamp-d-rail)) / 2)}
 .st.sub{padding:0 0 0 var(--sp-8)}
 .st .v .nb{white-space:nowrap}   /* a value split into parts (store/faceplate/chain.js railBreak) wraps only between them */
 .st .v:empty{display:none}   /* a stage with no value (an unlit one, or a lit one with nothing to name) */
-.st.sub .n{font-size:var(--fs-3);letter-spacing:var(--ls-2);font-weight:var(--fw-semi)}
+.st.sub .n{font-size:var(--fs-4);letter-spacing:var(--ls-2);font-weight:var(--fw-semi)}
 .st.sub2{padding-left:calc(2 * var(--sp-8))}
 .st:hover .n{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
 

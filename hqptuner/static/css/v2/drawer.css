@@ -10,7 +10,7 @@
 @media (prefers-reduced-motion:reduce){.drawer{transition:none}}
 
 .dhead{height:var(--dhead-h);flex-shrink:0;display:flex;align-items:center;gap:var(--sp-7);padding:0 var(--sp-6) 0 var(--sp-9);border-bottom:var(--hair) solid var(--line)}
-.dhead .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.dhead .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
 /* Head, right end: [Discard  Apply ▾] | ×. Discard and the split apply button sit together as one group (the builders'
    Discard / Save grammar: .btn.sm); a hairline and an even 14px either side set close apart (no misclicks); close
    matches the buttons' 34px height and keeps the same 12px from the drawer's edge. The group shows while the open tab
@@ -29,7 +29,7 @@
 .pop.amenu{width:auto;min-width:var(--menu-min)}   /* check menu (the builders' Stations menus): the pipelines menu's rows (.pmrow), the checked ones ticked */
 .amenu .pmrow::before{content:"";width:var(--fold-mark);flex-shrink:0;text-align:center;color:var(--acc)}
 .amenu .pmrow[aria-checked="true"]::before{content:"✓"}
-.dtabs button{position:relative;height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-7)}
+.dtabs button{position:relative;height:var(--ctl-h-sm);font-size:var(--fs-5);padding:0 var(--sp-7)}
 .dtabs button.dirty::after,.bandsl[data-dirty]::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 .dhead .t{position:relative}
 .dhead .t.dirty::after{content:"";position:absolute;top:var(--sp-1);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
@@ -67,7 +67,7 @@
 .devbtn{width:100%;height:var(--cplate-h);flex-direction:row;align-items:center;gap:var(--sp-5);padding:0 var(--sp-6);cursor:pointer;text-align:left}
 .devbtn .tx{display:flex;flex-direction:column;gap:var(--sp-1);min-width:0;flex-grow:1}
 .devbtn .v{font-family:var(--f-body);font-size:var(--fs-5);font-weight:var(--fw-medium);line-height:var(--lh-text)}
-.devbtn .l{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.devbtn .l{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .devbtn .ar{color:var(--acc-dim);font-size:var(--fs-2);flex-shrink:0}
 .devlist{position:absolute;left:0;top:calc(100% + var(--sp-3));width:var(--devlist-w);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);padding:var(--sp-3);z-index:6;display:flex;flex-direction:column;gap:var(--sp-1)}
 .devlist .gh{display:flex;align-items:center;gap:var(--sp-5);padding:var(--sp-4) var(--sp-4) var(--sp-1);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
@@ -108,7 +108,7 @@
 .dial .major{stroke:var(--ink-3);stroke-width:1.5}
 .dial .tier{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);fill:var(--ink-2);line-height:var(--lh-eng)}
 .dial .freq{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink-2);line-height:var(--lh-text)}
-.dial .note{font-family:var(--f-body);font-style:italic;font-size:var(--fs-1);fill:var(--ink-2);line-height:var(--lh-text)}
+.dial .note{font-family:var(--f-body);font-style:italic;font-size:var(--fs-2);fill:var(--ink-2);line-height:var(--lh-text)}
 .dial .unav .major{stroke:var(--edge)}
 .dial .unav .tier,.dial .unav .freq{fill:var(--ink-4)}
 .dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
@@ -125,7 +125,7 @@
 /* Drawer intro (schema {intro}): the lead over a tab's rows, full width, body ink; links to the drawers it names. */
 .dintro{margin:0;padding:var(--sp-4) 0 var(--sp-5);border-bottom:var(--hair) solid var(--row-rule);font-size:var(--fs-4);line-height:1.5;color:var(--ink);max-width:var(--measure-drawer)}
 .optlist{grid-column:1/-1;display:flex;flex-direction:column;gap:var(--hair);margin-top:var(--sp-5)}
-.optrow{display:grid;grid-template-columns:var(--optkey-w) minmax(0,1fr);gap:0 var(--sp-5);align-items:baseline;padding:var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-5);border:0;border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0;background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-3);line-height:1.45;text-align:left;cursor:pointer}
+.optrow{display:grid;grid-template-columns:var(--optkey-w) minmax(0,1fr);gap:0 var(--sp-5);align-items:baseline;padding:var(--sp-2) var(--sp-4) var(--sp-2) var(--sp-5);border:0;border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0;background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-4);line-height:1.45;text-align:left;cursor:pointer}
 .optrow:hover{background:var(--hover)}
 .optrow code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .optrow.cur{background:var(--acc-lo);border-left-color:var(--acc);color:var(--ink)}
@@ -147,7 +147,7 @@
 /* Gray: a control its gray reason disables (owner copy under the row's controls). */
 .grayed{opacity:var(--op-1)}
 .grayed button,.grayed input{cursor:not-allowed}
-.gr{font-size:var(--fs-2);color:var(--ink-2);font-style:italic;line-height:1.4}
+.gr{font-size:var(--fs-3);color:var(--ink-2);font-style:italic;line-height:1.4}
 
 /* Choice: vertical radio lines spanning the row (Volume: Fixed volume Off | Manual | Auto). Each line = radio, name,
    its detail control (grayed, never hidden, until picked) | its manual paragraph. Picked line lit like the HF list. */
@@ -186,8 +186,8 @@
 .vrbar .tk{stroke:var(--ink-3);stroke-width:1}
 .vrbar .tk.major{stroke:var(--ink-2)}
 .vrbar .tk.strong{stroke:var(--ink);stroke-width:2}
-.vrbar .tl{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink-2);line-height:var(--lh-text)}
-.vrbar .bub{font-family:var(--f-mono);font-size:var(--fs-2);font-weight:var(--fw-semi);fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-3);stroke-linejoin:round;line-height:var(--lh-text)}
+.vrbar .tl{font-family:var(--f-mono);font-size:var(--fs-2);fill:var(--ink-2);line-height:var(--lh-text)}
+.vrbar .bub{font-family:var(--f-mono);font-size:var(--fs-3);font-weight:var(--fw-semi);fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-3);stroke-linejoin:round;line-height:var(--lh-text)}
 
 .vrrow{display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);align-items:start;padding:var(--sp-4) 0}
 .vrrow+.vrrow{border-top:var(--hair) solid var(--row-rule)}
@@ -234,12 +234,12 @@
 .cvhead .dtabs{margin-left:var(--sp-5)}
 .cvbody{flex-grow:1;min-height:0;display:flex;flex-direction:column}
 .cvpanel{padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
-.optman{margin:0 0 0 calc(-1 * var(--sp-6));padding:var(--sp-1) var(--sp-5);border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:var(--acc-lo);font-size:var(--fs-3);line-height:1.45;color:var(--ink)}
+.optman{margin:0 0 0 calc(-1 * var(--sp-6));padding:var(--sp-1) var(--sp-5);border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:var(--acc-lo);font-size:var(--fs-4);line-height:1.45;color:var(--ink)}
 .optman code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);line-height:var(--lh-text)}
 .cvbar{position:relative;flex-shrink:0;height:var(--ctl-h);display:flex;align-items:center;gap:var(--sp-6);padding:0 var(--sp-8) 0 var(--sp-9);border:0;border-top:var(--hair) solid var(--line-2);background:var(--plate-2);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
 .cvbar:hover{background:var(--hover)}
 .cvbar .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;white-space:nowrap;line-height:var(--lh-eng)}
-.cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .cvbar .ar{color:var(--ink-2);font-size:var(--fs-3)}
 /* A staged row, device or rate dial dots its row's label; a staged volume box dots its own label. */
 .cvbar.dirty .t::after,
@@ -248,7 +248,7 @@
 .drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
 .vrbox:has(> input.vfd[data-dirty]) > .cl::after{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 /* One section left in the running chain: no tab strip; the head names it as the drawer's title (dirty dot like a tab). */
-.cvhead .csec{position:relative;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);padding-left:var(--sp-8);margin-left:var(--sp-3);border-left:var(--hair) solid var(--line-2);line-height:var(--mhead-h);white-space:nowrap}
+.cvhead .csec{position:relative;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);padding-left:var(--sp-8);margin-left:var(--sp-3);border-left:var(--hair) solid var(--line-2);line-height:var(--mhead-h);white-space:nowrap}
 .cvhead .csec.dirty::after{content:"";position:absolute;top:var(--sp-2);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 
 /* Output → Format: copy in closer (overflow rule): 220px control column, the DSD support seg's width. */
@@ -262,7 +262,7 @@
    well. crit --bad, warn --warn, advice ink-2; never the accent. The row that fixes it reads in the alert's colour, the glyph
    before its label. */
 .dalert{display:flex;flex-direction:column;gap:var(--sp-1);flex-shrink:0;margin:var(--sp-3) 0 0;padding:var(--sp-2) var(--sp-5);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well)}
-.aline{display:grid;grid-template-columns:var(--apod-mark) minmax(0,1fr);gap:0 var(--sp-3);margin:0;font-family:var(--f-body);font-size:var(--fs-3);line-height:var(--lh-text);color:var(--ink-2)}
+.aline{display:grid;grid-template-columns:var(--apod-mark) minmax(0,1fr);gap:0 var(--sp-3);margin:0;font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text);color:var(--ink-2)}
 .aline .ag{text-align:center}
 .aline[data-sev="crit"]{color:var(--bad)}
 .aline[data-sev="warn"]{color:var(--warn)}
@@ -275,8 +275,8 @@
 /* Stage drawers with output-mode tabs (mode-drawer.js): PCM out | SDM out; the mode that isn't running carries `idle`
    inside its tab, small, as the idle chain's head did. */
 .mtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}
-.mtabs button .cst{font-size:var(--fs-1);letter-spacing:var(--ls-2);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
-.mnote{margin:var(--sp-3) 0 0;padding:var(--sp-4) 0 0;border-top:var(--hair) solid var(--row-rule);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.mtabs button .cst{font-size:var(--fs-2);letter-spacing:var(--ls-2);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
+.mnote{margin:var(--sp-3) 0 0;padding:var(--sp-4) 0 0;border-top:var(--hair) solid var(--row-rule);font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
 /* Mode drawer section header (Resampling, SDM out: PCM sources | DSD sources): the combo drawer's backend subhead grammar. */
 .msec{display:flex;align-items:center;gap:var(--sp-7);padding:var(--sp-5) 0 var(--sp-1)}
 .msec .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
@@ -287,10 +287,10 @@
 .drow .optfull{grid-column:1/-1;margin-top:var(--sp-2)}
 .dtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}
 .dtabs .cst:empty{display:none}
-.dtabs .cst{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
+.dtabs .cst{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
 .drawer.idle .dhead{background:repeating-linear-gradient(135deg,var(--hatch-head) 0 var(--sp-1),transparent var(--sp-1) var(--sp-4))}
 .drawer.idle .dtabs .cst{color:var(--ink);border-color:var(--ink-2)}
 .drawer.idle .dpanel{background:var(--pop);box-shadow:inset 0 0 0 var(--hair) var(--line)}
-input.vfd.txt{width:100%;text-align:left;font-size:var(--fs-4);font-weight:var(--fw-regular)}
+input.vfd.txt{width:100%;text-align:left;font-size:var(--fs-5);font-weight:var(--fw-regular)}
 .vrange{display:contents}
 .vrrow .man p{margin:0}

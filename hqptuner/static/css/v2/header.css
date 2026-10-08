@@ -43,7 +43,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .gauge .val[data-zone]:not([data-zone=""]){color:var(--z)}   /* gauge 62×34 (smaller) */
 
 .meters{display:flex;flex-direction:column;gap:var(--sp-2)}
-.meter{display:flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-2);color:var(--ink-2)}
+.meter{display:flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-3);color:var(--ink-2)}
 .meter .ml{width:var(--meter-l-w)}
 .meter .bar{display:block;flex-shrink:0;width:var(--meter-w);height:var(--meter-h);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade);overflow:hidden}
 .meter .fill{display:block;height:100%;background:linear-gradient(90deg,color-mix(in srgb,var(--z,var(--ink-3)) 47%,var(--shade)),var(--z,var(--ink-3)))}

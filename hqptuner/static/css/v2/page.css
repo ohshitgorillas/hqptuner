@@ -15,7 +15,7 @@
    (too many facets pushed the buttons off the page). */
 .sh .ln{min-width:var(--sp-9)}
 .sh > .btn{flex-shrink:0}
-.tag.tmore{background:none;font:inherit;font-size:var(--fs-2);cursor:pointer;flex-shrink:0}
+.tag.tmore{background:none;font:inherit;font-size:var(--fs-3);cursor:pointer;flex-shrink:0}
 .tag.tmore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
 
 /* Section body: control column (524px) | manual copy. .stretch = equal-height columns. */
@@ -39,7 +39,7 @@
 /* Profile description: the user's own text, so ink not amber. Recessed well; pencil marks it editable. The text keeps
    clear of the pencil: its inset, its width and a gap. */
 .desc{position:relative;display:block}
-.desc textarea{box-sizing:border-box;display:block;width:100%;height:100%;margin:0;resize:none;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-4) calc(var(--sp-5) + var(--pencil) + var(--sp-4)) var(--sp-4) var(--sp-6);font:var(--fs-3)/1.55 var(--f-body);color:var(--ink-2)}
+.desc textarea{box-sizing:border-box;display:block;width:100%;height:100%;margin:0;resize:none;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-4) calc(var(--sp-5) + var(--pencil) + var(--sp-4)) var(--sp-4) var(--sp-6);font:var(--fs-4)/1.55 var(--f-body);color:var(--ink-2)}
 .desc textarea:focus{outline:none;border-color:var(--acc-dim);color:var(--ink)}
 .desc svg{position:absolute;right:var(--sp-5);top:var(--sp-5);color:var(--ink-2);pointer-events:none}
 .desc:hover svg{color:var(--ink-2)}
@@ -96,7 +96,7 @@ details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));di
 .otcol+.otcol{border-left:var(--hair) solid var(--line)}
 .otcol.otunav{background:var(--hatch-unav)}
 .ottn{height:var(--pin-h);font:var(--fw-semi) var(--fs-2)/var(--pin-h) var(--f-eng);letter-spacing:var(--ls-2);color:var(--ink-2)}
-.otp{height:var(--pin-h);display:flex;align-items:center;padding:0 var(--sp-3);border:var(--hair) solid transparent;border-radius:calc(var(--pin-h) / 2);background:none;font:var(--fw-medium) var(--fs-2)/1 var(--f-mono);color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.otp{height:var(--pin-h);display:flex;align-items:center;padding:0 var(--sp-3);border:var(--hair) solid transparent;border-radius:calc(var(--pin-h) / 2);background:none;font:var(--fw-medium) var(--fs-3)/1 var(--f-mono);color:var(--ink-2);cursor:pointer;white-space:nowrap}
 .otpair{display:flex;align-items:center;gap:var(--sp-1);min-width:0}
 .otpair .otu{font-size:var(--fs-1);margin-left:var(--sp-1);color:var(--ink-2)}
 .otpair .otu.otno{color:var(--ink-3)}

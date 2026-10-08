@@ -12,7 +12,7 @@
 .mhead{display:flex;align-items:center;gap:var(--sp-7);min-height:var(--mhead-h)}
 .mt{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink);white-space:nowrap}
 .mctl{display:flex;align-items:center;gap:var(--sp-3)}
-.mctl .eng{font-size:var(--fs-2);color:var(--ink-2)}
+.mctl .eng{font-size:var(--fs-3);color:var(--ink-2)}
 .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 .mctl .u{margin-right:var(--sp-1)}
 .mblk .seg button{height:var(--ctl-h-view);font-size:var(--fs-3);padding:0 var(--sp-4);letter-spacing:var(--ls-1);white-space:nowrap}
@@ -110,7 +110,7 @@
 .slim .pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) auto}
 .mrange{display:flex;flex-direction:column;align-items:stretch;gap:var(--sp-2);min-height:0;overflow:visible;padding-bottom:0}
 .mrange .lbl{display:flex;align-items:baseline;gap:var(--sp-2);white-space:nowrap}
-.mrange .eng{font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-eng)}
+.mrange .eng{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-eng)}
 .pmeter:not(.slim *) .mrange{padding-top:calc(var(--mhead-h) + var(--sp-4))}   /* full: the heads' row above the plots */
 .seg.vert{flex-direction:column;flex:1 1 auto;min-height:0;align-self:stretch;justify-content:flex-start}
 .seg.vert button{border-right:0;border-bottom:var(--hair) solid var(--seam)}

@@ -9,7 +9,7 @@
 @media (prefers-reduced-motion:reduce){.sheet{transition:none}}
 
 .shead{height:var(--shead-h);flex-shrink:0;display:flex;align-items:center;gap:var(--sp-7);padding:0 var(--sp-4) 0 var(--sp-9);border-bottom:var(--hair) solid var(--line)}
-.shead .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
+.shead .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
 .shead .btn.sm{flex-shrink:0}
 .shead .round.dx{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font-size:var(--fs-glyph-sm)}
 .sbody2{flex-grow:1;min-height:0;position:relative}
@@ -19,7 +19,7 @@
 .osheet .ttl .t{font-size:var(--fs-title);line-height:1.2}
 .osheet .tsub{display:flex;align-items:center;gap:var(--sp-4)}
 .osheet .band{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--acc);border:var(--hair) solid var(--acc-dim);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-eng);align-self:center}
-.ocount{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);white-space:nowrap;line-height:var(--lh-text)}
+.ocount{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);white-space:nowrap;line-height:var(--lh-text)}
 
 /* Columns: custom placement (option-list.js PLACE). Each column is as wide as its widest row (names never wrap; blurbs
    wrap at that width, never widen it); the slack goes between columns. */
@@ -37,7 +37,7 @@
 .ohd,.osub{position:relative;border:0;background:none;padding:0 0 0 var(--sp-7);cursor:pointer;text-align:left;white-space:nowrap;color:var(--ink)}
 .ohd{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-3);text-transform:uppercase;line-height:var(--fam-line);padding-left:0;cursor:default}
 .ohd.static{padding-left:0;cursor:default}
-.ofam.sub .ohd{font-size:var(--fs-3);letter-spacing:var(--ls-2);line-height:var(--lh-eng)}
+.ofam.sub .ohd{font-size:var(--fs-4);letter-spacing:var(--ls-2);line-height:var(--lh-eng)}
 .osub{display:block;font-family:var(--f-body);font-weight:var(--fw-semi);font-size:var(--fs-3);line-height:var(--orow-h);margin-top:var(--sp-1)}
 .osub::before{content:"";position:absolute;left:var(--hair);top:50%;width:0;height:0;border-left:var(--fold-tri) solid transparent;border-right:var(--fold-tri) solid transparent;border-top:var(--fold-tri-d) solid var(--ink-2);margin-top:calc(var(--sp-1)*-1)}
 .osub[aria-expanded="false"]::before{border-top:var(--fold-tri) solid transparent;border-bottom:var(--fold-tri) solid transparent;border-left:var(--fold-tri-d) solid var(--ink-2);border-right:0;margin:calc(var(--sp-2)*-1) 0 0 var(--sp-1)}
@@ -78,12 +78,12 @@
 .fbtn{flex-shrink:0;position:relative;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:var(--hair);height:var(--ctl-h-hdr);padding:0 var(--sp-4);
   border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--facet);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 var(--hair) 0 var(--glint-faint);cursor:pointer;text-align:left}
 .fbtn:hover{border-color:var(--ink-2);background:var(--facet-hover)}
-.fbtn .fl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:1.3}
-.fbtn .fv2{font-family:var(--f-mono);font-size:var(--fs-1);letter-spacing:var(--ls-facet-state);color:var(--ink-2);white-space:nowrap;line-height:1.3}   /* gray only while at its default */
+.fbtn .fl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:1.3}
+.fbtn .fv2{font-family:var(--f-mono);font-size:var(--fs-2);letter-spacing:var(--ls-facet-state);color:var(--ink-2);white-space:nowrap;line-height:1.3}   /* gray only while at its default */
 .fbtn.on{border-color:var(--acc);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 0 0 var(--hair) var(--acc-dim),0 0 var(--sp-5) var(--acc-halo)}
 .fbtn.on .fv2{color:var(--acc);text-shadow:0 0 var(--sp-3) var(--acc-glow-hi)}
 .fbtn[aria-expanded="true"]{border-color:var(--acc);background:linear-gradient(180deg,color-mix(in srgb,var(--acc-lo) 60%,var(--key-lo)),var(--key-lo));box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade),0 0 0 var(--hair) var(--acc-dim),0 0 var(--sp-6) var(--acc-halo)}
-.fbreset{margin-left:var(--sp-4);height:var(--ctl-h-view);padding:0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--raised);box-shadow:var(--raised-shadow);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
+.fbreset{margin-left:var(--sp-4);height:var(--ctl-h-view);padding:0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--raised);box-shadow:var(--raised-shadow);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-2);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
 .fbreset:hover{border-color:var(--ink-2)}
 .fbreset.idle{visibility:hidden}
 
@@ -104,7 +104,7 @@
 .nhint strong{color:var(--ink);font-weight:var(--fw-semi)}
 
 /* Picker (components/vselect.js): the chain lists' select, a button in the select's VFD skin that opens the list sheet. */
-button.vfd.vpick{appearance:none;-webkit-appearance:none;display:block;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-4);padding:0 var(--sp-10) 0 var(--sp-6);cursor:pointer;width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+button.vfd.vpick{appearance:none;-webkit-appearance:none;display:block;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-5);padding:0 var(--sp-10) 0 var(--sp-6);cursor:pointer;width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 50%,calc(100% - var(--sp-6)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
 button.vfd.vpick.dim{color:var(--ink-2)}
 .pop.notepop{z-index:8}   /* a note opened from a sheet (legend) sits over it */
@@ -130,7 +130,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .otip{position:absolute;z-index:9;width:max-content;max-width:var(--vpop-w);box-sizing:border-box;padding:var(--sp-5) var(--sp-6);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);display:grid;gap:var(--sp-4);pointer-events:none}
 .otip .tn{font-family:var(--f-mono);font-size:var(--fs-3);font-weight:var(--fw-semi);color:var(--ink);line-height:var(--lh-text)}
 .otip .td{font-size:var(--fs-3);line-height:1.45;color:var(--ink)}
-.otip .tr{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-1) var(--sp-5);font-size:var(--fs-2);line-height:1.3}
+.otip .tr{display:grid;grid-template-columns:auto 1fr;gap:var(--sp-1) var(--sp-5);font-size:var(--fs-3);line-height:1.3}
 .otip .td+.tr,.otip .td+.tc{border-top:var(--hair) solid var(--line);padding-top:var(--sp-4)}
 .otip .tk{color:var(--ink-2)}
 .otip .tv{color:var(--ink)}
@@ -139,7 +139,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .orow:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(var(--stroke)*-1)}
 
 /* Filter list: key to the row marks under the Polyphase sinc family (option-list.js legend()). ink-2, row-mark sizes. */
-.olegend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2) var(--sp-7);margin-top:var(--sp-5);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.olegend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2) var(--sp-7);margin-top:var(--sp-5);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .olegend>span{display:inline-flex;align-items:center;gap:var(--sp-2);white-space:nowrap}
 .olegend .amark{width:var(--pencil);height:var(--pencil)}
 .olegend .lq{font-size:var(--fs-1)}

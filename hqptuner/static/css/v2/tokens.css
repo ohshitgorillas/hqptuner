@@ -84,11 +84,11 @@
   --lh-tag:15px;           /* a boxed status word in a drawer's tab */
   --lh-tip-chip:17px;      /* a chip's line in a list row's hover tip */
   --lh-variant-panel:22px; /* a variant's header line in an option panel */
-  /* Font-size scale. A size between two steps takes the lower one. */
+  /* Font-size scale. A size between two steps takes the upper one. */
   --fs-1:10px; --fs-2:11px; --fs-3:12px; --fs-4:13px; --fs-5:14px; --fs-6:15px;
   /* Small-print roles, one size each. */
   --fs-cl:var(--fs-3);     /* control label beside or above a box or segment */
-  --fs-u:var(--fs-2);      /* unit after a value */
+  --fs-u:var(--fs-3);      /* unit after a value */
   /* Nameplate face (NameFace.js), one size per line on every surface that draws it. */
   --fs-face:var(--fs-5);       /* family and variant */
   --fs-face-sep:var(--fs-4);   /* separator between family and variant */
@@ -96,10 +96,14 @@
   /* Sizes above the scale, one per role. */
   --fs-mark:26px;          /* the HQPTUNER mark */
   --fs-gauge:17px;         /* the process-speed figure */
-  --fs-vol:18px;           /* the volume readout: the bar's and the popover's */
-  --fs-title:16px;         /* a sheet, bar or page section title */
-  --fs-glyph:20px;         /* the glyph on a round key: volume ±, a close key */
+  --fs-vol:18px;           /* the volume readout on the bar */
+  --fs-vol-pop:20px;       /* the volume readout in the volume popover */
+  --fs-title:16px;         /* a bar or page section title */
+  --fs-title-lg:18px;      /* a sheet's or drawer's head title */
+  --fs-glyph-vol:22px;     /* the glyph on a volume ± key */
+  --fs-glyph:20px;         /* the glyph on a close key */
   --fs-glyph-sm:18px;      /* the glyph on a small round key: a sheet's or drawer's close */
+  --fs-glyph-xs:16px;      /* the glyph on an extra-small key or arrow: take live, go, remove a pipeline */
   --fs-emoji:24px;         /* a filter preset's emoji */
   --fs-emoji-sub:19px;     /* a nested filter preset's emoji */
   /* Weights */

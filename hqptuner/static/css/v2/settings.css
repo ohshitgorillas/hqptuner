@@ -12,7 +12,7 @@
 .sro{margin:0;display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}   /* 2: Behavior + Option style joined; worst case (every stage hidden, long values) fits */
 .sro>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 var(--sp-4);min-width:0}   /* value drops under its label when both don't fit */
 .sro dt{font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap}
-.sro dd{margin:0 0 0 auto;font-family:var(--f-mono);font-size:var(--fs-1);color:var(--acc);text-align:right;min-width:0;display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;line-height:var(--lh-text)}
+.sro dd{margin:0 0 0 auto;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);text-align:right;min-width:0;display:inline-flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;line-height:var(--lh-text)}
 .sro .wide{flex-direction:column;align-items:flex-start;gap:0}
 .sro .wide dd{margin:0;text-align:left;justify-content:flex-start;overflow-wrap:anywhere}
 .sro i.sw,.st .sro i.sw{display:inline-block;width:var(--swatch-dot);height:var(--swatch-dot);border-radius:var(--r-round);background:var(--sw);border:var(--hair) solid var(--shade);margin-right:var(--sp-2)}
@@ -41,7 +41,7 @@ input.vfd.hex{width:var(--hex-w);text-align:left;font-size:var(--fs-4);margin-le
 .ltrow{border-bottom:0}
 .ltrow .act{flex-wrap:wrap}
 pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--sp-3);overflow:auto;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);
-  padding:var(--sp-4) var(--sp-6);font:var(--fs-2)/1.5 var(--f-mono);color:var(--ink-2);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+  padding:var(--sp-4) var(--sp-6);font:var(--fs-3)/1.5 var(--f-mono);color:var(--ink-2);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
 
 /* Overflow rule: copy in closer to its setting first (control column 300, the CUDA offload seg's width); then tabs. */
 #drawer-hardware .drow{grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10)}
@@ -83,7 +83,7 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
 .dblock[data-block="sigpath"]{display:flex;flex-direction:column;gap:var(--sp-5);padding:var(--sp-4) 0 var(--sp-2);min-height:0;flex:1 1 auto}
 svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-height:0}
 .sgg{fill:none;stroke:var(--line);stroke-width:1}
-.sggt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);fill:var(--ink-2)}
+.sggt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-1);fill:var(--ink-2)}
 .sggs{font-family:var(--f-body);font-weight:var(--fw-regular);font-size:var(--fs-4);letter-spacing:0;text-transform:none;fill:var(--ink-2)}
 .sge{fill:none;stroke:var(--line-2);stroke-width:2;stroke-linecap:round}
 .sge.lit{stroke:var(--ink);stroke-width:3}
@@ -92,9 +92,9 @@ svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-h
 .sgn rect.hx{fill:url(#sg-hatch);stroke:none;display:none}
 .sgn.unv>rect:first-child{stroke-dasharray:5 4}
 .sgl{font-family:var(--f-body);font-size:var(--fs-6);fill:var(--ink-2)}
-.sgs{font-family:var(--f-mono);font-size:var(--fs-3);fill:var(--ink-2)}
+.sgs{font-family:var(--f-mono);font-size:var(--fs-4);fill:var(--ink-2)}
 .sgtb{fill:var(--plate);stroke:var(--line-2);stroke-width:1}
-.sgt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-2);fill:var(--ink-2)}
+.sgt{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-2);fill:var(--ink-2)}
 .sgn.lit rect:first-child{stroke:var(--ink-2);stroke-width:2}
 .sgn.lit .sgl{fill:var(--ink);font-weight:var(--fw-semi)}
 .sgn.lit .sgs{fill:var(--ink)}
@@ -104,7 +104,7 @@ svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-h
 .sghb{fill:var(--glass)}
 .sghl{stroke:var(--hatch);stroke-width:3}
 /* Key: one line per mark, the marks drawn as the map draws them. */
-.sgkey{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-9);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text);border-top:var(--hair) solid var(--row-rule);padding-top:var(--sp-4)}
+.sgkey{display:flex;flex-wrap:wrap;gap:var(--sp-3) var(--sp-9);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text);border-top:var(--hair) solid var(--row-rule);padding-top:var(--sp-4)}
 .sgkey span{display:inline-flex;align-items:center;gap:var(--sp-3)}
 .sgkey i{display:inline-block;width:var(--key-mark-w);height:var(--key-mark-h);border-radius:var(--r-1);background:var(--glass);border:var(--hair) solid var(--line-2)}
 .sgkey i.k-lit{border:var(--hair) solid var(--ink-2);background:linear-gradient(var(--ink),var(--ink)) center/100% var(--stroke) no-repeat,var(--glass)}

@@ -40,7 +40,7 @@ The target is `docs/faceplate-spec.md`. A tuner or integrated-amp faceplate, dar
 
 - **Three families, by role:** `--f-eng` (Saira Extra Condensed, engraved legends) · `--f-mono` (IBM Plex Mono, readouts and engine strings) · `--f-body` (IBM Plex Sans). `font-family` names one of these tokens and nothing else (gated). The three are self-hosted under `hqptuner/static/fonts/`, each with its license, and declared in `hqptuner/static/css/v2/tokens.css`.
 - **Line heights are pinned, never `normal` (gated):** `--lh-eng` for Saira, `--lh-text` for the Plex faces, or a number. `normal` follows each font file's own metrics, which differ by browser and by fallback, and moves text off the plate. A rule that sets a font family sets its line height or inherits one.
-- **Font sizes are the `--fs-1`..`--fs-6` scale in `tokens.css`.** A size between two steps takes the lower one. Small print has one size per role: `--fs-cl` (a control's label) and `--fs-u` (a unit after a value). A size off the scale is a role token under "Sizes above the scale" in `tokens.css`, one per role.
+- **Font sizes are the `--fs-1`..`--fs-6` scale in `tokens.css`.** A size between two steps takes the upper one. Small print has one size per role: `--fs-cl` (a control's label) and `--fs-u` (a unit after a value). A size off the scale is a role token under "Sizes above the scale" in `tokens.css`, one per role.
 - **Weights are `--fw-regular`, `--fw-medium`, `--fw-semi` and `--fw-bold`.**
 - **Every control, axis and readout labels its unit.** Units keep their own case inside an uppercase legend.
 

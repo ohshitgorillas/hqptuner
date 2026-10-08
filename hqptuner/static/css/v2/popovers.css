@@ -7,9 +7,9 @@
    Station rows (engraved) with a chevron that folds their snapshots; snapshot rows indented (mono).
    .cur = active. Non-active stations carry "↻ restart". A snapshot's name starts under its station's: past the row's
    padding, the chevron and the gap after it. */
-.prow,.srow{display:flex;align-items:center;gap:var(--sp-4);height:var(--pop-row-h);padding:0 var(--sp-4);border-radius:var(--r-2);font-size:var(--fs-4);color:var(--ink)}
+.prow,.srow{display:flex;align-items:center;gap:var(--sp-4);height:var(--pop-row-h);padding:0 var(--sp-4);border-radius:var(--r-2);font-size:var(--fs-5);color:var(--ink)}
 .prow{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-2);text-transform:uppercase;line-height:var(--lh-eng)}
-.srow{padding-left:calc(var(--sp-4) + var(--tree-chev-w) + var(--sp-4));font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.srow{padding-left:calc(var(--sp-4) + var(--tree-chev-w) + var(--sp-4));font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
 .prow.cur,.srow.cur{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
 .prow.cur .pn,.srow.cur .pn{color:var(--acc)}
 /* The loaded station's snapshots and every station name are buttons, drawn as the rows they sit in. */
@@ -36,8 +36,8 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .frow .em{grid-row:1/3;font-size:var(--fs-emoji);line-height:1;text-align:center}
 .frow .pn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-2);text-transform:uppercase;white-space:nowrap;display:flex;align-items:center;gap:var(--sp-4);line-height:1.1}
 .frow.cur .pn{color:var(--acc)}
-.frow .ds{grid-column:3;font-size:var(--fs-2);line-height:1.3;color:var(--ink-2)}
-.frow .fl{display:flex;flex-direction:column;gap:var(--sp-1);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.frow .ds{grid-column:3;font-size:var(--fs-3);line-height:1.3;color:var(--ink-2)}
+.frow .fl{display:flex;flex-direction:column;gap:var(--sp-1);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
 .frow .fl span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .frow .fl .k{font-family:var(--f-eng);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);margin-right:var(--sp-2);line-height:var(--lh-eng)}
 .frow .kn{display:flex;flex-direction:column;gap:var(--sp-1);align-items:flex-start}
@@ -46,7 +46,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .frow .seg button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-4);letter-spacing:var(--ls-1)}
 .hires{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:var(--hair) var(--sp-2);line-height:1.2;white-space:nowrap}
 .kseg{display:flex;align-items:center;gap:var(--sp-3)}
-.kseg .kl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--fp-knob-l);white-space:nowrap;line-height:var(--lh-eng)}
+.kseg .kl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--fp-knob-l);white-space:nowrap;line-height:var(--lh-eng)}
 .apod{width:var(--apod-mark);height:var(--apod-mark);flex-shrink:0;display:block}
 .pips{display:flex;align-items:center;gap:var(--sp-1);justify-content:flex-end;white-space:nowrap;justify-self:end}
 .pip{width:var(--pip);height:var(--pip);border-radius:var(--r-round);background:var(--ink-3);flex-shrink:0}
@@ -65,12 +65,12 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .frow.sub{position:relative;margin-left:var(--fp-sub-indent);border-left:var(--hair) solid var(--line-2);border-radius:0 var(--r-2) var(--r-2) 0}
 .frow.sub .pick{grid-template-columns:var(--lamp-d) var(--fp-em-w-sub) minmax(0,1fr)}
 .frow.sub .em{font-size:var(--fs-emoji-sub)}
-.frow.sub .pn{font-size:var(--fs-4)}
+.frow.sub .pn{font-size:var(--fs-5)}
 .fsubx{position:absolute;left:calc(-1 * (var(--ctl-h-mini) + var(--sp-7)));top:var(--sp-4);width:var(--ctl-h-mini);height:var(--ctl-h-mini);padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:var(--fs-3)}
 .fsubx::before{content:"▾"}
 .fsubx:hover{color:var(--ink)}
 
-.pips .w{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);line-height:var(--lh-text)}
+.pips .w{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
 
 /* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
@@ -79,7 +79,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .ng{display:flex;flex-direction:column;gap:var(--sp-2)}
 .ngh{display:flex;align-items:center;gap:var(--sp-5);height:calc(var(--fs-2) * var(--lh-eng))}
 .ngl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
-.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-1);color:var(--ink-2)}
+.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-2);color:var(--ink-2)}
 .nchips{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
 .nchip{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--chip-h);padding:0 var(--sp-4) 0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-3);cursor:pointer;white-space:nowrap}
 .nchip .c{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;line-height:var(--lh-text)}
@@ -98,7 +98,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 /* Volume popover: slider only. Drops from the engine-row readout, right edge flush with it. */
 .vpop{width:var(--vpop-w);padding:var(--sp-6) var(--sp-7) var(--sp-5);gap:var(--sp-4)}
 .vpop .vh{display:flex;align-items:baseline;justify-content:space-between}
-.vpop .vh .v{font-family:var(--f-mono);font-size:var(--fs-vol);font-weight:var(--fw-medium);color:var(--acc);line-height:var(--lh-text)}
+.vpop .vh .v{font-family:var(--f-mono);font-size:var(--fs-vol-pop);font-weight:var(--fw-medium);color:var(--acc);line-height:var(--lh-text)}
 .vpop input[type=range]{accent-color:var(--acc);height:var(--range-h);margin:0;width:100%}
 /* Scale marks sit at their true linear positions (left set from data); end marks anchor to the track ends. */
 .vpop .scale{position:relative;height:calc(var(--fs-1) * var(--lh-text));margin:0 var(--thumb-half);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);line-height:var(--lh-text)}
@@ -108,7 +108,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 
 /* Two-stage note popover: the full filters.json note, parked under its `see more` link. */
 .notepop{width:var(--notepop-w);padding:var(--sp-5) var(--sp-7)}
-.notepop p{margin:0;font-size:var(--fs-3);line-height:1.5;color:var(--ink)}
+.notepop p{margin:0;font-size:var(--fs-4);line-height:1.5;color:var(--ink)}
 .notepop p+p{margin-top:var(--sp-4)}
 
 /* Loudness bounds on the volume sliders (popover + bottom bar): the Range bar's grammar, ink-2

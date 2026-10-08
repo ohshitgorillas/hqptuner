@@ -28,7 +28,7 @@
 .vfd .v{font-size:var(--fs-4);font-weight:var(--fw-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vfd.dim{color:var(--ink-2)}   /* auto / idle value: neutral ink, not dim amber (text never darker than ink-2) */
 /* The ▾ is two --chev halves, --sp-6 in from the right edge; the text keeps --sp-5 clear of it. */
-select.vfd{appearance:none;-webkit-appearance:none;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-4);padding:0 calc(var(--sp-6) + 2 * var(--chev) + var(--sp-5)) 0 var(--sp-6);cursor:pointer;width:100%;
+select.vfd{appearance:none;-webkit-appearance:none;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-5);padding:0 calc(var(--sp-6) + 2 * var(--chev) + var(--sp-5)) 0 var(--sp-6);cursor:pointer;width:100%;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 50%,calc(100% - var(--sp-6)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
 input.vfd{height:var(--ctl-h);width:var(--num-w);font-size:var(--fs-6);font-weight:var(--fw-medium);text-align:right;padding:0 var(--sp-5);color:var(--acc);-moz-appearance:textfield}
 input.vfd::-webkit-inner-spin-button{opacity:var(--op-1)}
@@ -43,7 +43,7 @@ select option{background:var(--glass);color:var(--acc)}
 .seg button:last-child{border-right:0}
 .seg button.on{background:var(--acc);color:var(--on-acc)}
 .seg .su{text-transform:none;letter-spacing:0}   /* unit inside a seg option: case kept */
-.seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-1);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
+.seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
 /* View / navigation pick (drawer tabs, meter views, which input / band / page / plot): ink on a lifted key with an accent
    foot. The solid accent fill is only for a setting's value, so the accent stays scarce. */
 .seg.view button.on,.dtabs button[aria-selected="true"],.opb.on,.pband.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 calc(-1 * var(--stroke)) 0 var(--acc)}
@@ -54,16 +54,16 @@ select option{background:var(--glass);color:var(--acc)}
 .btn:disabled{color:var(--ink-2);background:var(--plate-2);box-shadow:none;cursor:default}
 .btn.hb{height:var(--ctl-h-hdr);padding:0 var(--sp-5);font-size:var(--fs-4)}   /* header row */
 .btn.sm{height:var(--ctl-h-sm);font-size:var(--fs-4)}                  /* popover footers */
-.btn.xs{height:var(--ctl-h-xs);font-size:var(--fs-3);flex-shrink:0}  /* inline row actions */
+.btn.xs{height:var(--ctl-h-xs);font-size:var(--fs-4);flex-shrink:0}  /* inline row actions */
 
 /* Round raised button (gear, volume ±, drawer close). */
 .round{width:var(--ctl-h);height:var(--ctl-h);border-radius:var(--r-round);border:var(--hair) solid var(--line-2);background:var(--raised);color:var(--ink-2);cursor:pointer;box-shadow:var(--raised-shadow)}
 .round.gear{display:inline-flex;align-items:center;justify-content:center;margin-left:var(--sp-3)}
-.round.vbtn{color:var(--ink);font-size:var(--fs-glyph);line-height:1;font-family:var(--f-body)}
+.round.vbtn{color:var(--ink);font-size:var(--fs-glyph-vol);line-height:1;font-family:var(--f-body)}
 .round.dx{font-size:var(--fs-glyph);line-height:1;font-family:var(--f-body);flex-shrink:0}
 
 /* Removable tag (active narrowing, shown in the Resampling header). */
-.tag{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--tag-h);padding:0 var(--sp-4);border:var(--hair) solid var(--line-2);border-radius:calc(var(--tag-h) / 2);font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap}
+.tag{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--tag-h);padding:0 var(--sp-4);border:var(--hair) solid var(--line-2);border-radius:calc(var(--tag-h) / 2);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap}
 .tag b{color:var(--ink-2);font-weight:var(--fw-medium);cursor:pointer}
 
 .chk{display:inline-flex;align-items:center;gap:var(--sp-4);font-size:var(--fs-4);color:var(--ink-2);cursor:pointer;white-space:nowrap}
@@ -75,14 +75,14 @@ select option{background:var(--glass);color:var(--acc)}
 .fh .s{font-size:var(--fs-3);color:var(--ink-2)}
 
 /* Manual copy block. Full manual / owner / engine text only; never paraphrased. <code> = engine enum. */
-.man{font-size:var(--fs-3);line-height:1.5;color:var(--ink-2);max-width:var(--measure)}
+.man{font-size:var(--fs-4);line-height:1.5;color:var(--ink-2);max-width:var(--measure)}
 .man code{font-family:var(--f-mono);color:var(--ink);font-size:var(--fs-3);line-height:var(--lh-text)}
-.lede{font-size:var(--fs-3);color:var(--ink-2);font-style:italic;max-width:var(--measure-lede);line-height:1.5}
-.cap{font-size:var(--fs-2);color:var(--ink-2);line-height:1.4}
-.adv{font-size:var(--fs-2);color:var(--ink-2);font-style:italic}
+.lede{font-size:var(--fs-4);color:var(--ink-2);font-style:italic;max-width:var(--measure-lede);line-height:1.5}
+.cap{font-size:var(--fs-3);color:var(--ink-2);line-height:1.4}
+.adv{font-size:var(--fs-3);color:var(--ink-2);font-style:italic}
 
 /* "↻ restart" mark: setting or station that needs an engine restart. */
-.rs{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:var(--fw-regular);line-height:var(--lh-text)}
+.rs{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:var(--fw-regular);line-height:var(--lh-text)}
 /* Two-stage note collapsed to its lead-in: `… see more` expands it in place. */
 .seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .seemore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}

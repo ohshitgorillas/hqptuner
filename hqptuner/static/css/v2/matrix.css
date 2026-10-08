@@ -24,7 +24,7 @@
 .xleft{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
 .xline .chl{min-height:var(--ctl-h-sm)}
 .xline .chn{width:auto;flex-shrink:0}
-.xsum{min-width:0;flex:1 1 0;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
+.xsum{min-width:0;flex:1 1 0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .xctl{display:flex;flex-direction:column;gap:var(--sp-4);padding:0 0 var(--sp-4) var(--sp-10)}
 .xctl .ci{gap:var(--sp-2)}
 .xctl .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-5)}
@@ -170,7 +170,7 @@
 .oacts{display:flex;gap:var(--sp-4);flex-wrap:wrap}
 .ofiles{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
 .ofiles:empty{display:none}
-.ofiles .pfile{min-width:0;height:var(--chip-h);font-size:var(--fs-2)}
+.ofiles .pfile{min-width:0;height:var(--chip-h);font-size:var(--fs-3)}
 .ogrid{display:grid;gap:var(--sp-3);align-items:center;justify-items:center}
 .pch.otab{border:0;background:none;padding:var(--sp-1) var(--sp-3);border-bottom:var(--stroke) solid transparent;cursor:pointer}
 .pch.otab:hover{color:var(--ink);border-bottom-color:var(--line-2)}
@@ -185,16 +185,16 @@
 .plrows.orows{flex:none}   /* as many lines as the input has, 8 at most: the plot keeps the rest */
 .opg{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
 .opg:empty{display:none}
-.opb{min-width:var(--chip-h);height:var(--ctl-h-mini);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-2);cursor:pointer;line-height:var(--lh-text)}
+.opb{min-width:var(--chip-h);height:var(--ctl-h-mini);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-3);cursor:pointer;line-height:var(--lh-text)}
 .pedit{display:flex;flex-direction:column;border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:linear-gradient(var(--acc-lo),var(--acc-lo)) top/100% calc(var(--pstrip-h) + 2 * var(--hair)) no-repeat}
 .pedit .pstrip.ped{border-left:0;background:none}
 .pedit .pdock{border-top:var(--hair) solid var(--row-rule);padding:var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-5);gap:var(--sp-3);min-width:0}
 .pdr{display:flex;align-items:center;gap:var(--sp-5);min-height:var(--pdock-head-h)}
-.pdl{font-size:var(--fs-3);color:var(--ink-2)}
+.pdl{font-size:var(--fs-4);color:var(--ink-2)}
 .pdcopy{display:flex;flex-direction:column;gap:var(--sp-1)}
 .pmp{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink-2)}
 .phint{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink)}
-.opr{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);margin-left:var(--sp-3);line-height:var(--lh-text)}
+.opr{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);margin-left:var(--sp-3);line-height:var(--lh-text)}
 .opg>.cl{font-size:var(--fs-cl);color:var(--ink-2);margin-right:var(--sp-1)}
 /* Pin grid: tuner-glass wells; a routed pin is an amber jewel with its gain engraved under it. */
 .pgrid{display:grid;gap:var(--sp-3);align-items:center;justify-items:center}
@@ -212,15 +212,15 @@
 .pin .pol{position:absolute;top:var(--sp-1);right:var(--sp-2);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);line-height:var(--lh-text)}
 .pin:hover{border-color:var(--line-2)}
 .pin.sel{border-color:var(--acc);box-shadow:var(--well),0 0 0 var(--hair) var(--acc)}
-.ptot{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.ptot{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 
 .pstrips{display:flex;flex-direction:column;gap:var(--sp-1)}
 .pstrip{display:flex;align-items:center;gap:var(--sp-3);min-height:var(--pstrip-h);padding:var(--hair) var(--sp-2) var(--hair) var(--sp-4);border-left:var(--stroke) solid transparent;border-radius:0 var(--r-2) var(--r-2) 0}
 .pstrip.sel{background:var(--acc-lo);border-left-color:var(--acc)}
-.ppn{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);width:var(--ppn-w);flex-shrink:0;line-height:var(--lh-text)}
+.ppn{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);width:var(--ppn-w);flex-shrink:0;line-height:var(--lh-text)}
 .pchips{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:var(--sp-2);overflow:hidden}
 .pwire{flex:1 1 0;min-width:var(--sp-2);height:var(--hair);background:var(--line-2)}
-.chip{flex-shrink:0;height:var(--chip-h);padding:0 var(--sp-3);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:var(--glass);color:var(--ink);font-family:var(--f-mono);font-size:var(--fs-2);white-space:nowrap;cursor:pointer;line-height:var(--lh-text)}
+.chip{flex-shrink:0;height:var(--chip-h);padding:0 var(--sp-3);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:var(--glass);color:var(--ink);font-family:var(--f-mono);font-size:var(--fs-3);white-space:nowrap;cursor:pointer;line-height:var(--lh-text)}
 .chip.k-gain{color:var(--acc)}
 .chip.add{width:var(--pstrip-key);padding:0;color:var(--ink-2)}
 .chip.chipw{display:inline-flex;align-items:center;padding:0;cursor:default}
@@ -231,26 +231,26 @@
 input.vfd.praw{flex:1 1 0;min-width:0;height:var(--ctl-h-mid);font-size:var(--fs-3);text-align:left;width:auto}
 .prerr{position:absolute}
 .praw-t[aria-pressed="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
-.round.px{width:var(--pstrip-key);height:var(--pstrip-key);font-size:var(--fs-6);line-height:1;flex-shrink:0}
+.round.px{width:var(--pstrip-key);height:var(--pstrip-key);font-size:var(--fs-glyph-xs);line-height:1;flex-shrink:0}
 
 .pdock{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-3) 0 var(--sp-1);border-top:var(--hair) solid var(--row-rule)}
 .pdock[hidden]{display:none}
 .pbands{display:flex;gap:var(--sp-1);flex-wrap:wrap}
-.pband{min-width:var(--chip-h);height:var(--tag-h);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-2);cursor:pointer;line-height:var(--lh-text)}
+.pband{min-width:var(--chip-h);height:var(--tag-h);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-3);cursor:pointer;line-height:var(--lh-text)}
 .pband.add{color:var(--ink-2)}
 .pfields{display:flex;align-items:center;gap:var(--sp-9);flex-wrap:wrap}
 .pfield{display:flex;align-items:center;gap:var(--sp-3)}
 .pfield .cl,.pfields>.cl{font-family:var(--f-mono);font-size:var(--fs-cl);color:var(--ink-2);line-height:var(--lh-text)}
 .pfield input.vfd,.pfields>input.vfd{height:var(--ctl-h-xs);font-size:var(--fs-5)}
 .pfield .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);line-height:var(--lh-text)}
-.pfile{height:var(--ctl-h-xs);flex-direction:row;align-items:center;padding:0 var(--sp-5);font-size:var(--fs-3);min-width:var(--sel-w)}
+.pfile{height:var(--ctl-h-xs);flex-direction:row;align-items:center;padding:0 var(--sp-5);font-size:var(--fs-4);min-width:var(--sel-w)}
 .ptl{margin:0;font-size:var(--fs-3);line-height:1.4;color:var(--ink-2)}
 .ptl code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);line-height:var(--lh-text)}
 select.vfd.ptype{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:var(--ptype-w);font-size:var(--fs-4);text-align:left}
 select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:var(--sel-w-sm);font-size:var(--fs-4);text-align:left}
 .pbnav{display:flex;align-items:center;gap:var(--sp-3)}
 .round.pbn{width:var(--chip-h);height:var(--chip-h);font-size:var(--fs-6);line-height:1;padding:0}
-.pbl{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink);min-width:var(--lvtab-l);text-align:center;line-height:var(--lh-text)}
+.pbl{font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);min-width:var(--lvtab-l);text-align:center;line-height:var(--lh-text)}
 .pman{font-size:var(--fs-3);line-height:1.4;max-width:none}
 .pman p{margin:0}
 .pplotwrap{flex:1 1 0;min-height:var(--plot-min-sm);min-width:0;display:flex;flex-direction:column;gap:var(--sp-3)}
@@ -261,7 +261,7 @@ select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:va
 .pplot svg{touch-action:none}
 /* Pipeline popovers: the stage-kind menu and Import EQ. */
 .pmenu{width:var(--menu-w)}
-.pmrow{display:flex;align-items:center;gap:var(--sp-5);height:var(--ctl-h-sm);padding:0 var(--sp-5);border:0;border-radius:var(--r-2);background:none;color:var(--ink);font:inherit;font-size:var(--fs-4);text-align:left;cursor:pointer}
+.pmrow{display:flex;align-items:center;gap:var(--sp-5);height:var(--ctl-h-sm);padding:0 var(--sp-5);border:0;border-radius:var(--r-2);background:none;color:var(--ink);font:inherit;font-size:var(--fs-5);text-align:left;cursor:pointer}
 .pmrow:hover{background:var(--hover)}
 .pmrow b{font-weight:var(--fw-medium)}
 .pmrow span{margin-left:auto;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
@@ -276,7 +276,7 @@ input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--f
 .pin.gen:hover{border-color:var(--ink-2)}
 .chip.lock{border-style:dashed;color:var(--ink-2)}
 .pro{color:var(--ink-2)!important}
-.pu{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.pu{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .pstrip .praw-t{height:var(--pstrip-key);padding:0 var(--sp-4)}
 /* Pipeline list: --pin-h lines, a block folded to one line (dashed edge, like its pins). */
 .plrows{flex:1 1 0;min-width:0;display:flex;flex-direction:column;overflow:hidden;border-top:var(--hair) solid var(--row-rule);border-bottom:var(--hair) solid var(--row-rule)}
@@ -284,16 +284,16 @@ input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--f
 .plrow:hover{background:var(--hover)}
 .plrow.sel{background:var(--acc-lo);border-left-color:var(--acc)}
 .plrow .ppn{width:var(--ppn-w-list)}
-.plc{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.plc{flex:1 1 0;min-width:0;overflow:hidden;text-overflow:ellipsis;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .plrow.sel .plc{color:var(--ink)}
-.plg{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);min-width:var(--gain-w);text-align:right;line-height:var(--lh-text)}
+.plg{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);min-width:var(--gain-w);text-align:right;line-height:var(--lh-text)}
 .plrow.inblk{padding-left:var(--sp-9)}
 .plrow.inblk .plg{color:var(--ink-2)}
 .plfold{gap:var(--sp-4);border-left:var(--stroke) dashed var(--acc-dim)}
 .plfold.sel{border-left-style:solid}
 .pltw{width:var(--fold-key);height:var(--fold-key);padding:0;border:0;background:none;color:var(--ink-2);cursor:pointer;font-size:var(--fs-2)}
 .pls{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
-.plfold .xref{font-size:var(--fs-3);align-self:center}
+.plfold .xref{font-size:var(--fs-4);align-self:center}
 .pstrip.ped{border-left:var(--stroke) solid var(--acc);background:var(--acc-lo);border-radius:0 var(--r-2) var(--r-2) 0}
 .pin .pfill{position:absolute;left:var(--sp-2);bottom:var(--sp-1);height:var(--stroke);border-radius:var(--r-bar);background:var(--acc-dim)}
 .ptot .over{color:var(--bad)}

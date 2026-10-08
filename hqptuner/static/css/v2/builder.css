@@ -9,7 +9,7 @@
 .brail{padding-top:var(--sp-4);gap:var(--sp-1)}
 /* Station fold (the station tree's chevron): ▸ name — rule — count; one open at a time. */
 .brh{display:flex;align-items:center;gap:var(--sp-4);width:100%;height:var(--mhead-h);padding:0;border:0;background:none;cursor:pointer;flex-shrink:0;
-  font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
+  font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);text-align:left}
 .brh .chv{width:var(--fold-mark);font-size:var(--fs-2);letter-spacing:0}
 .brh .cnt{font-family:var(--f-mono);font-size:var(--fs-2);letter-spacing:0;color:var(--ink-2);line-height:var(--lh-text)}
 .brh:hover .sn{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
@@ -46,7 +46,7 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .bnin{appearance:none;background:transparent;border:0;outline:0;padding:0;width:100%;height:var(--vfd-line);font:var(--fw-medium) var(--fs-6) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
 .bnin:focus-visible{outline:none}
 .bname:focus-within{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
-.bcap{flex:1 1 0;font-size:var(--fs-3);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
+.bcap{flex:1 1 0;font-size:var(--fs-4);color:var(--ink-2);min-width:0;line-height:var(--lh-text)}
 .bref{color:var(--ink)}
 .bask{display:flex;align-items:center;gap:var(--sp-6);margin:calc(-1 * var(--sp-2)) 0 var(--sp-7);padding:var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-6);border-left:var(--stroke) solid var(--acc);background:var(--acc-lo);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
 .bask span{flex:1 1 auto}
@@ -69,7 +69,7 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .binc:disabled{opacity:var(--op-1);cursor:not-allowed}
 
 .bset{display:flex;flex-direction:column;gap:var(--hair);min-width:0}
-.bst2{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
+.bst2{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
 .bl{display:flex;align-items:center;gap:var(--sp-4);min-width:0}
 .bl b{font-weight:var(--fw-semi);font-size:var(--fs-4);color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}
 .brow.off .bl b{color:var(--ink-2)}
@@ -81,7 +81,7 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .bval > button.vfd.vpick{height:var(--ctl-h-lg);line-height:var(--lh-wrap);font-size:var(--fs-3);white-space:normal;display:grid;align-items:center;padding:0 var(--sp-9) 0 var(--sp-6);text-overflow:clip;background-position:calc(100% - var(--sp-4) - var(--chev)) 50%,calc(100% - var(--sp-4)) 50%}
 
 /* ←: take this row's live value; live only where the two differ. */
-.round.btake{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font:var(--fw-semi) var(--fs-6)/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
+.round.btake{width:var(--ctl-h-sm);height:var(--ctl-h-sm);font:var(--fw-semi) var(--fs-glyph-xs)/1 var(--f-body);color:var(--ink)}   /* an action: ink like every button; it lights nothing */
 .round.btake:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 
 /* Live: the engine's value now, a readout (rail readout grammar: engine names). Brighter, amber-edged where it differs. */
@@ -89,7 +89,7 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .blive .v{font-size:var(--fs-3);font-weight:var(--fw-medium);display:flex;align-items:baseline;gap:var(--sp-3);white-space:normal;line-height:var(--lh-wrap)}
 .blive .bt{min-width:0}
 .blive.diff{color:var(--ink);border-color:var(--acc-dim)}
-.bidle{flex-shrink:0;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
+.bidle{flex-shrink:0;font-family:var(--f-body);font-size:var(--fs-3);color:var(--ink-2)}
 
 /* ── Profile builder (Matrix engine section's button): swaps the chain body for #pbody. components/profile-builder.js.
    A guided walk: rail = the steps in the chain rail's grammar; page = the overview or one step, every
@@ -118,14 +118,14 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .pbhh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);padding:var(--sp-4) 0 var(--sp-2);line-height:var(--lh-eng)}
 .pbhold{display:grid;grid-template-columns:var(--bset-w) minmax(0,1fr) var(--sp-7);align-items:baseline;gap:0 var(--sp-6);padding:var(--sp-3) 0;border:0;border-bottom:var(--hair) solid var(--row-rule);
   background:none;font:inherit;color:inherit;text-align:left;cursor:pointer;width:100%}
-.pbhold b{font-weight:var(--fw-semi);font-size:var(--fs-4);color:var(--ink);line-height:var(--lh-text)}
+.pbhold b{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink);line-height:var(--lh-text)}
 .pbhold .pa{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
-.pbhold .pgo{font-size:var(--fs-6);color:var(--ink-2);line-height:1}
+.pbhold .pgo{font-size:var(--fs-glyph-xs);color:var(--ink-2);line-height:1}
 .pbhold:hover b{text-decoration:underline;text-decoration-color:var(--line-2);text-underline-offset:var(--sp-1)}
 .pbhold.pbpl{margin-top:var(--sp-4);border-top:var(--hair) solid var(--row-rule)}
 /* The chain, small: every stage named; the matrix engine's part lit and bracketed; the four outside it plain. */
 .pbchain{list-style:none;margin:0;padding:var(--sp-5) var(--sp-6);border:var(--hair) solid var(--line);border-radius:var(--r-2);display:flex;flex-direction:column;gap:var(--sp-1);align-self:start}
-.pbchain li{display:flex;align-items:center;gap:var(--sp-4);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);position:relative}
+.pbchain li{display:flex;align-items:center;gap:var(--sp-4);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng);position:relative}
 .pbchain li.sub{padding-left:var(--sp-7)}
 .pbchain .d{width:var(--pbchain-dot);height:var(--pbchain-dot);border-radius:var(--r-round);border:var(--hair) solid var(--line-2);flex-shrink:0}
 .pbchain li.mx{color:var(--acc)}
@@ -144,10 +144,10 @@ label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp
 .pbid .bnin{font-size:var(--fs-5)}
 .pbid button.vfd.bstn{width:100%;height:var(--vbrd-h)}
 .pbdesc{flex:1 1 0;min-height:var(--desc-min)}
-.pbdesc textarea{font-size:var(--fs-3)}
+.pbdesc textarea{font-size:var(--fs-4)}
 .pbfoot{display:flex;align-items:center;gap:var(--sp-4)}
 .pbstw{display:flex;flex-direction:column;gap:var(--hair);min-width:0}
-.pbstate{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
+.pbstate{font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
 .pbstate.dirty{color:var(--ink)}
 .pbcap{font-size:var(--fs-3);line-height:var(--lh-text)}
 .pbcap:empty{display:none}
@@ -162,7 +162,7 @@ label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp
 .pbsrows{flex:1 1 0;min-height:0;display:flex;flex-direction:column;border-top:var(--hair) solid var(--row-rule)}
 .pbsrows .drow{grid-template-columns:var(--drow-col-pb) minmax(0,1fr);gap:0 var(--sp-10)}
 .pbsrows .drow:last-child{border-bottom:0}
-.pbsrows .drow .man{font-size:var(--fs-3);color:var(--ink-2)}
+.pbsrows .drow .man{font-size:var(--fs-4);color:var(--ink-2)}
 .pbsrows .drow .seg{align-self:flex-start}
 .pbsrows .chline{grid-template-columns:var(--drow-col-pb) minmax(0,1fr);gap:0 var(--sp-10)}
 .pbchoice{padding-bottom:var(--sp-3)}
@@ -173,16 +173,16 @@ label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp
 /* EQ step: Headphone Auto EQ (search, hits, the picked one's strip) | files; under them what the pair holds + the plot. */
 .peqsearch{display:flex;flex-direction:column;gap:var(--sp-3)}
 input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-align:left}
-.aeqcred{font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
+.aeqcred{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .aeqcred a{color:var(--ink-2);text-decoration-color:var(--line-2)}
 .peqhits{display:flex;flex-direction:column;border:var(--hair) solid var(--shade);border-radius:var(--r-2);background:var(--glass);box-shadow:var(--well)}
 .peqhit{display:flex;align-items:center;border-left:var(--stroke) solid transparent}
 .peqhit + .peqhit{border-top:var(--hair) solid var(--row-rule)}
 .peqhit.on{border-left-color:var(--acc);background:var(--acc-lo)}
-.peqpick{display:flex;align-items:baseline;gap:var(--sp-4);flex:1 1 auto;min-width:0;height:var(--fold-h);padding:0 var(--sp-4);border:0;background:none;cursor:pointer;font:var(--fw-medium) var(--fs-3) var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
+.peqpick{display:flex;align-items:baseline;gap:var(--sp-4);flex:1 1 auto;min-width:0;height:var(--fold-h);padding:0 var(--sp-4);border:0;background:none;cursor:pointer;font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--ink);text-align:left;line-height:var(--lh-text)}
 .peqhit.on .peqpick{color:var(--acc)}
-.peqpick .src{margin-left:auto;font-family:var(--f-body);font-size:var(--fs-2);color:var(--ink-2)}
-.peqmore{padding:var(--sp-1) var(--sp-5);font-size:var(--fs-2);color:var(--ink-2);border-top:var(--hair) solid var(--row-rule)}
+.peqpick .src{margin-left:auto;font-family:var(--f-body);font-size:var(--fs-3);color:var(--ink-2)}
+.peqmore{padding:var(--sp-1) var(--sp-5);font-size:var(--fs-3);color:var(--ink-2);border-top:var(--hair) solid var(--row-rule)}
 .peqsel{display:flex;align-items:center;gap:var(--sp-4);padding:var(--sp-2) var(--sp-2) var(--sp-2) var(--sp-5);border-left:var(--stroke) solid var(--acc);background:var(--acc-lo)}
 .peqsel .cap{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .peqfiles{display:flex;flex-direction:column;gap:var(--sp-4)}
