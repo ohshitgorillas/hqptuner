@@ -21,8 +21,8 @@ import { hz } from "../../lib/units.js";
  * @typedef {import("./path.js").Path} Path
  * @typedef {import("./path.js").Transport} Transport
  * @typedef {"on" | "pause" | "off"} Lamp  a rail lamp: lit, paused or unlit
- * @typedef {{ samplerate?: string, bits?: string }} Metadata  the `<metadata>` child's attributes read here
- * @typedef {{ active_rate?: string, active_bits?: string }} Status  the Status-frame attributes read here
+ * @typedef {{ samplerate?: string, bits?: string, channels?: string }} Metadata  the `<metadata>` child's attributes read here
+ * @typedef {{ active_rate?: string, active_bits?: string, active_channels?: string }} Status  the Status-frame attributes read here
  * @typedef {object} Conversion  the running filters and shaper by engine name, and the running DSD settings by label
  * @property {string} filter1x
  * @property {string} filterNx
@@ -106,29 +106,50 @@ function fmtRate(rate) {
 }
 
 /**
- * The incoming stream: its rate and bit depth, a bare dash with no stream.
+ * A channel count as the rail appends it to a stream, nothing when the count is absent or not a positive whole number.
+ *
+ * @param {string | undefined} count
+ * @returns {string}
+ */
+function fmtChannels(count) {
+  const n = Number(count);
+  return Number.isInteger(n) && n > 0 ? ` / ${n} ch` : "";
+}
+
+/**
+ * The incoming stream: its rate, bit depth and channel count, a bare dash with no stream.
  *
  * @param {Metadata} md
  * @returns {string}
  */
 function sourceLabel(md) {
   if (!md.samplerate) return DASH;
-  return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit`;
+  return `${fmtRate(md.samplerate)} / ${md.bits || "?"}bit${fmtChannels(md.channels)}`;
 }
 
 /**
- * The output: its rate and the depth the Status frame reports, 1 bit on a DSD rate where it reports none.
+ * The output depth the rail prints: the one the Status frame reports, 1 bit on a DSD rate where it reports none.
+ *
+ * @param {Status} st
+ * @returns {string}
+ */
+function outputDepth(st) {
+  const bits = Number(st.active_bits);
+  if (bits) return ` / ${bits}bit`;
+  return outputIsSdm(st) ? " / 1bit" : "";
+}
+
+/**
+ * The output: its rate, the depth the Status frame reports (1 bit on a DSD rate where it reports none) and its
+ * channel count, a bare dash with no rate.
  *
  * @param {Status} st
  * @returns {string}
  */
 function outputLabel(st) {
   const rate = st.active_rate;
-  const bits = Number(st.active_bits);
   if (!Number(rate)) return DASH;
-  if (bits) return `${fmtRate(rate)} / ${bits}bit`;
-  if (outputIsSdm(st)) return `${fmtRate(rate)} / 1bit`;
-  return fmtRate(rate);
+  return `${fmtRate(rate)}${outputDepth(st)}${fmtChannels(st.active_channels)}`;
 }
 
 /**
