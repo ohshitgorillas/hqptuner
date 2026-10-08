@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Apply with an HQPlayer configuration loaded.** Changes take effect when a configuration was loaded from HQPlayer's own web interface.
+
 ## [1.18.0] — 2026-10-06
 
 ### Added

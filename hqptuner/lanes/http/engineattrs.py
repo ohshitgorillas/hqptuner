@@ -109,7 +109,7 @@ async def apply(
     mirror = presetfields.autosave_mirror(mgr)
     if mirror:
         backup = engineconf.rewrite_zip(backup, mirror)
-    backup = _with_carried_live_fields(mgr, backup, active)
+    backup = _with_carried_live_fields(mgr, engineconf.with_boot_member(backup, active or None), active)
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     mark = settle.mark_connect(mgr)

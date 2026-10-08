@@ -74,18 +74,19 @@ def restore_zip_from_running(
     edits: dict[str, str],
     context: ApplyContext | None = None,
 ) -> tuple[bytes, bytes]:
-    """Build a ``POST /restore`` archive whose working config member is the current working config plus ``edits``.
+    """Build a ``POST /restore`` archive whose ``hqplayerd.xml`` is the current working config plus ``edits``.
 
-    The working member is ``hqplayerd.xml``, or the root ``<Profile>.xml`` when a named preset is active — every
-    other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the running config becomes
-    ``{running config} ⊕ {edits}``, and the named preset's saved definition is left untouched (edits are ephemeral
-    until the user Saves). Returns ``(restore_zip, intended_working_xml)``.
+    The working config is read from ``hqplayerd.xml``, or from the root ``<Profile>.xml`` when a named preset is
+    active, and written to ``hqplayerd.xml`` either way: the restore boots ``[default]`` off that member
+    (docs/protocol.md §3.6). Every other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the
+    running config becomes ``{running config} ⊕ {edits}``, and the named preset's saved definition is left untouched
+    (edits are ephemeral until the user Saves). Returns ``(restore_zip, intended_working_xml)``.
 
     Never rebuild from the active preset's SNAPSHOT to shed daemon-side drift:
     that resets every field the user did not stage in this particular apply back
     to the preset's stored value, so two sequential applies clobber each other
-    (staging direct_sdm reverts volume_fixed and vice versa — reproduced against
-    the live 6.0.4 daemon). Applies must be incremental against what is actually
+    (staging direct_sdm reverts volume_fixed and vice versa). Applies must be
+    incremental against what is actually
     running; discarding drift is not worth discarding the user's own previous
     edits.
 
@@ -96,17 +97,17 @@ def restore_zip_from_running(
     ctx = context if context is not None else ApplyContext()
     active = ctx.active
     intended = apply_edits(snapshot_member(zip_bytes, None, active), edits, ctx.audit, ctx.matrix_profile)
-    # The live config is hqplayerd.xml, or the root <Profile>.xml when a named
-    # preset is active — rewrite THAT member and leave the cfgs snapshots (the
+    # Rewrite the member the restore boots and leave the cfgs snapshots (the
     # preset's saved definition) untouched, so edits stay ephemeral until Save.
     # Uploaded filter files replace their member if it exists and append if not;
     # either way the restore writes them to the daemon's disk.
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
+    booted = engineconf.with_boot_member(zip_bytes, active)
+    with zipfile.ZipFile(io.BytesIO(booted)) as zin:
         running = engineconf.running_config_name(zin.namelist(), active)
     substitutions = dict(ctx.extra_members or {})
     if running is not None:
         substitutions[running] = intended
-    return engineconf.rewrite_zip(zip_bytes, substitutions), intended
+    return engineconf.rewrite_zip(booted, substitutions), intended
 
 
 def restore_zip_with_working(

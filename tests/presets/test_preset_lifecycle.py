@@ -16,7 +16,7 @@ from conftest import ManagerFactory
 from fixtures_clients import app
 from virtual_clock import VirtualClock
 
-from hqptuner.conf import presetzip
+from hqptuner.conf import presetconf, presetzip
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -64,6 +64,29 @@ def test_restore_zip_inserts_hqplayerd_when_a_named_profile_was_active() -> None
     # [default], so hqplayerd.xml must be inserted for it to have a config to run
     archive = presetzip.restore_zip_with_working(_zip({"Speakers.xml": b"<root/>"}), b"<new/>")
     assert _member(archive, "hqplayerd.xml") == b"<new/>"
+
+
+#: The working config of a named profile, as a /backup archive carries it both
+#: at the root and under data/cfgs (docs/protocol.md:91).
+NAMED_WORKING_XML = b'<hqplayerd><engine fft_size="4096"/></hqplayerd>'
+STAGED_FFT_SIZE = "8192"
+
+
+def _field_in_member(zip_bytes: bytes, name: str, field: str) -> str | None:
+    archive = zipfile.ZipFile(io.BytesIO(zip_bytes))
+    if name not in archive.namelist():
+        return None
+    return presetconf.read_config(archive.read(name)).get(field)
+
+
+def test_restore_from_running_carries_the_edit_in_hqplayerd_when_a_named_profile_was_active() -> None:
+    # restore boots [default] from hqplayerd.xml and discards an edit to the
+    # root-renamed <Profile>.xml (docs/protocol.md:88), so the edit must land there
+    backup = _zip({"Speakers.xml": NAMED_WORKING_XML, "data/cfgs/Speakers.xml": NAMED_WORKING_XML})
+    archive, _intended = presetzip.restore_zip_from_running(
+        backup, {"fft_size": STAGED_FFT_SIZE}, presetzip.ApplyContext(active="Speakers")
+    )
+    assert _field_in_member(archive, "hqplayerd.xml", "fft_size") == STAGED_FFT_SIZE
 
 
 def test_snapshot_members_extracts_preset_names() -> None:

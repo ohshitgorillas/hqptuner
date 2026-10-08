@@ -247,6 +247,22 @@ def working_member_name(zip_bytes: bytes, active: str | None = None) -> str | No
     return running_config_name(_member_names(zip_bytes), active)
 
 
+def with_boot_member(zip_bytes: bytes, active: str | None = None) -> bytes:
+    """Return ``zip_bytes`` with its working config also carried as ``hqplayerd.xml``, the member a restore boots.
+
+    A restore lands the daemon on ``[default]`` and discards an edit to a root
+    ``<Profile>.xml`` (docs/protocol.md §3.6), so an archive built while a named
+    profile is active has to write its edits where the restart reads them. An
+    archive that already has ``hqplayerd.xml``, or has no working config, is
+    returned unchanged.
+    """
+    member = working_member_name(zip_bytes, active)
+    if member is None or member == "hqplayerd.xml":
+        return zip_bytes
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+        return rewrite_zip(zip_bytes, {"hqplayerd.xml": z.read(member)})
+
+
 def base_config_xml(zip_bytes: bytes, active: str | None = None) -> bytes:
     """Read the working-config member of a ``/backup`` archive — the config the running engine reflects.
 
