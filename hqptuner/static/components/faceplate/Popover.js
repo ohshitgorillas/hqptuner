@@ -12,6 +12,14 @@ import { openPopover, togglePopover, plate } from "../../store/faceplate/view.js
 /** @typedef {import("../../model/shell/place.js").Place} Place */
 
 /**
+ * Where a panel parks under an engine-row readout: 8 px below it, its right edge kept off the plate's edge by the
+ * plate's own side padding.
+ *
+ * @type {{ side: Side, foot: null, at: Place }}
+ */
+export const UNDER_ENGINE_READOUT = { side: [null, 22], foot: null, at: { x: "start", y: "below", gap: 8 } };
+
+/**
  * The attributes a popover's trigger button carries.
  *
  * @param {string} id  the popover's id

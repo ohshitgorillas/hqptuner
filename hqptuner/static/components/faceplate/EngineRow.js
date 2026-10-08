@@ -1,10 +1,13 @@
-// The engine row: the process speed gauge, the input and output buffers, the clipping and apodizing counters, and the
-// playback volume at the right end. Every reading is live off the Status poll (store/faceplate/engine.js); one with
-// nothing to show prints — and takes no zone. The speed figure and each buffer read the gauge's own arcs, red | amber |
-// green, and a counter's lamp flashes on a frame that counted and fades. The volume's slider popover renders beside
-// the row, so that it is a child of the plate as every popover is. An alert homed on the gauge blinks it in the alert's
-// colour, and while one is up the gauge takes a tap or Enter like a button, opening the alert lines; its popover
-// renders beside the row too.
+// The engine row: the process speed gauge, the input and output buffers, the clipping and apodizing counters stacked
+// one over the other, the HF filter, and the playback volume at the right end. Every reading is live off the Status
+// poll (store/faceplate/engine.js); one with nothing to show prints — and takes no zone. The speed figure and each
+// buffer read the gauge's own arcs, red | amber | green. A counter prints one figure, this track's count and the total
+// split by a slash ("12/5,410"), or the total alone where there is no track count apart from it; its lamp flashes on a
+// frame that counted and fades, and stays dark while there is no total. The HF filter reads the playback filter that
+// runs and opens a menu of the engine's playback filters, a pick written live. Its menu and the volume's slider
+// popover render beside the row, so that each is a child of the plate as every popover is. An alert homed on the gauge
+// blinks it in the alert's colour, and while one is up the gauge takes a tap or Enter like a button, opening the alert
+// lines; its popover renders beside the row too.
 
 import { html } from "../../lib/dom.js";
 import { PLATFORM } from "../../lib/clock.js";
@@ -19,6 +22,7 @@ import { alertsNow } from "../../store/faceplate/alerts.js";
 import { togglePopover } from "../../store/faceplate/view.js";
 import { triggerProps } from "./Popover.js";
 import { AlertNote, noteId } from "./Header.js";
+import { HfFilter, HfFilterPopover } from "./HfFilter.js";
 import { Volume, VolumePopover } from "./Volume.js";
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
@@ -82,18 +86,15 @@ const Counter = ({ k, label, count, level, seq }) => html`
   <div class="counter" data-k=${k}>
     <span
       class=${`lamp big flash-${seq % 2}`}
-      style=${`--lamp: ${(count.track === null ? 0 : level).toFixed(3)}; --lamp-decay: ${Math.round(fastPollMs.value / 4)}ms`}
+      style=${`--lamp: ${(count.total === null ? 0 : level).toFixed(3)}; --lamp-decay: ${Math.round(fastPollMs.value / 4)}ms`}
     ></span>
     <span class="eng">${label}</span>
-    <span class="cnts">
-      <span class="cnt">${figure(count.track)} this track</span>
-      <span class="cnt">${figure(count.total)} total</span>
-    </span>
+    <span class="cnt">${count.track === null ? figure(count.total) : `${figure(count.track)}/${figure(count.total)}`}</span>
   </div>
 `;
 
 /**
- * The engine row, with the volume's slider popover beside it.
+ * The engine row, with the HF filter's menu and the volume's slider popover beside it.
  *
  * @param {{ clock?: Clock }} props  the clock the volume's held ± repeats on
  */
@@ -103,19 +104,23 @@ export function EngineRow({ clock = PLATFORM }) {
     <div class="engine">
       <${Gauge} speed=${r.speed} />
       <div class="meters">
-        <${Buffer} k="input_fill" label="Input buffer" percent=${r.input} />
-        <${Buffer} k="output_fill" label="Output buffer" percent=${r.output} />
+        <${Buffer} k="input_fill" label="Input" percent=${r.input} />
+        <${Buffer} k="output_fill" label="Output" percent=${r.output} />
       </div>
-      <${Counter}
-        k="clips"
-        label="Clipping"
-        count=${r.clips}
-        level=${clipFlash.value.level}
-        seq=${clipFlash.value.seq}
-      />
-      <${Counter} k="apod" label="Apodizing" count=${r.apod} level=${apodLampLevel.value} seq=${apodBinSeq.value} />
+      <div class="counters">
+        <${Counter}
+          k="clips"
+          label="Clipping"
+          count=${r.clips}
+          level=${clipFlash.value.level}
+          seq=${clipFlash.value.seq}
+        />
+        <${Counter} k="apod" label="Apodizing" count=${r.apod} level=${apodLampLevel.value} seq=${apodBinSeq.value} />
+      </div>
+      <${HfFilter} />
       <${Volume} clock=${clock} />
     </div>
+    <${HfFilterPopover} />
     <${VolumePopover} />
     <${AlertNote} el="gauge" />
   `;

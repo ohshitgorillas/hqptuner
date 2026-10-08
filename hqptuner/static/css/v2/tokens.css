@@ -160,13 +160,13 @@
   --tree-w:230px;          /* Station · Snapshot tree trigger, least width; the snapshot builder's Stations window */
   --knob-glyph:30px;       /* the brand knob's glyph */
   --wire-col:14px;         /* the rail's lamp and wire column */
-  --meter-l-w:76px;        /* buffer meter label */
+  --meter-l-w:40px;        /* buffer meter label */
   --meter-w:72px;          /* buffer bar at 10.2" */
   --meter-w-11:130px;      /* buffer bar at 11" */
   --meter-w-13:240px;      /* buffer bar at 13" */
   --meter-h:8px;           /* buffer bar */
   --meter-v-w:34px;        /* buffer meter value */
-  --volrd-w:104px;         /* engine-row volume readout */
+  --volrd-w:104px;         /* engine-row readouts: the HF filter and the volume */
   --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout; the height of a builder's labelled VFD window */
   --range-h:28px;          /* volume slider: the bar's and the popover's */
   --range-h-sm:24px;       /* a slider beside a number box: crossfeed */

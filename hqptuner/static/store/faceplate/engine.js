@@ -10,7 +10,8 @@
  * One counter's counts, null where there is none to show.
  *
  * @typedef {object} Count
- * @property {number | null} track  this track's count
+ * @property {number | null} track  this track's count; null when the total is null, or when this track's count equals
+ *   the total and so says nothing the total does not
  * @property {number | null} total  the engine's running total
  */
 
@@ -48,7 +49,10 @@ export function engineReadings(status, counters, outputApplies) {
    * @param {string | undefined} total
    * @returns {Count}
    */
-  const count = (track, total) => ({ track: playing ? track : null, total: reading(total) });
+  const count = (track, total) => {
+    const all = reading(total);
+    return { track: all === null || track === all ? null : track, total: all };
+  };
   return {
     speed: reading(st.process_speed),
     input: percent(st.input_fill),

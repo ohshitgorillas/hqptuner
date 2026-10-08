@@ -106,16 +106,25 @@ const lampOf = (all, k) => {
 };
 
 /**
- * The digits of each count a counter prints, this track's first.
+ * The text of each figure a counter prints.
  *
  * @param {MarkupElement[]} all
  * @param {string} k
  */
-const counts = (all, k) => {
+const figures = (all, k) => {
   const c = keyed(all, k);
   const cnts = c ? elements(c.html).filter((e) => classes(e).includes("cnt")) : [];
-  return cnts.map((e) => text(e).replace(/\D/g, ""));
+  return cnts.map((e) => text(e));
 };
+
+/**
+ * The numbers each figure a counter prints carries, in reading order, thousands separators dropped.
+ *
+ * @param {MarkupElement[]} all
+ * @param {string} k
+ */
+const figureNumbers = (all, k) =>
+  figures(all, k).map((t) => (t.match(/\d[\d,]*/g) ?? []).map((n) => Number(n.replace(/,/g, ""))));
 
 // --- the gauge ---------------------------------------------------------------------------------------------------
 
@@ -190,10 +199,27 @@ test("test_the_clip_lamp_reads_full_on_a_frame_whose_clips_rose_and_dark_on_the_
   assert.deepEqual([lampOf(rose, "clips"), lampOf(held, "clips")], [1, 0]);
 });
 
-test("test_a_counter_prints_this_tracks_count_over_the_total", () => {
-  assert.deepEqual(counts(row({ apod: "5410" }, { apod: "5398" }), "apod"), ["12", "5410"]);
+test("test_a_counter_prints_this_tracks_count_then_the_total_in_one_figure", () => {
+  assert.deepEqual(figureNumbers(row({ apod: "5410" }, { apod: "5398" }), "apod"), [[12, 5410]]);
 });
 
-test("test_a_stopped_engine_prints_no_counts", () => {
-  assert.deepEqual(counts(row({ state: "0" }), "clips"), ["", ""]);
+test("test_a_counter_whose_track_count_equals_the_total_prints_the_total_alone_in_one_figure", () => {
+  assert.deepEqual(figureNumbers(row({ apod: "5410" }, { apod: "0" }), "apod"), [[5410]]);
+});
+
+test("test_a_stopped_engine_prints_one_figure_with_no_count", () => {
+  assert.deepEqual(
+    figures(row({ state: "0" }), "clips").map((t) => /\d/.test(t)),
+    [false],
+  );
+});
+
+test("test_the_clip_lamp_reads_full_on_a_frame_whose_clips_rose_while_this_tracks_count_equals_the_total", () => {
+  assert.equal(lampOf(row({ clips: "5" }, { clips: "0" }), "clips"), 1);
+});
+
+test("test_a_stopped_engine_leaves_the_clip_lamp_dark_on_a_frame_whose_clips_rose", () => {
+  const playing = lampOf(row({ clips: "5" }, { clips: "3" }), "clips");
+  const stopped = lampOf(row({ clips: "5", state: "0" }, { clips: "3" }), "clips");
+  assert.deepEqual([playing, stopped], [1, 0]);
 });

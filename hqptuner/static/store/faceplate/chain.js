@@ -293,7 +293,7 @@ export const railBreak = (value) =>
  * @param {string} attr
  * @returns {string}
  */
-function nameAt(key, attr) {
+export function nameAt(key, attr) {
   const at = stateOf(attr);
   const hit = items(key).find((o) => String(o.index) === String(at));
   return hit ? hit.name : "";
