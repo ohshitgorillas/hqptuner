@@ -1,14 +1,23 @@
 // The Speakers room plan, free of the DOM: where each speaker of the set sits and how far the plan's box reaches. The
 // listener is at the origin facing up the page (negative y); a speaker sits at its layout angle, clockwise from front,
-// at a radius set by its distance (6 m spans the ring), the sub pushed out past the mains.
+// at a radius set by its distance (6 m spans the ring), the sub pushed out past the mains. A distance of 0 cm is
+// HQPlayer's stock value and means not set, so that speaker is drawn at 1.5 m instead of on the listener's head.
 
-/** The listener's head radius on the plan: where a speaker at no distance sits. */
+/** The listener's head radius on the plan. */
 export const HEAD = 13;
 const R_MAX = 122,
   DIST_FULL = 600,
+  DIST_UNSET = 150,
   SUB_OUT = 1.35,
   SUB_MAX = 140,
   SUB = 3;
+
+/**
+ * The distance a speaker is drawn at: its own, or 1.5 m where the daemon reports 0 cm, not set.
+ *
+ * @param {number} d  distance, cm
+ */
+const drawnDistance = (d) => (d === 0 ? DIST_UNSET : d);
 
 /**
  * One speaker on the plan.
@@ -26,7 +35,7 @@ const R_MAX = 122,
  * @param {number} d  distance, cm
  */
 const radius = (i, d) => {
-  const r = HEAD + (Math.max(0, Math.min(DIST_FULL, d)) / DIST_FULL) * (R_MAX - HEAD);
+  const r = HEAD + (Math.max(0, Math.min(DIST_FULL, drawnDistance(d))) / DIST_FULL) * (R_MAX - HEAD);
   return i === SUB ? Math.min(r * SUB_OUT, SUB_MAX) : r;
 };
 

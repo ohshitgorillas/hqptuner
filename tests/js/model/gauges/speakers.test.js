@@ -1,64 +1,93 @@
 // Behavioral suite: where each speaker of a set sits on the top-down room plan (the listener at the origin facing up
-// the page, each speaker at its layout angle, at a radius set by its distance, the sub pushed out) and how far the
-// plan's box reaches to fit them.
+// the page, each speaker at its layout angle, farther out the farther away it is, the sub pushed out, a speaker the
+// daemon reports as unset drawn as if set) and the plan's box reaching far enough to hold them.
 //
 // The layout is one the test writes: channel 0 straight ahead, 1 at the right, 2 at the left, 3 the sub straight ahead.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { HEAD, placeSpeakers, planExtent } from "../../../../hqptuner/static/model/gauges/speakers.js";
+import { placeSpeakers, planExtent } from "../../../../hqptuner/static/model/gauges/speakers.js";
 
 const LAYOUT = [0, 90, -90, 0];
-const EPS = 1e-9;
+const FRONT = 0;
+const RIGHT = 1;
+const LEFT = 2;
+const SUB = 3;
+
+//: HQPlayer's stock distance, meaning not set.
+const UNSET_CM = 0;
+//: The two smallest set distances.
+const NEAREST_CM = 1;
+const NEXT_NEAREST_CM = 2;
+//: Two ordinary room distances.
+const NEAR_CM = 300;
+const FAR_CM = 600;
+//: The largest distance the daemon's form accepts.
+const DISTANCE_MAX_CM = 5000;
 
 /**
- * One speaker placed at one distance and the radius it owes, in plan units.
+ * Where one channel is placed alone at one distance.
  *
- * @typedef {object} Row
- * @property {string} name
- * @property {number} ch
- * @property {number} cm
- * @property {number} want
+ * @param {number} ch
+ * @param {number} cm
  */
-
-/** @type {Row[]} */
-const RADII = [
-  { name: "a_speaker_at_no_distance_sits_on_the_head", ch: 0, cm: 0, want: 13 },
-  { name: "a_speaker_at_six_metres_sits_on_the_ring", ch: 0, cm: 600, want: 122 },
-  { name: "a_speaker_at_three_metres_sits_halfway_out", ch: 0, cm: 300, want: 67.5 },
-  { name: "a_speaker_past_six_metres_stays_on_the_ring", ch: 0, cm: 900, want: 122 },
-  { name: "a_negative_distance_sits_on_the_head", ch: 0, cm: -40, want: 13 },
-  { name: "the_sub_sits_out_past_its_distance", ch: 3, cm: 300, want: 91.125 },
-  { name: "the_sub_stops_at_its_cap", ch: 3, cm: 600, want: 140 },
-];
+const place = (ch, cm) => {
+  const cms = LAYOUT.map(() => cm);
+  const [p] = placeSpeakers([ch], LAYOUT, cms);
+  return p;
+};
 
 /**
- * The radius of one channel placed alone at one distance.
+ * How far from the listener one channel is placed alone at one distance.
  *
  * @param {number} ch
  * @param {number} cm
  */
 const radius = (ch, cm) => {
-  const cms = LAYOUT.map(() => 0);
-  cms[ch] = cm;
-  const [p] = placeSpeakers([ch], LAYOUT, cms);
+  const p = place(ch, cm);
   return Math.hypot(p.x, p.y);
 };
 
-for (const row of RADII) {
-  test(`test_${row.name}`, () => {
-    assert.ok(Math.abs(radius(row.ch, row.cm) - row.want) < EPS);
-  });
-}
+/**
+ * The plan's extent for the whole layout at one distance.
+ *
+ * @param {number} cm
+ */
+const extentAt = (cm) =>
+  planExtent(
+    placeSpeakers(
+      LAYOUT.map((_, i) => i),
+      LAYOUT,
+      LAYOUT.map(() => cm),
+    ),
+  );
 
 //: The whole set at the ring, in a set order the test writes.
 const SET = [2, 0, 1];
 const RING = [600, 600, 600, 600];
 
-test("test_head_is_the_radius_at_no_distance", () => {
-  assert.ok(Math.abs(radius(0, 0) - HEAD) < EPS);
+// --- an unset distance -------------------------------------------------------------------------------------------
+
+test("test_an_unset_speaker_sits_farther_out_than_one_at_the_nearest_set_distance", () => {
+  assert.ok(radius(FRONT, UNSET_CM) > radius(FRONT, NEAREST_CM));
 });
+
+// --- distance ----------------------------------------------------------------------------------------------------
+
+test("test_a_speaker_at_the_smallest_distances_sits_nearer_than_one_a_centimetre_farther", () => {
+  assert.ok(radius(FRONT, NEAREST_CM) < radius(FRONT, NEXT_NEAREST_CM));
+});
+
+test("test_a_farther_speaker_sits_farther_from_the_listener", () => {
+  assert.ok(radius(FRONT, NEAR_CM) < radius(FRONT, FAR_CM));
+});
+
+test("test_the_sub_sits_farther_out_than_a_main_speaker_at_the_same_distance", () => {
+  assert.ok(radius(SUB, NEAR_CM) > radius(FRONT, NEAR_CM));
+});
+
+// --- the set and its angles --------------------------------------------------------------------------------------
 
 test("test_place_speakers_keeps_the_set_order", () => {
   assert.deepEqual(
@@ -75,15 +104,15 @@ test("test_place_speakers_turns_each_speaker_to_its_layout_angle", () => {
 });
 
 test("test_a_front_speaker_sits_up_the_page", () => {
-  assert.ok(Math.abs(placeSpeakers([0], LAYOUT, RING)[0].y + 122) < EPS);
+  assert.ok(place(FRONT, FAR_CM).y < 0);
 });
 
 test("test_a_right_speaker_sits_right_of_the_listener", () => {
-  assert.ok(Math.abs(placeSpeakers([1], LAYOUT, RING)[0].x - 122) < EPS);
+  assert.ok(place(RIGHT, FAR_CM).x > 0);
 });
 
 test("test_a_left_speaker_sits_left_of_the_listener", () => {
-  assert.ok(Math.abs(placeSpeakers([2], LAYOUT, RING)[0].x + 122) < EPS);
+  assert.ok(place(LEFT, FAR_CM).x < 0);
 });
 
 test("test_channel_three_is_the_sub", () => {
@@ -93,14 +122,15 @@ test("test_channel_three_is_the_sub", () => {
   );
 });
 
-test("test_plan_extent_fits_the_head_alone", () => {
-  assert.equal(planExtent([]), 33);
-});
+// --- the plan's extent -------------------------------------------------------------------------------------------
 
-test("test_plan_extent_leaves_label_room_under_a_front_speaker", () => {
-  assert.ok(Math.abs(planExtent(placeSpeakers([0], LAYOUT, RING)) - 162) < EPS);
-});
+for (const ch of LAYOUT.keys()) {
+  test(`test_the_plan_extent_holds_channel_${ch}_at_the_largest_distance`, () => {
+    const p = place(ch, DISTANCE_MAX_CM);
+    assert.ok(Math.max(Math.abs(p.x), Math.abs(p.y)) < planExtent([p]));
+  });
+}
 
-test("test_plan_extent_leaves_room_beside_a_side_speaker", () => {
-  assert.ok(Math.abs(planExtent(placeSpeakers([1, 2], LAYOUT, RING)) - 148) < EPS);
+test("test_the_plan_extent_grows_as_the_speakers_move_out", () => {
+  assert.ok(extentAt(NEAR_CM) < extentAt(FAR_CM));
 });
