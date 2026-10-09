@@ -289,8 +289,9 @@ async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
     mirror: the mirror costs a restore restart, so it catches up by riding the
     next restore that happens anyway (``lanes/presetfields.autosave_mirror``).
     Returns None when
-    auto-save is off or no preset is active. A failed auto-save raises to the
-    caller, the same failure a standalone ``save`` raises.
+    auto-save is off or no preset is active, and when the active preset changed while the
+    daemon's backup was read, since the preset it read may have been replaced since. A
+    failed auto-save raises to the caller, the same failure a standalone ``save`` raises.
     """
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.autosave:
@@ -300,8 +301,11 @@ async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
     if not working:
         raise NoRunningConfigToAutosaveError()
     working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
-    mgr.presetops.store.save(name, working, trigger="autosave")
-    _record_autopilot(mgr, name)
+    with mgr.presetops.write_lock:
+        if mgr.presetops.store.active != name:
+            return None
+        mgr.presetops.store.save(name, working, trigger="autosave")
+        _record_autopilot(mgr, name)
     return PresetSaveResult(name)
 
 

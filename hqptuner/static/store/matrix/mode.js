@@ -80,7 +80,7 @@ const boundPreset = computed(() => pendingPreset.value || activePreset.value || 
  * tab on the last-used mode, which is what it can honestly show.
  * @returns {Promise<void>}
  */
-async function hydrateMatrixModes() {
+export async function hydrateMatrixModes() {
   try {
     const body = await api.matrixModes();
     presetModes.value = body.presets || {};

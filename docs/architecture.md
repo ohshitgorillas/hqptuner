@@ -138,6 +138,12 @@ Two asymmetries are deliberate. A **write** refuses an unknown or out-of-domain 
 
 In a frozen build the shipped `data/*.json` travels inside the bundle and is read from there, while every store this document names (`state/*.json`, `presets/`, `backups/`) sits under the platform's per-user data directory, since the installed program is not the user's to write (`hqptuner/paths.py`). The Linux package's systemd unit points that directory at `/var/lib/hqptuner` (`packaging/linux/hqptuner.service`). A checkout and the container keep the paths written here.
 
+### 5.7 The state archive goes both ways
+
+`GET /api/state-export` zips every store `Config.STORES` names, the connection record with its password blanked, and the logs (`presets/store/export.py`). `POST /api/state-import` takes that zip back (`presets/store/stateimport.py`). Each store the archive carries **replaces** this install's copy; a store it lacks is left alone. The connection record, `backups/` and the logs in an archive are never imported: the password was blanked, and the host and login that work are the ones already here. The whole archive is checked before anything is written, upload and unpacked stores each bounded by `HQPTUNER_STATE_MAX_BYTES`, and a refusal (`state_unreadable`, or `state_too_new` under §5.4's rule) changes nothing. The stores an import replaces are first saved, alone, to `backups/pre-import-state.zip`, so an import can be undone by importing that file and the backup never carries an earlier one.
+
+An import never contacts the daemon. Presets land in the store only, and the daemon's `data/cfgs` mirror catches up on its next restore. The active pointer is cleared, because autosave writes the running config into the active preset and would overwrite an imported preset the daemon is not running. An archive whose live snapshots use the flat layout reads under §5.3's rule.
+
 ## 6. Static metadata
 
 ### 6.1 Metadata joins live enumerations by name
@@ -249,6 +255,8 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `values_unknown` | 422 | `PUT /api/livepresets/{name}` body `values` names a value that is not an enumerated id of the record's chain, a value for a field not named in `fields`, a mode other than `pcm` or `sdm`, or a flag outside 0/1, or a matrix profile the daemon does not list |
 | `stations_unknown` | 422 | a live snapshot save naming a station the preset store does not hold |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
+| `state_unreadable` | 422 | a state upload that is not a state archive this build can read, or is past `HQPTUNER_STATE_MAX_BYTES` |
+| `state_too_new` | 409 | a state upload carrying a store stamped by a newer HQPTuner |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |
 | `route_unknown` | 404 | no route at that path |

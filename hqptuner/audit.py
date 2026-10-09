@@ -362,6 +362,10 @@ class AuditLog:
         """
         self._write("restore.upload", {"filename": filename, "size": size, "digest": digest})
 
+    def state_upload(self, filename: str, size: int, digest: str) -> None:
+        """Record a state archive arriving for import, by name, size and digest, before any store is written."""
+        self._write("state.upload", {"filename": filename, "size": size, "digest": digest})
+
     def volume_write(self, source: str, want: str, readback: str | None, *, ok: bool) -> None:
         """Record one volume write, naming the ``source`` that made it.
 

@@ -12,6 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Station, Snapshot, and Profile Builders** offer guided creation and management of settings.
 - **Home screen app.** HQPTuner can be added to the home screen of a tablet to open full screen.
 - **Output rate pinning** is now possible through the "Allow Rate Pinning" setting.
+- **State upload** restores HQPTuner's stations, snapshots, and settings from a state file, including one saved by v1.
 
 ### Changed
 

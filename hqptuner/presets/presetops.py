@@ -8,6 +8,7 @@ this class owns the state.
 
 import json
 import logging
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -17,6 +18,7 @@ from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets import presetlane
+from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import PARK_DIR, FilterPark
 from hqptuner.presets.store.live import LivePresetStore
@@ -74,6 +76,17 @@ class BackupBeforeRestoreFailedError(BackupFailedError):
         """Render the restore-specific wording, naming the backup directory."""
         super().__init__(
             "The backup before restoring the configuration failed, so nothing was changed. "
+            f"Check free space and permissions on {directory}, then try again."
+        )
+
+
+class BackupBeforeImportFailedError(BackupFailedError):
+    """The pre-import state backup failed while about to replace HQPTuner's own stores from a state file."""
+
+    def __init__(self, *, directory: Path) -> None:
+        """Render the import-specific wording, naming the backup directory."""
+        super().__init__(
+            "The backup before importing state failed, so nothing was changed. "
             f"Check free space and permissions on {directory}, then try again."
         )
 
@@ -146,6 +159,9 @@ class PresetOps:
         # is a preset: the book learns the stations from this store, and a preset
         # delete is what takes a station's snapshots out.
         self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
+        # Held across a state import's clear-and-write and an autosave's re-check-and-save, never across an await: the
+        # import runs on the threadpool, and an autosave must not land a preset the import has just replaced.
+        self.write_lock = threading.Lock()
         self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
         self._migrated = False
         # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
@@ -284,6 +300,20 @@ class PresetOps:
             return self._write_backup(data)
         except OSError as exc:
             raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
+
+    def import_state(self, carried: stateimport.Carried) -> list[str]:
+        """Save the pre-import backup, then clear the active pointer and replace each store ``carried`` holds.
+
+        Raises ``BackupBeforeImportFailedError`` when the backup cannot be written, before anything else is written.
+        The clear and the writes run under ``write_lock``, so an autosave already waiting on the daemon finds the
+        pointer cleared and saves nothing. Returns the names of the stores replaced, sorted.
+        """
+        try:
+            stateimport.save_backup(self._cfg)
+        except OSError as exc:
+            raise BackupBeforeImportFailedError(directory=self._cfg.backup_dir) from exc
+        with self.write_lock:
+            return stateimport.replace_stores(self._cfg, carried, self.store)
 
     def _write_backup(self, data: bytes) -> Path:
         """Write the pre-apply settings backup to disk, returning its path.

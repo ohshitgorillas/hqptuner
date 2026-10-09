@@ -1,7 +1,7 @@
-"""Configuration surface — /config form, preset previews, device refresh, backup, state export, engine, restore.
+"""Configuration surface — /config form, preset previews, device refresh, backup, state archive, engine, restore.
 
-Every route but the state export needs the daemon's 8088 management lane, so takes ``HttpMgr``; the state export reads
-only HQPTuner's own files and log, so takes ``Cfg`` and answers without credentials.
+Every route but the state export and import needs the daemon's 8088 management lane, so takes ``HttpMgr``; those two
+touch only HQPTuner's own files and log, so take ``Cfg`` and answer without credentials.
 """
 
 import hashlib
@@ -14,7 +14,7 @@ from fastapi import APIRouter, File, Request, Response, UploadFile
 
 from hqptuner import logbuffer
 from hqptuner.api import deps
-from hqptuner.api.deps import Cfg, HttpMgr
+from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
@@ -27,8 +27,9 @@ from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.lanes import rescan, settle
 from hqptuner.lanes.live import overrides
-from hqptuner.presets import fileconfig, presetlane
+from hqptuner.presets import fileconfig, presetlane, presetops
 from hqptuner.presets.presetlane import PresetOption
+from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
 from hqptuner.presets.store.export import state_archive
 from hqptuner.presets.store.presets import PresetError
@@ -269,6 +270,32 @@ def state_export(cfg: Cfg) -> Response:
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="hqptuner-state.zip"'},
     )
+
+
+@dataclass(frozen=True)
+class StateImportAnswer:
+    """``POST /api/state-import``: the stores the import replaced, by their names in the archive."""
+
+    replaced: list[str]
+
+
+@router.post("/state-import")
+def state_import(statefile: Annotated[UploadFile, File()], manager: Mgr, cfg: Cfg) -> StateImportAnswer:
+    """Replace each store a state archive carries, recording the upload's name, size, and SHA-256 first.
+
+    The whole archive is checked before anything is written; a refusal (``state_unreadable``, ``state_too_new``)
+    changes nothing. The install's stores are saved to ``backups/pre-import-state.zip`` first, and a backup that
+    cannot be written (``backup_failed``) changes nothing either; then the active preset pointer is cleared. The daemon
+    is never contacted. A plain ``def``, so the disk work runs on the threadpool.
+    """
+    upload = stateimport.read_upload(statefile.file, cfg.state_max_bytes)
+    manager.audit.state_upload(statefile.filename or "", upload.size, upload.digest)
+    try:
+        carried = stateimport.check(upload, cfg.state_max_bytes)
+        replaced = manager.presetops.import_state(carried)
+    except (stateimport.StateImportError, presetops.BackupFailedError) as exc:
+        raise refuse(exc) from exc
+    return StateImportAnswer(replaced=replaced)
 
 
 @router.get("/engine")

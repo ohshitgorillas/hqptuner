@@ -54,7 +54,7 @@ export function descriptionFor(name) {
  * whatever is already on screen alone, which is what the page can honestly show.
  * @returns {Promise<void>}
  */
-async function hydrateDescriptions() {
+export async function hydrateDescriptions() {
   try {
     const body = await api.descriptions();
     descriptions.value = body.profiles || {};
@@ -103,6 +103,20 @@ export async function flushDescriptions() {
       descriptionError.value = errText(e);
     }
   }
+}
+
+/**
+ * Forget every queued description, a failed write included, unsent. For a store the server has just replaced: a
+ * queued text would otherwise be written over the replacement by the next flush.
+ * @returns {void}
+ */
+export function dropQueuedDescriptions() {
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  queued.clear();
+  descriptionError.value = "";
 }
 
 // Read the map once, at load. Guarded on `fetch` because this module is imported

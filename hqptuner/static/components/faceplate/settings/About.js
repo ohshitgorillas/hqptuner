@@ -1,12 +1,14 @@
 // The settings page under the drawers. About HQPlayer: the engine identity as a row of labelled VFD windows across the
 // full width, then the backup download and restore upload beside their line. About HQPTuner: the version line and the
-// state download, then the prose.
+// state download and upload, then the prose.
 
 import { computed, signal } from "@preact/signals";
 import { html } from "../../../lib/dom.js";
 import { api } from "../../../lib/api.js";
 import { health } from "../../../store/signals.js";
 import { duringEngineWrite } from "../../../store/enginewrite.js";
+import { errText } from "../../../lib/errtext.js";
+import { importState, importStatus } from "../../../store/stateimport.js";
 import { Section } from "../Page.js";
 
 const info = computed(() => (health.value && health.value.info) || {});
@@ -41,9 +43,34 @@ async function onRestore(e) {
     await duringEngineWrite(() => api.restore(file));
     restoreStatus.value = "Restored — daemon restarting.";
   } catch (err) {
-    restoreStatus.value = `Failed: ${err}`;
+    restoreStatus.value = `Failed: ${errText(err)}`;
   }
 }
+
+/**
+ * Import a chosen state file; the store reports how it went.
+ *
+ * @param {{ target: HTMLInputElement }} e the file input's change event
+ */
+async function onStateImport(e) {
+  const file = e.target.files && e.target.files[0];
+  // Cleared so that choosing the same file again fires another change.
+  e.target.value = "";
+  if (file) await importState(file);
+}
+
+/**
+ * A push button that opens a file picker, its input hidden inside the label.
+ *
+ * @param {string} label
+ * @param {string} accept
+ * @param {string} testid
+ * @param {(e: { target: HTMLInputElement }) => Promise<void>} onChange
+ */
+const filePick = (label, accept, testid, onChange) =>
+  html`<label class="btn"
+    >${label}<input type="file" accept=${accept} hidden data-testid=${testid} onChange=${onChange}
+  /></label>`;
 
 /**
  * @param {string} href
@@ -77,14 +104,7 @@ export function About() {
         <${Identity} />
         <div class="inline">
           <a class="btn" href="/api/backup" download data-testid="backup-download">Download backup</a>
-          <label class="btn"
-            >Upload backup<input
-              type="file"
-              accept=".zip,.xml"
-              style="display:none"
-              data-testid="backup-upload"
-              onChange=${onRestore}
-          /></label>
+          ${filePick("Upload backup", ".zip,.xml", "backup-upload", onRestore)}
         </div>
         <div class="man">
           <p>${BACKUP}</p>
@@ -99,6 +119,7 @@ export function About() {
           >
           <div class="inline">
             <a class="btn" href="/api/state-export" download data-testid="state-export">Download state</a>
+            ${filePick("Upload state", ".zip", "state-import", onStateImport)}
           </div>
         </div>
         <div class="man">
@@ -113,6 +134,7 @@ export function About() {
             financial, I won't stop you from ${ext("https://ko-fi.com/ohshitgorillas", "buying me a coffee")}. Just don't
             say I strong-armed you into it ;)
           </p>
+          ${importStatus.value ? html`<p class="mnote">${importStatus.value}</p>` : null}
         </div>
       <//>
     </main>

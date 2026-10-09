@@ -149,6 +149,22 @@ export async function flushNarrowing() {
   }
 }
 
+/**
+ * Forget every write still owed, a failed one included, and take the facets as they stand as the confirmed set, so
+ * nothing moved before now is written. For a store the server has just replaced: an owed facet would otherwise be
+ * skipped by the next hydrate and written over the replacement by the next flush.
+ * @returns {void}
+ */
+export function dropOwedNarrowing() {
+  if (timer !== null) {
+    clearTimeout(timer);
+    timer = null;
+  }
+  touched.clear();
+  lastSent = snapshot();
+  narrowingError.value = "";
+}
+
 // One subscription over every facet signal: a move marks that facet owed and
 // restarts the quiet timer, so a burst of toggles costs one write.
 effect(() => {

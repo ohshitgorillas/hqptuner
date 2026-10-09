@@ -175,6 +175,9 @@ class Config:
     # 24 s at 352.8 kHz and keeps a LAN client from filling the backup volume
     # one upload at a time.
     filter_max_bytes: int = field(default_factory=lambda: int(_env("FILTER_MAX_BYTES", str(32 * 1024 * 1024))))
+    # Largest state upload accepted, in bytes, and the most the stores it carries
+    # may unpack to (presets/store/stateimport.py).
+    state_max_bytes: int = field(default_factory=lambda: int(_env("STATE_MAX_BYTES", str(64 * 1024 * 1024))))
     # Append-only event log (audit.py) — every durable write, as it was handed
     # to us. Unset means the subsystem is inert: no file, no records, no cost.
     # There is deliberately no UI for it; it is an operator's tool, set on the

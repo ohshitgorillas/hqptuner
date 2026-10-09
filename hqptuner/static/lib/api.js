@@ -113,6 +113,7 @@ export const api = {
   engine: () => getJSON("/api/engine"),
   applyEngine: (/** @type {unknown} */ body) => send("/api/engine", "POST", body),
   restore: (/** @type {File} */ file) => upload("/api/restore", "cfgfile", file),
+  stateImport: (/** @type {File} */ file) => upload("/api/state-import", "statefile", file),
   state: () => getJSON("/api/state"),
   status: () => getJSON("/api/status"),
   enumerations: () => getJSON("/api/enumerations"),

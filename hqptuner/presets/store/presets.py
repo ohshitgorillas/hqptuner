@@ -30,8 +30,8 @@ from hqptuner.presets.store.jsonfile import read_stamped
 if TYPE_CHECKING:
     from pathlib import Path
 
-_ACTIVE_FILE = "active.json"
-_STORE_FILE = "store.json"
+ACTIVE_FILE = "active.json"
+STORE_FILE = "store.json"
 
 
 class PresetStoreFile(TypedDict, total=False):
@@ -161,8 +161,8 @@ class PresetStore:
         self._audit = audit or AuditLog(None)
         # Each served from its last read until the backing file (or, for the
         # listing, the directory) changes signature or this store writes it.
-        self._meta = signed.SignedRead(directory / _STORE_FILE, self._read_meta)
-        self._pointer = signed.SignedRead(directory / _ACTIVE_FILE, self._read_pointer)
+        self._meta = signed.SignedRead(directory / STORE_FILE, self._read_meta)
+        self._pointer = signed.SignedRead(directory / ACTIVE_FILE, self._read_pointer)
         self._listing = signed.SignedRead(directory, self._list_names)
 
     def _path(self, name: str) -> Path:
@@ -181,11 +181,11 @@ class PresetStore:
         def _too_new(stamp: int) -> PresetSchemaError:
             return PresetSchemaError(stamp=stamp, understood=_SCHEMA, what="these presets")
 
-        return _clean(read_stamped(self._dir / _STORE_FILE, store="preset", schema=_SCHEMA, too_new=_too_new))
+        return _clean(read_stamped(self._dir / STORE_FILE, store="preset", schema=_SCHEMA, too_new=_too_new))
 
     def _read_pointer(self) -> ActiveFile:
         """Return ``active.json``'s envelope, raising ``StoreCorruptError`` when it is not a JSON object."""
-        return _clean_active(read_stamped(self._dir / _ACTIVE_FILE, store="preset active pointer"))
+        return _clean_active(read_stamped(self._dir / ACTIVE_FILE, store="preset active pointer"))
 
     def _list_names(self) -> list[str]:
         """Glob the directory for the stored preset names, sorted."""
@@ -209,7 +209,7 @@ class PresetStore:
         """
         self._meta.get()
         self._dir.mkdir(parents=True, exist_ok=True)
-        path = self._dir / _STORE_FILE
+        path = self._dir / STORE_FILE
         if not path.is_file():
             path.write_text(json.dumps({"schema": _SCHEMA}))
             self._meta.drop()
@@ -250,9 +250,10 @@ class PresetStore:
         name = canonical_name(name)
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
-        if not overwrote and trigger != "migration":
+        if not overwrote and trigger not in {"migration", "import"}:
             # A first save takes the stricter rule; a migration copies a name the
-            # daemon already holds rather than creating one, so it is exempt.
+            # daemon already holds and an import a name a state file already holds,
+            # rather than creating one, so both are exempt.
             names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
         path.write_bytes(xml)
         self._listing.drop()
@@ -288,7 +289,7 @@ class PresetStore:
         """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
         previous = self._meta.get().get("autosave", False)
         self._ensure_dir()
-        (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
+        (self._dir / STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
         self._meta.drop()
         self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
@@ -310,7 +311,7 @@ class PresetStore:
             name = canonical_name(name)
         previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
-        (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
+        (self._dir / ACTIVE_FILE).write_text(json.dumps({"active": name}))
         self._pointer.drop()
         self._audit.active_set(name, previous)
 

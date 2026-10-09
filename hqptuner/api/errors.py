@@ -48,6 +48,8 @@ STATUS: dict[str, int] = {
     "store_too_new": 409,
     "store_corrupt": 500,
     "archive_unreadable": 500,
+    "state_unreadable": 422,
+    "state_too_new": 409,
     "chain_unknown": 409,
     "route_refused": 409,
     "route_unknown": 404,

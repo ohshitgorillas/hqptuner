@@ -452,6 +452,20 @@
         "title": "Body_restore_api_restore_post",
         "type": "object"
       },
+      "Body_state_import_api_state_import_post": {
+        "properties": {
+          "statefile": {
+            "contentMediaType": "application/octet-stream",
+            "title": "Statefile",
+            "type": "string"
+          }
+        },
+        "required": [
+          "statefile"
+        ],
+        "title": "Body_state_import_api_state_import_post",
+        "type": "object"
+      },
       "ConfigView": {
         "description": "``GET /api/config`` data: the /config form's fields beside HQPTuner's presets and the running config.",
         "properties": {
@@ -3296,6 +3310,23 @@
         "title": "StageBody",
         "type": "object"
       },
+      "StateImportAnswer": {
+        "description": "``POST /api/state-import``: the stores the import replaced, by their names in the archive.",
+        "properties": {
+          "replaced": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Replaced",
+            "type": "array"
+          }
+        },
+        "required": [
+          "replaced"
+        ],
+        "title": "StateImportAnswer",
+        "type": "object"
+      },
       "StaticDb": {
         "description": "The four static databases plus the plain-names overlay, exactly as ``StaticMetadata.raw`` serves them.",
         "properties": {
@@ -5173,6 +5204,45 @@
           }
         },
         "summary": "State Export"
+      }
+    },
+    "/api/state-import": {
+      "post": {
+        "description": "Replace each store a state archive carries, recording the upload's name, size, and SHA-256 first.\n\nThe whole archive is checked before anything is written; a refusal (``state_unreadable``, ``state_too_new``)\nchanges nothing. The install's stores are saved to ``backups/pre-import-state.zip`` first, and a backup that\ncannot be written (``backup_failed``) changes nothing either; then the active preset pointer is cleared. The daemon\nis never contacted. A plain ``def``, so the disk work runs on the threadpool.",
+        "operationId": "state_import_api_state_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_state_import_api_state_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateImportAnswer"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "State Import"
       }
     },
     "/api/status": {
