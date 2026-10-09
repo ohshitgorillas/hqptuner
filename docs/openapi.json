@@ -4286,7 +4286,7 @@
     },
     "/api/log": {
       "get": {
-        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused.",
+        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;\none with no log to serve is refused under a code of its own.",
         "operationId": "log_tail_api_log_get",
         "parameters": [
           {

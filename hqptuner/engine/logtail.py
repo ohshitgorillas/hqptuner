@@ -10,10 +10,17 @@ before login, like the rest of the read-only surface.
 
 import httpx
 
+from hqptuner.conf.httpconf import HttpRefusedError, hqplayer_request, raise_refused
 from hqptuner.conf.httpforms import ConfigForm
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
 _HTTP_TIMEOUT = 10.0  # httpx would otherwise default to 5.0
+_HTTP_DEFAULT_PORT = 80  # what a base URL that names no port is dialed on
+_NO_LOG = 404  # HQPlayer's answer on /log when it has no log to serve
+
+
+class NoLogError(HttpRefusedError):
+    """HQPlayer answered its own log page 404: it has no log to serve."""
 
 
 def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
@@ -34,14 +41,20 @@ def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
     return path, enabled
 
 
-async def fetch_log(base_url: str) -> str:
+async def fetch_log(base_url: str, *, transport: httpx.AsyncBaseTransport | None = None) -> str:
     """Return the daemon's full log text from GET /log on the 8088 web interface.
 
-    Unauthenticated — the log page is not credential-gated.
+    Unauthenticated — the log page is not credential-gated. ``transport`` replaces httpx's own socket transport;
+    left out, the request goes over the network. A 404 raises ``NoLogError``, any other error status
+    ``HttpRefusedError``.
     """
-    async with httpx.AsyncClient(base_url=base_url, timeout=_HTTP_TIMEOUT) as client:
-        resp = await client.get("/log")
-        resp.raise_for_status()
+    url = httpx.URL(base_url)
+    async with httpx.AsyncClient(base_url=base_url, timeout=_HTTP_TIMEOUT, transport=transport) as client:
+        with hqplayer_request(url.host, url.port or _HTTP_DEFAULT_PORT, _HTTP_TIMEOUT):
+            resp = await client.get("/log")
+        if resp.status_code == _NO_LOG:
+            raise NoLogError(response=resp)
+        raise_refused(resp)
         return resp.text
 
 

@@ -30,7 +30,7 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 
-from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
 from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
@@ -88,7 +88,7 @@ async def _run() -> int:
         raise CliError(message)
     original_profile = state.get("matrix_profile", "")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=120.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=120.0))
     at_rest = _correction((await _rpc(http.get_matrix))["fields"])
     print(f"active profile {original_profile!r}; correction at rest: {at_rest}")
     if not at_rest.get("post_correction_enabled"):

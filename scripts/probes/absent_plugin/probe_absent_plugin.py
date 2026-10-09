@@ -33,7 +33,7 @@ from pathlib import Path
 import httpx
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient, serialize_matrix_form
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions, serialize_matrix_form
 from hqptuner.engine.control import ControlClient
 
 PLUGIN = "loudness"
@@ -255,7 +255,7 @@ async def _run() -> int:
     active = (await control.get_active_config()) or None
     await control.close()
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     raw = httpx.AsyncClient(base_url=f"http://{HOST}:{HTTP_PORT}", auth=httpx.DigestAuth(user, password), timeout=60.0)
     OUT.mkdir(parents=True, exist_ok=True)
     findings: list[str] = []

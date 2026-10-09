@@ -19,6 +19,8 @@ import struct
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from hqptuner.presets.store.unwritable import saving
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -147,13 +149,14 @@ class FilterPark:
         _check_body(name, data)
         if self._parked_bytes() + len(data) > PARK_MAX_BYTES:
             raise ParkAtCapacityError()
-        self._dir.mkdir(parents=True, exist_ok=True)
         target = self._dir / name
         serial = 1
         while target.exists():
             target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
             serial += 1
-        target.write_bytes(data)
+        with saving("the uploaded filter", self._dir):
+            self._dir.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
         return {"name": target.name, "path": f"{self._home}/{target.name}"}
 
     def _parked_bytes(self) -> int:

@@ -421,6 +421,106 @@ test("test_an_unconverged_apply_names_the_fields_that_diverged", async () => {
   assert.deepEqual(verdict(lastApply).fields, ["volume_max", "alsa_dop"]);
 });
 
+// The user knows a setting by the label the page gives it, not by the daemon's
+// config key. A label is copy (docs/testing.md rule 9), so no assertion holds
+// one: a sentence that names its field reads differently for two fields, and a
+// labelled field is never shown by its wire key.
+
+/** @param {Record<string, unknown>} diff */
+async function unconverged(diff) {
+  await trees();
+  route({ apply: { persistent: { applied: false, reason: "unconverged", diff } } });
+  await applyAll();
+  return String(verdict(lastApply).text);
+}
+
+test("test_unconverged_applies_on_two_different_fields_read_differently", async () => {
+  const maximum = await unconverged({ volume_max: {} });
+  const fixed = await unconverged({ volume_fixed: {} });
+  assert.notEqual(maximum, fixed);
+});
+
+test("test_an_unconverged_apply_shows_a_labelled_field_without_its_wire_key", async () => {
+  const text = await unconverged({ volume_max: {} });
+  assert.ok(!text.includes("volume_max"), text);
+});
+
+// `volume_fixed` is the daemon's key for the control the page keys as
+// `optimal_iso`, so a lookup by the wire key alone finds no label for it and
+// falls back to showing the key.
+test("test_an_unconverged_apply_shows_a_field_read_under_another_key_without_its_wire_key", async () => {
+  const text = await unconverged({ volume_fixed: {} });
+  assert.ok(!text.includes("volume_fixed"), text);
+});
+
+// The reason code is wire vocabulary; the sentence around the labels says what
+// it means in plain words instead.
+test("test_an_unconverged_apply_does_not_show_its_reason_code", async () => {
+  const text = await unconverged({ volume_max: {} });
+  assert.ok(!text.includes("unconverged"), text);
+});
+
+// --- summarize: a failed live write, in the page's words ------------------------
+// A live setter that failed is named by the label the page gives its control,
+// never by the daemon's form key. A refusal carries the daemon's own reason
+// (architecture.md §8.2: `{ok: false, error, code}` per setter), which the
+// fixture invents, so asserting it back pins no shipped wording. Labels are
+// copy and stay out of every assertion (docs/testing.md rule 9).
+
+// The daemon's form keys for the PCM chain's two filter slots, each owned by a
+// control on the page (tests/js/components/controls/combobox-favstars.test.js).
+const PCM_1X = "filter1x";
+const PCM_NX = "filter";
+// Keys no control on the page owns: with no label to show, each stands for itself.
+const UNLABELLED = "no_control_owns_this_key";
+const ALSO_UNLABELLED = "nor_does_any_own_this_one";
+// The reason a refused SetFilter carries (protocol.md, simple-command replies).
+const DAEMON_REASON = "invalid filter";
+const STALL = "no reply";
+
+/** @param {{ setting: string, code: string, error: string }[]} failures */
+async function liveFailure(failures) {
+  await trees();
+  route({ apply: { live: failures.map((f) => ({ ok: false, ...f })) } });
+  await applyAll();
+  return String(verdict(lastApply).text);
+}
+
+/** @param {string} setting */
+const refused = (setting) => ({ setting, code: "daemon_refused", error: DAEMON_REASON });
+/** @param {string} setting */
+const stalled = (setting) => ({ setting, code: "daemon_unavailable", error: STALL });
+
+test("test_refusals_of_two_different_live_settings_read_differently", async () => {
+  const oneX = await liveFailure([refused(PCM_1X)]);
+  const nX = await liveFailure([refused(PCM_NX)]);
+  assert.notEqual(oneX, nX);
+});
+
+test("test_a_refused_live_setting_is_shown_without_its_wire_key", async () => {
+  const text = await liveFailure([refused(PCM_1X)]);
+  assert.ok(!text.includes(PCM_1X), text);
+});
+
+test("test_a_refused_live_setting_gives_the_daemons_reason", async () => {
+  const text = await liveFailure([refused(PCM_1X)]);
+  assert.ok(text.includes(DAEMON_REASON), text);
+});
+
+test("test_every_live_setting_the_daemon_stopped_answering_on_is_named", async () => {
+  const text = await liveFailure([stalled(UNLABELLED), stalled(ALSO_UNLABELLED)]);
+  assert.deepEqual(
+    [UNLABELLED, ALSO_UNLABELLED].map((key) => text.includes(key)),
+    [true, true],
+    text,
+  );
+});
+
+test("test_a_live_setting_the_daemon_stopped_answering_on_is_shown_without_its_wire_key", async () => {
+  const text = await liveFailure([stalled(PCM_1X)]);
+  assert.ok(!text.includes(PCM_1X), text);
+});
+
 test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => {
   await trees();
   route({ apply: { persistent: { applied: false } } });

@@ -25,12 +25,15 @@ from hqptuner.audit import AuditLog
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"
+# What a refused write says it was saving.
+_WHAT = "presets"
 
 
 class PresetStoreFile(TypedDict, total=False):
@@ -185,10 +188,11 @@ class PresetStore:
         that predates the stamp the moment anything writes to it.
         """
         self._meta()
-        self._dir.mkdir(parents=True, exist_ok=True)
         path = self._dir / _STORE_FILE
-        if not path.is_file():
-            path.write_text(json.dumps({"schema": _SCHEMA}))
+        with saving(_WHAT, self._dir):
+            self._dir.mkdir(parents=True, exist_ok=True)
+            if not path.is_file():
+                path.write_text(json.dumps({"schema": _SCHEMA}))
 
     def names(self) -> list[str]:
         """Every stored preset name, sorted.
@@ -229,7 +233,8 @@ class PresetStore:
             # A first save takes the stricter rule; a migration copies a name the
             # daemon already holds rather than creating one, so it is exempt.
             names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
-        path.write_bytes(xml)
+        with saving(_WHAT, self._dir):
+            path.write_bytes(xml)
         self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
     def delete(self, name: str) -> None:
@@ -242,7 +247,8 @@ class PresetStore:
         if not path.is_file():
             raise PresetNotFoundError(name=name)
         was_active = self.active == name  # unlinking does not touch the pointer
-        path.unlink()
+        with saving(_WHAT, self._dir):
+            path.unlink()
         self._audit.preset_delete(name, was_active=was_active)
         if was_active:
             self.set_active(None)
@@ -261,7 +267,8 @@ class PresetStore:
         """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
         previous = self._meta().get("autosave", False)
         self._ensure_dir()
-        (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
+        with saving(_WHAT, self._dir):
+            (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
         self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
@@ -281,7 +288,8 @@ class PresetStore:
             name = canonical_name(name)
         previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
-        (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
+        with saving(_WHAT, self._dir):
+            (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
         self._audit.active_set(name, previous)
 
     def import_missing(self, snapshots: dict[str, bytes]) -> list[str]:

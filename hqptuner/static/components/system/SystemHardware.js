@@ -9,6 +9,7 @@ import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
 import { expireIf } from "../../lib/expiry.js";
 import { metadata } from "../../store/signals.js";
 import { duringEngineWrite } from "../../store/enginewrite.js";
@@ -197,7 +198,7 @@ async function apply() {
       if (edits === sent) say("Applied.", "ok");
     } else say("Submitted — not confirmed.", "warn");
   } catch (err) {
-    say(`Failed: ${err}`, "err");
+    say(`Failed: ${errText(err)}`, "err");
   }
 }
 
@@ -271,7 +272,7 @@ function BlocksPerCycleField() {
 /** Renders the Hardware acceleration card — CUDA offload and devices, multicore DSP, E-cores, blocks per cycle, apply. */
 export function HardwareCard() {
   useEffect(() => {
-    if (!loaded.value) load().catch((e) => say(`Load failed: ${e}`, "err"));
+    if (!loaded.value) load().catch((e) => say(`Load failed: ${errText(e)}`, "err"));
   }, []);
   // Keyed on the outcome rather than the sentence so a re-apply that lands the
   // same words restarts the clock.
@@ -337,7 +338,7 @@ async function onRestore(e) {
     await duringEngineWrite(() => api.restore(file));
     restoreStatus.value = "Restored — daemon restarting.";
   } catch (err) {
-    restoreStatus.value = `Failed: ${err}`;
+    restoreStatus.value = `Failed: ${errText(err)}`;
   }
 }
 

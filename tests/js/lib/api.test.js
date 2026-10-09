@@ -102,9 +102,110 @@ test("test_a_refused_upload_surfaces_the_daemons_own_reason", async () => {
   await assert.rejects(() => api.uploadFilter(FILE()), /not a filter file/);
 });
 
-test("test_a_refusal_that_is_not_json_falls_back_to_path_and_status", async () => {
-  wire(bad(502));
-  await assert.rejects(() => api.uploadFilter(FILE()), /\/api\/matrix\/filter -> 502/);
+// --- a failure with no usable detail -----------------------------------------
+// Its sentence is copy (docs/testing.md rule 9), so these cases pin what the
+// sentence is built from: the status and what the wire carried, never the
+// request path, never the wording itself.
+
+// The message a call's rejection carries. A call that resolves has nothing to
+// describe, so the helper refuses rather than handing back a value that could
+// compare equal to another.
+/**
+ * @param {() => Promise<unknown>} call
+ * @returns {Promise<string>}
+ */
+async function rejection(call) {
+  const outcome = await call().then(
+    () => null,
+    (/** @type {unknown} */ e) => ({ message: e instanceof Error ? e.message : String(e) }),
+  );
+  if (outcome === null) throw new Error("the call resolved; there is no rejection to read");
+  return outcome.message;
+}
+
+/**
+ * @param {number} status
+ * @returns {Promise<string>}
+ */
+async function unexplained(status) {
+  wire(bad(status));
+  return rejection(() => api.status());
+}
+
+test("test_an_unexplained_server_error_reads_the_same_from_any_endpoint", async () => {
+  // multipart lane and JSON lane alike: the description is the status's, not the path's
+  wire(bad(500));
+  const fromUpload = await rejection(() => api.uploadFilter(FILE()));
+  const fromStatus = await rejection(() => api.status());
+  assert.equal(fromUpload, fromStatus);
+});
+
+test("test_every_gateway_failure_reads_alike_whichever_of_502_503_504", async () => {
+  const gateway = await unexplained(502);
+  const others = [await unexplained(503), await unexplained(504)];
+  assert.deepEqual(others, [gateway, gateway]);
+});
+
+// Two client errors of different meaning: a sentence built from the status
+// tells them apart, where one built from the status class alone would not.
+const CONFLICT = 409;
+const FORBIDDEN = 403;
+
+test("test_an_unexplained_409_and_an_unexplained_403_read_differently", async () => {
+  const conflict = await unexplained(CONFLICT);
+  const forbidden = await unexplained(FORBIDDEN);
+  assert.notEqual(conflict, forbidden);
+});
+
+test("test_a_missing_endpoint_is_described_without_its_status_code", async () => {
+  // the 404 rides on err.status; the sentence names the path, not the number
+  const message = await unexplained(404);
+  assert.doesNotMatch(message, /404/);
+});
+
+// FastAPI's request-validation refusal: a list of errors, each locating its
+// field and giving pydantic's reason.
+const FIELD = "file";
+const REASON = "Field required";
+const VALIDATION = {
+  ok: false,
+  status: 422,
+  json: async () => ({ detail: [{ type: "missing", loc: ["body", FIELD], msg: REASON, input: null }] }),
+};
+
+test("test_a_validation_refusal_names_the_field_it_could_not_use", async () => {
+  wire(VALIDATION);
+  const message = await rejection(() => api.uploadFilter(FILE()));
+  assert.equal(message.includes(FIELD), true, message);
+});
+
+test("test_a_validation_refusal_gives_the_reason_the_wire_carried", async () => {
+  // case-blind: the sentence may lower-case pydantic's leading capital
+  wire(VALIDATION);
+  const message = await rejection(() => api.uploadFilter(FILE()));
+  assert.match(message, new RegExp(REASON, "i"));
+});
+
+// A fetch that never reached HQPTuner rejects with the browser's own wording,
+// which differs by engine.
+const CHROMIUM_NETWORK_ERROR = "Failed to fetch";
+const GECKO_NETWORK_ERROR = "NetworkError when attempting to fetch resource.";
+
+/**
+ * @param {string} wording
+ * @returns {Promise<string>}
+ */
+async function unreachable(wording) {
+  env.fetch = async () => {
+    throw new TypeError(wording);
+  };
+  return rejection(() => api.status());
+}
+
+test("test_an_unreachable_backend_reads_the_same_in_every_browser", async () => {
+  const chromium = await unreachable(CHROMIUM_NETWORK_ERROR);
+  const gecko = await unreachable(GECKO_NETWORK_ERROR);
+  assert.equal(chromium, gecko);
 });
 
 // --- preset names in the path ---------------------------------------------------

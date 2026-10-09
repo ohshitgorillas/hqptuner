@@ -1,10 +1,13 @@
 // Apply-report summarization: turns the backend's apply report into the
 // {ok, text} pair the apply pill and the pending bar both render.
 //
-// Pure — it reads no signal and imports nothing from the store — which is why it
-// can sit outside the three-tree modules with no risk of an import cycle and no
-// signal crossing a file boundary. store/actions.js imports `summarize`; the
-// rest stays private to this module.
+// Pure: it reads no signal, and its one store import is the wire-key label
+// lookup, which reads only the static control catalog. That is why it can sit
+// outside the three-tree modules with no risk of an import cycle and no signal
+// crossing a file boundary. store/actions.js imports `summarize`; the rest stays
+// private to this module.
+
+import { liveFailureText, wireLabel } from "./ui/wirelabels.js";
 
 // `count` is the number of staged edits captured before apply — the http/matrix
 // lanes each collapse many field edits into a single POST, so counting reports
@@ -92,10 +95,8 @@ function liveFailure(report) {
   const settings = fails.map((f) => f.setting);
   // An engine that stopped answering explains every other failure in the same
   // apply, so one such entry decides the verdict for the whole list.
-  if (fails.some((f) => f.code === "daemon_unavailable")) {
-    return failure("live-unavailable", `Engine stopped answering: ${settings.join(", ")}`, { settings });
-  }
-  return failure("live-failed", `Engine refused: ${settings.join(", ")}`, { settings });
+  const code = fails.some((f) => f.code === "daemon_unavailable") ? "live-unavailable" : "live-failed";
+  return failure(code, liveFailureText(fails), { settings });
 }
 
 // The causes that carry their own wording, each because the generic "Config not
@@ -132,13 +133,28 @@ function persistentFailure(p) {
   const named = namedCause(p);
   if (named) return named;
   if (p.error) return failure("persist-error", `Config not applied: ${p.error}`);
-  // Name the fields that didn't converge. "unconverged" alone is undebuggable —
-  // it says a setting the daemon kept refusing exists, but not which one, and
-  // the user is the only one who can see their own config.
   const fields = Object.keys(p.diff || {});
-  const which = fields.length ? `: ${fields.join(", ")}` : "";
   const reason = p.reason || "unconfirmed";
-  return failure("persist-refused", `Config not applied (${reason})${which}`, { reason, fields });
+  return failure("persist-refused", refusedText(p.reason, fields), { reason, fields });
+}
+
+// An unconverged apply names the fields that kept their old values, each by the
+// label the page gives its control, since the reader knows a setting by that
+// label and not by the daemon's config key. A refusal that gave no reason says
+// the change went unconfirmed. Any other reason is quoted with the fields it
+// carried.
+/**
+ * @param {string | undefined} reason
+ * @param {string[]} fields the wire keys that did not converge
+ * @returns {string}
+ */
+function refusedText(reason, fields) {
+  if (reason === "unconverged" && fields.length) {
+    return `HQPlayer restarted but kept its old values for: ${fields.map(wireLabel).join(", ")}.`;
+  }
+  if (!reason) return "HQPlayer restarted, but the change could not be confirmed.";
+  const which = fields.length ? `: ${fields.join(", ")}` : "";
+  return `Config not applied (${reason})${which}`;
 }
 
 // How a switch target names itself in the report. The empty name is the picker's

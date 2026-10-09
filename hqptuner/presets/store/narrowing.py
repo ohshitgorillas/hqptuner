@@ -27,6 +27,7 @@ from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.presets.store.narrowingjson import FacetInput, facet_input
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -304,6 +305,7 @@ class NarrowingStore:
         """
         stored = _validate(facets)
         self._read_file()
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2))
+        with saving("the filter narrowing", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2))
         return stored

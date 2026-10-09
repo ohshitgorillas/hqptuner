@@ -17,7 +17,7 @@ from hqptuner import voltrace
 from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlError, NotConnectedError
+from hqptuner.engine.controlerrors import CommandError, ControlConnectionFailedError, ControlError
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import PresetError
@@ -135,7 +135,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     """
     client = mgr.control
     if client is None:
-        raise NotConnectedError()
+        raise ControlConnectionFailedError(host=mgr.cfg.hqp_host, port=mgr.cfg.hqp_control_port)
     state = await client.get_state()
     # A mode switch swaps the lists wholesale (architecture §3.3), and playback
     # state moves the rate list: what fills that one is the transport as well

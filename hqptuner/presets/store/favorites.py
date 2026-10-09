@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Literal, TypedDict
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -164,8 +165,9 @@ class FavoriteStore:
         stored = _validate(names)
         data = self._read_file()
         keep = {k: data[k] for k in _KINDS if k != kind and k in data}
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2))
+        with saving("favorites", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2))
         return stored
 
     def read(self) -> list[str]:

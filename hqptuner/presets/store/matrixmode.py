@@ -25,6 +25,7 @@ from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -159,8 +160,9 @@ class MatrixModeStore:
 
     def _save(self, presets: dict[str, str]) -> None:
         """Write ``presets`` out as the whole file, creating the directory on the way."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
+        with saving("matrix modes", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
 
     def forget(self, name: str) -> bool:
         """Drop ``name``'s stored mode, answering whether there was one to drop.

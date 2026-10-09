@@ -294,8 +294,9 @@ test("test_apply_refreshes_the_card_from_the_daemons_answer", async () => {
 // The apply lane is this tab's one public error signal, so it is where the two
 // halves of the REST error contract are exercised: a refusal carrying the
 // daemon's own sentence reaches the user verbatim, and a refusal carrying no
-// sentence still tells them the status. What the fallback wording IS belongs to
-// lib/api.js, not to this suite — the claim here is only that the code survives.
+// sentence still tells one status from another. What the fallback wording IS
+// belongs to lib/api.js, not to this suite — the claim here is only that the
+// code survives.
 
 /** @param {FakeResponse} answer */
 function refuse(answer) {
@@ -304,11 +305,14 @@ function refuse(answer) {
   });
 }
 
-test("test_a_refusal_with_no_reason_still_reports_the_status", async () => {
+test("test_a_refusal_with_no_reason_still_tells_one_status_from_another", async () => {
   await reset();
   refuse(bad(502));
   await applySpeakers(true, {});
-  assert.match(speakersError.value, /502/);
+  const gateway = speakersError.value;
+  refuse(bad(500));
+  await applySpeakers(true, {});
+  assert.notEqual(speakersError.value, gateway);
 });
 
 // --- the read lane -------------------------------------------------------------

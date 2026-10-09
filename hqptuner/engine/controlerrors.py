@@ -1,6 +1,7 @@
 """Control API (TCP 4321) failure types, each carrying the ``code`` the API reports it under."""
 
 from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
+from hqptuner.conf.noanswer import no_answer_message
 from hqptuner.errors import HQPTunerError
 
 
@@ -19,29 +20,17 @@ class CommandError(ControlError):
 class ControlTimeoutError(ControlError):
     """A command got no reply within its timeout — the daemon may have restarted mid-command."""
 
-    def __init__(self, *, what: str, timeout: float) -> None:
-        """Render the timeout wording for the command (or phase) named by ``what``."""
-        super().__init__(f"{what}: no reply within {timeout:g}s (the daemon may have restarted)")
+    def __init__(self, *, timeout: float) -> None:
+        """Render the no-answer sentence for ``timeout``, shared with the 8088 lane."""
+        super().__init__(no_answer_message(timeout))
 
 
 class ControlConnectionFailedError(ControlError):
-    """The transport itself failed — a dead socket, an OS-level error — while ``what`` was in flight."""
+    """HQPlayer could not be reached at ``host:port``: the connection was refused or reset, or there was none."""
 
-    def __init__(self, *, what: str, error: OSError) -> None:
-        """Render the connection-failure wording, naming what was happening and the OS error that killed it."""
-        super().__init__(f"{what}: connection failed: {error}")
-
-
-class ControlChainedFailureError(ControlError):
-    """A ``ControlError`` raised while receiving one reply, re-raised naming the command that was in flight.
-
-    ``_recv_document``'s own failures ("connection closed by daemon", a frame that will not parse) name no
-    command, and which command died is the whole diagnostic.
-    """
-
-    def __init__(self, *, what: str, error: ControlError) -> None:
-        """Render the chained wording: the command in flight, then the underlying ``ControlError``."""
-        super().__init__(f"{what}: {error}")
+    def __init__(self, *, host: str, port: int) -> None:
+        """Render the not-reachable sentence for the address the client dials."""
+        super().__init__(f"HQPlayer is not reachable at {host}:{port}.")
 
 
 class UnparseableResponseError(ControlError):
@@ -50,14 +39,6 @@ class UnparseableResponseError(ControlError):
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__("unparseable response document")
-
-
-class NotConnectedError(ControlError):
-    """A request was attempted, or a reply awaited, with no live connection."""
-
-    def __init__(self) -> None:
-        """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("not connected")
 
 
 class HttpCredentialsMissingError(ControlError):
@@ -73,7 +54,7 @@ class ConnectionClosedError(ControlError):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("connection closed by daemon")
+        super().__init__("HQPlayer closed the connection before answering.")
 
 
 class ResponseTooLargeError(ControlError):

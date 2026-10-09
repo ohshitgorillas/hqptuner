@@ -14,17 +14,16 @@ import logging
 import re
 import socket
 import xml.etree.ElementTree as ET
-from collections.abc import Iterator
+from collections.abc import Awaitable, Iterator
 from dataclasses import dataclass
+from typing import Protocol
 
 from hqptuner.engine.controlerrors import (
     CommandRefusedError,
     ConnectionClosedError,
-    ControlChainedFailureError,
     ControlConnectionFailedError,
     ControlError,
     ControlTimeoutError,
-    NotConnectedError,
     ResponseTooLargeError,
     StateMismatchError,
 )
@@ -42,6 +41,14 @@ ENUM_COMMANDS = {
     "rates": "GetRates",
     "junk_filters": "GetJunkFilters",
 }
+
+
+class Deadline(Protocol):
+    """What the client waits on a reply under. The ``asyncio`` module itself is one, and the production default."""
+
+    def wait_for[T](self, fut: Awaitable[T], timeout: float, /) -> Awaitable[T]:
+        """Answer ``fut``'s own result, or raise ``TimeoutError`` when ``timeout`` seconds pass first."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -70,51 +77,69 @@ def _element_name(element: str) -> str:
     return match.group(1) if match is not None else "request"
 
 
-@contextlib.contextmanager
-def _as_control_error(what: str, timeout: float) -> Iterator[None]:
-    """Raw socket failures as ``ControlError``, which is what callers handle.
-
-    ``asyncio.wait_for`` raises a bare ``TimeoutError`` and a dead transport
-    raises ``OSError``; neither is a ``ControlError``, so both escaped every
-    caller — ``writer._apply_one`` could not record the setting as failed and the
-    API answered a bodiless 500. Observed on 6.0.4 when the daemon accepted
-    ``SetMode`` and then restarted without answering it.
-    """
-    try:
-        yield
-    except TimeoutError as exc:
-        raise ControlTimeoutError(what=what, timeout=timeout) from exc
-    except OSError as exc:
-        raise ControlConnectionFailedError(what=what, error=exc) from exc
-    except ControlError as exc:
-        # `_recv_document`'s own failures ("connection closed by daemon", a frame
-        # that will not parse) name no command, and which command died is the whole
-        # diagnostic — a daemon that drops the connection under `SetFilter` fails
-        # some LATER command, and the message is the only place that pairing
-        # survives. Every other failure here already carries it.
-        raise ControlChainedFailureError(what=what, error=exc) from exc
-
-
 class ControlClient:
     """One Control API connection, with a lock serializing request/response round trips over it."""
 
-    def __init__(self, host: str = "127.0.0.1", port: int = 4321, timeout: float = 5.0):
-        """Record where to dial and how long to wait; no socket is opened until ``connect``."""
+    def __init__(
+        self,
+        host: str = "127.0.0.1",
+        port: int = 4321,
+        timeout: float = 5.0,
+        *,
+        deadline: Deadline = asyncio,
+    ):
+        """Record where to dial and how long to wait; no socket is opened until ``connect``.
+
+        ``deadline`` is what every connect, send and read waits under (docs/testing.md rule 7).
+        """
         self._host = host
         self._port = port
         self._timeout = timeout
+        self._deadline = deadline
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
 
     async def connect(self) -> None:
         """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
-        with _as_control_error("connect", self._timeout):
-            reader, writer = await asyncio.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
+        # a refused reconnect repeats every poll while HQPlayer is down, and the
+        # manager already logs the drop once
+        with self._as_control_error("connect", level=logging.DEBUG):
+            reader, writer = await self._deadline.wait_for(
+                asyncio.open_connection(self._host, self._port), self._timeout
+            )
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+
+    @contextlib.contextmanager
+    def _as_control_error(self, what: str, *, level: int = logging.WARNING) -> Iterator[None]:
+        """Raw socket failures as ``ControlError``, which is what callers handle.
+
+        ``asyncio.wait_for`` raises a bare ``TimeoutError`` and a dead transport
+        raises ``OSError``; neither is a ``ControlError``, so a caller that handles
+        ``ControlError`` would not catch them. This turns a timeout into
+        ``ControlTimeoutError`` and an ``OSError`` into the unreachable error, so
+        ``writer._apply_one`` can record the setting as failed and the API answers
+        with a body.
+        """
+        try:
+            yield
+        except (TimeoutError, OSError, ControlError) as exc:
+            # Which command died is the whole diagnostic — a daemon that drops the
+            # connection under `SetFilter` fails some LATER command — and the error
+            # the user sees names no command, so the log is where that pairing survives.
+            log.log(level, "Control API %s failed: %r", what, exc)
+            if isinstance(exc, TimeoutError):
+                raise ControlTimeoutError(timeout=self._timeout) from exc
+            if isinstance(exc, OSError):
+                raise self._unreachable() from exc
+            raise
+
+    def _unreachable(self) -> ControlConnectionFailedError:
+        """Build the failure a command meets when there is no connection to send it on."""
+        return ControlConnectionFailedError(host=self._host, port=self._port)
 
     async def close(self) -> None:
         """Close the connection and forget the streams, ignoring a transport that has already failed."""
@@ -134,15 +159,15 @@ class ControlClient:
             # loop's `_drop` closes it from outside, so a writer checked while
             # queueing is a writer that can be gone by the time the lock is held.
             writer = self._writer
-            if writer is None:
-                raise NotConnectedError()
             # covers the receive too: `_recv_document`'s own read deadline is the
             # one a stalled command trips, and it is this command's name that says
             # which command stalled
-            with _as_control_error(_element_name(element), self._timeout):
+            with self._as_control_error(_element_name(element)):
+                if writer is None:
+                    raise self._unreachable()
                 try:
                     writer.write((XML_HDR + element).encode())
-                    await asyncio.wait_for(writer.drain(), self._timeout)
+                    await self._deadline.wait_for(writer.drain(), self._timeout)
                     return await self._recv_document()
                 except (TimeoutError, OSError, ControlError):
                     # The daemon answers every command it accepts, unknown ones
@@ -160,10 +185,10 @@ class ControlClient:
     async def _recv_document(self) -> ET.Element:
         reader = self._reader
         if reader is None:
-            raise NotConnectedError()
+            raise self._unreachable()
         data = b""
         while True:
-            chunk = await asyncio.wait_for(reader.read(65536), self._timeout)
+            chunk = await self._deadline.wait_for(reader.read(65536), self._timeout)
             if not chunk:
                 raise ConnectionClosedError()
             data += chunk

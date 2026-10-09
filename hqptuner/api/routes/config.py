@@ -91,7 +91,7 @@ class ReadPresetFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the read."""
-        super().__init__(f"read preset failed: {error}")
+        super().__init__(f"Reading the preset failed: {error}")
 
 
 class DeviceRefreshFailedError(ErrorBody):
@@ -101,7 +101,7 @@ class DeviceRefreshFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the refresh."""
-        super().__init__(f"device refresh failed: {error}")
+        super().__init__(f"Refreshing the device list failed: {error}")
 
 
 class BackupFailedError(ErrorBody):
@@ -111,7 +111,7 @@ class BackupFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the backup."""
-        super().__init__(f"backup failed: {error}")
+        super().__init__(f"Reading HQPlayer's settings backup failed: {error}")
 
 
 class ReadEngineFailedError(ErrorBody):
@@ -121,7 +121,7 @@ class ReadEngineFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the read."""
-        super().__init__(f"read engine failed: {error}")
+        super().__init__(f"Reading the engine settings failed: {error}")
 
 
 class NoEngineOverridesError(ErrorBody):
@@ -135,13 +135,13 @@ class NoEngineOverridesError(ErrorBody):
 
 
 class EngineApplyFailedError(ErrorBody):
-    """An engine-attribute apply failed on the wire, whose own message is the whole refusal, unembellished."""
+    """An engine-attribute apply failed on the wire, naming the underlying error."""
 
     code = "daemon_write_failed"
 
     def __init__(self, *, error: Exception) -> None:
-        """Render ``error``'s own message, naming no further fact."""
-        super().__init__(str(error))
+        """Render the wording naming the ``error`` that stopped the apply."""
+        super().__init__(f"Applying the engine settings failed: {error}")
 
 
 class ArchiveUnreadableError(ErrorBody):
@@ -161,7 +161,7 @@ class RestoreFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the restore."""
-        super().__init__(f"restore failed: {error}")
+        super().__init__(f"Restoring the settings failed: {error}")
 
 
 @router.get("/config")
@@ -170,7 +170,7 @@ def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
 
     Needs credentials — without them the 8088 lane does not exist and the route 503s.
     """
-    form = deps.ensure_form(manager.readings.config_form, manager.readings.config_error, "/config")
+    form = deps.ensure_form(manager.readings.config_form, manager.readings.config_error)
     # `profiles` and `active` come from HQPTuner's own preset store — the source of
     # truth — not the daemon's (unreliable) profile subsystem, which under our
     # restore-only model always reports [default].
@@ -243,7 +243,7 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     """
     try:
         data = await manager.presetops.backup()
-    except ControlError as exc:
+    except (ControlError, httpx.HTTPError) as exc:
         raise refuse(BackupFailedError(error=exc)) from exc
     store: DescriptionStore = request.app.state.descriptions
     try:

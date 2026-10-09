@@ -6,12 +6,17 @@ write serializes a complete form (the daemon silently ignores a partial POST)
 with the daemon's checkbox and range-validation contracts.
 """
 
+import contextlib
+from collections.abc import Iterator
+from dataclasses import dataclass
+
 import httpx
 from bs4 import BeautifulSoup, Tag
 
 from hqptuner.conf.formparse import attr, parse_config_form, parse_matrix_form, parse_speakers_form
 from hqptuner.conf.httpauth import AuthRefused, raise_for_status
 from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
+from hqptuner.conf.noanswer import http_deadline
 
 # readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
 _SPK_LEVEL = (-60.0, 0.0)
@@ -111,6 +116,61 @@ class UnknownProfileActionError(ValueError):
         super().__init__(f"unknown profile action: {action}")
 
 
+@dataclass(frozen=True)
+class HttpOptions:
+    """How long each 8088 request waits for HQPlayer, and what carries it.
+
+    ``transport`` replaces httpx's own socket transport; left out, requests go over the network.
+    """
+
+    timeout: float = 10.0
+    transport: httpx.AsyncBaseTransport | None = None
+
+
+class HttpUnreachableError(httpx.TransportError):
+    """An 8088 request that never reached HQPlayer: nothing answered at the address it was sent to.
+
+    Subclasses ``httpx.TransportError`` so every site that catches ``httpx.HTTPError`` handles it unchanged.
+    """
+
+    def __init__(self, *, host: str, port: int, request: httpx.Request) -> None:
+        """Render the wording naming the ``host`` and ``port`` that did not answer."""
+        super().__init__(f"HQPlayer is not reachable at {host}:{port}.", request=request)
+
+
+class HttpRefusedError(httpx.HTTPStatusError):
+    """HQPlayer answered an 8088 request with an error status.
+
+    Subclasses ``httpx.HTTPStatusError`` so every site that catches ``httpx.HTTPError`` handles it unchanged.
+    """
+
+    def __init__(self, *, response: httpx.Response) -> None:
+        """Render the wording naming the status HQPlayer answered with."""
+        super().__init__(
+            f"HQPlayer refused the request (HTTP {response.status_code}).",
+            request=response.request,
+            response=response,
+        )
+
+
+@contextlib.contextmanager
+def hqplayer_request(host: str, port: int, timeout: float) -> Iterator[None]:
+    """Report an 8088 request that timed out or never reached ``host:port`` in HQPTuner's words, not httpx's."""
+    with http_deadline(timeout):
+        try:
+            yield
+        except httpx.TimeoutException:
+            raise
+        except httpx.TransportError as exc:
+            raise HttpUnreachableError(host=host, port=port, request=exc.request) from exc
+
+
+def raise_refused(resp: httpx.Response) -> None:
+    """Raise ``HttpRefusedError`` on any answer that is not a success."""
+    if not resp.is_success:
+        raise HttpRefusedError(response=resp)
+
+
 class HttpConfigClient:
     """Async client for hqplayerd's HTTP configuration interface — the /config, /matrix, /speakers and /backup forms.
 
@@ -118,12 +178,15 @@ class HttpConfigClient:
     control protocol.
     """
 
-    def __init__(self, host: str, port: int, username: str, password: str, timeout: float = 10.0):
-        """Open the Digest-authenticated connection pool against ``host:port``, with ``timeout`` on every request."""
+    def __init__(self, host: str, port: int, username: str, password: str, options: HttpOptions | None = None):
+        """Open the Digest-authenticated connection pool against ``host:port``, on ``options`` or the defaults."""
+        options = options or HttpOptions()
+        self._host, self._port, self._timeout = host, port, options.timeout
         self._client = httpx.AsyncClient(
             base_url=f"http://{host}:{port}",
             auth=httpx.DigestAuth(username, password),
-            timeout=timeout,
+            timeout=options.timeout,
+            transport=options.transport,
         )
         #: What this client's own requests have proven about the credentials it was
         #: built with — None until the first response lands, then True or False.
@@ -137,13 +200,16 @@ class HttpConfigClient:
 
         The one place ``AuthRefused`` is caught for that purpose: a side effect on
         this client's own state, not a value — the exception propagates unchanged
-        to every caller on this lane.
+        to every caller on this lane. Any other error status raises ``HttpRefusedError``
+        and leaves the credential verdict as it stood.
         """
         try:
             raise_for_status(resp)
         except AuthRefused:
             self.credentials_ok = False
             raise
+        except httpx.HTTPStatusError as exc:
+            raise HttpRefusedError(response=resp) from exc
         self.credentials_ok = True
 
     async def _get(self, path: str) -> httpx.Response:
@@ -152,7 +218,8 @@ class HttpConfigClient:
         Every read on this lane goes through here so no route can forget to check
         the status and parse an error page as if it were a form.
         """
-        resp = await self._client.get(path)
+        with hqplayer_request(self._host, self._port, self._timeout):
+            resp = await self._client.get(path)
         self._mark(resp)
         return resp
 
@@ -169,7 +236,8 @@ class HttpConfigClient:
         page, and what actually landed is established by readback, never by the
         response.
         """
-        resp = await self._client.post(path, data=data, files=files)
+        with hqplayer_request(self._host, self._port, self._timeout):
+            resp = await self._client.post(path, data=data, files=files)
         self._mark(resp)
 
     async def get_config(self) -> ConfigForm:

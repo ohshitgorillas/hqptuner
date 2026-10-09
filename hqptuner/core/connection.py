@@ -28,6 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.presets.store.jsonfile import StoreCorruptError
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -106,10 +107,11 @@ class ConnectionStore:
             "password": record.password if record.remember else "",
             "remember": record.remember,
         }
-        self._path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self._path.with_suffix(self._path.suffix + ".tmp")
-        tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        tmp.replace(self._path)
+        with saving("the connection", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            tmp.replace(self._path)
 
 
 def _pinned(name: str) -> bool:

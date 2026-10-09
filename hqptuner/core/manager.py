@@ -29,7 +29,12 @@ from hqptuner.core.applyops import ApplyOps
 from hqptuner.core.clock import Clock
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlError, HttpCredentialsMissingError
+from hqptuner.engine.controlerrors import (
+    CommandError,
+    ControlConnectionFailedError,
+    ControlError,
+    HttpCredentialsMissingError,
+)
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.presetops import PresetOps
@@ -324,8 +329,7 @@ class ConnectionManager:
         The accessor for a write that cannot proceed without the control lane.
         """
         if self._client is None:
-            message = "daemon not connected"
-            raise ControlError(message)
+            raise ControlConnectionFailedError(host=self.cfg.hqp_host, port=self.cfg.hqp_control_port)
         return self._client
 
     def require_http(self) -> HttpConfigClient:

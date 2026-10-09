@@ -6,16 +6,17 @@
 // says what actually went wrong ("no hqplayerd credentials configured", "GET
 // /matrix failed: …"). Throwing the status code alone discards it and leaves
 // every tab reporting a bare number, so the detail IS the message whenever the
-// body has one; the path and status stay as the fallback for a response that is
-// not our JSON at all (a proxy error page, a dropped daemon). A 422 from
-// request validation answers with a list rather than a string — not a sentence
-// we can show, so it takes the fallback too.
+// body has one. A response with no usable detail (a proxy error page, a dropped
+// daemon) is described by its HTTP status in plain English (`unexplained`).
+// Callers put their own "{what} failed: " in front of the message, which is why
+// some of these sentences start lower-case.
 // The LIVE lane answers a refused batch with per-field reasons rather than one
 // sentence — {"filter": "the pcm chain is not loaded (engine chain: sdm)"} —
 // because it refuses field by field. Reading the values out keeps that sentence;
-// the alternative is the bare status code, which tells the control nothing. A
-// LIST detail stays on the fallback: that is FastAPI's request-validation shape,
-// a structure rather than prose.
+// the alternative is the bare status code, which tells the control nothing.
+// A LIST detail is FastAPI's request-validation shape: one error per field, each
+// with the field's location and pydantic's reason, described one sentence per
+// error (`invalid`).
 /**
  * @param {{ detail?: unknown } | null | undefined} body the parsed error body
  * @returns {string} the sentence to show, "" when the body carries none
@@ -23,10 +24,78 @@
 function detailOf(body) {
   const d = body?.detail;
   if (typeof d === "string") return d;
-  if (!d || typeof d !== "object" || Array.isArray(d)) return "";
+  if (Array.isArray(d)) return d.map(invalid).filter(Boolean).join(" ");
+  if (!d || typeof d !== "object") return "";
   return Object.values(d)
     .filter((v) => typeof v === "string")
     .join("; ");
+}
+
+// `loc` leads with where the field was read from ("body", "query", "path"); the
+// rest is the field's name, dotted when it is nested.
+/**
+ * @param {unknown} error one entry of a request-validation list
+ * @returns {string} the sentence for it, "" when it locates no field or gives no reason
+ */
+function invalid(error) {
+  if (!error || typeof error !== "object") return "";
+  const { loc, msg } = /** @type {{ loc?: unknown, msg?: unknown }} */ (error);
+  if (!Array.isArray(loc) || typeof msg !== "string" || !msg) return "";
+  const field = (loc.length > 1 ? loc.slice(1) : loc).join(".");
+  if (!field) return "";
+  return `HQPTuner could not use ${field} (${msg.charAt(0).toLowerCase()}${msg.slice(1)}).`;
+}
+
+// RFC 9110 section 15 reason phrases, plus the registered codes HQPTuner or a
+// proxy in front of it can plausibly answer with.
+/** @type {Record<number, string>} */
+const REASON_PHRASES = {
+  400: "Bad Request",
+  401: "Unauthorized",
+  402: "Payment Required",
+  403: "Forbidden",
+  405: "Method Not Allowed",
+  406: "Not Acceptable",
+  407: "Proxy Authentication Required",
+  408: "Request Timeout",
+  409: "Conflict",
+  410: "Gone",
+  411: "Length Required",
+  412: "Precondition Failed",
+  413: "Content Too Large",
+  414: "URI Too Long",
+  415: "Unsupported Media Type",
+  416: "Range Not Satisfiable",
+  417: "Expectation Failed",
+  421: "Misdirected Request",
+  422: "Unprocessable Content",
+  423: "Locked",
+  424: "Failed Dependency",
+  425: "Too Early",
+  426: "Upgrade Required",
+  428: "Precondition Required",
+  429: "Too Many Requests",
+  431: "Request Header Fields Too Large",
+  451: "Unavailable For Legal Reasons",
+  501: "Not Implemented",
+  505: "HTTP Version Not Supported",
+  506: "Variant Also Negotiates",
+  507: "Insufficient Storage",
+  508: "Loop Detected",
+  511: "Network Authentication Required",
+};
+
+/**
+ * @param {string} path the request path, query string included
+ * @param {number} status
+ * @returns {string} the sentence for a failed response whose body explains nothing
+ */
+function unexplained(path, status) {
+  if (status === 500) return "HQPTuner hit an unexpected error. The details are in its log.";
+  if (status === 502 || status === 503 || status === 504) return "HQPlayer did not answer.";
+  if (status === 404) return `this HQPTuner has no ${path.split("?")[0]}. Reload the page.`;
+  const phrase = REASON_PHRASES[status];
+  return `HQPTuner answered HTTP ${phrase ? `${status} ${phrase}` : status} with no explanation.`;
 }
 
 // A refusal from our own backend also carries `code`, a stable identifier
@@ -63,12 +132,28 @@ async function failure(path, r) {
   } catch {
     detail = "";
   }
-  return new ApiFailure(detail || `${path} -> ${r.status}`, r.status, code);
+  return new ApiFailure(detail || unexplained(path, r.status), r.status, code);
+}
+
+// A fetch that rejects never reached HQPTuner; each browser words that rejection
+// its own way, so the browser's text is replaced by one sentence. No response
+// means no status: the failure carries 0, as a network-error Response does.
+/**
+ * @param {string} path
+ * @param {RequestInit} [opts]
+ * @returns {Promise<Response>}
+ */
+async function reach(path, opts) {
+  try {
+    return await fetch(path, opts);
+  } catch {
+    throw new ApiFailure("HQPTuner is not reachable.", 0, "");
+  }
 }
 
 /** @param {string} path */
 async function getJSON(path) {
-  const r = await fetch(path);
+  const r = await reach(path);
   if (!r.ok) throw await failure(path, r);
   return r.json();
 }
@@ -85,7 +170,7 @@ async function send(path, method, body) {
     opts.headers = { "Content-Type": "application/json" };
     opts.body = JSON.stringify(body);
   }
-  const r = await fetch(path, opts);
+  const r = await reach(path, opts);
   if (!r.ok) throw await failure(path, r);
   return r.json();
 }
@@ -98,7 +183,7 @@ async function send(path, method, body) {
 async function upload(path, field, file) {
   const fd = new FormData();
   fd.append(field, file);
-  const r = await fetch(path, { method: "POST", body: fd });
+  const r = await reach(path, { method: "POST", body: fd });
   if (!r.ok) throw await failure(path, r);
   return r.json();
 }

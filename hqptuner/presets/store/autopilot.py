@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, TypedDict
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -129,8 +130,9 @@ class AutopilotStore:
         return _clean(read_stamped(self._path, store="auto-pilot", schema=_SCHEMA, too_new=_too_new))
 
     def _write(self, state: AutopilotState) -> None:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps(state.to_json(), indent=2))
+        with saving("the auto-pilot setting", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps(state.to_json(), indent=2))
 
     def read(self) -> AutopilotState:
         """Auto-pilot's whole recorded state."""

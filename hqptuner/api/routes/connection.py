@@ -17,23 +17,14 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import ErrorBody, refuse
+from hqptuner.api.errors import refuse
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.store.jsonfile import StoreCorruptError
+from hqptuner.presets.store.unwritable import StoreUnwritableError
 
 router = APIRouter(prefix="/api")
-
-
-class StoreUnwritableError(ErrorBody):
-    """The connection record could not be written to disk, naming the underlying OS error."""
-
-    code = "store_unwritable"
-
-    def __init__(self, *, error: OSError) -> None:
-        """Render the wording naming the ``error`` that stopped the write."""
-        super().__init__(f"cannot save the connection: {error}")
 
 
 class ConnectionBody(BaseModel):
@@ -135,8 +126,8 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     )
     try:
         store.write(record)
-    except OSError as exc:
-        raise refuse(StoreUnwritableError(error=exc)) from exc
+    except StoreUnwritableError as exc:
+        raise refuse(exc) from exc
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
     layer_onto_config(cfg, record)

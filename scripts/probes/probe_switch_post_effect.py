@@ -32,7 +32,7 @@ import os
 import sys
 from typing import Any
 
-from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
@@ -89,7 +89,7 @@ async def _run() -> int:
     original = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original!r}")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     names = await control.get_matrix_profiles()
     for name in (with_chain, no_chain):
         if name not in names:

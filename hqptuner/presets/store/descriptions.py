@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, TypedDict
 from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -261,8 +262,9 @@ class DescriptionStore:
         """Write the whole map out and return it."""
         if len(profiles) > _MAX_PROFILES:
             raise TooManyProfilesError(count=len(profiles), limit=_MAX_PROFILES)
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "profiles": profiles}, indent=2, sort_keys=True))
+        with saving("descriptions", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, "profiles": profiles}, indent=2, sort_keys=True))
         return profiles
 
     def read(self) -> dict[str, DescriptionEntry]:

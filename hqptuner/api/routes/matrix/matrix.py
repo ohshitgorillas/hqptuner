@@ -105,7 +105,7 @@ def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
 
     Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait.
     """
-    form = deps.ensure_form(manager.readings.matrix_form, manager.readings.matrix_error, "/matrix")
+    form = deps.ensure_form(manager.readings.matrix_form, manager.readings.matrix_error)
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
     # MatrixListProfiles names and State.matrix_profile (empty = [Default]).
     # file_profiles is the saved-profile truth: the <matrix_profile> elements of
@@ -200,7 +200,7 @@ def speakers(manager: HttpMgr) -> deps.Snapshot[SpeakersForm]:
     Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait
     (fail-fast, see deps).
     """
-    form = deps.ensure_form(manager.readings.speakers_form, manager.readings.speakers_error, "/speakers")
+    form = deps.ensure_form(manager.readings.speakers_form, manager.readings.speakers_error)
     return deps.snapshot(manager, form)
 
 
@@ -218,7 +218,7 @@ class SpeakersApplyFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the apply."""
-        super().__init__(f"speakers apply failed: {error}")
+        super().__init__(f"Applying the speaker settings failed: {error}")
 
 
 @router.post("/speakers")

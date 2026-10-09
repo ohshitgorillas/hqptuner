@@ -34,7 +34,7 @@ class DeletePresetFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the delete."""
-        super().__init__(f"delete preset failed: {error}")
+        super().__init__(f"Deleting the preset failed: {error}")
 
 
 async def _load(manager: ConnectionManager, name: str) -> PresetActivation:

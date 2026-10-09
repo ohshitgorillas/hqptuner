@@ -242,8 +242,11 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | code | status | meaning |
 |---|---|---|
 | `no_credentials` | 503 | app built without hqplayerd management credentials |
+| `no_http_client` | 503 | app built without HTTP management credentials for the 8088 config lane |
+| `backup_failed` | 500 | the settings backup taken before a destructive restore could not be written |
 | `not_loaded` | 503 | first poll of the daemon has not landed yet |
 | `daemon_read_failed` | 502 | a read from hqplayerd's HTTP or 4321 interface failed |
+| `daemon_log_absent` | 404 | hqplayerd answered its log page 404: it has no log to serve |
 | `daemon_write_failed` | 502 | a write to hqplayerd failed |
 | `daemon_unavailable` | 503 | 4321 not connected, timed out, or answered unparseably |
 | `daemon_refused` | 503 | daemon answered `result="Error"` |
@@ -253,10 +256,14 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `nothing_staged` | 400 | apply with nothing to apply |
 | `fields_unknown` | 422 | a field no lane accepts |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
+| `store_corrupt` | 500 | a store file that exists but does not read as a JSON object |
+| `store_unwritable` | 500 | a store read or write the filesystem refused |
+| `archive_unreadable` | 500 | an uploaded backup archive that is not a readable zip, or whose descriptions will not parse |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |
 | `route_unknown` | 404 | no route at that path |
 | `method_not_allowed` | 405 | a real path, wrong method |
+| `internal_error` | 500 | an exception no other handler maps; its traceback is in the log |
 
 ### 8.2 Lane reports in a 200 body
 

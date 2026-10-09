@@ -49,6 +49,7 @@ from hqptuner import __version__
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.presets.store.unwritable import saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -249,8 +250,9 @@ class LivePresetStore:
         Guards the schema first: a store we cannot read is not one we should be writing into.
         """
         self._read_file()
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
+        with saving("live presets", self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
 
     def all(self) -> dict[str, LiveRecord]:
         """Every preset, name -> record, sorted by name."""
