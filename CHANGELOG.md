@@ -12,7 +12,6 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Station, Snapshot, and Profile Builders** offer guided creation and management of settings.
 - **Home screen app.** HQPTuner can be added to the home screen of a tablet to open full screen.
 - **Output rate pinning** is now possible through the "Allow Rate Pinning" setting.
-- **State export.** The System tab downloads a zip of HQPTuner's own settings files, with the account password left out, for attaching to a bug report.
 
 ### Changed
 
@@ -24,6 +23,12 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Option style now defaults to Simplified.** Standard is still available in Settings.
 - **Warnings and alerts use the signal chain lamps**.
 - **Amber is now the default accent color.**
+
+## [1.19.0] — 2026-10-08
+
+### Added
+
+- **State export.** The System tab downloads a zip of HQPTuner's own settings files, with the account password left out, for attaching to a bug report.
 
 ### Fixed
 
