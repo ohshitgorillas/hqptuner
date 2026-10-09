@@ -1,6 +1,6 @@
 // Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
 // bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
-// easing the trace toward them, where a level sits on a bar, the spectrum ghost in its fall, average and fade styles, the level ballistics and hold, and the frame-loop step that clamps dt and owes
+// easing the trace toward them, the spectrum ghost in its fall, average and fade styles, the level ballistics and hold, and the frame-loop step that clamps dt and owes
 // spectrogram columns.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
@@ -16,7 +16,6 @@ import {
   easeTrace,
   emptySpectrum,
   foldFrames,
-  fraction,
   pickBins,
   smoothColumns,
   stepFrame,
@@ -339,24 +338,6 @@ test("test_a_lone_loud_column_spreads_its_power_two_columns_either_side_at_weigh
 
 test("test_a_20_db_rise_eases_8_5_db_in_one_thirtieth_of_a_second", () => {
   assert.ok(...near(easeTrace(Float32Array.of(-30), Float32Array.of(-10), 1 / 30)[0], -21.475, DB_EPS));
-});
-
-// ── Where a level sits on a bar ──────────────────────────────────────────
-
-test("test_a_level_sits_its_height_above_the_floor_over_the_floors_depth", () => {
-  assert.equal(fraction(-15, -60), 0.75);
-});
-
-test("test_the_same_level_sits_higher_on_a_deeper_bar", () => {
-  assert.equal(fraction(-15, -120), 0.875);
-});
-
-test("test_a_level_above_full_scale_fills_the_bar", () => {
-  assert.equal(fraction(6, -60), 1);
-});
-
-test("test_a_level_below_the_floor_sits_half_a_bar_under_mid_scale", () => {
-  assert.equal(fraction(-30, -60) - fraction(-90, -60), 0.5);
 });
 
 // ── Spectrum ─────────────────────────────────────────────────────────────

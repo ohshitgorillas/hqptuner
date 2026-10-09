@@ -2,7 +2,7 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
-import { holdFall } from "./holdfall.js";
+import { holdFall } from "./spectrumfx.js";
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_DBPS = 30; // shown spectrum fall, dB/s
@@ -376,15 +376,4 @@ export function easeTrace(prev, next, dt) {
  */
 function easeShare(dt, tau) {
   return 1 - Math.exp(-dt / tau);
-}
-
-/**
- * Where a level sits on a bar running from `floor` dB to full scale, from 0 to 1.
- *
- * @param {number} db
- * @param {number} floor
- * @returns {number}
- */
-export function fraction(db, floor) {
-  return Math.min(1, Math.max(0, (db - floor) / -floor));
 }

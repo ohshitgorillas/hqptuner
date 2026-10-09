@@ -2,7 +2,7 @@
 // (store/meter/loop.js) hands its scene here, and the trace, the held peaks, the level bars and the readings table are
 // written straight into the elements SourceMeter rendered. Nothing re-renders while the meter runs.
 
-import { fraction } from "../../../model/gauges/meter.js";
+import { fraction } from "../../../model/gauges/spectrumfx.js";
 import { minusText } from "../../../model/shell/format.js";
 
 /** @typedef {import("../../../store/meter/loop.js").MeterScene} MeterScene */
