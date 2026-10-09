@@ -31,6 +31,7 @@ from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError, HttpCredentialsMissingError
 from hqptuner.engine.logtail import LogReader
+from hqptuner.engine.trackcontext import UnparseableStatusAttributeError, is_playing
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.presets.presetops import PresetOps
@@ -184,6 +185,7 @@ class ConnectionManager:
                     continue
             try:
                 await loader.poll(self)
+                await self._between_heartbeats()
             except _WIRE_FAULTS as exc:
                 await self._drop(f"poll failed: {exc}")
                 continue
@@ -191,20 +193,43 @@ class ConnectionManager:
                 _bug("poll")
                 await self._idle(self.cfg.poll_interval)
                 continue
-            await self._idle(self.cfg.poll_interval)
 
     def _reconnect_delay(self) -> float:
         """Retry aggressively inside the expected-restart window, then back off once in alarm."""
         return RECONNECT_FAST if not self.alarm else RECONNECT_SLOW
 
-    async def _idle(self, seconds: float) -> None:
-        """Idle the poll loop between passes on the clock's background wait.
+    async def _between_heartbeats(self) -> None:
+        """Idle one poll interval, reading Status alone every ``status_interval`` of it while the engine plays.
+
+        The heartbeat keeps ``poll_interval`` whatever happens here. A wake cuts the whole interval short,
+        exactly as it cuts the plain idle short, and a stopped engine idles the interval out in one wait.
+
+        A Status whose ``state`` will not parse ends the Status-only reads for the interval and nothing else: letting
+        it escape would land in ``run``'s wire-fault clause and drop a connection that is answering.
+        """
+        remaining = self.cfg.poll_interval
+        step = self.cfg.status_interval
+        while 0 < step < remaining:
+            try:
+                if not is_playing(self.readings.status or {}):
+                    break
+            except UnparseableStatusAttributeError:
+                break
+            if await self._idle(step):
+                return
+            await loader.poll_status(self)
+            remaining -= step
+        await self._idle(remaining)
+
+    async def _idle(self, seconds: float) -> bool:
+        """Idle the poll loop between passes on the clock's background wait, and answer whether it was woken.
 
         ``_wake`` cuts the wait short: ``restore`` sets it after dropping the control lane so the
         reconnect starts at once, and ``stop`` sets it so shutdown never waits out a poll interval.
         """
-        await self.clock.pace(self._wake, seconds)
+        woke = await self.clock.pace(self._wake, seconds)
         self._wake.clear()
+        return woke
 
     async def _drop(self, reason: str, *, counts: bool = True) -> None:
         """Tear the control connection down.

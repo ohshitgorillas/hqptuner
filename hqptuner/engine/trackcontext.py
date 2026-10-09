@@ -3,13 +3,14 @@
 Building it reads only the manager's last poll and is independent of the 4322 socket.
 """
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
 
 #: the module's public surface
-__all__ = ["PLAYING", "TrackContext", "UnparseableStatusAttributeError", "context_from"]
+__all__ = ["PLAYING", "TrackContext", "UnparseableStatusAttributeError", "context_from", "is_playing"]
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -47,9 +48,8 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
         return None
     meta = manager.readings.status_metadata or {}
     rate = meta.get("samplerate")
-    state = status.get("state")
+    playing = is_playing(status)
     try:
-        playing = state is not None and _int(state) == PLAYING
         samplerate = _int(rate) if rate else None
     except ValueError as exc:
         raise UnparseableStatusAttributeError(error=exc) from exc
@@ -60,6 +60,18 @@ def context_from(manager: "ConnectionManager") -> TrackContext | None:
         junk_filter=_junk_filter_name(manager.readings.state or {}, manager.readings.enums),
         filter=status.get("active_filter") or None,
     )
+
+
+def is_playing(status: Mapping[str, str]) -> bool:
+    """Whether a Status frame says the engine is playing; a frame without ``state`` says it is not.
+
+    Raises ``UnparseableStatusAttributeError`` where ``state`` will not parse: what that means is the caller's call.
+    """
+    state = status.get("state")
+    try:
+        return state is not None and _int(state) == PLAYING
+    except ValueError as exc:
+        raise UnparseableStatusAttributeError(error=exc) from exc
 
 
 def _junk_filter_name(state: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:

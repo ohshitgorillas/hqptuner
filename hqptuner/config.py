@@ -103,6 +103,9 @@ class Config:
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
     listen_port: int = field(default_factory=lambda: int(_env("LISTEN_PORT", "8090")))
     poll_interval: float = field(default_factory=lambda: float(_env("POLL_INTERVAL", "2.0")))
+    # While the engine plays, Status alone is read this often between heartbeats, so the counters it
+    # carries reach the page sooner than `poll_interval` brings them; the heartbeat keeps its own cadence.
+    status_interval: float = field(default_factory=lambda: float(_env("STATUS_INTERVAL", "1.0")))
     alarm_threshold: float = field(default_factory=lambda: float(_env("ALARM_THRESHOLD", "15.0")))
     request_timeout: float = field(default_factory=lambda: float(_env("REQUEST_TIMEOUT", "5.0")))
     # How long discovery waits for daemons to answer its multicast datagram

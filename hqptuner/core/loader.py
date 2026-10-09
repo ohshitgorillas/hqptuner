@@ -185,3 +185,22 @@ async def poll(mgr: "ConnectionManager") -> None:
     # fact and slept through to its deadline.
     mgr.changed.set()
     readings.loaded_at = time.time()
+
+
+async def poll_status(mgr: "ConnectionManager") -> None:
+    """Read Status alone between heartbeats: store it as the heartbeat does, and raise the same edge.
+
+    In ``[source]`` mode Status is what says which chain the engine has loaded, so this read can be the first to
+    see the chain change. It handles the change exactly as the heartbeat would: the chain taken before the store is
+    the baseline, and once this read has stored the new Status the heartbeat's own baseline already names the new
+    chain and would see no change left to handle.
+    """
+    client = mgr.control
+    if client is None:
+        raise NotConnectedError()
+    readings = mgr.readings
+    before = chain.active_chain(mgr)
+    readings.status, readings.status_metadata = await client.get_status()
+    async with mgr.live_writes:
+        await lane.chain_entered(mgr, client, before, reenumerated=False)
+    mgr.changed.set()
