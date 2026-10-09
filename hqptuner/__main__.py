@@ -18,6 +18,7 @@ from hqptuner.api.factory import create_app
 from hqptuner.audit import resolve_level
 from hqptuner.config import Config
 from hqptuner.desktop import launch
+from hqptuner.logbuffer import LOG_FORMAT, RECENT
 
 
 def main(run: Callable[..., None] = uvicorn.run) -> None:
@@ -31,7 +32,9 @@ def main(run: Callable[..., None] = uvicorn.run) -> None:
     multiprocessing.freeze_support()
     cfg = Config()
     level = resolve_level(cfg.log_level)
-    logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    logging.basicConfig(level=level, format=LOG_FORMAT)
+    RECENT.setFormatter(logging.Formatter(LOG_FORMAT))
+    logging.getLogger().addHandler(RECENT)
     run(
         create_app(cfg),
         host=cfg.listen_host,

@@ -18,7 +18,7 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotStore
-from hqptuner.presets.store.filterpark import FilterPark
+from hqptuner.presets.store.filterpark import PARK_DIR, FilterPark
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
 
@@ -140,7 +140,7 @@ class PresetOps:
         # (store.matrixmode). Here for the same reason auto-pilot's state is: it
         # is keyed by preset name, so a preset delete is what takes an entry out.
         self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
-        self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
+        self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
         self._migrated = False
 
     # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
