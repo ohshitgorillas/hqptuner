@@ -68,6 +68,7 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   const line = sp && TRACED.has(style) ? pathOf(sp.disp, range) : "";
   setOn(root, "path.strace", "d", line);
   setOn(root, "path.shold", "d", sp && TRACED.has(style) ? pathOf(sp.peak, range) : "");
+  setOn(root, "path.shold", "opacity", sp ? String(sp.peakShown) : "");
   setOn(root, "path.sarea", "d", line && `${line} L${SW},${SH} L0,${SH} Z`);
   const floor = -range;
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => {

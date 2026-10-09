@@ -5,6 +5,7 @@
 import { signal } from "@preact/signals";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
+const K_SPECTRUM_GHOST = "hqptuner.spectrumGhost";
 const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
 const K_LIVE = "hqptuner.liveMode";
@@ -185,6 +186,10 @@ export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS,
 // How the spectrum is drawn. An unset or junk value reads as the trace.
 const SPECTRUM_STYLES = ["trace", "bars", "soft", "ridges", "aurora"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
+
+// How the faint ghost line above the spectrum's trace moves. An unset or junk value reads as the fall ghost.
+const SPECTRUM_GHOSTS = ["fall", "average", "fade"];
+export const [spectrumGhost, setSpectrumGhost] = enumPref(K_SPECTRUM_GHOST, SPECTRUM_GHOSTS, "fall");
 
 // The METER level bars' floor, in dB below full scale.
 const METER_FLOORS = ["-48", "-60", "-90"];

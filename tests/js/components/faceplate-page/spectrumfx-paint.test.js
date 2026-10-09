@@ -105,14 +105,21 @@ function fakeCanvas() {
 }
 
 /**
- * A spectrum hold with every column at `db`.
+ * A spectrum hold with every column at `db`, its ghost holding a level, fully shown and not collecting.
  *
  * @param {number} db
  * @returns {SpectrumHold}
  */
 function hold(db) {
   const disp = new Float32Array(COLS).fill(db);
-  return { disp, peak: new Float32Array(COLS).fill(db), peakAt: new Float32Array(COLS) };
+  return {
+    disp,
+    peak: new Float32Array(COLS).fill(db),
+    peakAt: new Float32Array(COLS),
+    held: true,
+    peakShown: 1,
+    collectAt: -Infinity,
+  };
 }
 
 /**

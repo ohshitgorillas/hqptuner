@@ -8,10 +8,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { CAP_GRAVITY, CAP_HOLD_S } from "../../../../hqptuner/static/model/gauges/holdfall.js";
 import {
   BANDS,
-  CAP_GRAVITY,
-  CAP_HOLD_S,
   GRAVITY,
   RIDGE_EVERY,
   RIDGE_ROWS,

@@ -4,11 +4,10 @@
 // without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new
 // state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from a table.
 
+import { holdFall } from "./holdfall.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
-export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
-export const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
 export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outward
 export const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
@@ -74,9 +73,9 @@ export function bandsOf(fracs, n) {
 }
 
 /**
- * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; a cap holds for
- * CAP_HOLD_S after its band last reached it, then falls by CAP_GRAVITY times its time past the hold times the step,
- * never below its band. Without a `prev` of the same length every cap sits on its band.
+ * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; otherwise the cap
+ * steps by `holdFall` with its age the time since its band last reached it. Without a `prev` of the same length every
+ * cap sits on its band.
  *
  * @param {CapState | null} prev
  * @param {ArrayLike<number>} bands  plot fractions
@@ -90,9 +89,7 @@ export function stepCaps(prev, bands, dt) {
   for (let i = 0; i < n; i++) {
     if (bands[i] >= prev.lvl[i]) continue;
     next.age[i] = prev.age[i] + dt;
-    const over = next.age[i] - CAP_HOLD_S;
-    const lvl = over > 0 ? prev.lvl[i] - CAP_GRAVITY * over * dt : prev.lvl[i];
-    next.lvl[i] = Math.max(bands[i], lvl);
+    next.lvl[i] = holdFall(prev.lvl[i], bands[i], next.age[i], dt);
   }
   return next;
 }
