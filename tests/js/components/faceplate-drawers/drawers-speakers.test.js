@@ -2,7 +2,7 @@
 // the set and the dead levels are store/faceplate/drawers/speakers.js's, pinned in
 // tests/js/store/faceplate/drawers-speakers.test.js; this suite pins what the block draws from them: one row of two
 // boxes per channel of the picked set, holding the draft's values and writing back to it, the room plan with a speaker
-// per shown channel at its drafted distance, the level boxes disabled with the Direct SDM line under the rows while the
+// per shown channel at its drafted distance, none for a channel with no distance or level drafted, the level boxes disabled with the Direct SDM line under the rows while the
 // running Direct SDM is on, and every control disabled while an apply is in flight.
 //
 // The wire is the seam: each case writes the daemon's /speakers form into `speakers` and the running direct_sdm into
@@ -26,6 +26,7 @@ import {
   discardDraft,
   pickSpeakerSet,
   setChannelDistance,
+  setChannelLevel,
   speakerDraft,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -37,30 +38,42 @@ import { stagingWire } from "../../support/wire/wire.js";
 
 const LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
 const DISTANCES = [287, 301, 280, 330, 240, 241, 210, 211];
+//: HQPlayer's stock distance, meaning not set.
+const UNSET_CM = 0;
+//: A level someone entered.
+const SET_DB = -3;
 
-const FORM = {
+/**
+ * The daemon's /speakers form with these distances and every level at HQPlayer's stock 0.
+ *
+ * @param {number[]} distances
+ */
+const formAt = (distances) => ({
   enabled: true,
   channels: LABELS.map((label, index) => ({
     index,
     label,
     level: 0,
-    distance: DISTANCES[index],
+    distance: distances[index],
     level_min: -60,
     level_max: 0,
     level_step: 0.1,
     distance_min: 0,
     distance_max: 5000,
   })),
-};
+});
+
+const FORM = formAt(DISTANCES);
+const UNSET_FORM = formAt(LABELS.map(() => UNSET_CM));
 
 const FIRST = SETS[0];
 const LAST = SETS[SETS.length - 1];
 const SCHEMA = { id: "speakers", title: "", aria: "", tabs: [] };
 
-/** @param {{ direct?: boolean, busy?: boolean }} [s] */
-function reset({ direct = false, busy = false } = {}) {
+/** @param {{ direct?: boolean, busy?: boolean, form?: ReturnType<typeof formAt> }} [s] */
+function reset({ direct = false, busy = false, form = FORM } = {}) {
   stagingWire();
-  speakers.value = FORM;
+  speakers.value = form;
   speakersBusy.value = busy;
   speakersError.value = "";
   config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
@@ -180,4 +193,15 @@ test("test_a_drafted_distance_moves_its_speaker_on_the_plan", () => {
   const before = spots()[1];
   setChannelDistance(1, "500");
   assert.notEqual(spots()[1], before);
+});
+
+test("test_the_plan_draws_no_speaker_while_the_daemon_reports_none_set", () => {
+  reset({ form: UNSET_FORM });
+  assert.equal(spots().length, 0);
+});
+
+test("test_a_drafted_level_puts_its_speaker_on_the_plan", () => {
+  reset({ form: UNSET_FORM });
+  setChannelLevel(1, SET_DB);
+  assert.equal(spots().length, 1);
 });

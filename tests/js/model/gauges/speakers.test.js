@@ -1,6 +1,6 @@
-// Behavioral suite: where each speaker of a set sits on the top-down room plan (the listener at the origin facing up
-// the page, each speaker at its layout angle, farther out the farther away it is, the sub pushed out, a speaker the
-// daemon reports as unset drawn as if set) and the plan's box reaching far enough to hold them.
+// Behavioral suite: which speakers of a set are on the top-down room plan (only those with a distance or a level
+// entered), where each sits (the listener at the origin facing up the page, each speaker at its layout angle, farther
+// out the farther away it is, the sub pushed out) and the plan's box reaching far enough to hold them.
 //
 // The layout is one the test writes: channel 0 straight ahead, 1 at the right, 2 at the left, 3 the sub straight ahead.
 
@@ -17,6 +17,8 @@ const SUB = 3;
 
 //: HQPlayer's stock distance, meaning not set.
 const UNSET_CM = 0;
+//: Every channel's level at HQPlayer's stock 0, meaning not set.
+const STOCK_LEVELS = LAYOUT.map(() => 0);
 //: The two smallest set distances.
 const NEAREST_CM = 1;
 const NEXT_NEAREST_CM = 2;
@@ -34,7 +36,7 @@ const DISTANCE_MAX_CM = 5000;
  */
 const place = (ch, cm) => {
   const cms = LAYOUT.map(() => cm);
-  const [p] = placeSpeakers([ch], LAYOUT, cms);
+  const [p] = placeSpeakers([ch], LAYOUT, cms, STOCK_LEVELS);
   return p;
 };
 
@@ -60,6 +62,7 @@ const extentAt = (cm) =>
       LAYOUT.map((_, i) => i),
       LAYOUT,
       LAYOUT.map(() => cm),
+      STOCK_LEVELS,
     ),
   );
 
@@ -67,10 +70,74 @@ const extentAt = (cm) =>
 const SET = [2, 0, 1];
 const RING = [600, 600, 600, 600];
 
-// --- an unset distance -------------------------------------------------------------------------------------------
+// --- which speakers are drawn ------------------------------------------------------------------------------------
 
-test("test_an_unset_speaker_sits_farther_out_than_one_at_the_nearest_set_distance", () => {
-  assert.ok(radius(FRONT, UNSET_CM) > radius(FRONT, NEAREST_CM));
+//: HQPlayer's stock level, meaning not set.
+const UNSET_DB = 0;
+//: A level someone entered.
+const SET_DB = -3;
+
+/**
+ * Which channels are placed, given each channel's distance and level.
+ *
+ * @param {number[]} cms
+ * @param {number[]} dbs
+ */
+const placed = (cms, dbs) =>
+  placeSpeakers(
+    LAYOUT.map((_, i) => i),
+    LAYOUT,
+    cms,
+    dbs,
+  ).map((p) => p.i);
+
+test("test_a_speaker_with_neither_distance_nor_level_is_left_off_the_plan", () => {
+  assert.deepEqual(
+    placed(
+      [UNSET_CM, NEAR_CM, NEAR_CM, NEAR_CM],
+      LAYOUT.map(() => UNSET_DB),
+    ),
+    [RIGHT, LEFT, SUB],
+  );
+});
+
+test("test_a_speaker_with_a_level_and_no_distance_is_on_the_plan", () => {
+  assert.deepEqual(
+    placed(
+      LAYOUT.map(() => UNSET_CM),
+      [UNSET_DB, SET_DB, UNSET_DB, UNSET_DB],
+    ),
+    [RIGHT],
+  );
+});
+
+test("test_with_nothing_entered_for_any_speaker_the_plan_holds_none", () => {
+  assert.deepEqual(
+    placed(
+      LAYOUT.map(() => UNSET_CM),
+      LAYOUT.map(() => UNSET_DB),
+    ),
+    [],
+  );
+});
+
+/**
+ * How far from the listener the front speaker is placed at one distance with a level entered.
+ *
+ * @param {number} cm
+ */
+const leveledRadius = (cm) => {
+  const [p] = placeSpeakers(
+    [FRONT],
+    LAYOUT,
+    LAYOUT.map(() => cm),
+    LAYOUT.map(() => SET_DB),
+  );
+  return Math.hypot(p.x, p.y);
+};
+
+test("test_a_speaker_with_a_level_and_no_distance_sits_nearer_than_one_at_the_nearest_set_distance", () => {
+  assert.ok(leveledRadius(UNSET_CM) < leveledRadius(NEAREST_CM));
 });
 
 // --- distance ----------------------------------------------------------------------------------------------------
@@ -91,14 +158,14 @@ test("test_the_sub_sits_farther_out_than_a_main_speaker_at_the_same_distance", (
 
 test("test_place_speakers_keeps_the_set_order", () => {
   assert.deepEqual(
-    placeSpeakers(SET, LAYOUT, RING).map((p) => p.i),
+    placeSpeakers(SET, LAYOUT, RING, STOCK_LEVELS).map((p) => p.i),
     SET,
   );
 });
 
 test("test_place_speakers_turns_each_speaker_to_its_layout_angle", () => {
   assert.deepEqual(
-    placeSpeakers(SET, LAYOUT, RING).map((p) => p.deg),
+    placeSpeakers(SET, LAYOUT, RING, STOCK_LEVELS).map((p) => p.deg),
     [-90, 0, 90],
   );
 });
@@ -117,7 +184,7 @@ test("test_a_left_speaker_sits_left_of_the_listener", () => {
 
 test("test_channel_three_is_the_sub", () => {
   assert.deepEqual(
-    placeSpeakers([0, 3], LAYOUT, RING).map((p) => p.sub),
+    placeSpeakers([0, 3], LAYOUT, RING, STOCK_LEVELS).map((p) => p.sub),
     [false, true],
   );
 });

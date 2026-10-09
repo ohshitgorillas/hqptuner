@@ -1,9 +1,10 @@
 // The Speakers drawer's block, under its switch row. Left: the speaker set (which channels the drawer lists; a view
 // choice that never stages), then one row per listed channel with its level (dBFS) and distance (cm) boxes. Right:
-// v1's top-down room plan, the listener facing up the page and each listed speaker at its layout angle, toed in, at a
-// radius set by its own distance, its level riding as a label; the box fits the listed speakers, centred on the
-// listener. While Direct SDM runs the level boxes are dead and v1's line says why; distances stay live. Edits are
-// held by store/faceplate/drawers/speakers.js, which decides everything drawn here.
+// v1's top-down room plan, the listener facing up the page and each listed speaker the model places (one with a
+// distance or level entered) at its layout angle, toed in, at a radius set by its own distance, its level riding as a
+// label; the box fits the placed speakers, centred on the listener. While Direct SDM runs the level boxes are dead and
+// v1's line says why; distances stay live. Edits are held by store/faceplate/drawers/speakers.js, which decides
+// everything drawn here.
 
 import { useEffect } from "preact/hooks";
 import { html, TypedInput } from "../../../lib/dom.js";
@@ -132,20 +133,26 @@ function speakerGlyph(p) {
 }
 
 /**
- * The room plan: the listener at the centre and each listed speaker at its drafted distance, its tag and level under
- * it, the box fitted to them.
+ * The room plan: the listener at the centre and each speaker the model places at its drafted distance, its tag and
+ * level under it, the box fitted to them.
  *
  * @param {DraftChannel[]} listed
  */
 function roomPlan(listed) {
   /** @type {number[]} */
   const distances = [];
-  for (const c of listed) distances[c.index] = c.distance;
+  /** @type {number[]} */
+  const levels = [];
+  for (const c of listed) {
+    distances[c.index] = c.distance;
+    levels[c.index] = c.level;
+  }
   const byIndex = new Map(listed.map((c) => [c.index, c]));
   const spots = placeSpeakers(
     listed.map((c) => c.index),
     LAYOUT,
     distances,
+    levels,
   );
   const r = planExtent(spots);
   return html`
