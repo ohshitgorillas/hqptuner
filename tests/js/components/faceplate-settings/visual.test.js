@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/settings/visual.js, the Visual settings drawer's schema drawn
-// by the stage drawer, and its readouts printed through the Settings rail: each tab's fields and block in order, a field
-// tap writing its preference, a readout printing the label of the option its field lights, the hidden-stages readout, and
-// the accent readout's swatch.
+// by the stage drawer, and its readouts printed through the Settings rail: each tab's fields and block in order, the
+// ghost styles the ghost field offers, a field tap writing its preference, a readout printing the label of the option its
+// field lights, the hidden-stages readout, and the accent readout's swatch.
 //
 // Renders `Drawer` through preact-render-to-string; a click is fired through the vnode seam
 // (tests/js/support/vnodeseam.js), and the preferences are driven by assigning their exported signals. The theme store's
@@ -23,7 +23,7 @@ import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { ACCENTS } from "../../../../hqptuner/static/store/faceplate/settings/visual.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { apodLight, plainNames, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { apodLight, plainNames, spectrumGhost, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { accent, accentHex, dyslexic } from "../../../../hqptuner/static/store/ui/theme.js";
 import { HIDEABLE_STAGES, bottomBar, hiddenStages, topOfPage } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -31,6 +31,10 @@ import { elements, attr, classes, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
+
+//: The ghost styles the spectrum offers, as the preference stores them.
+const GHOSTS = ["fall", "average", "fade"];
+const AVERAGE = "average";
 
 /**
  * The globals the preference setters touch, viewed as optional members.
@@ -57,6 +61,7 @@ const fakeDocument = () => ({
 beforeEach(() => {
   env.localStorage = fakeStorage();
   spectrumStyle.value = "trace";
+  spectrumGhost.value = "fall";
   plainNames.value = false;
   apodLight.value = "off";
   dyslexic.value = false;
@@ -161,7 +166,15 @@ function railRow(id) {
 const hideControl = () => VISUAL_READOUTS.find((r) => r.id === "vhide")?.control ?? { type: "none" };
 
 test("test_the_display_tab_draws_its_fields_and_blocks_in_order", () => {
-  assert.deepEqual(bodyOf("display"), ["vspec", "vstyle", "vapod", "delay", "vdys", "accent"]);
+  assert.deepEqual(bodyOf("display"), ["vspec", "vghost", "vstyle", "vapod", "delay", "vdys", "accent"]);
+});
+
+test("test_the_ghost_field_offers_the_fall_average_and_fade_ghosts", () => {
+  const offered = inField("vghost")
+    .filter((e) => e.name === "button" && attr(e, "data-v") !== undefined)
+    .map((e) => attr(e, "data-v"))
+    .sort();
+  assert.deepEqual(offered, [...GHOSTS].sort());
 });
 
 test("test_the_layout_tab_draws_its_fields_then_the_hide_block_in_order", () => {
@@ -171,6 +184,11 @@ test("test_the_layout_tab_draws_its_fields_then_the_hide_block_in_order", () => 
 test("test_tapping_simplified_turns_plain_names_on", async () => {
   await tap("vstyle", "simplified");
   assert.equal(plainNames.value, true);
+});
+
+test("test_tapping_average_picks_the_average_ghost", async () => {
+  await tap("vghost", AVERAGE);
+  assert.equal(spectrumGhost.value, AVERAGE);
 });
 
 test("test_tapping_the_dyslexic_font_on_switches_the_font_on", async () => {
@@ -187,6 +205,7 @@ test("test_tapping_spectrum_puts_the_spectrum_at_the_top_of_the_page", async () 
 /** Per readout, the state that lights a non-default option of its field. */
 const LIT = {
   vspec: () => (spectrumStyle.value = "ridges"),
+  vghost: () => (spectrumGhost.value = "fade"),
   vstyle: () => (plainNames.value = true),
   vapod: () => (apodLight.value = "uncorrected"),
   vdys: () => (dyslexic.value = true),

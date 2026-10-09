@@ -2,8 +2,9 @@
 // (store/meter/feed.js) into its own queue and paces them out on their frame time, the engine's reported output delay
 // plus the user's offset behind the feed (model/gauges/pace.js), since the daemon sends them in clumps. Each step
 // folds the frames handed out, steps the level bars toward them on the real time elapsed, eases the spectrum toward
-// that reading smoothed across frequency while its held peaks hold and decay, keeps the reading's columns as they
-// came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
+// that reading smoothed across frequency while the ghost above it moves in the picked ghost style, keeps the reading's
+// columns as they came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered
+// painter.
 //
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
 // registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
@@ -25,7 +26,8 @@ import {
 } from "../../model/gauges/meter.js";
 import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
 import { engineStatus } from "../signals.js";
-import { meterChannel } from "../ui/prefs.js";
+import { pageRange } from "../ui/faceplate.js";
+import { meterChannel, spectrumGhost } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
 
@@ -124,7 +126,7 @@ function handOut(ms) {
 
 /**
  * The spectrum one step moves to from `held` toward `t`, smoothed across frequency; the trace eases toward each reading,
- * alike up and down, and the held peaks hold what it shows.
+ * alike up and down, and the ghost above it moves in the ghost style picked at this step, on the page's Range.
  *
  * @param {SpectrumHold | null} held
  * @param {MeterFrame} t
@@ -135,7 +137,8 @@ function traceStep(held, t, at) {
   const cols = smoothColumns(traceOf(t));
   const was = held && held.disp.length === cols.length ? held : null;
   const shown = easeTrace(was && was.disp, cols, at.dt);
-  return stepSpectrum(was || emptySpectrum(cols.length), shown, at, true);
+  const style = { ...at, ghost: spectrumGhost.value, range: Number(pageRange.value) };
+  return stepSpectrum(was || emptySpectrum(cols.length), shown, style, true);
 }
 
 /** Send the queued frames to the spectrogram and empty the scene and its target. */

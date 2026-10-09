@@ -1,5 +1,5 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages. Display holds the spectrum-style pick, the option-style and apodizing-indicator
+// that writes at once and never stages. Display holds the spectrum-style and ghost picks, the option-style and apodizing-indicator
 // switches, the spectrum delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks,
 // then the block hiding chain stages.
 
@@ -8,7 +8,9 @@ import {
   plainNames,
   setApodLight,
   setPlainNames,
+  setSpectrumGhost,
   setSpectrumStyle,
+  spectrumGhost,
   spectrumStyle,
 } from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
@@ -21,6 +23,7 @@ import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "
 
 const MAN = {
   spec: "Adjust how the spectrum is drawn.",
+  ghost: "Adjust how the faint line above the trace moves.",
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
   apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
@@ -37,6 +40,12 @@ const SPECTRA = [
   { v: "soft", label: "Soft bars" },
   { v: "ridges", label: "Ridges" },
   { v: "aurora", label: "Aurora" },
+];
+/** @type {Opt[]} */
+const GHOSTS = [
+  { v: "fall", label: "Fall" },
+  { v: "average", label: "Average" },
+  { v: "fade", label: "Fade" },
 ];
 /** @type {Opt[]} */
 const OFF_ON = [
@@ -80,6 +89,7 @@ const fieldOptions = (opts) => opts.map(({ v, label }) => ({ value: v, label }))
 const bit = (on) => (on ? "1" : "0");
 
 const specValue = () => spectrumStyle.value;
+const ghostValue = () => spectrumGhost.value;
 const styleValue = () => (plainNames.value ? "simplified" : "standard");
 const apodValue = () => apodLight.value;
 const dysValue = () => bit(dyslexic.value);
@@ -104,6 +114,16 @@ export const VISUAL_DRAWER = {
             options: fieldOptions(SPECTRA),
             value: specValue,
             set: setSpectrumStyle,
+          },
+        },
+        {
+          field: {
+            id: "vghost",
+            label: "Ghost",
+            man: [MAN.ghost],
+            options: fieldOptions(GHOSTS),
+            value: ghostValue,
+            set: setSpectrumGhost,
           },
         },
         {
@@ -173,6 +193,7 @@ export const VISUAL_DRAWER = {
 /** @type {readonly SettingsReadout[]} */
 export const VISUAL_READOUTS = [
   { id: "vspec", label: "Spectrum style", control: { type: "seg", options: SPECTRA }, value: specValue },
+  { id: "vghost", label: "Ghost", control: { type: "seg", options: GHOSTS }, value: ghostValue },
   { id: "vstyle", label: "Option style", control: { type: "seg", options: STYLES }, value: styleValue },
   { id: "vapod", label: "Apodizing indicator", control: { type: "seg", options: APOD }, value: apodValue },
   {

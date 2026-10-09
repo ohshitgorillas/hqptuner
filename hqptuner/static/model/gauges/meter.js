@@ -2,10 +2,13 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
+import { holdFall } from "./holdfall.js";
+
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_DBPS = 30; // shown spectrum fall, dB/s
-const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
-const SPEC_DECAY_DBPS = 10; // spectrum peak decay once released, dB/s
+const GHOST_AVERAGE_TAU_S = 1.5; // average ghost time constant, s
+const GHOST_COLLECT_MS = 2000; // fade ghost collection before it fades, ms
+const GHOST_FADE_MS = 500; // fade ghost fade-out, ms
 const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed (engine/meterfeed.py)
 const BIN_BYTES = 2; // bytes a bin's steps travel in, low byte first
 const HIGH_BYTE = 256; // steps one count of the high byte stands for
@@ -18,13 +21,17 @@ const SMOOTH_COLS = 2; // trace columns averaged either side of each, across fre
 const SMOOTH_TAU_MS = 60; // trace easing time constant, in dB
 
 /**
- * Shown spectrum, held peaks and the time each peak was last reached, one entry per bin. Float32 storage is part of
- * the result: each step reads back the rounded values it stored.
+ * Shown spectrum and the ghost line above it, one entry per bin, the time the shown level last reached each ghost
+ * entry, whether the ghost holds a level yet, how visible it is, and when a fade ghost began collecting. Float32
+ * storage is part of the result: each step reads back the rounded values it stored.
  *
  * @typedef {object} SpectrumHold
- * @property {Float32Array} disp    shown level, dBFS
- * @property {Float32Array} peak    held peak, dBFS
- * @property {Float32Array} peakAt  ms the peak was last reached
+ * @property {Float32Array} disp       shown level, dBFS
+ * @property {Float32Array} peak       ghost level, dBFS
+ * @property {Float32Array} peakAt     ms the shown level last reached the ghost
+ * @property {boolean} held            the ghost holds a level, whichever style stepped it
+ * @property {number} peakShown        how visible the ghost is, 0 (gone) to 1 (in full)
+ * @property {number} collectAt        ms the fade ghost began collecting, -Infinity before it has
  */
 
 /**
@@ -71,33 +78,100 @@ export function emptySpectrum(bins) {
     disp: new Float32Array(bins).fill(FLOOR_DB),
     peak: new Float32Array(bins).fill(FLOOR_DB),
     peakAt: new Float32Array(bins),
+    held: false,
+    peakShown: 1,
+    collectAt: -Infinity,
   };
 }
 
 /**
  * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, a fall shows falling at a fixed
- * rate (or lands at once on a jump), and each held peak stays put for two seconds after it was last reached, then
- * decays at a fixed rate, never below the shown level.
+ * rate (or lands at once on a jump), and the ghost above it steps in the `ghost` style, fall unless `average` or
+ * `fade` is given, on a plot spanning `range` dB. Fall: each ghost entry steps by `holdFall` in plot
+ * fractions, as a bar's peak cap does. Average: the ghost eases toward the shown level over 1.5 s, from the plot's
+ * floor at the lowest. Fade: the ghost collects the shown level's peaks for two seconds, then fades out over half a
+ * second as one, holding its shape, and collects again from the shown level.
  *
  * @param {SpectrumHold} prev
  * @param {ArrayLike<number>} levels  this frame's bin levels, dBFS
- * @param {{ now: number, dt: number }} at  the frame's stamp, ms, and its length, s
+ * @param {{ now: number, dt: number, ghost?: string, range: number }} at  ms, s, ghost style, plot span in dB
  * @param {boolean} jump              show the new levels outright (reset, first paint)
  * @returns {SpectrumHold}
  */
-export function stepSpectrum(prev, levels, { now, dt }, jump) {
+export function stepSpectrum(prev, levels, { now, dt, ghost, range }, jump) {
   const next = emptySpectrum(levels.length);
   const fall = SPEC_FALL_DBPS * dt;
-  const decay = SPEC_DECAY_DBPS * dt;
   for (let i = 0; i < levels.length; i++) {
     const v = levels[i];
     next.disp[i] = jump || v > prev.disp[i] ? v : Math.max(v, prev.disp[i] - fall);
-    const d = next.disp[i];
-    const released = now - prev.peakAt[i] > SPEC_HOLD_MS;
-    next.peak[i] = d >= prev.peak[i] ? d : released ? Math.max(d, prev.peak[i] - decay) : prev.peak[i];
-    next.peakAt[i] = d >= prev.peak[i] ? now : prev.peakAt[i];
+    next.peakAt[i] = next.disp[i] >= prev.peak[i] ? now : prev.peakAt[i];
   }
+  if (ghost === "average") averageGhost(prev, next, { dt, range });
+  else if (ghost === "fade") fadeGhost(prev, next, now);
+  else fallGhost(prev, next, { now, dt, range });
+  next.held = true;
   return next;
+}
+
+/**
+ * The fall ghost into `next`: each entry and the shown level under it, as fractions of a plot spanning `range` dB
+ * (unclamped, so levels off the plot keep their distance), stepped by `holdFall` with its age the time since the
+ * shown level last reached it.
+ *
+ * @param {SpectrumHold} prev
+ * @param {SpectrumHold} next  shown level and stamps already stepped
+ * @param {{ now: number, dt: number, range: number }} at  ms, s, dB
+ */
+function fallGhost(prev, next, { now, dt, range }) {
+  for (let i = 0; i < next.disp.length; i++) {
+    const age = (now - prev.peakAt[i]) / 1000;
+    const mark = holdFall(1 + prev.peak[i] / range, 1 + next.disp[i] / range, age, dt);
+    next.peak[i] = (mark - 1) * range;
+  }
+}
+
+/**
+ * The average ghost into `next`: each entry closes the same share of its gap to the shown level in dB per step, over
+ * GHOST_AVERAGE_TAU_S, both floored at the bottom of a plot spanning `range` dB, so it stays finite and eases up from
+ * the floor after silence; a ghost holding no level yet lands on the shown level.
+ *
+ * @param {SpectrumHold} prev
+ * @param {SpectrumHold} next  shown level already stepped
+ * @param {{ dt: number, range: number }} at  s, dB
+ */
+function averageGhost(prev, next, { dt, range }) {
+  const fresh = !prev.held;
+  const share = easeShare(dt, GHOST_AVERAGE_TAU_S);
+  for (let i = 0; i < next.disp.length; i++) {
+    const d = Math.max(-range, next.disp[i]);
+    const g = Math.max(-range, prev.peak[i]);
+    next.peak[i] = fresh ? d : g + (d - g) * share;
+  }
+}
+
+/**
+ * The fade ghost into `next`: for GHOST_COLLECT_MS after it began collecting each entry is the highest shown level
+ * since, fully visible; for GHOST_FADE_MS after that it holds and its visibility falls from 1 to 0; then it begins
+ * collecting again from the shown level, as it does on its first step.
+ *
+ * @param {SpectrumHold} prev
+ * @param {SpectrumHold} next  shown level already stepped
+ * @param {number} now  ms
+ */
+function fadeGhost(prev, next, now) {
+  const start = prev.collectAt;
+  const since = now - start;
+  if (since >= GHOST_COLLECT_MS + GHOST_FADE_MS) {
+    next.peak.set(next.disp);
+    next.collectAt = now;
+    return;
+  }
+  const collecting = since < GHOST_COLLECT_MS;
+  next.collectAt = start;
+  next.peakShown = collecting ? 1 : 1 - (since - GHOST_COLLECT_MS) / GHOST_FADE_MS;
+  for (let i = 0; i < next.disp.length; i++) {
+    next.peak[i] = collecting ? Math.max(prev.peak[i], next.disp[i]) : prev.peak[i];
+  }
 }
 
 /**
@@ -289,8 +363,19 @@ export function smoothColumns(cols) {
  */
 export function easeTrace(prev, next, dt) {
   if (!prev || prev.length !== next.length) return Float32Array.from(next);
-  const share = 1 - Math.exp((-dt * 1000) / SMOOTH_TAU_MS);
+  const share = easeShare(dt, SMOOTH_TAU_MS / 1000);
   return Float32Array.from(next, (v, i) => prev[i] + (v - prev[i]) * share);
+}
+
+/**
+ * The share of its gap an exponential ease with time constant `tau` closes in a step of `dt`.
+ *
+ * @param {number} dt   s
+ * @param {number} tau  s
+ * @returns {number}
+ */
+function easeShare(dt, tau) {
+  return 1 - Math.exp(-dt / tau);
 }
 
 /**
