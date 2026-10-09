@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.19.0] — 2026-10-08
+
 ### Added
 
 - **State export.** The System tab downloads a zip of HQPTuner's own settings files, with the account password left out, for attaching to a bug report.
