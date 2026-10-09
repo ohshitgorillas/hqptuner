@@ -5,14 +5,14 @@
 // before the re-reads, for the same reason.
 
 import { signal } from "@preact/signals";
-import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
-import { refreshConfig } from "./sync.js";
-import { hydrateFavorites } from "./narrow/favorites.js";
-import { dropOwedNarrowing, flushNarrowing, hydrateNarrowing } from "./narrow/persist.js";
-import { dropQueuedDescriptions, flushDescriptions, hydrateDescriptions } from "./matrix/descriptions.js";
-import { hydrateMatrixModes } from "./matrix/mode.js";
-import { refreshLivePresets } from "./live/presets.js";
+import { api } from "../../lib/api.js";
+import { errText } from "../../lib/errtext.js";
+import { refreshConfig } from "../sync.js";
+import { hydrateFavorites } from "../narrow/favorites.js";
+import { dropOwedNarrowing, flushNarrowing, hydrateNarrowing } from "../narrow/persist.js";
+import { dropQueuedDescriptions, flushDescriptions, hydrateDescriptions } from "../matrix/descriptions.js";
+import { hydrateMatrixModes } from "../matrix/mode.js";
+import { refreshLivePresets } from "../live/presets.js";
 
 /** The line the state upload shows: how the last import went, or "" before any. */
 export const importStatus = signal("");

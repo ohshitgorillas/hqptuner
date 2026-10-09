@@ -141,6 +141,12 @@ def block_the_backup_dir(install: Path) -> None:
     write(install / "backups", b"not a directory")
 
 
+def unblock_the_backup_dir(install: Path) -> None:
+    """Put back the empty backups directory `block_the_backup_dir` displaced."""
+    (install / "backups").unlink()
+    (install / "backups").mkdir()
+
+
 def refusal_code(response: Response) -> object:
     """The answer's ``code``; None for an answer that is not JSON, such as an unhandled error's."""
     if not response.headers.get("content-type", "").startswith("application/json"):
@@ -166,7 +172,11 @@ def test_an_import_whose_pre_import_backup_cannot_be_written_changes_no_store(
     before = store_fingerprints(install)
     block_the_backup_dir(install)
     upload(answering_client, archive)
-    assert changed_stores(before, store_fingerprints(install)) == set()
+    refused = store_fingerprints(install)
+    unblock_the_backup_dir(install)
+    upload(answering_client, archive)
+    landed = store_fingerprints(install)
+    assert [changed_stores(before, refused), changed_stores(refused, landed)] == [set(), {"favorites.json", PRESETS}]
 
 
 def test_an_import_whose_pre_import_backup_cannot_be_written_leaves_the_loaded_station(

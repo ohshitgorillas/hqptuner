@@ -8,7 +8,7 @@ import { api } from "../../../lib/api.js";
 import { health } from "../../../store/signals.js";
 import { duringEngineWrite } from "../../../store/enginewrite.js";
 import { errText } from "../../../lib/errtext.js";
-import { importState, importStatus } from "../../../store/stateimport.js";
+import { importState, importStatus } from "../../../store/faceplate/stateimport.js";
 import { Section } from "../Page.js";
 
 const info = computed(() => (health.value && health.value.info) || {});

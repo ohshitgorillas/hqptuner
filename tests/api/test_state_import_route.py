@@ -41,6 +41,7 @@ from state_import import (
     favorites,
     install_app_config,
     installed_favorites,
+    loaded_station,
     seed_install,
     source,
     source_debug_log,
@@ -61,6 +62,10 @@ STORE_NAMES = {name for _, name in FILE_STORES} | {PRESETS}
 
 #: The station loaded in the install an archive is exported from, a name the install does not hold.
 ARCHIVE_STATION = "Office"
+#: The station `seed_install` leaves loaded.
+INSTALL_STATION = "Den"
+#: The station the live book names when none is loaded.
+NO_STATION = ""
 ARCHIVE_HOST = "203.0.113.77"
 INSTALL_HOST = "198.51.100.23"
 INSTALL_BACKUP = b"install-backup-bytes-3a61"
@@ -425,9 +430,10 @@ def test_importing_the_pre_import_backup_gives_back_the_live_snapshots_it_saved(
 
 def test_no_station_is_loaded_after_an_import(client: TestClient, tmp_path: Path) -> None:
     cfg = source(tmp_path)
-    PresetStore(cfg.preset_dir).save("Den", PRESET_XML)
+    PresetStore(cfg.preset_dir).save(INSTALL_STATION, PRESET_XML)
+    before = loaded_station(client)
     upload(client, export(cfg))
-    assert client.get("/api/livepresets").json().get("station") == ""
+    assert [before, loaded_station(client)] == [INSTALL_STATION, NO_STATION]
 
 
 def test_no_station_is_loaded_after_importing_a_file_that_had_a_station_loaded(
@@ -437,13 +443,15 @@ def test_no_station_is_loaded_after_importing_a_file_that_had_a_station_loaded(
     presets = PresetStore(cfg.preset_dir)
     presets.save(ARCHIVE_STATION, PRESET_XML)
     presets.set_active(ARCHIVE_STATION)
+    before = loaded_station(client)
     upload(client, export(cfg))
-    assert client.get("/api/livepresets").json().get("station") == ""
+    assert [before, loaded_station(client)] == [INSTALL_STATION, NO_STATION]
 
 
 def test_no_station_is_loaded_after_an_import_that_carries_no_preset_store(client: TestClient, tmp_path: Path) -> None:
+    before = loaded_station(client)
     upload(client, archive_with_favorites(tmp_path, ARCHIVE_FAVORITE))
-    assert client.get("/api/livepresets").json().get("station") == ""
+    assert [before, loaded_station(client)] == [INSTALL_STATION, NO_STATION]
 
 
 def test_v1_live_snapshots_read_back_as_this_builds_snapshots_after_an_import(client: TestClient) -> None:
