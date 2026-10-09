@@ -48,6 +48,9 @@ dev = [
     # scripts/ — without the stubs a freshly built venv reds the gate.
     "scipy",
     "scipy-stubs",
+    # tests/engine/test_discovery.py runs the HQPlayer search on uvloop and
+    # importorskips it — undeclared, the test skips on a freshly built venv.
+    "uvloop",
 ]
 
 [tool.pytest.ini_options]
