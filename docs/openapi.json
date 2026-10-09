@@ -5158,6 +5158,23 @@
         "summary": "State"
       }
     },
+    "/api/state-export": {
+      "get": {
+        "description": "Return HQPTuner's own stores, the debug log and the recent log lines as a zip download.\n\nA plain ``def``, so the disk reads run on the threadpool rather than the event loop.",
+        "operationId": "state_export_api_state_export_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "State Export"
+      }
+    },
     "/api/status": {
       "get": {
         "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``advisor`` says whether\nthe advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, the recommendation\nis null and auto-pilot reads as off whatever its store holds.",

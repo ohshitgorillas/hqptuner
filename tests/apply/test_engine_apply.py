@@ -30,6 +30,18 @@ async def test_applied_engine_attribute_is_reflected_in_readback(http_manager: C
     assert (await fileconfig.read_engine(http_manager))["cuda"] == "convolution"
 
 
+#: A named HQPlayer configuration the daemon is running on instead of [default].
+NAMED_PROFILE = "Speakers"
+
+
+async def test_applied_engine_attribute_is_reflected_in_readback_with_a_named_profile_active(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_active_profile"] = NAMED_PROFILE
+    await http_manager.applyops.apply_engine({"cuda": "convolution"})
+    assert (await fileconfig.read_engine(http_manager))["cuda"] == "convolution"
+
+
 async def test_apply_engine_preserves_unrelated_attribute(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply_engine({"cuda": "0"})
     assert (await fileconfig.read_engine(http_manager))["multicore"] == "1"

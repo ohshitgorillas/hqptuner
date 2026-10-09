@@ -1,6 +1,7 @@
-"""Configuration surface — the /config form, preset previews, device refresh, backup, engine attributes, and restore.
+"""Configuration surface — /config form, preset previews, device refresh, backup, state export, engine, restore.
 
-These are the routes that need the daemon's 8088 management lane, so every one of them takes ``HttpMgr``.
+Every route but the state export needs the daemon's 8088 management lane, so takes ``HttpMgr``; the state export reads
+only HQPTuner's own files and log, so takes ``Cfg`` and answers without credentials.
 """
 
 import hashlib
@@ -11,8 +12,9 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, File, Request, Response, UploadFile
 
+from hqptuner import logbuffer
 from hqptuner.api import deps
-from hqptuner.api.deps import HttpMgr
+from hqptuner.api.deps import Cfg, HttpMgr
 from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
@@ -28,6 +30,7 @@ from hqptuner.lanes.live import overrides
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.presetlane import PresetOption
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
+from hqptuner.presets.store.export import state_archive
 from hqptuner.presets.store.presets import PresetError
 
 log = logging.getLogger(__name__)
@@ -252,6 +255,19 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
         content=data,
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="hqplayer-settings.zip"'},
+    )
+
+
+@router.get("/state-export")
+def state_export(cfg: Cfg) -> Response:
+    """Return HQPTuner's own stores, the debug log and the recent log lines as a zip download.
+
+    A plain ``def``, so the disk reads run on the threadpool rather than the event loop.
+    """
+    return Response(
+        content=state_archive(cfg, logbuffer.RECENT.lines()),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="hqptuner-state.zip"'},
     )
 
 

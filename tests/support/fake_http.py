@@ -87,11 +87,19 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
     return None
 
 
+def _working_member(st: dict[str, Any]) -> str:
+    """The root-level archive name the working config is served under: a named
+    active profile renames it to ``<Profile>.xml``, and only ``[default]``
+    serves ``hqplayerd.xml`` (docs/protocol.md §3.6)."""
+    profile = st.get("_active_profile")
+    return f"{profile}.xml" if profile else "hqplayerd.xml"
+
+
 def _backup_zip(st: dict[str, Any]) -> bytes:
     xml = cfg_xml(st)
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
-        z.writestr("hqplayerd.xml", xml)
+        z.writestr(_working_member(st), xml)
         z.writestr("data/cfgs/Test.xml", xml)
         z.writestr("data/library.xml", b"<library/>")
         # presets saved via POST /config/profile/save appear as their own snapshot
@@ -293,10 +301,18 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_restore_bytes"] = zbytes
     archive = zipfile.ZipFile(io.BytesIO(zbytes))
     st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
+    if st.get("_active_profile") and "hqplayerd.xml" not in st["_restore_members"]:
+        # A named profile was active, so the uploaded working config is the root
+        # <Profile>.xml. The restart boots from hqplayerd.xml, the upload carried
+        # none, and the edit to <Profile>.xml is discarded: the config stays as it
+        # was, and the daemon comes back on [default].
+        st["_active_profile"] = None
+        return
     xml = archive.read("hqplayerd.xml")
     if elem_attr(xml, "title", "value") == "REJECT":
         return  # modeled value-level rejection: the daemon refuses, state unchanged
     st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window
+    st["_active_profile"] = None  # the restart boots from hqplayerd.xml, on [default]
     adopt_cfg(st, xml)
     st["_stale"] = st.get("_lag", 0)
     if st.get("_die"):
@@ -610,6 +626,9 @@ def state(**extra: object) -> dict[str, Any]:
         # powered-off endpoints a /config/refresh rescan makes bindable
         "_hidden_endpoints": [],
         "_saved": {},
+        # the daemon's active named configuration; None is [default], which serves
+        # the working config as hqplayerd.xml, and any restore lands back on it
+        "_active_profile": None,
         # speaker processing (readme §1.9): off, two flat channels
         "speakers_enabled": False,
         "_speakers": [

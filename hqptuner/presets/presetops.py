@@ -18,7 +18,7 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotStore
-from hqptuner.presets.store.filterpark import FilterPark
+from hqptuner.presets.store.filterpark import PARK_DIR, FilterPark
 from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetError, PresetStore
@@ -146,7 +146,7 @@ class PresetOps:
         # is a preset: the book learns the stations from this store, and a preset
         # delete is what takes a station's snapshots out.
         self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
-        self._filters = FilterPark(cfg.backup_dir / "pending-filters", cfg.hqp_home)
+        self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
         self._migrated = False
         # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
         self._profiles: dict[str, tuple[Signature, list[str]]] = {}

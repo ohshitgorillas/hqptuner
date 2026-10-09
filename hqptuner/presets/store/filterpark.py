@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
+#: The park's directory name under the backup directory.
+PARK_DIR = "pending-filters"
 FILTER_EXTS = (".wav", ".txt")
 # Everything parked between two applies, summed. Bounds what a client under
 # the per-file limit can accumulate before an apply or a discard drains it.

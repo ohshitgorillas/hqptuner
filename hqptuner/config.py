@@ -190,7 +190,7 @@ class Config:
     # Every store field driven by `_store`/`_store_dir`: its attribute name, the
     # name it passes down, and whether that name is a directory (`_store_dir`)
     # rather than a file (`_store`).
-    _STORES: ClassVar[tuple[tuple[str, str, bool], ...]] = (
+    STORES: ClassVar[tuple[tuple[str, str, bool], ...]] = (
         ("connection_file", "connection.json", False),
         ("backup_dir", "backups", True),
         ("preset_dir", "presets", True),
@@ -209,7 +209,7 @@ class Config:
         argument, first say; only a field still at ``_UNSET_PATH`` reaches here, and what it becomes
         now honors ``self.frozen``/``self.bundle`` instead of always reading ``sys`` live.
         """
-        for attr, name, is_dir in self._STORES:
+        for attr, name, is_dir in self.STORES:
             if getattr(self, attr) == _UNSET_PATH:
                 resolver = _store_dir if is_dir else _store
                 setattr(self, attr, resolver(name, frozen=self.frozen))
