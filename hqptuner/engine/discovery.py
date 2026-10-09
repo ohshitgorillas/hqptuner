@@ -207,11 +207,12 @@ async def discover(
     container's own host is one connection away. Only that case, because a daemon answering both would be
     listed twice, once by the address its datagram came from and once by the alias.
     """
-    loop = asyncio.get_running_loop()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    sock.settimeout(0)  # non-blocking, so the loop owns the waiting
+    sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
     try:
-        await loop.sock_sendto(sock, REQUEST, _endpoint(search.target))
+        # The socket's own call, not the loop's: uvloop does not provide ``sock_sendto``, and one datagram
+        # on a fresh socket finds its send buffer empty, so there is nothing to wait for.
+        sock.sendto(REQUEST, _endpoint(search.target))
         replies = await _collect(sock, clock() + wait_seconds, clock, sleep)
     finally:
         sock.close()

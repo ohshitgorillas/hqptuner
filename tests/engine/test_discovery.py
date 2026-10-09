@@ -17,10 +17,16 @@ as a record.
 The search itself runs against a UDP daemon of the suite's own at one loopback
 address and a control daemon at another, with the clock and the wait handed in,
 so a whole search window passes in virtual time (docs/testing.md rule 7).
+
+uvicorn runs the app on uvloop wherever uvloop is installed, so the same search
+is also run on a uvloop loop and has to list what the standard loop lists. That
+search ends in either a list or an exception; the helper hands back the
+exception's name and text in place of the list, so a search that raised fails
+the comparison rather than the run.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
 
 import fake_discovery
 import pytest
@@ -188,3 +194,49 @@ async def test_the_host_alias_is_listed_only_where_no_datagram_was_answered(
     search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
     found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
     assert [daemon.address for daemon in found] == expected
+
+
+async def search_addresses(alias_control_port: int, *, datagram_answered: bool) -> list[str]:
+    """The addresses one search lists, with the answering daemon served from the
+    loop the search itself runs on."""
+    async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
+        target = f"{SEARCH_HOST}:{answering}" if datagram_answered else f"127.0.0.1:{closed_port()}"
+        clock, sleep = virtual_time()
+        search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
+        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+    return [daemon.address for daemon in found]
+
+
+async def settled(search: Coroutine[None, None, list[str]]) -> asyncio.Task[list[str]]:
+    """The search run to its end, as a task holding its list or its exception."""
+    task = asyncio.ensure_future(search)
+    await asyncio.wait([task])
+    return task
+
+
+def searched_on_uvloop(alias_control_port: int, *, datagram_answered: bool) -> list[str] | str:
+    """The addresses a search run on uvloop lists, or the exception it raised,
+    by name and text."""
+    uvloop = pytest.importorskip("uvloop", reason="uvloop is not installed in this environment")
+    search = search_addresses(alias_control_port, datagram_answered=datagram_answered)
+    task = asyncio.run(settled(search), loop_factory=uvloop.new_event_loop)
+    failure = task.exception()
+    if failure is not None:
+        return f"{type(failure).__name__}: {failure}"
+    return task.result()
+
+
+@pytest.mark.parametrize(
+    ("datagram_answered", "expected"),
+    [
+        (True, [SEARCH_HOST]),
+        (False, [ALIAS_HOST]),
+    ],
+)
+def test_a_search_on_uvloop_lists_what_the_standard_loop_lists(
+    alias_control_port: int,
+    *,
+    datagram_answered: bool,
+    expected: list[str],
+) -> None:
+    assert searched_on_uvloop(alias_control_port, datagram_answered=datagram_answered) == expected

@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **HQPlayer search with uvloop.** Searching the network for HQPlayer no longer fails with a server error when HQPTuner runs on a Python install that includes uvloop.
+
 ## [1.19.0] — 2026-10-08
 
 ### Added
