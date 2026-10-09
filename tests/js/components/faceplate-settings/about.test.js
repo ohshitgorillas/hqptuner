@@ -116,6 +116,15 @@ test("test_the_backup_download_points_at_the_backup_route", () => {
   );
 });
 
+test("test_the_state_export_download_points_at_the_state_export_route", () => {
+  assert.deepEqual(
+    all()
+      .filter((e) => attr(e, "data-testid") === "state-export")
+      .map((e) => attr(e, "href")),
+    ["/api/state-export"],
+  );
+});
+
 test("test_the_prose_links_open_ko_fi_and_the_mit_license_in_a_new_tab", () => {
   assert.deepEqual(
     all()
