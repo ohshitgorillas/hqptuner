@@ -1,7 +1,6 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the animation-frame loop that steps the scene at most once per
 // 1/30 s, paces the feed frames out to it behind the effective delay, hands the scene to the painters on each step, and
-// passes every frame it takes on to the spectrogram exactly once, stepping the spectrum's ghost in the style the ghost
-// preference holds at that step.
+// passes every frame it takes on to the spectrogram exactly once.
 //
 // Feed frames arrive through openMeterFeed() on the EventSource fake (tests/js/support/eventsource.js), as the
 // payloads /api/meter/feed sends. Animation frames arrive through a fake Clock whose requestAnimationFrame queues and
@@ -23,7 +22,7 @@ import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store
 import { spectrogramEnd } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { stepLevel } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { setApodWindow, setSpectrumGhost } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -48,11 +47,6 @@ const SPIKE_AT = TRACE_COLS / 2;
 const LOUD_BYTE = 20;
 const LOUD_DB = -10;
 const QUIET_BYTE = 120;
-//: The byte every bin sits at before the rise, -50 dBFS, and the byte it rises to, -10 dBFS.
-const LOW_BYTE = 100;
-const HIGH_BYTE = 20;
-//: Steps at 30 fps that take the ghost through more than one whole fade, three seconds.
-const FADE_STEPS = 90;
 
 /**
  * A clock that moves only on `frame`: each call is one animation frame, `ms` after the last; `waiting` is the number of
@@ -136,7 +130,6 @@ before(() => {
 
 beforeEach(() => {
   useStorage();
-  setSpectrumGhost("fall");
   setSpectrumOffset(0);
   engineStatus.value = { ...PLAYING };
   useEventSource();
@@ -226,29 +219,6 @@ test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () =
   send({ peak: -10, rms: -20, byte: 100 });
   step();
   assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.peak ?? [])], [-10]);
-});
-
-test("test_picking_the_average_ghost_mid_stream_leaves_the_ghost_under_a_rising_trace", () => {
-  for (let k = 0; k < 10; k++) {
-    send({ peak: -10, rms: -20, byte: LOW_BYTE, ms: STEP_MS });
-    stepAt30();
-  }
-  setSpectrumGhost("average");
-  send({ peak: -10, rms: -20, byte: HIGH_BYTE, ms: STEP_MS });
-  stepAt30();
-  const spectrum = scenes.at(-1)?.spectrum;
-  assert.ok((spectrum?.peak[0] ?? NaN) < (spectrum?.disp[0] ?? NaN));
-});
-
-test("test_with_the_fade_ghost_picked_the_ghost_curve_fades_within_three_seconds", () => {
-  setSpectrumGhost("fade");
-  send({ peak: -10, rms: -20, byte: HIGH_BYTE, ms: STEP_MS });
-  stepAt30();
-  for (let k = 1; k < FADE_STEPS; k++) {
-    send({ peak: -10, rms: -20, byte: LOW_BYTE, ms: STEP_MS });
-    stepAt30();
-  }
-  assert.ok(Math.min(...scenes.map((sc) => sc.spectrum?.peakShown ?? 1)) < 1);
 });
 
 test("test_a_clump_of_ten_frames_at_a_0_1_s_offset_gives_a_different_trace_at_each_of_the_next_3_steps", () => {

@@ -1,13 +1,14 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
-// fractions and bands; a mark over a moving level holds and then falls, a bar's peak cap and the spectrum's fall ghost
-// alike; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under acceleration,
-// aurora bands fall under their own, ridge rows stack on a cadence, and aurora gives way to the trace without WebGL2.
-// Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves
-// its inputs alone, so a painter draws what it gets back and a test drives it from a table.
+// fractions and bands; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under
+// acceleration, aurora bands fall under their own, ridge rows stack on a cadence, and aurora gives way to the trace
+// without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new
+// state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from a table.
 
-export const CAP_HOLD_S = 0.5; // a mark's hold after its level last reached it, s
-export const CAP_GRAVITY = 4; // a released mark's acceleration, plot fractions/s²
+import { fraction } from "./meter.js";
+
 export const BANDS = 64; // bars the bar styles draw across the plot
+export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
+export const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
 export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outward
 export const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
@@ -38,34 +39,6 @@ export const RIDGE_EVERY = 4; // steps between ridge rows
  * @property {Float32Array[]} rows  plot fractions per column
  * @property {number} tick          steps taken, the first counting one
  */
-
-/**
- * Where a level sits on a bar running from `floor` dB to full scale, from 0 to 1.
- *
- * @param {number} db
- * @param {number} floor
- * @returns {number}
- */
-export function fraction(db, floor) {
-  return Math.min(1, Math.max(0, (db - floor) / -floor));
-}
-
-/**
- * A mark after a step of `dt` seconds over `level`: a level at or above the mark lifts it; otherwise the mark holds
- * until `age` passes CAP_HOLD_S, then falls by CAP_GRAVITY times its age past the hold times the step, never below the
- * level.
- *
- * @param {number} mark   plot fraction
- * @param {number} level  plot fraction
- * @param {number} age    time since the level last reached the mark, this step included, s
- * @param {number} dt     s
- * @returns {number}  plot fraction
- */
-export function holdFall(mark, level, age, dt) {
-  if (level >= mark) return level;
-  const over = age - CAP_HOLD_S;
-  return over > 0 ? Math.max(level, mark - CAP_GRAVITY * over * dt) : mark;
-}
 
 /**
  * Levels as plot fractions on a plot spanning `range` dB down from full scale, clamped to [0, 1].
@@ -101,9 +74,9 @@ export function bandsOf(fracs, n) {
 }
 
 /**
- * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; otherwise the cap
- * steps by `holdFall` with its age the time since its band last reached it. Without a `prev` of the same length every
- * cap sits on its band.
+ * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; a cap holds for
+ * CAP_HOLD_S after its band last reached it, then falls by CAP_GRAVITY times its time past the hold times the step,
+ * never below its band. Without a `prev` of the same length every cap sits on its band.
  *
  * @param {CapState | null} prev
  * @param {ArrayLike<number>} bands  plot fractions
@@ -117,7 +90,9 @@ export function stepCaps(prev, bands, dt) {
   for (let i = 0; i < n; i++) {
     if (bands[i] >= prev.lvl[i]) continue;
     next.age[i] = prev.age[i] + dt;
-    next.lvl[i] = holdFall(prev.lvl[i], bands[i], next.age[i], dt);
+    const over = next.age[i] - CAP_HOLD_S;
+    const lvl = over > 0 ? prev.lvl[i] - CAP_GRAVITY * over * dt : prev.lvl[i];
+    next.lvl[i] = Math.max(bands[i], lvl);
   }
   return next;
 }

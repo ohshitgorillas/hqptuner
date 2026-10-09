@@ -1,6 +1,6 @@
 // Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
 // bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
-// easing the trace toward them, the spectrum ghost in its fall, average and fade styles, the level ballistics and hold, and the frame-loop step that clamps dt and owes
+// easing the trace toward them, where a level sits on a bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
 // spectrogram columns.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
@@ -16,6 +16,7 @@ import {
   easeTrace,
   emptySpectrum,
   foldFrames,
+  fraction,
   pickBins,
   smoothColumns,
   stepFrame,
@@ -23,20 +24,14 @@ import {
   stepSpectrum,
   traceColumns,
 } from "../../../../hqptuner/static/model/gauges/meter.js";
-import { fractionsOf, stepCaps } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.
 const EPS = 1e-9;
 //: Tolerance for a power average stored in a Float32Array and written here to three places.
 const DB_EPS = 1e-3;
-//: The page's default Range, dB, for a step whose test does not turn on the plot's span.
-const PAGE_RANGE = 120;
 
 /** @typedef {{ now: number, dt: number, level: number, jump?: boolean }} SpectrumRow */
-/** @typedef {"fall" | "average" | "fade"} Ghost */
-/** @typedef {{ now: number, dt: number, levels: number[] }} ColumnsRow */
-/** @typedef {{ now: number, peak: number[], shown: number }} GhostFrame */
 /** @typedef {{ now: number, dt: number }} FrameRow */
 /** @typedef {{ peak: number, rms: number, hold: number, holdAt: number }} Reading */
 /** @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number }} Frame */
@@ -63,81 +58,23 @@ const nearEach = (actual, expected, tol) => [
  */
 function spectrumAfter(rows) {
   const end = rows.reduce(
-    (st, row) =>
-      stepSpectrum(st, Float64Array.of(row.level), { now: row.now, dt: row.dt, range: PAGE_RANGE }, row.jump ?? false),
+    (st, row) => stepSpectrum(st, Float64Array.of(row.level), { now: row.now, dt: row.dt }, row.jump ?? false),
     emptySpectrum(1),
   );
   return { disp: end.disp[0], peak: end.peak[0], peakAt: end.peakAt[0] };
 }
 
 /**
- * Spectrum rows every `ms` from 0 to `to` ms inclusive, each stepping `ms` of dt, each column at the level `levelsAt`
- * gives for the row's `now`.
+ * Spectrum rows every `ms` from `from` to `to` ms inclusive, each stepping `ms` of dt, every one at `level`.
  *
+ * @param {number} from
  * @param {number} to
  * @param {number} ms
- * @param {(now: number) => number[]} levelsAt
- * @returns {ColumnsRow[]}
+ * @param {number} level
+ * @returns {SpectrumRow[]}
  */
-const rowsTo = (to, ms, levelsAt) =>
-  Array.from({ length: Math.floor(to / ms) + 1 }, (_, k) => ({ now: ms * k, dt: ms / 1000, levels: levelsAt(ms * k) }));
-
-/**
- * The ghost after each row, in row order, the rows stepped in order from an empty spectrum in one ghost style: every
- * column's ghost level and how visible the curve is.
- *
- * @param {ColumnsRow[]} rows
- * @param {Ghost} ghost
- * @returns {GhostFrame[]}
- */
-function ghostTrail(rows, ghost) {
-  let st = emptySpectrum(rows[0].levels.length);
-  return rows.map((row) => {
-    st = stepSpectrum(st, Float64Array.from(row.levels), { now: row.now, dt: row.dt, ghost, range: PAGE_RANGE }, false);
-    return { now: row.now, peak: Array.from(st.peak), shown: st.peakShown };
-  });
-}
-
-/**
- * A released fall ghost and a released bar cap riding the same trace on a plot spanning `range` dB, each as its share
- * of the plot's height, at the last row that leaves the cap above the trace's bar. The rows step one spectrum from
- * empty in the fall style; the cap steps over the bar the trace draws.
- *
- * @param {ColumnsRow[]} rows
- * @param {number} range
- * @returns {{ ghost: number, cap: number }}
- */
-function ghostBesideCap(rows, range) {
-  let st = emptySpectrum(1);
-  /** @type {ReturnType<typeof stepCaps> | null} */
-  let caps = null;
-  let last = { ghost: Number.NaN, cap: Number.NaN };
-  for (const row of rows) {
-    st = stepSpectrum(st, Float64Array.from(row.levels), { now: row.now, dt: row.dt, ghost: "fall", range }, false);
-    const bar = fractionsOf(Float32Array.from(st.disp), range);
-    caps = stepCaps(caps, bar, row.dt);
-    if (caps.lvl[0] > bar[0]) last = { ghost: fractionsOf(Float32Array.from(st.peak), range)[0], cap: caps.lvl[0] };
-  }
-  return last;
-}
-
-/**
- * The frame of the trail stamped `now`.
- *
- * @param {GhostFrame[]} trail
- * @param {number} now
- * @returns {GhostFrame}
- */
-const ghostAt = (trail, now) => trail.filter((f) => f.now === now)[0];
-
-/**
- * The stamp of the first frame after `from` whose first column's ghost sits below the frame before's, else undefined.
- *
- * @param {GhostFrame[]} trail
- * @param {number} from
- * @returns {number | undefined}
- */
-const fallStartsAfter = (trail, from) => trail.find((f, k) => f.now > from && f.peak[0] < trail[k - 1].peak[0])?.now;
+const paced = (from, to, ms, level) =>
+  Array.from({ length: Math.floor((to - from) / ms) + 1 }, (_, k) => ({ now: from + ms * k, dt: ms / 1000, level }));
 
 /**
  * The reading after every frame of the table steps it toward one fixed target.
@@ -218,36 +155,6 @@ const TONE = [-120, -120, -6, -120, -120, -120, -120, -120, -120];
 
 //: Nine trace columns at -100 dBFS, but for column 4 at -10.
 const LONE = Float32Array.of(-100, -100, -100, -100, -10, -100, -100, -100, -100);
-
-//: One column at -10 dBFS for the first frame, then at -100 for one second of 50 ms frames.
-const DROP = rowsTo(1000, 50, (now) => [now === 0 ? -10 : -100]);
-//: One column at -10 dBFS at 0 and again at 1000 ms, at -100 between and after, to 2000 ms in 50 ms frames.
-const RETURN = rowsTo(2000, 50, (now) => [now === 0 || now === 1000 ? -10 : -100]);
-//: One column at -10 dBFS for the first frame, then at -10.5 for three seconds of 100 ms frames.
-const SETTLE = rowsTo(3000, 100, (now) => [now === 0 ? -10 : -10.5]);
-//: One column at -40 dBFS for 15 s of 100 ms frames, then one frame at -10.
-const RISE = rowsTo(15100, 100, (now) => [now < 15100 ? -40 : -10]);
-//: One column for 15 s of 100 ms frames, the level -10 dBFS on every other frame and -40 between, so the trace swings
-//: between -10 and -13.
-const SWING = rowsTo(15000, 100, (now) => [now % 200 === 0 ? -10 : -40]);
-//: Two columns over 5 s of 50 ms frames, both at -40 dBFS but for column 0 at -10 at 0 ms and column 1 at -10 at
-//: 1200 ms.
-const TWO_PEAKS = rowsTo(5000, 50, (now) => [now === 0 ? -10 : -40, now === 1200 ? -10 : -40]);
-
-//: The page's Range choices wider than its narrowest, 120 dB, each the dB the spectrum plot spans.
-const WIDE_RANGES = [180, 240, 300];
-//: A share of plot height far under a pixel, room for a ghost kept in dB and a cap kept as a float32 fraction.
-const PLOT_EPS = 1e-4;
-//: The deepest level two bin bytes decode to at half a dB per step.
-const DEEPEST_BIN = -32767.5;
-
-/**
- * One column at -10 dBFS at 0 ms and again at 60100 ms, at `silent` for the minute between, in 100 ms frames.
- *
- * @param {number} silent
- * @returns {ColumnsRow[]}
- */
-const backAfterSilence = (silent) => rowsTo(60100, 100, (now) => [now === 0 || now === 60100 ? -10 : silent]);
 
 // ── Bin bytes ────────────────────────────────────────────────────────────
 
@@ -340,6 +247,24 @@ test("test_a_20_db_rise_eases_8_5_db_in_one_thirtieth_of_a_second", () => {
   assert.ok(...near(easeTrace(Float32Array.of(-30), Float32Array.of(-10), 1 / 30)[0], -21.475, DB_EPS));
 });
 
+// ── Where a level sits on a bar ──────────────────────────────────────────
+
+test("test_a_level_sits_its_height_above_the_floor_over_the_floors_depth", () => {
+  assert.equal(fraction(-15, -60), 0.75);
+});
+
+test("test_the_same_level_sits_higher_on_a_deeper_bar", () => {
+  assert.equal(fraction(-15, -120), 0.875);
+});
+
+test("test_a_level_above_full_scale_fills_the_bar", () => {
+  assert.equal(fraction(6, -60), 1);
+});
+
+test("test_a_level_below_the_floor_sits_half_a_bar_under_mid_scale", () => {
+  assert.equal(fraction(-30, -60) - fraction(-90, -60), 0.5);
+});
+
 // ── Spectrum ─────────────────────────────────────────────────────────────
 
 test("test_a_jump_frame_shows_a_level_below_the_one_shown", () => {
@@ -402,87 +327,26 @@ test("test_the_spectrum_peak_is_stamped_when_the_shown_level_reaches_it", () => 
   );
 });
 
-// ── Spectrum ghost: fall ─────────────────────────────────────────────────
-
-test("test_the_fall_ghost_starts_falling_in_the_first_frame_after_half_a_second", () => {
-  assert.equal(fallStartsAfter(ghostTrail(DROP, "fall"), 0), 550);
+test("test_the_spectrum_peak_holds_for_two_seconds", () => {
+  assert.equal(spectrumAfter([{ now: 0, dt: 0.1, level: -10 }, ...paced(100, 2000, 100, -40)]).peak, -10);
 });
 
-test("test_the_fall_ghost_falls_further_in_its_second_tenth_of_a_second_than_its_first", () => {
-  const trail = ghostTrail(DROP, "fall");
-  const level = (/** @type {number} */ now) => ghostAt(trail, now).peak[0];
-  assert.ok(level(600) - level(700) > level(500) - level(600));
+test("test_the_spectrum_peak_falls_ten_db_per_second_after_two_seconds", () => {
+  assert.equal(spectrumAfter([{ now: 0, dt: 0.1, level: -10 }, ...paced(100, 2100, 100, -40)]).peak, -11);
 });
 
-test("test_the_fall_ghost_holds_half_a_second_again_after_the_trace_reaches_it_again", () => {
-  assert.equal(fallStartsAfter(ghostTrail(RETURN, "fall"), 1000), 1550);
+test("test_a_released_spectrum_peak_falls_half_as_far_in_half_the_time", () => {
+  assert.equal(spectrumAfter([{ now: 0, dt: 0.05, level: -10 }, ...paced(50, 2050, 50, -40)]).peak, -10.5);
 });
 
-test("test_the_fall_ghost_never_falls_below_the_trace", () => {
-  assert.equal(ghostAt(ghostTrail(SETTLE, "fall"), 3000).peak[0], -10.5);
-});
-
-for (const range of WIDE_RANGES) {
-  test(`test_a_released_fall_ghost_falls_the_same_share_of_a_${range}_db_plot_as_a_released_bar_cap`, () => {
-    const { ghost, cap } = ghostBesideCap(DROP, range);
-    assert.ok(...near(ghost, cap, PLOT_EPS));
-  });
-}
-
-// ── Spectrum ghost: average ──────────────────────────────────────────────
-
-test("test_a_rise_takes_the_average_ghost_less_than_halfway_in_a_tenth_of_a_second", () => {
-  assert.ok(ghostAt(ghostTrail(RISE, "average"), 15100).peak[0] < -25);
-});
-
-test("test_the_average_ghost_settles_midway_through_a_trace_that_swings", () => {
-  assert.ok(...near(ghostAt(ghostTrail(SWING, "average"), 15000).peak[0], -11.5, 1));
-});
-
-for (const [silence, silent] of /** @type {[string, number][]} */ ([
-  ["minus_infinity", -Infinity],
-  ["the_deepest_bin_level", DEEPEST_BIN],
-])) {
-  test(`test_sound_after_a_minute_of_${silence}_lifts_the_average_ghost_no_higher_in_a_tenth_of_a_second_than_after_a_quiet_passage`, () => {
-    const afterSilence = ghostAt(ghostTrail(backAfterSilence(silent), "average"), 60100).peak[0];
-    const afterQuiet = ghostAt(ghostTrail(RISE, "average"), 15100).peak[0];
-    assert.ok(afterSilence <= afterQuiet, `after silence ${afterSilence} dB, after a quiet passage ${afterQuiet} dB`);
-  });
-}
-
-// ── Spectrum ghost: fade ─────────────────────────────────────────────────
-
-test("test_the_fade_ghost_is_fully_shown_while_it_collects", () => {
-  assert.equal(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 1900).shown, 1);
-});
-
-test("test_the_fade_ghost_is_partly_shown_halfway_through_its_fade", () => {
-  assert.ok(Math.abs(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 2250).shown - 0.5) < 0.5);
-});
-
-test("test_the_fade_ghost_shows_less_late_in_its_fade_than_early", () => {
-  const trail = ghostTrail(TWO_PEAKS, "fade");
-  assert.ok(ghostAt(trail, 2400).shown < ghostAt(trail, 2100).shown);
-});
-
-test("test_the_fade_ghost_holds_its_shape_while_it_fades", () => {
-  assert.equal(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 2300).peak[0], -10);
-});
-
-test("test_the_fade_ghost_collects_again_from_the_live_trace_once_faded", () => {
-  assert.equal(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 2600).peak[0], -40);
-});
-
-test("test_the_fade_ghost_fades_a_column_that_peaked_late_with_the_rest", () => {
-  assert.equal(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 2600).peak[1], -40);
-});
-
-test("test_the_fade_ghost_is_fully_shown_again_once_it_collects_again", () => {
-  assert.equal(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 2600).shown, 1);
-});
-
-test("test_the_fade_ghost_fades_again_two_seconds_after_it_collects_again", () => {
-  assert.ok(Math.abs(ghostAt(ghostTrail(TWO_PEAKS, "fade"), 4750).shown - 0.5) < 0.5);
+test("test_the_spectrum_peak_never_falls_below_the_shown_level", () => {
+  assert.equal(
+    spectrumAfter([
+      { now: 0, dt: 0.1, level: -10 },
+      { now: 2100, dt: 0.1, level: -10.5 },
+    ]).peak,
+    -10.5,
+  );
 });
 
 // ── Level ballistics and hold ────────────────────────────────────────────

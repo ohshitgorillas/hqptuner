@@ -1,7 +1,6 @@
 // Painter suite for hqptuner/static/components/faceplate/page/sourcepaint.js: what one paint writes into the page's
 // Source section. Given a meter scene and the page's Range, the spectrum's trace, its held peaks and its filled area,
-// how visible the held peaks' ghost line is against how visible the scene says the ghost curve is, each level bar's
-// peak, RMS and hold, and the readings table's held peak and RMS.
+// each level bar's peak, RMS and hold, and the readings table's held peak and RMS.
 //
 // The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″, so the
 // readings table is drawn. The painter needs a live element to write into, and node has none: the rendered markup is
@@ -29,7 +28,6 @@ import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { attr, elements, text } from "../../support/markup.js";
-import { near } from "../../support/near.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").LevelReading} LevelReading */
@@ -209,14 +207,13 @@ function columns(floor, at = {}) {
 }
 
 /**
- * A scene: the given levels, and a spectrum showing `disp` and holding `peak`, its ghost holding a level and not
- * collecting, its curve `shown` visible from 0 (gone) to 1 (fully shown), fully shown where not given.
+ * A scene: the given levels, and a spectrum showing `disp` and holding `peak`.
  *
- * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array, peak?: Float32Array, shown?: number }} [o]
+ * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array, peak?: Float32Array }} [o]
  */
-function scene({ levels = [{}, {}], disp = columns(-200), peak = disp, shown = 1 } = {}) {
+function scene({ levels = [{}, {}], disp = columns(-200), peak = disp } = {}) {
   /** @type {SpectrumHold} */
-  const spectrum = { disp, peak, peakAt: new Float32Array(COLS), held: true, peakShown: shown, collectAt: -Infinity };
+  const spectrum = { disp, peak, peakAt: new Float32Array(COLS) };
   const full = levels.map((lv) => ({ peak: -200, rms: -200, hold: -200, holdAt: 0, ...lv }));
   return { levels: full, spectrum, raw: null };
 }
@@ -334,33 +331,6 @@ test("test_a_column_over_full_scale_stops_at_the_top", () => {
 test("test_the_held_peaks_trace_the_peak_not_the_shown_level", () => {
   const root = painted(scene({ disp: columns(-72), peak: columns(-72, { 300: -9 }) }), 90);
   assert.equal(yAt(root, "shold", 300), 17);
-});
-
-/**
- * How visible the held peaks' path is: its inline opacity, else its opacity attribute, else fully; 0 where it is
- * hidden, undrawn or missing.
- *
- * @param {Elem} root
- */
-function ghostVisibility(root) {
-  const path = root.querySelector("path.shold");
-  if (!path || !path.getAttribute("d")) return 0;
-  if (path.style.visibility === "hidden" || path.getAttribute("visibility") === "hidden") return 0;
-  if (path.style.display === "none") return 0;
-  return parseFloat(path.style.opacity || path.getAttribute("opacity") || "1");
-}
-
-//: A ghost curve partway through its fade, as the model reports it.
-const PART_SHOWN = 0.4;
-
-test("test_a_ghost_curve_partway_through_its_fade_draws_its_line_as_visible_as_the_scene_says", () => {
-  const root = painted(scene({ disp: columns(-72), peak: columns(-72, { 300: -9 }), shown: PART_SHOWN }), 90);
-  assert.ok(...near(ghostVisibility(root), PART_SHOWN, 1e-6));
-});
-
-test("test_a_faded_out_ghost_curve_draws_no_visible_line", () => {
-  const root = painted(scene({ disp: columns(-72), peak: columns(-72, { 300: -9 }), shown: 0 }), 90);
-  assert.equal(ghostVisibility(root), 0);
 });
 
 test("test_the_area_is_the_trace_closed_down_to_the_baseline", () => {

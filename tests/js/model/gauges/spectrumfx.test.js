@@ -1,7 +1,7 @@
 // Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
-// where a level sits on a bar, dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars and
-// ridge rows, and the style a page draws when the picked one needs WebGL2 it lacks. Every height is a fraction of the
-// plot, 0 on the floor and 1 at full scale.
+// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars and ridge rows,
+// and the style a page draws when the picked one needs WebGL2 it lacks. Every height is a fraction of the plot, 0 on the
+// floor and 1 at full scale.
 //
 // Run: node --test tests/js/model/gauges/spectrumfx.test.js
 
@@ -18,7 +18,6 @@ import {
   SPILL,
   bandsOf,
   effectiveStyle,
-  fraction,
   fractionsOf,
   softBars,
   stepCaps,
@@ -72,24 +71,6 @@ function drive(calls) {
   for (let k = 1; k < calls; k += 1) state = stepRidges(state, f32(k));
   return state;
 }
-
-// ── Where a level sits on a bar ──────────────────────────────────────────
-
-test("test_a_level_sits_its_height_above_the_floor_over_the_floors_depth", () => {
-  assert.equal(fraction(-15, -60), 0.75);
-});
-
-test("test_the_same_level_sits_higher_on_a_deeper_bar", () => {
-  assert.equal(fraction(-15, -120), 0.875);
-});
-
-test("test_a_level_above_full_scale_fills_the_bar", () => {
-  assert.equal(fraction(6, -60), 1);
-});
-
-test("test_a_level_below_the_floor_sits_half_a_bar_under_mid_scale", () => {
-  assert.equal(fraction(-30, -60) - fraction(-90, -60), 0.5);
-});
 
 // ── fractionsOf ──────────────────────────────────────────────────────────
 
