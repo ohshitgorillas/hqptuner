@@ -1,12 +1,12 @@
 // Rendered suite for hqptuner/static/components/faceplate/settings/About.js, the settings page under the drawers: About
 // HQPlayer (the engine identity windows read off the health payload, the backup download and the restore upload with its
-// status line) and About HQPTuner (the version line and the prose with its two links).
+// status line) and About HQPTuner (the version line, the state download and the prose with its two links).
 //
 // Driven at the wire: the health payload is assigned into `health` as the poll writes it, and a fetch fake answers the
 // real REST paths and records every request (POST /api/restore for a restore, GET /api/health for the read-back after
 // it). No store function is stubbed. The upload's change is fired through the renderer's vnode seam, since
 // render-to-string fires no events. Identity values and the server's refusal are the fixture's own wire data; the backup
-// controls are located by `data-testid`.
+// and state-export controls are located by `data-testid`, and the section holding one by its `data-stage`.
 //
 // The restore status lives in a module-private signal written only from the upload's handler, so it persists for the
 // life of this file: the restore cases run last.
@@ -73,6 +73,22 @@ const values = () =>
     .map(text);
 
 /**
+ * The `data-stage` of every section enclosing an element that carries a test id, sorted.
+ *
+ * @param {string} testid
+ * @returns {(string | undefined)[]}
+ */
+function stagesHolding(testid) {
+  const els = all();
+  const sections = els.filter((e) => e.name === "section");
+  return els
+    .filter((e) => attr(e, "data-testid") === testid)
+    .flatMap((e) => sections.filter((s) => e.start > s.start && e.start + e.html.length <= s.start + s.html.length))
+    .map((s) => attr(s, "data-stage"))
+    .sort();
+}
+
+/**
  * The handler a vnode carrying a test id holds under a prop, or undefined when the page draws none.
  *
  * @param {string} testid
@@ -123,6 +139,10 @@ test("test_the_state_export_download_points_at_the_state_export_route", () => {
       .map((e) => attr(e, "href")),
     ["/api/state-export"],
   );
+});
+
+test("test_the_state_export_download_sits_in_about_hqptuner_and_not_in_about_hqplayer", () => {
+  assert.deepEqual(stagesHolding("state-export"), ["about-hqptuner"]);
 });
 
 test("test_the_prose_links_open_ko_fi_and_the_mit_license_in_a_new_tab", () => {

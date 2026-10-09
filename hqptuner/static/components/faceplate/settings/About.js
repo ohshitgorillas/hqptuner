@@ -1,6 +1,6 @@
 // The settings page under the drawers. About HQPlayer: the engine identity as a row of labelled VFD windows across the
-// full width, then the backup download, restore upload and HQPTuner state download beside their line. About HQPTuner:
-// the version line and the prose.
+// full width, then the backup download and restore upload beside their line. About HQPTuner: the version line and the
+// state download, then the prose.
 
 import { computed, signal } from "@preact/signals";
 import { html } from "../../../lib/dom.js";
@@ -77,7 +77,6 @@ export function About() {
         <${Identity} />
         <div class="inline">
           <a class="btn" href="/api/backup" download data-testid="backup-download">Download backup</a>
-          <a class="btn" href="/api/state-export" download data-testid="state-export">Download state</a>
           <label class="btn"
             >Upload backup<input
               type="file"
@@ -98,6 +97,9 @@ export function About() {
             >${appVersion.value ? `HQPTuner ${appVersion.value} · ` : ""}Released under the${" "}
             ${ext("https://opensource.org/license/mit", "MIT License")}.</span
           >
+          <div class="inline">
+            <a class="btn" href="/api/state-export" download data-testid="state-export">Download state</a>
+          </div>
         </div>
         <div class="man">
           <p>HQPTuner is a project by user oh shit, gorillas! to bring out the untapped UX potential of HQPlayer Embedded.</p>
