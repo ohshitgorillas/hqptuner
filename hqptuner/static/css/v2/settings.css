@@ -25,7 +25,7 @@ dl.about dd{margin:0;font-family:var(--f-mono);font-size:var(--fs-4);color:var(-
 .two.pairs{row-gap:var(--sp-7)}
 .spage .man p{margin:0}
 .spage .man p+p{margin-top:var(--sp-4)}
-.spage a{color:var(--acc);text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
+.spage a:not(.btn){color:var(--acc);text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .spage .cap{font-size:var(--fs-3);color:var(--ink-2)}
 
 /* Drawer controls added for settings: a text box (Log path) and the accent picker (v1 AccentPicker). */

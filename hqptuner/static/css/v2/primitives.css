@@ -50,7 +50,7 @@ select option{background:var(--glass);color:var(--acc)}
 
 /* Raised push button. aria-expanded="true" = its popover is open. */
 .btn{height:var(--ctl-h);padding:0 var(--sp-7);border-radius:var(--r-2);border:var(--hair) solid var(--line-2);background:var(--raised);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;box-shadow:var(--raised-shadow);white-space:nowrap;line-height:var(--lh-eng)}
-a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center}   /* a <button> centers its own text */
+a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}   /* a <button> centers its own text */
 .btn[aria-expanded="true"]{background:var(--acc-lo);border-color:var(--acc-dim);color:var(--acc)}
 .btn:disabled{color:var(--ink-2);background:var(--plate-2);box-shadow:none;cursor:default}
 .btn.hb{height:var(--ctl-h-hdr);padding:0 var(--sp-5);font-size:var(--fs-4)}   /* header row */
