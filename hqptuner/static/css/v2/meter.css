@@ -89,8 +89,8 @@
 .pmeter .sgrid1{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) var(--axis-h)}
 .pmeter .lvwrap{flex:1 1 0;height:auto;min-height:0}
 .pmeter>.mnone{min-height:0;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well)}
-/* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads (Range / Floor stay at their
-   defaults) and no readout table; every other axis label drops so the short scales stay legible.
+/* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads and no
+   readout table; every other axis label drops so the short scales stay legible.
    Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 120 dB span is a smear, not a reading; the
    floor makes the page overrun instead, and the overflow rule recovers it from the option copy. */
 .sec.psrc.slim{min-height:var(--psrc-min);gap:var(--sp-4)}
@@ -103,19 +103,8 @@
 @container pmslim (max-height:100px){.pmeter :is(.gy,.lvs) span:not(.first):not(.last){display:none}}
 .slim .pmeter>.mnone p{font-size:var(--fs-4)}
 
-/* Page meter's Range column: left of the spectrum, label on one line over a stacked seg; one
-   Range for the spectrum's span and the levels' floor. Touch-sized: the seg fills the column's height (≈30px buttons at
-   10.2″, the room the slim meter has), capped at 40px where the meter is taller; 60px wide. */
-.pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) var(--levels-w)}
-.slim .pmeter>.mblk.mtop{grid-template-columns:auto minmax(0,1fr) auto}
-.mrange{display:flex;flex-direction:column;align-items:stretch;gap:var(--sp-2);min-height:0;overflow:visible;padding-bottom:0}
-.mrange .lbl{display:flex;align-items:baseline;gap:var(--sp-2);white-space:nowrap}
-.mrange .eng{font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-eng)}
-.pmeter:not(.slim *) .mrange{padding-top:calc(var(--mhead-h) + var(--sp-4))}   /* full: the heads' row above the plots */
-.seg.vert{flex-direction:column;flex:1 1 auto;min-height:0;align-self:stretch;justify-content:flex-start}
-.seg.vert button{border-right:0;border-bottom:var(--hair) solid var(--seam)}
-.seg.vert button:last-child{border-bottom:0}
-.mblk .seg.vert button{flex:1 1 0;height:auto;min-height:0;max-height:var(--ctl-h);width:var(--range-w);padding:0;font-size:var(--fs-4)}   /* min 0: the stack always fits the column (it shrinks rather than overflow and clip) */
-.pmeter:not(.slim *) .seg.vert{flex:0 0 auto}
-.slim .pmeter .seg.vert{max-height:calc(3 * var(--ctl-h) + 2 * var(--hair))}   /* the cap is the stack's, not just its buttons': past 40px buttons the well ends at 120, no dead glass under it */
-.pmeter:not(.slim *) .mblk .seg.vert button,.pmeter:not(.slim *) .seg.vert button{flex:0 0 var(--ctl-h)}
+/* Page meter's Range control: in the spectrum's top-right corner, over the canvases; the Range sets the spectrum's
+   span only. − narrows it a step, + widens it, the readout between. The keys are the round ± keys
+   (.round.vbtn, 40px at every plate size); one at its end stop reads dead (popovers.css) and takes no tap. */
+.mzoom{position:absolute;top:var(--sp-2);right:var(--sp-2);display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-1);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--glass)}
+.mzoom .zv{display:flex;align-items:baseline;gap:var(--sp-2);padding:0 var(--sp-2);font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}

@@ -15,6 +15,7 @@ import { Page } from "./components/faceplate/Page.js";
 import { Drawer } from "./components/faceplate/drawer/Drawer.js";
 import { stageDrawer } from "./components/faceplate/drawers/index.js";
 import { FilterPresets } from "./components/faceplate/page/FilterPresets.js";
+import { DisplayOptions } from "./components/faceplate/page/DisplayOptions.js";
 import { OptionList } from "./components/faceplate/lists/OptionList.js";
 import { ListTip } from "./components/faceplate/lists/Tip.js";
 import { SettingsBody } from "./components/faceplate/settings/SettingsBody.js";
@@ -49,6 +50,7 @@ function ChainBody() {
         return html`<${Drawer} key=${st.id} schema=${schema} blocks=${blocks} />`;
       })}
       <${FilterPresets} />
+      <${DisplayOptions} />
       <${OptionList} />
       <${ListTip} />
     </div>

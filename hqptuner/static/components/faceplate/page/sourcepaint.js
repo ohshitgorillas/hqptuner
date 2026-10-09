@@ -4,6 +4,7 @@
 
 import { fraction } from "../../../model/gauges/meter.js";
 import { minusText } from "../../../model/shell/format.js";
+import { levelsFloor } from "../../../store/faceplate/page/meter.js";
 
 /** @typedef {import("../../../store/meter/loop.js").MeterScene} MeterScene */
 
@@ -54,12 +55,12 @@ const TRACED = new Set(["trace"]);
 
 /**
  * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
- * effects or shader canvas instead. `style` is written to the grid's `data-style` on every paint, so the stylesheet
- * follows the style actually drawn rather than the one picked.
+ * effects or shader canvas instead, the level bars up from the Levels floor. `style` is written to the grid's
+ * `data-style` on every paint, so the stylesheet follows the style actually drawn rather than the one picked.
  *
  * @param {Element} root
  * @param {MeterScene} scene
- * @param {number} range  dB, the page's Range
+ * @param {number} range  dB, the page's Range, the spectrum's span
  * @param {string} [style]  the spectrum style
  */
 export function paintSourcePage(root, scene, range, style = "trace") {
@@ -69,7 +70,7 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   setOn(root, "path.strace", "d", line);
   setOn(root, "path.shold", "d", sp && TRACED.has(style) ? pathOf(sp.peak, range) : "");
   setOn(root, "path.sarea", "d", line && `${line} L${SW},${SH} L0,${SH} Z`);
-  const floor = -range;
+  const floor = levelsFloor();
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => {
     const lv = scene.levels[i];
     const pk = /** @type {HTMLElement | null} */ (bar.querySelector(".pk"));

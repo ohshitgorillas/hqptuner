@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/Page.js: the faceplate's page, one section per engaged stage
 // as model/shell/page.js decides it, fed from the running path, the running matrix engine and the browser's own Top of
-// page and Allow pinned rates preferences; a section's header and body; and a section's fields, one open and every
-// other folded to a line that opens it.
+// page and Allow pinned rates preferences; the popover triggers a section's header carries; a section's header and
+// body; and a section's fields, one open and every other folded to a line that opens it.
 //
 // The wire is the seam for the page: each case writes the engine's state and Status frame into `engineState` and
 // `engineStatus`, the daemon's /config and /matrix form fields into `config` and `matrixConfig`, and the preferences
@@ -29,7 +29,7 @@ import {
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
 import { topOfPage, allowPinnedRates } from "../../../../hqptuner/static/store/ui/faceplate.js";
-import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { openPopover, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 
@@ -40,6 +40,8 @@ const CD = "44100";
 const PCM_8X = "352800";
 const DSD64 = "2822400";
 const DSD256 = "11289600";
+//: The Display popover's id, which its trigger and its panel both carry as `data-pop`.
+const DISPLAY = "display";
 
 /**
  * @typedef {object} Running
@@ -233,6 +235,23 @@ test("test_the_resampling_header_carries_the_filter_presets_trigger", () => {
     headHolds("resampling", (e) => attr(e, "data-pop") === "presets"),
     true,
   );
+});
+
+test("test_the_source_header_carries_the_display_trigger", () => {
+  assert.equal(
+    headHolds("source", (e) => e.name === "button" && attr(e, "data-pop") === DISPLAY),
+    true,
+  );
+});
+
+test("test_pressing_the_display_trigger_opens_the_display_popover", () => {
+  openPopover.value = null;
+  const trigger = renderTree(html`<${Page} />`).seen.find(
+    (/** @type {VNode} */ v) => v.type === "button" && v.props["data-pop"] === DISPLAY,
+  );
+  const press = trigger?.props.onClick;
+  if (typeof press === "function") press({ preventDefault() {}, stopPropagation() {} });
+  assert.equal(openPopover.value, DISPLAY);
 });
 
 test("test_the_shaping_header_carries_no_filter_presets_trigger", () => {

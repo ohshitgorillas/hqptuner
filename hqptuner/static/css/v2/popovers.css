@@ -72,6 +72,14 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 
 .pips .w{font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
 
+/* ── Display ─────────────────────────────────────────────────────────────
+   Under the Source header's Display button: how the page meter draws, a label over each row of options. Views, not
+   settings: the segments read as view picks and nothing stages. */
+.dpop{left:auto;top:auto;width:auto;gap:var(--sp-5);padding:var(--sp-5) var(--sp-6)}
+.dfield{display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-2)}
+.dfield .cl{display:flex;align-items:baseline;gap:var(--sp-2);font-size:var(--fs-cl);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
+.dfield .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-5);white-space:nowrap}
+
 /* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
    Ordered / per-stage facets are segments. Counts preview the list sizes the click would leave (1x·Nx, or that stage's
@@ -121,9 +129,10 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .lmk .lpw.r{margin-left:0}
 .lmk .lp{display:block}
 .lmk .lp path{fill:none;stroke:var(--ink-2);stroke-width:2;stroke-linecap:round}
-/* Fixed volume: the slider and ± gray; the window shows the fixed level and opens nothing. */
+/* Fixed volume: the slider and ± gray; the window shows the fixed level and opens nothing. A ± key at its end stop
+   (the page meter's Range) reads dead the same way. */
 .vpop input[type=range]:disabled,.vbsl input[type=range]:disabled{accent-color:var(--ink-4);cursor:default}
-.round.vbtn:disabled{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
+.round.vbtn:disabled,.round.vbtn[aria-disabled="true"]{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 .volrd.fixed{cursor:default}
 .vbar.fixed .vbsl{opacity:var(--op-1)}
 /* The rows' host; a flagship opened over its two nested rows joins them; a preset the engine cannot run reads dead. */

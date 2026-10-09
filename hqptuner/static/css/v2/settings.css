@@ -7,7 +7,7 @@
 .round.gear[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 var(--sp-4) color-mix(in srgb,var(--acc) 35%,transparent)}
 
 .srail{padding-top:var(--sp-4)}
-.st.sst{grid-template-columns:minmax(0,1fr);gap:var(--sp-3) 0;padding:var(--sp-3) 0}   /* entries flex to fill; 6px: Visual settings holds nine readouts (Top of page) and must clear the foot at 10.2″ */
+.st.sst{grid-template-columns:minmax(0,1fr);gap:var(--sp-3) 0;padding:var(--sp-3) 0}   /* entries flex to fill; 6px: Visual settings holds eight readouts (Top of page) and must clear the foot at 10.2″ */
 .st.sst .n{line-height:1.15}
 .sro{margin:0;display:flex;flex-direction:column;gap:var(--sp-1);min-width:0}   /* 2: Behavior + Option style joined; worst case (every stage hidden, long values) fits */
 .sro>div{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:0 var(--sp-4);min-width:0}   /* value drops under its label when both don't fit */

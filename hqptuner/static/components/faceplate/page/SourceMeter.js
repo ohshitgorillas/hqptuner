@@ -1,7 +1,7 @@
-// The page's Source section body: the Range column, the spectrum and one level bar per channel, stretched to the
-// section's height; at 13″ each half carries its title and the bars their readings table, slim neither. Where there is
-// no stream to draw, the line saying why sits in an empty glass well in the meter's place. The Range is a view, not a
-// setting: it writes the page's own preference and nothing stages. What it renders holds still
+// The page's Source section body: the spectrum with the Range control in its corner, and one level bar per channel,
+// stretched to the section's height; at 13″ each half carries its title and the bars their readings table, slim
+// neither. Where there is no stream to draw, the line saying why sits in an empty glass well in the meter's place. The
+// Range is a view, not a setting: it writes the page's own preference and nothing stages. What it renders holds still
 // (store/faceplate/page/meter.js); the trace, the bars and the readings are painted into it each animation frame
 // (sourcepaint.js), and the picked spectrum style onto the canvases over the trace (spectrumfx.js, aurora.js).
 
@@ -12,7 +12,7 @@ import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
-import { PAGE_RANGES, setPageRange } from "../../../store/ui/faceplate.js";
+import { setPageRange } from "../../../store/ui/faceplate.js";
 import { spectrumStyle } from "../../../store/ui/prefs.js";
 import { rgb } from "../tokencolours.js";
 import { withXref } from "../Xref.js";
@@ -95,8 +95,45 @@ function FreqScale({ freq }) {
 }
 
 /**
+ * One of the Range control's step buttons: it writes the Range `to`, and where there is none it shows dimmed and a tap
+ * does nothing.
+ *
+ * @param {{ to: string | null, glyph: string, label: string, testid: string }} props
+ */
+function RangeStep({ to, glyph, label, testid }) {
+  return html`
+    <button
+      class="round vbtn"
+      type="button"
+      aria-label=${label}
+      aria-disabled=${to ? undefined : "true"}
+      data-testid=${testid}
+      onClick=${() => to && setPageRange(to)}
+    >
+      ${glyph}
+    </button>
+  `;
+}
+
+/**
+ * The Range control in the spectrum's corner: the page's Range between a narrower and a wider step.
+ *
+ * @param {{ view: PageMeterView }} props
+ */
+function RangeControl({ view }) {
+  return html`
+    <div class="mzoom">
+      <${RangeStep} to=${view.narrower} glyph="−" label="Narrower range" testid="range-narrower" />
+      <output class="zv" aria-label="Range, dB" data-testid="range-readout">${view.range} <span class="u">dB</span></output>
+      <${RangeStep} to=${view.wider} glyph="+" label="Wider range" testid="range-wider" />
+    </div>
+  `;
+}
+
+/**
  * The spectrum: its title at 13″, the dB scale beside a glass well holding the grid, the filled trace and the held
- * peaks under the effects canvas and the shader canvas the picked style draws on, the frequency axis under it.
+ * peaks under the effects canvas and the shader canvas the picked style draws on, the Range control in its corner, the
+ * frequency axis under it.
  *
  * @param {{ view: PageMeterView, plot: BoxRef, fx: CanvasRef, sgl: CanvasRef }} props
  */
@@ -118,6 +155,7 @@ function Spectrum({ view, plot, fx, sgl }) {
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>
           <canvas class="sgl" ref=${sgl}></canvas>
+          <${RangeControl} view=${view} />
         </div>
         <span></span>
         <${FreqScale} freq=${view.freq} />
@@ -156,7 +194,7 @@ function Levels({ view }) {
     <div class="lside">
       ${!view.slim && html`<div class="mhead"><b class="mt">Levels</b></div>`}
       <div class="lvwrap">
-        <${DbScale} cls="lvs" db=${view.db} />
+        <${DbScale} cls="lvs" db=${view.levels} />
         ${names.map((name) => html`<${Bar} name=${name} />`)}
         ${
           !view.slim &&
@@ -171,29 +209,6 @@ function Levels({ view }) {
           </div>
         `
         }
-      </div>
-    </div>
-  `;
-}
-
-/**
- * The Range column: its label over the stacked switch, the page's range lit; tapping another writes it.
- *
- * @param {{ range: number }} props
- */
-function RangeColumn({ range }) {
-  return html`
-    <div class="mrange">
-      <div class="lbl"><span class="eng">Range</span><span class="u">dB</span></div>
-      <div class="seg view vert" role="radiogroup" aria-label="Range, dB" data-testid="page-range">
-        ${PAGE_RANGES.map((v) => {
-          const on = v === String(range);
-          return html`
-            <button type="button" class=${on ? "on" : undefined} data-v=${v} onClick=${() => on || setPageRange(v)}>
-              ${v}
-            </button>
-          `;
-        })}
       </div>
     </div>
   `;
@@ -320,7 +335,6 @@ export function SourceMeter() {
   return html`
     <div class="pmeter" data-meter=${view.state} ref=${root}>
       <div class="mblk mtop">
-        <${RangeColumn} range=${view.range} />
         <${Spectrum} view=${view} plot=${plot} fx=${fx} sgl=${sgl} />
         <${Levels} view=${view} />
       </div>
