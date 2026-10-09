@@ -7,10 +7,10 @@
 //
 // A bin carries the playback it observed, in milliseconds: how far the daemon's
 // position moved since the frame before it (playedMs in lib/apodscale.js). The
-// page's poll cadence is not that width. The daemon publishes Status on its own
-// clock, near 2 s, and the browser delays or holds back the page's timer. A
-// window of W seconds is the newest run of bins whose widths sum to no more
-// than W.
+// page's poll cadence is not that width. The daemon's Status is playback-tied,
+// at about 1 to 2 Hz, and the browser delays or holds back the page's timer. A
+// window of W seconds shows the playback of the W seconds before the strip's
+// right edge, and each bin the part of its playback that falls inside them.
 //
 // Visibility is stateful, not a threshold on the current reading: the strip
 // appears on the first event of a track and stays up for as long as playback
@@ -28,11 +28,10 @@
 import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { engineStatus } from "./signals.js";
-import { apodWindow } from "./ui/prefs.js";
 
 const PLAYING = 2;
 
-// About two hours of bins at the daemon's 2 s Status clock. Past this the oldest
+// At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
 // go: the strip is a monitor, not a record, and an unbounded array on a track
 // that never ends (a radio stream carries one serial indefinitely) is a leak.
 const MAX_BINS = 3600;
@@ -170,9 +169,9 @@ function rollTrack(st) {
 // into this track's first interval.
 //
 // A frame whose position has not moved since the last recorded one observed no
-// playback, whatever its counter says. The page's poll clock and the daemon's
-// own Status clock both run near 2 s and drift against each other, so a poll
-// lands on an unmoved frame every so often. Such a frame records no bin and
+// playback, whatever its counter says. The page's poll clock drifts against the
+// daemon's Status, which is playback-tied at about 1 to 2 Hz, so a poll lands on
+// an unmoved frame every so often. Such a frame records no bin and
 // leaves the baseline where it was, so any events it counted land in the next
 // bin. A position that moved while the counter held is a genuine quiet interval
 // and is recorded as the zero it is.
@@ -197,19 +196,3 @@ function accumulate(st) {
   track.value = { ...t, apodPrev: apod, posPrev: st.position, sawEvent: t.sawEvent || n > 0 };
   if (n > 0 && !visible.peek()) visible.value = true;
 }
-
-// The slice the strip draws: the newest bins that fit the chosen window, walked
-// back from the right edge (now) until the next bin would overflow it. A window
-// narrower than its newest bin therefore shows nothing, which is the truthful
-// answer — that window holds no complete observation.
-export const apodVisibleBins = computed(() => {
-  const all = apodBins.value;
-  const budget = (num(apodWindow.value) || 0) * 1000;
-  let used = 0;
-  let i = all.length;
-  while (i > 0 && used + all[i - 1].ms <= budget) {
-    used += all[i - 1].ms;
-    i--;
-  }
-  return all.slice(i);
-});

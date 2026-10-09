@@ -1,6 +1,6 @@
 // Behavioral suite for store/apodhistory.js — the per-track history of
-// apodizing-event counts behind the Engine Health card's density strip, its
-// auto-hide flag, and the window slice.
+// apodizing-event counts behind the Engine Health card's density strip, and its
+// auto-hide flag.
 //
 // The seam is the same one store/health.js is driven through
 // (tests/js/store/live/health.test.js): a poll is a FRESH object written to
@@ -28,14 +28,6 @@
 //      append two bins per poll. The disposer case runs LAST, deliberately:
 //      it tears the effect down and nothing after it would record anything.
 //
-// setApodWindow() is called here without installing the storage fake from
-// tests/js/support/storage.js, and that is deliberate rather than an oversight:
-// this process has no localStorage at all, which is prefs.js's storage-disabled
-// path — it warns once at import and every setter still moves its signal in
-// memory (pinned by tests/js/store/prefs.test.js). Persistence itself is not
-// this file's subject; it is pinned in tests/js/store/apodwindow-*.test.js,
-// which do install the fake.
-//
 // The daemon's `position` is read for three purposes: the playback a bin
 // observed, telling a frame the daemon handed over twice from an interval in
 // which nothing happened, and telling a track that ended on its own from one
@@ -49,8 +41,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { initApodHistory, apodBins, apodVisibleBins } from "../../../../hqptuner/static/store/apodhistory.js";
+import { initApodHistory, apodBins } from "../../../../hqptuner/static/store/apodhistory.js";
 import {
   STOPPED,
   PAUSED,
@@ -218,9 +209,9 @@ test("test_a_counter_holding_level_while_the_position_advances_is_not_a_track_ch
 });
 
 // --- a repeated frame is one observation, not an interval ------------------------
-// The page's poll clock and the daemon's own update clock both run near 2s and
-// drift against each other, so a poll sometimes returns the frame it already
-// returned. stall() builds those frames: the position stays where it was, which
+// The page's poll clock drifts against the daemon's Status, which is
+// playback-tied at about 1 to 2 Hz, so a poll sometimes returns the frame it
+// already returned. stall() builds those frames: the position stays where it was, which
 // is what tells a handed-over repeat from a quiet interval that really happened.
 
 test("test_a_frame_repeating_the_counter_and_the_position_appends_no_bin", () => {
@@ -298,54 +289,6 @@ test("test_a_longer_step_records_a_wider_bin", () => {
 // The same rule answers to the wider definition of a track ending: a track that
 // counted nothing retires the strip when it ends, and "ends" includes a boundary
 // the serial never reported.
-
-// --- the window slice ---------------------------------------------------------------
-// The slice keeps the newest bins whose recorded widths sum to no more than the
-// window. Where every bin carries the same width, how many fit is plain
-// division; the mixed case below is the one that tells that apart from a slice
-// of a fixed number of bins.
-
-for (const seconds of [30, 60, 120, 300]) {
-  test(`test_the_window_keeps_the_bins_whose_recorded_widths_fit_it: ${seconds}s`, () => {
-    setPollStep(1);
-    setApodWindow(String(seconds));
-    const fits = Math.floor((seconds * 1000) / STEP_MS);
-    feed(series(fits + 20, () => 1));
-    assert.equal(apodVisibleBins.value.length, fits);
-  });
-}
-
-test("test_the_window_slice_is_the_newest_bins_ordered_oldest_first", () => {
-  setPollStep(1);
-  setApodWindow("30");
-  const fits = Math.floor(30000 / STEP_MS);
-  const deltas = feed(series(fits + 5, (i) => (i % 7) + 1));
-  assert.deepEqual(counts(apodVisibleBins.value), deltas.slice(-fits));
-});
-
-test("test_the_window_spends_each_bins_own_width_when_the_step_changed_mid_track", () => {
-  // One track, two widths: an older stretch of two-second bins and a newer
-  // stretch of one-second bins. The window is spent newest-first — the narrow
-  // bins are cheap, so more of them fit than the count a single-width reading
-  // would allow, and the cut lands INSIDE the older stretch. Any implementation
-  // that slices by a fixed number of bins, or that reads one width for the whole
-  // array, lands somewhere else.
-  setPollStep(2);
-  setApodWindow("30");
-  const fast = 10;
-  const slowFits = Math.floor((30000 - fast * 1000) / 2000);
-  const older = feed(series(slowFits + 15, (i) => (i % 5) + 1));
-  setPollStep(1);
-  const newer = append(series(fast, (i) => (i % 3) + 1));
-  assert.deepEqual(counts(apodVisibleBins.value), [...older, ...newer].slice(-(slowFits + fast)));
-});
-
-test("test_a_history_shorter_than_the_window_is_shown_whole", () => {
-  setPollStep(1);
-  setApodWindow("300");
-  const deltas = feed([1, 0, 2, 3]);
-  assert.deepEqual(counts(apodVisibleBins.value), deltas);
-});
 
 // --- the retention cap ---------------------------------------------------------------
 

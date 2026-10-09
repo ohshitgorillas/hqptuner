@@ -2,15 +2,18 @@
 // meter's two canvases are painted with as the history grows. The first paint covers the spectrogram's full width; a
 // close that moves the window by whole columns moves the canvas's pixels left by that many and paints only the new
 // columns and the seam column before them; a close too short to move a column paints nothing; a change of range
-// repaints the full width; and no spectrogram close repaints the apodizing strip. While the Source drawer is closed
-// neither canvas is painted, and reopening it paints the spectrogram's full width once.
+// repaints the full width; and a spectrogram close repaints the apodizing strip, whose right edge moves on with the
+// spectrogram's. While the Source drawer is closed neither canvas is painted, and reopening it paints the
+// spectrogram's full width once.
 //
 // The hook is mounted through preact's own client render on a container with no children, since server rendering
 // runs no effects; the render compares its container against the document tests/js/support/domseam.js installs. Effects after paint are run through preact's `options.requestAnimationFrame` seam, which the test
 // flushes by hand once the render returns, so no frame timer runs. The canvases are fakes whose 2D context records
 // each `putImageData` (its x and the image's width) and each `drawImage` (whether it draws the canvas onto itself,
 // and how far it moves the pixels). Frames arrive at the wire, through the EventSource fake and `openMeterFeed`, on a
-// clock that never moves, and each is handed to the history as the meter loop hands its frames out.
+// clock that never moves, and each is handed to the history as the meter loop hands its frames out. The apodizing
+// history and the spectrogram's clearing rule are registered once for the file; a case that needs a bin under the
+// strip polls for one through the poll seam (tests/js/support/apodpolls.js).
 //
 // The window is 60 s unless a case says otherwise, so one of the spectrogram's columns is 50 ms of frame time; at
 // 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colours are paint.js's fallbacks; no case
@@ -40,6 +43,9 @@ import {
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { poll } from "../../support/apodpolls.js";
+import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 
 /** @typedef {{ x: number, width: number }} Put */
 /** @typedef {{ self: boolean, offset: number }} Draw */
@@ -81,6 +87,9 @@ function fakeCanvas(width, height) {
   };
   return canvas;
 }
+
+initApodHistory();
+initSpectrogram();
 
 /** @type {(() => void) | null} */
 let unmount = null;
@@ -198,11 +207,17 @@ test("test_a_change_of_range_repaints_the_full_width", () => {
   ]);
 });
 
-test("test_a_spectrogram_close_never_repaints_the_strip", () => {
+test("test_a_spectrogram_close_repaints_the_strip", () => {
+  poll();
+  poll();
   const { strip } = mounted();
   frame(200);
   frame(100);
-  assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
+  assert.deepEqual(strip.puts, [
+    { x: 0, width: STRIP_WIDTH },
+    { x: 0, width: STRIP_WIDTH },
+    { x: 0, width: STRIP_WIDTH },
+  ]);
 });
 
 test("test_closes_that_would_move_whole_columns_put_nothing_while_the_drawer_is_closed", () => {

@@ -1,6 +1,7 @@
 // Suite for store/meter/spectrogram.js: slices built from decoded feed bins as 480 rows of bytes per channel and
 // summed, closed into the history once the frames folded into each cover 25 ms of frame time, kept for 300 s, laid
-// along the time axis by that frame time, and cleared by a track change and a geometry change.
+// along the time axis by that frame time, and cleared by a track change and a geometry change; and the apodizing
+// strip's right edge, carried forward on that frame time from the newest bin less the output delay.
 //
 // Frames reach the store through addSpectrumFrame with the decoded channel shape; a track change through the poll
 // seam (tests/js/support/apodpolls.js), which empties the apodizing history and the slices with it. Each case starts
@@ -16,12 +17,13 @@ import {
   initSpectrogram,
   spectrogramCells,
   spectrogramEnd,
+  stripEnd,
   visibleCells,
 } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { setApodWindow, setMeterChannel } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { useStorage } from "../../support/storage.js";
-import { newTrack, poll } from "../../support/apodpolls.js";
+import { newTrack, poll, setPollStep } from "../../support/apodpolls.js";
 
 const ROWS = 480;
 const NYQUIST = 24000;
@@ -142,6 +144,7 @@ beforeEach(() => {
   setMeterChannel("sum");
   initApodHistory();
   initSpectrogram();
+  setPollStep(1);
   newTrack();
   poll();
 });
@@ -296,4 +299,25 @@ test("test_a_cell_draws_the_picked_channel", () => {
 
 test("test_a_cell_falls_back_to_the_sum_where_its_slice_lacks_the_picked_channel", () => {
   assert.equal(visibleCells([slice(200, 40)], 30000, "5")[0].slices[0][0], 42);
+});
+
+// --- the apodizing strip's right edge ------------------------------------------------------------------------------
+// Each case starts on a track whose first bin ends 2 s in, with no output delay reported and no slice closed since.
+
+test("test_the_strip_edge_moves_on_with_the_frame_time_the_spectrogram_closes", () => {
+  feedTiny(25, 40);
+  assert.equal(stripEnd.value, 3000);
+});
+
+test("test_the_strip_edge_runs_the_reported_output_delay_behind_the_newest_bin", () => {
+  newTrack({ output_delay: "500000" });
+  poll({ output_delay: "500000" });
+  assert.equal(stripEnd.value, 1500);
+});
+
+test("test_a_poll_far_from_the_carried_strip_edge_moves_it_to_the_poll", () => {
+  feedTiny(25, 40);
+  setPollStep(5);
+  poll();
+  assert.equal(stripEnd.value, 7000);
 });

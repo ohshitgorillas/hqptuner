@@ -6,6 +6,11 @@
 // change clears the apodizing history (store/apodhistory.js), and the slices
 // with it; nothing else does.
 //
+// The apodizing strip ends where the spectrogram ends: its right edge is
+// carried forward on the frame time the history closes (model/gauges/stripedge.js).
+// Each new bin aligns it to where the bin says it should stand, the bin's end
+// less the effective delay the frames are paced behind (store/meter/delay.js).
+//
 // A slice keeps every channel's levels and their power-average sum, so the
 // channel picker redraws the whole history, each as ROWS rows from 0 Hz to the
 // Nyquist it was measured at, one byte a row at ROW_STEP_DB below full scale,
@@ -14,8 +19,10 @@
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter.js";
+import { alignStrip, stripEdge } from "../../model/gauges/stripedge.js";
 import { apodBins } from "../apodhistory.js";
 import { apodWindow, meterChannel } from "../ui/prefs.js";
+import { effectiveDelay } from "./delay.js";
 
 // A slice per FINE_MS of playback, as fine as the 30 s window's pixel columns,
 // kept for FINE_SPAN_MS, the widest window.
@@ -25,6 +32,7 @@ const FINE_SPAN_MS = 300000;
 const ROWS = 480;
 const ROW_STEP_DB = 1.2;
 const ROW_MAX = 250;
+const MS_PER_S = 1000;
 
 /** @typedef {import("./feed.js").Geometry} Geometry */
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
@@ -47,6 +55,7 @@ const ROW_MAX = 250;
  * @property {number} count  frames in the slice in hand
  * @property {number} frameMs  frame time of the slice in hand
  */
+/** @typedef {import("../../model/gauges/stripedge.js").StripAnchor} StripAnchor */
 
 /**
  * @param {number} sliceMs
@@ -69,6 +78,7 @@ const fine = history(FINE_MS, (h) => {
 const version = signal(0);
 /** @type {Geometry | null} */
 let geoHeld = null;
+const anchor = signal(/** @type {StripAnchor | null} */ (null));
 
 const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
 const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
@@ -177,14 +187,20 @@ let dispose = null;
 
 /**
  * Register the clearing rule once, and hand back its disposer: an empty
- * apodizing history is a new track, and the slices go with it.
+ * apodizing history is a new track, and the slices and the strip's edge go
+ * with it; each new bin aligns the strip's edge.
  *
  * @returns {() => void}
  */
 export function initSpectrogram() {
   if (dispose) return dispose;
   const registered = effect(() => {
-    if (apodBins.value.length) return;
+    const last = apodBins.value.at(-1);
+    if (last) {
+      anchor.value = alignStrip(anchor.peek(), { at: last.at - effectiveDelay.peek() * MS_PER_S, end: fine.end });
+      return;
+    }
+    anchor.value = null;
     clearHistory();
   });
   dispose = registered;
@@ -233,4 +249,11 @@ export const spectrogramCells = computed(() => {
 export const spectrogramEnd = computed(() => {
   version.value;
   return fine.end;
+});
+
+/** The track position, ms, the apodizing strip's right edge shows; null while the track has no bin. */
+export const stripEnd = computed(() => {
+  version.value;
+  const a = anchor.value;
+  return a ? stripEdge(a, fine.end) : null;
 });

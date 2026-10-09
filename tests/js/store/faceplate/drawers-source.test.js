@@ -2,7 +2,7 @@
 // stream. Which of the meter or a no-stream line shows (metering off, nothing playing, the feed silent while it plays,
 // a silent DSD source with the matrix off), the linear frequency axis ending at the source Nyquist, the channel
 // switch's choices and pick, the time window both charts share and its axis, and the apodizing strip's events per pixel
-// column.
+// column, laid back from the right edge the caller hands in.
 //
 // The stream reaches the store at the wire: METER feed events through the EventSource fake
 // (tests/js/support/eventsource.js), playback through fresh /api/status objects, the apodizing history through the poll
@@ -168,31 +168,36 @@ const bin = (ms, n, at) => ({ ms, n, at });
 
 test("test_a_bins_events_land_under_the_playback_it_observed", () => {
   const bins = [bin(1000, 0, 1000), bin(1000, 2, 2000)];
-  assert.deepEqual(Array.from(stripEvents(bins, 2000, 4)), [0, 0, 1, 1]);
-});
-
-test("test_the_strip_ends_on_the_newest_bin", () => {
-  const bins = [bin(1000, 4, 1000), bin(1000, 0, 2000), bin(1000, 0, 3000)];
-  assert.deepEqual(Array.from(stripEvents(bins, 2000, 2)), [0, 0]);
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 4, 2000)), [0, 0, 1, 1]);
 });
 
 test("test_a_lone_event_in_a_wide_interval_still_marks_the_strip", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(4000, 1, 4000)], 4000, 4)), [1, 1, 1, 1]);
+  assert.deepEqual(Array.from(stripEvents([bin(4000, 1, 4000)], 4000, 4, 4000)), [1, 1, 1, 1]);
 });
 
 test("test_a_denser_interval_draws_hotter_than_a_sparser_one", () => {
-  const strip = stripEvents([bin(1000, 2, 1000), bin(1000, 4, 2000)], 2000, 2);
+  const strip = stripEvents([bin(1000, 2, 1000), bin(1000, 4, 2000)], 2000, 2, 2000);
   assert.ok(strip[1] > strip[0]);
 });
 
 test("test_a_burst_caps_at_the_strips_hottest_colour", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(1000, 100, 1000)], 1000, 2)), [3, 3]);
+  assert.deepEqual(Array.from(stripEvents([bin(1000, 100, 1000)], 1000, 2, 1000)), [3, 3]);
 });
 
 test("test_an_empty_history_draws_a_blank_strip", () => {
-  assert.deepEqual(Array.from(stripEvents([], 60000, 4)), [0, 0, 0, 0]);
+  assert.deepEqual(Array.from(stripEvents([], 60000, 4, 0)), [0, 0, 0, 0]);
 });
 
 test("test_a_window_wider_than_the_history_leaves_its_head_blank", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(1000, 3, 1000)], 2000, 2)), [0, 3]);
+  assert.deepEqual(Array.from(stripEvents([bin(1000, 3, 1000)], 2000, 2, 1000)), [0, 3]);
+});
+
+test("test_a_strip_ending_past_the_newest_bin_leaves_the_unobserved_stretch_blank", () => {
+  const bins = [bin(1000, 3, 1000), bin(1000, 3, 2000)];
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 4, 2500)), [2, 2, 2, 0]);
+});
+
+test("test_a_bin_straddling_the_left_edge_shows_the_part_still_inside_the_window", () => {
+  const bins = [bin(2000, 6, 2000), bin(2000, 0, 4000)];
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 2, 3000)), [3, 0]);
 });

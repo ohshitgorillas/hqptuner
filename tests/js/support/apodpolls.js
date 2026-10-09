@@ -9,9 +9,9 @@
 // not notify, so every simulated poll builds a new one.
 //
 // `position` advances on every poll, the way it does while the daemon is
-// playing. That matters beyond realism: the page's poll clock and the daemon's
-// own update clock both run near 2s and drift, so a poll sometimes returns the
-// frame it already returned, and a repeated frame is one observation handed over
+// playing. That matters beyond realism: the page's poll clock drifts against the
+// daemon's Status, which is playback-tied at about 1 to 2 Hz, so a poll sometimes
+// returns the frame it already returned, and a repeated frame is one observation handed over
 // twice rather than an interval in which nothing happened. A fixture that left
 // `position` off would make every frame it builds look like a repeat of the last
 // one. Frames that DO repeat are asked for explicitly, through stall(), and

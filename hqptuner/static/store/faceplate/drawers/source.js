@@ -3,7 +3,9 @@
 // channel drawn, the colour span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
 //
-// The window is one span for both charts, the chosen seconds. Both charts end on the newest playback they hold.
+// The window is one span for both charts, the chosen seconds. Both end on the same playback: the spectrogram on the
+// newest slice it holds, the strip on that slice's track position (store/meter/spectrogram.js stripEnd), which runs
+// past the newest apodizing bin into playback no Status has observed yet, drawn blank.
 
 import { truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
@@ -116,20 +118,21 @@ function spread(acc, b, left, w) {
 }
 
 /**
- * The apodizing strip's level at each of `cols` pixel columns across a window of `span` ms ending on the newest bin:
- * 0 where no event fell, else the events under the column rounded, at least 1 and at most the strip's hottest.
+ * The apodizing strip's level at each of `cols` pixel columns across a window of `span` ms ending on track position
+ * `end`: 0 where no event fell or no bin has observed the playback yet, else the events under the column rounded, at
+ * least 1 and at most the strip's hottest.
  *
  * @param {{ ms: number, n: number, at: number }[]} bins  oldest first, `at` the track position in ms each ends on
  * @param {number} span  ms
  * @param {number} cols
+ * @param {number} end  ms, the track position the right edge shows
  * @returns {Uint8Array}
  */
-export function stripEvents(bins, span, cols) {
+export function stripEvents(bins, span, cols, end) {
   const acc = new Float64Array(cols);
-  const last = bins.at(-1);
-  if (last && span > 0) {
-    const left = last.at - span;
-    for (const b of bins) if (b.ms > 0 && b.n > 0) spread(acc, b, left, span / cols);
+  if (span > 0) {
+    const left = end - span;
+    for (const b of bins) if (b.ms > 0 && b.n > 0 && b.at > left) spread(acc, b, left, span / cols);
   }
   return Uint8Array.from(acc, (ev) => (ev > 0 ? Math.min(MAX_EVENTS, Math.max(1, Math.round(ev))) : 0));
 }

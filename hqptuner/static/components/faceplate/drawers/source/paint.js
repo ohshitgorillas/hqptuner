@@ -1,20 +1,20 @@
 // The Source meter's two canvases, painted outside preact's render, each by a signals effect of its own. The
 // spectrogram scrolls: a slice closing moves the painted pixels left by the columns its playback covers and paints only
 // those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of channel, range, window or the
-// source's geometry repaints it whole. The apodizing strip repaints when its events or the window change. Neither is
-// painted while the Source drawer is closed, nor subscribed to what it paints, and reopening the drawer repaints the
-// spectrogram whole. Colours
-// come from the stylesheet's tokens, read once on mount: the spectrogram's --spec-* ramp, the glass where no slice
-// lies, and the strip's events from the glass toward --bad.
+// source's geometry repaints it whole. The apodizing strip repaints whole when its events, the window or its right
+// edge change, and its edge moves on with every slice the spectrogram closes (store/meter/spectrogram.js stripEnd), so
+// the two scroll together. Neither is painted while the Source drawer is closed, nor subscribed to what it paints, and
+// reopening the drawer repaints the spectrogram whole. Colours come from the stylesheet's tokens, read once on mount:
+// the spectrogram's --spec-* ramp, the glass where no slice lies, and the strip's events from the glass toward --bad.
 
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { H, W, rasterize, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp } from "../../../../model/gauges/meter-plot.js";
-import { apodVisibleBins } from "../../../../store/apodhistory.js";
+import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";
-import { spectrogramCells, spectrogramEnd } from "../../../../store/meter/spectrogram.js";
+import { spectrogramCells, spectrogramEnd, stripEnd } from "../../../../store/meter/spectrogram.js";
 import { rgb, specRamp } from "../../tokencolours.js";
 
 /** @typedef {[number, number, number]} Triple */
@@ -98,12 +98,12 @@ function scrollLeft(canvas, shift) {
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Colours} colours
- * @param {number} span  ms
+ * @param {{ span: number, end: number }} at  ms, the window and the track position its right edge shows
  */
-function paintStrip(canvas, colours, span) {
+function paintStrip(canvas, colours, at) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const events = stripEvents(apodVisibleBins.value, span, canvas.width);
+  const events = stripEvents(apodBins.value, at.span, canvas.width, at.end);
   const img = ctx.createImageData(canvas.width, 1);
   events.forEach((n, x) => put(img.data, x, colours.strip[n]));
   ctx.putImageData(img, 0, 0);
@@ -142,7 +142,7 @@ export function useMeterPaint(spec, strip) {
       }
     });
     const stripe = effect(() => {
-      if (openStage.value === STAGE) paintStrip(a, colours, sourceMeter().span);
+      if (openStage.value === STAGE) paintStrip(a, colours, { span: sourceMeter().span, end: stripEnd.value ?? 0 });
     });
     return () => {
       spectrogram();
