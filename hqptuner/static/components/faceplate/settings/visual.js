@@ -1,16 +1,9 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages. Display holds the spectrum-style pick, the option-style and apodizing-indicator
-// switches, the spectrum delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks,
-// then the block hiding chain stages.
+// that writes at once and never stages. Display holds the option-style and apodizing-indicator switches, the spectrum
+// delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks, then the block hiding
+// chain stages.
 
-import {
-  apodLight,
-  plainNames,
-  setApodLight,
-  setPlainNames,
-  setSpectrumStyle,
-  spectrumStyle,
-} from "../../../store/ui/prefs.js";
+import { apodLight, plainNames, setApodLight, setPlainNames } from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
 import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
 import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "../../../store/ui/faceplate.js";
@@ -20,7 +13,6 @@ import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "
 /** @typedef {{ v: string, label: string }} Opt */
 
 const MAN = {
-  spec: "Adjust how the spectrum is drawn.",
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
   apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
@@ -30,14 +22,6 @@ const MAN = {
   dyslexic: "Use a dyslexic-friendly font (Atkinson Hyperlegible) for non-monospace text.",
 };
 
-/** @type {Opt[]} */
-const SPECTRA = [
-  { v: "trace", label: "Trace" },
-  { v: "bars", label: "Bars" },
-  { v: "soft", label: "Soft bars" },
-  { v: "ridges", label: "Ridges" },
-  { v: "aurora", label: "Aurora" },
-];
 /** @type {Opt[]} */
 const OFF_ON = [
   { v: "0", label: "Off" },
@@ -79,7 +63,6 @@ const fieldOptions = (opts) => opts.map(({ v, label }) => ({ value: v, label }))
 /** @param {boolean} on */
 const bit = (on) => (on ? "1" : "0");
 
-const specValue = () => spectrumStyle.value;
 const styleValue = () => (plainNames.value ? "simplified" : "standard");
 const apodValue = () => apodLight.value;
 const dysValue = () => bit(dyslexic.value);
@@ -96,16 +79,6 @@ export const VISUAL_DRAWER = {
       id: "display",
       label: "Display",
       body: [
-        {
-          field: {
-            id: "vspec",
-            label: "Spectrum style",
-            man: [MAN.spec],
-            options: fieldOptions(SPECTRA),
-            value: specValue,
-            set: setSpectrumStyle,
-          },
-        },
         {
           field: {
             id: "vstyle",
@@ -172,7 +145,6 @@ export const VISUAL_DRAWER = {
 
 /** @type {readonly SettingsReadout[]} */
 export const VISUAL_READOUTS = [
-  { id: "vspec", label: "Spectrum style", control: { type: "seg", options: SPECTRA }, value: specValue },
   { id: "vstyle", label: "Option style", control: { type: "seg", options: STYLES }, value: styleValue },
   { id: "vapod", label: "Apodizing indicator", control: { type: "seg", options: APOD }, value: apodValue },
   {

@@ -1,6 +1,6 @@
 // Painter suite for hqptuner/static/components/faceplate/page/sourcepaint.js: what one paint writes into the page's
-// Source section. Given a meter scene and the page's Range, the spectrum's trace, its held peaks and its filled area,
-// each level bar's peak, RMS and hold, and the readings table's held peak and RMS.
+// Source section. Given a meter scene and the page's Range, the spectrum's trace, its held peaks and its filled area;
+// given the Levels floor, each level bar's peak, RMS and hold; and the readings table's held peak and RMS.
 //
 // The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″, so the
 // readings table is drawn. The painter needs a live element to write into, and node has none: the rendered markup is
@@ -24,6 +24,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -35,6 +36,26 @@ import { attr, elements, text } from "../../support/markup.js";
 
 const COLS = 600; // the trace's columns, store/meter/loop.js TRACE_COLS
 const PLOT_H = 170;
+
+// The page's Ranges at either end of the offered set, in dB.
+const NARROW_RANGE = 120;
+const WIDE_RANGE = 300;
+
+// The Levels floors the owner offers, as the store holds them, in dBFS.
+const FLOOR_48 = "-48";
+const FLOOR_60 = "-60";
+const FLOOR_90 = "-90";
+
+/** @type {{ setMeterFloor?(v: string): void }} */
+const floorStore = uiPrefs;
+
+/**
+ * Pick the Levels floor `v` through the store's setter; read off the module namespace with optional access, so a store
+ * without one fails the floor cases on their assertions.
+ *
+ * @param {string} v
+ */
+const pickFloor = (v) => floorStore.setMeterFloor?.(v);
 
 // --- the element tree ----------------------------------------------------------------------------------------------
 
@@ -343,40 +364,57 @@ test("test_the_area_is_the_trace_closed_down_to_the_baseline", () => {
 
 // --- the bars ------------------------------------------------------------------------------------------------------
 
-test("test_each_bars_peak_fills_it_from_a_120_db_floor", () => {
-  const root = painted(scene({ levels: [{ peak: -30 }, { peak: -60 }] }), 120);
-  assert.deepEqual(bars(root, "pk", "height"), [75, 50]);
-});
-
 test("test_a_peak_over_full_scale_fills_its_bar", () => {
-  const root = painted(scene({ levels: [{ peak: 3 }, { peak: -45 }] }), 90);
+  pickFloor(FLOOR_90);
+  const root = painted(scene({ levels: [{ peak: 3 }, { peak: -45 }] }), WIDE_RANGE);
   assert.deepEqual(bars(root, "pk", "height"), [100, 50]);
 });
 
-test("test_each_bars_rms_fills_it_from_a_60_db_floor", () => {
+test("test_each_bars_peak_fills_it_from_the_levels_floor", () => {
+  pickFloor(FLOOR_60);
+  const root = painted(scene({ levels: [{ peak: -30 }, { peak: -45 }] }), WIDE_RANGE);
+  assert.deepEqual(bars(root, "pk", "height"), [50, 25]);
+});
+
+test("test_each_bars_rms_fills_it_from_the_levels_floor", () => {
+  pickFloor(FLOOR_90);
   const root = painted(
     scene({
       levels: [
         { peak: -3, rms: -45 },
-        { peak: -3, rms: -15 },
+        { peak: -3, rms: -9 },
       ],
     }),
-    60,
+    WIDE_RANGE,
   );
-  assert.deepEqual(bars(root, "rm", "height"), [25, 75]);
+  assert.deepEqual(bars(root, "rm", "height"), [50, 90]);
 });
 
-test("test_each_bars_hold_mark_sits_up_from_the_floor", () => {
+test("test_each_bars_hold_mark_sits_up_from_the_levels_floor", () => {
+  pickFloor(FLOOR_48);
   const root = painted(
     scene({
       levels: [
-        { peak: -40, hold: -6 },
-        { peak: -40, hold: -30 },
+        { peak: -40, hold: -12 },
+        { peak: -40, hold: -36 },
       ],
     }),
-    60,
+    WIDE_RANGE,
   );
-  assert.deepEqual(bars(root, "hd", "bottom"), [90, 50]);
+  assert.deepEqual(bars(root, "hd", "bottom"), [75, 25]);
+});
+
+test("test_a_peak_under_the_levels_floor_leaves_its_bar_empty", () => {
+  pickFloor(FLOOR_48);
+  const root = painted(scene({ levels: [{ peak: -70 }, { peak: -24 }] }), WIDE_RANGE);
+  assert.deepEqual(bars(root, "pk", "height"), [0, 50]);
+});
+
+test("test_changing_the_range_leaves_the_bars_where_they_were", () => {
+  pickFloor(FLOOR_60);
+  const sc = scene({ levels: [{ peak: -30 }, { peak: -45 }] });
+  const narrow = bars(painted(sc, NARROW_RANGE), "pk", "height");
+  assert.deepEqual(bars(painted(sc, WIDE_RANGE), "pk", "height"), narrow);
 });
 
 test("test_a_bar_with_a_reading_shows_its_hold_mark_and_one_without_hides_it", () => {
