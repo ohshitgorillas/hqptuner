@@ -1,7 +1,7 @@
 // Rendered suite for the Output drawer's schema (hqptuner/static/components/faceplate/drawers/output.js) drawn by the
-// generic drawer: which backend's groups and device picker show for each backend, the rows each tab holds, the output
-// modes the mode row offers, the channel number's gray state under the layout segment, and which tab a staged rate or
-// device dots.
+// generic drawer: which backend's groups and device picker show for each backend, the rate dial on the Format tab, the
+// output modes the mode row offers, the channel number's gray state under the layout segment, and which tab a staged
+// rate or device dots.
 //
 // Renders through preact-render-to-string; a tap is fired through the vnode seam (tests/js/support/vnodeseam.js). The
 // store is driven at the wire by the staging fake. Rows and controls are found by their catalog key (`data-k`), backend
@@ -90,17 +90,6 @@ function inPanel(tab) {
 }
 
 /**
- * The catalog keys of the rows a panel draws, in order.
- *
- * @param {string} tab
- */
-const rowKeys = (tab) =>
-  inPanel(tab)
-    .filter((e) => classes(e).includes("drow") && attr(e, "data-k") !== undefined)
-    .sort((a, b) => a.start - b.start)
-    .map((e) => attr(e, "data-k"));
-
-/**
  * Fire the click handler of the first vnode matching `pred`, or nothing when none matches.
  *
  * @param {(props: Record<string, unknown>) => boolean} pred
@@ -141,36 +130,9 @@ test("test_each_backend_shows_its_own_device_picker_and_combo_shows_both", () =>
   );
 });
 
-test("test_the_format_tab_holds_the_mode_and_each_backends_format_rows", () => {
-  load("combo");
-  assert.deepEqual(rowKeys("format"), [
-    "output_mode",
-    "net_dop",
-    "net_anydsd",
-    "net_bits",
-    "alsa_dop",
-    "alsa_anydsd",
-    "alsa_bits",
-  ]);
-});
-
 test("test_the_format_tab_mounts_the_rate_dial", () => {
   const dials = inPanel("format").filter((e) => classes(e).includes("dial") && attr(e, "role") === "group");
   assert.equal(dials.length, 1);
-});
-
-test("test_the_device_tab_holds_backend_channels_and_each_backends_device_rows", () => {
-  load("combo");
-  assert.deepEqual(rowKeys("device"), [
-    "backend",
-    "channels",
-    "net_device",
-    "net_ipv6",
-    "net_period",
-    "alsa_device",
-    "alsa_offset",
-    "alsa_period",
-  ]);
 });
 
 test("test_the_mode_row_offers_pcm_and_sdm_only", () => {

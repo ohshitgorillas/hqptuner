@@ -1,5 +1,5 @@
 // The Output drawer's schema and blocks. Format: the output mode (PCM or SDM (DSD) only), the rate dial over both
-// limits, then each backend's format rows with their band tags. Device: the backend, the Channels row, then each
+// limits, the Channels row, then each backend's format rows with their band tags. Device: the backend, then each
 // backend's device picker and device rows. Only the effective backend's groups and picker show; Combo shows all.
 //
 // Labels and paragraphs come from the settings metadata through the generic drawer; the strings below are the ones the
@@ -75,6 +75,7 @@ export const OUTPUT_DRAWER = {
       body: [
         { row: { key: "output_mode", options: MODE_OPTIONS } },
         { block: "dial", keys: ["pcm_rate", "sdm_rate"] },
+        { block: "channels", keys: ["channels"] },
         { group: "network", label: BACKEND_NAMES.network, rows: formatRows("net") },
         { group: "alsa", label: BACKEND_NAMES.alsa, rows: formatRows("alsa") },
       ],
@@ -84,7 +85,6 @@ export const OUTPUT_DRAWER = {
       label: "Device",
       body: [
         { row: { key: "backend" } },
-        { block: "channels", keys: ["channels"] },
         { block: "netdev", keys: ["net_device"] },
         {
           group: "network",
