@@ -10,6 +10,7 @@ from fastapi import FastAPI
 
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
+from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
@@ -40,21 +41,27 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
     if not host_is_unchosen(record):
         return
     try:
-        answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout)
+        answered = await probe(
+            cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, deadline=manager.clock
+        )
     except (OSError, ControlError):
         return
     cfg.hqp_host = answered.address
     manager.http_client = build_http_client(cfg)
 
 
-async def _finish(task: asyncio.Task[None], grace: float) -> None:
-    """Give a background task ``grace`` seconds to exit on its own stop flag, then cancel it.
+async def _finish(task: asyncio.Task[None], grace: float, clock: Clock) -> None:
+    """Give a background task ``grace`` seconds on ``clock`` to exit on its own stop flag, then cancel it.
 
     Shutdown must not wait on a daemon that has stopped answering: the poll loop's 8088 lane retries per request, so a
     wedged web server otherwise costs a full multiple of the request timeout.
     """
+    finished = asyncio.Event()
+    task.add_done_callback(lambda _: finished.set())
+    if not await clock.wait(finished, grace):
+        task.cancel()
     with contextlib.suppress(asyncio.CancelledError, TimeoutError):
-        await asyncio.wait_for(task, grace)
+        await task
 
 
 def make_lifespan(
@@ -99,15 +106,15 @@ def make_lifespan(
         yield
         manager.stop()
         if junkcal_task is not None:
-            await _finish(junkcal_task, 0)
+            await _finish(junkcal_task, 0, manager.clock)
         if autopilot_task is not None:
-            await _finish(autopilot_task, 0)
+            await _finish(autopilot_task, 0, manager.clock)
         if reader is not None and metering_task is not None:
             reader.stop()
             # no grace for the reader: it blocks in readexactly, which its stop flag
             # cannot interrupt, so waiting on it always costs the full grace
-            await _finish(metering_task, 0)
-        await _finish(task, SHUTDOWN_GRACE)
+            await _finish(metering_task, 0, manager.clock)
+        await _finish(task, SHUTDOWN_GRACE, manager.clock)
         live = manager.http_client
         # `aclose` closes the control lane and every retired 8088 client; the one still in service is ours.
         await manager.aclose()
