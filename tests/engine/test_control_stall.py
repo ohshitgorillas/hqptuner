@@ -9,10 +9,8 @@ layer has to call it a FAILED COMMAND rather than an internal error.
 
 The fake's `_stall` knob is that daemon: the command is received and logged, the
 connection stays open, and nothing comes back (fake_control.DEFAULTS). The
-per-command deadline is real wall clock — the virtualized clock in conftest
-covers the lanes' own waits only (docs/testing.md §7) — so every fixture here
-pins a small `request_timeout` and the cases assert on what came back, never on
-how long it took.
+per-command deadline runs on the app's virtual clock (docs/testing.md §7), and
+the cases assert on what came back, never on how long it took.
 """
 
 import logging
@@ -25,9 +23,8 @@ from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog
 from fastapi.testclient import TestClient
 
-#: The per-command deadline these cases wait out, in real seconds. Small because
-#: an unanswered command is only observable by the deadline expiring; production
-#: default is 5.0 (config.Config.request_timeout).
+#: The per-command deadline the app is built with, in virtual seconds. The cases
+#: here end on a dropped connection, never on this deadline running out.
 STALL_TIMEOUT = 0.5
 
 #: The manager's background poll, parked past the end of any case here, so the

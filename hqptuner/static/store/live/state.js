@@ -7,6 +7,7 @@
 
 import { signal, effect } from "@preact/signals";
 import { health } from "../signals.js";
+import { liveFailureText } from "../ui/wirelabels.js";
 
 // The control currently mid-write ("" = none), and the last error per control.
 // One error per control and latest wins: the page has no toast stack, and a
@@ -39,7 +40,7 @@ export const RATE_MIRRORED = new Set(["mode"]);
  * @typedef {object} LiveReport
  *   The report half of what POST /api/config/live answers with. The lane verifies each setter by
  *   State readback and reports per setting, so a 200 can still carry failures.
- * @property {{ ok: boolean, setting: string, error?: string }[]} [live]
+ * @property {{ ok: boolean, setting: string, error?: string, code?: string }[]} [live]
  * @property {Record<string, string>} [stored] edits HELD for a chain not loaded
  *
  * @typedef {object} LiveAnswer
@@ -75,13 +76,12 @@ export function setError(field, message) {
 // readback and reports per setting, so an entry that did not verify is this
 // control's error just as much as a thrown 409 is.
 /**
- * The message for the first setting in a report that did not verify, "" when every one
- * of them did.
+ * The message for the settings in a report that did not verify, each named by its
+ * UI label, "" when every one of them did.
  * @param {LiveReport} report
  * @returns {string}
  */
 export function reportError(report) {
-  const failed = ((report && report.live) || []).find((e) => !e.ok);
-  if (!failed) return "";
-  return failed.error || `${failed.setting} did not take`;
+  const fails = ((report && report.live) || []).filter((e) => !e.ok);
+  return fails.length ? liveFailureText(fails) : "";
 }

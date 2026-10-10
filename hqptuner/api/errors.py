@@ -15,7 +15,8 @@ A route never composes the sentence at the raise site: it hands ``refuse`` an
 from __future__ import annotations
 
 import inspect
-from typing import TYPE_CHECKING
+import logging
+from typing import TYPE_CHECKING, ClassVar
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import http_exception_handler
@@ -27,6 +28,8 @@ from hqptuner.errors import HQPTunerError
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from hqptuner.engine.controlerrors import ControlError
+
 # code -> HTTP status. Every code the API can answer with is here; the
 # vocabulary is documented for clients in docs/architecture.md "API errors".
 STATUS: dict[str, int] = {
@@ -35,6 +38,7 @@ STATUS: dict[str, int] = {
     "backup_failed": 500,
     "not_loaded": 503,
     "daemon_read_failed": 502,
+    "daemon_log_absent": 404,
     "daemon_write_failed": 502,
     "daemon_unavailable": 503,
     "daemon_refused": 503,
@@ -47,6 +51,7 @@ STATUS: dict[str, int] = {
     "stations_unknown": 422,
     "store_too_new": 409,
     "store_corrupt": 500,
+    "store_unwritable": 500,
     "archive_unreadable": 500,
     "state_unreadable": 422,
     "state_too_new": 409,
@@ -54,6 +59,7 @@ STATUS: dict[str, int] = {
     "route_refused": 409,
     "route_unknown": 404,
     "method_not_allowed": 405,
+    "internal_error": 500,
 }
 
 # The two refusals the framework raises on its own, before any route runs: no
@@ -61,6 +67,8 @@ STATUS: dict[str, int] = {
 # status the router raised, since that is all it says; STATUS still owns the
 # status of each code.
 _FRAMEWORK_CODES: dict[int, str] = {404: "route_unknown", 405: "method_not_allowed"}
+
+log = logging.getLogger(__name__)
 
 # What ``detail`` renders as: FastAPI's own field, either the sentence or the live lane's per-field reasons dict.
 type ErrorDetail = str | dict[str, str]
@@ -79,6 +87,21 @@ class ErrorBody:
         self.detail = detail
 
 
+class ControlFailedError(ErrorBody):
+    """A Control API error under the code it was raised with, its text led by the subclass's ``template``.
+
+    The route's lead clause says what HQPTuner was doing; the text after it is the error's own, unchanged, and so is
+    its code. Subclassed once per route, next to the route, with a ``template`` carrying ``{error}``.
+    """
+
+    template: ClassVar[str]
+
+    def __init__(self, *, error: ControlError) -> None:
+        """Render ``template`` around ``error``'s own text, and answer under ``error``'s own code."""
+        super().__init__(self.template.format(error=error))
+        self.code = error.code
+
+
 class NotLoadedError(ErrorBody):
     """Nothing has been read from the daemon on this snapshot yet."""
 
@@ -86,7 +109,7 @@ class NotLoadedError(ErrorBody):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("not yet loaded from daemon")
+        super().__init__("HQPTuner has not read HQPlayer's settings yet. Try again in a few seconds.")
 
 
 class InvalidInputError(ErrorBody):
@@ -107,6 +130,16 @@ class DaemonReadFailedError(ErrorBody):
     def __init__(self, *, error: Exception) -> None:
         """Render ``error``'s own message, naming no further fact."""
         super().__init__(str(error))
+
+
+class InternalError(ErrorBody):
+    """An exception no other handler maps: a defect, whose traceback is in the log rather than the answer."""
+
+    code = "internal_error"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("HQPTuner hit an unexpected error. The details are in its log.")
 
 
 class ApiError(HTTPException):
@@ -157,7 +190,13 @@ async def _render_framework(request: Request, exc: StarletteHTTPException) -> Re
     code = _FRAMEWORK_CODES.get(exc.status_code)
     if code is None:
         return await http_exception_handler(request, exc)
-    return JSONResponse({"detail": exc.detail, "code": code}, status_code=exc.status_code, headers=exc.headers)
+    path = request.url.path
+    detail = (
+        f"This HQPTuner has no {path}. Reload the page."
+        if code == "route_unknown"
+        else f"This HQPTuner cannot {request.method} {path}. Reload the page."
+    )
+    return JSONResponse({"detail": detail, "code": code}, status_code=exc.status_code, headers=exc.headers)
 
 
 def _render_error(_: Request, exc: HQPTunerError) -> Response:
@@ -167,11 +206,21 @@ def _render_error(_: Request, exc: HQPTunerError) -> Response:
     return JSONResponse({"detail": str(exc), "code": exc.code}, status_code=STATUS.get(exc.code, 500))
 
 
+def _render_unexpected(request: Request, exc: Exception) -> Response:
+    # Logged here, through the root logger, because the server's own report of the
+    # re-raise goes to uvicorn's logger and never reaches the in-memory ring.
+    log.error("unexpected error on %s %s", request.method, request.url.path, exc_info=exc)
+    body = InternalError()
+    return JSONResponse({"detail": body.detail, "code": body.code}, status_code=STATUS[body.code])
+
+
 def install(app: FastAPI) -> None:
     """Register the renderers so every refusal, the framework's own included, answers in the shared shape.
 
-    An ``HQPTunerError`` that escapes a route renders the same way, under its own code.
+    An ``HQPTunerError`` that escapes a route renders the same way, under its own code; any other exception
+    answers ``internal_error`` and logs its traceback.
     """
     app.add_exception_handler(ApiError, _handler(ApiError, _render))
     app.add_exception_handler(StarletteHTTPException, _handler(StarletteHTTPException, _render_framework))
     app.add_exception_handler(HQPTunerError, _handler(HQPTunerError, _render_error))
+    app.add_exception_handler(Exception, _handler(Exception, _render_unexpected))

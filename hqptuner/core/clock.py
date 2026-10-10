@@ -6,7 +6,8 @@ seconds.
 
 The waits come in two kinds because the two kinds of caller differ in what they are for. ``sleep`` and ``wait`` are
 a caller waiting on an outcome. ``pace`` is a background loop idling between passes. ``spawn`` starts such a loop,
-so a clock that advances itself knows every loop that paces on it from the moment it exists.
+so a clock that advances itself knows every loop that paces on it from the moment it exists. ``wait_for`` is a reply
+awaited under a deadline, the one every Control API connect, send and read waits under.
 """
 
 import asyncio
@@ -48,3 +49,4 @@ class Clock:
     pace: Callable[[asyncio.Event | None, float], Awaitable[bool]] = pace_until
     spawn: Callable[[Coroutine[Any, Any, None]], asyncio.Task[None]] = asyncio.create_task
     now: Callable[[], datetime] = utc_now
+    wait_for: Callable[[Awaitable[Any], float], Awaitable[Any]] = asyncio.wait_for

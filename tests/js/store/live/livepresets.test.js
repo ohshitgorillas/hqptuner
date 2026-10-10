@@ -190,6 +190,80 @@ test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
   assert.equal(livePresetsBusy.value, "");
 });
 
+// --- an apply the daemon failed, in the page's words ------------------------------
+// The card's error names each failed setting by the label the page gives it,
+// never by the daemon's form key. A refusal carries the daemon's own reason; a
+// setter the daemon stopped answering has none worth showing (the 200 report's
+// `{ok: false, error, code}` per setter, architecture.md §8.2). The fixture
+// invents both texts, so asserting them pins no shipped wording. Labels are copy
+// and stay out of every assertion (docs/testing.md rule 9): an error that names
+// its setting reads differently for two settings, and never shows a labelled
+// setting's form key.
+
+// The PCM chain's two filter slots, by form key, each owned by a control on the
+// page (tests/js/components/controls/combobox-favstars.test.js).
+const PCM_1X = "filter1x";
+const PCM_NX = "filter";
+const REASON = "invalid filter";
+const STALL = "SetFilter: no reply within 5.0s";
+
+/** @param {string} setting */
+const refusedSetter = (setting) => ({ setting, ok: false, code: "daemon_refused", error: REASON });
+/** @param {string} setting */
+const stalledSetter = (setting) => ({ setting, ok: false, code: "daemon_unavailable", error: STALL });
+
+/**
+ * The card's error after applying a preset whose setters answered `live`.
+ *
+ * @param {ReturnType<typeof refusedSetter>[]} live
+ * @returns {Promise<string>}
+ */
+async function failedApply(live) {
+  const den = { ...rec("Den", "pcm"), fields: { mode: "pcm", [PCM_1X]: "40", [PCM_NX]: "40", rate: "0" } };
+  reset({ presets: [den], report: { live, stored: {} } });
+  await applyLivePreset("Den");
+  return livePresetError.value;
+}
+
+test("test_refusals_of_two_different_preset_settings_read_differently", async () => {
+  const oneX = await failedApply([refusedSetter(PCM_1X)]);
+  const nX = await failedApply([refusedSetter(PCM_NX)]);
+  assert.notEqual(oneX, nX);
+});
+
+test("test_a_preset_setting_the_daemon_refused_is_shown_without_its_form_key", async () => {
+  const text = await failedApply([refusedSetter(PCM_1X)]);
+  assert.ok(!text.includes(PCM_1X), text);
+});
+
+// Keys no control on the page owns have no label to show, so each wire key stands in.
+const UNLABELLED = "no_control_owns_this_key";
+const ALSO_UNLABELLED = "nor_does_any_own_this_one";
+
+test("test_a_refused_preset_setting_no_control_owns_is_named_by_its_wire_key", async () => {
+  const text = await failedApply([refusedSetter(UNLABELLED)]);
+  assert.ok(text.includes(UNLABELLED), text);
+});
+
+test("test_every_preset_setting_the_daemon_stopped_answering_on_is_named", async () => {
+  const text = await failedApply([stalledSetter(UNLABELLED), stalledSetter(ALSO_UNLABELLED)]);
+  assert.deepEqual(
+    [UNLABELLED, ALSO_UNLABELLED].map((key) => text.includes(key)),
+    [true, true],
+    text,
+  );
+});
+
+test("test_a_preset_setting_the_daemon_stopped_answering_on_is_shown_without_its_form_key", async () => {
+  const text = await failedApply([stalledSetter(PCM_1X)]);
+  assert.ok(!text.includes(PCM_1X), text);
+});
+
+test("test_a_preset_setting_the_daemon_stopped_answering_on_does_not_show_the_setters_error", async () => {
+  const text = await failedApply([stalledSetter(PCM_1X)]);
+  assert.ok(!text.includes(STALL), text);
+});
+
 // --- saving and deleting --------------------------------------------------------
 
 // --- stations -------------------------------------------------------------------

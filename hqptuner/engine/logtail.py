@@ -14,10 +14,16 @@ from dataclasses import dataclass
 
 import httpx
 
+from hqptuner.conf.httpauth import HttpRefusedError
+from hqptuner.conf.httpconf import HttpOptions, hqplayer_request
 from hqptuner.conf.httpforms import ConfigForm
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
-_HTTP_TIMEOUT = 10.0  # httpx would otherwise default to 5.0
+_NO_LOG = 404  # HQPlayer's answer on /log when it has no log to serve
+
+
+class NoLogError(HttpRefusedError):
+    """HQPlayer answered its own log page 404: it has no log to serve."""
 
 
 def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
@@ -36,6 +42,25 @@ def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
         elif field.get("name") == "log_enabled":
             enabled = bool(field.get("value"))
     return path, enabled
+
+
+def _log_url(host: str, port: int) -> str:
+    """Return the URL of the log page of the daemon at ``host:port``."""
+    return f"http://{host}:{port}/log"
+
+
+async def _get_log(client: httpx.AsyncClient, host: str, port: int, options: HttpOptions) -> str:
+    """GET /log from the daemon at ``host:port`` on ``client``, built on ``options``.
+
+    A 404 raises ``NoLogError``, any other error status ``HttpRefusedError``.
+    """
+    with hqplayer_request(host, port, options.timeout):
+        resp = await client.get(_log_url(host, port))
+    if resp.status_code == _NO_LOG:
+        raise NoLogError(response=resp)
+    if not resp.is_success:
+        raise HttpRefusedError(response=resp)
+    return resp.text
 
 
 @dataclass(frozen=True)
@@ -59,43 +84,44 @@ class LogReader:
     Unauthenticated — the log page is not credential-gated. A whole log is the costliest read on that lane, so the
     last text fetched is held and served to any caller whose ``max_age`` it satisfies, and callers arriving while a
     fetch is in flight wait on that fetch rather than starting their own. The text is held against the URL it came
-    from: a caller naming another URL (the daemon moved) is never served the old daemon's log.
+    from: a caller naming another address (the daemon moved) is never served the old daemon's log.
     """
 
     def __init__(self, monotonic: Callable[[], float]) -> None:
-        """Build the client; ``monotonic`` is the clock a held text's age is measured on."""
+        """Build the client on the default ``HttpOptions``; ``monotonic`` is the clock a held text's age is on."""
         self._monotonic = monotonic
-        self._client = httpx.AsyncClient(timeout=_HTTP_TIMEOUT)
+        self._options = HttpOptions()
+        self._client = httpx.AsyncClient(timeout=self._options.timeout, transport=self._options.transport)
         self._held: _Held | None = None
         self._inflight: tuple[str, asyncio.Task[str]] | None = None
 
-    async def read(self, base_url: str, max_age: float = 0.0) -> str:
-        """Return the log text of the daemon at ``base_url``, fetched less than ``max_age`` seconds ago.
+    async def read(self, host: str, port: int, max_age: float = 0.0) -> str:
+        """Return the log text of the daemon at ``host:port``, fetched less than ``max_age`` seconds ago.
 
-        ``max_age`` 0 always fetches, or joins a fetch already in flight. A daemon that cannot be reached, or
-        answers with an error status, raises ``httpx.HTTPError``.
+        ``max_age`` 0 always fetches, or joins a fetch already in flight. A 404 raises ``NoLogError``, any other
+        error status ``HttpRefusedError``; a daemon that cannot be reached or does not answer in time raises
+        another ``httpx.HTTPError`` in HQPTuner's words.
         """
-        url = f"{base_url}/log"
+        url = _log_url(host, port)
         held = self._held
         if held is not None and held.url == url and self._monotonic() - held.at < max_age:
             return held.text
         if self._inflight is None or self._inflight[0] != url:
-            task = asyncio.ensure_future(self._fetch(url))
+            task = asyncio.ensure_future(self._fetch(host, port))
             task.add_done_callback(_settled)
             self._inflight = (url, task)
         # Shielded: one caller cancelled (a browser tab closing) must not cancel the fetch the others wait on.
         return await asyncio.shield(self._inflight[1])
 
-    async def _fetch(self, url: str) -> str:
-        """Fetch the log at ``url`` and hold it; the in-flight slot is freed whichever way the fetch ends."""
+    async def _fetch(self, host: str, port: int) -> str:
+        """Fetch the log at ``host:port`` and hold it; the in-flight slot is freed whichever way the fetch ends."""
         try:
-            resp = await self._client.get(url)
-            resp.raise_for_status()
+            text = await _get_log(self._client, host, port, self._options)
         finally:
             if self._inflight is not None and self._inflight[1] is asyncio.current_task():
                 self._inflight = None
-        self._held = _Held(url, resp.text, self._monotonic())
-        return resp.text
+        self._held = _Held(_log_url(host, port), text, self._monotonic())
+        return text
 
     async def aclose(self) -> None:
         """Close the client."""

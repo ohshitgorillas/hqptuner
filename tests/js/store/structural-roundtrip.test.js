@@ -16,7 +16,7 @@
 // are on the buffer the server ended up with (`W.staged`) and on the request
 // bodies it was handed (`W.stages`) — never on a store internal.
 //
-// Schema facts leaned on, as documented in store.test.js: `volume_max` is a
+// Schema facts leaned on, as documented in resolve.test.js: `volume_max` is a
 // plain http field, `quick_pause` is a checkbox whose config baseline is a bool
 // while staging speaks "1"/"0", and `matrix_pipelines` is the whole row set
 // staged as one canonical-JSON http field.

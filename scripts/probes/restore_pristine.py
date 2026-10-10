@@ -18,7 +18,7 @@ from pathlib import Path
 import httpx
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.engine.control import ControlClient
 
 HOST = os.environ.get("HQPTUNER_HQP_HOST", "127.0.0.1")
@@ -64,7 +64,7 @@ async def _run() -> int:
         raise CliError(message)
 
     want = engineconf.base_config_xml(pristine, active)
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     await _settle(http)
     await http.restore(pristine, scope="system")
     await _settle(http)

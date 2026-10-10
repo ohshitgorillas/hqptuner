@@ -14,9 +14,8 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
 from hqptuner.presets import presetlane
-from hqptuner.presets.store.autopilot import AutopilotSchemaError, AutopilotStore
+from hqptuner.presets.store.autopilot import AutopilotStore
 
 router = APIRouter(prefix="/api")
 
@@ -45,10 +44,7 @@ def autopilot(manager: Mgr) -> AutopilotReport:
     409 when the store on disk is stamped newer than this HQPTuner reads — reporting "off" would be a lie about a file
     that is there and full.
     """
-    try:
-        return _reported(manager.presetops.autopilot)
-    except AutopilotSchemaError as exc:
-        raise refuse(exc) from exc
+    return _reported(manager.presetops.autopilot)
 
 
 @router.post("/autopilot")
@@ -58,11 +54,8 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> AutopilotReport:
     Neither direction reads the engine: what is engaged when the switch is flipped has no bearing on what auto-pilot
     does next.
     """
-    try:
-        presetlane.switch_autopilot(manager, "switch", enabled=body.enabled)
-        # With auto-save armed, the active preset carries the switch too — otherwise loading that preset would
-        # restore the copy as it stood before this flip and undo it (presetlane.stamp_autopilot_on_active).
-        presetlane.stamp_autopilot_on_active(manager)
-        return _reported(manager.presetops.autopilot)
-    except AutopilotSchemaError as exc:
-        raise refuse(exc) from exc
+    presetlane.switch_autopilot(manager, "switch", enabled=body.enabled)
+    # With auto-save armed, the active preset carries the switch too — otherwise loading that preset would
+    # restore the copy as it stood before this flip and undo it (presetlane.stamp_autopilot_on_active).
+    presetlane.stamp_autopilot_on_active(manager)
+    return _reported(manager.presetops.autopilot)

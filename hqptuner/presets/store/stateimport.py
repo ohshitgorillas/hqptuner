@@ -295,7 +295,7 @@ def replace_stores(cfg: Config, carried: Carried, presets: PresetStore) -> list[
     written raises before any store is written.
     """
     presets.set_active(None)
-    paths = {name: getattr(cfg, attr) for attr, name, _ in Config.STORES}
+    paths = {store.name: getattr(cfg, store.attr) for store in Config.STORES}
     for name, data in carried.files.items():
         _replace_file(paths[name], data)
     if carried.presets is not None:

@@ -34,14 +34,14 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy-filtername.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easy-filtername.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { combos } from "../support/easy/easytable.js";
+import { combos } from "../../support/easy/easytable.js";
 
-const MOD = new URL("../../../hqptuner/static/store/easy/easy.js", import.meta.url).href;
+const MOD = new URL("../../../../hqptuner/static/store/easy/easy.js", import.meta.url).href;
 const easy = await import(`${MOD}`);
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */

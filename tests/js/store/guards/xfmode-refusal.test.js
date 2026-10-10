@@ -279,7 +279,7 @@ for (const [name, rows] of REFUSALS) {
 // changed by a call that reported it did nothing.
 //
 // Both settings are matrix-form controls, read back through `effective` under
-// their schema names (store.test.js: a matrix control reads the matrix form
+// their schema names (resolve.test.js: a matrix control reads the matrix form
 // under its bare name).
 
 const crossed = () => [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)];

@@ -11,11 +11,8 @@ all, and a path segment would make the route's shape depend on what they called 
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.errors import refuse
 from hqptuner.presets.store.descriptions import (
     DescriptionEntry,
-    DescriptionError,
-    DescriptionSchemaError,
     DescriptionStore,
 )
 
@@ -45,10 +42,7 @@ def descriptions(request: Request) -> dict[str, dict[str, DescriptionEntry]]:
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty map would be a lie about a file
     that is there and full.
     """
-    try:
-        return {"profiles": _store(request).read()}
-    except DescriptionSchemaError as exc:
-        raise refuse(exc) from exc
+    return {"profiles": _store(request).read()}
 
 
 @router.put("/descriptions")
@@ -58,9 +52,4 @@ def save_description(body: DescriptionBody, request: Request) -> dict[str, dict[
     One profile per write rather than the whole map, unlike favorites: a description is long, two browsers editing
     different profiles is ordinary, and a whole-map replace would make one of them lose the other's paragraph.
     """
-    try:
-        return {"profiles": _store(request).write(body.name, body.text)}
-    except DescriptionSchemaError as exc:
-        raise refuse(exc) from exc
-    except DescriptionError as exc:
-        raise refuse(exc) from exc
+    return {"profiles": _store(request).write(body.name, body.text)}

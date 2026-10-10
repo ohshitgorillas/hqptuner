@@ -19,6 +19,8 @@ import struct
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from hqptuner.unwritable import deleting, reading, saving
+
 if TYPE_CHECKING:
     from collections.abc import Iterator
 
@@ -34,6 +36,8 @@ _REFUSED_CHARS = frozenset('/\\,:;*?"<>|')
 # ASCII control range: below space, plus DEL
 _CONTROL_END = 0x20
 _DEL = 0x7F
+# What a refused read, write or delete says it was handling.
+_WHAT = "the uploaded filter"
 
 
 class FilterExtensionRefusedError(ValueError):
@@ -41,7 +45,7 @@ class FilterExtensionRefusedError(ValueError):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("filter upload must be a .wav or .txt file")
+        super().__init__("The filter must be a .wav or .txt file.")
 
 
 class FilterNameRefusedError(ValueError):
@@ -147,26 +151,30 @@ class FilterPark:
         _check_body(name, data)
         if self._parked_bytes() + len(data) > PARK_MAX_BYTES:
             raise ParkAtCapacityError()
-        self._dir.mkdir(parents=True, exist_ok=True)
         target = self._dir / name
         serial = 1
-        while target.exists():
-            target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
-            serial += 1
-        target.write_bytes(data)
+        with reading(_WHAT, self._dir):
+            while target.exists():
+                target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
+                serial += 1
+        with saving(_WHAT, self._dir):
+            self._dir.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(data)
         return {"name": target.name, "path": f"{self._home}/{target.name}"}
 
     def _parked_bytes(self) -> int:
         """Bytes already parked, by size on disk; zero when the park has never been written."""
-        if not self._dir.is_dir():
-            return 0
-        return sum(p.stat().st_size for p in self._dir.iterdir() if p.is_file())
+        with reading(_WHAT, self._dir):
+            if not self._dir.is_dir():
+                return 0
+            return sum(p.stat().st_size for p in self._dir.iterdir() if p.is_file())
 
     def files(self) -> dict[str, bytes]:
         """Return every parked upload's bytes keyed by filename, sorted; empty when nothing is parked."""
-        if not self._dir.is_dir():
-            return {}
-        return {p.name: p.read_bytes() for p in sorted(self._dir.iterdir()) if p.is_file()}
+        with reading(_WHAT, self._dir):
+            if not self._dir.is_dir():
+                return {}
+            return {p.name: p.read_bytes() for p in sorted(self._dir.iterdir()) if p.is_file()}
 
     def members(self) -> dict[str, bytes]:
         """Parked uploads as restore-archive members (``data/<name>``)."""
@@ -174,7 +182,8 @@ class FilterPark:
 
     def clear(self) -> None:
         """Delete every parked upload, leaving the directory itself in place."""
-        if self._dir.is_dir():
-            for p in self._dir.iterdir():
-                if p.is_file():
-                    p.unlink()
+        with deleting(_WHAT, self._dir):
+            if self._dir.is_dir():
+                for p in self._dir.iterdir():
+                    if p.is_file():
+                        p.unlink()

@@ -17,7 +17,7 @@ from hqptuner import voltrace
 from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlError, NotConnectedError
+from hqptuner.engine.controlerrors import CommandError, ControlError
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets import fileconfig
@@ -29,6 +29,11 @@ if TYPE_CHECKING:
 log = logging.getLogger(__name__)
 
 
+def _held_state(fresh: dict[str, str] | None, held: dict[str, str] | None) -> dict[str, str] | None:
+    """Return the State reading to hold: ``fresh``, or ``held`` when the read was refused and gave none."""
+    return fresh if fresh is not None else held
+
+
 async def connect_and_load(mgr: "ConnectionManager") -> None:
     """Open the 4321 lane, take the handshake, and refill every reading from scratch.
 
@@ -36,9 +41,14 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     once this body has run to its end and the 8088 configuration lane answered inside it.
     """
     cfg = mgr.cfg
-    client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout)
+    client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
     await client.connect()
-    info = await _handshake(mgr, client)
+    try:
+        info = await _handshake(mgr, client)
+    except BaseException:
+        # until the handshake attaches it, no `_drop` owns this client, so a failed one closes here
+        await client.close()
+        raise
     # best-effort and credential-free: /about is not gated, and reachability is
     # already decided above, so a failed lookup here leaves the release blank
     # rather than failing the connect.
@@ -69,7 +79,7 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     info = await client.get_info()  # the handshake — this defines "reachable"
     license_info = await client.get_license()  # static; licensee + valid flag
     active_config = await client.get_active_config()  # active preset name
-    state = await client.get_state()
+    state = await client.state_unless_refused()  # refused: unknown, never a reading from before this connect
     status, meta = await client.get_status()
     vrange = await client.get_volume_range()
     enums = await client.get_all_enumerations()
@@ -141,9 +151,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     Re-enumerates when the engine's mode or transport state moved, because either swaps
     the lists every later write resolves its indices against.
     """
-    client = mgr.control
-    if client is None:
-        raise NotConnectedError()
+    client = mgr.require_control()
     readings = mgr.readings
     # Taken from the previous tick's readings before State is read: they are the
     # trace's memory for the volume comparison, so a volume that is not moving
@@ -152,20 +160,21 @@ async def poll(mgr: "ConnectionManager") -> None:
     known = readings.state is not None
     previous = readings.state or {}
     before = chain.active_chain(mgr)
-    state = await client.get_state()
+    state = _held_state(await client.state_unless_refused(), readings.state)
+    current = state or {}
     # Stored before any further await: a live write that lands while this tick
     # waits on the engine stores its own read-back State, which a later
     # assignment of this earlier read would overwrite.
     readings.state = state
-    voltrace.observe_change(mgr, "state", {"volume": state.get("volume")}, {"volume": previous.get("volume")})
+    voltrace.observe_change(mgr, "state", {"volume": current.get("volume")}, {"volume": previous.get("volume")})
     # A mode switch swaps the lists wholesale (architecture §3.3), and playback
     # state moves the rate list: what fills that one is the transport as well
     # as the mode (manual p.18 §4.4), so an idle network backend answers
     # GetRates with auto alone where the same daemon serves thirteen PCM tiers
     # once asked again (verified live on 6.0.4) — and the page grayed every tier.
-    moved = known and any(state.get(a) != previous.get(a) for a in ("mode", "state"))
+    moved = known and any(current.get(a) != previous.get(a) for a in ("mode", "state"))
     if moved:
-        log.info("engine moved (mode %s, state %s), re-enumerating", state.get("mode"), state.get("state"))
+        log.info("engine moved (mode %s, state %s), re-enumerating", current.get("mode"), current.get("state"))
         readings.enums = await client.get_all_enumerations()
     readings.status, readings.status_metadata = await client.get_status()
     # The re-assert is a live-setter batch like any other: its State readback
@@ -195,9 +204,7 @@ async def poll_status(mgr: "ConnectionManager") -> None:
     the baseline, and once this read has stored the new Status the heartbeat's own baseline already names the new
     chain and would see no change left to handle.
     """
-    client = mgr.control
-    if client is None:
-        raise NotConnectedError()
+    client = mgr.require_control()
     readings = mgr.readings
     before = chain.active_chain(mgr)
     readings.status, readings.status_metadata = await client.get_status()

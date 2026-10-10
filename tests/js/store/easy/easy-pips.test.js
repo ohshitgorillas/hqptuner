@@ -22,14 +22,14 @@
 // plain call with a plain return value. Nothing is stubbed and nothing needs a
 // fake (docs/testing.md rule 4 has nothing to bite on where there is no wire).
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy-pips.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easy-pips.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { pipsFor } from "../../../hqptuner/static/store/easy/easycost.js";
-import { presetsFor } from "../../../hqptuner/static/store/easy/easy.js";
-import { combos } from "../support/easy/easytable.js";
+import { pipsFor } from "../../../../hqptuner/static/store/easy/easycost.js";
+import { presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
+import { combos } from "../../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[] }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], costText?: boolean }} Preset */

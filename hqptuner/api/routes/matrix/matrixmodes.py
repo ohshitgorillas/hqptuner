@@ -16,12 +16,9 @@ from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.presets import names
 from hqptuner.presets.store.matrixmode import (
     InvalidPresetNameError,
-    MatrixModeError,
-    MatrixModeSchemaError,
     MatrixModeStore,
     validate_mode,
 )
-from hqptuner.presets.store.presets import PresetError
 
 router = APIRouter(prefix="/api")
 
@@ -59,10 +56,7 @@ def matrix_modes(request: Request) -> dict[str, dict[str, str]]:
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty map would be a lie about a file
     that is there and full, and would put the user on the wrong half of the tab.
     """
-    try:
-        return {"presets": _store(request).read()}
-    except MatrixModeSchemaError as exc:
-        raise refuse(exc) from exc
+    return {"presets": _store(request).read()}
 
 
 @router.put("/matrixmodes")
@@ -76,15 +70,8 @@ def save_matrix_mode(body: MatrixModeBody, request: Request, manager: Mgr) -> di
     mode is judged before the name, so a request that is wrong in both ways is still told what is storable.
     """
     store = _store(request)
-    try:
-        validate_mode(body.mode)
-        name = names.validate_name(body.name, InvalidPresetNameError, "preset")
-        if name not in manager.presetops.store.names():
-            raise refuse(NoSuchPresetError(name=name))
-        return {"presets": store.write(name, body.mode)}
-    except MatrixModeSchemaError as exc:
-        raise refuse(exc) from exc
-    except MatrixModeError as exc:
-        raise refuse(exc) from exc
-    except PresetError as exc:
-        raise refuse(exc) from exc
+    validate_mode(body.mode)
+    name = names.validate_name(body.name, InvalidPresetNameError, "preset")
+    if name not in manager.presetops.store.names():
+        raise refuse(NoSuchPresetError(name=name))
+    return {"presets": store.write(name, body.mode)}

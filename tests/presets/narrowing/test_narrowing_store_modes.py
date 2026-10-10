@@ -18,7 +18,7 @@ nested ``facets`` member or the facets beside the schema stamp at the top level.
 
 Only what is particular to a combine mode lives here — its domain, and what a
 damaged stored one degrades to. The plain round trip and the defaults table are
-`tests/presets/test_narrowing_store.py`'s, which carries both modes in its own
+`tests/presets/narrowing/test_narrowing_store.py`'s, which carries both modes in its own
 `DEFAULTS` and `SET` tables and covers every facet the same way.
 """
 

@@ -21,15 +21,16 @@ _ROOT_OPEN = re.compile(rf"<([A-Za-z][\w-]*)\b{_OPEN_TAG_BODY}")
 _ENTITIES = (("&lt;", "<"), ("&gt;", ">"), ("&quot;", '"'), ("&apos;", "'"), ("&amp;", "&"))
 
 
-def _lenient_fromstring(body: str) -> ET.Element:
+def _lenient_fromstring(body: str, command: str) -> ET.Element:
     """Parse with the bare-``&`` repair applied; a no-op on well-formed input, so one parse serves both.
 
-    A frame defusedxml refuses (an entity or DTD declaration) is unparseable, not still arriving.
+    A frame defusedxml refuses (an entity or DTD declaration) is unparseable, not still arriving, and is reported as
+    the answer to ``command``.
     """
     try:
         root: ET.Element = _safe_fromstring(_BARE_AMP.sub("&amp;", body))
     except DefusedXmlException as exc:
-        raise UnparseableResponseError() from exc
+        raise UnparseableResponseError(command=command, parser_error=str(exc)) from exc
     return root
 
 
@@ -41,21 +42,22 @@ def _complete_root_open(body: str) -> re.Match[str] | None:
     return root_open
 
 
-def parse_frame(body: str) -> ET.Element | None:
-    """Parse one accumulated response frame, or None while it is still arriving.
+def parse_frame(body: str, command: str) -> ET.Element | None:
+    """Parse one accumulated response frame, the answer to ``command``, or None while it is still arriving.
 
     Completeness is read from the frame's structure before any parse. A complete frame is parsed leniently (the
     bare-``&`` repair), falling back to a root-only recovery where its children still won't parse; attributes are
-    unescaped either way. Raises ``ControlError`` where the complete frame still cannot be recovered.
+    unescaped either way. Raises ``ControlError`` naming ``command`` where the complete frame still cannot be
+    recovered.
     """
     root_open = _complete_root_open(body)
     if root_open is None:
         return None
     root: ET.Element | None = None
     with contextlib.suppress(ET.ParseError):
-        root = _lenient_fromstring(body)
+        root = _lenient_fromstring(body, command)
     if root is None:
-        root = _recover_root(root_open)
+        root = _recover_root(root_open, command)
     return _unescape_attrs(root)
 
 
@@ -89,8 +91,9 @@ class FrameBuffer:
     complete frame goes through ``parse_frame`` unchanged.
     """
 
-    def __init__(self) -> None:
-        """Start empty, with no root located yet."""
+    def __init__(self, command: str) -> None:
+        """Start empty, with no root located yet, for the answer to ``command``."""
+        self._command = command
         self._data = bytearray()
         self._root: _Root | None = None
 
@@ -101,7 +104,8 @@ class FrameBuffer:
     def feed(self, chunk: bytes) -> ET.Element | None:
         """Append one chunk and return the parsed frame once it is complete, or None while it is still arriving.
 
-        Raises ``ControlError`` where the complete frame cannot be recovered, as ``parse_frame`` does.
+        Raises ``ControlError`` naming the command where the complete frame cannot be recovered, as ``parse_frame``
+        does.
         """
         self._data += chunk
         if self._root is None:
@@ -109,7 +113,7 @@ class FrameBuffer:
         if self._root is None or not self._root.closed(self._data):
             return None
         text = self._data.decode("utf-8", errors="replace")
-        return parse_frame(text.split("?>", 1)[-1].strip() if "?>" in text else text.strip())
+        return parse_frame(text.split("?>", 1)[-1].strip() if "?>" in text else text.strip(), self._command)
 
 
 #: Characters a slice of UTF-8 can start with that a cut multi-byte sequence left undecodable.
@@ -162,8 +166,8 @@ def _ends_with(data: bytearray, end_tag: str) -> bool:
         width *= 2
 
 
-def _recover_root(root_open: re.Match[str]) -> ET.Element:
-    """Salvage a COMPLETE frame whose children won't parse, from its root open tag.
+def _recover_root(root_open: re.Match[str], command: str) -> ET.Element:
+    """Salvage a COMPLETE frame whose children won't parse, from its root open tag; ``command`` is what it answers.
 
     The daemon emits track `<metadata>` with unescaped `<`/`"` in artist/song tags that the bare-`&` repair can't fix.
     Without this salvage such a frame hangs the receive loop until timeout on every poll while a track is loaded. The
@@ -171,6 +175,6 @@ def _recover_root(root_open: re.Match[str]) -> ET.Element:
     the root open tag is parsed alone.
     """
     try:
-        return _lenient_fromstring(root_open.group(0).rstrip("/") + "/>")
+        return _lenient_fromstring(root_open.group(0).rstrip("/") + "/>", command)
     except ET.ParseError as exc:
-        raise UnparseableResponseError() from exc
+        raise UnparseableResponseError(command=command, parser_error=str(exc)) from exc

@@ -21,6 +21,7 @@ import httpx
 from fastapi import Depends, Request
 
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, InvalidInputError, NotLoadedError, refuse
+from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -35,17 +36,17 @@ class NoCredentialsConfiguredError(ErrorBody):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("no hqplayerd credentials configured")
+        super().__init__(NO_HTTP_CLIENT_MESSAGE)
 
 
 class GetFormFailedError(ErrorBody):
-    """A polled 8088 form's own GET failed, naming which form and the underlying error."""
+    """A polled 8088 form's own GET failed, naming the underlying error."""
 
     code = "daemon_read_failed"
 
-    def __init__(self, *, label: str, error: str) -> None:
-        """Render the wording naming the failed form's ``label`` and the ``error`` it answered with."""
-        super().__init__(f"GET {label} failed: {error}")
+    def __init__(self, *, error: str) -> None:
+        """Render the wording naming the ``error`` the read answered with."""
+        super().__init__(f"Reading HQPlayer's configuration failed: {error}")
 
 
 def manager_of(request: Request) -> ConnectionManager:
@@ -178,7 +179,7 @@ async def with_autosave[T](report: T, manager: ConnectionManager) -> WithAutosav
     return WithAutosave(report, None if autosaved is None else SavedPreset.of(autosaved))
 
 
-def ensure_form[F](form: F | None, error: str | None, label: str) -> F:
+def ensure_form[F](form: F | None, error: str | None) -> F:
     """Return a polled 8088 form, or the honest reason it is missing.
 
     502 when the fetch itself failed (the daemon answered badly), 503 when nothing has been loaded yet (the first poll
@@ -188,5 +189,5 @@ def ensure_form[F](form: F | None, error: str | None, label: str) -> F:
     if form is not None:
         return form
     if error:
-        raise refuse(GetFormFailedError(label=label, error=error))
+        raise refuse(GetFormFailedError(error=error))
     raise refuse(NotLoadedError())

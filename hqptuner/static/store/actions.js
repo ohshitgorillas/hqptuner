@@ -4,7 +4,7 @@
 
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { failText } from "../lib/errtext.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { truthy } from "../lib/coerce.js";
@@ -247,16 +247,16 @@ export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdic
 /**
  * @template T
  * @param {() => Promise<T>} run
- * @param {string} what lane name, for the failure sentence
+ * @param {(e: unknown) => string} describe the failure sentence for a caught error
  * @param {boolean} restarts whether this lane takes the daemon down — the page dims for it
  * @returns {Promise<T>}
  */
-async function applyLane(run, what, restarts) {
+async function applyLane(run, describe, restarts) {
   applying.value = true;
   try {
     return await duringEngineWrite(run, restarts);
   } catch (e) {
-    lastApply.value = { ok: false, code: "lane-failed", text: `${what} failed: ${errText(e)}` };
+    lastApply.value = { ok: false, code: "lane-failed", text: describe(e) };
     throw e;
   } finally {
     applying.value = false;
@@ -292,7 +292,7 @@ export async function applyAll(save) {
 // asked from LIVE the promise never settles and the click does nothing at all.
 /** @param {{ name: string }} [save] */
 async function commitApply(save) {
-  const count = stagedCount.value; // capture before apply clears the staged set
+  const [count, live] = [stagedCount.value, staged.value.live]; // capture before apply clears the staged set
   // never send a switch to the preset already loaded — that reload is a no-op
   // that trips the daemon's empty-/backup bug and leaves Apply stuck lit.
   // Tested against null, not truthiness: "(no preset)" IS a previewed target and
@@ -316,11 +316,11 @@ async function commitApply(save) {
       // re-mirror pending + fresh values (dropdown picks up a new preset), on a refusal too: an
       // apply whose preset save failed has already landed and cleared the staged set
       const answer = await api.apply(Object.keys(body).length ? body : undefined).finally(refreshConfig);
-      lastApply.value = summarize(answer, count);
+      lastApply.value = summarize(answer, count, live);
       if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
       return answer;
     },
-    "Apply",
+    (e) => failText("Apply failed: ", e),
     restarts,
   );
 }

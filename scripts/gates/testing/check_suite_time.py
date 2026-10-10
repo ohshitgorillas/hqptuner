@@ -14,10 +14,12 @@ so its time says nothing either way. A missing report fails, as the coverage
 floor's does. A missing baseline is seeded from the report, so a fresh
 checkout is not red on its first run.
 
-The baseline lives beside the main checkout's ``.coverage.json`` whichever
-tree runs the gate: a worktree resolves it through git's common dir, so the
-pair merge gate compares against dev's last green run instead of seeding a
-fresh one. CI has no baseline and seeds on every run.
+Each branch keeps its own baseline, beside the main checkout's
+``.coverage.json`` whichever tree runs the gate: a worktree resolves the
+main checkout through git's common dir and the branch from its own ``HEAD``,
+so a green run on one branch never judges or moves another branch's bar. A
+branch with no baseline yet is seeded. CI has no baseline and seeds on every
+run.
 
 Usage: ``python scripts/gates/testing/check_suite_time.py [--accept]``
 """
@@ -38,8 +40,11 @@ REJECT = 10.0
 
 #: Where the `test` target and the `pytest-offline` hook write their report.
 REPORT_NAME = ".pytest-junit.xml"
-#: The last green run's wall time, beside the main checkout's coverage report.
+#: The last green run's wall time, beside the main checkout's coverage report,
+#: for a tree whose branch cannot be read.
 BASELINE_NAME = ".suite-time.json"
+#: The same, for one branch: ``{branch}`` with each ``/`` written as ``--``.
+BRANCH_BASELINE_NAME = ".suite-time.{branch}.json"
 
 _SUITE = re.compile(r"<testsuite\b[^>]*>")
 _ATTR = re.compile(r'\b(\w+)="([^"]*)"')
@@ -54,11 +59,35 @@ def main_checkout(root: Path) -> Path:
     dotgit = root / ".git"
     if not dotgit.is_file():
         return root
-    gitdir = Path(dotgit.read_text().split(":", 1)[1].strip())
-    if not gitdir.is_absolute():
-        gitdir = root / gitdir
+    gitdir = own_gitdir(root)
     common = gitdir / (gitdir / "commondir").read_text().strip()
     return common.resolve().parent
+
+
+def own_gitdir(root: Path) -> Path:
+    """Return the git dir holding ``root``'s own ``HEAD``: ``.git`` itself, or the one a worktree's ``.git`` names."""
+    dotgit = root / ".git"
+    if not dotgit.is_file():
+        return dotgit
+    gitdir = Path(dotgit.read_text().split(":", 1)[1].strip())
+    return gitdir if gitdir.is_absolute() else root / gitdir
+
+
+def branch(root: Path) -> str | None:
+    """Return the branch checked out in ``root``, the commit a detached ``HEAD`` names, or None outside git."""
+    head = own_gitdir(root) / "HEAD"
+    if not head.is_file():
+        return None
+    text = head.read_text().strip()
+    return text.removeprefix("ref: refs/heads/")
+
+
+def baseline_path(root: Path) -> Path:
+    """Return the baseline file for the branch checked out in ``root``, beside its main checkout."""
+    name = branch(root)
+    if name is None:
+        return main_checkout(root) / BASELINE_NAME
+    return main_checkout(root) / BRANCH_BASELINE_NAME.format(branch=name.replace("/", "--"))
 
 
 def suite_attrs(report: Path) -> dict[str, str]:
@@ -126,10 +155,9 @@ def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI: optional ``--accept``; report and baseline resolved to the main checkout."""
+    """CLI: optional ``--accept``; the report is this tree's, the baseline its branch's beside the main checkout."""
     args = sys.argv[1:] if argv is None else argv
-    checkout = main_checkout(ROOT)
-    return check(ROOT / REPORT_NAME, checkout / BASELINE_NAME, accept="--accept" in args)
+    return check(ROOT / REPORT_NAME, baseline_path(ROOT), accept="--accept" in args)
 
 
 if __name__ == "__main__":

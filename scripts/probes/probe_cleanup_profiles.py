@@ -19,7 +19,7 @@ from collections.abc import Awaitable, Callable
 import httpx
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.conf.matrixprofiles import delete_profile
 from hqptuner.engine.control import ControlClient
 
@@ -77,7 +77,7 @@ async def _run() -> int:
     active = (await control.get_active_config()) or None
     await control.close()
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=120.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=120.0))
     backup = await _rpc(http.backup)
     xml = engineconf.base_config_xml(backup, active)
     before = _names(xml)

@@ -49,13 +49,13 @@
 // Deliberately NOT asserted: the table's membership, ordering, emoji, shape or
 // any word a tile shows.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easy.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../hqptuner/static/store/easy/easy.js";
-import { combos } from "../support/easy/easytable.js";
+import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../../hqptuner/static/store/easy/easy.js";
+import { combos } from "../../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
 /** @typedef {{ id: string, emoji: string, knobs: Knob[], hires?: boolean, costText?: boolean }} Preset */

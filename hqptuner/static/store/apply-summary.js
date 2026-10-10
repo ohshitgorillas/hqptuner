@@ -1,10 +1,13 @@
 // Apply-report summarization: turns the backend's apply report into the
 // {ok, text} pair the apply pill and the pending bar both render.
 //
-// Pure — it reads no signal and imports nothing from the store — which is why it
-// can sit outside the three-tree modules with no risk of an import cycle and no
-// signal crossing a file boundary. store/actions.js imports `summarize`; the
-// rest stays private to this module.
+// Pure apart from the names: its one store import is the wire-key label
+// lookup, which reads the static control catalog and the loaded /api/metadata
+// names and nothing else. That is why it can sit outside the three-tree modules
+// with no risk of an import cycle. store/actions.js imports `summarize`; the rest stays
+// private to this module.
+
+import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
 
 // `count` is the number of staged edits captured before apply — the http/matrix
 // lanes each collapse many field edits into a single POST, so counting reports
@@ -52,7 +55,7 @@
  * @property {string} [error]
  * @property {string} [code] the declined lane's refusal code
  * @property {Record<string, unknown>} [diff] the fields that did not converge
- * @property {{ net_device?: { want: string } }} [unfixable]
+ * @property {{ net_device?: { want: string | null } }} [unfixable] `want` is null when the report cannot name the device
  *
  * @typedef {object} SaveResult
  *   A save that reached the store; one that did not is a refusal. A WARNED save is still a save.
@@ -81,25 +84,27 @@
 const failure = (code, text, data) => ({ ok: false, code, text, ...data });
 
 // A live setter that didn't take. Reported first and alone — a rejected setting
-// is the most actionable thing the report can carry.
+// is the most actionable thing the report can carry. The report names only the
+// setting, so the value each setter was sent comes from the staged live half.
 /**
  * @param {ApplyReport} report
+ * @param {Record<string, Record<string, string>>} live the staged live half the apply sent, by setter key
  * @returns {Verdict | null}
  */
-function liveFailure(report) {
+function liveFailure(report, live) {
   const fails = (report.live || []).filter((x) => !x.ok);
   if (!fails.length) return null;
+  const sent = Object.fromEntries(Object.entries(live).map(([key, params]) => [key, params.value]));
   const settings = fails.map((f) => f.setting);
   // An engine that stopped answering explains every other failure in the same
-  // apply, so one such entry decides the verdict for the whole list.
-  if (fails.some((f) => f.code === "daemon_unavailable")) {
-    return failure("live-unavailable", `Engine stopped answering: ${settings.join(", ")}`, { settings });
-  }
-  return failure("live-failed", `Engine refused: ${settings.join(", ")}`, { settings });
+  // apply, so one such entry decides the verdict for the whole list. The test is
+  // the one liveFailureText words the sentence by, so code and text agree.
+  const code = engineStopped(fails) ? "live-unavailable" : "live-failed";
+  return failure(code, liveFailureText(fails, sent), { settings });
 }
 
-// The causes that carry their own wording, each because the generic "Config not
-// applied" sentence would bury the one thing the reader can act on: which
+// The causes that carry their own wording, each because the generic "Applying the
+// settings failed" sentence would bury the one thing the reader can act on: which
 // endpoint went missing, or that the password is what is wrong. Held apart from
 // the fall-through below so that adding a third named cause does not keep
 // growing one function.
@@ -109,18 +114,31 @@ function liveFailure(report) {
  */
 function namedCause(p) {
   const nd = p.unfixable && p.unfixable.net_device;
-  if (nd)
-    return failure("endpoint-missing", `Endpoint "${nd.want}" not present — config not applied`, {
-      endpoint: nd.want,
-    });
+  if (nd) return missingDevice(nd.want);
   // A refused credential arrives with the backend's own sentence, which is already
   // the owner-approved copy: it replaces the whole caption rather than being
-  // interpolated into "Config not applied: ...", the way the other branches read.
+  // interpolated into "Applying the settings failed: ...", the way the other branches read.
   // `error` is optional on the report generally, so this reads it rather than
   // asserting it: a refusal that somehow arrived without its sentence falls
   // through to the generic paths, which is a worse caption but never an empty one.
   if (p.code === "no_credentials" && p.error) return failure("persist-credentials", p.error);
   return null;
+}
+
+// `want` is nullable on the wire, so a report can lack the device's name; the
+// sentence then says the device is missing rather than print an absent name.
+/**
+ * @param {string | null} want the output device the settings named
+ * @returns {Verdict}
+ */
+function missingDevice(want) {
+  if (want === null)
+    return failure("endpoint-missing", "HQPlayer's output device is missing, so the settings were not applied.");
+  return failure(
+    "endpoint-missing",
+    `HQPlayer has no output device named "${want}", so the settings were not applied.`,
+    { endpoint: want },
+  );
 }
 
 /**
@@ -131,14 +149,40 @@ function persistentFailure(p) {
   if (!p || p.applied) return null;
   const named = namedCause(p);
   if (named) return named;
-  if (p.error) return failure("persist-error", `Config not applied: ${p.error}`);
-  // Name the fields that didn't converge. "unconverged" alone is undebuggable —
-  // it says a setting the daemon kept refusing exists, but not which one, and
-  // the user is the only one who can see their own config.
+  if (p.error) return failure("persist-error", `Applying the settings failed: ${p.error}`);
   const fields = Object.keys(p.diff || {});
-  const which = fields.length ? `: ${fields.join(", ")}` : "";
   const reason = p.reason || "unconfirmed";
-  return failure("persist-refused", `Config not applied (${reason})${which}`, { reason, fields });
+  return failure("persist-refused", refusedText(p.reason, fields), { reason, fields });
+}
+
+// An unconverged apply names the fields that kept their old values, each by the
+// label the page gives its control, since the reader knows a setting by that
+// label and not by the daemon's config key. A refusal that gave no reason says
+// the change went unconfirmed. Any other reason is quoted with the fields it
+// carried. In both lists a field no control names reads as its words,
+// underscores turned to spaces, never as its raw key.
+/**
+ * @param {string | undefined} reason
+ * @param {string[]} fields the wire keys that did not converge
+ * @returns {string}
+ */
+function refusedText(reason, fields) {
+  if (reason === "unconverged" && fields.length) {
+    return `HQPlayer restarted but kept its old values for: ${fields.map(fieldWords).join(", ")}.`;
+  }
+  if (!reason) return "HQPlayer restarted, but the change could not be confirmed.";
+  const which = fields.length ? ` for: ${fields.map(fieldWords).join(", ")}` : "";
+  return `Applying the settings failed (${reason})${which}.`;
+}
+
+/**
+ * A field's UI label, or its key with the underscores as spaces when no control edits it.
+ * @param {string} key a /config form field
+ * @returns {string}
+ */
+function fieldWords(key) {
+  const label = wireLabel(key);
+  return label === key ? key.replaceAll("_", " ") : label;
 }
 
 // How a switch target names itself in the report. The empty name is the picker's
@@ -190,12 +234,13 @@ function savedSummary(base, saved) {
  * apply did plus how its preset save went.
  * @param {ApplyAnswer} answer
  * @param {number} count staged edits, captured before the apply cleared them
+ * @param {Record<string, Record<string, string>>} [live] the staged set's live half, captured likewise
  * @returns {Verdict}
  */
-export function summarize(answer, count) {
+export function summarize(answer, count, live = {}) {
   const { report } = answer;
   const sw = report.switched;
-  const failed = liveFailure(report) || persistentFailure(report.persistent);
+  const failed = liveFailure(report, live) || persistentFailure(report.persistent);
   if (failed) return failed;
 
   return savedSummary(success(sw, count), answer.saved);

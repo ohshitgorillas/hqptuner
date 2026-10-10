@@ -8,12 +8,18 @@ from dataclasses import dataclass
 from fastapi import APIRouter
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
+from hqptuner.api.errors import ControlFailedError, refuse
 from hqptuner.api.models import VolumeBody
 from hqptuner.core.applyops import VolumeReport
 from hqptuner.engine.controlerrors import ControlError
 
 router = APIRouter(prefix="/api")
+
+
+class VolumeFailedError(ControlFailedError):
+    """A Control API error that stopped or refused a volume write."""
+
+    template = "Changing the volume failed: {error}"
 
 
 @dataclass(frozen=True)
@@ -52,4 +58,4 @@ async def volume_set(body: VolumeBody, manager: Mgr) -> VolumeReport:
     try:
         return await manager.applyops.set_volume(body.level)
     except ControlError as exc:
-        raise refuse(exc) from exc
+        raise refuse(VolumeFailedError(error=exc)) from exc

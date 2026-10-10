@@ -27,7 +27,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.config import CONNECTION_STORE
 from hqptuner.presets.store.jsonfile import StoreCorruptError
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -78,19 +80,21 @@ class ConnectionStore:
 
         Raises ``StoreCorruptError`` when the file exists but cannot be read as a connection record: a saved
         connection is a host and credentials the user typed, and losing that quietly would strand them on the wrong
-        daemon with no card saying why.
+        daemon with no card saying why. Raises ``StoreUnwritableError`` when the filesystem refuses the read.
         """
         if not self._path.is_file():
             return None
+        with reading(CONNECTION_STORE.what, self._path):
+            text = self._path.read_text(encoding="utf-8")
         try:
-            data = json.loads(self._path.read_text(encoding="utf-8"))
+            data = json.loads(text)
             return ConnectionRecord(
                 host=str(data["host"]),
                 username=str(data["username"]),
                 password=str(data.get("password", "")),
                 remember=bool(data.get("remember")),
             )
-        except (ValueError, OSError, TypeError, KeyError) as exc:
+        except (ValueError, TypeError, KeyError) as exc:
             raise ConnectionStoreCorruptError(self._path) from exc
 
     def write(self, record: ConnectionRecord) -> None:
@@ -106,10 +110,11 @@ class ConnectionStore:
             "password": record.password if record.remember else "",
             "remember": record.remember,
         }
-        self._path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self._path.with_suffix(self._path.suffix + ".tmp")
-        tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        tmp.replace(self._path)
+        with saving(CONNECTION_STORE.what, self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+            tmp.replace(self._path)
 
 
 def _pinned(name: str) -> bool:

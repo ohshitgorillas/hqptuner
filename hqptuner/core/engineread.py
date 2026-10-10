@@ -67,7 +67,7 @@ async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) 
         return
     caps = None
     try:
-        text = await mgr.log_reader.read(mgr.http_base_url, 0.0 if force else LOG_MAX_AGE)
+        text = await mgr.log_reader.read(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port, 0.0 if force else LOG_MAX_AGE)
     except httpx.HTTPError as exc:
         # No log, no capability, no narrowing — the menus stay whole, which is
         # the correct answer to "the device has not told us anything".
@@ -111,7 +111,7 @@ async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     status, raises ``httpx.HTTPError``: a failed read, not an absent log.
     """
     path, enabled = logtail.log_file_field(mgr.readings.config_form)
-    text = await mgr.log_reader.read(mgr.http_base_url, LOG_MAX_AGE)
+    text = await mgr.log_reader.read(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port, LOG_MAX_AGE)
     return LogTail(path, enabled, logtail.tail_text(text, lines))
 
 

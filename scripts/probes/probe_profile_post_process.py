@@ -38,7 +38,7 @@ from pathlib import Path
 import httpx
 
 from hqptuner.conf import engineconf
-from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.conf.httpforms import FormField
 from hqptuner.engine.control import ControlClient
 
@@ -178,7 +178,7 @@ async def _run() -> int:
     original_profile = state.get("matrix_profile", "")
     print(f"engine idle; active matrix profile {original_profile!r}")
 
-    http = HttpConfigClient(HOST, HTTP_PORT, user, password, timeout=60.0)
+    http = HttpConfigClient(HOST, HTTP_PORT, user, password, HttpOptions(timeout=60.0))
     active = (await control.get_active_config()) or None
     pristine = await _rpc(http.backup)
     OUT.mkdir(parents=True, exist_ok=True)

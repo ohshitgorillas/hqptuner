@@ -18,12 +18,12 @@
 //
 // Policy (docs/testing.md): public API only, one assertion per test.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easyview.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easyview.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
 // The key the retired grid choice was kept under. Named so that "nothing is
 // stored there any more" can be read at all — a key name is contract with the
@@ -31,7 +31,7 @@ import { useStorage } from "../support/storage.js";
 // install.
 const GRID_KEY = "hqptuner.easyGrid";
 
-const MODULE = "../../../hqptuner/static/store/easy/easyview.js";
+const MODULE = "../../../../hqptuner/static/store/easy/easyview.js";
 
 // A browser that has never seen Easy Mode: storage present and working, both
 // keys absent.

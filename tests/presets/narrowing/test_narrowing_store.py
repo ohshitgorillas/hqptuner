@@ -15,7 +15,7 @@ truthy strings refused); the retired ``hide_2x``, ``hide_int``, ``ratio``,
 ``upsample_only``, ``hires_1x`` and ``hires_nx`` keys are refused on write and
 never surfaced on read. The 1x lossy-source control that replaced the hi-res
 pair is ``lossy_1x``, and its own domain lives in
-tests/presets/test_narrowing_lossy.py.
+tests/presets/narrowing/test_narrowing_lossy.py.
 
 On-disk layout: the file carries a schema stamp under ``schema``, the way
 `store.favorites` stamps its own file. Where the facets themselves sit inside that

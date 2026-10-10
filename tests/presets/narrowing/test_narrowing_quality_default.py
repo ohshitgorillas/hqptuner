@@ -18,7 +18,7 @@ Where the facets sit inside the file the spec does not say, so every case that
 reaches into a stored file goes through `edit_facets`, which accepts either a
 nested ``facets`` member or the facets beside the schema stamp at the top
 level. The plain round trip and the full defaults table are
-`tests/presets/test_narrowing_store.py`'s; only what is particular to the
+`tests/presets/narrowing/test_narrowing_store.py`'s; only what is particular to the
 quality default lives here.
 """
 

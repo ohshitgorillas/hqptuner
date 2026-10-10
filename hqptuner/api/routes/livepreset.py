@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel, Field
 
 from hqptuner.api.deps import Mgr, WithAutosave, with_autosave
-from hqptuner.api.errors import ApiError, ErrorBody, refuse
+from hqptuner.api.errors import ApiError, ControlFailedError, ErrorBody, refuse
 from hqptuner.api.routes.matrix.matrix import MatrixSwitchRefusedError
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
@@ -29,7 +29,6 @@ from hqptuner.lanes.live.snapshot import DEFAULT_PROFILE_NAME, MATRIX_PROFILE, C
 from hqptuner.presets.store.live import (
     DEFAULT_STATION,
     LiveFields,
-    LivePresetError,
     LivePresetSchemaError,
     LivePresetStore,
     LiveRecord,
@@ -54,6 +53,12 @@ class SaveBody(BaseModel):
     fields: list[str] | None = None
     stations: list[str] | None = Field(default=None, min_length=1)
     values: dict[str, str] | None = None
+
+
+class LivePresetApplyFailedError(ControlFailedError):
+    """A Control API error that stopped or refused part of a live preset's apply."""
+
+    template = "Applying the live preset failed: {error}"
 
 
 class NotLiveSnapshotSettingsError(ErrorBody):
@@ -281,18 +286,13 @@ def save_live_preset(name: str, request: Request, manager: Mgr, body: SaveBody |
     # Name first, engine second: a name the rule refuses is refused as one whatever
     # the engine is doing, rather than being answered by whatever the snapshot
     # refuses first.
-    try:
-        name = canonical_name(name)  # the response names the key the store holds
-    except LivePresetError as exc:
-        raise refuse(exc) from exc
+    name = canonical_name(name)  # the response names the key the store holds
     record = _record(manager, _selected(None if body is None else body.fields), None if body is None else body.values)
     stations = body.stations if body is not None and body.stations is not None else [_loaded(manager)]
     try:
         _store(request).save(name, record, stations)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
-    except LivePresetError as exc:
-        raise refuse(exc) from exc
     return NamedLiveRecord.of(name, record)
 
 
@@ -314,8 +314,6 @@ async def apply_live_preset(
         record = _store(request).read(_loaded(manager) if station is None else station, name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
-    except LivePresetError as exc:
-        raise refuse(exc) from exc
     fields = dict(record.fields)
     # A preset record may carry a "rate" field. No snapshot holds a pinned rate
     # (`lanes/live/rate`), so it is dropped and the rest applies.
@@ -327,7 +325,7 @@ async def apply_live_preset(
     except routing.LiveRouteError as exc:
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
-        raise refuse(exc) from exc
+        raise refuse(LivePresetApplyFailedError(error=exc)) from exc
     await _switch_profile(manager, profile)
     return await with_autosave(report, manager)
 
@@ -343,6 +341,4 @@ def delete_live_preset(name: str, request: Request, manager: Mgr, station: str |
         _store(request).delete(_loaded(manager) if station is None else station, name)
     except LivePresetSchemaError as exc:
         raise _unreadable(exc) from exc
-    except LivePresetError as exc:
-        raise refuse(exc) from exc
     return LivePresetDeleted(name)

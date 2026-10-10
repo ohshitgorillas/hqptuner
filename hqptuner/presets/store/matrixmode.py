@@ -22,9 +22,11 @@ import json
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
+from hqptuner.config import MATRIX_MODE_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -151,7 +153,9 @@ class MatrixModeStore:
         def _too_new(stamp: int) -> MatrixModeSchemaError:
             return MatrixModeSchemaError(stamp=stamp, understood=_SCHEMA, what="these modes")
 
-        return _clean(read_stamped(self._path, store="matrix-mode", schema=_SCHEMA, too_new=_too_new))
+        with reading(MATRIX_MODE_STORE.what, self._path):
+            data = read_stamped(self._path, store="matrix-mode", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def read(self) -> dict[str, str]:
         """Every stored mode, keyed by preset name. Empty when nothing is stored."""
@@ -159,8 +163,9 @@ class MatrixModeStore:
 
     def _save(self, presets: dict[str, str]) -> None:
         """Write ``presets`` out as the whole file, creating the directory on the way."""
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
+        with saving(MATRIX_MODE_STORE.what, self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
 
     def forget(self, name: str) -> bool:
         """Drop ``name``'s stored mode, answering whether there was one to drop.

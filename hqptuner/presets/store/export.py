@@ -15,37 +15,47 @@ import json
 import zipfile
 from typing import TYPE_CHECKING
 
+from hqptuner import audit
 from hqptuner.config import Config
 from hqptuner.presets.store.filterpark import PARK_DIR
+from hqptuner.unwritable import reading
 
 if TYPE_CHECKING:
     from collections.abc import Collection, Iterable, Iterator, Sequence
     from pathlib import Path
 
+    from hqptuner.config import Store
+
 _LOG_MEMBER = "hqptuner.log"
 
 
-def _connection_members(path: Path, name: str) -> Iterator[tuple[str, bytes]]:
-    """Yield the connection record under ``name`` with ``password`` set to ``""`` and every other field kept.
+def _connection_members(path: Path, store: Store) -> Iterator[tuple[str, bytes]]:
+    """Yield the connection record under ``store.name`` with ``password`` set to ``""`` and every other field kept.
 
     Yields nothing when the file does not parse as a JSON object.
     """
+    with reading(store.what, path):
+        raw = path.read_bytes()
     try:
-        record = json.loads(path.read_bytes())
+        record = json.loads(raw)
     except ValueError:
         return
     if isinstance(record, dict):
         record["password"] = ""
-        yield name, json.dumps(record, indent=2).encode()
+        yield store.name, json.dumps(record, indent=2).encode()
 
 
-def _dir_members(root: Path, name: str, park: Path) -> Iterator[tuple[str, bytes]]:
+def _dir_members(root: Path, store: Store, park: Path) -> Iterator[tuple[str, bytes]]:
     """Yield every file under ``root``, recursive and sorted, as ``<name>/<relative path>``; nothing under ``park``."""
-    if not root.is_dir():
-        return
-    for path in sorted(root.rglob("*")):
-        if path.is_file() and not path.is_relative_to(park):
-            yield f"{name}/{path.relative_to(root).as_posix()}", path.read_bytes()
+    with reading(store.what, root):
+        if not root.is_dir():
+            return
+        members = [
+            (f"{store.name}/{path.relative_to(root).as_posix()}", path.read_bytes())
+            for path in sorted(root.rglob("*"))
+            if path.is_file() and not path.is_relative_to(park)
+        ]
+    yield from members
 
 
 def _store_members(cfg: Config, names: Collection[str] | None = None) -> Iterator[tuple[str, bytes]]:
@@ -54,19 +64,21 @@ def _store_members(cfg: Config, names: Collection[str] | None = None) -> Iterato
     ``names`` narrows that to the stores it lists, by archive name; None yields every store.
     """
     park = cfg.backup_dir / PARK_DIR
-    for attr, name, is_dir in Config.STORES:
-        if names is not None and name not in names:
+    for store in Config.STORES:
+        if names is not None and store.name not in names:
             continue
-        path: Path = getattr(cfg, attr)
-        if is_dir:
-            yield from _dir_members(path, name, park)
+        path: Path = getattr(cfg, store.attr)
+        if store.is_dir:
+            yield from _dir_members(path, store, park)
             continue
         if not path.is_file():
             continue
         if path == cfg.connection_file:
-            yield from _connection_members(path, name)
-        else:
-            yield name, path.read_bytes()
+            yield from _connection_members(path, store)
+            continue
+        with reading(store.what, path):
+            data = path.read_bytes()
+        yield store.name, data
 
 
 def _debug_log_members(debug_log: Path | None) -> Iterator[tuple[str, bytes]]:
@@ -75,7 +87,9 @@ def _debug_log_members(debug_log: Path | None) -> Iterator[tuple[str, bytes]]:
         return
     for path in (debug_log, debug_log.with_name(f"{debug_log.name}.1")):
         if path.is_file():
-            yield path.name, path.read_bytes()
+            with reading(audit.WHAT, path):
+                data = path.read_bytes()
+            yield path.name, data
 
 
 def _zip(members: Iterable[tuple[str, bytes]]) -> bytes:

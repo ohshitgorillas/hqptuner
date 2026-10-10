@@ -27,7 +27,10 @@ AUTH_REFUSED_MESSAGE = (
 
 # The one sentence a caller gets when the app was never given HTTP credentials
 # at all — distinct from a credential the daemon refused (AUTH_REFUSED_MESSAGE).
-NO_HTTP_CLIENT_MESSAGE = "no credentials for HTTP config lane"
+# Shared by the config-lane error and the API's no-credentials refusal.
+NO_HTTP_CLIENT_MESSAGE = (
+    "HQPTuner has no HQPlayer username and password. Open the Connection panel from the status pill and enter them."
+)
 
 # What the daemon answers when it will not accept who we say we are. 401 is the
 # challenge, which httpx.DigestAuth consumes and answers internally, so a 401
@@ -48,6 +51,21 @@ class AuthRefused(httpx.HTTPStatusError):
     message is a sentence rather than httpx's generated one with its link to
     MDN.
     """
+
+
+class HttpRefusedError(httpx.HTTPStatusError):
+    """HQPlayer answered an 8088 request with an error status.
+
+    Subclasses ``httpx.HTTPStatusError`` so every site that catches ``httpx.HTTPError`` handles it unchanged.
+    """
+
+    def __init__(self, *, response: httpx.Response) -> None:
+        """Render the wording naming the status HQPlayer answered with."""
+        super().__init__(
+            f"HQPlayer refused the request (HTTP {response.status_code}).",
+            request=response.request,
+            response=response,
+        )
 
 
 class HttpLaneDeclinedError(HQPTunerError):
@@ -96,7 +114,8 @@ def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
 
 
 def raise_for_status(resp: httpx.Response) -> None:
-    """Raise ``AuthRefused`` on a refused credential, else httpx's own error on any non-2xx."""
+    """Raise ``AuthRefused`` on a refused credential, else ``HttpRefusedError`` on any other non-2xx."""
     if resp.status_code in _REFUSED:
         raise AuthRefused(AUTH_REFUSED_MESSAGE, request=resp.request, response=resp)
-    resp.raise_for_status()
+    if not resp.is_success:
+        raise HttpRefusedError(response=resp)

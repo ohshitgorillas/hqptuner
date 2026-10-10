@@ -29,7 +29,12 @@ from hqptuner.core.applyops import ApplyOps
 from hqptuner.core.clock import Clock
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlError, HttpCredentialsMissingError
+from hqptuner.engine.controlerrors import (
+    CommandError,
+    ControlConnectionFailedError,
+    ControlError,
+    HttpCredentialsMissingError,
+)
 from hqptuner.engine.logtail import LogReader
 from hqptuner.engine.trackcontext import UnparseableStatusAttributeError, is_playing
 from hqptuner.lanes.http import forms
@@ -127,7 +132,7 @@ class ConnectionManager:
         # on every fresh connection; read by every route and lane.
         self.readings = Readings()
         # The one GET /log reader (engine/logtail): the log tail and the device-capability read share its
-        # client, its held text and any fetch in flight. It fetches from `http_base_url` as of each call.
+        # client, its held text and any fetch in flight. It fetches from the configured 8088 address as of each call.
         self.log_reader = LogReader(self.clock.monotonic)
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
@@ -358,8 +363,7 @@ class ConnectionManager:
         The accessor for a write that cannot proceed without the control lane.
         """
         if self._client is None:
-            message = "daemon not connected"
-            raise ControlError(message)
+            raise ControlConnectionFailedError(host=self.cfg.hqp_host, port=self.cfg.hqp_control_port)
         return self._client
 
     def require_http(self) -> HttpConfigClient:
