@@ -4,6 +4,8 @@
 // SDM bypass, the edges and the nodes, in that order.
 
 import { html } from "../../../lib/dom.js";
+import { useTextBox } from "../KnockedText.js";
+import { knockout } from "../../../model/gauges/knockout.js";
 import { classNames } from "../../../model/shell/format.js";
 import { groupFrame } from "../../../model/gauges/wire.js";
 import { NODES, EDGES, signalMap } from "../../../store/faceplate/settings/sigpath.js";
@@ -102,6 +104,8 @@ const Groups = () =>
 const BYPASS_Y = H - 18,
   BYPASS_X = W - 8,
   BYPASS_R = 10;
+const BYPASS = EDGES.find((e) => e.direct); // the Direct SDM bypass, labelled along the foot
+const KNOCK = "sg-knock"; // the clip that holds the edges off the bypass label
 
 /**
  * Where an edge runs: the Direct SDM bypass down under everything from the DSD source, along the foot, up the right edge
@@ -128,21 +132,36 @@ function edgePath(e) {
 }
 
 /**
- * Every edge, the Direct SDM bypass with its label, each lit while the path playing runs it.
+ * Every edge, each lit while the path playing runs it, and the Direct SDM bypass's label. The label is letter-spaced and
+ * sits on the drawer's gradient, which no flat fill matches, so its knockout is a hole clipped out of the edges rather
+ * than a patch painted over them.
  *
  * @param {{ map: SignalMap }} props
  */
-const Edges = ({ map }) =>
-  EDGES.map(
-    (e, i) => html`
-      <path class=${classNames("sge", map.edges[i] && "lit")} data-a=${e.a} data-b=${e.b} d=${edgePath(e)} />
-      ${
-        e.direct
-          ? html`<text class="sgel" x=${(N[e.a].x + BYPASS_X) / 2} y=${BYPASS_Y + 5} text-anchor="middle">DIRECT SDM</text>`
-          : null
-      }
-    `,
-  );
+function Edges({ map }) {
+  const [label, labelBox] = useTextBox();
+  const k = labelBox === null ? null : knockout(labelBox);
+  return html`
+    ${
+      k === null
+        ? null
+        : html`<clipPath id=${KNOCK}>
+            <path clip-rule="evenodd" d=${`M0 0 H${W} V${H} H0 Z M${k.x} ${k.y} h${k.width} v${k.height} h${-k.width} Z`} />
+          </clipPath>`
+    }
+    <g clip-path=${k === null ? undefined : `url(#${KNOCK})`}>
+      ${EDGES.map(
+        (e, i) =>
+          html`<path class=${classNames("sge", map.edges[i] && "lit")} data-a=${e.a} data-b=${e.b} d=${edgePath(e)} />`,
+      )}
+    </g>
+    ${
+      BYPASS
+        ? html`<text ref=${label} class="sgel" x=${(N[BYPASS.a].x + BYPASS_X) / 2} y=${BYPASS_Y + 5} text-anchor="middle">DIRECT SDM</text>`
+        : null
+    }
+  `;
+}
 
 /**
  * A node's output-mode tag, at its top right corner.

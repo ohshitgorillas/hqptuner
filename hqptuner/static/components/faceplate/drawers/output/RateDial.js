@@ -15,6 +15,7 @@
 import { useRef } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
 import { labelHead } from "../../drawer/controls.js";
+import { KnockedText } from "../../KnockedText.js";
 import {
   bandEdges,
   bandSpan,
@@ -106,7 +107,7 @@ function TierMark({ t, i, x, cell, sel, pin, apart }) {
   return html`
     <g class=${cls || undefined} data-i=${i}>
       <line class="major" x1=${x} y1=${RULE_Y - 12} x2=${x} y2=${RULE_Y} />
-      <text class="tier" x=${x} y="38" text-anchor="middle">${t.name}</text>
+      <${KnockedText} knock="knock" class="tier" x=${x} y="38" text-anchor="middle">${t.name}<//>
       ${pin ? html`<${PinBox} x=${x} cell=${cell} fam=${pin} />` : null}
       ${FAMS.map(
         (fam) =>
@@ -118,7 +119,8 @@ function TierMark({ t, i, x, cell, sel, pin, apart }) {
 }
 
 /**
- * One band: legend over its bracket, rule and minor ticks, the needle on its limit, the tier printing.
+ * One band: legend over its bracket, rule and minor ticks, the needle on its limit, the tier printing. The legend and
+ * each tier's name are letter-spaced, so each sits on a glass knockout rather than a halo.
  *
  * @param {{ b: Band, view: DialView, scale: DialScale }} props
  */
@@ -136,7 +138,7 @@ function BandGlass({ b, view, scale }) {
   return html`
     <g class="band" data-band=${b.id}>
       <path class="bl" d=${`M${x1},20 V14 H${x2} V20`} />
-      <text class="legend" x=${(x1 + x2) / 2} y="18" text-anchor="middle">${b.legend}</text>
+      <${KnockedText} knock="knock" class="legend" x=${(x1 + x2) / 2} y="18" text-anchor="middle">${b.legend}<//>
       <line class="rule" x1=${x1} y1=${RULE_Y} x2=${x2} y2=${RULE_Y} />
       ${minorTicks(scale, span, { x1, x2 }).map((x) => html`<line class="minor" x1=${x} y1=${RULE_Y - 5} x2=${x} y2=${RULE_Y} />`)}
       ${

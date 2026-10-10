@@ -87,7 +87,7 @@ svg.sgp{width:100%;height:auto;max-height:100%;display:block;flex:1 1 auto;min-h
 .sggs{font-family:var(--f-body);font-weight:var(--fw-regular);font-size:var(--fs-4);letter-spacing:0;text-transform:none;fill:var(--ink-2)}
 .sge{fill:none;stroke:var(--line-2);stroke-width:2;stroke-linecap:round}
 .sge.lit{stroke:var(--ink);stroke-width:3}
-.sgel{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-3);fill:var(--ink-2);paint-order:stroke;stroke:var(--plate);stroke-width:var(--sp-3)}
+.sgel{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-3);fill:var(--ink-2)}   /* letter-spaced, so no halo: the edges are clipped round it */
 .sgn rect{fill:var(--glass);stroke:var(--line-2);stroke-width:1}
 .sgn rect.hx{fill:url(#sg-hatch);stroke:none;display:none}
 .sgn.unv>rect:first-child{stroke-dasharray:5 4}

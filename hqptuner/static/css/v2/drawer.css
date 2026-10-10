@@ -99,19 +99,23 @@
 .bandsl:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(-1 * var(--stroke));border-radius:var(--r-2)}
 /* Band legends (engraved, over a bracket spanning the band) + bezel seam at the 32x|64x family boundary.
    Both bands always live: mode never grays a band. */
-.dial .legend{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-3);fill:var(--ink-2);line-height:var(--lh-eng)}
+.dial .legend{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-3);fill:var(--ink-2);line-height:var(--lh-eng)}
 .dial .bl{fill:none;stroke:var(--ink-3);stroke-width:1}
 .dial .seam .sd{stroke:var(--shade);stroke-width:2}
 .dial .seam .sl{stroke:var(--highlight);stroke-width:1;opacity:var(--op-1)}
 
 .dial svg{display:block}
-.dial svg text{paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round}
-.dial .legend{stroke-width:var(--sp-4)}   /* knocks the bracket out behind the band name */
+/* A glass halo clears the needle and the hatch round the frequency lines and the unavailable note. Only unspaced text
+   takes one: an engine may paint letter-spaced text glyph by glyph, stroke then fill, so each glyph's halo would cover
+   its neighbour. The band titles and tier names are letter-spaced, so each sits on a glass knockout instead
+   (KnockedText.js), painted over every mark beneath it. */
+.dial .freq,.dial .note{paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round}
+.dial .knock{fill:var(--glass)}
 .dial .hatch line{stroke:var(--hatch);stroke-width:3}
 .dial .rule{stroke:var(--line-2);stroke-width:1}
 .dial .minor{stroke:var(--edge);stroke-width:1}
 .dial .major{stroke:var(--ink-3);stroke-width:1.5}
-.dial .tier{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);fill:var(--ink-2);line-height:var(--lh-eng)}
+.dial .tier{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-1);fill:var(--ink-2);line-height:var(--lh-eng)}
 /* Every tier prints both its rates in every mode. Under Auto all of them read lit; under a picked family the other
    family's rates step back to the plain ink, still on the glass, the needle's tier included. Unavailable, needle and
    pin inks below win over the lit ink. */
