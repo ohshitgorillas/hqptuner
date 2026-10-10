@@ -195,7 +195,7 @@ To update, quit HQPTuner and run the newer installer. Presets, backups and setti
 
 ### From a clone (no Docker)
 
-Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`.
+Clone with `git clone --recurse-submodules`. In an existing clone, run `git submodule update --init`. New worktrees initialize the submodule on their own once the post-checkout hook is installed with `pre-commit install --hook-type post-checkout -c .pre-commit-post-checkout.yaml --allow-missing-config`.
 
 ```sh
 python3 -m venv .venv
