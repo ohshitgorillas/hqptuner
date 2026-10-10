@@ -12,9 +12,10 @@ changelog promise to fit.
 
 Policy notes (docs/testing.md):
 
-- One assertion per test, one case per plate. The helper returns each drawer
-  edge the popover runs past and by how much, or None when there is no popover
-  to measure, and the test judges that.
+- One assertion per test, one case per plate. The helper returns two measured
+  boxes, the popover's and the same box clipped to the drawer, or None when
+  there is no popover to measure; the test narrows the None and judges that the
+  two boxes are equal, which they are only when the popover sits inside.
 - Layout geometry only exists in a real browser, so this is the browser lane.
 - Controls are found by machine identity: the rail stage's `data-stage`, the
   tab's `data-tab`, the trigger's `data-testid`, the popover's `role`. The drawer
@@ -22,6 +23,8 @@ Policy notes (docs/testing.md):
 - No fixed sleep. Locators wait for what they act on, and the measurement waits
   on the drawer's own finite animations finishing, a condition, not a duration.
 """
+
+from typing import NamedTuple
 
 import pytest
 from playwright.sync_api import Page
@@ -49,10 +52,11 @@ PLATES = {
 SETTLE_TIMEOUT = 10_000
 
 #: Waits out every finite animation and transition on the open drawer and
-#: everything inside it, then answers each drawer edge the open popover crosses
-#: with how far past it the popover runs, in CSS pixels, or null when there is no
-#: open drawer or no single visible popover in it.
-CROSSED_JS = """
+#: everything inside it, then answers the open popover's box and that same box
+#: clipped to the drawer's box widened by `slack` on every side, each as
+#: [left, top, right, bottom] in CSS pixels; null when there is no open drawer or
+#: no single visible popover in it.
+BOXES_JS = """
 async ({ slack }) => {
   const drawer = document.querySelector("aside:not([data-closed])");
   if (!drawer) return null;
@@ -62,14 +66,25 @@ async ({ slack }) => {
   if (pops.length !== 1) return null;
   const d = drawer.getBoundingClientRect();
   const p = pops[0].getBoundingClientRect();
-  const past = { left: d.left - p.left, right: p.right - d.right, top: d.top - p.top, bottom: p.bottom - d.bottom };
-  return Object.fromEntries(Object.entries(past).filter(([, px]) => px > slack));
+  const clip = (v, lo, hi) => Math.min(Math.max(v, lo - slack), hi + slack);
+  return {
+    popover: [p.left, p.top, p.right, p.bottom],
+    clipped: [clip(p.left, d.left, d.right), clip(p.top, d.top, d.bottom),
+              clip(p.right, d.left, d.right), clip(p.bottom, d.top, d.bottom)],
+  };
 }
 """
 
 
-def _crossed_edges(page: Page, base_url: str, viewport: tuple[int, int]) -> dict[str, float] | None:
-    """Open the Output drawer's see-more popover at `viewport`; return each drawer edge it runs past, and by how far."""
+class Boxes(NamedTuple):
+    """The popover's box, and the same box clipped to the drawer; equal exactly when the popover sits inside it."""
+
+    popover: tuple[float, ...]
+    clipped: tuple[float, ...]
+
+
+def _popover_boxes(page: Page, base_url: str, viewport: tuple[int, int]) -> Boxes | None:
+    """Open the Output drawer's see-more popover at `viewport`; return its box and that box clipped to the drawer."""
     width, height = viewport
     page.set_viewport_size({"width": width, "height": height})
     page.goto(base_url)
@@ -78,11 +93,15 @@ def _crossed_edges(page: Page, base_url: str, viewport: tuple[int, int]) -> dict
     drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click(timeout=SETTLE_TIMEOUT)
     drawer.locator('[data-testid="see-more"]:visible').first.click(timeout=SETTLE_TIMEOUT)
     drawer.locator('[role="dialog"]:visible').first.wait_for(timeout=SETTLE_TIMEOUT)
-    result = page.evaluate(CROSSED_JS, {"slack": SUBPIXEL})
-    return None if result is None else {str(edge): float(px) for edge, px in result.items()}
+    result = page.evaluate(BOXES_JS, {"slack": SUBPIXEL})
+    if result is None:
+        return None
+    return Boxes(tuple(float(v) for v in result["popover"]), tuple(float(v) for v in result["clipped"]))
 
 
 @pytest.mark.parametrize("plate", sorted(PLATES))
 def test_the_see_more_popover_stays_inside_the_drawer(page: Page, stack: stack_support.Stack, plate: str) -> None:
-    """The note popover a row's see-more opens runs past no edge of the open drawer."""
-    assert _crossed_edges(page, stack.base_url, PLATES[plate]) == {}
+    """The note popover a row's see-more opens is its own box clipped to the open drawer: it runs past no edge."""
+    boxes = _popover_boxes(page, stack.base_url, PLATES[plate])
+    assert boxes is not None
+    assert boxes.popover == boxes.clipped
