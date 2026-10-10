@@ -1,5 +1,6 @@
 // The apodizing lamps' level, the header jewel's and the engine row's: the newest
-// apodizing bin's reading times what the running filter is already correcting of it.
+// apodizing bin's reading, lifted onto a floor once it is above zero, times what
+// the running filter is already correcting of it.
 import { computed } from "@preact/signals";
 import { rateOf, intensity } from "../../lib/apodscale.js";
 import { apodBins } from "../apodhistory.js";
@@ -7,13 +8,20 @@ import { apodLight } from "../ui/prefs.js";
 import { engineStatus } from "../signals.js";
 import { filterFacets } from "../narrow/facets.js";
 
+// The least a lit lamp shows. Ordinary playback sits low on the shared density
+// scale, which reads as a lamp barely on; any reading above zero is rescaled
+// onto FLOOR..1 so the lamp is plainly lit and busier passages still read
+// brighter. A zero reading stays dark.
+const FLOOR = 0.6;
+
 // The newest bin's reading. An empty history is dark rather than absent: the
 // preference is on, so the lamp is on the panel, unlit, which is the state that
 // tells a reader it works and is quiet.
 const peak = computed(() => {
   const all = apodBins.value;
   const bin = all.length ? all[all.length - 1] : null;
-  return bin ? intensity(rateOf(bin)) : 0;
+  const level = bin ? intensity(rateOf(bin)) : 0;
+  return level > 0 ? FLOOR + (1 - FLOOR) * level : 0;
 });
 
 // What the running filter is already doing about the events the counter scored.
