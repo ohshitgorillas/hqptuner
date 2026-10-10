@@ -2781,10 +2781,14 @@
         "type": "object"
       },
       "SettingEntry": {
-        "description": "One ``settings.json`` leaf: a control's tooltip prose, its source citation, and its own option glossary.",
+        "description": "One ``settings.json`` leaf: tooltip prose, the rest held behind ``see more``, citation, option glossary.",
         "properties": {
           "label": {
             "title": "Label",
+            "type": "string"
+          },
+          "more": {
+            "title": "More",
             "type": "string"
           },
           "options": {

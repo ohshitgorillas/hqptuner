@@ -18,6 +18,7 @@ import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
 import { field } from "./Field.js";
 import { choice } from "./Choice.js";
 import { Xref } from "../Xref.js";
+import { MoreNote, seeMore } from "../SeeMore.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").BodyItem} BodyItem */
@@ -27,6 +28,7 @@ import { Xref } from "../Xref.js";
 /** @typedef {import("../../../store/faceplate/drawer.js").IntroPart} IntroPart */
 /** @typedef {import("../../../store/faceplate/drawer.js").NoteLine} NoteLine */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
+/** @typedef {import("../../../store/prose.js").ControlProse} ControlProse */
 /** @typedef {Record<string, (props: { schema: DrawerSchema, here: XrefHere }) => unknown>} Blocks */
 
 /**
@@ -69,6 +71,22 @@ function pickedLine(spec, entry) {
 }
 
 /**
+ * A row's paragraph: its tooltip whole, or, where its metadata entry holds `more` back, the tooltip, then `see more`,
+ * which opens the rest.
+ *
+ * @param {RowSpec} spec
+ * @param {ControlProse} prose
+ * @param {string} label
+ * @param {XrefHere} here
+ */
+function rowProse(spec, prose, label, here) {
+  const { tooltip, more } = prose;
+  if (!more) return html`<p>${tooltip}</p>`;
+  const pop = `more-${here.drawer}-${spec.key}`;
+  return html`<p>${tooltip} ${seeMore(pop)}</p><${MoreNote} id=${pop} label=${label} paras=${[more]} />`;
+}
+
+/**
  * One row; nothing for an unknown key or a row its `when` leaves out.
  *
  * @param {RowSpec} spec
@@ -78,8 +96,8 @@ function row(spec, here) {
   const entry = catalog[spec.key];
   if (!entry || !rowShown(spec)) return null;
   const { key } = spec;
-  const { label: described, tooltip } = describe(entry, key);
-  const label = spec.label ?? described;
+  const prose = describe(entry, key);
+  const label = spec.label ?? prose.label;
   const gray = grayReason(key);
   const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
   const lit = (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
@@ -88,7 +106,7 @@ function row(spec, here) {
   return html`
     <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
       <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
-      <div class="man"><p>${tooltip}</p></div>
+      <div class="man">${rowProse(spec, prose, label, here)}</div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry)}
     </div>
   `;

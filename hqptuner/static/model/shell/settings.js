@@ -81,10 +81,10 @@ export function readoutOf(c, v, accents) {
 }
 
 /**
- * The visual effect a live setting change causes, with its values. Allow pinned rates shows the rate pins; Accent color
- * sets the accent tokens (dim, low and rim derived from the pick, as the amber set is); Top of page, Bottom bar and
- * Option style carry the pick; Hide from signal chain says, per hideable stage, whether it leaves the chain rail;
- * Dyslexic font names the body family (null restores the default). Every other setting is none.
+ * The visual effect a live setting change causes, with its values. Allow pinned rates shows the rate dial's pin picker;
+ * Accent color sets the accent tokens (dim, low and rim derived from the pick, as the amber set is); Top of page,
+ * Bottom bar and Option style carry the pick; Hide from signal chain says, per hideable stage, whether it leaves the
+ * chain rail; Dyslexic font names the body family (null restores the default). Every other setting is none.
  *
  * @param {string} id
  * @param {string} v

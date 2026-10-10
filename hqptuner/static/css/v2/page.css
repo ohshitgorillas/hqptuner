@@ -82,33 +82,6 @@ details.fold summary .band{flex-shrink:0}
 /* The body steps in under the summary's name: past the ▸ column and its gap. */
 details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));display:flex;flex-direction:column;gap:var(--sp-3)}
 
-/* Output rate picker (only while Allow pinned rates is On). Two rows. Head column (Auto | 44.1k · 48k) | a
-   column per tier of the running band: name, then its two rates side by side as pins + the tier's unit once. Playing =
-   ringed (ink); pin = accent. Rows fixed height. */
-.otglass{flex-direction:row;align-items:stretch;gap:0;padding:var(--sp-2) var(--sp-6);color:var(--ink)}
-.otheads{display:flex;flex-direction:column;flex-shrink:0;padding-right:var(--sp-6);margin-right:var(--sp-2);border-right:var(--hair) solid var(--ink-4)}
-.otautop{height:var(--pin-h);padding:0;border:0;background:none;font:var(--fw-semi) var(--fs-2)/var(--pin-h) var(--f-eng);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);cursor:pointer;text-align:left}
-.otautop.otpinned{color:var(--acc)}
-.otautop:hover{color:var(--ink)}
-.otfh{height:var(--pin-h);display:flex;align-items:center;font:var(--fw-medium) var(--fs-2)/1 var(--f-mono);color:var(--ink-2)}
-.otgrid{flex:1 1 auto;min-width:0;display:grid}
-.otcol{display:flex;flex-direction:column;align-items:center;min-width:0}
-.otcol+.otcol{border-left:var(--hair) solid var(--line)}
-.otcol.otunav{background:var(--hatch-unav)}
-.ottn{height:var(--pin-h);font:var(--fw-semi) var(--fs-2)/var(--pin-h) var(--f-eng);letter-spacing:var(--ls-2);color:var(--ink-2)}
-.otp{height:var(--pin-h);display:flex;align-items:center;padding:0 var(--sp-3);border:var(--hair) solid transparent;border-radius:calc(var(--pin-h) / 2);background:none;font:var(--fw-medium) var(--fs-3)/1 var(--f-mono);color:var(--ink-2);cursor:pointer;white-space:nowrap}
-.otpair{display:flex;align-items:center;gap:var(--sp-1);min-width:0}
-.otpair .otu{font-size:var(--fs-1);margin-left:var(--sp-1);color:var(--ink-2)}
-.otpair .otu.otno{color:var(--ink-3)}
-.otp{padding:0 var(--sp-2);font-size:var(--fs-2)}
-.otp:hover{color:var(--ink)}
-.otp.otplay{border-color:var(--ink);color:var(--ink)}
-.otp.otpinned{color:var(--acc)}
-.otp.otplay.otpinned{border-color:var(--acc)}
-.otp.otno{cursor:default;color:var(--ink-3)}
-.otp:focus-visible,.otautop:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--hair)}
-
-
 /* Alert glyph on a page section's title: the stage's alert, in its colour; the text is the title tooltip. */
 /* Section alert: the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
 .sh .salert{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-1)}

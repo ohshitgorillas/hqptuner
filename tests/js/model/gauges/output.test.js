@@ -1,7 +1,6 @@
 // Behavioral suite for hqptuner/static/model/gauges/output.js: which tiers belong to a rate family, where each tier and band
-// sits on the rate dial and which tier a pointer lands on, how a needle settles inside its band, which rates the output
-// tuner marks pinned and playing, how an engine device string splits into its group, main and detail parts, how a
-// device list falls under its group headers, where a value sits along a range as a percentage, and which drawing x a
+// sits on the rate dial and which tier a pointer lands on, how a needle settles inside its band, how an engine device
+// string splits into its group, main and detail parts, how a device list falls under its group headers, where a value sits along a range as a percentage, and which drawing x a
 // pointer falls on when the drawing is fitted and centered inside its glass.
 //
 // Tiers, dial geometry and device lists are tables the test writes; no shipped data supplies an input or an expected
@@ -25,7 +24,6 @@ import {
   percentOf,
   seamX,
   tierIndex,
-  tunerColumns,
 } from "../../../../hqptuner/static/model/gauges/output.js";
 import { near } from "../../support/near.js";
 
@@ -54,13 +52,6 @@ const INSET = 8;
 //: Quarter steps between the PCM band's rule ends (5.5 … 64.5) that miss every tier.
 const PCM_MINOR = [16.25, 22.5, 28.75, 41.25, 47.5, 53.75];
 
-//: Rate families in the order the tuner lists them.
-const FAMS = ["f44", "f48"];
-//: One PCM tier, then three SDM tiers, the last of which the device cannot carry.
-const TUNER = [{ family: "pcm" }, { family: "sdm" }, { family: "sdm" }, { family: "sdm", unavailable: true }];
-//: The SDM band runs tier 1 from a 48k-family source.
-const PLAYING_1 = { run: "sdm", tier: 1, src: 0, fam: "f48" };
-
 //: The drawing's viewBox, and the x of its first tier in drawing units.
 const VIEWBOX = { w: 806, h: 106 };
 const FIRST_TIER_X = 38;
@@ -76,16 +67,6 @@ const SHORT_GLASS = { left: 0, width: 806, height: 53 };
 const NARROW_GLASS = { left: 0, width: 403, height: 106 };
 //: (220 - 201.5) / 0.5 in the short glass.
 const SHORT_GLASS_X = 37;
-
-/**
- * `tier:family` for every rate the columns mark with `key`, in column order.
- *
- * @param {import("../../../../hqptuner/static/model/gauges/output.js").TunerColumn[]} cols
- * @param {"pinned" | "playing"} key
- * @returns {string[]}
- */
-const marked = (cols, key) =>
-  cols.flatMap((c) => c.cells.filter((cell) => cell[key]).map((cell) => `${c.i}:${cell.fam}`));
 
 // ── tierIndex ────────────────────────────────────────────────────────────
 
@@ -163,61 +144,6 @@ test("test_a_needle_sent_to_another_tier_has_moved", () => {
 
 test("test_a_needle_clamped_back_onto_its_own_tier_has_not_moved", () => {
   assert.equal(moveNeedle(PCM_SPAN, 2, 4).moved, false);
-});
-
-// ── tunerColumns ─────────────────────────────────────────────────────────
-
-test("test_tuner_shows_one_column_per_tier_of_the_running_band", () => {
-  assert.deepEqual(
-    tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.i),
-    [1, 2, 3],
-  );
-});
-
-test("test_tuner_column_carries_the_tier_s_unavailability", () => {
-  assert.deepEqual(
-    tunerColumns(TUNER, PLAYING_1, null, FAMS).map((c) => c.unavailable),
-    [false, false, true],
-  );
-});
-
-test("test_tuner_cells_list_the_families_in_the_order_given", () => {
-  assert.deepEqual(
-    tunerColumns(TUNER, PLAYING_1, null, FAMS)[0].cells.map((c) => c.fam),
-    FAMS,
-  );
-});
-
-test("test_tuner_marks_only_the_pinned_rate_pinned", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, PLAYING_1, { tier: 2, fam: "f44" }, FAMS), "pinned"), ["2:f44"]);
-});
-
-test("test_tuner_marks_nothing_pinned_without_a_pin", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, PLAYING_1, null, FAMS), "pinned"), []);
-});
-
-test("test_unpinned_tuner_plays_the_source_family_of_the_output_tier", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, PLAYING_1, null, FAMS), "playing"), ["1:f48"]);
-});
-
-test("test_pinned_tuner_plays_the_pin_s_family", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, PLAYING_1, { tier: 1, fam: "f44" }, FAMS), "playing"), ["1:f44"]);
-});
-
-test("test_tuner_marks_nothing_playing_without_a_source", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, { ...PLAYING_1, src: null }, null, FAMS), "playing"), []);
-});
-
-test("test_tuner_marks_nothing_playing_without_an_output_tier", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, { ...PLAYING_1, tier: null }, null, FAMS), "playing"), []);
-});
-
-test("test_tuner_never_marks_an_unavailable_tier_playing", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, { ...PLAYING_1, tier: 3 }, null, FAMS), "playing"), []);
-});
-
-test("test_tuner_never_marks_an_unavailable_tier_pinned", () => {
-  assert.deepEqual(marked(tunerColumns(TUNER, PLAYING_1, { tier: 3, fam: "f48" }, FAMS), "pinned"), []);
 });
 
 // ── deviceParts ──────────────────────────────────────────────────────────

@@ -199,6 +199,9 @@ def _setting_entry(raw: object) -> SettingEntry:
     tooltip = raw.get("tooltip")
     if _is_str(tooltip):
         entry["tooltip"] = tooltip
+    more = raw.get("more")
+    if _is_str(more):
+        entry["more"] = more
     source = raw.get("source")
     if _is_str(source):
         entry["source"] = source

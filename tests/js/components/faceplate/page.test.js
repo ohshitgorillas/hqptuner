@@ -25,6 +25,7 @@ import {
   matrixConfig,
   engineState,
   engineStatus,
+  enums,
   staged,
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
@@ -40,6 +41,10 @@ const CD = "44100";
 const PCM_8X = "352800";
 const DSD64 = "2822400";
 const DSD256 = "11289600";
+
+//: The engine's PCM rate list, 1x to 32x of both families, as /api/enumerations serves it with index 0 for auto.
+const PCM_RATES = [44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000, 1411200, 1536000];
+const RATES = [{ index: "0", rate: "0" }, ...PCM_RATES.map((r, n) => ({ index: String(n + 1), rate: String(r) }))];
 
 /**
  * @typedef {object} Running
@@ -68,7 +73,8 @@ function run({
   win = { w: 1080, h: 810 },
 }) {
   viewport.value = win;
-  engineState.value = { state: "2" };
+  engineState.value = { state: "2", mode: "1", active_chain: "pcm", rate: "0" };
+  enums.value = { rates: RATES };
   engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
   config.value = { fields: [{ name: "direct_sdm", value: direct }] };
   matrixConfig.value = { fields: [{ name: "enabled", value: matrix }] };
@@ -123,9 +129,19 @@ test("test_a_running_direct_sdm_takes_resampling_and_shaping_off_the_page", () =
   assert.deepEqual(stages(), ["source", "matrix"]);
 });
 
-test("test_allowing_pinned_rates_puts_output_on_the_page", () => {
+/**
+ * The rate pins anywhere on the rendered page: each exact-rate pin as its tier and family, Auto by its test id.
+ *
+ * @returns {(string | undefined)[][]}
+ */
+const ratePins = () =>
+  pageEls()
+    .filter((e) => attr(e, "data-fam") !== undefined || attr(e, "data-testid") === "pin-auto")
+    .map((e) => [attr(e, "data-i"), attr(e, "data-fam"), attr(e, "data-testid")]);
+
+test("test_allowing_pinned_rates_puts_no_rate_pin_on_the_page", () => {
   run({ pins: true });
-  assert.deepEqual(stages(), ["source", "matrix", "resampling", "shaping", "output"]);
+  assert.deepEqual(ratePins(), []);
 });
 
 test("test_a_bypassed_matrix_engine_takes_the_matrix_section_off_the_page", () => {
@@ -249,11 +265,6 @@ test("test_the_resampling_body_holds_a_chain_picker", () => {
 test("test_a_13_inch_plate_opens_both_resampling_filters_in_one_body", () => {
   run({ win: { w: 1366, h: 1024 } });
   assert.deepEqual([partsOf("resampling", "cplate").length, partsOf("resampling", "two")], [2, [["two", "both"]]]);
-});
-
-test("test_the_output_section_holds_the_rate_pins_glass", () => {
-  run({ pins: true });
-  assert.equal(partsOf("output", "otglass").length, 1);
 });
 
 // --- a section ---------------------------------------------------------------------

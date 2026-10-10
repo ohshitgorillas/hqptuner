@@ -21,7 +21,8 @@ import { metadata } from "./signals.js";
  * @typedef {object} ControlProse
  *   One control's settings.json row.
  * @property {string} label
- * @property {string} tooltip
+ * @property {string} tooltip  the start of the paragraph, shown
+ * @property {string} [more]  the rest of the paragraph, held behind "see more"
  * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
  *
  * @typedef {object} OverlayEntry

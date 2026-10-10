@@ -1,7 +1,7 @@
 // Behavioral suite for hqptuner/static/model/shell/page.js: the page's sections, engaged stages only and in signal order.
 // Source shows wherever the spectrum does, the Matrix section stands at full size, folds to its header line or leaves as
 // the Top of page preference and the matrix engine decide, Resampling and Shaping leave on the Direct SDM path, Output
-// shows only with pinned rates allowed, and exactly one section takes the fill.
+// never shows whether pinned rates are allowed or not, and exactly one section takes the fill.
 //
 // Section ids are the rail's stage ids, wire identifiers of the page; the paths are store/faceplate/path.js's.
 //
@@ -48,8 +48,8 @@ const fillOf = (now) => sections(now).find((s) => s.fill)?.id;
  */
 const matrixFold = (now) => sections(now).find((s) => s.id === "matrix")?.fold;
 
-test("test_every_engaged_stage_shows_in_signal_order", () => {
-  assert.deepEqual(ids({ pinsOn: true }), ["source", "matrix", "resampling", "shaping", "output"]);
+test("test_allowing_pinned_rates_leaves_output_off_the_page", () => {
+  assert.deepEqual(ids({ pinsOn: true }), ["source", "matrix", "resampling", "shaping"]);
 });
 
 test("test_pinned_rates_off_leave_output_off_the_page", () => {

@@ -1,6 +1,6 @@
 // DOM-free output arithmetic for the faceplate's components: which rate tiers make up a band, where tiers, bands and the
-// seam sit on the rate dial and where its needles settle, which rates the output tuner marks, how an engine device string
-// splits, how a device list falls under its group headers, and where a value sits along a slider's range.
+// seam sit on the rate dial and where its needles settle, how an engine device string splits, how a device list falls
+// under its group headers, and where a value sits along a slider's range.
 
 /**
  * @typedef {object} DialScale
@@ -13,20 +13,6 @@
  * @typedef {object} TierSpan
  * @property {number} lo  position of the band's first tier
  * @property {number} hi  position of the band's last tier
- */
-
-/**
- * @typedef {object} TunerCell  one exact rate of a tier
- * @property {string} fam       the rate's family key
- * @property {boolean} pinned   the pin sits on this rate
- * @property {boolean} playing  this rate is playing now
- */
-
-/**
- * @typedef {object} TunerColumn  one tier of the running band
- * @property {number} i             the tier's position
- * @property {boolean} unavailable  the device cannot carry the tier
- * @property {TunerCell[]} cells    one per family, in the order given
  */
 
 /**
@@ -158,30 +144,6 @@ export function drawingX(clientX, rect, viewBox) {
 export function moveNeedle(span, cur, target) {
   const i = Math.max(span.lo, Math.min(span.hi, target));
   return { i, moved: i !== cur };
-}
-
-/**
- * The output tuner's columns: one per tier of the running band, each rate marked pinned where the pin sits and playing
- * where the running tier plays in the pin's family (unpinned: the source's). An unavailable tier is never marked.
- *
- * @param {{ family: string, unavailable?: boolean }[]} tiers
- * @param {{ run: string, tier: number | null, src: number | null, fam: string }} now  what runs
- * @param {{ tier: number, fam: string } | null} pin
- * @param {string[]} fams  family keys, in display order
- * @returns {TunerColumn[]}
- */
-export function tunerColumns(tiers, now, pin, fams) {
-  const playing = now.src != null && now.tier != null;
-  const playFam = pin ? pin.fam : now.fam;
-  return tierIndex(tiers, now.run).map((i) => {
-    const unavailable = Boolean(tiers[i].unavailable);
-    const cells = fams.map((fam) => ({
-      fam,
-      pinned: !unavailable && pin?.tier === i && pin.fam === fam,
-      playing: !unavailable && playing && now.tier === i && playFam === fam,
-    }));
-    return { i, unavailable, cells };
-  });
 }
 
 /**

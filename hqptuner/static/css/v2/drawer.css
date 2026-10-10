@@ -52,7 +52,7 @@
 .drow .ctl>.seg{align-self:flex-start}
 /* A list key's nameplate in place of its select: the page's face at the page plate's height. */
 .drow .ctl>button.vfd.cplate{width:100%;height:var(--cplate-h);padding:var(--sp-2) var(--sp-10) var(--sp-1) var(--sp-6)}
-.drow .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-6);white-space:nowrap}
+.drow .seg:not(.mini) button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-6);white-space:nowrap}
 .drow .man{padding-top:var(--hair);max-width:none;line-height:1.45}
 
 .num{display:flex;align-items:center;gap:var(--sp-5)}
@@ -114,6 +114,13 @@
 .dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
 .dial .playing{fill:var(--ok);filter:drop-shadow(0 0 var(--sp-1) var(--ok))}
 .dial .needle{fill:var(--acc);filter:drop-shadow(0 0 var(--sp-2) var(--acc))}
+/* Pin picker (Allow pinned rates On): a mini segment parked at the right end of the Rate row's label line, out of the
+   column's flow, so it adds no height. The pinned rate: its frequency line in accent inside an accent box, apart from
+   the needle's tier printing and the playing lamp. */
+.drow .ctl:has(> .ratepin){position:relative}
+.drow .seg.ratepin{position:absolute;top:0;right:0}
+.dial .pinned .pinbox{fill:none;stroke:var(--acc);stroke-width:1}
+.dial .pinned .pf{fill:var(--acc)}
 .dial .ndl{transition:transform var(--needle)}
 .dial.drag .ndl{transition:none}
 @media (prefers-reduced-motion:reduce){.dial .ndl{transition:none}}

@@ -1,9 +1,9 @@
 // The faceplate's page: one section per engaged stage, in signal order, as model/shell/page.js decides from the running
-// path, the running matrix engine and the browser's Top of page and Allow pinned rates preferences. A section is an
-// engraved header (title, hairline, then anything the section carries on its header line) over a body, two columns
-// unless the section's instrument fills it whole, and a folded section is its header line alone. Source holds the
-// page meter, Matrix profile the profile select, its description and its response plot, Resampling and Shaping the
-// running chain's pickers with Filter presets on Resampling's header, and Output the rate pins.
+// path, the running matrix engine and the browser's Top of page preference. A section is an engraved header (title,
+// hairline, then anything the section carries on its header line) over a body, two columns unless the section's
+// instrument fills it whole, and a folded section is its header line alone. Source holds the page meter, Matrix
+// profile the profile select, its description and its response plot, and Resampling and Shaping the running chain's
+// pickers with Filter presets on Resampling's header.
 
 import { html } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
@@ -13,14 +13,13 @@ import { runningValue } from "../../store/resolve.js";
 import { playbackPath } from "../../store/faceplate/path.js";
 import { pageMeter } from "../../store/faceplate/page/meter.js";
 import { conversionSections } from "../../store/faceplate/page/conversion.js";
-import { topOfPage, allowPinnedRates } from "../../store/ui/faceplate.js";
+import { topOfPage } from "../../store/ui/faceplate.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
 import { AlertLines } from "./AlertLines.js";
 import { SourceMeter } from "./page/SourceMeter.js";
 import { MatrixProfileBody, ProfileLine } from "./page/MatrixProfile.js";
 import { Conversion } from "./page/Conversion.js";
 import { FilterPresetsButton } from "./page/FilterPresets.js";
-import { OutputPins } from "./page/OutputPins.js";
 
 /** @typedef {import("../../model/shell/page.js").SectionId} SectionId */
 /** @typedef {import("../../model/shell/page.js").PageSection} PageSection */
@@ -31,7 +30,6 @@ const TITLES = {
   matrix: "Matrix profile",
   resampling: "Resampling",
   shaping: "Shaping",
-  output: "Output",
 };
 
 /**
@@ -85,16 +83,14 @@ const BODIES = {
     children: html`<${Conversion} section="resampling" />`,
   }),
   shaping: () => ({ children: html`<${Conversion} section="shaping" />` }),
-  output: () => ({ two: false, children: html`<${OutputPins} />` }),
 };
 
-/** The page: its sections from the running state and the preferences. */
+/** The page: its sections from the running state and the Top of page preference. */
 export function Page() {
   const sections = pageSections({
     path: playbackPath(),
     matrixOn: truthy(runningValue("matrix_enabled")),
     topOfPage: topOfPage.value,
-    pinsOn: allowPinnedRates.value,
   });
   return html`
     <main class="page">

@@ -43,7 +43,8 @@
     },
     "dac_bits": {
       "label": "DAC bits",
-      "tooltip": "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects. When the DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to set the actual value here. Also, when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion of especially low-level signals and reduce zero-crossing distortions.",
+      "tooltip": "Number of significant bits the DAC has; this is the dithering level. 0 auto-detects.",
+      "more": "When the DAC is connected to a unidirectional interface like S/PDIF, AES/EBU or I2S, it is important to select the correct number of bits. In addition, when a DAC is connected to USB and has something other than 32-bit input resolution, it is recommended to set the actual value here. Also, when a suitable noise-shaper, such as LNS15, NS9 or NS5, is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower the distortion of especially low-level signals and reduce zero-crossing distortions.",
       "source": "manual §4.4 (Bits), readme §1.3 (dac_bits)"
     },
     "channel_offset": {

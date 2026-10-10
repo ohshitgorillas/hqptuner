@@ -47,10 +47,11 @@ class ShaperEntry(TypedDict, total=False):
 
 
 class SettingEntry(TypedDict, total=False):
-    """One ``settings.json`` leaf: a control's tooltip prose, its source citation, and its own option glossary."""
+    """One ``settings.json`` leaf: tooltip prose, the rest held behind ``see more``, citation, option glossary."""
 
     label: str
     tooltip: str
+    more: str
     source: str
     options: dict[str, str]
 

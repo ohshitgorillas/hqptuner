@@ -2,8 +2,9 @@
 // so 32x PCM to 64x SDM is the next octave and the glass is continuous; it carries two settings, the PCM limit and the
 // SDM limit, so each band has its own needle confined to its band, the 32x|64x seam a hard stop. Both bands are
 // settable in either output mode. Hatched: the device announced it cannot carry the tier. The green lamp: the rate
-// running now. Every decision is the store's (store/faceplate/drawers/output.js); the arithmetic of where things sit is
-// model/gauges/output.js.
+// running now. While pinned rates are allowed, the pin picker (Auto or a family) parks on the Rate row's label line
+// and the pinned rate is boxed in accent on its tier. Every decision is the store's
+// (store/faceplate/drawers/output.js); the arithmetic of where things sit is model/gauges/output.js.
 //
 // The drawing keeps its own aspect, fitted whole and centered in the glass; its box carries the drawing and the band
 // sliders, so each slider is a transparent region over its half of the drawing: press or drag onto a tier, arrow keys
@@ -21,10 +22,12 @@ import {
   nearestTier,
   seamX,
 } from "../../../../model/gauges/output.js";
-import { dialView, pickTier } from "../../../../store/faceplate/drawers/output.js";
+import { dialView, dragTier, keyTier, pickPin, pickTier } from "../../../../store/faceplate/drawers/output.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/output.js").DialTier} DialTier */
 /** @typedef {import("../../../../store/faceplate/drawers/output.js").DialView} DialView */
+/** @typedef {import("../../../../store/faceplate/drawers/output.js").Fam} Fam */
+/** @typedef {import("../../../../store/faceplate/drawers/output.js").PinPick} PinPick */
 /** @typedef {import("../../../../model/gauges/output.js").DialScale} DialScale */
 /** @typedef {import("../../../../model/gauges/output.js").TierSpan} TierSpan */
 /** @typedef {{ id: "pcm" | "sdm", legend: string }} Band */
@@ -47,6 +50,19 @@ const RULE_Y = 56;
 const INSET = 8; // a band's legend and rule stop this far inside its outer tiers' cells
 const HATCH = "rate-dial-hatch";
 const VIEWBOX = { w: W, h: H };
+const FREQ_Y = { f44: 67, f48: 79 }; // middle of each member's frequency line, the line centered on it
+const FREQ_PITCH = FREQ_Y.f48 - FREQ_Y.f44;
+const PIN_PAD = 2; // the pin box stops this far inside its tier's cell
+
+/** Each tier's members, in printing order. @type {Fam[]} */
+const FAMS = ["f44", "f48"];
+
+/** The pin picker's options: Auto, then the families, the family labels kept in their own case. */
+const PICKS = [
+  { pin: "auto", label: "Auto", fam: false },
+  { pin: "f44", label: "44.1k", fam: true },
+  { pin: "f48", label: "48k", fam: true },
+];
 
 /** @type {Band[]} */
 const BANDS = [
@@ -54,7 +70,7 @@ const BANDS = [
   { id: "sdm", legend: "SDM (DSD)" },
 ];
 
-/** Where each key sends a needle at `c` in a band. @type {Record<string, (c: number, st: TierSpan) => number>} */
+/** Where each key sends a band's key origin `c`. @type {Record<string, (c: number, st: TierSpan) => number>} */
 const KEYS = {
   ArrowLeft: (c) => c - 1,
   ArrowDown: (c) => c - 1,
@@ -65,18 +81,32 @@ const KEYS = {
 };
 
 /**
- * One tier's printing: major tick, name, both exact rates, and the unavailable note.
+ * The box round the pinned member's frequency line: its tier's cell wide, one line pitch tall, on the line's middle.
  *
- * @param {{ t: DialTier, i: number, x: number, sel: boolean }} props
+ * @param {{ x: number, cell: number, fam: Fam }} props
  */
-function TierMark({ t, i, x, sel }) {
-  const cls = [t.unavailable ? "unav" : "", sel ? "sel" : ""].filter(Boolean).join(" ");
+function PinBox({ x, cell, fam }) {
+  const w = cell - 2 * PIN_PAD;
+  return html`<rect class="pinbox" x=${x - w / 2} y=${FREQ_Y[fam] - FREQ_PITCH / 2} width=${w} height=${FREQ_PITCH} rx="2" />`;
+}
+
+/**
+ * One tier's printing: major tick, name, both exact rates, the box round a pinned rate, and the unavailable note.
+ *
+ * @param {{ t: DialTier, i: number, x: number, cell: number, sel: boolean, pin: Fam | null }} props
+ */
+function TierMark({ t, i, x, cell, sel, pin }) {
+  const cls = [t.unavailable ? "unav" : "", sel ? "sel" : "", pin ? "pinned" : ""].filter(Boolean).join(" ");
+  const line = (/** @type {Fam} */ fam) => `${t[fam]} ${t.unit}`;
   return html`
     <g class=${cls || undefined} data-i=${i}>
       <line class="major" x1=${x} y1=${RULE_Y - 12} x2=${x} y2=${RULE_Y} />
       <text class="tier" x=${x} y="38" text-anchor="middle">${t.name}</text>
-      <text class="freq" x=${x} y="71" text-anchor="middle">${t.f44} ${t.unit}</text>
-      <text class="freq" x=${x} y="83" text-anchor="middle">${t.f48} ${t.unit}</text>
+      ${pin ? html`<${PinBox} x=${x} cell=${cell} fam=${pin} />` : null}
+      ${FAMS.map(
+        (fam) =>
+          html`<text class=${pin === fam ? "freq pf" : "freq"} x=${x} y=${FREQ_Y[fam]} text-anchor="middle" dominant-baseline="central">${line(fam)}</text>`,
+      )}
       ${t.unavailable ? html`<text class="note" x=${x} y="99" text-anchor="middle">unavailable</text>` : null}
     </g>
   `;
@@ -92,8 +122,12 @@ function BandGlass({ b, view, scale }) {
   const { x1, x2 } = bandEdges(scale, span, INSET);
   const cur = view.limits[b.id];
   const marks = [];
-  for (let i = span.lo; i <= span.hi; i++)
-    marks.push(html`<${TierMark} t=${view.tiers[i]} i=${i} x=${scale.xs[i]} sel=${i === cur} />`);
+  for (let i = span.lo; i <= span.hi; i++) {
+    const pin = view.pin && view.pin.tier === i ? view.pin.fam : null;
+    marks.push(
+      html`<${TierMark} t=${view.tiers[i]} i=${i} x=${scale.xs[i]} cell=${scale.dx} sel=${i === cur} pin=${pin} />`,
+    );
+  }
   return html`
     <g class="band" data-band=${b.id}>
       <path class="bl" d=${`M${x1},20 V14 H${x2} V20`} />
@@ -130,12 +164,12 @@ function tierAt(scale, e) {
 
 /**
  * A band slider's pointer and key handlers: a press picks the tier under it and starts a drag, a drag picks each tier
- * it crosses, a key steps.
+ * it crosses, a key steps from the origin the store reads.
  *
  * @param {Band["id"]} band
- * @param {{ scale: DialScale, span: TierSpan, cur: number | null }} at
+ * @param {DialScale} scale
  */
-function useBandInput(band, { scale, span, cur }) {
+function useBandInput(band, scale) {
   const dragging = useRef(false);
   /** @param {SliderEvent} e @param {boolean} on */
   const drag = (e, on) => {
@@ -148,14 +182,14 @@ function useBandInput(band, { scale, span, cur }) {
       e.currentTarget.setPointerCapture?.(Number(e.pointerId));
       return pickTier(band, tierAt(scale, e));
     },
-    onPointerMove: (/** @type {SliderEvent} */ e) => (dragging.current ? pickTier(band, tierAt(scale, e)) : undefined),
+    onPointerMove: (/** @type {SliderEvent} */ e) => (dragging.current ? dragTier(band, tierAt(scale, e)) : undefined),
     onPointerUp: (/** @type {SliderEvent} */ e) => drag(e, false),
     onPointerCancel: (/** @type {SliderEvent} */ e) => drag(e, false),
     onKeyDown: (/** @type {SliderEvent} */ e) => {
       const step = KEYS[String(e.key)];
       if (!step) return undefined;
       e.preventDefault?.();
-      return pickTier(band, step(cur ?? span.lo, span));
+      return keyTier(band, step);
     },
   };
 }
@@ -168,7 +202,7 @@ function useBandInput(band, { scale, span, cur }) {
 function BandSlider({ b, view, scale, seam }) {
   const span = bandSpan(view.tiers, b.id);
   const cur = view.limits[b.id];
-  const input = useBandInput(b.id, { scale, span, cur });
+  const input = useBandInput(b.id, scale);
   const split = (seam / W) * 100;
   const style = b.id === "pcm" ? `left:0%;width:${split}%` : `left:${split}%;width:${100 - split}%`;
   const t = cur == null ? null : view.tiers[cur];
@@ -208,12 +242,40 @@ const Hatch = ({ view, scale }) => html`
   )}
 `;
 
-/** The rate dial over `pcm_rate` and `sdm_rate`: both bands, their needles, the hatch and the playing lamp. */
+/**
+ * The pin picker, parked on the Rate row's label line: Auto or a family, the pick lit.
+ *
+ * @param {{ pick: PinPick }} props
+ */
+const PinPicker = ({ pick }) => html`
+  <div class="seg mini ratepin" role="radiogroup">
+    ${PICKS.map(
+      (o) => html`
+        <button
+          type="button"
+          role="radio"
+          class=${o.pin === pick ? "on" : undefined}
+          aria-checked=${String(o.pin === pick)}
+          data-pin=${o.pin}
+          onClick=${() => pickPin(/** @type {PinPick} */ (o.pin))}
+        >
+          ${o.fam ? html`<span class="su">${o.label}</span>` : o.label}
+        </button>
+      `,
+    )}
+  </div>
+`;
+
+/**
+ * The rate dial over `pcm_rate` and `sdm_rate`: both bands, their needles, the hatch, the playing lamp, and while
+ * pinned rates are allowed the pin picker and the pinned rate's box.
+ */
 export function RateDial() {
   const view = dialView();
   const scale = dialScale(view.tiers.length, W, X0);
   const seam = seamX(scale, view.tiers);
   return html`
+    ${view.picker === null ? null : html`<${PinPicker} pick=${view.picker} />`}
     <div
       class="dial"
       role="group"

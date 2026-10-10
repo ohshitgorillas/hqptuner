@@ -33,7 +33,7 @@ Current state only.
 - **Header:** brand knob (the connection lamp: ring green Connected, amber Applying… with the pointer sweeping, red Unreachable; tap = connection settings) · HQPTUNER · Station · Snapshot tree-select · Station builder · Snapshot builder · gear.
 - **Engine row:** speed gauge + figure, input / output buffers (bars widen with the display: 72 / 130 / 240px at 10.2″ / 11″ / 13″), Clipping and Apodizing lamps with counts (this track over total), then volume `−` | window | `+` at the right end.
 - **Body:** rail | page, with drawers over the page. The gear and the builders swap the whole body; header, engine row and bottom bar stay.
-- **Bottom bar:** Setting Switcher (or None). Target dropdown, then two slots. A slot's body makes it live; its ▾ opens its list. No A/B keys, no lamp. Slots show the full simplified name. Output mode is a target: its slots are the two bands, PCM | SDM (DSD) (no list, no ▾); a slot going live sets the mode, and the mode moving anywhere lights its slot. Output rate is not a target: the page's pins are its live home. **Volume** is a target: the slots give way to the volume bar (−, slider with scale marks and loudness bounds, +, readout), and the engine-row volume hides while it shows. Slot names read in the body face (not mono), so a full simplified name fits one line.
+- **Bottom bar:** Setting Switcher (or None). Target dropdown, then two slots. A slot's body makes it live; its ▾ opens its list. No A/B keys, no lamp. Slots show the full simplified name. Output mode is a target: its slots are the two bands, PCM | SDM (DSD) (no list, no ▾); a slot going live sets the mode, and the mode moving anywhere lights its slot. Output rate is not a target: its live pin is the Output drawer's rate dial. **Volume** is a target: the slots give way to the volume bar (−, slider with scale marks and loudness bounds, +, readout), and the engine-row volume hides while it shows. Slot names read in the body face (not mono), so a full simplified name fits one line.
 
 ## Rail
 - Order (true signal order, as the Signal path map draws it): Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Resampling → DAC correction → Volume → Shaping → Speakers → Output.
@@ -80,10 +80,8 @@ Current state only.
   - **Matrix profile** (the page section; the rail stage stays Matrix engine): profile select + Profile builder, the description box (user text, ink-2), response plot. In Auto it folds to its header line (above); in Spectrum it's gone.
   - **Resampling** and **Shaping:** one section each, as on the rail (one stage, one drawer, one section; reverses the 2026-10-03 merge, the Source spectrum gives back the header line). Resampling's header carries Filter presets; its body is the 1x / Nx filter, no narrowing tags (narrowing shows only in the filter list). Shaping: modulator or dither.
   - **Chain picker** (1x / Nx filter, modulator, dither): opens its list (sheet or panel). The glass reads family › variant at reading size, then the option's name (accent; the engine name under Option style Standard). No marks, counts, step buttons or sibling strip.
-  - **Output:** only while Settings → Behavior → Allow pinned rates is On. Pins off, the Output stage has no job on the page (the rail shows the format, the Output drawer sets it), so it has no section, as Volume has none. The spare height goes to the fill.
-    - Pins on: a rate picker, the output rate its whole subject (no source mark, no ratio). One glass, two rows: head column `Auto` | `44.1k · 48k`; one column per tier of the running band: the tier name, then its two exact rates side by side (44.1k family first) with the tier's unit once after the pair, each rate a live pin (one tap, one exact rate). Hatched where the device can't carry a tier. The other band never shows. The rate playing is ringed (ink); the pin, or `Auto`, reads in accent. A mode change clears the pin. The rate limit (restart) never shows on the page.
-    - **No mode control on the page.** Output mode is the station's. Two homes, one live state: the Output drawer's Format tab (Output mode, PCM | SDM (DSD), manual §4.2 in full) and the Setting Switcher's Output mode target (slots spelled out, centred: `Pulse Code Modulation (PCM)` | `Sigma Delta Modulation (SDM)` / `aka DIRECT STREAM DIGITAL (DSD)`). Auto ([source]) is not offered anywhere (manual §4.2: it "usually leads to sub-optimal result"; owner's call, pending the community poll); a daemon left in Auto elsewhere just shows where its output lands.
-- Volume has no section; its control is in the engine row. HF filter has none when off.
+  - **No mode control on the page.** Output mode is the station's. Two homes, one live state: the Output drawer's Format tab (Output mode, PCM | SDM (DSD), manual §4.2 in full) and the Setting Switcher's Output mode target (slots spelled out, centred: `Pulse Code Modulation (PCM)` | `Sigma Delta Modulation (SDM)` / `aka DIRECT STREAM DIGITAL (DSD)`). Auto ([source]) is not offered anywhere (manual §4.2: it "usually leads to sub-optimal result"; owner's call, pending the community poll); a daemon left in Auto elsewhere just shows where its output lands.
+- Volume has no section; its control is in the engine row. Output has none: the rail shows the format, the Output drawer sets it, and the output rate pin lives on the drawer's rate dial. HF filter has none when off.
 - Resampling and Shaping show the running chain only.
 
 ## Alerts
@@ -169,7 +167,9 @@ Current state only.
 - **Tabs Format | Device.**
 - **Format:**
   - Rate dial: one glass, PCM 1x–32x | SDM 64x–2048x, a needle per band, both always live. Hatched = unavailable; green lamp = playing.
+  - Pin picker `Auto | 44.1k | 48k` on the Rate label line, only while Settings → Behavior → Allow pinned rates is On. Under Auto a tap moves the band's limit (staged). Under a family a tap on the running band pins that tier's exact rate in that family (live, nothing staged); a tap on the other band moves its limit. Picking a family writes nothing; Auto clears the pin. Each drawer opening reads the pin's family, else Auto. The pinned rate is boxed in accent on its tier. A mode change clears the pin.
   - Output mode first (live; manual §4.2 in full), then the dial, then DSD support, DSD rates, DAC bits; family-only rows carry a band tag and never gray by mode.
+  - The DAC bits rows show the start of their paragraph, then `… see more`, which opens the rest in a note popover. A drawer row opts in through `more` on its `settings.json` entry: `tooltip` holds the start shown, `more` the rest.
 - **Device:** Backend, then Channels (`Stereo | 5.1 | 7.1 | Manual`, the number enabled only on Manual; moved from Format so Format fits), then the backend's rows (only the active backend's; Combo shows all and may scroll). Control column 300px (Format 220px): copy closer, so both tabs fit without scrolling.
 
 ## Option lists + narrowing
@@ -204,7 +204,7 @@ Current state only.
 - **UPnP:** freewheel.
 - **Logging:** enable, path, live log tail.
 - **Behavior** (live):
-  - Allow pinned rates (owner copy). Shows the page's Output section, the rate pins.
+  - Allow pinned rates (owner copy). Shows the rate dial's pin picker.
 - **Signal path** (read-only; rail readout `Playing`: the path playing now): every path HQPlayer can take on one map, the one playing lit in ink (running state, never the accent). Source rate | output rate as tinted zones, the seam through Resampling. PCM / SDM band tags on mode-only stages, `PCM · SDM` on the filters (both modes, a list each). Hatched = bypassed on the path; dashed = position unconfirmed (DAC correction, Volume). Direct SDM runs under the map into Speakers. Copy DRAFT. Sources: manual §2.8, §2.15, §5, §7.2; Jussi (DAC correction at the output rate, needs the matrix; DSD → PCM convolution after decimation).
 - **Visual settings** (live), tabs Display | Layout.
   - Display: descriptions, option style, apodizing indicator, dyslexic font, accent colour.

@@ -201,7 +201,7 @@
   --plot-min-sm:90px;      /* the DSP pipelines drawer's response plot, least height */
   --plot-min-xf:120px;     /* the crossfeed plot and the crossfeed cartoon, least height */
   --plot-min-loud:140px;   /* the loudness plot, least height */
-  --pin-h:20px;            /* a row of the output rate picker; a pipeline list line */
+  --pin-h:20px;            /* a pipeline list line */
   /* The Source meter */
   --levels-w:286px;        /* the levels column */
   --mhead-h:30px;          /* a head row: over a plot, a station's fold in the builder rail, a drawer head's section name */

@@ -14,7 +14,7 @@ import { conversionSections, openField } from "../../../store/faceplate/page/con
 import { plate } from "../../../store/faceplate/view.js";
 import { FIT_PASSES, fitStep, overrunOf, overruns } from "../../../model/shell/conversion.js";
 import { Fields } from "./Fields.js";
-import { Popover, parkAt, triggerProps } from "../Popover.js";
+import { MoreNote, SEE_MORE, seeMore } from "../SeeMore.js";
 import { ChainPick } from "./ChainPick.js";
 
 /**
@@ -29,10 +29,6 @@ import { ChainPick } from "./ChainPick.js";
 const SUB = { "1x": "Sources up to 50 kHz", nx: "Sources above 50 kHz" };
 
 const IDLE = " · idle";
-const SEE_MORE = "… see more";
-
-/** Under its link, flipped above it where below would cross the plate's foot. */
-const HOW = /** @type {const} */ ({ side: 22, foot: 14, at: { x: "start", y: "flip", gap: 6 } });
 
 const cuts = signal(/** @type {Cuts} */ ({ key: "", by: {}, passes: 0 }));
 
@@ -54,18 +50,6 @@ const whyOf = (f) => {
 const wordsOf = (prose) => prose.split(/\s+/).filter(Boolean);
 
 // --- the fit (browser only) ---------------------------------------------------------------
-
-/**
- * Park a note popover under its link.
- *
- * @param {HTMLElement} panel
- */
-function park(panel) {
-  const at = parkAt(panel, HOW);
-  if (!at) return;
-  panel.style.left = `${Math.round(at.left)}px`;
-  panel.style.top = `${Math.round(at.top)}px`;
-}
 
 /**
  * How far the page's lowest section runs past the page's bottom, layout px.
@@ -207,13 +191,12 @@ function Copy({ id, field }) {
   const rest =
     cut === undefined && field.more.length === 0
       ? field.prose
-      : html`${shown}${" "}
-          <button type="button" class="seemore" data-testid="see-more" ...${triggerProps(pop, "dialog")}>
-            ${SEE_MORE}
-          </button>
-          <${Popover} id=${pop} cls="notepop" role="dialog" label=${field.value} park=${park}>
-            ${(cut === undefined ? field.more : [field.prose, ...field.more]).map((p) => html`<p>${p}</p>`)}
-          <//>`;
+      : html`${shown}${" "}${seeMore(pop)}
+          <${MoreNote}
+            id=${pop}
+            label=${field.value}
+            paras=${cut === undefined ? field.more : [field.prose, ...field.more]}
+          />`;
   return html`
     <div ref=${ref} class="man" data-copy=${id} data-name=${field.value} data-prose=${field.prose}>
       <code>${field.value}</code>${" "}${rest}
