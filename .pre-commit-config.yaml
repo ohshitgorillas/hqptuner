@@ -76,7 +76,7 @@ repos:
         name: pytest (offline suite)
         # `env` because pre-commit splits the entry and execs it directly rather
         # than through a shell, so a bare assignment would be read as a program.
-        entry: env PYTHONPATH=scripts .venv/bin/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+        entry: env PYTHONPATH=scripts:scripts/pytest_plugins .venv/bin/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
         language: system
         pass_filenames: false
         always_run: true

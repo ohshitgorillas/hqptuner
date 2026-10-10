@@ -70,6 +70,7 @@ pythonpath = [
     "tests/support",
     "scripts",
     "scripts/gates",
+    "scripts/pytest_plugins",
     "scripts/junkcal",
     "scripts/junkburst",
     "scripts/junkburst/features",
@@ -266,7 +267,7 @@ strict = true
 files = ["hqptuner", "tests", "scripts"]
 # Mirrors the pytest `pythonpath` above: the support modules and the budget
 # analyzers are imported by bare name, not by package path.
-mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/budget", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
+mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/pytest_plugins", "scripts/budget", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
 
 [[tool.mypy.overrides]]
 module = "defusedxml.*"
