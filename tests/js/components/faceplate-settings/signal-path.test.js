@@ -40,14 +40,14 @@ const DSD_TO_SDM = { source: "11289600", output: "22579200" };
 /**
  * Write one playing engine onto the wire-side signals.
  *
- * @param {{ source?: string, output?: string, direct?: boolean, matrix?: boolean }} [o]
+ * @param {{ source?: string, output?: string, direct?: boolean, matrix?: boolean, rows?: object[] }} [o]
  */
-function wire({ source = PCM_1X.source, output = PCM_1X.output, direct = false, matrix = true } = {}) {
+function wire({ source = PCM_1X.source, output = PCM_1X.output, direct = false, matrix = true, rows = [] } = {}) {
   engineState.value = { state: "2", active_chain: "pcm" };
   enums.value = null;
   engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source, bits: "24" } };
   config.value = { fields: [{ name: "direct_sdm", value: direct }] };
-  matrixConfig.value = { fields: [{ name: "enabled", value: matrix }], live_active: "", rows: [] };
+  matrixConfig.value = { fields: [{ name: "enabled", value: matrix }], live_active: "", rows };
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   speakers.value = { enabled: true, channels: [] };
@@ -101,9 +101,16 @@ test("test_a_1x_pcm_source_to_pcm_lights_its_path_nodes", () => {
   assert.deepEqual(nodesWith("lit"), ["dc", "di", "f1", "ld", "out", "p1", "pl", "sp", "vo", "xf"]);
 });
 
+/** Running pipelines that do work: the left channel carries an EQ, the right passes through. */
+const WORKING = [
+  { source: "0", mixdown: "0", gain: "0", gainunit: "dB", process: "iir:type=peak;f=1000;q=1;g=-3" },
+  { source: "1", mixdown: "1", gain: "0", gainunit: "dB", process: "" },
+];
+
 test("test_a_matrix_part_on_the_path_reads_bypassed_only_under_a_stopped_matrix", () => {
+  wire({ rows: WORKING });
   const engaged = nodeHas("pl", "off");
-  wire({ matrix: false });
+  wire({ matrix: false, rows: WORKING });
   assert.deepEqual([engaged, nodeHas("pl", "off")], [false, true]);
 });
 

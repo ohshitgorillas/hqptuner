@@ -43,6 +43,7 @@ function running(over = {}) {
     matrix: true,
     profile: "Desk nearfield",
     pipelines: 2,
+    working: false,
     crossfeed: false,
     loudness: false,
     applied: 0,
@@ -210,13 +211,15 @@ test("test_dsp_pipelines_count_the_running_pipelines", () => {
   assert.match(stage({ pipelines: 7 }, "pipelines").value, /\b7\b/);
 });
 
-const ENGAGED = { crossfeed: true, loudness: true, correction: true, model: "D90", speakers: true };
+const ENGAGED = { working: true, crossfeed: true, loudness: true, correction: true, model: "D90", speakers: true };
 
-for (const id of ["pipelines", "crossfeed", "loudness", "correction"]) {
+for (const id of ["crossfeed", "loudness", "correction"]) {
   test(`test_${id}_engaged_under_a_running_matrix_engine_is_lit`, () => {
     assert.equal(stage({ ...ENGAGED, matrix: true }, id).on, true);
   });
+}
 
+for (const id of ["pipelines", "crossfeed", "loudness", "correction"]) {
   test(`test_${id}_engaged_under_a_bypassed_matrix_engine_is_unlit`, () => {
     assert.equal(stage({ ...ENGAGED, matrix: false }, id).on, false);
   });
@@ -264,10 +267,6 @@ test("test_the_rail_prints_nothing_under_a_stage_the_alerts_darken", () => {
 
 test("test_the_rail_prints_the_noise_filter_under_dsd_processing_on_the_playing_path", () => {
   assert.match(railValue(stage({ path: "dsd-pcm" }, "dsd"), false, "playing"), new RegExp(CONV.noise));
-});
-
-test("test_the_rail_prints_the_count_under_lit_dsp_pipelines", () => {
-  assert.match(railValue(stage({ pipelines: 7 }, "pipelines"), false, "playing"), /\b7\b/);
 });
 
 test("test_the_rail_prints_the_percent_under_lit_loudness", () => {

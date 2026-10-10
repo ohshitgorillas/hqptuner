@@ -52,6 +52,7 @@ function running(over = {}) {
     matrix: true,
     profile: "Desk nearfield",
     pipelines: 2,
+    working: false,
     crossfeed: false,
     loudness: false,
     applied: 0,
@@ -192,14 +193,6 @@ test("test_the_map_on_the_direct_path_reads_direct", () => {
 
 test("test_the_map_on_a_remodulated_dsd_path_does_not_read_direct", () => {
   assert.equal(signalMap(onPath("sdm-sdm", "1x")).direct, false);
-});
-
-test("test_a_matrix_part_on_the_path_reads_off_under_a_stopped_matrix", () => {
-  assert.equal(signalMap(running({ matrix: false })).nodes.pl.off, true);
-});
-
-test("test_a_matrix_part_on_the_path_reads_on_under_a_running_matrix", () => {
-  assert.equal(signalMap(running({ matrix: true })).nodes.pl.off, false);
 });
 
 const DIRECT_EDGE = EDGES.findIndex((e) => e.direct);

@@ -1,5 +1,5 @@
 // DOM-free decisions of the DSP pipelines drawer: a pipeline's chain as chips, which pins of the routing grid are lit
-// and what they carry, and the overview's and an output tab's summaries.
+// and what they carry, the overview's and an output tab's summaries, and whether a wire row does any work.
 
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus, signed } from "./format.js";
@@ -49,6 +49,8 @@ import { paging } from "../builders/pager.js";
 
 /** @typedef {[Pipe, number]} Placed  a pipeline with its position in the set */
 
+/** @typedef {import("../../vendor/eqlab/core/matrixspec.js").PipelineRow} Row */
+
 /**
  * One chip of a strip: its kind and the stages it stands for.
  *
@@ -72,6 +74,8 @@ import { paging } from "../builders/pager.js";
 export const PAGE = 6;
 /** Pipelines the engine takes. */
 export const MAXP = 128;
+/** The gain a row leaves a signal at, by its unit. */
+const UNITY = { dB: 0, Lin: 1 };
 
 /**
  * A frequency as a chip prints it: Hz up to 1 kHz, k beyond.
@@ -99,6 +103,18 @@ export const range = (n) => Array.from({ length: n }, (_, k) => k);
  */
 export const crosspoint = (pipes, src, mix) =>
   pipes.map((p, i) => /** @type {Placed} */ ([p, i])).filter(([p]) => p.src === src && p.mix === mix);
+
+/**
+ * Whether a wire row does no work: it copies a channel to that same channel at unity gain with an empty process chain.
+ *
+ * @param {Row} r
+ * @returns {boolean}
+ */
+export const passesThrough = (r) =>
+  Number(r.source) === Number(r.mixdown) &&
+  Object.hasOwn(UNITY, r.gainunit) &&
+  Number(r.gain) === UNITY[/** @type {keyof typeof UNITY} */ (r.gainunit)] &&
+  !r.process;
 
 /**
  * The inputs feeding one output, once each, in channel order.

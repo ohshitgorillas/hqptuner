@@ -3,6 +3,7 @@
 // Resampling's slot carries the SDM to SDM conversion; Direct SDM runs none of the processing stages, and Resampling and
 // Shaping leave the chain while it plays.
 
+import { computed } from "@preact/signals";
 import { engineStatus, volumeShown } from "../signals.js";
 import { runningValue, formFieldName, pipelineBaseline } from "../resolve.js";
 import { schema } from "../schema.js";
@@ -12,6 +13,8 @@ import { items, stateOf, sourceIsNx } from "../live/derive.js";
 import { matrixActiveProfile } from "../matrix/profiles.js";
 import { loudnessApplied } from "../matrix/loudness.js";
 import { speakers } from "../matrix/speakers.js";
+import { structuralBlock } from "../xfeed/mode.js";
+import { passesThrough } from "../../model/shell/pipelines.js";
 import { playbackPath, runningChain, outputIsSdm } from "./path.js";
 import { volumeNow } from "./volume.js";
 import { truthy } from "../../lib/coerce.js";
@@ -43,7 +46,8 @@ import { hz } from "../../lib/units.js";
  * @property {boolean} matrix  the matrix engine runs
  * @property {string} profile
  * @property {number} pipelines
- * @property {boolean} crossfeed
+ * @property {boolean} working  the running pipelines do work, not every one a unity copy of a channel to itself
+ * @property {boolean} crossfeed  the Bauer switch is on or a structural crossfeed block runs in the pipelines
  * @property {boolean} loudness
  * @property {number} applied  whole percent of the loudness shelving applied
  * @property {boolean} correction
@@ -221,7 +225,7 @@ const READ = {
   },
   dsd: (_r, p) => ({ value: p.dsd, on: true }),
   matrix: (r) => ({ value: r.profile, on: r.matrix }),
-  pipelines: (r) => part(r, true, `${r.pipelines} active`),
+  pipelines: (r) => part(r, r.working, `${r.pipelines} active`),
   crossfeed: (r) => part(r, r.crossfeed, ""),
   loudness: (r) => part(r, r.loudness, `${r.applied}% applied`),
   resampling: (_r, p) => ({ value: p.resampling, on: true }),
@@ -299,6 +303,12 @@ export function nameAt(key, attr) {
   return hit ? hit.name : "";
 }
 
+/** Whether the running pipelines do work, not every one a unity copy of a channel to itself. */
+const pipelinesWork = computed(() => !pipelineBaseline.value.every(passesThrough));
+
+/** Whether a structural crossfeed block is installed in the running pipelines. */
+const structuralRuns = computed(() => !!structuralBlock(pipelineBaseline.value));
+
 /**
  * What runs now, read off the engine's reports, the daemon's running forms and the browser's preferences.
  *
@@ -327,7 +337,8 @@ export function railNow() {
     matrix: truthy(runningValue("matrix_enabled")),
     profile: matrixActiveProfile.value,
     pipelines: pipelineBaseline.value.length,
-    crossfeed: truthy(runningValue("crossfeed_enabled")),
+    working: pipelinesWork.value,
+    crossfeed: truthy(runningValue("crossfeed_enabled")) || structuralRuns.value,
     loudness: truthy(runningValue("loudness_enabled")),
     applied: loudnessApplied(),
     correction: truthy(runningValue("dac_correction_enabled")),
