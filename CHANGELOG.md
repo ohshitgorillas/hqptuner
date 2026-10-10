@@ -25,6 +25,16 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Warnings and alerts use the signal chain lamps**.
 - **Amber is now the default accent color.**
 
+## [1.19.2] — 2026-10-10
+
+### Changed
+
+- **Download state.** The Download state button is now on the HQPTuner card of the System tab instead of the About card.
+
+### Fixed
+
+- **Untested HQPlayer notice.** The System tab warns only about an hqplayerd release HQPTuner has not been tested against.
+
 ## [1.19.1] — 2026-10-09
 
 ### Fixed
