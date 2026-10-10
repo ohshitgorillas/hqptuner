@@ -62,9 +62,8 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
 
 
 /* Settings rail wider than the chain's (readouts like `Phosphor green` ran long), settings body only;
-   its drawers start after it (rail + gap + rule). */
-.setbody{grid-template-columns:var(--srail-w) var(--hair) minmax(0,1fr)}
-.setbody .drawer{left:calc(var(--srail-w) + var(--hair) + var(--sp-9))}
+   the grid and its drawers' left edge (rail + gap + rule) both follow it. */
+.setbody{--body-rail:var(--srail-w)}
 
 /* Visual settings: copy in closer (overflow rule) once Hide Speakers joined it: 280px control column, the accent picker's width. */
 #drawer-visual .drow{grid-template-columns:var(--drow-col-visual) minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-3) 0}   /* + rhythm one step tighter */

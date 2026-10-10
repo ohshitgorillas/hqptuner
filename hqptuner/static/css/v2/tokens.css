@@ -188,6 +188,7 @@
   /* The page */
   --rail-w:198px;       /* the chain rail's column */
   --srail-w:220px;         /* the settings rail's column */
+  --rail-gap:var(--sp-4);  /* between a body's rail and its hairline rule (the page side of the rule keeps --sp-9) */
   --fill-min:150px;        /* the stretching page section's least height */
   --ctl-col:440px;         /* a page section's control column */
   --col-gap:40px;          /* between two columns: a page section's controls and its copy, a Standard option list's columns */
