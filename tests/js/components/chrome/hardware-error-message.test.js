@@ -33,6 +33,7 @@ import { HardwareCard, BackupRestoreRow } from "../../../../hqptuner/static/comp
 import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { showDescriptions, keepOptionDescriptions } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { api } from "../../../../hqptuner/static/lib/api.js";
 import { bad, stagingWire, quiesce } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { classes, elements, text } from "../../support/markup.js";
@@ -156,4 +157,128 @@ test("a refused backup restore shows the error's message, not its string form", 
   await change({ target, currentTarget: target });
   await quiesce(w);
   assert.equal(carries(statusText(renderTree(html`<${BackupRestoreRow} />`).out), DETAIL), MESSAGE);
+});
+
+// --- A failure from HQPTuner's own side wears the operation's prefix --------------
+//
+// A failure that carries no backend sentence, HQPTuner not reachable at all or a
+// failed response with no usable detail, is shown behind a prefix naming the
+// operation that failed. The prefix is owner copy and is never spelled here
+// (docs/testing.md rule 9). What follows it is the client's own description of
+// the failure, read off the client's public surface over the same wire: an
+// unreachable backend and an unexplained status each read the same from any
+// endpoint (tests/js/lib/api.test.js), so `api.status()` gives the message the
+// card's own call rejects with. These cases pin that the card puts something in
+// front of that message.
+
+//: The browser's wording for a fetch that never reached HQPTuner.
+const NETWORK_ERROR = "Failed to fetch";
+
+//: A server error whose body is not JSON at all, so it has no usable detail.
+const UNEXPLAINED = 503;
+
+/** @typedef {() => import("../../support/wire/wire.js").FakeResponse | Promise<never>} Failure */
+
+//: HQPTuner not reachable: the request rejects before any response.
+/** @type {Failure} */
+const unreachable = () => Promise.reject(new TypeError(NETWORK_ERROR));
+
+//: A failed response with no usable detail.
+/** @type {Failure} */
+const unexplained = () => bad(UNEXPLAINED);
+
+/**
+ * A wire on which every request to `path` fails as `failure` does; every other
+ * path is answered.
+ *
+ * @param {string} path
+ * @param {Failure} failure
+ */
+const failingAt = (path, failure) =>
+  stagingWire({
+    routes: (asked) => (asked === path ? failure() : undefined),
+  });
+
+/**
+ * The message the client rejects with when a request fails as `failure` does.
+ *
+ * @param {Failure} failure
+ * @returns {Promise<string>}
+ */
+async function clientMessage(failure) {
+  failingAt("/api/status", failure);
+  const outcome = await api.status().then(
+    () => null,
+    (/** @type {unknown} */ e) => (e instanceof Error ? e.message : String(e)),
+  );
+  if (outcome === null) throw new Error("the client resolved; there is no rejection to read");
+  return outcome;
+}
+
+/**
+ * How many characters a status line carries in front of `message`, or -1 when
+ * the line does not end with it.
+ *
+ * @param {string | null} said
+ * @param {string} message
+ * @returns {number}
+ */
+const lengthBefore = (said, message) => (said !== null && said.endsWith(message) ? said.length - message.length : -1);
+
+/**
+ * Click the card's apply and read the status line once the wire is quiet.
+ *
+ * @param {import("../../support/wire/wire.js").StagingWire} w
+ * @returns {Promise<string | null>}
+ */
+async function hardwareApplyStatus(w) {
+  const { seen } = renderTree(html`<${HardwareCard} />`);
+  const click = /** @type {() => unknown} */ (marked(seen, "hw-apply").props.onClick);
+  await click();
+  await quiesce(w);
+  return statusText(renderTree(html`<${HardwareCard} />`).out);
+}
+
+/**
+ * Pick a backup file in the restore row and read the status line once the wire
+ * is quiet.
+ *
+ * @param {import("../../support/wire/wire.js").StagingWire} w
+ * @returns {Promise<string | null>}
+ */
+async function restoreStatus(w) {
+  const { seen } = renderTree(html`<${BackupRestoreRow} />`);
+  const target = { files: [new File(["<config/>"], "backup.xml", { type: "text/xml" })], value: "backup.xml" };
+  const change = /** @type {(e: unknown) => unknown} */ (filePicker(seen).props.onChange);
+  await change({ target, currentTarget: target });
+  await quiesce(w);
+  return statusText(renderTree(html`<${BackupRestoreRow} />`).out);
+}
+
+test("a hardware apply that cannot reach HQPTuner is reported behind the operation's prefix", async () => {
+  await reset();
+  const message = await clientMessage(unreachable);
+  const said = await hardwareApplyStatus(failingAt(ENGINE, unreachable));
+  assert.ok(lengthBefore(said, message) > 0, String(said));
+});
+
+test("a hardware apply refused with no usable detail is reported behind the operation's prefix", async () => {
+  await reset();
+  const message = await clientMessage(unexplained);
+  const said = await hardwareApplyStatus(failingAt(ENGINE, unexplained));
+  assert.ok(lengthBefore(said, message) > 0, String(said));
+});
+
+test("a backup restore that cannot reach HQPTuner is reported behind the operation's prefix", async () => {
+  await reset();
+  const message = await clientMessage(unreachable);
+  const said = await restoreStatus(failingAt(RESTORE, unreachable));
+  assert.ok(lengthBefore(said, message) > 0, String(said));
+});
+
+test("a backup restore refused with no usable detail is reported behind the operation's prefix", async () => {
+  await reset();
+  const message = await clientMessage(unexplained);
+  const said = await restoreStatus(failingAt(RESTORE, unexplained));
+  assert.ok(lengthBefore(said, message) > 0, String(said));
 });

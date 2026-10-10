@@ -17,7 +17,7 @@ from hqptuner import voltrace
 from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import CommandError, ControlConnectionFailedError, ControlError
+from hqptuner.engine.controlerrors import CommandError, ControlError
 from hqptuner.lanes.live import chain, lane
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import PresetError
@@ -35,7 +35,7 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     once this body has run to its end and the 8088 configuration lane answered inside it.
     """
     cfg = mgr.cfg
-    client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout)
+    client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
     await client.connect()
     info = await _handshake(mgr, client)
     # best-effort and credential-free: /about is not gated, and reachability is
@@ -133,9 +133,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     Re-enumerates when the engine's mode or transport state moved, because either swaps
     the lists every later write resolves its indices against.
     """
-    client = mgr.control
-    if client is None:
-        raise ControlConnectionFailedError(host=mgr.cfg.hqp_host, port=mgr.cfg.hqp_control_port)
+    client = mgr.require_control()
     state = await client.get_state()
     # A mode switch swaps the lists wholesale (architecture §3.3), and playback
     # state moves the rate list: what fills that one is the transport as well

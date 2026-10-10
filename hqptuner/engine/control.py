@@ -128,8 +128,9 @@ class ControlClient:
             yield
         except (TimeoutError, OSError, ControlError) as exc:
             # Which command died is the whole diagnostic — a daemon that drops the
-            # connection under `SetFilter` fails some LATER command — and the error
-            # the user sees names no command, so the log is where that pairing survives.
+            # connection under `SetFilter` fails some LATER command — and a timeout,
+            # a closed connection or an unreachable daemon reaches the user naming
+            # no command, so for those the log is where that pairing survives.
             log.log(level, "Control API %s failed: %r", what, exc)
             if isinstance(exc, TimeoutError):
                 raise ControlTimeoutError(timeout=self._timeout) from exc
@@ -159,16 +160,17 @@ class ControlClient:
             # loop's `_drop` closes it from outside, so a writer checked while
             # queueing is a writer that can be gone by the time the lock is held.
             writer = self._writer
+            command = _element_name(element)
             # covers the receive too: `_recv_document`'s own read deadline is the
             # one a stalled command trips, and it is this command's name that says
             # which command stalled
-            with self._as_control_error(_element_name(element)):
+            with self._as_control_error(command):
                 if writer is None:
                     raise self._unreachable()
                 try:
                     writer.write((XML_HDR + element).encode())
                     await self._deadline.wait_for(writer.drain(), self._timeout)
-                    return await self._recv_document()
+                    return await self._recv_document(command)
                 except (TimeoutError, OSError, ControlError):
                     # The daemon answers every command it accepts, unknown ones
                     # included (protocol.md §4), so a reply given up on is a reply
@@ -182,7 +184,7 @@ class ControlClient:
                     await self.close()
                     raise
 
-    async def _recv_document(self) -> ET.Element:
+    async def _recv_document(self, command: str) -> ET.Element:
         reader = self._reader
         if reader is None:
             raise self._unreachable()
@@ -195,11 +197,11 @@ class ControlClient:
             text = data.decode("utf-8", errors="replace")
             body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
             if body:
-                frame = parse_frame(body)
+                frame = parse_frame(body, command)
                 if frame is not None:
                     return frame
             if len(data) > MAX_RESPONSE:
-                raise ResponseTooLargeError()
+                raise ResponseTooLargeError(command=command, limit=MAX_RESPONSE)
 
     # --- typed helpers -------------------------------------------------
 

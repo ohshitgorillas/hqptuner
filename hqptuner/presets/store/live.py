@@ -46,10 +46,11 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
+from hqptuner.config import LIVE_PRESET_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
-from hqptuner.presets.store.unwritable import saving
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -238,7 +239,9 @@ class LivePresetStore:
         def _too_new(stamp: int) -> LivePresetSchemaError:
             return LivePresetSchemaError(stamp=stamp, understood=_SCHEMA, what="these presets")
 
-        return _clean(read_stamped(self._path, store="live snapshot", schema=_SCHEMA, too_new=_too_new))
+        with reading(LIVE_PRESET_STORE.what, self._path):
+            data = read_stamped(self._path, store="live snapshot", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def _presets(self) -> dict[str, LiveRecordFile]:
         """Return the on-disk record map, each entry checked into ``LiveRecordFile`` but not yet a ``LiveRecord``."""
@@ -250,7 +253,7 @@ class LivePresetStore:
         Guards the schema first: a store we cannot read is not one we should be writing into.
         """
         self._read_file()
-        with saving("live presets", self._path):
+        with saving(LIVE_PRESET_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
 

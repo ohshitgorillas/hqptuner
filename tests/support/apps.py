@@ -120,7 +120,7 @@ def live_app(
         # preset and snapshot cases still exercise the switch it carries
         advisor_enabled=True,
     )
-    if request_timeout is not None:  # real wall clock, unlike the virtualized one
+    if request_timeout is not None:
         cfg = replace(cfg, request_timeout=request_timeout)
     if poll_interval is not None:
         cfg = replace(cfg, poll_interval=poll_interval)

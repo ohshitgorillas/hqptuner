@@ -1,16 +1,22 @@
-"""A store write the filesystem refuses answers the REST code `store_unwritable`.
+"""A store read or write the filesystem refuses answers `store_unwritable`, never `store_corrupt`.
 
-Covers the stores HQPTuner owns under `presets/store/`: the preset directory, the
-live-snapshot file, the favorites file and the narrowing file. Each is given its
-own directory under `tmp_path`, and the case takes write permission off that one
-directory (and the files already in it) before the request, so the operating
-system refuses the write with `EACCES` and every other store stays writable.
+`store_unwritable` is the code docs/architecture.md §8.1 gives a store read or write the filesystem refused;
+`store_corrupt` stays for content that will not parse. Every case provokes the refusal with `EACCES`. The sentence
+around the path is copy (docs/testing.md rule 9) and is not asserted: the cases read only what the fixture put there,
+what the operating system put there (its own words for the errno), and, for reads, the noun the store's own `Store`
+record in `hqptuner/config.py` gives it.
 
-Every request goes through the REST routes of an app on the fake 8088 daemon and
-the threaded 4321 fake; nothing in `hqptuner/` is stubbed. The `detail` sentence
-is copy (docs/testing.md rule 9), so the cases read only what the fixture or the
-operating system put there: the store's location and the OS's own description
-of the errno.
+Reads cover every store HQPTuner keeps as one JSON file: favorites, live snapshots, narrowing, descriptions, matrix
+modes, auto-pilot, the preset store's own `store.json` and active pointer, and the connection record. Each read case
+writes the store's file, takes every permission bit off it, and reads the store through its own public reader, so
+the operating system refuses that one open.
+
+Writes cover the stores HQPTuner owns under `presets/store/`: the preset directory, the live-snapshot file, the
+favorites file and the narrowing file. Each is given its own directory under `tmp_path`, and the write case takes
+write permission off that one directory (and the files already in it) before the request, so the operating system
+refuses the write and every other store stays writable. Every write request goes through the REST routes of an app
+on the fake 8088 daemon and the threaded 4321 fake; nothing in `hqptuner/` is stubbed, and the `detail` the case
+reads carries the store's location.
 """
 
 import errno
@@ -29,13 +35,113 @@ from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.config import Config
+from hqptuner.config import (
+    AUTOPILOT_STORE,
+    CONNECTION_STORE,
+    DESCRIPTION_STORE,
+    FAVORITES_STORE,
+    LIVE_PRESET_STORE,
+    MATRIX_MODE_STORE,
+    NARROWING_STORE,
+    PRESET_STORE,
+    Config,
+    Store,
+)
+from hqptuner.core.connection import ConnectionStore
+from hqptuner.errors import HQPTunerError
+from hqptuner.presets.store.autopilot import AutopilotStore
+from hqptuner.presets.store.descriptions import DescriptionStore
+from hqptuner.presets.store.favorites import FavoriteStore
+from hqptuner.presets.store.live import LivePresetStore
+from hqptuner.presets.store.matrixmode import MatrixModeStore
+from hqptuner.presets.store.narrowing import NarrowingStore
+from hqptuner.presets.store.presets import PresetStore
 
-#: The errno a write into a directory without write permission is refused with.
+#: The errno a read of a file without read permission, or a write into a directory without write permission, is
+#: refused with.
 REFUSAL = errno.EACCES
 
 #: The operating system's own wording for that errno.
 OS_REASON = os.strerror(REFUSAL)
+
+
+# Refused reads.
+
+UNREADABLE_FILE = 0o000
+OPEN_FILE = 0o644
+
+#: A document every store reads without complaint, so only the refusal can fail the read.
+CONTENT = "{}"
+
+
+@dataclass(frozen=True)
+class Case:
+    """One store: where its file sits under the root, the record naming it, and the read that opens the file."""
+
+    file: str
+    store: Store
+    read: Callable[[Path], object]
+
+
+CASES: list[Any] = [
+    pytest.param(Case("favorites.json", FAVORITES_STORE, lambda p: FavoriteStore(p).read()), id="favorites"),
+    pytest.param(Case("live-presets.json", LIVE_PRESET_STORE, lambda p: LivePresetStore(p).all()), id="live"),
+    pytest.param(Case("narrowing.json", NARROWING_STORE, lambda p: NarrowingStore(p).read()), id="narrowing"),
+    pytest.param(Case("descriptions.json", DESCRIPTION_STORE, lambda p: DescriptionStore(p).read()), id="descriptions"),
+    pytest.param(Case("matrixmodes.json", MATRIX_MODE_STORE, lambda p: MatrixModeStore(p).read()), id="matrix-mode"),
+    pytest.param(Case("autopilot.json", AUTOPILOT_STORE, lambda p: AutopilotStore(p).read()), id="autopilot"),
+    pytest.param(Case("presets/store.json", PRESET_STORE, lambda p: PresetStore(p.parent).autosave), id="preset-meta"),
+    pytest.param(Case("presets/active.json", PRESET_STORE, lambda p: PresetStore(p.parent).active), id="preset-active"),
+    pytest.param(Case("connection.json", CONNECTION_STORE, lambda p: ConnectionStore(p).read()), id="connection"),
+]
+
+
+@pytest.fixture
+def locked(tmp_path: Path, request: pytest.FixtureRequest) -> Iterator[tuple[Case, Path]]:
+    """The case's store file, written and then made unreadable; opened again on teardown."""
+    case: Case = request.param
+    path = tmp_path / case.file
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(CONTENT)
+    path.chmod(UNREADABLE_FILE)
+    try:
+        if os.access(path, os.R_OK):
+            pytest.skip("this process reads through cleared permission bits (running as root)")
+        yield case, path
+    finally:
+        path.chmod(OPEN_FILE)
+
+
+def refusal(case: Case, path: Path) -> HQPTunerError:
+    """The error the store's read raises over its locked file."""
+    with pytest.raises(HQPTunerError) as caught:
+        case.read(path)
+    return caught.value
+
+
+@pytest.mark.parametrize("locked", CASES, indirect=True)
+def test_a_store_read_the_filesystem_refuses_answers_code_store_unwritable(locked: tuple[Case, Path]) -> None:
+    assert refusal(*locked).code == "store_unwritable"
+
+
+@pytest.mark.parametrize("locked", CASES, indirect=True)
+def test_a_refused_store_read_names_the_path(locked: tuple[Case, Path]) -> None:
+    case, path = locked
+    assert str(path) in str(refusal(case, path))
+
+
+@pytest.mark.parametrize("locked", CASES, indirect=True)
+def test_a_refused_store_read_gives_the_operating_systems_reason(locked: tuple[Case, Path]) -> None:
+    assert OS_REASON in str(refusal(*locked))
+
+
+@pytest.mark.parametrize("locked", CASES, indirect=True)
+def test_a_refused_store_read_names_what_the_store_holds(locked: tuple[Case, Path]) -> None:
+    case, path = locked
+    assert case.store.what in str(refusal(case, path))
+
+
+# Refused writes.
 
 #: Read and search only, so the store can still be read but nothing in it written.
 READ_ONLY_DIR = stat.S_IRUSR | stat.S_IXUSR

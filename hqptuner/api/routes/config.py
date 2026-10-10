@@ -15,11 +15,10 @@ from fastapi import APIRouter, File, Request, Response, UploadFile
 from hqptuner import logbuffer
 from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr
-from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
+from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
 from hqptuner.conf import presetzip
 from hqptuner.conf.engineconf import UnreadableArchiveError
-from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.conf.httpforms import FormField
 from hqptuner.core import engineread
 from hqptuner.core.applyops import EngineApplyResult
@@ -31,7 +30,6 @@ from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.presetlane import PresetOption
 from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
 from hqptuner.presets.store.export import state_archive
-from hqptuner.presets.store.presets import PresetError
 
 log = logging.getLogger(__name__)
 
@@ -134,6 +132,10 @@ class NoEngineOverridesError(ErrorBody):
         super().__init__("no engine overrides given")
 
 
+# The sentence an engine-attribute apply that failed answers with, whichever error stopped it.
+_ENGINE_APPLY_FAILED = "Applying the engine settings failed: {error}"
+
+
 class EngineApplyFailedError(ErrorBody):
     """An engine-attribute apply failed on the wire, naming the underlying error."""
 
@@ -141,7 +143,13 @@ class EngineApplyFailedError(ErrorBody):
 
     def __init__(self, *, error: Exception) -> None:
         """Render the wording naming the ``error`` that stopped the apply."""
-        super().__init__(f"Applying the engine settings failed: {error}")
+        super().__init__(_ENGINE_APPLY_FAILED.format(error=error))
+
+
+class EngineControlFailedError(ControlFailedError):
+    """A Control API error that stopped an engine-attribute apply, under the error's own code."""
+
+    template = _ENGINE_APPLY_FAILED
 
 
 class ArchiveUnreadableError(ErrorBody):
@@ -206,8 +214,6 @@ async def preset(name: str, manager: HttpMgr) -> PresetPreview:
     """
     try:
         return PresetPreview(name, await presetlane.read(manager, name))
-    except PresetError as exc:
-        raise refuse(exc) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(ReadPresetFailedError(error=exc)) from exc
 
@@ -299,8 +305,8 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
         result = await manager.applyops.apply_engine(body.overrides, all_presets=body.all_presets)
     except ValueError as exc:
         raise refuse(InvalidInputError(error=exc)) from exc
-    except (ControlError, HttpLaneDeclinedError) as exc:
-        raise refuse(exc) from exc
+    except ControlError as exc:
+        raise refuse(EngineControlFailedError(error=exc)) from exc
     except httpx.HTTPError as exc:
         raise refuse(EngineApplyFailedError(error=exc)) from exc
     return await deps.with_autosave(result, manager)

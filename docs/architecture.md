@@ -257,7 +257,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `fields_unknown` | 422 | a field no lane accepts |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
 | `store_corrupt` | 500 | a store file that exists but does not read as a JSON object |
-| `store_unwritable` | 500 | a store read or write the filesystem refused |
+| `store_unwritable` | 500 | a store read, write or delete the filesystem refused |
 | `archive_unreadable` | 500 | an uploaded backup archive that is not a readable zip, or whose descriptions will not parse |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |

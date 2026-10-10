@@ -96,7 +96,7 @@ class NoRunningConfigToSaveError(ControlError):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("no running config to save")
+        super().__init__("HQPlayer's settings backup has no running configuration, so there is nothing to save.")
 
 
 class NoRunningConfigToAutosaveError(ControlError):
@@ -104,7 +104,7 @@ class NoRunningConfigToAutosaveError(ControlError):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("no running config to auto-save")
+        super().__init__("HQPlayer's settings backup has no running configuration, so the auto-save did not run.")
 
 
 def listing(mgr: ConnectionManager) -> PresetListing:

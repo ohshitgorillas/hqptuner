@@ -217,7 +217,7 @@ test("test_a_failed_apply_shows_its_text", async () => {
 // verdict produced the note, and it is the only observable that does — the
 // sentence beside it is copy. So the wiring from the verdict the store
 // published to the attribute the bar renders is pinned per code, on the real
-// codes store/actions.js publishes (tests/js/store/store.test.js): a bar
+// codes store/actions.js publishes (tests/js/store/apply-summary.test.js): a bar
 // rendering one constant, or the `ok` flag, or nothing at all, fails here while
 // every class assertion above stays green.
 /** @type {[boolean, string][]} */

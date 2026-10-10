@@ -22,18 +22,17 @@ from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.audit import AuditLog
+from hqptuner.config import PRESET_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
-from hqptuner.presets.store.unwritable import saving
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
 
 _ACTIVE_FILE = "active.json"
 _STORE_FILE = "store.json"
-# What a refused write says it was saving.
-_WHAT = "presets"
 
 
 class PresetStoreFile(TypedDict, total=False):
@@ -177,7 +176,10 @@ class PresetStore:
         def _too_new(stamp: int) -> PresetSchemaError:
             return PresetSchemaError(stamp=stamp, understood=_SCHEMA, what="these presets")
 
-        return _clean(read_stamped(self._dir / _STORE_FILE, store="preset", schema=_SCHEMA, too_new=_too_new))
+        path = self._dir / _STORE_FILE
+        with reading(PRESET_STORE.what, path):
+            data = read_stamped(path, store="preset", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def _ensure_dir(self) -> None:
         """Guard the schema, create the store directory, and stamp it if it carries no stamp yet.
@@ -189,7 +191,7 @@ class PresetStore:
         """
         self._meta()
         path = self._dir / _STORE_FILE
-        with saving(_WHAT, self._dir):
+        with saving(PRESET_STORE.what, self._dir):
             self._dir.mkdir(parents=True, exist_ok=True)
             if not path.is_file():
                 path.write_text(json.dumps({"schema": _SCHEMA}))
@@ -203,7 +205,8 @@ class PresetStore:
         if not self._dir.is_dir():
             return []
         self._meta()
-        return sorted((p.stem for p in self._dir.glob("*.xml")), key=names.sort_key)
+        with reading(PRESET_STORE.what, self._dir):
+            return sorted((p.stem for p in self._dir.glob("*.xml")), key=names.sort_key)
 
     def exists(self, name: str) -> bool:
         """Report whether ``name`` is a stored preset. Raises ``PresetError`` if the name itself is invalid."""
@@ -213,9 +216,10 @@ class PresetStore:
         """Return the preset's full config XML. Raises ``PresetError`` if absent."""
         self._meta()
         path = self._path(name)
-        if not path.is_file():
-            raise PresetNotFoundError(name=name)
-        return path.read_bytes()
+        with reading(PRESET_STORE.what, self._dir):
+            if not path.is_file():
+                raise PresetNotFoundError(name=name)
+            return path.read_bytes()
 
     def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
         """Write (or overwrite) a preset. Creates the store directory if needed.
@@ -233,7 +237,7 @@ class PresetStore:
             # A first save takes the stricter rule; a migration copies a name the
             # daemon already holds rather than creating one, so it is exempt.
             names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
-        with saving(_WHAT, self._dir):
+        with saving(PRESET_STORE.what, self._dir):
             path.write_bytes(xml)
         self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
@@ -247,7 +251,7 @@ class PresetStore:
         if not path.is_file():
             raise PresetNotFoundError(name=name)
         was_active = self.active == name  # unlinking does not touch the pointer
-        with saving(_WHAT, self._dir):
+        with saving(PRESET_STORE.what, self._dir):
             path.unlink()
         self._audit.preset_delete(name, was_active=was_active)
         if was_active:
@@ -267,7 +271,7 @@ class PresetStore:
         """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
         previous = self._meta().get("autosave", False)
         self._ensure_dir()
-        with saving(_WHAT, self._dir):
+        with saving(PRESET_STORE.what, self._dir):
             (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
         self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
@@ -277,7 +281,10 @@ class PresetStore:
 
         Raises ``StoreCorruptError`` when the pointer file exists but cannot be read as a JSON object.
         """
-        return _clean_active(read_stamped(self._dir / _ACTIVE_FILE, store="preset active pointer")).get("active")
+        path = self._dir / _ACTIVE_FILE
+        with reading(PRESET_STORE.what, path):
+            data = read_stamped(path, store="preset active pointer")
+        return _clean_active(data).get("active")
 
     def set_active(self, name: str | None) -> None:
         """Point ``active.json`` at ``name``, or clear it with ``None``, and audit the change.
@@ -288,7 +295,7 @@ class PresetStore:
             name = canonical_name(name)
         previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
-        with saving(_WHAT, self._dir):
+        with saving(PRESET_STORE.what, self._dir):
             (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
         self._audit.active_set(name, previous)
 

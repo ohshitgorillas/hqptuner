@@ -9,7 +9,7 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.errors import ErrorBody, refuse
-from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
+from hqptuner.presets.store.favorites import FavoriteStore
 
 router = APIRouter(prefix="/api")
 
@@ -50,10 +50,7 @@ def favorites(request: Request) -> dict[str, list[str]]:
     that is there and full.
     """
     store = _store(request)
-    try:
-        return {"filters": store.read(), "modulators": store.read_modulators()}
-    except FavoriteSchemaError as exc:
-        raise refuse(exc) from exc
+    return {"filters": store.read(), "modulators": store.read_modulators()}
 
 
 @router.put("/favorites")
@@ -68,13 +65,8 @@ def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]
     store = _store(request)
     if body.filters is None and body.modulators is None:
         raise refuse(FavoritesFieldsUnknownError())
-    try:
-        if body.filters is not None:
-            store.write(list(body.filters))
-        if body.modulators is not None:
-            store.write_modulators(list(body.modulators))
-        return {"filters": store.read(), "modulators": store.read_modulators()}
-    except FavoriteSchemaError as exc:
-        raise refuse(exc) from exc
-    except FavoriteError as exc:
-        raise refuse(exc) from exc
+    if body.filters is not None:
+        store.write(list(body.filters))
+    if body.modulators is not None:
+        store.write_modulators(list(body.modulators))
+    return {"filters": store.read(), "modulators": store.read_modulators()}

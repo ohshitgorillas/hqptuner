@@ -21,6 +21,7 @@ import httpx
 from fastapi import Depends, Request
 
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, InvalidInputError, NotLoadedError, refuse
+from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
@@ -35,7 +36,7 @@ class NoCredentialsConfiguredError(ErrorBody):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("no hqplayerd credentials configured")
+        super().__init__(NO_HTTP_CLIENT_MESSAGE)
 
 
 class GetFormFailedError(ErrorBody):

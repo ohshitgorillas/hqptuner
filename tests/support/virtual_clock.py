@@ -7,12 +7,17 @@ there. Background idling alone (``pace``) never moves it, so a running poll loop
 sits still instead of spinning. A task busy on a socket is not waiting on the clock, so time never moves under a
 reply that is still in flight.
 
+A reply wait (``wait_for``) is handed its operation's own result while HQPlayer answers, and no deadline runs. Once the
+test says HQPlayer has fallen silent, each reply wait from then on abandons its operation and waits on the clock for its
+deadline, as on a daemon that answers nothing more.
+
 One clock per app or manager: each ``TestClient`` runs its app on an event loop of its own.
 """
 
 import asyncio
+import contextlib
 import math
-from collections.abc import Coroutine
+from collections.abc import Awaitable, Coroutine
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -45,9 +50,20 @@ class _Timeline:
     known: set[asyncio.Task[Any]] = field(default_factory=set)
     waits: dict[asyncio.Task[Any], _Wait] = field(default_factory=dict)
     idlers: list[tuple[asyncio.Future[None], asyncio.Task[Any] | None]] = field(default_factory=list)
+    silent: bool = False
 
     def monotonic(self) -> float:
         return self.now
+
+    async def wait_for[T](self, fut: Awaitable[T], seconds: float, /) -> T:
+        if not self.silent:
+            return await fut
+        abandoned = asyncio.ensure_future(fut)
+        abandoned.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await abandoned
+        await self.park(seconds, None, outcome=True)
+        raise TimeoutError(seconds)
 
     async def sleep(self, seconds: float) -> None:
         await self.park(seconds, None, outcome=True)
@@ -141,8 +157,13 @@ class VirtualClock(Clock):
             pace=timeline.pace,
             spawn=timeline.spawn,
             now=lambda: now,
+            wait_for=timeline.wait_for,
         )
         object.__setattr__(self, "_timeline", timeline)
+
+    def fall_silent(self) -> None:
+        """Let every reply wait from here on run out at its deadline, as on a daemon that answers nothing more."""
+        self._timeline.silent = True
 
     async def idle(self) -> None:
         """Return once every task the clock knows of, other than the caller, is waiting on it."""

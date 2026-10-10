@@ -24,10 +24,11 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
 from hqptuner import __version__
+from hqptuner.config import NARROWING_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.presets.store.narrowingjson import FacetInput, facet_input
-from hqptuner.presets.store.unwritable import saving
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Mapping
@@ -282,7 +283,9 @@ class NarrowingStore:
         def _too_new(stamp: int) -> NarrowingSchemaError:
             return NarrowingSchemaError(stamp=stamp, understood=_SCHEMA, what="these facets")
 
-        return _clean(read_stamped(self._path, store="narrowing", schema=_SCHEMA, too_new=_too_new))
+        with reading(NARROWING_STORE.what, self._path):
+            data = read_stamped(self._path, store="narrowing", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def read(self) -> Facets:
         """Every facet, stored value or default.
@@ -305,7 +308,7 @@ class NarrowingStore:
         """
         stored = _validate(facets)
         self._read_file()
-        with saving("the filter narrowing", self._path):
+        with saving(NARROWING_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2))
         return stored

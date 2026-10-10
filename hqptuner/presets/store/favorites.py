@@ -20,9 +20,10 @@ import json
 from typing import TYPE_CHECKING, Literal, TypedDict
 
 from hqptuner import __version__
+from hqptuner.config import FAVORITES_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
-from hqptuner.presets.store.unwritable import saving
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -154,7 +155,9 @@ class FavoriteStore:
         def _too_new(stamp: int) -> FavoriteSchemaError:
             return FavoriteSchemaError(stamp=stamp, understood=_SCHEMA, what="these favorites")
 
-        return _clean(read_stamped(self._path, store="favorites", schema=_SCHEMA, too_new=_too_new))
+        with reading(FAVORITES_STORE.what, self._path):
+            data = read_stamped(self._path, store="favorites", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def _read_kind(self, kind: Kind) -> list[str]:
         """Every starred name under ``kind``, deduplicated and sorted."""
@@ -165,7 +168,7 @@ class FavoriteStore:
         stored = _validate(names)
         data = self._read_file()
         keep = {k: data[k] for k in _KINDS if k != kind and k in data}
-        with saving("favorites", self._path):
+        with saving(FAVORITES_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2))
         return stored

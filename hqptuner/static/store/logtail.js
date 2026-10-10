@@ -3,7 +3,7 @@
 // replaces the whole buffer with the answer.
 import { signal } from "@preact/signals";
 import { api } from "../lib/api.js";
-import { errText } from "../lib/errtext.js";
+import { endSentence, errText } from "../lib/errtext.js";
 
 const LOG_ABSENT_CODE = "daemon_log_absent";
 
@@ -26,7 +26,6 @@ export async function refreshLogTail(count) {
       logMessage.value = "HQPlayer is not serving a log file.";
       return;
     }
-    const reason = errText(e);
-    logMessage.value = `Could not read HQPlayer's log: ${reason.endsWith(".") ? reason : `${reason}.`}`;
+    logMessage.value = `Could not read HQPlayer's log: ${endSentence(errText(e))}`;
   }
 }

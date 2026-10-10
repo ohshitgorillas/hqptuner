@@ -3,6 +3,7 @@ version = 1
 
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
+"hqptuner/audit.py" = { lines = 406 }
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
 "hqptuner/static/css/features/volume.css" = { lines = 407 }
 "hqptuner/static/store/actions.js" = { lines = 413 }

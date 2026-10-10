@@ -26,7 +26,7 @@ from typing import Literal, NamedTuple
 
 from hqptuner.audit import AuditLog
 from hqptuner.engine.control import ControlClient, Reply
-from hqptuner.engine.controlerrors import CommandError
+from hqptuner.engine.controlerrors import CommandError, readback_mismatch
 
 _VOLUME_TOLERANCE = 0.05
 # a decimal level as the volume control sends it: sign, digits, optional fraction and exponent
@@ -79,8 +79,8 @@ class VolumeMismatchError(CommandError):
     """A post-apply volume readback landed outside ``_VOLUME_TOLERANCE`` of what was set."""
 
     def __init__(self, *, want: str, got: str | None) -> None:
-        """Render the mismatch wording naming the wanted and the read-back value."""
-        super().__init__(f"Volume readback mismatch: want {want} got {got}")
+        """Render the ``readback_mismatch`` sentence for ``volume``, naming the wanted and the read-back value."""
+        super().__init__(readback_mismatch("volume", want, got))
 
 
 class LiveSetting(NamedTuple):

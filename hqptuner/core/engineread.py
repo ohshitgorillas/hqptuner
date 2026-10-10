@@ -50,7 +50,7 @@ async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) 
         readings.device_caps = None
         return
     try:
-        text = await logtail.fetch_log(mgr.http_base_url)
+        text = await logtail.fetch_log(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port)
     except httpx.HTTPError as exc:
         # No log, no capability, no narrowing — the menus stay whole, which is
         # the correct answer to "the device has not told us anything".
@@ -85,7 +85,7 @@ async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     or answers with an error status, raises ``httpx.HTTPError``: a failed read, not an absent log.
     """
     path, enabled = logtail.log_file_field(mgr.readings.config_form)
-    text = await logtail.fetch_log(mgr.http_base_url)
+    text = await logtail.fetch_log(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port)
     return LogTail(path, enabled, logtail.tail_text(text, lines))
 
 

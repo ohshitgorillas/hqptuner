@@ -35,7 +35,7 @@ async function loadDb() {
     db.value = await api.autoeq();
     dbState.value = "";
   } catch (e) {
-    dbState.value = `library load failed: ${errText(e)}`;
+    dbState.value = `Loading the AutoEQ library failed: ${errText(e)}`;
   }
 }
 

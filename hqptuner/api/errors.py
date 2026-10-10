@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import inspect
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.exception_handlers import http_exception_handler
@@ -27,6 +27,8 @@ from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
+
+    from hqptuner.engine.controlerrors import ControlError
 
 # code -> HTTP status. Every code the API can answer with is here; the
 # vocabulary is documented for clients in docs/architecture.md "API errors".
@@ -81,6 +83,21 @@ class ErrorBody:
         self.detail = detail
 
 
+class ControlFailedError(ErrorBody):
+    """A Control API error under the code it was raised with, its text led by the subclass's ``template``.
+
+    The route's lead clause says what HQPTuner was doing; the text after it is the error's own, unchanged, and so is
+    its code. Subclassed once per route, next to the route, with a ``template`` carrying ``{error}``.
+    """
+
+    template: ClassVar[str]
+
+    def __init__(self, *, error: ControlError) -> None:
+        """Render ``template`` around ``error``'s own text, and answer under ``error``'s own code."""
+        super().__init__(self.template.format(error=error))
+        self.code = error.code
+
+
 class NotLoadedError(ErrorBody):
     """Nothing has been read from the daemon on this snapshot yet."""
 
@@ -88,7 +105,7 @@ class NotLoadedError(ErrorBody):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("not yet loaded from daemon")
+        super().__init__("HQPTuner has not read HQPlayer's settings yet. Try again in a few seconds.")
 
 
 class InvalidInputError(ErrorBody):
@@ -169,7 +186,13 @@ async def _render_framework(request: Request, exc: StarletteHTTPException) -> Re
     code = _FRAMEWORK_CODES.get(exc.status_code)
     if code is None:
         return await http_exception_handler(request, exc)
-    return JSONResponse({"detail": exc.detail, "code": code}, status_code=exc.status_code, headers=exc.headers)
+    path = request.url.path
+    detail = (
+        f"This HQPTuner has no {path}. Reload the page."
+        if code == "route_unknown"
+        else f"This HQPTuner cannot {request.method} {path}. Reload the page."
+    )
+    return JSONResponse({"detail": detail, "code": code}, status_code=exc.status_code, headers=exc.headers)
 
 
 def _render_error(_: Request, exc: HQPTunerError) -> Response:

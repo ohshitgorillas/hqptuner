@@ -393,15 +393,15 @@ def _attrib(el: ET.Element | None) -> dict[str, str]:
 
 def test_parse_frame_recovers_the_root_from_a_complete_frame_with_unparseable_children() -> None:
     body = '<Status result="OK"><metadata artist="Foo "Bar""/></Status>'
-    assert _attrib(parse_frame(body)) == {"result": "OK"}
+    assert _attrib(parse_frame(body, "Status")) == {"result": "OK"}
 
 
 def test_parse_frame_recovers_the_root_from_a_frame_with_an_unescaped_ampersand_attribute() -> None:
     body = '<Status result="Rock & Roll"/>'
-    assert _attrib(parse_frame(body)) == {"result": "Rock & Roll"}
+    assert _attrib(parse_frame(body, "Status")) == {"result": "Rock & Roll"}
 
 
 def test_parse_frame_raises_control_error_on_a_frame_carrying_an_entity_declaration() -> None:
     body = '<!DOCTYPE x [<!ENTITY a "b">]><Status result="OK"/>'
     with pytest.raises(ControlError):
-        parse_frame(body)
+        parse_frame(body, "Status")

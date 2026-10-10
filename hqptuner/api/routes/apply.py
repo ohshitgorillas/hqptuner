@@ -9,15 +9,13 @@ import contextlib
 from fastapi import APIRouter, Request
 
 from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, preset_refusals, with_autosave
-from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
+from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import apply_succeeded, pending_store
-from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes.http.restore import RestoreWriteFailedError
 from hqptuner.lanes.live import lane, routing
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.presets import presetlane
@@ -34,6 +32,18 @@ class NothingStagedError(ErrorBody):
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__("nothing staged")
+
+
+class ApplyFailedError(ControlFailedError):
+    """A Control API error that stopped or refused part of a staged apply."""
+
+    template = "Applying the settings failed: {error}"
+
+
+class LiveFailedError(ControlFailedError):
+    """A Control API error that stopped or refused part of a live-lane write."""
+
+    template = "Changing the live settings failed: {error}"
 
 
 class NoLiveFieldsGivenError(ErrorBody):
@@ -72,6 +82,21 @@ async def _persist_after_apply(
     return WithSaved(report, SavedPreset.of(saved))
 
 
+async def _apply_staged(
+    manager: ConnectionManager,
+    live: dict[str, dict[str, str]],
+    http: dict[str, str],
+    switch_to: str | None,
+) -> ApplyReport:
+    """Run the staged apply, refusing on what stopped it."""
+    try:
+        return await manager.applyops.apply(live, http, switch_to)
+    except ControlError as exc:
+        raise refuse(ApplyFailedError(error=exc)) from exc
+    except GroundingError as exc:
+        raise refuse(InvalidInputError(error=exc)) from exc
+
+
 @router.post("/config/apply")
 async def apply(
     request: Request, manager: Mgr, body: ApplyBody | None = None
@@ -89,12 +114,7 @@ async def apply(
     # nothing captured after this point can say what was applied
     staged_http, staged_live = dict(store.http), dict(store.live)
     save = body.save.name if body is not None and body.save is not None else None
-    try:
-        report = await manager.applyops.apply(store.live, store.http, switch_to)
-    except (ControlError, HttpLaneDeclinedError, RestoreWriteFailedError) as exc:
-        raise refuse(exc) from exc
-    except GroundingError as exc:
-        raise refuse(InvalidInputError(error=exc)) from exc
+    report = await _apply_staged(manager, store.live, store.http, switch_to)
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
@@ -144,5 +164,5 @@ async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyRep
         # the batch applied nothing.
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
-        raise refuse(exc) from exc
+        raise refuse(LiveFailedError(error=exc)) from exc
     return await with_autosave(report, manager)

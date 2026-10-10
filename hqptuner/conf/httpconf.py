@@ -138,21 +138,6 @@ class HttpUnreachableError(httpx.TransportError):
         super().__init__(f"HQPlayer is not reachable at {host}:{port}.", request=request)
 
 
-class HttpRefusedError(httpx.HTTPStatusError):
-    """HQPlayer answered an 8088 request with an error status.
-
-    Subclasses ``httpx.HTTPStatusError`` so every site that catches ``httpx.HTTPError`` handles it unchanged.
-    """
-
-    def __init__(self, *, response: httpx.Response) -> None:
-        """Render the wording naming the status HQPlayer answered with."""
-        super().__init__(
-            f"HQPlayer refused the request (HTTP {response.status_code}).",
-            request=response.request,
-            response=response,
-        )
-
-
 @contextlib.contextmanager
 def hqplayer_request(host: str, port: int, timeout: float) -> Iterator[None]:
     """Report an 8088 request that timed out or never reached ``host:port`` in HQPTuner's words, not httpx's."""
@@ -163,12 +148,6 @@ def hqplayer_request(host: str, port: int, timeout: float) -> Iterator[None]:
             raise
         except httpx.TransportError as exc:
             raise HttpUnreachableError(host=host, port=port, request=exc.request) from exc
-
-
-def raise_refused(resp: httpx.Response) -> None:
-    """Raise ``HttpRefusedError`` on any answer that is not a success."""
-    if not resp.is_success:
-        raise HttpRefusedError(response=resp)
 
 
 class HttpConfigClient:
@@ -208,8 +187,6 @@ class HttpConfigClient:
         except AuthRefused:
             self.credentials_ok = False
             raise
-        except httpx.HTTPStatusError as exc:
-            raise HttpRefusedError(response=resp) from exc
         self.credentials_ok = True
 
     async def _get(self, path: str) -> httpx.Response:

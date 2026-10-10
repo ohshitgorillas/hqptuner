@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr, Mgr
-from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
+from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.conf.httpforms import FormField, MatrixRow, ProfileSelect, SpeakersForm
 from hqptuner.conf.matrixprofiles import MATRIX_PROFILES, StoredProfile
 from hqptuner.engine.controlerrors import ControlError
@@ -141,10 +141,6 @@ _NO_TRACK = "GetTrackFile"
 _NO_TRACK_MESSAGE = "Live playback is needed to load a matrix profile."
 
 
-def _switch_refusal(text: str) -> str:
-    return _NO_TRACK_MESSAGE if _NO_TRACK in text else text
-
-
 class UnknownMatrixProfileActionError(ErrorBody):
     """``POST /api/matrix/profile`` named a verb this route does not have."""
 
@@ -155,14 +151,18 @@ class UnknownMatrixProfileActionError(ErrorBody):
         super().__init__(f"unknown matrix profile action: {action}")
 
 
-class MatrixSwitchRefusedError(ErrorBody):
-    """The daemon refused a live matrix profile switch, translated when it is the known no-track case."""
+class MatrixSwitchRefusedError(ControlFailedError):
+    """The daemon refused a live matrix profile switch; the known no-track case is translated, alone."""
 
-    code = "daemon_refused"
+    template = "Switching the matrix profile failed: {error}"
 
     def __init__(self, *, error: ControlError) -> None:
-        """Render ``_switch_refusal``'s translation of ``error``."""
-        super().__init__(_switch_refusal(str(error)))
+        """Render the no-track translation under ``daemon_refused``, else the error's own text and code."""
+        if _NO_TRACK in str(error):
+            ErrorBody.__init__(self, _NO_TRACK_MESSAGE)
+            self.code = "daemon_refused"
+        else:
+            super().__init__(error=error)
 
 
 class MatrixProfileBody(BaseModel):
@@ -250,7 +250,7 @@ class FilterUploadTypeError(ErrorBody):
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("filter upload must be a .wav or .txt file")
+        super().__init__("The filter must be a .wav or .txt file.")
 
 
 class FilterUploadTooLargeError(ErrorBody):
@@ -260,7 +260,7 @@ class FilterUploadTooLargeError(ErrorBody):
 
     def __init__(self, *, limit: int) -> None:
         """Render the wording naming the configured ``limit``, spelled as a reader would."""
-        super().__init__(f"filter upload is larger than the {_limit_text(limit)} limit")
+        super().__init__(f"The filter is larger than the {_limit_text(limit)} limit.")
 
 
 @router.post("/matrix/filter")

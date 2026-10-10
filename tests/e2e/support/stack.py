@@ -228,9 +228,10 @@ def _wait_for_ready(
 
     `/api/health` alone is not readiness. It reports on the connection manager
     and answers 200 before any lane has loaded anything (api/routes/status.py), while
-    `/api/config` 503s `not yet loaded from daemon` until the first 8088 poll
-    lands (api/deps.py). A stack yielded between those two moments hands the
-    session its first fixture call in that window, and every test in the run
+    `/api/config` answers 503, refusing because nothing has been read from the
+    daemon yet, until the first 8088 poll lands (api/deps.py). A stack yielded
+    between those two moments hands the session its first fixture call in that
+    window, and every test in the run
     errors in setup rather than failing on anything it asserts. So readiness is
     both: the app is up AND it has something from the daemon to serve.
 

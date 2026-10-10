@@ -29,6 +29,7 @@ from functools import partial
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from hqptuner import audit_narrow, audit_types
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -41,6 +42,9 @@ MAX_VALUE_BYTES = 131_072
 
 #: Roll the file once it passes this. Two files at this size is the worst case.
 DEFAULT_MAX_BYTES = 16_000_000
+
+#: What a refused read or write says it was handling.
+WHAT = "the audit log"
 
 #: Field names whose value never reaches the log, at any depth.
 _REDACT_KEYS = frozenset({"password", "secret", "token"})
@@ -157,7 +161,8 @@ class AuditLog:
         """
         if self._path is None or not self._path.is_file():
             return []
-        lines = self._path.read_text(encoding="utf-8").splitlines()
+        with reading(WHAT, self._path):
+            lines = self._path.read_text(encoding="utf-8").splitlines()
         out: list[AuditRecord] = []
         for line in lines:
             if not line.strip():
@@ -195,10 +200,11 @@ class AuditLog:
     # --- writing -----------------------------------------------------------
 
     def _rotate(self) -> None:
-        if self._path is None or not self._path.is_file():
+        if self._path is None:
             return
-        if self._path.stat().st_size >= self._max_bytes:
-            self._path.replace(self._path.with_suffix(self._path.suffix + ".1"))
+        with saving(WHAT, self._path):
+            if self._path.is_file() and self._path.stat().st_size >= self._max_bytes:
+                self._path.replace(self._path.with_suffix(self._path.suffix + ".1"))
 
     def _write(self, event: str, fields: dict[str, Any]) -> None:
         if self._path is None:
@@ -211,9 +217,10 @@ class AuditLog:
             record["truncated"] = True
             record["full_digests"] = digests
         self._rotate()
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        with self._path.open("a", encoding="utf-8") as fh:
-            fh.write(json.dumps(record) + "\n")
+        with saving(WHAT, self._path):
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            with self._path.open("a", encoding="utf-8") as fh:
+                fh.write(json.dumps(record) + "\n")
 
     # --- the vocabulary ----------------------------------------------------
 

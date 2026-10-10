@@ -125,10 +125,19 @@ async function pickPresets(profileName, saving) {
   return /** @type {Promise<string[] | null>} */ (askChoices(OWNER, "Select the presets for the profile:", options));
 }
 
+/** The failure note for each verb passed to act(). */
+const FAILED_PREFIX = {
+  save: "Saving the profile failed: ",
+  load: "Loading the profile failed: ",
+  delete: "Deleting the profile failed: ",
+};
+
+/** @typedef {keyof typeof FAILED_PREFIX} ProfileVerb */
+
 // Success is visually obvious (staged chips, the picker, the live tag), so an
 // action only ever writes a note on failure.
 /**
- * @param {string} action the verb, shown as the busy marker and in a failure note
+ * @param {ProfileVerb} action the verb, shown as the busy marker and in a failure note
  * @param {() => Promise<void>} run
  * @returns {Promise<void>}
  */
@@ -138,7 +147,7 @@ async function act(action, run) {
   try {
     await run();
   } catch (e) {
-    profileNote.value = `${action} failed: ${errText(e)}`;
+    profileNote.value = `${FAILED_PREFIX[action]}${errText(e)}`;
   } finally {
     profileBusy.value = "";
   }

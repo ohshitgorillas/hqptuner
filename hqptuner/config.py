@@ -4,7 +4,7 @@ import os
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, NamedTuple
 
 from hqptuner.paths import bundled, user_data_dir
 
@@ -68,6 +68,30 @@ _UNSET_PATH = Path()
 #: Whether any build offers the junk-filter advisor, auto-pilot and the METER page. Not an operator knob: the three
 #: ship only when this reads True, and a stored auto-pilot state never acts while it reads False.
 ADVISOR_ENABLED = False
+
+
+class Store(NamedTuple):
+    """One store field driven by ``_store``/``_store_dir``.
+
+    ``attr`` is the ``Config`` attribute, ``name`` the name it passes down, ``is_dir`` whether that name is a directory
+    (``_store_dir``) rather than a file (``_store``), and ``what`` the noun a refused read or write of it names.
+    """
+
+    attr: str
+    name: str
+    is_dir: bool
+    what: str
+
+
+CONNECTION_STORE = Store("connection_file", "connection.json", is_dir=False, what="the connection")
+BACKUP_STORE = Store("backup_dir", "backups", is_dir=True, what="backups")
+PRESET_STORE = Store("preset_dir", "presets", is_dir=True, what="presets")
+LIVE_PRESET_STORE = Store("live_preset_file", "live-presets.json", is_dir=False, what="live presets")
+FAVORITES_STORE = Store("favorites_file", "favorites.json", is_dir=False, what="favorites")
+NARROWING_STORE = Store("narrowing_file", "narrowing.json", is_dir=False, what="the filter narrowing")
+DESCRIPTION_STORE = Store("description_file", "descriptions.json", is_dir=False, what="descriptions")
+MATRIX_MODE_STORE = Store("matrix_mode_file", "matrixmodes.json", is_dir=False, what="matrix modes")
+AUTOPILOT_STORE = Store("autopilot_file", "autopilot.json", is_dir=False, what="the auto-pilot setting")
 
 
 @dataclass
@@ -187,19 +211,17 @@ class Config:
     # start (audit.resolve_level).
     log_level: str = field(default_factory=lambda: _env("LOG_LEVEL", "INFO"))
 
-    # Every store field driven by `_store`/`_store_dir`: its attribute name, the
-    # name it passes down, and whether that name is a directory (`_store_dir`)
-    # rather than a file (`_store`).
-    STORES: ClassVar[tuple[tuple[str, str, bool], ...]] = (
-        ("connection_file", "connection.json", False),
-        ("backup_dir", "backups", True),
-        ("preset_dir", "presets", True),
-        ("live_preset_file", "live-presets.json", False),
-        ("favorites_file", "favorites.json", False),
-        ("narrowing_file", "narrowing.json", False),
-        ("description_file", "descriptions.json", False),
-        ("matrix_mode_file", "matrixmodes.json", False),
-        ("autopilot_file", "autopilot.json", False),
+    # Every store field driven by `_store`/`_store_dir`.
+    STORES: ClassVar[tuple[Store, ...]] = (
+        CONNECTION_STORE,
+        BACKUP_STORE,
+        PRESET_STORE,
+        LIVE_PRESET_STORE,
+        FAVORITES_STORE,
+        NARROWING_STORE,
+        DESCRIPTION_STORE,
+        MATRIX_MODE_STORE,
+        AUTOPILOT_STORE,
     )
 
     def __post_init__(self) -> None:
@@ -209,7 +231,7 @@ class Config:
         argument, first say; only a field still at ``_UNSET_PATH`` reaches here, and what it becomes
         now honors ``self.frozen``/``self.bundle`` instead of always reading ``sys`` live.
         """
-        for attr, name, is_dir in self.STORES:
+        for attr, name, is_dir, _what in self.STORES:
             if getattr(self, attr) == _UNSET_PATH:
                 resolver = _store_dir if is_dir else _store
                 setattr(self, attr, resolver(name, frozen=self.frozen))

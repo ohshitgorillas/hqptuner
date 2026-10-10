@@ -8,7 +8,8 @@ or remove the file, then reload." — so this module owns the shared shape and e
 too-new exception.
 
 A file that will not parse, or that parses to something other than a JSON object, is not an empty store: it is a
-broken one, and a read says so rather than quietly starting over. A document that
+broken one, and a read says so rather than quietly starting over. A file the filesystem refuses to open is neither:
+that ``OSError`` reaches the caller, whose ``unwritable.reading`` block names the store. A document that
 parses fine but is missing a KEY the store expects (no ``presets``, no ``facets``) is not corrupt — that is a store
 nothing has been saved into yet — and stays each store's own reading, past this function.
 """
@@ -49,17 +50,19 @@ def read_stamped(
     """Return the JSON object at ``path``, empty when the file does not exist.
 
     Raises ``StoreCorruptError`` when the file exists but cannot be read as a JSON object — unparseable bytes, or a
-    value that parsed to a list, a string, a number or ``null``. When ``schema`` and ``too_new`` are both given and
-    the document's own ``schema`` member is an int greater than ``schema``, raises the exception ``too_new`` builds
-    from that stamp — the store's own too-new error, since only the store knows how to word it. A document with no
-    usable ``schema`` member, or one this HQPTuner understands, is returned as read, an ``object`` because each
-    store's own reading is what judges its members — this function only rules on whether the FILE is readable.
+    value that parsed to a list, a string, a number or ``null``. An ``OSError`` from the filesystem refusing the read
+    is not corruption and propagates, for the caller's ``unwritable.reading`` to name the store it belongs to. When
+    ``schema`` and ``too_new`` are both given and the document's own ``schema`` member is an int greater than
+    ``schema``, raises the exception ``too_new`` builds from that stamp — the store's own too-new error, since only
+    the store knows how to word it. A document with no usable ``schema`` member, or one this HQPTuner understands, is
+    returned as read, an ``object`` because each store's own reading is what judges its members — this function only
+    rules on whether the FILE is readable.
     """
     if not path.is_file():
         return {}
     try:
         data = json.loads(path.read_text())
-    except (ValueError, OSError) as exc:
+    except ValueError as exc:
         raise StoreCorruptError(store, path) from exc
     if not isinstance(data, dict):
         raise StoreCorruptError(store, path)

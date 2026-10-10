@@ -8,8 +8,9 @@
 // every tab reporting a bare number, so the detail IS the message whenever the
 // body has one. A response with no usable detail (a proxy error page, a dropped
 // daemon) is described by its HTTP status in plain English (`unexplained`).
-// Callers put their own "{what} failed: " in front of the message, which is why
-// some of these sentences start lower-case.
+// A backend sentence opens with its own clause, so a caller shows it alone; the
+// client's own sentences name no operation, so a caller puts its "{what} failed: "
+// in front of those (`failText` in errtext.js). `fromBackend` says which it is.
 // The LIVE lane answers a refused batch with per-field reasons rather than one
 // sentence — {"filter": "the pcm chain is not loaded (engine chain: sdm)"} —
 // because it refuses field by field. Reading the values out keeps that sentence;
@@ -93,7 +94,7 @@ const REASON_PHRASES = {
 function unexplained(path, status) {
   if (status === 500) return "HQPTuner hit an unexpected error. The details are in its log.";
   if (status === 502 || status === 503 || status === 504) return "HQPlayer did not answer.";
-  if (status === 404) return `this HQPTuner has no ${path.split("?")[0]}. Reload the page.`;
+  if (status === 404) return `This HQPTuner has no ${path.split("?")[0]}. Reload the page.`;
   const phrase = REASON_PHRASES[status];
   return `HQPTuner answered HTTP ${phrase ? `${status} ${phrase}` : status} with no explanation.`;
 }
@@ -105,15 +106,17 @@ function unexplained(path, status) {
 /** A non-OK answer from the backend: the sentence, the HTTP status, the body's code. */
 class ApiFailure extends Error {
   /**
-   * Keep the status and code beside the message.
+   * Keep the status, the code and the sentence's source beside the message.
    * @param {string} message
    * @param {number} status
    * @param {string} code "" when the body carried none
+   * @param {boolean} fromBackend whether the message is the backend's own sentence
    */
-  constructor(message, status, code) {
+  constructor(message, status, code, fromBackend) {
     super(message);
     this.status = status;
     this.code = code;
+    this.fromBackend = fromBackend;
   }
 }
 
@@ -132,7 +135,7 @@ async function failure(path, r) {
   } catch {
     detail = "";
   }
-  return new ApiFailure(detail || unexplained(path, r.status), r.status, code);
+  return new ApiFailure(detail || unexplained(path, r.status), r.status, code, detail !== "");
 }
 
 // A fetch that rejects never reached HQPTuner; each browser words that rejection
@@ -147,7 +150,7 @@ async function reach(path, opts) {
   try {
     return await fetch(path, opts);
   } catch {
-    throw new ApiFailure("HQPTuner is not reachable.", 0, "");
+    throw new ApiFailure("HQPTuner is not reachable.", 0, "", false);
   }
 }
 

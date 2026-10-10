@@ -24,7 +24,7 @@ TIMEOUTS = [10.0, 25.0]
 HTTPX_TEXTS = ["timed out", "The read operation timed out"]
 
 #: Where the clients here are pointed. The fake transport answers in place of the network, so nothing is dialed.
-BASE_URL = "http://hqplayer.invalid"
+HOST = "hqplayer.invalid"
 
 #: What a request is handed instead of a reply when nothing raised.
 NO_ERROR = ""
@@ -91,5 +91,5 @@ async def test_a_config_request_hqplayer_does_not_answer_is_not_reported_in_http
 
 @pytest.mark.parametrize("text", HTTPX_TEXTS)
 async def test_a_log_read_hqplayer_does_not_answer_is_not_reported_in_httpx_words(text: str) -> None:
-    report = await _report(lambda: logtail.fetch_log(BASE_URL, transport=_silent(text)))
+    report = await _report(lambda: logtail.fetch_log(HOST, 8088, HttpOptions(transport=_silent(text))))
     assert text not in report

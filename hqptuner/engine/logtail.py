@@ -10,12 +10,11 @@ before login, like the rest of the read-only surface.
 
 import httpx
 
-from hqptuner.conf.httpconf import HttpRefusedError, hqplayer_request, raise_refused
+from hqptuner.conf.httpauth import HttpRefusedError
+from hqptuner.conf.httpconf import HttpOptions, hqplayer_request
 from hqptuner.conf.httpforms import ConfigForm
 
 _TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
-_HTTP_TIMEOUT = 10.0  # httpx would otherwise default to 5.0
-_HTTP_DEFAULT_PORT = 80  # what a base URL that names no port is dialed on
 _NO_LOG = 404  # HQPlayer's answer on /log when it has no log to serve
 
 
@@ -41,20 +40,22 @@ def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
     return path, enabled
 
 
-async def fetch_log(base_url: str, *, transport: httpx.AsyncBaseTransport | None = None) -> str:
-    """Return the daemon's full log text from GET /log on the 8088 web interface.
+async def fetch_log(host: str, port: int, options: HttpOptions | None = None) -> str:
+    """Return the daemon's full log text from GET /log on the 8088 web interface at ``host:port``.
 
-    Unauthenticated — the log page is not credential-gated. ``transport`` replaces httpx's own socket transport;
-    left out, the request goes over the network. A 404 raises ``NoLogError``, any other error status
-    ``HttpRefusedError``.
+    Unauthenticated — the log page is not credential-gated. Sent on ``options``, or the defaults. A 404 raises
+    ``NoLogError``, any other error status ``HttpRefusedError``.
     """
-    url = httpx.URL(base_url)
-    async with httpx.AsyncClient(base_url=base_url, timeout=_HTTP_TIMEOUT, transport=transport) as client:
-        with hqplayer_request(url.host, url.port or _HTTP_DEFAULT_PORT, _HTTP_TIMEOUT):
+    options = options or HttpOptions()
+    async with httpx.AsyncClient(
+        base_url=f"http://{host}:{port}", timeout=options.timeout, transport=options.transport
+    ) as client:
+        with hqplayer_request(host, port, options.timeout):
             resp = await client.get("/log")
         if resp.status_code == _NO_LOG:
             raise NoLogError(response=resp)
-        raise_refused(resp)
+        if not resp.is_success:
+            raise HttpRefusedError(response=resp)
         return resp.text
 
 

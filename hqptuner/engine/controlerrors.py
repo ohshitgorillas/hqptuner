@@ -36,9 +36,9 @@ class ControlConnectionFailedError(ControlError):
 class UnparseableResponseError(ControlError):
     """A complete response frame that still will not parse, even after root-only recovery."""
 
-    def __init__(self) -> None:
-        """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("unparseable response document")
+    def __init__(self, *, command: str, parser_error: str) -> None:
+        """Render the not-readable sentence naming the command answered and the XML parser's own error text."""
+        super().__init__(f"HQPlayer's answer to {command} is not readable XML: {parser_error}.")
 
 
 class HttpCredentialsMissingError(ControlError):
@@ -60,9 +60,9 @@ class ConnectionClosedError(ControlError):
 class ResponseTooLargeError(ControlError):
     """An accumulating response frame exceeded ``MAX_RESPONSE`` without ever completing."""
 
-    def __init__(self) -> None:
-        """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("response exceeds size limit")
+    def __init__(self, *, command: str, limit: int) -> None:
+        """Render the never-ended sentence naming the command answered and ``limit``, given in bytes, in MiB."""
+        super().__init__(f"HQPlayer's answer to {command} passed {limit / 2**20:g} MB without ending.")
 
 
 class CommandRefusedError(CommandError):
@@ -73,9 +73,14 @@ class CommandRefusedError(CommandError):
         super().__init__(f"{element_name}: {result}: {text}")
 
 
+def readback_mismatch(setting: str, want: str, got: str | None) -> str:
+    """Render the sentence for one setting whose readback ``got`` is not the ``want`` that was set."""
+    return f"After HQPTuner set {setting} to {want}, HQPlayer reported {got}."
+
+
 class StateMismatchError(CommandError):
     """A post-apply ``State`` readback did not match what was just set."""
 
     def __init__(self, *, mismatch: dict[str, tuple[str, str | None]]) -> None:
-        """Render the mismatch wording carrying the whole (want, got) map."""
-        super().__init__(f"State readback mismatch (want, got): {mismatch}")
+        """Render one ``readback_mismatch`` sentence per State attribute in ``mismatch``, a space between each."""
+        super().__init__(" ".join(readback_mismatch(setting, want, got) for setting, (want, got) in mismatch.items()))

@@ -17,12 +17,9 @@ from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import refuse
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.lanes.http.forms import FormsOutcome
-from hqptuner.presets.store.jsonfile import StoreCorruptError
-from hqptuner.presets.store.unwritable import StoreUnwritableError
 
 router = APIRouter(prefix="/api")
 
@@ -90,10 +87,7 @@ def _remembered(store: ConnectionStore) -> bool:
     No is the default because storing a password is the choice with the consequence, and an install that
     has never made it has not asked for it.
     """
-    try:
-        record = store.read()
-    except StoreCorruptError as exc:
-        raise refuse(exc) from exc
+    record = store.read()
     return False if record is None else record.remember
 
 
@@ -124,10 +118,7 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
         # would otherwise flip an install that asked to be asked every time into one that stores the pair.
         remember=body.remember if body.remember is not None else _remembered(store),
     )
-    try:
-        store.write(record)
-    except StoreUnwritableError as exc:
-        raise refuse(exc) from exc
+    store.write(record)
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
     layer_onto_config(cfg, record)

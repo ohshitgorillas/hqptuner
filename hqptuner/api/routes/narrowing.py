@@ -10,11 +10,8 @@ from dataclasses import dataclass
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.errors import refuse
 from hqptuner.presets.store.narrowing import (
     Facets,
-    NarrowingError,
-    NarrowingSchemaError,
     NarrowingStore,
 )
 
@@ -65,10 +62,7 @@ def narrowing(request: Request) -> NarrowingAnswer:
     409 when the store on disk is stamped newer than this HQPTuner reads — answering with defaults would be a lie
     about a file that is there and full.
     """
-    try:
-        facets = _store(request).read()
-    except NarrowingSchemaError as exc:
-        raise refuse(exc) from exc
+    facets = _store(request).read()
     return NarrowingAnswer(facets)
 
 
@@ -81,10 +75,5 @@ def save_narrowing(body: NarrowingBody, request: Request) -> NarrowingAnswer:
 
     422s a facet key ``FacetBody`` does not name — pydantic's own ``extra="forbid"`` refuses it at the door.
     """
-    try:
-        facets = _store(request).write(body.facets.model_dump(exclude_none=True))
-    except NarrowingSchemaError as exc:
-        raise refuse(exc) from exc
-    except NarrowingError as exc:
-        raise refuse(exc) from exc
+    facets = _store(request).write(body.facets.model_dump(exclude_none=True))
     return NarrowingAnswer(facets)

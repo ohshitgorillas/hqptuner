@@ -116,7 +116,7 @@ function ConvEditor({ stage, commit }) {
         sr && sr !== 352800 ? `uploaded · ${hz(sr, 1)} — 352.8 kHz is recommended for full-band use` : "uploaded";
       commit({ file: r.path });
     } catch (err) {
-      uploadNote.value = `upload failed: ${errText(err)}`;
+      uploadNote.value = `Uploading the filter failed: ${errText(err)}`;
     }
   };
   return html`

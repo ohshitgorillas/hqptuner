@@ -1,254 +1,17 @@
-// Behavioral suite for the store core — store/resolve.js's three-tree resolution (`baseline`,
-// reached through `effective`/`isDirty`) and the apply summary (`summarize`,
-// reached through `applyAll`). Written BEFORE the complexity refactor of those
-// two (11 and 19).
+// Behavioral suite for the store core's apply summary (`summarize`, reached
+// through `applyAll`). Written BEFORE the complexity refactor of it (19).
 //
-// Neither is exported, and neither should be: their contracts are what the
-// public functions return. Everything below drives them the way the app does.
-//
-// The wire is faked, not the store. `route()` installs a globalThis.fetch that
-// answers the real REST paths (lib/api.js) with real response shapes — the
-// docs/testing.md rule-4 route. No store function is stubbed.
-//
-// Schema facts this leans on, verified against store/schema.js:
-//   adaptive_volume is the ONLY lane:"live" key (stateField "adaptive").
-//   optimal_iso, matrix_pipelines and fixed_volume are the fileTruth keys.
-//   matrix_engine carries endpoint:"matrix" + formField:"engine" — it reads its
-//   baseline from the /matrix form under the BARE name, never from /config.
+// It is not exported, and should not be: its contract is what the public
+// functions return. Everything below drives it the way the app does, over the
+// fake wire in tests/js/support/threetrees.js. No store function is stubbed.
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
-import {
-  effective,
-  isDirty,
-  runningValue,
-  effectivePipelines,
-  stagedCount,
-} from "../../../hqptuner/static/store/resolve.js";
-import {
-  setLive,
-  edit,
-  applyAll,
-  lastApply,
-  discardAll,
-  stagePipelines,
-} from "../../../hqptuner/static/store/actions.js";
-import { bad, ok, stagingWire } from "../support/wire/wire.js";
-
-/**
- * One /config or /matrix form field, as `field()` below builds it. `value` is a
- * union because the form answers a checkbox with a real bool and everything
- * else with a string.
- *
- * @typedef {{ name: string, value: string | boolean }} FormField
- */
-
-/**
- * One matrix pipeline row: exactly five keys, every value a string.
- *
- * @typedef {{
- *   gain: string,
- *   gainunit: string,
- *   mixdown: string,
- *   process: string,
- *   source: string,
- * }} PipelineRow
- */
-
-/**
- * The globals a fake wire installs a `fetch` on, viewed as an optional member:
- * the DOM lib declares it returning a real `Response`, which these fakes do not
- * build.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
-
-// Fake wire. `apply` is the report /api/config/apply answers with and `saved`
-// the preset save beside it, or `refusal` the refusal it answers instead; every
-// other path gets a minimal valid response so the surrounding flow completes.
-/** @param {{ apply?: unknown, saved?: unknown, refusal?: unknown, staged?: { live: unknown, http: unknown } }} [seams] */
-function route({ apply = {}, saved = undefined, refusal = null, staged = { live: {}, http: {} } } = {}) {
-  env.fetch = async (/** @type {string} */ path) => {
-    if (path === "/api/config/apply") return refusal || ok(saved ? { report: apply, saved } : { report: apply });
-    if (path === "/api/config/stage") return ok(staged);
-    if (path === "/api/config/pending") return ok(staged);
-    if (path === "/api/config") return ok({ data: config.value });
-    if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-    if (path === "/api/enumerations") return ok({ data: null });
-    return ok({});
-  };
-}
-
-// A clean three-tree baseline. Every source signal is reassigned, not just the
-// ones a case cares about — module-level signals outlive a test.
-/**
- * @param {{
- *   fields?: FormField[],
- *   file?: Record<string, string>,
- *   matrix?: FormField[],
- *   engine?: Record<string, string>,
- * }} [trees]
- */
-async function trees({ fields = [], file = {}, matrix = [], engine = {} } = {}) {
-  engineState.value = engine;
-  config.value = { fields, file, active: "" };
-  matrixConfig.value = { fields: matrix, active: "[Default]" };
-  route();
-  await discardAll();
-}
-
-/**
- * @param {string} name
- * @param {string | boolean} value
- * @returns {FormField}
- */
-const field = (name, value) => ({ name, value });
-
-// --- baseline: the live lane ------------------------------------------------
-
-test("test_a_live_control_reads_its_value_from_the_engine_state", async () => {
-  await trees({ engine: { adaptive: "1" } });
-  assert.equal(effective("adaptive_volume"), "1");
-});
-
-test("test_a_live_control_with_no_engine_state_is_undefined", async () => {
-  await trees({ engine: {} });
-  assert.equal(effective("adaptive_volume"), undefined);
-});
-
-test("test_a_live_control_ignores_the_config_form_entirely", async () => {
-  // the live lane never consults the http trees, even when they carry the name
-  await trees({ engine: {}, fields: [field("adaptive", "9")] });
-  assert.equal(effective("adaptive_volume"), undefined);
-});
-
-// --- baseline: the http form ------------------------------------------------
-
-test("test_an_http_control_reads_its_value_from_the_config_form", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  assert.equal(effective("volume_max"), "-3");
-});
-
-test("test_an_http_control_missing_from_the_form_is_undefined", async () => {
-  await trees({ fields: [] });
-  assert.equal(effective("volume_max"), undefined);
-});
-
-test("test_an_unknown_control_key_is_undefined", async () => {
-  await trees();
-  assert.equal(effective("no_such_control"), undefined);
-});
-
-// --- baseline: file truth ---------------------------------------------------
-
-test("test_a_file_truth_control_prefers_the_config_file_over_the_form", async () => {
-  // volume_fixed is 0/1/2 in the XML but a bare checkbox on the form, so the
-  // form cannot express -6 dB and the file has to win
-  await trees({ fields: [field("volume_fixed", true)], file: { volume_fixed: "2" } });
-  assert.equal(effective("optimal_iso"), "2");
-});
-
-test("test_a_file_truth_control_falls_back_to_the_form_when_the_file_is_silent", async () => {
-  await trees({ fields: [field("volume_fixed", "2")], file: {} });
-  assert.equal(effective("optimal_iso"), "2");
-});
-
-test("test_a_file_truth_fallback_normalizes_a_checked_form_box_into_the_xml_domain", async () => {
-  await trees({ fields: [field("volume_fixed", true)], file: {} });
-  assert.equal(effective("optimal_iso"), "1");
-});
-
-test("test_a_file_truth_fallback_normalizes_an_unchecked_form_box", async () => {
-  await trees({ fields: [field("volume_fixed", false)], file: {} });
-  assert.equal(effective("optimal_iso"), "0");
-});
-
-test("test_the_fixed_volume_level_reads_the_file_rather_than_the_daemon_form", async () => {
-  // while fixed volume is OFF the daemon's form offers its OWN remembered level;
-  // the user's is parked in a commented <fixed> line the file lane reads back, so
-  // the file has to win or the box shows a number the user never typed
-  await trees({ fields: [field("fixed_volume", "-3")], file: { fixed_volume: "-20" } });
-  assert.equal(effective("fixed_volume"), "-20");
-});
-
-test("test_a_file_truth_control_reads_the_file_even_with_no_form_field_at_all", async () => {
-  await trees({ fields: [], file: { volume_fixed: "2" } });
-  assert.equal(effective("optimal_iso"), "2");
-});
-
-// --- baseline: the matrix form ----------------------------------------------
-
-test("test_a_matrix_control_reads_the_matrix_form_under_its_bare_name", async () => {
-  await trees({ matrix: [field("engine", "IIR")] });
-  assert.equal(effective("matrix_engine"), "IIR");
-});
-
-test("test_a_matrix_control_ignores_a_same_named_field_on_the_config_form", async () => {
-  await trees({ fields: [field("matrix_engine", "WRONG")], matrix: [field("engine", "IIR")] });
-  assert.equal(effective("matrix_engine"), "IIR");
-});
-
-// --- effective: precedence --------------------------------------------------
-
-test("test_a_live_drag_override_outranks_everything", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  setLive("volume_max", "-9");
-  assert.equal(effective("volume_max"), "-9");
-});
-
-test("test_a_staged_edit_outranks_the_baseline", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  route({ staged: { live: {}, http: { volume_max: "-6" } } });
-  await edit("volume_max", "-6");
-  assert.equal(effective("volume_max"), "-6");
-});
-
-test("test_the_running_value_ignores_a_staged_edit", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  route({ staged: { live: {}, http: { volume_max: "-6" } } });
-  await edit("volume_max", "-6");
-  assert.equal(runningValue("volume_max"), "-3");
-});
-
-// --- isDirty ----------------------------------------------------------------
-
-test("test_an_unstaged_control_is_not_dirty", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  assert.equal(isDirty("volume_max"), false);
-});
-
-test("test_a_staged_change_reads_as_dirty", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  route({ staged: { live: {}, http: { volume_max: "-6" } } });
-  await edit("volume_max", "-6");
-  assert.equal(isDirty("volume_max"), true);
-});
-
-test("test_a_staged_value_equal_to_the_baseline_is_not_dirty", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  route({ staged: { live: {}, http: { volume_max: "-3" } } });
-  await edit("volume_max", "-3");
-  assert.equal(isDirty("volume_max"), false);
-});
-
-test("test_a_checkbox_staged_as_one_against_a_true_baseline_is_not_dirty", async () => {
-  // the domains differ — config gives a bool, staging gives "1"/"0" — so the
-  // comparison happens in the control's own domain
-  await trees({ fields: [field("quick_pause", true)] });
-  route({ staged: { live: {}, http: { quick_pause: "1" } } });
-  await edit("quick_pause", "1");
-  assert.equal(isDirty("quick_pause"), false);
-});
-
-test("test_a_checkbox_staged_as_zero_against_a_true_baseline_is_dirty", async () => {
-  await trees({ fields: [field("quick_pause", true)] });
-  route({ staged: { live: {}, http: { quick_pause: "0" } } });
-  await edit("quick_pause", "0");
-  assert.equal(isDirty("quick_pause"), true);
-});
+import { edit, applyAll, lastApply, discardAll } from "../../../hqptuner/static/store/actions.js";
+import { refreshConfig } from "../../../hqptuner/static/store/sync.js";
+import { bad, ok } from "../support/wire/wire.js";
+import { env, route, trees, field } from "../support/threetrees.js";
 
 // --- summarize: failures outrank everything ---------------------------------
 
@@ -645,108 +408,96 @@ test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async ()
   await assert.rejects(() => applyAll());
 });
 
-// --- baseline: the pipeline set ---------------------------------------------
-//
-// `matrix_pipelines` is the whole row set, staged atomically as one canonical
-// JSON string. Its applied value has two possible sources: the config XML read
-// back (`config.file.matrix_pipelines`) when management credentials exist, and
-// the parsed rows on the /matrix form (`matrixConfig.rows`) when they do not —
-// read-only mode has no file truth at all.
-//
-// `trees()` above seeds no /matrix ROWS, so these cases use the sibling helper:
-// same full reset of every source signal, plus the rows, plus the real staging
-// wire so `stagePipelines` rides the REST path rather than a fixed buffer.
+// --- summarize: a live edit HQPTuner refused before sending it ------------------
+// A live setter that never reached HQPlayer comes back with code `invalid_input`
+// (architecture.md §8.2): HQPTuner judged the value unusable itself. It is still
+// named by the label the page gives its control, and it does not read as a
+// refusal by HQPlayer. Labels are copy and stay out of every assertion
+// (docs/testing.md rule 9); the setting keys, the reason and the level below are
+// the fixture's own.
 
-/** @param {{ file?: Record<string, string>, rows?: PipelineRow[] }} [trees] */
-async function pipeTrees({ file = {}, rows = undefined } = {}) {
-  engineState.value = {};
-  config.value = { fields: [], file, active: "" };
-  matrixConfig.value = { fields: [], rows, active: "[Default]" };
-  stagingWire({
-    routes: (/** @type {string} */ path) => {
-      if (path === "/api/config") return ok({ data: config.value });
-      if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-      if (path === "/api/enumerations") return ok({ data: null });
-      return undefined;
+// One reason text for both codes, so only the code can tell the two apart.
+const SETTER_REASON = "value out of reach";
+// A playback level no parser reads as a number (tests/apply/test_live_report_codes.py).
+const UNREADABLE_LEVEL = "eleven";
+
+/** @param {string} setting */
+const rejected = (setting) => ({ setting, code: "invalid_input", error: SETTER_REASON });
+
+test("test_a_live_setting_hqptuner_refused_does_not_read_as_a_refusal_by_hqplayer", async () => {
+  const ours = await liveFailure([rejected(PCM_1X)]);
+  const theirs = await liveFailure([{ setting: PCM_1X, code: "daemon_refused", error: SETTER_REASON }]);
+  assert.notEqual(ours, theirs);
+});
+
+// The level rides the live half of the pending buffer, `{live: {volume: {value}}}`
+// (tests/js/eqstage/eqstage-summary.test.js stages it there), and the report
+// names only the setting, so the level the user sees comes from what was sent.
+test("test_a_volume_level_hqptuner_refused_names_the_level_that_was_sent", async () => {
+  await trees();
+  route({
+    staged: { live: { volume: { value: UNREADABLE_LEVEL } }, http: {} },
+    apply: { live: [{ setting: "volume", ok: false, code: "invalid_input", error: SETTER_REASON }] },
+  });
+  await refreshConfig();
+  await applyAll();
+  assert.ok(String(verdict(lastApply).text).includes(UNREADABLE_LEVEL), String(verdict(lastApply).text));
+});
+
+// --- summarize: a missing output device the report cannot name ------------------
+// `UnfixableDevice.want` is nullable on the wire (docs/openapi.json), so a report
+// can lack the device's name; the absent value is never printed as one.
+
+test("test_a_missing_output_device_with_no_name_never_shows_the_word_null", async () => {
+  await trees();
+  route({
+    apply: {
+      persistent: {
+        applied: false,
+        reason: "unavailable",
+        diff: { net_device: {} },
+        unfixable: { net_device: { want: null, available: [] } },
+      },
     },
   });
-  await discardAll();
+  await applyAll();
+  const text = String(verdict(lastApply).text);
+  assert.ok(!/\bnull\b/i.test(text), text);
+});
+
+// --- summarize: a persistent lane that failed for another reason ----------------
+// Beyond "unconverged", the persistent lane's verdict names its reason and the
+// settings in its diff, each by the label of the control that edits it. A key no
+// control edits is shown as its words, underscores turned to spaces. Reasons and
+// unlabelled keys are the fixture's own; labels are copy (docs/testing.md rule 9).
+
+const OTHER_REASON = "timeout";
+
+/**
+ * The verdict text a persistent failure with this reason and diff left behind.
+ *
+ * @param {string} reason
+ * @param {Record<string, unknown>} diff
+ * @returns {Promise<string>}
+ */
+async function persistFailure(reason, diff) {
+  await trees();
+  route({ apply: { persistent: { applied: false, reason, diff } } });
+  await applyAll();
+  return String(verdict(lastApply).text);
 }
 
-// A pipeline row carries exactly five keys; `gainunit` defaults to dB, the rest
-// to the wire's own defaults.
-/**
- * @param {Partial<PipelineRow>} [patch]
- * @returns {PipelineRow}
- */
-const ROW = (patch) => ({ gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0", ...patch });
-// The backend's own serialization of `[ROW({gain: "-6"})]`, written out by hand:
-// alphabetical keys, compact, every value a string.
-const FILE_ROWS = '[{"gain":"-6","gainunit":"dB","mixdown":"0","process":"","source":"0"}]';
-
-test("test_pipelines_with_file_truth_and_nothing_staged_are_not_dirty", async () => {
-  await pipeTrees({ file: { matrix_pipelines: FILE_ROWS } });
-  assert.equal(isDirty("matrix_pipelines"), false);
+test("test_a_persistent_failure_shows_a_labelled_setting_without_its_wire_key", async () => {
+  const text = await persistFailure(OTHER_REASON, { volume_max: {} });
+  assert.ok(!text.includes("volume_max"), text);
 });
 
-// Read-only mode has no file to compare against; falling back to the /matrix
-// rows is what keeps it from reporting a permanent pending change nobody made.
-test("test_pipelines_with_only_the_matrix_rows_and_nothing_staged_are_not_dirty", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  assert.equal(isDirty("matrix_pipelines"), false);
+test("test_a_persistent_failure_shows_an_unlabelled_setting_with_its_underscores_as_spaces", async () => {
+  const text = await persistFailure(OTHER_REASON, { [UNLABELLED]: {} });
+  assert.ok(text.includes(UNLABELLED.replaceAll("_", " ")), text);
 });
 
-test("test_pipelines_with_neither_file_truth_nor_matrix_rows_are_not_dirty", async () => {
-  await pipeTrees();
-  assert.equal(isDirty("matrix_pipelines"), false);
-});
-
-test("test_staging_rows_that_differ_from_the_matrix_rows_reads_dirty", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([ROW({ gain: "-3" })]);
-  assert.equal(isDirty("matrix_pipelines"), true);
-});
-
-test("test_staging_the_matrix_rows_unchanged_reads_clean", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([ROW({ gain: "-6" })]);
-  assert.equal(isDirty("matrix_pipelines"), false);
-});
-
-// The compare is over the canonical serialization — alphabetical keys, all
-// values strings — never the literal row objects.
-test("test_staging_the_matrix_rows_with_the_keys_in_another_order_reads_clean", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([{ source: "0", process: "", mixdown: "0", gainunit: "dB", gain: "-6" }]);
-  assert.equal(isDirty("matrix_pipelines"), false);
-});
-
-test("test_staging_the_matrix_rows_with_numeric_values_reads_clean", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([{ gain: -6, gainunit: "dB", mixdown: 0, process: "", source: 0 }]);
-  assert.equal(isDirty("matrix_pipelines"), false);
-});
-
-test("test_staging_rows_that_differ_from_the_file_rows_reads_dirty", async () => {
-  await pipeTrees({ file: { matrix_pipelines: FILE_ROWS } });
-  await stagePipelines([ROW({ gain: "-3" })]);
-  assert.equal(isDirty("matrix_pipelines"), true);
-});
-
-test("test_the_effective_pipelines_are_the_matrix_rows_when_the_file_is_silent", async () => {
-  const rows = [ROW({ gain: "-6" }), ROW({ source: "1", mixdown: "1" })];
-  await pipeTrees({ rows });
-  assert.equal(effectivePipelines.value[1].source, "1");
-});
-
-test("test_a_dirty_pipeline_edit_is_counted_as_a_staged_change", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([ROW({ gain: "-3" })]);
-  assert.equal(stagedCount.value, 1);
-});
-
-test("test_a_pipeline_edit_that_reads_clean_is_not_counted_as_a_staged_change", async () => {
-  await pipeTrees({ rows: [ROW({ gain: "-6" })] });
-  await stagePipelines([ROW({ gain: "-6" })]);
-  assert.equal(stagedCount.value, 0);
+test("test_a_persistent_failure_never_shows_an_unlabelled_setting_as_its_raw_key", async () => {
+  const text = await persistFailure(OTHER_REASON, { [UNLABELLED]: {} });
+  assert.ok(!text.includes(UNLABELLED), text);
 });

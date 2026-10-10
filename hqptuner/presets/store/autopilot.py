@@ -25,9 +25,10 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
+from hqptuner.config import AUTOPILOT_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
-from hqptuner.presets.store.unwritable import saving
+from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -127,10 +128,12 @@ class AutopilotStore:
         def _too_new(stamp: int) -> AutopilotSchemaError:
             return AutopilotSchemaError(stamp=stamp, understood=_SCHEMA, what="this state")
 
-        return _clean(read_stamped(self._path, store="auto-pilot", schema=_SCHEMA, too_new=_too_new))
+        with reading(AUTOPILOT_STORE.what, self._path):
+            data = read_stamped(self._path, store="auto-pilot", schema=_SCHEMA, too_new=_too_new)
+        return _clean(data)
 
     def _write(self, state: AutopilotState) -> None:
-        with saving("the auto-pilot setting", self._path):
+        with saving(AUTOPILOT_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps(state.to_json(), indent=2))
 
