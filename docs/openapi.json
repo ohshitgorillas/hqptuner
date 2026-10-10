@@ -1535,6 +1535,10 @@
             "title": "Release",
             "type": "string"
           },
+          "release_tested": {
+            "title": "Release Tested",
+            "type": "boolean"
+          },
           "unreachable_since": {
             "anyOf": [
               {
@@ -1555,6 +1559,7 @@
           "connected_at",
           "info",
           "release",
+          "release_tested",
           "license",
           "app_version",
           "credentials_ok"

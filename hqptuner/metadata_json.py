@@ -69,6 +69,11 @@ def str_map(value: object) -> dict[str, str]:
     return value if _is_str_map(value) else {}
 
 
+def str_list(value: object) -> list[str]:
+    """``value`` as a list of strings, empty when it is not one."""
+    return value if _is_str_list(value) else []
+
+
 def _filter_taxonomy(raw: dict[str, object]) -> FilterEntry:
     """Keep the character facets of one filter entry: genre, quality, focus, apodizing and phase."""
     entry: FilterEntry = {}

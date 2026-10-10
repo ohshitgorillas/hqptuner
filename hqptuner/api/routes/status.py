@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request
 
 from hqptuner import __version__
 from hqptuner.api import deps
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, Static
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, NotLoadedError, refuse
 from hqptuner.core import engineread
 from hqptuner.core.engineread import LogTail
@@ -47,6 +47,8 @@ class HealthReport:
     # installed release ("6.0.2") off the daemon's /about page — GetInfo's
     # `engine` is the separately-numbered DSP engine, not this.
     release: str
+    # Whether `release` is one a green live run recorded in data/tested-releases.json.
+    release_tested: bool
     license: dict[str, str] | None
     # HQPTuner's own version, not the engine's, read from the package.
     app_version: str
@@ -69,7 +71,7 @@ class StatusReport:
 
 
 @router.get("/health")
-def health(manager: Mgr) -> HealthReport:
+def health(manager: Mgr, static: Static) -> HealthReport:
     """Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
@@ -83,6 +85,7 @@ def health(manager: Mgr) -> HealthReport:
         connected_at=readings.loaded_at,
         info=readings.info,
         release=readings.release,
+        release_tested=static.release_tested(readings.release),
         license=readings.license,
         app_version=__version__,
         credentials_ok=readings.credentials_ok,

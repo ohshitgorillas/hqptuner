@@ -65,7 +65,7 @@ class Held:
 def sources(manager: ConnectionManager, static: StaticMetadata, store: PendingStore) -> list[Source]:
     """Return the eight events in the order a new subscriber receives them, each read through its route's body."""
     return [
-        Source("health", lambda: status.health(manager), snapshot=False),
+        Source("health", lambda: status.health(manager, static), snapshot=False),
         Source("state", lambda: status.state(manager), snapshot=True),
         Source("status", lambda: status.status(manager), snapshot=True),
         Source("volume", lambda: volume.volume_get(manager), snapshot=False),

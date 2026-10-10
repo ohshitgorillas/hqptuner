@@ -341,7 +341,7 @@ packages = [
 # a wheel install has no frontend to serve and no filter/shaper prose to join
 # against the live enumerations. Dev-only members of data/ (engine-enums.json,
 # the capture reference) are excluded by the glob.
-hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tray.png"]
+hqptuner = ["static/**/*", "data/filters.json", "data/shapers.json", "data/settings.json", "data/*-plain-names.json", "data/tested-releases.json", "data/tray.png"]
 
 [tool.setuptools.exclude-package-data]
 # The eqlab submodule ships only core/, the part the browser imports.
