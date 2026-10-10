@@ -14,12 +14,12 @@
     },
     "pcm_rate": {
       "label": "PCM rate",
-      "tooltip": "PCM output target rate. Real value can be equal or lower when auto rate-family is used.",
+      "tooltip": "PCM output target rate.",
       "source": "manual §2 (PCM)"
     },
     "sdm_rate": {
       "label": "SDM rate",
-      "tooltip": "SDM output target rate. Real value can be equal or lower when auto rate-family is used.",
+      "tooltip": "SDM output target rate.",
       "source": "manual §2 (DSD/PDM)"
     },
     "alsa_device": {
