@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from hqptuner.engine.controlerrors import (
+    CommandError,
     CommandRefusedError,
     ConnectionClosedError,
     ControlConnectionFailedError,
@@ -69,6 +70,17 @@ class Reply:
         if self.result is None or self.ok:
             return None
         return CommandRefusedError(element_name=self.element, result=self.result, text=self.text)
+
+
+def _reply(element_name: str, root: ET.Element) -> Reply:
+    """Read ``root``, the daemon's answer to ``element_name``, as a ``Reply``: its ``result`` and its reason text."""
+    return Reply(element_name, root.get("result"), (root.text or "").strip())
+
+
+def state_mismatch_of(expected: dict[str, str], state: dict[str, str]) -> StateMismatchError | None:
+    """Return the mismatch of the ``state`` read back against ``expected``, or None when every attribute matches."""
+    mismatch = {k: (want, state.get(k)) for k, want in expected.items() if state.get(k) != want}
+    return StateMismatchError(mismatch=mismatch) if mismatch else None
 
 
 def _element_name(element: str) -> str:
@@ -228,9 +240,24 @@ class ControlClient:
         """Run `<State/>` for the settings snapshot — the primary readback, settings as list indices (protocol.md §6).
 
         Numeric attributes are list indices into the corresponding enumeration, not enum IDs; `volume` is dB and
-        `matrix_profile` a name.
+        `matrix_profile` a name. A refused State is no snapshot, so it raises HQPlayer's refusal instead.
         """
-        return await self._attrs("<State/>")
+        state, refused = await self.state_readback()
+        if refused is not None:
+            raise refused
+        return state
+
+    async def state_unless_refused(self) -> dict[str, str] | None:
+        """Run `<State/>` for the settings snapshot, or None when HQPlayer refuses the read.
+
+        A refusal is a complete, correctly paired answer, so the connection stands and the reading held before it is
+        the caller's to keep.
+        """
+        state, refused = await self.state_readback()
+        if refused is not None:
+            log.warning("State read refused, keeping the last reading: %s", refused)
+            return None
+        return state
 
     async def get_volume_range(self) -> dict[str, str]:
         """`<VolumeRange/>` -> {min, max, enabled, adaptive} (dB doubles + flags).
@@ -285,7 +312,7 @@ class ControlClient:
         """
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
-        return Reply(element_name, root.get("result"), (root.text or "").strip())
+        return _reply(element_name, root)
 
     async def set_command(self, element_name: str, **attrs: str) -> None:
         """Setter with result check: a refusal (result="Error") raises with the reason."""
@@ -326,14 +353,24 @@ class ControlClient:
         if refused is not None:
             raise refused
 
-    async def state_mismatch(self, expected: dict[str, str]) -> StateMismatchError | None:
-        """Re-read State and return the mismatch against ``expected``, or None when every attribute matches.
+    async def state_readback(self) -> tuple[dict[str, str], CommandRefusedError | None]:
+        """Run `<State/>` to verify a setter: the settings snapshot, and HQPlayer's refusal of the read, if it refused.
 
-        result="OK" is not proof of application (protocol.md §6) — this is.
+        A refused State answers ``result="Error"`` with its diagnostic as the element's text, so its attributes are
+        no snapshot to compare against.
         """
-        state = await self.get_state()
-        mismatch = {k: (want, state.get(k)) for k, want in expected.items() if state.get(k) != want}
-        return StateMismatchError(mismatch=mismatch) if mismatch else None
+        root = await self.request("<State/>")
+        return dict(root.attrib), _reply("State", root).refusal()
+
+    async def state_mismatch(self, expected: dict[str, str]) -> CommandError | None:
+        """Re-read State and return HQPlayer's refusal of the read, else the mismatch against ``expected``.
+
+        None when every attribute matches. result="OK" is not proof of application (protocol.md §6) — this is.
+        """
+        state, refused = await self.state_readback()
+        if refused is not None:
+            return refused
+        return state_mismatch_of(expected, state)
 
     async def verify_state(self, expected: dict[str, str]) -> None:
         """Re-read State and raise unless every expected attribute matches."""

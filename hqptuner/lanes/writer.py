@@ -109,16 +109,26 @@ async def _apply_filter(client: ControlClient, params: dict[str, str]) -> Comman
     return await _verified(client, reply, {"filterNx": nx, "filter1x": x1 if x1 is not None else nx})
 
 
+def _volume_mismatch(want: str, state: dict[str, str]) -> VolumeMismatchError | None:
+    """Return the mismatch of the ``state`` read back against volume ``want``, or None within ``_VOLUME_TOLERANCE``.
+
+    Volume is a float, so it is verified with a tolerance rather than compared for equality.
+    """
+    got = state.get("volume")
+    if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
+        return VolumeMismatchError(want=want, got=got)
+    return None
+
+
 async def _apply_volume(client: ControlClient, params: dict[str, str]) -> CommandError | None:
     want = params["value"]
     refused = (await client.send_volume(want)).refusal()
     if refused is not None:
         return refused
-    state = await client.get_state()  # volume is a float — verify with tolerance
-    got = state.get("volume")
-    if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
-        return VolumeMismatchError(want=want, got=got)
-    return None
+    state, refused = await client.state_readback()
+    if refused is not None:
+        return refused
+    return _volume_mismatch(want, state)
 
 
 # The live lane, one row per setting — and INSERTION ORDER IS APPLY ORDER, so a

@@ -177,7 +177,14 @@ async def chain_entered(
     if not reenumerated:
         mgr.readings.enums = await client.get_all_enumerations()
     if await reassert_chain(mgr, client):
-        mgr.readings.state = await client.get_state()
+        await _reread_state(mgr, client)
+
+
+async def _reread_state(mgr: ConnectionManager, client: ControlClient) -> None:
+    """Re-read State into the manager, keeping the last good reading when HQPlayer refuses the read."""
+    state = await client.state_unless_refused()
+    if state is not None:
+        mgr.readings.state = state
 
 
 async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
@@ -189,8 +196,9 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
     consumes the mode transition the poll loop watches to re-enumerate on its own
     (``core/loader.poll``) — so a caller that skipped this left both the cache and
     the fallback stale. Every live-routing caller runs it, staged lane included.
+    A refused State read is a complete reply that says nothing of the engine, so the last good reading stands.
     """
-    mgr.readings.state = await client.get_state()
+    await _reread_state(mgr, client)
     if _REENUMERATES & set(edits):
         mgr.readings.enums = await client.get_all_enumerations()
 

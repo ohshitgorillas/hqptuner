@@ -27,11 +27,13 @@ the comparison rather than the run.
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
+from contextvars import Context
 
 import fake_discovery
 import pytest
 from apps import closed_port
 from conftest import spawn_threaded_daemon
+from virtual_deadline import VirtualDeadline
 
 from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
 
@@ -240,3 +242,71 @@ def test_a_search_on_uvloop_lists_what_the_standard_loop_lists(
     expected: list[str],
 ) -> None:
     assert searched_on_uvloop(alias_control_port, datagram_answered=datagram_answered) == expected
+
+
+class TimerLedgerLoop(asyncio.SelectorEventLoop):
+    """The standard event loop, keeping the delay of every real-clock timer that
+    ran out on it. A timer cancelled before its time is not a wait on the clock
+    and is not kept."""
+
+    def __init__(self, ran_out: list[float]) -> None:
+        super().__init__()
+        self.ran_out = ran_out
+
+    def call_at[*Ts](
+        self,
+        when: float,
+        callback: Callable[[*Ts], object],
+        *args: *Ts,
+        context: Context | None = None,
+    ) -> asyncio.TimerHandle:
+        delay = when - self.time()
+
+        def fired(*fired_args: *Ts) -> object:
+            if delay > 0:
+                self.ran_out.append(delay)
+            return callback(*fired_args)
+
+        return super().call_at(when, fired, *args, context=context)
+
+
+@pytest.fixture
+def silent_control_port() -> Iterator[int]:
+    """A control daemon at the address the datagram comes from, which takes the
+    connection and never answers GetInfo."""
+    served = spawn_threaded_daemon(overrides={"_stall": "GetInfo"}, host=SEARCH_HOST)
+    yield next(served)
+    next(served, None)
+
+
+async def silent_search(control_port: int) -> list[str]:
+    """The addresses one search lists when its datagram is answered from
+    SEARCH_HOST and HQPlayer has fallen silent on the deadline the search is
+    handed, paced on a clock of the test's own."""
+    deadline = VirtualDeadline()
+    deadline.fall_silent()
+    async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
+        clock, sleep = virtual_time()
+        search = Search(target=f"{SEARCH_HOST}:{answering}", alias=ALIAS_HOST, control_port=control_port)
+        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep, deadline=deadline)
+    return [daemon.address for daemon in found]
+
+
+def listed_without_real_time(control_port: int) -> list[str] | str:
+    """The addresses a silent search lists; in their place, the exception it
+    raised by name and text, or the delay of every real-clock timer that ran
+    out while it ran."""
+    ran_out: list[float] = []
+    task = asyncio.run(settled(silent_search(control_port)), loop_factory=lambda: TimerLedgerLoop(ran_out))
+    failure = task.exception()
+    if failure is not None:
+        return f"{type(failure).__name__}: {failure}"
+    if ran_out:
+        return f"real-clock timers ran out: {ran_out}"
+    return task.result()
+
+
+def test_a_search_whose_found_hqplayer_falls_silent_ends_on_the_handed_deadline_without_real_time(
+    silent_control_port: int,
+) -> None:
+    assert listed_without_real_time(silent_control_port) == [SEARCH_HOST]

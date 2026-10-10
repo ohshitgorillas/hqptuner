@@ -15,7 +15,7 @@ from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree
 
-from hqptuner.engine.control import ControlClient
+from hqptuner.engine.control import ControlClient, Deadline
 from hqptuner.engine.controlerrors import ControlError
 
 log = logging.getLogger(__name__)
@@ -124,9 +124,9 @@ async def enrich(
     return filled
 
 
-async def _describe(address: str, port: int, request_timeout: float) -> dict[str, str]:
+async def _describe(address: str, port: int, request_timeout: float, deadline: Deadline) -> dict[str, str]:
     """Ask one daemon what it is, over its own control port, and hang up."""
-    client = ControlClient(address, port, request_timeout)
+    client = ControlClient(address, port, request_timeout, deadline=deadline)
     await client.connect()
     try:
         return await client.get_info()
@@ -134,13 +134,13 @@ async def _describe(address: str, port: int, request_timeout: float) -> dict[str
         await client.close()
 
 
-async def probe(address: str, control_port: int, request_timeout: float) -> Daemon:
+async def probe(address: str, control_port: int, request_timeout: float, *, deadline: Deadline = asyncio) -> Daemon:
     """Answer the record for one address, raising ``OSError`` or ``ControlError`` where nothing answers there.
 
     The one path that names an address instead of waiting for a datagram. Whether "nothing there" is worth
     reporting is the caller's call, not this function's: a silent sweep decides differently from a one-shot dial.
     """
-    info = await _describe(address, control_port, request_timeout)
+    info = await _describe(address, control_port, request_timeout, deadline)
     return Daemon(
         address=address,
         name=info.get("name", ""),
@@ -195,6 +195,7 @@ async def discover(
     *,
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    deadline: Deadline = asyncio,
 ) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
@@ -206,6 +207,8 @@ async def discover(
     container: the bridge carries no multicast, so the datagram reaches nobody while the daemon on the
     container's own host is one connection away. Only that case, because a daemon answering both would be
     listed twice, once by the address its datagram came from and once by the alias.
+
+    ``deadline`` is what every connect, send and read of the daemons it then asks waits under.
     """
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
@@ -224,10 +227,10 @@ async def discover(
             continue
     if not found:
         with contextlib.suppress(OSError, ControlError):
-            found.append(await probe(search.alias, search.control_port, search.request_timeout))
+            found.append(await probe(search.alias, search.control_port, search.request_timeout, deadline=deadline))
         return found
 
     async def describe(address: str) -> dict[str, str]:
-        return await _describe(address, search.control_port, search.request_timeout)
+        return await _describe(address, search.control_port, search.request_timeout, deadline)
 
     return await enrich(dedupe(found), describe)
