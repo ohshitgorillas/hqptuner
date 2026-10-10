@@ -271,7 +271,7 @@ class ConnectionManager:
     @property
     def http_base_url(self) -> str:
         """Return the daemon's 8088 web root, which the ungated readers (/about, /log) fetch from."""
-        return f"http://{self.cfg.hqp_host}:{self.cfg.hqp_http_port}"
+        return self.cfg.hqp_http_base_url
 
     @property
     def alarm_threshold(self) -> float:

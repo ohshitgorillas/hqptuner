@@ -239,6 +239,11 @@ class Config:
             self.data_dir = bundled("data", bundle=self.bundle)
 
     @property
+    def hqp_http_base_url(self) -> str:
+        """Return the daemon's 8088 web root, which the ungated readers (/about, /log) fetch from."""
+        return f"http://{self.hqp_host}:{self.hqp_http_port}"
+
+    @property
     def hqp_password_chosen(self) -> bool:
         """Whether the password in force was chosen rather than defaulted.
 

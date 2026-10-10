@@ -90,6 +90,11 @@ class StaticMetadata:
                 families=metadata_json.str_map(families),
                 variants=metadata_json.str_map(variants),
             )
+        # The hqplayerd releases a green live run has passed against; no file means none.
+        record = data_dir / "tested-releases.json"
+        self._tested_releases = frozenset(
+            metadata_json.str_list(json.loads(record.read_text())) if record.exists() else ()
+        )
 
     @property
     def raw(self) -> StaticDb:
@@ -106,6 +111,10 @@ class StaticMetadata:
             plain_names=self._plain_names,
             easy=self._easy_db,
         )
+
+    def release_tested(self, release: str) -> bool:
+        """Return whether ``release`` is an hqplayerd release the live suite has passed against."""
+        return release in self._tested_releases
 
     def filter_entry(self, name: str) -> FilterEntry | None:
         """Return the static entry for a filter the engine named, or None when nothing in the database matches.

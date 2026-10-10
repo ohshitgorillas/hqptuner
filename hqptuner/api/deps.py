@@ -25,6 +25,7 @@ from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.metadata import StaticMetadata
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import MirrorOutcome, PresetSaveResult
 
@@ -61,6 +62,12 @@ def config_of(request: Request) -> Config:
     return cfg
 
 
+def static_of(request: Request) -> StaticMetadata:
+    """Return the app's static ``data/*.json`` metadata, loaded once at startup."""
+    static: StaticMetadata = request.app.state.static
+    return static
+
+
 def require_credentials(request: Request) -> None:
     """503 unless hqplayerd management credentials were configured.
 
@@ -83,6 +90,7 @@ def _http_manager(request: Request) -> ConnectionManager:
 Mgr = Annotated[ConnectionManager, Depends(manager_of)]
 HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
 Cfg = Annotated[Config, Depends(config_of)]
+Static = Annotated[StaticMetadata, Depends(static_of)]
 
 
 @dataclass(frozen=True)

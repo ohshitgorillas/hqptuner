@@ -1,5 +1,5 @@
-// Behavioral suite for the About card's maintenance row on the System tab: the
-// row offers the state export as a download.
+// Behavioral suite for the System tab's state export: the tab offers it as a
+// download.
 //
 // Policy (docs/testing.md): public API only, one assertion per test. Every case
 // renders the exported `System` and reads the rendered markup. The link is found

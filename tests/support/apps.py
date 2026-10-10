@@ -16,6 +16,7 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.metadata import StaticMetadata
 
 METADATA_MIN = Path(__file__).parent / "fixtures" / "metadata_min"
 
@@ -50,6 +51,15 @@ def app_manager(client: TestClient) -> ConnectionManager:
         raise NotAVirtualAppError
     manager: ConnectionManager = app.state.manager
     return manager
+
+
+def app_static(client: TestClient) -> StaticMetadata:
+    """The static metadata of the app under ``client``."""
+    app = client.app
+    if not isinstance(app, FastAPI):
+        raise NotAVirtualAppError
+    static: StaticMetadata = app.state.static
+    return static
 
 
 def _app_clock(client: TestClient) -> VirtualClock:

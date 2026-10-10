@@ -350,7 +350,6 @@ export function BackupRestoreRow() {
     <div class="about-maint">
       <div class="backup-row">
         <a class="btn" href="/api/backup" download>Download backup</a>
-        <a class="btn" href="/api/state-export" download>Download state</a>
         <label class="btn"
           >Upload backup<input type="file" accept=".zip,.xml" style="display:none" onChange=${onRestore}
         /></label>

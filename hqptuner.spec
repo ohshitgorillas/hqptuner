@@ -44,6 +44,7 @@ a = Analysis(
         ("hqptuner/data/shapers.json", "data"),
         ("hqptuner/data/settings.json", "data"),
         ("hqptuner/data/easy-presets.json", "data"),
+        ("hqptuner/data/tested-releases.json", "data"),
         ("hqptuner/data/tray.png", "data"),
         ("hqptuner/data/*-plain-names.json", "data"),
     ],

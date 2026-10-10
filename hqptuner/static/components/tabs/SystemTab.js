@@ -49,18 +49,10 @@ const licenseLabel = (l) => {
   return trial ? "FALSE" : "TRUE";
 };
 
-// HQPTuner is developed and verified against the hqplayerd 6.0 series. Another
-// series is never refused and nothing is disabled for it — the running engine is
-// the authority for its own enumerations, so a different daemon largely just
-// works — but the mismatch is worth saying once, directly under the Engine row
-// it is about. Empty string when the daemon matches or has not reported one.
-const VERIFIED_SERIES = "6.0";
-
-const engineMismatch = computed(() => {
-  const reported = info.value.engine || info.value.version || "";
-  const parts = /^(\d+)\.(\d+)/.exec(reported);
-  return parts && `${parts[1]}.${parts[2]}` !== VERIFIED_SERIES ? reported : "";
-});
+// An hqplayerd release no green live run has recorded is never refused and
+// nothing is disabled for it, but it is worth saying once, under the rows it is
+// about. Empty string when the release is tested or was not read.
+const untestedRelease = computed(() => (release.value && !health.value.release_tested ? release.value : ""));
 
 const About = () => {
   const i = info.value;
@@ -82,10 +74,10 @@ const About = () => {
       )}
     </dl>
     ${
-      engineMismatch.value
+      untestedRelease.value
         ? html`<p class="field-note" data-note="unverified-daemon">
-          HQPTuner is verified against the hqplayerd ${VERIFIED_SERIES} series and this daemon reports${" "}
-          ${engineMismatch.value}. Nothing is disabled for it — but if something misbehaves, that difference is worth
+          HQPTuner has not been tested against hqplayerd${" "}
+          ${untestedRelease.value}. Nothing is disabled for it, but if something misbehaves, that difference is worth
           putting in the report.
         </p>`
         : ""
@@ -212,6 +204,13 @@ const AccentPicker = () => html`
   </div>
 `;
 
+// HQPTuner's own state as a zip, for attaching to a bug report.
+const StateExportRow = () => html`
+  <div class="state-export">
+    <a class="btn" href="/api/state-export" download>Download state</a>
+  </div>
+`;
+
 // About HQPTuner — its own card at the foot of the tab, collapsed by default and
 // not persisted: it is read-once prose, not a preference. `auto` is a constant
 // closed, so the shared Collapsible's manual override is the only opener.
@@ -285,6 +284,7 @@ export const System = () =>
         <${ApodLightPref} />
         <${DyslexicPref} />
         <${AccentPicker} />
+        <${StateExportRow} />
       <//>
     </div>
     <${Card} id="timing" title="Timing">

@@ -248,6 +248,11 @@ button.card-head {
   gap: var(--sp-2);
   flex-wrap: wrap;
 }
+/* System · HQPTuner card — the state download, hairline-separated from the preferences */
+.state-export {
+  border-top: 1px solid var(--line);
+  padding-top: var(--sp-3);
+}
 /* System · Logging — the two log-config options side by side at the top */
 .log-opts {
   display: flex;
