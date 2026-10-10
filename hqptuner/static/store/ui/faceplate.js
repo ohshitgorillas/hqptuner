@@ -6,8 +6,9 @@
 //                      over the Matrix section folded to its header line),
 //                      "profile" (the Matrix section alone) or "spectrum".
 //   bottomBar        — "switcher" (the Setting Switcher) or "none".
-//   pageRange        — the page's Source meter Range, dB: "60", "90" or "120",
-//                      the spectrum's span and the levels' floor (−range) both.
+//   pageRange        — the page's Source meter Range, dB: "120", "180", "240"
+//                      or "300", the spectrum's span only; the level bars end
+//                      at the Levels floor (prefs.js meterFloor).
 //   hiddenStages     — the stages hidden from the chain rail, a subset of
 //                      HIDEABLE_STAGES, held in that order.
 //   allowPinnedRates — the opt-in for pinning an output rate; off by default.

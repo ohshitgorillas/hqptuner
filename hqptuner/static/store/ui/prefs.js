@@ -186,9 +186,10 @@ export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS,
 const SPECTRUM_STYLES = ["trace", "bars", "soft", "ridges", "aurora"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
-// The METER level bars' floor, in dB below full scale.
-const METER_FLOORS = ["-48", "-60", "-90"];
-export const [,] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
+// The Levels floor, dBFS: where the page's Source level bars and their dB scale
+// end, apart from the page's Range.
+export const METER_FLOORS = ["-48", "-60", "-90"];
+export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
 // The METER spectrogram: which channel it draws ("sum" or a channel index), its
 // frequency scale, and how many dB below full scale its color ramp reaches.

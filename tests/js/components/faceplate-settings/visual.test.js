@@ -23,7 +23,7 @@ import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { ACCENTS } from "../../../../hqptuner/static/store/faceplate/settings/visual.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { apodLight, plainNames, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { apodLight, plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { accent, accentHex, dyslexic } from "../../../../hqptuner/static/store/ui/theme.js";
 import { HIDEABLE_STAGES, bottomBar, hiddenStages, topOfPage } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -56,7 +56,6 @@ const fakeDocument = () => ({
 
 beforeEach(() => {
   env.localStorage = fakeStorage();
-  spectrumStyle.value = "trace";
   plainNames.value = false;
   apodLight.value = "off";
   dyslexic.value = false;
@@ -161,7 +160,7 @@ function railRow(id) {
 const hideControl = () => VISUAL_READOUTS.find((r) => r.id === "vhide")?.control ?? { type: "none" };
 
 test("test_the_display_tab_draws_its_fields_and_blocks_in_order", () => {
-  assert.deepEqual(bodyOf("display"), ["vspec", "vstyle", "vapod", "delay", "vdys", "accent"]);
+  assert.deepEqual(bodyOf("display"), ["vstyle", "vapod", "delay", "vdys", "accent"]);
 });
 
 test("test_the_layout_tab_draws_its_fields_then_the_hide_block_in_order", () => {
@@ -186,7 +185,6 @@ test("test_tapping_spectrum_puts_the_spectrum_at_the_top_of_the_page", async () 
 
 /** Per readout, the state that lights a non-default option of its field. */
 const LIT = {
-  vspec: () => (spectrumStyle.value = "ridges"),
   vstyle: () => (plainNames.value = true),
   vapod: () => (apodLight.value = "uncorrected"),
   vdys: () => (dyslexic.value = true),

@@ -1,9 +1,9 @@
 // The faceplate's page: one section per engaged stage, in signal order, as model/shell/page.js decides from the running
 // path, the running matrix engine and the browser's Top of page preference. A section is an engraved header (title,
 // hairline, then anything the section carries on its header line) over a body, two columns unless the section's
-// instrument fills it whole, and a folded section is its header line alone. Source holds the page meter, Matrix
-// profile the profile select, its description and its response plot, and Resampling and Shaping the running chain's
-// pickers with Filter presets on Resampling's header.
+// instrument fills it whole, and a folded section is its header line alone. Source holds the page meter with Display
+// on its header, Matrix profile the profile select, its description and its response plot, and Resampling and Shaping
+// the running chain's pickers with Filter presets on Resampling's header.
 
 import { html } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
@@ -19,6 +19,7 @@ import { AlertLines } from "./AlertLines.js";
 import { SourceMeter } from "./page/SourceMeter.js";
 import { MatrixProfileBody, ProfileLine } from "./page/MatrixProfile.js";
 import { Conversion } from "./page/Conversion.js";
+import { DisplayButton } from "./page/DisplayOptions.js";
 import { FilterPresetsButton } from "./page/FilterPresets.js";
 
 /** @typedef {import("../../model/shell/page.js").SectionId} SectionId */
@@ -69,6 +70,7 @@ export function Section({ id, title, fill = false, fold = false, cls, bodyCls, t
 const BODIES = {
   source: () => ({
     cls: classNames("psrc", pageMeter().slim && "slim"),
+    head: html`<${DisplayButton} />`,
     two: false,
     children: html`<${SourceMeter} />`,
   }),

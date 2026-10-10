@@ -1,10 +1,11 @@
 // Source meter plots: where the spectrum and the spectrogram put what they paint, free of the DOM. The spectrum's
-// points and axes, the spectrogram's colour indices and apodizing strip, the time axis, and the colour ramps.
+// points and axes, the Ranges a step wider and narrower, the level bars' dB scale, the spectrogram's colour indices and
+// apodizing strip, the time axis, and the colour ramps.
 
 const NO_DATA = -1; // spectrogram colour index for a pixel with no column under it
 const MAX_APOD = 3; // apodizing events one strip pixel tells apart
 const RAMP_SIZE = 256; // colour ramp entries
-const DB_STEPS = 6; // spectrum dB grid steps from full scale to the range's floor
+const DB_STEPS = 6; // dB scale steps from full scale to the spectrum's range or the level bars' floor
 const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
 
 /**
@@ -78,18 +79,48 @@ function khzTicks(nyq) {
 }
 
 /**
+ * The dB ticks from full scale down `span` dB, in DB_STEPS even steps, full scale first.
+ *
+ * @param {number} span  dB
+ * @returns {number[]}  dBFS
+ */
+const dbSteps = (span) => Array.from({ length: DB_STEPS + 1 }, (_, i) => 0 - (i * span) / DB_STEPS);
+
+/**
  * A spectrum plot's dB ticks (full scale down to the range in DB_STEPS even steps) and frequency ticks, placed.
  *
  * @param {SpectrumPlot} plot
  * @returns {{ db: { db: number, y: number }[], hz: { hz: number, x: number }[] }}
  */
 export function spectrumAxes(plot) {
-  const step = plot.range / DB_STEPS;
-  const db = Array.from({ length: DB_STEPS + 1 }, (_, i) => {
-    const d = 0 - i * step;
-    return { db: d, y: levelY(d, plot) };
-  });
+  const db = dbSteps(plot.range).map((d) => ({ db: d, y: levelY(d, plot) }));
   return { db, hz: khzTicks(plot.nyq).map((hz) => ({ hz, x: freqX(hz, plot) })) };
+}
+
+/**
+ * The Ranges one step either side of `range` among `ranges`, by span: the next wider and the next narrower, each null
+ * where `range` is already the widest or the narrowest, both null where `ranges` does not hold it.
+ *
+ * @param {readonly string[]} ranges  dB
+ * @param {string} range  dB
+ * @returns {{ wider: string | null, narrower: string | null }}
+ */
+export function rangeSteps(ranges, range) {
+  const spans = [...ranges].sort((a, b) => Number(a) - Number(b));
+  const i = spans.indexOf(range);
+  if (i < 0) return { wider: null, narrower: null };
+  return { wider: spans[i + 1] ?? null, narrower: spans[i - 1] ?? null };
+}
+
+/**
+ * The level bars' dB scale: full scale down to `floor` in DB_STEPS even steps, each at its fraction of the bar down
+ * from the top.
+ *
+ * @param {number} floor  dBFS, below full scale
+ * @returns {{ db: number, at: number }[]}
+ */
+export function levelTicks(floor) {
+  return dbSteps(-floor).map((d, i) => ({ db: d, at: i / DB_STEPS }));
 }
 
 /**
