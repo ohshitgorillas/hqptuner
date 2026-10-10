@@ -1,4 +1,0 @@
-INVALID 1: no test found for this line
-INVALID 2: no test found for this line
-INVALID 3: no test found for this line
-INVALID 4: no test found for this line
