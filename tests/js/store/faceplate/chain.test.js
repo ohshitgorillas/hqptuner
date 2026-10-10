@@ -44,7 +44,7 @@ function running(over = {}) {
     profile: "Desk nearfield",
     pipelines: 2,
     working: false,
-    crossfeed: false,
+    crossfeed: null,
     loudness: false,
     applied: 0,
     correction: false,
@@ -211,7 +211,8 @@ test("test_dsp_pipelines_count_the_running_pipelines", () => {
   assert.match(stage({ pipelines: 7 }, "pipelines").value, /\b7\b/);
 });
 
-const ENGAGED = { working: true, crossfeed: true, loudness: true, correction: true, model: "D90", speakers: true };
+/** @type {Partial<Running>} */
+const ENGAGED = { working: true, crossfeed: "bauer", loudness: true, correction: true, model: "D90", speakers: true };
 
 for (const id of ["crossfeed", "loudness", "correction"]) {
   test(`test_${id}_engaged_under_a_running_matrix_engine_is_lit`, () => {
@@ -225,20 +226,20 @@ for (const id of ["pipelines", "crossfeed", "loudness", "correction"]) {
   });
 }
 
-for (const [id, flag] of [
-  ["crossfeed", "crossfeed"],
-  ["loudness", "loudness"],
-  ["correction", "correction"],
-  ["speakers", "speakers"],
-]) {
+for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
+  ["crossfeed", { crossfeed: null }],
+  ["loudness", { loudness: false }],
+  ["correction", { correction: false }],
+  ["speakers", { speakers: false }],
+])) {
   test(`test_${id}_switched_off_is_unlit`, () => {
-    assert.equal(stage({ ...ENGAGED, [flag]: false }, id).on, false);
+    assert.equal(stage({ ...ENGAGED, ...off }, id).on, false);
   });
 }
 
 for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
   ["hf", { hf: "none" }],
-  ["crossfeed", { crossfeed: false }],
+  ["crossfeed", { crossfeed: null }],
   ["correction", { correction: false }],
   ["speakers", { speakers: false }],
 ])) {
@@ -273,12 +274,29 @@ test("test_the_rail_prints_the_percent_under_lit_loudness", () => {
   assert.match(railValue(stage({ loudness: true, applied: 37 }, "loudness"), false, "playing"), /\b37%/);
 });
 
-test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {
-  assert.match(stage({ matrix: false, pipelines: 7 }, "pipelines").value, /\b7\b/);
+/**
+ * What the rail prints under the Crossfeed lamp while the source plays, one crossfeed running or none.
+ *
+ * @param {Running["crossfeed"]} crossfeed
+ * @returns {string}
+ */
+const crossfeedPrinted = (crossfeed) => railValue(stage({ crossfeed }, "crossfeed"), false, "playing");
+
+const STRUCTURAL = "structural";
+const BAUER = "bauer";
+
+test("test_the_rail_prints_different_words_under_a_structural_and_a_bauer_crossfeed", () => {
+  assert.notEqual(crossfeedPrinted(STRUCTURAL), crossfeedPrinted(BAUER));
 });
 
-test("test_crossfeed_engaged_leaves_its_value_empty_for_want_of_a_running_mode", () => {
-  assert.equal(stage({ crossfeed: true }, "crossfeed").value, "");
+for (const mode of /** @type {NonNullable<Running["crossfeed"]>[]} */ ([STRUCTURAL, BAUER])) {
+  test(`test_the_rail_prints_a_value_under_a_running_${mode}_crossfeed_where_none_prints_nothing`, () => {
+    assert.notEqual(crossfeedPrinted(mode), crossfeedPrinted(null));
+  });
+}
+
+test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_engine", () => {
+  assert.match(stage({ matrix: false, pipelines: 7 }, "pipelines").value, /\b7\b/);
 });
 
 test("test_loudness_reads_the_percent_applied", () => {

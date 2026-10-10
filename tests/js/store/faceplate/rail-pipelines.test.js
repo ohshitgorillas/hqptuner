@@ -1,6 +1,7 @@
 // Behavioral suite for the chain rail's Crossfeed and DSP pipelines lamps as decided from the running pipelines:
 // railStages over railNow in hqptuner/static/store/faceplate/chain.js. Crossfeed is on when either kind is engaged, the
-// Bauer switch or a structural block installed in the running pipelines. The DSP pipelines lamp is lit only while the
+// Bauer switch or a structural block installed in the running pipelines, and the running picture names which kind runs,
+// or none. The DSP pipelines lamp is lit only while the
 // running pipelines do work: a set where every pipeline copies a channel to that same channel at unity gain with an
 // empty process chain does none.
 //
@@ -137,6 +138,23 @@ test("test_a_structural_block_lights_crossfeed_where_a_plain_cross_routed_set_do
   const block = crossfeedLit(structuralBlock());
   const crossRouted = crossfeedLit([row(0, 0), row(1, 1), row(0, 1, { gain: "-6" }), row(1, 0, { gain: "-6" })]);
   assert.notEqual(block, crossRouted);
+});
+
+// --- crossfeed: the running picture names the kind that runs -----------------
+
+test("test_a_running_structural_block_with_the_bauer_switch_off_reads_as_the_structural_crossfeed", () => {
+  wire({ rows: structuralBlock(), bauer: false });
+  assert.equal(railNow().crossfeed, "structural");
+});
+
+test("test_the_bauer_switch_on_over_passthrough_pipelines_reads_as_the_bauer_crossfeed", () => {
+  wire({ rows: passthrough(STEREO), bauer: true });
+  assert.equal(railNow().crossfeed, "bauer");
+});
+
+test("test_the_bauer_switch_off_over_passthrough_pipelines_reads_as_no_crossfeed", () => {
+  wire({ rows: passthrough(STEREO), bauer: false });
+  assert.equal(railNow().crossfeed, null);
 });
 
 // --- dsp pipelines: a passthrough set does no work ---------------------------

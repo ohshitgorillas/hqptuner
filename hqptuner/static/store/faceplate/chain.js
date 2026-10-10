@@ -15,6 +15,7 @@ import { loudnessApplied } from "../matrix/loudness.js";
 import { speakers } from "../matrix/speakers.js";
 import { structuralBlock } from "../xfeed/mode.js";
 import { passesThrough } from "../../model/shell/pipelines.js";
+import { modeName } from "../../model/gauges/crossfeed.js";
 import { playbackPath, runningChain, outputIsSdm } from "./path.js";
 import { volumeNow } from "./volume.js";
 import { truthy } from "../../lib/coerce.js";
@@ -47,7 +48,8 @@ import { hz } from "../../lib/units.js";
  * @property {string} profile
  * @property {number} pipelines
  * @property {boolean} working  the running pipelines do work, not every one a unity copy of a channel to itself
- * @property {boolean} crossfeed  the Bauer switch is on or a structural crossfeed block runs in the pipelines
+ * @property {"structural" | "bauer" | null} crossfeed  the crossfeed that runs: a structural block in the pipelines,
+ *   the Bauer switch, or none
  * @property {boolean} loudness
  * @property {number} applied  whole percent of the loudness shelving applied
  * @property {boolean} correction
@@ -81,6 +83,13 @@ const CHAIN = [
 
 /** Resampling's name where its slot carries the SDM to SDM conversion. */
 const RATE_CONVERSION = "Rate conversion";
+
+/** Crossfeed's implementations as the rail names them. */
+export const XF_MODES = [
+  { v: "off", label: "Off" },
+  { v: "bauer", label: "Bauer" },
+  { v: "structural", label: "Structural" },
+];
 
 /** The stages that leave the chain under Direct SDM. */
 const OFF_CHAIN = ["resampling", "shaping"];
@@ -226,7 +235,7 @@ const READ = {
   dsd: (_r, p) => ({ value: p.dsd, on: true }),
   matrix: (r) => ({ value: r.profile, on: r.matrix }),
   pipelines: (r) => part(r, r.working, `${r.pipelines} active`),
-  crossfeed: (r) => part(r, r.crossfeed, ""),
+  crossfeed: (r) => part(r, r.crossfeed !== null, r.crossfeed ? (modeName(XF_MODES, r.crossfeed) ?? "") : ""),
   loudness: (r) => part(r, r.loudness, `${r.applied}% applied`),
   resampling: (_r, p) => ({ value: p.resampling, on: true }),
   correction: (r) => part(r, r.correction, r.correction ? r.model || "[none]" : ""),
@@ -310,6 +319,16 @@ const pipelinesWork = computed(() => !pipelineBaseline.value.every(passesThrough
 const structuralRuns = computed(() => !!structuralBlock(pipelineBaseline.value));
 
 /**
+ * The crossfeed that runs: a structural block in the running pipelines, else the Bauer switch, else none.
+ *
+ * @returns {Running["crossfeed"]}
+ */
+function crossfeedNow() {
+  if (structuralRuns.value) return "structural";
+  return truthy(runningValue("crossfeed_enabled")) ? "bauer" : null;
+}
+
+/**
  * What runs now, read off the engine's reports, the daemon's running forms and the browser's preferences.
  *
  * @returns {Running}
@@ -338,7 +357,7 @@ export function railNow() {
     profile: matrixActiveProfile.value,
     pipelines: pipelineBaseline.value.length,
     working: pipelinesWork.value,
-    crossfeed: truthy(runningValue("crossfeed_enabled")) || structuralRuns.value,
+    crossfeed: crossfeedNow(),
     loudness: truthy(runningValue("loudness_enabled")),
     applied: loudnessApplied(),
     correction: truthy(runningValue("dac_correction_enabled")),

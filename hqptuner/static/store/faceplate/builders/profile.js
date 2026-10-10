@@ -16,6 +16,7 @@ import { structuralBlock } from "../../xfeed/mode.js";
 import { xfeedBlock } from "../../xfeed/block.js";
 import { rowOptions } from "../drawer.js";
 import { volumeNow } from "../volume.js";
+import { XF_MODES } from "../chain.js";
 import { home } from "./snapshot.js";
 import { cur, go, refused } from "./shell.js";
 import { LISTEN, PB_STEPS } from "./profile-data.js";
@@ -39,13 +40,6 @@ export {
 /** @typedef {import("../../../model/builders/profile.js").Summary} Summary */
 /** @typedef {import("../../../model/builders/profile.js").StepContext} StepContext */
 /** @typedef {import("../../resolve.js").PipelineRow} PipelineRow */
-
-/** Crossfeed's implementations as the rail names them. */
-const XF_MODES = [
-  { v: "off", label: "Off" },
-  { v: "bauer", label: "Bauer" },
-  { v: "structural", label: "Structural" },
-];
 
 /**
  * Each step's answer from the profile's summary.

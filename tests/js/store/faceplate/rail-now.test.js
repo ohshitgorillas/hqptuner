@@ -126,7 +126,7 @@ test("test_a_staged_matrix_bypass_leaves_the_running_engine_on", () => {
 
 test("test_a_staged_crossfeed_bypass_leaves_the_running_crossfeed_on", () => {
   staged.value = { live: {}, http: { post_bauer_enabled: false } };
-  assert.equal(railNow().crossfeed, true);
+  assert.equal(railNow().crossfeed, "bauer");
 });
 
 test("test_the_profile_is_the_one_switched_live", () => {

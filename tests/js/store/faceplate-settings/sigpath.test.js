@@ -53,7 +53,7 @@ function running(over = {}) {
     profile: "Desk nearfield",
     pipelines: 2,
     working: false,
-    crossfeed: false,
+    crossfeed: null,
     loudness: false,
     applied: 0,
     correction: false,
@@ -172,7 +172,7 @@ for (const path of PATHS) {
 }
 
 test("test_the_map_counts_engaged_the_rail_stages_whose_lamps_are_lit", () => {
-  const r = running({ crossfeed: true, hf: "20k" });
+  const r = running({ crossfeed: "bauer", hf: "20k" });
   const lamps = railStages(r)
     .filter((s) => s.on)
     .map((s) => s.id);
@@ -180,11 +180,11 @@ test("test_the_map_counts_engaged_the_rail_stages_whose_lamps_are_lit", () => {
 });
 
 test("test_an_engaged_crossfeed_under_a_running_matrix_reads_engaged", () => {
-  assert.equal(signalMap(running({ crossfeed: true })).engaged.has("crossfeed"), true);
+  assert.equal(signalMap(running({ crossfeed: "bauer" })).engaged.has("crossfeed"), true);
 });
 
 test("test_an_engaged_crossfeed_under_a_stopped_matrix_does_not_read_engaged", () => {
-  assert.equal(signalMap(running({ crossfeed: true, matrix: false })).engaged.has("crossfeed"), false);
+  assert.equal(signalMap(running({ crossfeed: "bauer", matrix: false })).engaged.has("crossfeed"), false);
 });
 
 test("test_the_map_on_the_direct_path_reads_direct", () => {
