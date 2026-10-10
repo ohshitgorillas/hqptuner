@@ -4,6 +4,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+## [1.19.2] — 2026-10-10
+
 ### Changed
 
 - **Download state.** The Download state button is now on the HQPTuner card of the System tab instead of the About card.
