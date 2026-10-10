@@ -4,6 +4,14 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Changed
+
+- **Download state.** The Download state button is now on the HQPTuner card of the System tab instead of the About card.
+
+### Fixed
+
+- **Untested HQPlayer notice.** The System tab warns only about an hqplayerd release HQPTuner has not been tested against.
+
 ## [1.19.1] — 2026-10-09
 
 ### Fixed
