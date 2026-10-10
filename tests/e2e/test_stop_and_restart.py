@@ -33,6 +33,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 
 import fake_http
+import fake_metering
 import pytest
 from fake_control import DEFAULTS
 from playwright.sync_api import Error as PlaywrightError
@@ -197,7 +198,7 @@ def app() -> Iterator[App]:
         listen_port = _free_port()
         env = _app_env(listen_port, control_port, int(http_state["_port"]), state)
         base_url = f"http://127.0.0.1:{listen_port}"
-        engine = stack_support.Stack(base_url, control_log, control_state, http_state)
+        engine = stack_support.Stack(base_url, control_log, control_state, http_state, fake_metering.Stream())
         running = App(_launch(env, state / "app-1.log"), listen_port, base_url, env, state, engine)
         if not _ready(running):
             raise AppDidNotStartError(state / "app-1.log")

@@ -34,6 +34,7 @@ from types import MappingProxyType
 from typing import Any
 
 import fake_http
+import fake_metering
 from fake_control import DEFAULTS, CommandLog, serve_shared
 
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
@@ -98,6 +99,8 @@ class Stack:
     control_state: dict[str, str]
     #: The HTTP config fake's live state (``fake_http.state()``), plus ``_port``. Notifies on write.
     http_state: NotifyingState
+    #: The metering fake's stream: nothing until a test plays a passage on it, which reaches every open connection.
+    metering: fake_metering.Stream
 
     def wait_for_command(self, predicate: Callable[[], bool], timeout: float) -> bool:
         """Block until `predicate()` holds or `timeout` seconds pass, woken by every command the fake logs.
@@ -310,11 +313,13 @@ def stack(tmp: Path) -> Iterator[Stack]:
     control = spawn_control(control_state, control_log)
     http_state = NotifyingState(fake_http.state())
     http = fake_http.spawn(http_state)
+    metering = fake_metering.Stream()
+    meter = fake_metering.spawn_stream(metering)
     proc: subprocess.Popen[bytes] | None = None
     try:
         control_port = next(control)
         next(http)
-        metering_port = _free_port()
+        metering_port = next(meter)
         listen_port = _free_port()
         log_path = tmp / "app.log"
         env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
@@ -326,6 +331,7 @@ def stack(tmp: Path) -> Iterator[Stack]:
             control_log=control_log,
             control_state=control_state,
             http_state=http_state,
+            metering=metering,
         )
     finally:
         if proc is not None:
@@ -334,3 +340,4 @@ def stack(tmp: Path) -> Iterator[Stack]:
         # that follows it; resuming normally is what runs it.
         next(control, None)
         next(http, None)
+        next(meter, None)
