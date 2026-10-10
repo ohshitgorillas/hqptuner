@@ -2,8 +2,9 @@
 // so 32x PCM to 64x SDM is the next octave and the glass is continuous; it carries two settings, the PCM limit and the
 // SDM limit, so each band has its own needle confined to its band, the 32x|64x seam a hard stop. Both bands are
 // settable in either output mode. Hatched: the device announced it cannot carry the tier. The green lamp: the rate
-// running now. While pinned rates are allowed, the pin picker (Auto or a family) parks on the Rate row's label line
-// and the pinned rate is boxed in accent on its tier. Every decision is the store's
+// running now. The dial draws its row's label line over the glass; while pinned rates are allowed, the pin picker (Auto
+// or a family) sits at the end of that line and the pinned rate is boxed in accent on its tier. Every tier prints both
+// its rates in every mode; under a family the other family's rates print set apart. Every decision is the store's
 // (store/faceplate/drawers/output.js); the arithmetic of where things sit is model/gauges/output.js.
 //
 // The drawing keeps its own aspect, fitted whole and centered in the glass; its box carries the drawing and the band
@@ -13,6 +14,7 @@
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
+import { labelHead } from "../../drawer/controls.js";
 import {
   bandEdges,
   bandSpan,
@@ -91,13 +93,16 @@ function PinBox({ x, cell, fam }) {
 }
 
 /**
- * One tier's printing: major tick, name, both exact rates, the box round a pinned rate, and the unavailable note.
+ * One tier's printing: major tick, name, both exact rates, the box round a pinned rate, and the unavailable note. A
+ * rate of the family the glass sets apart prints set apart.
  *
- * @param {{ t: DialTier, i: number, x: number, cell: number, sel: boolean, pin: Fam | null }} props
+ * @param {{ t: DialTier, i: number, x: number, cell: number, sel: boolean, pin: Fam | null, apart: Fam | null }} props
  */
-function TierMark({ t, i, x, cell, sel, pin }) {
+function TierMark({ t, i, x, cell, sel, pin, apart }) {
   const cls = [t.unavailable ? "unav" : "", sel ? "sel" : "", pin ? "pinned" : ""].filter(Boolean).join(" ");
   const line = (/** @type {Fam} */ fam) => `${t[fam]} ${t.unit}`;
+  const freqCls = (/** @type {Fam} */ fam) =>
+    ["freq", pin === fam ? "pf" : "", apart === fam ? "apart" : ""].filter(Boolean).join(" ");
   return html`
     <g class=${cls || undefined} data-i=${i}>
       <line class="major" x1=${x} y1=${RULE_Y - 12} x2=${x} y2=${RULE_Y} />
@@ -105,7 +110,7 @@ function TierMark({ t, i, x, cell, sel, pin }) {
       ${pin ? html`<${PinBox} x=${x} cell=${cell} fam=${pin} />` : null}
       ${FAMS.map(
         (fam) =>
-          html`<text class=${pin === fam ? "freq pf" : "freq"} x=${x} y=${FREQ_Y[fam]} text-anchor="middle" dominant-baseline="central">${line(fam)}</text>`,
+          html`<text class=${freqCls(fam)} x=${x} y=${FREQ_Y[fam]} text-anchor="middle" dominant-baseline="central">${line(fam)}</text>`,
       )}
       ${t.unavailable ? html`<text class="note" x=${x} y="99" text-anchor="middle">unavailable</text>` : null}
     </g>
@@ -125,7 +130,7 @@ function BandGlass({ b, view, scale }) {
   for (let i = span.lo; i <= span.hi; i++) {
     const pin = view.pin && view.pin.tier === i ? view.pin.fam : null;
     marks.push(
-      html`<${TierMark} t=${view.tiers[i]} i=${i} x=${scale.xs[i]} cell=${scale.dx} sel=${i === cur} pin=${pin} />`,
+      html`<${TierMark} t=${view.tiers[i]} i=${i} x=${scale.xs[i]} cell=${scale.dx} sel=${i === cur} pin=${pin} apart=${view.apart} />`,
     );
   }
   return html`
@@ -243,12 +248,12 @@ const Hatch = ({ view, scale }) => html`
 `;
 
 /**
- * The pin picker, parked on the Rate row's label line: Auto or a family, the pick lit.
+ * The pin picker, at the end of the Rate row's label line: Auto or a family, the pick lit.
  *
  * @param {{ pick: PinPick }} props
  */
 const PinPicker = ({ pick }) => html`
-  <div class="seg mini ratepin" role="radiogroup">
+  <div class="seg ratepin" role="radiogroup">
     ${PICKS.map(
       (o) => html`
         <button
@@ -267,15 +272,18 @@ const PinPicker = ({ pick }) => html`
 `;
 
 /**
- * The rate dial over `pcm_rate` and `sdm_rate`: both bands, their needles, the hatch, the playing lamp, and while
- * pinned rates are allowed the pin picker and the pinned rate's box.
+ * The rate dial over `pcm_rate` and `sdm_rate` under its row's label line: both bands, their needles, the hatch, the
+ * playing lamp, and while pinned rates are allowed the pin picker on the label line and the pinned rate's box.
+ *
+ * @param {{ label: string, sub?: string }} props  the row's label and sublabel
  */
-export function RateDial() {
+export function RateDial({ label, sub }) {
   const view = dialView();
   const scale = dialScale(view.tiers.length, W, X0);
   const seam = seamX(scale, view.tiers);
+  const picker = view.picker === null ? null : html`<${PinPicker} pick=${view.picker} />`;
   return html`
-    ${view.picker === null ? null : html`<${PinPicker} pick=${view.picker} />`}
+    ${labelHead(label, sub, undefined, picker)}
     <div
       class="dial"
       role="group"

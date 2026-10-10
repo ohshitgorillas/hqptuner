@@ -24,11 +24,11 @@ import { DevicePicker } from "./output/DevicePicker.js";
 /** The section header over each backend's rows. */
 const BACKEND_NAMES = { network: "Network Audio", alsa: "ALSA" };
 
-/** The Rate row's label and its paragraph, an owner consolidation of the manual's two rate lines. */
+/** The Rate row's label, its sublabel and its paragraph, an owner consolidation of the manual's two rate lines. */
 const RATE = {
-  label: "Rate",
-  k: "Output rate",
-  text: "PCM and SDM target rates. Real values can be equal or lower when auto rate-family is used.",
+  label: "Output rate",
+  sub: "PCM and SDM target rates",
+  text: "Real values can be equal or lower when auto rate-family is used.",
 };
 
 /** The layout segment: the common layouts by channel count, Manual opening the number. */
@@ -99,11 +99,11 @@ export const OUTPUT_DRAWER = {
   ],
 };
 
-/** The Rate row: the dial spanning the row over its paragraph. */
+/** The Rate row: the dial under its label line, spanning the row over its paragraph. */
 const RateRow = () => html`
   <div class="drow drow-full">
-    <div class="ctl">${labelHead(RATE.label)} <${RateDial} /></div>
-    <div class="man"><p><b>${RATE.k}</b> ${RATE.text}</p></div>
+    <div class="ctl"><${RateDial} label=${RATE.label} sub=${RATE.sub} /></div>
+    <div class="man"><p>${RATE.text}</p></div>
   </div>
 `;
 

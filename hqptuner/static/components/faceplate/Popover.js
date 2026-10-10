@@ -4,7 +4,7 @@
 
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { clampToPlate } from "../../model/shell/place.js";
+import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
 import { openPopover, togglePopover, plate } from "../../store/faceplate/view.js";
 
 /** @typedef {import("../../model/shell/place.js").Side} Side */
@@ -33,8 +33,23 @@ export const triggerProps = (id, haspopup) => ({
 });
 
 /**
- * The corner of the box a panel's `left` and `top` count from, on the plate in layout px: its offset parent's, or the
- * plate's own where it has none to measure.
+ * An element's top-left corner on the plate, in layout px from the plate's padding corner, inside its border: the
+ * corner a box positioned against the plate counts its `left` and `top` from.
+ *
+ * @param {Element} el
+ * @param {Element} face  the plate
+ * @returns {import("../../model/shell/place.js").Origin}
+ */
+export function onFace(el, face) {
+  const r = el.getBoundingClientRect(),
+    p = face.getBoundingClientRect();
+  const s = plate.value.scale;
+  return { x: (r.left - p.left) / s - face.clientLeft, y: (r.top - p.top) / s - face.clientTop };
+}
+
+/**
+ * The corner of the box a panel's `left` and `top` count from, on the plate in layout px: its offset parent's padding
+ * corner, inside that box's border, or the plate's own where it has none to measure.
  *
  * @param {HTMLElement} panel
  * @param {Element} face  the plate
@@ -42,11 +57,34 @@ export const triggerProps = (id, haspopup) => ({
  */
 export function originOf(panel, face) {
   const box = panel.offsetParent;
-  if (!box) return { x: 0, y: 0 };
-  const b = box.getBoundingClientRect(),
-    p = face.getBoundingClientRect();
+  if (!box) return ON_PLATE;
+  const o = onFace(box, face);
+  return { x: o.x + box.clientLeft, y: o.y + box.clientTop };
+}
+
+/**
+ * Where a panel lands against the element that opens it, clamped inside the plate's padding box (the room inside its
+ * border, where its side padding counts from), in layout px from the panel's own containing block.
+ *
+ * @param {HTMLElement} panel
+ * @param {Element} home  the element the panel parks against
+ * @param {{ side: Side, foot: Margin, at: Place }} how
+ * @returns {{ left: number, top: number } | null}  null when the panel has no plate to measure against
+ */
+export function parkAgainst(panel, home, how) {
+  const face = panel.closest(".plate");
+  if (!face) return null;
   const s = plate.value.scale;
-  return { x: (b.left - p.left) / s, y: (b.top - p.top) / s };
+  const r = home.getBoundingClientRect();
+  const o = onFace(home, face);
+  return clampToPlate({
+    anchor: { left: o.x * s, top: o.y * s, width: r.width, height: r.height },
+    panel: { w: panel.offsetWidth, h: panel.offsetHeight },
+    plate: { w: face.clientWidth, h: face.clientHeight },
+    scale: s,
+    origin: originOf(panel, face),
+    ...how,
+  });
 }
 
 /**
@@ -57,20 +95,8 @@ export function originOf(panel, face) {
  * @returns {{ left: number, top: number } | null}  null when the panel has no trigger or plate to measure against
  */
 export function parkAt(panel, how) {
-  const face = panel.closest(".plate");
-  const trigger = face?.querySelector(`button[data-pop="${panel.dataset.pop}"]`);
-  if (!face || !trigger) return null;
-  const r = trigger.getBoundingClientRect(),
-    p = face.getBoundingClientRect();
-  const fit = plate.value;
-  return clampToPlate({
-    anchor: { left: r.left - p.left, top: r.top - p.top, width: r.width, height: r.height },
-    panel: { w: panel.offsetWidth, h: panel.offsetHeight },
-    plate: { w: fit.w, h: fit.h },
-    scale: fit.scale,
-    origin: originOf(panel, face),
-    ...how,
-  });
+  const trigger = panel.closest(".plate")?.querySelector(`button[data-pop="${panel.dataset.pop}"]`);
+  return trigger ? parkAgainst(panel, trigger, how) : null;
 }
 
 /**

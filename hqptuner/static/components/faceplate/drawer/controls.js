@@ -56,16 +56,17 @@ export function segButtons({ options, value, label, off, pick }) {
 }
 
 /**
- * A row's label head: the label, then its sublabel and band tag when given.
+ * A row's label head: the label, then its sublabel and band tag when given, then a control parked on the line.
  *
  * @param {string} label
  * @param {string} [sub]
  * @param {string} [band]
+ * @param {unknown} [tail]  a control drawn at the line's end
  */
-export const labelHead = (label, sub, band) => html`
+export const labelHead = (label, sub, band, tail) => html`
   <div class="fh">
     <b>${label}</b>${sub ? html`<span class="s">${sub}</span>` : null}
-    ${band ? html`<span class="band">${band.toUpperCase()}</span>` : null}
+    ${band ? html`<span class="band">${band.toUpperCase()}</span>` : null}${tail ?? null}
   </div>
 `;
 

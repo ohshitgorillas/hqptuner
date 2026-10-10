@@ -3,7 +3,8 @@
   "output": {
     "output_mode": {
       "label": "Output mode",
-      "tooltip": "Selects the output mode. When set to \"PCM\", all content is played as PCM output. When \"SDM (DSD)\" is selected, all content is played as SDM output. When \"Auto\" is selected, PCM content is played as PCM and DSD content is played as SDM. Using \"Auto\", however, usually leads to a sub-optimal result with either format since only very few DACs have separate true PCM (R2R) and SDM conversion sections inside. In most cases, only one of the options is optimal for the DAC.",
+      "tooltip": "Selects the output mode.",
+      "more": "When set to \"PCM\", all content is played as PCM output. When \"SDM (DSD)\" is selected, all content is played as SDM output. When \"Auto\" is selected, PCM content is played as PCM and DSD content is played as SDM. Using \"Auto\", however, usually leads to a sub-optimal result with either format since only very few DACs have separate true PCM (R2R) and SDM conversion sections inside. In most cases, only one of the options is optimal for the DAC.",
       "source": "manual §4.2"
     },
     "backend": {

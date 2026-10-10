@@ -2,9 +2,8 @@
    Top: spectrum (dBFS over linear kHz) | vertical level meters. Bottom: apodizing strip over spectrogram, one time axis.
    Views, not settings: their segments are compact and never stage. Every axis and control names its unit;
    unit text is --ink-2 or brighter. Canvas pixels come from --spec-* and --bad. */
-/* A panel holding a block fills the drawer height; the spectrogram takes whatever the spectrum leaves. */
-.dpanel:has(>.dblock){display:flex;flex-direction:column}
-.dblock{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+/* The meter block fills the drawer height; the spectrogram takes whatever the spectrum leaves. */
+.dblock[data-block="meter"]{flex:1 1 auto}
 .dblock>.mblk:last-child{flex:1 1 auto;min-height:0;border-bottom:0}
 .mblk{display:flex;flex-direction:column;gap:var(--sp-4);padding:var(--sp-5) 0 var(--sp-6);border-bottom:var(--hair) solid var(--row-rule)}
 .mtop{display:grid;grid-template-columns:minmax(0,1fr) var(--levels-w);gap:0 var(--sp-10)}

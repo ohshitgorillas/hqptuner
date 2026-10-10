@@ -37,7 +37,7 @@ input.vfd.txt:disabled{color:var(--acc-dim)}
 input.vfd.hex{width:var(--hex-w);text-align:left;font-size:var(--fs-4);margin-left:var(--sp-3)}
 
 /* Logging: the live tail fills the drawer height left under the rows (as the spectrogram does in Source). */
-.dblock[data-block="logtail"]{border-top:var(--hair) solid var(--row-rule)}
+.dblock[data-block="logtail"]{flex:1 1 auto;border-top:var(--hair) solid var(--row-rule)}
 .ltrow{border-bottom:0}
 .ltrow .act{flex-wrap:wrap}
 pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--sp-3);overflow:auto;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);

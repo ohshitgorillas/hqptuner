@@ -13,7 +13,7 @@ import { plainNames } from "../../../store/ui/prefs.js";
 import { openList, plate } from "../../../store/faceplate/view.js";
 import { closeOptionList, hasConsole, isPanel, kindOf } from "../../../store/faceplate/lists/open.js";
 import { listBlurbs, listOptions, narrowedOptions } from "../../../store/faceplate/lists/options.js";
-import { originOf } from "../Popover.js";
+import { onFace, originOf } from "../Popover.js";
 import { Columns } from "./Columns.js";
 import { Console } from "./Console.js";
 import { FacetPopovers } from "./FacetPopover.js";
@@ -28,19 +28,6 @@ const SUB = {
   pcm_filter_nx: "Sources above 50 kHz",
   sdm_filter_nx: "Sources above 50 kHz",
 };
-
-/**
- * An element's box on the plate, in the plate's layout px.
- *
- * @param {Element} el
- * @param {Element} face  the plate
- */
-function onPlate(el, face) {
-  const r = el.getBoundingClientRect(),
-    p = face.getBoundingClientRect();
-  const s = plate.value.scale;
-  return { x: (r.left - p.left) / s, y: (r.top - p.top) / s };
-}
 
 /**
  * The element a panel parks at: the request's anchor where it names one, else the key's picker (`data-list` names the
@@ -77,9 +64,9 @@ function place(el, req) {
   }
   el.style.height = "auto";
   const tr = triggerOf(face, req);
-  const fit = plate.value;
-  const trigger = tr?.offsetParent ? { ...onPlate(tr, face), h: tr.offsetHeight } : null;
-  const at = parkAt({ panel: { w: el.offsetWidth, h: el.offsetHeight }, trigger, plate: { w: fit.w, h: fit.h } });
+  const trigger = tr?.offsetParent ? { ...onFace(tr, face), h: tr.offsetHeight } : null;
+  const room = { w: face.clientWidth, h: face.clientHeight };
+  const at = parkAt({ panel: { w: el.offsetWidth, h: el.offsetHeight }, trigger, plate: room });
   el.style.left = `${at.left - o.x}px`;
   el.style.top = `${at.top - o.y}px`;
 }

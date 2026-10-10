@@ -161,7 +161,7 @@
 :is(#drawer-pipelines,#pb-drawer-pipelines) .dtabs button{padding:0 var(--sp-5)}
 :is(#drawer-pipelines,#pb-drawer-pipelines).pl-short .dtabs button:not([data-tab="overview"]){text-transform:none}   /* channel names keep their case, like the grid */
 :is(#drawer-pipelines,#pb-drawer-pipelines) .dpanel{display:flex;flex-direction:column;padding-bottom:var(--sp-2)}
-.dblock[data-block^="pl-"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+:is(#drawer-pipelines,#pb-drawer-pipelines) .dblock{flex:1 1 auto}
 .obody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-4)}
 .oleft{display:flex;flex-direction:column;gap:var(--sp-5)}
 .oright{display:flex;flex-direction:column;gap:var(--sp-5);min-width:0;padding-top:var(--sp-2)}

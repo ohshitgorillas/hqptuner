@@ -12,7 +12,8 @@
 // the running band pins that tier's member of the family, live, and stages nothing, and a key on that band steps the
 // pin from the pinned tier, else the playing tier; a tap or key on the other band moves its limit, since the engine's
 // rate list is the running mode's. A family pick writes nothing and holds for the drawer's opening; each opening reads
-// the pin's family, Auto with no pin. The pin is read off the engine (store/live/pin.js).
+// the pin's family, Auto with no pin. The pin is read off the engine (store/live/pin.js). The glass prints every tier's
+// two members in every mode: under Auto all of them read alike, under a family the other family's are set apart.
 
 import { effect, signal } from "@preact/signals";
 import { engineStatus } from "../../signals.js";
@@ -49,7 +50,8 @@ import { runningChain } from "../path.js";
 /**
  * What the dial draws: its tiers in rate order, each band's needle by tier position (null when the limit names no
  * tier), the playing lamp's tier (null with no running rate on a tier), which bands hold a staged limit, the pin
- * picker's pick (null while pinned rates are not allowed, so no picker), and where the pin sits (null with none shown).
+ * picker's pick (null while pinned rates are not allowed, so no picker), where the pin sits (null with none shown),
+ * and the family whose members the glass sets apart (null under Auto or with no picker, so every member reads alike).
  *
  * @typedef {object} DialView
  * @property {DialTier[]} tiers
@@ -58,6 +60,7 @@ import { runningChain } from "../path.js";
  * @property {{ pcm: boolean, sdm: boolean }} dirty
  * @property {PinPick | null} picker
  * @property {{ tier: number, fam: Fam } | null} pin
+ * @property {Fam | null} apart
  */
 
 /** @typedef {{ value: string, main: string, detail: string, cur: boolean }} DeviceRowView */
@@ -171,9 +174,12 @@ function pinPick(tiers) {
   return famPick.value ?? (at ? at.fam : "auto");
 }
 
+/** The family the glass sets apart under each family pick: the other one. @type {Record<Fam, Fam>} */
+const OTHER_FAM = { f44: "f48", f48: "f44" };
+
 /**
- * The dial's tiers with each band's needle, the hatch, the playing lamp, the dirty bands, the pin picker's pick and
- * the pin.
+ * The dial's tiers with each band's needle, the hatch, the playing lamp, the dirty bands, the pin picker's pick, the
+ * pin, and the family set apart on the glass.
  *
  * @returns {DialView}
  */
@@ -188,6 +194,7 @@ export function dialView() {
     dirty: { pcm: isDirty(RATE_KEYS.pcm), sdm: isDirty(RATE_KEYS.sdm) },
     picker,
     pin: picker === null ? null : placeOf(tiers, pinnedRate.value),
+    apart: picker === null || picker === "auto" ? null : OTHER_FAM[picker],
   };
 }
 

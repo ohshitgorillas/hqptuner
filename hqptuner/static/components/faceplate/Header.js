@@ -8,14 +8,13 @@ import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
 import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
 import { snapshotTip } from "../../store/faceplate/builders/rows.js";
-import { body, showBody, openPopover, plate } from "../../store/faceplate/view.js";
+import { body, showBody, openPopover } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
 import { openSetup } from "../../store/setup.js";
 import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
-import { clampToPlate } from "../../model/shell/place.js";
-import { Popover, triggerProps } from "./Popover.js";
+import { Popover, parkAgainst, triggerProps } from "./Popover.js";
 import { AlertLines } from "./AlertLines.js";
 
 /** @typedef {import("../../store/faceplate/conn.js").ConnState} ConnState */
@@ -47,21 +46,9 @@ export const noteId = (el) => `alerts-${el}`;
  * @param {HTMLElement} panel
  */
 function parkNote(panel) {
-  const face = panel.closest(".plate");
-  const home = face?.querySelector(`[data-pop="${panel.dataset.pop}"]:not(.pop)`);
-  if (!face || !home) return;
-  const box = home.getBoundingClientRect(),
-    origin = face.getBoundingClientRect();
-  const fit = plate.value;
-  const at = clampToPlate({
-    anchor: { left: box.left - origin.left, top: box.top - origin.top, width: box.width, height: box.height },
-    panel: { w: panel.offsetWidth, h: panel.offsetHeight },
-    plate: { w: fit.w, h: fit.h },
-    scale: fit.scale,
-    side: 22,
-    foot: 14,
-    at: { x: "start", y: "below", gap: 8 },
-  });
+  const home = panel.closest(".plate")?.querySelector(`[data-pop="${panel.dataset.pop}"]:not(.pop)`);
+  const at = home && parkAgainst(panel, home, { side: 22, foot: 14, at: { x: "start", y: "below", gap: 8 } });
+  if (!at) return;
   panel.style.left = `${Math.round(at.left)}px`;
   panel.style.top = `${Math.round(at.top)}px`;
 }

@@ -35,6 +35,10 @@
 .dhead .t.dirty::after{content:"";position:absolute;top:var(--sp-1);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 
 .dpanel{flex-grow:1;min-height:0;overflow-y:auto;padding:var(--sp-1) var(--sp-2) var(--sp-5) var(--sp-9);scrollbar-width:thin;scrollbar-color:var(--line-2) transparent}
+/* A panel holding a block is a column. A block keeps its own height, so the panel's spare height falls below the last
+   row; a block that fills the height left declares its own grow where it is styled. */
+.dpanel:has(>.dblock){display:flex;flex-direction:column}
+.dblock{display:flex;flex-direction:column;flex:none;min-height:0}
 
 /* Backend groups: only the active backend's rows show. Combo shows every group, each under its own subhead. */
 .begrp{display:flex;flex-direction:column}
@@ -86,10 +90,11 @@
    Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
    Hatched = device announced it cannot carry that tier; greyed, never blocked.
    Layers (rate-dial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
-.dial{position:relative;height:var(--dial-h);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
-/* The drawing's box: its own aspect (set inline from the viewBox), as tall as the glass, centered, never wider than it.
-   Each band is its own slider: a transparent region over its half of the drawing. */
-.dwg{position:relative;height:100%;max-width:100%;margin:0 auto}
+.dial{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
+/* The drawing's box: the glass's full width at its own aspect (set inline from the viewBox), so the glass is as tall as
+   the drawing and a wider drawer scales the whole printing up. Each band is its own slider: a transparent region over
+   its half of the drawing. */
+.dwg{position:relative;width:100%}
 .bandsl{position:absolute;top:0;bottom:0;touch-action:none}
 .bandsl:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(-1 * var(--stroke));border-radius:var(--r-2)}
 /* Band legends (engraved, over a bracket spanning the band) + bezel seam at the 32x|64x family boundary.
@@ -107,18 +112,22 @@
 .dial .minor{stroke:var(--edge);stroke-width:1}
 .dial .major{stroke:var(--ink-3);stroke-width:1.5}
 .dial .tier{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);fill:var(--ink-2);line-height:var(--lh-eng)}
-.dial .freq{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink-2);line-height:var(--lh-text)}
+/* Every tier prints both its rates in every mode. Under Auto all of them read lit; under a picked family the other
+   family's rates step back to the plain ink, still on the glass, the needle's tier included. Unavailable, needle and
+   pin inks below win over the lit ink. */
+.dial .freq{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--ink);line-height:var(--lh-text)}
+.dial .freq.apart{fill:var(--ink-2)}
 .dial .note{font-family:var(--f-body);font-style:italic;font-size:var(--fs-2);fill:var(--ink-2);line-height:var(--lh-text)}
 .dial .unav .major{stroke:var(--edge)}
 .dial .unav .tier,.dial .unav .freq{fill:var(--ink-4)}
 .dial .sel .tier,.dial .sel .freq{fill:var(--acc)}
+.dial .sel .freq.apart:not(.pf){fill:var(--ink-2)}
 .dial .playing{fill:var(--ok);filter:drop-shadow(0 0 var(--sp-1) var(--ok))}
 .dial .needle{fill:var(--acc);filter:drop-shadow(0 0 var(--sp-2) var(--acc))}
-/* Pin picker (Allow pinned rates On): a mini segment parked at the right end of the Rate row's label line, out of the
-   column's flow, so it adds no height. The pinned rate: its frequency line in accent inside an accent box, apart from
-   the needle's tier printing and the playing lamp. */
-.drow .ctl:has(> .ratepin){position:relative}
-.drow .seg.ratepin{position:absolute;top:0;right:0}
+/* Pin picker (Allow pinned rates On): a drawer segment at the right end of the Rate row's label line, its buttons the
+   drawer's segment height and one width, the widest option's. The pinned rate: its frequency line in accent inside an
+   accent box, apart from the needle's tier printing and the playing lamp. */
+.drow .seg.ratepin{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;margin-left:auto}
 .dial .pinned .pinbox{fill:none;stroke:var(--acc);stroke-width:1}
 .dial .pinned .pf{fill:var(--acc)}
 .dial .ndl{transition:transform var(--needle)}

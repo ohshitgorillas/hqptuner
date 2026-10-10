@@ -5,7 +5,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { tipAt, tipContent } from "../../../model/shell/option-list.js";
-import { originOf } from "../Popover.js";
+import { onFace, originOf } from "../Popover.js";
 import { plainNames } from "../../../store/ui/prefs.js";
 import { openList, plate } from "../../../store/faceplate/view.js";
 import { hoverTip } from "../../../store/faceplate/lists/open.js";
@@ -24,13 +24,11 @@ function land(tip, v) {
   const row = /** @type {HTMLElement[]} */ ([...face.querySelectorAll(".orow")]).find((r) => r.dataset.v === v);
   if (!row) return;
   const col = /** @type {HTMLElement} */ (row.closest(".ocol") ?? row);
-  const fit = plate.value;
-  const p = face.getBoundingClientRect();
   const at = tipAt({
-    col: { x: (col.getBoundingClientRect().left - p.left) / fit.scale, w: col.offsetWidth },
-    rowY: (row.getBoundingClientRect().top - p.top) / fit.scale,
+    col: { x: onFace(col, face).x, w: col.offsetWidth },
+    rowY: onFace(row, face).y,
     tip: { w: tip.offsetWidth, h: tip.offsetHeight },
-    plate: { w: fit.w, h: fit.h },
+    plate: { w: face.clientWidth, h: face.clientHeight },
     origin: originOf(tip, face),
   });
   tip.style.left = `${at.left}px`;

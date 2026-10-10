@@ -272,7 +272,6 @@
   --ocol-w-dithers:300px;  /* the dithers list's one column */
   /* Drawers */
   --devlamp-col:10px;      /* the device list's lamp column */
-  --dial-h:106px;          /* the rate dial's glass */
   --dhead-h:52px;          /* a drawer's head row */
   --key-w-sm:30px;         /* the ▾ key at the end of the drawer's split Apply */
   --devlist-w:560px;       /* the output device list */
