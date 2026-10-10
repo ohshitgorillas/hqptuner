@@ -65,11 +65,12 @@ lint-js:
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the fifth line refuses any test with
-# one (scripts/gates/check_clock_waits.py).
+# one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
+# still going at the third line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
 test:
-	PYTHONPATH=scripts:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
 	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
