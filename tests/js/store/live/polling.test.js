@@ -4,12 +4,11 @@
 // keep-last-good-value contract (via the exported refreshConfig), setVolume's
 // readback echo and refreshDevices' rescan-then-repull.
 //
-// Fakes go at the wire and the environment seams only (docs/testing.md): the
+// The
 // stream is the EventSource fake (tests/js/support/eventsource.js) carrying the
 // bodies api/push.py sends, the page is the document fake
 // (tests/js/support/page.js), and globalThis.fetch answers the real REST paths
-// with real shapes. No test waits on the wall clock, and no store function is
-// stubbed.
+// with real shapes.
 //
 // startSync is called exactly once, at module load, and every event case reads
 // the one stream it opened.

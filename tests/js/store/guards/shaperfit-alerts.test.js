@@ -16,8 +16,7 @@
 // tiers — so a floor is read up to the tier above it: 40960000 lies between
 // DSD512 and DSD1024, and a modulator carrying it is incompatible with DSD512.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire — every input arrives through the exported signals carrying the
+// Every input arrives through the exported signals carrying the
 // shapes /api/state, /api/enumerations, /api/config and /api/metadata serve, and
 // the staged edit rides the real REST path through a staging server.
 //
@@ -51,8 +50,7 @@ const kinds = () => alerts().map((a) => a.kind);
 /** @returns {string[]} */
 const sevs = () => alerts().map((a) => a.sev);
 
-// The two alert identities. The sentences they carry are owner copy
-// (docs/testing.md rule 9) and are nowhere in this file.
+// The two alert identities.
 const SDM = "shaper-fit-sdm";
 const PCM = "shaper-fit-pcm";
 

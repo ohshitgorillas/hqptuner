@@ -1,6 +1,5 @@
 """Connect-time tolerance, through ``run()`` with both fake daemons: a dead 8088
-lane must leave no fabricated file truth behind (docs/testing.md — every fault is
-injected at the wire or via constructor inputs)."""
+lane must leave no fabricated file truth behind."""
 
 from typing import Any
 

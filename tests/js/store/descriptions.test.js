@@ -1,13 +1,11 @@
 // Behavioral suite for profile descriptions on the client (store/matrix/descriptions.js):
 // the prose a user attaches to a saved matrix profile, kept on the SERVER so
 // every browser sees the same note, and keyed by profile NAME — the stable join
-// key (docs/architecture.md §3.1), which is also all `<matrix_profile>` carries
-// (hqplayerd-readme.txt §1.12).
+// key, which is also all `<matrix_profile>` carries (hqplayerd-readme.txt §1.12).
 //
 // Persistence is one REST pair, GET/PUT /api/descriptions, driven through the
 // fetch fake below: it speaks those paths with those shapes, HOLDS the map the
-// way the backend's store does, and stamps every entry it accepts (docs/testing.md
-// rule 4 — real path, real shapes, nothing of ours stubbed).
+// way the backend's store does, and stamps every entry it accepts.
 //
 // Saving is queue-then-flush: typing calls `queueDescription`, and one
 // `flushDescriptions` sends what the typing left behind. So the cases about what
@@ -17,7 +15,7 @@
 // `reset()` puts every piece of module state a test touches back: both signals,
 // and the private queue, which it empties by flushing once against an accepting
 // wire. All three outlive a test, and a partial reset makes cases that only pass
-// in a particular order — the one hazard docs/testing.md names for this harness.
+// in a particular order.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/descriptions.test.js
 

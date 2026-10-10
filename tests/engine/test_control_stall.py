@@ -9,8 +9,7 @@ layer has to call it a FAILED COMMAND rather than an internal error.
 
 The fake's `_stall` knob is that daemon: the command is received and logged, the
 connection stays open, and nothing comes back (fake_control.DEFAULTS). The
-per-command deadline runs on the app's virtual clock (docs/testing.md §7), and
-the cases assert on what came back, never on how long it took.
+per-command deadline runs on the app's virtual clock.
 """
 
 import logging
@@ -73,8 +72,8 @@ def _await_first_poll(client: TestClient, log: CommandLog) -> None:
 
 #: The post-write housekeeping command the connection dies on. `SetFilter` and
 #: `SetMode` swap the enumerations behind them, so the route re-reads the lists
-#: after either (protocol.md §6 SetMode/GetModes, manual §4.6) — this is one of
-#: those reads, and the one named in the field report.
+#: after either (manual §4.6) — this is one of those reads, and the one named in
+#: the field report.
 HOUSEKEEPING_COMMAND = "GetShapers"
 
 #: A live field on the chain the fake has loaded (PCM by default), written by
@@ -164,10 +163,10 @@ def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_appl
 
 
 # The two below assert on a log record, which the testing policy otherwise keeps
-# off-limits (docs/testing.md §1). They are here because the operator-visible
-# contract for a swallowed failure IS the record: a housekeeping command that
-# died is invisible in the 200 the user gets, so the only place it survives is
-# the log, and a warning that does not name the command diagnoses nothing.
+# off-limits. They are here because the operator-visible contract for a
+# swallowed failure IS the record: a housekeeping command that died is invisible
+# in the 200 the user gets, so the only place it survives is the log, and a
+# warning that does not name the command diagnoses nothing.
 
 
 def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
@@ -177,7 +176,7 @@ def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
     with caplog.at_level(logging.WARNING):
         client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
     # the warning is found by its level, and the command it names is what is
-    # compared — the sentence around the name is copy (docs/testing.md rule 9)
+    # compared
     warnings = [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
     assert HOUSEKEEPING_COMMAND in (warnings or [""])[0]
 

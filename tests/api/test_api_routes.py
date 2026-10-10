@@ -1,8 +1,7 @@
 """Read-model REST routes end to end: the app under TestClient connects to a
 threaded fake control daemon (the 4321 wire protocol, conftest) and to the
 faithful fake 8088 config daemon, so every route body serves what the fakes
-answered over the wire (docs/testing.md — fakes speak the wire protocol, no
-manager internals are touched)."""
+answered over the wire."""
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -156,7 +155,7 @@ def test_volume_write_is_rejected_when_the_daemon_disables_volume(disabled_volum
 # The LIVE view's whole write path: config-form-domain values in, applied and
 # readback-verified on the spot. Never staged, never persistent — so the
 # assertions are on what the daemon reports afterwards, which is the only thing
-# that distinguishes an applied write from an accepted one (protocol.md §6).
+# that distinguishes an applied write from an accepted one.
 
 
 def test_a_live_write_lands_on_the_engine(live_api: TestClient) -> None:
@@ -172,7 +171,7 @@ def test_a_live_write_reports_each_setting_it_applied(live_api: TestClient) -> N
 def test_a_filter_value_is_translated_from_the_config_domain(chain_api: Callable[..., TestClient]) -> None:
     # enum ID 23 is `sinc-M`, which sits at list INDEX 1 on the SDM chain. 23 is a
     # plausible index as well, so a write that skipped the translation would land
-    # on a different filter rather than fail (protocol.md §4 — never mix domains).
+    # on a different filter rather than fail.
     client = chain_api(mode="2")
     client.post("/api/config/live", json={"fields": {"oversampling": "23"}})
     assert client.get("/api/state").json()["data"]["filterNx"] == "1"

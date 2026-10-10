@@ -1,4 +1,4 @@
-"""ConnectionManager write path through its public API (docs/testing.md).
+"""ConnectionManager write path.
 
 The happy path runs the manager against the real-socket fake daemon: it
 connects on its own, applies a live edit, and the report reflects the
@@ -56,13 +56,13 @@ def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManag
 # A batch carrying the output mode plus a chain field of the TARGET mode applies
 # without touching the restore lane: SetMode goes first, then the chain field is
 # resolved against the enumeration lists the switch produced (SetMode swaps the
-# filter/shaper/rate lists wholesale — protocol.md §4). Enum "3" (ASDM7EC) exists
-# only in the fake's SDM shaper list, so its verified landing proves the ordering.
+# filter/shaper/rate lists wholesale). Enum "3" (ASDM7EC) exists only in the
+# fake's SDM shaper list, so its verified landing proves the ordering.
 
 
 async def test_a_mode_equal_to_the_running_mode_is_not_resent(live_manager: LiveManager) -> None:
     # SetMode is not free even when it changes nothing — it reloads the chain and
-    # clears the engine's rate pin (protocol.md §6) — so the wire must show none.
+    # clears the engine's rate pin — so the wire must show none.
     manager, log, _ = await live_manager()
     await manager.applyops.apply({}, {"mode": "pcm", "dither": "5"})
     assert "SetMode" not in [name for name, _attrs in log]

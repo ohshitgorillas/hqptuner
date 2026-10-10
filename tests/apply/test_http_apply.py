@@ -1,6 +1,6 @@
-"""HTTP-lane persistent apply, end to end through a faithful fake config daemon
-(docs/testing.md). The fake (conftest `http_daemon` and its variants) speaks the
-real wire contract discovered on 6.0.4: it rejects a partial form, rejects a
+"""HTTP-lane persistent apply, end to end through a faithful fake config daemon.
+The fake (conftest `http_daemon` and its variants) speaks the real wire contract
+discovered on 6.0.4: it rejects a partial form, rejects a
 checkbox sent as anything but "1", answers HTTP 200 even when it rejects, and
 its GET renders the running state. So a change only round-trips if
 `manager.apply` built a restore archive the real daemon would accept — a wrong
@@ -223,7 +223,7 @@ async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
     http_manager: ConnectionManager,
 ) -> None:
     # a preview reads the HQPTuner store, never the daemon — so it still works when
-    # the daemon's /backup goes empty (the 6.0.4 post-load bug, protocol §3.6)
+    # the daemon's /backup goes empty (the 6.0.4 post-load bug)
     await http_manager.presetops.save_preset("Kept")  # snapshot the running config into the store
     http_daemon["_empty"] = True
     cfg = await presetlane.read(http_manager, "Kept")

@@ -3,10 +3,9 @@
 Two faults look the same to the caller — the command did not succeed — and are
 opposite on the wire. A REFUSAL is answered: the daemon echoed the element with
 `result="Error"` and the connection is clean, so the next command is answered
-normally (docs/protocol.md:134, "the connection is never dropped on an error").
-A STALL is not answered at all: the command was accepted, so its reply is still
-to come, and whatever is sent next on that same connection can be handed the
-late reply as its own answer.
+normally. A STALL is not answered at all: the command was accepted, so its reply
+is still to come, and whatever is sent next on that same connection can be
+handed the late reply as its own answer.
 
 The fake's `_stall` and `_error` knobs are those two daemons, and its command
 log is the only surface that says whether anything reached the daemon at all

@@ -9,8 +9,6 @@
 // through it. What a stored choice loads as is loadBool's
 // (tests/js/store/prefs-loadbool.test.js). Nothing of HQPTuner's is stubbed.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-pref.test.js
 
 import test from "node:test";

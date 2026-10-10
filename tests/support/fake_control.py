@@ -4,7 +4,7 @@ Split out of `conftest` on size alone. It keeps a settings dict and answers
 setters plus `State` from it, so a `Set*` followed by `State` reads the change
 back, which is what exercises the readback-verify path. Several wire quirks are
 modeled because the write-path tests turn on them: `value="999"` answers
-`result="OK"` without applying (the OK-is-not-proof caveat, protocol.md §6),
+`result="OK"` without applying,
 `value="err"` answers `result="Error"`, `SetMode` resets `rate` to `0` (the mode
 swaps the lists a rate is relative to), and the filter/shaper/rate enumerations
 answer for the chain the engine has LOADED rather than the one configured, which
@@ -49,11 +49,11 @@ DEFAULTS = {
     "_vol_adaptive": "0",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
     # The junk-filter enumeration this daemon answers with, space separated in
-    # list order (protocol.md §6: `<JunkFiltersItem index name value/>`); empty
+    # list order (`<JunkFiltersItem index name value/>`); empty
     # means the built-in list below.
     "_junk_filters": "",
     # Space-separated commands answered `result="OK"` without applying: the
-    # `value="999"` caveat above (protocol.md §4), keyed by command instead.
+    # `value="999"` caveat above, keyed by command instead.
     "_deaf": "",
     # Space-separated commands answered NOT AT ALL — the connection stays open and
     # nothing comes back, so the client's read deadline is what ends the wait. What
@@ -70,7 +70,7 @@ DEFAULTS = {
     "_close": "",
     # Space-separated commands the daemon REFUSES, reads as readily as writes: the
     # command is received and answered `result="Error"`, with the daemon's
-    # diagnostic as the element's own text (protocol.md §6). `_error_text` is that
+    # diagnostic as the element's own text. `_error_text` is that
     # diagnostic. What hqplayerd 6.0.4 does to `MatrixSetProfile` with an empty
     # playlist: the switch is refused, not stalled and not silently dropped.
     "_error": "",
@@ -84,7 +84,7 @@ DEFAULTS = {
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
     # The rates enumeration each family answers with, space separated in Hz and
-    # in list order, index 0 first (protocol.md §6: `<RatesItem index rate/>`,
+    # in list order, index 0 first (`<RatesItem index rate/>`,
     # index 0 is rate="0" = auto). `_rates` is the PCM family's, `_sdm_rates` the
     # SDM one; empty means that family's built-in list below, so the enumeration
     # stays mode-dependent whichever knob a test sets.
@@ -99,7 +99,7 @@ DEFAULTS = {
     "_rates": "",
     "_sdm_rates": "",
     # What Status.active_filter reports — the ACTIVE main filter as a display
-    # string (protocol.md: Status reports display strings, State numeric
+    # string (Status reports display strings, State numeric
     # indices). Empty means the frame carries no active_filter attribute at all.
     "_active_filter": "poly-sinc-gauss-long",
 }
@@ -109,7 +109,7 @@ def _reload_shaper(state: dict[str, str]) -> None:
     """What a mode switch does to the shaper pin: SetMode loads the entered
     chain from the daemon's config file, so the fresh chain's shaper is the
     FILE's dither/modulator — never the previous chain's pin carried across
-    (protocol.md §SetMode: the enumeration lists swap wholesale). Opt-in via
+    (the enumeration lists swap wholesale). Opt-in via
     the ``_cfg_dither`` / ``_cfg_modulator`` knobs (enum IDs, config-file
     domain), resolved on the loaded chain's own list; a state without the knobs
     keeps the fake's old carry-the-pin behavior, so existing suites see no
@@ -127,7 +127,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
     value = attrs.get("value", "")
     if name == "SetMode":
         state["mode"] = value
-        state["rate"] = "0"  # mode resets rate to auto (protocol.md §6)
+        state["rate"] = "0"  # mode resets rate to auto
         _reload_shaper(state)  # the entered chain comes up on the FILE's shaper
     elif name == "SetFilter":
         state["filterNx"] = value
@@ -136,7 +136,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
         state["shaper"] = value
     elif name == "SetRate":
         # Stores whatever arrived. The real daemon accepts and silently IGNORES a
-        # value that is not a current `RatesItem` index (protocol.md §6, verified
+        # value that is not a current `RatesItem` index (verified
         # 2026-07-29), which this does not model: `tests/apply/test_apply.py` pins
         # rate index "5", a legitimate index of the real 11-item ladder that the
         # abbreviated lists below do not reach, so enforcing it here would red two
@@ -155,7 +155,7 @@ def apply_setter(name: str, attrs: dict[str, str], state: dict[str, str]) -> Non
 # Enumerations are MODE-DEPENDENT on the real daemon: GetFilters/GetShapers
 # answer for the ACTIVE mode only, and the two chains number their enum IDs
 # differently — poly-sinc-gauss-long is enum 40 under PCM `filter` and 38 under
-# SDM `oversampling` (protocol.md §4, readme §1.5/§1.6). The fake models both
+# SDM `oversampling` (readme §1.5/§1.6). The fake models both
 # facts because the live-routing chain gate exists precisely to protect them.
 #
 # The two filter lists also deliberately SHARE one enum ID under different names:
@@ -176,7 +176,7 @@ _SDM_SHAPERS = (("0", "ASDM5", "0"), ("1", "ASDM7EC", "3"))
 _JUNK_FILTERS = (("0", "none", "0"), ("1", "20k", "1"), ("2", "30k", "2"))
 
 # `RatesItem` carries no `value`: it is `<RatesItem index rate/>` with the actual
-# rate in Hz and index 0 = auto (protocol.md §6). Mode-dependent for real, and
+# rate in Hz and index 0 = auto. Mode-dependent for real, and
 # each mode offers BOTH base families; the 48k-base members sit last here so no
 # existing index moves, not because the daemon orders them that way.
 _PCM_RATES = (("0", "0"), ("1", "44100"), ("2", "352800"), ("3", "705600"), ("4", "384000"))
@@ -195,10 +195,10 @@ def take_lane_down(state: dict[str, str]) -> None:
 
 def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
     """Move the fake's State to what a daemon reports after a restore's
-    self-restart: it comes back up running the restored config file
-    (docs/architecture.md §2.2 lane 2). The file speaks ``pcm``/``sdm`` and enum
+    self-restart: it comes back up running the restored config file.
+    The file speaks ``pcm``/``sdm`` and enum
     IDs; State speaks the mode index and list indices resolved against the
-    chain the restart loaded (protocol.md §4 — the domains never mix), so the
+    chain the restart loaded, so the
     restored shaper is the loaded chain's dither or modulator looked up on that
     chain's own enumeration. The restored file also becomes the per-chain
     shaper a later ``SetMode`` loads (``_reload_shaper``)."""
@@ -217,7 +217,7 @@ def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
 
 
 #: A `FiltersItem` carries `arg` and `description` as well, and it is the only
-#: enumeration that carries either (protocol.md §GetFilters). `description` is
+#: enumeration that carries either. `description` is
 #: the engine's own facet string, `"<quality>/5 [focus] <glyph> <ratio>"`, and
 #: every filter the daemon enumerates carries one — so a filter served without
 #: it is narrowed out of the dropdowns by the quality facet. `arg` is a flags
@@ -247,8 +247,7 @@ def _junk_filters(state: dict[str, str]) -> tuple[tuple[str, str, str], ...]:
 
     The `_junk_filters` knob names the list outright, space separated, so a test
     can serve an enumeration that differs from the built-in one — which is what a
-    different engine build really does answer (architecture §3.1: the running
-    engine is the authority on the names and the ordering). Empty means the
+    different engine build really does answer. Empty means the
     built-in list.
     """
     named = state.get("_junk_filters", "")
@@ -348,8 +347,8 @@ def _query(name: str, state: dict[str, str]) -> str | None:
     if enumerated is not None:
         return enumerated
     if name == "GetInfo":
-        # The full attribute set of docs/protocol.md:157, in the order the
-        # verified 6.0.4 response carries them (docs/protocol.md:160).
+        # The full attribute set, in the order the
+        # verified 6.0.4 response carries them.
         return (
             '<GetInfo engine="6.0.4" name="Fake" platform="Linux"'
             ' product="Signalyst HQPlayer Embedded" version="6"/>'
@@ -412,7 +411,7 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
     if answer is not None:
         return answer
     if name == "Volume" and state["_vol_enabled"] == "0":
-        return '<Volume result="Error"/>'  # volume control disabled (protocol.md §6)
+        return '<Volume result="Error"/>'  # volume control disabled
     value = attrs.get("value")
     if value == "err":
         return f'<{name} result="Error">bad value</{name}>'

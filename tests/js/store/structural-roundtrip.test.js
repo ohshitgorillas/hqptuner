@@ -10,11 +10,11 @@
 // removes those entries; `stagingWire` in ../support/wire/wire.js honors it the way
 // the backend does.
 //
-// The wire is faked, never the store (docs/testing.md rule 4): `stagingWire`
+// `stagingWire`
 // holds the pending buffer and answers the real REST paths, so `edit`,
 // `stagePipelines`, `previewPreset` and `discardAll` all ride them. Assertions
 // are on the buffer the server ended up with (`W.staged`) and on the request
-// bodies it was handed (`W.stages`) — never on a store internal.
+// bodies it was handed (`W.stages`).
 //
 // Schema facts leaned on, as documented in resolve.test.js: `volume_max` is a
 // plain http field, `quick_pause` is a checkbox whose config baseline is a bool

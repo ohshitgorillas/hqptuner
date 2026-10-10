@@ -2,7 +2,7 @@
 // no push stream is opened while `document.hidden` is true, the stream is closed
 // when the page goes hidden, and the page coming back opens a new one, once.
 //
-// Fakes go at the environment seams only (docs/testing.md rule 4): the stream is
+// The stream is
 // the EventSource fake (tests/js/support/eventsource.js), the page is the
 // document fake (tests/js/support/page.js), and globalThis.fetch answers the
 // metadata prime through the static wire fake.

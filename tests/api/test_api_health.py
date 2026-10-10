@@ -1,5 +1,5 @@
-"""The /api/health surface (docs/testing.md). The manager is pointed at a closed
-local port, so these cases cover what the route reports without a daemon."""
+"""The /api/health surface. The manager is pointed at a closed local port, so
+these cases cover what the route reports without a daemon."""
 
 from apps import app_manager, app_static
 from fastapi.testclient import TestClient

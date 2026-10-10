@@ -7,11 +7,11 @@
 // (tests/js/support/easy/easytiles.js `resetLive`) with the engine's own enumeration, State and config form, and a
 // press leaves over a faked `globalThis.fetch` on `POST /api/config/live`. No store function is stubbed.
 //
-// NAMES, NOT WORDS (docs/testing.md rule 9). Preset ids, knob ids and knob positions are wire identifiers; filter
-// names, costs and marks are read back through the shipped table (`writeSet`, `filterFor`, `pipsFor`), never typed.
-// Which preset is a subset and which a flagship is read off the table too: a subset is a preset with a knob whose
-// every position is another preset's id, and the flagships are those positions. The only words asserted are the
-// stand-ins this suite serves as metadata.
+// NAMES, NOT WORDS. Preset ids, knob ids and knob positions are wire identifiers; filter names, costs and marks are
+// read back through the shipped table (`writeSet`, `filterFor`, `pipsFor`), never typed. Which preset is a subset and
+// which a flagship is read off the table too: a subset is a preset with a knob whose every position is another
+// preset's id, and the flagships are those positions. The only words asserted are the stand-ins this suite serves as
+// metadata.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-page/presets.test.js
 

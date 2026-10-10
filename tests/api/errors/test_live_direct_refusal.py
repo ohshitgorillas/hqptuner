@@ -1,10 +1,9 @@
 """Direct live fields are validated before anything reaches the daemon: a flag
-setter such as SetAdaptiveVolume takes exactly "0" or "1" (hqplayerd-readme.txt,
-docs/settings-classification.md), so any other string is refused as a batch
-(409, docs/architecture.md) and the engine's flag is left where it was. Runs the
-app under TestClient over the threaded fake control daemon, which stores whatever
-SetAdaptiveVolume carries verbatim, so an unvalidated forward is visible on the
-State readback."""
+setter such as SetAdaptiveVolume takes exactly "0" or "1" (hqplayerd-readme.txt),
+so any other string is refused as a batch (409) and the engine's flag is left
+where it was. Runs the app under TestClient over the threaded fake control
+daemon, which stores whatever SetAdaptiveVolume carries verbatim, so an
+unvalidated forward is visible on the State readback."""
 
 import pytest
 from fastapi.testclient import TestClient

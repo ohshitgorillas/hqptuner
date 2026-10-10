@@ -1,7 +1,6 @@
 """HTTP config write side (POST /config, profile CRUD, backup) against a real
-HTTP server on a real socket — no transport injection, no mock of our client
-(docs/testing.md rule 4). The server records each request so tests can assert
-what actually went over the wire."""
+HTTP server on a real socket. The server records each request so tests can
+assert what actually went over the wire."""
 
 from collections.abc import AsyncIterator, Iterator
 from http.server import BaseHTTPRequestHandler

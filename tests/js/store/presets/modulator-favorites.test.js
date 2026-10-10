@@ -4,12 +4,12 @@
 //
 // Two sets now, one file, one REST pair: GET /api/favorites answers
 // {filters, modulators} and PUT replaces whichever member it carries. The wire
-// fake in ../support/wire/favoriteswire.js speaks exactly that (docs/testing.md
-// rule 4 — real path, real shapes, nothing of HQPTuner's stubbed), and holds
+// fake in ../support/wire/favoriteswire.js speaks exactly that,
+// and holds
 // both lists so "the toggle sends the whole resulting set" is observable rather
 // than assumed. `toggleFavoriteModulator` is optimistic, like its filter
 // counterpart: the case that pins what the user sees BEFORE the answer arrives
-// parks the fake with `hold` rather than waiting on a clock (rule 7).
+// parks the fake with `hold`.
 //
 // The binding rule of the feature: favorites-only narrowing applies PER SET,
 // and a set with nothing in it narrows nothing. Star a modulator and the
@@ -64,7 +64,7 @@ const FIELD = "pcm_filter_nx";
 const FILTERS = ["gauss-a", "gauss-b", "gauss-c", "gauss-d"];
 
 // Raw engine modulator names, the join key the favorites record and the shaper
-// overlay share (docs/architecture.md §3.1).
+// overlay share.
 const MODULATORS = ["ASDM7", "ASDM7EC", "AHM5EC5L", "DSD7 256+fs"];
 
 /**

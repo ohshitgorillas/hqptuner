@@ -5,7 +5,7 @@
 // The seam is the same one store/health.js is driven through
 // (tests/js/store/live/health.test.js): a poll is a FRESH object written to
 // engineStatus, carrying the daemon's own Status fields (state, track_serial,
-// apod; `state` values per docs/protocol.md — 0 stopped, 1 paused, 2 playing,
+// apod; `state` values 0 stopped, 1 paused, 2 playing,
 // 3 stop requested). remain_min/remain_sec appear only in the cases pinning that
 // they are NEVER read. Nothing of HQPTuner's is stubbed: each poll moves the
 // position by the step the case sets.
@@ -33,8 +33,6 @@
 // which nothing happened, and telling a track that ended on its own from one
 // still running. The fixture advances it on every poll; the stall() cases below
 // hold it still, and the restartPosition() cases send it backwards.
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/apodhistory.test.js
 

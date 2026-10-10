@@ -7,8 +7,7 @@ alone would answer with the base entry verbatim and the two-stage fact would
 never reach the reader.
 
 The database here is a fixture of invented names and invented prose
-(``tests/support/fixtures/metadata_min``), not the shipped one — join mechanics
-are the behavior, the owner's wording is not (docs/testing.md rule 9).
+(``tests/support/fixtures/metadata_min``), not the shipped one.
 """
 
 import json

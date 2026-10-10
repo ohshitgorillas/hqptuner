@@ -42,7 +42,7 @@ export const everyWrite = () =>
 //
 // A case about the SDM chain needs A preset whose SDM writes it can class in the
 // seeded enumeration. WHICH preset that is stays the table's business: naming
-// one here would pin a curated display list (docs/testing.md rule 9) and would
+// one here would pin a curated display list and would
 // go stale the first time the owner recurates the grid. So the subject is
 // derived — the table is asked which presets it has, what each writes on the
 // SDM chain at every knob position, and the first one meeting the case's

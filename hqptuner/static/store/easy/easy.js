@@ -3,9 +3,8 @@
 // `writeSet` (what to stage when a tile is clicked) and `matchPreset` (which
 // tile the current field values light up).
 //
-// Values here are filter NAMES, never enum ids: the running engine is the sole
-// authority for ids and ordering, and static data joins by name (architecture
-// §2). The caller resolves a name to that field's id for the field it stages.
+// Values here are filter NAMES, never enum ids. The caller resolves a name to
+// that field's id for the field it stages.
 //
 // Prose — titles, descriptions, notes, knob labels — is deliberately absent.
 // It lives in `hqptuner/data/easy-presets.json`, keyed by preset id and knob id,

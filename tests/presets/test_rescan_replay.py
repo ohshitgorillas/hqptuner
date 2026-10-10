@@ -1,6 +1,4 @@
-"""A device rescan re-asserts the engine's live settings afterwards
-(docs/testing.md — behavior only, one assertion per test, public API only,
-fakes speak the wire protocol).
+"""A device rescan re-asserts the engine's live settings afterwards.
 
 `GET /config/refresh` re-scans the daemon's output devices, and on 6.0.4 it
 stops the engine while it does: every live-only setting — output mode, both
@@ -150,7 +148,7 @@ EVERY_COMMAND = (
 #: - "held": the engine holds ENGINE_HELD and every setter applies.
 #: - "nothing to carry": the engine already sits at the config file's values, so the
 #:   rescan brings it back exactly where it was.
-#: - "deaf": every setter answers OK and applies nothing (`_deaf`, protocol.md §6),
+#: - "deaf": every setter answers OK and applies nothing (`_deaf`),
 #:   so the verify readback never agrees.
 #: - "raising": the socket goes away underneath each write, so the lane raises
 #:   rather than reporting a setting that did not verify.

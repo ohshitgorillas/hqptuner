@@ -6,8 +6,7 @@
 // (store/ui/faceplate.js) is on. Turning that preference off clears a pin that
 // is standing.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. The engine is driven through the exported `engineState` / `enums`
+// The engine is driven through the exported `engineState` / `enums`
 // signals in the shapes /api/state and /api/enumerations serve, and every write
 // goes out over a faked `globalThis.fetch` on the real REST path.
 //
@@ -34,7 +33,7 @@ const { pinnedRate, pinRate } = await import("../../../../hqptuner/static/store/
  */
 const env = globalThis;
 
-// `<RatesItem index rate/>`, index 0 = auto (protocol.md §6). Index and Hz never
+// `<RatesItem index rate/>`, index 0 = auto. Index and Hz never
 // coincide, so a reading that skipped the join fails.
 const RATES = [
   { index: "0", rate: "0" },

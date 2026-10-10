@@ -1,7 +1,6 @@
 """REST error contracts: the guards and status mappings the frontend keys off.
 Every error is driven through app construction (no credentials configured) or
-through the wire (a daemon that is absent, down, or refusing) — never by
-patching our own code (docs/testing.md)."""
+through the wire (a daemon that is absent, down, or refusing)."""
 
 from collections.abc import Iterator
 from pathlib import Path

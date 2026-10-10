@@ -141,11 +141,9 @@ function sdmReason() {
 //
 // So the store corrects it — as an ordinary STAGED edit, visible in the pending
 // bar, marked dirty on its control, discardable — never as a silent display
-// substitution. architecture.md §7.6: the editor shows what WOULD apply, and a
-// control disagreeing with the config it writes is the two-views-disagree
-// failure this store keeps refusing. That the correction costs a daemon restart
-// at Apply is not a reason to withhold it (CLAUDE.md, "user actions always
-// proceed"): the restart is the user's to spend, at the moment they click.
+// substitution, since a control must never disagree with the config it writes.
+// The correction stages even when it costs a daemon restart at Apply: the
+// restart is the user's to spend, at the moment they click.
 
 /** @type {Record<string, string>} */
 const RATE_KEY = { pcm: "pcm_rate", sdm: "sdm_rate" };

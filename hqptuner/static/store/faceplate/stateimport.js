@@ -1,8 +1,8 @@
-// A state import replaces HQPTuner's own stores on the server (docs/architecture.md §5.7), so every store the page
-// holds is read again once it lands. A store left holding its pre-import copy would write that copy back over the
-// imported one on its next save: a star toggled, a facet moved, a description typed. Writes still waiting on a quiet
-// timer are sent before the import, and whatever is still owed once it lands, a failed write included, is dropped
-// before the re-reads, for the same reason.
+// A state import replaces HQPTuner's own stores on the server, so every store the page holds is read again once it
+// lands. A store left holding its pre-import copy would write that copy back over the imported one on its next save:
+// a star toggled, a facet moved, a description typed. Writes still waiting on a quiet timer are sent before the
+// import, and whatever is still owed once it lands, a failed write included, is dropped before the re-reads, for the
+// same reason.
 
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";

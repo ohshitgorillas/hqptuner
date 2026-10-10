@@ -1,13 +1,13 @@
 """Two LIVE batches in flight at once on one engine, through ``apply_now``.
 
 `SetFilter` carries the Nx filter as ``value`` and the 1x filter as
-``value1x``, and a ``value`` alone moves both (protocol.md §SetFilter), so a
+``value1x``, and a ``value`` alone moves both, so a
 batch naming only the 1x filter still has to put an Nx index on the wire. When
 an earlier batch that changed the Nx filter is still in flight, that index is
 the earlier batch's, never the one the engine held before either batch began.
 
 Everything runs against the fake control daemon over a real socket; the
-assertion is on the traffic that reached it (docs/testing.md).
+assertion is on the traffic that reached it.
 """
 
 import asyncio

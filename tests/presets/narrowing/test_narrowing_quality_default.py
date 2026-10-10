@@ -1,8 +1,8 @@
 """The quality facet's server-side default of 0, "Any quality".
 
 `NarrowingStore` keeps the narrow bar's facet set in `state/narrowing.json`;
-narrowing is purely presentational and has no daemon field behind it
-(docs/architecture.md, "Filter narrowing"), so nothing here reaches hqplayerd
+narrowing is purely presentational and has no daemon field behind it,
+so nothing here reaches hqplayerd
 and every store file lands under pytest's ``tmp_path``.
 
 The facet's domain is unchanged — ``0`` (no quality narrowing), ``3``, ``4``

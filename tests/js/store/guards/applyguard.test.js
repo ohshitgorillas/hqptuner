@@ -29,16 +29,14 @@
 // warning the rule forbids. A preview stages no field, trips no edit guard, and
 // reaches the apply unacknowledged.
 //
-// Everything rides the real wire (docs/testing.md rule 4): edits stage through
-// POST /api/config/stage, applies go out as POST /api/config/apply, and the
-// question is driven through the public ask surface (question / answer /
-// cancel). No store function is stubbed. A guarded applyAll() does not settle
+// Edits stage through POST /api/config/stage, applies go out as
+// POST /api/config/apply, and the question is driven through the public ask
+// surface (question / answer / cancel). A guarded applyAll() does not settle
 // until its question is answered, so these cases hold the promise, drive the
 // question, then await — never the reverse.
 //
-// Both dialog sentences are owner copy (docs/testing.md rule 9): these cases
-// assert that a question is or is not open, its `kind`, and its `owner` — never
-// a word of either message.
+// These cases assert that a question is or is not open, its `kind`, and its
+// `owner`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/guards/applyguard.test.js
 

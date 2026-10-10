@@ -3,7 +3,6 @@
 // stream, so the only request startSync makes is the one metadata prime, and
 // with no document it opens no stream at all.
 //
-// Fakes go at the wire and the environment seams only (docs/testing.md rule 4):
 // globalThis.fetch answers the real REST paths with real shapes and records each
 // path it was asked for, over a daemon reading reachable and ready so nothing on
 // the wire stands in the way of a request; the EventSource fake
@@ -47,7 +46,7 @@ env.fetch = async (/** @type {string} */ path) => {
   return ok(ANSWERS[path] ?? {});
 };
 
-// Event-loop turns, never a duration (docs/testing.md rule 7): the fake wire
+// The fake wire
 // resolves in microtasks, so a few macrotask turns drain every await chain.
 const settle = async () => {
   for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => setImmediate(resolve));

@@ -20,8 +20,8 @@
 //
 // `value` is a union because the two producers disagree honestly: a live enum
 // option carries the LIST INDEX as a number (the 4321 setters write the index,
-// not the enum id — docs/protocol.md §4), while a /config form option carries
-// the form's own string value.
+// not the enum id), while a /config form option carries the form's own string
+// value.
 interface OptionItem {
   value: string | number;
   label: string;

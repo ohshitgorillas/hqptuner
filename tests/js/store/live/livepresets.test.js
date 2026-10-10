@@ -10,10 +10,9 @@
 // incompatible preset: every saved preset is pickable, always, whatever chain
 // the engine currently reports.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. The fake answers the real REST paths with the real shapes and HOLDS
+// The fake answers the real REST paths with the real shapes and HOLDS
 // the list the way the backend does, so "a save re-reads the list" is
-// observable as the list having moved. No store function is ever stubbed.
+// observable as the list having moved.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/livepresets.test.js
 
@@ -194,9 +193,9 @@ test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
 // The card's error names each failed setting by the label the page gives it,
 // never by the daemon's form key. A refusal carries the daemon's own reason; a
 // setter the daemon stopped answering has none worth showing (the 200 report's
-// `{ok: false, error, code}` per setter, architecture.md §8.2). The fixture
-// invents both texts, so asserting them pins no shipped wording. Labels are copy
-// and stay out of every assertion (docs/testing.md rule 9): an error that names
+// `{ok: false, error, code}` per setter). The fixture
+// invents both texts, so asserting them pins no shipped wording.
+// An error that names
 // its setting reads differently for two settings, and never shows a labelled
 // setting's form key.
 

@@ -1,4 +1,4 @@
-"""The gate that keeps owner copy out of test assertions (docs/testing.md rule 9).
+"""The gate that keeps owner copy out of test assertions.
 
 ``scripts/gates/testing/check_no_copy_assertions.py`` reads a test file and reports every
 prose literal (two or more alphabetic words) that sits inside an ``assert``

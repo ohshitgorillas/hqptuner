@@ -1,9 +1,9 @@
-"""Favorite filter NAMES, stored server-side (docs/testing.md).
+"""Favorite filter NAMES, stored server-side.
 
 Two surfaces, one behavior: `FavoriteStore` over a JSON file, and the
 GET/PUT `/api/favorites` pair over that store. Neither touches hqplayerd —
 favorites are HQPTuner's own state, keyed by filter name rather than by the
-engine's enum ids (docs/architecture.md §3.1) — so every client here is built
+engine's enum ids — so every client here is built
 with no credentials and a control lane pointed at a closed port, and every
 store file lands under pytest's ``tmp_path``, never in the repo's state dir.
 
@@ -161,8 +161,7 @@ def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_write(tmp_path: Path) 
 
 def test_a_refused_write_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the on-disk check (docs/testing.md rule 2 counts a
-    # `pytest.raises` block as an assertion).
+    # this test owns is the on-disk check.
     path = seed(tmp_path, json.dumps(TOO_NEW))
     with contextlib.suppress(FavoriteError):
         store_at(tmp_path).write(["alpha"])

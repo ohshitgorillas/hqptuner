@@ -5,8 +5,6 @@
 // The environment is the seam: a fake localStorage is installed per case and removed after it. Nothing of HQPTuner's
 // is stubbed.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-loadbool.test.js
 
 import test, { afterEach } from "node:test";

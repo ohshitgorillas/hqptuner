@@ -10,10 +10,8 @@ every test first saves and loads a config preset of its own through the REST
 API. That setup is not what is under test; the snapshot steps all go through
 the browser.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One plain `assert` per test. Helpers return evidence: a list of names, a
-  setting's value, or a count.
 - Names the test typed (the station, the snapshot) are its own wire data and may
   be asserted. The shaper's enum index is the control fake's own table, and the
   other index is the only other entry on either chain.
@@ -21,8 +19,8 @@ Policy notes (docs/testing.md):
   them. The Snapshot builder's name box, Save, Delete and the confirm line's
   Confirm carry neither and are found by structure (the page title row's buttons
   in order, the confirm line's first button), never by their captions.
-- No fixed sleep. Locators wait for what they act on; a wait on the engine is
-  woken by the app's own control traffic, a ceiling on a condition.
+- Locators wait for what they act on; a wait on the engine is woken by the
+  app's own control traffic, a ceiling on a condition.
 """
 
 from collections.abc import Iterator

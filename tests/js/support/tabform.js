@@ -4,7 +4,7 @@
 //
 // A card is named by the `data-card` its `<section>` carries — the card's own
 // machine identity, contract like any other wire-side marking — and never by the
-// words in its head, which the owner may reword at will (docs/testing.md rule 9).
+// words in its head, which the owner may reword at will.
 
 /**
  * A dropdown field's spec: the value the form carries, and the options it offers.

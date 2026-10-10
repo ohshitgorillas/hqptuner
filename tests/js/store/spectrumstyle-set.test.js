@@ -5,8 +5,6 @@
 // is installed at file scope and the case writes through the public setter
 // only. What a stored style loads as is the -pref-unset and -pref-junk files'.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/spectrumstyle-set.test.js
 
 import test from "node:test";

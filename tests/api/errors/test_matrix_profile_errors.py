@@ -2,11 +2,11 @@
 
 hqplayerd 6.0.4 answers `MatrixSetProfile` with `result="Error"` and the
 diagnostic `clHQPlayerEngine::MatrixSetProfile(): clPlaylist::GetTrackFile():
-trackn > last` when there is nothing loaded to play (docs/protocol.md §6: a
-setter's Error carries the daemon's diagnostic as the element's text). That one
-diagnostic is translated into a sentence a listener can act on; every other
-refusal keeps the daemon's own words. HQPTuner never pre-checks playback state
-itself — the refusal here is the daemon's alone.
+trackn > last` when there is nothing loaded to play (a setter's Error carries
+the daemon's diagnostic as the element's text). That one diagnostic is
+translated into a sentence a listener can act on; every other refusal keeps the
+daemon's own words. HQPTuner never pre-checks playback state itself — the
+refusal here is the daemon's alone.
 
 The four parametrized jargon cases are the whole-body guard: no fragment of the
 daemon's raw diagnostic may reach the listener by any route, `detail` or not.
@@ -30,8 +30,8 @@ OTHER_ERROR = "MatrixSetProfile(): no such profile"
 
 TRANSLATED = "Live playback is needed to load a matrix profile."
 
-#: The command a switch puts on the wire, and the result value a refusal carries
-#: (docs/protocol.md §6): parts of the daemon's own answer, not HQPTuner's words.
+#: The command a switch puts on the wire, and the result value a refusal carries:
+#: parts of the daemon's own answer, not HQPTuner's words.
 SWITCH_COMMAND = "MatrixSetProfile"
 RESULT_ERROR = "Error"
 

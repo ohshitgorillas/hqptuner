@@ -1,5 +1,5 @@
-// The store's source signals: the raw polled trees (engine + config, architecture
-// §2), the client-side editor state over them, and the small connection-state
+// The store's source signals: the raw polled trees (engine + config), the
+// client-side editor state over them, and the small connection-state
 // computeds. Every other store module (resolve.js, actions.js, sync.js) sits on
 // top of this one, which imports nothing from them — the dependency edge only
 // ever runs one way.
@@ -13,7 +13,7 @@
 //   staged  — server-side pending buffer ({live, http}); the client mirrors it
 //
 // Live changes are never persisted, so engine and config can disagree for the
-// same setting — that divergence is why these are separate trees (architecture §3.6).
+// same setting — that divergence is why these are separate trees.
 
 import { signal, computed } from "@preact/signals";
 

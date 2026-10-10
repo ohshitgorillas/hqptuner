@@ -1,6 +1,6 @@
 """What a user is told when HQPTuner holds no control connection to HQPlayer and a write or a heartbeat needs one.
 
-The sentence is owner copy (docs/testing.md rule 9), so none is asserted. What is asserted is
+What is asserted is
 what the fixture knows: the host and port the manager is configured with, and the error code.
 """
 

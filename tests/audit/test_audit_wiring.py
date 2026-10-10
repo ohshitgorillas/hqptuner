@@ -1,4 +1,4 @@
-"""The audit log the existing write paths feed (docs/testing.md).
+"""The audit log the existing write paths feed.
 
 Every write HQPTuner makes is supposed to leave a JSONL record behind, one per
 line, under an envelope of ``ts``/``seq``/``event`` plus the event's own fields.
@@ -257,8 +257,8 @@ def test_a_fanned_out_profile_write_names_the_stored_preset_it_landed_in(
 ) -> None:
     # a write into the stored preset "Office" must be tellable apart from the
     # write into the running config; the target is what tells them apart, and it
-    # says which of the two it was — "config" there, "preset:<name>" here
-    # (docs/architecture.md §10.2), so one pass over a mixed log reads both
+    # says which of the two it was — "config" there, "preset:<name>" here, so
+    # one pass over a mixed log reads both
     seed_preset(tmp_path)
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0, presets=["Office"])
     assert "preset:Office" in profile_targets(audit_log)

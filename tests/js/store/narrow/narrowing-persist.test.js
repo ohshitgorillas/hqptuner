@@ -8,10 +8,9 @@
 // Persistence is one REST pair, GET/PUT /api/narrowing, both sides carrying
 // `{facets: {...}}`, driven through the shared fetch fake in
 // tests/js/support/wire/narrowingwire.js: it speaks that path with those shapes and
-// HOLDS the facet map the way the backend's store does (docs/testing.md rule 4
-// — real path, real shapes, nothing of ours stubbed). No daemon is behind it;
-// narrowing is HQPTuner's own presentational state (docs/architecture.md,
-// "Filter narrowing").
+// HOLDS the facet map the way the backend's store does.
+// No daemon is behind it;
+// narrowing is HQPTuner's own presentational state.
 //
 // Writing is coalesce-then-flush. The debounce window is not a behavior to
 // test on a clock (rule 7), so every case that sends drives the write through

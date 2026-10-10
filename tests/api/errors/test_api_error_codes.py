@@ -3,9 +3,7 @@ FastAPI's `detail`, so a client can branch on the cause without parsing prose.
 
 Written blind from the spec block, against the fakes alone: the app is built the
 way `live_api` builds it (control lane on the threaded fake daemon, no hqplayerd
-credentials, a live-snapshot store that is a real file under tmp_path). No route
-handler is stubbed and no `detail` text is asserted anywhere (docs/testing.md
-rule 9): `code` values are wire identifiers, `detail` is copy.
+credentials, a live-snapshot store that is a real file under tmp_path).
 """
 
 import json

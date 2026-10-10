@@ -16,8 +16,6 @@
 //
 // Every case sets up the state it reads, whatever ran before it.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easyview.test.js
 
 import test from "node:test";

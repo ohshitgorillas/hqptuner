@@ -1,4 +1,4 @@
-"""The gate that holds tests to the shapes docs/testing.md rule 2 and the Markers clause forbid.
+"""The gate that holds tests to the forbidden shapes.
 
 ``scripts/gates/testing/check_test_assertions.py`` reads a test file and reports
 every test with no assertion, every root conjunction inside an assert, every

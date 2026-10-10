@@ -8,9 +8,8 @@ are exercised against 6.0.4-shaped documents, and the accepted side is read back
 by an independent regex over the ``<matrix>`` body rather than through the
 writer under test.
 
-Each refusal is identified by the ``code`` its ``GroundingError`` carries, never
-by the sentence it renders (docs/testing.md rule 9: error text is owner-owned
-data). ``refusal_code`` below is the one place the exception is caught, so a
+Each refusal is identified by the ``code`` its ``GroundingError`` carries.
+``refusal_code`` below is the one place the exception is caught, so a
 refusal raised as anything other than a ``GroundingError`` still fails the case.
 
 The field-name prefix is read off the module's public constant. The profile

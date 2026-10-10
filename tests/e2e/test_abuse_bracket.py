@@ -9,14 +9,13 @@ switch it, and `close` has to put back the profile the daemon was on when `open`
 ran — unless the daemon no longer offers that profile, in which case `close`
 refuses rather than installing a name the engine cannot resolve.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test.
 - The subject is a shell script, so it is driven the way an operator drives it:
   a subprocess, its two environment knobs, and the files it leaves. Nothing
   reaches inside the script.
-- No test waits on the wall clock. The script does its own bounded polling and
-  the assertions read files it has already finished writing.
+- The script does its own bounded polling and the assertions read files it has
+  already finished writing.
 - The stores are addressed by their file names, which are wire identity
   (`Dockerfile`'s `HQPTUNER_*` path knobs), never by anything a user reads.
 - The stack here is function-scoped, not the session one: the point of the first

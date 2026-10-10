@@ -1,7 +1,6 @@
 // --- what the controls read --------------------------------------------------
-// The running engine is the sole authority for enumeration names, IDs and
-// ordering (architecture §3.1), so every option list below is built from the
-// enumerations rather than from anything shipped.
+// Every option list below is built from the enumerations rather than from
+// anything shipped.
 //
 // This module owns the read/derive core: the joins from /api/state and the
 // enumerations to the config-form domain the controls speak, and the two chain
@@ -34,8 +33,8 @@ export const items = (/** @type {string} */ key) => (enums.value && enums.value[
 export const stateOf = (/** @type {string} */ attr) => (engineState.value || {})[attr];
 
 // State reports a LIST INDEX; the config-form domain these controls speak is the
-// enum ID (protocol.md §4). The enumeration item carries both, so the join is a
-// lookup and never a computation.
+// enum ID. The enumeration item carries both, so the join is a lookup and never
+// a computation.
 const atIndex = (/** @type {EnumItem[]} */ list, /** @type {string | number | undefined} */ index) =>
   list.find((o) => String(o.index) === String(index));
 

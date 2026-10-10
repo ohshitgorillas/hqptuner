@@ -18,8 +18,7 @@ this file being the one place the shell's own values are the point. Without them
 401, and these tests ERROR rather than skip — deliberately. Only an unanswered
 socket is a skip; anything else would let a misconfigured canary read as green.
 
-**Strictly read-only** — three GETs, no POST — per docs/testing.md's rule that
-live tests never write against the production daemon.
+**Strictly read-only** — three GETs, no POST.
 
 The expected fields derive from ``presetconf``, never a hand-kept list. A canary
 you have to remember to widen is one that quietly stops covering things: this

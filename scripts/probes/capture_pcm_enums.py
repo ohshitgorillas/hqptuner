@@ -4,7 +4,7 @@
 Read-switch-restore against the live daemon: verifies the engine is idle,
 records current State, switches to PCM, captures filters/shapers/rates,
 switches back, restores filter/shaper/rate indices, and verifies the restore
-by State readback (result="OK" alone is not proof — protocol.md §6).
+by State readback.
 Aborts before any change unless the engine is stopped.
 """
 

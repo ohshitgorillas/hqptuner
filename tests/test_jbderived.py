@@ -1,8 +1,7 @@
 """``scripts/junkburst/jbderived.stats``: the percentile spread it reduces a list of values to.
 
 Five values with a known rank, so ``p25`` and ``p75`` have an exact, hand-checkable answer under
-the linear-interpolation percentile rule ``numpy.percentile`` defaults to. One assertion each
-(docs/testing.md rule 2).
+the linear-interpolation percentile rule ``numpy.percentile`` defaults to.
 """
 
 from __future__ import annotations

@@ -6,7 +6,7 @@ The governing rule everywhere below is that absence of evidence narrows nothing:
 every case the log cannot speak for resolves to None, never to a guess. The log
 text used here is the shape the running daemon writes (spec block, captured
 2026-08-01); the fake 8088 daemon serves it verbatim on GET /log, which is the
-lane HQPTuner reads (docs/testing.md — fakes speak the wire)."""
+lane HQPTuner reads."""
 
 from collections.abc import Iterator
 from pathlib import Path
@@ -28,7 +28,7 @@ from hqptuner.engine import devicecaps
 from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.presets import fileconfig
 
-#: The zero value of ``DeviceCaps | None``, so an assertion reads a field without a conjunction (docs/testing.md 2).
+#: The zero value of ``DeviceCaps | None``, so an assertion reads a field without a conjunction.
 NO_CAPS = DeviceCaps(device="", pcm_rates=[], dsd_rates=[])
 
 PREAMBLE = "2026/08/01 02:03:30 Engine started\n2026/08/01 02:03:31 Opening output device\n"

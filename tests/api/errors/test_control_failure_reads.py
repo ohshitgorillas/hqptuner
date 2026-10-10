@@ -7,12 +7,11 @@ raw socket text or the internal `{what}: connection failed: {error}` form, whose
 `{what}` is the Control API command in flight (`GetShapers: connection failed:
 Connection lost` is the field report in tests/engine/test_control_stall.py).
 
-The sentence itself is copy and is not asserted (docs/testing.md rule 9,
-docs/architecture.md §8.1). What is asserted is what the fixture and the
-operating system put there: the host and port the app was configured to reach,
-which the sentence carries as `host:port`; the wire name of the command, which
-it no longer carries; and the operating system's own text for a reset
-connection, which it no longer carries either.
+What is asserted is what the fixture and the operating system put there: the
+host and port the app was configured to reach, which the sentence carries as
+`host:port`; the wire name of the command, which it no longer carries; and the
+operating system's own text for a reset connection, which it no longer carries
+either.
 
 The daemon is the repository's control fake, served on sockets that linger for
 zero seconds, so the fake's `_close` knob resets the connection (RST) instead of

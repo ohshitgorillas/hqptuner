@@ -1,11 +1,9 @@
-"""``core.loader.poll`` re-entering a chain while a LIVE filter batch is in flight
-(docs/testing.md: behavior only, one assertion, public API only, fakes speak the
-wire protocol).
+"""``core.loader.poll`` re-entering a chain while a LIVE filter batch is in flight.
 
 An edit to the chain the engine has not loaded is held, and the poll that sees
 the engine enter that chain re-asserts it with a `SetFilter` and reads it back
-with `State` (architecture §3.7, §4.2). A LIVE batch writes its own `SetFilter`
-and reads it back the same way. Each readback verifies its own write only while
+with `State`. A LIVE batch writes its own `SetFilter` and reads it back the same
+way. Each readback verifies its own write only while
 no other `SetFilter` reaches the engine between the write and the read, so the
 contract asserted here is on the daemon's command log: every `SetFilter` is read
 back by a `State` before the next `SetFilter` arrives.

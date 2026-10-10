@@ -32,8 +32,8 @@ docs/agent-failures.md
 docs/official/
 
 # EQ Assistant research papers — copyrighted, not redistributable.
-# Fetched by hand where automated retrieval failed; cited in docs/eq-assistant/SOURCES.md
-# and read from these local copies. Keep them, never commit them.
+# Fetched by hand where automated retrieval failed and read from these local
+# copies. Keep them, never commit them.
 docs/eq-assistant/*.pdf
 
 # EQ Assistant working checklist — churns every session, local for now

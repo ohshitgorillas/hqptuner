@@ -6,7 +6,7 @@ client the new pair earns, and takes the control lane down so it comes back on t
 
 The password goes in and never comes back out. The read route answers whether one is held, not what it is: this
 surface is reachable by any browser that reaches HQPTuner's own port, and a credential that is written once has no
-reason to be readable afterwards (architecture section 3 keeps credentials server-side).
+reason to be readable afterwards.
 """
 
 import contextlib

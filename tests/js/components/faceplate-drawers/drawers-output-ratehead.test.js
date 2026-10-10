@@ -1,7 +1,6 @@
 // Rendered suite for the head of the Output drawer's rate dial row, drawn by the generic drawer from the Output schema
 // (hqptuner/static/components/faceplate/drawers/output.js): the row carries one header, and beside it a sub-label, the
-// same way the DAC bits row does. The words in either are owner copy and are not asserted (docs/testing.md rule 9); the
-// DAC bits row is the reference the dial row's head is read against.
+// same way the DAC bits row does. The DAC bits row is the reference the dial row's head is read against.
 //
 // Renders through preact-render-to-string with the store driven at the wire by the staging fake. The dial is found by
 // its role (`group`) and class, its row as the smallest drawer row enclosing it, the DAC bits row by its catalog key

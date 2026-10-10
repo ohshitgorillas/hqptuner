@@ -1,10 +1,10 @@
 // Behavioral suite for the `split` counter (store/resolve.js) — the pending
 // bar's "N live · M restart" arithmetic, shape `{ live, restart }`.
 //
-// Policy (docs/testing.md): public API only, one assertion per test. Counts
+// Counts
 // cannot be assigned — `split` is computed over the schema and the staged
 // buffer — so every case stages real edits through `edit()` against the real
-// staging wire (rule 4); no store function is stubbed.
+// staging wire.
 //
 // The contract under test: a dirty appliesLive field (pcm_dither, form field
 // "dither") counts LIVE exactly when every dirty http-lane field in the buffer

@@ -1,8 +1,7 @@
 // Matrix-profile descriptions — the prose the user wrote about a saved profile,
 // stored for the install and shared by every browser pointed at it. Keyed by
-// profile NAME, the stable join key (architecture §3.1), because
-// `<matrix_profile>` carries only `name` (readme §1.12) and there is nowhere in
-// hqplayerd's config for this text to live.
+// profile NAME, because `<matrix_profile>` carries only `name` (readme §1.12)
+// and there is nowhere in hqplayerd's config for this text to live.
 //
 // Writes are QUEUED, not optimistic. A star is one click and lands or does not;
 // a description is typed, and a PUT per keystroke would be a write storm on the

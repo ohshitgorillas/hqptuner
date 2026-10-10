@@ -9,9 +9,9 @@
 // while the user is moving the knob is where the knob is, not the level the last
 // poll happened to report.
 //
-// Policy (docs/testing.md): public API only, one assertion per test. Every case
+// Every case
 // drives the exported store signals and reads the exported computed — the same
-// surface a component has. Nothing is stubbed.
+// surface a component has.
 //
 // State reset is total on every call: module-level signals outlive a test file,
 // so a partial reset makes cases pass alone and fail in sequence.

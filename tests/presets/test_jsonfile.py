@@ -1,4 +1,4 @@
-"""``jsonfile.read_stamped`` — the one reader every stamped JSON store file shares (docs/testing.md).
+"""``jsonfile.read_stamped`` — the one reader every stamped JSON store file shares.
 
 A missing file is an empty store nothing has saved into yet; a file that exists but cannot be read as a JSON object
 is a broken one, refused rather than quietly read as empty.

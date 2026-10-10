@@ -1,5 +1,5 @@
 """Live playback-volume lane (Control API 4321), through the faithful fake
-daemon (docs/testing.md). Volume is a real-time write outside the staged-config
+daemon. Volume is a real-time write outside the staged-config
 flow: a Volume command changes State.volume immediately, VolumeRange carries the
 slider bounds + enabled flag, and a write is rejected when volume control is
 disabled."""

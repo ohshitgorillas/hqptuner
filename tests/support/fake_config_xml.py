@@ -76,7 +76,7 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f'cuda="{st["cuda"]}" multicore="{st["multicore"]}" nblocks="{st["nblocks"]}">'
         # <defaults samplerate/bitrate> are the per-family RATE LIMITS, a
         # different slot from <pcm samplerate>/<sdm bitrate> above
-        # (settings-classification.md) — rendered from their own state keys
+        # — rendered from their own state keys
         f'<defaults samplerate="{st["defaults_samplerate"]}" bitrate="{st["defaults_bitrate"]}" '
         f'volume="{st["defaults_volume"]}"/>'
         f'<network address="{net_addr}" device="{net_dev}" ipv6="{_b(st["net_ipv6"])}" '

@@ -3,9 +3,9 @@
 //
 // A preset is a whole hqplayerd config, so which transducer it is for is a
 // property of that preset. hqplayerd re-serializes its config from its own model
-// and would drop an attribute of ours (docs/matrix-spec.md "Speakers / headphones"), so the choice
+// and would drop an attribute of ours, so the choice
 // lives in HQPTuner's own sidecar, keyed by preset NAME — the stable join key
-// (docs/architecture.md §3.1) — and reaches the client over one REST pair,
+// — and reaches the client over one REST pair,
 // GET/PUT /api/matrixmodes.
 //
 // The map is read ONCE, when the store module loads, the way favorites and
@@ -19,7 +19,7 @@
 // under `hqptuner.dspMode` still answers "what side was I last on", for a preset
 // with no entry and for the moments there is no preset at all.
 //
-// The wire is faked, never a store function (docs/testing.md rule 4): it speaks
+// The wire fake speaks
 // the real paths with the real shapes, HOLDS the map the way the backend's store
 // does, and records the PUT bodies it is handed. Which preset the view follows is
 // driven the way the app drives it — `config.active` for the applied one,

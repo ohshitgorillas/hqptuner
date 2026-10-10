@@ -27,8 +27,7 @@
 // vanished entry reads as "this build does not support it", a grayed one as
 // "your hardware cannot do it", so every named tier comes back present.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no store
-// function stubbed — the exported `config` signal carries the /api/config
+// The exported `config` signal carries the /api/config
 // payload exactly as the endpoint serves it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/devicecaps.test.js
@@ -105,8 +104,8 @@ test("test_every_pcm_tier_above_what_the_device_announced_is_grayed", async () =
   assert.deepEqual(grayedAmong(out, [PCM_8X, PCM_16X, PCM_32X]), [PCM_8X, PCM_16X, PCM_32X]);
 });
 
-// The word a grayed rate row reads is owner copy (docs/testing.md rule 9); that
-// it carries a reason at all is what GRAYED states, on every case here.
+// That a grayed rate row
+// carries a reason at all is what GRAYED states, on every case here.
 
 test("test_a_pcm_tier_the_device_announced_is_not_grayed", async () => {
   // The other half of the judgment: a store that grayed its whole menu passes

@@ -1,12 +1,11 @@
 """How the rate dial's glass looks under the pin picker, on screen.
 
 The Output drawer's rate dial prints both rates of every tier, its 44.1k-family
-value and its 48k-family value (docs/faceplate-spec.md, Output drawer). Under
-Auto every value reads alike; picking a family is rate-picking mode, and there the
-glass sets the other family's values apart while the picked family's look as they
-did under Auto, every value still on screen. The claim holds on the tier the
-running band's needle sits on as on any other tier, and the needle's tier is
-the one read here.
+value and its 48k-family value. Under Auto every value reads alike; picking a
+family is rate-picking mode, and there the glass sets the other family's values
+apart while the picked family's look as they did under Auto, every value still
+on screen. The claim holds on the tier the running band's needle sits on as on
+any other tier, and the needle's tier is the one read here.
 
 Each test opens the drawer with pinned rates allowed and picks a family. One
 reads a value's rendered look under Auto and again after the pick; the other
@@ -14,11 +13,11 @@ reads the tier's two values after the pick and compares them with each other.
 A look is only ever compared with another observed look, never with a literal
 colour.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
 - Browser lane: the rendered suite already pins the markup; what a stylesheet
   does with it, including a rule keyed on an ancestor of the value, exists only
-  once a browser computes the style (rule 15).
+  once a browser computes the style.
 - The look of a value is its computed paint (fill, stroke, colour, weight,
   decoration, visibility) plus the opacity and filters it inherits from every
   element between it and the dial. Nothing here names a class or a token.
@@ -31,9 +30,8 @@ Policy notes (docs/testing.md):
   time, so the needle's tier follows the fixture.
 - Picking a family writes nothing, so the pick leaves the session's daemon as it
   found it.
-- Nothing waits on a clock: locators wait on conditions, and every finite
-  animation (a colour transition included) is awaited to its end before a look is
-  read.
+- Locators wait on conditions, and every finite animation (a colour transition
+  included) is awaited to its end before a look is read.
 """
 
 from typing import Any

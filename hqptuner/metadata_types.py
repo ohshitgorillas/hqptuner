@@ -130,7 +130,7 @@ class StaticDb:
 
 
 class EnumFilterItem(TypedDict):
-    """One live filter enumeration item merged with its static prose (protocol.md §6 ``FiltersItem``)."""
+    """One live filter enumeration item merged with its static prose (``FiltersItem``)."""
 
     index: str
     name: str
@@ -142,7 +142,7 @@ class EnumFilterItem(TypedDict):
 
 
 class EnumShaperItem(TypedDict):
-    """One live shaper enumeration item merged with its static prose (protocol.md §6 ``ShapersItem``)."""
+    """One live shaper enumeration item merged with its static prose (``ShapersItem``)."""
 
     index: str
     name: str

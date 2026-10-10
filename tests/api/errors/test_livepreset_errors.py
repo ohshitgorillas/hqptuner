@@ -1,12 +1,11 @@
 """Error contracts of the live-snapshot REST surface — the statuses and details the
 LIVE card keys its messaging off.
 
-Characterization of behavior that already exists (docs/testing.md §8 exemption:
-nothing here is new or changed). Every case is driven the way a caller reaches
-it — a store file this HQPTuner cannot read, a name the store refuses, a preset
-nobody saved, an engine whose loaded chain is unknowable. No store method is
-stubbed and no manager internals are touched: the fakes speak the wire, the
-store is a real file on disk.
+Characterization of behavior that already exists. Every case is driven the way a
+caller reaches it — a store file this HQPTuner cannot read, a name the store
+refuses, a preset nobody saved, an engine whose loaded chain is unknowable. No
+store method is stubbed and no manager internals are touched: the fakes speak
+the wire, the store is a real file on disk.
 
 Detail assertions anchor on the substantive part of each message (the schema the
 file is stamped with, the name that is missing, the field that went stale) rather
@@ -118,8 +117,7 @@ def test_saving_with_the_engines_chain_unknown_is_a_conflict(chainless_api: Test
 def test_saving_with_the_engines_chain_unknown_details_the_chain_field_alone(
     chainless_api: TestClient,
 ) -> None:
-    # keyed by field, as the LIVE card marks the control it cannot fill; the
-    # reason text under the key is owner-owned data (docs/testing.md rule 9)
+    # keyed by field, as the LIVE card marks the control it cannot fill
     assert set(chainless_api.put("/api/livepresets/Warm").json()["detail"]) == {"chain"}
 
 

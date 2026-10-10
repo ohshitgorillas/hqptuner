@@ -24,8 +24,6 @@
 // The values seeded and set are the preferences' own identifiers, the values
 // the faceplate's controls carry, never the labels drawn beside them.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate.test.js
 
 import test from "node:test";

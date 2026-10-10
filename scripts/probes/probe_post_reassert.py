@@ -4,8 +4,8 @@
 ``MatrixSetProfile`` installs the profile's whole matrix context, and every
 profile HQPTuner writes is ``<pipeline>`` rows only — so a switch clears the
 running post-process (probe_profile_post_process.py, Q2). 4321 has no
-post-process verb (protocol.md §151), leaving one lane: a complete
-``POST /matrix``. Two things decide whether that is a usable fix:
+post-process verb, leaving one lane: a complete ``POST /matrix``. Two things
+decide whether that is a usable fix:
 
   Q3  does the POST PERSIST the profile's rows into the working config XML —
       i.e. does re-asserting turn a memory-only Load into a permanent one?
@@ -109,7 +109,7 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
     """Echo the daemon's own /matrix form back complete, with ``overlay`` applied.
 
     Checkbox contract enforced: ``1`` when on, OMITTED when off — a stray ``on``
-    or ``0`` is written verbatim and wedges engine init (protocol.md "Matrix form lane").
+    or ``0`` is written verbatim and wedges engine init.
     """
     form = await client.get("/matrix")
     form.raise_for_status()
@@ -135,8 +135,8 @@ async def _post_matrix(client: httpx.AsyncClient, overlay: dict[str, str]) -> No
 async def _poll_correction(http: HttpConfigClient, was: dict[str, object]) -> dict[str, object]:
     """Poll the matrix form until the correction plugin moves off ``was``, giving up after 20 passes.
 
-    The reload takes ~6.5 s (protocol.md "Matrix form lane") and /config keeps serving through
-    it, so the form is read repeatedly rather than once.
+    The reload takes ~6.5 s and /config keeps serving through it, so the form is read
+    repeatedly rather than once.
     """
     current = was
     for _ in range(20):

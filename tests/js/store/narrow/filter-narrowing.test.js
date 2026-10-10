@@ -14,11 +14,10 @@
 // tests/js/store/srcformat.test.js. Those cases are the regression guard on this
 // split and are deliberately not restated here.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, nothing of
-// HQPTuner's stubbed. Facet data is driven by assigning the two source signals
+// Facet data is driven by assigning the two source signals
 // the real payloads carry — `enums.filters` is the running engine's
-// `<GetFilters/>` enumeration (`{index, name, value, arg, description}`,
-// protocol.md:226) and `metadata.filters.filters` is the static name-keyed
+// `<GetFilters/>` enumeration (`{index, name, value, arg, description}`)
+// and `metadata.filters.filters` is the static name-keyed
 // overlay served by /api/metadata.
 //
 // `reset()` reassigns both source signals and calls resetNarrowing() on every

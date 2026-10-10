@@ -7,8 +7,6 @@
 // needs a file of its own. The working fake is installed BEFORE prefs.js is
 // imported and nothing seeds it.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/spectrumstyle-pref-unset.test.js
 
 import test from "node:test";

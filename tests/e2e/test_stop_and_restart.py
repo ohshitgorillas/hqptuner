@@ -6,16 +6,15 @@ that waits on a loop that never finishes keeps the process alive until it is
 killed. Started again on the same port and the same state, the app has to come
 back up and serve the page, with the page's live feed answered.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- Characterization of existing behavior (rule 8 exemption): these pin what the
-  app does now, as regression cover; there is no pre-change state to go red on.
-- One assertion per test; the helpers return what they observed.
+- Characterization of existing behavior: these pin what the app does now, as
+  regression cover.
 - The app under test is a stack of this module's own, never the session stack,
   since stopping it is the point. The wire fakes stay up across the restart,
   the way the engine stays up while HQPTuner restarts.
 - Waits are bounded: the exit is a process wait under a ceiling and the page's
-  feed is an awaited response under a ceiling. Nothing sleeps.
+  feed is an awaited response under a ceiling.
 """
 
 import http.client

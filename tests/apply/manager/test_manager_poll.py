@@ -1,6 +1,4 @@
-"""``core.loader.poll`` against a live write that lands while the poll is in flight
-(docs/testing.md: behavior only, one assertion, public API only, fakes speak the
-wire protocol).
+"""``core.loader.poll`` against a live write that lands while the poll is in flight.
 
 A poll reads ``State`` and then ``Status``. A live write that lands between the
 two has already stored the engine's new State in the manager's picture by the

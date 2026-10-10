@@ -14,9 +14,9 @@ only, which is why loading one leaves the correction plugin bypassed.
 If yes, the gap is only the config-file format HQPTuner writes. If no, a saved
 profile cannot carry post-process at all and the fix has to live elsewhere.
 
-Saved profiles are memory-only (protocol.md "Saved matrix profiles do not persist"), so
-this writes nothing to disk; the switch back to the original profile is the only
-cleanup needed. ``/matrix/save`` costs an engine reload.
+Saved profiles are memory-only, so this writes nothing to disk; the switch back
+to the original profile is the only cleanup needed. ``/matrix/save`` costs an
+engine reload.
 
 Aborts before any write unless the engine is stopped.
 
@@ -63,7 +63,7 @@ def _correction(fields: list[FormField]) -> dict[str, object]:
 
 
 async def _settled_correction(http: HttpConfigClient, differs_from: dict[str, object] | None) -> dict[str, object]:
-    """Read the correction slice, polling past the reload and device rediscovery (protocol.md "Matrix form lane")."""
+    """Read the correction slice, polling past the reload and device rediscovery."""
     seen: dict[str, object] = {}
     for _ in range(20):
         seen = _correction((await _rpc(http.get_matrix))["fields"])

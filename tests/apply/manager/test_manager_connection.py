@@ -1,6 +1,6 @@
-"""Connection-manager alarm bookkeeping and the mode-name join
-(docs/testing.md): the alarm trips only past the threshold (in virtual time),
-and the mode name is a join of the engine's State onto the modes enumeration."""
+"""Connection-manager alarm bookkeeping and the mode-name join: the alarm trips
+only past the threshold (in virtual time), and the mode name is a join of the
+engine's State onto the modes enumeration."""
 
 import pytest
 from conftest import LiveManager

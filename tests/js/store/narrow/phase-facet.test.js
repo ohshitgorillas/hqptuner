@@ -15,8 +15,7 @@
 // alternation matched `min` inside `minringFIR` before the `-lp` check ran,
 // misreading it as minimum.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no
-// snapshots. Live enum items are hand-built in the engine's own shape
+// Live enum items are hand-built in the engine's own shape
 // (`{index, name, value, arg, description, apodizing, static}`); the `static`
 // member is the backend-merged overlay row, seeded directly the way the
 // backend would have joined it.
@@ -38,7 +37,7 @@ import { enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 
 /**
  * One `<FiltersItem/>` as the backend serves it: the engine's enumeration
- * fields (protocol.md) plus the backend-merged overlay row under `static`
+ * fields plus the backend-merged overlay row under `static`
  * (undefined on an overlay miss).
  *
  * @param {string} name

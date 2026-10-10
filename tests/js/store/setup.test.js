@@ -2,12 +2,11 @@
 // the panel throws itself open, what discovery is allowed to write into the
 // host field, what a save puts on the wire, and what closes the panel again.
 //
-// The seams are the ones the frontend policy names (docs/testing.md, Frontend):
-// the `health` signal is assigned the readings a poll would have delivered, the
-// panel's own exported signals are assigned to state the situation, `fetch` is
-// faked at the real REST paths with the real response shapes, and no store
-// function is stubbed. The clock is injected through `initSetup(now)` rather
-// than waited on (rule 7), so every "at N ms" below is a reading of that
+// The `health` signal is assigned the readings a poll would have delivered, the
+// panel's own exported signals are assigned to state the situation, and `fetch` is
+// faked at the real REST paths with the real response shapes.
+// The clock is injected through `initSetup(now)`,
+// so every "at N ms" below is a reading of that
 // function and never a duration this suite spends.
 //
 // Readings are fresh objects every time: writing the same reference to a signal

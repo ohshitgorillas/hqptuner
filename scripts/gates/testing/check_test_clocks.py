@@ -31,7 +31,7 @@ from pathlib import Path
 #: Seconds below which a real deadline is a wait rather than a ceiling.
 SMALL = 0.5
 
-#: The tree where a real clock is allowed, by docs/testing.md.
+#: The tree where a real clock is allowed.
 CARVE_OUT = "tests/e2e/"
 
 

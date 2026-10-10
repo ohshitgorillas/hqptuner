@@ -1,6 +1,5 @@
 """What a connect costs the 8088 lane: each whole-payload read the connect body
-needs is fetched once, however many of its steps consume it (docs/testing.md —
-public API, fakes speak the wire and count what reached them).
+needs is fetched once, however many of its steps consume it.
 
 The settings archive (~5 MB on a real daemon) feeds both the file-config view and
 the one-time preset migration, and the device-capability read wants the whole

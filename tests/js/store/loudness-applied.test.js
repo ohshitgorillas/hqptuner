@@ -17,8 +17,6 @@
 // The gate cases assert the drop from an open gate to a shut one, so the
 // expected value is never the zero an absent feature would also return.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/loudness-applied.test.js
 
 import test from "node:test";

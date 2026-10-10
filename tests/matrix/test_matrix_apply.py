@@ -1,5 +1,5 @@
 """The post-processing controls (Bauer crossfeed / DAC correction) through the
-faithful fake (docs/testing.md). A staged post_* field rides the persistent
+faithful fake. A staged post_* field rides the persistent
 restore lane — the manager edits its <post_process><plugin> node in the snapshot
 — and the change appears in the running config's /matrix readback.
 """

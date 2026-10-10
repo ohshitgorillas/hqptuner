@@ -4,7 +4,7 @@
 //
 // Every name here is synthetic — no real filter's classification is asserted; the rules themselves are the subject.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no snapshots. Overlay rows reach the frontend two ways, and both are exercised: merged onto a live enum item under its `static` key the way the backend serves `<GetFilters/>` (protocol.md), and as entries of `metadata.value.filters.filters` keyed by name for filters the live enum does not carry (architecture.md §3.4).
+// Overlay rows reach the frontend two ways, and both are exercised: merged onto a live enum item under its `static` key the way the backend serves `<GetFilters/>`, and as entries of `metadata.value.filters.filters` keyed by name for filters the live enum does not carry.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/length-facet.test.js
 

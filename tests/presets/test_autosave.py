@@ -1,5 +1,4 @@
-"""Auto-save to active preset (docs/testing.md — behavior only, one assertion
-per test, public API only, fakes speak the wire protocol).
+"""Auto-save to active preset.
 
 The flag lives in the preset store on disk, not in any browser. With it on and
 a preset active, every successful write — staged apply, engine overrides,

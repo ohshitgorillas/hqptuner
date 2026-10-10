@@ -167,11 +167,11 @@ async def poll(mgr: "ConnectionManager") -> None:
     # assignment of this earlier read would overwrite.
     readings.state = state
     voltrace.observe_change(mgr, "state", {"volume": current.get("volume")}, {"volume": previous.get("volume")})
-    # A mode switch swaps the lists wholesale (architecture §3.3), and playback
-    # state moves the rate list: what fills that one is the transport as well
-    # as the mode (manual p.18 §4.4), so an idle network backend answers
-    # GetRates with auto alone where the same daemon serves thirteen PCM tiers
-    # once asked again (verified live on 6.0.4) — and the page grayed every tier.
+    # A mode switch swaps the lists wholesale, and playback state moves the
+    # rate list: what fills that one is the transport as well as the mode
+    # (manual p.18 §4.4), so an idle network backend answers GetRates with
+    # auto alone where the same daemon serves thirteen PCM tiers once asked
+    # again, so a page that kept the first answer would gray every tier.
     moved = known and any(current.get(a) != previous.get(a) for a in ("mode", "state"))
     if moved:
         log.info("engine moved (mode %s, state %s), re-enumerating", current.get("mode"), current.get("state"))

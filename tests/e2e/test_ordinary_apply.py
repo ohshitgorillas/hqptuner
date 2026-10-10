@@ -8,13 +8,11 @@ puts the engine on the other side, then has the user apply the target, so every
 case has a transition to observe and the two cases of each lane expect
 distinct values.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test; helpers return evidence.
 - Controls are found by wire identity: the rail stage (`data-stage`), the
   drawer id, the tab (`data-tab`), the row's catalog key (`data-k`), the
   option value (`data-v`), the apply button's `data-testid`.
-- Waits are bounded condition-polls on the engine or the DOM. Nothing sleeps.
 - The restore lane's starting side is set through the app's own REST staging
   and apply, the way any client reaches it, never by writing the fake's file
   state, which the app does not re-read on every poll.
@@ -25,7 +23,7 @@ Policy notes (docs/testing.md):
   verdict the store records for an apply, so no element renders one to assert
   on; the verdict's wording is covered in the JS store suite.
 - Not pinned here: the apply report's per-lane outcome. The REST lane already
-  covers it, so a browser copy would constrain nothing more (rule 15).
+  covers it, so a browser copy would constrain nothing more.
 """
 
 import json

@@ -1,4 +1,4 @@
-"""Reading the audit log back over REST (docs/testing.md).
+"""Reading the audit log back over REST.
 
 `GET /api/audit` is the operator's window onto the same JSONL envelope
 `test_audit_wiring.py` asserts on from the file side. Two facts shape every case

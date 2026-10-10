@@ -1,8 +1,8 @@
 // Rendered suite for the text of the Output drawer's rate dial row, drawn by the generic drawer from the Output schema
 // (hqptuner/static/components/faceplate/drawers/output.js): the row prints its header line, a header and its
 // sub-label, and the glass, and no other text. No description sits under the glass, whether the row would take it from
-// its own markup or from the rate entries of the settings metadata. The words of the header line and the glass are
-// owner copy and are not asserted (docs/testing.md rule 9): the row's text less theirs is what is read.
+// its own markup or from the rate entries of the settings metadata. The row's text less the words of the header line
+// and the glass is what is read.
 //
 // The fixture metadata gives every Output entry, the two rate entries among them, a tooltip of its own, so a row that
 // printed the paragraph of its metadata entry would print fixture prose here. Both modes are read, since the running

@@ -1,4 +1,4 @@
-"""The gate that verifies a design-doc citation resolves (``docs/testing.md``).
+"""The gate that verifies a design-doc citation resolves.
 
 ``scripts/gates/check_doc_refs.py`` reports every quoted or positional
 citation problem in a file, and a file it cannot read is itself one problem

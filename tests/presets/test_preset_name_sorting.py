@@ -1,4 +1,4 @@
-"""Natural-order sorting of preset names (docs/testing.md).
+"""Natural-order sorting of preset names.
 
 Preset names routinely carry a rate or a multiple in them, and those numbers
 are what a reader orders the list by: a name embedding 256 belongs before one

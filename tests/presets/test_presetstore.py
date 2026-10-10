@@ -1,4 +1,4 @@
-"""PresetStore behavior through its public API (docs/testing.md).
+"""PresetStore behavior.
 
 Pure filesystem — no daemon, no socket, no HTTP. The store treats a preset
 payload as opaque bytes and never parses it, so the payloads here are short
@@ -108,8 +108,8 @@ def test_a_deleted_preset_leaves_the_listing(tmp_path: Path) -> None:
 @pytest.mark.parametrize(("name", "files"), [*((name, 0) for name in ESCAPING_NAMES), ("alpha", 1)])
 def test_only_an_accepted_name_puts_its_payload_on_disk(tmp_path: Path, name: str, files: int) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the disk check (docs/testing.md rule 2 counts a
-    # `pytest.raises` block as an assertion). A refused save may still
+    # this test owns is the disk check.
+    # A refused save may still
     # materialize the store directory and its empty stamp — that is bookkeeping,
     # not a payload, so the walk looks for the payload bytes specifically.
     store = store_at(tmp_path)

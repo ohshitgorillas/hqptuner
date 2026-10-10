@@ -15,8 +15,7 @@ row's own statistics support by the fixture's splits: the filter whose corner si
 expects ``none``, a spur-absent row included.
 
 The 20k rule reads one closed block's frames, and a fixture row stores a windowed minimum
-spectrum and no frames, so no row here can produce a record and none is scored on 20k. The 20k
-corpus is the burst corpus of ``docs/junk-filter-autopilot-resource-20k.md`` §2.
+spectrum and no frames, so no row here can produce a record and none is scored on 20k.
 
 ``--classifier`` takes a dotted path. A callable is used as it stands and must accept one row
 and return a filter name. A module is adapted: its ``classify`` is called on the row's own

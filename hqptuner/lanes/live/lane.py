@@ -7,9 +7,9 @@ that pair would also apply edits the user staged elsewhere and never asked for.
 This lane touches neither the pending store nor the persistent 8088 lane, so it
 cannot restart the daemon.
 
-``result="OK"`` is not proof of application (protocol.md §6): every setter here
-is verified by a ``State`` readback, which is ``writer.apply_live``'s job and the
-reason this lane reuses it rather than calling the setters itself.
+``result="OK"`` is not proof of application: every setter here is verified by a
+``State`` readback, which is ``writer.apply_live``'s job and the reason this lane
+reuses it rather than calling the setters itself.
 
 No idle gate, here or anywhere in the write path (CLAUDE.md): a live setting
 applies immediately even mid-playback, and what that costs is the user's to

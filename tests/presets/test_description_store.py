@@ -11,7 +11,7 @@ nothing here needs an app, a client or a daemon, and everything there needs at
 least one of the three.
 
 A description is keyed by profile NAME, the stable join key
-(docs/architecture.md §3.1) — `<matrix_profile>` carries exactly one attribute,
+— `<matrix_profile>` carries exactly one attribute,
 `name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
 prose to live and the store is HQPTuner's own state. Nothing in this file touches
 hqplayerd at all: a `DescriptionStore` is a file and nothing else.

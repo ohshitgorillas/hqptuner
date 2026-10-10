@@ -1,7 +1,7 @@
 """The fake hqplayerd metering side channel (4322) — real frames over a real socket.
 
 The frames are the caller's: this module packs no spectrum and derives nothing,
-it streams the bytes it was handed (docs/testing.md rule 13). A client that
+it streams the bytes it was handed. A client that
 connects is sent ``frames`` copies of that frame back to back and then held
 open, so a reader keeps its socket for the length of the case and the fake
 never spins: once the reader's buffer is full the send blocks, and once the

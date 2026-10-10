@@ -75,7 +75,7 @@ export const configPayload = (form, mode, engine) => ({
 // The tails the engine spells a filter's ratio class with, by the class name a
 // case asks for. The class is stated at the end of a `<FiltersItem/>`
 // description, after the chain glyph — `⥣` on the SDM chain, `⥮` on the PCM one
-// (docs/protocol.md §4, the format tests/js/store/narrow/narrowing-rate.test.js drives
+// (the format tests/js/store/narrow/narrowing-rate.test.js drives
 // narrowing with). A filter the enumeration describes with no tail, or does not
 // describe at all, carries no ratio class: that is the absence a case wanting
 // "the enumeration says nothing" seeds.
@@ -113,7 +113,7 @@ export const enumerations = (vocab, modeName, ratios = {}) => ({
 
 /**
  * What State reports for one chain end: the LIST INDEX of the filter the engine
- * has loaded there (docs/protocol.md §4, never the id), or the "0" of a chain
+ * has loaded there (never the id), or the "0" of a chain
  * end holding nothing.
  *
  * @param {Vocab} vocab

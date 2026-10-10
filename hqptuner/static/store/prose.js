@@ -4,8 +4,7 @@
 //   settings.json   label + tooltip per control, keyed by tab group, each entry
 //                   citing the manual or readme section it was taken from
 //   filters.json    per-filter description, joined by the ENGINE's own filter
-//   shapers.json    name (architecture §3.1: enumerations are the sole authority
-//                   for names, static data joins by name)
+//   shapers.json    name
 //
 // Two pages rendering one control from two
 // different strings is how a UI ends up disagreeing with itself, so both read

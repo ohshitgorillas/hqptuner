@@ -9,18 +9,17 @@ Each test writes a log of its own onto the HTTP fake's log page, so every
 expected line is wire data the test put there, and puts the fake's log back
 afterwards.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
 - Browser lane: the read starts from an effect that runs only when the drawer
   opens in a real browser, and the pane refreshes on a timer. Server rendering
   runs neither, and the tail arithmetic and the read's caching are pinned at
   the engine and REST lanes already.
-- One assertion per test. The helper waits for a condition and returns what
-  the pane holds; the test judges it. A wait that runs out returns the pane as
-  it stands, so a missing line fails the assertion rather than the wait.
+- The helper waits for a condition and returns what the pane holds. A wait
+  that runs out returns the pane as it stands, so a missing line fails the
+  assertion rather than the wait.
 - Controls are found by machine identity: the gear's `data-testid`, the rail
   category's `data-stage`, the drawer's id.
-- Waits are bounded condition-polls; the timeout is a ceiling, never a duration.
 """
 
 import contextlib

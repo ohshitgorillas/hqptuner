@@ -7,9 +7,9 @@
 // data, so `pipsFor("some-preset", "sdm") === 17` would assert only that a
 // constant is that constant, and a claim that one knob or chain costs more or
 // the same as another would pin the tuning just as hard and go red on a retune
-// where nothing is wrong (docs/testing.md rule 9). The two rules below are the
-// module's own, not the table's: the auto output mode is not a third cost, and
-// an id off the table costs nothing.
+// where nothing is wrong. The two rules below are the module's own, not the
+// table's: the auto output mode is not a third cost, and an id off the table
+// costs nothing.
 //
 // WHICH PRESETS EXIST, and which knob positions each defines, is asked of the
 // shipped table through `presetsFor` rather than typed out: the roster is the
@@ -20,7 +20,7 @@
 //
 // The module is pure: no signals, no DOM, no network. Every case here is a
 // plain call with a plain return value. Nothing is stubbed and nothing needs a
-// fake (docs/testing.md rule 4 has nothing to bite on where there is no wire).
+// fake.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easy-pips.test.js
 

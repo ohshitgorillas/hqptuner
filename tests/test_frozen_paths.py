@@ -28,7 +28,7 @@ from hqptuner.config import Config
 PACKAGE_DIR = Path(hqp_config.__file__).parent
 
 #: The home directory every `user_data_dir()` case hands in, so no case reads
-#: the machine's own (docs/testing.md rule 16).
+#: the machine's own.
 HOME = "/home/u"
 
 #: Stand-in for PyInstaller's unpacked-bundle root where the case does not need
@@ -61,7 +61,7 @@ FROZEN_PATH_CASES: list[tuple[str, dict[str, str], str]] = [(name, {}, "user") f
 
 #: Bytes this suite writes into the bundle it builds, so the assertion on what a
 #: route served compares against the test's own input and never the shipped
-#: asset (docs/testing.md rule 9).
+#: asset.
 INDEX_BYTES = b"<h1>bundle</h1>"
 AUTOEQ_BYTES = b'{"meta":{"sha":"0123456789abcdef0123456789abcdef01234567"}}'
 

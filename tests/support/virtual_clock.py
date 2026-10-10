@@ -1,4 +1,4 @@
-"""A clock the suite advances (docs/testing.md rule 7), handed to the manager and the app at construction.
+"""A clock the suite advances, handed to the manager and the app at construction.
 
 Time stands still while anything it knows of is still working. It knows a task once the task has waited on it, and a
 background loop from the moment ``spawn`` starts it. When every such task is waiting on it and at least one of them

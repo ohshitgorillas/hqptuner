@@ -1,4 +1,4 @@
-"""Which faults the connect/poll path is allowed to swallow (docs/testing.md).
+"""Which faults the connect/poll path is allowed to swallow.
 
 An expected wire or state fault — a route refusing, a stored preset the store
 will not read — keeps the quiet-retry behavior: it is recorded where it
@@ -14,9 +14,8 @@ non-numeric values in a ``type="number"`` input and a State carrying a non-numer
 volume, mode, filter index or ``RatesItem`` were all tried and all parse clean.
 That is a statement about what we could build, not a pinned property of the
 parsers. Those cases are injected through the manager's public constructor seam
-instead — see
-``FaultingMatrixClient`` at the foot of this file, and the reading of
-docs/testing.md rule 4 recorded above it.
+instead — see ``FaultingMatrixClient`` at the foot of this file, and the reading
+recorded above it.
 """
 
 import contextlib
@@ -176,11 +175,10 @@ async def test_a_healthy_pass_records_no_error_but_a_refusing_route_does(
 # Neither fake can serve a body that makes a parser raise (see the module
 # docstring), so the fault is injected where a caller could inject it: the 8088
 # client is a public constructor argument of ConnectionManager, and this subclass
-# is passed as that argument. docs/testing.md rule 4 forbids stubbing a client's
-# own methods in order to test THAT client; here the client is a collaborator
-# handed in through a documented public seam and the subject under test is the
-# manager's own fault classification. Nothing else is patched: no manager method,
-# no parser, no monkeypatching.
+# is passed as that argument. Here the client is a collaborator handed in
+# through a documented public seam and the subject under test is the manager's
+# own fault classification. Nothing else is patched: no manager method, no
+# parser, no monkeypatching.
 
 
 class FaultingMatrixClient(HttpConfigClient):

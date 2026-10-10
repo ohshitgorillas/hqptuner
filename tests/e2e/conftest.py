@@ -75,10 +75,8 @@ Typical use
         page.locator("[data-testid='apply']").click()
         assert any(name == "SetFilter" for name, _ in stack.control_log)
 
-Controls are addressed by machine identity, never by the words on them
-(`docs/testing.md` rule 9): `data-testid` on the shell chrome, `data-k` on every
-field wrapper, `data-v` on every option row. Locating a control by its caption
-pins copy the owner may reword at will.
+Controls are addressed by machine identity: `data-testid` on the shell chrome,
+`data-k` on every field wrapper, `data-v` on every option row.
 """
 
 import json

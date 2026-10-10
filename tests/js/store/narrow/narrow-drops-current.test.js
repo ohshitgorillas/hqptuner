@@ -15,8 +15,8 @@
 //
 // Facet data is driven the way narrowing.test.js drives it — by assigning the
 // two source signals the real payloads carry: `enums.filters` is the running
-// engine's `<GetFilters/>` enumeration (`{index, name, value, arg, description}`,
-// protocol.md:226) and `metadata.filters.filters` is the static name-keyed
+// engine's `<GetFilters/>` enumeration (`{index, name, value, arg, description}`)
+// and `metadata.filters.filters` is the static name-keyed
 // overlay served by /api/metadata. Descriptions are hand-written in the engine's
 // own format, `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮`
 // because every fixture here is read through a PCM field. No count comes from a

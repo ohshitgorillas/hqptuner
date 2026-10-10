@@ -12,15 +12,14 @@ a live snapshot sits in a single-file store, which the import writes to the
 path the install's config names for it; the autosave flag sits in the preset
 store's own settings file, which the import hands to the preset store.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test. Helpers return what they observed.
 - The expected value is one the test wrote itself, never one the app chose, and
   it differs from both the setting's second value and the engine fake's default.
 - The browser lane is the point: the download link and the upload input are
   what is under test, together with the stores behind them.
-- Controls are found by `data-testid`. No fixed sleep: the download and the
-  upload's response are waited on as events, each under a ceiling.
+- Controls are found by `data-testid`. The download and the upload's response
+  are waited on as events, each under a ceiling.
 - Both settings are ones `clean_slate` puts back before the next test: a live
   snapshot the session did not start with is deleted, and autosave is reset.
 """

@@ -2,10 +2,9 @@
 
 A path no route claims, or a method a route does not take, is answered by the
 router before any handler runs. Its `detail` names what the caller sent: the
-path for an unrouted path, the method and the path for a wrong method. The only
-strings asserted are the ones each test put on the wire itself (docs/testing.md
-rule 9), and every surface carries two requests so a detail built from one
-fixed literal fails the other (rule 10).
+path for an unrouted path, the method and the path for a wrong method. Every
+surface carries two requests so a detail built from one fixed literal fails the
+other.
 """
 
 import pytest

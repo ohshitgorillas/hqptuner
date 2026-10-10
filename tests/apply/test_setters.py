@@ -1,5 +1,5 @@
 """Typed Control API setters and readback verification against the stateful
-fake daemon (docs/testing.md — behavior via public API, one assertion each)."""
+fake daemon."""
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError

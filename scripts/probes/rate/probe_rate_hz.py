@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Probe whether `SetRate` accepts a rate in Hz, and what `State` reports back.
 
-`SetRate` is documented as taking a `RatesItem` **index** (protocol.md §6), and
-that index is mode-dependent: running PCM, the list holds PCM rates only, so a
-DSD tier has no index to send. protocol.md:236 notes that sending the Hz value
-also returned `result="OK"` but that the test could not distinguish it from a
-no-op. HQPTuner's live rate write depends on the answer twice over:
+`SetRate` is documented as taking a `RatesItem` **index**, and that index is
+mode-dependent: running PCM, the list holds PCM rates only, so a DSD tier has no
+index to send. Sending the Hz value also returned `result="OK"`, in a test that
+could not distinguish it from a no-op. HQPTuner's live rate write depends on the
+answer twice over:
 
   1  can a rate be sent at all when the enumeration does not carry it — either
      because it belongs to the other output family, or because the list is
@@ -28,9 +28,8 @@ so the enumeration lists never move underneath the readbacks):
 **Writes only the live rate pin** — no config write, no `/restore`, no daemon
 restart. Refuses to run unless the engine is idle (`State state="0"`): each rate
 change re-syncs the DAC, and this repo's write probes do not interrupt a
-listener. The original pin is put back and verified by `State` readback
-(`result="OK"` is not proof, protocol.md §6) — `scripts/probes/capture_pcm_enums.py`
-is the pattern.
+listener. The original pin is put back and verified by `State` readback —
+`scripts/probes/capture_pcm_enums.py` is the pattern.
 
     .venv/bin/python scripts/probes/rate/probe_rate_hz.py
 """

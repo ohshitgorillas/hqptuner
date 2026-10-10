@@ -10,10 +10,9 @@
 // old connection left on the controls are stale exactly when a NEW connection
 // appears, and never merely because a poll says the daemon is reachable.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Every case drives the exported `health` signal with the shape
-// /api/health actually serves and reads the exported `liveErrors` signal; no
-// store function is stubbed and there is no network here.
+// Every case drives the exported `health` signal with the shape
+// /api/health actually serves and reads the exported `liveErrors` signal;
+// there is no network here.
 //
 // ORDER MATTERS for the first case only: module-level signals live for the life
 // of the file, and "no connection has been seen yet" is a state only a freshly

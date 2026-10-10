@@ -2,8 +2,7 @@
 
 Split out of ``test_api_routes`` at the file-length gate. Same shape as the rest
 of that module: the app under ``TestClient`` against the threaded fake control
-daemon, every case driven through the REST routes (docs/testing.md — fakes speak
-the wire protocol, no manager internals are touched).
+daemon, every case driven through the REST routes.
 """
 
 import json
@@ -92,7 +91,7 @@ def test_a_preset_saved_on_the_other_chain_applies(chain_api: Callable[..., Test
 
 
 def test_applying_a_preset_puts_the_engine_in_its_saved_mode(chain_api: Callable[..., TestClient]) -> None:
-    # `result="OK"` is not proof a setter applied (protocol.md §4), so the engine's
+    # The engine's
     # own State is what says the mode changed. Index 2 is SDM in the modes list.
     chain_api(mode="2").put("/api/livepresets/Dark")
     client = chain_api(mode="1")

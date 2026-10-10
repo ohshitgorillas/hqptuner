@@ -1,22 +1,21 @@
 """Discovery: reading a reply datagram, collapsing the replies, and filling in
 what each daemon says about itself.
 
-The datagram bodies here are the wire's own (docs/protocol.md §2, and the 6.0.2
-reply measured on this host), written by the test rather than read back from the
-app. The reply body carries no address of its own on the wire, so the daemon
-host is the sender address of the datagram (docs/protocol.md:38); the second
-payload below invents an ``address`` attribute purely so a record built from the
-body reads differently from one built from the sender.
+The datagram bodies here are the wire's own (the 6.0.2 reply measured on this
+host), written by the test rather than read back from the app. The reply body
+carries no address of its own on the wire, so the daemon host is the sender
+address of the datagram; the second payload below invents an ``address``
+attribute purely so a record built from the body reads differently from one
+built from the sender.
 
 The identity fields of ``GetInfo`` (``product``, ``platform``) are attribute
-names from docs/protocol.md §6, supplied to ``enrich`` by the test's own
-callable; the ten-second window in which port 4321 refuses connections after a
-restart (docs/protocol.md:21) is why the refusing daemon still has to come back
-as a record.
+names supplied to ``enrich`` by the test's own callable; the ten-second window
+in which port 4321 refuses connections after a restart is why the refusing
+daemon still has to come back as a record.
 
 The search itself runs against a UDP daemon of the suite's own at one loopback
 address and a control daemon at another, with the clock and the wait handed in,
-so a whole search window passes in virtual time (docs/testing.md rule 7).
+so a whole search window passes in virtual time.
 
 uvicorn runs the app on uvloop wherever uvloop is installed, so the same search
 is also run on a uvloop loop and has to list what the standard loop lists. That
@@ -59,7 +58,7 @@ def five(record: Daemon) -> tuple[str, str, str, str | None, str | None]:
 
 
 async def answering_daemon(_address: str) -> dict[str, str]:
-    """A daemon that answers GetInfo with the attribute set of docs/protocol.md §6."""
+    """A daemon that answers GetInfo."""
     await asyncio.sleep(0)
     return {
         "engine": "6.0.4",
@@ -136,8 +135,8 @@ async def test_enriching_fills_product_and_platform_and_keeps_a_daemon_that_refu
 SEARCH_HOST = "127.0.0.2"
 ALIAS_HOST = "127.0.0.3"
 
-#: The request the wire specifies, byte for byte (docs/protocol.md:26-29), and a
-#: reply of the documented shape (docs/protocol.md:35), both written here.
+#: The request the wire specifies, byte for byte, and a reply of the documented
+#: shape, both written here.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 SAPPHIRE_DATAGRAM = b'<discover result="OK" name="Sapphire" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>'
 

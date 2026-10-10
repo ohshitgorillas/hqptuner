@@ -1,5 +1,4 @@
-"""The supervisor loop's Status cadence while the engine plays (docs/testing.md: behavior only, one
-assertion, public API only, fakes speak the wire protocol, no wall clock).
+"""The supervisor loop's Status cadence while the engine plays.
 
 Between two heartbeats the manager reads ``Status`` alone, once every ``status_interval``, while the
 engine reports playing; the heartbeat itself keeps ``poll_interval``. Each case counts the traffic that
@@ -24,7 +23,7 @@ POLL = 3.0
 #: The Status-only interval.
 STEP = 1.0
 
-#: The transport state a playing engine reports (protocol.md, State/Status ``state``).
+#: The transport state a playing engine reports (State/Status ``state``).
 PLAYING = "2"
 STOPPED = "0"
 #: A transport state that will not parse as the integer the wire format promises.

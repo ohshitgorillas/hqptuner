@@ -4,8 +4,7 @@
 // served by one REST pair — GET /api/favorites -> {filters: [...], modulators:
 // [...]} and PUT /api/favorites {filters?: [...], modulators?: [...]} ->
 // {filters: [...], modulators: [...]} — with no daemon behind it. The fake
-// speaks exactly those paths with exactly those shapes (docs/testing.md rule 4);
-// no store function is ever stubbed.
+// speaks exactly those paths with exactly those shapes.
 //
 // It HOLDS both lists the way the backend's store does, and applies the same two
 // normalizations the store applies — deduplicate and sort — so "a PUT replaces

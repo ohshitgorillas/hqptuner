@@ -1,7 +1,7 @@
 """Write-path REST surface: staging validation, the pending buffer, and apply
-guards (docs/testing.md). The manager is pointed at a closed local port, so the
-connection endpoints under test never reach a real daemon; the connected apply
-path is validated live on Opal. The `http_client` fixture (conftest) wires the
+guards. The manager is pointed at a closed local port, so the connection
+endpoints under test never reach a real daemon; the connected apply path is
+validated live on Opal. The `http_client` fixture (conftest) wires the
 http lane to the faithful fake 8088 daemon for the applies that need one."""
 
 from typing import Any

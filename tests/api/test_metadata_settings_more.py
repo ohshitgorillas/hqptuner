@@ -2,8 +2,8 @@
 control's paragraph held behind "see more", exactly as ``settings.json`` gave it.
 
 The app loads a copy of the shared minimal metadata fixture whose
-``settings.json`` is replaced with entries invented here (docs/testing.md
-rule 9), and the route serves them with no daemon behind it.
+``settings.json`` is replaced with entries invented here, and the route serves
+them with no daemon behind it.
 """
 
 from __future__ import annotations

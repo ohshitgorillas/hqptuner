@@ -1,12 +1,11 @@
 """What `apply_live` reports when a setting's `State` readback disagrees with what was set.
 
 The setting is the dither, verified by the `State` index read back after `SetShaping`. The daemon is the support
-fake with that setter `_deaf`, answered `result="OK"` and never applied (docs/protocol.md §6), so the readback keeps
-the index the test baked in while the lane verifies the one it sent.
+fake with that setter `_deaf`, answered `result="OK"` and never applied, so the readback keeps the index the test
+baked in while the lane verifies the one it sent.
 
-The report row's `error` is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is what the
-test put on the wire, the index sent and the index HQPlayer reported: that the report prints each of them once, and
-not the way Python prints a dict or a tuple.
+What is asserted is what the test put on the wire, the index sent and the index HQPlayer reported: that the report
+prints each of them once, and not the way Python prints a dict or a tuple.
 """
 
 import re

@@ -20,10 +20,9 @@
 // every selection. The rate-narrowing switches — hide-2x, hide-integer,
 // downsample-safe-only — are tests/js/store/narrow/narrowing-rate.test.js's subject.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Facet data is driven by assigning the two source signals the real
+// Facet data is driven by assigning the two source signals the real
 // payloads carry — `enums.filters` is the running engine's `<GetFilters/>`
-// enumeration (`{index, name, value, arg, description}`, protocol.md:226) and
+// enumeration (`{index, name, value, arg, description}`) and
 // `metadata.filters.filters` is the static name-keyed overlay served by
 // /api/metadata. Descriptions are hand-written in the engine's own format,
 // `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮` because every
@@ -76,7 +75,7 @@ const FIELD = "pcm_filter_nx";
  */
 
 // One `<FiltersItem/>` as the enumeration serves it. `arg` is the flags
-// bitfield, bit 0 = apodizing (protocol.md:226); the backend derives the
+// bitfield, bit 0 = apodizing; the backend derives the
 // `apodizing` field from that same bit, so the two always agree.
 const item = (
   /** @type {string} */ name,

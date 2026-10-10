@@ -1,15 +1,13 @@
 // Behavioral suite for store/live/ — the LIVE view's store: the values and
 // option lists its controls read, and the one path they write by.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Every case drives the exported `engineState` / `enums` signals with
+// Every case drives the exported `engineState` / `enums` signals with
 // the shapes /api/state and /api/enumerations actually serve, and every write
-// goes out over a faked `globalThis.fetch` on the real REST path — no store
-// function is ever stubbed.
+// goes out over a faked `globalThis.fetch` on the real REST path.
 //
 // The fake enumerations deliberately give each item an index that differs from
 // its value. State reports the LIST INDEX and the config-form domain these
-// controls speak is the enum ID (protocol.md §4), so a fixture where the two
+// controls speak is the enum ID, so a fixture where the two
 // coincide could not tell a correct join from no join at all.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/live.test.js
@@ -39,7 +37,7 @@ const env = globalThis;
  */
 
 /**
- * One `<RatesItem index rate/>` — no name and no value (protocol.md §6).
+ * One `<RatesItem index rate/>` — no name and no value.
  *
  * @typedef {{ index: string, rate: string }} RateItem
  */
@@ -93,8 +91,8 @@ const env = globalThis;
 /**
  * The seams `liveWire` answers from — `detail` on a refusal is a plain string
  * for a transport-level failure (a 503 the daemon never answered) and a
- * per-field object for a 409 the daemon refused outright (docs/protocol.md:
- * FastAPI's own `detail` shape differs by status).
+ * per-field object for a 409 the daemon refused outright
+ * (FastAPI's own `detail` shape differs by status).
  *
  * @typedef {{
  *   status?: number,
@@ -120,7 +118,7 @@ const SHAPERS = [
   { index: "0", value: "0", name: "none" },
   { index: "1", value: "31", name: "TPDF" },
 ];
-// RatesItem carries no name and no value — `<RatesItem index rate/>` (protocol.md §6).
+// RatesItem carries no name and no value — `<RatesItem index rate/>`.
 const RATES = [
   { index: "0", rate: "0" },
   { index: "1", rate: "96000" },
@@ -267,10 +265,9 @@ test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => 
 // The control's error names it by the label the page gives it, never by the
 // daemon's form key. A refusal carries the daemon's own reason; a setter the
 // daemon stopped answering has none worth showing, so its error text stays off
-// the control (the 200 report's `{ok: false, error, code}` per setter,
-// architecture.md §8.2). The fixture invents both texts, so asserting them pins
-// no shipped wording. The label is copy and stays out of every assertion
-// (docs/testing.md rule 9): an error that names its control reads differently
+// the control (the 200 report's `{ok: false, error, code}` per setter).
+// The fixture invents both texts, so asserting them pins
+// no shipped wording. An error that names its control reads differently
 // for two controls, and never shows a labelled control's form key.
 
 // The PCM chain's two filter slots, by form key, each owned by a control on the

@@ -6,10 +6,9 @@
 // filter NAME currently in each of the four fields, and one way to write a name
 // into one of them.
 //
-// Names, not enum ids, because that is the domain the preset table speaks: the
-// running engine is the sole authority for ids and ordering, and static data
-// joins by name (architecture §3.1). Resolving a name to the id a lane wants is
-// the last thing that happens, against the option list that lane is showing.
+// Names, not enum ids, because that is the domain the preset table speaks.
+// Resolving a name to the id a lane wants is the last thing that happens,
+// against the option list that lane is showing.
 import { schema } from "../schema.js";
 import { effective } from "../resolve.js";
 import { optionsFor } from "../ui/options.js";

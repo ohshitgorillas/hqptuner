@@ -4,16 +4,15 @@
 // fixed-volume gate (tests/js/components/chrome/card-gates.test.js). Each is
 // named by the label of its own catalog entry.
 //
-// The persistent lane reports a divergence by wire key (docs/openapi.json,
-// RestoreUnconverged: "Fields are wire keys"). The user knows each of these
-// controls by the name the page shows for it, so the summary names it that way
-// and never shows the wire key in its place.
+// The persistent lane reports a divergence by wire key. The user knows each of
+// these controls by the name the page shows for it, so the summary names it
+// that way and never shows the wire key in its place.
 //
 // Every case runs in the state the page is always in: the /api/metadata
 // catalog loaded, carrying a name for each control. The names are this file's
-// own fixture strings, so asserting them back pins no shipped wording
-// (docs/testing.md rule 9), and each differs from every key so a summary that
-// shows a key cannot pass for one that shows the name.
+// own fixture strings, so asserting them back pins no shipped wording, and each
+// differs from every key so a summary that shows a key cannot pass for one that
+// shows the name.
 //
 // Driven over the fake wire in tests/js/support/threetrees.js. No store
 // function is stubbed.

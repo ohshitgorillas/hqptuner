@@ -2,8 +2,7 @@
 ``merge_enumerations``.
 
 Each test reads one field under ``StaticDb``/``MergedEnums`` by key off the value the public
-producer returned, one assertion each (docs/testing.md rule 2), on data invented for this fixture
-(docs/testing.md rule 9).
+producer returned, on data invented for this fixture.
 """
 
 from __future__ import annotations

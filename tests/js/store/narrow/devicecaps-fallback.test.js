@@ -13,16 +13,14 @@
 // the menu-reading helpers both suites run on live in
 // ../support/devicecaps-harness.js. The controls are seeded by their real
 // config field names — `defaults_samplerate` and `defaults_bitrate` (the LIMIT
-// slots; `samplerate` / `bitrate` are forced to 0 on every write,
-// docs/settings-classification.md:42) and `mode`.
+// slots; `samplerate` / `bitrate` are forced to 0 on every write) and `mode`.
 //
 // The first two cases pin the other direction of the same reactivity: graying
-// follows STAGED values, not applied ones (architecture.md §7.6), so the menus
+// follows STAGED values, not applied ones, so the menus
 // move the moment the user ticks a box, with no apply and no change to the
 // config payload.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, no store
-// function stubbed — the correction is an effect, so it is triggered by seeding
+// The correction is an effect, so it is triggered by seeding
 // the payload and awaiting a tick, never by calling into internals.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/devicecaps-fallback.test.js

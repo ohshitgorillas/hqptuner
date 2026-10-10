@@ -128,7 +128,7 @@ def daemon(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
     """The fake 8088 daemon plus the threaded 4321 fake, named by the shell's
     ``HQPTUNER_*`` daemon address. Yields the 8088 state; its ``release`` is
     what ``/about`` prints, and a case changes it between runs. The 4321 fake's
-    GetInfo answers with engine build 6.0.4 (docs/protocol.md section 6), which no
+    GetInfo answers with engine build 6.0.4, which no
     case gives the 8088 fake as its release."""
     control = spawn_threaded_daemon()
     http = fake_http.spawn(fake_http.state(release=RECORDED_RELEASE))

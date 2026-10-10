@@ -7,8 +7,6 @@
 // prefs.js was imported. A working fake localStorage is installed at file scope
 // and each case writes and reads it through the public setter only.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/apodwindow-set.test.js
 
 import test from "node:test";
@@ -21,8 +19,8 @@ const storage = useStorage();
 const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 // --- the windows on offer -------------------------------------------------------
-// The option list is curated data (docs/testing.md rule 9): pin that there is
-// one, and that every offered value round-trips through the setter, never the
+// Pin that there is an option list,
+// and that every offered value round-trips through the setter, never the
 // list itself.
 
 test("test_the_store_offers_at_least_one_window", () => {

@@ -24,7 +24,7 @@ Observable contract is the sequence of exit codes; nothing here reads the
 gate's internals or the baseline files it writes.
 
 Every ambient ``GIT_*`` name is dropped and ``HOME`` and git's global and system
-configuration point into ``tmp_path`` (docs/testing.md rule 16), so a gate
+configuration point into ``tmp_path``, so a gate
 that asks git itself sees only the miniature repository.
 """
 

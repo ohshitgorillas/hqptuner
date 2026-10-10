@@ -1,6 +1,6 @@
 """The ``switch_to`` apply path, the ``apply_engine`` error returns, and
-``persist_backup``'s write-or-abort backup persistence — all driven through the
-public API against the faithful fake daemon (docs/testing.md)."""
+``persist_backup``'s write-or-abort backup persistence — all driven
+against the faithful fake daemon."""
 
 import contextlib
 from collections.abc import AsyncIterator

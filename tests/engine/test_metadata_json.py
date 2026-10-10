@@ -4,8 +4,7 @@ Every function here drops a field, or an entry, or a whole document, rather than
 trust a shape it does not recognize. Each test drives the "not the shape
 expected" leg of one guard — a non-dict where a dict is expected, a
 JSON-incompatible value nested inside a document, and the one string field
-(``sdm_two_stage_note``) ``filter_entry`` carries. One assertion each
-(docs/testing.md rule 2).
+(``sdm_two_stage_note``) ``filter_entry`` carries.
 """
 
 from __future__ import annotations

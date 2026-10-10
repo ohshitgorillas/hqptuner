@@ -12,9 +12,8 @@ OpenAPI document, normalized to sorted-key JSON so a diff is readable, and this
 gate rebuilds it and compares. A deliberate change to the API is one command and
 one reviewable file in the diff; an accidental one is a red gate.
 
-This is a gate rather than a test on purpose: ``docs/testing.md`` rule 5 keeps
-golden-dump equality out of the suite. A snapshot that wants a human to look at
-a diff is the wrong shape for a test and the right shape for a gate.
+This is a gate rather than a test on purpose: a snapshot that wants a human to
+look at a diff is the wrong shape for a test and the right shape for a gate.
 
 Two properties keep it deterministic. The audit router mounts only when the
 audit log is enabled, so the gate builds the app with ``debug_log`` set and

@@ -55,7 +55,7 @@ import { ok, bad } from "./wire.js";
  *
  * `inflight` holds the requests the fake has been handed and not yet answered,
  * the same member `stagingWire` keeps, so a suite can wait for this wire to go
- * quiet (`quiesce`) rather than for a stopwatch (docs/testing.md rule 7).
+ * quiet (`quiesce`).
  *
  * @typedef {{
  *   calls: { path: string, method: string, body?: string }[],
@@ -179,7 +179,7 @@ function onePreset(w, c, { name, isApply, method }) {
  */
 function ambient(path, c) {
   // the whole frame the daemon lane serves, not just its payload: a lane reading
-  // `stale` must see the real field rather than undefined (docs/testing.md rule 4)
+  // `stale` must see the real field rather than undefined
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: c.mirrored || STATE(c.chain) });
   if (path === "/api/enumerations") return ok({ data: ENUMS });
   if (path === "/api/config") return ok({ data: { fields: [], file: {}, active: "", profiles: null } });
@@ -252,8 +252,8 @@ export function presetWire(cfg = {}) {
 }
 
 // The fake resolves without timers, so the whole read -> json -> signal chain
-// settles in a handful of microtask ticks. No wall clock is waited on
-// (docs/testing.md rule 7): a lane that never fired fails here immediately
+// settles in a handful of microtask ticks.
+// A lane that never fired fails here immediately
 // rather than hanging.
 /**
  * @param {number} [ticks]

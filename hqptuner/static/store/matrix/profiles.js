@@ -1,7 +1,6 @@
-// Saved matrix profiles (protocol.md "Saved matrix profiles do not persist"). Nothing here
-// reaches into the store core's private signals — it
-// stages through `edit` and reads staged values through `effective`, the same
-// public seams every other store module uses.
+// Saved matrix profiles. Nothing here reaches into the store core's private
+// signals — it stages through `edit` and reads staged values through
+// `effective`, the same public seams every other store module uses.
 //
 // Two sources, and they mean different things:
 //   file_profiles  — the <matrix_profile> elements the CONFIG carries. A profile

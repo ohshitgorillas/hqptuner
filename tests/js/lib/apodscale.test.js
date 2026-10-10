@@ -1,8 +1,6 @@
 // Behavioral suite for lib/apodscale.js playedMs, the width of playback one
 // apodizing bin observed between two Status frames.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/apodscale.test.js
 
 import test from "node:test";

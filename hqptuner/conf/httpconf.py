@@ -250,9 +250,8 @@ class HttpConfigClient:
         """GET /matrix — the pipeline/post-processing form.
 
         Carries pipeline rows, matrix profiles, Bauer crossfeed, DAC correction
-        and loudness. The daemon silently ignores a partial POST here too
-        (docs/protocol.md "Matrix form lane"), so writes overlay a fresh read
-        (manager).
+        and loudness. The daemon silently ignores a partial POST here too, so
+        writes overlay a fresh read (manager).
         """
         return self._matrix(await self._get("/matrix"))
 
@@ -274,7 +273,7 @@ class HttpConfigClient:
         COMPLETE GET (a partial POST is silently ignored, same contract as
         /config and /matrix) and enforces the checkbox contract: ``enabled=1`` when on, the field
         OMITTED when off — never a raw ``0``/``on``, which the daemon writes
-        verbatim and wedges engine init (protocol.md "Matrix form lane"). Levels are validated
+        verbatim and wedges engine init. Levels are validated
         to dBFS [-60, 0], distances to cm [0, 5000] — garbage is rejected, not
         sent. The daemon reloads the engine (~3 s), interrupting playback.
         """

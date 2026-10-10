@@ -1,6 +1,6 @@
 """Faithful fake hqplayerd HTTP config daemon (the port-8088 lane).
 
-Speaks the restore/XML write contract (docs/protocol.md §3.6): GET /backup
+Speaks the restore/XML write contract: GET /backup
 serves a real hqplayerd.xml the daemon would produce, POST /restore adopts the
 uploaded working config, and GET /config + /matrix render the current state.
 The XML schema here is authored to match 6.0.4 INDEPENDENTLY of presetconf, so
@@ -90,7 +90,7 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
 def _working_member(st: dict[str, Any]) -> str:
     """The root-level archive name the working config is served under: a named
     active profile renames it to ``<Profile>.xml``, and only ``[default]``
-    serves ``hqplayerd.xml`` (docs/protocol.md §3.6)."""
+    serves ``hqplayerd.xml``."""
     profile = st.get("_active_profile")
     return f"{profile}.xml" if profile else "hqplayerd.xml"
 
@@ -110,7 +110,7 @@ def _backup_zip(st: dict[str, Any]) -> bytes:
 
 def _empty_backup_zip() -> bytes:
     """The archive hqplayerd 6.0.4 serves after a named profile/load until it is
-    restarted — a bare data/ with no base config (docs/protocol.md §3.6 bug)."""
+    restarted — a bare data/ with no base config."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
         z.writestr("data/", b"")
@@ -228,7 +228,7 @@ def _matrix_render(st: dict[str, Any]) -> str:
 
 
 def _about_render(st: dict[str, Any]) -> str:
-    """GET /about — the stock UI page (protocol.md §3.6 route table). The
+    """GET /about — the stock UI page. The
     daemon's installed release string follows the Version heading on its own
     line, which is where a reader parses it from. ``_about_body`` overrides the
     whole page: a daemon whose about page carries no Version heading at all."""
@@ -323,8 +323,8 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_stale"] = st.get("_lag", 0)
     if st.get("_die"):
         st["_down"] = True
-    # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §2.2 lane
-    # 2), and the restarted engine comes up running the restored file — so the
+    # An adopted restore SELF-RESTARTS the daemon,
+    # and the restarted engine comes up running the restored file — so the
     # Control API's State reflects it afterwards. That side lands on the 4321
     # daemon, which this fake cannot see: a dual-lane test hangs its own
     # callable on ``_on_restore`` and moves the control fake's State from there,
@@ -344,7 +344,7 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
     same arm that catches a live connection refusal.
 
     ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
-    can be tested for how many passes it makes (docs/testing.md rule 7)."""
+    can be tested for how many passes it makes."""
     with _STATE:
         st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
         refused = st.get("_restore_refusals", 0) > 0

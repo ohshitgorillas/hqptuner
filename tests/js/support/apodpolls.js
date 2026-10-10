@@ -4,7 +4,7 @@
 //
 // A poll is a FRESH object written to engineStatus carrying the daemon's own
 // Status fields — state, track_serial, the monotonic apodizing counter `apod`,
-// and the playback `position` (`state` values per docs/protocol.md: 0 stopped,
+// and the playback `position` (`state` values: 0 stopped,
 // 1 paused, 2 playing, 3 stop requested). Writing the SAME object reference does
 // not notify, so every simulated poll builds a new one.
 //
@@ -19,8 +19,7 @@
 //
 // A poll moves the daemon's `position` forward by one second unless a case sets
 // another step through setPollStep(): that step is the playback a bin observes,
-// and so the width the store records for it. Nothing of HQPTuner's is stubbed
-// (docs/testing.md rule 4).
+// and so the width the store records for it.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 

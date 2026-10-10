@@ -3,9 +3,8 @@
 The timeout on this lane is httpx's own, so no clock of ours reaches it. The fake is the transport instead, handed
 in through the constructor: it raises the timeout httpx raises when the reply never comes, at once.
 
-The sentence is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is what the test put
-there: the timeout the configuration client was built with, which the report carries as its seconds, and httpx's
-own text for the timeout, which it no longer carries.
+What is asserted is what the test put there: the timeout the configuration client was built with, which the report
+carries as its seconds, and httpx's own text for the timeout, which it no longer carries.
 """
 
 import re

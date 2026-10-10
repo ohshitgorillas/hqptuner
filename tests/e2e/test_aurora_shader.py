@@ -8,9 +8,8 @@ draws one full-canvas quad over a transparent clear with the uniforms `bars`,
 `bars_count` and `fg_color` set, and reads one pixel back. The shader's output
 alpha is its brightest colour channel, so the alpha is the brightness.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test; the helper returns the pixel and the test judges it.
 - GLSL runs only in a real WebGL2 context, so this is the browser lane. The
   browser fixture launches chromium on swiftshader for that.
 - Nothing here waits: the draw and the readback are synchronous in the page.

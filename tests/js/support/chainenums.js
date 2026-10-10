@@ -1,6 +1,6 @@
 // The daemon's two chain enumerations, verbatim in their numbering, and the
 // /config form that quotes them. The same two filters carry different enum IDs
-// and sit at different indices on each chain (protocol.md §4), which is the
+// and sit at different indices on each chain, which is the
 // whole reason a dormant chain cannot borrow the loaded one's list.
 
 /**
@@ -11,7 +11,7 @@
  */
 
 // Every filter the engine enumerates carries a quality rating at the head of
-// its description (protocol.md:228), and the quality facet hides anything rated
+// its description, and the quality facet hides anything rated
 // below its floor — so a filter fixture with no description is narrowed out of
 // every dropdown that quotes it. The pass-through's description is the engine's
 // own, `1/5 ⥮ 1:1`; the two resamplers carry a rating that clears the default

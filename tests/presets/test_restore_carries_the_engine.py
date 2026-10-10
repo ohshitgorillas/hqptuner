@@ -1,6 +1,5 @@
 """A restore boots the daemon on the mode the ENGINE is in, unless the user
-staged one (docs/testing.md — behavior only, one assertion per test, public API
-only, fakes speak the wire protocol).
+staged one.
 
 Output mode is applied over the 4321 control lane and never reaches hqplayerd's
 config file, so a restore — which restarts the daemon onto that file — has to
@@ -54,7 +53,7 @@ def control_port(control_state: dict[str, str]) -> Iterator[int]:
 @pytest.fixture
 def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     """The 8088 fake whose config file says PCM. An adopted restore self-restarts
-    the daemon (docs/architecture.md §2.2 lane 2), modeled by moving the control
+    the daemon, modeled by moving the control
     fake's State onto the config just adopted, the way one real daemon would."""
     server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
     daemon = next(server)
@@ -99,7 +98,7 @@ def _route_live(client: TestClient, fields: dict[str, str], state_key: str, land
     """Route ``fields`` over the control lane and prove the engine took them: a
     live route that no-opped would leave the engine where it started and every
     case below would pass vacuously. ``state_key``/``landed`` are the State
-    attribute and index the daemon reports the change as (protocol.md §4 — State
+    attribute and index the daemon reports the change as (State
     speaks indices, the config form speaks enum IDs)."""
     client.post("/api/config/live", json={"fields": fields})
     wait_for_api(client, lambda c: c.get("/api/state").json()["data"][state_key] == landed)

@@ -1,8 +1,8 @@
 """Persistent-config REST operations end to end through the faithful fake 8088
 daemon (conftest `http_client`): backup/restore, engine attributes, preset CRUD,
 Apply & Save, speaker apply, filter uploads, device rescan, and the log tail.
-A route passes only if the fake daemon adopted (or served) the real wire traffic
-— never by inspecting our own internals (docs/testing.md)."""
+A route passes only if the fake daemon adopted (or served) the real wire
+traffic."""
 
 import io
 import zipfile

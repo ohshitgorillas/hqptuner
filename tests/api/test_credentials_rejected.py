@@ -1,4 +1,4 @@
-"""Rejected hqplayerd management credentials, end to end (docs/testing.md).
+"""Rejected hqplayerd management credentials, end to end.
 
 The 8088 config lane needs authentication on every page; the 4321 control lane
 needs none. So a daemon that refuses the configured password stays *reachable*
@@ -7,8 +7,8 @@ the wire verified on 6.0.4). These cases run the app on both fakes at once: the
 threaded 4321 daemon plus the fake 8088 daemon whose credential verdict the test
 moves mid-run.
 
-Poll cycles are counted at the fake rather than waited for on the wall clock
-(rule 7): one cycle reads /config among its pages, so `_settle` spinning until
+Poll cycles are counted at the fake rather than waited for on the wall clock:
+one cycle reads /config among its pages, so `_settle` spinning until
 three cycles' worth of arrivals have landed is a fresh /config verdict whatever
 the ordering."""
 

@@ -1,7 +1,7 @@
 """Resolving the working config inside a ``/backup`` archive.
 
 The daemon names that member after its OWN active profile: ``hqplayerd.xml`` on
-``[default]``, a root-level ``<Profile>.xml`` otherwise (protocol.md §3.6). An
+``[default]``, a root-level ``<Profile>.xml`` otherwise. An
 archive HQPTuner cannot resolve reads as "no working config", which is also what
 the daemon's empty-backup bug produces — so the resolver failing quietly meant
 every apply refused with a message blaming a daemon bug that a restart does not

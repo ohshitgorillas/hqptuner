@@ -1,13 +1,13 @@
 """Volume is the one live setting verified with a TOLERANCE, not for equality.
 
-The live lane sends `Volume` and reads `State` back (protocol.md §6). The level
-is a double, so the readback is compared within 0.05 dB — a daemon that answers
--20.02 to a -20.0 write has applied it, and a comparison for equality would call
-that a failure. Beyond the tolerance, and for a `State` frame carrying no volume
+The live lane sends `Volume` and reads `State` back. The level is a double, so
+the readback is compared within 0.05 dB — a daemon that answers -20.02 to a
+-20.0 write has applied it, and a comparison for equality would call that a
+failure. Beyond the tolerance, and for a `State` frame carrying no volume
 at all, the lane raises and `apply_live` reports the setting failed.
 
-Characterization of existing behavior (docs/testing.md §8 exemption): the daemons
-here are `deaf_volume_client`, whose `Volume` answers OK without applying, so the
+Characterization of existing behavior: the daemons here are
+`deaf_volume_client`, whose `Volume` answers OK without applying, so the
 readback is whatever the case named."""
 
 from fixtures_daemons import DeafVolumeClient

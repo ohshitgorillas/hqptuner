@@ -9,8 +9,7 @@ problem) and the exit status ``main`` derives from it.
 Every case runs against a copy of the invented fixture under
 ``tests/support/fixtures/metadata_min`` (never the shipped ``data/``, never the
 fixture in place), mutated in ``tmp_path``. Assertions pin only names the test
-itself wrote into that copy and the exit codes; the gate's wording is never
-asserted (docs/testing.md rule 9).
+itself wrote into that copy and the exit codes.
 
 The seams are ``check`` and ``main``.
 """

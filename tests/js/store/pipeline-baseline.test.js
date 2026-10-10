@@ -5,13 +5,13 @@
 // (`config.file.matrix_pipelines`, a canonical JSON string) and the daemon's own
 // rows (`matrixConfig.rows`, what the engine is running right now). They diverge
 // whenever a matrix profile has been switched live — the switch rides 4321
-// `MatrixSetProfile`, which is memory-only and never rewrites the config file
-// (docs/protocol.md "Matrix profile commands"), so the
+// `MatrixSetProfile`, which is memory-only and never rewrites the config file,
+// so the
 // engine runs the profile's rows while the file still holds its own.
 //
-// The wire is faked, not the store: `stagingWire` holds the pending buffer the
+// `stagingWire` holds the pending buffer the
 // way the backend does, so `stagePipelines` / `discardAll` ride the real REST
-// paths (docs/testing.md rule 4).
+// paths.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test \
 //        tests/js/store/pipeline-baseline.test.js

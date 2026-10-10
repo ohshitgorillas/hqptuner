@@ -1,4 +1,4 @@
-"""A daemon that answers the discovery datagram (docs/protocol.md §2), served
+"""A daemon that answers the discovery datagram, served
 from the running test's own event loop.
 
 The reply is looked up in a table the test writes, keyed by the exact request

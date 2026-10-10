@@ -1,4 +1,4 @@
-"""The /config form parser owns its own result shape (docs/testing.md).
+"""The /config form parser owns its own result shape.
 
 ``ConfigForm`` is the TypedDict naming the dict-of-dicts shape
 ``parse_config_form`` returns.

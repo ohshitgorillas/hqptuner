@@ -1,7 +1,4 @@
-"""Form parser behavior against a captured live 6.0.4 /config page.
-
-Policy: docs/testing.md — one condition per test, behavior only.
-"""
+"""Form parser behavior against a captured live 6.0.4 /config page."""
 
 import re
 from pathlib import Path

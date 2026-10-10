@@ -3,12 +3,11 @@
 Applies a staged change set to the live daemon:
 
 - **live lane** — Control API (4321) setters, each confirmed by a `State`
-  readback (`result="OK"` is not proof of application, protocol.md §6);
+  readback (`result="OK"` is not proof of application);
 - **http lane** — NOT a form POST despite the name: the persistent lane edits
   the running config XML and pushes it with `POST /restore` (`scope=system`),
-  on which the daemon self-restarts in ~5.6 s (`lanes/http/restore.py`,
-  settings-classification.md). The connection manager's outage path handles
-  the restart/resync. There is no `POST /config` route in this codebase.
+  on which the daemon self-restarts in ~5.6 s (`lanes/http/restore.py`). The
+  connection manager's outage path handles the restart/resync. There is no `POST /config` route in this codebase.
 
 Live edits apply in a fixed safe order: mode first (it resets rate to auto and
 swaps the enumeration lists the other indices are relative to), then filter,

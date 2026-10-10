@@ -1,8 +1,6 @@
 """The 8088 form reads against the faithful fake daemon on a real socket: a page
 whose body has not changed since the same getter last fetched it comes back as
 the form already parsed from it, and a page that changed is parsed afresh.
-
-Policy: docs/testing.md — one condition per test, behavior only.
 """
 
 from collections.abc import AsyncIterator, Awaitable, Callable

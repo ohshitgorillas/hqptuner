@@ -4,8 +4,6 @@
 // Own process on purpose: the module reads storage once at import, so each storage shape needs a file of its own. The
 // working fake is installed and seeded BEFORE prefs.js is imported.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/apodwindow-pref-all.test.js
 
 import test from "node:test";

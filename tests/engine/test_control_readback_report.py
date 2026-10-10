@@ -1,13 +1,12 @@
 """What the Control API client (4321) reports when the `State` readback after a setter disagrees with what was set.
 
-The daemon is the support fake with the setters `_deaf`: each is answered `result="OK"` and never applied
-(docs/protocol.md §6, OK is not proof), so `State` keeps reporting the index the test baked in while the client
-verifies the index it sent. Two settings disagree at once, each with its own pair of values, and no value is
-shared between them, so a report can be read for which value belongs to which setting.
+The daemon is the support fake with the setters `_deaf`: each is answered `result="OK"` and never applied, so
+`State` keeps reporting the index the test baked in while the client verifies the index it sent. Two settings
+disagree at once, each with its own pair of values, and no value is shared between them, so a report can be read for
+which value belongs to which setting.
 
-The sentence is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is what the test put on
-the wire, the index each setter sent and the index HQPlayer reported back for it: that the report prints each of them
-once, and not the way Python prints a dict or a tuple.
+What is asserted is what the test put on the wire, the index each setter sent and the index HQPlayer reported back
+for it: that the report prints each of them once, and not the way Python prints a dict or a tuple.
 """
 
 import re

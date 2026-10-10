@@ -1,7 +1,7 @@
 """How the Output drawer's Format tab fills the larger plates.
 
 The plate is laid out at the largest iPad size the window holds: 1080x810 (10.2",
-the design size), 1180x820 (11") and 1366x1024 (13"), `docs/faceplate-spec.md`.
+the design size), 1180x820 (11") and 1366x1024 (13").
 On the 11" and 13" plates the drawer is wider and taller than at the design size,
 and the Format tab is to use that room: the rate dial's glass grows with the
 drawer's width, its text and its tap cells grow with it, no empty band opens up
@@ -13,18 +13,17 @@ Format tab and measures it; most also lay it out at the design size and compare.
 Every expected value is a relation between observations, never a pixel count of
 the current design.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
 - Geometry exists only in a real layout engine, so this is the browser lane.
   Server rendering lays nothing out.
-- One assertion per test; the helper returns measurements and the test judges.
 - Controls are found by wire identity: the rail stage (`data-stage`), the drawer
   id, the tab id (`data-tab`), the dial's band (`data-band`) and tier position
   (`data-i`), and the row and dial hooks the rendered suites already address.
 - What a row occupies is its ink: the union of the boxes of what it draws, so a
   wrapper stretched past its drawing reads as empty space, the way it looks.
 - Waits are bounded condition-polls: fonts loaded, the drawer's wipe and every
-  other finite animation settled. Nothing sleeps.
+  other finite animation settled.
 - Not pinned here: that the iPad Mini plate's glass keeps today's size. No doc
   states that size, so the only source of an expected value is the current code.
 """

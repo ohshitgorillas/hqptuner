@@ -5,8 +5,7 @@ Jussi: "When you click Apply there, it saves to the unnamed default profile that
 is also the startup default." So ``<matrix>`` is the default profile, and its
 ``<post_process>`` belongs to that profile — which makes post-processing
 per-profile in HQPlayer's own model. ``MatrixGetProfile`` is the daemon's own
-answer, and it costs nothing: read-only, unauthenticated, no reload
-(docs/protocol.md "Matrix profile commands").
+answer, and it costs nothing: read-only, unauthenticated, no reload.
 
 Read-only. Writes nothing, changes nothing.
 

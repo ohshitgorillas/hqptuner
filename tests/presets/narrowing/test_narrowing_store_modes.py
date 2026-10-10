@@ -3,8 +3,8 @@
 `genre_mode` and `focus_mode` join the facet set `NarrowingStore` keeps in
 `state/narrowing.json`. Each takes `"and"` or `"or"` and nothing else, and each
 has its own default: genre combines with OR, focus with AND. Narrowing is
-purely presentational and has no daemon field behind it (docs/architecture.md,
-"Filter narrowing"), so nothing here reaches hqplayerd and every store file
+purely presentational and has no daemon field behind it,
+so nothing here reaches hqplayerd and every store file
 lands under pytest's ``tmp_path``.
 
 The store's two asymmetries bind these facets like the rest: a **write** refuses

@@ -1,4 +1,4 @@
-"""HQPTuner-owned preset lifecycle (docs/testing.md).
+"""HQPTuner-owned preset lifecycle.
 
 Two layers: the pure ``presetzip`` archive helpers (bytes in, bytes out), and
 the manager's save/load/list/delete through the faithful fake config daemon —
@@ -52,7 +52,7 @@ def test_restore_zip_writes_the_mirror_snapshot() -> None:
 
 
 def test_restore_zip_writes_a_non_ascii_mirror_snapshot_under_that_name() -> None:
-    # A preset name is a zip member name too (docs/protocol.md:91). Nothing in
+    # A preset name is a zip member name too. Nothing in
     # HQPlayer's docs constrains its charset, and an em dash round-trips through
     # the live daemon, so the member must carry the name intact.
     archive = presetzip.restore_zip_with_working(_zip({"hqplayerd.xml": b"<x/>"}), b"<new/>", mirror_name=DASHED_NAME)
@@ -67,7 +67,7 @@ def test_restore_zip_inserts_hqplayerd_when_a_named_profile_was_active() -> None
 
 
 #: The working config of a named profile, as a /backup archive carries it both
-#: at the root and under data/cfgs (docs/protocol.md:91).
+#: at the root and under data/cfgs.
 NAMED_WORKING_XML = b'<hqplayerd><engine fft_size="4096"/></hqplayerd>'
 STAGED_FFT_SIZE = "8192"
 
@@ -81,7 +81,7 @@ def _field_in_member(zip_bytes: bytes, name: str, field: str) -> str | None:
 
 def test_restore_from_running_carries_the_edit_in_hqplayerd_when_a_named_profile_was_active() -> None:
     # restore boots [default] from hqplayerd.xml and discards an edit to the
-    # root-renamed <Profile>.xml (docs/protocol.md:88), so the edit must land there
+    # root-renamed <Profile>.xml, so the edit must land there
     backup = _zip({"Speakers.xml": NAMED_WORKING_XML, "data/cfgs/Speakers.xml": NAMED_WORKING_XML})
     archive, _intended = presetzip.restore_zip_from_running(
         backup, {"fft_size": STAGED_FFT_SIZE}, presetzip.ApplyContext(active="Speakers")

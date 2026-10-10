@@ -1,4 +1,4 @@
-"""Control API receive resilience (docs/testing.md, through the faithful fake).
+"""Control API receive resilience.
 
 The daemon emits track <metadata> with unescaped characters during playback,
 which strict XML parsing can't handle. The receiver must still deliver the

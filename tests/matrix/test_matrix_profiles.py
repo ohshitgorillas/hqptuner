@@ -1,4 +1,4 @@
-"""Matrix profiles (matrix-spec.md "Profiles") through the faithful fake.
+"""Matrix profiles through the faithful fake.
 
 Two lanes, and neither is the daemon's own profile CRUD. A load is the live 4321
 ``MatrixSetProfile``; a save or a delete is a staged ``<matrix_profile>`` config

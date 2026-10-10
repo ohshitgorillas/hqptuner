@@ -1,8 +1,8 @@
 """A refused `State` query leaves the manager's last good reading of the engine in place.
 
-HQPlayer answers a command it will not serve with `result="Error"` (docs/protocol.md §6), and a refused read is a
-complete, correctly paired reply (docs/architecture.md §4.1). It says nothing about the engine's state, so it never
-becomes the manager's reading of it: the reading taken before the refusal stands.
+HQPlayer answers a command it will not serve with `result="Error"`, and a refused read is a complete, correctly
+paired reply. It says nothing about the engine's state, so it never becomes the manager's reading of it: the reading
+taken before the refusal stands.
 
 The daemon is the support fake, started with the upsampling filter slot at an index the test picked, then told to
 refuse every `State` from that point on through its `_error` knob. The claim is the slot's index in

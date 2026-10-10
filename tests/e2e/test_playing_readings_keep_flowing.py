@@ -7,16 +7,14 @@ makes the fake engine report a sequence of readings while it plays and counts
 how many of them the page went on to show. A page that shows the first reading
 and then freezes follows one of them; a working page follows every one.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- Characterization of existing behavior (rule 8 exemption): these pin what the
-  page does now, as regression cover; there is no pre-change state to go red on.
-- One assertion per test; the helpers return what the page showed.
+- Characterization of existing behavior: these pin what the page does now, as
+  regression cover.
 - Every value the tests look for is one they put on the wire: the bit depth on
   the Status frame's `<metadata>` child, and the levels on the metering frames.
   The page is read by wire identity only: the rail stage (`data-stage`), and
   the level bar's painted height.
-- Waits are bounded condition-polls; nothing sleeps.
 
 Both tests play on the session stack and put the engine's transport, track and
 metering stream back as they found them. The meter test plays one short
@@ -33,7 +31,7 @@ from playwright.sync_api import Page
 
 from e2e.support import stack as stack_support
 
-#: State's transport value for playing (protocol.md, State).
+#: State's transport value for playing.
 PLAYING = "2"
 
 #: The source the status test plays: a stereo 44.1 kHz PCM stream.

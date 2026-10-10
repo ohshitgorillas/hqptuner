@@ -1,4 +1,4 @@
-"""The gate that keeps the card frame off the faceplate (``docs/design-system.md``).
+"""The gate that keeps the card frame off the faceplate.
 
 ``scripts/gates/css/check_css_cards.py`` reads one stylesheet and reports a
 selector naming a card or pack class, and a rule painting the plate's fill with

@@ -1,4 +1,4 @@
-"""The source-format facet, stored server-side (docs/testing.md).
+"""The source-format facet, stored server-side.
 
 The narrow bar carries a two-state control over the format the user's library is
 in: ``pcm`` for a library that is PCM throughout, ``both`` for one that also
@@ -9,8 +9,8 @@ token set is exactly those two words. What the control then discloses is the
 frontend's subject (tests/js/components/conversioncards-dsd.test.js); it narrows
 no dropdown at all (tests/js/store/srcformat.test.js).
 
-Narrowing is purely presentational and never reaches hqplayerd
-(docs/architecture.md, "Filter narrowing"), so every store here lands under
+Narrowing is purely presentational and never reaches hqplayerd,
+so every store here lands under
 pytest's ``tmp_path`` and nothing is daemon-facing.
 """
 

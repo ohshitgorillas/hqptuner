@@ -3,8 +3,6 @@ shape, and its traceback reaches the in-memory log ring the state zip exports.
 
 The fault is planted as an extra route on the app under test, raising an
 exception type defined here, so nothing in HQPTuner can have a handler for it.
-No route handler of the app is stubbed and no `detail` text is asserted
-(docs/testing.md rule 9): `code` is a wire identifier, `detail` is copy.
 
 At startup the log ring is attached to the root logger; `create_app` does not
 do that, so the ring fixture attaches it the same way for the length of a case.

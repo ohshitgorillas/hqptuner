@@ -167,7 +167,7 @@ class PresetOps:
         # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
         self._profiles: dict[str, tuple[Signature, list[str]]] = {}
 
-    # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
+    # --- convolution uploads (store.filterpark) ----------------------------------
 
     @property
     def filter_max_bytes(self) -> int:
@@ -186,7 +186,7 @@ class PresetOps:
         """Discard every parked upload, called once an apply has shipped them to the daemon."""
         self._filters.clear()
 
-    # --- matrix-profile fan-out (matrix-spec.md "Profiles") ----------------
+    # --- matrix-profile fan-out --------------------------------------------
 
     def fanout_profiles(self, edits: dict[str, str]) -> dict[str, str]:
         """Apply the staged profile verbs' fan-out targets to stored presets.

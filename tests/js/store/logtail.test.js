@@ -33,9 +33,9 @@ test("a refresh replaces the held lines with the lines the log endpoint answered
 
 // --- a failed read --------------------------------------------------------------
 //
-// The message wording is copy (docs/testing.md rule 9) and is not asserted; what
+// What
 // is asserted is where the failure's own reason, a string this fake put on the
-// wire, lands in it. The reason rides the route's refusal as its `detail`, the
+// wire, lands in the message. The reason rides the route's refusal as its `detail`, the
 // one failure whose message the client hands on as the wire said it.
 
 const REASON = "the log file is not readable by hqplayerd";
@@ -75,8 +75,8 @@ test("a reason that already ends in a full stop gets no second one", async () =>
 //
 // The route refuses a log HQPlayer has none of with its own code, and the pane
 // says so in a sentence of its own rather than the failed-read sentence wrapped
-// around the refusal's detail. The sentence is copy (docs/testing.md rule 9), so
-// these tests pin what tells it apart: it does not carry the detail, and it is
+// around the refusal's detail.
+// These tests pin what tells it apart: it does not carry the detail, and it is
 // not what a failed read with the same detail leaves.
 
 const LOG_ABSENT = "daemon_log_absent";
@@ -87,7 +87,7 @@ const ONE_DETAIL = "hqplayerd answered no log file";
 const OTHER_DETAIL = "logging is switched off in hqplayerd";
 
 // GET /api/log answers a refusal in the REST API's own shape, `detail` and
-// `code` (docs/architecture.md section 8.1); every other path falls through.
+// `code`; every other path falls through.
 /**
  * @param {number} status
  * @param {string} code

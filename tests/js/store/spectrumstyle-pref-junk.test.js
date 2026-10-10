@@ -9,8 +9,6 @@
 // the pattern): the module reads storage once at import, so the fake is
 // installed and seeded with the bad value BEFORE prefs.js is imported.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/spectrumstyle-pref-junk.test.js
 
 import test from "node:test";

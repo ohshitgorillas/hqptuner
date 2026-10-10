@@ -17,8 +17,8 @@
 // would pin nothing about the join.
 //
 // State is driven through the store's exported source signals plus a faked wire
-// for the staging round-trip (docs/testing.md rule 4 — no store function is
-// ever stubbed). `reset()` reassigns the whole /api/config payload on every
+// for the staging round-trip.
+// `reset()` reassigns the whole /api/config payload on every
 // call rather than only the part a case cares about: module-level signals
 // persist for the life of the process, so a partial reset makes tests pass
 // alone and fail in sequence. `staged` is not exported, so it is cleared via

@@ -1,8 +1,8 @@
 // Behavioral suite for lib/api.js's upload lane — the one wrapper the store
 // suites never reach (multipart, not JSON) — plus the preset-name URL escaping.
 //
-// The wire is faked at globalThis.fetch (docs/testing.md rule 4) and restored
-// after every test. File and FormData are the platform's own.
+// The wire is faked at globalThis.fetch and restored after every test. File
+// and FormData are the platform's own.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/api.test.js
 
@@ -103,9 +103,8 @@ test("test_a_refused_upload_surfaces_the_daemons_own_reason", async () => {
 });
 
 // --- a failure with no usable detail -----------------------------------------
-// Its sentence is copy (docs/testing.md rule 9), so these cases pin what the
-// sentence is built from: the status and what the wire carried, never the
-// request path, never the wording itself.
+// These cases pin what its sentence is built from: the status and what the
+// wire carried, never the request path, never the wording itself.
 
 // The message a call's rejection carries. A call that resolves has nothing to
 // describe, so the helper refuses rather than handing back a value that could

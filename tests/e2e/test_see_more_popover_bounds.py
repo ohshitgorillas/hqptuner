@@ -2,26 +2,25 @@
 
 A drawer row whose description holds part of its paragraph back ends that
 description with a `see more` trigger, and the trigger opens the rest in a note
-popover (docs/faceplate-spec.md, Output drawer; the DAC bits rows carry one).
-What is pinned here is where that popover lands: wholly inside the open
-drawer's box, on every edge.
+popover (the DAC bits rows carry one). What is pinned here is where that
+popover lands: wholly inside the open drawer's box, on every edge.
 
 The plates are the spec's design size, 1080x810 (10.2"), and the iPad Mini at
 full screen in landscape, 1133x744 points, the smallest screen the README and
 changelog promise to fit.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test, one case per plate. The helper returns two measured
-  boxes, the popover's and the same box clipped to the drawer, or None when
-  there is no popover to measure; the test narrows the None and judges that the
-  two boxes are equal, which they are only when the popover sits inside.
+- One case per plate. The helper returns two measured boxes, the popover's and
+  the same box clipped to the drawer, or None when there is no popover to
+  measure; the test narrows the None and judges that the two boxes are equal,
+  which they are only when the popover sits inside.
 - Layout geometry only exists in a real browser, so this is the browser lane.
 - Controls are found by machine identity: the rail stage's `data-stage`, the
   tab's `data-tab`, the trigger's `data-testid`, the popover's `role`. The drawer
   is the one `aside` not carrying `data-closed`.
-- No fixed sleep. Locators wait for what they act on, and the measurement waits
-  on the drawer's own finite animations finishing, a condition, not a duration.
+- Locators wait for what they act on, and the measurement waits on the drawer's
+  own finite animations finishing.
 """
 
 from typing import NamedTuple

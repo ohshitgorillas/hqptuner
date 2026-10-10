@@ -1,7 +1,7 @@
 """What a `MeterFeed` queues for its subscribers from the frames it is given.
 
-Every case packs its own frames in the 4322 layout (docs/protocol.md section
-7): a header of the eight values ``struct.unpack("<4I3fI")`` reads from the
+Every case packs its own frames in the 4322 layout:
+a header of the eight values ``struct.unpack("<4I3fI")`` reads from the
 32-byte header (version 1, channels, xformLength, transformBits, bandwidth,
 transformTime, gain, reserved 0), and a body of, per channel, four `f32`
 levels in dBFS (peakMax, peak, rms, rmsMax) then the reals and the

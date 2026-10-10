@@ -15,8 +15,8 @@ is written, no daemon restart, no ``sudo``:
   QB  switching to a profile that carries one with ``enabled="1"`` — is it
       installed into the running engine?
 
-The switch is memory-only (protocol.md "Matrix profile commands"), so the only
-cleanup is switching back to the profile that was active, verified by readback.
+The switch is memory-only, so the only cleanup is switching back to the profile
+that was active, verified by readback.
 Correction state is read from ``GET /matrix``, which is the running form.
 
 Aborts before any switch unless the engine is stopped: this daemon is the host's

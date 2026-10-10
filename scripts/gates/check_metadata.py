@@ -2,9 +2,8 @@
 """Gate: the shipped static metadata loads, and covers the engine it describes.
 
 ``hqptuner/data/*.json`` is hand-written prose and constraints joined to the
-engine's enumerations by name (architecture §3.1). Nothing in the offline suite
-reads the shipped files — tests run on ``tests/support/fixtures/
-metadata_min`` — so a shipped file that fails to parse, drops the key the
+engine's enumerations by name. Nothing in the offline suite reads the shipped
+files — tests run on ``tests/support/fixtures/metadata_min`` — so a shipped file that fails to parse, drops the key the
 loader reads, or forgets the row for a modulator the engine reports would
 surface first in a running container. This gate reads the real files the way
 the application does and refuses the commit instead.

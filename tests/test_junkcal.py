@@ -4,8 +4,6 @@ Also covers ``scripts/junkcal/junkcal_view.band_stats``, the offline capture-fil
 reader's per-band statistics producer (its own module docstring): a row whose
 stored curve rises linearly by 10 dB per 1000 Hz, so ``argmax_hz`` and
 ``slope_db_per_khz`` have an exact, hand-checkable answer.
-
-Policy: docs/testing.md — one condition per test, public API only.
 """
 
 import argparse

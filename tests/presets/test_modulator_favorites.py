@@ -5,7 +5,7 @@ the live snapshots; this suite pins the second set living in the same file, read
 and written through `read_modulators`/`write_modulators`, and served by the same
 GET/PUT `/api/favorites` pair under a `modulators` member. Neither surface
 touches hqplayerd — a favorite is HQPTuner's own record, keyed by the engine's
-NAME rather than by an enum id (docs/architecture.md §3.1).
+NAME rather than by an enum id.
 
 Everything here reuses `tests/presets/test_favorites.py`: its `favorites_api`
 factory (a daemonless `TestClient` over a store file under `tmp_path`), its

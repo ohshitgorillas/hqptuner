@@ -1,6 +1,5 @@
 // Behavioral suite for eslint-rules/assertion-shape.js, the frontend peer of
-// the shape checks in scripts/gates/testing/check_test_assertions.py (docs/testing.md
-// rules 2, 10 and the Markers clause).
+// the shape checks in scripts/gates/testing/check_test_assertions.py.
 //
 // The rule is driven through ESLint's Linter on invented source text, never
 // RuleTester: RuleTester's assertions are internal, and the one-assertion gate

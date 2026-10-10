@@ -58,9 +58,7 @@ const hueOf = (/** @type {number} */ i, /** @type {number} */ n) =>
 // In-flight handle-drag readout: {label, f0, db0, f, db} — the dragged handle's
 // name, its values at pointerdown, and where it is now. Module-level because
 // only one pointer drag can be live at a time; cleared on release. Written only
-// from pointer handlers, so it is invisible to SSR tests by design (see
-// docs/testing.md "Branches that cannot be reached") — the hand-back protocol
-// covers it.
+// from pointer handlers, so it is invisible to SSR tests by design.
 const dragHud = signal(null);
 // The HUD keeps its own frequency and delta formatters rather than taking
 // lib/units.js's. It updates under the pointer, and its text is center-anchored,

@@ -1,4 +1,4 @@
-"""The clock every wait in the manager and its lanes paces on (docs/testing.md rule 7).
+"""The clock every wait in the manager and its lanes paces on.
 
 One pair of reads and waits, shared by the manager and every lane. Production takes the defaults below; the suite
 hands in a clock it advances, so a retry, poll or deadline loop runs the same passes against the fakes without the

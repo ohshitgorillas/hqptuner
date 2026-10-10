@@ -10,11 +10,10 @@
 // such a write landing and the new lists arriving the page is stale, and the new
 // State must not be shown against the old lists.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Every case drives the exported `engineState` / `enums` / `config`
+// Every case drives the exported `engineState` / `enums` / `config`
 // signals with the shapes /api/state, /api/enumerations and /api/config actually
 // serve, and every write goes out over a faked `globalThis.fetch` on the real
-// REST path — no store function is ever stubbed.
+// REST path.
 //
 // The three sources are kept apart on purpose: the filter the assertions read is
 // enum 25 before the write, 0 if the new State is joined to the OLD list, and 3
@@ -49,7 +48,7 @@ const SHAPERS = [
   { index: "0", value: "0", name: "none" },
   { index: "1", value: "31", name: "TPDF" },
 ];
-// RatesItem carries no name and no value — `<RatesItem index rate/>` (protocol.md §6).
+// RatesItem carries no name and no value — `<RatesItem index rate/>`.
 const RATES = [
   { index: "0", rate: "0" },
   { index: "1", rate: "96000" },

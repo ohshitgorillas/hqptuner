@@ -3,11 +3,10 @@
 // section reports the import while it runs and once it lands, a landed import reads the station list again, and a
 // refusal reads by its code.
 //
-// Driven at the wire: a fetch fake answers the real REST paths and records every request, and no store function is
-// stubbed. The upload's change is fired through the renderer's vnode seam, since render-to-string fires no events; the
-// control is located by `data-testid="state-import"`. The section's wording is owner copy (docs/testing.md rule 9), so
-// a status is read as the whole page's text and compared with the page in another state, never with a literal. Refusal
-// details and station names are the fixture's own wire data.
+// Driven at the wire: a fetch fake answers the real REST paths and records every request. The upload's change is fired
+// through the renderer's vnode seam, since render-to-string fires no events; the control is located by
+// `data-testid="state-import"`. A status is read as the whole page's text and compared with the page in another state,
+// never with a literal. Refusal details and station names are the fixture's own wire data.
 //
 // The status is written only from the upload's handler and persists for the life of this file, so the page as it reads
 // before any import is captured once, at load. The station-list case runs last, since it moves the config.

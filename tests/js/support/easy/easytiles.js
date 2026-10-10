@@ -23,7 +23,7 @@
 // nothing to resolve it against.
 //
 // IDS VERSUS NAMES. Both lanes VALUE a filter field by its enum id and LABEL it
-// by the engine's filter name (docs/architecture.md §3.1), so every filter here
+// by the engine's filter name, so every filter here
 // gets an id differing from its position in every list it appears in: a lane
 // writing the name, the index or the label instead of the id fails loudly
 // rather than coinciding with the right answer.

@@ -1,27 +1,24 @@
 """The rate pin picker's size and place on the Output drawer's Format tab.
 
 The picker (`Auto | 44.1k | 48k`) shows on the Rate row while Settings, Behavior,
-Allow pinned rates is on (docs/faceplate-spec.md, Output drawer). It is a switch
-like the drawer's others, so a finger has to be able to hit each of its buttons:
-each is as tall as the Output mode and DoP switches' buttons, the three are one
-size, and the picker sits on the Rate row's label line rather than hanging off
-the row's corner past it.
+Allow pinned rates is on. It is a switch like the drawer's others, so a finger
+has to be able to hit each of its buttons: each is as tall as the Output mode
+and DoP switches' buttons, the three are one size, and the picker sits on the
+Rate row's label line rather than hanging off the row's corner past it.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
 - Browser lane: a size and a position exist only once a stylesheet lays the
-  drawer out, which server rendering never does (rule 15).
-- One assertion per test; the helpers return boxes and the test judges them.
+  drawer out, which server rendering never does.
 - Controls are found by wire identity only: the rail stage (`data-stage`), the
   Format tab (`data-tab`), a row's catalog key (`data-k`), the dial's block
   (`data-block`) and the picker's options (`data-pin`). No caption is read.
 - The Rate row's label line has no wire identity, so it is found as the drawer
   row grammar's head line, `.fh`, inside the dial's block. A `data-testid` on
-  that line would be the copy-free handle rule 9 asks for.
-- The page is laid out at 1080x810, the design size and the smallest plate
-  (docs/design-system.md, Plate).
-- Nothing waits on a clock: locators wait on conditions, and the drawer's own
-  finite animations are awaited to their end before anything is measured.
+  that line would be the copy-free handle.
+- The page is laid out at 1080x810, the design size and the smallest plate.
+- Locators wait on conditions, and the drawer's own finite animations are
+  awaited to their end before anything is measured.
 """
 
 from typing import Any

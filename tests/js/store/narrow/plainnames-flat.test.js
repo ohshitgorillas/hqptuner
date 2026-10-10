@@ -21,14 +21,12 @@
 // The overlay rides the /api/metadata payload (`plain_names`), seeded through
 // the field harness's reset() the way the other plain-names suites drive it;
 // the pref is the exported signal. Ordering is asserted on option VALUES, wire
-// identifiers rather than wording (docs/testing.md rule 9), and no display
+// identifiers rather than wording, and no display
 // string beyond the fixture's own invented leaves and shorts is asserted.
 //
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link — the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-flat.test.js
 

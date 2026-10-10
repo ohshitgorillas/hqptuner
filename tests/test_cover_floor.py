@@ -1,7 +1,5 @@
 """Characterization of five modules' less-travelled branches, each driven
-through its public entry point against the fake control daemon or plain bytes
-(docs/testing.md: one condition per test, public API only, fakes speak the
-wire).
+through its public entry point against the fake control daemon or plain bytes.
 
 The matrix-scope helpers take config bytes and hand back bytes or a span; the
 rescan replay, the live lane's chain memory and the live snapshot run on a

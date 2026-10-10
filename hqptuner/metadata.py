@@ -1,7 +1,6 @@
 """Static metadata (data/*.json) and its merge with live engine enumerations.
 
-Join is by name only — the running engine is the sole authority for names,
-IDs, ordering, and structural facets (architecture §3.1 enumeration volatility).
+Join is by name only.
 Filter join rules: exact -> alias -> strip '-2s' (filters.json ``_join_rules``);
 ``scripts/gates/check_metadata.py`` holds the shipped files to them.
 

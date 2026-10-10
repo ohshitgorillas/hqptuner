@@ -5,11 +5,10 @@
 // narrowing facets.
 //
 // Persistence is one REST pair, GET/PUT /api/favorites, driven through the
-// wire fake in ../support/wire/favoriteswire.js (docs/testing.md rule 4 — real path,
-// real shapes, nothing of ours stubbed). `toggleFavorite` is optimistic: it
+// wire fake in ../support/wire/favoriteswire.js.
+// `toggleFavorite` is optimistic: it
 // moves the set first and reverts if the PUT fails, so the cases that pin what
-// the user sees BEFORE the answer arrives park the fake with `hold` rather than
-// waiting on a clock (rule 7).
+// the user sees BEFORE the answer arrives park the fake with `hold`.
 //
 // localStorage is no longer where favorites live; it survives only as the
 // one-shot migration source hydration drains INTO the server's list, as a
@@ -20,7 +19,7 @@
 //
 // Facet data is driven the way narrowing.test.js drives it — by assigning the
 // two source signals the real payloads carry (`enums.filters`, the engine's
-// `<GetFilters/>` enumeration, protocol.md:226, and `metadata.filters.filters`,
+// `<GetFilters/>` enumeration, and `metadata.filters.filters`,
 // the static overlay from /api/metadata) — descriptions hand-written in the
 // engine's own format with the PCM glyph.
 //

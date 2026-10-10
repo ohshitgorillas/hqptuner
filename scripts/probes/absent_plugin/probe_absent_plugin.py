@@ -12,8 +12,8 @@ did not author, and on whether the daemon rewrites the file, so this asks:
 
 Both need a config without the element, which this manufactures by stripping
 it first. Read-strip-restore against the live daemon, every step confirmed
-by readback (an HTTP 200 is not proof — protocol.md §3.6), and the pristine
-archive captured up front is restored and verified at the end.
+by readback, and the pristine archive captured up front is restored and
+verified at the end.
 
 Aborts before any write unless the engine is stopped.
 

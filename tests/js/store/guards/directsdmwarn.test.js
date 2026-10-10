@@ -19,8 +19,8 @@
 //     bool, and bool `true` means the same as "1".
 // -6 dB in either mechanism is NOT -3 dB, and so still warns.
 //
-// Everything is driven through the real edit() against a staging wire
-// (docs/testing.md rule 4); the question is driven through the public ask
+// Everything is driven through the real edit() against a staging wire;
+// the question is driven through the public ask
 // surface (question / answer / cancel), never by poking store internals. A
 // guarded edit() does not resolve until its question is answered, so these
 // tests hold the promise, drive the question, then await — never the reverse.
@@ -150,7 +150,7 @@ test("the direct sdm warning names direct_sdm as owner", async () => {
 });
 
 // The question's message and its two button labels were pinned here verbatim.
-// All three are owner copy (docs/testing.md rule 9), and `kind` and `owner`
+// `kind` and `owner`
 // above already tell this question apart from every other one, so nothing
 // survives them but the wording.
 
@@ -372,6 +372,6 @@ test("turning direct sdm off stages immediately", async () => {
 
 // --- the askWarn defaults ----------------------------------------------------
 // The two cases that stood here pinned askWarn's default confirm and decline
-// labels word for word. Both are owner copy (docs/testing.md rule 9), and the
+// labels word for word. The
 // question carries no machine identity for a label, so there is nothing left to
 // assert once the wording goes.

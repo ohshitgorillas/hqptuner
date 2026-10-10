@@ -5,8 +5,7 @@
 //
 // The module is pure (no signals, no DOM, no network), so every case is a
 // plain call with a plain return value. Nothing is stubbed and nothing needs
-// a fake (docs/testing.md rule 4 has nothing to bite on where there is no
-// wire).
+// a fake.
 //
 // EVERY CASE IS GENERATED. No preset is named here to stand for a property
 // (has an emphasis knob, has two knobs, has a two-stage variant, is knobless):

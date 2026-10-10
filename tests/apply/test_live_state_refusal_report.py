@@ -2,10 +2,9 @@
 
 The setting is the dither, written with `SetShaping` and verified by the `State` index read back after it. The daemon
 is the support fake with `State` in its `_error` knob: the setter is answered `result="OK"` and applied, and the
-readback is answered `result="Error"` with the fake's `_error_text` as the element's own text (docs/protocol.md §6).
+readback is answered `result="Error"` with the fake's `_error_text` as the element's own text.
 
-The report row's `error` sentence is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is
-the refusal text the test put on the wire: that the row carries HQPlayer's words unchanged.
+What is asserted is the refusal text the test put on the wire: that the row carries HQPlayer's words unchanged.
 """
 
 import pytest

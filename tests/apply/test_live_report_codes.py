@@ -1,13 +1,12 @@
 """A failed live setter's report line carries the raised error's OWN code.
 
 `apply_live` reports one dict per setting; a failed one carries `ok: False`,
-an `error` sentence and a `code`. The sentence is owner copy (docs/testing.md
-rule 9) and stays out of the assertion; the code is a wire identifier and is
-what this pins. The cases are built on the wire alone: the `_close` knob drops
-the connection on the `Volume` command (transport death), `_error` answers it
-`result="Error"` (refusal), `_deaf` answers OK without applying so the `State`
-readback disagrees (mismatch), and an edit with no `value` or an unparseable
-level never reaches the daemon at all (an error with no code of its own)."""
+an `error` sentence and a `code`. The code is what this pins. The cases are
+built on the wire alone: the `_close` knob drops the connection on the `Volume`
+command (transport death), `_error` answers it `result="Error"` (refusal),
+`_deaf` answers OK without applying so the `State` readback disagrees
+(mismatch), and an edit with no `value` or an unparseable level never reaches
+the daemon at all (an error with no code of its own)."""
 
 import pytest
 from conftest import DaemonFactory

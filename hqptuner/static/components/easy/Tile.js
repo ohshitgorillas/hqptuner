@@ -1,7 +1,6 @@
 // One preset, as a tile. Not a `Card` and deliberately not card markup: a card
-// is a section of the page, and eight of these sit INSIDE one card
-// (docs/design-system.md, one card component). A rounded box on the card
-// surface is what it is, so that is what it paints.
+// is a section of the page, and eight of these sit INSIDE one card. A rounded
+// box on the card surface is what it is, so that is what it paints.
 //
 // A tile holds no state at all. Which tile is lit and where each knob stands are
 // read off the current filter values every render (store/easy/easy.js matchPreset),

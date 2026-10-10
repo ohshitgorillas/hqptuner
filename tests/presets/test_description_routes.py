@@ -8,7 +8,7 @@ everything in this file needs an app and a client, and half of it needs a daemon
 while nothing in the store file needs any of the three.
 
 A description is keyed by profile NAME, the stable join key
-(docs/architecture.md §3.1) — `<matrix_profile>` carries exactly one attribute,
+— `<matrix_profile>` carries exactly one attribute,
 `name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
 prose to live and the store is HQPTuner's own state. The REST pair therefore
 never touches hqplayerd: those clients are built with no credentials and a
@@ -247,7 +247,7 @@ def test_an_archive_with_no_payload_comes_back_unchanged() -> None:
 
 def members_zip() -> bytes:
     """An archive shaped the way hqplayerd's own /backup is: a working config
-    and the data tree beside it (docs/protocol.md §3.6)."""
+    and the data tree beside it."""
     out = io.BytesIO()
     with zipfile.ZipFile(out, "w") as z:
         z.writestr("hqplayerd.xml", b"<hqplayer/>")
@@ -278,7 +278,7 @@ def test_an_empty_store_adds_no_member(carriage_client: tuple[TestClient, Descri
 
 def daemon_backup(http_daemon: dict[str, Any]) -> dict[str, bytes]:
     """The members of the archive hqplayerd itself serves, read straight off the
-    fake's own `GET /backup/settings.zip` (docs/protocol.md §3.6).
+    fake's own `GET /backup/settings.zip`.
 
     The reference for "the daemon's own members survive" has to come from the
     daemon, not from another trip through HQPTuner: a backup that mangled a

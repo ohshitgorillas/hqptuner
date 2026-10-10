@@ -4,7 +4,7 @@
 //
 // The module is pure, with no signals, no DOM and no network, so every case here
 // is a plain call with a plain return value. Nothing is stubbed and nothing needs
-// a fake (docs/testing.md rule 4 has nothing to bite on where there is no wire).
+// a fake.
 //
 // THE CONTRACT. `filterFor(p, mode, knobs, nx)` equals `writeSet(p, mode, knobs)`
 // read at one key: the chain is `sdm` when the mode is `"sdm"` and `pcm`
@@ -31,8 +31,6 @@
 // The module is imported under a BUILT specifier so a checkout that predates
 // the change fails per-case rather than at module link, the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/easy/easy-filtername.test.js
 

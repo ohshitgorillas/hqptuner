@@ -2,7 +2,7 @@
 
 `GetFilters`/`GetShapers` enumerate the ACTIVE mode's chain only, and the two
 chains number the same names differently — `poly-sinc-gauss-long` is enum ID 40
-under PCM `filter` and 38 under SDM `oversampling` (protocol.md §4, readme
+under PCM `filter` and 38 under SDM `oversampling` (readme
 §1.5/§1.6). So the engine can only be told about the chain it has loaded, while
 the LIVE page shows both: an edit to the dormant chain is HELD rather than
 refused (the config form and hqplayerd.xml speak enum IDs, `Set*` speaks list
@@ -10,8 +10,7 @@ indices, and "the two domains must never be mixed").
 
 Everything here runs against the stateful fake daemon over a real socket — the
 assertions are on what the daemon reports afterwards, on the traffic that
-reached it, and on what the config side is told, never on how any of it was
-produced (docs/testing.md).
+reached it, and on what the config side is told.
 """
 
 from collections.abc import Callable, Iterator

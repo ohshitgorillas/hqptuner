@@ -3,7 +3,7 @@ POST reloads the engine and the /speakers lane 502s for a window, so the verify
 polls past the transient on the virtual clock and confirms what landed — or gives
 up honestly at the alarm deadline when the daemon never comes back.
 
-The fake is a stateful /speakers daemon at the wire (docs/testing.md rule 4): a
+The fake is a stateful /speakers daemon at the wire: a
 GET renders the current state as the real 6.0.4 form markup, a POST adopts the
 fields and opens the reload window, during which every GET answers 502."""
 

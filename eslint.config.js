@@ -63,9 +63,8 @@ const PLUGINS = { sonarjs };
 // second gate demanding prose copies of the same types would only give the two
 // a way to disagree.
 //
-// tests/js is exempt, matching the Python side's `tests/**` ignore: the
-// one-assertion rule and docs/testing.md already require a test's name to state
-// its behavior in plain words, and a block above it restates the name.
+// tests/js is exempt, matching the Python side's `tests/**` ignore: a block
+// above a test restates its name.
 //
 // require-jsdoc takes `publicOnly`, which scopes it to the exported surface.
 // require-description has no such option and defaults to every function that
@@ -187,8 +186,8 @@ export default [
       },
     },
     // no-copy-assertions enforces for JS what
-    // scripts/gates/testing/check_no_copy_assertions.py enforces for Python
-    // (docs/testing.md rule 9), same semantics, blocking on both sides.
+    // scripts/gates/testing/check_no_copy_assertions.py enforces for Python,
+    // same semantics, blocking on both sides.
     // assertion-shape is the JS peer of the shape checks in the same Python gate,
     // blocking on both sides.
     rules: {

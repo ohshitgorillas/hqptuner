@@ -1,12 +1,10 @@
-"""The active preset's stored settings survive a restart-shaped write
-(docs/testing.md — behavior only, one assertion per test, public API only,
-fakes speak the wire protocol).
+"""The active preset's stored settings survive a restart-shaped write.
 
 Output mode, both chains' filters and shapers, adaptive volume and the
 per-family rate limits are applied over the 4321 control lane and never reach
 hqplayerd's config file. hqplayerd boots from that file, so any write that
 restarts it — every persistent apply, which is a ``POST /restore`` by
-construction (protocol.md §3.6) — boots the daemon onto a file that never
+construction — boots the daemon onto a file that never
 learned them. The contract asserted here: while a preset is active, a
 restore-lane write pushes a config carrying THAT preset's stored values for
 exactly those settings, so the daemon comes back running what the user thinks

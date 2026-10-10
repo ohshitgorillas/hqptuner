@@ -9,8 +9,8 @@
 // suites exercise the code that ships rather than an npm substitute.
 //
 // State is driven through the store's exported source signals plus a faked wire
-// for the staging round-trip (docs/testing.md rule 4 — no store function is ever
-// stubbed). `reset()` reassigns EVERY signal Field reads on every call rather
+// for the staging round-trip.
+// `reset()` reassigns EVERY signal Field reads on every call rather
 // than only the ones a case cares about: module-level signals persist for the
 // life of the process, so a partial reset makes tests pass alone and fail in
 // sequence. `staged` is not exported, so it is cleared via discardAll().

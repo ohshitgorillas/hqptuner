@@ -4,7 +4,7 @@
 the `state` mapping the daemon's `State` filled and the `enums` mapping its
 enumeration queries filled — joined into a display record per live field. Both
 halves arrive here off the fake control daemon over a real socket, so the shapes
-under test are the wire's own (`docs/testing.md`: fakes speak the protocol).
+under test are the wire's own.
 """
 
 import pytest

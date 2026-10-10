@@ -2,10 +2,9 @@
 problem rather than the command: the daemon closed it under a command, or there
 was never one to send on.
 
-The owner's wording for both is copy (docs/testing.md rule 9), so no sentence is
-asserted here. What is asserted is what the fixture knows: the wire name of the
-command in flight, which the closed-connection error does not carry, and the
-host and port the client was pointed at, which the no-connection error does.
+What is asserted is what the fixture knows: the wire name of the command in
+flight, which the closed-connection error does not carry, and the host and port
+the client was pointed at, which the no-connection error does.
 
 The daemon is the repository's control fake; its `_close` knob receives and logs
 a command, answers nothing, and closes the socket. The no-connection client is

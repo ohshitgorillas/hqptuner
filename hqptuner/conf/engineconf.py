@@ -153,8 +153,8 @@ def running_config_name(names: list[str], active: str | None = None) -> str | No
 
     Normally ``hqplayerd.xml``. But when a named profile is the active one, the daemon
     writes the live config to a root-level ``<Profile>.xml`` and omits
-    ``hqplayerd.xml`` entirely (observed on 6.0.4: a preset-active ``/backup`` has
-    ``Speakers.xml`` at the root, no ``hqplayerd.xml``, protocol.md §3.6).
+    ``hqplayerd.xml`` entirely: a ``/backup`` taken with ``Speakers`` active has
+    ``Speakers.xml`` at the root and no ``hqplayerd.xml``.
 
     ``active`` is the DAEMON's active-profile label (``ConfigurationGet``, kept on
     the manager as ``active_config``) — the daemon names that member after its own

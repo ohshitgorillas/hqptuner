@@ -4,13 +4,10 @@ The client serializes round trips over its one connection with a lock, so a
 second `State` read started before the first has returned waits its turn. What
 the queued read gets when its turn comes is the question here: on a daemon that
 drops the connection under `State` without answering (the fake's `_close` knob,
-fake_control.CLOSE), the first read fails and takes the connection with it
-(docs/architecture.md:31), and the queued read must then fail the same
-documented way, `ControlError` (docs/architecture.md:72), rather than trip over
-the connection the first read already dropped. On a healthy daemon both reads
-are answered.
-
-Policy: docs/testing.md — one condition per test, behavior only.
+fake_control.CLOSE), the first read fails and takes the connection with it, and
+the queued read must then fail the same documented way, `ControlError`, rather
+than trip over the connection the first read already dropped. On a healthy
+daemon both reads are answered.
 """
 
 import asyncio

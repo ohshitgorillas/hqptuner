@@ -9,9 +9,9 @@ full hqplayerd pairs (4321 control beside the 8088 config lane) sit at
 answers `GET /api/config` is which address the app resolved.
 
 Each pair's config fake carries its OWN marker in the `title` form field, put
-there by this test and read back off the wire (docs/testing.md rule 9), so the
-three cases are told apart by the daemon that answered rather than by a status
-code. Nothing answers at the `config.py` default 127.0.0.1: an install that
+there by this test and read back off the wire, so the three cases are told apart
+by the daemon that answered rather than by a status code.
+Nothing answers at the `config.py` default 127.0.0.1: an install that
 never resolves an address reaches no daemon at all.
 """
 

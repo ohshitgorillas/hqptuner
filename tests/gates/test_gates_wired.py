@@ -1,4 +1,4 @@
-"""The gate that checks every gate is itself wired up (``docs/testing.md``).
+"""The gate that checks every gate is itself wired up.
 
 ``scripts/gates/check_gates_wired.py`` walks ``scripts/gates/`` and asks two
 questions of every gate script it finds: is this filename named on a live

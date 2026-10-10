@@ -12,8 +12,8 @@ One implementation means the retry semantics cannot drift apart between lanes,
 which is exactly the class of bug a readback-verify path must not have.
 
 Pacing goes through the manager's clock, ``mgr.clock``, which the suite hands
-in advancing (docs/testing.md §7). A lane that reaches for
-``asyncio.sleep`` or ``time.monotonic`` instead is a review flag.
+in advancing. A lane that reaches for ``asyncio.sleep`` or ``time.monotonic``
+instead is a review flag.
 """
 
 from __future__ import annotations

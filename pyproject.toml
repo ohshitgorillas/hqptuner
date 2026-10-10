@@ -87,8 +87,8 @@ omit = ["hqptuner/core/junkcal.py"]
 
 [tool.mutmut]
 # Mutation testing, run by hand via `make mutate` — never in `make check` or
-# pre-commit (docs/testing.md "Mutation testing"). It asks the one question the
-# assertion gate cannot: would this test have failed if the code were wrong.
+# pre-commit. It asks the one question the assertion gate cannot: would this
+# test have failed if the code were wrong.
 source_paths = ["hqptuner"]
 # The frontend is JavaScript; mutmut mutates Python only and already skips
 # non-.py files, but naming static/ keeps the scope explicit rather than
@@ -233,9 +233,7 @@ select = [
     "PLC2701",          # no import of another module's private name (preview)
     "PLR6301",          # method that never uses self (preview)
     # Docstrings (pydocstyle), pep257 convention, over hqptuner/ and scripts/.
-    # tests/ is exempt by decision: docs/testing.md rule 6 already requires a
-    # test name to state its behavior in plain words, so a docstring there
-    # restates the name.
+    # tests/ is exempt by decision: a docstring there restates the test name.
     "D",
 ]
 

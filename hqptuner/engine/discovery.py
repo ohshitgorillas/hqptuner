@@ -1,9 +1,9 @@
 """Finding hqplayerd on the network, so nobody has to type its address.
 
 The daemon answers a multicast datagram with its friendly name and its product string, and the datagram's own
-sender address is the daemon's host (protocol.md §2). That is enough to list what is out there and nothing
-more: the product string names the major but never the operating system, so each address found is asked
-``GetInfo`` over the control port for the rest.
+sender address is the daemon's host. That is enough to list what is out there and nothing more: the product
+string names the major but never the operating system, so each address found is asked ``GetInfo`` over the
+control port for the rest.
 """
 
 import asyncio

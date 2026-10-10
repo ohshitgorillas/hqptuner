@@ -7,7 +7,7 @@
 //
 // Everything a scenario needs is stated at the wire the store reads from — the
 // /api/state, /api/enumerations, /api/config and /api/metadata payloads carried
-// by the exported signals. No store function is stubbed (docs/testing.md rule 4).
+// by the exported signals.
 //
 // Two facts drive the shape of the fixtures:
 //
@@ -21,7 +21,7 @@
 //     which source the rate/shaper fit reads, which is store/live's contract and
 //     is pinned in liverate.test.js / livechain.test.js, not here.
 //   * Shaper names are the engine's, and the constraint file joins to them BY
-//     NAME (architecture §3.1/§7.10) — so the floors below are keyed by the names
+//     NAME — so the floors below are keyed by the names
 //     support/chainenums.js puts on both the enum side and the form side, with
 //     the enum ID differing from the list index throughout.
 
@@ -32,7 +32,7 @@ import { staticWire } from "./wire/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS, JUNK, formField, FORM, LISTS } from "./chainenums.js";
 
 // Tier menu members, 48k side — a menu value names the TIER, never the
-// frequency (settings-classification §Rate per-family).
+// frequency.
 export const DSD64 = "3072000";
 export const DSD512 = "24576000";
 export const DSD1024 = "49152000";
@@ -78,8 +78,8 @@ const META = ({ sdm = {}, pcm = {} }) => ({
   shapers: { pcm_dithers: overlay(pcm), sdm_modulators: overlay(sdm) },
 });
 
-// `<RatesItem index rate/>` — no name and no value, index 0 meaning auto
-// (protocol.md §4/§6). The index a rate lands on is never its value.
+// `<RatesItem index rate/>` — no name and no value, index 0 meaning auto.
+// The index a rate lands on is never its value.
 /** @param {...string} hz */
 const rateItems = (...hz) => ["0", ...hz].map((rate, i) => ({ index: String(i), rate }));
 
@@ -138,7 +138,7 @@ export async function reset(scenario = {}) {
   staticWire({ live: {}, http: {} });
   const loaded = chain === "sdm";
   // The same pick in the two domains it is reported in: `State` gives the list
-  // index, the configuration form the enum ID (protocol.md §4).
+  // index, the configuration form the enum ID.
   const picked = {
     dither: PCM_SHAPERS[Number(shaper)].value,
     modulator: SDM_SHAPERS[Number(shaper)].value,

@@ -4,9 +4,8 @@ The fake daemon's `_stall` knob is that HQPlayer: the command is received and lo
 and nothing comes back. The client's deadline is a `VirtualDeadline`, handed in through the constructor, so the
 wait runs out without a real second passing.
 
-The sentence is owner copy and is not asserted (docs/testing.md rule 9). What is asserted is what the test put
-there: the timeout the client was built with, which the report carries as its seconds, and the wire name of the
-command that went unanswered, which it no longer carries.
+What is asserted is what the test put there: the timeout the client was built with, which the report carries as its
+seconds, and the wire name of the command that went unanswered, which it no longer carries.
 """
 
 import re

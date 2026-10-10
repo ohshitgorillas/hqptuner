@@ -1,4 +1,4 @@
-"""The gate that holds a stylesheet to its tokens (``docs/design-system.md``).
+"""The gate that holds a stylesheet to its tokens.
 
 ``scripts/gates/css/check_css_tokens.py`` reads one stylesheet and reports
 every declaration off the faceplate rules.

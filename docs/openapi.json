@@ -829,7 +829,7 @@
         "type": "object"
       },
       "EnumFilterItem": {
-        "description": "One live filter enumeration item merged with its static prose (protocol.md \u00a76 ``FiltersItem``).",
+        "description": "One live filter enumeration item merged with its static prose (``FiltersItem``).",
         "properties": {
           "apodizing": {
             "title": "Apodizing",
@@ -871,7 +871,7 @@
         "type": "object"
       },
       "EnumShaperItem": {
-        "description": "One live shaper enumeration item merged with its static prose (protocol.md \u00a76 ``ShapersItem``).",
+        "description": "One live shaper enumeration item merged with its static prose (``ShapersItem``).",
         "properties": {
           "index": {
             "title": "Index",
@@ -4413,7 +4413,7 @@
     },
     "/api/matrix/filter": {
       "post": {
-        "description": "Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.\n\nRefuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on\nthe part's byte count so an oversize body is never read into the route. A part with an empty filename reaches\nthe handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline\nprocess string should reference (matrix-spec.md \"Filter upload\").",
+        "description": "Park an uploaded convolution filter (wav/txt) for the next apply, which injects it into the restore archive.\n\nRefuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on\nthe part's byte count so an oversize body is never read into the route. A part with an empty filename reaches\nthe handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline\nprocess string should reference.",
         "operationId": "matrix_filter_api_matrix_filter_post",
         "requestBody": {
           "content": {
@@ -4456,7 +4456,7 @@
     },
     "/api/matrix/profile": {
       "post": {
-        "description": "Load a saved matrix profile into the running matrix (matrix-spec.md \"Profiles\").\n\n4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no\ncredentials \u2014 the Control API lane is unauthenticated.\n\nSaving and deleting a profile are NOT here: they are staged\n``<matrix_profile>`` config edits and ride ``/api/config/stage`` +\n``/api/config/apply`` like every other persistent setting, because the daemon\ndoes not persist profiles itself. The client stages the loaded\nprofile's rows alongside this call, so a load is live AND persists.",
+        "description": "Load a saved matrix profile into the running matrix.\n\n4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no\ncredentials \u2014 the Control API lane is unauthenticated.\n\nSaving and deleting a profile are NOT here: they are staged\n``<matrix_profile>`` config edits and ride ``/api/config/stage`` +\n``/api/config/apply`` like every other persistent setting, because the daemon\ndoes not persist profiles itself. The client stages the loaded\nprofile's rows alongside this call, so a load is live AND persists.",
         "operationId": "matrix_profile_api_matrix_profile_post",
         "requestBody": {
           "content": {

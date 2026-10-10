@@ -1,6 +1,6 @@
 """Speaker-processing apply (readme §1.9) over a real socket: the POST body the
-daemon would receive is captured and asserted (docs/testing.md rule 4 — a real
-server, never a stub of our client). The apply overlays the desired state onto a
+daemon would receive is captured and asserted.
+The apply overlays the desired state onto a
 fresh GET of the complete form, so the fixture is served on every GET."""
 
 from collections.abc import AsyncIterator, Iterator

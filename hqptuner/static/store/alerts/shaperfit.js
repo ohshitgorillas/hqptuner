@@ -106,8 +106,8 @@ function floorLabel(rates, floor) {
 }
 
 // The selected shaper's NAME. The config-form domain is the enum ID, and
-// `data/shapers.json` joins to the engine's enumerations by name (architecture
-// §2) — so the form's own option list is what turns one into the other.
+// `data/shapers.json` joins to the engine's enumerations by name — so the
+// form's own option list is what turns one into the other.
 /**
  * @param {string} key
  * @returns {string}

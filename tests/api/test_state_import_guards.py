@@ -1,4 +1,4 @@
-"""`POST /api/state-import` refusing what it cannot take whole (docs/architecture.md §5.7):
+"""`POST /api/state-import` refusing what it cannot take whole:
 a preset store carrying a file that is not a preset, a pre-import backup that
 cannot be written, and an autosave already in flight when the import lands.
 

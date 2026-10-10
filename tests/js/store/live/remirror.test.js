@@ -3,12 +3,11 @@
 // The engine's State is whatever the most recent read of it said, so a page that
 // asked twice shows the second answer, never the first one arriving late.
 //
-// Fakes go at the wire only (docs/testing.md rule 4): globalThis.fetch answers
+// globalThis.fetch answers
 // /api/state and /api/enumerations on the real REST paths with the shapes they
 // serve. Each answer carries the State the engine held when the request was
 // made, and a request made while the first call is outstanding is held until
-// the second call has had every turn it needs. Waits are event-loop turns, never
-// a duration (rule 7).
+// the second call has had every turn it needs.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/remirror.test.js
 

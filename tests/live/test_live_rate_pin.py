@@ -1,8 +1,8 @@
 """The pinned output rate: one LIVE field, `rate`, in Hz, written by `SetRate`.
 
 `SetRate` takes a `RatesItem` index of the running mode's list, index 0 being
-auto; `[source]` mode ignores it; the engine holds one pin and `SetMode` drops it
-(protocol.md §SetRate). So the lane joins the Hz value to its index through the
+auto; `[source]` mode ignores it; the engine holds one pin and `SetMode` drops it.
+So the lane joins the Hz value to its index through the
 engine's own rate list, refuses a rate that list lacks, refuses in `[source]`,
 and refuses `rate` beside any other field, since the mode and the filter both
 swap the list the index was resolved against. `"0"` clears the pin.
@@ -10,8 +10,7 @@ swap the list the index was resolved against. `"0"` clears the pin.
 Everything runs against the stateful fake daemon over a real socket, whose rate
 lists are PCM `0 44100 352800 705600 384000` and SDM `0 2822400 5644800
 12288000` in index order (`tests/support/fake_control.py`). Assertions are on
-what the daemon reports afterwards and on the code the route answers with
-(docs/testing.md).
+what the daemon reports afterwards and on the code the route answers with.
 """
 
 from collections.abc import Callable

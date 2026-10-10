@@ -24,8 +24,6 @@
 // the change fails per-case rather than at module link — the convention
 // tests/js/store/narrow/plainnames-truename.test.js settled.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-rec.test.js
 
 import test from "node:test";
@@ -124,8 +122,7 @@ test("test_pref_off_returns_the_input_options_untouched", async () => {
 
 // --- the schema rows ------------------------------------------------------------
 
-// The rows' own label and sublabel were pinned here. Both are owner copy
-// (docs/testing.md rule 9) — they were reworded once already — and the
+// The rows' own label and sublabel were pinned here. The
 // plainNames key below is the row's machine identity.
 
 test("test_schema_noise_filter_joins_the_noise_filter_plain_names_section", () => {

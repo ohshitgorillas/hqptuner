@@ -1,11 +1,9 @@
-"""Live-routed staged batches over REST, end to end through both fake daemons
-(docs/testing.md — behavior only, one assertion per test, fakes speak the wire
-protocol).
+"""Live-routed staged batches over REST, end to end through both fake daemons.
 
 A staged batch of nothing but live-capable /config fields rides the Control API
-alone: the matching setter goes out (`SetShaping` for dither, list-index domain
-— protocol.md §4), no restore is posted, and the report's ``persistent`` lane is
-null. The moment a restart-required field shares the batch, the live routing
+alone: the matching setter goes out (`SetShaping` for dither, list-index
+domain), no restore is posted, and the report's ``persistent`` lane is null.
+The moment a restart-required field shares the batch, the live routing
 stands down entirely: no setter is sent, one restore carries every staged value
 into the daemon's config file, and the file view serves them back. Live truth a
 pure-live apply created survives the file's staleness: an armed auto-save folds
@@ -63,10 +61,10 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     dither enum "0" so a staged "5" is a real change, and a modulator the fake's
     SDM shaper list actually offers (enum "0" = ASDM5).
 
-    An adopted restore self-restarts the daemon (docs/architecture.md §2.2 lane
-    2), after which the Control API's State reflects the restored config file —
-    so the ``_on_restore`` hook moves the control fake's State to the config
-    the 8088 fake just adopted, the way one real daemon would."""
+    An adopted restore self-restarts the daemon, after which the Control API's
+    State reflects the restored config file — so the ``_on_restore`` hook moves
+    the control fake's State to the config the 8088 fake just adopted, the way
+    one real daemon would."""
     server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
     daemon = next(server)
     daemon["_on_restore"] = lambda: restart_into(control_state, daemon["mode"], daemon["dither"], daemon["modulator"])
@@ -163,9 +161,9 @@ def test_a_dither_beside_a_restart_field_sends_no_setshaping_but_alone_it_does(
     client: TestClient, control_log: CommandLog, fields: dict[str, str], expected: list[str]
 ) -> None:
     # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
-    # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
-    # applied alone exactly one SetShaping goes out and it carries the index,
-    # never the ID; sharing the batch with a restart field defers it entirely.
+    # file speaks enum IDs — so applied alone exactly one SetShaping goes out and
+    # it carries the index, never the ID; sharing the batch with a restart field
+    # defers it entirely.
     assert _sent_during_apply(client, control_log, fields, "SetShaping") == expected
 
 
@@ -236,7 +234,7 @@ def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: Tes
 
 
 def test_a_live_mode_round_trip_ends_on_the_applied_shaper_index(client: TestClient) -> None:
-    # SetMode swaps the shaper enumeration wholesale (protocol.md §SetMode), so
+    # SetMode swaps the shaper enumeration wholesale, so
     # coming back to PCM must land the engine on the dither the user applied —
     # index "1" is where enum "5" sits on the fake's PCM list
     _apply_staged(client, {"dither": "5"})

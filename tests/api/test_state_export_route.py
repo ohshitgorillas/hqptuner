@@ -1,5 +1,5 @@
 """`GET /api/state-export`: HQPTuner's own state files as one zip download, for
-a user to attach to a bug report (docs/testing.md).
+a user to attach to a bug report.
 
 The app is built over stores in ``tmp_path``, so the files the export reads are
 the ones each case seeds. A response that is not a zip reads as an archive with

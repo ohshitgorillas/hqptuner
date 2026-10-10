@@ -8,8 +8,7 @@
 // component is free to change. The VNODE half reads the tree preact built
 // (tests/js/support/vnodeseam.js), which is how an affordance SSR renders but
 // cannot click is activated: through the onClick its vnode carries, collected
-// via preact's own `options.vnode` hook — the renderer's public seam, nothing
-// of HQPTuner's stubbed (docs/testing.md rule 4).
+// via preact's own `options.vnode` hook — the renderer's public seam.
 //
 // `dd-opt`, `dd-box` and `dd-fav` are wire-side markings the combobox suites
 // already pin, not copy: a markup change fails the suites that use these

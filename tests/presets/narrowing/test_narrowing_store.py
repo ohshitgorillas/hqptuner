@@ -1,9 +1,9 @@
-"""The narrow bar's facets, stored server-side (docs/testing.md).
+"""The narrow bar's facets, stored server-side.
 
 Two surfaces, one behavior: `NarrowingStore` over a JSON file, and the GET/PUT
 `/api/narrowing` pair over that store. Narrowing is purely presentational —
 it picks which filters a dropdown offers and never stages a value or reaches
-hqplayerd (docs/architecture.md, "Filter narrowing") — so every client here is
+hqplayerd — so every client here is
 built with no credentials and a control lane pointed at a closed port, and every
 store file lands under pytest's ``tmp_path``, never in the repo's state dir.
 

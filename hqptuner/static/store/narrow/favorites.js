@@ -1,8 +1,7 @@
 // Favorite filters — the stars the user put on filter names, stored for the
 // install and shared by every browser pointed at it. Keyed by filter NAME, not
-// enum id: the running engine owns ids and ordering, names are the stable join
-// key (architecture §3.1), so one list serves all four filter dropdowns (pcm/sdm ×
-// 1x/nx) and survives re-enumeration.
+// enum id, so one list serves all four filter dropdowns (pcm/sdm × 1x/nx) and
+// survives re-enumeration.
 //
 // The server is the only store. A toggle writes the whole resulting set to
 // PUT /api/favorites — unstarring is a write without the name, so there is no

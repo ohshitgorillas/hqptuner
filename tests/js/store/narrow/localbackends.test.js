@@ -8,8 +8,6 @@
 // Every case seeds the /api/config payload whole, through the exported `config`
 // signal over a staging wire, and clears the pending buffer first (the shared
 // harness's own order, tests/js/support/devicecaps-harness.js).
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -1,5 +1,5 @@
 """The runtime connection record: which host and password HQPTuner resolves at
-startup, and the /api/connection pair that moves them (docs/testing.md).
+startup, and the /api/connection pair that moves them.
 
 Every case parks the record file under ``tmp_path``. The Config default points
 at the install's own state, and conftest's `_state_never_touches_the_repo`

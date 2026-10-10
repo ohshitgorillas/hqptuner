@@ -8,7 +8,7 @@ looking at the same preset and must land on the same half.
 There is nowhere in hqplayerd's config XML to put it. The daemon re-serializes configuration from its own model, so an
 attribute of ours would not survive a reload, and matrix-profile descriptions live in a file of
 their own (``descriptions``). So this is one JSON file beside the descriptions and the favorites, keyed by preset
-NAME: names are the stable join key (architecture §3.1), and the name is what the preset store itself is keyed by.
+NAME: the name is what the preset store itself is keyed by.
 
 Layout follows ``descriptions``' conventions — a schema stamp that refuses a store newer than this HQPTuner
 understands, an unstamped file adopted on its next write, lazy creation so an install that never chose reads as empty.

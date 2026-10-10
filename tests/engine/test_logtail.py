@@ -1,6 +1,6 @@
 """Behavior of the log tail (System-tab live view): the pure tail helper, the
 config-form field reader, and read_log_tail fetching GET /log off the fake
-daemon's 8088 lane (docs/testing.md — public API, fake speaks the wire)."""
+daemon's 8088 lane."""
 
 import asyncio
 from collections.abc import Iterator

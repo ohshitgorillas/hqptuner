@@ -14,8 +14,7 @@ and they take the fix in opposite directions:
               list. Then the engine genuinely forgets and no display fix suffices.
 
 Neither the readme nor the desktop manual says which. Sequence, all through
-``SetRate`` / ``SetMode`` with ``State`` readback after each step (``result="OK"``
-is not proof, protocol.md SS6):
+``SetRate`` / ``SetMode`` with ``State`` readback after each step:
 
   1  pin a rate in the starting family, read it back
   2  switch to the other family, read ``State.rate``       <- cleared or 0?

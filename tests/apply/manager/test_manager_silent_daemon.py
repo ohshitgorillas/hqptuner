@@ -1,4 +1,4 @@
-"""A daemon that stops answering, as the connection manager meets it on its own clock (docs/testing.md rule 7).
+"""A daemon that stops answering, as the connection manager meets it on its own clock.
 
 Every Control API connect, send and read the manager makes waits under the manager's clock. The test silences
 HQPlayer through that clock and lets virtual time pass, so the manager's request timeout runs out without a real

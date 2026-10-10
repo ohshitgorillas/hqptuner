@@ -1,4 +1,4 @@
-"""Matrix-tab REST surface (matrix-spec): the /matrix read model, profile operations, and convolution filter uploads.
+"""Matrix-tab REST surface: the /matrix read model, profile operations, and convolution filter uploads.
 
 A self-contained feature surface mounted alongside ``api``.
 """
@@ -174,7 +174,7 @@ class MatrixProfileBody(BaseModel):
 
 @router.post("/matrix/profile")
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfileSwitch:
-    """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles").
+    """Load a saved matrix profile into the running matrix.
 
     4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no
     credentials — the Control API lane is unauthenticated.
@@ -270,7 +270,7 @@ async def matrix_filter(file: Annotated[UploadFile | str, File()], manager: Mgr)
     Refuses an oversize, misnamed or malformed upload with 422 before anything is written; the size check runs on
     the part's byte count so an oversize body is never read into the route. A part with an empty filename reaches
     the handler as a bare string, which is refused the same way. Returns the daemon-side absolute path the pipeline
-    process string should reference (matrix-spec.md "Filter upload").
+    process string should reference.
     """
     if isinstance(file, str):
         raise refuse(FilterUploadTypeError())

@@ -2,9 +2,8 @@
 // (tests/js/store/resolve.test.js, tests/js/store/apply-summary.test.js) drive
 // the store through.
 //
-// The wire is faked, not the store. `route()` installs a globalThis.fetch that
-// answers the real REST paths (lib/api.js) with real response shapes — the
-// docs/testing.md rule-4 route. No store function is stubbed.
+// `route()` installs a globalThis.fetch that
+// answers the real REST paths (lib/api.js) with real response shapes.
 
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";

@@ -3,7 +3,7 @@ a parked filter must fit the per-file limit, fit the park's ceiling, and be a
 WAVE container or text before it is kept for the next apply.
 
 Written blind against the fake 8088 daemon alone. Refusals are matched by the
-`code` wire identifier and the status class; `detail` is copy (docs/testing.md rule 9).
+`code` wire identifier and the status class.
 """
 
 from collections.abc import Iterator

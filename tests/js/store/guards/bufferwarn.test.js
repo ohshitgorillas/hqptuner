@@ -3,16 +3,16 @@
 // Three http-lane settings can starve the engine's buffers: short_buffer at 2
 // (Minimum — hqplayerd-readme.txt, engine attribute 0=Normal/1=Short/2=Minimum)
 // and the per-backend buffer times alsa_period / net_period at a negative value
-// (−1 = minimum, docs/settings-classification.md). Staging one of those does not
+// (−1 = minimum). Staging one of those does not
 // go straight to the pending buffer: a question of kind "warn" opens on the ask
 // signal, the edit stages only on explicit confirm, and cancel stages nothing at
 // all. Safe values of the same keys stage immediately, question-free. The
 // one-question-at-a-time ask contract holds for the new kind: any question
 // opened over a pending warn supersedes it, resolving the guard as declined.
 //
-// Everything is driven through the real edit() against a staging wire
-// (docs/testing.md rule 4); the question is driven through the public ask
-// surface (question / answer / cancel), never by poking store internals. A
+// Everything is driven through the real edit() against a staging wire; the
+// question is driven through the public ask surface (question / answer /
+// cancel), never by poking store internals. A
 // dangerous edit() does not resolve until its question is answered, so these
 // tests hold the promise, drive the question, then await — never the reverse.
 //
@@ -85,8 +85,8 @@ for (const { key, value } of DANGEROUS) {
   });
 }
 
-// A third loop pinned the phrase each warning's caption is built from. The
-// caption is owner copy (docs/testing.md rule 9) and `owner` above already
+// A third loop pinned the phrase each warning's caption is built from.
+// `owner` above already
 // tells the three warnings apart, so nothing survives the wording.
 
 for (const { key, value } of DANGEROUS) {

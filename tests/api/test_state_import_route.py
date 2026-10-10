@@ -1,4 +1,4 @@
-"""`POST /api/state-import`: a state zip taken back into this install (docs/architecture.md §5.7).
+"""`POST /api/state-import`: a state zip taken back into this install.
 
 Every case runs the REST app over an install whose stores sit under
 ``tmp_path / "install"``, seeded before the app starts: a favorite, a config

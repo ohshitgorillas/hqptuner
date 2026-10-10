@@ -1,5 +1,5 @@
 """apply_live orchestration: ordering, readback verification, and per-setting
-outcome reporting against the stateful fake daemon (docs/testing.md)."""
+outcome reporting against the stateful fake daemon."""
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.lanes.writer import LiveWriteFailed, LiveWriteOutcome, apply_live
@@ -11,7 +11,7 @@ async def test_successful_edit_reports_ok(live_client: ControlClient) -> None:
 
 
 async def test_readback_mismatch_reports_failure(live_client: ControlClient) -> None:
-    # value 999 = daemon answers OK but does not apply (protocol.md §6 caveat)
+    # value 999 = daemon answers OK but does not apply
     report = await apply_live(live_client, {"shaper": {"value": "999"}})
     assert report[0].outcome is LiveWriteOutcome.FAILED
 

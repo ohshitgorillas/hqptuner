@@ -8,8 +8,6 @@
 // the history's effect registered so each poll records a bin, and the running engine's filter enumeration is served
 // through tests/js/support/filterfacets.js. Every case starts a track of its own and sets the preference it reads.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/apodlamp.test.js
 
 import test from "node:test";

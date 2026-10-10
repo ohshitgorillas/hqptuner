@@ -15,8 +15,7 @@ import { env, route, trees, field } from "../support/threetrees.js";
 
 // --- summarize: failures outrank everything ---------------------------------
 
-// The verdict's `code` and the data fields beside it are what these read; the
-// sentence built from them is owner copy (docs/testing.md rule 9).
+// The verdict's `code` and the data fields beside it are what these read.
 
 /**
  * The verdict the last apply recorded. `lastApply.value` is nullable by design,
@@ -185,9 +184,8 @@ test("test_an_unconverged_apply_names_the_fields_that_diverged", async () => {
 });
 
 // The user knows a setting by the label the page gives it, not by the daemon's
-// config key. A label is copy (docs/testing.md rule 9), so no assertion holds
-// one: a sentence that names its field reads differently for two fields, and a
-// labelled field is never shown by its wire key.
+// config key: a sentence that names its field reads differently for two fields,
+// and a labelled field is never shown by its wire key.
 
 /** @param {Record<string, unknown>} diff */
 async function unconverged(diff) {
@@ -226,9 +224,8 @@ test("test_an_unconverged_apply_does_not_show_its_reason_code", async () => {
 // --- summarize: a failed live write, in the page's words ------------------------
 // A live setter that failed is named by the label the page gives its control,
 // never by the daemon's form key. A refusal carries the daemon's own reason
-// (architecture.md §8.2: `{ok: false, error, code}` per setter), which the
-// fixture invents, so asserting it back pins no shipped wording. Labels are
-// copy and stay out of every assertion (docs/testing.md rule 9).
+// (`{ok: false, error, code}` per setter), which the fixture invents, so
+// asserting it back pins no shipped wording.
 
 // The daemon's form keys for the PCM chain's two filter slots, each owned by a
 // control on the page (tests/js/components/controls/combobox-favstars.test.js).
@@ -409,12 +406,10 @@ test("test_a_rejected_apply_request_is_reported_rather_than_swallowed", async ()
 });
 
 // --- summarize: a live edit HQPTuner refused before sending it ------------------
-// A live setter that never reached HQPlayer comes back with code `invalid_input`
-// (architecture.md §8.2): HQPTuner judged the value unusable itself. It is still
-// named by the label the page gives its control, and it does not read as a
-// refusal by HQPlayer. Labels are copy and stay out of every assertion
-// (docs/testing.md rule 9); the setting keys, the reason and the level below are
-// the fixture's own.
+// A live setter that never reached HQPlayer comes back with code `invalid_input`:
+// HQPTuner judged the value unusable itself. It is still named by the label the
+// page gives its control, and it does not read as a refusal by HQPlayer. The
+// setting keys, the reason and the level below are the fixture's own.
 
 // One reason text for both codes, so only the code can tell the two apart.
 const SETTER_REASON = "value out of reach";
@@ -445,8 +440,8 @@ test("test_a_volume_level_hqptuner_refused_names_the_level_that_was_sent", async
 });
 
 // --- summarize: a missing output device the report cannot name ------------------
-// `UnfixableDevice.want` is nullable on the wire (docs/openapi.json), so a report
-// can lack the device's name; the absent value is never printed as one.
+// `UnfixableDevice.want` is nullable on the wire, so a report can lack the
+// device's name; the absent value is never printed as one.
 
 test("test_a_missing_output_device_with_no_name_never_shows_the_word_null", async () => {
   await trees();
@@ -469,7 +464,7 @@ test("test_a_missing_output_device_with_no_name_never_shows_the_word_null", asyn
 // Beyond "unconverged", the persistent lane's verdict names its reason and the
 // settings in its diff, each by the label of the control that edits it. A key no
 // control edits is shown as its words, underscores turned to spaces. Reasons and
-// unlabelled keys are the fixture's own; labels are copy (docs/testing.md rule 9).
+// unlabelled keys are the fixture's own.
 
 const OTHER_REASON = "timeout";
 

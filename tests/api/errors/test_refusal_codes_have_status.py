@@ -1,4 +1,4 @@
-"""Every code a refusal can carry has a status (docs/architecture.md §8.1).
+"""Every code a refusal can carry has a status.
 
 A refusal is answered in the shared ``{"detail": ..., "code": ...}`` shape, at
 the status its code maps to in ``hqptuner.api.errors.STATUS``. A refusal whose
@@ -7,8 +7,7 @@ client gets a bare 500 with no ``code`` at all.
 
 The app here is built with ``raise_server_exceptions=False`` so that a crash on
 the error path reaches the test as the bare answer a browser would get, rather
-than as an exception out of the client. ``detail`` is copy and is never asserted
-(docs/testing.md rule 9)."""
+than as an exception out of the client."""
 
 from collections.abc import Iterator
 from pathlib import Path

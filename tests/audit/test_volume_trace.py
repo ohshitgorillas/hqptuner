@@ -11,7 +11,7 @@ Two record shapes are covered, and neither is selected by its event name: an
 ``readback`` it carries. Every asserted level is one this suite itself put on
 the wire — the level staged, the level posted, or the startup volume the seeded
 preset was built with — compared as a number, since the string form of a level
-is formatting rather than contract (docs/testing.md rules 9 and 11).
+is formatting rather than contract.
 """
 
 import contextlib
@@ -251,8 +251,8 @@ def test_a_volume_write_records_what_the_engine_reported_back(
     control_client: ClientFactory, audit_log: Path, *, enabled: bool, expected: float | None
 ) -> None:
     # `result="OK"` is not proof of application and a disabled volume control
-    # refuses outright (docs/protocol.md §6), so a record that echoes the level
-    # asked for reads as a landed write in both cases
+    # refuses outright, so a record that echoes the level asked for reads as a
+    # landed write in both cases
     client = control_client({} if enabled else {"_vol_enabled": "0"})
     client.post("/api/volume", json={"level": POSTED})
     assert level(last_volume_write(audit_log)["readback"]) == expected

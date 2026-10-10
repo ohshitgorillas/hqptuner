@@ -1,9 +1,9 @@
 """A staged apply of the mode the engine is already in puts no mode setter on
 the wire.
 
-`SetMode` swaps the filter/shaper/rate enumerations wholesale (architecture §4.4,
-protocol.md §4). Everything runs against the fake daemons over a real socket;
-the assertions are on the traffic that reached them (docs/testing.md).
+`SetMode` swaps the filter/shaper/rate enumerations wholesale. Everything runs
+against the fake daemons over a real socket; the assertions are on the traffic
+that reached them.
 """
 
 from conftest import LiveManager

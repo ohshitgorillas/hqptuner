@@ -67,7 +67,7 @@ _STATE_FIELDS = (*ROUTABLE, *LIVE_ONLY)
 def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
     """Return the item at this list index as ``{value, name}``, or None when absent.
 
-    ``RatesItem`` carries no ``name`` (protocol.md §6, ``<RatesItem index rate/>``),
+    ``RatesItem`` carries no ``name`` (``<RatesItem index rate/>``),
     so the value doubles as its own label there.
     """
     for item in items:

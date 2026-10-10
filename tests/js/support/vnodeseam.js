@@ -1,8 +1,8 @@
 // The renderer's vnode seam shared by the suites that activate an affordance
 // SSR renders but cannot click: one render of a tree with every vnode preact
 // builds along the way, collected through preact's own `options.vnode` creation hook — the
-// renderer's public seam, nothing of HQPTuner's stubbed (docs/testing.md
-// rule 4) — plus the subtree-text reader an affordance is found by.
+// renderer's public seam
+// — plus the subtree-text reader an affordance is found by.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 

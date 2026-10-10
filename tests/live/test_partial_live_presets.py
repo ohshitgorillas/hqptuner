@@ -6,7 +6,7 @@ opinion about, so applying it later leaves that setting wherever the engine has
 it by then. Same shape as ``test_live_presets``: the app under ``TestClient``
 against the threaded fake control daemon, every case driven through the REST
 routes, every conclusion read back off the engine's own State or the switch's
-own route (docs/testing.md — `result="OK"` is not proof a setter applied).
+own route.
 """
 
 import pytest

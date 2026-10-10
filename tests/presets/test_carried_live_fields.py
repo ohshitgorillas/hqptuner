@@ -1,6 +1,4 @@
-"""What a restore-shaped write carries for the live-only settings
-(docs/testing.md — behavior only, one assertion per test, public API only,
-fakes speak the wire protocol).
+"""What a restore-shaped write carries for the live-only settings.
 
 Output mode, both chains' filters and shapers and adaptive volume
 (``overrides.LIVE_DOMAIN``) are applied over the 4321 control lane and never
@@ -90,7 +88,7 @@ def _active_preset_holding(preset_dir: Path, edits: dict[str, str], name: str = 
 
 #: (State, field, stored) for the fields belonging to the chain the engine does
 #: NOT have loaded: State carries one filter, one 1x filter and one shaper, and
-#: they answer for the loaded chain alone (protocol.md §4), so the other chain's
+#: they answer for the loaded chain alone, so the other chain's
 #: three fields have no engine answer at all and the snapshot is the only source.
 STORE_ANSWERS = [
     ({"mode": "1"}, "oversampling", "23"),

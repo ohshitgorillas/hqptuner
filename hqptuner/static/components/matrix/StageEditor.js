@@ -1,4 +1,4 @@
-// The docked inline stage editor (matrix-spec.md "Stage editor").
+// The docked inline stage editor.
 // Selecting a stage chip outlines it and docks this panel under its row (no
 // modal). `convDraft` and `uploadNote` are
 // private to this module, and `setSelected` lives here because clearing the

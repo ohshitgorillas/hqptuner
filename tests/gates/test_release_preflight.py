@@ -16,8 +16,8 @@ script's internals: the stub judge is the only thing the cases vary, and the
 version in ``pyproject.toml`` and the script's exit status are the only things
 they read back.
 
-The child process gets an explicit environment rather than the developer's
-(docs/testing.md rule 16): ``HOME`` lands in ``tmp_path``, the global and system
+The child process gets an explicit environment rather than the developer's:
+``HOME`` lands in ``tmp_path``, the global and system
 git configuration are pointed at a path that does not exist, and every ambient
 ``GIT_*`` name is dropped, so the committer is the one the miniature repo's own
 configuration names and no test result depends on the shell it was run from.

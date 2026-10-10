@@ -4,19 +4,17 @@ A filter the user picks goes to the app's filter route; one the app takes is
 listed in the drawer by its file name, and one it refuses is not listed and
 the drawer tells the user something other than what it says for a stored one.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
 - The Overview's file picker hands its files to the upload through an event
   handler, which server rendering never fires, so this is the browser lane.
-- One assertion per test; helpers return what they observed and the test judges.
 - Controls are found by wire identity: the rail stage (`data-stage`), the drawer
   id and the tab id (`data-tab`). The picker is the Overview's one multi-file
   input; the listed names and the note have no `data-testid`, so they are
   reached by the classes the drawer renders them with.
 - The listed name is the file name this test handed in, so it is wire data and
-  is asserted verbatim. The note's words are copy: the refusal is pinned only as
-  a note that differs from the one a stored filter gets.
-- Waits are bounded condition-polls on the drawer answering. Nothing sleeps.
+  is asserted verbatim. The refusal is pinned only as a note that differs from
+  the one a stored filter gets.
 """
 
 import struct

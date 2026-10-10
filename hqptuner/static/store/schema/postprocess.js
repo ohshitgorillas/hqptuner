@@ -246,9 +246,9 @@ export const postprocess = {
     quietGray: true,
   },
 
-  // --- Matrix tab (matrix-spec.md "Pipeline flow rows"): global controls + the atomic pipeline
-  // set. Staged keys are the write lane's prefixed names (presetconf.FIELD_MAP);
-  // formField is the daemon's bare form-field name for baseline/options reads.
+  // --- Matrix tab: global controls + the atomic pipeline set. Staged keys are
+  // the write lane's prefixed names (presetconf.FIELD_MAP); formField is the
+  // daemon's bare form-field name for baseline/options reads.
   // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
   // rendered as a Field — the entry exists so the pending bar counts and lanes it.
   matrix_enabled: {
@@ -302,13 +302,13 @@ export const postprocess = {
     field: "matrix_pipelines",
     fileTruth: true,
   },
-  // The two saved-profile verbs (protocol.md "Saved matrix profiles do not persist"). HQPTuner owns the
-  // <matrix_profile> element — hqplayerd keeps a saved profile in memory only and
-  // never writes it — so a save or a delete is a staged config edit rather than a
-  // daemon route. Staged by the profile card, never rendered as a Field; the
-  // entries exist so the pending bar counts and lanes them. Neither has a
-  // baseline: a verb has no current value, which is what makes it read dirty from
-  // the moment it is staged until the apply clears it.
+  // The two saved-profile verbs. HQPTuner owns the <matrix_profile> element —
+  // hqplayerd keeps a saved profile in memory only and never writes it — so a
+  // save or a delete is a staged config edit rather than a daemon route. Staged
+  // by the profile card, never rendered as a Field; the entries exist so the
+  // pending bar counts and lanes them. Neither has a baseline: a verb has no
+  // current value, which is what makes it read dirty from the moment it is
+  // staged until the apply clears it.
   matrix_profile_save: {
     label: "Save matrix profile",
     group: "dsp",

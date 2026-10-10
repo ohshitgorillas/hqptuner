@@ -1,9 +1,9 @@
-"""Preset name rules, both stores, through their public APIs (docs/testing.md).
+"""Preset name rules, both stores.
 
 A preset name is a filename in HQPTuner's own store directory and a zip member
 in the ``POST /restore`` archive that mirrors it to the daemon. Nothing in
-HQPlayer's documentation constrains the charset of a configuration name
-(``docs/protocol.md:66`` types it as unconstrained text), so the rule here is a
+HQPlayer's documentation constrains the charset of a configuration name,
+so the rule here is a
 denylist: refuse only what breaks a filename, a zip member name or the store,
 and accept the rest of Unicode.
 

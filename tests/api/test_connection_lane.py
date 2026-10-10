@@ -1,4 +1,4 @@
-"""What a connection save reports about its own 8088 attempt (docs/testing.md).
+"""What a connection save reports about its own 8088 attempt.
 
 Every case parks the record file under ``tmp_path``: the Config default points
 at the running install's own state, and conftest's guard covers the stores it

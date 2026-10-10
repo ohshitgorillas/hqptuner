@@ -4,8 +4,7 @@
 // event is parsed fresh off the stream, so "the same" is by content, never by
 // reference.
 //
-// Fakes go at the wire and the environment seams only (docs/testing.md rule 4):
-// the stream is the EventSource fake (tests/js/support/eventsource.js), which
+// The stream is the EventSource fake (tests/js/support/eventsource.js), which
 // hands each listener its own parse of the body, the page is the document fake
 // (tests/js/support/page.js), and globalThis.fetch answers the metadata prime
 // through the static wire fake.
@@ -25,7 +24,6 @@ import { staticWire } from "../../support/wire/wire.js";
 const CONFIG = { stale: false, loaded_at: 1, data: { fields: [], file: {}, active: "Desk" } };
 const VOLUME = { volume: "-20.5", min: -60, max: 0, enabled: true, adaptive: false };
 
-// Event-loop turns, never a duration (docs/testing.md rule 7).
 const settle = async () => {
   for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => setImmediate(resolve));
 };

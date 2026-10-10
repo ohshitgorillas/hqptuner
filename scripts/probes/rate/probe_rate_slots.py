@@ -24,8 +24,8 @@ without measuring. Three questions, answered off ``Status.active_rate`` while a
 
 **Writes only the request slot, and only via the live ``SetRate`` setter** — no
 config write, no ``/restore``, no daemon restart. The original request index is
-put back and verified by ``State`` readback (``result="OK"`` is not proof,
-protocol.md SS6). The limit slot is read but never touched.
+put back and verified by ``State`` readback. The limit slot is read but never
+touched.
 
 Requires playback: ``Status.active_rate`` reports nothing without a stream. The
 engine must be PLAYING (``State state="2"``) — the reverse of this repo's other

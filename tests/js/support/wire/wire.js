@@ -1,6 +1,5 @@
 // Shared wire fakes for the component and store suites. Fakes speak the real
-// REST paths with the real response shapes (docs/testing.md rule 4); no store
-// function is ever stubbed.
+// REST paths with the real response shapes.
 
 /**
  * A response as these fakes serve it: the three members the client reads.
@@ -173,9 +172,8 @@ export function stagingWire({ routes, fallback } = {}) {
 
 // Wait for a wire from `stagingWire` to go quiet: every request it has been
 // handed answered, and every continuation waiting on an answer run — including
-// one that fires a further request. Event-loop turns, never a duration, so a
-// suite using it pins WHAT a sequence concludes and not how long it took
-// (docs/testing.md rule 7). The fake answers immediately, so this settles in a
+// one that fires a further request.
+// The fake answers immediately, so this settles in a
 // couple of turns.
 //
 // What it guarantees, exactly: no request is outstanding AT THIS INSTANT. That

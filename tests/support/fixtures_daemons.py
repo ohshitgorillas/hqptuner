@@ -103,7 +103,7 @@ DeafVolumeClient = Callable[[str | None], Awaitable[ControlClient]]
 @pytest.fixture
 async def deaf_volume_client(daemon: DaemonFactory) -> AsyncIterator[DeafVolumeClient]:
     """Clients on daemons whose `Volume` is answered `result="OK"` but never
-    applied (the `_deaf` knob, protocol.md §6: OK is not proof), so `State` keeps
+    applied (the `_deaf` knob), so `State` keeps
     reporting the level the caller names however loud the write was — which is
     how a test says the readback disagrees with what was asked for.
 

@@ -1,10 +1,10 @@
-"""LivePresetStore's file handling through its public API (docs/testing.md).
+"""LivePresetStore's file handling.
 
-Characterization of behavior that already exists (docs/testing.md rule 8
-exemption), apart from the two cases under "records an older HQPTuner wrote".
+Characterization of behavior that already exists,
+apart from the two cases under "records an older HQPTuner wrote".
 
 Live snapshots are HQPTuner's own state — a handful of enum ids applied through
-the LIVE lane, never written to hqplayerd's config (docs/architecture.md §5.3) —
+the LIVE lane, never written to hqplayerd's config —
 so nothing here needs a daemon, a socket or a port. The whole store is one JSON
 file, and every one of them lands under pytest's ``tmp_path``.
 
@@ -312,8 +312,7 @@ def test_saving_into_a_file_stamped_by_a_newer_hqptuner_is_refused(tmp_path: Pat
 
 def test_a_refused_save_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
     # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the on-disk check (docs/testing.md rule 2 counts a
-    # `pytest.raises` block as an assertion).
+    # this test owns is the on-disk check.
     path = seed_stamped(tmp_path, TOO_NEW)
     before = path.read_text()
     with contextlib.suppress(LivePresetError):

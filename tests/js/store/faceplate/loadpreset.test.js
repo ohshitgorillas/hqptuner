@@ -2,7 +2,7 @@
 // the spot in either mode.
 //
 // A fetch fake answers the real REST paths with their real shapes and records every request; no store function is
-// stubbed. `switch_to` is a wire identifier (docs/testing.md rule 9).
+// stubbed. `switch_to` is a wire identifier.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/loadpreset.test.js
 

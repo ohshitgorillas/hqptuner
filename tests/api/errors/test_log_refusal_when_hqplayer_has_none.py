@@ -3,9 +3,9 @@
 HQPlayer's web interface serves its log on `GET /log`; a daemon with no log
 answers that page 404. The System tab reads the log through `GET /api/log`, and
 the page shows its own sentence for that one case, so the refusal's `code` (the
-identifier a client acts on, docs/architecture.md §8.1) has to tell it apart from
-every other way the read fails: HQPlayer erroring on the page, and HQPlayer not
-reachable at all. Which identifier each case gets is HQPTuner's to choose; what
+identifier a client acts on) has to tell it apart from every other way the read
+fails: HQPlayer erroring on the page, and HQPlayer not reachable at all.
+Which identifier each case gets is HQPTuner's to choose; what
 is pinned is that the no-log case does not share one with the others.
 
 The 8088 daemon here is a table: one status for `/log`, 404 for every other

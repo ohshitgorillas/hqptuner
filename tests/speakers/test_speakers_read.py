@@ -1,5 +1,5 @@
 """Speaker-processing read model (readme §1.9) parsed from the live /speakers
-form. Behavior only, one assertion per test (docs/testing.md)."""
+form."""
 
 from pathlib import Path
 

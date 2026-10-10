@@ -1,8 +1,8 @@
 // Which FAMILY `shaperAlerts` judges when the settings the user is holding
 // disagree with the chain the engine happens to be running.
 //
-// The engine answers for the chain it has LOADED and nothing else
-// (architecture §3.3, protocol.md §4), but the settings about to be applied are
+// The engine answers for the chain it has LOADED and nothing else,
+// but the settings about to be applied are
 // the ones the user is being warned about — so the family judged follows the
 // EFFECTIVE output mode: a staged or previewed edit when there is one, the
 // running configuration otherwise. `[source]` (auto) names no family at all
@@ -16,16 +16,15 @@
 // is prose that may be reworded, so where a test looks at text at all it looks
 // for the shaper's NAME and nothing else.
 //
-// Three cases here are CHARACTERIZATION, not bite proof (docs/testing.md rule
-// 8): test_staged_auto_mode_reports_the_loaded_chains_conflict,
+// Three cases here are CHARACTERIZATION, not bite proof:
+// test_staged_auto_mode_reports_the_loaded_chains_conflict,
 // test_staged_auto_mode_silences_the_dormant_familys_conflict and
 // test_with_nothing_staged_the_running_sdm_engines_modulator_conflict_still_raises
 // are green against the older "family = loaded chain" rule too, because in each
 // the loaded chain and the effective mode agree. They pin behavior that must
 // not regress; they do not distinguish the two rules.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire — the scenario arrives through the exported signals carrying the
+// The scenario arrives through the exported signals carrying the
 // /api/state, /api/enumerations, /api/config and /api/metadata shapes, the
 // staged edit rides the real REST staging path, and a previewed preset arrives
 // as the preview signals a preset click leaves behind.

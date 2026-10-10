@@ -1,9 +1,9 @@
-// RESPONSE card (matrix-spec.md "Response plot"): a STANDING card at
-// the section bottom, always rendered like the crossfeed/loudness graphs. With
-// nothing to plot it shows axes + an empty-state caption. Overlaid magnitude
-// (solid, dB left axis) + phase (dashed, ±180° second axis) for every
-// plot-toggled pipeline, log 20 Hz–20 kHz; a library-picker preview overlays as
-// a dashed accent magnitude trace so candidate-vs-current is a visual A/B.
+// RESPONSE card: a STANDING card at the section bottom, always rendered like
+// the crossfeed/loudness graphs. With nothing to plot it shows axes + an
+// empty-state caption. Overlaid magnitude (solid, dB left axis) + phase
+// (dashed, ±180° second axis) for every plot-toggled pipeline, log
+// 20 Hz–20 kHz; a library-picker preview overlays as a dashed accent magnitude
+// trace so candidate-vs-current is a visual A/B.
 // Pure client math (lib/dsp/chain.js), recomputed per render off the staged
 // pipeline signals — no server round-trip. Convolution stages plot only when
 // their IR was uploaded this session (registerIr); otherwise marked partial.

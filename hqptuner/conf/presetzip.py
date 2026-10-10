@@ -118,14 +118,13 @@ def restore_zip_with_working(
 ) -> bytes:
     """Build a ``POST /restore`` archive whose ``[default]`` working config (``hqplayerd.xml``) is ``working_xml``.
 
-    That is the config the daemon actually runs, since a restore always lands the daemon on ``[default]``
-    (docs/protocol.md).
+    That is the config the daemon actually runs, since a restore always lands the daemon on ``[default]``.
 
     When ``mirror_name`` is given, also (over)write ``data/cfgs/<mirror_name>.xml``
     = ``mirror_xml`` (defaulting to ``working_xml``), so hqplayerd's own native
     profile list mirrors HQPTuner's preset store. Every other member is copied
     byte-for-byte. ``hqplayerd.xml`` is inserted when the source archive lacks it
-    (a named profile was active, so its working member was root-renamed).
+    (an archive taken under a named profile carries its working member root-renamed).
     """
     substitutions = {"hqplayerd.xml": working_xml}
     if mirror_name:

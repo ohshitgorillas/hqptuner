@@ -5,11 +5,10 @@
 // the chain cards' "DSD Sources" subsections instead
 // (tests/js/components/conversioncards-dsd.test.js).
 //
-// Policy (docs/testing.md): public API only, one assertion per test, nothing of
-// HQPTuner's stubbed. Facet data is driven by assigning the two source signals
+// Facet data is driven by assigning the two source signals
 // the real payloads carry — `enums.filters` is the running engine's
-// `<GetFilters/>` enumeration (`{index, name, value, arg, description}`,
-// protocol.md:226) and `metadata.filters.filters` is the static name-keyed
+// `<GetFilters/>` enumeration (`{index, name, value, arg, description}`)
+// and `metadata.filters.filters` is the static name-keyed
 // overlay served by /api/metadata. Descriptions are hand-written in the engine's
 // own format, `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮` and
 // the engine's abbreviated ratio tail.
@@ -34,7 +33,7 @@ import { enums, metadata } from "../../../hqptuner/static/store/signals.js";
 
 /**
  * A fixture row: filter name, its facet description, and its flags bitfield
- * (bit 0 = apodizing, protocol.md:226).
+ * (bit 0 = apodizing).
  *
  * @typedef {[string, string, number]} FilterTuple
  */

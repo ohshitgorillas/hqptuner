@@ -224,7 +224,7 @@ class MeteringReader:
     async def run(self) -> None:
         """Hold the stream only while the engine is playing and something reads it, reconnecting after a backoff.
 
-        The daemon streams unconditionally on bare accept (protocol.md §7) — there is no way to ask it for less, so
+        The daemon streams unconditionally on bare accept — there is no way to ask it for less, so
         the only way to stop paying for frames nobody ingests is to close the socket. The reader therefore connects
         when the engine reports playing and the advisor or a feed subscriber is there to read, and disconnects when
         either stops, which on a bridged Docker network is the difference between megabytes a second of idle traffic

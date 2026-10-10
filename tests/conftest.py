@@ -1,5 +1,4 @@
-"""Shared fixtures over the two fake daemons (docs/testing.md — fakes speak the
-wire protocol, over a real socket).
+"""Shared fixtures over the two fake daemons.
 
 The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
 `fake_http`. The fixture families over them live in the plugin modules
@@ -61,8 +60,8 @@ _KEPT_ENVS = frozenset({"HQPTUNER_CHROMIUM"})
 
 @pytest.fixture(scope="session", autouse=True)
 def _no_inherited_environment() -> Iterator[dict[str, str]]:
-    """No test reads a knob the shell happened to export (docs/testing.md rule
-    16), and the suite still knows what that shell said.
+    """No test reads a knob the shell happened to export, and the suite still
+    knows what that shell said.
 
     The suite is run from shells carrying ``HQPTUNER_*`` variables for their own
     reasons — sourced credentials, a hand-set store path, a daemon address — and
@@ -113,7 +112,7 @@ def _no_daemon_but_the_fakes(_no_inherited_environment: dict[str, str]) -> Itera
     The control, 8088 and metering defaults are the ports the host's own hqplayerd serves, and
     the ungated readers (``/about``, ``/log``) fetch from 8088 whether or not a credential is set.
     The alias defaults to a DNS name the start-up probe resolves. Any of these defaults makes a
-    test of the machine it ran on (docs/testing.md rule 16), and the control one can write to it.
+    test of the machine it ran on, and the control one can write to it.
     Each port is held bound and never listened on for the whole session, so a connect to it is
     refused and no later listener can take it. Cases that want a daemon pass its port themselves.
     """
@@ -135,7 +134,7 @@ def clock() -> VirtualClock:
 
 
 #: Invented metadata for the app under test: join and lookup mechanics run on
-#: this, never on the shipped prose (docs/testing.md rule 9).
+#: this, never on the shipped prose.
 METADATA_MIN = Path(__file__).parent / "support" / "fixtures" / "metadata_min"
 
 #: Bytes of a WAVE container before its samples: RIFF form header, a 16-byte
@@ -184,9 +183,9 @@ async def live_manager(daemon: DaemonFactory, clock: VirtualClock) -> AsyncItera
 
     Keyword arguments are the daemon's State overrides — ``rate="2"`` starts the
     engine already pinned, ``mode="2"`` starts it with the SDM chain loaded,
-    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying
-    (protocol.md §4: OK is not proof). A case that waits on the manager's own
-    poll loop advances the clock by a ``poll_interval``.
+    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying.
+    A case that waits on the manager's own poll loop advances the clock by a
+    ``poll_interval``.
     """
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 

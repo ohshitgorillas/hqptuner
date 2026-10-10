@@ -2,12 +2,11 @@
 // panel was opened over a connection that already holds a password, and what
 // the panel then concludes the save did.
 //
-// The seams are the ones the frontend policy names (docs/testing.md, Frontend):
 // `fetch` is faked at the real REST paths with the real response shapes, the
-// `health` signal is assigned the readings a poll would have delivered, the
-// panel's own exported signals are assigned to state the situation, and no
-// store function is stubbed. The clock is injected through `initSetup(now)`
-// (rule 7), so every "at N ms" below is a reading of that function and never a
+// `health` signal is assigned the readings a poll would have delivered, and the
+// panel's own exported signals are assigned to state the situation.
+// The clock is injected through `initSetup(now)`,
+// so every "at N ms" below is a reading of that function and never a
 // duration this suite spends; `settle()` turns the event loop rather than
 // waiting on one.
 //

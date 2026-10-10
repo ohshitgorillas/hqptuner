@@ -33,7 +33,7 @@
 //     list the dropdown holds BEFORE facet narrowing;
 //   - the LIVE page — `liveModel`'s per-chain controls, whose options for the
 //     chain the engine has LOADED come off the engine's own `<GetFilters/>`
-//     enumeration rather than the daemon's /config form (protocol.md §4). Each
+//     enumeration rather than the daemon's /config form. Each
 //     live case reads the chain its own scenario loaded, never the two chains
 //     concatenated, so a control answering out of the dormant column fails.
 //
@@ -45,15 +45,14 @@
 // `sdm_filter_nx` and `pcm_filter_1x` / `pcm_filter_nx`, /config form fields
 // `oversampling1x` / `oversampling` and `filter1x` / `filter`.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at the
-// wire, no store function stubbed. Facet data is driven the way narrowing.test.js
+// Facet data is driven the way narrowing.test.js
 // drives it — the engine's `<FiltersItem/>` shape on `enums.filters` with the
 // quality rating at the head of the engine's own description string
-// (protocol.md:228) — and no facet is engaged in any case here, so nothing but
+// — and no facet is engaged in any case here, so nothing but
 // the supersession rule can remove a name from a list. Names carry no display
 // assertion: a filter name is an engine wire identifier — `label` carries it
 // unchanged through both surfaces — while the words rendered for it and the
-// order they come in are the owner's (rule 9).
+// order they come in are the owner's.
 //
 // Each reset reassigns EVERY signal these cases read and clears the private
 // staged buffer through discardAll(): module-level signals outlive a test, and a
@@ -262,7 +261,7 @@ test("test_the_pcm_nx_dropdown_still_offers_a_filter_a_two_stage_twin_supersedes
 // --- the LIVE page ----------------------------------------------------------------
 // The loaded chain's controls take their options from the engine's enumeration,
 // not from the /config form, so the rule has to hold on that list too. The two
-// chains number the same names differently (protocol.md §4), which is why the two
+// chains number the same names differently, which is why the two
 // enumerations below carry different enum values for identical names.
 
 const RATES = [

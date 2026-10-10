@@ -1,4 +1,4 @@
-"""The 1x lossy-source facet, stored server-side (docs/testing.md).
+"""The 1x lossy-source facet, stored server-side.
 
 The narrow bar's 1x stage no longer hides hi-res-named filters behind a
 show/hide switch. It groups by SOURCE CLASS instead: one three-state control
@@ -12,8 +12,8 @@ older HQPTuner left carrying them reads as if they were never there and loses
 them on the next write. Which filters each state then offers is the frontend's
 subject (tests/js/store/narrow/narrowing-lossy.test.js).
 
-Narrowing is purely presentational and never reaches hqplayerd
-(docs/architecture.md, "Filter narrowing"), so every store here lands under
+Narrowing is purely presentational and never reaches hqplayerd,
+so every store here lands under
 pytest's ``tmp_path`` and nothing is daemon-facing.
 """
 

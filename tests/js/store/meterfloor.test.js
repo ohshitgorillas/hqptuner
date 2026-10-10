@@ -14,8 +14,6 @@
 // The floor's surface is read off the module namespace with optional access, so a module without it fails these cases
 // on their assertions.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meterfloor.test.js
 
 import test from "node:test";

@@ -16,16 +16,13 @@
 //
 // Every string asserted here is invented by this file's own fixture and seeded
 // into the /api/metadata signal through the field harness's reset(), the way
-// the neighboring prose suites drive their overlays. No shipped wording from
-// hqptuner/data/*.json is read or asserted (docs/testing.md rule 9); what is
+// the neighboring prose suites drive their overlays. What is
 // pinned is whether a fixture-defined sentence or clause survives the
 // composition.
 //
 // `plainNames` is a module-level signal the harness reset() does not touch, so
 // every case sets it explicitly — otherwise the cases pass alone and fail in
 // sequence.
-//
-// Policy (docs/testing.md): public API only, one assertion per test.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/simplified-two-stage.test.js
 

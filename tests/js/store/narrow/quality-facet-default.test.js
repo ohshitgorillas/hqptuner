@@ -8,10 +8,9 @@
 // narrowed" means "quality deviates from 0": any explicit floor of 3, 4 or 5
 // reads as narrowed, a quality of 0 never does.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Filter fixtures are hand-built in the engine's own `<FiltersItem/>`
+// Filter fixtures are hand-built in the engine's own `<FiltersItem/>`
 // shape, with the quality rating at the head of the engine's description
-// string, `"<q>/5 ... ⥮ <ratio>"` (protocol.md:228) — the unrated fixture
+// string, `"<q>/5 ... ⥮ <ratio>"` — the unrated fixture
 // simply carries no `n/5` head. Hydration cases drive real GET /api/narrowing
 // answers through a fetch fake, the way narrowing-persist.test.js does.
 //
@@ -53,15 +52,14 @@ test("test_a_freshly_loaded_store_leaves_quality_at_0", () => {
 });
 
 // The dropdown's own rows and the label read off a selected one were pinned
-// here verbatim. Both are owner-owned copy — a curated option list and its
-// labels — and docs/testing.md rule 9 keeps them out of an assertion; the
+// here verbatim. The
 // thresholds themselves are stated by the matching cases below.
 
 // --- fixtures for matching and the narrowed indicator ---------------------------
 // One filter per rating band. Every filter the daemon enumerates carries its
-// rating at the head of the description (protocol.md:228), so a live item
+// rating at the head of the description, so a live item
 // without one is a frame the wire never carries; the genuinely unrated filter
-// is the overlay-only one the live enumeration omits (architecture.md:27), and
+// is the overlay-only one the live enumeration omits, and
 // it gets its own fixture below. Names carry no phase, length or hires marker,
 // and `arg` stays 0, so nothing narrows by a facet these cases did not pick;
 // every case reads the Nx stage, whose other switches default to "all".

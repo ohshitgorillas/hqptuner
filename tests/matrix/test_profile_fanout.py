@@ -2,8 +2,8 @@
 
 A save or delete staged with a ``presets`` list also lands (or removes) the
 ``<matrix_profile>`` element in each named stored preset's XML — a pure file
-edit on the HQPTuner-owned store, no daemon traffic (matrix-spec.md
-"Profiles"). The untargeted payload shape (no ``presets`` key for a save, an
+edit on the HQPTuner-owned store, no daemon traffic.
+The untargeted payload shape (no ``presets`` key for a save, an
 empty ``presets`` list for a delete) writes the running config only and
 leaves stored presets untouched. Stored preset XML here is rendered by
 the fake daemon's own config renderer, so the writer is exercised against 6.0.4-shaped documents,

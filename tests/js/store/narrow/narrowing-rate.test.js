@@ -20,7 +20,7 @@
 // after the "on"/"off" overrides.
 //
 // Facet data is driven the way narrowing.test.js drives it — `enums.filters`
-// carries the engine's own `<GetFilters/>` items (protocol.md:226) with the
+// carries the engine's own `<GetFilters/>` items with the
 // PCM glyph `⥮` and the engine's abbreviated ratio tails (`Int`, `2^x`,
 // `Any`), and `metadata.filters.filters` is the static name-keyed overlay from
 // /api/metadata. The 1:1 class, the mode-split ratio pair and the flat
@@ -39,9 +39,6 @@
 // `downsafe_only` — on the PUT body itself, and the legacy `hide_2x`,
 // `hide_int`, `ratio` and `upsample_only` keys are neither written nor choked
 // on when an old file still carries them.
-//
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/narrowing-rate.test.js
 
@@ -77,7 +74,7 @@ const SDM_FIELD = "sdm_filter_nx";
 
 /** @typedef {import("../../support/wire/narrowingwire.js").Facets} Facets */
 
-// One `<FiltersItem/>` as the enumeration serves it (protocol.md:226).
+// One `<FiltersItem/>` as the enumeration serves it.
 const item = (/** @type {string} */ name, /** @type {string} */ description, /** @type {number} */ index) => ({
   index: String(index),
   name,

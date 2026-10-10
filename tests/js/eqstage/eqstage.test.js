@@ -2,8 +2,8 @@
 // HQPTuner's server-side pending buffer. Written blind from a spec block: no
 // eqstage source was read, and none existed when this was written.
 //
-// The wire fake below speaks the real REST shapes (docs/testing.md rule 4):
-// GET /api/config, GET /api/matrix, POST /api/config/stage and
+// The wire fake below speaks the real REST shapes: GET /api/config,
+// GET /api/matrix, POST /api/config/stage and
 // GET /api/config/pending. The pending buffer it serves is built only by real
 // stage POSTs — including the "someone else staged first" case, which is a
 // second stage POST through the same path, never a doctored echo.

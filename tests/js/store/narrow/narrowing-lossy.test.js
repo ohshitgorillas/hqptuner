@@ -6,17 +6,16 @@
 // "lossy" and "both", defaulting to "both". The filters it groups are the ones
 // HQPlayer documents for lossy and lossy-adjacent material — the two `hires`
 // families and `poly-sinc-mqa/mp3`, the latter documented as cleaning up
-// encoding noise (docs/vendor/manual/04-06-filter-oversampling-selection.txt).
+// encoding noise.
 // Membership is read off the NAME: `hires`, `mqa` or `mp3` in it.
 //
 // The manual gives that whole family Ratio "Any" and Genre "Any", so there is
 // no rate restriction behind this control and the Nx stage is never narrowed on
 // this axis at all — the three states differ only in what the 1x list offers.
 //
-// Policy (docs/testing.md): public API only, one assertion per test, fakes at
-// the wire. Facet data is driven by assigning the two source signals the real
+// Facet data is driven by assigning the two source signals the real
 // payloads carry — `enums.filters` is the running engine's `<GetFilters/>`
-// enumeration (`{index, name, value, arg, description}`, protocol.md:226) and
+// enumeration (`{index, name, value, arg, description}`) and
 // `metadata.filters.filters` is the static name-keyed overlay served by
 // /api/metadata. Descriptions are hand-written in the engine's own format,
 // `"<q>/5 [focus, ...] <glyph> <ratio>"`, with the PCM glyph `⥮` and the
@@ -44,7 +43,7 @@ import { resetFilterFacets } from "../../support/filterfacets.js";
 
 /**
  * A fixture row: filter name, its facet description, and its flags bitfield
- * (bit 0 = apodizing, protocol.md:226).
+ * (bit 0 = apodizing).
  *
  * @typedef {[string, string, number]} FilterTuple
  */

@@ -6,8 +6,6 @@
 // pattern): the module reads storage once at import, so the fake is installed
 // and seeded with the retired value BEFORE prefs.js is imported.
 //
-// Policy (docs/testing.md): public API only, one assertion per test.
-//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/spectrumstyle-pref-retired.test.js
 
 import test from "node:test";

@@ -2,9 +2,7 @@
 
 Plenty of production calls return ``X | None`` — ``StaticMetadata.filter_entry``,
 ``ControlClient.get_status``'s metadata half, ``ConnectionManager.client``. A test
-that goes on to subscript the result has to rule ``None`` out first. Where the
-value is the one the test makes its claim about, ``docs/testing.md`` rule 2
-allows a guard ``assert value is not None`` ahead of that one claim.
+that goes on to subscript the result has to rule ``None`` out first.
 
 ``present`` narrows a value the test only arranges with. A ``None`` arriving here is a
 broken fixture, not the behavior under test, so it raises rather than asserts.

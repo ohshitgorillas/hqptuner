@@ -1,9 +1,9 @@
 // Behavioral suite for store/actions.js's preset lane: previewPreset and
 // clearPreview.
 //
-// The wire is faked, not the store (docs/testing.md rule 4): a fetch fake
+// A fetch fake
 // answers the real REST paths with the daemon's real response shapes —
-// GET /api/preset/{name} -> {name, config}. No store function is stubbed. Module-level signals outlive a test, so reset()
+// GET /api/preset/{name} -> {name, config}. Module-level signals outlive a test, so reset()
 // reassigns every tree and clears the preview and the staged buffer.
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/presets.test.js

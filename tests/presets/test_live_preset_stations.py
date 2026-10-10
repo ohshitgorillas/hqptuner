@@ -1,4 +1,4 @@
-"""LivePresetStore's station book through its public API (docs/testing.md).
+"""LivePresetStore's station book.
 
 A station is a config preset, named by the preset store; the unnamed default,
 `""`, is a station too. Each station holds snapshots of its own, and one save

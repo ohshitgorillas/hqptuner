@@ -5,15 +5,15 @@ header's Station · Snapshot tree loads one by name, and the settings page's
 Download state link exports the store. Each test drives one user action through
 the page and reads the outcome from the server or the downloaded file.
 
-Policy notes (docs/testing.md):
+Policy notes:
 
-- One assertion per test. Helpers return what they observed and raise when a
-  setup write is refused, so a refused setup never reads as a pass.
+- Helpers raise when a setup write is refused, so a refused setup never reads
+  as a pass.
 - Every expected value is a station name the test chose itself, and it differs
   from what the server held before the action.
 - Controls are found by `data-testid` and `data-station`.
-- No fixed sleep: each action's own request or download is waited on as an
-  event, under a ceiling.
+- Each action's own request or download is waited on as an event, under a
+  ceiling.
 - Server state left behind: the stations these tests create are removed by
   `clean_slate`. The active station pointer is not reset by `clean_slate`; it
   is cleared when `clean_slate` deletes the test station that was active.

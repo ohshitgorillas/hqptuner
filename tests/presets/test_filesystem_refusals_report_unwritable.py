@@ -1,8 +1,8 @@
-"""A store read or delete the filesystem refuses is reported as ``store_unwritable`` (docs/architecture.md §8.1).
+"""A store read or delete the filesystem refuses is reported as ``store_unwritable``.
 
 A refused read is not a corrupt store: the bytes were never seen, so nothing can be said about them. Each refusal
 names where the store is, so the user knows which path to fix. The path is the fixture's own, so it may be asserted
-back; the sentence around it is copy and is not (docs/testing.md rule 9).
+back.
 
 Every refusal here is a permission bit the fixture cleared. A process the bit does not bind refuses the fixture rather
 than passing a case that tested nothing.

@@ -100,9 +100,9 @@ function unexplained(path, status) {
 }
 
 // A refusal from our own backend also carries `code`, a stable identifier
-// beside the sentence (docs/architecture.md "API errors"). The sentence is for
-// showing; `status` and `code` are what a control branches on, so both ride on
-// the rejected error as properties instead of being fished back out of prose.
+// beside the sentence. The sentence is for showing; `status` and `code` are
+// what a control branches on, so both ride on the rejected error as properties
+// instead of being fished back out of prose.
 /** A non-OK answer from the backend: the sentence, the HTTP status, the body's code. */
 class ApiFailure extends Error {
   /**

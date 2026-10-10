@@ -8,9 +8,9 @@ instead. Only what is left goes to the restore lane — and when nothing is left
 the daemon is never restarted at all.
 
 **Domain translation.** The config form (and ``hqplayerd.xml``) carry the numeric
-enumeration ID; ``Set*`` commands take the LIST INDEX — "the two domains must
-never be mixed" (protocol.md §4). The live enumeration items carry both ``value``
-(enum ID) and ``index``, so the join is a lookup, never a computation.
+enumeration ID; ``Set*`` commands take the LIST INDEX. The live enumeration items
+carry both ``value`` (enum ID) and ``index``, so the join is a lookup, never a
+computation.
 
 **Chain gating.** ``GetFilters``/``GetShapers`` enumerate only the ACTIVE mode's
 chain, and the two chains number their enum IDs differently (readme: "Million tap
