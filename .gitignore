@@ -50,6 +50,7 @@ docs/*plan.md
 docs/*audit.md
 docs/*brief.md
 /specs/
+bugstuff/*
 
 # EQ Assistant session dirs — measurement images, raw digitizations, and per-turn
 # agent working files stay local. Only curated tuning JSONs are tracked.
