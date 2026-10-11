@@ -1,7 +1,7 @@
 // The response plot of the matrix-family drawer blocks (Loudness, Crossfeed): log frequency 20 Hz to 20 kHz at true
 // decade positions, linear dB, labels in a left gutter and a bottom band, on the page plot's glass (.eq). Each trace is
 // named once at its right end, nudged apart where two would collide. Classes: none = amber (what you get), `ghost` =
-// the reference, `side` = ink-2. Handles are draggable dots (v1 REW-style). Geometry from model/gauges/plot-axes.js;
+// the reference, `side` = ink-2. Handles are draggable dots (REW-style). Geometry from model/gauges/plot-axes.js;
 // draws 1:1 at its box's size.
 
 import { useRef, useState } from "preact/hooks";

@@ -2,9 +2,8 @@
 //
 // `pinnedRate` is the rate the engine is pinned to, in Hz, read off the State
 // index joined to the engine's own rate list; 0 is auto. `pinRate(hz)` writes it
-// through the LIVE lane, and only while Allow pinned rates
-// (store/ui/faceplate.js) is on. Turning that preference off clears a pin that
-// is standing.
+// through the LIVE lane, and only while Allow pinned rates is on. Turning that
+// preference off clears a pin that is standing.
 //
 // The engine is driven through the exported `engineState` / `enums`
 // signals in the shapes /api/state and /api/enumerations serve, and every write
@@ -21,7 +20,7 @@ import { ok } from "../../support/wire/wire.js";
 useStorage();
 
 const { engineState, enums } = await import("../../../../hqptuner/static/store/signals.js");
-const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
+const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { pinnedRate, pinRate } = await import("../../../../hqptuner/static/store/live/pin.js");
 
 /**

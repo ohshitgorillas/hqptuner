@@ -1,10 +1,10 @@
-"""Static tail of the hqplayerd log (System-tab live view).
+"""Static tail of the hqplayerd log (the Logging drawer's tail).
 
 The daemon serves its log over the port-8088 web interface (GET /log) — the same
 lane HQPTuner already uses for config. Reading it there means the tail works
 regardless of the daemon's `<log file>` setting (file, journal, or custom path)
 and needs no host bind mount into the container. GET /log is not credential-
-gated, so this reads it without auth — the System-tab tail stays available
+gated, so this reads it without auth — the Logging drawer's tail stays available
 before login, like the rest of the read-only surface.
 """
 

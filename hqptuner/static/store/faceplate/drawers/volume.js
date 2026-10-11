@@ -71,7 +71,7 @@ export async function pickFixedMode(v) {
   }
 }
 
-/** The three handles through the staged store; Max defaults to 0, Min to −60 and Startup to Min (v1 RangeBar). */
+/** The three handles through the staged store; Max defaults to 0, Min to −60 and Startup to Min. */
 function trio() {
   const max = num(effective("volume_max"), 0);
   const min = num(effective("volume_min"), -60);

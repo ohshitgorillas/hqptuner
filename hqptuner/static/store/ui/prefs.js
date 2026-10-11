@@ -5,14 +5,11 @@
 import { signal } from "@preact/signals";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
-const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
-const K_LIVE = "hqptuner.liveMode";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
 const K_APOD_LIGHT = "hqptuner.apodLight";
 const K_METER_FLOOR = "hqptuner.meterFloor";
 const K_METER_CHANNEL = "hqptuner.meterChannel";
-const K_METER_SCALE = "hqptuner.meterScale";
 const K_METER_RANGE = "hqptuner.meterRange";
 
 // A dead store is worth exactly one line of console noise: silence hides the
@@ -54,7 +51,7 @@ export function loadBool(key, dflt) {
  * @param {boolean} on
  * @returns {void}
  */
-export function persist(key, on) {
+function persist(key, on) {
   try {
     localStorage.setItem(key, on ? "1" : "0");
   } catch {
@@ -80,17 +77,11 @@ export function setPlainNames(on) {
   persist(K_SIMPLE, plainNames.value);
 }
 
-// The System page's faster-poll opt-in. Off by default (the 2 s default is fine
-// for diagnostic readings); ticked, it drives store/ui/ui.js's fastPollMs to a
-// 1 s status-poll interval while the page is shown. The volume page and LIVE
-// take that cadence unconditionally and have no pref of their own.
-export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
-
 // The header's apodizing indicator, in three states: dark, lit by every
 // apodizing event, or lit only by what the running filter left uncorrected.
 // Off by default: it is a monitor for a question most listening does not ask,
 // and an indicator nobody switched on has no business flashing in the chrome.
-// components/widgets/ApodLamp.js chooses its lit state by this list's index.
+// store/meter/apodlamp.js reads the mode to decide what lights the lamp.
 const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
 
 // An existing install may hold persist()'s boolean "1" or "0" on this key. "1"
@@ -131,7 +122,7 @@ export function setApodLight(mode) {
   }
 }
 
-// Time window of the Engine health card's apodizing-events density strip: how
+// Time window of the Source drawer's apodizing-events density strip: how
 // much recent playback the strip covers, in seconds, at most the spectrogram's
 // 300 s history. An unset or junk value reads as the 60 s default.
 export const APOD_WINDOWS = ["30", "60", "120", "300"];
@@ -191,18 +182,13 @@ export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPEC
 export const METER_FLOORS = ["-48", "-60", "-90"];
 export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
-// The METER spectrogram: which channel it draws ("sum" or a channel index), its
-// frequency scale, and how many dB below full scale its color ramp reaches.
+// The Source drawer's spectrogram: which channel it draws ("sum" or a channel index) and
+// how many dB below full scale its color ramp reaches. METER_RANGES is also the
+// set the page's Source meter Range (pageRange, below) chooses from.
 const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
 export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
-const METER_SCALES = ["log", "linear"];
-export const [,] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
 export const METER_RANGES = ["120", "180", "240", "300"];
 export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "120");
-
-// The LIVE switch. Persisted like every other pref, so a reload lands back on
-// the page the user was working from rather than dropping them into the tabs.
-export const liveMode = signal(loadBool(K_LIVE, false));
 
 // Collapsed dropdown groups (Simplified option style). One JSON list of
 // "<kind>|<family>" and "<kind>|<family>|<variant>" keys; a key's absence
@@ -210,29 +196,39 @@ export const liveMode = signal(loadBool(K_LIVE, false));
 // per control, so the PCM and SDM filter dropdowns share one fold.
 const K_DD_COLLAPSED = "hqptuner.collapsedGroups";
 
-/** @returns {Record<string, true>} */
-function loadCollapsed() {
+/**
+ * The strings in a stored JSON list. Unset, junk, a value that is not a list
+ * and a storage that cannot be read all read as the empty list, and a member
+ * that is not a string is dropped.
+ *
+ * @param {string} key
+ * @returns {string[]}
+ */
+function loadStrings(key) {
   let raw = null;
   try {
-    raw = localStorage.getItem(K_DD_COLLAPSED);
+    raw = localStorage.getItem(key);
   } catch {
     warnStorage("read");
-    return {};
+    return [];
   }
-  if (raw == null) return {};
+  if (raw == null) return [];
   try {
     const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return {};
-    /** @type {Record<string, true>} */
-    const map = {};
-    for (const k of parsed) {
-      if (typeof k === "string") map[k] = true;
-    }
-    return map;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((/** @type {unknown} */ k) => typeof k === "string");
   } catch {
     // A junk value reads as unset, the same way a junk boolean does.
-    return {};
+    return [];
   }
+}
+
+/** @returns {Record<string, true>} */
+function loadCollapsed() {
+  /** @type {Record<string, true>} */
+  const map = {};
+  for (const k of loadStrings(K_DD_COLLAPSED)) map[k] = true;
+  return map;
 }
 
 export const collapsedGroups = signal(loadCollapsed());
@@ -254,4 +250,83 @@ export function toggleCollapsedGroup(key) {
   } catch {
     warnStorage("written");
   }
+}
+
+// The faceplate's browser-held preferences: HQPTuner's own choices, applied at
+// once, never staged and never sent to the engine.
+//   dacType          — Shaping's DAC type row, PCM: "other" or "r2r".
+//   dacChip          — Shaping's DAC chip row, SDM: "other" or "ess".
+//   topOfPage        — what the page's top section shows: "auto" (the spectrum
+//                      over the Matrix section folded to its header line),
+//                      "profile" (the Matrix section alone) or "spectrum".
+//   bottomBar        — "switcher" (the Setting Switcher) or "none".
+//   pageRange        — the page's Source meter Range, dB, one of METER_RANGES,
+//                      the spectrum's span only; the level bars end at the
+//                      Levels floor (meterFloor).
+//   hiddenStages     — the stages hidden from the chain rail, a subset of
+//                      HIDEABLE_STAGES, held in that order.
+//   allowPinnedRates — the opt-in for pinning an output rate; off by default.
+//
+// A stored value outside a preference's set reads as that preference's default,
+// and a stored hidden stage outside HIDEABLE_STAGES is dropped.
+export const DAC_TYPES = ["other", "r2r"];
+export const DAC_CHIPS = ["other", "ess"];
+export const TOP_OF_PAGE = ["auto", "profile", "spectrum"];
+export const BOTTOM_BARS = ["switcher", "none"];
+export const HIDEABLE_STAGES = ["dsd", "speakers", "crossfeed", "loudness", "correction"];
+
+const K_HIDDEN = "hqptuner.hiddenStages";
+const K_PINNED = "hqptuner.allowPinnedRates";
+
+export const [dacType, setDacType] = enumPref("hqptuner.dacType", DAC_TYPES, "other");
+export const [dacChip, setDacChip] = enumPref("hqptuner.dacChip", DAC_CHIPS, "other");
+export const [topOfPage, setTopOfPage] = enumPref("hqptuner.topOfPage", TOP_OF_PAGE, "auto");
+export const [bottomBar, setBottomBar] = enumPref("hqptuner.bottomBar", BOTTOM_BARS, "switcher");
+export const [pageRange, setPageRange] = enumPref("hqptuner.pageRange", METER_RANGES, "120");
+
+/**
+ * The hideable stages among `stages`, once each, in HIDEABLE_STAGES order.
+ *
+ * @param {string[]} stages
+ * @returns {string[]}
+ */
+function hideable(stages) {
+  return HIDEABLE_STAGES.filter((s) => stages.includes(s));
+}
+
+/** @type {{ value: string[] }} */
+export const hiddenStages = signal(hideable(loadStrings(K_HIDDEN)));
+
+/**
+ * Hide one stage from the chain rail, or show it again, and persist the hidden
+ * set. A stage outside HIDEABLE_STAGES is ignored: the signal and the stored
+ * value both stand.
+ *
+ * @param {string} stage
+ * @param {boolean} hidden
+ * @returns {void}
+ */
+export function setStageHidden(stage, hidden) {
+  if (!HIDEABLE_STAGES.includes(stage)) return;
+  const rest = hiddenStages.value.filter((s) => s !== stage);
+  hiddenStages.value = hideable(hidden ? [...rest, stage] : rest);
+  try {
+    localStorage.setItem(K_HIDDEN, JSON.stringify(hiddenStages.value));
+  } catch {
+    // storage disabled (private mode) — keep the in-memory value
+    warnStorage("written");
+  }
+}
+
+export const allowPinnedRates = signal(loadBool(K_PINNED, false));
+
+/**
+ * Set the pinned-rates opt-in and persist it.
+ *
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function setAllowPinnedRates(on) {
+  allowPinnedRates.value = !!on;
+  persist(K_PINNED, allowPinnedRates.value);
 }

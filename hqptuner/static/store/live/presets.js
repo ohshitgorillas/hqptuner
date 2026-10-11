@@ -1,28 +1,25 @@
-// Live snapshots — the LIVE page's named setting combos, and the four calls that
-// reach them.
+// Live snapshots — named setting combos, and the four calls that reach them.
 //
 // A live snapshot is not a config preset. The header's presets are whole
 // hqplayerd.xml files applied by restarting the daemon; one of these is a
 // handful of enum IDs handed to POST /api/config/live, which writes the running
 // engine and never touches the configuration file. Nothing here stages, and
 // nothing here is saved past the daemon's next restart — the record on disk is
-// HQPTuner's, the settings it carries are the engine's and are as temporary as
-// anything else on the LIVE page.
+// HQPTuner's, the settings it carries are the engine's.
 //
 // Snapshots belong to a station: a config preset, or "" while none is loaded.
 // The list is the loaded station's, and the book beside it holds every
 // station's.
 //
-// The store is small and changes only when this card changes it, so it is not on
-// the poll: it is read when LIVE opens, re-read when the loaded station changes,
-// and re-read after each save or delete.
+// The store is small and changes only when these calls change it: it is read
+// once the book is wanted, re-read when the loaded station changes, and re-read
+// after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { activePreset } from "../resolve.js";
 import { reportError } from "./state.js";
 import { remirrorLive } from "./write.js";
-import { liveMode } from "../ui/prefs.js";
 
 // The loaded station's saved presets, as /api/livepresets serves them: {name,
 // chain, fields, names}. Null until the first read — "not looked yet" and "none
@@ -36,12 +33,12 @@ export const liveBook = signal(/** @type {Record<string, Record<string, unknown>
 // backend takes the loaded one.
 export const livePresetStation = signal(/** @type {string | null} */ (null));
 // The preset with a call in flight (""=none), and the last failure. One error
-// for the whole card, latest wins — the same rule the LIVE controls follow,
+// for the whole card, latest wins — the same rule the live controls follow,
 // because the card has one place to put it and the user has one thing in mind.
 export const livePresetsBusy = signal("");
 export const livePresetError = signal("");
-// Whether something outside LIVE shows the book (the faceplate's station tree),
-// which reads it the same way LIVE does.
+// Whether something shows the book (the faceplate's station tree). Nothing is
+// read off the wire until it is.
 export const bookWanted = signal(false);
 
 // Nothing here judges a preset against the chain the engine has loaded. A preset
@@ -130,12 +127,10 @@ export async function applyLivePreset(name) {
   );
 }
 
-// Read the list when LIVE opens, and again whenever the loaded station changes
-// while it is open. Leaving with it read is fine — the card is not rendered — and
-// coming back re-reads, which is what picks up a preset saved in another browser
-// tab.
+// Read the list once the book is wanted, and again whenever the loaded station
+// changes while it is.
 effect(() => {
-  if (!liveMode.value && !bookWanted.value) return;
+  if (!bookWanted.value) return;
   void activePreset.value;
   refreshLivePresets();
 });

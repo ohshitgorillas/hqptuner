@@ -10,7 +10,7 @@
 // Pure functions, so no rendering and no store: plain node:test over the public
 // exports, in the zero-dependency shape of tests/js/matrixspec.test.js.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/volume.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/volume.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

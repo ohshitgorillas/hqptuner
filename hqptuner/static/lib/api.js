@@ -214,7 +214,7 @@ export const api = {
   stage: (/** @type {unknown} */ body) => send("/api/config/stage", "POST", body),
   discard: () => send("/api/config/pending", "DELETE"),
   apply: (/** @type {unknown} */ body) => send("/api/config/apply", "POST", body || {}),
-  // the LIVE view's whole write path: applied on the spot, readback-verified,
+  // the live controls' whole write path: applied on the spot, readback-verified,
   // never staged (store/live/write.js)
   live: (/** @type {Record<string, string>} */ fields) => send("/api/config/live", "POST", { fields }),
   // Live snapshots — HQPTuner's own record, never the daemon's. A save sends, at most, which settings to keep,

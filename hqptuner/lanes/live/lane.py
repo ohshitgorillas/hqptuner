@@ -1,8 +1,8 @@
-"""The LIVE view's write lane — one batch of live settings, applied on the spot.
+"""The live write lane — one batch of live settings, applied on the spot.
 
 ``POST /api/config/live`` lands here. It is deliberately not stage+apply: the
-pending buffer is shared with the tabs view (``api/pendingapi.PendingStore``) and
-``POST /config/apply`` flushes everything in it, so a LIVE control routed through
+pending buffer holds every staged edit (``api/pendingapi.PendingStore``) and
+``POST /config/apply`` flushes everything in it, so a live control routed through
 that pair would also apply edits the user staged elsewhere and never asked for.
 This lane touches neither the pending store nor the persistent 8088 lane, so it
 cannot restart the daemon.
@@ -138,7 +138,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     """Put back what LIVE set on the chain the engine has now loaded.
 
     `GetFilters`/`GetShapers` answer for the loaded chain only, so an edit made to
-    the other card on the LIVE page could not reach the engine when it was made
+    the other chain could not reach the engine when it was made
     and was held instead (`routing.resolve_live`). This is where it lands. Values
     the entered chain turns out not to carry are forgotten rather than
     approximated, and the memory itself is kept: it is what
@@ -250,7 +250,7 @@ async def _apply_batch(mgr: ConnectionManager, fields: dict[str, str]) -> LiveAp
     """Resolve, apply and readback-verify a batch of LIVE config-form fields; the caller holds ``mgr.live_writes``.
 
     Fields for the chain the engine has not loaded are held rather than refused —
-    LIVE shows both chains at once — and come back under `stored` so the caller
+    a live snapshot carries both chains — and come back under `stored` so the caller
     knows the value it sent is real but not yet playing.
 
     Everything after `apply_live` is bookkeeping for the NEXT write — the write
@@ -366,7 +366,7 @@ def split_remainder(
 async def mode_then_split(
     mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> SplitPlan:
-    """Route the tabs view's staged batch, mode first.
+    """Route a staged batch, mode first.
 
     Without a re-enumeration between ``SetMode`` and the rest, a staged mode
     beside other routable fields sends the whole batch to the restore lane

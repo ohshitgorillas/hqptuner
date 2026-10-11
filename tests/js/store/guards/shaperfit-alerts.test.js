@@ -1,5 +1,5 @@
 // Behavioral suite for store/alerts/shaperfit.js's `shaperAlerts` — the rate/shaper
-// conflicts the alert strip reports as rows.
+// conflicts it reports as alert rows.
 //
 // Two families, two severities, drawn by product decision rather than by
 // anything in the manual (whose wording is "optimized for" throughout):

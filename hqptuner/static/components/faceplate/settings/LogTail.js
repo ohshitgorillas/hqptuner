@@ -1,4 +1,4 @@
-// The Logging drawer's live log tail block: HQPTuner v1's tail on the faceplate. A static window of the last 50 lines of
+// The Logging drawer's live log tail block. A static window of the last 50 lines of
 // the daemon's log, each poll replacing the whole buffer, polled every 3 s while the Logging drawer is open and stopped
 // when it closes or the block unmounts. A failed request prints its line in the pane's place. Copy puts the window on
 // the clipboard and reads its outcome for 1.5 s. Read-only: nothing here stages.

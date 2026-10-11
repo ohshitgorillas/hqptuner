@@ -1,12 +1,8 @@
-// Client-side SVG response plots for the post-processing cards. Every curve is
-// recomputed here on each render — and effective() reads the live-override /
-// staged / config signals, so a knob/slider drag repaints the plot instantly
-// with no backend round-trip. The plot spans the full width of the card bottom.
-//
-// Visual convention (see css design tokens): a DASHED, muted trace is the
-// *potential* (maximum / reference) response; a SOLID, accent trace is what is
-// *actually applied* now. Traces are labeled at the right edge so the language
-// is legible: crossfeed "direct" vs "cross-fed", loudness "max" vs "applied".
+// The shared client-side SVG response plot frame (PlotFrame), drawn by the DSP
+// pipelines drawer's response plot (faceplate/drawers/pipelines/Plot.js). The
+// caller recomputes its curves on each render, so a dot drag repaints the plot
+// with no backend round-trip. Each trace is labeled at the right edge; a
+// `ghost` trace is a reference curve kept in its muted CSS look.
 
 import { signal } from "@preact/signals";
 import { html } from "../lib/dom.js";
@@ -17,8 +13,7 @@ import { dbOffset } from "../lib/units.js";
 /**
  * @typedef {PlotTrace & { ghost?: boolean }} FrameTrace
  *   A plotted curve. `ghost` marks a reference curve the autoColor hue cycle
- *   skips; it is not on the ambient PlotTrace (see the note in this file's
- *   header block for matrix/plot-traces.js, which produces it).
+ *   skips; it is not on the ambient PlotTrace.
  * @typedef {PlotHandle & { label?: string, dbMin?: number, dbMax?: number, onSelect?: () => void,
  *                          onDrag: (f: number, db: number) => void,
  *                          onEnd: (f: number, db: number) => void }} FrameHandle
@@ -39,9 +34,8 @@ const PADT = 22; // top band carries the y-axis unit labels
 const PADB = 24;
 const LOGSPAN = Math.log(F1 / F0);
 const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
-// A vertical at EVERY labeled frequency. Three decade lines under ten labels
-// left seven figures on the axis with nothing rising from them, so reading a
-// feature's frequency off the plot meant eyeballing the gap between decades.
+// A vertical at EVERY labeled frequency, so a feature's frequency reads off the
+// plot without eyeballing the gap between decades.
 const FREQ_GRID = FREQ_LABELS;
 
 /** An axis frequency label: hertz below 1 kHz, kilohertz from there, as `500` and `2k`. */
@@ -51,7 +45,7 @@ const xOf = (/** @type {number} */ f) => PADL + (Math.log(f / F0) / LOGSPAN) * (
 // Evenly-spaced hue per trace index: N traces => N hues 360/N apart, so any count
 // stays maximally separated and auto-rebalances when a trace is added/removed —
 // no fixed palette to exhaust. Fixed S/L keeps every hue legible on the dark bg.
-// Opt-in via PlotFrame's `autoColor`; the 2-tone plots keep their kind-class CSS.
+// Opt-in via PlotFrame's `autoColor`; without it a trace keeps its kind-class CSS.
 const hueOf = (/** @type {number} */ i, /** @type {number} */ n) =>
   `hsl(${Math.round((i * 360) / Math.max(n, 1))}, 68%, 62%)`;
 
@@ -68,7 +62,7 @@ const dragHud = signal(null);
 const fmtF = (/** @type {number} */ f) => (f >= 1000 ? `${(f / 1000).toFixed(2)} kHz` : `${Math.round(f)} Hz`);
 const fmtDeltaF = (/** @type {number} */ df) => `${df >= 0 ? "+" : ""}${Math.round(df)} Hz`;
 
-// Exported for the matrix RESPONSE card. Optional second y-axis (y2Min/y2Max):
+// Optional second y-axis (y2Min/y2Max):
 // traces flagged `y2: true` (phase) map through it instead of the dB scale.
 /**
  * Renders the shared SVG plot frame — log frequency axis, dB grid, one path per
@@ -241,7 +235,7 @@ function DragHud({ yOf }) {
  */
 function dragStarter({ yMin, yMax, height, plotH }) {
   return (h) => (e) => {
-    if (h.onSelect) h.onSelect(); // grabbing a dot selects its band (docks strip + editor)
+    if (h.onSelect) h.onSelect(); // grabbing a dot selects its band
     const svg = e.target.ownerSVGElement;
     if (!svg) return; // the handle is an SVG child; nothing to measure against otherwise
     const rect = svg.getBoundingClientRect();

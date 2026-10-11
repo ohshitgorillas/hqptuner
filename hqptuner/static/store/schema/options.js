@@ -6,7 +6,7 @@
 // they clip in the third-width Rate box (user decision).
 //
 // No "Auto" entry, deliberately. The slot these write (defaults_*) has none on
-// the daemon's own form, and the slot LIVE writes reaches the same outcome by
+// the daemon's own form, and the slot the live lane writes reaches the same outcome by
 // picking the tier: verified live on 6.0.4, an unset rate under a DSD512 limit and
 // a pinned DSD512 both play a 44.1k source at 22579200. A menu entry whose only
 // effect is to stop naming the tier is what made the two views disagree.
@@ -28,8 +28,8 @@ export const DSD_RATES = [
 ];
 // Every tier above has a 44.1k member as well as the 48k one the menus carry
 // (DSD512 is 22579200 or 24576000), and a menu entry means the TIER rather than
-// the frequency beside it. Anything asking "is this tier reachable" — the LIVE
-// rate columns, the device-capability narrowing — has to ask about both members,
+// the frequency beside it. Anything asking "is this tier reachable" — the Output
+// drawer's rate dial, the device-capability narrowing — has to ask about both members,
 // so the pairing lives here with the tables it pairs.
 /** @type {Record<string, string>} */
 export const TWIN_44K = {

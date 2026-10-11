@@ -1,4 +1,4 @@
-// Control catalog, DSP group: post-processing and the Matrix tab. Assembled
+// Control catalog, DSP group: post-processing and the matrix. Assembled
 // into `schema` by store/schema.js.
 
 import { crossfeedOff, loudnessGated, loudnessOff, matrixBypassed } from "./gray.js";
@@ -246,11 +246,11 @@ export const postprocess = {
     quietGray: true,
   },
 
-  // --- Matrix tab: global controls + the atomic pipeline set. Staged keys are
+  // --- Matrix: global controls + the atomic pipeline set. Staged keys are
   // the write lane's prefixed names (presetconf.FIELD_MAP); formField is the
   // daemon's bare form-field name for baseline/options reads.
   // matrix_pipelines is staged by the pipeline editor (stagePipelines), never
-  // rendered as a Field — the entry exists so the pending bar counts and lanes it.
+  // rendered as a Field — the entry exists so the staged set counts and lanes it.
   matrix_enabled: {
     label: "",
     bool: true,
@@ -305,8 +305,8 @@ export const postprocess = {
   // The two saved-profile verbs. HQPTuner owns the <matrix_profile> element —
   // hqplayerd keeps a saved profile in memory only and never writes it — so a
   // save or a delete is a staged config edit rather than a daemon route. Staged
-  // by the profile card, never rendered as a Field; the entries exist so the
-  // pending bar counts and lanes them. Neither has a baseline: a verb has no
+  // by store/matrix/profiles.js, never rendered as a Field; the entries exist so
+  // the staged set counts and lanes them. Neither has a baseline: a verb has no
   // current value, which is what makes it read dirty from the moment it is
   // staged until the apply clears it.
   matrix_profile_save: {

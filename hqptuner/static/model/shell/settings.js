@@ -59,7 +59,7 @@ const READOUT = {
       : "None";
     return { text, swatch: null };
   },
-  slider: (c, v) => ({ text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }), // v1's own word for 0
+  slider: (c, v) => ({ text: c.auto && v === String(c.auto.v) ? "Automatic" : v, swatch: null }),
   number: (c, v) => ({ text: minusText(v) + (c.unit ? " " + c.unit : ""), swatch: null }),
   accent(c, v, accents) {
     const o = accents.find((x) => x.v === v);

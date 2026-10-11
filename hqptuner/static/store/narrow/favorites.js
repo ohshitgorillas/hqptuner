@@ -6,8 +6,7 @@
 // The server is the only store. A toggle writes the whole resulting set to
 // PUT /api/favorites — unstarring is a write without the name, so there is no
 // second route and two browsers racing is last-write-wins. Nothing polls: a tab
-// picks up another tab's stars on reload, the same way the LIVE page re-reads
-// its presets when it opens.
+// picks up another tab's stars on reload.
 //
 // Stars applied optimistically. The star is the user's own click and the round
 // trip is a LAN hop; making them wait for it to light up would make the control

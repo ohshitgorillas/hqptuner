@@ -1,4 +1,4 @@
-// Rendered suite for the Signal path drawer's block (components/faceplate/settings/SignalPath.js) over the v1 store: one
+// Rendered suite for the Signal path drawer's block (components/faceplate/settings/SignalPath.js) over the store: one
 // node group per map node, the nodes the path playing lights, a matrix part reading bypassed under a stopped matrix
 // engine, and the Direct SDM bypass lighting on the direct path.
 //
@@ -31,7 +31,7 @@ import {
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
-import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 const PCM_1X = { source: "44100", output: "352800" };

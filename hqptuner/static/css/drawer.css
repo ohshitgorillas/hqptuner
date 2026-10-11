@@ -188,7 +188,7 @@
 .radio:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--stroke)}
 
 /* ── Volume range bar (Volume drawer, Range tab) ─────────────────────────────
-   v1's shared dBFS axis on tuner glass. Amber = the settings (Min/Max brackets, Startup pin, reachable span);
+   A shared dBFS axis on tuner glass. Amber = the settings (Min/Max brackets, Startup pin, reachable span);
    ink-2 = loudness bounds (reference only, set in the Loudness drawer); green = live playback volume (a readout,
    like the rate dial's playing lamp). Heavy ticks at 0 and −3 dBFS. */
 .dblock[data-block="range"]{display:flex;flex-direction:column;gap:var(--sp-4);padding-top:var(--sp-5)}

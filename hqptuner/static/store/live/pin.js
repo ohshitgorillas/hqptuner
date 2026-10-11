@@ -1,5 +1,5 @@
 // The pinned output rate: an exact rate the engine runs at until the next mode
-// switch, written through the LIVE lane as the field `rate`, in Hz, "0" clearing
+// switch, written through the live lane as the field `rate`, in Hz, "0" clearing
 // it (lanes/live/rate.py).
 //
 // The pin is read off the engine, never held here: State reports the RatesItem
@@ -7,13 +7,13 @@
 // on every SetMode, so the reading follows without anything here to forget.
 //
 // A pin overrides automatic base-rate selection, so it is sent only while the
-// Allow pinned rates preference (store/ui/faceplate.js) is on, and turning that
-// preference off clears a pin that is standing.
+// Allow pinned rates preference is on, and turning that preference off clears a
+// pin that is standing.
 
 import { computed, effect } from "@preact/signals";
 
 import { engineState, enums } from "../signals.js";
-import { allowPinnedRates } from "../ui/faceplate.js";
+import { allowPinnedRates } from "../ui/prefs.js";
 import { writeLive } from "./write.js";
 
 /** @typedef {{ index: string, rate: string }} RateItem */

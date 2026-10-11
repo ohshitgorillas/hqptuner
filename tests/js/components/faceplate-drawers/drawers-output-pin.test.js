@@ -1,5 +1,5 @@
 // Rendered suite for the rate pin on the Output drawer's rate dial (components/faceplate/drawers/output/RateDial.js)
-// over the v1 store: the picker the dial carries only while Allow pinned rates is on, what a tap on a tier does under
+// over the store: the picker the dial carries only while Allow pinned rates is on, what a tap on a tier does under
 // each pick, what the picker reads when the drawer opens, and the pinned rate's mark on the dial.
 //
 // Renders through preact-render-to-string. The picker's options are found by their wire identifier (`data-pin`:
@@ -32,7 +32,7 @@ const { config, engineState, engineStatus, enums, metadata } =
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
 const { effective } = await import("../../../../hqptuner/static/store/resolve.js");
 const { openPopover, openStage } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
+const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { pickTier } = await import("../../../../hqptuner/static/store/faceplate/drawers/output.js");
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */

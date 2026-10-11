@@ -2,11 +2,9 @@
 // whether a compensation block is installed against those settings, and the
 // staging that takes one back out.
 //
-// components/xfeed/Comp.js still owns the strip, the badge
-// and the lens traces. None of the three functions here renders anything — they
-// read the resolved config and stage rows — and leaving them in a component
-// meant store/xfeed/mode.js had to reach up into components/ to ask whether a block
-// was installed. That was the last upward edge in the frontend import graph.
+// None of the three functions here renders anything — they read the resolved
+// config and stage rows — so store/xfeed/mode.js and the Crossfeed drawer ask
+// whether a block is installed without importing from components/.
 //
 // Bauer preset internals are not surfaced by the daemon (probe finding), so
 // preset -> (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
@@ -50,7 +48,7 @@ export function xfeedBlock(rows) {
 }
 
 // Public because leaving Bauer takes its rows with it, not just its enable flag:
-// the mode segment (store/xfeed/mode.js) and the DSP tab's Speakers switch both call
+// the mode segment (store/xfeed/mode.js) and the Crossfeed drawer's compensation both call
 // this, and a correction left behind would run against a crossfeed that is off.
 /**
  * Stage the pipelines with the eight compensation rows replaced by a plain two-channel

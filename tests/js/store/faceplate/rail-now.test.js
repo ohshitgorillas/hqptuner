@@ -23,7 +23,7 @@ import {
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
-import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { railNow } from "../../../../hqptuner/static/store/faceplate/chain.js";
 
 /**

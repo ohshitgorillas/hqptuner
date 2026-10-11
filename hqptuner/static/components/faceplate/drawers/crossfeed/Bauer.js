@@ -1,6 +1,6 @@
 // The Crossfeed block's Bauer line (HQPlayer's post-process, libbs2b): Preset, then Frequency and Level (live only on
-// Custom), then v1's crossfeed compensation (store/faceplate/drawers/crossfeed/comp.js) with its tilt readout and
-// scale; its manual copy; and the response plot under the lines, v1's compensation traces: the center as crossfeed
+// Custom), then the crossfeed compensation (store/faceplate/drawers/crossfeed/comp.js) with its tilt readout and
+// scale; its manual copy; and the response plot under the lines, the compensation traces: the center as crossfeed
 // leaves it, the center as the compensation corrects it, the sides it leaves alone.
 
 import { html } from "../../../../lib/dom.js";

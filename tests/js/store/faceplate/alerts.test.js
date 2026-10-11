@@ -1,6 +1,6 @@
 // Behavioral suite for hqptuner/static/store/faceplate/alerts.js: the alerts the faceplate raises and where they land.
-// Each of v1's alerts arrives under its faceplate kind with its v1 severity, the shaper pair names the chain it judges,
-// the junk advice carries the backend's reason, and the credentials and Roon lines are not v1's. The plan over them
+// Each alert arrives under its faceplate kind with the severity its source store decides, the shaper pair names the
+// chain it judges, and the junk advice carries the backend's reason. The plan over them
 // blinks the home each kind lives on, and a header home's popover holds only the alerts homed there.
 //
 // Driven at the wire: the /api/health reading, the /api/status frame (playing state, health counters, the metadata
@@ -86,7 +86,7 @@ const sevs = () => faceplateAlerts().map((a) => a.sev);
 /** @param {string} kind */
 const find = (kind) => faceplateAlerts().find((a) => a.kind === kind);
 
-// --- each v1 alert under its faceplate kind -------------------------------------
+// --- each alert under its faceplate kind ----------------------------------------
 
 test("test_refused_credentials_raise_the_credentials_kind", async () => {
   await quiet();

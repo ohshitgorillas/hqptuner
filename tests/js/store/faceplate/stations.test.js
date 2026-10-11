@@ -3,7 +3,7 @@
 // name; one station unfolded at a time.
 //
 // Driven by assigning the exported signals the tree is read from: the config the poll writes and the live-snapshot
-// book the LIVE store reads. Where the book is read off the wire, a fetch fake answers /api/livepresets in its real
+// book store/live/presets.js reads. Where the book is read off the wire, a fetch fake answers /api/livepresets in its real
 // shape. Preset and snapshot names are the fixture's own wire data.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/stations.test.js
@@ -12,7 +12,6 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { rec, presetWire, settle } from "../../support/wire/livepresetwire.js";
@@ -43,7 +42,6 @@ const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
 beforeEach(() => {
   bookWanted.value = false;
-  liveMode.value = false;
   config.value = offering("Night", ["Day", "Night"]);
   liveBook.value = { Day: { Warm: snap(), Bright: snap() }, Night: { Quiet: snap() }, "": { Loose: snap() } };
   unfolded.value = null;

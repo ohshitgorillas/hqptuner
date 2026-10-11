@@ -321,6 +321,7 @@
   --knob-turn:.35s ease-out;           /* brand knob pointer settling on a state */
   --wipe:.2s ease-out;                 /* drawer and sheet wipe */
   --needle:.14s ease-out;              /* rate dial needle */
+  --lamp-decay:.5s;                    /* a counter lamp's flash fading out */
 
   /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
      accent, like the spectrogram ramp. */

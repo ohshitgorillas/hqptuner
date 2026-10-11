@@ -1,13 +1,13 @@
 // The engine row: the process speed gauge, the input and output buffers, the clipping and apodizing counters stacked
 // one over the other, the HF filter, and the playback volume at the right end. Every reading is live off the Status
-// poll (store/faceplate/engine.js); one with nothing to show prints — and takes no zone. The speed figure and each
-// buffer read the gauge's own arcs, red | amber | green. A counter prints one figure, this track's count and the total
-// split by a slash ("12/5,410"), or the total alone where there is no track count apart from it; its lamp flashes on a
-// frame that counted and fades, and stays dark while there is no total. The HF filter reads the playback filter that
-// runs and opens a menu of the engine's playback filters, a pick written live. Its menu and the volume's slider
-// popover render beside the row, so that each is a child of the plate as every popover is. An alert homed on the gauge
-// blinks it in the alert's colour, and while one is up the gauge takes a tap or Enter like a button, opening the alert
-// lines; its popover renders beside the row too.
+// frame pushed over /api/push (store/faceplate/engine.js); one with nothing to show prints — and takes no zone. The
+// speed figure and each buffer read the gauge's own arcs, red | amber | green. A counter prints one figure, this
+// track's count and the total split by a slash ("12/5,410"), or the total alone where there is no track count apart
+// from it; its lamp flashes on a frame that counted and fades, and stays dark while there is no total. The HF filter
+// reads the playback filter that runs and opens a menu of the engine's playback filters, a pick written live. Its menu
+// and the volume's slider popover render beside the row, so that each is a child of the plate as every popover is. An
+// alert homed on the gauge blinks it in the alert's colour, and while one is up the gauge takes a tap or Enter like a
+// button, opening the alert lines; its popover renders beside the row too.
 
 import { html } from "../../lib/dom.js";
 import { PLATFORM } from "../../lib/clock.js";
@@ -16,7 +16,6 @@ import { engineStatus } from "../../store/signals.js";
 import { clipFlash, outputBufferApplies, trackCounters } from "../../store/health.js";
 import { apodLampLevel } from "../../store/meter/apodlamp.js";
 import { apodBinSeq } from "../../store/apodhistory.js";
-import { fastPollMs } from "../../store/ui/ui.js";
 import { engineReadings } from "../../store/faceplate/engine.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
 import { togglePopover } from "../../store/faceplate/view.js";
@@ -86,7 +85,7 @@ const Counter = ({ k, label, count, level, seq }) => html`
   <div class="counter" data-k=${k}>
     <span
       class=${`lamp big flash-${seq % 2}`}
-      style=${`--lamp: ${(count.total === null ? 0 : level).toFixed(3)}; --lamp-decay: ${Math.round(fastPollMs.value / 4)}ms`}
+      style=${`--lamp: ${(count.total === null ? 0 : level).toFixed(3)}`}
     ></span>
     <span class="eng">${label}</span>
     <span class="cnt">${count.track === null ? figure(count.total) : `${figure(count.track)}/${figure(count.total)}`}</span>

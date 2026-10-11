@@ -2,8 +2,8 @@
 .hdr{height:var(--hdr-h);flex-shrink:0;display:flex;align-items:center;gap:var(--sp-5)}
 .mark{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-mark);letter-spacing:var(--ls-2);color:var(--ink);text-shadow:var(--engrave),0 calc(-1 * var(--hair)) 0 var(--highlight);line-height:var(--lh-eng)}
 .ver{font-size:var(--fs-3);color:var(--ink-2);margin-left:calc(-1 * var(--sp-3));align-self:flex-end;padding-bottom:var(--sp-3)}
-/* Brand knob = connection lamp: v1's knob glyph (ring + pointer) on a raised round face, its ring the
-   light. ok: green ring, pointer at v1's 45°; busy (applying): amber ring, pointer sweeping; lost (unreachable): red ring,
+/* Brand knob = connection lamp: a knob glyph (ring + pointer) on a raised round face, its ring the
+   light. ok: green ring, pointer at 45°; busy (applying): amber ring, pointer sweeping; lost (unreachable): red ring,
    pointer turned down to off. Semantic colours (lamps), never the accent. Tap → connection settings. */
 .conn{width:var(--ctl-h-hdr);height:var(--ctl-h-hdr);flex-shrink:0;padding:0;border-radius:var(--r-round);border:var(--hair) solid var(--line-2);background:var(--raised);box-shadow:var(--raised-shadow);cursor:pointer;display:grid;place-items:center;margin-right:var(--sp-1)}
 .conn svg{width:var(--knob-glyph);height:var(--knob-glyph);overflow:visible}
@@ -97,7 +97,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .plate[data-size="11"] .meter .bar{width:var(--meter-w-11)}
 .plate[data-size="13"] .meter .bar{width:var(--meter-w-13)}
 
-/* Connection panel (components/faceplate/ConnPanel.js): a sheet from the body's top (set inline) to the plate's foot, v1's
+/* Connection panel (components/faceplate/ConnPanel.js): a sheet from the body's top (set inline) to the plate's foot, its
    fields in one column. Text fields are the builders' name windows, radios `.chk`, prose `.man`. */
 .csheet{bottom:0}
 .cbody{flex-grow:1;min-height:0;display:flex;flex-direction:column;align-items:flex-start;gap:var(--sp-6);padding:var(--sp-7) var(--sp-9)}

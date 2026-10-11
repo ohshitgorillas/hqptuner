@@ -1,4 +1,4 @@
-// Behavioral suite for the LIVE controls' error map across a daemon reconnect —
+// Behavioral suite for the live controls' error map across a daemon reconnect —
 // store/live/state.js's exported `liveErrors`, driven by the `health` signal the
 // polling loop writes.
 //
@@ -18,7 +18,7 @@
 // of the file, and "no connection has been seen yet" is a state only a freshly
 // imported store is in. It therefore runs before any other case writes `health`.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/livereconnect.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/livereconnect.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

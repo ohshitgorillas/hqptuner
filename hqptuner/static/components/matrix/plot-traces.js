@@ -1,29 +1,26 @@
-// Trace builders for the matrix RESPONSE plot (Plot.js): working-row
-// magnitude/phase curves, the crossfeed-block EQ overview, applied-baseline
-// ghosts and the library-picker preview. Pure client math (lib/dsp/chain.js),
-// recomputed per render off the staged pipeline signals — no server
+// Trace builders for the page's Matrix profile response
+// (faceplate/page/MatrixProfile.js responsePlot): pipeline-row magnitude/phase
+// curves and the crossfeed-block EQ overview. Pure client math
+// (vendor/eqlab/core/dsp/chain.js), recomputed per render — no server
 // round-trip.
 import { parseProcess, serializeProcess } from "../../vendor/eqlab/core/matrixspec.js";
 import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
 import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
 import { structuralBlock } from "../../store/xfeed/mode.js";
-import { withDrag } from "./BandStrip.js";
 
 /**
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
  *   One matrix pipeline as store/resolve.js canonicalizes it — every field a
  *   string, because the config XML and the /matrix form both carry text.
  * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} Stage
- *   One parsed `process` stage, as lib/matrixspec.js parseProcess emits it.
+ *   One parsed `process` stage, as vendor/eqlab/core/matrixspec.js parseProcess emits it.
  * @typedef {{ min: number, max: number }} Bounds
  *   The dB window the plot auto-scales to. Widened IN PLACE by every builder
  *   here, so the caller's object is the accumulator.
  * @typedef {{ stages: Stage[], idxs: number[] }} Group
  *   Rows sharing a byte-identical chain, drawn as one curve labeled with every
  *   pipeline number it covers.
- * @typedef {PlotTrace & { ghost?: boolean }} GhostTrace
- *   An applied-baseline curve: a PlotTrace flagged for the muted dashed style.
  * @typedef {{ eqProcess: { left: string, right: string } }} StructuralRec
  *   The part of a recognized structural crossfeed block these traces read: the
  *   per-ear EQ chain it was built from (store/xfeed/mode.js).
@@ -54,7 +51,7 @@ export function rowTraces(rows, plotted, bounds) {
   /** @type {Map<string, Group>} */
   const byKey = new Map();
   plotted.forEach((i) => {
-    const stages = withDrag(rows, i);
+    const stages = parseProcess(rows[i].process);
     const key = serializeProcess(stages);
     let g = byKey.get(key);
     if (!g) {
@@ -91,8 +88,8 @@ export function rowTraces(rows, plotted, bounds) {
 }
 
 // A recognized crossfeed block is data, but its 8 internal pipelines aren't worth
-// plotting individually. Draw the single headphone-EQ curve the block was built
-// from (msRecognize recovers it) as the block-only overview.
+// plotting individually. Draw the single headphone-EQ curve the block holds
+// (xfeedBlock reads it) as the block-only overview.
 // Both block types hide their rows from the plot, so without this the EQ — the
 // curve the user actually tuned — disappears and a ~2 dB crossfeed response is
 // left dominating the chart.

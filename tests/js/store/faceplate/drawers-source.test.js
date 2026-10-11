@@ -1,10 +1,10 @@
-// Store suite for hqptuner/static/store/faceplate/drawers/source.js: what the Source drawer's meter shows over the v1
-// stream. Which of the meter or a no-stream line shows (metering off, nothing playing, the feed silent while it plays,
+// Store suite for hqptuner/static/store/faceplate/drawers/source.js: what the Source drawer's meter shows over the meter
+// feed. Which of the meter or a no-stream line shows (metering off, nothing playing, the feed silent while it plays,
 // a silent DSD source with the matrix off), the linear frequency axis ending at the source Nyquist, the channel
 // switch's choices and pick, the time window both charts share and its axis, and the apodizing strip's events per pixel
 // column, laid back from the right edge the caller hands in.
 //
-// The stream reaches the store at the wire: METER feed events through the EventSource fake
+// The stream reaches the store at the wire: meter feed events through the EventSource fake
 // (tests/js/support/eventsource.js), playback through fresh /api/status objects, the apodizing history through the poll
 // seam (tests/js/support/apodpolls.js). The feed's clock is the one openMeterFeed() is handed, so silence is a clock
 // step, never a wait. Prefs are written through their own setters over a fake storage.

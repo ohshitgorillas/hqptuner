@@ -1,4 +1,4 @@
-// Behavioral suite for store/live/ — the LIVE view's store: the values and
+// Behavioral suite for store/live/ — the live controls' store: the values and
 // option lists its controls read, and the one path they write by.
 //
 // Every case drives the exported `engineState` / `enums` signals with
@@ -10,7 +10,7 @@
 // controls speak is the enum ID, so a fixture where the two
 // coincide could not tell a correct join from no join at all.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/live.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/live.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

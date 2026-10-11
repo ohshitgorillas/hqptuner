@@ -130,8 +130,8 @@ export function guard(key, value) {
 // and the running configuration does not: applying into a state that is already
 // live and unchanged must stay silent, or every Apply nags forever.
 
-// The pending bar renders apply-time questions — it is where the Apply button
-// the user just pressed lives (components/PendingBar.js OWNER).
+// Apply-time questions render under the open drawer's head — where the Apply
+// button the user just pressed lives (store/faceplate/drawer.js APPLY_OWNER).
 const APPLY_OWNER = "pending";
 
 /**

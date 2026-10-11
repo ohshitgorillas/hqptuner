@@ -1,4 +1,4 @@
-// The brand knob's connection state, the three v1's status pill tells apart: a write in flight, an engine that is not
+// The brand knob's connection state, one of three: a write in flight, an engine that is not
 // ready, and a ready idle engine. A write started on any page restarts the same daemon, so it reads busy whatever the
 // readiness reads under it.
 

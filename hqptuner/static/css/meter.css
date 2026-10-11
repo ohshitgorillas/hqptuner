@@ -76,7 +76,7 @@
 .rowl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:0;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:var(--strip-h)}
 .spec,.apodstrip{display:block;width:100%;height:100%;border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-sizing:border-box;box-shadow:var(--well)}
 
-/* No meter (nothing plays, or a DSD source with the matrix bypassed): v1's owner copy, centred in the drawer. */
+/* No meter (nothing plays, or a DSD source with the matrix bypassed): a line of owner copy, centred in the drawer. */
 .mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:var(--mnone-min)}
 .mnone p{margin:0;font-size:var(--fs-5);color:var(--ink-2)}
 

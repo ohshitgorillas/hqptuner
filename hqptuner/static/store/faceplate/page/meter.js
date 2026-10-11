@@ -10,8 +10,7 @@
 
 import { freqTicks, levelTicks, rangeSteps, spectrumAxes } from "../../../model/gauges/meter-plot.js";
 import { meterGeometry } from "../../meter/feed.js";
-import { PAGE_RANGES, pageRange } from "../../ui/faceplate.js";
-import { meterFloor } from "../../ui/prefs.js";
+import { METER_RANGES, meterFloor, pageRange } from "../../ui/prefs.js";
 import { sourceMeter } from "../drawers/source.js";
 import { plate } from "../view.js";
 
@@ -57,7 +56,7 @@ export function pageMeter() {
   return {
     state: sourceMeter().state,
     range,
-    ...rangeSteps(PAGE_RANGES, pageRange.value),
+    ...rangeSteps(METER_RANGES, pageRange.value),
     slim: plate.value.meter === "slim",
     db: spectrumAxes(plot).db.map((t) => ({ db: t.db, at: t.y })),
     levels: levelTicks(levelsFloor()),

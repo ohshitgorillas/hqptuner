@@ -1,4 +1,4 @@
-// The EventSource stand-in for the suites that read the METER feed. Plain node
+// The EventSource stand-in for the suites that read the meter feed. Plain node
 // has no EventSource, so a suite installs this fake on the global the page's
 // code constructs from, and pushes events into it by hand: the event names and
 // JSON payloads are the ones /api/meter/feed sends (api/routes/meter.py).

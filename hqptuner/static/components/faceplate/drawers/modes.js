@@ -6,7 +6,7 @@
 
 import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
 import { ditherNote, runningMode } from "../../../store/faceplate/drawers/modes.js";
-import { dacChip, dacType, setDacChip, setDacType } from "../../../store/ui/faceplate.js";
+import { dacChip, dacType, setDacChip, setDacType } from "../../../store/ui/prefs.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerTab} DrawerTab */

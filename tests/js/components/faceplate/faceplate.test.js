@@ -18,7 +18,7 @@ import {
   toggleStage,
   showBody,
 } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { BOTTOM_BARS, setBottomBar } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { BOTTOM_BARS, setBottomBar } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { TARGETS, setSwitcherTarget } from "../../../../hqptuner/static/store/faceplate/bottom/switcher.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";

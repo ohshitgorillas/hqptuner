@@ -264,7 +264,7 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     nothing.
 
     ``profile`` names the matrix profile the running engine is on. Its rows and
-    its post-process chain are installed as the LIVE matrix before any edit is
+    its post-process chain are installed as the live matrix before any edit is
     applied, so the config the daemon restarts onto is the matrix the user was
     listening to — the selected profile is runtime-only state that no restart
     survives, and this is the only form of it the config file can hold. The

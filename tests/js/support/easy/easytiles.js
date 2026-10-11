@@ -32,7 +32,6 @@ import { writeSet, presetsFor } from "../../../../hqptuner/static/store/easy/eas
 import { easyKnobs, setEasyMaterial } from "../../../../hqptuner/static/store/easy/easyview.js";
 import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
@@ -289,15 +288,13 @@ function common(keepKnobs, copy) {
  * mode in our vocabulary, carried in the form so the two agree.
  *
  * THE CONFIG FORM IS NOT OPTIONAL HERE, and seeding it empty is a mistake this
- * fixture made once and reported as a defect in the implementation. On the LIVE
- * page only the chain the engine reports LOADED reads its option list from the
+ * fixture made once and reported as a defect in the implementation. Of the live
+ * chain controls, only the chain the engine reports LOADED reads its option list from the
  * enumerations; the DORMANT chain reads its options from /api/config
  * (store/live/chains.js:86-107). A dormant chain seeded from an empty form has
  * no options at all, so no filter name can resolve to an id against it and a
  * write to that chain silently posts nothing — which looks exactly like a lane
- * that refused to write. It is also a state the app never occupies: the dormant
- * chain's card is built out of that form, so a LIVE page whose /api/config has
- * not loaded has no dropdowns to show and does not render.
+ * that refused to write.
  *
  * @param {{
  *   mode?: string,
@@ -336,7 +333,6 @@ export async function resetLive({
     active_chain: chain,
   };
   signals.config.value = configPayload(FORM(output, {}, engine), output, engine);
-  liveMode.value = true;
   await discardAll();
   return w;
 }

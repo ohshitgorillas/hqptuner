@@ -1,4 +1,4 @@
-"""Live-snapshot REST surface — the LIVE view's named setting combos.
+"""Live-snapshot REST surface — the stations' named setting combos.
 
 A self-contained feature surface mounted alongside ``app``. Nothing here touches the
 8088 lane or the pending store — a live snapshot is applied by the Phase-2 live

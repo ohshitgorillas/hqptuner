@@ -20,7 +20,6 @@ import { Header, noteId } from "../../../../hqptuner/static/components/faceplate
 import { health, config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import {
   liveBook,
   livePresets,
@@ -87,7 +86,6 @@ beforeEach(async () => {
   livePresetError.value = "";
   lastApply.value = null;
   pendingPreset.value = null;
-  liveMode.value = false;
   await discardAll();
   health.value = { reachable: true, ready: true, info: {} };
   applying.value = false;

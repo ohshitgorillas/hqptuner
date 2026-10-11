@@ -6,7 +6,7 @@ API has no capability command — ``GetRates`` answers for the loaded chain, and
 only while something is playing. What the daemon *does* do is announce, on every
 endpoint connect, the device it opened followed by one line per format that
 device accepts. That announcement is the only capability source there is, so the
-rate menus take it from the log (the same ``GET /log`` lane the System tab tails).
+rate menus take it from the log (the same ``GET /log`` lane the Logging drawer tails).
 
 Absence of evidence narrows nothing. An unreadable log, logging switched off, no
 announcement, or an announcement naming a device other than the selected one all

@@ -73,9 +73,7 @@ const dopOn = () => {
 
 // One word for every grayed rate tier, whatever made it unreachable. A dropdown
 // reason rides on the option's own label — "DSD1024 — needs a 705.6 kHz carrier
-// for DoP" is a paragraph in a third-width box — and the same word is what the
-// LIVE columns already use for a tier the engine is not offering (live.js
-// UNOFFERED). The detail belongs on the mode segment, which has room for it.
+// for DoP" is a paragraph in a third-width box.
 const UNAVAILABLE = "unavailable";
 
 // Which DSD tiers the device can reach: the ones it announced outright, plus —

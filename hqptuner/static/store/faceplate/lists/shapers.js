@@ -1,6 +1,6 @@
-// The shaper lists' own narrowing, which v1 never had: modulators by the DSD rate floor their row badge names, dithers by
+// The shaper lists' own narrowing: modulators by the DSD rate floor their row badge names, dithers by
 // the rate marker their plain-names leaf carries (`Ninth order, ≥4x`). Each facet is the picks, OR across them, empty
-// meaning any. Favorites-only narrows the modulators on their own star set, which v1 holds.
+// meaning any. Favorites-only narrows the modulators on their own star set (store/narrow/favorites.js).
 
 import { signal } from "@preact/signals";
 import { plainEntry } from "../../plainnames.js";

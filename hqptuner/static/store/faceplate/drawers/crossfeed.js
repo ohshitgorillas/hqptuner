@@ -1,9 +1,9 @@
 // The Crossfeed drawer's store half: which implementation line is picked, what the folded line summarizes, why the
-// block is grayed, and the gate and the pick over v1's crossfeed store (store/xfeed/mode.js). The DOM half is
+// block is grayed, and the gate and the pick over the crossfeed store (store/xfeed/mode.js). The DOM half is
 // components/faceplate/drawers/Crossfeed.js; Bauer's compensation and the Structural controls are the two siblings
 // under crossfeed/.
 //
-// One gate, two mechanisms (v1 xfeed/Card.js): on the Bauer line it is the daemon's post-process switch, on the
+// One gate, two mechanisms: on the Bauer line it is the daemon's post-process switch, on the
 // Structural line it is whether the sixteen-row matrix block is installed. The pick is a view choice that disables
 // the line being left and engages nothing. Everything stages; Apply is the user's.
 
@@ -54,7 +54,7 @@ import { compPct } from "./crossfeed/comp.js";
 /** The note of the last Structural install the rows refused ('' when none). */
 export const xfRefusal = signal("");
 
-/** A Structural value that still reads as its preset (v1 lib/binaural-setup.js matchPreset). */
+/** A Structural value that matches its preset (lib/binaural-setup.js matchPreset). */
 const S_TOL = { angle: 0.05, lambda: 0.005 };
 
 /** The Structural presets in the shape the lifted decisions read. */
@@ -121,7 +121,7 @@ export function crossfeedView() {
   const rows = effectivePipelines.value;
   const picked = activeMode(rows) === "structural" ? "structural" : "bauer";
   const engaged = engagedOn(rows, picked);
-  // The picked line's own switch read in place of the post-process flag: v1 gray.js's wording, one source.
+  // Values come from the picked line's own switch: store/schema/gray.js's wording, one source.
   const ctx = { mode: modeName.value, effective: (/** @type {string} */ k) => readAs(k, engaged) };
   const live = crossfeedGray(
     { gate: engaged ? "1" : "0", preset: String(effective("crossfeed_preset")), impl: picked },

@@ -23,9 +23,15 @@ import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { ACCENTS } from "../../../../hqptuner/static/store/faceplate/settings/visual.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { apodLight, plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
+import {
+  HIDEABLE_STAGES,
+  apodLight,
+  bottomBar,
+  hiddenStages,
+  plainNames,
+  topOfPage,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { accent, accentHex, dyslexic } from "../../../../hqptuner/static/store/ui/theme.js";
-import { HIDEABLE_STAGES, bottomBar, hiddenStages, topOfPage } from "../../../../hqptuner/static/store/ui/faceplate.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 

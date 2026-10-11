@@ -1,4 +1,4 @@
-// The Crossfeed drawer's block. The gate (v1's ENGAGE | BYPASS, acting on whichever line is picked), then the
+// The Crossfeed drawer's block. The gate (crossfeed_enabled, acting on whichever line is picked), then the
 // Bauer | Structural lines (Volume's choice grammar): the picked line holds its controls under its name and its copy
 // beside them, the other folds to one summary line, so the drawer never scrolls. Picking a line is a view choice: it
 // switches the implementation off on the line being left and never engages crossfeed by itself. Under the lines,

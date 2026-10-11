@@ -1,9 +1,7 @@
 // Behavioral suite for the narrow bar's SOURCE FORMAT facet
 // (store/narrow/state.js): the two-state control that says whether the user's
-// library carries DSD files at all. It defaults to "pcm", it reads as active
-// narrowing at "both", and it narrows no dropdown — it drives the disclosure of
-// the chain cards' "DSD Sources" subsections instead
-// (tests/js/components/conversioncards-dsd.test.js).
+// library carries DSD files at all. It defaults to "pcm", and it narrows no
+// dropdown.
 //
 // Facet data is driven by assigning the two source signals
 // the real payloads carry — `enums.filters` is the running engine's

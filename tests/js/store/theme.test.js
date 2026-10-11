@@ -7,7 +7,7 @@
 // stubbed. Both globals are restored after every test, and the two exported
 // signals are re-zeroed by setup() because module-level signals outlive a test.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/theme.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/theme.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -44,18 +44,12 @@ const KEY_HEX = "hqptuner.accentHex";
  */
 const env = globalThis;
 
-// A root element the way theme.js touches it: dataset + inline style variables.
+// A root element the way theme.js touches it: its dataset.
 function fakeDocument() {
-  const vars = new Map();
   return {
     documentElement: {
       /** @type {Record<string, string>} */
       dataset: {},
-      style: {
-        vars,
-        setProperty: (/** @type {string} */ k, /** @type {string} */ v) => vars.set(k, v),
-        removeProperty: (/** @type {string} */ k) => vars.delete(k),
-      },
     },
   };
 }
@@ -102,12 +96,6 @@ afterEach(() => {
 
 // --- preset swatches ----------------------------------------------------------
 
-test("test_a_preset_swatch_sets_the_root_accent_attribute", () => {
-  const { root } = setup();
-  applyAccent("green");
-  assert.equal(root.dataset.accent, "green");
-});
-
 test("test_an_unknown_swatch_name_falls_back_to_the_default", () => {
   setup();
   applyAccent("green");
@@ -120,13 +108,6 @@ test("test_a_preset_swatch_drops_a_custom_hex_override", () => {
   applyAccentHex("#123456");
   applyAccent("green");
   assert.equal(accentHex.value, "");
-});
-
-test("test_a_preset_swatch_clears_the_inline_accent_variable", () => {
-  const { root } = setup();
-  applyAccentHex("#123456");
-  applyAccent("green");
-  assert.equal(root.style.vars.has("--accent"), false);
 });
 
 test("test_a_preset_swatch_is_persisted", () => {
@@ -149,12 +130,6 @@ test("test_a_swatch_still_applies_when_storage_is_disabled", () => {
 
 // --- custom hex ------------------------------------------------------------------
 
-test("test_a_custom_hex_is_applied_as_the_inline_accent", () => {
-  const { root } = setup();
-  applyAccentHex("#4f9dde");
-  assert.equal(root.style.vars.get("--accent"), "#4f9dde");
-});
-
 test("test_a_bare_hex_gains_its_hash", () => {
   setup();
   applyAccentHex("4f9dde");
@@ -174,19 +149,6 @@ for (const junk of ["#12g456", "#123", "#1234567", "", "red"]) {
     assert.equal(accentHex.value, "");
   });
 }
-
-test("test_the_glow_is_derived_by_pulling_the_hex_toward_white", () => {
-  // each channel moves 30% of its distance to 255: 0 -> 77 (0x4d)
-  const { root } = setup();
-  applyAccentHex("#000000");
-  assert.equal(root.style.vars.get("--accent-glow"), "#4d4d4d");
-});
-
-test("test_a_white_accent_keeps_a_white_glow", () => {
-  const { root } = setup();
-  applyAccentHex("#ffffff");
-  assert.equal(root.style.vars.get("--accent-glow"), "#ffffff");
-});
 
 test("test_a_custom_hex_is_persisted", () => {
   const { storage } = setup();

@@ -37,7 +37,7 @@ export async function applyPreset(lane, preset, knobs) {
   rememberKnobs(preset.id, own);
   const l = easyLane(lane);
   for (const [key, name] of Object.entries(writeSet(preset.id, l.mode, knobs))) {
-    // A field already holding this filter is skipped. On LIVE every write is a
+    // A field already holding this filter is skipped. On the live lane every write is a
     // POST the engine acts on, so writing a value a field already holds reloads
     // that filter and interrupts playback to arrive where it already was.
     // This is not an idle gate: the button is never disabled and never refuses,
@@ -54,8 +54,8 @@ export async function applyPreset(lane, preset, knobs) {
 // entirely: building one per preset per render to learn a mode all four fields
 // agree on is work for an answer already known.
 //
-// Derived from the same facet map the health card reads (store/health.js), not
-// from a table here: apodizing is a fact about a filter, and a preset naming it
+// The mark reads the same facet map the engine-health alerts read (store/health.js),
+// not a table here: apodizing is a fact about a filter, and a preset naming it
 // again is a second place to keep true.
 /**
  * The error-correction mark a preset wears at these knob positions.

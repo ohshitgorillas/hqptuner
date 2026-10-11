@@ -1,5 +1,5 @@
-// Behavioral suite for store/ui/faceplate.js, the faceplate's browser-held
-// preferences: DAC type, DAC chip, top of page, bottom bar, the page meter's
+// Behavioral suite for the faceplate's browser-held preferences in
+// store/ui/prefs.js: DAC type, DAC chip, top of page, bottom bar, the page meter's
 // Range, the stages hidden from the chain rail, and Allow pinned rates.
 //
 // Each preference has three halves. On the way in: the value the browser holds
@@ -24,14 +24,14 @@
 // The values seeded and set are the preferences' own identifiers, the values
 // the faceplate's controls carry, never the labels drawn beside them.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-faceplate.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
 import { useStorage } from "../support/storage.js";
 
-const MODULE = "../../../hqptuner/static/store/ui/faceplate.js";
+const MODULE = "../../../hqptuner/static/store/ui/prefs.js";
 
 // One row per choice-of-one preference: its signal's export name, its storage
 // key, a value from the set that is not the one a fresh browser starts on, a
@@ -58,7 +58,7 @@ storage.setItem(K_HIDDEN, JSON.stringify(STORED_HIDDEN));
 storage.setItem(K_PINNED, "1");
 
 // Written literally, so the import graph reaches the module from this suite.
-const faceplate = await import("../../../hqptuner/static/store/ui/faceplate.js");
+const faceplate = await import("../../../hqptuner/static/store/ui/prefs.js");
 
 // Each row's signal, setter and offered set, by the row's `pref`.
 /** @type {Record<string, { sig: { value: string }, set: (value: string) => void, offered: string[] }>} */
@@ -67,7 +67,7 @@ const SURFACE = {
   dacChip: { sig: faceplate.dacChip, set: faceplate.setDacChip, offered: faceplate.DAC_CHIPS },
   topOfPage: { sig: faceplate.topOfPage, set: faceplate.setTopOfPage, offered: faceplate.TOP_OF_PAGE },
   bottomBar: { sig: faceplate.bottomBar, set: faceplate.setBottomBar, offered: faceplate.BOTTOM_BARS },
-  pageRange: { sig: faceplate.pageRange, set: faceplate.setPageRange, offered: faceplate.PAGE_RANGES },
+  pageRange: { sig: faceplate.pageRange, set: faceplate.setPageRange, offered: faceplate.METER_RANGES },
 };
 
 // Captured before any case can write: what the module came up with, having read

@@ -1,4 +1,4 @@
-// The Filter presets popover's rows: the Easy Mode table (store/easy/easy.js) in the owner's order, on the LIVE lane.
+// The Filter presets popover's rows: the Easy Mode table (store/easy/easy.js) in the owner's order, on the live lane.
 // Each row says what pressing it writes and what that costs: its filters, its knobs, its error-correction mark and its
 // pips, whether the engine's current state offers it and whether the card's material grays it, and whether it is the
 // preset running now.
@@ -166,7 +166,7 @@ function knobsOf(preset, mode, at, fixed) {
  * What the row-building reads once per pass.
  *
  * @typedef {object} Pass
- * @property {string} mode  the LIVE lane's output mode
+ * @property {string} mode  the live lane's output mode
  * @property {{ presetId: string, knobs: Record<string, string> } | null} running
  */
 
@@ -264,7 +264,7 @@ export function presetRows() {
 }
 
 /**
- * A row's press, or a move of one of its knobs: write the preset at those positions on the LIVE lane.
+ * A row's press, or a move of one of its knobs: write the preset at those positions on the live lane.
  *
  * @param {string} id
  * @param {Record<string, string>} knobs

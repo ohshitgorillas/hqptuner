@@ -5,7 +5,7 @@
 // (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
-// since server rendering fires no events. The stream reaches the store at the wire: METER feed events through the
+// since server rendering fires no events. The stream reaches the store at the wire: meter feed events through the
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.
 // The Range control's readout and buttons are found by `data-testid`; every string asserted is a wire value or a
 // number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
@@ -24,9 +24,8 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { PAGE_RANGES, pageRange, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { METER_RANGES, pageRange, setPageRange, setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -41,11 +40,11 @@ const SLIM = { w: 1080, h: 810 };
 const RIDGES = "ridges";
 
 // The Ranges the page offers are the owner's: the cases pick by place in the offered set, never by value.
-const [FIRST = ""] = PAGE_RANGES;
-const LAST = PAGE_RANGES.at(-1) ?? "";
+const [FIRST = ""] = METER_RANGES;
+const LAST = METER_RANGES.at(-1) ?? "";
 
 // The same Ranges by span, narrowest first: a wider Range spans more dB.
-const SPANS = [...PAGE_RANGES].sort((a, b) => Number(a) - Number(b));
+const SPANS = [...METER_RANGES].sort((a, b) => Number(a) - Number(b));
 const NARROWEST = SPANS[0] ?? "";
 const WIDEST = SPANS.at(-1) ?? "";
 
@@ -163,7 +162,7 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
 });
 
 test("test_no_button_on_the_page_picks_a_range_by_its_value", () => {
-  assert.equal(draw().filter((e) => e.name === "button" && PAGE_RANGES.includes(attr(e, "data-v") ?? "")).length, 0);
+  assert.equal(draw().filter((e) => e.name === "button" && METER_RANGES.includes(attr(e, "data-v") ?? "")).length, 0);
 });
 
 test("test_the_range_readout_shows_the_pages_range", () => {

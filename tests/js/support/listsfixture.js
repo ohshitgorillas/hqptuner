@@ -12,8 +12,7 @@
 import { config, engineState, engineStatus, enums, metadata } from "../../../hqptuner/static/store/signals.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, favoriteModulators, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
-import { collapsedGroups, setPlainNames } from "../../../hqptuner/static/store/ui/prefs.js";
-import { setDacChip, setDacType } from "../../../hqptuner/static/store/ui/faceplate.js";
+import { collapsedGroups, setDacChip, setDacType, setPlainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { openList, openPopover } from "../../../hqptuner/static/store/faceplate/view.js";
 import { ditherRate, modTier } from "../../../hqptuner/static/store/faceplate/lists/shapers.js";
 import { hoverTip } from "../../../hqptuner/static/store/faceplate/lists/open.js";

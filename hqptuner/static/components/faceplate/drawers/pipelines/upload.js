@@ -1,6 +1,5 @@
-// The DSP pipelines drawer's filter upload, on v1's path (components/matrix/StageEditor.js ConvEditor): the file goes
-// to the daemon's filter route, is registered so a convolution stage naming it plots, and a WAV off the recommended
-// 352.8 kHz says so.
+// The DSP pipelines drawer's filter upload: the file goes to the daemon's filter route, is registered so a convolution
+// stage naming it plots, and a WAV off the recommended 352.8 kHz says so.
 
 import { api } from "../../../../lib/api.js";
 import { errText } from "../../../../lib/errtext.js";

@@ -2,7 +2,7 @@
 
 A live snapshot (``presets/store/live.py``) is a snapshot of what the engine is playing
 right now, taken in the same domain ``routing.resolve_live`` accepts back — so
-applying a preset is the same batch the LIVE view would have sent. The display
+applying a preset is the same batch the live controls would have sent. The display
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 

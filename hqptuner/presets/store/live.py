@@ -1,6 +1,6 @@
 """Live snapshots — named combos of the settings the engine can change right now.
 
-A live snapshot is not a config snapshot. The tabs view's presets (``store.presets``)
+A live snapshot is not a config snapshot. The stations' presets (``store.presets``)
 are whole ``hqplayerd.xml`` files applied by restarting the daemon; a live snapshot
 is a handful of enum IDs applied by ``POST /api/config/live``, which never writes
 the config file and never restarts anything. The two stores are deliberately
@@ -17,10 +17,9 @@ Snapshots belong to a station: a config preset, or ``""``, the unnamed default
 loaded while no preset is. The file is one book, ``{"schema": 6, "stations":
 {station: {name: record}}}``, and the store learns which stations exist from the
 callable it is built with, so a save to a station the preset store does not name
-is refused. A file in the flat layout older builds wrote (``{"presets": {name:
-record}}``) reads with each record under every station the callable names and
-under ``""``, so every snapshot a user could recall before is still there; the
-next write stores that expansion as the book.
+is refused. A file in the flat layout (``{"presets": {name: record}}``) reads with each
+record under every station the callable names and under ``""``; the next write
+stores that expansion as the book.
 
 A record is::
 
@@ -35,14 +34,13 @@ mode is why applying one is ``lane.apply_preset`` rather than a single batch:
 alone. ``chain`` records which chain the snapshot was taken on, which is what the
 stored filter and shaper IDs index. ``names`` is display only:
 the enumerations are engine-built and can shift under a stored preset, so the
-card can still say what was saved even when an ID no longer resolves.
+name can still be shown even when an ID no longer resolves.
 
 The high-frequency (junk) filter follows the material, so no record holds it or
-its auto-pilot switch. A record stored under schema 3 or earlier is read without
-either: ``junk_filter`` leaves ``fields`` and ``names``, and an ``autopilot`` key
-is not read. The next write stamps the file with the current schema. A record stored
-under schema 5 or earlier reads without a ``matrix_profile``, since the matrix profile
-became a snapshot setting at schema 6.
+its auto-pilot switch. The reader drops ``junk_filter`` from ``fields`` and
+``names`` and does not read an ``autopilot`` key. It reads ``matrix_profile`` only
+from a file stamped schema 6 or later. The next write stamps the file with the
+current schema.
 
 A record need not carry every setting: a save may name the ones it keeps, and an
 apply leaves the absent ones where the engine has them.
@@ -67,11 +65,11 @@ if TYPE_CHECKING:
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner
 # wrote it. A file stamped higher is refused rather than guessed at: applying a
-# misread preset writes settings the user never chose. An unstamped file predates
-# the stamp and is adopted as the current schema on its next write.
+# misread preset writes settings the user never chose. An unstamped file is
+# adopted as the current schema on its next write.
 _SCHEMA = 6
 
-#: The schema at which a record began to hold ``matrix_profile``; a record stamped earlier is read without it.
+#: The lowest schema whose records hold ``matrix_profile``; a record stamped lower is read without it.
 _MATRIX_PROFILE_SCHEMA = 6
 
 #: The unnamed default station: the one loaded while no config preset is.
@@ -98,7 +96,7 @@ LiveShelf = dict[str, LiveRecordFile]
 
 
 class LiveFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the book, or beside the flat preset map older builds wrote."""
+    """The on-disk envelope: a schema stamp beside the book, or beside the flat preset map."""
 
     schema: int
     stations: dict[str, LiveShelf]

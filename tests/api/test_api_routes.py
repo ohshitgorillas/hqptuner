@@ -287,7 +287,7 @@ def test_spa_assets_demand_revalidation(api_client: TestClient) -> None:
 
 def test_the_root_page_links_the_faceplate_tokens_first(api_client: TestClient) -> None:
     page = api_client.get("/").text
-    assert page.split('rel="stylesheet" href="')[1].split('"')[0] == "/css/v2/tokens.css"
+    assert page.split('rel="stylesheet" href="')[1].split('"')[0] == "/css/tokens.css"
 
 
 def test_metadata_serves_the_static_databases(api_client: TestClient) -> None:

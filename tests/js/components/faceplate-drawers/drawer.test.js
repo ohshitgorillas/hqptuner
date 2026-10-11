@@ -1,4 +1,4 @@
-// Rendered suite for hqptuner/static/components/faceplate/drawer/: the stage drawer drawn from its schema over the v1
+// Rendered suite for hqptuner/static/components/faceplate/drawer/: the stage drawer drawn from its schema over the
 // store. Its frame (closed unless its stage is open, close, tabs and panels), its rows (value, dirty and gray state,
 // label and paragraph, the write each control makes), its intro and block items, the open question pinned under its
 // head, and the apply group with its split button and mode menu.

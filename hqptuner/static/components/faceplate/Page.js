@@ -13,7 +13,7 @@ import { runningValue } from "../../store/resolve.js";
 import { playbackPath } from "../../store/faceplate/path.js";
 import { pageMeter } from "../../store/faceplate/page/meter.js";
 import { conversionSections } from "../../store/faceplate/page/conversion.js";
-import { topOfPage } from "../../store/ui/faceplate.js";
+import { topOfPage } from "../../store/ui/prefs.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
 import { AlertLines } from "./AlertLines.js";
 import { SourceMeter } from "./page/SourceMeter.js";

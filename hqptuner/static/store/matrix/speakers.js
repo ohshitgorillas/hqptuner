@@ -54,8 +54,8 @@ export async function applySpeakers(enabled, channels) {
   speakersBusy.value = true;
   speakersError.value = "";
   try {
-    // The form POST reloads the engine (~3 s), and the pill read Unreachable across it
-    // whenever that cost the poll loop a tick. Same lifecycle as every other engine write.
+    // The form POST reloads the engine (~3 s); every engine write runs under the engine-write
+    // lifecycle, which keeps the brand knob on Applying… across it rather than Unreachable.
     const { report: r } = await duringEngineWrite(() => api.applySpeakers({ enabled: !!enabled, channels }));
     if (r.speakers) speakers.value = r.speakers;
     speakersStale.value = false;

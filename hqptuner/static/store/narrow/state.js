@@ -5,7 +5,7 @@
 // when it passes the facets, so what the menu shows is exactly the batch the
 // facets describe. Nothing is lost by that — dismissing the dropdown without
 // picking a row leaves the selection where it was, and the closed control still
-// names it (components/controls/Combobox.js `valueLabel`).
+// names it.
 import { signal, computed } from "@preact/signals";
 import { nFavOnly } from "./favorites.js";
 
@@ -79,7 +79,7 @@ export const LOSSY_1X_DEFAULT = "both";
 export const nLossy1x = signal(LOSSY_1X_DEFAULT);
 
 // Source format is the one facet that narrows no dropdown: it discloses the DSD
-// Sources subsections of the two chain cards rather than filtering options.
+// sources rows under the two chains rather than filtering options.
 // Those subsections carry no facet data — only the four filter dropdowns do
 // (store/schema.js `narrow:`) — so this never reaches narrowmatch. It lives here
 // anyway because it is a narrow-bar control: it belongs to the same reset, the

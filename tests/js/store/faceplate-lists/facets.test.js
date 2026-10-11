@@ -1,6 +1,6 @@
 // Behavioral suite for hqptuner/static/store/faceplate/lists/facets.js, the narrowing console's store half: the state
-// record the console reads off v1's narrowing and favorites signals and this phase's shaper facets, a facet write
-// landing in the signal v1 persists, the 1x and Nx counts a pick would leave on the running chain's filter lists, a
+// record the console reads off the narrowing and favorites signals and the shaper facets, a facet write
+// landing in the persisted signal, the 1x and Nx counts a pick would leave on the running chain's filter lists, a
 // shaper list's count, and Reset and the moved test over a set of facet keys.
 //
 // The wire is the seam: the enumerations, State, /config form and overlays of tests/js/support/listsfixture.js, and

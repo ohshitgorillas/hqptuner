@@ -1,10 +1,10 @@
-// Store suite for hqptuner/static/store/faceplate/page/meter.js: what the page's Source section frames over the v1
-// stream. Whether the meter or a no-stream line shows, the page's own Range, the dB scale it sets, the frequency axis to
+// Store suite for hqptuner/static/store/faceplate/page/meter.js: what the page's Source section frames over the meter
+// feed. Whether the meter or a no-stream line shows, the page's own Range, the dB scale it sets, the frequency axis to
 // the source Nyquist, how many level bars the section draws, and whether the section is slim. What moves inside that
 // frame, the trace, the bars and their readings, is the meter loop's scene and the painter's (store/meter/loop.js,
 // components/faceplate/page/sourcepaint.js).
 //
-// The stream reaches the store at the wire: METER feed events through the EventSource fake
+// The stream reaches the store at the wire: meter feed events through the EventSource fake
 // (tests/js/support/eventsource.js), playback through fresh /api/status objects. The feed's clock is a fixed `() => 0`,
 // so the feed never goes quiet. Prefs are written through their own setters over a fake storage; the plate through
 // the window size the entry writes.
@@ -19,8 +19,12 @@ import assert from "node:assert/strict";
 import { pageMeter } from "../../../../hqptuner/static/store/faceplate/page/meter.js";
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { METER_RANGES, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { PAGE_RANGES, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import {
+  METER_RANGES,
+  setMeterChannel,
+  setMeterRange,
+  setPageRange,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -29,8 +33,8 @@ const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
 
 // The Ranges each switch offers are the owner's: the cases pick by place in the offered set, never by value.
-const [PAGE_FIRST = "", PAGE_SECOND = ""] = PAGE_RANGES;
-const PAGE_LAST = PAGE_RANGES.at(-1) ?? "";
+const [PAGE_FIRST = "", PAGE_SECOND = ""] = METER_RANGES;
+const PAGE_LAST = METER_RANGES.at(-1) ?? "";
 const [METER_FIRST = ""] = METER_RANGES;
 const METER_LAST = METER_RANGES.at(-1) ?? "";
 
@@ -93,7 +97,7 @@ test("test_the_drawers_range_leaves_the_pages_range_standing", () => {
 
 // --- the dB scale --------------------------------------------------------------------------------------------------
 
-for (const range of PAGE_RANGES) {
+for (const range of METER_RANGES) {
   test(`test_the_db_scale_ends_at_the_floor_of_the_offered_${range}_db_range`, () => {
     setPageRange(range);
     assert.equal(pageMeter().db.at(-1)?.db, -Number(range));

@@ -1,10 +1,10 @@
-// AutoEq profile library lane of the Import-EQ panel. The vendored blob
+// AutoEq profile library picker, in the DSP pipelines drawer's Import EQ
+// popover (faceplate/drawers/pipelines/Import.js). The vendored blob
 // (scripts/build_autoeq_db.py → GET /api/autoeq, upstream MIT) is lazy-loaded
-// on first open, searched client-side, and a selected profile previews on the
-// RESPONSE card (previewEq) WITHOUT touching pipeline state. Apply hands the
-// profile's verbatim ParametricEQ.txt to the panel's applyText — the exact
-// same bytes and code path as pasting the file, so library apply ≡ paste apply
-// by construction. Sources are never merged: every hit shows its measurement
+// on first render, searched client-side, and selecting a profile leaves pipeline
+// state untouched. Load profile hands the profile's verbatim ParametricEQ.txt to the caller's applyText — the exact
+// same bytes and code path as the popover's `.txt` file, so library load ≡
+// file load by construction. Sources are never merged: every hit shows its measurement
 // source, with oratory1990 preferred in ranking on equal match quality.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
@@ -12,7 +12,6 @@ import { html } from "../../lib/dom.js";
 import { errText } from "../../lib/errtext.js";
 import { rankProfiles } from "../../lib/profilerank.js";
 import { parseEqText } from "../../vendor/eqlab/core/eqimport.js";
-import { previewEq } from "./Plot.js";
 
 const db = signal(null); // { meta, profiles } once fetched
 const dbState = signal(""); // "" | "loading…" | error text
@@ -46,13 +45,11 @@ function results() {
 /** @param {Profile} p */
 function select(p) {
   libSel.value = p;
-  previewEq.value = { label: `${p.model} (${p.source})`, stages: parseEqText(p.text).stages };
 }
 
-/** Drops the picked library profile and the response-plot preview it drives. */
+/** Drops the picked library profile. */
 export function clearLibrarySelection() {
   libSel.value = null;
-  previewEq.value = null;
 }
 
 /** @param {{ p: Profile }} props */
@@ -71,7 +68,7 @@ function Hit({ p }) {
 }
 
 /**
- * @param {{ applyText: (text: string) => void }} props the panel's paste-apply seam
+ * @param {{ applyText: (text: string) => void }} props the caller's apply seam
  */
 function Selection({ applyText }) {
   const p = libSel.value;
@@ -81,10 +78,7 @@ function Selection({ applyText }) {
     <div>
       <span>${p.model}</span>
       <span>${p.source}${p.form ? ` · ${p.form}` : ""}</span>
-      <span
-        >${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on
-        the Response card</span
-      >
+      <span>${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""}</span>
       <button type="button" onClick=${() => applyText(p.text)}>Load profile</button>
       <button type="button" onClick=${clearLibrarySelection}>Clear</button>
     </div>
@@ -92,13 +86,13 @@ function Selection({ applyText }) {
 }
 
 /**
- * Renders the headphone-EQ library panel: a search box over the profile database,
+ * Renders the headphone-EQ library picker: a search box over the profile database,
  * the ranked hit list, and the selection strip that loads the picked profile.
  *
- * @param {{ applyText: (text: string) => void }} props the panel's paste-apply seam
+ * @param {{ applyText: (text: string) => void }} props the caller's apply seam
  */
 export function LibraryPicker({ applyText }) {
-  loadDb(); // lazy: first render of the open panel fetches the blob once
+  loadDb(); // lazy: the first render fetches the blob once
   const { hits, more } = results();
   const meta = db.value && db.value.meta;
   return html`

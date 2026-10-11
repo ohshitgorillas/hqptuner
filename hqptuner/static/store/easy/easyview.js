@@ -67,7 +67,7 @@ export function setEasyMaterial(value) {
 // That loses a position the user set, which is what this remembers.
 //
 // Only DARK tiles read it. The lit tile still shows what the fields carry, so a
-// filter changed by hand in a chain card still wins over anything stored here.
+// filter changed by hand on its chain wins over anything stored here.
 /**
  * Parse the stored record, discarding anything that is not a map of maps of
  * strings — a hand-edited or half-written entry leaves the store empty rather

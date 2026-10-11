@@ -1,4 +1,4 @@
-// The Overview's Import EQ: v1's AutoEq library picker (components/matrix/Library.js) in a popover under its key, a
+// The Overview's Import EQ: the AutoEq library picker (components/matrix/Library.js) in a popover under its key, a
 // `.txt` file read through the same seam, and the box that says whether the EQ lands on both sides of the stereo pair.
 // A load replaces the pair's EQ and takes its preamp as their gain, into a crossfeed block when one holds the pair
 // (store/faceplate/drawers/pipelines.js `importEq`).

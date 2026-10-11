@@ -1,6 +1,6 @@
-// The Loudness drawer's bands: one side at a time behind v1's Bass | Treble switch (store/ui/ui.js), its four rows
+// The Loudness drawer's bands: one side at a time behind a Bass | Treble switch (store/ui/ui.js), its four rows
 // left (Type as the engine's own tokens, Frequency, Steepness / Q, Level) and their manual lines right, the gray
-// reason heading that column. A side holding staged edits keeps a dot on its switch button while hidden (v1).
+// reason heading that column. A side holding staged edits keeps a dot on its switch button while hidden.
 
 import { html } from "../../../../lib/dom.js";
 import { schema as catalog } from "../../../../store/schema.js";

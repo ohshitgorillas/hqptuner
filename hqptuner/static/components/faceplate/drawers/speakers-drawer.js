@@ -14,7 +14,7 @@ import { SpeakersBody } from "./Speakers.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
-/** The switch's paragraphs (v1 owner copy, then manual §5). */
+/** The switch's paragraphs (owner copy, then manual §5). */
 const MAN = [
   "Level trims each channel's output; distance delays the nearer speakers so every channel arrives at the listening position together.",
   "This method is suitable for simplest per-channel level adjustment and is processed in simpler and lighter way than full pipeline matrix.",

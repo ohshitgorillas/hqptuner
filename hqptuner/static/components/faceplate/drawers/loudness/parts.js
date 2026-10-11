@@ -1,6 +1,6 @@
 // Controls the matrix-family drawer blocks share (Loudness, Crossfeed): segment buttons, a number box, a manual
 // paragraph led by its setting's label, and the hook that measures a drawing's box so it draws 1:1 at its size. Class
-// names are the drawer stylesheet's (css/v2/drawer.css, matrix.css).
+// names are the drawer stylesheet's (css/drawer.css, matrix.css).
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html, wheelGuard, TypedInput } from "../../../../lib/dom.js";

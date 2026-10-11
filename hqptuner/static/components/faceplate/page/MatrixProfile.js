@@ -1,8 +1,8 @@
 // The page's Matrix profile section. Its body: the profile select and the Profile builder button, the running profile's
 // description in a well the user edits in place, and the running profile's response beside them. Folded, the section
 // carries the select and the button alone on its header line. The select switches the running matrix live; the
-// response is the magnitude of the pipelines the engine runs, one curve per distinct chain, as v1's matrix plot draws
-// them (components/matrix/plot-traces.js); a crossfeed block's internal rows draw as the EQ it was built from.
+// response is the magnitude of the pipelines the engine runs, one curve per distinct chain, traced by
+// components/matrix/plot-traces.js; a crossfeed block's internal rows draw as the EQ they hold.
 
 import { useEffect } from "preact/hooks";
 import { html } from "../../../lib/dom.js";

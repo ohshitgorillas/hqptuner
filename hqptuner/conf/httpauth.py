@@ -21,15 +21,14 @@ if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest l
 # row, the apply caption and the log line all carry exactly this. Owner-approved
 # copy, verbatim (CLAUDE.md): reworded only with its own approval.
 AUTH_REFUSED_MESSAGE = (
-    "Authentication rejected: username and password are bad. "
-    "Open the Connection panel from the status pill and try again."
+    "Authentication rejected: username and password are bad. Open connection settings from the knob and try again."
 )
 
 # The one sentence a caller gets when the app was never given HTTP credentials
 # at all — distinct from a credential the daemon refused (AUTH_REFUSED_MESSAGE).
 # Shared by the config-lane error and the API's no-credentials refusal.
 NO_HTTP_CLIENT_MESSAGE = (
-    "HQPTuner has no HQPlayer username and password. Open the Connection panel from the status pill and enter them."
+    "HQPTuner has no HQPlayer username and password. Open connection settings from the knob and enter them."
 )
 
 # What the daemon answers when it will not accept who we say we are. 401 is the

@@ -217,8 +217,8 @@ def split_live(
     return _merge(live_edits, live), {}
 
 
-# --- LIVE lane: the LIVE view's immediate, unstaged writes --------------------
-# The LIVE view writes each control the moment it changes, so its batches resolve
+# --- LIVE lane: immediate, unstaged writes -----------------------------------
+# A live control writes the moment it changes, so its batches resolve
 # against the running enumerations exactly like the apply lane's live half above
 # — plus the controls that lane never routes: the junk filter, the DIRECT flags
 # and the pinned rate. `lanes/live/lane.py` applies what this resolves.
@@ -340,12 +340,12 @@ def resolve_live(
     """Return a LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
 
     All-or-nothing: the whole batch resolves before a single setter runs, because
-    the LIVE page has no Apply button to retry from and a half-applied batch would
-    leave the engine in a state no control on the page describes.
+    a live write has no Apply button to retry from and a half-applied batch would
+    leave the engine in a state no control describes.
 
     A field for the chain the engine has not loaded is held rather than refused.
-    LIVE shows both chains' cards at once, so editing the dormant one is an
-    ordinary thing to do there; the edit is real and simply lands when that chain
+    A live snapshot carries both chains' settings, so a batch touching the dormant
+    one is ordinary; the edit is real and simply lands when that chain
     does (``lane._reassert_chain``). The pinned rate holds nothing (``rate.route``).
     """
     # The whole batch, not just the ROUTABLE part `split_live` guards: the rate

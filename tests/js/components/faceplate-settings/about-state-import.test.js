@@ -20,7 +20,6 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { About } from "../../../../hqptuner/static/components/faceplate/settings/About.js";
 import { health, config } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { text } from "../../support/markup.js";
@@ -126,7 +125,6 @@ const PAGE_BEFORE_ANY_IMPORT = page();
 beforeEach(() => {
   health.value = { ...PAYLOAD };
   bookWanted.value = false;
-  liveMode.value = false;
   liveBook.value = {};
   unfolded.value = null;
   serverStations = STATIONS_BEFORE;

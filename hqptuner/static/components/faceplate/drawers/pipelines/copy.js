@@ -1,6 +1,6 @@
-// The DSP pipelines drawer's copy and plugin tables: the manual's Pipelines, gain and plugin paragraphs (v1
-// settings.json matrix_pipelines, manual §7 / readme §1.11.1, verbatim), the manual's plugin tables (§7.2-7.4,
-// verbatim), v1's stage kind labels (StageEditor), and the drawer's own names for the crossfeed blocks.
+// The DSP pipelines drawer's copy and plugin tables: the manual's Pipelines, gain and plugin paragraphs
+// (hqptuner/data/settings.json matrix_pipelines, manual §7 / readme §1.11.1, verbatim), the manual's plugin tables
+// (§7.2-7.4, verbatim), the stage kind labels, and the drawer's own names for the crossfeed blocks.
 
 export const PMAN = {
   pipelines:
@@ -54,7 +54,7 @@ export const DELAY_V = { a: "v", d: "Velocity of sound, in m/s, default 343.956"
 /** @type {Record<string, string>} */
 export const DELAY_NAME = { s: "Samples", t: "Seconds", d: "Meters" };
 
-/** Stage kinds for `+` and the dock's Stage picker (v1 StageEditor labels). */
+/** Stage kinds for `+` and the dock's Stage picker. */
 export const KINDS = [
   { k: "iir", label: "Parametric (IIR)" },
   { k: "delay", label: "Delay" },

@@ -15,7 +15,7 @@ import { percentOf } from "./output.js";
  * @typedef {{ value: number, level: number, txt: string, rail: string, fixed: boolean, why: string, off: StepOff }} VolumeView
  */
 
-/** Direct SDM pins PCM volume here, in dBFS (v1 gray.js). */
+/** Direct SDM pins PCM volume here, in dBFS (store/schema/gray.js). */
 const DIRECT_LEVEL = -3;
 
 /**

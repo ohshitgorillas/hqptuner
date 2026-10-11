@@ -5,7 +5,7 @@
 // Not a *.test.js file on purpose: the runner glob would execute it.
 //
 // Rendering goes through preact-render-to-string against the VENDORED preact
-// bundle (tests/js/vendor-resolve.js maps the importmap specifiers), so the
+// bundle (tests/js/support/vendor-resolve.js maps the importmap specifiers), so the
 // suites exercise the code that ships rather than an npm substitute.
 //
 // State is driven through the store's exported source signals plus a faked wire

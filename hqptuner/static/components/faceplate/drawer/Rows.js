@@ -1,9 +1,9 @@
-// A drawer tab's body items. A row names a v1 catalog key: its control column (label head, control, gray reason)
-// beside the setting's paragraph, then, under it, every option with its line (`optMan`) or a select's picked option's
-// line. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree resolution,
-// the gray reason from the schema's own rule; a control writes through edit(). Beside rows: a field and a choice
-// (Field.js, Choice.js), a section header, a read-only note, a backend group shown by the schema's backend, an intro,
-// and a block the caller passes in by name.
+// A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
+// reason) beside the setting's paragraph, then, under it, every option with its line (`optMan`) or a select's picked
+// option's line. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
+// resolution, the gray reason from the schema's own rule; a control writes through edit(). Beside rows: a field and a
+// choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by the schema's backend, an
+// intro, and a block the caller passes in by name.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";

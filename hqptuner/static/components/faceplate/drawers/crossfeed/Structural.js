@@ -1,6 +1,6 @@
 // The Crossfeed block's Structural line (HQPTuner's sixteen-pipeline block): Preset, Speaker angle, Head circumference,
-// Center character and the settings an install would change; its manual copy; and under the lines v1's top-down
-// drawing (xfeed/Geometry.js conventions) with v1's readouts beside it. Speakers toed in at ±angle, the head sized by
+// Center character and the settings an install would change; its manual copy; and under the lines the top-down
+// drawing with its readouts beside it. Speakers toed in at ±angle, the head sized by
 // the circumference, solid = each ear's near path, dashed = the far path crossfeed synthesizes, ±30° reference ticks.
 // The coordinates are the lifted model/gauges/crossfeed.js's.
 
@@ -138,7 +138,7 @@ function Diagram({ angle, circ }) {
   `;
 }
 
-/** The drawing with v1's readouts beside it. @param {{ grayed: boolean }} props */
+/** The drawing with its readouts beside it. @param {{ grayed: boolean }} props */
 export function Geometry({ grayed }) {
   const s = structuralView();
   const pp = pathParams(s.angle, s.headRadius);

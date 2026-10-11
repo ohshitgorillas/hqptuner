@@ -1,6 +1,6 @@
-// Bauer's crossfeed compensation in the Crossfeed drawer (v1 xfeed/Comp.js): eight mid/side matrix rows at the head of
+// Bauer's crossfeed compensation in the Crossfeed drawer: eight mid/side matrix rows at the head of
 // the pipelines that bring centered sound back to neutral, built from a symmetric stereo pair. The drawer shows it as
-// one percent, 0 to 150, on the scale v1 prints beside it: 0% off, 100% neutral. Committing a percent builds the
+// one percent, 0 to 150: 0% off, 100% neutral. Committing a percent builds the
 // block at that percent (or rebuilds it against the Bauer corner now staged); committing 0% takes it back out to its
 // plain pair. Everything stages.
 
@@ -24,7 +24,7 @@ import { bauerSettings, removeBlock, xfeedBlock } from "../../../xfeed/block.js"
 const drag = signal(/** @type {number | null} */ (null));
 
 /**
- * A straight, symmetric stereo pair at rows 0 and 1 with dB gains (v1 Comp.js pairInfo): the EQ chain and preamp a
+ * A straight, symmetric stereo pair at rows 0 and 1 with dB gains: the EQ chain and preamp a
  * block is built from, or null.
  *
  * @param {PipelineRow[]} rows

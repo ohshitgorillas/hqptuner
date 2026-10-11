@@ -1,5 +1,5 @@
-// The two chain cards' controls — narrowing, the count badge, and the per-card
-// assembly that decides whether a card reads the engine or the running config.
+// The two chains' controls — narrowing, the count badge, and the per-chain
+// assembly that decides whether a chain reads the engine or the running config.
 // Its own module because that loaded/dormant split is a rule of its own: it is
 // the only place on this page where a control's options and value come from
 // somewhere other than the enumerations.
@@ -16,7 +16,7 @@ import { loadedChain } from "./rates.js";
  *
  * @typedef {object} ChainControl
  *   One chain control's static half — its wire field plus the catalog entry
- *   whose words it borrows from the tab twin.
+ *   whose words it borrows.
  * @property {string} field live form field (routing.ROUTABLE)
  * @property {string} key schema key
  * @property {SchemaField} entry
@@ -24,19 +24,17 @@ import { loadedChain } from "./rates.js";
  * @property {string} state the /api/state attribute holding its current index
  */
 
-// Filter narrowing is the same feature the Resampling tab has, on the same
-// state: one set of facets narrows a control here and its twin there, because
-// they are the same control and the narrowing is the user's standing answer to
-// "which of these 77 filters am I willing to look at". Presentational only — a
-// running value the facets exclude drops off its own dropdown and stays selected
-// and named on the closed control (`valueLabel`), the same as on the tab.
+// Filter narrowing reads the one narrowing state (store/narrow/state.js): one
+// set of facets narrows every list of a control, because the narrowing is the
+// user's standing answer to "which of these 77 filters am I willing to look at".
+// Presentational only — a running value the facets exclude drops off its own
+// dropdown and stays selected and named on the closed control.
 // Shapers carry `narrow` nowhere and are left whole.
 //
-// Rate graying is the other half of the same story, and the same feature the
-// tabs have (components/widgets/Field.js): a modulator whose floor is above the selected
-// SDM rate is grayed with that floor as the reason. It is driven off the same
-// schema `rateGray` field the tabs read, so the two views share one rule rather
-// than growing two — and it is what closes the modulator-first order into a
+// Rate graying is the other half of the same story: a modulator whose floor is
+// above the selected SDM rate is grayed with that floor as the reason. It is
+// driven off the schema's `rateGray` field, one rule for every list that reads
+// it — and it is what closes the modulator-first order into a
 // rate/shaper conflict. The rate-first order is not closed by graying rates,
 // which would lock the user into the higher rate; it is reported in words
 // (store/alerts/shaperfit.js). A selected option below the floor grays but stays
@@ -73,15 +71,15 @@ function chainBadge(c, raw) {
 // somewhere the engine cannot answer for: GetFilters/GetShapers enumerate the
 // LOADED chain only. It reads the running configuration instead — the daemon's
 // own /config form for the options, and the config's live overlay for the value,
-// which already carries what LIVE set on this chain while it was dormant
+// which already carries what a live write set on this chain while it was dormant
 // (routing.live_overrides). Both are the enum-ID domain the live lists use, so
-// the two sides of the card are the same kind of number and an edit made here
+// the two chains are the same kind of number and an edit made here
 // means the same thing when the chain loads and it is finally sent.
 /**
- * One chain card's three controls — each with its current value, option list and narrow
+ * One chain's three controls — each with its current value, option list and narrow
  * badge, read from the enumerations when that chain is loaded and from the running
  * configuration when it is not.
- * @param {string} chain "pcm" | "sdm" — the card being built
+ * @param {string} chain "pcm" | "sdm" — the chain being built
  * @param {string | null} loaded the chain the engine has loaded, if any
  */
 export function chainControls(chain, loaded) {

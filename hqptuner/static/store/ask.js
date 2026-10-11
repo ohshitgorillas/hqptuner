@@ -6,7 +6,7 @@
 // A question is a promise: askName / askConfirm resolve when the UI calls
 // answer() or cancel(), so a caller reads exactly like the native call it
 // replaces. `owner` names the component that asked, so the field or the confirm
-// line renders INLINE where the action was taken (the pending bar, the header)
+// line renders INLINE where the action was taken (a drawer, a record builder)
 // instead of floating over the page. One question is open at a time.
 import { signal } from "@preact/signals";
 

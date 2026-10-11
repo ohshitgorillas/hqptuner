@@ -1,5 +1,5 @@
 // The Loudness drawer's block, under the drawer's Loudness gate row: the Bass | Treble bands, then the range bar
-// beside v1's loudness plot (components/plots.js LoudnessPlot): the maximum shelving against what the shown volume
+// beside the loudness plot: the maximum shelving against what the shown volume
 // applies, its share the rail's own figure (store/matrix/loudness.js), each band a draggable dot at its frequency and
 // level. Everything stages; the block grays, its copy and reason legible, while the matrix engine is bypassed, the
 // volume cannot move or loudness is off. The decisions are store/faceplate/drawers/loudness.js's.
@@ -24,7 +24,7 @@ import { RespPlot } from "./loudness/RespPlot.js";
 /** @typedef {import("../../../store/faceplate/drawers/loudness.js").Side} Side */
 /** @typedef {import("./loudness/RespPlot.js").Handle} Handle */
 
-// v1 plots.js: the digital-biquad shape is near rate-independent across the band, so one 48 kHz reference.
+// The digital-biquad shape is near rate-independent across the band, so one 48 kHz reference.
 const FS = 48000;
 const SCALE = { lo: -3, hi: 24, step: 6, minor: 3 };
 

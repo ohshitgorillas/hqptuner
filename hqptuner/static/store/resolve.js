@@ -81,7 +81,7 @@ export function formFieldName(entry) {
   return entry.formField || fieldKey(entry);
 }
 
-// Matrix tab read model: the pipeline rows as the backend parser grouped them.
+// Matrix read model: the pipeline rows as the backend parser grouped them.
 // The saved-profile half of this model lives in store/matrix/profiles.js.
 const matrixRows = computed(() => (matrixConfig.value && matrixConfig.value.rows) || []);
 

@@ -6,7 +6,7 @@
 // GET /api/preset/{name} -> {name, config}. Module-level signals outlive a test, so reset()
 // reassigns every tree and clears the preview and the staged buffer.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/presets.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/presets.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
