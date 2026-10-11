@@ -1,16 +1,16 @@
 // A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
 // reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine, then, under it, every option with its line (`optMan`) or a select's picked
 // option's line. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
-// resolution, the gray reason from the schema's own rule; a control writes through edit(). Beside rows: a field and a
-// choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by the schema's backend, an
-// intro, and a block the caller passes in by name.
+// resolution, the gray reason from the schema's own rule; a control writes through setControl(), by the key's lane.
+// Beside rows: a field and a choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by
+// the schema's backend, an intro, and a block the caller passes in by name.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { describe } from "../../../store/prose.js";
 import { isDirty } from "../../../store/resolve.js";
 import { grayReason } from "../../../store/ui/graying.js";
-import { edit } from "../../../store/actions.js";
+import { setControl } from "../../../store/actions.js";
 import { groupShown, restartLane, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
 import { alertsNow } from "../../../store/faceplate/alerts.js";
 import { worseBlink } from "../../../model/shell/alerts.js";
@@ -47,7 +47,7 @@ const optList = (spec, label) => html`
           role="listitem"
           data-v=${l.value}
           aria-current=${String(l.cur)}
-          onClick=${() => (l.cur ? undefined : edit(spec.key, l.value))}
+          onClick=${() => (l.cur ? undefined : setControl(spec.key, l.value))}
         >
           <code>${l.label}</code><span>${l.man}</span>
         </button>

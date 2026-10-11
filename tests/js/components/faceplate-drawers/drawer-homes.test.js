@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 
 import { HF_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/hf.js";
 import { SHAPING_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/modes.js";
+import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { VOLUME_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/volume.js";
 import { homeCount, ownDerivations } from "../../support/drawer-homes.js";
 
@@ -26,6 +27,7 @@ const CONTROLS = [
   { id: "dactype", drawer: SHAPING_DRAWER },
   { id: "dacchip", drawer: SHAPING_DRAWER },
   { id: "fixed_mode", drawer: VOLUME_DRAWER },
+  { id: "spken", drawer: SPEAKERS_DRAWER },
 ];
 
 for (const { id } of CONTROLS) {
