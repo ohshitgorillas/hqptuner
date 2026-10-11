@@ -13,7 +13,7 @@
 import { volume, volumeDrag, volumeRange, volumeShown } from "../signals.js";
 import { runningValue } from "../resolve.js";
 import { setVolume } from "../actions.js";
-import { directSdm, isoLevel } from "../schema/gray.js";
+import { directSdm, fixedVolumeMode, isoLevel } from "../schema/gray.js";
 import { num, truthy } from "../../lib/coerce.js";
 import { PLATFORM } from "../../lib/clock.js";
 import { revertAfter } from "../../model/shell/timing.js";
@@ -74,7 +74,7 @@ function heldRange() {
  */
 function pins() {
   const iso = isoLevel(runningValue("optimal_iso"));
-  const mode = iso !== "0" ? "auto" : truthy(runningValue("fixed_volume_enabled")) ? "manual" : "off";
+  const mode = fixedVolumeMode(runningValue);
   const level = runningValue("fixed_volume");
   const why = directSdm({ mode: "", effective: runningValue });
   const held = heldRange();

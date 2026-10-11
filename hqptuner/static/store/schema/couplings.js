@@ -2,7 +2,7 @@
 // each coupling over the stage POST it is building, so a coupled field moves in
 // the same request as the edit that moved it.
 
-import { truthy } from "../../lib/coerce.js";
+import { fixedVolumeMode } from "./gray.js";
 
 // Bauer crossfeed preset <-> params coupling: selecting a named preset loads its
 // frequency/level (so the graph shows that preset); adjusting either param
@@ -45,7 +45,7 @@ export function applyBauerCoupling(key, value, http) {
  * @returns {void}
  */
 export function applyFixedVolumeCoupling(key, value, http) {
-  const on = truthy(value);
-  if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
-  else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
+  const mode = fixedVolumeMode((k) => (k === key ? value : undefined));
+  if (key === "fixed_volume_enabled" && mode === "manual") http.volume_fixed = "0";
+  else if (key === "optimal_iso" && mode === "auto") http.fixed_volume_enabled = "0";
 }
