@@ -168,7 +168,7 @@ An entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only o
 
 The control set is **not enumerated in prose**. Three checked artifacts own it:
 
-- `hqptuner/static/store/schema.js`: every control, its lane, its widget, its `grayWhen` disclosure logic. The glue between the control surface and the two lanes.
+- `hqptuner/static/store/schema.js` over its group modules in `store/schema/`: every engine control (anything a lane writes), its lane, its widget, its `grayWhen` disclosure logic. The glue between the control surface and the two lanes. A drawer row names a catalog id. A drawer may also carry a declared local, a browser pref or a store switch and never a lane field, declared once in `store/schema/local.js` in the shape the catalog gives a row and not merged into the catalog. Drawer families are store data: `FAMILIES` in `store/faceplate/drawer.js` names the rail stages each family's members draw and the catalog keys they hold, a drawer declaring a family is staged while any of those keys is, and a test holds that list equal to the keys of the drawn member drawers, so family staging needs no drawer component loaded. The one lane-written row still declared in a drawer is the speakers form's `spken` (`components/faceplate/drawers/speakers-drawer.js`), pending a speakers lane kind in the catalog.
 - `hqptuner/data/settings.json`: tooltip prose for every exposed control, plus a `_comment` block listing settings with upstream prose HQPTuner deliberately does not expose.
 - `docs/spec/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
 
@@ -191,7 +191,7 @@ Disclosure follows staged values, not applied ones, so it updates before Apply.
 - The Output drawer's rate dial keeps both families' rate limits settable in either output mode and grays neither band by mode; only the device hatches a tier (`store/faceplate/drawers/output.js`).
 - **Transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" belongs to the *desktop* app and does not apply here. IPv6 is Network-only.
 - ALSA / Network sections **collapse** by backend rather than gray; every field still persists, because the daemon rejects a partial form.
-- FFT filter length has no row of its own: it renders on a Resampling drawer tab only while that tab's OWN 1x or Nx filter is FFT-family, so FFT on both chains shows it on both the PCM out and SDM out tabs, and it is absent everywhere else (`components/faceplate/drawers/modes.js`). The daemon carries one `fft_size` field, so the two renders are two views of one value.
+- FFT filter length has no row of its own: it renders on a Resampling drawer tab only while that tab's OWN 1x or Nx filter is FFT-family, so FFT on both chains shows it on both the PCM out and SDM out tabs, and it is absent everywhere else; the rule is the catalog entry's `fftChains` (`store/schema/dsp.js`), read by `store/faceplate/drawer/grammar.js`. The daemon carries one `fft_size` field, so the two renders are two views of one value.
 - E-core allocation is meaningful only on hybrid CPUs and carries a muted "hybrid CPUs only" caption.
 - Graying carries no caption where a reason string would reflow the row on a mode change (`quietGray`).
 
