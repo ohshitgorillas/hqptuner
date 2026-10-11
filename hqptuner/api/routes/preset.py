@@ -11,6 +11,7 @@ from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import ProfileBody
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import PresetActivation, PresetDeleted
 
 router = APIRouter(prefix="/api")
@@ -38,14 +39,14 @@ class DeletePresetFailedError(ErrorBody):
 
 async def _load(manager: ConnectionManager, name: str) -> PresetActivation:
     with preset_refusals():
-        return await manager.presetops.load_preset(name)
+        return await presetlane.load(manager, name)
 
 
 async def _mutate(manager: ConnectionManager, action: str, name: str) -> SavedPreset | PresetDeleted:
     with preset_refusals():
         if action == "save":
-            return SavedPreset.of(await manager.presetops.save_preset(name))
-        return await manager.presetops.delete_preset(name)
+            return SavedPreset.of(await presetlane.save(manager, name))
+        return await presetlane.delete(manager, name)
 
 
 @router.post("/profile/{action}", response_model_exclude_none=True)
@@ -68,6 +69,6 @@ async def delete_preset(name: str, manager: HttpMgr) -> PresetDeleted:
     Backs the Delete button on the preset picker.
     """
     try:
-        return await manager.presetops.delete_preset(name)
+        return await presetlane.delete(manager, name)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(DeletePresetFailedError(error=exc)) from exc

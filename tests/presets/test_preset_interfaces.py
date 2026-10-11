@@ -20,6 +20,7 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.presetiface import keep_interfaces
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
 from hqptuner.presets.store.presets import PresetStore
 
 _PRESET = (
@@ -94,13 +95,13 @@ async def test_loading_a_preset_uploads_the_interface_the_daemon_runs_on(
     )
     store = PresetStore(tmp_path / "presets")
     try:
-        await manager.presetops.save_preset("Elsewhere")
+        await presetlane.save(manager, "Elsewhere")
         saved = store.read("Elsewhere")
         store.save(
             "Elsewhere",
             saved.replace(f'interface="{RUNNING_INTERFACE}"'.encode(), f'interface="{SAVED_INTERFACE}"'.encode()),
         )
-        await manager.presetops.load_preset("Elsewhere")
+        await presetlane.load(manager, "Elsewhere")
     finally:
         await http.aclose()
     assert _uploaded_upnp_interface(http_daemon["_restore_bytes"]) == RUNNING_INTERFACE

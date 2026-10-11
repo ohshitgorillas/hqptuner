@@ -41,6 +41,7 @@ from hqptuner.core import engineread
 from hqptuner.core.engineread import RescanReport
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.rescan import ReplayOutcome
+from hqptuner.presets import presetlane
 from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at
@@ -290,7 +291,7 @@ async def test_the_replay_carries_the_engines_value_and_not_the_stored_one(
     # is the reading a store-sourced replay could not produce, since the rescan
     # left the engine at the stored value.
     manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    await manager.presetops.save_preset("Kept")
+    await presetlane.save(manager, "Kept")
     store = PresetStore(tmp_path / "presets")
     store.save("Kept", presetconf.apply_edits(store.read("Kept"), {"adaptive_volume": "0"}))
     store.set_active("Kept")

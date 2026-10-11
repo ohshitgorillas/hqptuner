@@ -190,7 +190,7 @@ def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
     # would report a setting the engine stopped using. The frontend grounds the
     # affected controls here, so a dropdown shows what is actually playing and
     # selecting the previous value still reads as a change.
-    presets = manager.presetops.presets()
+    presets = presetlane.listing(manager)
     view = ConfigView(
         fields=form["fields"],
         profiles=PresetChoice(value=presets.value, options=presets.options),

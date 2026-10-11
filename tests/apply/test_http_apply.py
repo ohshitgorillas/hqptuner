@@ -122,7 +122,7 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     # in the HQPTuner store; reading that preset back carries the change
     manager, _ = apply_via
     await manager.applyops.apply({}, {"title": "Renamed"})
-    await manager.presetops.save_preset("Fresh")
+    await presetlane.save(manager, "Fresh")
     assert (await presetlane.read(manager, "Fresh"))["title"] == "Renamed"
 
 

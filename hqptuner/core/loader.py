@@ -20,7 +20,7 @@ from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.live import chain, lane
-from hqptuner.presets import fileconfig
+from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
 if TYPE_CHECKING:
@@ -137,7 +137,7 @@ async def _load_http_lane(mgr: "ConnectionManager") -> None:
         log.warning("file-config read failed: %s", exc)
     try:
         # an archive the read above could not fetch is fetched again here, as the migration always did
-        await mgr.presetops.migrate_once(mgr.readings.active_config, backup=backup)
+        await presetlane.migrate_once(mgr, mgr.readings.active_config, backup=backup)
     except (httpx.HTTPError, PresetError, OSError, zipfile.BadZipFile) as exc:
         # the daemon's own snapshots stay unimported; the store keeps whatever it had.
         # BadZipFile belongs here and not above: presetzip.snapshot_members opens the

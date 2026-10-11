@@ -2,7 +2,7 @@
 
 The preset store, the parked filter uploads, and the settings-archive
 persistence (the pre-apply disk copy) form one self-contained collaborator.
-The daemon-driving operations delegate to the preset lane with the manager;
+The daemon-driving operations are the preset lane's, called with the manager;
 this class owns the state.
 """
 
@@ -17,7 +17,6 @@ from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
 from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
-from hqptuner.presets import presetlane
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.filterpark import PARK_DIR, FilterPark
@@ -163,7 +162,8 @@ class PresetOps:
         # import runs on the threadpool, and an autosave must not land a preset the import has just replaced.
         self.write_lock = threading.Lock()
         self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
-        self._migrated = False
+        # Whether this process has run the import of the daemon's own data/cfgs presets (presetlane.migrate_once).
+        self.migrated = False
         # preset_profiles' read model: each preset's file signature beside the profile names parsed from it.
         self._profiles: dict[str, tuple[Signature, list[str]]] = {}
 
@@ -336,33 +336,3 @@ class PresetOps:
     async def backup(self) -> bytes:
         """Return the daemon's current settings archive (a zip) for download."""
         return await self._mgr.require_http().backup()
-
-    # --- preset lane (presetlane) — thin delegators over the store + restore ---
-
-    def presets(self) -> presetlane.PresetListing:
-        """Return the stored preset options plus the active name, shaped for the frontend's preset field."""
-        return presetlane.listing(self._mgr)
-
-    async def load_preset(self, name: str) -> presetlane.PresetActivation:
-        """Restore the stored preset ``name`` onto the daemon's working config and mark it active."""
-        return await presetlane.load(self._mgr, name)
-
-    async def save_preset(self, name: str) -> presetlane.PresetSaveResult:
-        """Snapshot the daemon's running config into the store as preset ``name`` and mirror it to ``data/cfgs``."""
-        return await presetlane.save(self._mgr, name)
-
-    async def delete_preset(self, name: str) -> presetlane.PresetDeleted:
-        """Remove preset ``name`` from the store and drop its mirror on the daemon."""
-        return await presetlane.delete(self._mgr, name)
-
-    async def migrate_once(self, active_hint: str | None = None, *, backup: bytes | None = None) -> None:
-        """Import the daemon's own ``data/cfgs`` presets into the store, at most once per process and only over HTTP.
-
-        ``backup`` is a settings archive the caller already fetched; without one it is fetched for the import.
-        """
-        if self._migrated or self._mgr.http_client is None:
-            return
-        self._migrated = True
-        imported = await presetlane.migrate(self._mgr, active_hint, backup=backup)
-        if imported:
-            log.info("migrated presets into store: %s", ", ".join(imported))

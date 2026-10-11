@@ -373,17 +373,24 @@ async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
     return PresetDeleted(name)
 
 
-async def migrate(mgr: ConnectionManager, active_hint: str | None, *, backup: bytes | None = None) -> list[str]:
-    """One-time import of hqplayerd's existing ``data/cfgs`` presets into the store so nothing is orphaned.
+def _migration_owed(mgr: ConnectionManager) -> bool:
+    """Whether the import of the daemon's own presets is still owed: not yet run in this process, and HTTP is up."""
+    return not mgr.presetops.migrated and mgr.http_client is not None
+
+
+async def migrate_once(mgr: ConnectionManager, active_hint: str | None, *, backup: bytes | None = None) -> None:
+    """Import hqplayerd's existing ``data/cfgs`` presets into the store, at most once per process and only over HTTP.
 
     Idempotent — existing store presets win. Seeds the active pointer from the daemon's reported active config when
-    the store has none. Returns the imported names. ``backup`` is a settings archive the caller already fetched;
-    without one it is fetched here.
+    the store has none. ``backup`` is a settings archive the caller already fetched; without one it is fetched here.
     """
+    if not _migration_owed(mgr):
+        return
+    mgr.presetops.migrated = True
     if backup is None:
         backup = await mgr.require_http().backup()
-    snapshots = presetzip.snapshot_members(backup)
-    imported = mgr.presetops.store.import_missing(snapshots)
+    imported = mgr.presetops.store.import_missing(presetzip.snapshot_members(backup))
     if mgr.presetops.store.active is None and active_hint and mgr.presetops.store.exists(active_hint):
         mgr.presetops.store.set_active(active_hint)
-    return imported
+    if imported:
+        log.info("migrated presets into store: %s", ", ".join(imported))

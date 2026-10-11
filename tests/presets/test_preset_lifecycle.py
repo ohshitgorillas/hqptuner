@@ -19,6 +19,7 @@ from hqptuner.conf import presetconf, presetzip
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import MirrorOutcome
 
 #: A preset name carrying an em dash, the character HQPlayer's charset rules bend around.
@@ -107,9 +108,9 @@ async def test_load_preset_restores_its_saved_config(http_daemon: dict[str, Any]
     # preset restores it — proving load drives the daemon back to the saved state
     manager, http = _pmgr(http_daemon, tmp_path)
     try:
-        await manager.presetops.save_preset("Base")
+        await presetlane.save(manager, "Base")
         await manager.applyops.apply({}, {"title": "Drift"})
-        await manager.presetops.load_preset("Base")
+        await presetlane.load(manager, "Base")
         title = {f["name"]: f["value"] for f in (await http.get_config())["fields"]}["title"]
     finally:
         await http.aclose()
@@ -119,9 +120,9 @@ async def test_load_preset_restores_its_saved_config(http_daemon: dict[str, Any]
 async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any], tmp_path: Path) -> None:
     manager, http = _pmgr(http_daemon, tmp_path)
     try:
-        await manager.presetops.save_preset("Temp")
-        await manager.presetops.delete_preset("Temp")
-        names = [o.value for o in manager.presetops.presets().options]
+        await presetlane.save(manager, "Temp")
+        await presetlane.delete(manager, "Temp")
+        names = [o.value for o in presetlane.listing(manager).options]
     finally:
         await http.aclose()
     assert "Temp" not in names
@@ -141,8 +142,8 @@ async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(
     http_manager_factory: ManagerFactory,
 ) -> None:
     manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    await manager.presetops.save_preset("Studio")
-    assert "Studio" in [o.value for o in manager.presetops.presets().options]
+    await presetlane.save(manager, "Studio")
+    assert "Studio" in [o.value for o in presetlane.listing(manager).options]
 
 
 async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
@@ -152,8 +153,8 @@ async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
     # the active pointer moved with the store write, not with the daemon: a save
     # that reached disk is the active preset even when the mirror is behind
     manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    await manager.presetops.save_preset("Studio")
-    assert manager.presetops.presets().active == "Studio"
+    await presetlane.save(manager, "Studio")
+    assert presetlane.listing(manager).active == "Studio"
 
 
 #: Each daemon a save's mirror meets, and how the mirror ends. The recovering one refuses
@@ -171,7 +172,7 @@ async def test_a_mirror_lands_unless_the_daemon_refuses_it_past_the_deadline(
     request: pytest.FixtureRequest, http_manager_factory: ManagerFactory, daemon: str, mirror: MirrorOutcome
 ) -> None:
     manager = http_manager_factory(request.getfixturevalue(daemon), alarm_threshold=3.0)
-    assert (await manager.presetops.save_preset("Studio")).mirror is mirror
+    assert (await presetlane.save(manager, "Studio")).mirror is mirror
 
 
 @pytest.mark.parametrize(
