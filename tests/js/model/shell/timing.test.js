@@ -10,8 +10,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { holdRepeat, checkSequence, revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
-
-/** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
+import { fakeClock } from "../../support/clock.js";
 
 //: Hold delay and repeat rate for the hold tests, in the fake clock's ms.
 const DELAY = 100;
@@ -20,47 +19,6 @@ const RATE = 10;
 const TICK = 50;
 //: How long a revert waits.
 const MS = 1000;
-
-/**
- * A clock that moves only when told to. Every scheduled callback is a row in a table holding its deadline and, for an
- * interval, its period; clearing marks the row dead; `advance` runs the live rows that fall due, earliest first.
- */
-function fakeClock() {
-  /** @type {{ fn: () => void, at: number, every: number, live: boolean }[]} */
-  const table = [];
-  let now = 0;
-  const add = (/** @type {() => void} */ fn, /** @type {number} */ ms, /** @type {number} */ every) =>
-    table.push({ fn, at: now + ms, every, live: true }) - 1;
-  const kill = (/** @type {unknown} */ handle) => {
-    const row = table[Number(handle)];
-    if (row) row.live = false;
-  };
-  /** @type {Clock} */
-  const clock = {
-    setTimeout: (fn, ms) => add(fn, ms, 0),
-    clearTimeout: kill,
-    setInterval: (fn, ms) => add(fn, ms, ms),
-    clearInterval: kill,
-    requestAnimationFrame: (fn) => add(() => fn(now), 16, 0),
-    queueMicrotask: (fn) => {
-      add(fn, 0, 0);
-    },
-    now: () => now,
-  };
-  const next = (/** @type {number} */ end) =>
-    table.filter((row) => row.live && row.at <= end).sort((a, b) => a.at - b.at)[0];
-  const advance = (/** @type {number} */ ms) => {
-    const end = now + ms;
-    for (let row = next(end); row; row = next(end)) {
-      now = row.at;
-      if (row.every) row.at += row.every;
-      else row.live = false;
-      row.fn();
-    }
-    now = end;
-  };
-  return { clock, advance };
-}
 
 /**
  * Steps a hold fires, with `stopAt` (if given) the fake ms at which it is released, measured to `t`.

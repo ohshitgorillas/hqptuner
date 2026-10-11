@@ -11,6 +11,8 @@
 import { signal, effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
+import { PLATFORM } from "../../lib/clock.js";
+import { quietWindow } from "../../model/shell/timing.js";
 import {
   nGenre,
   nQuality,
@@ -64,17 +66,29 @@ const FACETS = [
 // clicked, and the store catches up.
 const QUIET_MS = 400;
 
+/** @typedef {import("../../lib/clock.js").Clock} Clock */
+
 /** The last failed narrowing write, as the server's own sentence. */
 export const narrowingError = signal("");
 
-/** @type {ReturnType<typeof setTimeout> | null} the open write timer, or null when idle */
-let timer = null;
+/** The quiet window a facet move restarts; it writes the facets out when it closes. */
+let quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), PLATFORM);
 /** @type {Record<string, any>} the facet set as the server last confirmed it */
 let lastSent = snapshot();
 /** Facets the user has moved since that write — hydrate leaves these alone, and a non-empty set means a write is owed. */
 const touched = new Set();
 /** True while hydrate is filling the signals, so its own writes do not read as the user's. */
 let applying = false;
+
+/**
+ * Pace the quiet window on ``next`` from the next facet move on.
+ * @param {Clock} [next]
+ * @returns {void}
+ */
+export function initNarrowing(next = PLATFORM) {
+  quiet.cancel();
+  quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), next);
+}
 
 /**
  * The whole facet set as the store takes it.
@@ -131,10 +145,7 @@ export async function hydrateNarrowing() {
  * @returns {Promise<void>}
  */
 export async function flushNarrowing() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   if (!touched.size) return;
   const snap = snapshot();
   touched.clear();
@@ -156,10 +167,7 @@ export async function flushNarrowing() {
  * @returns {void}
  */
 export function dropOwedNarrowing() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   touched.clear();
   lastSent = snapshot();
   narrowingError.value = "";
@@ -176,8 +184,7 @@ effect(() => {
   const changed = changedKeys(snap);
   if (!changed.length) return;
   for (const key of changed) touched.add(key);
-  if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(() => void flushNarrowing(), QUIET_MS);
+  quiet.arm();
 });
 
 // Read the stored facets once, at load. Guarded on `fetch` because this module

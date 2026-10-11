@@ -28,8 +28,7 @@ import {
   loudnessMarks,
 } from "../../../../hqptuner/static/store/faceplate/volume.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
-
-/** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
+import { fakeClock } from "../../support/clock.js";
 
 /**
  * @typedef {object} Running
@@ -68,43 +67,6 @@ const HELD = { enabled: "0", min: "-12", max: "0" };
 
 /** The running range collapsed to 0 / 0, which bypasses the volume control, the engine holding it. */
 const ZERO = { report: HELD, min: "0", max: "0" };
-
-/** A clock that moves only on `advance`: each timer a row with its deadline, run in deadline order. */
-function fakeClock() {
-  let now = 0;
-  let next = 0;
-  /** @type {Map<number, { fn: () => void, at: number }>} */
-  const rows = new Map();
-  const arm = (/** @type {() => void} */ fn, /** @type {number} */ ms) => {
-    next += 1;
-    rows.set(next, { fn, at: now + ms });
-    return next;
-  };
-  const drop = (/** @type {unknown} */ handle) => void rows.delete(Number(handle));
-  /** @type {Clock} */
-  const clock = {
-    setTimeout: arm,
-    clearTimeout: drop,
-    setInterval: arm,
-    clearInterval: drop,
-    requestAnimationFrame: (fn) => arm(() => fn(now), 16),
-    queueMicrotask: (fn) => void arm(fn, 0),
-    now: () => now,
-  };
-  /** @param {number} ms */
-  const advance = (ms) => {
-    const until = now + ms;
-    for (;;) {
-      const due = [...rows].filter(([, r]) => r.at <= until).sort((a, b) => a[1].at - b[1].at)[0];
-      if (!due) break;
-      rows.delete(due[0]);
-      now = due[1].at;
-      due[1].fn();
-    }
-    now = until;
-  };
-  return { clock, advance };
-}
 
 /** @param {Running} r */
 function run(r = {}) {
