@@ -94,8 +94,8 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 }
 
 /* Buffer bars take part of the spare width the larger displays give the engine row. */
-.plate[data-size="11"] .meter .bar{width:var(--meter-w-11)}
-.plate[data-size="13"] .meter .bar{width:var(--meter-w-13)}
+.plate[data-size="normal"] .meter .bar{width:var(--meter-w-11)}
+.plate[data-size="expanded"] .meter .bar{width:var(--meter-w-13)}
 
 /* Connection panel (components/faceplate/ConnPanel.js): a sheet from the body's top (set inline) to the plate's foot, its
    fields in one column. Text fields are the builders' name windows, radios `.chk`, prose `.man`. */

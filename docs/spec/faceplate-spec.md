@@ -6,7 +6,7 @@ Current state only.
 - Cohesion through the signal chain. No cards, no parts-bin reorganisation.
 - Never invent copy: manual, owner copy or engine enums only, verbatim; manual paragraphs in full.
 - No impulse plots. No transport features.
-- Target iPad landscape, in points: 1080×810 (10.2", the smallest and the design size), 1180×820 (11": iPad / iPad Air 11") and 1366×1024 (13": iPad Air 13"). The plate is laid out at the picked size and reflows into it (rail stages flex, the `.fill` section takes the spare height, drawers and bodies widen); rendered 1:1, scaled down only below it. Everything fits without scrolling at every size, checked with the real fonts. Phone not required.
+- Target tablet landscape, in CSS px, three formats: Expanded 1366×1024 (13": iPad Air 13"), Normal 1180×820 (11": iPad / iPad Air 11") and Compact 1133×744 (iPad Mini, the smallest). The window picks the largest format that renders at a scale of 0.95 or above, scaled down to fit and never up; when none does, Compact, scaled down. The Display row in Settings' Visual settings (Auto | Expanded | Normal | Compact) overrides the pick. The plate is laid out at the picked format and reflows into it (rail stages flex, the `.fill` section takes the spare height, drawers and bodies widen). Everything fits without scrolling at every format, checked with the real fonts. Phone not required.
 - Drawer overflow: first bring the copy closer to its control (narrow the control column), then anything else.
 - Aesthetic: tuner / integrated-amp faceplate, dark only.
 
@@ -68,7 +68,7 @@ Current state only.
 - Engaged stages only, in signal order. Fixed spacing (22px between sections); one `.fill` section takes the spare height.
 - Every section uses the same two columns: controls | copy or plot.
 - One field open per section; others fold to one line (▸ name, why, value; never accented).
-  - Exception: at 13″ Resampling opens both 1x and Nx, each with its copy beside it (the spare height goes to the idle filter rather than stretching the Matrix section). At 10.2″ / 11″ the idle one stays folded, also with the Matrix engine bypassed: that room goes to the Source meter.
+  - Exception: at Expanded, Resampling opens both 1x and Nx, each with its copy beside it (the spare height goes to the idle filter rather than stretching the Matrix section). At Normal and Compact the idle one stays folded, also with the Matrix engine bypassed: that room goes to the Source meter.
 - Long option copy that would push the page off gives way with `… see more`.
 - **Sections:**
   - **Top of page:** Settings → Visual settings → Layout → Top of page:
@@ -249,7 +249,7 @@ Current state only.
 - Mock outcomes by hash: `#naa-none`, `#ipv6-fail`, `#usb-fail-gone` / `#usb-fail-none`, `#dsd48-no`.
 
 ## Mock scenarios (viewing tool, not app UI)
-- A strip above the plate sets the source: Not playing / PCM 44.1 / PCM 192 / DSD64. Its Display switch (10.2″ | 11″ | 13″, `#size-11` / `#size-13`) lays the plate out at that iPad size; the app itself has no size control. Its Alerts picker raises any of the alerts; each fires only where v1's would (engine health while playing, a shaper conflict only in the running family). Output mode, DSD playback and Matrix stay the user's settings, so the path falls out of config.
+- A strip above the plate sets the source: Not playing / PCM 44.1 / PCM 192 / DSD64. Its Display switch (Compact | Normal | Expanded) lays the plate out at that format, as the app's own Display row does. Its Alerts picker raises any of the alerts; each fires only where v1's would (engine health while playing, a shaper conflict only in the running family). Output mode, DSD playback and Matrix stay the user's settings, so the path falls out of config.
 - Nothing hides; lamps, values and readouts follow what plays.
 - **DSD → PCM:** DSD Processing lit (noise filter · decimation), then the Nx filter.
 - **DSD → SDM processed:** DSD Processing lit (the integrator); Resampling's slot reads `Rate conversion`, its value the SDM → SDM pick.
