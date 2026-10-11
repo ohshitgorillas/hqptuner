@@ -19,8 +19,12 @@ import assert from "node:assert/strict";
 import { pageMeter } from "../../../../hqptuner/static/store/faceplate/page/meter.js";
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { METER_RANGES, setMeterChannel, setMeterRange } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { PAGE_RANGES, setPageRange } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import {
+  METER_RANGES,
+  setMeterChannel,
+  setMeterRange,
+  setPageRange,
+} from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
@@ -29,8 +33,8 @@ const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
 
 // The Ranges each switch offers are the owner's: the cases pick by place in the offered set, never by value.
-const [PAGE_FIRST = "", PAGE_SECOND = ""] = PAGE_RANGES;
-const PAGE_LAST = PAGE_RANGES.at(-1) ?? "";
+const [PAGE_FIRST = "", PAGE_SECOND = ""] = METER_RANGES;
+const PAGE_LAST = METER_RANGES.at(-1) ?? "";
 const [METER_FIRST = ""] = METER_RANGES;
 const METER_LAST = METER_RANGES.at(-1) ?? "";
 
@@ -93,7 +97,7 @@ test("test_the_drawers_range_leaves_the_pages_range_standing", () => {
 
 // --- the dB scale --------------------------------------------------------------------------------------------------
 
-for (const range of PAGE_RANGES) {
+for (const range of METER_RANGES) {
   test(`test_the_db_scale_ends_at_the_floor_of_the_offered_${range}_db_range`, () => {
     setPageRange(range);
     assert.equal(pageMeter().db.at(-1)?.db, -Number(range));

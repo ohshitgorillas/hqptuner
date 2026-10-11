@@ -34,7 +34,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
-import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, text } from "../../support/markup.js";

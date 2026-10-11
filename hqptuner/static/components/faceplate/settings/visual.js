@@ -3,10 +3,19 @@
 // delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks, then the block hiding
 // chain stages.
 
-import { apodLight, plainNames, setApodLight, setPlainNames } from "../../../store/ui/prefs.js";
+import {
+  apodLight,
+  bottomBar,
+  hiddenStages,
+  plainNames,
+  setApodLight,
+  setBottomBar,
+  setPlainNames,
+  setTopOfPage,
+  topOfPage,
+} from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
 import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
-import { bottomBar, hiddenStages, setBottomBar, setTopOfPage, topOfPage } from "../../../store/ui/faceplate.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */

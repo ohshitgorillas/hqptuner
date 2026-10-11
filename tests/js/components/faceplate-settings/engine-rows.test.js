@@ -35,7 +35,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
-import { allowPinnedRates, setAllowPinnedRates } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { allowPinnedRates, setAllowPinnedRates } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";

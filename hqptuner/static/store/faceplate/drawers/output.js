@@ -22,7 +22,7 @@ import { edit } from "../../actions.js";
 import { refreshDevices } from "../../sync.js";
 import { DSD_RATES, PCM_RATES, TIER, TWIN_44K } from "../../schema/options.js";
 import { grayRatesByDevice } from "../../narrow/devicecaps.js";
-import { allowPinnedRates } from "../../ui/faceplate.js";
+import { allowPinnedRates } from "../../ui/prefs.js";
 import { listedRates, pinAuto, pinnedRate, pinRate } from "../../live/pin.js";
 import { bandSpan, deviceParts, groupDevices, moveNeedle } from "../../../model/gauges/output.js";
 import { rowOptions, rowValue } from "../drawer.js";

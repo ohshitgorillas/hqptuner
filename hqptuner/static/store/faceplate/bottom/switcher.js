@@ -4,8 +4,7 @@
 
 import { signal } from "@preact/signals";
 import { schema } from "../../schema.js";
-import { enumPref, warnStorage } from "../../ui/prefs.js";
-import { bottomBar } from "../../ui/faceplate.js";
+import { bottomBar, enumPref, warnStorage } from "../../ui/prefs.js";
 import { chainControlOf } from "../../live/chains.js";
 import { liveUnsettled } from "../../live/state.js";
 import { writeLive } from "../../live/write.js";

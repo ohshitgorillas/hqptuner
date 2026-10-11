@@ -34,7 +34,7 @@ const { config, engineState, engineStatus, enums, metadata } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
 const { openPopover, openStage } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
+const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */

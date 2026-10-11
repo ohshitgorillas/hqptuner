@@ -26,7 +26,7 @@ import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { hydrateFavorites, isFavorite } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
-import { setDacType } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { favoritesWire, puts, settle } from "../../support/wire/favoriteswire.js";
 import { renderTree } from "../../support/vnodeseam.js";

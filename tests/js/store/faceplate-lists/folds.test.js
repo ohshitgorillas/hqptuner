@@ -10,8 +10,7 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { toggleCollapsedGroup } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { setDacChip, setDacType, toggleCollapsedGroup } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { isFolded, toggleFold } from "../../../../hqptuner/static/store/faceplate/lists/folds.js";
 import { resetLists } from "../../support/listsfixture.js";
 

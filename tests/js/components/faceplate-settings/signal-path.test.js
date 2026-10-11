@@ -31,7 +31,7 @@ import {
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
-import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 const PCM_1X = { source: "44100", output: "352800" };

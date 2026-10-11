@@ -8,7 +8,7 @@ import { engineStatus, volumeShown } from "../signals.js";
 import { runningValue, formFieldName, pipelineBaseline } from "../resolve.js";
 import { schema } from "../schema.js";
 import { optionsFor } from "../ui/options.js";
-import { hiddenStages } from "../ui/faceplate.js";
+import { hiddenStages } from "../ui/prefs.js";
 import { items, stateOf, sourceIsNx } from "../live/derive.js";
 import { matrixActiveProfile } from "../matrix/profiles.js";
 import { loudnessApplied } from "../matrix/loudness.js";

@@ -28,7 +28,7 @@ import {
   HideBlock,
 } from "../../../../hqptuner/static/components/faceplate/settings/VisualBlocks.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
-import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { spectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { dropStorage, useStorage } from "../../support/storage.js";

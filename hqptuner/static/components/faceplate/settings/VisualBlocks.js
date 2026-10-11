@@ -7,7 +7,7 @@
 import { html, TypedInput } from "../../../lib/dom.js";
 import { accent, accentHex, applyAccent, applyAccentHex } from "../../../store/ui/theme.js";
 import { ACCENTS } from "../../../store/faceplate/settings/visual.js";
-import { hiddenStages, setStageHidden } from "../../../store/ui/faceplate.js";
+import { hiddenStages, setStageHidden } from "../../../store/ui/prefs.js";
 import { openStage } from "../../../store/faceplate/view.js";
 import { labelHead } from "../drawer/controls.js";
 import { setSpectrumOffset, spectrumOffset } from "../../../store/meter/delay.js";

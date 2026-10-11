@@ -29,7 +29,7 @@ import {
   staged,
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
-import { topOfPage, allowPinnedRates } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { topOfPage, allowPinnedRates } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { openPopover, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";

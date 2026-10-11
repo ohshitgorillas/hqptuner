@@ -22,7 +22,7 @@ let storage = useStorage();
 
 const { config, engineState, engineStatus, enums, matrixConfig } =
   await import("../../../../hqptuner/static/store/signals.js");
-const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/faceplate.js");
+const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
 const { TARGETS, switcherTarget, setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =

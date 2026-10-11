@@ -6,7 +6,7 @@ import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { runningValue } from "../../../store/resolve.js";
 import { rowOptions } from "../../../store/faceplate/drawer.js";
-import { allowPinnedRates, setAllowPinnedRates } from "../../../store/ui/faceplate.js";
+import { allowPinnedRates, setAllowPinnedRates } from "../../../store/ui/prefs.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */

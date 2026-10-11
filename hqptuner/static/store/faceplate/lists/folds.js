@@ -6,8 +6,7 @@
 // preference changes.
 
 import { effect, signal } from "@preact/signals";
-import { collapsedGroups, toggleCollapsedGroup } from "../../ui/prefs.js";
-import { dacChip, dacType } from "../../ui/faceplate.js";
+import { collapsedGroups, dacChip, dacType, toggleCollapsedGroup } from "../../ui/prefs.js";
 
 /** @typedef {import("./open.js").ListKind} ListKind */
 

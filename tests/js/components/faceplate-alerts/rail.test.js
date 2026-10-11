@@ -19,7 +19,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Rail } from "../../../../hqptuner/static/components/faceplate/Rail.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { hiddenStages } from "../../../../hqptuner/static/store/ui/faceplate.js";
+import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { engineStatus, health, matrixConfig, volume } from "../../../../hqptuner/static/store/signals.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { elements, attr, classes } from "../../support/markup.js";
