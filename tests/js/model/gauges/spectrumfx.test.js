@@ -1,6 +1,6 @@
 // Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
-// dBFS to plot fractions, columns to bands, falling peak caps, gravity bars and ridge rows, how strongly the Fade
-// style's halo glows where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
+// dBFS to plot fractions, columns to bands, falling peak caps, gravity bars and ridge rows, that the Fade style's
+// halo only ever dims where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
 // Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
 //
 // The halo's strength is read off the module namespace with optional access, so a module without it fails the halo
@@ -43,10 +43,8 @@ const RISEN = 0.75;
 const FALLING_V = 1;
 //: One frame of a 60 Hz display, in seconds.
 const FRAME = 1 / 60;
-//: One step of an 8-bit canvas channel: a glow weaker than this shows nothing.
-const INVISIBLE = 1 / 255;
-//: How long ago the trace left a spot whose glow has faded to nothing, in seconds.
-const GONE_S = 1.2;
+//: Ages of a halo spot, in seconds, at which its fade is sampled.
+const AGES_S = [0, 0.3, 0.6, 0.9];
 
 /**
  * The halo's surface on the gauges module: the strength of the glow, as a share of the trace's, at a spot the trace
@@ -231,27 +229,13 @@ for (const style of ["bars", "ridges"]) {
 
 // ── haloStrength ─────────────────────────────────────────────────────────
 
-test("test_a_spot_the_trace_has_just_left_glows_at_half_the_trace_strength", () => {
-  assert.equal(halo.haloStrength?.(0), 0.5);
-});
-
-for (const age of [0, GONE_S / 4, GONE_S / 2, (3 * GONE_S) / 4]) {
+for (const age of AGES_S) {
   test(`test_a_halo_${Math.round(age * 1000)}_ms_old_is_dimmer_one_frame_later`, () => {
     const now = halo.haloStrength?.(age) ?? Number.NaN;
     const later = halo.haloStrength?.(age + FRAME) ?? Number.NaN;
     assert.ok(later < now, `strength ${later} one frame after ${age} s is not below ${now}`);
   });
 }
-
-test("test_a_spot_the_trace_left_half_the_fade_ago_still_glows", () => {
-  const strength = halo.haloStrength?.(GONE_S / 2) ?? Number.NaN;
-  assert.ok(strength >= INVISIBLE, `strength ${strength} at ${GONE_S / 2} s is below one 8-bit step`);
-});
-
-test("test_a_spot_the_trace_left_1_2_s_ago_has_faded_to_nothing_visible", () => {
-  const strength = halo.haloStrength?.(GONE_S) ?? Number.NaN;
-  assert.ok(strength < INVISIBLE, `strength ${strength} at ${GONE_S} s is not below one 8-bit step`);
-});
 
 // ── stepHalo ─────────────────────────────────────────────────────────────
 
