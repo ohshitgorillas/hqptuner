@@ -1,7 +1,7 @@
 """The live write lane — one batch of live settings, applied on the spot.
 
 ``POST /api/config/live`` lands here. It is deliberately not stage+apply: the
-pending buffer holds every staged edit (``api/pendingapi.PendingStore``) and
+pending buffer holds every staged edit (``core/pending.PendingStore``) and
 ``POST /config/apply`` flushes everything in it, so a live control routed through
 that pair would also apply edits the user staged elsewhere and never asked for.
 This lane touches neither the pending store nor the persistent 8088 lane, so it

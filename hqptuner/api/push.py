@@ -30,9 +30,9 @@ from hqptuner.api.deps import credentialed
 from hqptuner.api.errors import ApiError
 from hqptuner.api.routes import config, status, volume
 from hqptuner.api.routes.matrix import matrix
-from hqptuner.api.routes.pending import PendingStore
 from hqptuner.core.clock import Clock
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.errors import HQPTunerError
 from hqptuner.metadata import StaticMetadata
 

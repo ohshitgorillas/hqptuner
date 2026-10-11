@@ -25,12 +25,12 @@ from hqptuner.api.routes import (
 )
 from hqptuner.api.routes.audit import audit_router
 from hqptuner.api.routes.matrix import matrix, matrixmodes
-from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
 from hqptuner.config import Config
 from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
