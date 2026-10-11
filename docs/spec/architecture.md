@@ -80,7 +80,7 @@ Chain fields a staged apply does route live are recorded per chain (`lanes/live/
 
 ### 4.3 Two write paths share no staging state
 
-The stage drawers' rows stage into the shared `PendingStore` through `edit()` (`store/actions.js`), and a drawer's apply button flushes **everything** in it (`store/faceplate/drawer.js` `runApply`; `api/routes/pending.py`, apply route in `api/routes/apply.py`). The live controls write one batch on the spot through `writeLive` (`store/live/write.js`): the page's chain pickers (`store/faceplate/page/conversion.js`), the engine row's HF filter menu (`store/faceplate/hf.js`), the Setting Switcher (`store/faceplate/bottom/switcher.js`), the Filter presets (`store/faceplate/page/presets.js`) and the rate pin (`store/live/pin.js`). That write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
+The stage drawers' rows stage into the shared `PendingStore` through `edit()` (`store/actions.js`), and a drawer's apply button flushes **everything** in it (`store/faceplate/drawer.js` `runApply`; the buffer is `core/pending.py`, its routes `api/routes/pending.py`, the apply route `api/routes/apply.py`). The live controls write one batch on the spot through `writeLive` (`store/live/write.js`): the page's chain pickers (`store/faceplate/page/conversion.js`), the engine row's HF filter menu (`store/faceplate/hf.js`), the Setting Switcher (`store/faceplate/bottom/switcher.js`), the Filter presets (`store/faceplate/page/presets.js`) and the rate pin (`store/live/pin.js`). That write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
 
 ### 4.4 Mode rides alone, then the rest re-resolves
 
@@ -106,7 +106,7 @@ hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops the
 
 ### 5.2 Preset operations
 
-Five operations, all built on that one primitive (`presets/store/presets.py` plus `presets/presetops.py`):
+Five operations, all built on that one primitive and all `presets/presetlane.py` calls; `presets/presetops.py` holds the stores, the lock and the parked uploads and drives nothing:
 
 - **Load**: restore the preset's config as `hqplayerd.xml`, so it runs on `[default]`, and mirror it to `data/cfgs/<name>.xml`. Never `profile/load`.
 - **Save / Save-as-new**: snapshot the running config into the store *and* mirror it to `data/cfgs/<name>.xml` via restore. Never `profile/save`. Auto-pilot's state is recorded under the preset's name in `state/autopilot.json` rather than in the XML, because hqplayerd's config carries no junk-filter field for it to sit beside; a load restores it, and auto-pilot settles the filter itself from the next tick.
@@ -116,7 +116,7 @@ Five operations, all built on that one primitive (`presets/store/presets.py` plu
 
 ### 5.3 Live snapshots are a separate store
 
-A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the live lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets. The one exception is the matrix profile, which a snapshot holds as `matrix_profile` and an apply switches through the matrix lane's `MatrixSetProfile` after the live settings land, refusing a name the daemon does not list.
+A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the live lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`; recorded and applied by `presets/livesnapshots.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets. The one exception is the matrix profile, which a snapshot holds as `matrix_profile` and an apply switches through the matrix lane's `MatrixSetProfile` after the live settings land, refusing a name the daemon does not list.
 
 **Snapshots belong to a station.** A station is a config preset, or `""`, the unnamed default loaded while none is. The file is one book, `{"schema": 6, "stations": {station: {name: record}}}`. `GET /api/livepresets` answers the loaded station, its snapshots as `presets`, and the whole book as `stations`, every station the preset store holds with `""` first. A `PUT` writes the one record under each station its body's `stations` names, the loaded one when it names none; a station the preset store does not hold refuses the whole save (`stations_unknown`). Apply and delete take `?station=`, the loaded one when absent. Deleting a config preset drops its station's snapshots. A file in the flat layout earlier schemas wrote reads with each record under every station and under `""`.
 
@@ -327,7 +327,9 @@ With it on, auto-pilot moves the junk filter to what the playing track's signatu
 
 ### 11.1 Import layering
 
-`api > core > presets > lanes > engine > conf`, absolute imports only. The contract is `[tool.importlinter]` in `pyproject.toml`, gated by `lint-imports`. A move that inverts an edge is fixed by splitting the crossing function, never by loosening the contract.
+`api > core > presets > lanes > engine > conf`, absolute imports only. The contract is `[tool.importlinter]` in `pyproject.toml`, gated by `lint-imports`, and it binds a `TYPE_CHECKING` import as it binds a runtime one. A move that inverts an edge is fixed by splitting the crossing function, never by loosening the contract.
+
+**The order holds at runtime too.** A layer below core that is handed the manager types it as a protocol declared in its own layer (`voltrace.VoltraceManager`, `engine/trackcontext.TrackManager`, `lanes.LaneManager`, `presets.PresetManager`), which `ConnectionManager` satisfies structurally, and that protocol exposes nothing built above the layer: a lane never reads the preset store off the manager, and what it owes the store is handed down by its caller (`lanes/http/storecarry.py`, built by `presets/presetfields.py`). `tests/test_runtime_layering.py` reads every `manager.<attr>` in the tree against the layer that built the attribute.
 
 ### 11.2 `core/manager.py` is the composition root
 
