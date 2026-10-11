@@ -337,6 +337,24 @@ for (const { what, volume } of STILL_DANGEROUS) {
   });
 }
 
+// Auto headroom supersedes the Manual level, so a Manual level left on at -3
+// underneath Auto headroom at -6 does not pin the volume at -3, and Direct SDM
+// still moves the level. The optimal_iso spelling drops the `volume_fixed`
+// form field, as in the -6 dB case above, so the file entry answers alone.
+/** @type {VolumeState} */
+const AUTO_MINUS_SIX_OVER_MANUAL_MINUS_THREE = {
+  fields: [{ name: "fixed_volume_enabled", value: true }],
+  file: { volume_fixed: "2", fixed_volume: "-3" },
+};
+
+test("direct sdm on with auto headroom at -6 over a manual level on at -3 opens a warn question", async () => {
+  const w = await reset(AUTO_MINUS_SIX_OVER_MANUAL_MINUS_THREE);
+  const { held } = await stage(w, "1");
+  assert.equal(question.value?.kind, "warn");
+  cancel();
+  await held;
+});
+
 // --- turning it OFF is never dangerous ---------------------------------------
 // Whatever the volume state: switching the setting off cannot force anything.
 // "0" is the trap — a guard that tests the raw value for truthiness warns on
