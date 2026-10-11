@@ -1,11 +1,13 @@
 // Control catalog — the single map tying a UI control key to its wire truth.
-// This is the glue between the controls and the two integration lanes.
+// This is the glue between the controls and the integration lanes.
 //
 // Per entry:
 //   label        UI label (explicit; http fields don't live in settings.json)
 //   group        settings.json group (output|dsp|volume|system) — tooltip source
 //   widget       dumb primitive (segment|dropdown|number|checkbox|slider|radio)
 //   lane         'live' (4321 setter) | 'http' (POST /config form field)
+//                | 'speakers' (the /speakers form's own POST, never staged)
+//                | 'hardware' (the engine's own POST, never staged)
 //   stateField   live only: the /api/state attribute holding its current index
 //   liveKey      live only: writer.py setting key (mode|filter|shaper|rate|…)
 //   arg          live only: setter arg written (default 'value'; 'value1x' = 1x filter)
@@ -39,9 +41,11 @@
 // tab order.
 
 import { dsp } from "./schema/dsp.js";
+import { hardware } from "./schema/hardware.js";
 import { output } from "./schema/output.js";
 import { postprocess } from "./schema/postprocess.js";
+import { speakers } from "./schema/speakers.js";
 import { volume } from "./schema/volume.js";
 
 /** @type {Record<string, SchemaField>} */
-export const schema = { ...output, ...dsp, ...postprocess, ...volume };
+export const schema = { ...output, ...dsp, ...postprocess, ...speakers, ...volume, ...hardware };

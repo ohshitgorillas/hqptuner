@@ -1,7 +1,6 @@
-// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
-// bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
-// easing the trace toward them, where a level sits on a bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
-// spectrogram columns.
+// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin bytes, folding
+// feed frames, picking a channel's bins, spreading bins across trace columns, where a level sits on a bar, how the shown
+// spectrum and its ghost rise and fall, and the level ballistics and hold.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
 // Nothing here reads a clock or waits on one.
@@ -48,30 +47,61 @@ const nearEach = (actual, expected, tol) => [
 ];
 
 /**
- * The one bin's shown level, held peak and peak stamp after the rows run in order from an empty spectrum.
+ * The spectrum hold after each row's levels run in order from an empty spectrum, one level a bin, read with the ghost
+ * optional so a hold without one fails the ghost cases on their assertions.
  *
- * @param {SpectrumRow[]} rows
- * @returns {{ disp: number, peak: number, peakAt: number }}
+ * @param {{ now: number, dt: number, levels: number[], jump?: boolean }[]} rows
+ * @returns {{ disp: ArrayLike<number>, ghost?: ArrayLike<number> }}
  */
-function spectrumAfter(rows) {
-  const end = rows.reduce(
-    (st, row) => stepSpectrum(st, Float64Array.of(row.level), { now: row.now, dt: row.dt }, row.jump ?? false),
-    emptySpectrum(1),
+const holdAfter = (rows) =>
+  rows.reduce(
+    (st, row) => stepSpectrum(st, Float64Array.from(row.levels), { now: row.now, dt: row.dt }, row.jump ?? false),
+    emptySpectrum(rows[0].levels.length),
   );
-  return { disp: end.disp[0], peak: end.peak[0], peakAt: end.peakAt[0] };
-}
 
 /**
- * Spectrum rows every `ms` from `from` to `to` ms inclusive, each stepping `ms` of dt, every one at `level`.
+ * The one bin's shown level and ghost after the rows run in order from an empty spectrum; the ghost is NaN where the
+ * hold carries none.
  *
- * @param {number} from
+ * @param {SpectrumRow[]} rows
+ * @returns {{ disp: number, ghost: number }}
+ */
+function spectrumAfter(rows) {
+  const end = holdAfter(rows.map((row) => ({ ...row, levels: [row.level] })));
+  return { disp: end.disp[0], ghost: end.ghost?.[0] ?? NaN };
+}
+
+//: One frame of a falling trace: its dt in seconds and the same step in ms.
+const FRAME_S = 0.1;
+const FRAME_MS = 100;
+//: A frame ten frames long, as a stalled loop hands the step.
+const LONG_FRAME_S = 1;
+//: The level a falling trace starts at, and two levels it falls to, the second twice as far below it as the first.
+const LOUD = -10;
+const QUIETER = -40;
+const QUIETEST = -70;
+//: Tolerance for a ratio of levels a Float32Array may round in the last place.
+const RATIO_EPS = 1e-4;
+
+/**
+ * One frame at `LOUD`, then `n` frames at `to`, every frame `FRAME_MS` apart.
+ *
  * @param {number} to
- * @param {number} ms
- * @param {number} level
+ * @param {number} n
  * @returns {SpectrumRow[]}
  */
-const paced = (from, to, ms, level) =>
-  Array.from({ length: Math.floor((to - from) / ms) + 1 }, (_, k) => ({ now: from + ms * k, dt: ms / 1000, level }));
+const falling = (to, n) => [
+  { now: 0, dt: FRAME_S, level: LOUD },
+  ...Array.from({ length: n }, (_, k) => ({ now: FRAME_MS * (k + 1), dt: FRAME_S, level: to })),
+];
+
+/**
+ * How far above `to` the shown level still sits after `n` frames of falling to it from `LOUD`.
+ *
+ * @param {number} to
+ * @param {number} n
+ */
+const gapAfter = (to, n) => spectrumAfter(falling(to, n)).disp - to;
 
 /**
  * The reading after every frame of the table steps it toward one fixed target.
@@ -236,38 +266,67 @@ test("test_a_rising_level_is_shown_at_once", () => {
   );
 });
 
-test("test_a_falling_level_falls_half_as_far_in_half_the_time", () => {
-  assert.equal(
-    spectrumAfter([
-      { now: 0, dt: 0.05, level: -10 },
-      { now: 50, dt: 0.05, level: -40 },
-    ]).disp,
-    -11.5,
-  );
+test("test_one_frame_of_a_fall_closes_the_same_share_of_a_gap_twice_as_wide", () => {
+  const wide = LOUD - spectrumAfter(falling(QUIETEST, 1)).disp;
+  const narrow = LOUD - spectrumAfter(falling(QUIETER, 1)).disp;
+  assert.ok(...near(wide / narrow, 2, RATIO_EPS));
+});
+
+test("test_each_frame_of_a_fall_closes_the_same_share_of_the_gap_left", () => {
+  const first = gapAfter(QUIETER, 1) / (LOUD - QUIETER);
+  const second = gapAfter(QUIETER, 2) / gapAfter(QUIETER, 1);
+  assert.ok(...near(second, first, RATIO_EPS));
 });
 
 test("test_a_falling_level_is_never_shown_below_the_new_level", () => {
+  const end = spectrumAfter([
+    { now: 0, dt: FRAME_S, level: LOUD },
+    { now: 1000 * LONG_FRAME_S, dt: LONG_FRAME_S, level: QUIETER },
+  ]).disp;
+  assert.ok(end >= QUIETER, `shown ${end} dBFS, below the ${QUIETER} dBFS it falls to`);
+});
+
+// ── Ghost ────────────────────────────────────────────────────────────────
+
+test("test_a_rising_trace_lifts_its_ghost_to_the_new_level_at_once", () => {
   assert.equal(
     spectrumAfter([
-      { now: 0, dt: 0.1, level: -10 },
-      { now: 100, dt: 0.1, level: -12 },
-    ]).disp,
-    -12,
+      { now: 0, dt: FRAME_S, level: QUIETER },
+      { now: FRAME_MS, dt: FRAME_S, level: LOUD },
+    ]).ghost,
+    LOUD,
   );
 });
 
-test("test_a_released_spectrum_peak_falls_half_as_far_in_half_the_time", () => {
-  assert.equal(spectrumAfter([{ now: 0, dt: 0.05, level: -10 }, ...paced(50, 2050, 50, -40)]).peak, -10.5);
+test("test_a_falling_trace_leaves_its_ghost_above_it", () => {
+  const end = spectrumAfter(falling(QUIETER, 1));
+  assert.ok(end.ghost > end.disp, `ghost ${end.ghost} dBFS, not above the ${end.disp} dBFS trace`);
 });
 
-test("test_the_spectrum_peak_never_falls_below_the_shown_level", () => {
-  assert.equal(
-    spectrumAfter([
-      { now: 0, dt: 0.1, level: -10 },
-      { now: 2100, dt: 0.1, level: -10.5 },
-    ]).peak,
-    -10.5,
-  );
+test("test_a_ghost_leaves_the_level_it_came_from_on_the_first_frame_of_a_fall", () => {
+  const ghost = spectrumAfter(falling(QUIETER, 1)).ghost;
+  assert.ok(ghost < LOUD, `ghost ${ghost} dBFS, still at the ${LOUD} dBFS it fell from`);
+});
+
+test("test_a_ghost_is_never_below_the_trace_after_a_long_frame", () => {
+  const end = spectrumAfter([
+    { now: 0, dt: FRAME_S, level: LOUD },
+    { now: 1000 * LONG_FRAME_S, dt: LONG_FRAME_S, level: QUIETER },
+  ]);
+  assert.ok(end.ghost >= end.disp, `ghost ${end.ghost} dBFS, below the ${end.disp} dBFS trace`);
+});
+
+//: Two bins falling together to `QUIETEST`, the first from twice as high above it as the second.
+const TWO_BINS_FALLING = [
+  { now: 0, dt: FRAME_S, levels: [LOUD, QUIETER] },
+  { now: FRAME_MS, dt: FRAME_S, levels: [QUIETEST, QUIETEST] },
+  { now: 2 * FRAME_MS, dt: FRAME_S, levels: [QUIETEST, QUIETEST] },
+];
+
+test("test_a_settling_ghost_keeps_the_shape_of_the_trace_it_came_from", () => {
+  const ghost = holdAfter(TWO_BINS_FALLING).ghost ?? [NaN, NaN];
+  const ratio = (ghost[0] - QUIETEST) / (ghost[1] - QUIETEST);
+  assert.ok(...near(ratio, 2, RATIO_EPS));
 });
 
 // ── Level ballistics and hold ────────────────────────────────────────────

@@ -40,6 +40,7 @@ import { presetProfiles } from "../../../store/matrix/profiles.js";
 import { railStages, railNow } from "../../../store/faceplate/chain.js";
 import { showBody, toggleStage } from "../../../store/faceplate/view.js";
 import { StationsMenu } from "./StationsMenu.js";
+import { restartMark } from "../drawer/controls.js";
 
 /** @typedef {import("../../../model/builders/builder.js").Ref} Ref */
 /** @typedef {import("../../../model/builders/builder.js").Line} Line */
@@ -282,8 +283,9 @@ function askRemove() {
 }
 
 /**
- * The foot: the state line and caption, Start from scratch, Change something, Delete on a saved profile other than the
- * station's unnamed one, Discard and Save following the state.
+ * The foot: the state line, the restart mark in front of it while saving restarts the engine, and its caption, Start
+ * from scratch, Change something, Delete on a saved profile other than the station's unnamed one, Discard and Save
+ * following the state.
  *
  * @param {boolean} deletable
  */
@@ -292,7 +294,9 @@ function foot(deletable) {
   return html`
     <div class="pbfoot">
       <div class="pbstw">
-        <div class=${s.pending ? "pbstate dirty" : "pbstate"}>${STATE_TEXT[s.line]}</div>
+        <div class=${s.pending ? "pbstate dirty" : "pbstate"}>
+          ${s.line === "restarts" ? restartMark() : null}${STATE_TEXT[s.line]}
+        </div>
         <div class="pbcap">${refused.value ? html`<span class="bref">${PROFILE_COPY.noName}</span>` : null}</div>
       </div>
       <span class="grow"></span>

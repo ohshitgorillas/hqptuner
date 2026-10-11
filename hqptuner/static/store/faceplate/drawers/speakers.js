@@ -1,15 +1,18 @@
-// The Speakers drawer's store half: its own form over the daemon's /speakers form (store/matrix/speakers.js). The
-// switch and each channel's level and distance are held here as edits over what the daemon holds, never in the config
-// staging buffer: the write is the form's own POST, which reloads the engine, so the drawer's own apply group runs it.
+// The Speakers drawer's store half: its own form over the daemon's /speakers form (store/matrix/speakers.js). Each
+// channel's level and distance are held here as edits over what the daemon holds, and the switch's draft beside the
+// form it drafts (the catalog's `spken`), never in the config staging buffer: the write is the form's own POST, which
+// reloads the engine, so the drawer's own apply group runs it.
 // The speaker set is a view choice, which channels the drawer lists, and never stages: the daemon keeps all eight.
 // Level trims do nothing while Direct SDM runs; distances still apply. The DOM half is
 // components/faceplate/drawers/Speakers.js.
 
 import { computed, signal } from "@preact/signals";
 import { truthy } from "../../../lib/coerce.js";
-import { runningValue } from "../../resolve.js";
+import { effective, runningValue } from "../../resolve.js";
 import { enumPref } from "../../ui/prefs.js";
-import { applySpeakers, speakers } from "../../matrix/speakers.js";
+import { applySpeakers, gateDiffers, gateDraft, speakers } from "../../matrix/speakers.js";
+
+export { setSpeakersGate } from "../../matrix/speakers.js";
 
 /**
  * @typedef {import("../../matrix/speakers.js").ChannelEdit} ChannelEdit
@@ -67,8 +70,6 @@ const [speakerSet, setSpeakerSet] = enumPref(
 
 /** Each channel's pending edits, by index as a string: exactly the overlay the POST takes. */
 const edits = signal(/** @type {Record<string, ChannelEdit>} */ ({}));
-/** The switch as edited; null follows the daemon's. */
-const gateEdit = signal(/** @type {boolean | null} */ (null));
 
 /** @param {unknown} v */
 const num = (v) => {
@@ -142,15 +143,6 @@ export const setChannelLevel = (index, value) => draftField(index, "level", valu
 export const setChannelDistance = (index, value) => draftField(index, "distance", value);
 
 /**
- * Draft the speaker-processing switch. Back at the daemon's, it is no edit.
- *
- * @param {boolean} on
- */
-export function setSpeakersGate(on) {
-  gateEdit.value = on === !!form()?.enabled ? null : on;
-}
-
-/**
  * Pick the set the drawer lists. A set outside the list is turned away; a pick never stages.
  *
  * @param {string} id
@@ -160,15 +152,8 @@ export const pickSpeakerSet = (id) => setSpeakerSet(id);
 /** Drop every edit: the switch and each channel's level and distance fall back to the daemon's. The set stays. */
 export function discardDraft() {
   edits.value = {};
-  gateEdit.value = null;
+  gateDraft.value = null;
 }
-
-/**
- * Whether the drafted switch differs from the daemon's.
- *
- * @param {SpeakersForm | null} f
- */
-const gateDiffers = (f) => gateEdit.value !== null && gateEdit.value !== !!f?.enabled;
 
 /**
  * Whether one channel's edits differ from what the daemon holds now, which a later read can have moved onto them.
@@ -204,11 +189,11 @@ export function speakerDraft() {
   });
   return {
     loaded: f !== null,
-    enabled: gateEdit.value ?? !!f?.enabled,
+    enabled: truthy(effective("spken")),
     set: set.id,
     shown: set.channels,
     channels,
-    differs: gateDiffers(f) || Object.entries(edits.value).some(([k, row]) => rowDiffers(Number(k), row)),
+    differs: gateDiffers() || Object.entries(edits.value).some(([k, row]) => rowDiffers(Number(k), row)),
   };
 }
 

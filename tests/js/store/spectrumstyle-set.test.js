@@ -18,8 +18,14 @@ const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
 
 const KEY = "hqptuner.spectrumStyle";
 const RIDGES = "ridges";
+const FADE = "fade";
 
 test("test_choosing_a_spectrum_style_persists_it", () => {
   prefs.setSpectrumStyle(RIDGES);
   assert.equal(storage.getItem(KEY), RIDGES);
+});
+
+test("test_choosing_the_fade_style_persists_it", () => {
+  prefs.setSpectrumStyle(FADE);
+  assert.equal(storage.getItem(KEY), FADE);
 });

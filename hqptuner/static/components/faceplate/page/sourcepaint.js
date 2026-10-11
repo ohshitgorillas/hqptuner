@@ -1,5 +1,5 @@
 // The page Source section's moving parts, painted outside preact's render: once per animation frame the meter loop
-// (store/meter/loop.js) hands its scene here, and the trace, the held peaks, the level bars and the readings table are
+// (store/meter/loop.js) hands its scene here, and the trace, the level bars and the readings table are
 // written straight into the elements SourceMeter rendered. Nothing re-renders while the meter runs.
 
 import { fraction } from "../../../model/gauges/meter.js";
@@ -50,7 +50,7 @@ function setOn(root, sel, name, value) {
   if (el) el.setAttribute(name, value);
 }
 
-/** The spectrum styles the SVG draws the trace, its area and the held peaks under. */
+/** The spectrum styles the SVG draws the trace, its area and its ghost under. */
 const TRACED = new Set(["trace"]);
 
 /**
@@ -68,8 +68,8 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   setOn(root, ".sgrid1", "data-style", style);
   const line = sp && TRACED.has(style) ? pathOf(sp.disp, range) : "";
   setOn(root, "path.strace", "d", line);
-  setOn(root, "path.shold", "d", sp && TRACED.has(style) ? pathOf(sp.peak, range) : "");
   setOn(root, "path.sarea", "d", line && `${line} L${SW},${SH} L0,${SH} Z`);
+  setOn(root, "path.shold", "d", sp && TRACED.has(style) ? pathOf(sp.ghost, range) : "");
   const floor = levelsFloor();
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => {
     const lv = scene.levels[i];
