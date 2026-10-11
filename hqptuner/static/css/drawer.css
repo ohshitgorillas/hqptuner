@@ -275,6 +275,9 @@
 
 /* Output → Format: copy in closer (overflow rule): 220px control column, the DSD support seg's width. */
 #output-p-format .drow:not(.drow-full){grid-template-columns:var(--drow-col-format) minmax(0,1fr);gap:0 var(--sp-10)}
+/* Compact (1133×744): every Format row is taller on its control side, so the column widens back to the Device tab's
+   300px instead: the channel count sits beside its segment and DAC bits' label takes one line. */
+.plate[data-size="compact"] #output-p-format .drow:not(.drow-full){grid-template-columns:var(--drow-col-gpu) minmax(0,1fr)}
 #output-p-device .drow:not(.drow-full){grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10)}   /* copy closer: the tab fits (Channels moved in) */
 #output-p-format .drow,#output-p-device .drow{padding:var(--sp-2) 0}   /* rhythm one step tighter (as the Matrix engine drawer) */
 #output-p-format .fh{flex-wrap:wrap;row-gap:0}   /* a long sub drops under its label, never splits it */
