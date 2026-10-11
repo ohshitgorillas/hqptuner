@@ -26,6 +26,7 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from fixtures_clients import CREDENTIAL, app
+from state_import import export, store_config, upload
 
 from hqptuner.presets.store.presets import PresetStore
 
@@ -94,9 +95,22 @@ def seed_preset(tmp_path: Path, name: str = "Office") -> None:
     PresetStore(tmp_path / "presets").save(name, cfg_xml(state(title="Office desk")))
 
 
-def arm_autosave(client: TestClient, name: str = "Kept") -> None:
-    client.post("/api/profile/save", json={"name": name})
-    client.post("/api/autosave", json={"enabled": True})
+def save_preset(client: TestClient, name: str) -> None:
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
+
+
+def import_preset_store(client: TestClient, tmp_path: Path, *, autosave: bool) -> None:
+    """Import an archive whose preset store holds no preset and carries the given autosave flag."""
+    source = store_config(tmp_path / "source")
+    PresetStore(source.preset_dir).set_autosave(enabled=autosave)
+    upload(client, export(source))
+
+
+def arm_autosave(client: TestClient, tmp_path: Path, name: str = "Kept") -> None:
+    """Turn autosave on by a state import, then save ``name``, the active preset the autosave folds into."""
+    import_preset_store(client, tmp_path, autosave=True)
+    save_preset(client, name)
 
 
 # --- the log is off unless asked for -----------------------------------------
@@ -159,7 +173,7 @@ def test_the_apply_record_carries_the_staged_value_the_apply_itself_cleared(
 def test_the_apply_record_names_the_preset_the_apply_switched_to(audit_client: TestClient, audit_log: Path) -> None:
     # switching preset is the write with the largest blast radius — the whole
     # config changes — so which preset was loaded belongs in the same record
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
     audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert last(audit_log, "apply")["switch_to"] == "Kept"
 
@@ -209,12 +223,14 @@ def test_a_profile_save_records_whether_it_replaced_an_existing_name(
 
 
 def test_an_explicit_preset_save_records_the_save_trigger(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Studio"})
+    save_preset(audit_client, "Studio")
     assert last(audit_log, "preset.write")["trigger"] == "save"
 
 
-def test_an_autosaved_apply_records_the_autosave_trigger(audit_client: TestClient, audit_log: Path) -> None:
-    arm_autosave(audit_client)
+def test_an_autosaved_apply_records_the_autosave_trigger(
+    audit_client: TestClient, audit_log: Path, tmp_path: Path
+) -> None:
+    arm_autosave(audit_client, tmp_path)
     stage_title(audit_client)
     audit_client.post("/api/config/apply")
     assert last(audit_log, "preset.write")["trigger"] == "autosave"
@@ -241,26 +257,31 @@ def test_an_applied_profile_delete_appends_a_profile_delete_record(audit_client:
     assert "profile.delete" in events(audit_log)
 
 
-def test_deleting_a_stored_preset_appends_a_preset_delete_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Doomed"})
-    audit_client.delete("/api/preset/Doomed")
+def test_deleting_a_stored_preset_appends_a_preset_delete_record(
+    audit_client: TestClient, audit_log: Path, tmp_path: Path
+) -> None:
+    # an import replaces the whole preset store, deleting each preset the archive does not carry
+    save_preset(audit_client, "Doomed")
+    import_preset_store(audit_client, tmp_path, autosave=False)
     assert "preset.delete" in events(audit_log)
 
 
 def test_loading_a_preset_appends_a_preset_load_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
-    audit_client.post("/api/profile/load", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
+    audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert "preset.load" in events(audit_log)
 
 
 def test_switching_the_active_preset_appends_an_active_set_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/profile/save", json={"name": "Kept"})
+    save_preset(audit_client, "Kept")
     audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert "active.set" in events(audit_log)
 
 
-def test_turning_autosave_on_appends_an_autosave_set_record(audit_client: TestClient, audit_log: Path) -> None:
-    audit_client.post("/api/autosave", json={"enabled": True})
+def test_turning_autosave_on_appends_an_autosave_set_record(
+    audit_client: TestClient, audit_log: Path, tmp_path: Path
+) -> None:
+    import_preset_store(audit_client, tmp_path, autosave=True)
     assert "autosave.set" in events(audit_log)
 
 
@@ -280,8 +301,9 @@ def test_the_audit_log_never_carries_the_daemon_credential(
     audit_client: TestClient, audit_log: Path, tmp_path: Path
 ) -> None:
     # every write path this file covers, through one app, then the whole file
+    # armed first: its import replaces the preset store, which would drop the seeded preset
+    arm_autosave(audit_client, tmp_path)
     seed_preset(tmp_path)
-    arm_autosave(audit_client)
     stage_title(audit_client)
     audit_client.post("/api/config/apply")
     apply_profile_save(audit_client, "Crossfeed EQ", ROW0, presets=["Office"])

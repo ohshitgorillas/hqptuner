@@ -54,12 +54,6 @@ class LiveBody(BaseModel):
     fields: dict[str, str] = {}
 
 
-class ProfileBody(BaseModel):
-    """Carry the preset name ``POST /api/profile/{action}`` loads, saves, or deletes."""
-
-    name: str = ""
-
-
 class VolumeBody(BaseModel):
     """Carry the playback-volume level ``POST /api/volume`` writes to the live lane."""
 
@@ -74,9 +68,3 @@ class EngineBody(BaseModel):
 
     overrides: dict[str, str] = {}
     all_presets: bool = False
-
-
-class AutosaveBody(BaseModel):
-    """Carry the on/off flag ``POST /api/autosave`` sets on the preset store."""
-
-    enabled: bool
