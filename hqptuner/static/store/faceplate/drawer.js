@@ -7,9 +7,9 @@
 // A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
 // the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one makes its tab
 // a restart tab. Members of one `family` share their staged state: any member's staged edit lights every member's
-// apply group. A family is the catalog keys its members hold (`FAMILY_KEYS`), so the store knows it with no drawer
-// loaded. A drawer with its own form (`own`) stands that form in for the staged set: its staged state dots every
-// tab, its apply group always shows, and Apply and Discard run the form.
+// apply group. A family is declared once (`FAMILIES`): the rail stages its members draw and the catalog keys they hold,
+// so the store knows it with no drawer loaded. A drawer with its own form (`own`) stands that form in for the staged
+// set: its staged state dots every tab, its apply group always shows, and Apply and Discard run the form.
 //
 // The apply mode is a browser-held preference, one choice for every drawer: `apply` applies the staged set, `save`
 // applies it and saves it into the loaded station.
@@ -114,38 +114,59 @@ export const applyDrawer = async (drawer) => (drawer.own ? drawer.own.apply() : 
 export const discardDrawer = async (drawer) => (drawer.own ? drawer.own.discard() : discardAll());
 
 /**
+ * One drawer family: the rail stages whose drawers declare it, and the catalog keys those drawers hold.
+ *
+ * @typedef {object} Family
+ * @property {readonly string[]} stages
+ * @property {readonly string[]} keys
+ */
+
+/**
+ * The drawer families, by name.
+ *
+ * @type {Readonly<Record<string, Family>>}
+ */
+const FAMILIES = {
+  matrix: {
+    stages: ["matrix", "pipelines", "crossfeed", "loudness", "correction"],
+    keys: [
+      "matrix_enabled",
+      "matrix_expand_hf",
+      "matrix_engine",
+      "matrix_iir2fir",
+      "matrix_pipelines",
+      "pipelines",
+      "crossfeed_enabled",
+      "crossfeed_preset",
+      "crossfeed_frequency",
+      "crossfeed_level",
+      "loudness_enabled",
+      "loudness_low_type",
+      "loudness_low_freq",
+      "loudness_low_steep",
+      "loudness_low_level",
+      "loudness_high_type",
+      "loudness_high_freq",
+      "loudness_high_steep",
+      "loudness_high_level",
+      "loudness_range_low",
+      "loudness_range_high",
+      "dac_correction_enabled",
+      "dac_correction_profile",
+    ],
+  },
+};
+
+/**
  * The catalog keys each family's members hold, by family: a staged edit to any of them lights the apply group of every
  * drawer declaring that family.
  *
  * @type {Readonly<Record<string, readonly string[]>>}
  */
-export const FAMILY_KEYS = {
-  matrix: [
-    "matrix_enabled",
-    "matrix_expand_hf",
-    "matrix_engine",
-    "matrix_iir2fir",
-    "matrix_pipelines",
-    "pipelines",
-    "crossfeed_enabled",
-    "crossfeed_preset",
-    "crossfeed_frequency",
-    "crossfeed_level",
-    "loudness_enabled",
-    "loudness_low_type",
-    "loudness_low_freq",
-    "loudness_low_steep",
-    "loudness_low_level",
-    "loudness_high_type",
-    "loudness_high_freq",
-    "loudness_high_steep",
-    "loudness_high_level",
-    "loudness_range_low",
-    "loudness_range_high",
-    "dac_correction_enabled",
-    "dac_correction_profile",
-  ],
-};
+export const FAMILY_KEYS = Object.fromEntries(Object.entries(FAMILIES).map(([name, f]) => [name, f.keys]));
+
+/** The rail stages whose drawers are matrix family members: the matrix engine's part of the chain. */
+export const MATRIX_STAGES = FAMILIES.matrix.stages;
 
 /**
  * Whether a catalog key stages for a restart: http-lane and not routed live.

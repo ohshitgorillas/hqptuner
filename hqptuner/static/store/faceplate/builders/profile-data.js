@@ -27,9 +27,6 @@ export const LISTEN = [
   { v: "headphones", label: "Headphones" },
 ];
 
-/** Matrix engine family stages on the chain. */
-export const MATRIX_STAGES = ["matrix", "pipelines", "crossfeed", "loudness", "correction"];
-
 /** Stages outside the matrix engine. */
 export const OUTSIDE_STAGES = ["hf", "volume", "resampling", "shaping"];
 
