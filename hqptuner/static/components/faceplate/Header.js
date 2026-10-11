@@ -11,7 +11,7 @@ import { snapshotTip } from "../../store/faceplate/builders/rows.js";
 import { body, showBody, openPopover } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
-import { openSetup } from "../../store/setup.js";
+import { openPanel } from "../../store/connpanel.js";
 import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
 import { Popover, parkAgainst, triggerProps } from "./Popover.js";
@@ -78,7 +78,7 @@ function Knob() {
   const alert = alertsNow.value.blinks.el.get("conn");
   const note = alert ? triggerProps(noteId("conn"), "dialog") : null;
   const onTap = () => {
-    openSetup();
+    openPanel();
     note?.onClick();
   };
   return html`

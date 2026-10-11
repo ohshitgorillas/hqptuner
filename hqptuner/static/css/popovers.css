@@ -135,8 +135,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .round.vbtn:disabled,.round.vbtn[aria-disabled="true"]{color:var(--ink-4);background:var(--plate-2);box-shadow:none;cursor:default}
 .volrd.fixed{cursor:default}
 .vbar.fixed .vbsl{opacity:var(--op-1)}
-/* The rows' host; a flagship opened over its two nested rows joins them; a preset the engine cannot run reads dead. */
+/* The rows' host; a flagship opened over its two nested rows joins them. */
 .frows{display:flex;flex-direction:column}
 .frow.opened{border-radius:var(--r-2) var(--r-2) 0 0}
 .frow.sub.first{margin-top:var(--hair)}
-.frow[data-grayed] .pick{color:var(--ink-2)}

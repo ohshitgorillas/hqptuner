@@ -1,31 +1,31 @@
-// Behavioral suite for store/setup.js — the connection panel's own store: when
+// Behavioral suite for store/connpanel.js — the connection panel's own store: when
 // the panel throws itself open, what discovery is allowed to write into the
 // host field, what a save puts on the wire, and what closes the panel again.
 //
 // The `health` signal is assigned the readings a poll would have delivered, the
 // panel's own exported signals are assigned to state the situation, and `fetch` is
 // faked at the real REST paths with the real response shapes.
-// The clock is injected through `initSetup(now)`,
+// The clock is injected through `initPanel(now)`,
 // so every "at N ms" below is a reading of that
 // function and never a duration this suite spends.
 //
 // Readings are fresh objects every time: writing the same reference to a signal
 // does not notify and the auto-open effect would never run.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/setup.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/connpanel.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
 import {
-  setupOpen,
+  panelOpen,
   form,
   hostTouched,
-  initSetup,
+  initPanel,
   runDiscovery,
   submitConnection,
-} from "../../../hqptuner/static/store/setup.js";
+} from "../../../hqptuner/static/store/connpanel.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 
 /** The globals a wire fake installs a `fetch` on. */
@@ -66,10 +66,10 @@ afterEach(() => {
 function start(at = 0) {
   clock = at;
   health.value = null;
-  setupOpen.value = false;
+  panelOpen.value = false;
   hostTouched.value = false;
   form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initSetup(() => clock);
+  dispose = initPanel(() => clock);
 }
 
 // One health poll landing at `at` ms, answered with what the panel then shows.
@@ -81,7 +81,7 @@ function start(at = 0) {
 function reading(fields, at) {
   clock = at;
   health.value = { ...fields };
-  return setupOpen.value;
+  return panelOpen.value;
 }
 
 // The REST fake: discovery's answer, the saved record GET /api/connection
@@ -135,7 +135,7 @@ const AUTO = [
 for (const kase of AUTO) {
   test(kase.name, () => {
     start();
-    let open = setupOpen.value;
+    let open = panelOpen.value;
     for (const [fields, at] of kase.readings) open = reading(fields, at);
     assert.equal(open, kase.open);
   });
@@ -164,8 +164,8 @@ test("test_discovery_leaves_a_host_the_user_typed_alone", async () => {
 test("test_the_panel_stays_open_on_the_saves_own_200", async () => {
   start(10000);
   wire();
-  setupOpen.value = true;
+  panelOpen.value = true;
   form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember: true };
   await submitConnection();
-  assert.equal(setupOpen.value, true);
+  assert.equal(panelOpen.value, true);
 });

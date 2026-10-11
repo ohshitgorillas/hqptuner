@@ -28,8 +28,8 @@
 // writing the name, the index or the label instead of the id fails loudly
 // rather than coinciding with the right answer.
 
-import { writeSet, presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
-import { easyKnobs, setEasyMaterial } from "../../../../hqptuner/static/store/easy/easyview.js";
+import { writeSet } from "../../../../hqptuner/static/store/easy/easy.js";
+import { easyKnobs } from "../../../../hqptuner/static/store/easy/easyview.js";
 import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
@@ -162,21 +162,6 @@ const META = {
 // --- what a preset means, read through the shipped table ------------------------------
 
 /**
- * The card knob's resting position, read off the table: the `default` of the
- * knob the presets declare `card`. A table declaring none throws, so the card
- * is never quietly reset to a position nothing stated.
- *
- * @returns {string}
- */
-function cardDefault() {
-  const card = presetsFor()
-    .flatMap((/** @type {Preset} */ preset) => preset.knobs)
-    .find((/** @type {Knob} */ knob) => knob.card);
-  if (card === undefined) throw new Error("no preset of the table declares a card knob");
-  return String(card.default);
-}
-
-/**
  * The two PCM filter names a preset leaves the engine running, for seeding the
  * LIVE lane's State. The knob positions default to the resting ones.
  *
@@ -262,9 +247,6 @@ export async function flush(w) {
  */
 function common(keepKnobs, copy) {
   if (!keepKnobs) easyKnobs.value = {};
-  // The card's material position is module-level like the record and outlives
-  // a case; a case wanting it off its default sets it AFTER the reset.
-  setEasyMaterial(cardDefault());
   signals.metadata.value = { ...META, easy: { ...META.easy, ...copy } };
   signals.matrixConfig.value = { fields: [] };
   // The preview a click in the presets pane leaves behind is module-level like

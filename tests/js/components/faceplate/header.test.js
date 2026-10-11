@@ -29,7 +29,7 @@ import {
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
+import { panelOpen } from "../../../../hqptuner/static/store/connpanel.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
@@ -97,7 +97,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   env.fetch = REAL_FETCH;
-  setupOpen.value = false;
+  panelOpen.value = false;
 });
 
 /** Every element of the rendered header carrying a test id, optionally for one station. */
@@ -148,7 +148,7 @@ test("test_the_knob_reads_busy_while_an_apply_is_in_flight", () => {
 
 test("test_tapping_the_knob_with_no_alert_opens_the_connection_settings", async () => {
   await tap("conn");
-  assert.equal(setupOpen.value, true);
+  assert.equal(panelOpen.value, true);
 });
 
 test("test_the_tree_trigger_names_the_loaded_station_alone", () => {

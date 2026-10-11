@@ -18,13 +18,13 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { ConnPanel } from "../../../../hqptuner/static/components/faceplate/ConnPanel.js";
 import {
-  setupOpen,
+  panelOpen,
   form,
   pageHost,
   verdict,
   hostTouched,
-  closeSetup,
-} from "../../../../hqptuner/static/store/setup.js";
+  closePanel,
+} from "../../../../hqptuner/static/store/connpanel.js";
 import { elements, attr, hasAttr } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok, bad } from "../../support/wire/wire.js";
@@ -36,7 +36,7 @@ import { ok, bad } from "../../support/wire/wire.js";
 const env = globalThis;
 const REAL_FETCH = env.fetch;
 
-const OPEN = setupOpen.value;
+const OPEN = panelOpen.value;
 const FORM = form.value;
 const PAGE_HOST = pageHost.value;
 const VERDICT = verdict.value;
@@ -70,8 +70,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  closeSetup();
-  setupOpen.value = OPEN;
+  closePanel();
+  panelOpen.value = OPEN;
   form.value = FORM;
   pageHost.value = PAGE_HOST;
   verdict.value = VERDICT;
@@ -117,29 +117,29 @@ const sent = (/** @type {string} */ method, /** @type {string} */ path) =>
   CALLS.filter((c) => c.method === method && c.path === path);
 
 test("test_the_closed_sheet_carries_data_closed", () => {
-  setupOpen.value = false;
+  panelOpen.value = false;
   assert.equal(hasAttr(sheet(), "data-closed"), true);
 });
 
 test("test_the_open_sheet_does_not_carry_data_closed", () => {
-  setupOpen.value = true;
+  panelOpen.value = true;
   assert.equal(hasAttr(sheet(), "data-closed"), false);
 });
 
 test("test_the_open_sheet_is_a_dialog", () => {
-  setupOpen.value = true;
+  panelOpen.value = true;
   assert.equal(attr(sheet(), "role"), "dialog");
 });
 
 test("test_a_host_field_naming_the_server_machine_links_the_daemon_page_through_the_page_host", () => {
-  setupOpen.value = true;
+  panelOpen.value = true;
   form.value = { ...FORM, host: "host.docker.internal" };
   pageHost.value = "192.168.1.40";
   assert.equal(authLinkHostname(), "192.168.1.40");
 });
 
 test("test_tapping_connect_posts_the_host_field_to_the_connection_route", async () => {
-  setupOpen.value = true;
+  panelOpen.value = true;
   form.value = { ...FORM, host: "10.0.0.5" };
   await tap((v) => v.props["data-testid"] === "conn-connect");
   assert.deepEqual(

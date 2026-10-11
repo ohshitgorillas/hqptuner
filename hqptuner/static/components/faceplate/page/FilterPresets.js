@@ -8,8 +8,6 @@ import { useCallback } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { classNames } from "../../../model/shell/format.js";
 import { foldSubsets, pickPreset, presetRows, showSubsets } from "../../../store/faceplate/page/presets.js";
-import { MARK_LABEL } from "../../easy/marks.js";
-import { HIRES_LABEL, HIRES_TIP } from "../../easy/Tile.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 
 /** @typedef {import("../../../store/faceplate/page/presets.js").PresetRow} PresetRow */
@@ -17,6 +15,31 @@ import { Popover, parkAt, triggerProps } from "../Popover.js";
 
 /** The popover's id, as its button names it. */
 export const FILTER_PRESETS = "presets";
+
+// What the popover calls a row's error-correction mark, its accessible name and its title.
+//
+// Constants rather than copy read through `easyProse`. Prose arrives with the
+// metadata and is empty until it does, which for a caption means a line that
+// appears a moment late, but for an `aria-label` means an image with no name at
+// all on first paint.
+/** @type {Record<string, string>} */
+const MARK_LABEL = {
+  full: "Full error correction",
+  half: "Partial error correction",
+  none: "No error correction",
+};
+
+// The hi-res badge's two strings. Constants rather than copy read through
+// `easyProse`, for the reason MARK_LABEL gives: prose arrives with the
+// metadata and is empty until it does, and a badge sourced from it
+// would paint an empty pill on first render and fill in a moment later.
+//
+// One string serves as both the hover tip and the badge's accessible name. The
+// badge reads "Hi-Res", which names the thing without saying anything about it,
+// so the sentence is what a screen reader should hear.
+const HIRES_LABEL = "Hi-Res";
+const HIRES_TIP =
+  "Uses a special hi-res-optimized filter at rates above 48 kHz; these filters can also be used for Lossy content";
 
 const LABEL = "Filter presets";
 const COLUMNS = ["Preset", "Filter", "Adjust", "Correction", "Resources"];
@@ -80,7 +103,6 @@ function knob(row, k) {
             class=${o.value === k.value ? "on" : undefined}
             data-v=${o.value}
             title=${o.tip || undefined}
-            disabled=${row.grayed}
             onClick=${() => (o.value === k.value ? undefined : pickPreset(row.id, { ...row.at, [k.id]: o.value }))}
           >
             ${o.label}
@@ -96,7 +118,7 @@ function knob(row, k) {
  * @param {PresetRow} row
  */
 const pick = (row) =>
-  html`<button type="button" class="pick" disabled=${row.grayed} onClick=${() => pickPreset(row.id, row.at)}>
+  html`<button type="button" class="pick" onClick=${() => pickPreset(row.id, row.at)}>
     <span class=${row.current ? "lamp on" : "lamp"}></span>
     <span class="em" aria-hidden="true">${row.emoji}</span>
     <span class="pn">${row.title}${row.hires && html`<span class="hires" title=${HIRES_TIP}>${HIRES_LABEL}</span>`}</span>
@@ -115,7 +137,6 @@ const presetRow = (row, first = false, names = "") =>
     class=${classNames("frow", row.under && "sub", row.current && "cur", first && "first", row.open && "opened")}
     data-preset=${row.id}
     data-lane=${row.under || undefined}
-    data-grayed=${row.grayed ? "1" : undefined}
   >
     ${pick(row)}
     <span class="fl">

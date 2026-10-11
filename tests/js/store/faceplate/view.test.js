@@ -8,7 +8,7 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
+import { panelOpen } from "../../../../hqptuner/static/store/connpanel.js";
 
 import {
   body,
@@ -25,10 +25,10 @@ import {
   openOptionList,
 } from "../../../../hqptuner/static/store/faceplate/view.js";
 
-let setupWas = setupOpen.value;
+let setupWas = panelOpen.value;
 
 beforeEach(() => {
-  setupWas = setupOpen.value;
+  setupWas = panelOpen.value;
   body.value = "chain";
   openStage.value = null;
   openPopover.value = null;
@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  setupOpen.value = setupWas;
+  panelOpen.value = setupWas;
 });
 
 test("test_tapping_a_second_stage_replaces_the_open_drawer", () => {
@@ -100,18 +100,18 @@ test("test_escape_with_a_drawer_open_on_settings_keeps_the_settings_body", () =>
 
 test("test_escape_with_the_setup_panel_over_a_drawer_closes_the_panel_and_keeps_the_drawer", () => {
   toggleStage("volume");
-  setupOpen.value = true;
+  panelOpen.value = true;
   closeTop();
-  assert.deepEqual([setupOpen.value, openStage.value], [false, "volume"]);
+  assert.deepEqual([panelOpen.value, openStage.value], [false, "volume"]);
 });
 
 test("test_escape_with_a_popover_over_the_setup_panel_closes_the_popover_first_and_the_panel_second", () => {
-  setupOpen.value = true;
+  panelOpen.value = true;
   togglePopover("stations");
   closeTop();
-  const first = [openPopover.value, setupOpen.value];
+  const first = [openPopover.value, panelOpen.value];
   closeTop();
-  assert.deepEqual([...first, setupOpen.value], [null, true, false]);
+  assert.deepEqual([...first, panelOpen.value], [null, true, false]);
 });
 
 test("test_a_body_swap_closes_the_open_drawer", () => {

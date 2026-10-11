@@ -4,8 +4,8 @@
 import { api } from "../../../../lib/api.js";
 import { errText } from "../../../../lib/errtext.js";
 import { hz } from "../../../../lib/units.js";
+import { wavRateFromHeader } from "../../../../lib/wav.js";
 import { registerIr } from "../../../../vendor/eqlab/core/dsp/impulse.js";
-import { wavRateFromHeader } from "../../../matrix/StageEditor.js";
 
 /** The rate a convolution filter is best made at (manual §7), Hz. */
 const BEST_RATE = 352800;
