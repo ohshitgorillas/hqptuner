@@ -19,13 +19,13 @@ import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
 import {
-  panelOpen,
   form,
   hostTouched,
   initPanel,
   runDiscovery,
   submitConnection,
 } from "../../../hqptuner/static/store/connpanel.js";
+import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 
 /** The globals a wire fake installs a `fetch` on. */

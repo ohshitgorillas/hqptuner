@@ -17,14 +17,8 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { ConnPanel } from "../../../../hqptuner/static/components/faceplate/ConnPanel.js";
-import {
-  panelOpen,
-  form,
-  pageHost,
-  verdict,
-  hostTouched,
-  closePanel,
-} from "../../../../hqptuner/static/store/connpanel.js";
+import { form, pageHost, verdict, hostTouched, closePanel } from "../../../../hqptuner/static/store/connpanel.js";
+import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, hasAttr } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok, bad } from "../../support/wire/wire.js";

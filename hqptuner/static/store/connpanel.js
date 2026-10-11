@@ -1,5 +1,7 @@
-// The connection panel's own state: whether it is showing, what discovery
-// found, what the user has typed, and what the daemon said after a save.
+// The connection panel's own state: what discovery found, what the user has
+// typed, and what the daemon said after a save. Whether it is showing is the
+// faceplate's (store/faceplate/view.js), and a save it was reporting on is
+// forgotten whenever that flag goes false, whoever writes it.
 //
 // Two things open the panel. A user opening it from the brand knob, and this
 // module deciding an install cannot use its daemon. The second reading is taken
@@ -26,14 +28,13 @@
 // fault report.
 import { signal, effect } from "@preact/signals";
 import { health } from "./signals.js";
+import { panelOpen } from "./faceplate/view.js";
 import { api } from "../lib/api.js";
 
 // How long `reachable` false must hold, from the page's own clock, before the
 // panel treats it as an install that cannot reach its daemon.
 const GRACE_MS = 3000;
 
-/** Whether the connection panel is showing. */
-export const panelOpen = signal(false);
 /** The host name the page was served from, written once at startup. */
 export const pageHost = signal("");
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
@@ -108,11 +109,24 @@ export function openPanel() {
   loadConnection().then(runDiscovery);
 }
 
-/** Close the panel and forget the save it was reporting on. */
+/** Close the panel; the save it was reporting on is forgotten with it. */
 export function closePanel() {
   panelOpen.value = false;
-  awaitingVerdict = false;
 }
+
+// Forget a save still waiting on its verdict, and the interim word it put up. A
+// save that has already been judged good is not waiting, so "saved" stays.
+function forgetSave() {
+  if (!awaitingVerdict) return;
+  awaitingVerdict = false;
+  verdict.value = null;
+}
+
+// Installed at import, beside the health watch: the panel goes down by more
+// routes than closePanel, Escape on the faceplate among them.
+effect(() => {
+  if (!panelOpen.value) forgetSave();
+});
 
 // What one reading says about the save that is waiting on it. A good reading is the
 // save having worked, and the panel has nothing left to do.
@@ -271,6 +285,8 @@ export async function submitConnection(andClose = false) {
   // keeps what it has. Clearing a password is not something this panel does.
   if (f.password) body.password = f.password;
   const answer = await api.saveConnection(body);
+  // The panel went down while the POST was out: the save is forgotten, so its answer is not judged.
+  if (!awaitingVerdict) return;
   savedAt = clock();
   savedLane = answer && answer.lane;
   // Judge the reading already in hand rather than waiting for the next poll: the

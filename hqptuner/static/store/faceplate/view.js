@@ -1,9 +1,9 @@
 // What the faceplate shows: the window it is fitted to, which body is on the plate, which stage's drawer is open, which
-// option list is open over the body and which popover is open. One drawer, one list and one popover at a time. The
-// gear and the builders swap the whole body; the header, the engine row and the bottom bar stay.
+// option list is open over the body, which popover is open and whether the connection panel is up. One drawer, one list
+// and one popover at a time. The gear and the builders swap the whole body; the header, the engine row and the bottom
+// bar stay.
 
 import { signal } from "@preact/signals";
-import { panelOpen, closePanel } from "../connpanel.js";
 
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 
@@ -32,6 +32,9 @@ export const openPopover = signal(/** @type {string | null} */ (null));
 
 /** The option list open over the body, or null. @type {{ value: ListRequest | null }} */
 export const openList = signal(/** @type {ListRequest | null} */ (null));
+
+/** Whether the connection panel is up. */
+export const panelOpen = signal(false);
 
 /**
  * Swap the body: the one picked, or back to the chain when it already shows. The open drawer and popover close.
@@ -83,7 +86,7 @@ export function togglePopover(id) {
  */
 export function closeTop() {
   if (openPopover.value !== null) openPopover.value = null;
-  else if (panelOpen.value) closePanel();
+  else if (panelOpen.value) panelOpen.value = false;
   else if (openList.value !== null) openList.value = null;
   else if (openStage.value !== null) openStage.value = null;
   else body.value = "chain";

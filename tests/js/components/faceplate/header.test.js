@@ -36,7 +36,7 @@ import {
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { panelOpen } from "../../../../hqptuner/static/store/connpanel.js";
+import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";

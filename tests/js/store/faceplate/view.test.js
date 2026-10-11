@@ -8,7 +8,7 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { panelOpen } from "../../../../hqptuner/static/store/connpanel.js";
+import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 
 import {
   body,

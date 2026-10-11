@@ -4,8 +4,8 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { plate } from "../../store/faceplate/plate.js";
+import { panelOpen } from "../../store/faceplate/view.js";
 import {
-  panelOpen,
   discovering,
   form,
   hostTouched,
