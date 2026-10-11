@@ -13,7 +13,9 @@
 // pin from the pinned tier, else the playing tier; a tap or key on the other band moves its limit, since the engine's
 // rate list is the running mode's. A family pick writes nothing and holds for the drawer's opening; each opening reads
 // the pin's family, Auto with no pin. The pin is read off the engine (store/live/pin.js). The glass prints every tier's
-// two members in every mode: under Auto all of them read alike, under a family the other family's are set apart.
+// two members in every mode: under Auto all of them read alike, under a family the other family's are set apart. The
+// Rate row's label carries the restart mark while a tap moves a limit: under Auto, or with no picker, and never under
+// a family, where a tap on the running band pins live.
 
 import { effect, signal } from "@preact/signals";
 import { engineStatus } from "../../signals.js";
@@ -25,7 +27,7 @@ import { grayRatesByDevice } from "../../narrow/devicecaps.js";
 import { allowPinnedRates } from "../../ui/prefs.js";
 import { listedRates, pinAuto, pinnedRate, pinRate } from "../../live/pin.js";
 import { bandSpan, deviceParts, groupDevices, moveNeedle } from "../../../model/gauges/output.js";
-import { rowOptions, rowValue } from "../drawer.js";
+import { restartLane, rowOptions, rowValue } from "../drawer.js";
 import { openStage } from "../view.js";
 import { runningChain } from "../path.js";
 
@@ -51,7 +53,8 @@ import { runningChain } from "../path.js";
  * What the dial draws: its tiers in rate order, each band's needle by tier position (null when the limit names no
  * tier), the playing lamp's tier (null with no running rate on a tier), which bands hold a staged limit, the pin
  * picker's pick (null while pinned rates are not allowed, so no picker), where the pin sits (null with none shown),
- * and the family whose members the glass sets apart (null under Auto or with no picker, so every member reads alike).
+ * the family whose members the glass sets apart (null under Auto or with no picker, so every member reads alike), and
+ * whether the Rate row's label carries the restart mark (never under a family, where a tap pins live).
  *
  * @typedef {object} DialView
  * @property {DialTier[]} tiers
@@ -61,6 +64,7 @@ import { runningChain } from "../path.js";
  * @property {PinPick | null} picker
  * @property {{ tier: number, fam: Fam } | null} pin
  * @property {Fam | null} apart
+ * @property {boolean} restarts
  */
 
 /** @typedef {{ value: string, main: string, detail: string, cur: boolean }} DeviceRowView */
@@ -179,7 +183,7 @@ const OTHER_FAM = { f44: "f48", f48: "f44" };
 
 /**
  * The dial's tiers with each band's needle, the hatch, the playing lamp, the dirty bands, the pin picker's pick, the
- * pin, and the family set apart on the glass.
+ * pin, the family set apart on the glass, and the restart mark on the Rate row's label.
  *
  * @returns {DialView}
  */
@@ -187,6 +191,7 @@ export function dialView() {
   const tiers = [...familyTiers(PCM_RATES, "pcm"), ...familyTiers(DSD_RATES, "sdm")];
   const status = (engineStatus.value || {}).status || {};
   const picker = pinPick(tiers);
+  const auto = picker === null || picker === "auto";
   return {
     tiers,
     limits: { pcm: tierOf(tiers, effective(RATE_KEYS.pcm)), sdm: tierOf(tiers, effective(RATE_KEYS.sdm)) },
@@ -194,7 +199,8 @@ export function dialView() {
     dirty: { pcm: isDirty(RATE_KEYS.pcm), sdm: isDirty(RATE_KEYS.sdm) },
     picker,
     pin: picker === null ? null : placeOf(tiers, pinnedRate.value),
-    apart: picker === null || picker === "auto" ? null : OTHER_FAM[picker],
+    apart: auto ? null : OTHER_FAM[picker],
+    restarts: auto && Object.values(RATE_KEYS).some(restartLane),
   };
 }
 

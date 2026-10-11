@@ -2,6 +2,12 @@
 // over the store: the picker the dial carries only while Allow pinned rates is on, what a tap on a tier does under
 // each pick, what the picker reads when the drawer opens, and the pinned rate's mark on the dial.
 //
+// The restart mark on the rate dial row, read from the whole drawer drawn from the Output schema: under a picked family
+// a tap on the running band pins live with no engine restart, so while Allow pinned rates is on and the picker reads
+// the 44.1k or the 48k family the row carries no restart mark; under Auto, or with Allow pinned rates off, a tap moves
+// a band's limit, a config field the engine restarts for, and the row carries it (docs/spec/faceplate-spec.md). The
+// mark is found by its `data-testid`, the rate row as the smallest drawer row enclosing the dial.
+//
 // Renders through preact-render-to-string. The picker's options are found by their wire identifier (`data-pin`:
 // `auto`, `f44`, `f48`), the one picked by `aria-checked`, and a pick is fired through the vnode seam
 // (tests/js/support/vnodeseam.js), since server rendering fires no events. A tap on a tier goes through the store's
@@ -27,6 +33,9 @@ useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { RateDial } = await import("../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js");
+const { Drawer } = await import("../../../../hqptuner/static/components/faceplate/drawer/Drawer.js");
+const { OUTPUT_BLOCKS, OUTPUT_DRAWER } =
+  await import("../../../../hqptuner/static/components/faceplate/drawers/output.js");
 const { config, engineState, engineStatus, enums, metadata } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { discardAll } = await import("../../../../hqptuner/static/store/actions.js");
@@ -36,6 +45,7 @@ const { setAllowPinnedRates } = await import("../../../../hqptuner/static/store/
 const { pickTier } = await import("../../../../hqptuner/static/store/faceplate/drawers/output.js");
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
+/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const PCM_HZ = [44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000, 1411200, 1536000];
 const SDM_HZ = [2822400, 3072000, 5644800, 6144000, 11289600, 12288000, 22579200, 24576000, 45158400, 49152000];
@@ -303,4 +313,56 @@ test("test_the_pin_is_marked_on_its_own_tier_apart_from_the_needle_and_the_playi
     .filter((e) => e.name === "g" && attr(e, "data-i") !== undefined && classes(e).includes("pinned"))
     .map((e) => attr(e, "data-i"));
   assert.deepEqual(marked, [String(PCM_2X)]);
+});
+
+// --- the restart mark on the rate row ------------------------------------------------------------------------------
+
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * Whether the rate dial row carries the restart mark, or null when no drawer row encloses the dial.
+ *
+ * @returns {boolean | null}
+ */
+function rateRowMarked() {
+  const all = elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
+  const ring = all.find((e) => classes(e).includes("dial") && attr(e, "role") === "group");
+  if (!ring) return null;
+  const row = all
+    .filter((e) => classes(e).includes("drow") && within(ring, e))
+    .sort((a, b) => a.html.length - b.html.length)[0];
+  return row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null;
+}
+
+for (const fam of ["f44", "f48"]) {
+  test(`test_picking_${fam}_takes_the_restart_mark_off_the_rate_row_that_auto_carries`, async () => {
+    const underAuto = rateRowMarked();
+    await pick(fam);
+    assert.deepEqual([underAuto, rateRowMarked()], [true, false]);
+  });
+}
+
+test("test_picking_auto_after_a_family_puts_the_restart_mark_back_on_the_rate_row", async () => {
+  await pick("f48");
+  const underFamily = rateRowMarked();
+  await pick("auto");
+  assert.deepEqual([underFamily, rateRowMarked()], [false, true]);
+});
+
+test("test_turning_allow_pinned_rates_off_puts_the_restart_mark_back_on_the_rate_row", async () => {
+  await pick("f44");
+  const allowed = rateRowMarked();
+  setAllowPinnedRates(false);
+  await quiesce(wire);
+  assert.deepEqual([allowed, rateRowMarked()], [false, true]);
 });

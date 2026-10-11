@@ -101,10 +101,10 @@ export const OUTPUT_DRAWER = {
   ],
 };
 
-/** The Rate row: the dial under its label line, spanning the row, the label marked when either rate restarts. */
+/** The Rate row: the dial under its label line, spanning the row. */
 const RateRow = () => html`
   <div class="drow drow-full">
-    <div class="ctl"><${RateDial} label=${RATE.label} sub=${RATE.sub} restarts=${RATE_KEYS.some(restartLane)} /></div>
+    <div class="ctl"><${RateDial} label=${RATE.label} sub=${RATE.sub} /></div>
   </div>
 `;
 
