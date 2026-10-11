@@ -1,12 +1,12 @@
 // The schemas of the three drawers with output-mode tabs: DSD Processing, Resampling and Shaping. Each has a PCM out and
 // an SDM out tab, since the engine keeps one chain per output mode whatever runs; a drawer opens on the mode running,
 // and the other mode's tab reads idle. Resampling's FFT length row shows on a tab while that tab's 1x or Nx filter is
-// FFT-family. Shaping's DAC type and DAC chip are browser-held fields, and its PCM tab notes the DAC bits the Output
-// drawer holds, with the link there.
+// FFT-family. Shaping's DAC type and DAC chip are browser-held local controls (store/schema/local.js), and its PCM tab
+// notes the DAC bits the Output drawer holds, with the link there.
 
 import { rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
 import { ditherNote, runningMode } from "../../../store/faceplate/drawers/modes.js";
-import { dacChip, dacType, setDacChip, setDacType } from "../../../store/ui/prefs.js";
+import { local } from "../../../store/schema/local.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerTab} DrawerTab */
@@ -90,43 +90,10 @@ export const SHAPING_DRAWER = {
   opensOn: runningMode,
   tabs: modeTabs(
     [
-      {
-        field: {
-          id: "dactype",
-          label: "DAC type",
-          man: [
-            "Also when a suitable noise-shaper, such as LNS15, NS9 or NS5 is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower distortion of especially low level signals and reduce zero-crossing distortions.",
-            "R-2R collapses the Additive family in the dither list.",
-          ],
-          options: [
-            { value: "other", label: "Other" },
-            { value: "r2r", label: "R-2R" },
-          ],
-          value: () => dacType.value,
-          set: setDacType,
-        },
-      },
+      { field: local.dactype },
       { row: { key: "pcm_dither", sub: "Low-level noise treatment" } },
       { note: () => ({ text: ditherNote(), to: "output" }) },
     ],
-    [
-      {
-        field: {
-          id: "dacchip",
-          label: "DAC chip",
-          man: [
-            "For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
-            "ESS Sabre collapses the seventh order variants in the modulator list.",
-          ],
-          options: [
-            { value: "other", label: "Other" },
-            { value: "ess", label: "ESS Sabre" },
-          ],
-          value: () => dacChip.value,
-          set: setDacChip,
-        },
-      },
-      { row: { key: "sdm_modulator", sub: "Builds the 1-bit stream" } },
-    ],
+    [{ field: local.dacchip }, { row: { key: "sdm_modulator", sub: "Builds the 1-bit stream" } }],
   ),
 };
