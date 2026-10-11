@@ -1,8 +1,8 @@
-// Client-only UI preferences stamped on <html> for the CSS to key off: the
-// signature accent color (`data-accent`, the CSS owns the color values in
-// `:root[data-accent="…"]`) and the dyslexic font switch (`data-dyslexic`,
-// which swaps `--font-ui`). Both persisted in localStorage, both stamped once
-// at boot. No daemon involvement — pure chrome.
+// Client-only UI preferences: the signature accent color (a preset name or a
+// custom hex, from which the faceplate theme derives the `--acc` tokens on
+// <html>) and the dyslexic font switch (`data-dyslexic` on <html>, which swaps
+// `--font-ui`). Both persisted in localStorage. No daemon involvement — pure
+// chrome.
 //
 // Module load must stay node-safe (the SSR harness imports the component graph
 // with no `localStorage`/`document`): the storage read is guarded, and the
@@ -14,8 +14,8 @@ const KEY_HEX = "hqptuner.accentHex";
 const KEY_DYSLEXIC = "hqptuner.dyslexic";
 const ACCENTS = ["blue", "green", "amber", "violet"];
 const DEFAULT = "amber";
-// each preset's --accent value (mirrors the :root[data-accent] CSS) — fills the
-// hex box when a swatch is picked, so custom colors start from the preset
+// each preset's color, the hex the faceplate theme derives the `--acc` tokens
+// from when no custom hex is set
 /** @type {Record<string, string>} */
 export const ACCENT_HEX = {
   blue: "#4f9dde",
@@ -56,41 +56,8 @@ export const accent = signal(load());
 export const accentHex = signal(loadHex()); // "" = follow the preset swatch
 export const dyslexic = signal(loadDyslexic()); // true = Atkinson Hyperlegible for --font-ui
 
-// --accent-glow is the brighter hero sibling; derive it from a custom hex by
-// pulling each channel 30% toward white (matches the presets' glow relationship)
-/**
- * @param {string} hex
- * @returns {string}
- */
-function glowOf(hex) {
-  const n = parseInt(hex.slice(1), 16);
-  const ch = (/** @type {number} */ s) => {
-    const c = (n >> s) & 255;
-    return Math.round(c + (255 - c) * 0.3)
-      .toString(16)
-      .padStart(2, "0");
-  };
-  return `#${ch(16)}${ch(8)}${ch(0)}`;
-}
-
-/**
- * @param {string} hex
- * @returns {void}
- */
-function setInline(hex) {
-  const st = document.documentElement.style;
-  if (hex) {
-    st.setProperty("--accent", hex);
-    st.setProperty("--accent-glow", glowOf(hex));
-  } else {
-    st.removeProperty("--accent");
-    st.removeProperty("--accent-glow");
-  }
-}
-
-// Persist + apply a preset swatch. Sets the root attribute the CSS keys on and
-// drops any custom-hex override, so the swap is instant and every accent site
-// follows from the one variable.
+// Persist a preset swatch and drop any custom-hex override; the faceplate
+// theme restyles the page from the two signals.
 /**
  * Persist and apply a preset accent swatch, dropping any custom-hex override.
  * @param {string} name
@@ -100,8 +67,6 @@ export function applyAccent(name) {
   const v = ACCENTS.includes(name) ? name : DEFAULT;
   accent.value = v;
   accentHex.value = "";
-  document.documentElement.dataset.accent = v;
-  setInline("");
   try {
     localStorage.setItem(KEY, v);
     localStorage.removeItem(KEY_HEX);
@@ -110,7 +75,7 @@ export function applyAccent(name) {
   }
 }
 
-// Persist + apply a custom hex, overriding the preset via inline --accent.
+// Persist a custom hex, which overrides the preset swatch.
 // Invalid input is ignored (the box simply doesn't take).
 /**
  * Persist and apply a custom accent hex, with or without its leading `#`.
@@ -121,7 +86,6 @@ export function applyAccentHex(hex) {
   const v = (hex || "").trim().startsWith("#") ? hex.trim() : `#${(hex || "").trim()}`;
   if (!HEX_RE.test(v)) return;
   accentHex.value = v;
-  setInline(v);
   try {
     localStorage.setItem(KEY_HEX, v);
   } catch {
