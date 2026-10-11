@@ -1,62 +1,18 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages. Display holds the option-style and apodizing-indicator switches, the spectrum
-// delay box, the font switch, then the accent block; Layout the top-of-page and bottom-bar picks, then the block hiding
-// chain stages.
+// that writes at once and never stages, declared as a local control (store/schema/local.js). Display holds the
+// option-style and apodizing-indicator switches, the spectrum delay box, the font switch, then the accent block; Layout
+// the top-of-page and bottom-bar picks, then the block hiding chain stages.
 
-import {
-  apodLight,
-  bottomBar,
-  hiddenStages,
-  plainNames,
-  setApodLight,
-  setBottomBar,
-  setPlainNames,
-  setTopOfPage,
-  topOfPage,
-} from "../../../store/ui/prefs.js";
+import { hiddenStages } from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
-import { accent, accentHex, applyDyslexic, dyslexic } from "../../../store/ui/theme.js";
+import { accent, accentHex } from "../../../store/ui/theme.js";
+import { local } from "../../../store/schema/local.js";
+import { fieldReadout } from "./readouts.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
 /** @typedef {{ v: string, label: string }} Opt */
 
-const MAN = {
-  optStyle:
-    "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
-  apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
-  fill: "What the top of the page shows. Auto shows both: the Source spectrum, with the matrix profile picker on one line above it. Matrix profile shows the matrix engine at full size, with its response plot; Spectrum shows the spectrum alone. With the matrix engine bypassed, the spectrum shows either way.",
-  bottom:
-    "Show the Setting Switcher for easy A/B comparisons (pick Volume from its dropdown for a volume slider), or hide the bottom bar entirely.",
-  dyslexic: "Use a dyslexic-friendly font (Atkinson Hyperlegible) for non-monospace text.",
-};
-
-/** @type {Opt[]} */
-const OFF_ON = [
-  { v: "0", label: "Off" },
-  { v: "1", label: "On" },
-];
-/** @type {Opt[]} */
-const STYLES = [
-  { v: "standard", label: "Standard" },
-  { v: "simplified", label: "Simplified" },
-];
-/** @type {Opt[]} */
-const APOD = [
-  { v: "all", label: "All events" },
-  { v: "uncorrected", label: "Uncorrected events" },
-];
-/** @type {Opt[]} */
-const FILLS = [
-  { v: "auto", label: "Auto" },
-  { v: "profile", label: "Matrix profile" },
-  { v: "spectrum", label: "Spectrum" },
-];
-/** @type {Opt[]} */
-const BOTTOMS = [
-  { v: "switcher", label: "Setting Switcher" },
-  { v: "none", label: "None" },
-];
 /** @type {Opt[]} */
 const HIDEABLE = [
   { v: "dsd", label: "DSD Processing" },
@@ -65,18 +21,6 @@ const HIDEABLE = [
   { v: "loudness", label: "Loudness" },
   { v: "correction", label: "DAC correction" },
 ];
-
-/** @param {Opt[]} opts */
-const fieldOptions = (opts) => opts.map(({ v, label }) => ({ value: v, label }));
-
-/** @param {boolean} on */
-const bit = (on) => (on ? "1" : "0");
-
-const styleValue = () => (plainNames.value ? "simplified" : "standard");
-const apodValue = () => apodLight.value;
-const dysValue = () => bit(dyslexic.value);
-const fillValue = () => topOfPage.value;
-const bottomValue = () => bottomBar.value;
 
 /** @type {DrawerSchema} */
 export const VISUAL_DRAWER = {
@@ -88,84 +32,35 @@ export const VISUAL_DRAWER = {
       id: "display",
       label: "Display",
       body: [
-        {
-          field: {
-            id: "vstyle",
-            label: "Option style",
-            man: [MAN.optStyle],
-            options: fieldOptions(STYLES),
-            value: styleValue,
-            set: (v) => setPlainNames(v === "simplified"),
-          },
-        },
-        {
-          field: {
-            id: "vapod",
-            label: "Apodizing indicator",
-            man: [MAN.apod],
-            options: fieldOptions(APOD),
-            value: apodValue,
-            set: setApodLight,
-          },
-        },
+        { field: local.vstyle },
+        { field: local.vapod },
         { block: "delay" },
-        {
-          field: {
-            id: "vdys",
-            label: "Dyslexic font",
-            man: [MAN.dyslexic],
-            options: fieldOptions(OFF_ON),
-            value: dysValue,
-            set: (v) => applyDyslexic(v === "1"),
-          },
-        },
+        { field: local.vdys },
         { block: "accent" },
       ],
     },
     {
       id: "layout",
       label: "Layout",
-      body: [
-        {
-          field: {
-            id: "vfill",
-            label: "Top of page",
-            man: [MAN.fill],
-            options: fieldOptions(FILLS),
-            value: fillValue,
-            set: setTopOfPage,
-          },
-        },
-        {
-          field: {
-            id: "vbottom",
-            label: "Bottom bar",
-            man: [MAN.bottom],
-            options: fieldOptions(BOTTOMS),
-            value: bottomValue,
-            set: setBottomBar,
-          },
-        },
-        { block: "hide" },
-      ],
+      body: [{ field: local.vfill }, { field: local.vbottom }, { block: "hide" }],
     },
   ],
 };
 
 /** @type {readonly SettingsReadout[]} */
 export const VISUAL_READOUTS = [
-  { id: "vstyle", label: "Option style", control: { type: "seg", options: STYLES }, value: styleValue },
-  { id: "vapod", label: "Apodizing indicator", control: { type: "seg", options: APOD }, value: apodValue },
+  fieldReadout(local.vstyle),
+  fieldReadout(local.vapod),
   {
     id: "vdelay",
     label: "Spectrum delay",
     control: { type: "number", unit: "s" },
     value: () => String(spectrumOffset.value),
   },
-  { id: "vdys", label: "Dyslexic font", control: { type: "seg", options: OFF_ON }, value: dysValue },
+  fieldReadout(local.vdys),
   { id: "vacc", label: "Accent color", control: { type: "accent" }, value: () => accentHex.value || accent.value },
-  { id: "vfill", label: "Top of page", control: { type: "seg", options: FILLS }, value: fillValue },
-  { id: "vbottom", label: "Bottom bar", control: { type: "seg", options: BOTTOMS }, value: bottomValue },
+  fieldReadout(local.vfill),
+  fieldReadout(local.vbottom),
   {
     id: "vhide",
     label: "Hidden",

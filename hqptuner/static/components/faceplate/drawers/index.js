@@ -1,8 +1,6 @@
 // The stage drawers, by rail stage id in signal order: each stage's schema and the components its blocks mount. A
-// stage with no entry draws its bare drawer, title and close alone. Members of a family are registered here, so an edit in one lights
-// every member's apply group.
+// stage with no entry draws its bare drawer, title and close alone.
 
-import { registerDrawer } from "../../../store/faceplate/drawer.js";
 import { SOURCE_BLOCKS, SOURCE_DRAWER } from "./source-drawer.js";
 import { HF_DRAWER } from "./hf.js";
 import { DSD_DRAWER, RESAMPLING_DRAWER, SHAPING_DRAWER } from "./modes.js";
@@ -33,8 +31,6 @@ const DRAWERS = {
   speakers: { schema: SPEAKERS_DRAWER, blocks: SPEAKERS_BLOCKS },
   output: { schema: OUTPUT_DRAWER, blocks: OUTPUT_BLOCKS },
 };
-
-for (const d of Object.values(DRAWERS)) registerDrawer(d.schema);
 
 /**
  * A rail stage's drawer: its registered schema and blocks, or a bare drawer of its name.

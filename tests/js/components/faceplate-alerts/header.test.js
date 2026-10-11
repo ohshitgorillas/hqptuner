@@ -23,8 +23,9 @@ import {
   engineState,
   engineStatus,
   matrixConfig,
+  lastApply,
 } from "../../../../hqptuner/static/store/signals.js";
-import { applying, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
 import { liveBook, livePresets } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";

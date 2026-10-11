@@ -3,8 +3,11 @@
 // them.
 //
 // A row names one key, a backend group its rows' keys, a choice its lines' detail keys, a block the keys it says it
-// stages; a field, a header, a note and an intro stage none. A row its `when` leaves out, and the rows of a group its
-// backend hides, stay staged but are not shown.
+// stages; a field, a header, a note and an intro stage none. A row its `when` or its catalog entry leaves out, and the
+// rows of a group its backend hides, stay staged but are not shown.
+
+import { schema as catalog } from "../../schema.js";
+import { rowOptions, rowValue } from "./rows.js";
 
 /**
  * An option a row lists: the value its control writes, its label, and its line where the settings metadata holds none.
@@ -160,12 +163,34 @@
  */
 
 /**
- * Whether a row is shown: its `when`, else always.
+ * The engine name of a row's effective option; empty where its value lists none.
  *
- * @param {RowSpec} row
+ * @param {string} key
+ * @returns {string}
+ */
+const pickedName = (key) => rowOptions(key).find((o) => String(o.value) === rowValue(key))?.label ?? "";
+
+/**
+ * Whether any of a chain's picked filter names is FFT-family.
+ *
+ * @param {string[]} names  the engine names of the chain's picked filters
  * @returns {boolean}
  */
-export const rowShown = (row) => !row.when || row.when();
+const fftFamily = (names) => names.some((n) => /\bFFT\b/.test(n));
+
+/**
+ * Whether a row is shown on a tab: its `when` allows it, and where its catalog entry names the tab's filter keys under
+ * `fftChains`, one of those filters is FFT-family.
+ *
+ * @param {RowSpec} row
+ * @param {string} [tab]  the id of the tab the row is drawn on; without one, no chain's filters apply
+ * @returns {boolean}
+ */
+export function rowShown(row, tab) {
+  if (row.when && !row.when()) return false;
+  const filters = catalog[row.key]?.fftChains?.[tab ?? ""];
+  return !filters || fftFamily(filters.map(pickedName));
+}
 
 /**
  * Whether a backend group is shown: the schema names its backend or `combo`, or names none.
@@ -202,7 +227,7 @@ function itemKeys(it) {
 export const tabKeys = (tab) => tab.body.flatMap(itemKeys);
 
 /**
- * The catalog keys a tab stages and shows: its keys less a row its `when` leaves out and the rows of a hidden group.
+ * The catalog keys a tab stages and shows: its keys less a row not shown on the tab and the rows of a hidden group.
  *
  * @param {DrawerSchema} drawer
  * @param {DrawerTab} tab
@@ -210,7 +235,8 @@ export const tabKeys = (tab) => tab.body.flatMap(itemKeys);
  */
 export const shownKeys = (drawer, tab) =>
   tab.body.flatMap((it) => {
-    if ("row" in it) return rowShown(it.row) ? [it.row.key] : [];
-    if ("group" in it) return groupShown(drawer, it.group) ? it.rows.filter(rowShown).map((r) => r.key) : [];
+    if ("row" in it) return rowShown(it.row, tab.id) ? [it.row.key] : [];
+    if ("group" in it)
+      return groupShown(drawer, it.group) ? it.rows.filter((r) => rowShown(r, tab.id)).map((r) => r.key) : [];
     return itemKeys(it);
   });

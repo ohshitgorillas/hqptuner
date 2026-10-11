@@ -5,13 +5,8 @@
 import { html } from "../../../lib/dom.js";
 import { NEW, keyOf } from "../../../model/builders/builder.js";
 import { holdSkipped, pickerOf, renderView } from "../../../model/builders/profile.js";
-import {
-  MATRIX_STAGES,
-  OUTSIDE_STAGES,
-  PB_COPY,
-  PB_STEPS,
-  PROFILE_COPY,
-} from "../../../store/faceplate/builders/profile-data.js";
+import { OUTSIDE_STAGES, PB_COPY, PB_STEPS, PROFILE_COPY } from "../../../store/faceplate/builders/profile-data.js";
+import { MATRIX_STAGES } from "../../../store/faceplate/drawer.js";
 import {
   page,
   meta,

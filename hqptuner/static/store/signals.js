@@ -55,6 +55,9 @@ export const staged = signal({ live: {}, http: {} }); // mirrors server pending
 // and response plots update instantly with no server round-trip per pointer move.
 // Committed to `staged` on release, then cleared. Highest priority in effective().
 export const liveOverride = signal({});
+// The last apply's verdict, or null. The apply lanes (store/actions.js) and a
+// rescan's warning (store/sync.js) write it; an edit clears it.
+export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdict | null }} */ (signal(null));
 
 // --- derived: connection ---
 // The backend publishes `reachable` at the 4321 handshake, before the rest of its

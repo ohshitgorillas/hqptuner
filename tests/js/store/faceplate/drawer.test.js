@@ -6,7 +6,8 @@
 // The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js) and the
 // source signals are assigned the shapes their endpoints serve. The schema keys are catalog keys chosen for their
 // lane: volume_max and quick_pause stage for a restart, output_mode is an http field the write path routes live, and
-// adaptive_volume is a live-lane setter. The storage key is named because it is the contract a persisted preference
+// adaptive_volume is a live-lane setter, and crossfeed_enabled is a key the matrix family holds, its baseline the
+// /matrix form's post_bauer_enabled. The storage key is named because it is the contract a persisted preference
 // makes with the browser.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawer.test.js
@@ -14,7 +15,14 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  enums,
+  matrixConfig,
+  metadata,
+  pendingPreset,
+} from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { askWarn, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -24,7 +32,6 @@ import {
   drawerHead,
   drawerQuestion,
   pickApplyMode,
-  registerDrawer,
   runApply,
   showTab,
   shownTab,
@@ -43,6 +50,13 @@ const FIELDS = [
   { name: "mode", type: "select", value: "pcm" },
 ];
 
+/** The /matrix form field the matrix family's crossfeed_enabled reads its baseline from. */
+const MATRIX_FIELDS = [{ name: "post_bauer_enabled", type: "checkbox", value: false }];
+
+/** The family the store names, and a key it holds that no fixture drawer holds. */
+const FAMILY = "matrix";
+const FAMILY_KEY = "crossfeed_enabled";
+
 /** @type {string[]} */
 let applies = [];
 
@@ -57,6 +71,7 @@ beforeEach(async () => {
   applies = [];
   stagingWire({ routes });
   config.value = { fields: FIELDS, file: {}, active: STATION, profiles: null };
+  matrixConfig.value = { fields: MATRIX_FIELDS, rows: [] };
   engineState.value = { adaptive: 0 };
   enums.value = null;
   metadata.value = null;
@@ -132,12 +147,9 @@ test("test_staged_edits_make_the_apply_buttons_live", async () => {
 });
 
 test("test_a_family_members_staged_edit_lights_the_apply_group_of_its_siblings_only", async () => {
-  const sibling = oneTab("f1-a", "volume_max", "f1");
-  const other = oneTab("f2-a", "volume_max", "f2");
-  registerDrawer(sibling);
-  registerDrawer(other);
-  registerDrawer(oneTab("f1-b", "quick_pause", "f1"));
-  await edit("quick_pause", "1");
+  const sibling = oneTab("m-a", "volume_max", FAMILY);
+  const other = oneTab("solo-a", "volume_max");
+  await edit(FAMILY_KEY, "1");
   const lit = [drawerHead(sibling, "only").apply.live, drawerHead(other, "only").apply.live];
   assert.deepEqual(lit, [true, false]);
 });
@@ -145,14 +157,6 @@ test("test_a_family_members_staged_edit_lights_the_apply_group_of_its_siblings_o
 test("test_a_staged_live_lane_edit_makes_the_apply_buttons_live", async () => {
   await edit("adaptive_volume", "1");
   assert.equal(drawerHead(twoTabs("d7"), "live").apply.live, true);
-});
-
-test("test_a_family_members_staged_live_lane_edit_lights_the_apply_group_of_its_sibling", async () => {
-  const sibling = oneTab("f3-a", "volume_max", "f3");
-  registerDrawer(sibling);
-  registerDrawer(oneTab("f3-b", "adaptive_volume", "f3"));
-  await edit("adaptive_volume", "1");
-  assert.equal(drawerHead(sibling, "only").apply.live, true);
 });
 
 test("test_a_drawer_shows_the_tab_last_picked", () => {

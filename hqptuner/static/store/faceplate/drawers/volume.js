@@ -3,7 +3,7 @@
 //
 // Fixed volume is one choice over two settings: Manual is the dBFS level switched on (`fixed_volume_enabled`), Auto is
 // Auto headroom at −3 or −6 dB (`optimal_iso`), and Auto supersedes Manual (store/schema/gray.js). A pick stages
-// through edit(), whose coupling switches the other setting off (store/actions.js applyFixedVolumeCoupling).
+// through edit(), whose coupling switches the other setting off (store/schema/couplings.js applyFixedVolumeCoupling).
 //
 // The Range block reads Min, Startup and Max through the staged store, grays with the volume range's own reason, shows
 // the loudness bounds for reference while loudness reaches the output (store/faceplate/volume.js), and carries the
@@ -13,12 +13,11 @@ import { volumeRange, volumeShown } from "../../signals.js";
 import { effective, isDirty, runningValue } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import { grayReason } from "../../ui/graying.js";
-import { isoLevel } from "../../schema/gray.js";
-import { truthy } from "../../../lib/coerce.js";
+import { fixedVolumeMode, isoLevel } from "../../schema/gray.js";
 import { AXIS_MAX, AXIS_MIN, clampVolume, num } from "../../../lib/volume.js";
 import { loudnessBounds } from "../volume.js";
 
-/** @typedef {"off" | "manual" | "auto"} FixedMode */
+/** @typedef {import("../../schema/gray.js").FixedMode} FixedMode */
 /** @typedef {"min" | "startup" | "max"} VolumeKey */
 /** @typedef {Record<VolumeKey, number>} VolumeTrio */
 
@@ -47,8 +46,7 @@ const HANDLES = ["min", "startup", "max"];
  * @returns {FixedMode}
  */
 export function fixedMode() {
-  if (isoLevel(effective("optimal_iso")) !== "0") return "auto";
-  return truthy(effective("fixed_volume_enabled")) ? "manual" : "off";
+  return fixedVolumeMode(effective);
 }
 
 /**
@@ -66,8 +64,8 @@ export async function pickFixedMode(v) {
     const running = isoLevel(runningValue("optimal_iso"));
     await edit("optimal_iso", running === "0" ? "1" : running);
   } else if (v === "off") {
-    if (isoLevel(effective("optimal_iso")) !== "0") await edit("optimal_iso", "0");
-    if (truthy(effective("fixed_volume_enabled"))) await edit("fixed_volume_enabled", "0");
+    if (fixedMode() === "auto") await edit("optimal_iso", "0");
+    if (fixedMode() === "manual") await edit("fixed_volume_enabled", "0");
   }
 }
 

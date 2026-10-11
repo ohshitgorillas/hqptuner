@@ -43,8 +43,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, metadata, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
-import { applyAll, discardAll, edit, previewPreset, lastApply } from "../../../../hqptuner/static/store/actions.js";
+import {
+  config,
+  matrixConfig,
+  metadata,
+  engineState,
+  enums,
+  lastApply,
+} from "../../../../hqptuner/static/store/signals.js";
+import { applyAll, discardAll, edit, previewPreset } from "../../../../hqptuner/static/store/actions.js";
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";

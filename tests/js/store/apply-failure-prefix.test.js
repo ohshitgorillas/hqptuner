@@ -16,7 +16,8 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { api } from "../../../hqptuner/static/lib/api.js";
-import { applyAll, lastApply } from "../../../hqptuner/static/store/actions.js";
+import { applyAll } from "../../../hqptuner/static/store/actions.js";
+import { lastApply } from "../../../hqptuner/static/store/signals.js";
 import { bad } from "../support/wire/wire.js";
 import { env, route, trees } from "../support/threetrees.js";
 

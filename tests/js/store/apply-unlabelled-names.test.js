@@ -20,8 +20,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { applyAll, lastApply } from "../../../hqptuner/static/store/actions.js";
-import { metadata } from "../../../hqptuner/static/store/signals.js";
+import { applyAll } from "../../../hqptuner/static/store/actions.js";
+import { metadata, lastApply } from "../../../hqptuner/static/store/signals.js";
 import { route, trees } from "../support/threetrees.js";
 
 // Each control with no label of its own, by the wire key the persistent lane

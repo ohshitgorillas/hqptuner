@@ -27,7 +27,7 @@ import {
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { pickApplyMode, registerDrawer, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
@@ -133,8 +133,6 @@ test("test_a_staged_dac_model_dots_the_dac_correction_title", async () => {
 });
 
 test("test_a_staged_dac_correction_edit_lights_the_matrix_engines_apply_group", async () => {
-  registerDrawer(MATRIX_DRAWER);
-  registerDrawer(CORRECTION_DRAWER);
   const discardOff = () => {
     const b = markup(MATRIX_DRAWER).find((e) => attr(e, "data-testid") === "discard");
     return b ? hasAttr(b, "disabled") : null;

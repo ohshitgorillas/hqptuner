@@ -89,14 +89,14 @@ function rowProse(spec, prose, label, here) {
 }
 
 /**
- * One row; nothing for an unknown key or a row its `when` leaves out.
+ * One row; nothing for an unknown key or a row not shown on its tab.
  *
  * @param {RowSpec} spec
  * @param {XrefHere} here  the drawer and tab the row is drawn on
  */
 function row(spec, here) {
   const entry = catalog[spec.key];
-  if (!entry || !rowShown(spec)) return null;
+  if (!entry || !rowShown(spec, here.tab)) return null;
   const { key } = spec;
   const prose = describe(entry, key);
   const label = spec.label ?? prose.label;

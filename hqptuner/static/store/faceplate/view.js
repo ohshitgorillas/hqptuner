@@ -2,9 +2,10 @@
 // option list is open over the body and which popover is open. One drawer, one list and one popover at a time. The
 // gear and the builders swap the whole body; the header, the engine row and the bottom bar stay.
 
-import { signal, computed } from "@preact/signals";
-import { plateFit } from "../../model/shell/plate.js";
+import { signal } from "@preact/signals";
 import { panelOpen, closePanel } from "../connpanel.js";
+
+export { viewport, plate } from "./plate.js";
 
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 
@@ -21,12 +22,6 @@ import { panelOpen, closePanel } from "../connpanel.js";
  * @property {string} [anchor]
  * @property {string} [omit]
  */
-
-/** The window's inner size, CSS px. The entry writes it at load and on every resize. */
-export const viewport = signal({ w: 1080, h: 810 });
-
-/** The plate's size and scale for the window. */
-export const plate = computed(() => plateFit(viewport.value));
 
 /** The body on the plate. @type {{ value: Body }} */
 export const body = signal(/** @type {Body} */ ("chain"));

@@ -205,4 +205,5 @@ interface SchemaField {
   appliesLive?: boolean;
   fileTruth?: boolean;
   rescan?: boolean;
+  fftChains?: Record<string, string[]>;
 }
