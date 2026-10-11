@@ -125,8 +125,8 @@ export const dsp = {
   channels: { label: "Output Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
   // Detented slider rather than a dropdown: the eight lengths are one scale
   // (short = gentler roll-off, long = steeper, manual §4.7), not eight names.
-  // Its row shows under whichever chain has an FFT filter selected
-  // (components/faceplate/drawers/modes.js).
+  // Its row shows on a chain's tab only while that chain's 1x or Nx filter,
+  // named under fftChains, is FFT-family (store/faceplate/drawer/grammar.js).
   fft_size: {
     label: "FFT filter length",
     group: "dsp",
@@ -136,6 +136,7 @@ export const dsp = {
     lane: "http",
     field: "fft_size",
     optionsFrom: "config",
+    fftChains: { pcm: ["pcm_filter_1x", "pcm_filter_nx"], sdm: ["sdm_filter_1x", "sdm_filter_nx"] },
   },
   pipelines: {
     label: "DSP pipelines",
