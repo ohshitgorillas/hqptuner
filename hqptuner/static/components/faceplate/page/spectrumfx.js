@@ -63,7 +63,7 @@ import { rgb } from "../tokencolours.js";
 const DT = STEP_MS / 1000;
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
 const CAP_PX = 2; // a peak cap's height, canvas pixels
-const RIDGE_SPAN = 0.65; // share of the plot height the ridge rows' baselines spread over, up from the floor
+const RIDGE_OVER = 0.5; // share of a row step the back ridge row's baseline sits above the plot's top
 const RIDGE_AMP = 0.35; // a full-scale ridge's height, share of the plot height
 const RIDGE_LINE = 1.5; // a ridge's stroke width, canvas pixels
 const TRACE_LINE = 1.5; // the fade trace's stroke width, CSS pixels, as the SVG trace's
@@ -143,7 +143,8 @@ function ridgeInk(colours, k) {
 
 /**
  * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide, its
- * stroke dimmer the older it is.
+ * stroke dimmer the older it is. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past
+ * the top, so the stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
  *
  * @param {Frame} f
  */
@@ -152,7 +153,7 @@ function ridges(f) {
   const { width: w, height: h } = canvas;
   state.ridges = stepRidges(state.ridges, f.fracs);
   const rows = state.ridges.rows;
-  const step = (h * RIDGE_SPAN) / (RIDGE_ROWS - 1);
+  const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = colours.glass;
   ctx.lineWidth = RIDGE_LINE;

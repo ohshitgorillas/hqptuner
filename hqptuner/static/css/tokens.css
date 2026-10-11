@@ -211,6 +211,9 @@
   --axis-h:14px;           /* a plot's x-axis row; the L / R row under the level bars */
   --strip-h:12px;          /* the apodizing strip */
   --lv-scale-w:48px;       /* the level scale column */
+  --spectrum-gutter-w:48px; /* the spectrum's dB gutter: its widest label, its inset and its tick */
+  --levels-gap:38px;       /* the gap between the spectrum and the levels */
+  --levels-gap-slim:28px;  /* the same, slim page meter */
   --lv-bar:24px;           /* a level bar's trough */
   --lv-bar-slim:18px;      /* a level bar's trough, slim page meter */
   --lvtab-l:44px;          /* a short label's column: the readout table's, the loudness range boxes', the pipeline pager's page label, least */
