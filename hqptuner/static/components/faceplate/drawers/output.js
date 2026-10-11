@@ -11,7 +11,7 @@ import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { describe } from "../../../store/prose.js";
 import { effective, isDirty } from "../../../store/resolve.js";
-import { groupShown } from "../../../store/faceplate/drawer.js";
+import { groupShown, restartLane } from "../../../store/faceplate/drawer.js";
 import { channelLayout, pickChannelLayout } from "../../../store/faceplate/drawers/output.js";
 import { DISCOVERY, MODES } from "../../../store/schema/options.js";
 import { keyControl, labelHead, segButtons } from "../drawer/controls.js";
@@ -29,6 +29,9 @@ const RATE = {
   label: "Output rate",
   sub: "PCM and SDM target rates",
 };
+
+/** The two settings the rate dial carries. */
+const RATE_KEYS = ["pcm_rate", "sdm_rate"];
 
 /** The layout segment: the common layouts by channel count, Manual opening the number. */
 const LAYOUT = {
@@ -74,7 +77,7 @@ export const OUTPUT_DRAWER = {
       label: "Format",
       body: [
         { row: { key: "output_mode", options: MODE_OPTIONS } },
-        { block: "dial", keys: ["pcm_rate", "sdm_rate"] },
+        { block: "dial", keys: RATE_KEYS },
         { block: "channels", keys: ["channels"] },
         { group: "network", label: BACKEND_NAMES.network, rows: formatRows("net") },
         { group: "alsa", label: BACKEND_NAMES.alsa, rows: formatRows("alsa") },
@@ -98,10 +101,10 @@ export const OUTPUT_DRAWER = {
   ],
 };
 
-/** The Rate row: the dial under its label line, spanning the row. */
+/** The Rate row: the dial under its label line, spanning the row, the label marked when either rate restarts. */
 const RateRow = () => html`
   <div class="drow drow-full">
-    <div class="ctl"><${RateDial} label=${RATE.label} sub=${RATE.sub} /></div>
+    <div class="ctl"><${RateDial} label=${RATE.label} sub=${RATE.sub} restarts=${RATE_KEYS.some(restartLane)} /></div>
   </div>
 `;
 
@@ -113,7 +116,7 @@ function ChannelsRow() {
   return html`
     <div class="drow" data-k="channels" data-dirty=${isDirty("channels") ? "" : undefined}>
       <div class="ctl">
-        ${labelHead(label)}
+        ${labelHead(label, { restarts: restartLane("channels") })}
         <div class="cgrp">
           ${segButtons({ options: LAYOUT.options, value: layout, label: LAYOUT.aria, off: false, pick: pickChannelLayout })}
           ${keyControl({ key: "channels", entry, label, off: layout !== "manual" })}
@@ -134,7 +137,7 @@ function DeviceRow({ schema, k, backend }) {
   const { label, tooltip } = describe(catalog[k], k);
   return html`
     <div class="drow" data-k=${k} data-dirty=${isDirty(k) ? "" : undefined}>
-      <div class="ctl">${labelHead(label)} <${DevicePicker} schema=${schema} k=${k} /></div>
+      <div class="ctl">${labelHead(label, { restarts: restartLane(k) })} <${DevicePicker} schema=${schema} k=${k} /></div>
       <div class="man"><p>${tooltip}</p></div>
     </div>
   `;

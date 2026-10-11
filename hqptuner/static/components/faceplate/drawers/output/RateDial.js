@@ -277,15 +277,16 @@ const PinPicker = ({ pick }) => html`
  * The rate dial over `pcm_rate` and `sdm_rate` under its row's label line: both bands, their needles, the hatch, the
  * playing lamp, and while pinned rates are allowed the pin picker on the label line and the pinned rate's box.
  *
- * @param {{ label: string, sub?: string }} props  the row's label and sublabel
+ * @param {{ label: string, sub?: string, restarts: boolean }} props  the row's label and sublabel, and whether its
+ *   label carries the restart mark
  */
-export function RateDial({ label, sub }) {
+export function RateDial({ label, sub, restarts }) {
   const view = dialView();
   const scale = dialScale(view.tiers.length, W, X0);
   const seam = seamX(scale, view.tiers);
   const picker = view.picker === null ? null : html`<${PinPicker} pick=${view.picker} />`;
   return html`
-    ${labelHead(label, sub, undefined, picker)}
+    ${labelHead(label, { sub, restarts, tail: picker })}
     <div
       class="dial"
       role="group"

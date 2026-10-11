@@ -1,6 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/Header.js, the faceplate's header row: the brand knob shows
 // the connection state, the Station · Snapshot tree loads stations and applies the loaded station's snapshots, and
-// the builders and the gear swap the body, each pressed while its body shows.
+// the builders and the gear swap the body, each pressed while its body shows. Every station but the loaded one carries
+// the restart mark, in the mark's one style (`.rs`, the faceplate spec's "Drawers (all)").
 //
 // A fetch fake answers the real REST paths with their real shapes and records every request; no store function is
 // stubbed. Taps are fired through the renderer's vnode seam, since render-to-string fires no events. Preset and
@@ -37,7 +38,7 @@ import {
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { elements, attr, text, hasAttr } from "../../support/markup.js";
+import { elements, attr, text, hasAttr, classes } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
 
@@ -244,4 +245,39 @@ test("test_the_gear_is_pressed_while_the_settings_body_shows", () => {
 
 test("test_the_gear_is_not_pressed_while_the_chain_shows", () => {
   assert.equal(attrOf("settings", "aria-pressed"), "false");
+});
+
+/** The station names the fixture's config offers, in the order the mark tests read them. */
+const STATIONS = ["Day", "Night"];
+
+/** Whether one scanned element encloses another, itself included. */
+const encloses = (/** @type {MarkupElement} */ outer, /** @type {MarkupElement} */ inner) =>
+  outer.start <= inner.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * Whether each station's row carries a restart mark, in STATIONS order. A mark belongs to a station when the
+ * smallest element around it that holds any station name holds that station's name alone.
+ */
+function marksByStation() {
+  const all = elements(render(html`<${Header} />`));
+  const names = all.filter((e) => attr(e, "data-testid") === "station-name");
+  const owner = (/** @type {MarkupElement} */ mark) => {
+    const row = all
+      .filter((e) => e !== mark && encloses(e, mark) && names.some((n) => encloses(e, n)))
+      .sort((a, b) => a.html.length - b.html.length)[0];
+    const held = row === undefined ? [] : names.filter((n) => encloses(row, n));
+    return held.length === 1 ? text(held[0]) : undefined;
+  };
+  const marks = all.filter((e) => classes(e).includes("rs"));
+  return STATIONS.map((s) => marks.some((m) => owner(m) === s));
+}
+
+test("test_with_day_loaded_only_night_carries_the_restart_mark", () => {
+  config.value = { ...config.value, active: "Day" };
+  assert.deepEqual(marksByStation(), [false, true]);
+});
+
+test("test_with_night_loaded_only_day_carries_the_restart_mark", () => {
+  config.value = { ...config.value, active: "Night" };
+  assert.deepEqual(marksByStation(), [true, false]);
 });

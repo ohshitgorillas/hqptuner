@@ -4,6 +4,15 @@
 // a band away, and the write a key makes. The picker: the list opening from its trigger, a tap
 // staging a device and closing the list, the current and dirty marks, and the rescan.
 //
+// The whole drawer, drawn by the generic drawer from the Output schema with nothing staged: the restart mark on the rows
+// it draws its own way rather than as plain rows. The output device row, the Channels row and the rate dial row each
+// edit a setting that restarts the engine (an http field in docs/spec/settings-classification.md: the per-backend
+// output device, `channels`, the rate limits), so each carries the mark from the moment the drawer is drawn, before
+// any edit. The Output mode row is the live reference in the same drawer: `SetMode` applies it at once, so it carries
+// none, and a drawer that marked every row fails on it. The mark is found by its one style, the `rs` class token, so
+// no copy is asserted; the Channels and Output mode rows are found by catalog key (`data-k`), the device row as the
+// smallest drawer row enclosing the network device picker, the rate row as the smallest drawer row enclosing the dial.
+//
 // Renders through preact-render-to-string. A handler is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. Controls are found by wire identifiers: a band (`data-band`), a tier's position (`data-i`), a
 // device's value (`data-v`) or a `data-testid`.
@@ -20,6 +29,8 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { RateDial } from "../../../../hqptuner/static/components/faceplate/drawers/output/RateDial.js";
 import { DevicePicker } from "../../../../hqptuner/static/components/faceplate/drawers/output/DevicePicker.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
+import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
 import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
@@ -211,4 +222,73 @@ test("test_the_rescan_cost_shows_only_while_auto_save_puts_live_settings_back", 
   const on = shown();
   load({ autosave: false });
   assert.deepEqual([on, shown()], [1, 0]);
+});
+
+/** The mark's one style, shared by every surface that carries it. */
+const MARK = "rs";
+
+/** The drawer row style every row carries. */
+const ROW = "drow";
+
+/** Restart-lane key: the channel count. */
+const CHANNELS = "channels";
+
+/** Live-lane key: the output mode, set at once by `SetMode`. */
+const OUTPUT_MODE = "output_mode";
+
+const drawer = () => elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * The smallest drawer row enclosing the first element matching `pred`, or undefined when none does.
+ *
+ * @param {MarkupElement[]} all
+ * @param {(e: MarkupElement) => boolean} pred
+ */
+function rowAround(all, pred) {
+  const inner = all.find(pred);
+  if (!inner) return undefined;
+  return all
+    .filter((e) => classes(e).includes(ROW) && within(inner, e))
+    .sort((a, b) => a.html.length - b.html.length)[0];
+}
+
+/**
+ * Whether `row` carries the restart mark, or null when the row is not drawn at all.
+ *
+ * @param {MarkupElement | undefined} row
+ * @returns {boolean | null}
+ */
+const marked = (row) => (row ? elements(row.html).some((e) => classes(e).includes(MARK)) : null);
+
+/** @param {MarkupElement[]} all @param {string} key */
+const rowOf = (all, key) => all.find((e) => classes(e).includes(ROW) && attr(e, "data-k") === key);
+
+/** @param {MarkupElement[]} all */
+const deviceRow = (all) => rowAround(all, (e) => classes(e).includes("devpick") && attr(e, "data-k") === "net_device");
+
+/** @param {MarkupElement[]} all */
+const rateRow = (all) => rowAround(all, (e) => classes(e).includes("dial") && attr(e, "role") === "group");
+
+test("test_an_unedited_output_device_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
+  const all = drawer();
+  assert.deepEqual([marked(deviceRow(all)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
+});
+
+test("test_an_unedited_channels_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
+  const all = drawer();
+  assert.deepEqual([marked(rowOf(all, CHANNELS)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
+});
+
+test("test_an_unedited_rate_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
+  const all = drawer();
+  assert.deepEqual([marked(rateRow(all)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
 });

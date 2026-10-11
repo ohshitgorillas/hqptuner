@@ -1,5 +1,5 @@
 // A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
-// reason) beside the setting's paragraph, then, under it, every option with its line (`optMan`) or a select's picked
+// reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine, then, under it, every option with its line (`optMan`) or a select's picked
 // option's line. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
 // resolution, the gray reason from the schema's own rule; a control writes through edit(). Beside rows: a field and a
 // choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by the schema's backend, an
@@ -11,7 +11,7 @@ import { describe } from "../../../store/prose.js";
 import { isDirty } from "../../../store/resolve.js";
 import { grayReason } from "../../../store/ui/graying.js";
 import { edit } from "../../../store/actions.js";
-import { groupShown, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
+import { groupShown, restartLane, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
 import { alertsNow } from "../../../store/faceplate/alerts.js";
 import { worseBlink } from "../../../model/shell/alerts.js";
 import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
@@ -101,13 +101,14 @@ function row(spec, here) {
   const prose = describe(entry, key);
   const label = spec.label ?? prose.label;
   const gray = grayReason(key);
+  const head = labelHead(label, { sub: spec.sub, band: spec.band, restarts: restartLane(key) });
   const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
   const lit = (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
     .filter((r) => r.label === key && (!r.chain || r.chain === here.tab))
     .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
   return html`
     <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
-      <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
+      <div class="ctl">${head} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
       <div class="man">${rowProse(spec, prose, label, here)}</div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry, here)}
     </div>
