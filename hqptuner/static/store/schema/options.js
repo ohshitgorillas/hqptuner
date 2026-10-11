@@ -79,6 +79,22 @@ export const ON_OFF = [
   { value: "1", label: "ON" },
   { value: "0", label: "OFF" },
 ];
+// The engine's hardware attributes, in the daemon's own spelling (readme §1.2).
+export const MULTICORE = [
+  { value: "auto", label: "Auto" },
+  { value: "1", label: "Enabled" },
+  { value: "0", label: "Disabled" },
+];
+export const ECORES = [
+  { value: "default", label: "Disabled" },
+  { value: "pool", label: "DSP pool" },
+  { value: "filter", label: "Resampling" },
+];
+export const CUDA = [
+  { value: "0", label: "Disabled" },
+  { value: "1", label: "Full offload" },
+  { value: "convolution", label: "Convolution only" },
+];
 export const DSD_TRANSPORT = [
   { value: "0", label: "Native DSD" },
   { value: "1", label: "DSD over PCM (DoP)" },

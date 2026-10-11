@@ -1,13 +1,17 @@
 // Three-tree resolution: given a schema key, what does a control render, what is
-// its baseline, and is it dirty? Reads the source signals (store/signals.js) and
-// the speakers form with its drafted switch (store/matrix/speakers.js), and
-// nothing else — no writes. The write side is store/actions.js.
+// its baseline, and is it dirty? Reads the source signals (store/signals.js), the
+// speakers form with its drafted switch (store/matrix/speakers.js) and the
+// engine's hardware form with its draft (store/faceplate/settings/hardware.js),
+// and nothing else — no writes. The write side is store/actions.js.
 
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
 import { truthy } from "../lib/coerce.js";
 import { config, engineState, matrixConfig, staged, liveOverride, previewConfig } from "./signals.js";
 import { daemonGate, gateDraft } from "./matrix/speakers.js";
+import { hardwareDraft } from "./faceplate/settings/hardware.js";
+
+/** @typedef {import("./faceplate/settings/hardware.js").HardwareKey} HardwareKey */
 
 // A form's fields keyed by name — the baseline/constraint source a control
 // reads from. Empty until that form has been polled at least once.
@@ -201,13 +205,41 @@ function formValue(entry) {
   return f.value;
 }
 
+// The lanes a drawer's own form writes, never the config staging buffer: each key
+// reads what its daemon holds and the form's draft over it, and the form's own
+// apply sends the draft. A hardware key is the engine attribute of the same name.
+/**
+ * @typedef {object} OwnForm
+ * @property {(key: string) => string | boolean} running  what the daemon holds for the key
+ * @property {(key: string) => string | boolean | undefined} draft  the form's draft for the key, if any
+ */
+
+/** @type {Record<string, OwnForm>} */
+const OWN_FORMS = {
+  speakers: { running: () => daemonGate(), draft: () => gateDraft.value ?? undefined },
+  hardware: {
+    running: (key) => hardwareDraft().base[/** @type {HardwareKey} */ (key)],
+    draft: (key) => hardwareDraft().values[/** @type {HardwareKey} */ (key)],
+  },
+};
+
+/**
+ * The form an entry's lane writes through, or null for a lane the config staging buffer carries.
+ *
+ * @param {SchemaField} entry
+ * @returns {OwnForm | null}
+ */
+const ownForm = (entry) => (Object.hasOwn(OWN_FORMS, entry.lane) ? OWN_FORMS[entry.lane] : null);
+
 /**
  * @param {SchemaField} entry
+ * @param {string} key
  * @returns {string | number | boolean | undefined}
  */
-function baseline(entry) {
+function baseline(entry, key) {
   if (entry.lane === "live") return (engineState.value || {})[stateKey(entry)];
-  if (entry.lane === "speakers") return daemonGate();
+  const form = ownForm(entry);
+  if (form) return form.running(key);
   // Not a form field: with no file truth (read-only mode) formValue finds nothing
   // and it reads permanently dirty against undefined. pipelineBaseline already
   // picks file-truth-or-form-rows; re-canonicalized to keep the compare a string.
@@ -216,14 +248,16 @@ function baseline(entry) {
   return grounded ? grounded.value : formValue(entry);
 }
 
-// The speakers lane stages nothing in the config staging buffer: its edit is the
-// switch drafted over the daemon's /speakers form, which the form's own apply sends.
+// An own-form lane stages nothing in the config staging buffer: its edit is the
+// form's draft, which the form's own apply sends.
 /**
  * @param {SchemaField} entry
+ * @param {string} key
  * @returns {string | boolean | undefined}
  */
-function stagedValue(entry) {
-  if (entry.lane === "speakers") return gateDraft.value ?? undefined;
+function stagedValue(entry, key) {
+  const form = ownForm(entry);
+  if (form) return form.draft(key);
   const st = staged.value;
   if (entry.lane === "live") {
     const bucket = st.live[entry.liveKey || ""];
@@ -247,7 +281,8 @@ export function runningValue(key) {
   const e = schema[key];
   if (!e) return undefined;
   if (e.lane === "live") return (engineState.value || {})[stateKey(e)];
-  if (e.lane === "speakers") return daemonGate();
+  const form = ownForm(e);
+  if (form) return form.running(key);
   if (e.fileTruth || e.appliesLive) {
     const fv = fileConfig.value[fieldKey(e)];
     if (fv !== undefined) return fv;
@@ -269,8 +304,8 @@ export function effective(key) {
   if (!e) return undefined;
   const lo = liveOverride.value[key];
   if (lo !== undefined) return lo; // active knob drag wins
-  const sv = stagedValue(e);
-  return sv !== undefined ? sv : baseline(e);
+  const sv = stagedValue(e, key);
+  return sv !== undefined ? sv : baseline(e, key);
 }
 
 // Boolean values cross domains: config baseline is a bool, staged is "1"/"0".
@@ -278,8 +313,8 @@ export function effective(key) {
 // stops reading as dirty (else it stays highlighted until Discard). That is every
 // checkbox plus every `bool` entry — the enable gates render as two-button
 // segments but their value is a truth, not a token (see Field.js controlValue).
-// A speakers-lane draft is never dirty here: it rides the speakers form's own
-// apply, so it stays out of the pending-changes count and the stage drop list.
+// An own-form lane's draft is never dirty here: it rides its form's own apply,
+// so it stays out of the pending-changes count and the stage drop list.
 /**
  * Whether a key's staged value differs from its baseline, compared in the
  * control's own domain.
@@ -289,10 +324,10 @@ export function effective(key) {
  */
 export function isDirty(key) {
   const e = schema[key];
-  if (!e || e.lane === "speakers") return false;
-  const sv = stagedValue(e);
+  if (!e || ownForm(e)) return false;
+  const sv = stagedValue(e, key);
   if (sv === undefined) return false;
-  const base = baseline(e);
+  const base = baseline(e, key);
   if (e.widget === "checkbox" || e.bool) return truthy(sv) !== truthy(base);
   return String(sv) !== String(base);
 }
