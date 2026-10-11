@@ -1,6 +1,7 @@
 // Painter suite for hqptuner/static/components/faceplate/page/sourcepaint.js: what one paint writes into the page's
-// Source section. Given a meter scene and the page's Range, the spectrum's trace and its filled area, and no held peaks;
-// given the Levels floor, each level bar's peak, RMS and hold; and the readings table's held peak and RMS.
+// Source section. Given a meter scene and the page's Range, the spectrum's trace and its filled area, and its ghost as
+// the held-peaks path under the Trace style only; given the Levels floor, each level bar's peak, RMS and hold; and the
+// readings table's held peak and RMS.
 //
 // The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″, so the
 // readings table is drawn. The painter needs a live element to write into, and node has none: the rendered markup is
@@ -226,12 +227,12 @@ function columns(floor, at = {}) {
 }
 
 /**
- * A scene: the given levels, and a spectrum showing `disp`.
+ * A scene: the given levels, and a spectrum showing `disp` with its ghost at `ghost`.
  *
- * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array }} [o]
+ * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array, ghost?: Float32Array }} [o]
  */
-function scene({ levels = [{}, {}], disp = columns(-200) } = {}) {
-  const spectrum = { disp };
+function scene({ levels = [{}, {}], disp = columns(-200), ghost = disp } = {}) {
+  const spectrum = { disp, ghost };
   const full = levels.map((lv) => ({ peak: -200, rms: -200, hold: -200, holdAt: 0, ...lv }));
   return { levels: full, spectrum, raw: null };
 }
@@ -408,8 +409,8 @@ function styled(sc, range, style) {
   return root;
 }
 
-/** A scene with something to draw: the trace at -45 dBFS. */
-const busy = () => scene({ disp: columns(-45) });
+/** A scene with something to draw in every path: the trace at -45 dBFS, its ghost at -9 dBFS on column 300. */
+const busy = () => scene({ disp: columns(-45), ghost: columns(-45, { 300: -9 }) });
 
 for (const style of ["bars", "ridges", "aurora"]) {
   for (const cls of ["strace", "sarea"]) {
@@ -419,12 +420,17 @@ for (const style of ["bars", "ridges", "aurora"]) {
   }
 }
 
-for (const style of ["trace", "bars", "ridges", "aurora"]) {
+for (const style of ["bars", "ridges", "aurora"]) {
   test(`test_a_${style}_paint_draws_no_held_peaks_path`, () => {
     setSpectrumStyle(style);
     assert.deepEqual(pointsOf(styled(busy(), 90, style), "shold"), []);
   });
 }
+
+test("test_a_trace_paint_draws_the_ghost_where_it_sits_not_where_the_trace_sits", () => {
+  const root = styled(scene({ disp: columns(-72), ghost: columns(-72, { 100: -18, 300: -9 }) }), 90, "trace");
+  assert.deepEqual([yAt(root, "shold", 100), yAt(root, "shold", 300)], [34, 17]);
+});
 
 test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace", () => {
   setSpectrumStyle("aurora");

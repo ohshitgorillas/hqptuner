@@ -50,7 +50,7 @@ function setOn(root, sel, name, value) {
   if (el) el.setAttribute(name, value);
 }
 
-/** The spectrum styles the SVG draws the trace and its area under. */
+/** The spectrum styles the SVG draws the trace, its area and its ghost under. */
 const TRACED = new Set(["trace"]);
 
 /**
@@ -69,6 +69,7 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   const line = sp && TRACED.has(style) ? pathOf(sp.disp, range) : "";
   setOn(root, "path.strace", "d", line);
   setOn(root, "path.sarea", "d", line && `${line} L${SW},${SH} L0,${SH} Z`);
+  setOn(root, "path.shold", "d", sp && TRACED.has(style) ? pathOf(sp.ghost, range) : "");
   const floor = levelsFloor();
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => {
     const lv = scene.levels[i];

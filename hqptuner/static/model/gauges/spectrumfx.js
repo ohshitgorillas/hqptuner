@@ -15,7 +15,7 @@ export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fracti
 export const RIDGE_ROWS = 12; // ridge rows kept, newest first
 export const RIDGE_EVERY = 6; // steps between ridge rows
 const HALO_START = 0.5; // the halo's glow where the trace has just been, share of the trace's strength
-const HALO_TAU_S = 0.2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
+const HALO_TAU_S = 2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
 
 /**
  * Peak caps, one per band: where each sits and how long since its band last reached it. Float32 storage is part of the

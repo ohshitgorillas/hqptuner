@@ -1,7 +1,7 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
 // spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
-// gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as columns that glow brightest half way up
-// the plot, coloured by level through the painter's ramp, over a transparent clear.
+// gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as columns rising from the plot's floor to
+// their level, each coloured base to crown through the painter's ramp, over a transparent clear.
 
 import { AURORA_GRAVITY, BANDS, bandsOf, fractionsOf, stepGravity } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
@@ -94,11 +94,11 @@ function quad(gl) {
 
 /**
  * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
- * one meter scene's spectrum column levels at `range` dB as northern lights coloured by level through `ramp`, `clear`
- * empties the canvas. A paint with no levels, or a clear, starts the bands' fall afresh.
+ * one meter scene's spectrum column levels at `range` dB as northern lights coloured base to crown through `ramp`,
+ * `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall afresh.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {ArrayLike<number>} ramp  colour stops, floor to full scale, one RGB triple each in one flat list, each 0 to 1
+ * @param {ArrayLike<number>} ramp  colour stops, base to crown, one RGB triple each in one flat list, each 0 to 1
  */
 export function auroraPainter(canvas, ramp) {
   const stops = Math.max(1, Math.floor(ramp.length / RGB));

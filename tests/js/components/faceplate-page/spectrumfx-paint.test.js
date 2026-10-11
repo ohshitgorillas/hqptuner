@@ -112,14 +112,14 @@ function fakeCanvas() {
 }
 
 /**
- * A spectrum hold with every column at `db`.
+ * A spectrum hold with every column at `db`, its ghost sitting on the shown level.
  *
  * @param {number} db
  * @returns {SpectrumHold}
  */
 function hold(db) {
   const disp = new Float32Array(COLS).fill(db);
-  return { disp };
+  return { disp, ghost: disp };
 }
 
 /**

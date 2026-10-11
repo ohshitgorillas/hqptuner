@@ -1,7 +1,9 @@
 // cava's pass-through vertex shader, ported from GLSL 330 to GLSL ES 3.00 for WebGL2, and a fragment shader adapted
-// from cava's northern lights shader: each pixel's level blends between the two nearest band centres, column edges
-// fall to half the centre brightness rather than to black, and where cava scales one colour by level, the colour is
-// sampled by level from a ramp of stops and brightness rises steeply above a knee, so quiet columns go dark.
+// from cava's northern lights shader: each pixel's level blends between the two nearest band centres and column edges
+// fall to half the centre brightness rather than to black, as in cava. Where cava scales one colour by level in a glow
+// centred on the plot's middle, each column here rises from the plot's floor to its level, the colour is sampled from
+// a ramp of stops by the pixel's height over that level, base to crown, and the glow fades out through the crown and
+// grows with the level above a knee, so quiet columns go dark.
 //
 // Source: output/shaders/northern_lights.frag and output/shaders/pass_through.vert,
 // https://github.com/karlstav/cava/blob/master/output/shaders/northern_lights.frag
@@ -36,12 +38,17 @@ uniform int bars_count;
 
 uniform vec3 ramp[STOPS];
 
-// The level at and below which a column is dark, on the ramp's floor.
+// The level at and below which a column is dark.
 const float KNEE = 0.03;
-// The span of ramp above the knee over which a column's glow rises from dark to full.
+// The span of level above the knee over which a column's glow rises from dark to its level's brightness.
 const float FADE = 0.25;
-// The power on the fall from mid-plot to the plot's top and bottom edges.
-const float SHAPE = 0.6;
+// A column's brightness at the knee's top and at full scale, a share of the ramp's own.
+const float DIM = 0.55;
+const float FULL = 1.0;
+// The heights, shares of a column's own, between which its glow fades out: above its level it fades in the crown's
+// colour.
+const float CROWN_FROM = 0.8;
+const float CROWN_TO = 1.25;
 
 vec3 sample_ramp(float t)
 {
@@ -61,15 +68,16 @@ void main()
     float level = mix(bars[i0], bars[i1], smoothstep(0.0, 1.0, pos - pos_floor));
 
     float lit = clamp((level - KNEE) / (1.0 - KNEE), 0.0, 1.0);
-    float bar_y = 1.0 - abs((fragCoord.y - 0.5)) * 2.0;
-    float y = smoothstep(0.0, FADE, lit) * pow(max(bar_y, 0.0), SHAPE);
+    float h = fragCoord.y / max(level, 1e-4);
+    float glow = smoothstep(0.0, FADE, lit) * mix(DIM, FULL, lit);
+    float y = glow * (1.0 - smoothstep(CROWN_FROM, CROWN_TO, h));
 
     float bar_x = (fragCoord.x - float(bar) / float(bars_count)) * float(bars_count);
     float bar_r = 1.0 - abs((bar_x - 0.5)) * 2.0;
 
     bar_r = 0.5 + 0.5 * bar_r * bar_r;
 
-    vec3 colour = clamp(sample_ramp(lit) * y * bar_r, 0.0, 1.0);
+    vec3 colour = clamp(sample_ramp(clamp(h, 0.0, 1.0)) * y * bar_r, 0.0, 1.0);
     fragColor = vec4(colour, max(colour.r, max(colour.g, colour.b)));
 }
 `;

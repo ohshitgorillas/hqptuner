@@ -156,6 +156,7 @@ function Spectrum({ view, plot, fx, sgl }) {
               ${view.freq.ticks.slice(1).map((t) => html`<line x1=${t.at * SW} x2=${t.at * SW} y1="0" y2=${SH} />`)}
             </g>
             <path class="sarea" />
+            <path class="shold" />
             <path class="strace" />
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>
@@ -247,7 +248,7 @@ function fxColours(el) {
 const unitRgb = (value, fallback) => rgb(value, fallback).map((c) => c / CHANNEL_MAX);
 
 /**
- * The aurora style's colour ramp, floor to full scale, read from the --aurora-* stops in force on `el`: one RGB triple
+ * The aurora style's colour ramp, base to crown, read from the --aurora-* stops in force on `el`: one RGB triple
  * per stop in one flat list, each channel 0 to 1, a stop that is not a hex colour standing in as --meter's amber.
  *
  * @param {Element} el

@@ -4,6 +4,7 @@
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
+const SPEC_GHOST_TAU_MS = 1000; // ghost relaxation time constant: about a thirtieth of its gap closed per 30 Hz frame
 const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed (engine/meterfeed.py)
 const BIN_BYTES = 2; // bytes a bin's steps travel in, low byte first
 const HIGH_BYTE = 256; // steps one count of the high byte stands for
@@ -19,7 +20,8 @@ const SMOOTH_COLS = 2; // trace columns averaged either side of each, across fre
  * stored.
  *
  * @typedef {object} SpectrumHold
- * @property {Float32Array} disp  shown level, dBFS
+ * @property {Float32Array} disp   shown level, dBFS
+ * @property {Float32Array} ghost  held peak, dBFS, never below `disp`
  */
 
 /**
@@ -47,13 +49,16 @@ const SMOOTH_COLS = 2; // trace columns averaged either side of each, across fre
  * @returns {SpectrumHold}
  */
 export function emptySpectrum(bins) {
-  return { disp: new Float32Array(bins).fill(FLOOR_DB) };
+  return { disp: new Float32Array(bins).fill(FLOOR_DB), ghost: new Float32Array(bins).fill(FLOOR_DB) };
 }
 
 /**
  * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, and a fall closes the same share
  * of the gap left to the new level each frame of a given length, so it lands fast, settles gently and never passes below
- * the level it falls to; on a jump the new levels show outright.
+ * the level it falls to. Each bin's ghost rises with the shown level at once and, while it sits above it, closes a
+ * smaller fixed share of its gap to the shown level each frame of a given length, so it keeps the shape of the trace it
+ * came from as it settles, with no hold, and never passes below the shown level. On a jump the new levels show
+ * outright and the ghost lands on them.
  *
  * @param {SpectrumHold} prev
  * @param {ArrayLike<number>} levels  this frame's bin levels, dBFS
@@ -64,7 +69,9 @@ export function emptySpectrum(bins) {
 export function stepSpectrum(prev, levels, { dt }, jump) {
   const left = Math.exp((-dt * 1000) / SPEC_FALL_TAU_MS);
   const disp = Float32Array.from(levels, (v, i) => (jump || v > prev.disp[i] ? v : v + (prev.disp[i] - v) * left));
-  return { disp };
+  const kept = jump ? 0 : Math.exp((-dt * 1000) / SPEC_GHOST_TAU_MS);
+  const ghost = disp.map((d, i) => d + Math.max(0, prev.ghost[i] - d) * kept);
+  return { disp, ghost };
 }
 
 /**

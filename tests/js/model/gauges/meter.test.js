@@ -1,6 +1,6 @@
 // Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin bytes, folding
 // feed frames, picking a channel's bins, spreading bins across trace columns, where a level sits on a bar, how the shown
-// spectrum rises and falls, and the level ballistics and hold.
+// spectrum and its ghost rise and fall, and the level ballistics and hold.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
 // Nothing here reads a clock or waits on one.
@@ -47,17 +47,28 @@ const nearEach = (actual, expected, tol) => [
 ];
 
 /**
- * The one bin's shown level after the rows run in order from an empty spectrum.
+ * The spectrum hold after each row's levels run in order from an empty spectrum, one level a bin, read with the ghost
+ * optional so a hold without one fails the ghost cases on their assertions.
+ *
+ * @param {{ now: number, dt: number, levels: number[], jump?: boolean }[]} rows
+ * @returns {{ disp: ArrayLike<number>, ghost?: ArrayLike<number> }}
+ */
+const holdAfter = (rows) =>
+  rows.reduce(
+    (st, row) => stepSpectrum(st, Float64Array.from(row.levels), { now: row.now, dt: row.dt }, row.jump ?? false),
+    emptySpectrum(rows[0].levels.length),
+  );
+
+/**
+ * The one bin's shown level and ghost after the rows run in order from an empty spectrum; the ghost is NaN where the
+ * hold carries none.
  *
  * @param {SpectrumRow[]} rows
- * @returns {{ disp: number }}
+ * @returns {{ disp: number, ghost: number }}
  */
 function spectrumAfter(rows) {
-  const end = rows.reduce(
-    (st, row) => stepSpectrum(st, Float64Array.of(row.level), { now: row.now, dt: row.dt }, row.jump ?? false),
-    emptySpectrum(1),
-  );
-  return { disp: end.disp[0] };
+  const end = holdAfter(rows.map((row) => ({ ...row, levels: [row.level] })));
+  return { disp: end.disp[0], ghost: end.ghost?.[0] ?? NaN };
 }
 
 //: One frame of a falling trace: its dt in seconds and the same step in ms.
@@ -273,6 +284,49 @@ test("test_a_falling_level_is_never_shown_below_the_new_level", () => {
     { now: 1000 * LONG_FRAME_S, dt: LONG_FRAME_S, level: QUIETER },
   ]).disp;
   assert.ok(end >= QUIETER, `shown ${end} dBFS, below the ${QUIETER} dBFS it falls to`);
+});
+
+// ── Ghost ────────────────────────────────────────────────────────────────
+
+test("test_a_rising_trace_lifts_its_ghost_to_the_new_level_at_once", () => {
+  assert.equal(
+    spectrumAfter([
+      { now: 0, dt: FRAME_S, level: QUIETER },
+      { now: FRAME_MS, dt: FRAME_S, level: LOUD },
+    ]).ghost,
+    LOUD,
+  );
+});
+
+test("test_a_falling_trace_leaves_its_ghost_above_it", () => {
+  const end = spectrumAfter(falling(QUIETER, 1));
+  assert.ok(end.ghost > end.disp, `ghost ${end.ghost} dBFS, not above the ${end.disp} dBFS trace`);
+});
+
+test("test_a_ghost_leaves_the_level_it_came_from_on_the_first_frame_of_a_fall", () => {
+  const ghost = spectrumAfter(falling(QUIETER, 1)).ghost;
+  assert.ok(ghost < LOUD, `ghost ${ghost} dBFS, still at the ${LOUD} dBFS it fell from`);
+});
+
+test("test_a_ghost_is_never_below_the_trace_after_a_long_frame", () => {
+  const end = spectrumAfter([
+    { now: 0, dt: FRAME_S, level: LOUD },
+    { now: 1000 * LONG_FRAME_S, dt: LONG_FRAME_S, level: QUIETER },
+  ]);
+  assert.ok(end.ghost >= end.disp, `ghost ${end.ghost} dBFS, below the ${end.disp} dBFS trace`);
+});
+
+//: Two bins falling together to `QUIETEST`, the first from twice as high above it as the second.
+const TWO_BINS_FALLING = [
+  { now: 0, dt: FRAME_S, levels: [LOUD, QUIETER] },
+  { now: FRAME_MS, dt: FRAME_S, levels: [QUIETEST, QUIETEST] },
+  { now: 2 * FRAME_MS, dt: FRAME_S, levels: [QUIETEST, QUIETEST] },
+];
+
+test("test_a_settling_ghost_keeps_the_shape_of_the_trace_it_came_from", () => {
+  const ghost = holdAfter(TWO_BINS_FALLING).ghost ?? [NaN, NaN];
+  const ratio = (ghost[0] - QUIETEST) / (ghost[1] - QUIETEST);
+  assert.ok(...near(ratio, 2, RATIO_EPS));
 });
 
 // ── Level ballistics and hold ────────────────────────────────────────────
