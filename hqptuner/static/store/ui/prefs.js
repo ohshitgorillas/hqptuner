@@ -3,6 +3,7 @@
 // Module load stays node-safe (the SSR harness imports the component graph with
 // no localStorage): the storage read is guarded.
 import { signal } from "@preact/signals";
+import { DISPLAY_FORMATS } from "../../model/shell/plate.js";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
 const K_SIMPLE = "hqptuner.plainNames";
@@ -174,7 +175,7 @@ export function enumPref(key, allowed, dflt) {
 export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
 
 // How the spectrum is drawn. An unset or junk value reads as the trace.
-const SPECTRUM_STYLES = ["trace", "bars", "soft", "ridges", "aurora"];
+const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
 // The Levels floor, dBFS: where the page's Source level bars and their dB scale
@@ -266,6 +267,9 @@ export function toggleCollapsedGroup(key) {
 //   hiddenStages     — the stages hidden from the chain rail, a subset of
 //                      HIDEABLE_STAGES, held in that order.
 //   allowPinnedRates — the opt-in for pinning an output rate; off by default.
+//   displayFormat    — the format the plate is laid out at, one of
+//                      DISPLAY_FORMATS: "auto" (the window picks), "expanded",
+//                      "normal" or "compact".
 //
 // A stored value outside a preference's set reads as that preference's default,
 // and a stored hidden stage outside HIDEABLE_STAGES is dropped.
@@ -283,6 +287,7 @@ export const [dacChip, setDacChip] = enumPref("hqptuner.dacChip", DAC_CHIPS, "ot
 export const [topOfPage, setTopOfPage] = enumPref("hqptuner.topOfPage", TOP_OF_PAGE, "auto");
 export const [bottomBar, setBottomBar] = enumPref("hqptuner.bottomBar", BOTTOM_BARS, "switcher");
 export const [pageRange, setPageRange] = enumPref("hqptuner.pageRange", METER_RANGES, "120");
+export const [displayFormat, setDisplayFormat] = enumPref("hqptuner.displayFormat", DISPLAY_FORMATS, "auto");
 
 /**
  * The hideable stages among `stages`, once each, in HIDEABLE_STAGES order.

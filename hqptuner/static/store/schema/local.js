@@ -16,12 +16,14 @@ import {
   bottomBar,
   dacChip,
   dacType,
+  displayFormat,
   plainNames,
   setAllowPinnedRates,
   setApodLight,
   setBottomBar,
   setDacChip,
   setDacType,
+  setDisplayFormat,
   setPlainNames,
   setTopOfPage,
   topOfPage,
@@ -45,6 +47,8 @@ const PIN_RATES_NOTE =
 
 /** The Visual settings' paragraphs. */
 const VISUAL_MAN = {
+  format:
+    "The format the plate is laid out at. Auto picks the largest of the three that fits the screen: Expanded suits 13-inch tablets, Normal 11-inch, and Compact an iPad Mini and other small tablets.",
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
   apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
@@ -186,6 +190,21 @@ const HWALLCPU = { id: "hwallcpu", ...ALL_STATIONS };
 const HWALLGPU = { id: "hwallgpu", ...ALL_STATIONS };
 
 /** @type {FieldSpec} */
+const VFORMAT = {
+  id: "vformat",
+  label: "Display",
+  man: [VISUAL_MAN.format],
+  options: [
+    { value: "auto", label: "Auto" },
+    { value: "expanded", label: "Expanded" },
+    { value: "normal", label: "Normal" },
+    { value: "compact", label: "Compact" },
+  ],
+  value: () => displayFormat.value,
+  set: setDisplayFormat,
+};
+
+/** @type {FieldSpec} */
 const VSTYLE = {
   id: "vstyle",
   label: "Option style",
@@ -257,6 +276,7 @@ export const local = {
   pinallow: PINALLOW,
   hwallcpu: HWALLCPU,
   hwallgpu: HWALLGPU,
+  vformat: VFORMAT,
   vstyle: VSTYLE,
   vapod: VAPOD,
   vdys: VDYS,

@@ -8,7 +8,7 @@ The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate
 
 ### Plate
 
-- **Three sizes, iPad landscape in points:** 1080×810 (10.2″, the smallest and the design size), 1180×820 (11″) and 1366×1024 (13″). `--plate-w` and `--plate-h` carry the picked size.
+- **Three formats, tablet landscape in CSS px:** Expanded 1366×1024, Normal 1180×820 and Compact 1133×744 (the smallest). The window picks the largest format that renders at a scale of 0.95 or above, else Compact; the user's Display choice overrides it. `--plate-w` and `--plate-h` carry the picked format.
 - **The plate is laid out at the picked size and reflows into it:** rail stages flex, the one `.fill` section takes the spare height, drawers and bodies widen. It renders 1:1 and scales down only below its size, never up.
 - **Everything fits without scrolling at every size**, checked with the real fonts.
 
@@ -68,4 +68,4 @@ The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate
 
 ### Hand-back
 
-Every faceplate change is checked at 1080×810, 1180×820 and 1366×1024, with the real fonts: nothing scrolls, clips or overlaps at any of the three.
+Every faceplate change is checked at 1133×744, 1180×820 and 1366×1024, with the real fonts: nothing scrolls, clips or overlaps at any of the three.

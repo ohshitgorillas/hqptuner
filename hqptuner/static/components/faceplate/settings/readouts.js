@@ -1,5 +1,5 @@
-// Settings rail readouts drawn from a field's own options: a field's option list as a seg control, and a readout over a
-// declared field that prints the option it lights.
+// Settings rail readouts drawn from a field's own options: a field's or a catalog entry's option list as a seg control,
+// and a readout over a declared field that prints the option it lights.
 
 /** @typedef {import("../../../store/faceplate/drawer.js").FieldOption} FieldOption */
 /** @typedef {import("../../../store/faceplate/drawer.js").FieldSpec} FieldSpec */
@@ -7,9 +7,9 @@
 /** @typedef {import("../../../model/shell/settings.js").Control} Control */
 
 /**
- * A seg readout's control over a field's options.
+ * A seg readout's control over a field's options, or a catalog entry's.
  *
- * @param {FieldOption[]} options
+ * @param {readonly (FieldOption | SchemaOption)[]} options
  * @returns {Control}
  */
 export const seg = (options) => ({ type: "seg", options: options.map((o) => ({ v: o.value, label: o.label })) });

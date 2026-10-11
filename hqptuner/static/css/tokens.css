@@ -12,13 +12,13 @@
 @font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 400; font-display: swap; size-adjust: 108%; src: url("/fonts/atkinson-400.woff2") format("woff2"); }
 @font-face { font-family: "Atkinson Hyperlegible"; font-style: normal; font-weight: 700; font-display: swap; size-adjust: 108%; src: url("/fonts/atkinson-700.woff2") format("woff2"); }
 
-/* The faceplate's tokens. Dark only. The plate is laid out at an iPad landscape size in points;
-   model/shell/plate.js picks the size and sets --plate-w and --plate-h on the plate. */
+/* The faceplate's tokens. Dark only. The plate is laid out at a tablet landscape format in CSS px;
+   model/shell/plate.js picks the format and components/faceplate/Plate.js sets --plate-w and --plate-h on the plate. */
 :root{
   color-scheme:dark;
 
-  /* Faceplate geometry: the 10.2" size, the smallest. */
-  --plate-w:1080px; --plate-h:810px;
+  /* Faceplate geometry: the Compact format, the smallest. */
+  --plate-w:1133px; --plate-h:744px;
 
   /* Surfaces */
   --page:#0e0f12;          /* room behind the plate */
@@ -133,9 +133,10 @@
   --ctl-h-grp:36px;        /* a grouped value's number box in the profile builder's steps */
   --ctl-h-sm:34px;         /* a compact control: popover footer button, the Setting Switcher's target pick, the number box beside a slider, a drawer's tab and segment, a small round key (sheet and drawer close, the builder's ←), a search box, a choice line holding a compact control */
   --ctl-h-xs:32px;         /* inline row action */
-  --ctl-h-mid:30px;        /* a mid control: a loudness band's type segment, a pipeline editor's enum segment and plot scope, a pipeline strip's process string */
+  --ctl-h-mid:30px;        /* a mid control: a loudness band's type segment, the Loudness drawer's segments and band boxes at Compact, a pipeline editor's enum segment and plot scope, a pipeline strip's process string */
   --ctl-h-mini:20px;       /* mini segment, a filter preset's knob segment, the subsets' fold key, a pipeline page key */
   --ctl-h-lg:44px;         /* the volume bar's keys and readout; the snapshot builder's two-line picker and live window */
+  --tap:44px;              /* the least tap area of a key on a tablet */
   --pstrip-key:28px;       /* a key in a pipeline strip: Raw, the round × that drops the pipeline; the + key's width */
   --fold-key:18px;         /* a pipeline block's fold key */
   --legend-h:28px;         /* backlit legend */
@@ -161,9 +162,9 @@
   --knob-glyph:30px;       /* the brand knob's glyph */
   --wire-col:14px;         /* the rail's lamp and wire column */
   --meter-l-w:40px;        /* buffer meter label */
-  --meter-w:72px;          /* buffer bar at 10.2" */
-  --meter-w-11:130px;      /* buffer bar at 11" */
-  --meter-w-13:240px;      /* buffer bar at 13" */
+  --meter-w-8:102px;       /* buffer bar at Compact, 8.3" */
+  --meter-w-11:130px;      /* buffer bar at Normal, 11" */
+  --meter-w-13:240px;      /* buffer bar at Expanded, 13" */
   --meter-h:8px;           /* buffer bar */
   --meter-v-w:34px;        /* buffer meter value */
   --volrd-w:104px;         /* engine-row readouts: the HF filter and the volume */
@@ -206,7 +207,7 @@
   /* The Source meter */
   --levels-w:286px;        /* the levels column */
   --mhead-h:30px;          /* a head row: over a plot, a station's fold in the builder rail, a drawer head's section name */
-  --ctl-h-view:28px;       /* a small control: a view segment on the meter, the facet bar's reset, a pipeline dock's fields, selects and keys, a folded choice line */
+  --ctl-h-view:28px;       /* a small control: a view segment on the meter, the facet bar's reset, a pipeline dock's fields, selects and keys, a folded choice line, a loudness range box at Compact */
   --gutter-w:58px;         /* a plot's y-axis gutter */
   --spectrum-h:160px;      /* the drawer's spectrum plot */
   --axis-h:14px;           /* a plot's x-axis row; the L / R row under the level bars */
@@ -219,7 +220,8 @@
   --psrc-min:148px;        /* the slim page Source section, least height */
   /* Settings */
   --drow-col:360px;        /* a drawer row's control column */
-  --drow-col-gpu:300px;    /* the same, narrowed: to the CUDA offload segment; Loudness and its bands, Output device, a chain's rows */
+  --drow-col-gpu:300px;    /* the same, narrowed: to the CUDA offload segment; Loudness and its bands, Output device, a chain's rows, Output format at Compact */
+  --drow-col-xf:340px;     /* the same, narrowed: the crossfeed choice lines at Compact, the compensation hint still on one line */
   --drow-col-visual:280px; /* the same, narrowed to the accent picker */
   --drow-col-cpu:240px;    /* the same, narrowed: to the E-core allocation segment; the Matrix engine drawer */
   --drow-col-pb:330px;     /* the same, in the profile builder's steps: a row, a choice line, the EQ step's pair */
@@ -341,6 +343,9 @@
 
   /* Spectrogram ramp, floor to full scale: glass → indigo → magenta-red → orange-red → orange → pale yellow, after matplotlib's Inferno. OKLab lightness rises at every stop, so loudness still reads as brightness. */
   --spec-0:#08090b; --spec-1:#420a68; --spec-2:#932667; --spec-3:#dd513a; --spec-4:#fca50a; --spec-5:#fcffa4;
+
+  /* Aurora spectrum ramp, floor to full scale: dark teal → deep green → aurora green → pale green → violet → pink-red, the northern lights' own colours, whatever the accent. */
+  --aurora-0:#0a2a2e; --aurora-1:#0e6b45; --aurora-2:#2bdc7a; --aurora-3:#8ef0b0; --aurora-4:#7a5cff; --aurora-5:#e04f8a;
 }
 
 /* The dyslexic switch swaps the body face only; engraved legends and readouts keep theirs. */

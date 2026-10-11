@@ -1,7 +1,6 @@
 // The Visual settings drawer's schema and its Settings rail readouts: HQPTuner's own browser preferences, each a field
-// that writes at once and never stages, declared as a local control (store/schema/local.js). Display holds the
-// option-style and apodizing-indicator switches, the spectrum delay box, the font switch, then the accent block; Layout
-// the top-of-page and bottom-bar picks, then the block hiding chain stages.
+// that writes at once and never stages, declared as a local control (store/schema/local.js). Two tabs: Display, the
+// plate's look, and Layout, what the page shows and which chain stages it hides.
 
 import { hiddenStages } from "../../../store/ui/prefs.js";
 import { spectrumOffset } from "../../../store/meter/delay.js";
@@ -32,6 +31,7 @@ export const VISUAL_DRAWER = {
       id: "display",
       label: "Display",
       body: [
+        { field: local.vformat },
         { field: local.vstyle },
         { field: local.vapod },
         { block: "delay" },
@@ -49,6 +49,7 @@ export const VISUAL_DRAWER = {
 
 /** @type {readonly SettingsReadout[]} */
 export const VISUAL_READOUTS = [
+  fieldReadout(local.vformat),
   fieldReadout(local.vstyle),
   fieldReadout(local.vapod),
   {

@@ -41,6 +41,33 @@ export function checkSequence(lines, { tick, onLine, onVerdict }, clock) {
 }
 
 /**
+ * A restartable quiet window: `arm` cancels the pending fire and schedules `fire` a full `ms` from now; `cancel` drops
+ * the pending fire without firing. Both are no-ops on the clock when nothing is pending.
+ *
+ * @param {number} ms
+ * @param {() => void} fire
+ * @param {Clock} clock
+ * @returns {{ arm: () => void, cancel: () => void }}
+ */
+export function quietWindow(ms, fire, clock) {
+  /** @type {unknown} the pending fire's handle, or null when nothing is pending */
+  let pending = null;
+  const cancel = () => {
+    if (pending === null) return;
+    clock.clearTimeout(pending);
+    pending = null;
+  };
+  const arm = () => {
+    cancel();
+    pending = clock.setTimeout(() => {
+      pending = null;
+      fire();
+    }, ms);
+  };
+  return { arm, cancel };
+}
+
+/**
  * A state that reverts after `ms`. The returned arm schedules `revert`; arming again cancels the pending one and waits
  * the full `ms` from the new arming.
  *
@@ -50,10 +77,5 @@ export function checkSequence(lines, { tick, onLine, onVerdict }, clock) {
  * @returns {() => void}  arm
  */
 export function revertAfter(ms, revert, clock) {
-  /** @type {unknown} */
-  let timer;
-  return () => {
-    clock.clearTimeout(timer);
-    timer = clock.setTimeout(revert, ms);
-  };
+  return quietWindow(ms, revert, clock).arm;
 }

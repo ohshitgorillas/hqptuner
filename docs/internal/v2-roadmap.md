@@ -6,7 +6,6 @@ The target is `docs/spec/faceplate-spec.md`. Where the spec and a v1 document or
 
 - Work lands on branch `v2`. The store, schema, lanes and API carry over. The shell, the components and the CSS are rebuilt.
 - Wire names (`preset`, `livepresets`) stay. Station and Snapshot are UI names.
-- Every phase goes through the plan gate, is written tests-first, passes `make check`, and is handed back at 1080×810, 1180×820 and 1366×1024.
 - Backend work in the first and ninth phases may be planned ahead of its UI.
 
 ## Phase 0: rules before code

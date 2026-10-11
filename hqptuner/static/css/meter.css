@@ -30,15 +30,21 @@
 .xaxis span.first{transform:none}
 .xaxis span.last{transform:translateX(-100%)}
 
-/* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold line. */
+/* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold ghost. */
 .sgrid1{display:grid;grid-template-columns:var(--gutter-w) minmax(0,1fr);grid-template-rows:var(--spectrum-h) var(--axis-h);gap:var(--sp-2) var(--sp-4)}
 .splot{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well);overflow:hidden}
 .spectrum{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}
 .spectrum line,.spectrum path{vector-effect:non-scaling-stroke}
 .sgridl line{stroke:var(--grid);stroke-width:1}
 .sarea{fill:var(--meter);fill-opacity:.16;stroke:none}
+.shold{fill:none;stroke:var(--meter-hi);stroke-opacity:.55;stroke-width:1;stroke-linejoin:round}
 .strace{fill:none;stroke:var(--meter);stroke-width:1.5;stroke-linejoin:round}
-.shold{fill:none;stroke:var(--meter-hi);stroke-opacity:.55;stroke-width:1}
+/* Under the Trace style the trace's stroke ramps up the plot, dim at the floor to bright at full scale: the ramp spans
+   the viewBox's height (SourceMeter.js), so a quiet trace stays dim however flat it lies. */
+.sgrid1[data-style="trace"] .strace{stroke:url(#strace-ramp) var(--meter)}
+.sramp .dim{stop-color:var(--meter-dim)}
+.sramp .mid{stop-color:var(--meter)}
+.sramp .hi{stop-color:var(--meter-hi)}
 /* The picked style's effects and shader canvases lie over the SVG and let the pointer through to it. Ridges stack
    their rows by time, not dB, and aurora glows with no level to read: their dB grid lines and scale labels go, the kHz
    axis stays. */
@@ -102,8 +108,9 @@
 @container pmslim (max-height:100px){.pmeter :is(.gy,.lvs) span:not(.first):not(.last){display:none}}
 .slim .pmeter>.mnone p{font-size:var(--fs-4)}
 
-/* Page meter's Range control: in the spectrum's top-right corner, over the canvases; the Range sets the spectrum's
-   span only. − narrows it a step, + widens it, the readout between. The keys are the round ± keys
-   (.round.vbtn, 40px at every plate size); one at its end stop reads dead (popovers.css) and takes no tap. */
-.mzoom{position:absolute;top:var(--sp-2);right:var(--sp-2);display:flex;align-items:center;gap:var(--sp-2);padding:var(--sp-1);border:var(--hair) solid var(--line-2);border-radius:var(--r-2);background:var(--glass)}
-.mzoom .zv{display:flex;align-items:baseline;gap:var(--sp-2);padding:0 var(--sp-2);font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);white-space:nowrap;line-height:var(--lh-text)}
+/* Page meter's Range control: two bare round ± keys (.round.vbtn) in the spectrum's top-right corner, over the
+   canvases. Each draws at --ctl-h-sm and takes taps over an invisible --tap square centred on it, which reaches the
+   plot's corner and meets its neighbour's at the gap's middle; one at its end stop reads dead (popovers.css). */
+.mzoom{position:absolute;top:calc((var(--tap) - var(--ctl-h-sm)) / 2);right:calc((var(--tap) - var(--ctl-h-sm)) / 2);display:flex;gap:calc(var(--tap) - var(--ctl-h-sm))}
+.mzoom .round{position:relative;width:var(--ctl-h-sm);height:var(--ctl-h-sm);font-size:var(--fs-glyph-sm)}
+.mzoom .round::before{content:"";position:absolute;inset:calc((var(--ctl-h-sm) - var(--tap)) / 2 - var(--hair))}   /* from the padding edge, inside the key's border */

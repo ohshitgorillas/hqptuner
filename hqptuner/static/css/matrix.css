@@ -101,6 +101,24 @@
 .lrange .vrbox input.vfd{width:var(--slx-num-w)}
 .lrange .vrbox .cl{width:var(--lvtab-l)}
 
+/* Compact (1133×744). Crossfeed: copy in closer (overflow rule), to the column that keeps the compensation hint on one
+   line. Loudness: its control column is the taller side of every row (bands, range), so copy in closer cannot help;
+   the rhythm tightens a step, its segments and band boxes take the mid height and its range boxes the small one. */
+.plate[data-size="compact"] :is(#drawer-crossfeed,#pb-drawer-crossfeed) .xlist .chline{grid-template-columns:var(--drow-col-xf) minmax(0,1fr)}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow{padding:var(--sp-2) 0}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow .seg:not(.mini) button{height:var(--ctl-h-mid)}
+.plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .dpanel{padding-bottom:var(--sp-1)}
+.plate[data-size="compact"] .lbands{padding-top:var(--sp-1)}
+.plate[data-size="compact"] .lsw{margin-bottom:0}
+.plate[data-size="compact"] :is(.lsw button,.lrow input.vfd){height:var(--ctl-h-mid)}
+.plate[data-size="compact"] .lrow{min-height:var(--ctl-h-mid)}
+.plate[data-size="compact"] .lbot{margin-top:0;padding-top:var(--sp-2)}
+.plate[data-size="compact"] .lrange{gap:var(--sp-1)}
+.plate[data-size="compact"] .lrange .vrwell{padding-top:var(--sp-1)}
+.plate[data-size="compact"] .lrange .vrbox input.vfd{height:var(--ctl-h-view)}
+.plate[data-size="compact"] .lbound{gap:0}
+.plate[data-size="compact"] .lbound .man{line-height:1.25}
+
 /* ── Speakers ────────────────────────────────────────────────────────────
    Set + channel rows left (control column), the room plan right, filling the height left. Speakers in the set amber,
    the rest dimmed (drawn, never hidden). */
@@ -259,6 +277,9 @@ select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:va
 .pscope .cl{font-size:var(--fs-cl);color:var(--ink-2)}
 .pplot{flex:1 1 0;min-height:var(--pplot-min);min-width:0}
 .pplot svg{touch-action:none}
+/* A glass shorter than the drawing's own aspect (Compact) holds the whole drawing, axis labels included: it scales down
+   to the glass's height, left-aligned, its box still the drawing's own, so a drag maps 1:1. */
+.pplot svg.plot-svg{right:auto;width:auto;max-width:100%;max-height:100%}
 /* Pipeline popovers: the stage-kind menu and Import EQ. */
 .pmenu{width:var(--menu-w)}
 .pmrow{display:flex;align-items:center;gap:var(--sp-5);height:var(--ctl-h-sm);padding:0 var(--sp-5);border:0;border-radius:var(--r-2);background:none;color:var(--ink);font:inherit;font-size:var(--fs-5);text-align:left;cursor:pointer}

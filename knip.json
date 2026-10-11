@@ -1,12 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": [
-    "hqptuner/static/app.js",
-    "scripts/eqstage/eqstage.js",
-    "tests/js/**/*.test.js",
-    "tests/js/support/vendor-resolve.js"
-  ],
-  "project": ["hqptuner/static/**/*.js", "scripts/eqstage/**/*.js", "tests/js/**/*.js"],
+  "entry": ["hqptuner/static/app.js", "tests/js/**/*.test.js", "tests/js/support/vendor-resolve.js"],
+  "project": ["hqptuner/static/**/*.js", "tests/js/**/*.js"],
   "ignore": ["hqptuner/static/vendor/**"],
   "ignoreDependencies": ["prettier", "jscpd"],
   "exclude": ["unlisted", "binaries"]

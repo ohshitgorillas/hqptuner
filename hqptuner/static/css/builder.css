@@ -151,6 +151,7 @@ label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp
 .pbstate.dirty{color:var(--ink)}
 .pbcap{font-size:var(--fs-3);line-height:var(--lh-text)}
 .pbcap:empty{display:none}
+.pbask:empty{display:none}
 .pbact{gap:var(--sp-5)}
 .pbask .bask{margin:0}
 .pbadvlink{align-self:flex-start;margin-top:var(--sp-4);padding:0;border:0;background:none;cursor:pointer;font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
@@ -192,7 +193,7 @@ input.vfd.pq.peqq{width:100%;height:var(--ctl-h-sm);font-size:var(--fs-4);text-a
 .peqhold b{font:var(--fw-medium) var(--fs-4) var(--f-mono);color:var(--acc);line-height:var(--lh-text)}
 .peqhold span{font:var(--fs-3) var(--f-mono);color:var(--ink-2);white-space:pre;line-height:var(--lh-text)}
 .peqplot{min-height:0}
-/* Fitted (1080×810): grouped values, the advanced option lists, the EQ rows. */
+/* Fitted to the smallest format (Compact, 1133×744): grouped values, the advanced option lists, the EQ rows. */
 /* Grouped values: two to a line in the 330px control column (four loudness values overflowed into the copy on one line). */
 .pbsrows .cgrp{display:grid;grid-template-columns:repeat(2,max-content);gap:var(--sp-4) var(--sp-9)}
 .pbsrows .cgrp input.vfd{width:var(--slx-num-w);height:var(--ctl-h-grp);font-size:var(--fs-5)}
