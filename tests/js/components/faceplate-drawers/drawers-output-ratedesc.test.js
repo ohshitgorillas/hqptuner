@@ -1,8 +1,8 @@
 // Rendered suite for the text of the Output drawer's rate dial row, drawn by the generic drawer from the Output schema
-// (hqptuner/static/components/faceplate/drawers/output.js): the row prints its header line, a header and its
-// sub-label, and the glass, and no other text. No description sits under the glass, whether the row would take it from
-// its own markup or from the rate entries of the settings metadata. The row's text less the words of the header line
-// and the glass is what is read.
+// (hqptuner/static/components/faceplate/drawers/output.js): the row prints its header line, a header, its sub-label
+// and the restart mark, and the glass, and no other text. No description sits under the glass, whether the row would
+// take it from its own markup or from the rate entries of the settings metadata. The row's text less the words of the
+// header line and the glass is what is read.
 //
 // The fixture metadata gives every Output entry, the two rate entries among them, a tooltip of its own, so a row that
 // printed the paragraph of its metadata entry would print fixture prose here. Both modes are read, since the running
@@ -10,7 +10,7 @@
 //
 // Renders through preact-render-to-string with the store driven at the wire by the staging fake. The dial is found by
 // its role (`group`) and class, its row as the smallest drawer row enclosing it; a header is a row label (`b`), a
-// sub-label the head's `s`.
+// sub-label the head's `s`, the restart mark its one style `rs`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-ratedesc.test.js
 
@@ -110,8 +110,8 @@ const stripped = (h) =>
     .trim();
 
 /**
- * The text the rate dial row prints outside its glass, its header and its sub-label, or null when no row encloses
- * the dial.
+ * The text the rate dial row prints outside its glass, its header, its sub-label and its restart mark, or null when no
+ * row encloses the dial.
  *
  * @returns {string | null}
  */
@@ -123,7 +123,10 @@ function textBesidesHeadAndGlass() {
     .filter((e) => classes(e).includes("drow") && within(dial, e))
     .sort((a, b) => a.html.length - b.html.length)[0];
   if (!row) return null;
-  const head = all.filter((e) => within(e, row) && !within(e, dial) && (e.name === "b" || classes(e).includes("s")));
+  const head = all.filter(
+    (e) =>
+      within(e, row) && !within(e, dial) && (e.name === "b" || classes(e).includes("s") || classes(e).includes("rs")),
+  );
   return stripped([dial, ...head].reduce((h, e) => h.replace(e.html, ""), row.html));
 }
 

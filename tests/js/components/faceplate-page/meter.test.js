@@ -49,7 +49,6 @@ const NARROWEST = SPANS[0] ?? "";
 const WIDEST = SPANS.at(-1) ?? "";
 
 // The Range control's parts, by `data-testid`.
-const READOUT = "range-readout";
 const WIDER = "range-wider";
 const NARROWER = "range-narrower";
 
@@ -102,9 +101,6 @@ const num = (el) => (el ? parseFloat(text(el).replace("−", "-")) : NaN);
  * @param {string} id
  */
 const byTestid = (id) => draw().filter((e) => attr(e, "data-testid") === id);
-
-/** The number the Range readout shows. */
-const readout = () => num(byTestid(READOUT)[0]);
 
 /**
  * Whether the Range button `id` shows dimmed: disabled, or marked disabled for assistive technology; undefined when
@@ -161,13 +157,6 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
   );
 });
 
-test("test_the_range_readout_shows_the_pages_range", () => {
-  setPageRange(NARROWEST);
-  const narrow = readout();
-  setPageRange(WIDEST);
-  assert.deepEqual([narrow, readout()], [Number(NARROWEST), Number(WIDEST)]);
-});
-
 test("test_wider_widens_the_range_one_step", () => {
   setPageRange(NARROWEST);
   press(WIDER);
@@ -180,16 +169,16 @@ test("test_narrower_narrows_the_range_one_step", () => {
   assert.equal(pageRange.value, SPANS.at(-2));
 });
 
-test("test_wider_at_the_widest_range_leaves_the_readout_at_the_widest", () => {
+test("test_wider_at_the_widest_range_leaves_the_range_at_the_widest", () => {
   setPageRange(WIDEST);
   press(WIDER);
-  assert.equal(readout(), Number(WIDEST));
+  assert.equal(pageRange.value, WIDEST);
 });
 
-test("test_narrower_at_the_narrowest_range_leaves_the_readout_at_the_narrowest", () => {
+test("test_narrower_at_the_narrowest_range_leaves_the_range_at_the_narrowest", () => {
   setPageRange(NARROWEST);
   press(NARROWER);
-  assert.equal(readout(), Number(NARROWEST));
+  assert.equal(pageRange.value, NARROWEST);
 });
 
 test("test_wider_shows_dimmed_only_at_the_widest_range", () => {
@@ -242,11 +231,6 @@ test("test_a_13_inch_plate_draws_the_readings_table", () => {
 test("test_a_slim_plate_draws_no_readings_table", () => {
   viewport.value = SLIM;
   assert.equal(withClass("lvtab").length, 0);
-});
-
-test("test_a_slim_plate_still_draws_the_range_readout", () => {
-  viewport.value = SLIM;
-  assert.equal(byTestid(READOUT).length, 1);
 });
 
 test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => {

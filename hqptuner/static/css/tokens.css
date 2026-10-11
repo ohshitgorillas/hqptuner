@@ -136,6 +136,7 @@
   --ctl-h-mid:30px;        /* a mid control: a loudness band's type segment, a pipeline editor's enum segment and plot scope, a pipeline strip's process string */
   --ctl-h-mini:20px;       /* mini segment, a filter preset's knob segment, the subsets' fold key, a pipeline page key */
   --ctl-h-lg:44px;         /* the volume bar's keys and readout; the snapshot builder's two-line picker and live window */
+  --tap:44px;              /* the least tap area of a key on a tablet */
   --pstrip-key:28px;       /* a key in a pipeline strip: Raw, the round × that drops the pipeline; the + key's width */
   --fold-key:18px;         /* a pipeline block's fold key */
   --legend-h:28px;         /* backlit legend */
@@ -341,6 +342,9 @@
 
   /* Spectrogram ramp, floor to full scale: glass → indigo → magenta-red → orange-red → orange → pale yellow, after matplotlib's Inferno. OKLab lightness rises at every stop, so loudness still reads as brightness. */
   --spec-0:#08090b; --spec-1:#420a68; --spec-2:#932667; --spec-3:#dd513a; --spec-4:#fca50a; --spec-5:#fcffa4;
+
+  /* Aurora spectrum ramp, floor to full scale: dark teal → deep green → aurora green → pale green → violet → pink-red, the northern lights' own colours, whatever the accent. */
+  --aurora-0:#0a2a2e; --aurora-1:#0e6b45; --aurora-2:#2bdc7a; --aurora-3:#8ef0b0; --aurora-4:#7a5cff; --aurora-5:#e04f8a;
 }
 
 /* The dyslexic switch swaps the body face only; engraved legends and readouts keep theirs. */

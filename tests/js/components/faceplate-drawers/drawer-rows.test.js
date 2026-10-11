@@ -1,11 +1,15 @@
 // Rendered suite for the row half of the stage drawer's grammar (hqptuner/static/components/faceplate/drawer/): a row's
 // sublabel, band tag and hint, the option list it draws under itself with every option's line, the picked option's line
-// a select prints full width, a row left out by its `when`, a row's own options, and the widgets drawn as a select, a
-// number box or a text box.
+// a select prints full width, a row left out by its `when`, a row's own options, the widgets drawn as a select, a
+// number box or a text box, and the restart mark a row whose setting restarts the engine carries from the moment the
+// drawer is drawn, before any edit, where a row whose setting applies live carries none.
 //
 // Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
-// their value (`data-v`); every string asserted is one the test put on the wire or into the schema.
+// their value (`data-v`), the restart mark by its one style, the `rs` class token; every string asserted is one the
+// test put on the wire or into the schema. The restart mark's keys are catalog keys chosen for their lane
+// (docs/spec/settings-classification.md): volume_max and quick_pause are http fields the engine restarts for,
+// adaptive_volume has a live setter, and output_mode is an http field the write path routes live through SetMode.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer-rows.test.js
 
@@ -30,6 +34,7 @@ import { elements, attr, classes, text } from "../../support/markup.js";
 const FIELDS = [
   { name: "volume_max", type: "number", value: -3 },
   { name: "fixed_volume_enabled", type: "checkbox", value: false },
+  { name: "quick_pause", type: "checkbox", value: false },
   { name: "gain_comp", type: "number", value: 0 },
   { name: "matrix_pipelines", type: "text", value: "1" },
   {
@@ -52,6 +57,17 @@ const FIELDS = [
   },
   { name: "mode", type: "select", value: "pcm" },
 ];
+
+/** The restart mark's one style, shared by every surface that carries it. */
+const MARK = "rs";
+
+/** Restart-lane keys. */
+const RANGE_MAX = "volume_max";
+const QUICK_PAUSE = "quick_pause";
+
+/** Live-lane keys: one with its own live setter, one an http field routed live. */
+const ADAPTIVE = "adaptive_volume";
+const OUTPUT_MODE = "output_mode";
 
 /** @type {import("../../support/wire/wire.js").StagingWire} */
 let wire;
@@ -99,6 +115,18 @@ function inRow(schema, key) {
   const all = elements(render(html`<${Drawer} schema=${schema} />`));
   const row = all.find((e) => attr(e, "data-k") === key);
   return row ? elements(row.html) : [];
+}
+
+/**
+ * Whether the row drawn for `key` carries the restart mark, or null when the row is not drawn at all.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @returns {boolean | null}
+ */
+function marked(schema, key) {
+  const row = inRow(schema, key);
+  return row.length > 0 ? row.some((e) => classes(e).includes(MARK)) : null;
 }
 
 /**
@@ -231,4 +259,14 @@ test("test_changing_a_text_row_stages_the_typed_value", async () => {
     currentTarget: { value: "8" },
   });
   assert.equal(wire.staged.http.matrix_pipelines, "8");
+});
+
+test("test_an_unedited_restart_row_carries_the_mark_and_a_live_setter_row_carries_none", () => {
+  const schema = rowsOf({ key: RANGE_MAX }, { key: ADAPTIVE });
+  assert.deepEqual([marked(schema, RANGE_MAX), marked(schema, ADAPTIVE)], [true, false]);
+});
+
+test("test_an_unedited_restart_row_carries_the_mark_and_an_http_field_routed_live_carries_none", () => {
+  const schema = rowsOf({ key: QUICK_PAUSE }, { key: OUTPUT_MODE });
+  assert.deepEqual([marked(schema, QUICK_PAUSE), marked(schema, OUTPUT_MODE)], [true, false]);
 });

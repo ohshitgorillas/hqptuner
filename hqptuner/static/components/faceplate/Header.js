@@ -16,6 +16,7 @@ import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
 import { Popover, parkAgainst, triggerProps } from "./Popover.js";
 import { AlertLines } from "./AlertLines.js";
+import { restartMark } from "./drawer/controls.js";
 
 /** @typedef {import("../../store/faceplate/conn.js").ConnState} ConnState */
 /** @typedef {import("../../store/faceplate/stations.js").Station} Station */
@@ -175,7 +176,7 @@ function stationRows(st) {
       <button type="button" class="pn" data-testid="station-name" onClick=${() => loadPreset(st.name)}>
         ${st.name}
       </button>
-      ${st.active ? html`<span class="lamp on"></span>` : html`<span class="rs">↻ restart</span>`}
+      ${st.active ? html`<span class="lamp on"></span>` : restartMark()}
     </div>
     ${has ? snapshotGroup(st) : null}
   `;

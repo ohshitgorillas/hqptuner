@@ -25,7 +25,7 @@ export function field(f, here) {
   });
   return html`
     <div class="drow" data-field=${f.id}>
-      <div class="ctl">${labelHead(f.label, f.sub)} ${control} ${grayLine(gray, here)}</div>
+      <div class="ctl">${labelHead(f.label, { sub: f.sub })} ${control} ${grayLine(gray, here)}</div>
       <div class="man">${f.man.map((p) => html`<p>${p}</p>`)}</div>
     </div>
   `;
