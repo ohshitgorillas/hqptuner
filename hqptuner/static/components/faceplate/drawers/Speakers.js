@@ -20,12 +20,9 @@ import {
   setChannelLevel,
   speakerDraft,
 } from "../../../store/faceplate/drawers/speakers.js";
-import { formRestarts } from "../../../store/faceplate/drawer.js";
-import { restartMarkIf } from "../drawer/controls.js";
 import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
-/** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").DraftChannel} DraftChannel */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").BoxLimits} BoxLimits */
 /** @typedef {import("../../../model/gauges/speakers.js").Spot} Spot */
@@ -65,16 +62,15 @@ function numBox({ value, limits, unit, aria, disabled, set }) {
 }
 
 /**
- * One channel's row: its name, carrying the restart mark when the form's apply restarts the engine, its level box and
- * its distance box.
+ * One channel's row: its name, its level box and its distance box.
  *
  * @param {DraftChannel} c
- * @param {{ dead: boolean, busy: boolean, restarts: boolean }} s
+ * @param {{ dead: boolean, busy: boolean }} s
  */
-function channelRow(c, { dead, busy, restarts }) {
+function channelRow(c, { dead, busy }) {
   return html`
     <div class="sprow" data-ch=${c.index}>
-      <span class="spn">${c.name}${restartMarkIf(restarts)}</span>
+      <span class="spn">${c.name}</span>
       ${numBox({
         value: c.level,
         limits: { step: 0.1, ...c.levelBox },
@@ -179,9 +175,9 @@ function roomPlan(listed) {
  * The Speakers drawer's block: the set and the listed channels' boxes beside the room plan. It reads the daemon's
  * form the first time it is drawn, if nothing has yet.
  *
- * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
+ * @param {{ here: XrefHere }} props  here: where it is drawn
  */
-export function SpeakersBody({ schema, here }) {
+export function SpeakersBody({ here }) {
   useEffect(() => {
     if (speakers.value === null) loadSpeakers();
   }, []);
@@ -190,14 +186,13 @@ export function SpeakersBody({ schema, here }) {
   if (!d.loaded) return html`<p class="dintro">${err || LOADING}</p>`;
   const dead = levelsDead();
   const busy = speakersBusy.value;
-  const restarts = formRestarts(schema);
   const byIndex = new Map(d.channels.map((c) => [c.index, c]));
   const listed = d.shown.flatMap((i) => byIndex.get(i) ?? []);
   return html`
     <div class="spbody">
       <div class=${dead ? "spleft sdm" : "spleft"}>
         ${setSelect(d.set, busy)}
-        <div class="sprows">${listed.map((c) => channelRow(c, { dead, busy, restarts }))}</div>
+        <div class="sprows">${listed.map((c) => channelRow(c, { dead, busy }))}</div>
         ${dead ? html`<p class="spsdm">${withXref(DIRECT_SDM, here)}</p>` : null}
         ${
           err

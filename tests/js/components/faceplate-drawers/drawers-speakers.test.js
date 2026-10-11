@@ -3,9 +3,8 @@
 // tests/js/store/faceplate/drawers-speakers.test.js; this suite pins what the block draws from them: one row of two
 // boxes per channel of the picked set, holding the draft's values and writing back to it, the room plan with a speaker
 // per shown channel at its drafted distance, none for a channel with no distance or level drafted, the level boxes disabled with the Direct SDM line under the rows while the
-// running Direct SDM is on, every control disabled while an apply is in flight, and the restart mark from the moment
-// the drawer is drawn: on every channel row, whose level and distance the form applies and the engine reloads for, and
-// never on the set's head, since the set is a browser preference that never stages.
+// running Direct SDM is on, every control disabled while an apply is in flight, and no restart mark on the set's head,
+// since the set is a browser preference that never stages.
 //
 // The wire is the seam: each case writes the daemon's /speakers form into `speakers` and the running direct_sdm into
 // `config`. A box's change handler is reached through preact's own `options.vnode` hook
@@ -221,14 +220,6 @@ function setHeadMarked() {
     .sort((a, b) => a.html.length - b.html.length)[0];
   return head ? holdsMark(head) : null;
 }
-
-test("test_every_unedited_channel_row_carries_the_restart_mark", () => {
-  reset();
-  assert.deepEqual(
-    withClass("sprow").map(holdsMark),
-    FIRST.channels.map(() => true),
-  );
-});
 
 test("test_the_set_head_carries_no_restart_mark", () => {
   reset();
