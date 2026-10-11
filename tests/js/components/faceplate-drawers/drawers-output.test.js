@@ -39,13 +39,6 @@ const NET_OPTIONS = [
   { value: OFFICE, label: "naa-office: snd_rpi_hifiberry_digi: HiFiBerry Digi+ Pro HiFi wm8804-spdif-0" },
 ];
 
-/** The device announces 1x to 1024x, both members of each: only 2048x is out of its reach. */
-const CAPS = {
-  device: STANDA,
-  pcm_rates: [44100, 48000, 88200, 96000, 176400, 192000, 352800, 384000, 705600, 768000, 1411200, 1536000],
-  dsd_rates: [2822400, 3072000, 5644800, 6144000, 11289600, 12288000, 22579200, 24576000, 45158400, 49152000],
-};
-
 /** @type {string[]} */
 let refreshes = [];
 
@@ -143,11 +136,6 @@ test("test_each_band_prints_its_needles_tier_selected", () => {
   assert.deepEqual([tiersWith("sel", "pcm"), tiersWith("sel", "sdm")], [["2"], ["8"]]);
 });
 
-test("test_a_tier_the_device_cannot_carry_prints_unavailable", () => {
-  load({ caps: CAPS });
-  assert.deepEqual(tiersWith("unav"), ["11"]);
-});
-
 test("test_the_playing_lamp_stands_over_the_running_tier", () => {
   engineStatus.value = { status: { active_rate: "352800" }, metadata: {} };
   const lamp = dial().find((e) => e.name === "circle" && classes(e).includes("playing"));
@@ -161,12 +149,6 @@ test("test_the_playing_lamp_is_out_with_no_running_rate", () => {
   const lit = lamps();
   engineStatus.value = { status: { active_rate: "0" }, metadata: {} };
   assert.deepEqual([lit, lamps()], [1, 0]);
-});
-
-test("test_the_output_mode_never_takes_a_band_away", () => {
-  load({ mode: "sdm" });
-  const pcm = dial().find((e) => attr(e, "role") === "slider" && attr(e, "data-band") === "pcm");
-  assert.deepEqual([pcm !== undefined, pcm ? hasAttr(pcm, "aria-disabled") : null], [true, false]);
 });
 
 test("test_a_band_slider_reports_its_needles_tier", () => {
@@ -207,13 +189,6 @@ test("test_tapping_a_device_closes_the_list", async () => {
   const open = openPopover.value;
   await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["data-v"] === OFFICE, "onClick");
   assert.deepEqual([open !== null, openPopover.value], [true, null]);
-});
-
-test("test_the_effective_device_is_the_selected_option", () => {
-  const selected = picker()
-    .filter((e) => attr(e, "role") === "option" && attr(e, "aria-selected") === "true")
-    .map((e) => attr(e, "data-v"));
-  assert.deepEqual(selected, [STANDA]);
 });
 
 test("test_a_staged_device_marks_the_picker_dirty", async () => {

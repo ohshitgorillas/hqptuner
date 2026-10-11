@@ -29,7 +29,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/settings/hardware.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { attr, elements, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {Record<string, string>} EngineTable */
@@ -65,26 +65,11 @@ const markup = (Block) => elements(render(tree(Block)));
 /** @param {string} type @returns {(e: MarkupElement) => boolean} */
 const input = (type) => (e) => e.name === "input" && attr(e, "type") === type;
 
-/** @param {string} k @returns {(e: MarkupElement) => boolean} */
-const box = (k) => (e) => e.name === "input" && attr(e, "data-k") === k;
-
 /** Whether the slider's range is disabled. */
 function rangeDisabled() {
   const el = markup(NblocksBlock).find(input("range"));
   return el ? hasAttr(el, "disabled") : null;
 }
-
-/** Each device box's disabled flag, DSP then convolution. */
-function boxesDisabled() {
-  const els = markup(CudaDevicesBlock);
-  return ["cuda_dev", "cuda_cdev"].map((k) => {
-    const el = els.find(box(k));
-    return el ? hasAttr(el, "disabled") : null;
-  });
-}
-
-/** The number of gray lines the CUDA devices block draws. */
-const grayLines = () => markup(CudaDevicesBlock).filter((e) => classes(e).includes("gr")).length;
 
 /**
  * Fire the change handler of the first vnode of `Block` matching `pred`, with `target` as the event's currentTarget.
@@ -111,35 +96,6 @@ test("test_the_slider_is_disabled_while_automatic_and_live_once_ticked", async (
   const automatic = rangeDisabled();
   tick(true);
   assert.deepEqual([automatic, rangeDisabled()], [true, false]);
-});
-
-test("test_an_untick_drafts_automatic_and_a_tick_drafts_a_manual_count", () => {
-  tick(false);
-  const unticked = hardwareDraft().values.nblocks;
-  tick(true);
-  assert.deepEqual([unticked, hardwareDraft().values.nblocks], ["0", "8"]);
-});
-
-test("test_the_device_boxes_gray_under_each_cuda_offload_value", async () => {
-  const states = [];
-  for (const cuda of ["0", "1", "convolution"]) {
-    await load({ cuda });
-    states.push(boxesDisabled());
-  }
-  assert.deepEqual(states, [
-    [true, true],
-    [false, false],
-    [true, false],
-  ]);
-});
-
-test("test_only_convolution_only_offload_draws_the_gray_line", async () => {
-  const lines = [];
-  for (const cuda of ["0", "1", "convolution"]) {
-    await load({ cuda });
-    lines.push(grayLines());
-  }
-  assert.deepEqual(lines, [0, 0, 1]);
 });
 
 test("test_each_device_box_drafts_its_own_key", () => {

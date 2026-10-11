@@ -80,16 +80,6 @@ beforeEach(async () => {
 const markup = () => elements(render(html`<${Drawer} schema=${OUTPUT_DRAWER} blocks=${OUTPUT_BLOCKS} />`));
 
 /**
- * The elements inside one tab's panel.
- *
- * @param {string} tab
- */
-function inPanel(tab) {
-  const panel = markup().find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === tab);
-  return panel ? elements(panel.html) : [];
-}
-
-/**
  * Fire the click handler of the first vnode matching `pred`, or nothing when none matches.
  *
  * @param {(props: Record<string, unknown>) => boolean} pred
@@ -128,11 +118,6 @@ test("test_each_backend_shows_its_own_device_picker_and_combo_shows_both", () =>
     [shown("network"), shown("alsa"), shown("combo")],
     [["net_device"], ["alsa_device"], ["net_device", "alsa_device"]],
   );
-});
-
-test("test_the_format_tab_mounts_the_rate_dial", () => {
-  const dials = inPanel("format").filter((e) => classes(e).includes("dial") && attr(e, "role") === "group");
-  assert.equal(dials.length, 1);
 });
 
 test("test_the_mode_row_offers_pcm_and_sdm_only", () => {

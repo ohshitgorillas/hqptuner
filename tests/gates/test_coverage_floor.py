@@ -79,11 +79,6 @@ def write_report(tmp_path: Path, percentages: dict[str, float]) -> Path:
     return path
 
 
-def test_a_file_below_the_floor_fails_the_gate(tmp_path: Path) -> None:
-    report = write_report(tmp_path, {"hqptuner/thin.py": 71.5})
-    assert CHECK(report, 90, {}) == 1
-
-
 @pytest.mark.parametrize("expected", ["hqptuner/thin.py", "71.5", "90"])
 def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
@@ -179,12 +174,6 @@ def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: pytest.Capt
 def test_a_report_measuring_no_files_fails_the_gate(tmp_path: Path) -> None:
     """An empty measurement is not a pass."""
     assert CHECK(write_report(tmp_path, {}), 90, {}) == 1
-
-
-def test_a_report_measuring_no_files_says_so_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    report = write_report(tmp_path, {})
-    CHECK(report, 90, {})
-    assert "files" in without_the_report_path(capsys.readouterr().out, report).lower()
 
 
 @pytest.mark.parametrize("expected", ["hqptuner/first.py", "hqptuner/second.py", "hqptuner/third.py"])

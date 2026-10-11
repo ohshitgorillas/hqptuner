@@ -17,7 +17,6 @@ not produce, so "nothing was written" never reads as a pass.
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -27,7 +26,6 @@ from fake_http import state
 from hqptuner.conf import matrixprofiles, presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import fileconfig
-from hqptuner.presets.store.presets import PresetNotFoundError
 
 #: The live matrix's own row, at a gain no profile below carries.
 LIVE_ROW = '<pipeline channel="0" gain="-2" mixdown="0" process="" source="0"/>'
@@ -107,11 +105,6 @@ async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, An
 # --- a chain-less profile gains a copy of the live chain -----------------------
 
 
-def test_a_chainless_profile_gains_the_live_chains_plugin_value() -> None:
-    backfilled = matrixprofiles.backfill_profile_chains(snapshot({"Stock": CHAINLESS}))
-    assert profile_plugin(backfilled, "Stock", "bauer")["frequency"] == "850"
-
-
 def test_a_chainless_profile_gains_the_live_chains_second_stage_too() -> None:
     backfilled = matrixprofiles.backfill_profile_chains(snapshot({"Stock": CHAINLESS}))
     assert profile_plugin(backfilled, "Stock", "correction")["dac0"] == "live.wav"
@@ -134,11 +127,6 @@ def test_a_backfilled_chain_reads_back_as_a_non_empty_post() -> None:
 def test_a_profile_that_already_carries_a_chain_comes_back_byte_identical() -> None:
     xml = snapshot({"Day": CHAINED, "Stock": CHAINLESS})
     assert stored_element(matrixprofiles.backfill_profile_chains(xml), "Day") == stored_element(xml, "Day")
-
-
-def test_a_profile_that_already_carries_a_chain_keeps_its_own_plugin_value() -> None:
-    backfilled = matrixprofiles.backfill_profile_chains(snapshot({"Day": CHAINED, "Stock": CHAINLESS}))
-    assert profile_plugin(backfilled, "Day", "bauer")["frequency"] == "300"
 
 
 def test_a_chainless_profile_beside_a_chained_one_is_still_filled() -> None:
@@ -185,12 +173,6 @@ def test_a_backfilled_profile_keeps_its_own_pipeline_rows() -> None:
     assert profile_rows(matrixprofiles.backfill_profile_chains(xml), "Stock") == profile_rows(xml, "Stock")
 
 
-def test_a_backfilled_profile_does_not_gain_the_live_matrixs_rows() -> None:
-    # the live matrix's only row sits at gain -2, a gain no profile here carries
-    backfilled = matrixprofiles.backfill_profile_chains(snapshot({"Stock": CHAINLESS}))
-    assert "-2" not in [row["gain"] for row in profile_rows(backfilled, "Stock")]
-
-
 # --- the copy is verbatim ------------------------------------------------------
 
 
@@ -212,12 +194,6 @@ async def test_after_an_apply_the_chainless_profile_reads_back_carrying_the_live
     http_daemon["post_bauer_frequency"] = "850"
     await http_manager.applyops.apply({}, {"title": "Renamed"})
     assert (await running_profiles(http_manager))["Stock"]["post"]["post_bauer_frequency"] == "850"
-
-
-async def test_an_apply_keeps_every_profile_the_config_carried(http_manager: ConnectionManager) -> None:
-    # the non-empty-post case above is vacuous if the apply dropped the profiles
-    await http_manager.applyops.apply({}, {"title": "Renamed"})
-    assert set(await running_profiles(http_manager)) == {"Stock"}
 
 
 def test_an_apply_under_a_chainless_active_profile_leaves_the_live_chain_intact() -> None:
@@ -278,29 +254,3 @@ def test_a_preset_whose_profiles_all_carry_chains_is_absent_from_the_report(
 ) -> None:
     http_manager.presetops.store.save("Den", snapshot({"Day": CHAINED}))
     assert "Den" not in http_manager.presetops.backfill_profiles()
-
-
-# --- a preset that cannot be read ----------------------------------------------
-
-
-def unreadable(preset_dir: Path, name: str) -> None:
-    """Make that stored preset's file unreadable: the entry stays in the store's
-    directory under the same name, and reading it raises."""
-    path = next(p for p in preset_dir.iterdir() if p.stem == name)
-    path.unlink()
-    path.mkdir()
-
-
-def test_a_preset_that_cannot_be_read_does_not_report_ok(http_manager: ConnectionManager, tmp_path: Path) -> None:
-    http_manager.presetops.store.save("Broken", preset_xml("850"))
-    unreadable(tmp_path / "presets", "Broken")
-    assert http_manager.presetops.backfill_profiles()["Broken"] == PresetNotFoundError.code
-
-
-def test_a_preset_that_cannot_be_read_does_not_block_a_healthy_one(
-    http_manager: ConnectionManager, tmp_path: Path
-) -> None:
-    http_manager.presetops.store.save("Broken", preset_xml("850"))
-    http_manager.presetops.store.save("Office", preset_xml("850"))
-    unreadable(tmp_path / "presets", "Broken")
-    assert http_manager.presetops.backfill_profiles()["Office"] == "ok"

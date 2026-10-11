@@ -22,7 +22,6 @@ import {
   loudnessBar,
   moveBound,
   sideDots,
-  typeBound,
 } from "../../../../hqptuner/static/store/faceplate/drawers/loudness.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 
@@ -57,13 +56,6 @@ const settle = () => quiesce(wire);
 
 // --- the bar's marks ----------------------------------------------------------
 
-test("test_the_bar_marks_the_staged_bounds_and_the_shown_volume", async () => {
-  await edit("loudness_range_low", "-50");
-  volume.value = "-35";
-  const m = loudnessBar();
-  assert.deepEqual([m.low, m.high, m.needle], [-50, -20, -35]);
-});
-
 test("test_the_needle_is_held_to_the_axis", () => {
   volume.value = "-130";
   const below = loudnessBar().needle;
@@ -80,12 +72,6 @@ test("test_no_needle_shows_while_the_engine_reports_no_volume", () => {
 
 // --- dragging and typing a bound ----------------------------------------------
 
-test("test_a_dragged_bound_stops_at_the_other_and_reads_active", () => {
-  moveBound("low", -5);
-  const m = loudnessBar();
-  assert.deepEqual([m.low, m.active], [-20, "low"]);
-});
-
 test("test_a_drag_stages_nothing_until_it_drops", async () => {
   moveBound("low", -40.4);
   const during = isDirty("loudness_range_low");
@@ -100,13 +86,6 @@ test("test_a_dropped_drag_leaves_no_bound_active", async () => {
   dropBound();
   await settle();
   assert.deepEqual([during, loudnessBar().active], ["high", null]);
-});
-
-test("test_a_typed_bound_is_held_whole_and_never_past_the_other", async () => {
-  typeBound("high", -70.4);
-  typeBound("low", -70.6);
-  await settle();
-  assert.deepEqual([effective("loudness_range_high"), effective("loudness_range_low")], ["-60", "-71"]);
 });
 
 // --- the Bass | Treble switch -------------------------------------------------

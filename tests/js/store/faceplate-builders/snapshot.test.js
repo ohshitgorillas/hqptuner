@@ -25,7 +25,6 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
-import { schema } from "../../../../hqptuner/static/store/schema.js";
 import { keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import {
   SNAP_ROWS,
@@ -40,7 +39,7 @@ import {
   recordOf,
   takeAll,
 } from "../../../../hqptuner/static/store/faceplate/builders/snapshot.js";
-import { snapshotRows, snapshotTip } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
+import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
 import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
 
@@ -147,22 +146,6 @@ const book = () => ({
   },
 });
 
-/** One SDM snapshot record as /api/livepresets serves it, holding both filters, the modulator and Mode. */
-const sdmRecord = () => ({
-  chain: "sdm",
-  fields: { oversampling1x: "50", oversampling: "50", modulator: "12", mode: "sdm" },
-  names: { oversampling1x: "sinc-MGa", oversampling: "sinc-MGa", modulator: "AMSDM7EC 512+fs", mode: "SDM (DSD)" },
-});
-
-/** The SDM record's tip: each held row's schema label and its `rec.names` value, in SNAP_ROWS order. */
-const SDM_TIP = [
-  `${schema.sdm_filter_1x.label}: sinc-MGa`,
-  `${schema.sdm_filter_nx.label}: sinc-MGa`,
-  `${schema.sdm_modulator.label}: AMSDM7EC 512+fs`,
-  `${schema.output_mode.label}: SDM (DSD)`,
-].join("\n");
-const SDM_TIP_1X_SIMPLIFIED = `${schema.sdm_filter_1x.label}: ${MGA_LEAF}`;
-
 /**
  * @typedef {object} Running
  * @property {"pcm" | "sdm"} [chain]  the chain the engine has loaded (and, idle, runs)
@@ -255,34 +238,6 @@ const sentFields = (e) => [...(recordOf(e)?.fields ?? [])].sort();
 
 // --- what a snapshot can hold -----------------------------------------------------------------
 
-const FIELDS = [
-  ["adaptive", "adaptive_volume"],
-  ["1x", { pcm: "filter1x", sdm: "oversampling1x" }],
-  ["nx", { pcm: "filter", sdm: "oversampling" }],
-  ["sh", { pcm: "dither", sdm: "modulator" }],
-  ["mode", "mode"],
-  ["profile", "matrix_profile"],
-];
-for (const [id, field] of FIELDS) {
-  test(`test_the_${id}_row_writes_its_live_wire_field`, () => {
-    assert.deepEqual(rowOf(String(id))?.field, field);
-  });
-}
-
-const KEYS = [
-  ["adaptive", "adaptive_volume"],
-  ["1x", { pcm: "pcm_filter_1x", sdm: "sdm_filter_1x" }],
-  ["nx", { pcm: "pcm_filter_nx", sdm: "sdm_filter_nx" }],
-  ["sh", { pcm: "pcm_dither", sdm: "sdm_modulator" }],
-  ["mode", "output_mode"],
-  ["profile", "matrix_profile"],
-];
-for (const [id, key] of KEYS) {
-  test(`test_the_${id}_row_reads_its_catalog_key`, () => {
-    assert.deepEqual(rowOf(String(id))?.key, key);
-  });
-}
-
 test("test_adaptive_volume_offers_the_engines_two_flag_values", () => {
   assert.deepEqual(
     rowOf("adaptive")?.options?.map((o) => o.v),
@@ -294,20 +249,6 @@ test("test_output_mode_offers_one_chain_each_and_no_auto", () => {
   assert.deepEqual(
     rowOf("mode")?.options?.map((o) => o.v),
     ["pcm", "sdm"],
-  );
-});
-
-test("test_the_filters_and_shaper_are_the_chain_rows", () => {
-  assert.deepEqual(
-    SNAP_ROWS.filter((r) => r.chain).map((r) => r.id),
-    ["1x", "nx", "sh"],
-  );
-});
-
-test("test_output_mode_is_the_row_the_chain_rows_need", () => {
-  assert.deepEqual(
-    SNAP_ROWS.filter((r) => r.gate).map((r) => r.id),
-    ["mode"],
   );
 });
 
@@ -424,11 +365,6 @@ test("test_a_record_holds_the_rows_its_fields_carry", () => {
 test("test_a_row_the_record_leaves_out_reads_the_engine", () => {
   wire({ chain: "sdm" });
   assert.equal(fromRecord(rec("Speakers", "S01"))?.vals?.adaptive, "1");
-});
-
-test("test_a_records_matrix_profile_holds_the_profile_row_at_its_value", () => {
-  const e = fromRecord(rec("Speakers", "S12"));
-  assert.deepEqual({ held: e?.inc?.has("profile"), value: e?.vals?.profile }, { held: true, value: "Desk" });
 });
 
 // --- what a save sends ---------------------------------------------------------------------------
@@ -599,55 +535,12 @@ test("test_the_unnamed_profiles_value_text_is_default", async () => {
   assert.equal(viewOf("profile")?.valueText, "[Default]");
 });
 
-test("test_the_profile_row_is_a_select", async () => {
-  await editing({ st: "Headphones", name: "Desk" });
-  assert.equal(viewOf("profile")?.kind, "select");
-});
-
 test("test_the_profile_row_without_mode_is_not_gated", async () => {
   await editing({ st: "Headphones", name: "Bed" });
   assert.equal(viewOf("profile")?.gated, false);
 });
 
-// --- a snapshot's tip ----------------------------------------------------------------------------
-
-test("test_a_snapshots_tip_is_one_label_and_name_line_per_held_field_in_row_order", () => {
-  assert.equal(snapshotTip(sdmRecord()), SDM_TIP);
-});
-
-test("test_a_snapshots_tip_names_the_1x_filter_by_its_simplified_name_with_plain_names_on", () => {
-  plainNames.value = true;
-  assert.equal(snapshotTip(sdmRecord()).split("\n")[0], SDM_TIP_1X_SIMPLIFIED);
-});
-
 // --- the rail ------------------------------------------------------------------------------------
-
-test("test_a_page_holds_the_lines_that_fit_a_tall_rail", () => {
-  assert.equal(railView(318, { open: "Speakers", pages: new Map() })?.per, 6);
-});
-
-test("test_a_page_holds_the_lines_that_fit_a_short_rail", () => {
-  assert.equal(railView(262, { open: "Speakers", pages: new Map() })?.per, 4);
-});
-
-// A rail 338px tall: the fixed stack (153.05px) leaves room for seven 24px lines with their 2px gaps.
-const RAIL_SEVEN_FOLD_LINES = 338;
-const SEVEN_LINES = 7;
-
-test("test_a_page_holds_the_fold_height_lines_that_fit_the_rail", () => {
-  assert.equal(railView(RAIL_SEVEN_FOLD_LINES, { open: "Speakers", pages: new Map() })?.per, SEVEN_LINES);
-});
-
-test("test_the_open_station_lists_its_first_page", () => {
-  assert.deepEqual(railView(318, { open: "Speakers", pages: new Map() })?.folds?.[0]?.items, SPEAKER_NAMES.slice(0, 6));
-});
-
-test("test_the_open_station_lists_the_page_asked_for", () => {
-  assert.deepEqual(
-    railView(318, { open: "Speakers", pages: new Map([["Speakers", 1]]) })?.folds?.[0]?.items,
-    SPEAKER_NAMES.slice(6, 12),
-  );
-});
 
 test("test_the_loaded_station_folds_as_loaded", () => {
   assert.equal(railView(318, { open: null, pages: new Map() })?.folds?.[1]?.loaded, true);

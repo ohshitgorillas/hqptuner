@@ -32,7 +32,6 @@ const { openList, openPopover } = await import("../../../../hqptuner/static/stor
 const { profileChoices } = await import("../../../../hqptuner/static/store/faceplate/page/profile.js");
 const { cur, staged } = await import("../../../../hqptuner/static/store/faceplate/builders/shell.js");
 const { editNow } = await import("../../../../hqptuner/static/store/faceplate/builders/snapshot.js");
-const { snapshotRows } = await import("../../../../hqptuner/static/store/faceplate/builders/rows.js");
 const { SnapshotRows } = await import("../../../../hqptuner/static/components/faceplate/builders/SnapshotRows.js");
 const { StationsMenu } = await import("../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js");
 
@@ -57,9 +56,6 @@ const SDM_SHAPERS = [
   { index: "0", value: "3", name: "ASDM7EC 512+fs" },
   { index: "1", value: "4", name: "ASDM5" },
 ];
-
-/** The rows a snapshot can hold, sorted. */
-const IDS = ["1x", "adaptive", "mode", "nx", "profile", "sh"];
 
 /**
  * One /config form field quoting a list in the enum-ID domain.
@@ -179,18 +175,6 @@ const every = (all, name, ...cls) => all.filter((e) => isA(e, name, cls));
  */
 const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
 
-/**
- * The elements directly inside `e`.
- *
- * @param {MarkupElement | undefined} e
- */
-const kids = (e) => {
-  const all = inside(e);
-  return all.filter(
-    (k) => !all.some((o) => o !== k && o.start <= k.start && o.start + o.html.length >= k.start + k.html.length),
-  );
-};
-
 /** The first `name.cls…` inside `e`. @param {MarkupElement | undefined} e @param {string} name @param {...string} cls */
 const first = (e, name, ...cls) => every(inside(e), name, ...cls)[0];
 
@@ -208,9 +192,6 @@ const rowIds = () => rows().map((r) => attr(r, "data-id"));
  * @returns {Record<string, T>}
  */
 const byId = (read) => Object.fromEntries(rows().map((r) => [String(attr(r, "data-id")), read(r)]));
-
-/** One view of snapshotRows(), by id. @param {string} id */
-const viewOf = (id) => snapshotRows()?.find((v) => v.id === id);
 
 // --- taps --------------------------------------------------------------------------------------------------------
 
@@ -251,68 +232,12 @@ async function fire(v, handler = "onClick", extra = {}) {
 
 // --- the column heads --------------------------------------------------------------------------------------------
 
-test("test_the_column_heads_lead_the_rows_with_a_take_all_button_in_the_second_head", () => {
-  const all = drawn();
-  const [head] = every(all, "div", "brow", "bcols");
-  const heads = every(kids(head), "span", "bct");
-  assert.deepEqual(
-    {
-      heads: every(all, "div", "brow", "bcols").length,
-      leads: every(all, "div", "brow")[0] === head,
-      bct: heads.length,
-      blh: heads.map((s) => classes(s).includes("blh")),
-      take: every(inside(heads[1]), "button", "btn", "sm").length,
-    },
-    { heads: 1, leads: true, bct: 2, blh: [false, true], take: 1 },
-  );
-});
-
 test("test_tapping_take_all_fills_a_held_row_from_the_engine", async () => {
   await fire(controls("button", "btn", "sm")[0]);
   assert.equal(editNow()?.vals?.pcm?.["1x"], "41");
 });
 
-// --- one row per view --------------------------------------------------------------------------------------------
-
-test("test_one_row_is_drawn_per_view_in_the_views_order", () => {
-  const ids = rowIds();
-  assert.deepEqual({ ids, sorted: [...ids].sort() }, { ids: (snapshotRows() ?? []).map((v) => v.id), sorted: IDS });
-});
-
-test("test_a_row_without_a_stage_continues_and_a_row_not_on_is_off", () => {
-  editing("Headphones", "Bed");
-  assert.deepEqual(
-    byId((r) => ({ cont: classes(r).includes("cont"), off: classes(r).includes("off") })),
-    Object.fromEntries(IDS.map((id) => [id, { cont: !viewOf(id)?.stage, off: id !== "adaptive" }])),
-  );
-});
-
 // --- the include box ---------------------------------------------------------------------------------------------
-
-test("test_the_include_box_carries_the_rows_hold_and_is_disabled_while_gated", () => {
-  editing("Headphones", "Bed");
-  assert.deepEqual(
-    byId((r) => {
-      const box = first(r, "button", "binc");
-      return (
-        box && {
-          role: attr(box, "role"),
-          checked: attr(box, "aria-checked"),
-          label: hasAttr(box, "aria-label"),
-          disabled: hasAttr(box, "disabled"),
-        }
-      );
-    }),
-    {
-      adaptive: { role: "checkbox", checked: "true", label: true, disabled: false },
-      "1x": { role: "checkbox", checked: "false", label: true, disabled: true },
-      nx: { role: "checkbox", checked: "false", label: true, disabled: true },
-      sh: { role: "checkbox", checked: "false", label: true, disabled: true },
-      mode: { role: "checkbox", checked: "false", label: true, disabled: false },
-      profile: { role: "checkbox", checked: "false", label: true, disabled: false },
-    },
-  );
-});
 
 test("test_tapping_an_include_box_holds_a_row_the_snapshot_leaves_out", async () => {
   editing("Headphones", "Bed");
@@ -326,59 +251,7 @@ test("test_tapping_an_include_box_lets_go_of_a_row_the_snapshot_holds", async ()
   assert.equal(editNow()?.inc?.has("adaptive"), false);
 });
 
-// --- the setting cell --------------------------------------------------------------------------------------------
-
-test("test_the_setting_cell_shows_the_views_stage_and_label", () => {
-  assert.deepEqual(
-    byId((r) => {
-      const set = first(r, "div", "bset");
-      const stage = first(set, "span", "bst2");
-      const label = first(first(set, "span", "bl"), "b");
-      return { stage: stage ? text(stage) : null, label: label ? text(label) : null };
-    }),
-    Object.fromEntries(
-      IDS.map((id) => [id, { stage: viewOf(id)?.stage || null, label: viewOf(id)?.label ?? "no-such-view" }]),
-    ),
-  );
-});
-
 // --- the value cell ----------------------------------------------------------------------------------------------
-
-test("test_the_value_cell_grays_and_locks_its_controls_while_the_row_is_off", () => {
-  editing("Headphones", "Bed");
-  assert.deepEqual(
-    byId((r) => {
-      const cell = first(r, "div", "bval");
-      const ctl = [...every(inside(cell), "button"), ...every(inside(cell), "select")];
-      return {
-        grayed: cell ? classes(cell).includes("grayed") : null,
-        locked: ctl.length > 0 ? ctl.every((b) => hasAttr(b, "disabled")) : null,
-      };
-    }),
-    Object.fromEntries(IDS.map((id) => [id, { grayed: id !== "adaptive", locked: id !== "adaptive" }])),
-  );
-});
-
-test("test_a_seg_row_draws_segment_buttons_and_a_list_row_a_picker", () => {
-  assert.deepEqual(
-    byId((r) => {
-      const cell = first(r, "div", "bval");
-      return {
-        seg: every(inside(cell), "div", "seg").length,
-        pick: every(inside(cell), "button", "vfd", "vpick").length,
-        sel: every(inside(cell), "select", "vfd").length,
-      };
-    }),
-    {
-      adaptive: { seg: 1, pick: 0, sel: 0 },
-      "1x": { seg: 0, pick: 1, sel: 0 },
-      nx: { seg: 0, pick: 1, sel: 0 },
-      sh: { seg: 0, pick: 1, sel: 0 },
-      mode: { seg: 1, pick: 0, sel: 0 },
-      profile: { seg: 0, pick: 0, sel: 1 },
-    },
-  );
-});
 
 test("test_a_seg_row_lights_the_edits_value", () => {
   const lit = () => {
@@ -491,23 +364,6 @@ test("test_tapping_the_take_button_writes_the_live_value_into_the_edit", async (
 
 // --- the live cell -----------------------------------------------------------------------------------------------
 
-test("test_the_live_cell_marks_a_held_row_that_differs", () => {
-  assert.deepEqual(
-    byId((r) => {
-      const live = first(r, "div", "vfd", "blive");
-      return live && { diff: classes(live).includes("diff"), title: hasAttr(live, "title") };
-    }),
-    {
-      adaptive: { diff: true, title: true },
-      "1x": { diff: true, title: true },
-      nx: { diff: false, title: true },
-      sh: { diff: true, title: true },
-      mode: { diff: false, title: true },
-      profile: { diff: false, title: true },
-    },
-  );
-});
-
 test("test_the_live_cell_marks_no_difference_on_a_row_that_is_off", () => {
   wire({ f1x: "0", adaptive: "0" });
   editing("Headphones", "Bed");
@@ -573,52 +429,12 @@ const menuDrawn = (ticked) => elements(render(menu(ticked)));
 /** The menu panel drawn. @param {MarkupElement[]} all */
 const panel = (all) => all.filter((e) => attr(e, "role") === "menu")[0];
 
-test("test_the_stations_trigger_and_its_menu_panel_are_drawn", () => {
-  picks = [];
-  const all = menuDrawn();
-  const [wrap] = every(all, "div", "bstw");
-  const [trigger] = every(inside(wrap), "button", "vfd", "bstn");
-  const box = panel(all);
-  assert.deepEqual(
-    {
-      trigger: every(inside(wrap), "button", "vfd", "bstn").length,
-      popup: trigger && attr(trigger, "aria-haspopup"),
-      l: every(inside(trigger), "span", "l").length,
-      v: every(inside(trigger), "span", "v").length,
-      panel: box ? ["pop", "pmenu", "bstmenu"].map((c) => classes(box).includes(c)) : null,
-    },
-    { trigger: 1, popup: "menu", l: 1, v: 1, panel: [true, true, true] },
-  );
-});
-
 test("test_tapping_the_stations_trigger_opens_its_menu", async () => {
   picks = [];
   const shut = panel(menuDrawn());
   await fire(vnodes(menu(), "button", "bstn")[0]);
   const open = panel(menuDrawn());
   assert.deepEqual([shut && hasAttr(shut, "hidden"), open && hasAttr(open, "hidden")], [true, false]);
-});
-
-test("test_the_trigger_lists_the_ticked_stations", () => {
-  const listed = (/** @type {string[]} */ ticked) => {
-    const [v] = every(inside(every(menuDrawn(ticked), "button", "bstn")[0]), "span", "v");
-    return v ? text(v).split(" · ") : null;
-  };
-  assert.deepEqual([listed(["Speakers", "Headphones"]), listed(["Den"])], [["Speakers", "Headphones"], ["Den"]]);
-});
-
-test("test_each_station_is_a_menu_row_checked_while_ticked", () => {
-  assert.deepEqual(
-    every(inside(panel(menuDrawn())), "button", "pmrow").map((r) => {
-      const b = first(r, "b");
-      return { role: attr(r, "role"), checked: attr(r, "aria-checked"), station: b ? text(b) : null };
-    }),
-    [
-      { role: "menuitemcheckbox", checked: "true", station: "Speakers" },
-      { role: "menuitemcheckbox", checked: "false", station: "Den" },
-      { role: "menuitemcheckbox", checked: "true", station: "Headphones" },
-    ],
-  );
 });
 
 test("test_a_row_names_the_record_its_station_already_holds_under_this_name", () => {

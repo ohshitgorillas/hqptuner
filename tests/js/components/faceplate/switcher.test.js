@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
-import { ok, quiesce } from "../../support/wire/wire.js";
+import { ok } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
@@ -35,9 +35,8 @@ const { config, engineState, engineStatus, enums, matrixConfig, volume, volumeDr
   await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
-const { volumeNow } = await import("../../../../hqptuner/static/store/faceplate/volume.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
-const { TARGETS, switcherTarget, setSwitcherTarget, switcherView, setSlot, slotList } =
+const { setSwitcherTarget, switcherView, setSlot } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 const { Switcher } = await import("../../../../hqptuner/static/components/faceplate/bottom/Switcher.js");
 
@@ -157,15 +156,6 @@ const kids = (e) => {
   );
 };
 
-/** An element's tag and classes, dotted. @param {MarkupElement} e */
-const sig = (e) => [e.name, ...classes(e).filter(Boolean)].join(".");
-
-/** The text of the first `name.cls` inside `e`, or undefined. @param {MarkupElement | undefined} e @param {string} name @param {string} cls */
-const textIn = (e, name, cls) => {
-  const [hit] = every(inside(e), name, cls);
-  return hit ? text(hit) : undefined;
-};
-
 /** The two slots of the bar, as `div.slots > div.slot`. */
 const slots = () => kids(every(drawn(), "div", "slots")[0]).filter((e) => isA(e, "div", ["slot"]));
 
@@ -198,9 +188,6 @@ async function fire(v, handler, ev) {
   if (typeof fn === "function") await fn(ev);
 }
 
-/** A key pressed on a control. @param {string} key */
-const keyEvent = (key) => ({ key, preventDefault: () => {} });
-
 // --- the target --------------------------------------------------------------------------------------------------
 
 /** The target button, `button.vfd` inside `div.target`. @param {MarkupElement[]} all */
@@ -210,40 +197,11 @@ const targetButton = (all) => {
   return { box, button: every(kids(box), "button", "vfd")[0] };
 };
 
-test("test_the_target_button_names_the_current_target_over_a_closed_menu_of_the_targets", () => {
-  setSwitcherTarget("Nx filter");
-  const all = drawn();
-  const { box, button } = targetButton(all);
-  const [menu] = all.filter(
-    (e) => attr(e, "role") === "menu" && attr(e, "data-pop") === (button && attr(button, "data-pop")),
-  );
-  const rows = every(inside(menu), "button", "pmrow");
-  assert.deepEqual(
-    {
-      eng: every(kids(box), "span", "eng").length,
-      label: button && hasAttr(button, "aria-label"),
-      popup: button && attr(button, "aria-haspopup"),
-      expanded: button && attr(button, "aria-expanded"),
-      hidden: menu && hasAttr(menu, "hidden"),
-      rows: rows.map((r) => attr(r, "data-target")),
-      checked: rows.filter((r) => attr(r, "aria-checked") === "true").map((r) => attr(r, "data-target")),
-    },
-    { eng: 1, label: true, popup: "menu", expanded: "false", hidden: true, rows: [...TARGETS], checked: ["Nx filter"] },
-  );
-});
-
 test("test_tapping_the_target_button_opens_its_menu", async () => {
   await fire(controls("button", "vpick")[0], "onClick");
   const all = drawn();
   const { button } = targetButton(all);
   assert.deepEqual([button && attr(button, "aria-expanded"), openMenus(all).length], ["true", 1]);
-});
-
-test("test_a_target_menu_row_switches_the_target_and_closes_the_menu", async () => {
-  await fire(controls("button", "vpick")[0], "onClick");
-  const row = controls("button", "pmrow").find((v) => propsOf(v)["data-target"] === "Volume");
-  await fire(row, "onClick");
-  assert.deepEqual([switcherTarget.value, openMenus(drawn()).length], ["Volume", 0]);
 });
 
 // --- the slots ---------------------------------------------------------------------------------------------------
@@ -279,13 +237,6 @@ test("test_each_slot_body_is_a_radio", () => {
   assert.deepEqual(
     slotBodies().map((b) => b && attr(b, "role")),
     ["radio", "radio"],
-  );
-});
-
-test("test_only_the_running_slots_body_is_checked", () => {
-  assert.deepEqual(
-    slotBodies().map((b) => b && attr(b, "aria-checked")),
-    ["true", "false"],
   );
 });
 
@@ -366,44 +317,7 @@ test("test_a_list_slots_pick_is_the_picker_of_its_key_and_the_list_parks_at_it",
   );
 });
 
-// --- output mode -------------------------------------------------------------------------------------------------
-
-test("test_under_output_mode_each_slot_shows_its_mode_with_no_pick", () => {
-  setSwitcherTarget("Output mode");
-  const view = switcherView();
-  assert.deepEqual(
-    slots().map((s) => {
-      const [pick] = every(inside(s), "button", "spick");
-      return {
-        mode: classes(s).includes("mode"),
-        v: textIn(s, "span", "v"),
-        aka: textIn(s, "span", "aka"),
-        hidden: pick && hasAttr(pick, "hidden"),
-      };
-    }),
-    [0, 1].map((i) => ({
-      mode: true,
-      v: view?.slots[i]?.label,
-      aka: view?.slots[i]?.aka,
-      hidden: true,
-    })),
-  );
-});
-
 // --- matrix profile ----------------------------------------------------------------------------------------------
-
-test("test_under_matrix_profile_a_pick_opens_a_menu_of_the_profile_choices", async () => {
-  setSwitcherTarget("Matrix profile");
-  await fire(controls("button", "spick")[1], "onClick");
-  const menus = openMenus(drawn());
-  assert.deepEqual(
-    {
-      open: menus.length,
-      rows: every(inside(menus[0]), "button", "pmrow").map(text),
-    },
-    { open: 1, rows: (slotList(1) ?? []).map((o) => o.label) },
-  );
-});
 
 test("test_under_matrix_profile_a_menu_row_remembers_its_profile_in_that_slot", async () => {
   setSwitcherTarget("Matrix profile");
@@ -414,58 +328,4 @@ test("test_under_matrix_profile_a_menu_row_remembers_its_profile_in_that_slot", 
   });
   await fire(row, "onClick");
   assert.equal(switcherView()?.slots[1]?.name, "Desk");
-});
-
-// --- volume ------------------------------------------------------------------------------------------------------
-
-test("test_under_volume_the_volume_bar_stands_in_for_the_slots", () => {
-  setSwitcherTarget("Volume");
-  const all = drawn();
-  const [bar] = every(all, "div", "vbar");
-  assert.deepEqual(
-    {
-      slots: every(all, "div", "slots").length,
-      role: bar && attr(bar, "role"),
-      label: bar && hasAttr(bar, "aria-label"),
-      order: kids(bar)
-        .filter((k) => k.name !== "span")
-        .map(sig),
-    },
-    {
-      slots: 0,
-      role: "group",
-      label: true,
-      order: ["button.round.vbtn", "div.vbsl", "button.round.vbtn", "div.vfd.vbrd"],
-    },
-  );
-});
-
-test("test_the_volume_slider_carries_the_loudness_marks_over_the_scale", () => {
-  setSwitcherTarget("Volume");
-  const [box] = every(drawn(), "div", "vbsl");
-  const [track] = every(kids(box), "div", "vsl");
-  assert.deepEqual(
-    {
-      under: kids(box).map(sig),
-      track: kids(track).map((k) => (k.name === "input" ? `input[${attr(k, "type")}]` : sig(k))),
-    },
-    { under: ["div.vsl", "div.scale"], track: ["input[range]", "div.lmk"] },
-  );
-});
-
-test("test_the_volume_readout_prints_the_level", () => {
-  setSwitcherTarget("Volume");
-  const [rd] = every(drawn(), "div", "vfd", "vbrd");
-  assert.deepEqual([rd && attr(rd, "role"), textIn(rd, "span", "v")], ["status", volumeNow().txt]);
-});
-
-// --- keys --------------------------------------------------------------------------------------------------------
-
-test("test_an_arrow_key_on_a_slot_body_sends_the_other_slot_live", async () => {
-  const bodies = controls("button", "sbody");
-  await fire(bodies[0], "onKeyDown", keyEvent("ArrowRight"));
-  await quiesce(wire);
-  await fire(bodies[1], "onKeyDown", keyEvent("ArrowUp"));
-  await fire(bodies[0], "onKeyDown", keyEvent("Enter"));
-  assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }]);
 });

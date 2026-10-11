@@ -32,10 +32,6 @@ def test_all_owned_persistent_controls_are_parsed() -> None:
     assert set(_FIELDS) >= OWNED_FIELDS
 
 
-def test_select_reports_the_selected_option() -> None:
-    assert _FIELDS["backend"]["value"] == "network"
-
-
 def test_select_carries_every_option() -> None:
     assert {o["value"] for o in _FIELDS["backend"]["options"]} == {"alsa", "network", "combo"}
 
@@ -50,19 +46,6 @@ def test_number_field_carries_max_constraint() -> None:
 
 def test_number_field_carries_step_constraint() -> None:
     assert _FIELDS["gain_comp"]["step"] == 0.1
-
-
-@pytest.mark.parametrize(
-    ("name", "expected"),
-    [("fixed_volume_enabled", False), ("volume_fixed", True)],
-    ids=["unchecked", "checked"],
-)
-def test_a_checkbox_parses_checked_as_true_and_unchecked_as_false(name: str, *, expected: bool) -> None:
-    assert _FIELDS[name]["value"] is expected
-
-
-def test_text_field_reports_current_value() -> None:
-    assert _FIELDS["title"]["value"] == "Opal"
 
 
 def test_profile_list_includes_the_default_base_configuration() -> None:

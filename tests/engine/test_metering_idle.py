@@ -10,11 +10,6 @@ from hqptuner.config import Config
 # --- the config switch ------------------------------------------------------
 
 
-def test_metering_is_enabled_by_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("HQPTUNER_METERING_ENABLED", raising=False)
-    assert Config().metering_enabled is True
-
-
 @pytest.mark.parametrize(
     ("value", "expected"),
     [

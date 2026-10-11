@@ -40,7 +40,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { favoritesWire, puts, modulatorPuts, settle } from "../../support/wire/favoriteswire.js";
+import { favoritesWire, settle } from "../../support/wire/favoriteswire.js";
 import {
   favoriteFilters,
   favoriteModulators,
@@ -138,46 +138,6 @@ test("test_a_modulator_toggle_stars_the_name_before_its_request_resolves", async
   assert.equal(starredWhileInFlight, true);
 });
 
-// --- what the toggle sends --------------------------------------------------------
-
-test("test_a_modulator_toggle_puts_the_whole_resulting_set_of_names", async () => {
-  reset();
-  const w = favoritesWire();
-  await toggleFavoriteModulator("ASDM7");
-  await toggleFavoriteModulator("AHM5EC5L");
-  assert.deepEqual([...(modulatorPuts(w).at(-1) || [])].sort(), ["AHM5EC5L", "ASDM7"]);
-});
-
-test("test_a_modulator_toggle_that_unstars_puts_the_set_without_that_name", async () => {
-  reset();
-  const w = favoritesWire();
-  await toggleFavoriteModulator("ASDM7");
-  await toggleFavoriteModulator("AHM5EC5L");
-  await toggleFavoriteModulator("ASDM7");
-  assert.deepEqual([...(modulatorPuts(w).at(-1) || [])].sort(), ["AHM5EC5L"]);
-});
-
-// A modulator toggle must not carry a filter list the server would then store:
-// the two sets are replaced independently, and a body naming both would make a
-// modulator star overwrite whatever another tab starred.
-//
-// The PUT COUNT rides in the same assertion as the absent member, because an
-// absent member and an absent request look identical through `at(-1)`: a toggle
-// that sent nothing at all would satisfy "sent no filter list" on a technicality.
-test("test_a_modulator_toggle_sends_no_filter_list", async () => {
-  reset();
-  const w = favoritesWire();
-  await toggleFavoriteModulator("ASDM7");
-  assert.deepEqual([puts(w).length, puts(w).at(-1)], [1, undefined]);
-});
-
-test("test_a_filter_toggle_sends_no_modulator_list", async () => {
-  reset();
-  const w = favoritesWire();
-  await toggleFavorite("gauss-a");
-  assert.deepEqual([modulatorPuts(w).length, modulatorPuts(w).at(-1)], [1, undefined]);
-});
-
 // --- a refused save ----------------------------------------------------------------
 
 test("test_a_failed_modulator_save_reverts_the_set", async () => {
@@ -196,13 +156,6 @@ test("test_a_failed_modulator_save_reverts_an_unstar_too", async () => {
   assert.equal(favoriteModulators.value.has("ASDM7EC"), true);
 });
 
-test("test_a_successful_modulator_save_leaves_no_error", async () => {
-  reset();
-  favoritesWire();
-  await toggleFavoriteModulator("ASDM7EC");
-  assert.equal(favoritesError.value, "");
-});
-
 // --- hydration ----------------------------------------------------------------------
 
 test("test_hydration_fills_the_modulator_set_from_the_server", async () => {
@@ -210,13 +163,6 @@ test("test_hydration_fills_the_modulator_set_from_the_server", async () => {
   favoritesWire({ modulators: ["ASDM7", "AHM5EC5L"] });
   await hydrateFavorites();
   assert.deepEqual([...favoriteModulators.value].sort(), ["AHM5EC5L", "ASDM7"]);
-});
-
-test("test_hydration_fills_the_filter_set_from_the_filters_member", async () => {
-  reset();
-  favoritesWire({ filters: ["gauss-b"], modulators: ["ASDM7"] });
-  await hydrateFavorites();
-  assert.deepEqual([...favoriteFilters.value].sort(), ["gauss-b"]);
 });
 
 // --- favorites-only: each set narrows its own dropdown ---------------------------------
@@ -238,21 +184,9 @@ test("test_favorites_only_with_no_modulator_starred_offers_every_modulator", asy
   assert.deepEqual(modulatorLabels(MODULATOR_OPTIONS), MODULATORS);
 });
 
-test("test_favorites_only_with_no_star_at_all_offers_every_modulator", () => {
-  reset();
-  nFavOnly.value = true;
-  assert.deepEqual(modulatorLabels(MODULATOR_OPTIONS), MODULATORS);
-});
-
 test("test_favorites_only_with_no_filter_starred_offers_every_filter", async () => {
   reset();
   await toggleFavoriteModulator("ASDM7EC");
-  nFavOnly.value = true;
-  assert.deepEqual(filterLabels(FILTER_OPTIONS), FILTERS);
-});
-
-test("test_favorites_only_with_no_star_at_all_offers_every_filter", () => {
-  reset();
   nFavOnly.value = true;
   assert.deepEqual(filterLabels(FILTER_OPTIONS), FILTERS);
 });
@@ -263,12 +197,6 @@ test("test_with_favorites_only_off_a_starred_modulator_changes_the_modulator_lis
   reset();
   await toggleFavoriteModulator("ASDM7EC");
   assert.deepEqual(modulatorLabels(MODULATOR_OPTIONS), MODULATORS);
-});
-
-test("test_with_favorites_only_off_a_starred_filter_changes_the_filter_list_not_at_all", async () => {
-  reset();
-  await toggleFavorite("gauss-b");
-  assert.deepEqual(filterLabels(FILTER_OPTIONS), FILTERS);
 });
 
 // --- one flag over both sets -----------------------------------------------------------

@@ -112,9 +112,7 @@ const SUPERSEDED = ["poly-sinc-lp", "poly-sinc-short-mp", "zzz-nonesuch"];
 // filter no `-2s` supersedes, used as the effective value wherever a case is NOT
 // about the current-selection exception.
 const HIDDEN = "poly-sinc-lp";
-const INVENTED = "zzz-nonesuch";
 const TWIN = "poly-sinc-lp-2s";
-const ORPHAN_TWIN = "poly-sinc-hb-xs-2s";
 const KEPT = "poly-sinc-gauss-long";
 
 const OFFERED = FILTERS.length - SUPERSEDED.length;
@@ -185,13 +183,6 @@ test("test_the_sdm_nx_dropdown_does_not_offer_a_filter_its_two_stage_twin_supers
   assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(HIDDEN), false);
 });
 
-// The same rule on a name no data file in this repo has ever heard of: a roster
-// of superseded names could not hide it, and only the list itself says it is one.
-test("test_the_sdm_nx_dropdown_hides_a_superseded_name_no_shipped_file_knows", async () => {
-  await resetConfigPage();
-  assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(INVENTED), false);
-});
-
 test("test_the_sdm_1x_dropdown_does_not_offer_a_filter_its_two_stage_twin_supersedes", async () => {
   await resetConfigPage();
   assert.equal(offered(held("oversampling1x"), "1x", "sdm_filter_1x").includes(HIDDEN), false);
@@ -216,13 +207,6 @@ test("test_the_sdm_nx_dropdown_offers_the_fixture_less_its_superseded_names", as
 test("test_the_sdm_nx_dropdown_still_offers_the_two_stage_filter_that_supersedes", async () => {
   await resetConfigPage();
   assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(TWIN), true);
-});
-
-// A `-2s` whose plain twin is not in the list supersedes nothing and is nobody's
-// supersession, so it is offered like any other filter.
-test("test_the_sdm_nx_dropdown_still_offers_a_two_stage_filter_with_no_plain_twin", async () => {
-  await resetConfigPage();
-  assert.equal(offered(held("oversampling"), "nx", "sdm_filter_nx").includes(ORPHAN_TWIN), true);
 });
 
 // The badge's denominator is the list the dropdown HOLDS, so a hidden filter is

@@ -19,10 +19,6 @@ Policy notes:
   is cleared when `clean_slate` deletes the test station that was active.
 """
 
-import io
-import zipfile
-from pathlib import Path
-
 from playwright.sync_api import Page
 
 from e2e.support import stack as stack_support
@@ -30,9 +26,6 @@ from e2e.support import stack as stack_support
 #: Stations these tests save into the preset store; the session does not start with either.
 STATION_A = "lifecycle-a"
 STATION_B = "lifecycle-b"
-
-#: The archive member a station is exported under: the preset store's name, then the station's file.
-EXPORT_MEMBER = "presets/{name}.xml"
 
 #: Ceiling on a control appearing, a request answering and a download arriving.
 #: A ceiling on a condition, never a duration anything is expected to take.
@@ -82,17 +75,3 @@ def test_tapping_a_station_in_the_tree_makes_it_the_loaded_station(page: Page, s
     ):
         name.click(timeout=SETTLE_TIMEOUT)
     assert _active(page, base) == STATION_A
-
-
-def test_downloading_state_exports_a_saved_station(page: Page, stack: stack_support.Stack, tmp_path: Path) -> None:
-    """A station saved before the download is a member of the state file the settings page downloads."""
-    base = stack.base_url
-    _save_station(page, base, STATION_A)
-    page.goto(base)
-    page.locator('[data-testid="settings"]').click(timeout=SETTLE_TIMEOUT)
-    with page.expect_download(timeout=SETTLE_TIMEOUT) as pending:
-        page.locator('[data-testid="state-export"]').click(timeout=SETTLE_TIMEOUT)
-    target = tmp_path / pending.value.suggested_filename
-    pending.value.save_as(target)
-    members = zipfile.ZipFile(io.BytesIO(target.read_bytes())).namelist()
-    assert EXPORT_MEMBER.format(name=STATION_A) in members

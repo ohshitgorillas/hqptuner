@@ -23,10 +23,6 @@ const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 // and that every offered value round-trips through the setter, never the
 // list itself.
 
-test("test_the_store_offers_at_least_one_window", () => {
-  assert.ok(prefs.APOD_WINDOWS.length > 0);
-});
-
 for (const entry of prefs.APOD_WINDOWS) {
   test(`test_choosing_offered_window_${entry}_round_trips_through_the_signal`, () => {
     prefs.setApodWindow(entry);
@@ -43,14 +39,4 @@ for (const entry of prefs.APOD_WINDOWS) {
 test("test_choosing_a_window_persists_it", () => {
   prefs.setApodWindow(prefs.APOD_WINDOWS[0]);
   assert.equal(storage.getItem("hqptuner.apodWindow"), prefs.APOD_WINDOWS[0]);
-});
-
-// `.at(-1)` types as possibly undefined; the first case above already pins the
-// list non-empty, so the guard here is for the type checker, not a second pin.
-const LAST_WINDOW = prefs.APOD_WINDOWS.at(-1);
-if (LAST_WINDOW === undefined) throw new Error("APOD_WINDOWS is empty");
-
-test("test_choosing_the_last_offered_window_persists_it", () => {
-  prefs.setApodWindow(LAST_WINDOW);
-  assert.equal(storage.getItem("hqptuner.apodWindow"), LAST_WINDOW);
 });

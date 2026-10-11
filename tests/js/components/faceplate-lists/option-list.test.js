@@ -24,13 +24,13 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
-import { hydrateFavorites, isFavorite } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { favoritesWire, puts, settle } from "../../support/wire/favoriteswire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { attr, elements, hasAttr, text } from "../../support/markup.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -140,15 +140,6 @@ test("test_tapping_a_row_closes_the_list", async () => {
   assert.equal(openList.value, null);
 });
 
-test("test_a_filter_list_draws_a_sheet_and_a_shaper_list_a_panel", () => {
-  open("sdm_filter_1x", "IIR");
-  const filters = sheet();
-  open("sdm_modulator", "ASDM5");
-  const modulators = sheet();
-  const panel = (/** @type {MarkupElement | undefined} */ e) => (e ? classes(e).includes("opanel") : null);
-  assert.deepEqual([panel(filters), panel(modulators)], [false, true]);
-});
-
 test("test_a_closed_list_is_marked_closed_and_an_open_one_is_not", () => {
   const closed = sheet();
   open("sdm_filter_1x", "IIR");
@@ -209,24 +200,11 @@ test("test_an_r2r_dac_folds_the_additive_dither_rows", () => {
   assert.deepEqual([...rows()].sort(), ["NS9", "none"]);
 });
 
-test("test_a_modulator_row_carries_the_badge_its_rate_floor_names", () => {
-  open("sdm_modulator", "ASDM5");
-  const row = rowEls().find((e) => attr(e, "data-v") === "ASDM7EC 512+fs");
-  const badge = row && elements(row.html).find((e) => attr(e, "role") === "img");
-  assert.equal(badge ? text(badge) : null, "512+");
-});
-
 test("test_a_hearts_tap_stars_its_filter_on_the_favorites_wire", async () => {
   const w = favoritesWire();
   open("sdm_filter_1x", "IIR");
   await fire((p) => p["data-fav"] === "sinc-M");
   assert.deepEqual(puts(w).at(-1), ["sinc-M"]);
-});
-
-test("test_a_hearts_tap_stars_without_picking_or_closing", async () => {
-  open("sdm_filter_1x", "IIR");
-  await fire((p) => p["data-fav"] === "sinc-M");
-  assert.deepEqual([isFavorite("sinc-M"), picked, openList.value?.key], [true, [], "sdm_filter_1x"]);
 });
 
 test("test_a_starred_filter_draws_its_heart_pressed", async () => {

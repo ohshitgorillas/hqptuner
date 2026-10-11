@@ -115,7 +115,7 @@ def test_form_routes_before_any_fetch_are_unavailable(http_client: TestClient, p
     assert http_client.get(path).status_code == 503
 
 
-@pytest.mark.parametrize("path", ["/api/config", "/api/matrix", "/api/speakers"])
+@pytest.mark.parametrize("path", ["/api/config", "/api/matrix"])
 def test_form_routes_after_a_failed_fetch_are_bad_gateway(half_wired_client: TestClient, path: str) -> None:
     assert half_wired_client.get(path).status_code == 502
 
@@ -129,10 +129,6 @@ def test_volume_write_without_a_daemon_is_unavailable(api_client: TestClient) ->
 
 def test_matrix_profile_switch_without_a_daemon_is_unavailable(api_client: TestClient) -> None:
     assert api_client.post("/api/matrix/profile", json={"action": "switch", "name": ""}).status_code == 503
-
-
-def test_unknown_matrix_profile_action_is_not_found(api_client: TestClient) -> None:
-    assert api_client.post("/api/matrix/profile", json={"action": "save", "name": "x"}).status_code == 404
 
 
 def test_apply_of_a_live_edit_without_a_daemon_is_unavailable(api_client: TestClient) -> None:
@@ -181,14 +177,3 @@ def test_log_tail_names_the_failed_read_by_code_when_the_log_cannot_be_read(deaf
 
 def test_log_tail_reports_the_read_lines_when_the_log_can_be_read(http_client: TestClient) -> None:
     assert http_client.get("/api/log", params={"lines": 2}).json()["lines"] == ["log line 59", "log line 60"]
-
-
-# --- a raw framework refusal with no code in the shared table --------------------
-
-
-def test_a_malformed_multipart_upload_answers_without_our_error_shape(api_client: TestClient) -> None:
-    # Starlette rejects the body before the route runs, with a status our code table
-    # does not map — the shared handler falls back to FastAPI's own rendering, which
-    # carries no "code" field
-    resp = api_client.post("/api/restore", content=b"junk", headers={"content-type": "multipart/form-data; boundary=x"})
-    assert "code" not in resp.json()

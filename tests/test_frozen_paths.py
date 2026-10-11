@@ -9,11 +9,11 @@ and clears both explicitly rather than assuming the state it happens to run in.
 
 import gzip
 import importlib
-import os
 import sys
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 from types import MappingProxyType, ModuleType
+from typing import NamedTuple
 
 import pytest
 from conftest import METADATA_MIN
@@ -35,28 +35,48 @@ HOME = "/home/u"
 #: real files under it.
 MEIPASS = "/meipass"
 
-#: The eight stores a user's own actions write, which a frozen build must put
-#: under a writable per-user directory rather than beside the executable.
-USER_STORES = (
-    "backup_dir",
-    "preset_dir",
-    "live_preset_file",
-    "favorites_file",
-    "narrowing_file",
-    "description_file",
-    "matrix_mode_file",
-    "autopilot_file",
-)
+#: The checkout the package was imported from: an unfrozen store resolves inside it.
+REPO_DIR = Path(hqp_config.__file__).resolve().parent.parent
 
-#: A path an operator pins through the environment, which a frozen build must
-#: hand back untouched.
-OVERRIDE = "/override/fav.json"
+#: The per-user data root every frozen-store case hands in through
+#: ``XDG_DATA_HOME``, so no case reads the machine's own home or environment.
+XDG_DATA_HOME = "/xdg/data"
+USER_DATA_DIR = Path(XDG_DATA_HOME) / "hqptuner"
 
-#: The path fields, the environment each is read under, and where its value is
-#: owed to come from: the user's own directory, the bundle, or the variable.
-FROZEN_PATH_CASES: list[tuple[str, dict[str, str], str]] = [(name, {}, "user") for name in USER_STORES] + [
-    ("data_dir", {}, "bundle"),
-    ("favorites_file", {"HQPTUNER_FAVORITES_FILE": OVERRIDE}, "variable"),
+
+class Build(NamedTuple):
+    """The ``frozen`` and ``bundle`` a ``Config`` is constructed with."""
+
+    frozen: bool
+    bundle: Path | None
+
+
+#: A ``Config`` answering as a frozen build, and as a source checkout. Neither
+#: touches ``sys``: the interpreter running the suite is never frozen.
+FROZEN_BUILD = Build(frozen=True, bundle=Path(MEIPASS))
+SOURCE_CHECKOUT = Build(frozen=False, bundle=None)
+
+#: Each store file a ``Config`` field defaults to, by field, and the file name it is kept under.
+STORE_FILES = {
+    "connection_file": "connection.json",
+    "live_preset_file": "live-presets.json",
+    "favorites_file": "favorites.json",
+    "narrowing_file": "narrowing.json",
+    "description_file": "descriptions.json",
+    "matrix_mode_file": "matrixmodes.json",
+    "autopilot_file": "autopilot.json",
+}
+
+#: Each store directory a ``Config`` field defaults to, by field, and the directory name it is kept under.
+STORE_DIRS = {"backup_dir": "backups", "preset_dir": "presets"}
+
+#: Field, the build it is resolved under, and where that build owes it to land.
+UNNAMED_PATH_CASES: list[tuple[str, Build, Path]] = [
+    *((field, FROZEN_BUILD, USER_DATA_DIR / name) for field, name in {**STORE_FILES, **STORE_DIRS}.items()),
+    *((field, SOURCE_CHECKOUT, REPO_DIR / "state" / name) for field, name in STORE_FILES.items()),
+    *((field, SOURCE_CHECKOUT, REPO_DIR / name) for field, name in STORE_DIRS.items()),
+    ("data_dir", FROZEN_BUILD, Path(MEIPASS) / "data"),
+    ("data_dir", SOURCE_CHECKOUT, PACKAGE_DIR / "data"),
 ]
 
 #: Bytes this suite writes into the bundle it builds, so the assertion on what a
@@ -80,23 +100,6 @@ PLAIN_INTERPRETER: Mapping[str, Path] = MappingProxyType({})
 def _freeze(bundle_root: str | None) -> Mapping[str, Path]:
     """The keyword ``bundled()`` takes to answer as PyInstaller's bootloader would, or ``PLAIN_INTERPRETER``."""
     return {"bundle": Path(bundle_root)} if bundle_root is not None else PLAIN_INTERPRETER
-
-
-def _owed(paths: ModuleType, source: str, bundle: Path | None = None) -> Path:
-    """Where the field's value is owed to come from, in the frozen build's own
-    terms."""
-    if source == "user":
-        return Path(paths.user_data_dir())
-    if source == "bundle":
-        return Path(paths.bundled("data", bundle=bundle))
-    return Path(OVERRIDE)
-
-
-def _clear_hqptuner_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Drop every ``HQPTUNER_*`` variable, the conftest state guard's included,
-    so a Config field reads its own default."""
-    for name in [name for name in os.environ if name.startswith("HQPTUNER_")]:
-        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
@@ -153,20 +156,14 @@ def test_bundled_asset_sits_under_the_bundle_when_frozen_and_beside_the_package_
     assert _paths().bundled(part, **_freeze(bundle_root)) == expected
 
 
-@pytest.mark.parametrize(("field", "env", "source"), FROZEN_PATH_CASES)
-def test_a_frozen_path_takes_the_environments_value_and_falls_back_to_the_user_dir_or_the_bundle(
-    monkeypatch: pytest.MonkeyPatch, field: str, env: dict[str, str], source: str
+@pytest.mark.parametrize(("field", "build", "expected"), UNNAMED_PATH_CASES)
+def test_a_path_nobody_named_lands_where_configs_own_frozen_and_bundle_fields_place_it(
+    monkeypatch: pytest.MonkeyPatch, field: str, build: Build, expected: Path
 ) -> None:
-    paths = _paths()
-    _clear_hqptuner_env(monkeypatch)
-    for name, value in env.items():
-        monkeypatch.setenv(name, value)
-    # `Config` itself now takes the frozen build PyInstaller's bootloader would set on
-    # `sys`, as its own public `frozen`/`bundle` fields.
-    field_value = Path(getattr(Config(frozen=True, bundle=Path(MEIPASS)), field))
-    observed = field_value.parent if source == "user" else field_value
+    monkeypatch.setenv("XDG_DATA_HOME", XDG_DATA_HOME)
+    monkeypatch.delenv(f"HQPTUNER_{field.upper()}", raising=False)
 
-    assert observed == _owed(paths, source, bundle=Path(MEIPASS))
+    assert getattr(Config(frozen=build.frozen, bundle=build.bundle), field) == expected
 
 
 @pytest.mark.parametrize(("route", "expected"), [("/", INDEX_BYTES), ("/api/autoeq", AUTOEQ_BYTES)])

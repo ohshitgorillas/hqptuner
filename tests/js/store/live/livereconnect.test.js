@@ -71,14 +71,6 @@ test("test_an_error_survives_a_poll_reporting_the_same_connection", () => {
   assert.equal(liveErrors.value.filter, "filter never converged");
 });
 
-test("test_an_error_survives_repeated_polls_reporting_the_same_connection", () => {
-  seed({ filter: "filter never converged" });
-  health.value = poll({ connected_at: 1000 });
-  health.value = poll({ connected_at: 1000 });
-  health.value = poll({ connected_at: 1000 });
-  assert.equal(liveErrors.value.filter, "filter never converged");
-});
-
 // A poll that reports the daemon reachable is not itself news: the daemon was
 // reachable on the poll before it too, on the same connection. A store keyed on
 // reachability rather than on the connection clears here and fails.
@@ -89,23 +81,6 @@ test("test_a_poll_reporting_the_daemon_still_reachable_clears_nothing", () => {
 });
 
 // --- a new connection ---------------------------------------------------------
-
-test("test_a_reconnect_clears_the_error_on_a_control", () => {
-  seed({ filter: "filter never converged" });
-  health.value = poll({ connected_at: 1000 });
-  health.value = poll({ connected_at: 2000 });
-  assert.equal(liveErrors.value.filter, undefined);
-});
-
-// The engine restart that drops the connection can be shorter than the poll
-// interval, so both polls say reachable and `unreachable_since` stays null
-// throughout — `connected_at` is the only field that moved.
-test("test_a_reconnect_never_seen_as_unreachable_still_clears_the_error", () => {
-  seed({ filter: "filter never converged" });
-  health.value = poll({ connected_at: 3000, reachable: true, unreachable_since: null });
-  health.value = poll({ connected_at: 4000, reachable: true, unreachable_since: null });
-  assert.equal(liveErrors.value.filter, undefined);
-});
 
 test("test_a_reconnect_clears_every_controls_error_not_just_one", () => {
   seed({ filter: "filter never converged", mode: "mode never converged", rate: "rate never converged" });

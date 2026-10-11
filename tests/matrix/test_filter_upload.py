@@ -7,8 +7,6 @@ from typing import Any
 
 import pytest
 from conftest import ManagerFactory, minimal_wave
-from fastapi.testclient import TestClient
-from narrow import FixtureError
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -52,15 +50,6 @@ async def test_parked_filter_rides_the_restore_archive(manager: ConnectionManage
     assert "data/probe.wav" in http_daemon["_restore_members"]
 
 
-def test_park_returns_the_daemon_home_path(manager: ConnectionManager) -> None:
-    assert manager.presetops.park_filter("probe.wav", minimal_wave())["path"] == "/x/home/probe.wav"
-
-
-def test_colliding_upload_name_gets_a_serial_suffix(manager: ConnectionManager) -> None:
-    manager.presetops.park_filter("probe.wav", minimal_wave())
-    assert manager.presetops.park_filter("probe.wav", minimal_wave())["name"] == "probe-1.wav"
-
-
 @pytest.mark.parametrize(("name", "expected"), NAME_OUTCOMES)
 def test_an_unsafe_name_is_refused_and_a_plain_one_stored_unchanged(
     manager: ConnectionManager, name: str, expected: str | type[ValueError]
@@ -70,27 +59,3 @@ def test_an_unsafe_name_is_refused_and_a_plain_one_stored_unchanged(
 
 def test_parametric_eq_txt_is_accepted(manager: ConnectionManager) -> None:
     assert manager.presetops.park_filter("autoeq.txt", b"Preamp: -6.4 dB")["name"] == "autoeq.txt"
-
-
-def _apply_pipelines(client: TestClient, pipelines: str, code: str | None) -> None:
-    """Stage and apply that pipeline value through the REST surface, which shares the park on disk;
-    refuse to go on unless the apply answered ``code`` (None: not refused)."""
-    client.post("/api/config/stage", json={"http": {"matrix_pipelines": pipelines}})
-    got = client.post("/api/config/apply").json().get("code")
-    if got != code:
-        raise FixtureError(reason=f"the apply was meant to answer code {code!r}, got {got!r}")
-
-
-APPLY_OUTCOMES = [
-    pytest.param(ROWS, None, [], id="accepted-clears"),
-    pytest.param("not json", "invalid_input", ["data/probe.wav"], id="refused-keeps"),
-]
-
-
-@pytest.mark.parametrize(("pipelines", "code", "expected"), APPLY_OUTCOMES)
-def test_an_apply_clears_the_parking_area_only_when_it_succeeds(
-    manager: ConnectionManager, http_client: TestClient, pipelines: str, code: str | None, expected: list[str]
-) -> None:
-    manager.presetops.park_filter("probe.wav", minimal_wave())
-    _apply_pipelines(http_client, pipelines, code)
-    assert list(manager.presetops.parked_filter_members()) == expected

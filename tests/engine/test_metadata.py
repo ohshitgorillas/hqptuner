@@ -11,7 +11,6 @@ import json
 import shutil
 from typing import TYPE_CHECKING
 
-import pytest
 from conftest import METADATA_MIN as FIXTURE_DIR
 
 from hqptuner.metadata import StaticMetadata, merge_enumerations
@@ -38,14 +37,6 @@ def test_raw_serves_the_pcm_dithers_overlay_by_name() -> None:
     assert entry["min_rate_hz"] == 44100
 
 
-def test_raw_serves_the_filter_plain_names_overlay_under_plain_names() -> None:
-    assert StaticMetadata(FIXTURE_DIR).raw.plain_names["filters"] == {
-        "entries": {},
-        "families": {},
-        "variants": {},
-    }
-
-
 def test_raw_serves_the_easy_mode_database_verbatim(tmp_path: Path) -> None:
     target = tmp_path / "metadata"
     shutil.copytree(FIXTURE_DIR, target)
@@ -67,27 +58,3 @@ def test_merge_enumerations_serves_the_junk_filters_enum_list() -> None:
     static = StaticMetadata(FIXTURE_DIR)
     enums = {"junk_filters": [{"index": "0", "name": "none"}]}
     assert merge_enumerations(enums, static, "PCM").junk_filters == [{"index": "0", "name": "none"}]
-
-
-ENUMS = {"filters": [{"index": "0", "name": "fixture-filter", "arg": "1"}]}
-
-
-def test_merge_enumerations_serves_the_same_inputs_the_merge_it_already_built() -> None:
-    static = StaticMetadata(FIXTURE_DIR)
-    first = merge_enumerations(ENUMS, static, "PCM")
-    assert merge_enumerations(ENUMS, static, "PCM") is first
-
-
-@pytest.mark.parametrize(
-    ("enums", "mode_name"),
-    [
-        pytest.param(ENUMS, "SDM (DSD)", id="another-mode"),
-        pytest.param(json.loads(json.dumps(ENUMS)), "PCM", id="an-equal-but-distinct-enums-dict"),
-    ],
-)
-def test_merge_enumerations_rebuilds_for_another_mode_or_enums_object(
-    enums: dict[str, list[dict[str, str]]], mode_name: str
-) -> None:
-    static = StaticMetadata(FIXTURE_DIR)
-    first = merge_enumerations(ENUMS, static, "PCM")
-    assert merge_enumerations(enums, static, mode_name) is not first

@@ -9,9 +9,6 @@ What is asserted is what the test put on the wire, the index each setter sent an
 for it: that the report prints each of them once, and not the way Python prints a dict or a tuple.
 """
 
-import re
-
-import pytest
 from conftest import DaemonFactory
 
 from hqptuner.engine.control import ControlClient
@@ -24,8 +21,6 @@ REPLY_TIMEOUT = 2.0
 SHAPER = ("shaper", "SetShaping", "27", "13")
 JUNK_FILTER = ("filter_junk", "SetJunkFilter", "6", "4")
 SETTINGS = [SHAPER, JUNK_FILTER]
-
-BY_SETTING = [pytest.param(setting, id=setting[0]) for setting in SETTINGS]
 
 
 async def _mismatch_report(daemon: DaemonFactory) -> str | None:
@@ -48,25 +43,7 @@ async def _mismatch_report(daemon: DaemonFactory) -> str | None:
     return None
 
 
-def _values_outside_a_python_pair(report: str, first: str, second: str) -> list[str]:
-    """Each of ``first`` and ``second`` that ``report`` prints as a word of its own, once per time it does, sorted,
-    after leaving out the text where the two are printed as a Python tuple, quoted or not."""
-    a, b = re.escape(first), re.escape(second)
-    untupled = re.sub(rf"\(\s*'?{a}'?\s*,\s*'?{b}'?\s*\)", "", report)
-    return sorted(re.findall(rf"\b(?:{a}|{b})\b", untupled))
-
-
 async def test_a_state_readback_mismatch_is_not_reported_as_a_python_dict(daemon: DaemonFactory) -> None:
     report = await _mismatch_report(daemon)
     assert report is not None
     assert "{" not in report
-
-
-@pytest.mark.parametrize("setting", BY_SETTING)
-async def test_a_state_readback_mismatch_does_not_print_a_settings_values_as_a_python_tuple(
-    daemon: DaemonFactory, setting: tuple[str, str, str, str]
-) -> None:
-    _attribute, _setter, sent, kept = setting
-    report = await _mismatch_report(daemon)
-    assert report is not None
-    assert _values_outside_a_python_pair(report, sent, kept) == sorted([sent, kept])

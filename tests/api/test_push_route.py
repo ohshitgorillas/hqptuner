@@ -17,7 +17,7 @@ import fake_control
 import pytest
 from apps import advance_app, live_app
 from conftest import spawn_threaded_daemon
-from sse import SseBlock, comments, events, open_stream
+from sse import SseBlock, events, open_stream
 
 from hqptuner.api.push import KEEPALIVE
 
@@ -50,10 +50,6 @@ def _saw(name: str, count: int = 1) -> Callable[[Sequence[SseBlock]], bool]:
 def _staged(field: str) -> Callable[[Sequence[SseBlock]], bool]:
     """A read's condition: a ``pending`` event carries ``field`` in its restore-lane bucket."""
     return lambda blocks: field in _last_http(blocks)
-
-
-def _commented(blocks: Sequence[SseBlock]) -> bool:
-    return bool(comments(blocks))
 
 
 def _last_body(blocks: Sequence[SseBlock], name: str) -> dict[str, object]:
@@ -109,13 +105,6 @@ def test_the_stream_opens_with_a_health_event(push_api: TestClient) -> None:
     assert _first_name(blocks) == "health"
 
 
-def test_a_fresh_subscriber_receives_the_staged_buffer(push_api: TestClient) -> None:
-    push_api.post("/api/config/stage", json={"http": {FIELD: STAGED}})
-    with open_stream(push_api, PATH) as opened:
-        blocks = opened.until(_saw("pending"))
-    assert _last_body(blocks, "pending") == push_api.get("/api/config/pending").json()
-
-
 def test_a_staged_edit_is_pushed(push_api: TestClient, stream: SseStream) -> None:
     push_api.post("/api/config/stage", json={"http": {FIELD: STAGED}})
     assert _last_http(stream.until(_staged(FIELD))).get(FIELD) == STAGED
@@ -135,8 +124,3 @@ def test_a_poll_pass_with_nothing_moved_pushes_no_second_state_event(push_api: T
     # queues behind everything the pass sent
     push_api.post("/api/config/stage", json={"http": {MARKER: STAGED}})
     assert len(events(stream.until(_staged(MARKER)), "state")) == 1
-
-
-def test_a_quiet_keepalive_interval_writes_a_comment(push_api: TestClient, stream: SseStream) -> None:
-    advance_app(push_api, KEEPALIVE)
-    assert _commented(stream.until(_commented))

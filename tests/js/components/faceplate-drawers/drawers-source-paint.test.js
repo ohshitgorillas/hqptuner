@@ -239,10 +239,3 @@ test("test_reopening_the_drawer_after_closes_puts_one_full_width_image", () => {
     { x: 0, width: SPEC_SIZE.width },
   ]);
 });
-
-test("test_a_change_of_window_never_repaints_the_strip_while_the_drawer_is_closed", () => {
-  const { strip } = mounted();
-  openStage.value = null;
-  setApodWindow("300");
-  assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
-});

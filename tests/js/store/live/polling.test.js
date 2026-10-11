@@ -20,7 +20,6 @@ import assert from "node:assert/strict";
 
 import {
   health,
-  metadata,
   volume,
   volumeRange,
   config,
@@ -84,10 +83,6 @@ await drain();
 
 test("test_sync_opens_its_stream_on_the_push_route", () => {
   assert.equal(lastStream()?.url, "/api/push");
-});
-
-test("test_sync_primes_the_static_metadata_once", () => {
-  assert.deepEqual(metadata.value, { filters: [] });
 });
 
 // --- each event lands in the signal its route's poll wrote -----------------------

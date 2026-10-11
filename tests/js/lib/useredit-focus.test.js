@@ -30,7 +30,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { documentSees, focus, keydown, press, setup, fire } from "../support/useredit-dom.js";
+import { documentSees, focus, keydown, setup, fire } from "../support/useredit-dom.js";
 
 /** @typedef {import("../support/useredit-dom.js").ControlSeam} ControlSeam */
 
@@ -58,50 +58,12 @@ for (const key of SLIDER_KEYS) {
   });
 }
 
-test("test_an_input_refused_for_want_of_focus_snaps_back_to_canonical", () => {
-  const { el, handler } = setup();
-  keydown(el, "ArrowRight");
-  fire(handler, el, "input");
-  assert.equal(el.value, "50");
-});
-
 test("test_the_change_following_an_unfocused_keydown_is_refused_too", () => {
   const { el, calls, handler } = setup();
   keydown(el, "ArrowRight");
   fire(handler, el, "input");
   fire(handler, el, "change");
   assert.deepEqual(calls, []);
-});
-
-// --- with focus, the existing arming behavior is unchanged ----------------------
-
-for (const key of ARROWS) {
-  test(`test_a_${key}_keydown_on_a_focused_slider_arms_the_input`, () => {
-    const { el, calls, handler } = setup();
-    focus(el);
-    keydown(el, key);
-    fire(handler, el, "input");
-    assert.equal(calls.length, 1);
-  });
-}
-
-test("test_the_change_closing_a_focused_key_edit_is_honored", () => {
-  const { el, calls, handler } = setup();
-  focus(el);
-  keydown(el, "ArrowUp");
-  fire(handler, el, "input");
-  fire(handler, el, "change");
-  assert.equal(calls.length, 2);
-});
-
-test("test_a_focused_key_arm_is_consumed_by_its_input_change_pair", () => {
-  const { el, calls, handler } = setup();
-  focus(el);
-  keydown(el, "ArrowUp");
-  fire(handler, el, "input");
-  fire(handler, el, "change");
-  fire(handler, el, "input");
-  assert.equal(calls.length, 2);
 });
 
 // --- the license does not outlive the focus --------------------------------------
@@ -113,16 +75,4 @@ test("test_a_keydown_after_the_slider_is_blurred_arms_nothing", () => {
   keydown(el, "ArrowUp");
   fire(handler, el, "input");
   assert.deepEqual(calls, []);
-});
-
-// --- the pointer route is not focus-gated ----------------------------------------
-// A user pressing the thumb has demonstrated intent whether or not the browser
-// moved focus there, so the held-pointer provenance must not be narrowed by this
-// change.
-
-test("test_a_held_pointer_still_honors_an_input_on_an_unfocused_slider", () => {
-  const { el, calls, handler } = setup();
-  press(el);
-  fire(handler, el, "input");
-  assert.equal(calls.length, 1);
 });

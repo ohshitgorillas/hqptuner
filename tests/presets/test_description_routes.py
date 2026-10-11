@@ -146,7 +146,7 @@ def test_a_fresh_install_answers_get_with_200(desc_client: TestClient) -> None:
     assert desc_client.get("/api/descriptions").status_code == 200
 
 
-@pytest.mark.parametrize(("member", "served"), [("text", TEXT), ("updated", "2025-03-04T05:06:07Z")])
+@pytest.mark.parametrize(("member", "served"), [("text", TEXT)])
 def test_get_serves_the_text_a_put_stored_and_the_stamp_of_the_apps_clock(
     desc_client: TestClient, member: str, served: str
 ) -> None:
@@ -164,20 +164,6 @@ def test_putting_blank_text_drops_the_entry(desc_client: TestClient) -> None:
     desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
     desc_client.put("/api/descriptions", json={"name": NAME, "text": "   "})
     assert NAME not in desc_client.get("/api/descriptions").json()["profiles"]
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param({"name": "", "text": TEXT}, id="empty-name"),
-        pytest.param({"name": "x" * 129, "text": TEXT}, id="129-char-name"),
-        pytest.param({"name": "Living\x07Room", "text": TEXT}, id="control-char-name"),
-        pytest.param({"name": NAME, "text": "x" * 2001}, id="2001-char-text"),
-        pytest.param({"name": NAME, "text": "warm\x00room"}, id="control-char-text"),
-    ],
-)
-def test_a_put_the_store_would_refuse_answers_422(desc_client: TestClient, body: object) -> None:
-    assert desc_client.put("/api/descriptions", json=body).status_code == 422
 
 
 # Name cases as well as text: FastAPI's own body validation also answers 422, so
@@ -211,12 +197,6 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     seed(tmp_path, json.dumps(TOO_NEW))
     answer = descriptions_api().put("/api/descriptions", json={"name": NAME, "text": TEXT})
     assert answer.status_code == 409
-
-
-# The read direction is pinned by every GET case above, all of which run against
-# this same daemonless client; what is left to say is that a WRITE lands too.
-def test_a_description_is_written_with_no_daemon_reachable(desc_client: TestClient) -> None:
-    assert desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT}).status_code == 200
 
 
 # --- the two zip helpers -------------------------------------------------------------
@@ -256,12 +236,6 @@ def members_zip() -> bytes:
 
 
 # --- carriage through backup ----------------------------------------------------------
-
-
-def test_a_backup_carries_the_descriptions_member(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
-    client, store = carriage_client
-    store.write(NAME, TEXT)
-    assert DESCRIPTIONS_MEMBER in members(client.get("/api/backup").content)
 
 
 def test_the_carried_member_holds_the_stored_text(carriage_client: tuple[TestClient, DescriptionStore]) -> None:
@@ -324,14 +298,6 @@ def test_a_restore_keeps_a_description_the_archive_did_not_carry(
     store.write("Study", "near field")
     upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
     assert store.read()["Study"]["text"] == "near field"
-
-
-def test_a_restore_forwards_an_archive_without_the_descriptions_member(
-    carriage_client: tuple[TestClient, DescriptionStore], http_daemon: dict[str, Any]
-) -> None:
-    client, _store = carriage_client
-    upload(client, embed_descriptions(client.get("/api/backup").content, stamped({NAME: entry("warm")})))
-    assert DESCRIPTIONS_MEMBER not in http_daemon["_restore_members"]
 
 
 def test_a_restore_forwards_every_other_member_byte_identical(

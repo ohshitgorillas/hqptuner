@@ -145,12 +145,6 @@ def test_job_that_is_neither_path_nor_object_is_refused(
     assert _refusal(eqtools, "eqlab", job, root, env) == "bad_job"
 
 
-def test_tools_call_without_a_job_is_an_error_result(eqtools: ModuleType) -> None:
-    response = eqtools.handle_request({"jsonrpc": "2.0", "id": 7, "method": "tools/call", "params": {"name": "eqlab"}})
-    assert response is not None
-    assert response.get("result", {}).get("isError") is True
-
-
 def test_tools_list_names_exactly_the_two_tools(eqtools: ModuleType) -> None:
     response = eqtools.handle_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
     assert response is not None

@@ -31,11 +31,6 @@ test("test_the_plate_carries_the_size_the_window_holds", () => {
   assert.equal(attr(plateEl(), "data-size"), "11");
 });
 
-test("test_the_plate_carries_the_largest_size_in_a_larger_window", () => {
-  viewport.value = { w: 1400, h: 1100 };
-  assert.equal(attr(plateEl(), "data-size"), "13");
-});
-
 test("test_a_window_half_the_smallest_size_scales_the_plate_by_half", () => {
   viewport.value = { w: 540, h: 405 };
   assert.match(String(attr(plateEl(), "style")), /scale\(0\.5\)/);

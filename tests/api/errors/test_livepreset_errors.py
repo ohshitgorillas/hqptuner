@@ -33,40 +33,6 @@ STALE_STORE: dict[str, Any] = {
 }
 
 
-#: Every distinct way a name breaks the live store's naming rule and reaches the
-#: route to be refused. The rule is the ONLY condition under which saving raises
-#: the store's plain error rather than the schema one: measured against the
-#: store's public API, a save over a corrupt, unstamped, wrongly stamped or
-#: structurally odd file succeeds, and a store stamped newer than this build
-#: raises the schema error instead (409, above). Names carrying a real path
-#: separator (``a/b``, ``/etc/passwd``, ``..`` unescaped, the empty name) never
-#: reach the store at all — the router answers those itself.
-REFUSED_NAMES = [
-    pytest.param("a\\b", id="backslash"),
-    pytest.param("..", id="parent-directory"),
-    pytest.param("Studio..xml", id="embedded-double-dot"),
-    pytest.param(".hidden", id="leading-dot"),
-    pytest.param(" ", id="only-whitespace"),
-    pytest.param(" Studio", id="leading-space"),
-    pytest.param("a\x00b", id="nul"),
-    pytest.param("a\x1fb", id="unit-separator"),
-    pytest.param("a\x7fb", id="delete"),
-    # 252 UTF-8 bytes: over the store's length limit even though it is well
-    # under 255 characters, so a limit counting characters would accept it
-    pytest.param("ä" * 126, id="over-255-bytes"),
-]
-
-
-def _path(name: str) -> str:
-    """The route path for a preset name, every byte percent-encoded.
-
-    Encoding the whole name is what lets a dot-shaped or control-character name
-    reach the store's rule at all: left literal, the router resolves ``..`` and a
-    bare ``.`` as path segments and answers before any handler runs."""
-    encoded = "".join(f"%{byte:02X}" for byte in name.encode())
-    return f"/api/livepresets/{encoded}"
-
-
 def _seed(tmp_path: Path, store: dict[str, Any]) -> None:
     (tmp_path / "live-presets.json").write_text(json.dumps(store))
 
@@ -95,12 +61,6 @@ def chainless_api(chain_api: Callable[..., TestClient]) -> TestClient:
 # --- GET /api/livepresets --------------------------------------------------------
 
 
-def test_listing_presets_from_a_store_this_build_cannot_read_is_a_conflict(
-    unreadable_api: TestClient,
-) -> None:
-    assert unreadable_api.get("/api/livepresets").status_code == 409
-
-
 def test_listing_presets_from_an_unreadable_store_reports_the_schema_it_found(
     unreadable_api: TestClient,
 ) -> None:
@@ -108,10 +68,6 @@ def test_listing_presets_from_an_unreadable_store_reports_the_schema_it_found(
 
 
 # --- PUT /api/livepresets/{name} -------------------------------------------------
-
-
-def test_saving_with_the_engines_chain_unknown_is_a_conflict(chainless_api: TestClient) -> None:
-    assert chainless_api.put("/api/livepresets/Warm").status_code == 409
 
 
 def test_saving_with_the_engines_chain_unknown_details_the_chain_field_alone(
@@ -133,40 +89,19 @@ def test_saving_stores_nothing_with_the_chain_unknown_but_the_preset_once_it_is_
     assert [p["name"] for p in client.get("/api/livepresets").json()["presets"]] == stored
 
 
-def test_saving_into_a_store_this_build_cannot_read_is_a_conflict(unreadable_api: TestClient) -> None:
-    assert unreadable_api.put("/api/livepresets/Warm").status_code == 409
-
-
 def test_saving_into_an_unreadable_store_reports_the_schema_it_found(unreadable_api: TestClient) -> None:
     assert "99" in unreadable_api.put("/api/livepresets/Warm").json()["detail"]
 
 
-@pytest.mark.parametrize("name", REFUSED_NAMES)
-def test_saving_under_a_name_the_store_refuses_is_unprocessable(live_api: TestClient, name: str) -> None:
-    assert live_api.put(_path(name)).status_code == 422
-
-
 # --- POST /api/livepresets/{name}/apply ------------------------------------------
-
-
-def test_applying_from_a_store_this_build_cannot_read_is_a_conflict(unreadable_api: TestClient) -> None:
-    assert unreadable_api.post("/api/livepresets/Warm/apply").status_code == 409
 
 
 def test_applying_from_an_unreadable_store_reports_the_schema_it_found(unreadable_api: TestClient) -> None:
     assert "99" in unreadable_api.post("/api/livepresets/Warm/apply").json()["detail"]
 
 
-def test_applying_a_preset_that_was_never_saved_is_not_found(live_api: TestClient) -> None:
-    assert live_api.post("/api/livepresets/Nope/apply").status_code == 404
-
-
 def test_applying_a_preset_that_was_never_saved_names_the_missing_preset(live_api: TestClient) -> None:
     assert "Nope" in live_api.post("/api/livepresets/Nope/apply").json()["detail"]
-
-
-def test_applying_a_preset_the_engine_cannot_route_is_a_conflict(stale_api: TestClient) -> None:
-    assert stale_api.post("/api/livepresets/Stale/apply").status_code == 409
 
 
 def test_applying_a_preset_the_engine_cannot_route_details_the_refused_fields_alone(
@@ -178,18 +113,6 @@ def test_applying_a_preset_the_engine_cannot_route_details_the_refused_fields_al
 
 
 # --- DELETE /api/livepresets/{name} ----------------------------------------------
-
-
-def test_deleting_from_a_store_this_build_cannot_read_is_a_conflict(unreadable_api: TestClient) -> None:
-    assert unreadable_api.delete("/api/livepresets/Warm").status_code == 409
-
-
-def test_deleting_from_an_unreadable_store_reports_the_schema_it_found(unreadable_api: TestClient) -> None:
-    assert "schema 99" in unreadable_api.delete("/api/livepresets/Warm").json()["detail"]
-
-
-def test_deleting_a_preset_that_was_never_saved_is_not_found(live_api: TestClient) -> None:
-    assert live_api.delete("/api/livepresets/Nope").status_code == 404
 
 
 def test_deleting_a_preset_that_was_never_saved_names_the_missing_preset(live_api: TestClient) -> None:

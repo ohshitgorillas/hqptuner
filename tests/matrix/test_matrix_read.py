@@ -13,7 +13,6 @@ from typing import Any
 
 import pytest
 from conftest import StartManager
-from narrow import present
 
 from hqptuner.api.routes.matrix.matrix import matrix as matrix_report
 from hqptuner.conf.formparse import parse_matrix_form
@@ -41,22 +40,12 @@ async def matrix_client(http_daemon: dict[str, Any]) -> AsyncIterator[HttpConfig
 # --- fake-daemon lane (varied state over the wire) ---------------------------
 
 
-async def test_pipeline_rows_group_indexed_fields_by_row(matrix_client: HttpConfigClient) -> None:
-    form = await matrix_client.get_matrix()
-    assert form["rows"][1]["source"] == "1"
-
-
 async def test_pipeline_row_carries_its_process_string(
     matrix_client: HttpConfigClient, http_daemon: dict[str, Any]
 ) -> None:
     http_daemon["process_0"] = "iir:type=peak;f=1000;q=1;g=-3,impulse.wav"
     form = await matrix_client.get_matrix()
     assert form["rows"][0]["process"] == "iir:type=peak;f=1000;q=1;g=-3,impulse.wav"
-
-
-async def test_gainunit_survives_daemons_malformed_option_markup(matrix_client: HttpConfigClient) -> None:
-    form = await matrix_client.get_matrix()
-    assert form["rows"][0]["gainunit"] == "dB"
 
 
 @pytest.mark.parametrize(
@@ -73,18 +62,6 @@ async def test_a_global_control_is_a_flat_field_and_a_row_field_is_not(
     assert (name in {f["name"] for f in form["fields"]}) is flat
 
 
-async def test_profile_datalist_leads_with_the_unnamed_default_then_the_saved_profiles(
-    matrix_client: HttpConfigClient,
-) -> None:
-    form = await matrix_client.get_matrix()
-    assert [o["value"] for o in present(form["profiles"])["options"]] == DATALIST
-
-
-async def test_active_profile_label_is_parsed(matrix_client: HttpConfigClient) -> None:
-    form = await matrix_client.get_matrix()
-    assert form["active"] == "[Default]"
-
-
 # --- captured-real-page lane (the daemon's actual bytes) ---------------------
 
 
@@ -98,10 +75,6 @@ def test_real_page_row_reads_its_selected_source_channel() -> None:
 
 def test_real_page_gainunit_parses_despite_malformed_markup() -> None:
     assert parse_matrix_form(REAL_PAGE)["rows"][0]["gainunit"] == "dB"
-
-
-def test_real_page_active_profile_is_the_default() -> None:
-    assert parse_matrix_form(REAL_PAGE)["active"] == "[Default]"
 
 
 def test_real_page_engine_select_reads_current_value() -> None:

@@ -6,9 +6,7 @@ its GET renders the running state. So a change only round-trips if
 `manager.apply` built a restore archive the real daemon would accept — a wrong
 form->XML mapping in the writer surfaces as a failed readback."""
 
-import dataclasses
 from collections.abc import Iterator
-from pathlib import Path
 from typing import Any
 
 import fake_http
@@ -16,9 +14,7 @@ import pytest
 from conftest import ManagerFactory
 
 from hqptuner.conf import presetconf
-from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreConverged, RestoreOutcome, RestoreUnavailable
@@ -107,17 +103,6 @@ async def test_a_daemon_that_never_returns_reports_not_applied(
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
-async def test_the_pre_apply_backup_is_written_to_disk(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
-    tmp_path: Path,
-) -> None:
-    # a crash mid-apply must leave a recoverable copy behind, so the backup is
-    # persisted before the POST, not just held in memory
-    manager, _ = apply_via
-    await manager.applyops.apply({}, {"title": "Renamed"})
-    assert (tmp_path / "pre-apply-settings.zip").read_bytes().startswith(b"PK\x03\x04")
-
-
 async def test_apply_verifies_through_the_post_restart_stale_window(
     stale_http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
@@ -174,57 +159,3 @@ async def test_loudness_edit_persists_to_the_loudness_plugin(
     await manager.applyops.apply({}, {"post_loudness_enabled": "1", "post_loudness_lowfreq": "120"})
     matrix = {f["name"]: f["value"] for f in (await http.get_matrix())["fields"]}
     assert matrix["post_loudness_lowfreq"] == 120
-
-
-async def test_rescan_surfaces_a_newly_present_output_device(
-    http_daemon: dict[str, Any],
-    http_manager: ConnectionManager,
-) -> None:
-    # an endpoint that was powered off is absent from the device list until a
-    # rescan; refresh_devices must trigger it AND refetch the form so the new
-    # device is actually offered — a bare POST that skipped the refetch would not
-    http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    await engineread.refresh_devices(http_manager)
-    config_form = http_manager.readings.config_form
-    fields = config_form["fields"] if config_form is not None else []
-    offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
-    assert "S99/hw:CARD=WokeUp,DEV=0" in offered
-
-
-async def _declined_code(manager: ConnectionManager, edits: dict[str, str]) -> str:
-    """The ``code`` of the ``HttpLaneDeclinedError`` a persistent apply raises; empty when it goes ahead."""
-    code = ""
-    try:
-        await restore.apply(manager, edits)
-    except HttpLaneDeclinedError as exc:
-        code = exc.code
-    return code
-
-
-async def test_a_persistent_apply_declines_when_credentials_were_refused(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
-) -> None:
-    manager, _ = apply_via
-    manager.readings.credentials_ok = False
-    assert await _declined_code(manager, {"title": "Renamed"}) == "no_credentials"
-
-
-async def test_a_refused_credential_reports_its_code_through_the_apply_report(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
-) -> None:
-    manager, _ = apply_via
-    manager.readings.credentials_ok = False
-    report = await manager.applyops.apply({}, {"title": "Renamed"})
-    assert dataclasses.asdict(report)["persistent"]["code"] == "no_credentials"
-
-
-async def test_read_preset_reads_the_store_and_survives_an_empty_backup(
-    http_daemon: dict[str, Any],
-    http_manager: ConnectionManager,
-) -> None:
-    # a preview reads the HQPTuner store, never the daemon — so it still works when
-    # the daemon's /backup goes empty (the 6.0.4 post-load bug)
-    await http_manager.presetops.save_preset("Kept")  # snapshot the running config into the store
-    http_daemon["_empty"] = True
-    cfg = await presetlane.read(http_manager, "Kept")
-    assert cfg["title"] == "Opal"

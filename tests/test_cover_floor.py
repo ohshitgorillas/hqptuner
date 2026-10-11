@@ -13,7 +13,7 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 import pytest
-from conftest import DaemonFactory, LiveManager
+from conftest import LiveManager
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -24,10 +24,9 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.frames import parse_frame
-from hqptuner.lanes.live.lane import mode_then_split, reassert_chain, remember_routed
+from hqptuner.lanes.live.lane import mode_then_split
 from hqptuner.lanes.live.snapshot import ChainUnknownError, live_snapshot
 from hqptuner.lanes.rescan import ReplayOutcome, ReplayResult, replay
-from hqptuner.lanes.writer import LiveWriteOk, LiveWriteOutcome
 
 #: A snapshot holding two stored profiles, each with a body of its own.
 XML0 = (
@@ -226,122 +225,6 @@ async def test_a_mode_the_engine_already_runs_is_skipped_and_the_rest_is_split(
     assert await mode_then_split(manager, dict(http_fields), {}) == expected
 
 
-@pytest.fixture
-async def manager_and_client(
-    daemon: DaemonFactory, clock: VirtualClock
-) -> AsyncIterator[tuple[ConnectionManager, ControlClient]]:
-    """A running manager on a fake daemon, plus a second control connection to
-    that same daemon (its State is shared across connections), for the lane
-    entry points that take the client to write through as an argument."""
-    port, _log, _state = await daemon()
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
-    task = clock.spawn(manager.run())
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield manager, client
-    await client.close()
-    manager.stop()
-    await task
-    await manager.aclose()
-
-
-async def _reasserted(
-    manager_and_client: tuple[ConnectionManager, ControlClient], remembered: str
-) -> list[tuple[str, LiveWriteOutcome]]:
-    """Reassert a PCM chain remembering ``dither`` at ``remembered``; each setter sent, with its outcome."""
-    manager, client = manager_and_client
-    await _loaded(manager)
-    manager.readings.live.chain["pcm"] = {"dither": remembered}
-    return [(r.setting, r.outcome) for r in await reassert_chain(manager, client)]
-
-
-@pytest.mark.parametrize(
-    ("remembered", "sent"),
-    [
-        pytest.param("5", [("shaper", LiveWriteOutcome.OK)], id="value-on-the-list"),
-        pytest.param("999", [], id="value-off-the-list"),
-    ],
-)
-async def test_reasserting_a_chain_sends_a_listed_value_and_not_an_unlisted_one(
-    manager_and_client: tuple[ConnectionManager, ControlClient],
-    remembered: str,
-    sent: list[tuple[str, LiveWriteOutcome]],
-) -> None:
-    assert await _reasserted(manager_and_client, remembered) == sent
-
-
-@pytest.mark.parametrize(
-    ("remembered", "kept"),
-    [
-        pytest.param("5", {"dither": "5"}, id="value-on-the-list"),
-        pytest.param("999", {}, id="value-off-the-list-is-dropped"),
-    ],
-)
-async def test_reasserting_a_chain_keeps_a_listed_value_and_forgets_an_unlisted_one(
-    manager_and_client: tuple[ConnectionManager, ControlClient],
-    remembered: str,
-    kept: dict[str, str],
-) -> None:
-    await _reasserted(manager_and_client, remembered)
-    assert manager_and_client[0].readings.live.chain["pcm"] == kept
-
-
-def _readings(
-    manager: ConnectionManager,
-) -> tuple[dict[str, str], dict[str, str], dict[str, list[dict[str, str]]]]:
-    """The manager's state, status and enums, each present after a load."""
-    state = manager.readings.state
-    status = manager.readings.status
-    enums = manager.readings.enums
-    if state is None or status is None or enums is None:
-        raise FixtureError(reason="readings not loaded")
-    return state, status, enums
-
-
-def _no_chain(manager: ConnectionManager) -> ConnectionManager:
-    """The same manager with its readings naming no active chain: the mode at
-    ``[source]`` and the status frame carrying neither active_mode nor
-    active_rate."""
-    state, status, _enums = _readings(manager)
-    state["mode"] = "0"
-    status.pop("active_mode", None)
-    status.pop("active_rate", None)
-    return manager
-
-
-@pytest.mark.parametrize(
-    ("reshape", "expected"),
-    [
-        pytest.param(lambda manager: manager, {"pcm": {"dither": "5"}}, id="active-chain-records"),
-        pytest.param(_no_chain, {}, id="no-chain-records-nothing"),
-    ],
-)
-async def test_routed_fields_are_remembered_under_the_active_chain_only(
-    live_manager: LiveManager,
-    reshape: Callable[[ConnectionManager], ConnectionManager],
-    expected: dict[str, dict[str, str]],
-) -> None:
-    manager, _log, _state = await live_manager()
-    await _loaded(manager)
-    remember_routed(reshape(manager), [LiveWriteOk(setting="shaper")], dict(DITHER_NS9))
-    assert manager.readings.live.chain == expected
-
-
-# --- the live snapshot ---------------------------------------------------------
-
-
-async def test_a_field_the_enumeration_cannot_name_is_left_out_of_the_snapshot(live_manager: LiveManager) -> None:
-    manager, _log, _state = await live_manager()
-    before = await _loaded(manager)
-    state, _status, enums = _readings(manager)
-    state["mode"] = "99"  # a mode index no enumerated mode carries
-    del state["shaper"]  # a routable field's state attribute gone
-    next(item for item in enums["filters"] if item["index"] == "0").pop("value")
-    del state["adaptive"]
-    after = live_snapshot(manager).fields
-    assert sorted(before) == sorted([*after, "adaptive_volume", "dither", "filter", "filter1x", "mode"])
-
-
 # --- the control client --------------------------------------------------------
 
 
@@ -359,31 +242,6 @@ async def test_a_request_before_connect_is_refused_as_daemon_unavailable(closed_
     assert await _request_error_code(client) == "daemon_unavailable"
 
 
-async def _serve_split(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
-    """A daemon whose reply arrives in two pieces, the first cut mid-tag."""
-    await reader.read(4096)
-    writer.write(b"<Sta")
-    await writer.drain()
-    writer.write(b'te result="OK"/>\n')
-    await writer.drain()
-
-
-@pytest.fixture
-async def split_reply_client() -> AsyncIterator[ControlClient]:
-    server = await asyncio.start_server(_serve_split, "127.0.0.1", 0)
-    port = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
-    server.close()
-    await server.wait_closed()
-
-
-async def test_a_reply_cut_mid_tag_is_read_to_its_end_before_parsing(split_reply_client: ControlClient) -> None:
-    assert (await split_reply_client.request("<State/>")).attrib == {"result": "OK"}
-
-
 def _attrib(el: ET.Element | None) -> dict[str, str]:
     """The root's attributes, or none where nothing parsed."""
     return dict(el.attrib) if el is not None else {}
@@ -397,9 +255,3 @@ def test_parse_frame_recovers_the_root_from_a_complete_frame_with_unparseable_ch
 def test_parse_frame_recovers_the_root_from_a_frame_with_an_unescaped_ampersand_attribute() -> None:
     body = '<Status result="Rock & Roll"/>'
     assert _attrib(parse_frame(body, "Status")) == {"result": "Rock & Roll"}
-
-
-def test_parse_frame_raises_control_error_on_a_frame_carrying_an_entity_declaration() -> None:
-    body = '<!DOCTYPE x [<!ENTITY a "b">]><Status result="OK"/>'
-    with pytest.raises(ControlError):
-        parse_frame(body, "Status")

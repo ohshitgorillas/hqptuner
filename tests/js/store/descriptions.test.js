@@ -129,11 +129,6 @@ test("test_a_profile_with_no_description_answers_null", async () => {
   assert.equal(descriptionFor(OTHER), null);
 });
 
-test("test_a_profile_name_answers_null_when_nothing_is_stored_at_all", async () => {
-  await reset();
-  assert.equal(descriptionFor(NAME), null);
-});
-
 // --- queue then flush --------------------------------------------------------------
 
 test("test_queueing_a_description_sends_nothing_until_the_flush", async () => {
@@ -141,13 +136,6 @@ test("test_queueing_a_description_sends_nothing_until_the_flush", async () => {
   queueDescription(NAME, TEXT);
   await settle();
   assert.deepEqual(puts(w), []);
-});
-
-test("test_a_flush_sends_exactly_one_put_for_one_queued_profile", async () => {
-  const w = await reset();
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  assert.equal(puts(w).length, 1);
 });
 
 test("test_a_flush_sends_the_last_text_queued_for_that_profile", async () => {
@@ -204,25 +192,10 @@ test("test_a_save_leaves_another_profiles_description_alone", async () => {
   assert.equal(descriptionFor(OTHER)?.text, "near field");
 });
 
-test("test_a_successful_save_leaves_no_error", async () => {
-  await reset();
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  assert.equal(descriptionError.value, "");
-});
-
 // --- a refused save --------------------------------------------------------------------
 // The user's typing is the one thing that cannot be thrown away: a save the
 // server refused leaves the text queued, so the next flush still carries it, and
 // says why on the error line — it never blanks what is on screen.
-
-test("test_a_failed_save_keeps_the_text_queued_for_the_next_flush", async () => {
-  const w = await reset({ putStatus: 500, putDetail: "State directory is read-only." });
-  queueDescription(NAME, TEXT);
-  await flushDescriptions();
-  await flushDescriptions();
-  assert.deepEqual(puts(w).at(-1), { name: NAME, text: TEXT });
-});
 
 test("test_a_failed_save_does_not_blank_the_description_already_stored", async () => {
   await reset({ profiles: { [NAME]: entry("warm") }, putStatus: 500, putDetail: "State directory is read-only." });

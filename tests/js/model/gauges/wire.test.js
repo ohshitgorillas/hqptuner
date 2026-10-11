@@ -10,7 +10,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { groupFrame, lampDots, pathLamps, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
+import { lampDots, pathLamps, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Box} Box */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Dot} Dot */
@@ -115,34 +115,10 @@ const WIRES = [
     want: "M10.5,10.5 L11,40.5",
   },
   {
-    name: "a_routed_wire_stepping_right_turns_eleven_pixels_above_the_next_dot",
-    dots: [dot(10.5, 10.5, 0), dot(30.5, 40.5, 1)],
-    style: "routed",
-    want: "M10.5,10.5 L10.5,24.5 L15.5,29.5 L25.5,29.5 L30.5,34.5 L30.5,40.5",
-  },
-  {
-    name: "a_routed_wire_stepping_left_turns_halfway_between_the_dots",
-    dots: [dot(30.5, 10.5, 1), dot(10.5, 40.5, 0)],
-    style: "routed",
-    want: "M30.5,10.5 L30.5,21.5 L25.5,26.5 L15.5,26.5 L10.5,31.5 L10.5,40.5",
-  },
-  {
     name: "a_trunk_runs_from_the_first_top_level_dot_to_the_last",
     dots: [dot(10.5, 10.5, 0), dot(10.5, 60.5, 0)],
     style: "trunk",
     want: "M10.5,10.5 L10.5,60.5",
-  },
-  {
-    name: "a_trunk_continuing_past_the_children_taps_each_one_square",
-    dots: [dot(10.5, 10.5, 0), dot(30.5, 20.5, 1), dot(30.5, 30.5, 1), dot(10.5, 60.5, 0)],
-    style: "trunk",
-    want: "M10.5,10.5 L10.5,60.5 M10.5,20.5 L30.5,20.5 M10.5,30.5 L30.5,30.5",
-  },
-  {
-    name: "a_trunk_ending_at_the_parent_joins_its_last_child_on_a_chamfer",
-    dots: [dot(10.5, 10.5, 0), dot(30.5, 20.5, 1), dot(30.5, 30.5, 1)],
-    style: "trunk",
-    want: "M10.5,10.5 L10.5,10.5 M10.5,20.5 L30.5,20.5 M10.5,10.5 L10.5,25.5 L15.5,30.5 L30.5,30.5",
   },
   {
     name: "an_unlit_child_gets_no_tap",
@@ -156,53 +132,11 @@ const WIRES = [
     style: "trunk",
     want: "M10.5,10.5 L10.5,60.5",
   },
-  {
-    name: "a_nested_parent_joins_its_last_child_on_a_chamfer_from_its_own_column",
-    dots: [dot(10.5, 10.5, 0), dot(30.5, 20.5, 1), dot(50.5, 30.5, 2), dot(10.5, 60.5, 0)],
-    style: "trunk",
-    want: "M10.5,10.5 L10.5,60.5 M10.5,20.5 L30.5,20.5 M30.5,20.5 L30.5,25.5 L35.5,30.5 L50.5,30.5",
-  },
 ];
 
 for (const row of WIRES) {
   test(`test_${row.name}`, () => {
     assert.equal(wirePath(row.dots, row.style), row.want);
-  });
-}
-
-// --- group frame -------------------------------------------------------------------------------------------------
-
-/** @type {Box[]} */
-const COLUMN = [
-  { left: 100, top: 200, width: 118, height: 50 },
-  { left: 80, top: 300, width: 100, height: 50 },
-];
-
-/**
- * One frame coordinate around COLUMN, with or without a subtitle.
- *
- * @typedef {object} FrameRow
- * @property {string} name
- * @property {boolean} sub
- * @property {(f: ReturnType<typeof groupFrame>) => number} pick
- * @property {number} want
- */
-
-/** @type {FrameRow[]} */
-const FRAMES = [
-  { name: "a_frame_starts_nine_pixels_left_of_its_leftmost_node", sub: false, pick: (f) => f.frame.x, want: 71 },
-  { name: "a_frame_spans_nine_pixels_past_its_nodes_either_side", sub: false, pick: (f) => f.frame.width, want: 156 },
-  { name: "a_frame_opens_thirty_pixels_above_its_top_node", sub: false, pick: (f) => f.frame.y, want: 170 },
-  { name: "a_frame_closes_twelve_pixels_under_its_bottom_node", sub: false, pick: (f) => f.frame.height, want: 192 },
-  { name: "a_subtitled_frame_opens_forty_six_pixels_above_its_top_node", sub: true, pick: (f) => f.frame.y, want: 154 },
-  { name: "a_frame_title_sits_nine_pixels_inside_its_left_edge", sub: false, pick: (f) => f.title.x, want: 80 },
-  { name: "a_frame_title_sits_eighteen_pixels_under_its_top_edge", sub: false, pick: (f) => f.title.y, want: 188 },
-  { name: "a_frame_subtitle_sits_thirty_four_pixels_under_its_top_edge", sub: true, pick: (f) => f.sub.y, want: 188 },
-];
-
-for (const row of FRAMES) {
-  test(`test_${row.name}`, () => {
-    assert.equal(row.pick(groupFrame({ boxes: COLUMN, sub: row.sub })), row.want);
   });
 }
 

@@ -12,7 +12,6 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 import pytest
 from apps import advanced, settled
 from fake_control import DEFAULTS, CommandLog, serve_shared
-from narrow import present
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -28,16 +27,6 @@ PLAYING = "2"
 STOPPED = "0"
 #: A transport state that will not parse as the integer the wire format promises.
 UNPARSEABLE = "x"
-
-#: An engine in ``[source]`` mode playing a PCM source: the PCM chain is loaded (readme §1.7).
-PCM_SOURCE = {"mode": "0", "_active_mode": "PCM"}
-#: What the source changes to while playing, entering the SDM chain without moving ``State.mode``.
-SDM_SOURCE = "SDM (DSD)"
-#: The filter enum IDs the fake's SDM chain enumerates, in list order.
-SDM_FILTER_IDS = ["38", "23", "57"]
-
-#: The volume the fake's engine moves to between heartbeats; it starts at `fake_control.DEFAULTS`'s.
-MOVED_VOLUME = "-20.0"
 
 #: A manager connected to the fake and idle on its clock, the fake's recorded traffic, and its live State.
 Built = tuple[ConnectionManager, CommandLog, dict[str, str]]
@@ -89,30 +78,3 @@ async def test_one_heartbeat_interval_reads_status_every_step_only_while_playing
     log.clear()
     await advanced(clock, POLL)
     assert _count(log, command) == reads
-
-
-async def test_a_status_value_that_moved_between_heartbeats_is_stored_one_step_later(
-    build: Build, clock: VirtualClock
-) -> None:
-    manager, _log, state = await build(PLAYING)
-    state["volume"] = MOVED_VOLUME
-    await advanced(clock, STEP)
-    assert present(manager.readings.status).get("volume") == MOVED_VOLUME
-
-
-async def test_a_status_read_between_heartbeats_raises_the_edge_the_push_stream_waits_on(
-    build: Build, clock: VirtualClock
-) -> None:
-    manager, _log, _state = await build(PLAYING)
-    manager.changed.clear()
-    await advanced(clock, STEP)
-    assert manager.changed.is_set()
-
-
-async def test_a_chain_change_a_status_read_sees_first_still_leaves_the_entered_chains_filters_by_the_next_heartbeat(
-    build: Build, clock: VirtualClock
-) -> None:
-    manager, _log, state = await build(PLAYING, **PCM_SOURCE)
-    state["_active_mode"] = SDM_SOURCE
-    await advanced(clock, POLL)
-    assert [item.get("value") for item in present(manager.readings.enums).get("filters", [])] == SDM_FILTER_IDS

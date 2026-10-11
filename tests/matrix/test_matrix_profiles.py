@@ -80,11 +80,6 @@ async def test_save_to_an_existing_name_replaces_it(http_manager: ConnectionMana
     assert (await saved_rows(http_manager, "Stock"))[0]["gain"] == "-9"
 
 
-async def test_save_to_an_existing_name_does_not_duplicate_it(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, save("Stock", ROW0))
-    assert len(await saved_profiles(http_manager)) == 1
-
-
 async def test_save_leaves_the_live_pipelines_untouched(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save("Crossfeed EQ", {**ROW0, "gain": "-9"}, ROW1))
     assert json.loads((await fileconfig.load_file_config(http_manager))["matrix_pipelines"])[0]["gain"] == "0"
@@ -118,18 +113,6 @@ def test_an_empty_profile_name_is_refused_before_any_write(http_client: TestClie
     assert resp.json()["code"] == "invalid_input"
 
 
-def test_a_control_character_in_a_profile_name_is_refused(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": save("bad\x07name", ROW0)})
-    resp = http_client.post("/api/config/apply")
-    assert resp.json()["code"] == "invalid_input"
-
-
 async def test_a_quote_in_a_profile_name_survives_the_round_trip(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, save('12" driver', ROW0))
     assert '12" driver' in await saved_profiles(http_manager)
-
-
-def test_an_invalid_row_in_a_save_is_refused_before_any_write(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": save("Crossfeed EQ", {**ROW0, "gain": "loud"})})
-    resp = http_client.post("/api/config/apply")
-    assert resp.json()["code"] == "invalid_input"

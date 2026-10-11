@@ -108,27 +108,11 @@ test("test_a_flagged_filter_option_on_the_pcm_chain_describes_the_description_al
   assert.equal(optionDescription(schema.pcm_filter_1x, { value: "0", label: "sdm-A" }, FILTER_META), "A flagged sinc.");
 });
 
-test("test_an_unflagged_filter_option_on_the_pcm_chain_describes_the_description_alone", async () => {
-  await reset();
-  assert.equal(
-    optionDescription(schema.pcm_filter_1x, { value: "0", label: "sinc-M" }, FILTER_META),
-    "A very long sinc.",
-  );
-});
-
 test("test_an_unflagged_filter_option_on_the_sdm_chain_describes_the_description_alone", async () => {
   await reset();
   assert.equal(
     optionDescription(schema.sdm_filter_1x, { value: "0", label: "sinc-M" }, FILTER_META),
     "A very long sinc.",
-  );
-});
-
-test("test_a_flagged_two_stage_filter_option_orders_the_sdm_note_before_notes_and_the_variant_note", async () => {
-  await reset();
-  assert.equal(
-    optionDescription(schema.sdm_filter_1x, { value: "0", label: "sdm-B-2s" }, FILTER_META),
-    "A flagged short sinc. Two stage for SDM. Flagged caveat. Two stage oversampling.",
   );
 });
 

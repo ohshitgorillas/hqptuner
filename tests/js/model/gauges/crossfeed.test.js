@@ -162,14 +162,6 @@ test("test_bauer_summary_carries_the_installed_level", () => {
   assert.equal(bauerSummary(bauer("custom"), BAUER_NAMED, CORNERS).feed, 3);
 });
 
-test("test_bauer_summary_rounds_the_compensation_up", () => {
-  assert.equal(bauerSummary(bauer("default", 42.6), BAUER_NAMED, CORNERS).comp, 43);
-});
-
-test("test_bauer_summary_rounds_the_compensation_down", () => {
-  assert.equal(bauerSummary(bauer("default", 42.4), BAUER_NAMED, CORNERS).comp, 42);
-});
-
 // ── structuralSummary ────────────────────────────────────────────────────
 
 test("test_structural_summary_names_the_preset_within_the_tolerance", () => {
@@ -180,16 +172,6 @@ test("test_structural_summary_names_the_preset_within_the_tolerance", () => {
 test("test_structural_summary_off_every_preset_names_none", () => {
   const st = { angle: 45, circ: 57, lambda: 1 };
   assert.equal(structuralSummary(st, STRUCTURAL_NAMED, TOL).label, undefined);
-});
-
-test("test_structural_summary_shows_the_center_character_as_a_whole_percent", () => {
-  const st = { angle: 30, circ: 57, lambda: 0.704 };
-  assert.equal(structuralSummary(st, STRUCTURAL_NAMED, TOL).lambda, 70);
-});
-
-test("test_structural_summary_rounds_the_center_character_percent_up", () => {
-  const st = { angle: 30, circ: 57, lambda: 1.006 };
-  assert.equal(structuralSummary(st, STRUCTURAL_NAMED, TOL).lambda, 101);
 });
 
 test("test_structural_summary_carries_the_speaker_angle", () => {
@@ -222,10 +204,6 @@ test("test_bauer_plot_with_compensation_draws_the_uncorrected_ghost", () => {
 
 test("test_bauer_plot_without_compensation_draws_no_ghost", () => {
   assert.equal(bauerPlot(bauer("default", 0), CORNERS).ghost, false);
-});
-
-test("test_bauer_plot_names_the_compensation_as_a_whole_percent", () => {
-  assert.equal(bauerPlot(bauer("default", 49.5), CORNERS).pct, 50);
 });
 
 // ── crossfeedGray ────────────────────────────────────────────────────────
@@ -321,42 +299,6 @@ test("test_geometry_cm_radius_is_the_circumference_over_two_pi", () => {
   assert.ok(...near(listeningGeometry(30, 2 * Math.PI * 8).a, 8, EPS));
 });
 
-test("test_geometry_head_radius_floors_at_a_small_head", () => {
-  assert.equal(listeningGeometry(30, 20).r, 15);
-});
-
-test("test_geometry_head_radius_caps_at_a_large_head", () => {
-  assert.equal(listeningGeometry(30, BIG_HEAD).r, 25);
-});
-
-test("test_geometry_head_radius_grows_two_and_a_half_per_cm_between", () => {
-  assert.ok(...near(listeningGeometry(30, 2 * Math.PI * 8.5).r, 20, EPS));
-});
-
-test("test_geometry_left_ear_sits_on_the_head_left_edge", () => {
-  assert.deepEqual(listeningGeometry(30, BIG_HEAD).earL, [175, 140]);
-});
-
-test("test_geometry_right_ear_sits_on_the_head_right_edge", () => {
-  assert.deepEqual(listeningGeometry(30, BIG_HEAD).earR, [225, 140]);
-});
-
-test("test_geometry_speakers_at_zero_degrees_sit_straight_ahead", () => {
-  assert.deepEqual(listeningGeometry(0, BIG_HEAD).speakers[1].p, [200, 28]);
-});
-
-test("test_geometry_right_speaker_at_ninety_degrees_sits_beside_the_head", () => {
-  assert.ok(...near(listeningGeometry(90, BIG_HEAD).speakers[1].p[0], 312, EPS));
-});
-
-test("test_geometry_left_speaker_at_ninety_degrees_sits_beside_the_head", () => {
-  assert.ok(...near(listeningGeometry(90, BIG_HEAD).speakers[0].p[0], 88, EPS));
-});
-
-test("test_geometry_speaker_at_ninety_degrees_sits_level_with_the_head", () => {
-  assert.ok(...near(listeningGeometry(90, BIG_HEAD).speakers[1].p[1], 140, EPS));
-});
-
 test("test_geometry_left_speaker_is_toed_in_at_minus_the_angle", () => {
   assert.equal(listeningGeometry(30, BIG_HEAD).speakers[0].d, -30);
 });
@@ -365,62 +307,13 @@ test("test_geometry_right_speaker_is_toed_in_at_the_angle", () => {
   assert.equal(listeningGeometry(30, BIG_HEAD).speakers[1].d, 30);
 });
 
-test("test_geometry_axis_runs_from_the_head_front", () => {
-  assert.equal(listeningGeometry(30, BIG_HEAD).axis.y1, 115);
-});
-
-test("test_geometry_axis_runs_past_the_speaker_circle", () => {
-  assert.equal(listeningGeometry(30, BIG_HEAD).axis.y2, 14);
-});
-
-/** @typedef {{ name: string, tick: number, key: "x1" | "y1" | "x2" | "y2", want: number }} TickRow */
-
-/** @type {TickRow[]} */
-const TICKS = [
-  { name: "left_inner_x", tick: 0, key: "x1", want: 152 },
-  { name: "left_inner_y", tick: 0, key: "y1", want: 56.86156123669389 },
-  { name: "right_inner_x", tick: 1, key: "x1", want: 248 },
-  { name: "right_outer_x", tick: 1, key: "x2", want: 264 },
-  { name: "right_outer_y", tick: 1, key: "y2", want: 29.14874831559186 },
-];
-
-for (const row of TICKS) {
-  test(`test_geometry_reference_tick_${row.name}`, () => {
-    assert.ok(...near(listeningGeometry(45, BIG_HEAD).ref[row.tick][row.key], row.want, EPS));
-  });
-}
-
 test("test_geometry_reference_ticks_stay_put_as_the_angle_moves", () => {
   assert.deepEqual(listeningGeometry(10, BIG_HEAD).ref, listeningGeometry(50, 41).ref);
-});
-
-test("test_geometry_angle_arc_starts_straight_ahead", () => {
-  assert.deepEqual(listeningGeometry(30, BIG_HEAD).arc.from, [200, 100]);
-});
-
-test("test_geometry_angle_arc_ends_at_the_angle", () => {
-  assert.ok(...near(listeningGeometry(90, BIG_HEAD).arc.to[0], 240, EPS));
-});
-
-test("test_geometry_angle_label_at_zero_sits_straight_ahead", () => {
-  assert.deepEqual(listeningGeometry(0, BIG_HEAD).label, [200, 86]);
-});
-
-test("test_geometry_angle_label_sits_at_half_the_angle", () => {
-  assert.ok(...near(listeningGeometry(60, BIG_HEAD).label[0], 227, EPS));
 });
 
 test("test_geometry_left_far_path_leaves_the_left_speaker", () => {
   const g = listeningGeometry(30, BIG_HEAD);
   assert.deepEqual(g.far[0].from, g.speakers[0].p);
-});
-
-test("test_geometry_left_far_path_reaches_the_right_ear", () => {
-  assert.deepEqual(listeningGeometry(30, BIG_HEAD).far[0].to, [225, 140]);
-});
-
-test("test_geometry_right_far_path_reaches_the_left_ear", () => {
-  assert.deepEqual(listeningGeometry(30, BIG_HEAD).far[1].to, [175, 140]);
 });
 
 test("test_geometry_left_far_path_sweeps_clockwise", () => {

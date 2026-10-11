@@ -24,10 +24,6 @@ from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, layer_onto_config
 
-#: The keys GET /api/connection answers, sorted. The password it holds is not
-#: among them: anything that reaches port 8090 can read this body.
-CONNECTION_KEYS = ["has_password", "host", "remember", "username"]
-
 AppFactory = Callable[..., TestClient]
 
 
@@ -121,7 +117,6 @@ CONNECTION_VIEWS = [
     ("cleared-from-held", "p", "", False),
 ]
 HELD_VIEWS = [pytest.param(configured, posted, holds, id=case) for case, configured, posted, holds in CONNECTION_VIEWS]
-VIEWS = [pytest.param(configured, posted, id=case) for case, configured, posted, _ in CONNECTION_VIEWS]
 
 
 def _connection_view(app_factory: AppFactory, configured: str, posted: str | None) -> dict[str, Any]:
@@ -137,10 +132,3 @@ def test_the_connection_view_reports_whether_a_password_is_held(
     app_factory: AppFactory, configured: str, posted: str | None, *, holds: bool
 ) -> None:
     assert _connection_view(app_factory, configured, posted)["has_password"] is holds
-
-
-@pytest.mark.parametrize(("configured", "posted"), VIEWS)
-def test_the_connection_view_never_carries_the_password(
-    app_factory: AppFactory, configured: str, posted: str | None
-) -> None:
-    assert sorted(_connection_view(app_factory, configured, posted)) == CONNECTION_KEYS

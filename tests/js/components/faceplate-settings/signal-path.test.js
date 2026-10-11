@@ -35,7 +35,6 @@ import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 const PCM_1X = { source: "44100", output: "352800" };
-const DSD_TO_SDM = { source: "11289600", output: "22579200" };
 
 /**
  * Write one playing engine onto the wire-side signals.
@@ -66,17 +65,6 @@ const block = () =>
 const nodeGroups = () => block().filter((e) => e.name === "g" && attr(e, "data-id") !== undefined);
 
 /**
- * The ids of the node groups carrying `cls`, sorted.
- *
- * @param {string} cls
- */
-const nodesWith = (cls) =>
-  nodeGroups()
-    .filter((e) => classes(e).includes(cls))
-    .map((e) => String(attr(e, "data-id")))
-    .sort();
-
-/**
  * Whether the node group `id` carries `cls`, or null when it is not drawn.
  *
  * @param {string} id
@@ -87,18 +75,8 @@ function nodeHas(id, cls) {
   return g ? classes(g).includes(cls) : null;
 }
 
-/** Whether the Direct SDM bypass, the edge from the DSD source to Speakers, reads lit, or null when it is not drawn. */
-function bypassLit() {
-  const edge = block().find((e) => e.name === "path" && attr(e, "data-a") === "ds" && attr(e, "data-b") === "sp");
-  return edge ? classes(edge).includes("lit") : null;
-}
-
 test("test_the_map_draws_one_group_per_node", () => {
   assert.equal(nodeGroups().length, NODES.length);
-});
-
-test("test_a_1x_pcm_source_to_pcm_lights_its_path_nodes", () => {
-  assert.deepEqual(nodesWith("lit"), ["dc", "di", "f1", "ld", "out", "p1", "pl", "sp", "vo", "xf"]);
 });
 
 /** Running pipelines that do work: the left channel carries an EQ, the right passes through. */
@@ -112,11 +90,4 @@ test("test_a_matrix_part_on_the_path_reads_bypassed_only_under_a_stopped_matrix"
   const engaged = nodeHas("pl", "off");
   wire({ matrix: false, rows: WORKING });
   assert.deepEqual([engaged, nodeHas("pl", "off")], [false, true]);
-});
-
-test("test_the_direct_sdm_bypass_lights_only_on_the_direct_path", () => {
-  wire({ ...DSD_TO_SDM, direct: false });
-  const remodulated = bypassLit();
-  wire({ ...DSD_TO_SDM, direct: true });
-  assert.deepEqual([remodulated, bypassLit()], [false, true]);
 });

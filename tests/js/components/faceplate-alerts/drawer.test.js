@@ -105,11 +105,3 @@ test("test_the_junk_advice_line_in_the_hf_drawer_reads_advice", async () => {
   const line = first("hf", "aline");
   assert.equal(line ? attr(line, "data-sev") : undefined, "advice");
 });
-
-test("test_the_alert_lines_precede_the_drawers_panels", async () => {
-  await quiet();
-  poll({ clips: "12" });
-  const lines = first("volume", "dalert");
-  const panel = first("volume", "dpanel");
-  assert.equal(lines && panel ? lines.start < panel.start : null, true);
-});

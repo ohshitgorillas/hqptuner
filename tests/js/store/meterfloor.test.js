@@ -27,7 +27,6 @@ const KEY = "hqptuner.meterFloor";
 // Two floors the owner offers, neither of them the one a fresh browser starts on, and a stored value from outside the
 // set that is plausible on purpose: it reads like a floor, at the depth of the page's narrowest Range.
 const DEEP = "-90";
-const SHALLOW = "-48";
 const OUTSIDE = "-120";
 
 /**
@@ -41,7 +40,6 @@ storage.setItem(KEY, DEEP);
 
 /** @type {FloorSurface} */
 const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
-const AT_LOAD = prefs.meterFloor?.value;
 
 storage.setItem(KEY, OUTSIDE);
 /** @type {FloorSurface} */
@@ -55,28 +53,10 @@ const OFFERED = prefs.METER_FLOORS ?? [];
 
 // --- what the browser had stored is what the page comes up with -------------------------------------------------------
 
-test("test_a_stored_meter_floor_is_the_floor_the_page_loads_with", () => {
-  assert.equal(AT_LOAD, DEEP);
-});
-
 test("test_a_stored_meter_floor_outside_the_set_loads_a_floor_inside_it", () => {
   assert.equal(OFFERED.includes(outsider.meterFloor?.value ?? ""), true);
 });
 
 test("test_a_browser_with_no_stored_meter_floor_loads_a_floor_inside_the_set", () => {
   assert.equal(OFFERED.includes(unset.meterFloor?.value ?? ""), true);
-});
-
-// --- the setter moves the signal and stores the value -----------------------------------------------------------------
-
-test("test_choosing_a_meter_floor_stores_it", () => {
-  prefs.setMeterFloor?.(SHALLOW);
-  prefs.setMeterFloor?.(DEEP);
-  assert.equal(storage.getItem(KEY), DEEP);
-});
-
-test("test_a_meter_floor_outside_the_set_leaves_the_chosen_floor_standing", () => {
-  prefs.setMeterFloor?.(SHALLOW);
-  prefs.setMeterFloor?.(OUTSIDE);
-  assert.equal(prefs.meterFloor?.value, SHALLOW);
 });

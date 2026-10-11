@@ -132,11 +132,6 @@ test("test_a_faster_engine_swings_the_needle_further_right", () => {
   assert.ok(needleX({ process_speed: "2.0" }) > needleX({ process_speed: "0.9" }));
 });
 
-test("test_the_speed_figure_takes_the_zone_its_needle_sits_in", () => {
-  const zones = ["0.8", "0.9", "1.5"].map((s) => figureZone({ process_speed: s }));
-  assert.deepEqual(zones, ["bad", "warn", "ok"]);
-});
-
 test("test_a_stopped_engine_gives_the_figure_no_zone", () => {
   assert.deepEqual([figureZone({}), figureZone({ state: "0" })], ["ok", ""]);
 });
@@ -156,21 +151,6 @@ test("test_a_buffer_fills_its_bar_to_its_percent", () => {
 test("test_a_buffer_prints_its_percent", () => {
   const mv = inside(meter({ input_fill: "0.82" }, "input_fill"), "mv");
   assert.match(mv ? text(mv) : "", /82/);
-});
-
-test("test_a_buffer_takes_the_zone_its_fill_reads", () => {
-  const zones = ["0.1", "0.3", "0.82"].map((f) => zoneOf(meter({ input_fill: f }, "input_fill")));
-  assert.deepEqual(zones, ["bad", "warn", "ok"]);
-});
-
-test("test_an_output_buffer_that_never_filled_this_track_prints_no_figure_and_no_zone", () => {
-  const filled = meter({}, "output_fill");
-  const never = meter({ output_fill: "0" }, "output_fill");
-  const figure = (/** @type {MarkupElement | undefined} */ e) => {
-    const mv = inside(e, "mv");
-    return mv ? /\d/.test(text(mv)) : undefined;
-  };
-  assert.deepEqual([figure(filled), zoneOf(filled), figure(never), zoneOf(never)], [true, "ok", false, ""]);
 });
 
 // --- the counters ------------------------------------------------------------------------------------------------

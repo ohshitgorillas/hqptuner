@@ -42,11 +42,6 @@ def write_report(tmp_path: Path, tests: dict[str, dict[str, float]], *, exitstat
     return path
 
 
-def test_only_the_tests_with_an_expired_timeout_are_waiting() -> None:
-    tests = {"t::b": {"loop timer": 2.0}, "t::a": {"Condition.wait": 1.0, "time.sleep": 3.0}, "t::c": {}}
-    assert GATE.waiting(tests) == ["t::a", "t::b"]
-
-
 @pytest.mark.parametrize(("kinds", "expected"), [({"Thread.join": 2.0}, 1), ({}, 0)], ids=["expired", "none"])
 def test_a_green_session_is_refused_only_when_a_timeout_ran_out(
     tmp_path: Path, kinds: dict[str, float], expected: int

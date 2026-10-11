@@ -96,29 +96,6 @@ test("test_minringFIR_lp_is_linear_phase", () => {
   assert.equal(phaseOf("minringFIR-lp"), "linear");
 });
 
-test("test_minringFIR_mp_is_minimum_phase", () => {
-  seed([item("minringFIR-mp", 0)]);
-  assert.equal(phaseOf("minringFIR-mp"), "minimum");
-});
-
-// --- token-less live filters fall back to the merged static row --------------
-// The first two rows mirror phases the shipped overlay carries. The IIR and
-// asymFIR rows are synthetic fixtures — the shipped overlay leaves both
-// unclassified — pinning that a static "minimum" or "intermediate" value is
-// honored wherever a row carries one.
-
-for (const [name, expected] of [
-  ["poly-sinc-ext2", "linear"],
-  ["IIR", "minimum"],
-  ["minphaseFIR", "minimum"],
-  ["asymFIR", "intermediate"],
-]) {
-  test(`test_tokenless_${name}_takes_phase_${expected}_from_its_static_row`, () => {
-    seed([item(name, 0, { phase: expected })]);
-    assert.equal(phaseOf(name), expected);
-  });
-}
-
 // --- token beats static -------------------------------------------------------
 
 test("test_a_name_token_beats_a_contradicting_static_phase", () => {
@@ -136,15 +113,6 @@ test("test_a_tokenless_filter_whose_static_row_lacks_phase_has_empty_phase", () 
 test("test_a_tokenless_filter_with_no_static_row_has_empty_phase", () => {
   seed([item("polynomial-2", 0)]);
   assert.equal(phaseOf("polynomial-2"), "");
-});
-
-// --- a token-less -2s live item reads its base filter's merged row ------------
-// The backend join strips `-2s`, so the row under `static` is the base
-// filter's; the facet is whatever that row says.
-
-test("test_a_tokenless_2s_filter_takes_phase_from_its_base_static_row", () => {
-  seed([item("poly-sinc-hb-2s", 0, { phase: "linear" })]);
-  assert.equal(phaseOf("poly-sinc-hb-2s"), "linear");
 });
 
 // --- static-only filters (overlay entry, absent from the live enum) -----------

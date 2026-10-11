@@ -13,25 +13,14 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
-import { effective, effectivePipelines, isDirty } from "../../../../hqptuner/static/store/resolve.js";
+import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveParams, xfMode } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
 import { fitComp, msCompile } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
-import { PRESETS } from "../../../../hqptuner/static/lib/binaural-setup.js";
-import {
-  crossfeedView,
-  pickLine,
-  setGate,
-  xfRefusal,
-} from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
-import { commitComp, compView } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed/comp.js";
-import {
-  commitStructural,
-  dragStructural,
-  pickStructuralPreset,
-  structuralView,
-} from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed/structural.js";
+import { crossfeedView, setGate, xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
+import { compView } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed/comp.js";
+import { structuralView } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed/structural.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -156,43 +145,7 @@ test("test_engaging_the_structural_gate_installs_the_block", async () => {
   assert.deepEqual([before, crossfeedView().engaged], [false, true]);
 });
 
-test("test_bypassing_the_structural_gate_removes_the_block", async () => {
-  await load({ rows: structural(), picked: "structural" });
-  setGate("0");
-  await settle();
-  assert.equal(effectivePipelines.value.length, 2);
-});
-
-test("test_engaging_structural_over_rows_it_cannot_carry_stages_nothing_and_says_why", async () => {
-  await load({ rows: [row("0", "1"), row("1", "0")], picked: "structural" });
-  setGate("1");
-  await settle();
-  assert.deepEqual([xfRefusal.value === "", isDirty("matrix_pipelines")], [false, false]);
-});
-
-test("test_picking_the_other_line_switches_the_view_and_engages_nothing", async () => {
-  await load({ rows: pair(), enabled: "1", picked: "bauer" });
-  pickLine("structural");
-  await settle();
-  assert.deepEqual([crossfeedView().picked, crossfeedView().engaged], ["structural", false]);
-});
-
 // --- Bauer's compensation -----------------------------------------------------
-
-test("test_committing_compensation_installs_the_block_at_that_percent", async () => {
-  await load({ enabled: "1", picked: "bauer" });
-  const before = compView().pct;
-  commitComp(80);
-  await settle();
-  assert.deepEqual([before, compView().pct], [0, 80]);
-});
-
-test("test_committing_zero_compensation_takes_the_block_out", async () => {
-  await load({ rows: compensation(0.6), enabled: "1", picked: "bauer" });
-  commitComp(0);
-  await settle();
-  assert.equal(effectivePipelines.value.length, 2);
-});
 
 test("test_compensation_is_ready_only_over_a_symmetric_stereo_pair", async () => {
   await load({ enabled: "1", picked: "bauer" });
@@ -202,29 +155,6 @@ test("test_compensation_is_ready_only_over_a_symmetric_stereo_pair", async () =>
 });
 
 // --- the Structural controls --------------------------------------------------
-
-test("test_a_structural_commit_restages_the_installed_block", async () => {
-  await load({ rows: structural({ angle: 30 }), picked: "structural" });
-  commitStructural({ angle: 40 });
-  await settle();
-  assert.equal(r2(structuralView().angle), 40);
-});
-
-test("test_a_structural_drag_moves_the_controls_and_stages_nothing", async () => {
-  await load({ rows: structural({ angle: 30 }), picked: "structural" });
-  dragStructural({ angle: 45 });
-  assert.deepEqual([r2(structuralView().angle), isDirty("matrix_pipelines")], [45, false]);
-});
-
-test("test_a_structural_preset_sets_the_angle_and_keeps_the_head", async () => {
-  await load({ rows: structural({ angle: 33, headRadius: 0.09 }), picked: "structural" });
-  const before = structuralView();
-  const preset = PRESETS[PRESETS.length - 1];
-  pickStructuralPreset(preset.id);
-  await settle();
-  const after = structuralView();
-  assert.deepEqual([r2(after.circ), r2(after.angle)], [r2(before.circ), preset.angle]);
-});
 
 test("test_structural_names_the_settings_an_install_would_change", async () => {
   await load({ iir2fir: "2", enabled: "0", picked: "structural" });

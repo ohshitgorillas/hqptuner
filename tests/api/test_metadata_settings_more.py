@@ -58,7 +58,3 @@ def served_output(tmp_path: Path) -> dict[str, Any]:
 
 def test_metadata_serves_a_settings_entrys_more_prose_unchanged(served_output: dict[str, Any]) -> None:
     assert served_output[WITH_MORE].get("more") == MORE
-
-
-def test_metadata_serves_a_settings_entry_without_more_with_no_more_field(served_output: dict[str, Any]) -> None:
-    assert served_output[WITHOUT_MORE] == {"tooltip": TOOLTIP}

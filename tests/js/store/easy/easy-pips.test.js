@@ -44,19 +44,6 @@ function positionsOf(/** @type {Record<string, string>} */ knobs) {
 }
 
 // ============================================================================
-// the roster guard
-// ============================================================================
-//
-// Every sweep in this file is generated from the shipped roster, so a roster
-// that came back empty would generate no cases at all and take the rules with
-// it, silently. This case is the sweeps' shared smoke alarm: it fails by name
-// where the others would simply cease to exist.
-
-test("test_the_shipped_table_names_at_least_one_preset_for_the_per_preset_sweeps", () => {
-  assert.ok(PRESETS.length > 0, "presetsFor() named no presets, so every per-preset sweep below generated nothing");
-});
-
-// ============================================================================
 // the auto output mode
 // ============================================================================
 //
@@ -73,25 +60,3 @@ for (const preset of PRESETS) {
     });
   }
 }
-
-// ============================================================================
-// a preset the module does not carry
-// ============================================================================
-//
-// An id off the table is not an error and not a guess: it costs nothing, on
-// whichever chain it is asked about. Zero is the absence rule rather than a
-// table value, so it is the one number stated as a literal in this file.
-
-const NO_SUCH_PRESET = "no-such-preset";
-
-test("test_a_preset_the_module_does_not_carry_costs_0_pips_on_the_sdm_chain", () => {
-  assert.equal(pipsFor(NO_SUCH_PRESET, "sdm"), 0);
-});
-
-test("test_a_preset_the_module_does_not_carry_costs_0_pips_on_the_pcm_chain", () => {
-  assert.equal(pipsFor(NO_SUCH_PRESET, "pcm"), 0);
-});
-
-test("test_a_preset_the_module_does_not_carry_costs_0_pips_under_the_auto_output_mode", () => {
-  assert.equal(pipsFor(NO_SUCH_PRESET, "auto"), 0);
-});

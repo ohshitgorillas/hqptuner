@@ -46,21 +46,6 @@ const SMOOTH_TAU_MS = 60; // trace easing time constant, in dB
  */
 
 /**
- * The frame loop between frames.
- *
- * @typedef {object} FrameLoop
- * @property {number} prev  rAF stamp of the last frame, ms
- * @property {number} acc   time accumulated toward the next spectrogram column, s
- */
-
-/**
- * One frame's step: the loop to carry forward, the dt the frame runs the ballistics at, and how many spectrogram
- * columns it owes.
- *
- * @typedef {FrameLoop & { dt: number, cols: number }} FrameStep
- */
-
-/**
  * A spectrum with nothing shown and nothing held.
  *
  * @param {number} bins
@@ -117,29 +102,6 @@ export function stepLevel(v, t, now, dt) {
   if (peak >= v.hold) return { peak, rms, hold: peak, holdAt: now };
   const hold = now - v.holdAt > HOLD_MS ? Math.max(peak, v.hold - HOLD_DECAY_DBPS * dt) : v.hold;
   return { peak, rms, hold, holdAt: v.holdAt };
-}
-
-/**
- * One rAF frame: dt is the time since the last frame, clamped to [0, 100 ms] (a frame stamped before mount must not
- * run the ballistics backwards); while shown, it accumulates toward the spectrogram's column period and the frame owes
- * one column per whole period accumulated.
- *
- * @param {FrameLoop} loop
- * @param {number} now     rAF stamp, ms
- * @param {number} perCol  spectrogram column period, s
- * @param {boolean} shown  the meter is on screen
- * @returns {FrameStep}
- */
-export function stepFrame(loop, now, perCol, shown) {
-  const dt = frameDt(loop.prev, now);
-  if (!shown) return { prev: now, acc: loop.acc, dt, cols: 0 };
-  let acc = loop.acc + dt;
-  let cols = 0;
-  while (acc >= perCol) {
-    acc -= perCol;
-    cols++;
-  }
-  return { prev: now, acc, dt, cols };
 }
 
 /**

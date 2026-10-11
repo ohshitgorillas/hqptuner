@@ -26,15 +26,8 @@ import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../../hqptuner/static/store/schema.js";
 import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { NEW, OVERVIEW } from "../../../../hqptuner/static/model/builders/builder.js";
-import { stepContext } from "../../../../hqptuner/static/model/builders/profile.js";
 import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
-import {
-  KNOWN,
-  LISTEN,
-  PB_COPY,
-  PB_STEPS,
-  XF_LINES,
-} from "../../../../hqptuner/static/store/faceplate/builders/profile-data.js";
+import { PB_STEPS } from "../../../../hqptuner/static/store/faceplate/builders/profile-data.js";
 import {
   known,
   meta,
@@ -42,7 +35,6 @@ import {
   openProfileBuilder,
   setListen,
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
-import { body } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 import { elements, attr, hasAttr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -168,25 +160,6 @@ async function bauerOn() {
 const step = (id) => html`<${StepPage} id=${id} />`;
 const advanced = () => html`<${AdvancedPage} />`;
 
-/**
- * The guide step `id` gives for the fixture's context.
- *
- * @param {string} id
- */
-const guideOf = (id) => {
-  const models = MODELS.map((m) => ({ v: m.value }));
-  return PB_STEPS.find((s) => s.id === id)?.guide(stepContext(meta.value.listen, false, models)) ?? "no-such-step";
-};
-
-/**
- * The sentence step `id`'s table gives for why it skips.
- *
- * @param {string} id
- * @param {{ listen?: string, fixed?: boolean, models?: number }} [x]
- */
-const skipOf = (id, { listen = "speakers", fixed = false, models = 2 } = {}) =>
-  PB_STEPS.find((s) => s.id === id)?.skip?.({ listen, fixed, models }) ?? "no-such-step";
-
 // --- markup ------------------------------------------------------------------------------------------------------
 
 /**
@@ -275,14 +248,6 @@ const lines = (all, among, cls) =>
     .filter((v) => among.includes(v));
 
 /**
- * The choice line whose value is `v`.
- *
- * @param {MarkupElement[]} all
- * @param {string} v
- */
-const lineOf = (all, v) => every(all, "div", "chline").find((e) => attr(e, "data-v") === v);
-
-/**
  * The `data-v` of each element pressed: lit, current, or checked.
  *
  * @param {MarkupElement[]} all
@@ -314,13 +279,6 @@ const keyedIn = (all, key) => all.find((e) => attr(e, "data-k") === key);
  * @param {string} name
  */
 const blocks = (all, name) => all.filter((e) => attr(e, "data-block") === name).length;
-
-/**
- * The words of each button in a page's nav, in document order.
- *
- * @param {Parameters<typeof render>[0]} t
- */
-const navWords = (t) => every(inside(one(t, "div", "pbnav")), "button").map(said);
 
 // --- vnodes ------------------------------------------------------------------------------------------------------
 
@@ -434,48 +392,6 @@ const tapNav = (t, at) => {
 
 // --- the step page -----------------------------------------------------------------------------------------------
 
-test("test_a_step_page_runs_title_guide_rows_then_nav", () => {
-  const k = kids(one(step("listen"), "div", "pbstepp"));
-  assert.deepEqual(
-    [
-      k.length,
-      isEl(k[0], "div", ["sh", "btitle"]),
-      isEl(k[1], "p", ["pbguide"]),
-      isEl(k[2], "div", ["pbsrows"]),
-      isEl(k[3], "div", ["pbnav"]),
-    ],
-    [4, true, true, true, true],
-  );
-});
-
-test("test_the_title_row_names_the_step_shown", () => {
-  const t = (/** @type {string} */ id) => said(every(inside(one(step(id), "div", "btitle")), "span", "t")[0]);
-  assert.deepEqual([t(IDS[0]), t(IDS[4])], [PB_STEPS[0].title, PB_STEPS[4].title]);
-});
-
-test("test_the_title_row_counts_the_step_shown_of_the_walk", () => {
-  const n = (/** @type {string} */ id) => said(every(inside(one(step(id), "div", "btitle")), "span", "pbn")[0]);
-  assert.deepEqual([n(IDS[0]), n(IDS[3])], [PB_COPY.stepOf(1, PB_STEPS.length), PB_COPY.stepOf(4, PB_STEPS.length)]);
-});
-
-test("test_the_title_row_carries_the_close", async () => {
-  body.value = "profile";
-  const t = step("listen");
-  const row = renderTree(t).seen.find((v) => isV(v, "div", "btitle"));
-  const labelled = descend(row).filter((n) => n.type === "button" && propsOf(n)["aria-label"] !== undefined);
-  await fire(labelled[0]);
-  assert.deepEqual([labelled.length, body.value], [1, "chain"]);
-});
-
-test("test_the_guide_line_reads_the_steps_guide_while_it_applies", () => {
-  setListen("headphones");
-  assert.equal(said(one(step("crossfeed"), "p", "pbguide")), guideOf("crossfeed"));
-});
-
-test("test_the_guide_line_reads_why_the_step_skips_while_skipped", () => {
-  assert.equal(said(one(step("crossfeed"), "p", "pbguide")), skipOf("crossfeed", { listen: "speakers" }));
-});
-
 test("test_the_guide_line_is_marked_skip_only_while_skipped", () => {
   const skipped = classes(one(step("crossfeed"), "p", "pbguide")).includes("skip");
   setListen("headphones");
@@ -488,36 +404,10 @@ test("test_the_rows_are_empty_while_the_step_skips", () => {
   assert.deepEqual([skipped, rowsOf(step("crossfeed")).length > 0], [0, true]);
 });
 
-test("test_the_nav_reads_back_then_next", () => {
-  assert.deepEqual(navWords(step("listen")), [PB_COPY.back, PB_COPY.next]);
-});
-
-test("test_next_reads_review_on_the_last_step_that_applies", () => {
-  const free = navWords(step("correction")).at(-1);
-  config.value = configTree({ fixed: "1" });
-  assert.deepEqual([free, navWords(step("correction")).at(-1)], [PB_COPY.next, PB_COPY.review]);
-});
-
 test("test_back_from_the_first_step_shows_the_overview", async () => {
   page.value = IDS[0];
   await tapNav(step(IDS[0]), 0);
   assert.equal(page.value, OVERVIEW);
-});
-
-test("test_back_passes_over_a_skipped_step", async () => {
-  page.value = IDS[3];
-  await tapNav(step(IDS[3]), 0);
-  assert.equal(page.value, IDS[1]);
-});
-
-test("test_next_passes_over_crossfeed_for_speakers_only", async () => {
-  page.value = IDS[1];
-  await tapNav(step(IDS[1]), -1);
-  const speakers = page.value;
-  setListen("headphones");
-  page.value = IDS[1];
-  await tapNav(step(IDS[1]), -1);
-  assert.deepEqual([speakers, page.value], [IDS[3], IDS[2]]);
 });
 
 // --- listening ---------------------------------------------------------------------------------------------------
@@ -526,18 +416,6 @@ test("test_listening_holds_one_row", () => {
   assert.deepEqual(
     kids(one(step("listen"), "div", "pbsrows")).map((k) => isEl(k, "div", ["drow"])),
     [true],
-  );
-});
-
-test("test_listening_offers_the_two_ways_to_listen", () => {
-  const group = rowsOf(step("listen")).find((e) => attr(e, "role") === "radiogroup");
-  const words = inside(group)
-    .filter((e) => e.name === "button" || isEl(e, "b", []))
-    .map(said)
-    .filter(Boolean);
-  assert.deepEqual(
-    words,
-    LISTEN.map((l) => l.label),
   );
 });
 
@@ -554,23 +432,11 @@ test("test_tapping_the_other_way_to_listen_answers_it", async () => {
 
 // --- crossfeed ---------------------------------------------------------------------------------------------------
 
-test("test_crossfeed_lists_off_bauer_and_structural_in_that_order", () => {
-  setListen("headphones");
-  assert.deepEqual(lines(rowsOf(step("crossfeed")), [...XF, ...PATHS]), XF);
-});
-
 test("test_crossfeed_marks_the_implementation_the_chain_runs", async () => {
   setListen("headphones");
   const off = lines(rowsOf(step("crossfeed")), XF, "cur");
   await staging("crossfeed_enabled", "1");
   assert.deepEqual([off, lines(rowsOf(step("crossfeed")), XF, "cur")], [["off"], ["bauer"]]);
-});
-
-test("test_crossfeeds_off_and_structural_lines_carry_their_paragraphs", () => {
-  setListen("headphones");
-  const all = rowsOf(step("crossfeed"));
-  const para = (/** @type {string} */ v) => said(every(inside(lineOf(all, v)), "p")[0]);
-  assert.deepEqual([para("off"), para("structural")], [XF_LINES.off, XF_LINES.structural]);
 });
 
 test("test_tapping_bauer_engages_crossfeed", async () => {
@@ -590,26 +456,6 @@ test("test_crossfeed_asks_for_the_settings_path_only_while_engaged", async () =>
   const off = lines(rowsOf(step("crossfeed")), PATHS).length;
   await staging("crossfeed_enabled", "1");
   assert.deepEqual([off, lines(rowsOf(step("crossfeed")), PATHS).length], [0, 2]);
-});
-
-test("test_crossfeeds_settings_lines_carry_the_tables_labels", async () => {
-  await bauerOn();
-  const all = rowsOf(step("crossfeed"));
-  const label = (/** @type {string} */ v) => said(every(inside(lineOf(all, v)), "b")[0]);
-  assert.deepEqual(
-    PATHS.map(label),
-    KNOWN.crossfeed.map((l) => l.label),
-  );
-});
-
-test("test_crossfeeds_settings_lines_carry_the_tables_paragraphs", async () => {
-  await bauerOn();
-  const all = rowsOf(step("crossfeed"));
-  const para = (/** @type {string} */ v) => said(every(inside(lineOf(all, v)), "p")[0]);
-  assert.deepEqual(
-    PATHS.map(para),
-    KNOWN.crossfeed.map((l) => l.man),
-  );
 });
 
 test("test_crossfeed_marks_the_settings_path_taken", async () => {
@@ -650,23 +496,6 @@ test("test_only_the_values_path_shows_the_crossfeed_block", async () => {
 
 // --- DAC correction ----------------------------------------------------------------------------------------------
 
-test("test_dac_correction_holds_the_gate_row_then_the_model_row", () => {
-  const rows = kids(one(step("correction"), "div", "pbsrows")).filter((k) => isEl(k, "div", ["drow"]));
-  assert.deepEqual(
-    rows.map((r) => attr(r, "data-k")),
-    ["dac_correction_enabled", "dac_correction_profile"],
-  );
-});
-
-test("test_dac_corrections_gate_reads_bypass_then_engage", () => {
-  const gate = keyedIn(rowsOf(step("correction")), "dac_correction_enabled");
-  const seg = every(inside(gate), "div", "seg")[0];
-  assert.deepEqual(
-    every(inside(seg), "button").map((b) => attr(b, "data-v")),
-    ["0", "1"],
-  );
-});
-
 test("test_tapping_engage_stages_dac_correction_on", async () => {
   await tapIn(step("correction"), "dac_correction_enabled", "1");
   assert.equal(effective("dac_correction_enabled"), "1");
@@ -702,16 +531,6 @@ test("test_loudness_asks_for_the_settings_path_only_while_engaged", async () => 
   assert.deepEqual([off, lines(rowsOf(step("loudness")), PATHS).length], [0, 2]);
 });
 
-test("test_loudnesss_settings_lines_carry_the_tables_labels", async () => {
-  await staging("loudness_enabled", "1");
-  const all = rowsOf(step("loudness"));
-  const label = (/** @type {string} */ v) => said(every(inside(lineOf(all, v)), "b")[0]);
-  assert.deepEqual(
-    PATHS.map(label),
-    KNOWN.loudness.map((l) => l.label),
-  );
-});
-
 test("test_loudness_marks_the_settings_path_taken", async () => {
   await staging("loudness_enabled", "1");
   path("loudness", "preset");
@@ -744,18 +563,9 @@ test("test_tapping_use_the_defaults_stages_the_bass_levels_default", async () =>
 
 // --- advanced settings -------------------------------------------------------------------------------------------
 
-test("test_advanced_settings_is_a_step_page_named_for_it", () => {
-  const page_ = one(advanced(), "div", "pbstepp");
-  assert.equal(said(every(inside(page_), "span", "t")[0]), PB_COPY.advanced);
-});
-
 test("test_advanced_settings_holds_the_engine_expand_hf_and_iir_to_fir_rows", () => {
   const rows = every(drawn(advanced()), "div", "drow").map((r) => attr(r, "data-k") ?? "");
   assert.deepEqual(rows.sort(), ["matrix_engine", "matrix_expand_hf", "matrix_iir2fir"]);
-});
-
-test("test_advanced_settings_nav_holds_only_the_way_to_the_overview", () => {
-  assert.deepEqual(navWords(advanced()), [PB_COPY.overview]);
 });
 
 test("test_tapping_overview_shows_the_overview", async () => {

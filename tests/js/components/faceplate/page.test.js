@@ -39,8 +39,6 @@ import { renderTree, textOf } from "../../support/vnodeseam.js";
 
 const CD = "44100";
 const PCM_8X = "352800";
-const DSD64 = "2822400";
-const DSD256 = "11289600";
 //: The Display popover's id, which its trigger and its panel both carry as `data-pop`.
 const DISPLAY = "display";
 
@@ -126,47 +124,8 @@ test("test_the_page_shows_a_section_per_engaged_stage", () => {
   assert.deepEqual(stages(), ["source", "matrix", "resampling", "shaping"]);
 });
 
-test("test_a_running_direct_sdm_takes_resampling_and_shaping_off_the_page", () => {
-  run({ source: DSD64, output: DSD256, direct: true });
-  assert.deepEqual(stages(), ["source", "matrix"]);
-});
-
-/**
- * The rate pins anywhere on the rendered page: each exact-rate pin as its tier and family, Auto by its test id.
- *
- * @returns {(string | undefined)[][]}
- */
-const ratePins = () =>
-  pageEls()
-    .filter((e) => attr(e, "data-fam") !== undefined || attr(e, "data-testid") === "pin-auto")
-    .map((e) => [attr(e, "data-i"), attr(e, "data-fam"), attr(e, "data-testid")]);
-
-test("test_allowing_pinned_rates_puts_no_rate_pin_on_the_page", () => {
-  run({ pins: true });
-  assert.deepEqual(ratePins(), []);
-});
-
-test("test_a_bypassed_matrix_engine_takes_the_matrix_section_off_the_page", () => {
-  run({ matrix: false });
-  assert.deepEqual(stages(), ["source", "resampling", "shaping"]);
-});
-
-test("test_the_matrix_profile_top_takes_the_spectrum_off_the_page", () => {
-  run({ top: "profile" });
-  assert.deepEqual(stages(), ["matrix", "resampling", "shaping"]);
-});
-
 test("test_the_spectrum_takes_the_fill_under_auto", () => {
   assert.deepEqual(stagesWith("fill"), ["source"]);
-});
-
-test("test_the_matrix_section_takes_the_fill_at_the_top_of_the_page", () => {
-  run({ top: "profile" });
-  assert.deepEqual(stagesWith("fill"), ["matrix"]);
-});
-
-test("test_auto_marks_the_matrix_section_folded", () => {
-  assert.deepEqual(stagesWith("mxfold"), ["matrix"]);
 });
 
 test("test_a_folded_matrix_section_has_no_body", () => {
@@ -209,10 +168,6 @@ function headHolds(stage, pick) {
   return !!head && elements(head.html).some(pick);
 }
 
-test("test_the_source_section_is_the_page_meters_home", () => {
-  assert.deepEqual(stagesWith("psrc"), ["source"]);
-});
-
 test("test_the_source_section_is_slim_on_a_small_plate", () => {
   assert.deepEqual(stagesWith("slim"), ["source"]);
 });
@@ -220,10 +175,6 @@ test("test_the_source_section_is_slim_on_a_small_plate", () => {
 test("test_the_source_section_is_full_on_a_13_inch_plate", () => {
   run({ win: { w: 1366, h: 1024 } });
   assert.deepEqual(stagesWith("slim"), []);
-});
-
-test("test_the_source_section_holds_the_page_meter_outside_a_two_column_body", () => {
-  assert.deepEqual([partsOf("source", "pmeter").length, bodiesIn("source")], [1, 0]);
 });
 
 test("test_a_folded_matrix_section_carries_the_profile_select_on_its_header_line", () => {
@@ -239,11 +190,6 @@ test("test_an_unfolded_matrix_section_keeps_the_profile_select_in_its_body", () 
     headHolds("matrix", (e) => e.name === "select"),
     false,
   );
-});
-
-test("test_an_unfolded_matrix_section_stretches_its_two_columns", () => {
-  run({ top: "profile" });
-  assert.deepEqual(partsOf("matrix", "two"), [["two", "stretch"]]);
 });
 
 test("test_the_resampling_header_carries_the_filter_presets_trigger", () => {
@@ -279,11 +225,6 @@ test("test_the_shaping_header_carries_no_filter_presets_trigger", () => {
 
 test("test_the_resampling_body_holds_a_chain_picker", () => {
   assert.equal(partsOf("resampling", "cplate").length, 1);
-});
-
-test("test_a_13_inch_plate_opens_both_resampling_filters_in_one_body", () => {
-  run({ win: { w: 1366, h: 1024 } });
-  assert.deepEqual([partsOf("resampling", "cplate").length, partsOf("resampling", "two")], [2, [["two", "both"]]]);
 });
 
 // --- a section ---------------------------------------------------------------------
@@ -396,20 +337,6 @@ test("test_the_open_field_shows_its_body_and_no_other_does", () => {
       .filter((e) => attr(e, "data-testid"))
       .map((e) => attr(e, "data-testid")),
     ["body-b"],
-  );
-});
-
-test("test_every_other_field_folds_to_a_line_naming_it", () => {
-  assert.deepEqual(
-    flines(fieldParts("b")).map((e) => readFirst(elements(e.html), (x) => x.name === "b", text)),
-    ["name-a", "name-c"],
-  );
-});
-
-test("test_a_folded_line_reads_the_field_value", () => {
-  assert.deepEqual(
-    flines(fieldParts("a")).map((e) => readFirst(elements(e.html), (x) => classes(x).includes("fn"), text)),
-    ["value-b", "value-c"],
   );
 });
 

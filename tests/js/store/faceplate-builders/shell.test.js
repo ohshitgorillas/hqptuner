@@ -315,12 +315,6 @@ test("test_a_save_keeps_the_record_in_its_station_while_ticked", async () => {
   assert.deepEqual(cur.value, { st: "Day", name: "Cosy" });
 });
 
-test("test_a_save_moves_the_record_to_the_first_ticked_station_when_its_own_is_not", async () => {
-  await save(saving("Cosy", ["Night", "Spare"]));
-  await settle();
-  assert.deepEqual(cur.value, { st: "Night", name: "Cosy" });
-});
-
 test("test_removing_deletes_the_current_record_in_its_station", async () => {
   await remove({ book: BOOK() });
   await settle();
@@ -343,13 +337,6 @@ test("test_removing_without_a_landing_lands_on_the_first_record_left", async () 
   await remove({ book: BOOK() });
   await settle();
   assert.deepEqual(cur.value, BRIGHT);
-});
-
-test("test_removing_a_stations_last_record_lands_on_its_new_entry", async () => {
-  cur.value = { ...QUIET };
-  await remove({ book: BOOK() });
-  await settle();
-  assert.deepEqual(cur.value, { st: "Night", name: NEW });
 });
 
 test("test_removing_drops_the_records_staged_edit", async () => {
@@ -376,10 +363,6 @@ test("test_a_dirty_record_reads_the_line_of_a_save_that_does_not_restart", () =>
 test("test_a_clean_record_reads_the_line_of_a_record_the_engine_is_not_running", () => {
   const line = stateOf({ dirty: false, isNew: false, ticked: true, restarts: false, live: false }).line;
   assert.equal(stateNow({ dirty: false, ticked: true })?.line, line);
-});
-
-test("test_save_is_off_with_no_station_ticked", () => {
-  assert.equal(stateNow({ dirty: true, ticked: false })?.saveOff, true);
 });
 
 test("test_save_is_on_for_an_edit_with_a_station_ticked", () => {

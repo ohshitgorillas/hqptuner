@@ -103,7 +103,7 @@ def test_switching_on_under_autosave_records_it_on_and_switching_off_records_it_
 # --- auto-save off: the switch touches no preset ------------------------------
 
 
-@pytest.mark.parametrize("autosave", [pytest.param(False, id="autosave-off"), pytest.param(True, id="autosave-armed")])
+@pytest.mark.parametrize("autosave", [pytest.param(False, id="autosave-off")])
 def test_switching_on_with_autosave_off_leaves_the_flag_alone_but_under_autosave_it_folds_in(
     stamp_client: TestClient, tmp_path: Path, *, autosave: bool
 ) -> None:

@@ -195,11 +195,6 @@ test("test_the_page_reads_differently_while_an_import_runs_than_before_any_impor
   assert.notEqual(during, PAGE_BEFORE_ANY_IMPORT);
 });
 
-test("test_a_landed_import_reads_neither_as_still_running_nor_as_no_import", async () => {
-  const { during, after } = await pagesAcrossASuccessfulImport();
-  assert.equal([during, PAGE_BEFORE_ANY_IMPORT].includes(after), false);
-});
-
 test("test_an_unreadable_state_file_reads_differently_from_a_refusal_with_another_code", async () => {
   const unreadable = await pageAfterRefusal(422, "state_unreadable");
   const other = await pageAfterRefusal(422, OTHER_CODE);

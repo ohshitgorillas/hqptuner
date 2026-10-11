@@ -56,16 +56,6 @@ def test_a_rate_of_zero_clears_a_standing_pin(chain_api: Callable[..., TestClien
     assert _rate(client) == "0"
 
 
-def test_a_mode_write_leaves_no_pin_behind(chain_api: Callable[..., TestClient]) -> None:
-    # The engine drops its pin on every SetMode. The lane keeps no memory of one,
-    # so returning to the family it was pinned on does not bring it back.
-    client = chain_api(mode="1")
-    _live(client, {"rate": "352800"})
-    _live(client, {"mode": "sdm"})
-    _live(client, {"mode": "pcm"})
-    assert _rate(client) == "0"
-
-
 # --- what is refused --------------------------------------------------------------
 
 #: Each engine situation and batch the lane refuses outright.

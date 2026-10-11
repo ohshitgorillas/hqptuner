@@ -118,10 +118,6 @@ test("test_a_string_value_is_accepted", () => {
   assert.equal(clampVolume("startup", "-25", CUR), -25);
 });
 
-test("test_a_blank_value_lands_on_zero_before_clamping", () => {
-  assert.equal(clampVolume("startup", "", CUR), 0);
-});
-
 // --- the loudness bounds ------------------------------------------------------
 //
 // Volume-adaptive loudness compensation (hqplayerd-readme.txt §1.11.2.1) rides

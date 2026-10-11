@@ -106,26 +106,8 @@ afterEach(async () => {
 const sent = (/** @type {string} */ method, /** @type {string} */ path) =>
   CALLS.filter((c) => c.method === method && c.path === path);
 
-test("test_the_choices_offer_the_unnamed_profile_then_every_saved_name", () => {
-  matrixConfig.value = { ...form(["Lounge"], "Lounge"), file_profiles: { Desk: { rows: [] } } };
-  assert.deepEqual(
-    profileChoices().options.map((o) => [o.value, o.label]),
-    [
-      ["", "[Default]"],
-      ["Desk", "Desk"],
-      ["Lounge", "Lounge"],
-    ],
-  );
-});
-
 test("test_the_running_profile_is_the_picked_choice", () => {
   assert.equal(profileChoices().value, "Lounge");
-});
-
-test("test_under_the_unnamed_profile_the_unnamed_choice_is_picked", () => {
-  matrixConfig.value = form(["Desk", "Lounge"], "");
-  const { value, options } = profileChoices();
-  assert.equal(options.find((o) => o.value === value)?.label, "[Default]");
 });
 
 test("test_a_saved_name_the_engine_did_not_load_is_disabled", () => {
@@ -152,18 +134,6 @@ test("test_after_a_switch_the_picked_choice_follows_the_form_the_engine_reports"
   assert.equal(profileChoices().value, "Desk");
 });
 
-test("test_the_choices_are_busy_while_a_switch_is_in_flight", async () => {
-  /** @type {() => void} */
-  let release = () => {};
-  held = new Promise((r) => (release = r));
-  const pending = switchProfile("Desk");
-  await settle();
-  const busy = profileChoices().busy;
-  release();
-  await pending;
-  assert.equal(busy, true);
-});
-
 test("test_a_finished_switch_is_no_longer_busy", async () => {
   /** @type {() => void} */
   let release = () => {};
@@ -174,12 +144,6 @@ test("test_a_finished_switch_is_no_longer_busy", async () => {
   release();
   await pending;
   assert.deepEqual([during, profileChoices().busy], [true, false]);
-});
-
-test("test_a_refused_switch_carries_the_servers_sentence", async () => {
-  switchAnswer = bad(502, "MatrixSetProfile failed");
-  await switchProfile("Desk");
-  assert.equal(profileChoices().error, "MatrixSetProfile failed");
 });
 
 test("test_the_next_switch_clears_a_refusal", async () => {

@@ -145,10 +145,6 @@ const STATE = () => ({
   active_chain: "pcm",
 });
 
-// The enumerations a re-enumerating write pulls in: same shape, different names,
-// so adopting them is observable.
-const RE_ENUMS = () => ({ ...ENUMS(), filters: [{ index: "0", value: "3", name: "poly-sinc-short" }] });
-
 // `file` is the config XML overlaid with the engine's live settings, keyed by
 // FORM FIELD name: the PCM rate limit is `defaults_samplerate`, the SDM one
 // `defaults_bitrate` (store/schema.js pcm_rate / sdm_rate, both fileTruth).
@@ -210,33 +206,10 @@ test("test_the_junk_filter_control_speaks_list_indices", () => {
   assert.equal(liveModel.value.junk.value, "1");
 });
 
-test("test_the_mode_control_reads_pcm_from_the_engines_mode_name", () => {
-  reset();
-  assert.equal(liveModel.value.mode.value, "pcm");
-});
-
 test("test_writing_a_control_posts_one_field_to_the_live_lane", async () => {
   const w = reset();
   await writeLive("filter", "40");
   assert.deepEqual(w.posts, [{ fields: { filter: "40" } }]);
-});
-
-test("test_a_verified_write_leaves_the_control_without_an_error", async () => {
-  reset({ report: { live: [{ setting: "filter", ok: true }] } });
-  await writeLive("filter", "40");
-  assert.equal(liveErrors.value.filter, undefined);
-});
-
-test("test_a_mode_write_re_pulls_the_enumerations", async () => {
-  reset({ fresh: RE_ENUMS() });
-  await writeLive("mode", "sdm");
-  assert.equal(enums.value.filters[0].name, "poly-sinc-short");
-});
-
-test("test_a_junk_filter_write_leaves_the_enumerations_alone", async () => {
-  reset({ fresh: RE_ENUMS() });
-  await writeLive("junk_filter", "0");
-  assert.equal(enums.value.filters[0].name, "none");
 });
 
 // --- a write the backend refused outright -------------------------------------

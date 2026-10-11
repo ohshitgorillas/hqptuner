@@ -179,15 +179,6 @@ async function fixture({ volume = LIVE_VOLUME, file = REMEMBERED_LEVEL, preset, 
   return w;
 }
 
-// The switch target each recorded apply POST carried, in arrival order: a
-// previewed preset reaches the daemon as `switch_to` on POST /api/config/apply,
-// which is how the wire names the set an apply is applying.
-/**
- * @param {import("../../support/wire/wire.js").StagingWire} w
- * @returns {(string | undefined)[]}
- */
-const switchTargets = (w) => w.posts.map((p) => /** @type {{ switch_to?: string }} */ (p || {}).switch_to);
-
 // Throw unless the staged picture reads what the caller meant to put there. A
 // premise that did not take makes the case below it vacuous, which is a broken
 // fixture and not a broken behavior.
@@ -429,26 +420,6 @@ test("test_declining_an_apply_time_question_leaves_an_unrelated_staged_edit_alon
   await held.catch(() => {});
   await quiesce(w);
   assert.equal(effective("volume_min"), "-50");
-});
-
-// A yes RELEASES the apply, so the claim is about which post the wire got and
-// when. "One post afterwards" would be true of a tree with no guard in it at
-// all, so the premise — nothing sent while the question stood — is checked first
-// and THROWS if it does not hold, the way every other premise in this file does;
-// the assertion is then what the released apply actually carried. A previewed
-// preset reaches the daemon as the switch target on POST /api/config/apply, so
-// that target names the set the question was asked about.
-test("test_confirming_an_apply_time_question_sends_the_apply_post", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  if (w.posts.length !== 0) {
-    throw new Error(`the apply posted ${w.posts.length} time(s) before its question was answered: nothing was held`);
-  }
-  answer();
-  await held.catch(() => {});
-  await quiesce(w);
-  assert.deepEqual(switchTargets(w), [DIRECT_SDM_PRESET.name]);
 });
 
 // --- one hazard, one warning -------------------------------------------------

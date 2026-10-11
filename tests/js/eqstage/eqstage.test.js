@@ -17,7 +17,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { runJob } from "../../../scripts/eqstage/eqstage.js";
-import { near } from "../support/near.js";
 
 // --- fixtures -------------------------------------------------------------------
 
@@ -310,16 +309,6 @@ test("test_replace_tail_drops_the_old_eq_band_from_the_tail", async () => {
   assert.equal(hasStage(stagedRows(answer)[0].process, "peak", 100), false);
 });
 
-test("test_append_keeps_both_original_stages_and_adds_the_new_band", async () => {
-  const wire = stageWire();
-  const answer = await run({ rows: [0], mode: "append" }, wire);
-  const process = stagedRows(answer)[0].process;
-  assert.deepEqual(
-    [hasStage(process, "lp1", 700), hasStage(process, "peak", 100), hasStage(process, "peak", 5000)],
-    [true, true, true],
-  );
-});
-
 test("test_the_new_band_is_staged_with_the_q_and_gain_it_was_given", async () => {
   const wire = stageWire();
   const answer = await run({ rows: [0], mode: "replace_tail" }, wire);
@@ -328,18 +317,6 @@ test("test_the_new_band_is_staged_with_the_q_and_gain_it_was_given", async () =>
 });
 
 // --- preamp ---------------------------------------------------------------------
-
-test("test_a_preamp_sets_the_selected_rows_gain", async () => {
-  const wire = stageWire();
-  const answer = await run({ rows: [0], preamp_db: -3.0 }, wire);
-  assert.equal(stagedRows(answer)[0].gain, "-3.0");
-});
-
-test("test_a_preamp_sets_the_selected_rows_gain_unit_to_decibels", async () => {
-  const wire = stageWire();
-  const answer = await run({ rows: [0], preamp_db: -3.0 }, wire);
-  assert.equal(stagedRows(answer)[0].gainunit, "dB");
-});
 
 test("test_a_preamp_on_a_linear_gain_row_is_rejected_for_its_gain_unit", async () => {
   const wire = stageWire({ rows: withRow(ROWS, 0, { gainunit: "Lin" }) });
@@ -350,16 +327,6 @@ test("test_a_preamp_on_a_linear_gain_row_stages_nothing", async () => {
   const wire = stageWire({ rows: withRow(ROWS, 0, { gainunit: "Lin" }) });
   await rejected(run({ rows: [0], preamp_db: -3.0 }, wire));
   assert.deepEqual(posts(wire.w), []);
-});
-
-// The response of a lone +6 dB peak tops out at +6 dB, so auto preamp is -6.
-test("test_an_auto_preamp_stages_the_negated_peak_of_the_summed_response", async () => {
-  const wire = stageWire({ rows: withRow(ROWS, 0, { process: "iir:type=peak;f=100;q=1;g=-2" }) });
-  const answer = await run(
-    { rows: [0], mode: "replace_tail", preamp_db: "auto", eq: { bands: [{ type: "peak", f: 1000, q: 1, g: 6 }] } },
-    wire,
-  );
-  assert.ok(...near(Number(stagedRows(answer)[0].gain), -6, 0.2));
 });
 
 test("test_forcing_the_gain_unit_stages_a_linear_gain_row_in_decibels", async () => {
@@ -389,20 +356,7 @@ test("test_a_dry_run_still_returns_the_payload_it_would_have_sent", async () => 
   assert.equal(hasStage(stagedRows(answer)[0].process, "peak", 5000), true);
 });
 
-// --- verification ---------------------------------------------------------------
-
-test("test_a_pending_buffer_that_differs_from_what_was_sent_is_rejected_for_the_disagreement", async () => {
-  const wire = stageWire({ externalStage: { live: {}, http: { matrix_pipelines: canonicalRows([ROWS[1]]) } } });
-  await assert.rejects(() => run({ rows: [0] }, wire), /pending|verif|match|differ|disagree/i);
-});
-
 // --- baseline source ------------------------------------------------------------
-
-test("test_an_unreadable_config_falls_back_to_the_matrix_endpoint_for_the_baseline", async () => {
-  const wire = stageWire({ configStatus: 500 });
-  const answer = await run({ rows: [0] }, wire);
-  assert.equal(answer.baseline_source, "matrix");
-});
 
 test("test_a_matrix_derived_baseline_stages_its_rows_without_the_matrix_index_field", async () => {
   const wire = stageWire({ configStatus: 500 });

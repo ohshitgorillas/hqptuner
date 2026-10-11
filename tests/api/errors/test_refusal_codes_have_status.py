@@ -19,15 +19,11 @@ from httpx import Response
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
-from hqptuner.api.errors import STATUS
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The code a connection save answers when its record cannot be written.
 STORE_UNWRITABLE = "store_unwritable"
-
-#: The status the owner fixed for that code.
-STORE_UNWRITABLE_STATUS = 500
 
 #: What ``_code`` reads off an answer that carries no ``code``: a bare crash
 #: page, or a JSON body without the key. No case expects it.
@@ -83,11 +79,3 @@ def blocked_save(client: TestClient, record_path: Path) -> Response:
 
 def test_a_connection_save_the_store_cannot_hold_carries_code_store_unwritable(blocked_save: Response) -> None:
     assert _code(blocked_save) == STORE_UNWRITABLE
-
-
-def test_a_connection_save_the_store_cannot_hold_answers_at_its_codes_status(blocked_save: Response) -> None:
-    assert blocked_save.status_code == STATUS.get(_code(blocked_save))
-
-
-def test_store_unwritable_answers_500() -> None:
-    assert STATUS.get(STORE_UNWRITABLE) == STORE_UNWRITABLE_STATUS

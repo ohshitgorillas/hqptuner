@@ -7,7 +7,7 @@ the linear-interpolation percentile rule ``numpy.percentile`` defaults to.
 from __future__ import annotations
 
 from jbderived import stats
-from jbscore import score_candidate, threshold
+from jbscore import threshold
 
 _RANKED_VALUES = [10.0, 20.0, 30.0, 40.0, 50.0]
 _CLIFF_LOW = [10.0, 20.0]
@@ -20,13 +20,6 @@ def test_stats_p25_is_the_25th_percentile_of_the_ranked_values() -> None:
 
 def test_stats_p75_is_the_75th_percentile_of_the_ranked_values() -> None:
     assert stats(_RANKED_VALUES).p75 == 40.0
-
-
-def test_score_candidate_is_none_when_neither_side_has_a_finite_reading() -> None:
-    absent = {"cliff": [float("nan")], "full": [float("nan")]}
-    present = {"cliff": _CLIFF_LOW, "full": _FULL_HIGH, "series": {}}
-    scored = [score.blocks for score in (score_candidate(absent), score_candidate(present)) if score is not None]
-    assert scored == [4]
 
 
 def test_threshold_midpoint_sits_between_the_facing_edges_when_the_cliff_side_is_lower() -> None:

@@ -239,14 +239,6 @@ function countedCells(read) {
   });
 }
 
-// Columns 1195 to 1199 lie in the newest cell; the one before it is the seam's.
-test("test_a_raster_from_column_W_minus_5_reads_only_the_newest_cell_and_the_one_before_it", () => {
-  /** @type {Set<number>} */
-  const read = new Set();
-  rasterize(STEPS, view(countedCells(read)), W - 5);
-  assert.equal(read.size, 2);
-});
-
 // Column 1170 lies left of the newest slice's centre, so it blends toward the
 // slice before it.
 test("test_a_raster_from_the_newest_cells_first_column_is_the_full_rasters_columns_from_there", () => {

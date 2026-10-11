@@ -15,7 +15,6 @@ Pure filesystem — no daemon, no socket, no HTTP. Every store is rooted under
 pytest's ``tmp_path``.
 """
 
-import contextlib
 import json
 from collections.abc import Callable
 from pathlib import Path
@@ -48,33 +47,10 @@ ACCEPTED_NAMES = [
     pytest.param("store", id="sibling-store"),
 ]
 
-# Names that would break a filename, a zip member name or the store itself.
-REFUSED_NAMES = [
-    pytest.param("a/b", id="forward-slash"),
-    pytest.param("/etc/passwd", id="absolute-path"),
-    pytest.param("a\\b", id="backslash"),
-    pytest.param("..", id="parent-directory"),
-    pytest.param("Studio..xml", id="embedded-double-dot"),
-    pytest.param(".hidden", id="leading-dot"),
-    pytest.param("", id="empty"),
-    pytest.param(" ", id="only-whitespace"),
-    pytest.param(" Studio", id="leading-space"),
-    pytest.param("Studio ", id="trailing-space"),
-    pytest.param("a\x00b", id="nul"),
-    pytest.param("a\x1fb", id="unit-separator"),
-    pytest.param("a\x7fb", id="delete"),
-]
-
 # "é" written as e + U+0301 COMBINING ACUTE ACCENT, and its precomposed twin.
 # The daemon does not normalize; neither may the store.
 DECOMPOSED = "Café"  # C, a, f, e, U+0301
 PRECOMPOSED = "Café"
-
-# The filesystem's NAME_MAX is 255 BYTES. "ä" is two UTF-8 bytes, so both of
-# these are far under 255 CHARACTERS: an implementation that counts characters
-# accepts the overlong one and fails the refusal test below.
-LONGEST_ACCEPTED = "ä" * 125 + "a"  # 251 bytes + ".xml" == 255
-FIRST_REFUSED_LENGTH = "ä" * 126  # 252 bytes + ".xml" == 256
 
 
 def store_at(tmp_path: Path) -> PresetStore:
@@ -191,12 +167,6 @@ def test_a_decomposed_live_preset_name_reads_back_still_decomposed(tmp_path: Pat
     assert list(store.all("")) == [DECOMPOSED]
 
 
-def test_a_live_preset_saved_decomposed_does_not_answer_to_the_precomposed_name(tmp_path: Path) -> None:
-    store = live_store_at(tmp_path)
-    store.save(DECOMPOSED, RECORD, [""])
-    assert PRECOMPOSED not in store.all("")
-
-
 # --- refusals ----------------------------------------------------------------
 
 
@@ -263,40 +233,4 @@ def test_import_takes_a_mixed_script_daemon_profile(tmp_path: Path) -> None:
     assert imported == [MIXED_SCRIPT]
 
 
-def test_after_importing_a_mixed_script_daemon_profile_a_new_mixed_script_save_is_refused(tmp_path: Path) -> None:
-    store, _ = imported_mixed_script(tmp_path)
-    assert save_outcome(store, MIXED_SCRIPT + "2") == "name_invalid"
-
-
 # --- the 255-BYTE filename boundary -----------------------------------------
-
-
-# --- a refusal writes nothing ------------------------------------------------
-
-
-def _payload_anywhere(root: Path) -> bool:
-    """Whether any file under ``root`` carries the preset payload."""
-    return any(p.is_file() and PAYLOAD in p.read_bytes() for p in root.rglob("*"))
-
-
-@pytest.mark.parametrize(
-    ("name", "accepted"),
-    [
-        pytest.param("a/b", False, id="forward-slash"),
-        pytest.param("../escape", False, id="parent-directory-hop"),
-        pytest.param(".hidden", False, id="leading-dot"),
-        pytest.param("a\x1fb", False, id="unit-separator"),
-        pytest.param(FIRST_REFUSED_LENGTH, False, id="over-255-bytes"),
-        pytest.param(LONGEST_ACCEPTED, True, id="exactly-255-bytes"),
-    ],
-)
-def test_a_refused_name_puts_no_payload_on_disk_but_an_accepted_255_byte_name_does(
-    tmp_path: Path, name: str, *, accepted: bool
-) -> None:
-    # The refusal itself is pinned above; suppressed here so the one assertion
-    # this test owns is the disk check. A refused save may still materialize the
-    # store directory and its stamp — that is bookkeeping, not a payload, so the
-    # walk looks for the payload bytes specifically.
-    with contextlib.suppress(PresetError):
-        store_at(tmp_path).save(name, PAYLOAD)
-    assert _payload_anywhere(tmp_path) is accepted

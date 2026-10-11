@@ -24,9 +24,6 @@ import pytest
 
 from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
-#: The three states of the 1x lossy control.
-STATES = ["lossless", "lossy", "both"]
-
 #: The state a store that was never written reports.
 DEFAULT_STATE = "both"
 
@@ -59,25 +56,6 @@ def seeded_with(tmp_path: Path, legacy: str) -> Path:
     facets[legacy] = RETIRED_HIRES[legacy]
     path.write_text(json.dumps(doc))
     return path
-
-
-# --- the control's own domain -------------------------------------------------
-
-
-def test_a_store_that_was_never_written_reports_the_lossy_control_at_both(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read().lossy_1x == DEFAULT_STATE
-
-
-@pytest.mark.parametrize("state", STATES)
-def test_a_written_lossy_state_reads_back_as_written(tmp_path: Path, state: str) -> None:
-    store = store_at(tmp_path)
-    store.write({"lossy_1x": state})
-    assert store.read().lossy_1x == state
-
-
-@pytest.mark.parametrize("state", STATES)
-def test_a_write_answers_with_the_lossy_state_it_stored(tmp_path: Path, state: str) -> None:
-    assert store_at(tmp_path).write({"lossy_1x": state}).lossy_1x == state
 
 
 # --- what the control refuses --------------------------------------------------

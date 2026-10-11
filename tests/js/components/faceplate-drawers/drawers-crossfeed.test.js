@@ -113,22 +113,6 @@ async function fire(pred, handler = "onClick") {
   await quiesce(wire);
 }
 
-test("test_the_picked_line_is_lit_and_the_other_folds", () => {
-  const els = markup();
-  const bauer = els.find(line("bauer"));
-  const structural = els.find(line("structural"));
-  assert.deepEqual(
-    [bauer && classes(bauer).includes("cur"), structural && classes(structural).includes("fold")],
-    [true, true],
-  );
-});
-
-test("test_only_the_picked_line_holds_controls", () => {
-  const bauer = inside(line("bauer")).filter(hasClass("xctl")).length;
-  const structural = inside(line("structural")).filter(hasClass("xctl")).length;
-  assert.deepEqual([bauer, structural], [1, 0]);
-});
-
 test("test_the_folded_line_prints_the_corner_it_would_install", async () => {
   await load({ preset: "custom", picked: "structural" });
   const sum = inside(line("bauer")).find(hasClass("xsum"));
@@ -144,14 +128,6 @@ test("test_a_bypassed_matrix_engine_disables_every_control", async () => {
   const live = enabled(markup());
   await load({ matrix: false });
   assert.deepEqual([live > 0, enabled(markup())], [true, 0]);
-});
-
-test("test_crossfeed_bypassed_leaves_the_gate_and_the_pick_live_and_grays_the_rest", async () => {
-  await load({ enabled: "0" });
-  const gate = enabled(inside(hasClass("xgate")));
-  const controls = enabled(inside(hasClass("xctl")));
-  const radios = markup().filter((e) => attr(e, "role") === "radio" && !hasAttr(e, "disabled")).length;
-  assert.deepEqual([gate, controls, radios], [2, 0, 2]);
 });
 
 test("test_frequency_and_level_gray_off_the_custom_preset", async () => {

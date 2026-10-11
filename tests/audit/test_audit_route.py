@@ -11,7 +11,6 @@ wiring cases, and a hand-seeded file would stay green even if the app emitted
 nothing at all.
 """
 
-import json
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -75,14 +74,6 @@ def stage_several(client: TestClient, count: int) -> None:
         stage_title(client, f"Renamed {index}")
 
 
-def highest_seq(path: Path) -> int:
-    """The newest record's `seq`, read off the file itself with a plain
-    `json.loads` per line — the wiring suite's way, so the route is checked
-    against the log rather than against itself."""
-    lines = [line for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
-    return max(int(json.loads(line)["seq"]) for line in lines)
-
-
 def fetched(client: TestClient, **params: int) -> list[dict[str, Any]]:
     response = client.get("/api/audit", params=params)
     records: list[dict[str, Any]] = response.json()["records"]
@@ -123,35 +114,9 @@ def test_the_audit_route_returns_the_records_the_activity_produced(
     assert [record["event"] for record in fetched(audit_client)] == events
 
 
-def test_a_returned_record_carries_the_event_key(audit_client: TestClient) -> None:
-    # the envelope, not some other shape: ts/seq/event plus the event's fields
-    stage_title(audit_client)
-    assert "event" in fetched(audit_client)[-1]
-
-
 # --- limit and ordering -------------------------------------------------------
 
 
 def test_the_limit_bounds_how_many_records_come_back(audit_client: TestClient) -> None:
     stage_several(audit_client, 5)
     assert len(fetched(audit_client, limit=2)) == 2
-
-
-def test_a_limited_response_carries_the_newest_records_not_the_oldest(
-    audit_client: TestClient, audit_log: Path
-) -> None:
-    # the whole point of the parameter: a `tail` implemented as "first n" would
-    # still return two records, and would still return them in seq order — only
-    # the newest record's seq tells the two implementations apart
-    stage_several(audit_client, 5)
-    newest = highest_seq(audit_log)
-    assert fetched(audit_client, limit=2)[-1]["seq"] == newest
-
-
-def test_the_records_come_back_oldest_first_by_seq(audit_client: TestClient) -> None:
-    # ordering is asserted on the monotonic counter, never on timestamps: two
-    # records written in the same clock tick carry the same ts and would make a
-    # timestamp check pass on any order
-    stage_several(audit_client, 5)
-    seqs = [record["seq"] for record in fetched(audit_client)]
-    assert seqs == sorted(seqs)

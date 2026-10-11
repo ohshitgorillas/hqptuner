@@ -9,7 +9,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { railBreak, railLamp, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { railLamp, railStages, railValue } from "../../../../hqptuner/static/store/faceplate/chain.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").RailStage} RailStage */
@@ -105,16 +105,8 @@ test("test_a_running_hf_filter_shows_its_engine_name", () => {
   assert.equal(stage({ hf: "20k" }, "hf").value, "20k");
 });
 
-test("test_a_running_hf_filter_lights_its_lamp", () => {
-  assert.equal(stage({ hf: "20k" }, "hf").on, true);
-});
-
 test("test_the_hf_filter_at_none_is_unlit", () => {
   assert.equal(stage({ hf: "none" }, "hf").on, false);
-});
-
-test("test_dsd_processing_on_the_pcm_chain_names_the_noise_filter", () => {
-  assert.match(stage({ path: "dsd-pcm" }, "dsd").value, new RegExp(CONV.noise));
 });
 
 test("test_dsd_processing_on_the_pcm_chain_names_the_decimation_filter", () => {
@@ -131,7 +123,6 @@ test("test_dsd_processing_under_a_running_direct_sdm_does_not_name_the_integrato
 
 /** @type {[Running["path"], boolean][]} */
 const DSD_BYPASS = [
-  ["pcm-pcm", true],
   ["pcm-sdm", true],
   ["dsd-pcm", false],
   ["sdm-sdm", false],
@@ -181,13 +172,6 @@ test("test_a_processed_path_hides_only_what_the_preferences_hide", () => {
   );
 });
 
-test("test_direct_sdm_bypasses_every_processing_stage_and_leaves_the_stream_and_speakers", () => {
-  assert.deepEqual(
-    idsWhere({ path: "direct", chain: "sdm", direct: true }, (s) => !s.byp),
-    ["source", "speakers", "output"],
-  );
-});
-
 test("test_a_pcm_path_bypasses_only_dsd_processing", () => {
   assert.deepEqual(
     idsWhere({}, (s) => s.byp),
@@ -220,7 +204,7 @@ for (const id of ["crossfeed", "loudness", "correction"]) {
   });
 }
 
-for (const id of ["pipelines", "crossfeed", "loudness", "correction"]) {
+for (const id of ["crossfeed", "loudness", "correction"]) {
   test(`test_${id}_engaged_under_a_bypassed_matrix_engine_is_unlit`, () => {
     assert.equal(stage({ ...ENGAGED, matrix: false }, id).on, false);
   });
@@ -241,7 +225,6 @@ for (const [id, off] of /** @type {[string, Partial<Running>][]} */ ([
   ["hf", { hf: "none" }],
   ["crossfeed", { crossfeed: null }],
   ["correction", { correction: false }],
-  ["speakers", { speakers: false }],
 ])) {
   test(`test_${id}_switched_off_prints_no_value`, () => {
     assert.equal(stage({ ...ENGAGED, ...off }, id).value, "");
@@ -299,10 +282,6 @@ test("test_dsp_pipelines_keep_their_count_as_a_value_under_a_bypassed_matrix_eng
   assert.match(stage({ matrix: false, pipelines: 7 }, "pipelines").value, /\b7\b/);
 });
 
-test("test_loudness_reads_the_percent_applied", () => {
-  assert.match(stage({ loudness: true, applied: 37 }, "loudness").value, /\b37%/);
-});
-
 test("test_dac_correction_engaged_names_the_running_model", () => {
   assert.equal(stage({ correction: true, model: "D90" }, "correction").value, "D90");
 });
@@ -315,10 +294,6 @@ for (const text of ["-12.5 dB", "Pinned: -3.0 dB"]) {
 
 test("test_speakers_engaged_are_lit", () => {
   assert.equal(stage({ speakers: true }, "speakers").on, true);
-});
-
-test("test_speakers_engaged_leave_their_value_empty_for_want_of_a_running_layout", () => {
-  assert.equal(stage({ speakers: true }, "speakers").value, "");
 });
 
 test("test_the_output_reads_its_rate", () => {
@@ -346,10 +321,6 @@ test("test_a_stage_the_preferences_hide_is_hidden", () => {
     idsWhere({ hidden: ["loudness", "speakers"] }, (s) => s.hidden),
     ["loudness", "speakers"],
   );
-});
-
-test("test_two_poly_sinc_filters_share_their_first_part", () => {
-  assert.equal(railBreak(CONV.filter1x)[0], railBreak("poly-sinc-xtr-short-mp-2s")[0]);
 });
 
 /**

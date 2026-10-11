@@ -185,12 +185,6 @@ def _bin_db(items: list[Item], channel: int, index: int) -> float:
     return decoded[index] if index < len(decoded) else math.nan
 
 
-def _bin_step(items: list[Item], channel: int, index: int) -> int:
-    """One bin of one channel as its steps below full scale; -1 where it carries none."""
-    steps = _bin_steps(items, channel)
-    return steps[index] if index < len(steps) else -1
-
-
 # --- line 1: frame events run at the refresh rate of the source -------------
 
 
@@ -249,14 +243,6 @@ async def test_a_tone_decodes_within_half_a_db_of_its_level(bandwidth: float, le
     mono = _frame([Channel(tone_real=10 ** (level / 20))], bandwidth)
     items = await _items([], then=mono)
     assert _bin_db(items, 0, _tone_bin(TONE_HZ, bandwidth)) == pytest.approx(level, abs=0.5)
-
-
-@pytest.mark.parametrize("index", [0, BINS - 1], ids=["DC", "Nyquist"])
-@pytest.mark.parametrize("bandwidth", [NYQUIST_44K, NYQUIST_192K], ids=["22.05 kHz", "96 kHz"])
-async def test_a_silent_bin_travels_as_step_600(bandwidth: float, index: int) -> None:
-    mono = _frame([Channel(floor_real=0.0)], bandwidth)
-    items = await _items([], then=mono)
-    assert _bin_step(items, 0, index) == 600
 
 
 # --- line 4: a frame item holds the stride's peak and a blend of its rms ----

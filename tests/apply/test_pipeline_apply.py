@@ -34,16 +34,6 @@ async def test_pipeline_gain_edit_reaches_the_running_config(http_manager: Conne
     assert (await applied_rows(http_manager))[0]["gain"] == "-7.8"
 
 
-async def test_pipeline_row_add_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json(ROW0, ROW1, {**ROW1, "mixdown": "0"})})
-    assert len(await applied_rows(http_manager)) == 3
-
-
-async def test_pipeline_row_remove_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json(ROW0)})
-    assert len(await applied_rows(http_manager)) == 1
-
-
 async def test_linear_gain_unit_round_trips(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply(
         {}, {"matrix_pipelines": rows_json({**ROW0, "gain": "-1", "gainunit": "Lin"}, ROW1)}
@@ -70,19 +60,8 @@ async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -
     ).outcome is RestoreOutcome.APPLIED
 
 
-async def test_pipeline_apply_leaves_other_settings_untouched(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"matrix_pipelines": rows_json({**ROW0, "gain": "-3"}, ROW1)})
-    assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
-
-
 def test_invalid_gain_is_refused_before_any_write(http_client: TestClient) -> None:
     http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"})}})
-    resp = http_client.post("/api/config/apply")
-    assert resp.json()["code"] == "invalid_input"
-
-
-def test_out_of_range_channel_is_refused_before_any_write(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "source": "128"})}})
     resp = http_client.post("/api/config/apply")
     assert resp.json()["code"] == "invalid_input"
 

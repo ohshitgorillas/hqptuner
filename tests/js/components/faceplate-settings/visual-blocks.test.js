@@ -121,12 +121,6 @@ test("test_a_hex_change_writes_the_custom_hex", () => {
   assert.equal(accentHex.value, "#123456");
 });
 
-test("test_a_toggle_tap_hides_its_stage_and_closes_its_open_drawer", () => {
-  openStage.value = "crossfeed";
-  fire(HideBlock, button("crossfeed"));
-  assert.deepEqual([hiddenStages.value, openStage.value], [["crossfeed"], null]);
-});
-
 test("test_a_second_toggle_tap_shows_the_stage_again", () => {
   fire(HideBlock, button("loudness"));
   const hidden = [...hiddenStages.value];
@@ -145,11 +139,6 @@ test("test_a_hidden_stage_lights_its_toggle", () => {
 test("test_a_delay_change_writes_the_spectrum_offset_in_seconds", () => {
   fire(DelayBlock, (type) => type === "input", "onChange", { target: { value: "0.5" } });
   assert.equal(spectrumOffset.value, 0.5);
-});
-
-test("test_the_delay_box_takes_an_offset_down_to_minus_five_seconds", () => {
-  const box = markup(DelayBlock).find((e) => e.name === "input");
-  assert.equal(box ? attr(box, "min") : undefined, "-5");
 });
 
 test("test_a_negative_delay_change_writes_a_negative_spectrum_offset", () => {

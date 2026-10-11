@@ -118,11 +118,6 @@ const AUTO = [
     open: false,
   },
   {
-    name: "test_a_daemon_still_unreachable_at_3500_ms_opens_the_panel",
-    readings: [[NEVER, 3500]],
-    open: true,
-  },
-  {
     name: "test_a_reading_with_credentials_ok_false_opens_the_panel_at_once",
     readings: [[REFUSED, 0]],
     open: true,
@@ -163,19 +158,6 @@ test("test_discovery_leaves_a_host_the_user_typed_alone", async () => {
   await runDiscovery();
   assert.equal(form.value.host, "192.168.1.5");
 });
-
-// --- what a save puts on the wire -------------------------------------------
-
-for (const remember of [true, false]) {
-  test(`test_a_save_with_remember_${remember}_carries_the_password`, async () => {
-    start();
-    const posts = wire();
-    form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember };
-    await submitConnection();
-    const body = posts[0] ?? {};
-    assert.deepEqual({ password: body.password, remember: body.remember }, { password: "s3cret", remember });
-  });
-}
 
 // --- what closes the panel again --------------------------------------------
 

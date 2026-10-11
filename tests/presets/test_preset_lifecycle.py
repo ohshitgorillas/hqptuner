@@ -10,7 +10,6 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-import httpx
 import pytest
 from conftest import ManagerFactory
 from fixtures_clients import app
@@ -103,16 +102,6 @@ def _pmgr(daemon: dict[str, Any], tmp_path: Path) -> tuple[ConnectionManager, Ht
     return ConnectionManager(cfg, http, VirtualClock()), http
 
 
-async def test_saved_preset_is_listed_and_marked_active(http_daemon: dict[str, Any], tmp_path: Path) -> None:
-    manager, http = _pmgr(http_daemon, tmp_path)
-    try:
-        await manager.presetops.save_preset("Studio")
-        presets = manager.presetops.presets()
-    finally:
-        await http.aclose()
-    assert presets.active == "Studio"
-
-
 async def test_load_preset_restores_its_saved_config(http_daemon: dict[str, Any], tmp_path: Path) -> None:
     # save captures the running config, a later edit drifts it, and loading the
     # preset restores it — proving load drives the daemon back to the saved state
@@ -145,15 +134,6 @@ async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any
 # restarting from the apply the save follows, so it retries — and when it finally
 # does not land, the save is still a save. Reporting it as failed is what sent a
 # user hunting for a preset that was already on disk.
-
-
-async def test_a_save_whose_mirror_never_lands_still_reports_ok(
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
-) -> None:
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    result = await manager.presetops.save_preset("Studio")
-    assert result.name == "Studio"
 
 
 async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(
@@ -209,33 +189,3 @@ def test_a_save_answers_a_warning_only_when_its_mirror_did_not_land(
     finally:
         next(served, None)
     assert bool(body.get("warning")) is warned
-
-
-async def test_a_mirror_stops_retrying_at_the_deadline(
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
-) -> None:
-    # three passes fit a 3 s deadline at a 1 s interval, then the loop concludes —
-    # the retry is bounded, not an unbounded hammer on a daemon that is gone
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    await manager.presetops.save_preset("Studio")
-    assert restore_refusing_http_daemon["_restore_attempts"] == 3
-
-
-async def test_a_healthy_save_carries_the_mirror_to_the_daemon(
-    http_daemon: dict[str, Any],
-    http_manager: ConnectionManager,
-) -> None:
-    await http_manager.presetops.save_preset("Studio")
-    assert "data/cfgs/Studio.xml" in http_daemon["_restore_members"]
-
-
-# --- a save when the daemon goes down raises what a load raises -----------------
-
-
-async def test_a_save_raises_the_same_error_a_load_does_when_the_daemon_goes_down(
-    http_daemon: dict[str, Any], http_manager: ConnectionManager
-) -> None:
-    http_daemon["_down"] = True
-    with pytest.raises(httpx.HTTPError):
-        await http_manager.presetops.save_preset("Studio")

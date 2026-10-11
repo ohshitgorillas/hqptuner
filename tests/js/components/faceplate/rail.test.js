@@ -90,14 +90,6 @@ const button = (id) =>
 const partOf = (id, part) =>
   elements(button(id).html).find((e) => classes(e).includes(part)) || { name: "", attrs: "", start: -1, html: "" };
 
-test("test_a_stage_renders_as_a_button_carrying_its_id", () => {
-  assert.ok(idsWhere(() => true).includes("hf"));
-});
-
-test("test_the_matrix_engine_parts_carry_their_level", () => {
-  assert.equal(attr(button("pipelines"), "data-level"), "1");
-});
-
 test("test_only_the_stage_whose_drawer_is_open_carries_open", () => {
   openStage.value = "volume";
   assert.deepEqual(
@@ -125,22 +117,9 @@ test("test_a_running_hf_filter_lights_its_lamp", () => {
   assert.ok(classes(partOf("hf", "lamp")).includes("on"));
 });
 
-test("test_the_hf_filter_at_none_leaves_its_lamp_as_a_running_one_does_not", () => {
-  const lit = classes(partOf("hf", "lamp"));
-  playing("0");
-  assert.notDeepEqual(classes(partOf("hf", "lamp")), lit);
-});
-
 test("test_an_unlit_stage_carries_off", () => {
   playing("0");
   assert.ok(classes(button("hf")).includes("off"));
-});
-
-test("test_a_stage_lighting_up_changes_its_classes", () => {
-  playing("0");
-  const unlit = classes(button("hf"));
-  playing("1");
-  assert.notDeepEqual(classes(button("hf")), unlit);
 });
 
 test("test_a_stage_shows_its_value", () => {
@@ -153,9 +132,4 @@ test("test_tapping_a_stage_opens_its_drawer", () => {
   const onClick = /** @type {(() => void) | undefined} */ (hit && hit.props.onClick);
   if (onClick) onClick();
   assert.equal(openStage.value, "output");
-});
-
-test("test_paused_the_source_lamp_carries_pause", () => {
-  playing("1", "1");
-  assert.ok(classes(partOf("source", "lamp")).includes("pause"));
 });

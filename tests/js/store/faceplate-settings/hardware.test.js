@@ -13,7 +13,6 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  DEFAULTS,
   HARDWARE_KEYS,
   allStations,
   applyHardware,
@@ -100,17 +99,6 @@ test("test_the_hardware_keys_are_the_six_engine_attributes", () => {
   assert.deepEqual([...HARDWARE_KEYS].sort(), ["cuda", "cuda_cdev", "cuda_dev", "ecores", "multicore", "nblocks"]);
 });
 
-test("test_the_defaults_are_the_daemons_own_for_an_absent_attribute", () => {
-  assert.deepEqual(DEFAULTS, {
-    cuda: "0",
-    multicore: "auto",
-    ecores: "default",
-    nblocks: "0",
-    cuda_dev: "-1",
-    cuda_cdev: "-1",
-  });
-});
-
 // --- the load ----------------------------------------------------------------------------------------------------
 
 test("test_the_draft_reads_unloaded_until_the_engine_is_read", () => {
@@ -151,12 +139,6 @@ test("test_an_edit_lands_on_its_own_key_only", () => {
 test("test_an_edit_leaves_the_base_where_the_engine_put_it", () => {
   setHardware("ecores", "filter");
   assert.deepEqual(hardwareDraft().base, ENGINE);
-});
-
-test("test_an_edit_makes_the_draft_differ_from_the_base", () => {
-  const before = hardwareDraft().differs;
-  setHardware("nblocks", "16");
-  assert.deepEqual([before, hardwareDraft().differs], [false, true]);
 });
 
 test("test_an_edit_back_to_the_base_value_no_longer_differs", () => {

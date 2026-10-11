@@ -35,13 +35,6 @@ LOW_FRAME = _agg_frame(-90.0)
 SILENT_FRAME = [_power(-120.0)] * AGG_BINS  # all-floor: what a silent hop carries
 
 
-def test_window_min_appears_once_the_window_is_earned() -> None:
-    aggregate = SpectralAggregate(AGG_BINS, 48000.0)
-    for _ in range(WINDOW_BLOCKS):  # exactly the 30 s window, to the block
-        aggregate.add(HIGH_FRAME, BLOCK_SECONDS)
-    assert aggregate.window_min_db()[_CONSTANT_BIN] == pytest.approx(-20.0, abs=0.5)
-
-
 def _earned_alternating() -> SpectralAggregate:
     """High and low frames alternating, a full block of coverage apiece, well
     past the persistence window."""

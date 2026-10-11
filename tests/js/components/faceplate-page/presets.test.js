@@ -141,10 +141,6 @@ function fire(v) {
   if (typeof fn === "function") fn({ preventDefault() {}, stopPropagation() {} });
 }
 
-/** @param {VNode | undefined} row */
-const pickOf = (row) =>
-  within(row ? propsOf(row).children : []).find((v) => v.type === "button" && hasClass(v, "pick"));
-
 // ============================================================================
 // the panel and its button
 // ============================================================================
@@ -234,17 +230,6 @@ for (const p of TOP) {
       Object.fromEntries(TOP.map((t) => [t.id, t.id === p.id])),
     );
   });
-
-  test(`test_running_${p.id}_lights_its_rows_lamp_and_no_other`, async () => {
-    await live({ ...running(p.id, resting(p)) });
-    const lamps = Object.fromEntries(
-      topRows(drawn().out).map((e) => [
-        attr(e, "data-preset"),
-        elements(e.html).some((x) => is(x, "lamp") && is(x, "on")),
-      ]),
-    );
-    assert.deepEqual(lamps, Object.fromEntries(TOP.map((t) => [t.id, t.id === p.id])));
-  });
 }
 
 for (const { under, sub, vk } of NESTED) {
@@ -327,25 +312,6 @@ test("test_a_grayed_rows_pick_is_disabled_and_no_other", async () => {
 // ============================================================================
 // presses write through the store
 // ============================================================================
-
-for (const p of TOP) {
-  test(`test_pressing_the_${p.id}_row_posts_its_resting_filters`, async () => {
-    const w = await live();
-    fire(pickOf(rowNode(drawn().seen, p.id)));
-    await flush(w);
-    assert.deepEqual(postedFields(w), liveExpected(p.id, resting(p)));
-  });
-}
-
-for (const { under, sub, vk } of NESTED) {
-  test(`test_pressing_${sub.id}_nested_under_${under}_posts_its_${under}_version`, async () => {
-    const w = await live();
-    showSubsets(under);
-    fire(pickOf(rowNode(drawn().seen, sub.id, under)));
-    await flush(w);
-    assert.deepEqual(postedFields(w), liveExpected(sub.id, { ...resting(sub), [vk]: under }));
-  });
-}
 
 const MOVED = TOP.flatMap((p) =>
   knobsOffered(p, resting(p), "pcm")

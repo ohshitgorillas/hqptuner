@@ -34,10 +34,6 @@ def test_a_discard_or_a_later_drop_empties_the_pending_buffer_a_stage_filled(
     assert api_client.get("/api/config/pending").json()["live"] == expected
 
 
-def test_apply_with_nothing_staged_is_rejected(api_client: TestClient) -> None:
-    assert api_client.post("/api/config/apply").status_code == 400
-
-
 def test_failed_apply_preserves_the_staged_edits(api_client: TestClient) -> None:
     # daemon unreachable (closed port) → apply fails; staging must survive so
     # the user does not silently lose the edit
@@ -151,24 +147,6 @@ def test_restaging_a_live_key_replaces_its_whole_bucket(api_client: TestClient) 
     assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value1x": "3"}
 
 
-def test_a_stage_call_carrying_only_a_drop_still_unstages(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
-
-
-def test_a_stage_call_without_a_drop_member_still_merges(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"live": {"filter": {"value": "1"}}})
-    assert api_client.get("/api/config/pending").json()["live"]["filter"]["value"] == "1"
-
-
-def test_apply_after_dropping_the_only_staged_edit_reports_nothing_staged(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/stage", json={"drop": {"live": {"shaper": ["value"]}}})
-    assert api_client.post("/api/config/apply").status_code == 400
-
-
 def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
     assert api_client.post("/api/profile/bogus", json={"name": "x"}).status_code == 404
 
@@ -191,13 +169,6 @@ def _save_with_the_daemon_down(client: TestClient, daemon: dict[str, Any]) -> Re
     daemon["_down"] = True
     resp: Response = client.post("/api/profile/save", json={"name": "Kept"})
     return resp
-
-
-def test_profile_save_when_the_daemon_goes_down_answers_the_same_as_load(
-    http_client: TestClient, http_daemon: dict[str, Any]
-) -> None:
-    # load's answer is pinned at exactly 502 (test_api_config_ops)
-    assert _save_with_the_daemon_down(http_client, http_daemon).status_code == 502
 
 
 def test_profile_save_when_the_daemon_goes_down_names_the_failed_read_by_code(

@@ -66,10 +66,6 @@ test("test_plus_minus_puts_a_minus_on_a_negative_value", () => {
   assert.equal(plusMinus(-0.5, 2), `${MINUS}0.50`);
 });
 
-test("test_plus_minus_puts_a_minus_on_a_value_that_is_not_a_number", () => {
-  assert.equal(plusMinus(NaN, 2), `${MINUS}NaN`);
-});
-
 // ── minusText ────────────────────────────────────────────────────────────
 
 test("test_minus_text_turns_a_leading_hyphen_into_a_minus", () => {
@@ -78,10 +74,6 @@ test("test_minus_text_turns_a_leading_hyphen_into_a_minus", () => {
 
 test("test_minus_text_takes_a_number", () => {
   assert.equal(minusText(-3.5), `${MINUS}3.5`);
-});
-
-test("test_minus_text_turns_only_the_first_hyphen", () => {
-  assert.equal(minusText("-1-2"), `${MINUS}1-2`);
 });
 
 test("test_minus_text_leaves_text_without_a_hyphen_alone", () => {

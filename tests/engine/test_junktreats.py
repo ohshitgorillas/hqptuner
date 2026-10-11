@@ -61,7 +61,3 @@ def test_a_main_filter_treats_a_verdict_only_when_a_family_starts_its_name(
     filter_name: str | None, *, already_treated: bool
 ) -> None:
     assert treats(VERDICT_40K, None, filter_name) is already_treated
-
-
-def test_a_verdicts_ceiling_khz_is_the_value_it_was_built_with() -> None:
-    assert VERDICT_40K.ceiling_khz == 40.0

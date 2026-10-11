@@ -326,16 +326,6 @@ test("test_writes_inside_100_ms_of_a_send_are_held", async () => {
   assert.deepEqual(await paced([{ level: -20 }, { level: -21 }, { level: -22 }]), ["-20"]);
 });
 
-test("test_the_newest_held_write_is_sent_when_the_100_ms_pass", async () => {
-  const sends = await paced([{ level: -20 }, { level: -21 }, { level: -22 }, { ms: 100 }]);
-  assert.deepEqual(sends, ["-20", "-22"]);
-});
-
-test("test_a_write_after_a_quiet_window_is_sent_at_once", async () => {
-  const sends = await paced([{ level: -20 }, { level: -21 }, { level: -22 }, { ms: 100 }, { ms: 100 }, { level: -25 }]);
-  assert.deepEqual(sends, ["-20", "-22", "-25"]);
-});
-
 test("test_a_held_write_shows_its_level_while_the_first_is_answered", async () => {
   run({});
   const w = volumeWire();

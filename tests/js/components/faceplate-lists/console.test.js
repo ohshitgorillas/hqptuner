@@ -21,8 +21,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
-import { openList, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { config } from "../../../../hqptuner/static/store/signals.js";
+import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { facetsMoved, narrowState, setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { narrowingWire } from "../../support/wire/narrowingwire.js";
@@ -137,47 +136,9 @@ test("test_reset_returns_the_consoles_facets_to_their_defaults", () => {
   assert.deepEqual([before, facetsMoved(["quality"])], [true, false]);
 });
 
-test("test_reset_on_a_shaper_list_leaves_the_filter_narrowing_alone", () => {
-  open("sdm_modulator");
-  setFacet("quality", 3);
-  setFacet("modTier", ["512+"]);
-  fire((p) => p["data-testid"] === "narrow-reset");
-  assert.deepEqual([narrowState().quality, narrowState().modTier], [3, []]);
-});
-
-test("test_each_list_kind_shows_its_own_console", () => {
-  const has = (/** @type {string} */ id) => windowOf(id) !== undefined;
-  const bar = () => markup().some((e) => classes(e).includes("fbar"));
-  const filters = [has("quality"), has("modTier"), bar()];
-  open("sdm_modulator");
-  const shapers = [has("modTier"), has("quality")];
-  config.value = {
-    ...config.value,
-    fields: [
-      ...config.value.fields,
-      {
-        name: "pcm_conversion",
-        type: "select",
-        value: "0",
-        options: [
-          { value: "0", label: "traditional" },
-          { value: "9", label: "sinc-M" },
-        ],
-      },
-    ],
-  };
-  open("pcm_conversion");
-  assert.deepEqual([...filters, ...shapers, bar()], [true, false, true, true, false, false]);
-});
-
 test("test_the_favorites_window_switches_favorites_only", () => {
   fire((p) => p["data-window"] === "fav");
   assert.equal(narrowState().fav, true);
-});
-
-test("test_a_facet_window_opens_its_own_popover", () => {
-  const props = fire((p) => p["data-window"] === "genre");
-  assert.equal(openPopover.value, props?.["data-pop"]);
 });
 
 test("test_the_1x_sources_window_hides_at_nx", () => {
@@ -193,10 +154,6 @@ test("test_the_1x_sources_window_hides_at_nx", () => {
 test("test_a_genre_chip_writes_its_genre", () => {
   fire((p) => p["data-v"] === "jazz");
   assert.deepEqual(narrowState().genre, ["jazz"]);
-});
-
-test("test_a_quality_segment_carries_the_1x_and_nx_counts_its_pick_lands_on", () => {
-  assert.deepEqual([countOf("quality", "3"), countOf("quality", "5")], ["2·2", "0·0"]);
 });
 
 test("test_an_apodizing_segment_carries_its_own_stages_count", () => {

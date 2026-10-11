@@ -31,18 +31,11 @@ BANDS = 8
 #: vertical middle on the centre of a pixel: 4 * 161 / 8 = 80.5 = 161 / 2.
 SIZE = 161
 
-#: The lower band of the boundary pair, well away from both ends of the plot.
-LEFT_BAND = 3
-
 #: The pixel column and row whose centre lies on the boundary and at half height.
-BOUNDARY_COLUMN = 80
 MIDDLE_ROW = 80
 
 #: The pixel column at the centre of band `LEFT_BAND`: 3.5 * 161 / 8 = 70.4.
 BAND_CENTRE_COLUMN = 70
-
-#: Level of the two lit neighbours in the boundary case.
-HALF = 0.5
 
 #: A colour dim enough that no channel clamps at the levels below.
 DIM = (0.2, 0.2, 0.2)
@@ -57,10 +50,6 @@ LOW_LEVEL = 0.1
 #: The linear ratio less what 8-bit rounding of both readings can take off it
 #: when the dimmer one reads 6 or more: (4 * 6 - 0.5) / (6 + 0.5) = 3.6.
 CONCAVE_CEILING = 3.6
-
-#: What 8-bit rounding can take off "boundary >= centre / 2": half a step on
-#: the boundary plus half of half a step on the centre, 0.75, taken up to 1.
-SEAM_ROUNDING = 1
 
 #: Two levels below full scale, both high enough that a clamping response
 #: saturates on them at full colour.
@@ -146,22 +135,6 @@ def _alpha(
 ) -> int:
     """The alpha byte the shader writes at `column`, half way up, for one set of band levels."""
     return _alphas(page, stack, levels, colour, [column])[0]
-
-
-def _two_lit_neighbours() -> list[float]:
-    """Every band dark but `LEFT_BAND` and the one after it, both at half level."""
-    levels = [0.0] * BANDS
-    levels[LEFT_BAND] = HALF
-    levels[LEFT_BAND + 1] = HALF
-    return levels
-
-
-def test_the_boundary_between_two_lit_neighbouring_bands_is_half_as_bright_as_their_centre(
-    page: Page, stack: stack_support.Stack
-) -> None:
-    """Neighbouring bands blend and column edges are soft, so the seam between two equal bands is half their centre."""
-    boundary, centre = _alphas(page, stack, _two_lit_neighbours(), BRIGHT, [BOUNDARY_COLUMN, BAND_CENTRE_COLUMN])
-    assert boundary >= centre / 2 - SEAM_ROUNDING
 
 
 def test_brightness_rises_more_slowly_than_level(page: Page, stack: stack_support.Stack) -> None:

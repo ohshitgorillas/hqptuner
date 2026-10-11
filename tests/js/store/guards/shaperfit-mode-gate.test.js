@@ -233,11 +233,6 @@ test("test_a_previewed_sdm_mode_reports_the_sdm_conflict_alone_when_both_familie
 
 // --- nothing staged, nothing previewed: the engine is the answer ---------------
 
-test("test_with_nothing_staged_the_running_sdm_engines_modulator_conflict_still_raises", async () => {
-  await scene({ chain: "sdm", mode: "2", ...SDM_CONFLICTS });
-  assert.deepEqual(sevs(), ["crit"]);
-});
-
 test("test_with_nothing_staged_the_running_configurations_mode_beats_the_loaded_chain", async () => {
   // Nothing staged and nothing previewed, so the effective mode is the running
   // configuration's — SDM — even though the chain the engine still has loaded

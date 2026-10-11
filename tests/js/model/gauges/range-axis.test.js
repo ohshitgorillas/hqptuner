@@ -122,10 +122,6 @@ test("test_a_press_nearer_the_upper_bound_takes_it", () => {
   assert.equal(pickBound(-30, PAIR), "high");
 });
 
-test("test_a_press_midway_between_the_bounds_takes_the_lower", () => {
-  assert.equal(pickBound(-40, PAIR), "low");
-});
-
 test("test_a_press_in_the_pin_row_takes_startup_whatever_is_nearest", () => {
   assert.equal(pickVolumeHandle(-58, 10, VOL, PIN_BELOW), "startup");
 });

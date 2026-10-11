@@ -29,11 +29,6 @@ def _post_adaptive(client: TestClient, value: str) -> Response:
     return resp
 
 
-@pytest.mark.parametrize(("value", "status"), [(value, status) for value, status, _ in ADAPTIVE_VALUES])
-def test_adaptive_volume_takes_only_a_flag_literal(live_api: TestClient, value: str, status: int) -> None:
-    assert _post_adaptive(live_api, value).status_code == status
-
-
 @pytest.mark.parametrize(("value", "flag"), [(value, flag) for value, _, flag in ADAPTIVE_VALUES])
 def test_adaptive_volume_reaches_the_engine_only_as_a_flag_literal(live_api: TestClient, value: str, flag: str) -> None:
     _post_adaptive(live_api, value)

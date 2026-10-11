@@ -94,10 +94,6 @@ test("test_an_untyped_name_shows_the_records_own", () => {
   assert.equal(shownName("", den("Warm")), "Warm");
 });
 
-test("test_an_untyped_new_record_shows_no_sentinel", () => {
-  assert.notEqual(shownName("", den(NEW)), NEW);
-});
-
 // ── Next and Back ──────────────────────────────────────────────────────────
 
 test("test_next_passes_a_skipped_step", () => {
@@ -191,10 +187,6 @@ test("test_a_dirty_edit_that_does_not_restart_reads_as_dirty", () => {
   assert.equal(state({ dirty: true, live: true }).line, "dirty");
 });
 
-test("test_a_clean_new_record_reads_as_unsaved", () => {
-  assert.equal(state({ isNew: true, restarts: true }).line, "restarts");
-});
-
 test("test_a_clean_record_the_engine_runs_reads_as_live", () => {
   assert.equal(state({ live: true }).line, "live");
 });
@@ -235,10 +227,6 @@ test("test_a_station_without_the_name_is_not_marked", () => {
 
 test("test_a_name_every_object_answers_to_is_not_held", () => {
   assert.equal(heldAt(book(), den("Warm"), "toString", "Shed"), false);
-});
-
-test("test_no_name_marks_no_station", () => {
-  assert.equal(heldAt(book(), den(NEW), "", "Den"), false);
 });
 
 // ── Save plan ──────────────────────────────────────────────────────────────

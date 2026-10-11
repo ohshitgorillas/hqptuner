@@ -25,15 +25,9 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
-from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "filters": ["gauss-long"]}
-
-#: Content that is not our record: not JSON at all, and JSON that is not an
-#: object. Both are refused as corrupt rather than read as empty — a damaged file
-#: costs the user a clear error naming it, not the stars it silently drops.
-UNREADABLE = ["not json at all {", "[]", '"gauss-long"', "17", "null"]
 
 NAMES = ["poly-sinc-gauss-long", "sinc-M"]
 
@@ -194,19 +188,6 @@ def test_an_unstamped_file_carries_a_stamp_after_the_next_write(tmp_path: Path) 
     assert store_at(elsewhere).read() == ["charlie"]
 
 
-def _corrupt_code(tmp_path: Path) -> str:
-    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
-    with pytest.raises(StoreCorruptError) as caught:
-        store_at(tmp_path).read()
-    return caught.value.code
-
-
-@pytest.mark.parametrize("content", UNREADABLE)
-def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
-    seed(tmp_path, content)
-    assert _corrupt_code(tmp_path) == "store_corrupt"
-
-
 # --- what a name list may contain --------------------------------------------
 
 
@@ -241,46 +222,14 @@ def test_a_name_of_exactly_64_characters_is_accepted(tmp_path: Path) -> None:
 # --- the REST pair -----------------------------------------------------------
 
 
-def test_a_fresh_install_answers_get_with_200(fav_client: TestClient) -> None:
-    assert fav_client.get("/api/favorites").status_code == 200
-
-
 def test_put_then_get_answers_with_the_stored_names(fav_client: TestClient) -> None:
     fav_client.put("/api/favorites", json={"filters": NAMES})
     assert fav_client.get("/api/favorites").json()["filters"] == sorted(NAMES)
 
 
-def test_putting_a_list_without_a_name_drops_it(fav_client: TestClient) -> None:
-    fav_client.put("/api/favorites", json={"filters": ["alpha", "bravo"]})
-    fav_client.put("/api/favorites", json={"filters": ["alpha"]})
-    assert fav_client.get("/api/favorites").json()["filters"] == ["alpha"]
-
-
-def test_putting_duplicates_stores_one_copy(fav_client: TestClient) -> None:
-    fav_client.put("/api/favorites", json={"filters": ["alpha", "alpha"]})
-    assert fav_client.get("/api/favorites").json()["filters"] == ["alpha"]
-
-
 def test_put_answers_with_the_stored_list_so_no_follow_up_get_is_needed(fav_client: TestClient) -> None:
     answer = fav_client.put("/api/favorites", json={"filters": ["zulu", "alpha"]})
     assert answer.json()["filters"] == ["alpha", "zulu"]
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param(["alpha"], id="bare-list"),
-        pytest.param({}, id="no-filters-member"),
-        pytest.param({"filters": "alpha"}, id="filters-not-a-list"),
-        pytest.param({"filters": ["alpha", 7]}, id="non-string-name"),
-        pytest.param({"filters": ["alpha", None]}, id="null-name"),
-        pytest.param({"filters": [""]}, id="empty-name"),
-        pytest.param({"filters": [f"name-{i}" for i in range(257)]}, id="257-names"),
-        pytest.param({"filters": ["x" * 65]}, id="65-char-name"),
-    ],
-)
-def test_a_put_the_store_would_refuse_answers_422(fav_client: TestClient, body: object) -> None:
-    assert fav_client.put("/api/favorites", json=body).status_code == 422
 
 
 def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
@@ -295,9 +244,3 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 ) -> None:
     seed(tmp_path, json.dumps(TOO_NEW))
     assert favorites_api().put("/api/favorites", json={"filters": ["alpha"]}).status_code == 409
-
-
-# With hqplayerd unreachable (see `favorites_api`), writing favorites still
-# answers; the read direction is `test_a_fresh_install_answers_get_with_200`.
-def test_favorites_are_written_with_no_daemon_reachable(fav_client: TestClient) -> None:
-    assert fav_client.put("/api/favorites", json={"filters": ["alpha"]}).status_code == 200

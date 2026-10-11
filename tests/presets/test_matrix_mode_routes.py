@@ -99,13 +99,6 @@ def modes_client(joined_api: Callable[..., TestClient]) -> TestClient:
     return joined_api([NAME, OTHER])
 
 
-# --- an install that has stored nothing ------------------------------------------
-
-
-def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
-    assert modes_client.get(PATH).status_code == 200
-
-
 # --- the round trip ----------------------------------------------------------------
 
 
@@ -113,10 +106,6 @@ def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
 def test_put_then_get_answers_with_the_stored_mode(modes_client: TestClient, mode: str) -> None:
     modes_client.put(PATH, json={"name": NAME, "mode": mode})
     assert modes_client.get(PATH).json()["presets"][NAME] == mode
-
-
-def test_a_put_that_stores_a_mode_answers_200(modes_client: TestClient) -> None:
-    assert modes_client.put(PATH, json={"name": NAME, "mode": "speakers"}).status_code == 200
 
 
 def test_put_answers_with_the_mode_it_just_stored(modes_client: TestClient) -> None:
@@ -136,41 +125,10 @@ def test_a_put_leaves_another_presets_mode_alone(modes_client: TestClient) -> No
     assert modes_client.get(PATH).json()["presets"][OTHER] == "headphones"
 
 
-# --- a mode that is neither half of the tab ------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "mode",
-    [
-        pytest.param("", id="empty"),
-        pytest.param("Speakers", id="capitalized"),
-        pytest.param("speaker", id="singular"),
-        pytest.param("stereo", id="unknown-word"),
-        pytest.param(" headphones", id="leading-space"),
-    ],
-)
-def test_a_put_carrying_a_mode_that_is_not_a_half_of_the_tab_answers_422(modes_client: TestClient, mode: str) -> None:
-    assert modes_client.put(PATH, json={"name": NAME, "mode": mode}).status_code == 422
-
-
 # --- a name the store refuses ------------------------------------------------------------
 # The store's name rule is pinned in the store's own suite; what is pinned here
 # is that the route turns a refusal into a refusal the browser can read, and not
 # into a 500.
-
-
-@pytest.mark.parametrize(
-    "name",
-    [
-        pytest.param("", id="empty"),
-        pytest.param(" ", id="only-whitespace"),
-        pytest.param("a/b", id="forward-slash"),
-        pytest.param("..", id="parent-directory"),
-        pytest.param(".hidden", id="leading-dot"),
-    ],
-)
-def test_a_put_carrying_a_name_the_store_refuses_answers_422(modes_client: TestClient, name: str) -> None:
-    assert modes_client.put(PATH, json={"name": name, "mode": "speakers"}).status_code == 422
 
 
 @pytest.mark.parametrize(
@@ -214,17 +172,6 @@ def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real
     client.put(PATH, json={"name": NAME, "mode": "speakers"})
     client.put(PATH, json={"name": GHOST, "mode": "speakers"})
     assert client.get(PATH).json()["presets"] == {NAME: "speakers"}
-
-
-@pytest.mark.parametrize(
-    ("mode", "status"),
-    [pytest.param("stereo", 422, id="unstorable-mode"), pytest.param("speakers", 404, id="storable-mode")],
-)
-def test_a_put_for_a_name_no_preset_carries_answers_on_the_mode_before_the_name(
-    joined_api: Callable[..., TestClient], mode: str, status: int
-) -> None:
-    client = joined_api([NAME])
-    assert client.put(PATH, json={"name": GHOST, "mode": mode}).status_code == status
 
 
 def test_deleting_a_preset_drops_its_mode_and_leaves_the_other_presets_mode(

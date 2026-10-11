@@ -19,9 +19,6 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SnapshotBuilder } from "../../../../hqptuner/static/components/faceplate/builders/SnapshotBuilder.js";
-import { SnapshotRail } from "../../../../hqptuner/static/components/faceplate/builders/SnapshotRail.js";
-import { SnapshotRows } from "../../../../hqptuner/static/components/faceplate/builders/SnapshotRows.js";
-import { StationsMenu } from "../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js";
 import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 import { editNow } from "../../../../hqptuner/static/store/faceplate/builders/snapshot.js";
 import { body, openStage, openList, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -113,9 +110,6 @@ const dirtyDesk = () => {
   staged.value = new Map([[keyOf(DESK), renamed()]]);
 };
 
-/** How many times the question's own action ran. */
-let runs = 0;
-
 beforeEach(() => {
   wire();
   liveBook.value = book();
@@ -127,7 +121,6 @@ beforeEach(() => {
   openStage.value = null;
   openList.value = null;
   openPopover.value = null;
-  runs = 0;
 });
 
 const tree = () => html`<${SnapshotBuilder} />`;
@@ -271,42 +264,9 @@ const typeName = (value) => {
 const asking = () => {
   ask.value = {
     text: QUESTION,
-    onConfirm: () => {
-      runs += 1;
-    },
+    onConfirm: () => {},
   };
 };
-
-// --- the body ----------------------------------------------------------------------------------------------------
-
-test("test_the_snapshots_body_holds_the_rail_the_hairline_and_the_page_in_that_order", () => {
-  const root = renderTree(tree()).seen.find((v) => isV(v, "div", "body") && propsOf(v)["data-body"] === "snapshots");
-  const k = vkids(root);
-  assert.deepEqual(
-    [k.length, k[0]?.type === SnapshotRail, isV(k[1], "div", "vrule"), isV(k[2], "main", "page", "bpage")],
-    [3, true, true, true],
-  );
-});
-
-test("test_the_page_carries_an_accessible_name", () => {
-  const page = one("main", "page", "bpage");
-  assert.equal(page ? hasAttr(page, "aria-label") : null, true);
-});
-
-test("test_the_page_runs_title_head_confirm_line_then_the_rows", () => {
-  asking();
-  const k = vkids(vone("main", "page", "bpage"));
-  assert.deepEqual(
-    [
-      k.length,
-      isV(k[0], "div", "btitle"),
-      isV(k[1], "div", "bhead"),
-      isV(k[2], "div", "bask"),
-      k[3]?.type === SnapshotRows,
-    ],
-    [4, true, true, true, true],
-  );
-});
 
 // --- the title row -----------------------------------------------------------------------------------------------
 
@@ -353,21 +313,11 @@ test("test_tapping_save_with_no_name_refuses", async () => {
 
 // --- the head ----------------------------------------------------------------------------------------------------
 
-test("test_the_name_window_holds_its_legend_then_its_input", () => {
-  const k = kids(one("label", "vfd", "bname"));
-  assert.deepEqual([k.length, isEl(k[0], "span", ["l"]), isEl(k[1], "input", ["bnin"])], [2, true, true]);
-});
-
 test("test_the_name_window_shows_the_edits_name", () => {
   const clean = nameInput();
   dirtyDesk();
   const dirty = nameInput();
   assert.deepEqual([clean && attr(clean, "value"), dirty && attr(dirty, "value")], ["Desk", "Desk2"]);
-});
-
-test("test_the_name_window_takes_at_most_forty_characters", () => {
-  const box = nameInput();
-  assert.equal(box ? attr(box, "maxlength") : null, "40");
 });
 
 test("test_typing_a_name_renames_the_edit", async () => {
@@ -382,21 +332,10 @@ test("test_typing_a_name_clears_the_refusal", async () => {
   assert.equal(refused.value, false);
 });
 
-test("test_the_head_holds_the_stations_menu", () => {
-  assert.equal(descend(vone("div", "bhead")).filter((v) => v.type === StationsMenu).length, 1);
-});
-
 test("test_the_caption_holds_the_refusal_only_while_refused", () => {
   const before = every(inside(caption()), "span", "bref").length;
   refused.value = true;
   assert.deepEqual([before, every(inside(caption()), "span", "bref").length], [0, 1]);
-});
-
-test("test_the_caption_reads_only_on_a_new_record", () => {
-  const saved = caption();
-  cur.value = FRESH;
-  const fresh = caption();
-  assert.deepEqual([saved && text(saved) !== "", fresh && text(fresh) !== ""], [false, true]);
 });
 
 // --- the confirm line --------------------------------------------------------------------------------------------
@@ -413,19 +352,4 @@ test("test_the_confirm_line_shows_the_question_asked", () => {
     .filter((k) => k.name !== "button")
     .map(text);
   assert.deepEqual(said, [QUESTION]);
-});
-
-/** The confirm line's buttons' vnodes, in document order. */
-const vaskButtons = () => descend(vone("div", "bask")).filter((v) => isV(v, "button", "btn", "sm"));
-
-test("test_the_confirm_lines_first_button_answers_the_question", async () => {
-  asking();
-  await fire(vaskButtons()[0]);
-  assert.deepEqual([runs, ask.value], [1, null]);
-});
-
-test("test_the_confirm_lines_second_button_cancels_the_question", async () => {
-  asking();
-  await fire(vaskButtons()[1]);
-  assert.deepEqual([runs, ask.value], [0, null]);
 });

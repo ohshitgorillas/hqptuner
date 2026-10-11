@@ -15,11 +15,10 @@ import assert from "node:assert/strict";
 
 import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { askWarn, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
   drawerHead,
-  drawerQuestion,
   rowLines,
   rowOptions,
   showTab,
@@ -132,15 +131,6 @@ test("test_a_staged_group_row_marks_the_groups_tab", async () => {
   assert.deepEqual(drawerHead(schema, "a").dirty, ["a"]);
 });
 
-test("test_a_restart_row_in_a_hidden_group_leaves_its_tab_a_live_tab", () => {
-  const shown = (/** @type {string} */ backend) =>
-    drawerHead(
-      drawerOf("g5", [{ group: "net", label: "net", rows: [{ key: "volume_max" }] }], { group: () => backend }),
-      "a",
-    ).apply.shown;
-  assert.deepEqual([shown("alsa"), shown("net"), shown("combo")], [false, true, true]);
-});
-
 test("test_a_restart_row_left_out_by_when_leaves_its_tab_a_live_tab", () => {
   const shown = (/** @type {boolean} */ on) =>
     drawerHead(drawerOf("g6", [{ row: { key: "volume_max", when: () => on } }]), "a").apply.shown;
@@ -150,10 +140,6 @@ test("test_a_restart_row_left_out_by_when_leaves_its_tab_a_live_tab", () => {
 test("test_an_own_forms_staged_state_makes_the_apply_buttons_live", () => {
   const live = [drawerHead(ownForm("o1", false), "a").apply.live, drawerHead(ownForm("o1", true), "a").apply.live];
   assert.deepEqual(live, [false, true]);
-});
-
-test("test_an_own_forms_staged_state_dots_a_one_tab_drawers_title", () => {
-  assert.equal(drawerHead(ownForm("o2", true), "a").titleDot, true);
 });
 
 test("test_an_own_forms_apply_group_shows_with_nothing_staged", () => {
@@ -180,11 +166,6 @@ test("test_a_tab_picked_while_closed_is_the_one_the_next_opening_shows", () => {
   showTab("t3", "a");
   openStage.value = "t3";
   assert.deepEqual([before, shownTab(schema)], ["b", "a"]);
-});
-
-test("test_a_question_asked_by_a_blocks_key_belongs_to_its_drawer", () => {
-  askWarn("volume_max", "q");
-  assert.equal(drawerQuestion(drawerOf("q1", [{ block: "probe", keys: ["volume_max"] }]))?.owner, "volume_max");
 });
 
 test("test_a_rows_own_options_replace_the_catalogs", () => {

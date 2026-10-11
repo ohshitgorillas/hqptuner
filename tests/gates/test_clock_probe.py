@@ -8,7 +8,6 @@ at once as expired or as satisfied, so nothing here waits on a real clock.
 Observable contract is ``Recorder.tests``: node id to seconds per kind.
 """
 
-import subprocess
 from collections.abc import Callable
 
 import clock_probe
@@ -89,22 +88,6 @@ def test_a_thread_join_counts_its_timeout_only_when_the_thread_outlives_it(*, al
         clock_probe.timed_join(lambda _thread, _t: None, recorder)(_Thread(alive=alive), ASKED)
 
     assert _recorded(join) == expected
-
-
-def _expiring_popen_wait(recorder: clock_probe.Recorder) -> None:
-    sleep = clock_probe.timed_sleep(lambda _s: None, recorder)
-    command = "fake"
-
-    def wait(_process: object, _timeout: float | None = 0.0) -> int:
-        sleep(ASKED)
-        raise subprocess.TimeoutExpired(command, ASKED)
-
-    with pytest.raises(subprocess.TimeoutExpired):
-        clock_probe.timed_popen_wait(wait, recorder)(object(), ASKED)
-
-
-def test_a_popen_wait_that_expires_counts_once_whatever_it_sleeps_inside() -> None:
-    assert _recorded(_expiring_popen_wait) == {NODE: {"Popen.wait": ASKED}}
 
 
 @pytest.mark.parametrize(

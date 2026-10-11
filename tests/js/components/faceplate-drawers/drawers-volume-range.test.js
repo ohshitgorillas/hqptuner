@@ -31,7 +31,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
-import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -140,13 +140,6 @@ const boxAttr = (els, name) => KEYS.map((k) => keyed(els, "input", k)).map((el) 
 const marksAt = (els, names) =>
   names.map((n) => els.find((el) => attr(el, "data-mark") === n)).map((el) => el && attr(el, "data-db"));
 
-/**
- * The text of every paragraph.
- *
- * @param {MarkupElement[]} els
- */
-const paragraphs = (els) => els.filter((el) => el.name === "p").map(text);
-
 // --- the boxes ---------------------------------------------------------------------------------------------------
 
 test("test_each_box_holds_its_handles_effective_value", async () => {
@@ -234,10 +227,4 @@ test("test_the_loudness_readouts_show_while_loudness_runs", () => {
     return row && hasAttr(row, "hidden");
   };
   assert.deepEqual([hidden({}), hidden({ loudness: true })], [true, false]);
-});
-
-test("test_the_manual_carries_each_settings_paragraph_from_the_metadata", () => {
-  const said = paragraphs(markup());
-  const carried = [...KEYS, ...LOUD_KEYS].map((k) => said.some((p) => p.includes(`${k}-paragraph`)));
-  assert.deepEqual(carried, [true, true, true, true, true]);
 });

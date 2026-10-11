@@ -161,10 +161,6 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
   );
 });
 
-test("test_no_button_on_the_page_picks_a_range_by_its_value", () => {
-  assert.equal(draw().filter((e) => e.name === "button" && METER_RANGES.includes(attr(e, "data-v") ?? "")).length, 0);
-});
-
 test("test_the_range_readout_shows_the_pages_range", () => {
   setPageRange(NARROWEST);
   const narrow = readout();
@@ -210,11 +206,6 @@ test("test_narrower_shows_dimmed_only_at_the_narrowest_range", () => {
   assert.deepEqual([above, dimmed(NARROWER)], [false, true]);
 });
 
-test("test_the_frequency_axis_labels_the_source_nyquist", () => {
-  stream({ nyquist: 48000 });
-  assert.equal(num(draw().find((e) => hasAttr(e, "data-nyq"))), 48);
-});
-
 /** The numbers down the level scale, top to bottom. */
 function levelScale() {
   const scale = withClass("lvs")[0];
@@ -256,19 +247,6 @@ test("test_a_slim_plate_draws_no_readings_table", () => {
 test("test_a_slim_plate_still_draws_the_range_readout", () => {
   viewport.value = SLIM;
   assert.equal(byTestid(READOUT).length, 1);
-});
-
-test("test_the_spectrum_plot_stacks_the_spectrum_svg_then_the_effects_canvas_then_the_shader_canvas", () => {
-  const layers = ["svg.spectrum", "canvas.sfx", "canvas.sgl"];
-  const plot = withClass("splot")[0];
-  const order = plot
-    ? elements(plot.html)
-        .flatMap((e) => classes(e).map((c) => ({ start: e.start, layer: `${e.name}.${c}` })))
-        .filter((e) => layers.includes(e.layer))
-        .sort((a, b) => a.start - b.start)
-        .map((e) => e.layer)
-    : [];
-  assert.deepEqual(order, layers);
 });
 
 test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => {

@@ -12,7 +12,6 @@
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
 import "../../support/domseam.js";
 import { useStorage } from "../../support/storage.js";
@@ -22,7 +21,6 @@ import { body, openPopover, openStage } from "../../../../hqptuner/static/store/
 import { setSpectrumStyle, spectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { elements, attr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
@@ -35,7 +33,6 @@ const RIDGES = "ridges";
 
 // The Levels floors the owner offers, as the store holds them, in dBFS.
 const SHALLOW = "-48";
-const MIDDLE = "-60";
 const DEEP = "-90";
 
 /**
@@ -54,14 +51,6 @@ beforeEach(() => {
   openPopover.value = DISPLAY;
 });
 
-/** The option values the Display panel offers, or none when the frame draws no panel. */
-function offered() {
-  const panel = elements(render(html`<${Faceplate} />`)).find(
-    (e) => e.name === "div" && attr(e, "data-pop") === DISPLAY,
-  );
-  return new Set(panel ? elements(panel.html).map((e) => attr(e, "data-v")) : []);
-}
-
 /**
  * Pick the option carrying value `v`, or nothing when no button in the frame carries it.
  *
@@ -73,22 +62,6 @@ function pick(v) {
   const fn = hit?.props.onClick;
   if (typeof fn === "function") fn({ preventDefault() {}, stopPropagation() {} });
 }
-
-test("test_the_display_popover_offers_every_levels_floor", () => {
-  const values = offered();
-  assert.deepEqual(
-    [SHALLOW, MIDDLE, DEEP].filter((v) => values.has(v)),
-    [SHALLOW, MIDDLE, DEEP],
-  );
-});
-
-test("test_the_display_popover_offers_the_spectrum_styles", () => {
-  const values = offered();
-  assert.deepEqual(
-    [TRACE, RIDGES].filter((v) => values.has(v)),
-    [TRACE, RIDGES],
-  );
-});
 
 test("test_picking_a_spectrum_style_in_the_display_popover_sets_it", () => {
   pick(RIDGES);

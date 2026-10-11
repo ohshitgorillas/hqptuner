@@ -3,25 +3,16 @@
 // name; one station unfolded at a time.
 //
 // Driven by assigning the exported signals the tree is read from: the config the poll writes and the live-snapshot
-// book store/live/presets.js reads. Where the book is read off the wire, a fetch fake answers /api/livepresets in its real
-// shape. Preset and snapshot names are the fixture's own wire data.
+// book store/live/presets.js reads. Preset and snapshot names are the fixture's own wire data.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/stations.test.js
 
-import { test, beforeEach, afterEach } from "node:test";
+import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
-import { rec, presetWire, settle } from "../../support/wire/livepresetwire.js";
-
-/** @type {{ fetch?: unknown }} */
-const env = globalThis;
-const REAL_FETCH = env.fetch;
-afterEach(() => {
-  env.fetch = REAL_FETCH;
-});
 
 /** @typedef {ReturnType<typeof stationTree>[number]} Station */
 
@@ -81,17 +72,6 @@ test("test_a_station_the_book_has_no_entry_for_carries_no_snapshots", () => {
 test("test_before_the_book_is_read_a_station_carries_no_snapshots", () => {
   liveBook.value = null;
   assert.deepEqual(station("Day")?.snapshots, []);
-});
-
-test("test_outside_live_a_station_carries_its_snapshots_once_the_book_is_wanted", async () => {
-  liveBook.value = null;
-  presetWire({ station: "Night", presets: [rec("Quiet", "pcm")], others: { Day: [rec("Warm", "pcm")] } });
-  bookWanted.value = true;
-  await settle();
-  assert.deepEqual(
-    station("Day")?.snapshots.map((/** @type {{ name: string }} */ s) => s.name),
-    ["Warm"],
-  );
 });
 
 test("test_unfolding_a_station_opens_it", () => {

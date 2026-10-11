@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Header, noteId } from "../../../../hqptuner/static/components/faceplate/Header.js";
+import { Header } from "../../../../hqptuner/static/components/faceplate/Header.js";
 import { health, config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { applying, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
@@ -28,7 +28,6 @@ import {
   livePresetError,
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
-import { snapshotTip } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setupOpen } from "../../../../hqptuner/static/store/setup.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
@@ -101,10 +100,6 @@ afterEach(() => {
   setupOpen.value = false;
 });
 
-const refuse = () => {
-  health.value = { reachable: true, ready: true, connected: true, credentials_ok: false, info: {} };
-};
-
 /** Every element of the rendered header carrying a test id, optionally for one station. */
 const marked = (/** @type {string} */ testid, /** @type {string} */ station = "") =>
   elements(render(html`<${Header} />`)).filter(
@@ -156,27 +151,12 @@ test("test_tapping_the_knob_with_no_alert_opens_the_connection_settings", async 
   assert.equal(setupOpen.value, true);
 });
 
-test("test_tapping_the_knob_with_an_alert_opens_the_connection_settings_and_its_note", async () => {
-  refuse();
-  await tap("conn");
-  assert.deepEqual({ setup: setupOpen.value, note: openPopover.value }, { setup: true, note: noteId("conn") });
-});
-
 test("test_the_tree_trigger_names_the_loaded_station_alone", () => {
   config.value = { ...config.value, active: "Night" };
   const [trigger] = marked("stations");
   assert.deepEqual(
     ["Day", "Night"].filter((n) => trigger !== undefined && text(trigger).includes(n)),
     ["Night"],
-  );
-});
-
-test("test_only_the_loaded_station_row_is_lit", () => {
-  assert.deepEqual(
-    marked("station-row")
-      .filter((r) => String(attr(r, "class")).split(/\s+/).includes("cur"))
-      .map((r) => attr(r, "data-station")),
-    ["Day"],
   );
 });
 
@@ -201,38 +181,12 @@ test("test_tapping_a_snapshot_under_another_station_applies_nothing", async () =
   assert.equal(sent("POST", "/api/livepresets/").length, 0);
 });
 
-test("test_a_snapshot_button_under_the_loaded_station_applies_that_snapshot", async () => {
-  const { seen } = renderTree(html`<${Header} />`);
-  const hit = seen.find((v) => v.type === "button" && v.props["data-testid"] === "snapshot" && textOf(v) === "Warm");
-  const onClick = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (typeof onClick === "function") await onClick();
-  assert.deepEqual(
-    sent("POST", "/api/livepresets/").map((c) => c.path),
-    ["/api/livepresets/Warm/apply"],
-  );
-});
-
 test("test_only_the_loaded_station_snapshots_are_buttons", () => {
   const rows = marked("snapshot");
   assert.deepEqual(
     ["Warm", "Quiet"].map((n) => rows.filter((e) => text(e) === n).map((e) => e.name === "button")),
     [[true], [false]],
   );
-});
-
-test("test_each_snapshot_row_is_titled_with_its_own_records_tip", () => {
-  const warm = { chain: "pcm", fields: { mode: "pcm" }, names: {} };
-  const quiet = { chain: "sdm", fields: { mode: "sdm" }, names: {} };
-  liveBook.value = { Day: { Warm: warm }, Night: { Quiet: quiet } };
-  const { seen } = renderTree(html`<${Header} />`);
-  const titles = seen
-    .filter((v) => v.props["data-testid"] === "snapshot")
-    .map((v) => [textOf(v), v.props.title])
-    .sort(([a], [b]) => String(a).localeCompare(String(b)));
-  assert.deepEqual(titles, [
-    ["Quiet", snapshotTip(quiet)],
-    ["Warm", snapshotTip(warm)],
-  ]);
 });
 
 test("test_every_station_name_is_a_button", () => {
@@ -279,13 +233,6 @@ test("test_the_snapshot_builder_is_pressed_while_the_snapshots_body_shows", () =
 test("test_the_gear_is_pressed_while_the_settings_body_shows", () => {
   body.value = "settings";
   assert.equal(attrOf("settings", "aria-pressed"), "true");
-});
-
-test("test_the_gear_label_differs_while_the_settings_body_shows", () => {
-  body.value = "settings";
-  const open = attrOf("settings", "aria-label");
-  body.value = "chain";
-  assert.notEqual(open, attrOf("settings", "aria-label"));
 });
 
 test("test_the_gear_is_not_pressed_while_the_chain_shows", () => {

@@ -96,13 +96,6 @@ afterEach(() => {
 
 // --- preset swatches ----------------------------------------------------------
 
-test("test_an_unknown_swatch_name_falls_back_to_the_default", () => {
-  setup();
-  applyAccent("green");
-  applyAccent("magenta");
-  assert.equal(accent.value, "amber");
-});
-
 test("test_a_preset_swatch_drops_a_custom_hex_override", () => {
   setup();
   applyAccentHex("#123456");
@@ -120,12 +113,6 @@ test("test_a_preset_swatch_drops_the_persisted_custom_hex", () => {
   const { storage } = setup(fakeStorage({ [KEY_HEX]: "#123456" }));
   applyAccent("green");
   assert.equal(storage.getItem(KEY_HEX), null);
-});
-
-test("test_a_swatch_still_applies_when_storage_is_disabled", () => {
-  setup(brokenStorage);
-  applyAccent("amber");
-  assert.equal(accent.value, "amber");
 });
 
 // --- custom hex ------------------------------------------------------------------

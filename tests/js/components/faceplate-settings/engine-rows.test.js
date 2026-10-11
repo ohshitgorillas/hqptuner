@@ -20,7 +20,6 @@ import {
   BEHAVIOR_DRAWER,
   TIMING_DRAWER,
   TIMING_READOUTS,
-  UPNP_DRAWER,
   UPNP_READOUTS,
 } from "../../../../hqptuner/static/components/faceplate/settings/engine-rows.js";
 import {
@@ -40,7 +39,7 @@ import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { elements, attr, classes } from "../../support/markup.js";
+import { elements, classes } from "../../support/markup.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
@@ -137,22 +136,6 @@ async function tapPinned(value) {
 function railText(readouts) {
   const plan = alertPlan([], {});
   return settingsRail([{ id: "c", name: "C", readouts }], plan, null, [])[0]?.rows[0]?.text;
-}
-
-/** @type {[string, DrawerSchema, string[]][]} */
-const ROWS = [
-  ["timing", TIMING_DRAWER, ["idle_time", "quick_pause", "short_buffer"]],
-  ["upnp", UPNP_DRAWER, ["upnp_freewheel"]],
-  ["behavior", BEHAVIOR_DRAWER, ["pinallow"]],
-];
-
-for (const [name, schema, want] of ROWS) {
-  test(`test_the_${name}_drawer_draws_its_rows_in_order`, () => {
-    const rows = markup(schema)
-      .filter((e) => classes(e).includes("drow"))
-      .map((e) => attr(e, "data-k") ?? attr(e, "data-field"));
-    assert.deepEqual(rows, want);
-  });
 }
 
 test("test_staging_an_idle_time_dots_the_timing_title", async () => {

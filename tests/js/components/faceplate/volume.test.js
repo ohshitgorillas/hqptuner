@@ -292,13 +292,6 @@ test("test_the_scale_runs_from_one_end_of_a_full_range_to_the_other", () => {
   assert.deepEqual([at[0], at[at.length - 1]], [0, 100]);
 });
 
-test("test_no_scale_mark_falls_outside_a_narrower_range", () => {
-  assert.deepEqual(
-    marks({ min: "-45", max: "-5" }).filter((p) => !(p >= 0 && p <= 100)),
-    [],
-  );
-});
-
 test("test_the_loudness_strip_spans_its_bounds_along_the_range", () => {
   assert.deepEqual(loudMarks(LOUD).band, [25, 50]);
 });

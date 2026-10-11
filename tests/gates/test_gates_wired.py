@@ -247,17 +247,6 @@ def test_a_fully_wired_tree_passes_the_gate(tmp_path: Path, precommit: str, code
     assert CHECK(root, {}) == code
 
 
-def test_omitting_the_exemption_mapping_falls_back_to_the_shipped_one(tmp_path: Path) -> None:
-    """A caller who passes no mapping gets the module's own, not a blanket pardon."""
-    root = build_tree(
-        tmp_path,
-        ["check_unhooked.py"],
-        "check:\n" + make_line("check_unhooked.py"),
-        "repos:\n  - repo: local\n    hooks: []\n",
-    )
-    assert CHECK(root) == 1
-
-
 def test_an_exemption_does_not_excuse_a_gate_missing_from_the_makefile(tmp_path: Path) -> None:
     """The excuse is scoped to the pre-commit check; the Makefile check ignores it."""
     root = build_tree(

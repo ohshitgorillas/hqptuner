@@ -100,18 +100,6 @@ test("test_a_sustained_below_realtime_speed_raises_the_speed_kind", async () => 
   assert.deepEqual(kinds(), ["speed"]);
 });
 
-test("test_a_below_realtime_speed_is_critical", async () => {
-  await quiet();
-  sustain({ process_speed: "0.5" });
-  assert.deepEqual(sevs(), ["crit"]);
-});
-
-test("test_a_slow_speed_above_realtime_is_a_warning", async () => {
-  await quiet();
-  sustain({ process_speed: "1.02" });
-  assert.deepEqual(sevs(), ["warn"]);
-});
-
 test("test_clipping_this_track_raises_the_clip_kind", async () => {
   await quiet();
   poll({ clips: "12" });

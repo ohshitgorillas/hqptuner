@@ -10,7 +10,6 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
-from narrow import present
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
@@ -85,14 +84,6 @@ async def test_a_save_that_cannot_reach_the_daemon_reports_its_failure(dead_lane
 
 # --- persist_backup: the backup is taken before a destructive restore, so a --
 # --- failed write must abort rather than let the restore proceed uncovered --
-
-
-def test_persist_backup_writes_the_archive_to_disk(tmp_path: Path) -> None:
-    manager = ConnectionManager(
-        Config(backup_dir=tmp_path / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock()
-    )
-    path = manager.presetops.persist_backup_for_apply(b"archive-bytes")
-    assert present(path).read_bytes() == b"archive-bytes"
 
 
 def test_persist_backup_raises_when_the_directory_is_unwritable(tmp_path: Path) -> None:

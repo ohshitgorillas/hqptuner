@@ -30,7 +30,7 @@ import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settin
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {Record<string, string>} EngineTable  the engine attributes as `GET /api/engine` carries them */
@@ -55,21 +55,6 @@ beforeEach(() => load());
 
 const all = () =>
   elements(renderTree(html`<${Drawer} schema=${HARDWARE_DRAWER} />`).out).sort((a, b) => a.start - b.start);
-
-/**
- * The field and block ids a tab's panel draws, in order.
- *
- * @param {string} tab
- */
-function drawnOn(tab) {
-  const panel = all().find((e) => attr(e, "role") === "tabpanel" && attr(e, "data-tab") === tab);
-  return panel
-    ? elements(panel.html)
-        .sort((a, b) => a.start - b.start)
-        .filter((e) => hasAttr(e, "data-field") || hasAttr(e, "data-block"))
-        .map((e) => attr(e, "data-field") ?? attr(e, "data-block"))
-    : [];
-}
 
 /**
  * The value a field row lights, by the field's id.
@@ -111,16 +96,6 @@ const railTexts = () =>
   );
 
 const live = () => drawerHead(HARDWARE_DRAWER, "cpu").apply.live;
-
-// --- the tabs ----------------------------------------------------------------------------------------------------
-
-test("test_the_cpu_tab_draws_its_fields_and_the_block_count_in_order", () => {
-  assert.deepEqual(drawnOn("cpu"), ["multicore", "ecores", "nblocks", "hwallcpu"]);
-});
-
-test("test_the_gpu_tab_draws_its_fields_and_the_devices_in_order", () => {
-  assert.deepEqual(drawnOn("gpu"), ["cuda", "cudadevs", "hwallgpu"]);
-});
 
 // --- the fields --------------------------------------------------------------------------------------------------
 

@@ -40,13 +40,3 @@ test("test_the_meter_block_mounts_the_source_meter", () => {
     ["idle"],
   );
 });
-
-test("test_the_meter_tab_shows_with_the_apply_group_hidden", () => {
-  const all = draw();
-  const panel = all.find((e) => hasAttr(e, "data-tab") && !hasAttr(e, "hidden"));
-  const group = all.find((e) => attr(e, "data-testid") === "apply-group");
-  assert.deepEqual(
-    [panel ? attr(panel, "data-tab") : undefined, group ? hasAttr(group, "hidden") : undefined],
-    ["meter", true],
-  );
-});

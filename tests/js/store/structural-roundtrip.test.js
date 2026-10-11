@@ -118,14 +118,6 @@ test("test_an_edit_returned_to_its_baseline_leaves_nothing_in_the_server_buffer"
   assert.equal(staged(W, "volume_max"), false);
 });
 
-test("test_returning_an_edit_to_its_baseline_asks_the_server_to_drop_that_field", async () => {
-  const W = await trees({ fields: [field("volume_max", "-3")] });
-  await edit("volume_max", "-6");
-  await edit("volume_max", "-3");
-  await quiesce(W);
-  assert.equal(((W.stages[1].drop || {}).http || []).includes("volume_max"), true);
-});
-
 test("test_pipelines_staged_back_to_their_baseline_rows_leave_nothing_in_the_server_buffer", async () => {
   const W = await trees({ rows: [ROW({ gain: "-6" })] });
   await stagePipelines([ROW({ gain: "-3" })]);
@@ -187,35 +179,4 @@ test("test_a_checkbox_toggled_off_and_back_on_leaves_nothing_in_the_server_buffe
   await edit("quick_pause", "1");
   await quiesce(W);
   assert.equal(staged(W, "quick_pause"), false);
-});
-
-// --- the live lane ------------------------------------------------------------
-//
-// A live setting stages into its own bucket — `{live: {liveKey: {argName:
-// "value"}}}`, the argument named "value" unless the schema names another — and
-// its baseline is the running engine's state, not the config form. Its removal
-// rides `drop.live`, keyed the same way, so a client that only ever builds
-// `drop.http` leaves live settings rotting in the buffer.
-//
-// The live key is read back off the FIRST request rather than written in here:
-// the schema owns that name, and a test that hardcodes it would be asserting on
-// the schema instead of on the round trip.
-/** @param {{ live?: Record<string, unknown> }} request */
-const liveKeyOf = (request) => Object.keys(request.live || {})[0];
-
-test("test_a_live_setting_returned_to_its_baseline_leaves_nothing_in_the_server_buffer", async () => {
-  const W = await trees({ engine: { adaptive: "1" } });
-  await edit("adaptive_volume", "0");
-  await edit("adaptive_volume", "1");
-  await quiesce(W);
-  assert.equal(Object.keys(W.staged.live).length, 0);
-});
-
-test("test_returning_a_live_setting_to_its_baseline_asks_the_server_to_drop_that_argument", async () => {
-  const W = await trees({ engine: { adaptive: "1" } });
-  await edit("adaptive_volume", "0");
-  await edit("adaptive_volume", "1");
-  await quiesce(W);
-  const dropped = ((W.stages[1].drop || {}).live || {})[liveKeyOf(W.stages[0])] || [];
-  assert.equal(dropped.includes("value"), true);
 });

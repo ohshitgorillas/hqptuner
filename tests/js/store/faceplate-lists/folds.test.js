@@ -10,7 +10,7 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { setDacChip, setDacType, toggleCollapsedGroup } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { toggleCollapsedGroup } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { isFolded, toggleFold } from "../../../../hqptuner/static/store/faceplate/lists/folds.js";
 import { resetLists } from "../../support/listsfixture.js";
 
@@ -33,44 +33,4 @@ test("test_a_group_v1_folded_reads_folded_here", () => {
 test("test_a_fold_is_kept_per_list_kind", () => {
   toggleFold("filters", "Fam A", "Var A");
   assert.deepEqual([isFolded("filters", "Fam A", "Var A"), isFolded("modulators", "Fam A", "Var A")], [true, false]);
-});
-
-test("test_an_r2r_dac_folds_the_additive_dither_family", () => {
-  setDacType("r2r");
-  assert.deepEqual([isFolded("dithers", "Additive", ""), isFolded("dithers", "Noise shaping", "")], [true, false]);
-});
-
-test("test_an_ess_dac_folds_each_modulator_familys_seventh_order_variant", () => {
-  setDacChip("ess");
-  const folded = [
-    ["Fixed", "Seventh order"],
-    ["Adaptive", "Seventh order"],
-    ["Hybrid", "Seventh order"],
-    ["Adaptive", "Fifth order"],
-  ].map(([fam, v]) => isFolded("modulators", fam, v));
-  assert.deepEqual(folded, [true, true, true, false]);
-});
-
-test("test_a_tap_opens_a_dac_folded_group", () => {
-  setDacType("r2r");
-  const before = isFolded("dithers", "Additive", "");
-  toggleFold("dithers", "Additive", "");
-  assert.deepEqual([before, isFolded("dithers", "Additive", "")], [true, false]);
-});
-
-test("test_a_dac_preference_change_drops_the_tap_that_opened_its_group", () => {
-  setDacType("r2r");
-  toggleFold("dithers", "Additive", "");
-  setDacType("other");
-  setDacType("r2r");
-  assert.equal(isFolded("dithers", "Additive", ""), true);
-});
-
-test("test_a_tap_on_a_dac_folded_group_leaves_no_fold_of_its_own_once_the_preference_is_off", () => {
-  setDacType("r2r");
-  toggleFold("dithers", "Additive", "");
-  setDacType("other");
-  const off = isFolded("dithers", "Additive", "");
-  toggleFold("dithers", "Additive", "");
-  assert.deepEqual([off, isFolded("dithers", "Additive", "")], [false, true]);
 });

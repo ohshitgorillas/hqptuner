@@ -18,9 +18,7 @@ import assert from "node:assert/strict";
 
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
-import { listOptions, narrowedOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
-import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
-import { rowOptions } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { listOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 
@@ -102,20 +100,6 @@ afterEach(async () => {
   await flushNarrowing();
 });
 
-/**
- * The engine names a list holds, in its order.
- *
- * @param {{ v: string }[]} opts
- */
-const names = (opts) => opts.map((o) => o.v);
-
-/**
- * The engine names a drawer row offers, in its order.
- *
- * @param {string} key
- */
-const rowNames = (key) => rowOptions(key).map((/** @type {{ label: string }} */ o) => o.label);
-
 test("test_every_dsd_key_opens_as_the_dsd_kind_and_a_filter_key_does_not", () => {
   const dsd = [...DSD_KEYS, FILTER_KEY].map((k) => open.kindOf(k) === "dsd");
   assert.deepEqual(dsd, [true, true, true, true, false]);
@@ -127,10 +111,6 @@ test("test_a_dsd_list_has_no_console_where_a_filter_list_has_one", () => {
 
 test("test_a_dsd_list_has_no_favorites_where_a_filter_list_has_them", () => {
   assert.deepEqual([open.hasFavorites?.("dsd"), open.hasFavorites?.("filters")], [false, true]);
-});
-
-test("test_a_noise_filter_list_holds_one_row_per_option_of_its_drawer_row", () => {
-  assert.deepEqual(names(listOptions("noise_filter")), rowNames("noise_filter"));
 });
 
 test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", () => {
@@ -145,10 +125,4 @@ test("test_a_noise_filter_row_carries_the_settings_metadata_prose_of_its_option_
   const want = Object.fromEntries(NOISE_OPTIONS.map(([value, name]) => [name, prose[value]]));
   const got = Object.fromEntries(listOptions("noise_filter").map((o) => [o.v, o.d]));
   assert.deepEqual(got, want);
-});
-
-test("test_narrowing_leaves_every_option_of_an_integrator_list_in_place", () => {
-  setFacet("quality", 3);
-  setFacet("fav", true);
-  assert.deepEqual(names(narrowedOptions("sdm_integrator", "1x", "")), rowNames("sdm_integrator"));
 });

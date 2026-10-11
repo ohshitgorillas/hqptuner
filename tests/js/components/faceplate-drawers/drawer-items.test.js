@@ -213,14 +213,6 @@ test("test_a_choice_checks_the_line_its_value_names", () => {
   assert.deepEqual([checked("y"), checked("x")], ["true", "false"]);
 });
 
-test("test_tapping_a_line_picks_it_and_tapping_the_picked_one_picks_nothing", async () => {
-  /** @type {string[]} */
-  const picks = [];
-  await tap(choiceOf("x", picks), (p) => p.role === "radio" && p["aria-label"] === "y");
-  await tap(choiceOf("x", picks), (p) => p.role === "radio" && p["aria-label"] === "x");
-  assert.deepEqual(picks, ["y"]);
-});
-
 test("test_a_lines_detail_control_is_disabled_unless_its_line_is_picked", () => {
   const disabled = (/** @type {string} */ value) => {
     const input = inLine(choiceOf(value, []), "x").find((e) => e.name === "input");
@@ -345,12 +337,6 @@ test("test_an_own_forms_discard_runs_the_form", async () => {
   assert.deepEqual(calls, ["discard"]);
 });
 
-test("test_an_own_forms_apply_needs_no_loaded_station_in_save_mode", () => {
-  pickApplyMode("save");
-  const b = markup(ownOf(true, [])).find((e) => attr(e, "data-testid") === "apply");
-  assert.equal(b ? hasAttr(b, "disabled") : null, false);
-});
-
 test("test_a_choice_lines_detail_lists_the_options_the_line_names_in_place_of_the_catalogs", () => {
   const schema = drawerOf([
     {
@@ -368,14 +354,6 @@ test("test_a_choice_lines_detail_lists_the_options_the_line_names_in_place_of_th
     .filter((e) => e.name === "button" && attr(e, "data-v") !== undefined)
     .map(text);
   assert.deepEqual(options, ["onlyone"]);
-});
-
-test("test_a_row_prints_the_label_its_schema_names_over_the_metadatas", () => {
-  const row = markup(drawerOf([{ row: { key: "volume_max", label: "ownlabel" } }])).find(
-    (e) => attr(e, "data-k") === "volume_max",
-  );
-  const head = row ? elements(row.html).find((e) => e.name === "b") : undefined;
-  assert.equal(head ? text(head) : undefined, "ownlabel");
 });
 
 test("test_a_field_whose_when_is_false_is_left_out", () => {

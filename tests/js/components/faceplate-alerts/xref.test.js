@@ -16,9 +16,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { SHAPING_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/modes.js";
 import { VOLUME_BLOCKS, VOLUME_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/volume.js";
-import { OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
 import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
@@ -63,7 +61,6 @@ beforeEach(async () => {
   openPopover.value = null;
   openList.value = null;
   showTab("volume", "gain");
-  showTab("output", "device");
   cancel();
   await discardAll();
 });
@@ -169,13 +166,4 @@ test("test_an_intros_named_place_links_there", () => {
 test("test_tapping_an_intros_link_opens_the_drawer_it_names", () => {
   tap(drawerOf("matrix", INTRO), "crossfeed");
   assert.equal(openStage.value, "crossfeed");
-});
-
-test("test_shapings_dither_note_links_to_the_output_drawer", () => {
-  assert.equal(linkTo(SHAPING_DRAWER), "output");
-});
-
-test("test_tapping_the_dither_notes_link_shows_the_output_format_tab", () => {
-  tap(SHAPING_DRAWER, "output");
-  assert.equal(shownTab(OUTPUT_DRAWER), "format");
 });

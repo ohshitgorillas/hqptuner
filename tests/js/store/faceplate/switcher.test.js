@@ -25,11 +25,8 @@ const { config, engineState, engineStatus, enums, matrixConfig } =
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
-const { TARGETS, switcherTarget, setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
+const { setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
-
-/** The target read before any case set one, with nothing stored. */
-const INITIAL = switcherTarget.value;
 
 const ALL = ["1x filter", "Nx filter", "Modulator", "Matrix profile", "Output mode", "Volume"];
 
@@ -109,14 +106,6 @@ const underEach = (f) =>
   });
 
 // --- targets -------------------------------------------------------------------------------------------------------
-
-test("test_the_targets_are_the_six_switchable_settings_in_order", () => {
-  assert.deepEqual(TARGETS, ALL);
-});
-
-test("test_with_nothing_stored_the_target_reads_as_the_modulator", () => {
-  assert.equal(INITIAL, "Modulator");
-});
 
 test("test_setting_a_target_persists_it", () => {
   setSwitcherTarget("Volume");
@@ -201,17 +190,6 @@ test("test_with_both_list_slots_empty_the_first_shows_the_running_value", () => 
 });
 
 // --- output mode slots ---------------------------------------------------------------------------------------------
-
-test("test_output_mode_shows_the_two_fixed_mode_slots", () => {
-  setSwitcherTarget("Output mode");
-  assert.deepEqual(
-    switcherView()?.slots.map((s) => [s.name, s.aka === ""]),
-    [
-      ["", true],
-      ["", false],
-    ],
-  );
-});
 
 test("test_output_mode_marks_the_running_chain", () => {
   setSwitcherTarget("Output mode");

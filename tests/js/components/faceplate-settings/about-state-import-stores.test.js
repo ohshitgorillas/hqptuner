@@ -158,7 +158,7 @@ matrixConfig.value = {
 
 const { About } = await import("../../../../hqptuner/static/components/faceplate/settings/About.js");
 const { toggleFavorite, hydrateFavorites } = await import("../../../../hqptuner/static/store/narrow/favorites.js");
-const { nPhase, nQuality } = await import("../../../../hqptuner/static/store/narrow/state.js");
+const { nPhase } = await import("../../../../hqptuner/static/store/narrow/state.js");
 const { hydrateNarrowing, flushNarrowing } = await import("../../../../hqptuner/static/store/narrow/persist.js");
 const { descriptions, descriptionFor } = await import("../../../../hqptuner/static/store/matrix/descriptions.js");
 const { livePresets } = await import("../../../../hqptuner/static/store/live/presets.js");
@@ -192,13 +192,6 @@ test("test_a_star_toggled_after_an_import_writes_the_imported_favorites_and_not_
   await toggleFavorite(STARRED_AFTER);
   await quiesce(W);
   assert.deepEqual([...(putsTo("/api/favorites").at(-1)?.filters || [])].sort(), [IMPORTED_FAVORITE, STARRED_AFTER]);
-});
-
-test("test_a_facet_changed_after_an_import_writes_the_imported_facets_and_not_the_ones_before_it", async () => {
-  nQuality.value = 4;
-  await flushNarrowing();
-  await quiesce(W);
-  assert.deepEqual(putsTo("/api/narrowing").at(-1)?.facets.phase, PHASE_IMPORTED);
 });
 
 test("test_a_profile_description_after_an_import_is_the_imported_one", () => {

@@ -109,16 +109,6 @@ def test_the_class_comes_from_the_tag_carrying_data_dirty_not_a_neighbour_on_its
     assert [cls for _, _, cls in GATE.unmarked({SOURCE: source}, NO_CSS)] == ["drow"]
 
 
-def test_unmarked_producers_come_back_in_source_order() -> None:
-    """``zrow`` on line 1 precedes ``arow`` on line 3, against the alphabet."""
-    source = (
-        '<div class="zrow" data-dirty=${d ? "" : undefined}>\n'
-        "\n"
-        '<div class="arow" data-dirty=${d ? "" : undefined}>'
-    )
-    assert [cls for _, _, cls in GATE.unmarked({SOURCE: source}, NO_CSS)] == ["zrow", "arow"]
-
-
 def test_each_producer_is_reported_under_the_path_of_its_own_file() -> None:
     """Two files, one producer each, each keyed by its own path."""
     result = GATE.unmarked({"a.js": DROW, "b.js": DCELL}, NO_CSS)

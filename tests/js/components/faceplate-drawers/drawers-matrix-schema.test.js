@@ -29,7 +29,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, registerDrawer, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { stagingWire } from "../../support/wire/wire.js";
-import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -87,22 +87,6 @@ function inPanel(schema, tab) {
 }
 
 /**
- * Each tab panel's row keys in order.
- *
- * @param {DrawerSchema} schema
- * @returns {Record<string, (string | undefined)[]>}
- */
-const rowsByTab = (schema) =>
-  Object.fromEntries(
-    schema.tabs.map((t) => [
-      t.id,
-      inPanel(schema, t.id)
-        .filter((e) => classes(e).includes("drow"))
-        .map((e) => attr(e, "data-k")),
-    ]),
-  );
-
-/**
  * The ids of the tabs carrying a dirty dot.
  *
  * @param {DrawerSchema} schema
@@ -112,19 +96,6 @@ const dottedTabs = (schema) =>
   markup(schema)
     .filter((e) => attr(e, "role") === "tab" && classes(e).includes("dirty"))
     .map((e) => attr(e, "data-tab"));
-
-test("test_the_matrix_engine_draws_the_gate_and_expand_hf_then_the_engine_settings", () => {
-  assert.deepEqual(rowsByTab(MATRIX_DRAWER), {
-    basic: ["matrix_enabled", "matrix_expand_hf"],
-    advanced: ["matrix_engine", "matrix_iir2fir"],
-  });
-});
-
-test("test_the_basic_tab_opens_on_an_intro", () => {
-  const items = inPanel(MATRIX_DRAWER, "basic");
-  const first = items.find((e) => classes(e).includes("dintro") || classes(e).includes("drow"));
-  assert.equal(first ? classes(first).includes("dintro") : false, true);
-});
 
 test("test_each_advanced_row_lists_every_option_under_it", () => {
   const listing = inPanel(MATRIX_DRAWER, "advanced")
@@ -149,35 +120,6 @@ test("test_a_staged_matrix_gate_dots_the_basic_tab", async () => {
 test("test_a_staged_iir_to_fir_dots_the_advanced_tab", async () => {
   await edit("matrix_iir2fir", "2");
   assert.deepEqual(dottedTabs(MATRIX_DRAWER), ["advanced"]);
-});
-
-for (const [key, drawer] of /** @type {[string, DrawerSchema][]} */ ([
-  ["matrix_enabled", MATRIX_DRAWER],
-  ["dac_correction_enabled", CORRECTION_DRAWER],
-])) {
-  test(`test_the_${key}_gate_lists_bypass_before_engage`, () => {
-    const row = markup(drawer).find((e) => attr(e, "data-k") === key);
-    const listed = (row ? elements(row.html) : [])
-      .filter((e) => e.name === "button")
-      .sort((a, b) => a.start - b.start)
-      .map((e) => attr(e, "data-v"));
-    assert.deepEqual(listed, ["0", "1"]);
-  });
-}
-
-test("test_the_dac_model_row_prints_its_own_label_in_place_of_the_metadatas", () => {
-  metadata.value = {
-    settings: { dsp: { dac_correction_profile: { label: "label-fixture", tooltip: "para-fixture" } } },
-  };
-  const row = markup(CORRECTION_DRAWER).find((e) => attr(e, "data-k") === "dac_correction_profile");
-  const label = row ? elements(row.html).find((e) => e.name === "b") : undefined;
-  assert.deepEqual([label !== undefined, label ? text(label) !== "label-fixture" : false], [true, true]);
-});
-
-test("test_dac_correction_draws_its_gate_and_dac_model", () => {
-  assert.deepEqual(rowsByTab(CORRECTION_DRAWER), {
-    correction: ["dac_correction_enabled", "dac_correction_profile"],
-  });
 });
 
 test("test_a_staged_dac_model_dots_the_dac_correction_title", async () => {

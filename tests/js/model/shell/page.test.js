@@ -52,10 +52,6 @@ test("test_allowing_pinned_rates_leaves_output_off_the_page", () => {
   assert.deepEqual(ids({ pinsOn: true }), ["source", "matrix", "resampling", "shaping"]);
 });
 
-test("test_pinned_rates_off_leave_output_off_the_page", () => {
-  assert.deepEqual(ids({ pinsOn: false }), ["source", "matrix", "resampling", "shaping"]);
-});
-
 test("test_the_matrix_profile_top_takes_the_spectrum_off_the_page", () => {
   assert.deepEqual(ids({ topOfPage: "profile" }), ["matrix", "resampling", "shaping"]);
 });

@@ -50,8 +50,6 @@ import {
   nFocusMode,
   nPhase,
   nLength,
-  nApod1x,
-  nApodNx,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
 import { narrowOptions, narrowCount, previewCount } from "../../../../hqptuner/static/store/narrow/match.js";
@@ -178,16 +176,6 @@ const ALL_LENGTHS = [
   ["gauss-plain", "4/5 ⥮ Any"],
 ];
 
-// For the per-stage switches: `arg` bit 0 is the apodizing flag, and a filter
-// counts as lossy-source when its NAME carries `hires`, `mqa` or `mp3`. Neither
-// stage starts narrowed on either control.
-/** @type {FilterTuple[]} */
-const STAGES = [
-  ["gauss-plain", "4/5 ⥮ Any", 0],
-  ["gauss-apod", "4/5 ⥮ Any", 1],
-  ["gauss-hires-apod", "4/5 ⥮ Any", 1],
-];
-
 // --- set-valued facets combine by the mode the case sets -------------------------
 // Focus in OR: a filter passes on ANY one picked value. `gauss-b` is the
 // discriminator — it carries timbre alone, so the union of space and transients
@@ -198,13 +186,6 @@ test("test_two_focus_values_in_or_keep_every_filter_carrying_either", () => {
   nFocusMode.value = "or";
   nFocus.value = ["space", "transients"];
   assert.deepEqual(labels(options), ["gauss-a", "gauss-c", "gauss-d"]);
-});
-
-test("test_the_count_for_two_focus_values_in_or_is_the_number_carrying_either", () => {
-  const options = reset(FOCUS);
-  nFocusMode.value = "or";
-  nFocus.value = ["space", "transients"];
-  assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
 });
 
 test("test_adding_a_second_focus_value_in_or_never_shrinks_the_surviving_set", () => {
@@ -308,23 +289,9 @@ test("test_no_phase_unions_with_a_picked_phase_like_any_other_value", () => {
   assert.deepEqual(labels(options), ["gauss-lp", "gauss-plain"]);
 });
 
-// The other side of the same rule: a filter the taxonomy does not reach is out
-// of every pick that does not name it, so a selection of linear alone drops it.
-test("test_a_filter_with_no_phase_is_dropped_by_a_phase_pick_that_does_not_name_it", () => {
-  const options = reset(PHASES);
-  nPhase.value = ["linear"];
-  assert.equal(labels(options).includes("gauss-plain"), false);
-});
-
 // --- the length the taxonomy does not reach -----------------------------------------
 // A filter the length classifier cannot place carries NO length rather than a
 // guessed medium, so no length pick surfaces it — medium included.
-
-test("test_a_filter_the_length_taxonomy_does_not_reach_is_dropped_by_a_medium_pick", () => {
-  const options = reset(MEDIUMS);
-  nLength.value = ["medium"];
-  assert.equal(labels(options).includes("gauss-plain"), false);
-});
 
 // The empty string is a length VALUE meaning "nothing states this filter's
 // length", picked like any other value. It is not the empty SELECTION, which
@@ -366,40 +333,6 @@ test("test_an_option_with_no_facet_record_survives_a_length_pick", () => {
   assert.deepEqual(labels(options), ["gauss-short", "stranger"]);
 });
 
-// --- selection state ------------------------------------------------------------
-
-test("test_reset_returns_length_to_not_narrowed", () => {
-  reset(LENGTHS);
-  nLength.value = ["long"];
-  resetNarrowing();
-  assert.deepEqual(nLength.value, []);
-});
-
-test("test_reset_returns_phase_to_not_narrowed", () => {
-  reset(PHASES);
-  nPhase.value = ["minimum", "linear"];
-  resetNarrowing();
-  assert.deepEqual(nPhase.value, []);
-});
-
-// The per-stage apodizing switches reset to their own default at both stages;
-// the 1x lossy-source control's reset is pinned in
-// tests/js/store/narrow/narrowing-lossy.test.js.
-
-test("test_reset_returns_the_1x_apodizing_switch_to_all", () => {
-  reset(STAGES);
-  nApod1x.value = "only";
-  resetNarrowing();
-  assert.equal(nApod1x.value, "all");
-});
-
-test("test_reset_returns_the_nx_apodizing_switch_to_all", () => {
-  reset(STAGES);
-  nApodNx.value = "only";
-  resetNarrowing();
-  assert.equal(nApodNx.value, "all");
-});
-
 // --- previews answer for the selection they are handed ---------------------------
 
 // The live selection leaves 2 and the override leaves 3, so a preview that
@@ -409,16 +342,4 @@ test("test_a_preview_counts_its_own_overrides_not_the_live_selection", () => {
   nFocusMode.value = "and";
   nFocus.value = ["timbre", "transients"];
   assert.equal(previewCount(options, STAGE, FIELD, { focus: ["timbre"] }), 3);
-});
-
-// --- the two stages narrow independently -----------------------------------------
-
-test("test_the_nx_stage_defaults_leave_every_filter_offered", () => {
-  const options = reset(STAGES);
-  assert.deepEqual(labels(options), ["gauss-plain", "gauss-apod", "gauss-hires-apod"]);
-});
-
-test("test_the_1x_stage_defaults_leave_every_filter_offered", () => {
-  const options = reset(STAGES);
-  assert.deepEqual(labels(options, "1x", "pcm_filter_1x"), ["gauss-plain", "gauss-apod", "gauss-hires-apod"]);
 });

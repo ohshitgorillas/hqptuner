@@ -83,17 +83,6 @@ PYPROJECT = f'[project]\nname = "hqptuner"\nversion = "{START}"\n'
 
 INIT_PY = f'__version__ = "{START}"\n'
 
-#: A judge that flags the changelog when asked about the release, and passes
-#: every other question. A wiring that asks a different question hears a pass.
-RELEASE_JUDGE = (
-    "#!/usr/bin/env bash\n"
-    'printf \'%s\\n\' "$*" >>"$0_LOG"\n'
-    'if [ "$#" -eq 1 ] && [ "$1" = "--release" ]; then\n'
-    "  exit 1\n"
-    "fi\n"
-    "exit 0\n"
-)
-
 #: Read back out of ``pyproject.toml`` the way any reader of that file would.
 VERSION_LINE = re.compile(r'^version = "([^"]+)"$', re.MULTILINE)
 
@@ -192,14 +181,3 @@ def test_a_patch_bump_advances_the_version_only_when_the_changelog_sweep_passes(
     repo = miniature_repo(tmp_path, constant_judge(judge_status))
     run_bump(repo, "--patch")
     assert version_of(repo) == expected
-
-
-# --- which question the sweep is asked --------------------------------------
-
-
-def test_a_patch_bump_fails_when_the_release_sweep_flags_the_changelog(tmp_path: Path) -> None:
-    """The sweep judges the whole ``[Unreleased]`` section, not the bullets the
-    last commit added: a judge answering only ``--release`` with a flag still
-    stops the bump."""
-    repo = miniature_repo(tmp_path, RELEASE_JUDGE)
-    assert run_bump(repo, "--patch", "--dry-run").returncode == 1

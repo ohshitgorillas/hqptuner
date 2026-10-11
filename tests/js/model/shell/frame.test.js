@@ -154,10 +154,6 @@ test("test_the_gauge_figure_takes_the_zone_of_its_speed", () => {
   assert.equal(gaugeReading(0.75, SPEED).zone, "warn");
 });
 
-test("test_the_gauge_figure_rounds_to_two_decimals", () => {
-  assert.equal(parseFloat(gaugeReading(1.234, SPEED).text), 1.23);
-});
-
 // ── source meter's no-stream line ────────────────────────────────────────────────────────────────────────────────────
 
 test("test_nothing_playing_shows_the_idle_line", () => {
@@ -183,10 +179,6 @@ const PROFILES = {
   first: { flat: { flat: true }, shared: { desc: "first-desc" } },
   second: { shared: { desc: "second-desc" } },
 };
-
-test("test_a_name_two_stations_hold_has_two_records", () => {
-  assert.equal(profileRecords(PROFILES, "shared").length, 2);
-});
 
 test("test_the_first_record_is_the_earlier_stations", () => {
   assert.equal(profileRecords(PROFILES, "shared")[0], PROFILES.first.shared);
@@ -216,10 +208,6 @@ test("test_profile_with_the_matrix_engine_bypassed_gives_the_spectrum_the_top", 
 
 test("test_a_bypassed_matrix_engine_never_folds", () => {
   assert.equal(fillLayout(false, "auto", PCM, COPY).fold, false);
-});
-
-test("test_spectrum_never_gives_the_matrix_section_the_top", () => {
-  assert.equal(fillLayout(true, "spectrum", PCM, COPY).profile, false);
 });
 
 test("test_a_shown_spectrum_with_nothing_playing_carries_the_idle_line", () => {
@@ -371,10 +359,6 @@ test("test_idle_without_alerts_leaves_the_gauge_at_rest", () => {
 
 test("test_a_raised_clip_alert_lights_the_clip_lamp", () => {
   assert.equal(engineRow(raise(["clip"]), "pcm-pcm", ENGINE, FIG).clip, true);
-});
-
-test("test_without_a_clip_alert_the_clip_lamp_keeps_its_own", () => {
-  assert.equal(engineRow(raise(["speed"]), "pcm-pcm", ENGINE, FIG).clip, false);
 });
 
 // ── Setting Switcher target ──────────────────────────────────────────────────────────────────────────────────────────

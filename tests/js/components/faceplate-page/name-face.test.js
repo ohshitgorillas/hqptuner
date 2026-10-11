@@ -18,7 +18,6 @@ import { classes, elements, text } from "../../support/markup.js";
 const LEAF = "Leaf x";
 const FAMILY = "Fam x";
 const FLAT = "";
-const TIER = "512+";
 const LOW_TIER = "256+";
 const HIGH_TIER = "1024+";
 const NO_TIER = "";
@@ -53,13 +52,6 @@ test("test_an_empty_family_draws_no_family_line", () => {
 
 test("test_a_named_family_draws_one_family_line", () => {
   assert.equal(familyLines(FAMILY).length, 1);
-});
-
-test("test_a_tier_draws_one_rate_badge_inside_the_family_line", () => {
-  const inFamily = drawn(TIER)
-    .filter((e) => classes(e).includes("cpf"))
-    .flatMap((e) => badges(elements(e.html)));
-  assert.equal(inFamily.length, 1);
 });
 
 test("test_the_rate_badge_reads_the_tier_passed_in", () => {

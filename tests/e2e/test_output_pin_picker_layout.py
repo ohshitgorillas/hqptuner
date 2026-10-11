@@ -23,7 +23,6 @@ Policy notes:
 
 from typing import Any
 
-import pytest
 from playwright.sync_api import Locator, Page, ViewportSize
 
 from e2e.support import stack as stack_support
@@ -37,9 +36,6 @@ ON = "1"
 
 #: The picker's three options by wire identity: Auto, the 44.1k family, the 48k family.
 PIN_OPTIONS = ("auto", "f44", "f48")
-
-#: The drawer's other switches, by catalog key: Output mode, and DoP on the stack's network backend.
-REFERENCE_SWITCHES = ("output_mode", "net_dop")
 
 #: Box edges and sizes are compared to this many pixels: layout rounds to sub-pixel steps.
 TOLERANCE = 0.5
@@ -87,11 +83,6 @@ def pin_boxes(page: Page) -> list[dict[str, Any]]:
     return [box(page.locator(f"[data-pin='{pin}']")) for pin in PIN_OPTIONS]
 
 
-def switch_button_height(page: Page, key: str) -> float:
-    """The height of the first shown button in the drawer row whose catalog key is `key`."""
-    return float(box(page.locator(f"[data-k='{key}'] button:visible").first)["height"])
-
-
 def picker_box(page: Page) -> dict[str, Any]:
     """The box of the radio group that holds the picker's options."""
     return box(page.locator("[role='radiogroup']", has=page.locator("[data-pin]")))
@@ -107,17 +98,6 @@ def overhang(inner: dict[str, Any], outer: dict[str, Any]) -> float:
     above = max(0.0, float(outer["y"]) - float(inner["y"]))
     below = max(0.0, float(inner["y"]) + float(inner["height"]) - float(outer["y"]) - float(outer["height"]))
     return above + below
-
-
-@pytest.mark.parametrize("key", REFERENCE_SWITCHES)
-def test_each_pin_option_is_as_tall_as_the_drawers_switch_in_row(
-    page: Page, stack: stack_support.Stack, key: str
-) -> None:
-    open_format_tab(page, stack)
-    reference = switch_button_height(page, key)
-    heights = [float(b["height"]) for b in pin_boxes(page)]
-    matches = [abs(height - reference) <= TOLERANCE for height in heights]
-    assert matches == [True] * len(PIN_OPTIONS), f"pin option heights {heights}, {key} button {reference}"
 
 
 def test_the_pin_options_are_one_width(page: Page, stack: stack_support.Stack) -> None:

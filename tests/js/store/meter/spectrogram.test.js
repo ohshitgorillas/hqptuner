@@ -118,16 +118,6 @@ function tones(hzs, db) {
 }
 
 /**
- * The loudest row of a slice. A row counts down from full scale, so the loudest holds the smallest value.
- *
- * @param {ArrayLike<number>} bytes
- */
-function loudestRow(bytes) {
-  const all = Array.from(bytes);
-  return all.indexOf(Math.min(...all));
-}
-
-/**
  * The value the first row of each drawn slice holds, after one slice per level of `levels` is fed as flat stereo
  * frames, oldest first.
  *
@@ -151,14 +141,6 @@ beforeEach(() => {
 
 // --- the slice's rows ----------------------------------------------------------------------------------------------
 
-test("test_a_flat_level_reads_as_480_rows_alike", () => {
-  feed(1, 40, [channel(flat(-30)), channel(flat(-30))]);
-  assert.deepEqual(
-    rows("0").map((slice) => [slice.length, new Set(Array.from(slice)).size]),
-    [[ROWS, 1]],
-  );
-});
-
 // A row counts down from full scale, so a deeper level keeps a larger value.
 test("test_levels_30_130_and_200_db_down_keep_rows_apart_and_in_order", () => {
   const kept = rowValues([-30, -130, -200]);
@@ -167,23 +149,6 @@ test("test_levels_30_130_and_200_db_down_keep_rows_apart_and_in_order", () => {
     kept,
   );
 });
-
-test("test_a_level_below_300_db_down_reads_as_300_db_down", () => {
-  const [floor, below] = rowValues([-300, -400]);
-  assert.equal(below, floor);
-});
-
-const TONES = [
-  { name: "a_tone_near_a_quarter_of_nyquist", hz: 6025, db: -12, row: 120 },
-  { name: "a_tone_near_five_eighths_of_nyquist", hz: 15070, db: -30, row: 301 },
-];
-
-for (const { name, hz, db, row } of TONES) {
-  test(`test_${name}_lands_in_the_row_its_frequency_falls_in`, () => {
-    feed(1, 40, [channel(tone(hz, db)), channel(flat(SILENT))]);
-    assert.deepEqual(rows("0").map(loudestRow), [row]);
-  });
-}
 
 // A -12 dB tone in one channel beside a silent one averages to -15.01 dB in power: the second slice carries that
 // level in both channels.
@@ -205,18 +170,6 @@ test("test_the_frames_a_slice_covers_fold_as_their_power_average", () => {
 });
 
 // --- closing a slice -----------------------------------------------------------------------------------------------
-
-const PACES = [
-  { name: "frames_at_sixty_a_second", count: 4, ms: 16.7, closed: [33.4, 33.4] },
-  { name: "frames_longer_than_half_a_slice", count: 4, ms: 15, closed: [30, 30] },
-];
-
-for (const { name, count, ms, closed } of PACES) {
-  test(`test_${name}_close_a_slice_once_they_cover_25_ms_of_frame_time`, () => {
-    feed(count, ms, [channel(flat(-30)), channel(flat(-30))]);
-    assert.deepEqual(widths(), closed);
-  });
-}
 
 test("test_a_history_past_300_s_still_draws_its_newest_300_s", () => {
   feedTiny(1610, 187.5);

@@ -82,11 +82,6 @@ def events(blocks: Sequence[SseBlock], name: str | None = None) -> list[SseEvent
     return [b for b in blocks if isinstance(b, SseEvent) and (name is None or b.name == name)]
 
 
-def comments(blocks: Sequence[SseBlock]) -> list[SseComment]:
-    """The comment blocks among ``blocks``, in order."""
-    return [b for b in blocks if isinstance(b, SseComment)]
-
-
 def any_event(blocks: Sequence[SseBlock]) -> bool:
     """A read's condition: at least one event has been dispatched."""
     return bool(events(blocks))

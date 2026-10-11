@@ -133,26 +133,6 @@ test("test_the_raw_delta_is_passed_through_whatever_its_unit", () => {
   assert.deepEqual(scrolls, [[0, 3]]);
 });
 
-// --- the control keeps its focus -------------------------------------------------
-//
-// Both of these are ABSENCE assertions and neither constrains anything on its
-// own: a wheelGuard with an empty body passes them. They are spec item 5 and
-// worth stating — blurring a number box mid-type commits a half-typed figure —
-// but the weight is carried by the cancel and scroll cases above, which fail on
-// a guard that does nothing.
-
-test("test_an_unfocused_control_is_not_blurred", () => {
-  const { target, event } = setup({ focused: false });
-  wheelGuard(event);
-  assert.equal(target.blurred, false);
-});
-
-test("test_a_focused_control_is_not_blurred", () => {
-  const { target, event } = setup({ focused: true });
-  wheelGuard(event);
-  assert.equal(target.blurred, false);
-});
-
 // --- a typed box syncs from the store only while the user is not in it ----------
 
 /**

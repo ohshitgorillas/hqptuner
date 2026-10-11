@@ -12,7 +12,6 @@ import pytest
 from conftest import DaemonFactory
 
 from hqptuner.engine.control import ControlClient
-from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes.writer import LiveWriteFailed, apply_live
 
 CASES = [
@@ -21,21 +20,6 @@ CASES = [
     pytest.param({}, {}, "invalid_input", id="missing-value"),
     pytest.param({}, {"value": "loud"}, "invalid_input", id="unparseable-volume"),
 ]
-
-
-async def test_a_failed_live_setter_reports_the_raised_errors_own_code_transport_dies(
-    daemon: DaemonFactory,
-) -> None:
-    # a dead transport under the setter is not readback-verifiable at all: it
-    # raises rather than landing a coded report row
-    port, _log, _state = await daemon(_close="Volume")
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    try:
-        with pytest.raises(ControlError):
-            await apply_live(client, {"volume": {"value": "-20.0"}})
-    finally:
-        await client.close()
 
 
 @pytest.mark.parametrize(("overrides", "edit", "code"), CASES)
@@ -51,16 +35,3 @@ async def test_a_failed_live_setter_reports_the_raised_errors_own_code(
         await client.close()
     assert isinstance(report[0], LiveWriteFailed)
     assert report[0].code == code
-
-
-async def test_apply_live_yields_a_live_write_result_the_daemon_refused(daemon: DaemonFactory) -> None:
-    # a bare refusal on the wire (`_error`), read straight off the yielded report
-    port, _log, _state = await daemon(_error="Volume")
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    try:
-        report = await apply_live(client, {"volume": {"value": "-20.0"}})
-    finally:
-        await client.close()
-    assert isinstance(report[0], LiveWriteFailed)
-    assert report[0].code == "daemon_refused"

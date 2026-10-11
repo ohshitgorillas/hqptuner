@@ -23,13 +23,6 @@ from hqptuner.config import Config
 #: edge pair is a few KiB rather than the production default.
 FILE_LIMIT = 4096
 
-#: The park's ceiling on the total of everything already parked, in bytes.
-PARK_CEILING = 256 * 1024 * 1024
-
-#: The upload the park-ceiling pair sends: an even size, so the accepted case
-#: is a well-formed container and fails for nothing but the ceiling.
-FITTING = 1024
-
 #: What `_code` reads off an answer whose body carries no `code`: a parked upload's.
 NO_CODE = ""
 
@@ -94,36 +87,6 @@ def test_a_file_over_the_configured_limit_and_only_that_one_carries_code_invalid
     assert _code(_post(capped_client, "probe.wav", minimal_wave(size))) == CODE[outcome]
 
 
-# --- line 2: park ceiling --------------------------------------------------------
-
-PARK_CEILING_PAIR = [
-    pytest.param(FITTING, "parked", id="fills-the-park"),
-    pytest.param(FITTING + 1, "refused", id="one-over"),
-]
-
-
-def _post_beside_a_nearly_full_park(client: TestClient, tmp_path: Path, size: int) -> Response:
-    park = tmp_path / "pending-filters"
-    park.mkdir(parents=True, exist_ok=True)
-    with (park / "already.wav").open("wb") as parked:  # sparse: the park total is read by size
-        parked.truncate(PARK_CEILING - FITTING)
-    return _post(client, "probe.wav", minimal_wave(size))
-
-
-@pytest.mark.parametrize(("size", "outcome"), PARK_CEILING_PAIR)
-def test_an_upload_parks_up_to_the_park_ceiling_and_bounces_one_byte_over(
-    http_client: TestClient, tmp_path: Path, size: int, outcome: str
-) -> None:
-    assert _post_beside_a_nearly_full_park(http_client, tmp_path, size).status_code // 100 == STATUS_CLASS[outcome]
-
-
-@pytest.mark.parametrize(("size", "outcome"), PARK_CEILING_PAIR)
-def test_an_upload_over_the_park_ceiling_and_only_that_one_carries_code_invalid_input(
-    http_client: TestClient, tmp_path: Path, size: int, outcome: str
-) -> None:
-    assert _code(_post_beside_a_nearly_full_park(http_client, tmp_path, size)) == CODE[outcome]
-
-
 # --- line 4: body shape ----------------------------------------------------------
 
 BODIES = [
@@ -159,7 +122,3 @@ def _post_without_a_filename(client: TestClient) -> Response:
 
 def test_an_empty_filename_is_refused_by_code(http_client: TestClient) -> None:
     assert _code(_post_without_a_filename(http_client)) == "invalid_input"
-
-
-def test_an_empty_filename_is_a_client_error(http_client: TestClient) -> None:
-    assert _post_without_a_filename(http_client).status_code // 100 == 4

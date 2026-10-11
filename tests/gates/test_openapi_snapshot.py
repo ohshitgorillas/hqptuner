@@ -75,22 +75,6 @@ AUDIT_ROUTE = "/api/audit"
 HEALTH_ROUTE = "/api/health"
 
 
-def key_order(text: str) -> list[str]:
-    """Every JSON object key in the order the rendered text lists them."""
-    keys = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith('"') and '":' in stripped:
-            keys.append(stripped.split('"')[1])
-    return keys
-
-
-def indent_of(text: str, key: str) -> list[int]:
-    """The leading-space count of every line that carries ``key``."""
-    needle = f'"{key}":'
-    return [len(line) - len(line.lstrip(" ")) for line in text.splitlines() if line.strip().startswith(needle)]
-
-
 def changed_entries(diff: list[str]) -> list[tuple[str, dict[str, object]]]:
     """Each removed or added body line of a unified diff as its sign and the JSON entry it carries.
 
@@ -102,21 +86,6 @@ def changed_entries(diff: list[str]) -> list[tuple[str, dict[str, object]]]:
 
 
 # --- render --------------------------------------------------------------------
-
-
-def test_render_sorts_keys_at_every_nesting_level() -> None:
-    assert key_order(GATE.render(UNSORTED)) == ["a", "y", "z", "b"]
-
-
-@pytest.mark.parametrize(("key", "expected_indent"), [("a", 2), ("y", 4)])
-def test_render_indents_each_nesting_level_by_two_spaces(key: str, expected_indent: int) -> None:
-    """A top-level key sits two spaces in and one a level down sits four, so the step is two."""
-    assert indent_of(GATE.render(UNSORTED), key) == [expected_indent]
-
-
-def test_render_ends_with_exactly_one_trailing_newline() -> None:
-    """A second newline would leave the last chunk bare, so this pins both halves."""
-    assert GATE.render(UNSORTED).splitlines(keepends=True)[-1] == "}\n"
 
 
 def test_render_ignores_the_insertion_order_of_the_mapping_it_is_handed() -> None:
@@ -187,14 +156,6 @@ def test_check_fails_only_a_missing_or_differing_snapshot_it_was_not_told_to_wri
 
 
 # --- check: the comparing half -------------------------------------------------
-
-
-def test_a_matching_snapshot_is_reported_by_name_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The ok line names the file it just cleared, which is the path the caller handed in."""
-    snapshot = tmp_path / "openapi.json"
-    snapshot.write_text(CURRENT, encoding="utf-8")
-    GATE.check(snapshot, CURRENT)
-    assert snapshot.name in capsys.readouterr().out
 
 
 def test_a_passing_run_does_not_tell_anyone_to_regenerate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

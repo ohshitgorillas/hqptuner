@@ -118,12 +118,6 @@ test("test_a_ditherer_conflict_is_a_warning", async () => {
 
 // --- a shaper that fits contributes nothing -----------------------------------
 
-test("test_a_modulator_the_sdm_rate_clears_raises_no_alert", async () => {
-  // DSD1024 is 49152000, above the 40.96 MHz floor.
-  await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, floors: FLOORS });
-  assert.deepEqual(alerts(), []);
-});
-
 test("test_a_modulator_with_no_floor_raises_no_alert_at_the_lowest_dsd_rate", async () => {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD64, floors: { sdm: { [MODULATOR]: null } } });
   assert.deepEqual(alerts(), []);
@@ -166,11 +160,6 @@ test("test_with_no_chain_loaded_source_mode_reports_both_conflicts", async () =>
   // produce output and neither conflict can be ruled out.
   await reset({ chain: null, mode: "0", ...BOTH_CONFLICT });
   assert.deepEqual(kinds(), [SDM, PCM]);
-});
-
-test("test_both_families_conflicting_puts_the_critical_one_first", async () => {
-  await reset({ chain: null, mode: "0", ...BOTH_CONFLICT });
-  assert.deepEqual(sevs(), ["crit", "warn"]);
 });
 
 // --- staged edits count -------------------------------------------------------

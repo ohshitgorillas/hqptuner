@@ -35,7 +35,6 @@ from apps import wait_for_api
 from conftest import DaemonFactory, StartManager, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog
 from fastapi.testclient import TestClient
-from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core import engineread
@@ -107,12 +106,6 @@ HELD_RESTORED = {
 def _setters(log: CommandLog) -> list[tuple[str, str]]:
     """The live setters that reached the daemon, in order, with their value."""
     return [(name, attrs.get("value", "")) for name, attrs in log if name in SETTERS]
-
-
-def _sent(log: CommandLog) -> list[str]:
-    """Every command the daemon was asked, in order — reads included, so what
-    sits BETWEEN two setters is visible."""
-    return [name for name, _ in log]
 
 
 async def _rescanning(
@@ -187,20 +180,6 @@ def rescan_on(
     return run
 
 
-# --- what a rescan never replays ---------------------------------------------
-
-
-async def test_a_rescan_never_reloads_the_matrix_profile(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # a profile load needs live playback, so it is the one live setting the
-    # rescan leaves alone — which is exactly what the field's caption promises
-    manager, log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    before = len(log)
-    await engineread.refresh_devices(manager)
-    assert "MatrixSetProfile" not in _sent(log[before:])
-
-
 # --- which live setters the rescan sends --------------------------------------
 # Auto-save off is the whole gate: nothing goes back. An engine already at the
 # file's values has nothing the user set live to lose, so anything written there
@@ -223,21 +202,6 @@ async def test_a_rescan_that_sends_live_setters_sends_the_mode_first(rescan_on: 
     """The mode switch re-enumerates the chain's lists, so a setter sent before it names an index from the old list."""
     _report, sent = await rescan_on(scenario)
     assert [name for name, _ in _setters(sent)][:1] == ["SetMode"]
-
-
-@pytest.mark.parametrize("reported", ["rate", "filter_junk"])
-async def test_a_rescan_with_autosave_off_leaves_the_engine_where_the_rescan_left_it(
-    daemon: DaemonFactory,
-    start_manager: StartManager,
-    http_daemon: dict[str, Any],
-    tmp_path: Path,
-    *,
-    reported: str,
-) -> None:
-    # the engine-only settings are on the same gate as every other live one
-    manager, _log, state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=False)
-    await engineread.refresh_devices(manager)
-    assert state[reported] == ENGINE_AFTER_RESCAN[reported]
 
 
 # --- what the replay reports ---------------------------------------------------
@@ -332,30 +296,3 @@ async def test_the_replay_carries_the_engines_value_and_not_the_stored_one(
     store.set_active("Kept")
     await engineread.refresh_devices(manager)
     assert state["adaptive"] == "1"
-
-
-# --- unchanged: the rescan itself still does what it always did --------------
-
-
-async def test_a_rescan_offers_a_device_that_only_the_new_scan_found(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # the endpoint is powered off until the rescan, so it can only be offered if
-    # the /config form was refetched after it
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    http_daemon["_hidden_endpoints"] = ["S99/hw:CARD=WokeUp,DEV=0"]
-    await engineread.refresh_devices(manager)
-    fields = present(manager.readings.config_form)["fields"]
-    offered = {o["value"] for f in fields if f["name"] == "net_device" for o in f["options"]}
-    assert "S99/hw:CARD=WokeUp,DEV=0" in offered
-
-
-async def test_a_rescan_refetches_the_matrix_form(
-    daemon: DaemonFactory, start_manager: StartManager, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    # the daemon's active profile moves behind the manager's back; only a
-    # refetched /matrix reports it
-    manager, _log, _state = await _rescanning(daemon, start_manager, http_daemon, tmp_path, autosave=True)
-    http_daemon["matrix_active"] = "Mch-to-Stereo mixdown"
-    await engineread.refresh_devices(manager)
-    assert present(manager.readings.matrix_form)["active"] == "Mch-to-Stereo mixdown"

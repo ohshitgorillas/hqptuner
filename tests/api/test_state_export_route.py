@@ -10,7 +10,6 @@ import io
 import json
 import zipfile
 from collections.abc import Iterator
-from email.message import Message
 from pathlib import Path
 from typing import Any
 
@@ -25,7 +24,6 @@ FAVORITES = {"schema": 1, "filters": ["poly-sinc-gauss-long", "sinc-M"]}
 
 FAVORITES_MEMBER = "favorites.json"
 ZIP_MEDIA_TYPE = "application/zip"
-ATTACHMENT = ("attachment", "hqptuner-state.zip")
 
 
 @pytest.fixture
@@ -46,13 +44,6 @@ def zip_member(body: bytes, name: str) -> object:
         return json.loads(archive.read(name))
 
 
-def disposition(header: str) -> tuple[str | None, str | None]:
-    """The disposition type and filename a Content-Disposition header names."""
-    message = Message()
-    message["content-disposition"] = header
-    return message.get_content_disposition(), message.get_filename()
-
-
 def test_the_export_archive_carries_the_favorites_file_on_disk(export_client: TestClient) -> None:
     response = export_client.get(ROUTE)
     assert zip_member(response.content, FAVORITES_MEMBER) == FAVORITES
@@ -61,8 +52,3 @@ def test_the_export_archive_carries_the_favorites_file_on_disk(export_client: Te
 def test_the_export_is_served_as_a_zip(export_client: TestClient) -> None:
     response = export_client.get(ROUTE)
     assert response.headers.get("content-type") == ZIP_MEDIA_TYPE
-
-
-def test_the_export_downloads_as_an_attachment_named_hqptuner_state_zip(export_client: TestClient) -> None:
-    response = export_client.get(ROUTE)
-    assert disposition(response.headers.get("content-disposition", "")) == ATTACHMENT

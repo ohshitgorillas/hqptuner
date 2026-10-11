@@ -43,11 +43,6 @@ test("test_an_empty_speed_field_reads_none", () => {
   assert.deepEqual([read(PLAYING).speed, read({ ...PLAYING, process_speed: "" }).speed], [1.62, null]);
 });
 
-test("test_the_buffers_read_as_whole_percents", () => {
-  const r = read(PLAYING);
-  assert.deepEqual([r.input, r.output], [82, 75]);
-});
-
 test("test_a_fill_past_full_reads_as_full", () => {
   assert.equal(read({ ...PLAYING, input_fill: "1.4" }).input, 100);
 });

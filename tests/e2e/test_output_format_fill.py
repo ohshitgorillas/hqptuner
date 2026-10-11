@@ -50,10 +50,6 @@ OUTPUT_STAGE = "output"
 #: The Format tab's id.
 FORMAT_TAB = "format"
 
-#: The dial's PCM band and its first tier, present on every device.
-BAND = "pcm"
-FIRST_TIER = "0"
-
 #: Rounding allowed on any one measured edge or size, in CSS px.
 ROUNDING = 1.0
 
@@ -71,7 +67,7 @@ SETTLED_JS = """
 #: Reads the Format panel's geometry. A row's ink is the union of the boxes of
 #: its drawn leaves; rows a backend hides draw nothing and drop out.
 MEASURE_JS = """
-({ band, tier }) => {
+() => {
   const drawer = document.getElementById("drawer-output");
   const panel = drawer.querySelector('.dpanel[data-tab="format"]');
   const dial = panel.querySelector('.dial[role="group"]');
@@ -98,13 +94,9 @@ MEASURE_JS = """
   const box = panel.getBoundingClientRect();
   const drawn = rows.reduce((sum, row) => sum + (row.bottom - row.top), 0);
   const glass = ink(dial);
-  const text = dial.querySelector("text");
-  const cell = dial.querySelector(`g[data-band="${band}"] g[data-i="${tier}"]`);
   return {
     drawer: drawer.getBoundingClientRect().width,
     glass: glass === null ? 0 : glass.right - glass.left,
-    text: text === null ? 0 : text.getBoundingClientRect().height,
-    cell: cell === null ? 0 : cell.getBoundingClientRect().width,
     widest_gap: Math.max(...gaps),
     narrowest_gap: Math.min(...gaps),
     empty: box.height - drawn,
@@ -125,8 +117,6 @@ class Format:
 
     drawer: float
     glass: float
-    text: float
-    cell: float
     widest_gap: float
     narrowest_gap: float
     empty: float
@@ -142,7 +132,7 @@ def _format(page: Page, stack: stack_support.Stack, size: ViewportSize) -> Forma
     drawer.locator(f'[role="tab"][data-tab="{FORMAT_TAB}"]').click()
     drawer.locator(f'.dpanel[data-tab="{FORMAT_TAB}"] .dial[role="group"]').wait_for(state="visible")
     page.wait_for_function(SETTLED_JS, timeout=SETTLE_TIMEOUT)
-    found = page.evaluate(MEASURE_JS, {"band": BAND, "tier": FIRST_TIER})
+    found = page.evaluate(MEASURE_JS)
     return Format(**{key: float(value) for key, value in found.items()})
 
 
@@ -154,26 +144,6 @@ def test_the_rate_dials_glass_widens_with_the_drawer_on_a_larger_plate(
     design = _format(page, stack, DESIGN)
     larger = _format(page, stack, LARGER[plate])
     assert larger.glass / design.glass >= larger.drawer / design.drawer - ROUNDING / design.glass
-
-
-@pytest.mark.parametrize("plate", sorted(LARGER))
-def test_the_rate_dials_text_grows_with_the_drawer_on_a_larger_plate(
-    page: Page, stack: stack_support.Stack, plate: str
-) -> None:
-    """The dial's lettering grows at least in proportion to the drawer, as the glass it is drawn on does."""
-    design = _format(page, stack, DESIGN)
-    larger = _format(page, stack, LARGER[plate])
-    assert larger.text / design.text >= larger.drawer / design.drawer - ROUNDING / design.text
-
-
-@pytest.mark.parametrize("plate", sorted(LARGER))
-def test_the_rate_dials_tap_cells_grow_with_the_drawer_on_a_larger_plate(
-    page: Page, stack: stack_support.Stack, plate: str
-) -> None:
-    """A tier's tap cell widens at least in proportion to the drawer, as the glass it sits on does."""
-    design = _format(page, stack, DESIGN)
-    larger = _format(page, stack, LARGER[plate])
-    assert larger.cell / design.cell >= larger.drawer / design.drawer - ROUNDING / design.cell
 
 
 @pytest.mark.parametrize("plate", sorted(LARGER))

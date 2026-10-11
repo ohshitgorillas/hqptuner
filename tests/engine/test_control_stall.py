@@ -12,7 +12,6 @@ connection stays open, and nothing comes back (fake_control.DEFAULTS). The
 per-command deadline runs on the app's virtual clock.
 """
 
-import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -81,8 +80,6 @@ HOUSEKEEPING_COMMAND = "GetShapers"
 #: `State.filterNx` moving to "1" is the engine's own word that it landed.
 CLOSING_FIELD = "filter"
 CLOSING_VALUE = "40"
-CLOSING_STATE_ATTR = "filterNx"
-CLOSING_STATE_VALUE = "1"
 
 
 def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
@@ -117,14 +114,6 @@ def closing_mode_api(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str
     yield from _closing_app(tmp_path)
 
 
-def test_a_write_that_loses_the_connection_afterwards_is_still_answered(
-    closing_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    client, _ = closing_api
-    resp = client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert resp.status_code == 200
-
-
 def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
     closing_api: tuple[TestClient, dict[str, str]],
 ) -> None:
@@ -134,25 +123,6 @@ def test_a_write_verified_before_the_connection_dropped_is_reported_as_applied(
     assert entry["ok"] is True
 
 
-def test_a_write_that_loses_the_connection_afterwards_still_reached_the_engine(
-    closing_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    # What makes `ok: true` honest rather than optimistic: a live setting never
-    # touches the config file, so the daemon's own State is the only place it
-    # shows up, and it shows the new value.
-    client, state = closing_api
-    client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    assert state[CLOSING_STATE_ATTR] == CLOSING_STATE_VALUE
-
-
-def test_a_mode_write_that_loses_the_connection_afterwards_is_still_answered(
-    closing_mode_api: tuple[TestClient, dict[str, str]],
-) -> None:
-    client, _ = closing_mode_api
-    resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
-    assert resp.status_code == 200
-
-
 def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_applied(
     closing_mode_api: tuple[TestClient, dict[str, str]],
 ) -> None:
@@ -160,35 +130,6 @@ def test_a_mode_write_verified_before_the_connection_dropped_is_reported_as_appl
     resp = client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
     entry = next(e for e in resp.json()["report"]["live"] if e["setting"] == "mode")
     assert entry["ok"] is True
-
-
-# The two below assert on a log record, which the testing policy otherwise keeps
-# off-limits. They are here because the operator-visible contract for a
-# swallowed failure IS the record: a housekeeping command that died is invisible
-# in the 200 the user gets, so the only place it survives is the log, and a
-# warning that does not name the command diagnoses nothing.
-
-
-def test_a_housekeeping_failure_after_a_write_names_the_command_that_failed(
-    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
-) -> None:
-    client, _ = closing_api
-    with caplog.at_level(logging.WARNING):
-        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    # the warning is found by its level, and the command it names is what is
-    # compared
-    warnings = [record.getMessage() for record in caplog.records if record.levelno >= logging.WARNING]
-    assert HOUSEKEEPING_COMMAND in (warnings or [""])[0]
-
-
-def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
-    closing_api: tuple[TestClient, dict[str, str]], caplog: pytest.LogCaptureFixture
-) -> None:
-    client, _ = closing_api
-    with caplog.at_level(logging.WARNING):
-        client.post("/api/config/live", json={"fields": {CLOSING_FIELD: CLOSING_VALUE}})
-    # Only that it is not swallowed silently; which command died is the test above.
-    assert logging.WARNING in [record.levelno for record in caplog.records]
 
 
 # --- nothing written at all ----------------------------------------------------

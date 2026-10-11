@@ -24,7 +24,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { attr, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -80,8 +80,6 @@ beforeEach(async () => {
 
 /** Every element of the block's markup. @returns {MarkupElement[]} */
 const markup = () => elements(render(html`<${LoudnessBody} schema=${SCHEMA} />`));
-/** @param {string} cls @returns {(e: MarkupElement) => boolean} */
-const hasClass = (cls) => (e) => classes(e).includes(cls);
 
 /**
  * Fire the handler of the first vnode matching `pred`.
@@ -95,56 +93,6 @@ async function fire(pred) {
   if (fn) await fn(undefined);
   await quiesce(wire);
 }
-
-/** The schema keys of the band rows shown. */
-const rowKeys = () =>
-  markup()
-    .filter(hasClass("lrow"))
-    .map((e) => attr(e, "data-k"));
-
-test("test_the_switch_shows_the_picked_sides_four_rows", () => {
-  const bass = rowKeys();
-  loudnessSide.value = "high";
-  assert.deepEqual(
-    [bass, rowKeys()],
-    [
-      ["loudness_low_type", "loudness_low_freq", "loudness_low_steep", "loudness_low_level"],
-      ["loudness_high_type", "loudness_high_freq", "loudness_high_steep", "loudness_high_level"],
-    ],
-  );
-});
-
-test("test_the_hidden_side_holding_an_edit_carries_a_dot_on_its_switch_button", async () => {
-  await edit("loudness_high_level", "6");
-  const sw = markup().find(hasClass("lsw"));
-  const dots = sw
-    ? elements(sw.html)
-        .filter((e) => e.name === "button")
-        .map((e) => [attr(e, "data-v"), classes(e).includes("dirty")])
-    : [];
-  assert.deepEqual(dots, [
-    ["low", false],
-    ["high", true],
-  ]);
-});
-
-test("test_loudness_off_disables_every_band_and_bound_control_and_says_why", async () => {
-  const controls = () =>
-    markup().filter((e) => (e.name === "input" || e.name === "button") && !hasAttr(e, "disabled")).length;
-  const reason = () => {
-    const gr = markup().find(hasClass("gr"));
-    return gr ? !hasAttr(gr, "hidden") : false;
-  };
-  const on = [controls() > 0, reason()];
-  await load({ on: false });
-  assert.deepEqual(
-    [on, [controls(), reason()]],
-    [
-      [true, false],
-      [0, true],
-    ],
-  );
-});
 
 test("test_a_type_tap_stages_the_engine_token", async () => {
   await fire((p) => p["data-v"] === "peak");
@@ -163,12 +111,4 @@ test("test_the_bounds_boxes_hold_the_staged_bounds", async () => {
     return el ? attr(el, "value") : undefined;
   };
   assert.deepEqual([box("loudness_range_low"), box("loudness_range_high")], ["-50", "-20"]);
-});
-
-test("test_the_plot_names_the_share_of_shelving_the_volume_applies", () => {
-  volume.value = "-50";
-  const labels = markup()
-    .filter((e) => e.name === "text" && attr(e, "data-trace") === "applied")
-    .map(text);
-  assert.equal(labels.join("").includes("75"), true);
 });

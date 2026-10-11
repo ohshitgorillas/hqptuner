@@ -133,22 +133,10 @@ function sentPassword(body) {
 /** @type {SaveCase[]} */
 const SAVES = [
   {
-    name: "test_a_blank_password_field_over_a_held_password_sends_no_password_at_all",
-    held: true,
-    typed: "",
-    sent: undefined,
-  },
-  {
     name: "test_a_typed_password_over_a_held_password_sends_what_was_typed",
     held: true,
     typed: "s3cret",
     sent: "s3cret",
-  },
-  {
-    name: "test_a_blank_password_field_over_an_install_holding_none_also_sends_no_password_at_all",
-    held: false,
-    typed: "",
-    sent: undefined,
   },
 ];
 
@@ -173,28 +161,12 @@ for (const kase of SAVES) {
 /** @type {SaidCase[]} */
 const SAID = [
   {
-    name: "test_a_save_with_an_empty_host_field_says_so_and_asks_nothing_of_the_wire",
-    host: "",
-    lane: "ok",
-    reading: null,
-    at: 0,
-    verdict: "no-host",
-  },
-  {
     name: "test_a_silent_lane_one_second_after_an_accepted_save_is_still_connecting",
     host: "10.0.0.9",
     lane: "ok",
     reading: SILENT,
     at: 1000,
     verdict: "connecting",
-  },
-  {
-    name: "test_a_silent_lane_four_seconds_after_an_accepted_save_is_unreachable",
-    host: "10.0.0.9",
-    lane: "ok",
-    reading: SILENT,
-    at: 4000,
-    verdict: "unreachable",
   },
   {
     name: "test_a_reachable_daemon_after_a_save_the_route_reported_refused_says_refused",

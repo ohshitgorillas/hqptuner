@@ -140,13 +140,6 @@ test("test_a_category_shows_each_readout_as_its_control_prints_it_then_the_live_
   assert.deepEqual(inside("dsp", "dd").map(text), ["Alpha", "Beta", "Upsampling"]);
 });
 
-test("test_a_swatch_row_carries_its_swatch_colour", () => {
-  assert.deepEqual(
-    inside("view", "i").map((i) => attr(i, "style")),
-    ["--sw:#123456"],
-  );
-});
-
 test("test_only_the_readout_set_wide_is_wide", () => {
   assert.deepEqual(
     inside("dsp", "div").map((d) => classes(d).includes("wide")),

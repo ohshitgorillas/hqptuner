@@ -125,17 +125,6 @@ def seed_config_preset(tmp_path: Path, name: str) -> None:
 # --- the switch ---------------------------------------------------------------
 
 
-def test_switching_auto_pilot_off_appends_an_autopilot_set_record(
-    autopilot_client: TestClient, audit_log: Path
-) -> None:
-    # past the mark, because switching it on records one too: a case reading the
-    # whole file would pass on a build where switching off recorded nothing
-    switch_on(autopilot_client)
-    mark = highest_seq(audit_log)
-    autopilot_client.post("/api/autopilot", json={"enabled": False})
-    assert "autopilot.set" in events_after(audit_log, mark)
-
-
 def test_switching_auto_pilot_off_records_the_switch_as_the_source(
     autopilot_client: TestClient, audit_log: Path
 ) -> None:

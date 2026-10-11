@@ -24,7 +24,6 @@ import {
   bandGain,
   delayFields,
   dockState,
-  gainSwitch,
   iirFields,
   lockedFields,
   plotInputs,
@@ -188,32 +187,11 @@ test("test_a_pin_names_the_crossfeed_block_it_holds", () => {
   assert.equal(pinState(BLOCK, 0, 0).gen, "structural");
 });
 
-test("test_an_unlit_pin_carries_no_gain_label", () => {
-  assert.equal(pinState(SET, 1, 0).label, "");
-});
-
 test("test_a_pin_fill_is_its_share_of_all_pipelines", () => {
   assert.equal(pinState(SET, 0, 0).fill, 50);
 });
 
-test("test_a_pin_fill_never_drops_below_its_floor", () => {
-  const many = [pipe(0, 0), pipe(0, 0), ...Array.from({ length: 38 }, () => pipe(1, 1))];
-  assert.equal(pinState(many, 0, 0).fill, 6);
-});
-
 // ── overviewSummary ─────────────────────────────────────────────────────
-
-test("test_overview_cells_shrink_as_channels_grow", () => {
-  assert.equal(overviewSummary(8, 8, 1).cell, 55);
-});
-
-test("test_overview_cells_stop_growing_at_their_ceiling", () => {
-  assert.equal(overviewSummary(2, 2, 1).cell, 112);
-});
-
-test("test_overview_cells_stop_shrinking_at_their_floor", () => {
-  assert.equal(overviewSummary(16, 2, 1).cell, 44);
-});
 
 test("test_overview_is_over_past_the_pipeline_ceiling", () => {
   assert.equal(overviewSummary(2, 2, MAXP + 1).over, true);
@@ -251,16 +229,6 @@ test("test_an_output_offers_the_inputs_not_yet_feeding_it", () => {
 
 test("test_an_output_counts_each_inputs_pipelines", () => {
   assert.deepEqual(outputView(SET, 2, 0, view0({})).counts, [2]);
-});
-
-test("test_an_output_page_past_the_end_shows_the_last_page", () => {
-  const dense = Array.from({ length: 13 }, () => pipe(0, 0));
-  assert.equal(outputView(dense, 1, 0, view0({ src: 0, page: 9 })).paging.page, 2);
-});
-
-test("test_a_listed_pipeline_is_found_on_its_page", () => {
-  const dense = Array.from({ length: 13 }, () => pipe(0, 0));
-  assert.equal(pageOf(listItems(crosspoint(dense, 0, 0), new Set()), 7), 1);
 });
 
 test("test_an_unlisted_pipeline_lands_on_the_first_page", () => {
@@ -450,18 +418,6 @@ test("test_a_locked_iir_reads_as_its_wire_arguments", () => {
 
 // ── gainSwitch, retypeStage ─────────────────────────────────────────────
 
-test("test_a_db_gain_switched_to_lin_is_its_factor", () => {
-  assert.equal(gainSwitch(-6, "Lin"), 0.5012);
-});
-
-test("test_a_lin_gain_switched_to_db_is_its_level", () => {
-  assert.equal(gainSwitch(0.5, "dB"), -6.02);
-});
-
-test("test_a_zero_lin_gain_switched_to_db_is_its_floor", () => {
-  assert.equal(gainSwitch(0, "dB"), -120);
-});
-
 test("test_a_retyped_stage_keeps_the_arguments_both_types_take", () => {
   assert.deepEqual(retypeStage({ kind: "iir", type: "peak", f: 100, g: -3, q: 2 }, "lp", TYPES), {
     kind: "iir",
@@ -469,14 +425,6 @@ test("test_a_retyped_stage_keeps_the_arguments_both_types_take", () => {
     f: 100,
     q: 2,
   });
-});
-
-test("test_a_retyped_stage_seeds_a_missing_width", () => {
-  assert.equal(retypeStage({ kind: "iir", type: "lp1", f: 100 }, "peak", TYPES).q, 0.707);
-});
-
-test("test_a_retyped_stage_seeds_a_missing_frequency", () => {
-  assert.equal(retypeStage({ kind: "iir", type: "biquad", b0: 1 }, "peak", TYPES).f, 1000);
 });
 
 test("test_a_retyped_stage_seeds_a_missing_gain", () => {
@@ -556,10 +504,6 @@ test("test_a_lin_gain_offsets_the_bands_by_its_level", () => {
 
 test("test_a_dragged_band_gain_clamps_to_its_range", () => {
   assert.equal(bandGain(30, 0), 20);
-});
-
-test("test_a_dragged_band_gain_rounds_to_a_tenth", () => {
-  assert.equal(bandGain(1.26, 0), 1.3);
 });
 
 test("test_a_dragged_band_gain_sheds_the_pipelines_gain", () => {

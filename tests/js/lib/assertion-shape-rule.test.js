@@ -117,23 +117,3 @@ test("a root conjunction reports its operand count and a nested || is not walked
     ],
   );
 });
-
-test("an inequality against null, test.skip and test.todo are reported but an equality is not", () => {
-  const { messages } = lint([
-    ...PREAMBLE,
-    'test("one", () => {',
-    "  assert.ok(x !== null);",
-    "});",
-    'test.skip("two", () => {',
-    "  assert.ok(1);",
-    "});",
-    'test.todo("three");',
-    'test("four", () => {',
-    "  assert.equal(x, 3);",
-    "});",
-  ]);
-  assert.deepEqual(
-    messages.map((m) => m.messageId),
-    ["existence", "skip", "skip"],
-  );
-});

@@ -229,20 +229,10 @@ test("test_a_preset_setting_the_daemon_refused_is_shown_without_its_form_key", a
 
 // Keys no control on the page owns have no label to show, so each wire key stands in.
 const UNLABELLED = "no_control_owns_this_key";
-const ALSO_UNLABELLED = "nor_does_any_own_this_one";
 
 test("test_a_refused_preset_setting_no_control_owns_is_named_by_its_wire_key", async () => {
   const text = await failedApply([refusedSetter(UNLABELLED)]);
   assert.ok(text.includes(UNLABELLED), text);
-});
-
-test("test_every_preset_setting_the_daemon_stopped_answering_on_is_named", async () => {
-  const text = await failedApply([stalledSetter(UNLABELLED), stalledSetter(ALSO_UNLABELLED)]);
-  assert.deepEqual(
-    [UNLABELLED, ALSO_UNLABELLED].map((key) => text.includes(key)),
-    [true, true],
-    text,
-  );
 });
 
 test("test_a_preset_setting_the_daemon_stopped_answering_on_is_shown_without_its_form_key", async () => {

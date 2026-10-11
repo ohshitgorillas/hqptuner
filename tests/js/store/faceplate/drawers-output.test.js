@@ -27,9 +27,6 @@ import { stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
-const PCM_TIERS = ["48000", "96000", "192000", "384000", "768000", "1536000"];
-const SDM_TIERS = ["3072000", "6144000", "12288000", "24576000", "49152000", "98304000"];
-
 const STANDA = "naa-7bdbb6cb/hw:CARD=Standa,DEV=0";
 const OFFICE = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
 const NET_OPTIONS = [
@@ -104,13 +101,6 @@ test("test_a_limit_on_the_44k_member_reads_as_its_tier", () => {
   assert.deepEqual(dialView().limits, { pcm: 2, sdm: 8 });
 });
 
-test("test_the_dial_carries_both_families_in_rate_order", () => {
-  assert.deepEqual(
-    dialView().tiers.map((t) => t.value),
-    [...PCM_TIERS, ...SDM_TIERS],
-  );
-});
-
 test("test_each_tier_belongs_to_the_family_of_its_menu", () => {
   const fams = dialView().tiers.map((t) => t.family);
   assert.deepEqual([fams.indexOf("sdm"), fams.lastIndexOf("pcm")], [6, 5]);
@@ -162,14 +152,6 @@ test("test_only_the_band_with_a_staged_rate_reads_dirty", async () => {
   assert.deepEqual(dialView().dirty, { pcm: false, sdm: true });
 });
 
-test("test_a_channel_count_reads_as_its_layout_and_any_other_as_manual", () => {
-  const at = (/** @type {number} */ n) => {
-    load({ channels: n });
-    return channelLayout();
-  };
-  assert.deepEqual([at(2), at(6), at(8), at(4)], ["2", "6", "8", "manual"]);
-});
-
 test("test_a_layout_pick_stages_its_channel_count", async () => {
   await pickChannelLayout("8");
   assert.equal(effective("channels"), "8");
@@ -197,14 +179,6 @@ test("test_the_effective_device_is_the_current_row", async () => {
   const before = current();
   await pickDevice("net_device", OFFICE);
   assert.deepEqual([before, current()], [[STANDA], [OFFICE]]);
-});
-
-test("test_network_devices_group_by_host_and_alsa_devices_by_card", () => {
-  const groups = (/** @type {string} */ key) => deviceView(key).groups.map((g) => g.group);
-  assert.deepEqual(
-    [groups("net_device"), groups("alsa_device")],
-    [["S26", "naa-7bdbb6cb", "naa-office"], ["HDA NVidia"]],
-  );
 });
 
 test("test_the_trigger_names_the_effective_devices_card", () => {

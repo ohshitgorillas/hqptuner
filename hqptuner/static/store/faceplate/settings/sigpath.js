@@ -150,7 +150,7 @@ export const PATH_NAME = {
 };
 
 // Bypassed on the path: the matrix gate takes its parts and DAC correction with it (DAC correction needs the matrix).
-export const MATRIX_PARTS = ["pl", "xf", "ld", "dc"];
+const MATRIX_PARTS = ["pl", "xf", "ld", "dc"];
 
 /**
  * The map for what runs: the path's readout, what it lights, the rail stages engaged and the lamps they decide.

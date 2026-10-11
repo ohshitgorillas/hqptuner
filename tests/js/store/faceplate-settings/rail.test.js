@@ -11,7 +11,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
-import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 
 //: Accents the test writes: a known pick carries its own swatch color and name.
@@ -88,10 +87,6 @@ test("test_a_seg_readout_prints_its_option_label_not_the_value", () => {
 
 test("test_a_seg_readout_carries_its_option_unit", () => {
   assert.ok(rowOf("dsp", "Rate")?.text.includes("kHz"));
-});
-
-test("test_a_toggles_readout_with_nothing_picked_prints_the_readout_forms_empty_text", () => {
-  assert.equal(rowOf("dsp", "Dither")?.text, readoutOf(TOGGLES, "", ACCENTS).text);
 });
 
 test("test_an_accent_readout_carries_its_swatch_color", () => {

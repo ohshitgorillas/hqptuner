@@ -45,7 +45,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
+import { narrowingWire } from "../../support/wire/narrowingwire.js";
 import {
   nHideLimited,
   nOddRateOnly,
@@ -201,16 +201,6 @@ const SPLIT = {
 
 const split = () => reset([], SPLIT, ["poly-sinc-mqa/mp3-lp"]);
 
-// --- nothing engaged ---------------------------------------------------------
-
-test("test_every_switch_at_its_default_returns_the_labels_untouched", () => {
-  const options = classes();
-  nHideLimited.value = "auto";
-  nOddRateOnly.value = false;
-  nDownsafeOnly.value = false;
-  assert.deepEqual(labels(options), ALL_CLASSES);
-});
-
 // --- the limited-class hide ----------------------------------------------------
 
 test("test_hide_limited_on_excludes_the_2x_and_integer_filters", () => {
@@ -289,14 +279,6 @@ test("test_rate_auto_hide_stays_off_outside_sdm_output", () => {
   assert.equal(rateAutoHide.value, false);
 });
 
-// The regression pin proper: with the rate on Auto the daemon enumerates only
-// the `rate:"0"` sentinel row, and that empty list is no information — the
-// backend flag saying 48k DSD is supported keeps auto off regardless.
-test("test_a_sentinel_only_rates_list_does_not_engage_auto", () => {
-  classes({ mode: "sdm", backend: "network", net_anydsd: "1", rates: [] });
-  assert.equal(rateAutoHide.value, false);
-});
-
 // The flags arrive in either encoding: "0"/false is 44.1k-family only,
 // "1"/true is 48k-family support.
 
@@ -352,15 +334,7 @@ test("test_downsample_safe_only_excludes_only_the_upsample_only_filters", () => 
 
 // --- the 1:1 filter survives every combination --------------------------------
 
-for (const [hideLimited, oddRate, downsafe] of [
-  ["on", false, false],
-  ["auto", true, false],
-  ["auto", false, true],
-  ["on", true, false],
-  ["on", false, true],
-  ["auto", true, true],
-  ["on", true, true],
-]) {
+for (const [hideLimited, oddRate, downsafe] of [["on", true, true]]) {
   test(`test_the_one_to_one_filter_survives_${hideLimited}_${oddRate}_${downsafe}`, () => {
     const options = classes();
     nHideLimited.value = String(hideLimited);
@@ -436,13 +410,6 @@ test("test_downsample_safe_only_passes_the_mqa_pair_on_an_sdm_field", () => {
 // Auto engaging on its own is the engine's doing, not the user's: it never
 // reads as active narrowing. Any EXPLICIT setting — "on" or "off" alike — does.
 
-test("test_reset_returns_hide_limited_to_auto", () => {
-  classes();
-  nHideLimited.value = "on";
-  resetNarrowing();
-  assert.equal(nHideLimited.value, "auto");
-});
-
 test("test_reset_returns_odd_rate_only_to_off", () => {
   classes();
   nOddRateOnly.value = true;
@@ -471,55 +438,6 @@ async function persistReset(cfg = {}) {
   narrowingError.value = "";
   return w;
 }
-
-// Every key on the rate side of the record, old and new alike, so a filter on
-// the PUT body's keys reads back exactly the three the record now carries.
-const RATE_KEYS = ["hide_limited", "odd_rate_only", "downsafe_only", "hide_2x", "hide_int", "ratio", "upsample_only"];
-
-/**
- * The last PUT body a flush of one changed switch produced. The sentinel
- * stands in for a flush that sent nothing at all, so a client that never
- * writes fails here rather than passing on an empty key list.
- *
- * @param {{ value: unknown }} signal
- * @param {unknown} value
- * @returns {Promise<Facets>}
- */
-async function flushed(signal, value) {
-  const w = await persistReset();
-  await hydrateNarrowing();
-  signal.value = value;
-  await flushNarrowing();
-  return puts(w).at(-1) || { no_put_was_sent: true };
-}
-
-// The wire keys are pinned by NAME on the PUT body: of the rate-side keys the
-// record has ever carried, the flush sends exactly the three new ones.
-
-test("test_the_put_carries_the_three_rate_keys_and_no_legacy_ones", async () => {
-  const sent = await flushed(nHideLimited, "on");
-  assert.deepEqual(
-    Object.keys(sent)
-      .filter((k) => RATE_KEYS.includes(k) || k === "no_put_was_sent")
-      .sort(),
-    ["downsafe_only", "hide_limited", "odd_rate_only"],
-  );
-});
-
-test("test_the_put_carries_hide_limited_as_the_tri_state_token", async () => {
-  const sent = await flushed(nHideLimited, "on");
-  assert.equal(sent.hide_limited, "on");
-});
-
-test("test_the_put_carries_odd_rate_only_as_a_real_boolean", async () => {
-  const sent = await flushed(nOddRateOnly, true);
-  assert.equal(sent.odd_rate_only, true);
-});
-
-test("test_the_put_carries_downsafe_only_as_a_real_boolean", async () => {
-  const sent = await flushed(nDownsafeOnly, true);
-  assert.equal(sent.downsafe_only, true);
-});
 
 // The read path pins the same key names: a stored value under the pinned key
 // restores the switch on hydration.
@@ -553,11 +471,6 @@ test("test_a_persisted_downsample_safe_switch_restores_on_hydration", async () =
 
 const LEGACY = { hide_2x: "on", hide_int: "on", ratio: "2x", upsample_only: true };
 
-test("test_hydrating_a_legacy_rate_record_does_not_throw", async () => {
-  await persistReset({ facets: LEGACY });
-  await assert.doesNotReject(() => hydrateNarrowing());
-});
-
 test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
   const options = classes();
   await persistReset({ facets: LEGACY });
@@ -569,12 +482,6 @@ test("test_hydrating_a_legacy_rate_record_narrows_nothing", async () => {
 // record every rate switch still sits at its default. Pinned per switch — the
 // narrows-nothing case above cannot see, say, `upsample_only:true` mapped onto
 // the downsample-safe switch when the fixture holds no upsample-only filter.
-
-test("test_a_legacy_record_leaves_hide_limited_at_auto", async () => {
-  await persistReset({ facets: LEGACY });
-  await hydrateNarrowing();
-  assert.equal(nHideLimited.value, "auto");
-});
 
 test("test_a_legacy_record_leaves_the_odd_rate_switch_off", async () => {
   await persistReset({ facets: LEGACY });

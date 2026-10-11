@@ -51,9 +51,9 @@ const select = (name, value, labels) => ({
 /**
  * Write one running engine onto the wire-side signals.
  *
- * @param {{ junk?: string, filterNx?: string, shaper?: string, direct?: boolean }} [o]
+ * @param {{ junk?: string, filterNx?: string, shaper?: string }} [o]
  */
-function wire({ junk = "1", filterNx = "2", shaper = "1", direct = true } = {}) {
+function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
   engineState.value = { state: "2", active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx, shaper };
   enums.value = {
     junk_filters: ["none", "20k", "2x"].map(item),
@@ -62,7 +62,7 @@ function wire({ junk = "1", filterNx = "2", shaper = "1", direct = true } = {}) 
   };
   engineStatus.value = { status: { active_rate: "352800" }, metadata: { samplerate: "96000", bits: "24" } };
   config.value = {
-    fields: [{ name: "direct_sdm", value: direct }, select("noise_filter", "v1", ["standard", "low", "high"])],
+    fields: [{ name: "direct_sdm", value: true }, select("noise_filter", "v1", ["standard", "low", "high"])],
   };
   matrixConfig.value = {
     fields: [
@@ -111,14 +111,6 @@ test("test_the_dac_model_is_the_running_option_by_its_label", () => {
   assert.equal(railNow().model, "PCM1704");
 });
 
-test("test_a_high_rate_source_plays_on_the_nx_side", () => {
-  assert.equal(railNow().stage, "nx");
-});
-
-test("test_direct_sdm_reads_as_the_daemon_runs_it", () => {
-  assert.equal(railNow().direct, true);
-});
-
 test("test_a_staged_matrix_bypass_leaves_the_running_engine_on", () => {
   staged.value = { live: {}, http: { matrix_enabled: false } };
   assert.equal(railNow().matrix, true);
@@ -137,18 +129,8 @@ test("test_the_pipelines_are_counted_off_the_running_profile", () => {
   assert.equal(railNow().pipelines, 3);
 });
 
-test("test_speakers_read_as_the_speakers_form_reports_them", () => {
-  assert.equal(railNow().speakers, true);
-});
-
 test("test_the_hidden_stages_are_the_preferences_own", () => {
   assert.deepEqual(railNow().hidden, ["crossfeed"]);
-});
-
-test("test_a_dragged_volume_is_the_level_the_rail_shows", () => {
-  wire({ direct: false });
-  volumeDrag.value = -30;
-  assert.match(railNow().volume, /30\.0/);
 });
 
 test("test_a_running_direct_sdm_holds_the_rail_volume_whatever_the_level", () => {

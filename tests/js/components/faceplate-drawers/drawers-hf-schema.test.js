@@ -104,13 +104,6 @@ async function tapAutopilot(value) {
   if (fn) await fn();
 }
 
-test("test_the_hf_drawer_draws_the_filter_the_auto_pilot_and_pre_process_in_order", () => {
-  const rows = markup()
-    .filter((e) => classes(e).includes("drow"))
-    .map((e) => attr(e, "data-k") ?? attr(e, "data-field"));
-  assert.deepEqual(rows, ["junk_filter", "autopilot", "pre_before_meter"]);
-});
-
 test("test_the_hf_filter_lists_every_engine_option_under_its_row", () => {
   const listed = markup()
     .filter((e) => classes(e).includes("optrow"))

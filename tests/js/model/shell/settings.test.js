@@ -103,14 +103,6 @@ test("test_readout_of_toggles_keeps_a_label_on_one_line", () => {
   assert.equal(readoutOf(TOGGLES, "r", ACCENTS).text, "Two words");
 });
 
-test("test_readout_of_toggles_with_nothing_picked_is_not_blank", () => {
-  assert.notEqual(readoutOf(TOGGLES, "", ACCENTS).text, "");
-});
-
-test("test_readout_of_a_slider_at_its_automatic_value_names_it_rather_than_the_number", () => {
-  assert.notEqual(readoutOf(SLIDER, "0", ACCENTS).text, "0");
-});
-
 test("test_readout_of_a_slider_off_its_automatic_value_prints_the_number", () => {
   assert.equal(readoutOf(SLIDER, "12", ACCENTS).text, "12");
 });

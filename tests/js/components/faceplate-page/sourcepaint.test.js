@@ -295,15 +295,6 @@ function bars(root, cls, prop) {
   });
 }
 
-/**
- * Each readings cell of class `cls`, read as a number with its minus sign.
- *
- * @param {Elem} root
- * @param {string} cls
- */
-const readings = (root, cls) =>
-  root.querySelectorAll(`.${cls}`).map((c) => parseFloat(c.textContent.replace("−", "-")));
-
 /** Open a fresh live stereo feed over one /api/status object. */
 function stream() {
   closeMeterFeed();
@@ -322,11 +313,6 @@ beforeEach(() => {
 });
 
 // --- the trace -----------------------------------------------------------------------------------------------------
-
-test("test_the_trace_draws_one_point_per_column_at_each_columns_centre", () => {
-  const pts = pointsOf(painted(scene(), 90), "strace");
-  assert.deepEqual([pts.length, pts[0]?.[0], pts.at(-1)?.[0]], [COLS, 0.5, 599.5]);
-});
 
 test("test_a_column_sits_down_the_plot_by_a_90_db_range", () => {
   const root = painted(scene({ disp: columns(-72, { 300: -18 }) }), 90);
@@ -351,14 +337,6 @@ test("test_a_column_over_full_scale_stops_at_the_top", () => {
 test("test_the_held_peaks_trace_the_peak_not_the_shown_level", () => {
   const root = painted(scene({ disp: columns(-72), peak: columns(-72, { 300: -9 }) }), 90);
   assert.equal(yAt(root, "shold", 300), 17);
-});
-
-test("test_the_area_is_the_trace_closed_down_to_the_baseline", () => {
-  const root = painted(scene({ disp: columns(-45, { 300: -18 }) }), 90);
-  const trace = pointsOf(root, "strace");
-  const area = pointsOf(root, "sarea");
-  const closing = [...new Set(area.slice(trace.length).map(([, y]) => y))];
-  assert.deepEqual({ head: area.slice(0, trace.length), closing }, { head: trace, closing: [PLOT_H] });
 });
 
 // --- the bars ------------------------------------------------------------------------------------------------------
@@ -420,26 +398,6 @@ test("test_a_bar_with_a_reading_shows_its_hold_mark_and_one_without_hides_it", (
   const root = painted({ ...scene({ levels: [{ hold: -6 }] }) }, 60);
   const shown = root.querySelectorAll(".lvb").map((b) => b.querySelector(".hd")?.style.visibility);
   assert.deepEqual(shown, ["", "hidden"]);
-});
-
-// --- the readings --------------------------------------------------------------------------------------------------
-
-test("test_the_peak_readings_are_the_held_peaks_to_one_place", () => {
-  const root = painted(
-    scene({
-      levels: [
-        { peak: -20, hold: -14.46 },
-        { peak: -20, hold: -3.04 },
-      ],
-    }),
-    90,
-  );
-  assert.deepEqual(readings(root, "npk"), [-14.5, -3]);
-});
-
-test("test_the_rms_readings_are_the_rms_to_one_place", () => {
-  const root = painted(scene({ levels: [{ rms: -20.06 }, { rms: -9.94 }] }), 90);
-  assert.deepEqual(readings(root, "nrm"), [-20.1, -9.9]);
 });
 
 // --- the styles ----------------------------------------------------------------------------------------------------

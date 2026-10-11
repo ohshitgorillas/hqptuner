@@ -61,11 +61,6 @@ const HITS = [
   { name: "alpha three", src: "c" },
 ];
 
-test("test_bands_to_stages_carries_frequency_gain_and_q", () => {
-  const st = bandsToStages(BANDS)[1];
-  assert.deepEqual([st.f, st.g, st.q], [3000, -2.1, 1.6]);
-});
-
 test("test_bands_to_stages_keeps_a_band_type", () => {
   assert.equal(bandsToStages(BANDS)[0].type, "lshelf");
 });

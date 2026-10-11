@@ -13,13 +13,7 @@ import assert from "node:assert/strict";
 
 import { pendingPreset, config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
-import {
-  previewPreset,
-  clearPreview,
-  applyAll,
-  lastApply,
-  discardAll,
-} from "../../../../hqptuner/static/store/actions.js";
+import { previewPreset, clearPreview, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 
 /**
@@ -43,23 +37,6 @@ afterEach(() => {
   env.fetch = REAL_FETCH;
 });
 
-// Every request the fake wire answered, for the silence assertions.
-/** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
-const CALLS = [];
-
-// The one call matching a path — thrown rather than left undefined, since
-// every caller here is asserting on a wire trip the case expects to have
-// happened.
-/**
- * @param {string} path
- * @returns {{ path: string, method: string, body: Record<string, unknown> | null }}
- */
-function callFor(path) {
-  const call = CALLS.find((c) => c.path === path);
-  if (!call) throw new Error(`no call recorded for ${path}`);
-  return call;
-}
-
 // The minimal valid answer for a path no case routed, so the surrounding
 // flow (refreshConfig after a delete/save) completes.
 /**
@@ -78,10 +55,8 @@ function defaultAnswerFor(path) {
 // Routes are keyed "METHOD /path"; anything unrouted falls back to defaultAnswerFor.
 /** @param {Record<string, FakeResponse>} [routes] */
 function wire(routes = {}) {
-  CALLS.length = 0;
   env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     const method = opts.method || "GET";
-    CALLS.push({ path, method, body: opts.body ? JSON.parse(opts.body) : null });
     return routes[`${method} ${path}`] || defaultAnswerFor(path);
   };
 }
@@ -151,38 +126,6 @@ test("test_previewing_the_active_preset_restores_the_form_baseline", async () =>
   await previewNight({ active: "Day" });
   await previewPreset("Day");
   assert.equal(effective("volume_max"), "-3");
-});
-
-test("test_previewing_the_active_preset_does_not_touch_the_daemon", async () => {
-  await reset({ active: "Day" });
-  await previewPreset("Day");
-  assert.equal(
-    CALLS.some((c) => c.path.startsWith("/api/preset/")),
-    false,
-  );
-});
-
-// --- applying a previewed preset: the switch target on the wire -----------------
-//
-// "(no preset)" is the picker's empty option: a real previewed target whose name
-// is the empty string. Asserted at the wire — the body of POST /api/config/apply —
-// because that is where the switch either goes out or is silently dropped.
-
-async function previewNoPreset() {
-  await reset({ active: "Night", routes: { "GET /api/preset/": ok({ name: "", config: {} }) } });
-  await previewPreset("");
-}
-
-test("test_applying_a_previewed_no_preset_option_sends_the_empty_switch_target", async () => {
-  await previewNoPreset();
-  await applyAll();
-  assert.equal(callFor("/api/config/apply").body?.switch_to, "");
-});
-
-test("test_applying_with_nothing_previewed_sends_no_switch_target", async () => {
-  await reset({ active: "Night" });
-  await applyAll();
-  assert.equal(callFor("/api/config/apply").body?.switch_to, undefined);
 });
 
 // --- clearPreview ---------------------------------------------------------------

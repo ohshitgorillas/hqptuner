@@ -25,9 +25,9 @@ import { responsePlot } from "../page/MatrixProfile.js";
 /** @typedef {{ currentTarget: HTMLInputElement }} InputEv */
 
 /** The correction files row's label. */
-export const FILES_LABEL = "Correction files";
+const FILES_LABEL = "Correction files";
 /** The response plot's accessible name. */
-export const PLOT_ARIA = "EQ response";
+const PLOT_ARIA = "EQ response";
 
 /** How many hits the search lists. */
 const HITS = 3;

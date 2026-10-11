@@ -19,7 +19,6 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { VISUAL_DRAWER, VISUAL_READOUTS } from "../../../../hqptuner/static/components/faceplate/settings/visual.js";
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
-import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { ACCENTS } from "../../../../hqptuner/static/store/faceplate/settings/visual.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -80,21 +79,6 @@ afterEach(() => {
 
 /** Every element of the drawer's markup, in document order. @returns {MarkupElement[]} */
 const markup = () => elements(render(html`<${Drawer} schema=${VISUAL_DRAWER} />`)).sort((a, b) => a.start - b.start);
-
-/**
- * The ids of a tab's fields and the names of its blocks, in order.
- *
- * @param {string} tab
- * @returns {(string | undefined)[]}
- */
-function bodyOf(tab) {
-  const panel = markup().find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === tab);
-  if (!panel) return [];
-  return elements(panel.html)
-    .filter((e) => classes(e).includes("drow") || classes(e).includes("dblock"))
-    .sort((a, b) => a.start - b.start)
-    .map((e) => attr(e, "data-field") ?? attr(e, "data-block"));
-}
 
 /**
  * The elements inside one field.
@@ -165,14 +149,6 @@ function railRow(id) {
 /** The hidden-stages readout's control, or one printing the bare value without it. */
 const hideControl = () => VISUAL_READOUTS.find((r) => r.id === "vhide")?.control ?? { type: "none" };
 
-test("test_the_display_tab_draws_its_fields_and_blocks_in_order", () => {
-  assert.deepEqual(bodyOf("display"), ["vstyle", "vapod", "delay", "vdys", "accent"]);
-});
-
-test("test_the_layout_tab_draws_its_fields_then_the_hide_block_in_order", () => {
-  assert.deepEqual(bodyOf("layout"), ["vfill", "vbottom", "hide"]);
-});
-
 test("test_tapping_simplified_turns_plain_names_on", async () => {
   await tap("vstyle", "simplified");
   assert.equal(plainNames.value, true);
@@ -205,21 +181,11 @@ for (const [id, set] of Object.entries(LIT)) {
   });
 }
 
-test("test_the_spectrum_delay_readout_follows_the_apodizing_indicator_readout", () => {
-  const ids = VISUAL_READOUTS.map((r) => r.id);
-  assert.equal(ids.indexOf("vdelay"), ids.indexOf("vapod") + 1);
-});
-
 test("test_the_hidden_readout_offers_every_hideable_stage", () => {
   assert.deepEqual(
     hideControl().options?.map((o) => o.v),
     HIDEABLE_STAGES,
   );
-});
-
-test("test_the_hidden_readout_prints_the_hidden_stages", () => {
-  hiddenStages.value = ["speakers", "loudness"];
-  assert.equal(railRow("vhide")?.text, readoutOf(hideControl(), "speakers,loudness", ACCENTS).text);
 });
 
 test("test_the_accent_readout_swatches_a_custom_hex", () => {

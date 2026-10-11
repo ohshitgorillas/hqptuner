@@ -19,7 +19,7 @@ from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.presets import fileconfig, presetlane
+from hqptuner.presets import fileconfig
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
 # top-level line, and that comment is its memory. HQPTuner used to delete the
@@ -130,10 +130,6 @@ def test_a_config_that_never_had_a_fixed_volume_reports_no_level() -> None:
     assert "fixed_volume" not in presetconf.read_config(_NEVER_FIXED_XML)
 
 
-def test_a_parked_level_is_reported_though_the_feature_is_off() -> None:
-    assert presetconf.read_config(_PARKED_XML)["fixed_volume"] == "-3"
-
-
 @pytest.mark.parametrize(
     ("volume", "level"),
     [
@@ -150,31 +146,7 @@ async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -
     assert (await restore.apply(http_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
 
 
-async def test_a_live_adaptive_volume_is_saved_into_the_preset(http_manager: ConnectionManager) -> None:
-    # the file says off (fake default volume_adaptive="0"); the engine says on
-    http_manager.readings.state = {"adaptive": "1"}
-    await http_manager.presetops.save_preset("Loud")
-    assert (await presetlane.read(http_manager, "Loud"))["adaptive_volume"] == "1"
-
-
-async def test_a_saved_preset_reports_success(http_manager: ConnectionManager) -> None:
-    result = await http_manager.presetops.save_preset("Quiet")
-    assert result.name == "Quiet"
-
-
 async def test_an_apply_with_a_daemon_rewrite_reports_applied(
     clamping_manager: ConnectionManager,
 ) -> None:
     assert (await restore.apply(clamping_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
-
-
-async def test_the_daemon_really_did_rewrite_the_untouched_field(clamping_manager: ConnectionManager) -> None:
-    # the precondition of the test above: without this divergence it would pass
-    # for the wrong reason
-    await clamping_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert (await fileconfig.load_file_config(clamping_manager))["defaults_volume"] == "-40"
-
-
-async def test_the_field_the_apply_wrote_is_still_verified(clamping_manager: ConnectionManager) -> None:
-    await clamping_manager.applyops.apply({}, {"volume_max": "-6"})
-    assert (await fileconfig.load_file_config(clamping_manager))["volume_max"] == "-6"

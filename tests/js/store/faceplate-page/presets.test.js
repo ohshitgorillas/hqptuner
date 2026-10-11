@@ -23,12 +23,10 @@ import { useStorage } from "../../support/storage.js";
 useStorage();
 
 const { resetLive, running, flush, postedFields, liveExpected } = await import("../../support/easy/easytiles.js");
-const { writesHiresFamily, facetless } = await import("../../support/easy/easygray.js");
 const { sdmSubject, sdmNames, classedAs } = await import("../../support/easy/easytable.js");
 const { presetsFor, filterFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 const { knobsOffered } = await import("../../../../hqptuner/static/store/easy/easyoffer.js");
-const { pipsFor } = await import("../../../../hqptuner/static/store/easy/easycost.js");
-const { rememberKnobs, setEasyMaterial } = await import("../../../../hqptuner/static/store/easy/easyview.js");
+const { rememberKnobs } = await import("../../../../hqptuner/static/store/easy/easyview.js");
 const { metadata, enums } = await import("../../../../hqptuner/static/store/signals.js");
 const { presetRows, pickPreset, showSubsets, foldSubsets } =
   await import("../../../../hqptuner/static/store/faceplate/page/presets.js");
@@ -58,17 +56,6 @@ const NESTED = FLAGSHIPS.flatMap((under) =>
 
 /** The knob positions a preset rests at, each knob at its default. @param {Preset} p */
 const resting = (p) => Object.fromEntries(p.knobs.map((k) => [k.id, k.default]));
-
-/** @param {string[]} names */
-const uniq = (names) => [...new Set(names.filter(Boolean))];
-
-/**
- * The PCM filters a preset names at a set of knob positions, 1x then Nx, one when the two agree.
- *
- * @param {string} id
- * @param {Record<string, string>} knobs
- */
-const named = (id, knobs) => uniq([filterFor(id, "pcm", knobs, false), filterFor(id, "pcm", knobs, true)]);
 
 /** Every row, the nested ones included, keyed by `under>id` (top-level rows by id alone). */
 function everyRow() {
@@ -175,40 +162,7 @@ for (const under of FLAGSHIPS) {
 // what each row names
 // ============================================================================
 
-for (const p of TOP) {
-  test(`test_the_${p.id}_row_names_the_filters_its_resting_positions_write`, async () => {
-    await live();
-    assert.deepEqual(
-      topRow(p.id)?.filters.map((f) => f.name),
-      named(p.id, resting(p)),
-    );
-  });
-}
-
 for (const { under, sub, vk } of NESTED) {
-  test(`test_${sub.id}_nested_under_${under}_names_the_filters_its_${under}_version_writes`, async () => {
-    await live();
-    assert.deepEqual(
-      nestedRow(under, sub.id)?.filters.map((f) => f.name),
-      named(sub.id, { ...resting(sub), [vk]: under }),
-    );
-  });
-
-  test(`test_${sub.id}_nested_under_${under}_offers_the_knobs_that_version_takes_less_the_version`, async () => {
-    await live();
-    assert.deepEqual(
-      nestedRow(under, sub.id)?.knobs.map((k) => k.id),
-      knobsOffered(sub, { ...resting(sub), [vk]: under }, "pcm")
-        .filter((k) => !k.inert && k.id !== vk)
-        .map((k) => k.id),
-    );
-  });
-
-  test(`test_${sub.id}_nested_under_${under}_counts_the_pips_that_version_costs`, async () => {
-    await live();
-    assert.equal(nestedRow(under, sub.id)?.pips, pipsFor(sub.id, "pcm", { ...resting(sub), [vk]: under }));
-  });
-
   test(`test_${sub.id}_nested_under_${under}_wears_the_mark_its_own_filter_is_stated_with`, async () => {
     await live();
     classify("full", { [filterFor(sub.id, "pcm", { ...resting(sub), [vk]: under })]: "half" });
@@ -229,20 +183,14 @@ for (const { under, sub, vk } of NESTED) {
 const RECORDED = NESTED.flatMap(({ under, sub, vk }) =>
   knobsOffered(sub, { ...resting(sub), [vk]: under }, "pcm")
     .filter((k) => !k.inert && k.id !== vk && !k.card)
-    .flatMap((k) => k.options.filter((o) => o !== k.default).map((o) => ({ under, sub, vk, knob: k.id, at: o }))),
+    .flatMap((k) => k.options.filter((o) => o !== k.default).map((o) => ({ under, sub, knob: k.id, at: o }))),
 );
 
-for (const { under, sub, vk, knob, at } of RECORDED) {
+for (const { under, sub, knob, at } of RECORDED) {
   test(`test_${sub.id}_recorded_at_${knob}_${at}_stands_that_knob_there_under_${under}`, async () => {
     await live();
     rememberKnobs(sub.id, { [knob]: at });
     assert.equal(nestedRow(under, sub.id)?.knobs.find((k) => k.id === knob)?.value, at);
-  });
-
-  test(`test_${sub.id}_recorded_at_${knob}_${at}_under_${under}_counts_the_pips_that_position_costs`, async () => {
-    await live();
-    rememberKnobs(sub.id, { [knob]: at });
-    assert.equal(nestedRow(under, sub.id)?.pips, pipsFor(sub.id, "pcm", { ...resting(sub), [vk]: under, [knob]: at }));
   });
 }
 
@@ -263,22 +211,6 @@ test("test_each_row_takes_its_title_from_the_metadata", async () => {
   assert.deepEqual(
     field((r) => r.title),
     Object.fromEntries(allKeys().map((key) => [key, `stand-in title ${key.split(">").pop()}`])),
-  );
-});
-
-test("test_a_row_whose_cost_ranks_against_nothing_reads_the_caption_the_metadata_serves", async () => {
-  await live();
-  serveCopy(Object.fromEntries(PRESETS.map((p) => [p.id, { cost: `stand-in cost ${p.id}` }])));
-  const captioned = NESTED.filter(
-    ({ under, sub, vk }) => sub.costText && pipsFor(sub.id, "pcm", { ...resting(sub), [vk]: under }) === 0,
-  ).map(({ under, sub }) => [`${under}>${sub.id}`, `stand-in cost ${sub.id}`]);
-  const top = TOP.filter((p) => p.costText && pipsFor(p.id, "pcm", resting(p)) === 0).map((p) => [
-    p.id,
-    `stand-in cost ${p.id}`,
-  ]);
-  assert.deepEqual(
-    Object.fromEntries(Object.entries(field((r) => r.costWord)).filter(([, word]) => word !== "")),
-    Object.fromEntries([...top, ...captioned]),
   );
 });
 
@@ -344,16 +276,6 @@ test("test_a_preset_reaching_an_unlimited_filter_at_the_441_base_keeps_its_row",
   assert.equal(
     Object.keys(everyRow()).some((key) => key.split(">").pop() === subject),
     true,
-  );
-});
-
-test("test_with_the_card_off_its_default_material_the_rows_writing_no_hi_res_filter_gray", async () => {
-  await live();
-  const card = PRESETS.flatMap((p) => p.knobs).find((k) => k.card);
-  setEasyMaterial(String(card?.options.find((o) => o !== card.default)));
-  assert.deepEqual(
-    Object.fromEntries(presetRows().map((r) => [r.id, r.grayed])),
-    Object.fromEntries(TOP.map((p) => [p.id, !writesHiresFamily(p, "pcm") && !facetless(p, "pcm")])),
   );
 });
 

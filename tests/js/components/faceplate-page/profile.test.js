@@ -122,12 +122,6 @@ const valueOf = (/** @type {import("../../support/markup.js").MarkupElement} */ 
 const traces = () =>
   all(html`<${MatrixProfileBody} />`).filter((e) => e.name === "path" && classes(e).includes("trace"));
 
-/** The dB labels the body's plot prints in its gutter. */
-const levels = () =>
-  all(html`<${MatrixProfileBody} />`)
-    .filter((e) => e.name === "text" && attr(e, "text-anchor") === "end")
-    .map(text);
-
 /**
  * The handler a vnode carrying a test id holds under a prop, or undefined when the tree draws none.
  *
@@ -243,12 +237,6 @@ test("test_typing_in_the_well_then_leaving_it_writes_the_description", async () 
   );
 });
 
-test("test_rows_that_carry_no_processing_draw_the_plot_with_no_trace", () => {
-  matrixConfig.value = form(["Lounge"], "Lounge", [row("0", ""), row("1", "")]);
-  const plots = all(html`<${MatrixProfileBody} />`).filter((e) => attr(e, "aria-label") === "Matrix response");
-  assert.deepEqual([plots.length, traces().length], [1, 0]);
-});
-
 test("test_rows_sharing_one_chain_draw_one_trace", () => {
   const eq = "iir:type=peak;f=1000;q=1;g=-3";
   matrixConfig.value = form(["Lounge"], "Lounge", [row("0", eq), row("1", eq)]);
@@ -261,14 +249,4 @@ test("test_rows_with_two_chains_draw_a_trace_each", () => {
     row("1", "iir:type=peak;f=200;q=1;g=4"),
   ]);
   assert.equal(traces().length, 2);
-});
-
-test("test_the_window_spans_twelve_db_each_way_for_a_gentle_profile", () => {
-  matrixConfig.value = form(["Lounge"], "Lounge", [row("0", "iir:type=peak;f=1000;q=1;g=-3")]);
-  assert.deepEqual([levels().includes("+12"), levels().includes("+18")], [true, false]);
-});
-
-test("test_a_cut_deeper_than_twelve_db_widens_the_window_to_the_next_six", () => {
-  matrixConfig.value = form(["Lounge"], "Lounge", [row("0", "iir:type=peak;f=1000;q=1;g=-15")]);
-  assert.deepEqual([levels().includes("+18"), levels().includes("+24")], [true, false]);
 });

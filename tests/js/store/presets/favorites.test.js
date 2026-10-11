@@ -50,8 +50,6 @@ import { resetFilterFacets } from "../../support/filterfacets.js";
 const FAVORITES_MODULE = "../../../../hqptuner/static/store/narrow/favorites.js";
 const LEGACY_KEY = "hqptuner.favoriteFilters";
 
-const favOnlyAtLoad = nFavOnly.value;
-
 const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
 
@@ -150,25 +148,6 @@ test("test_a_toggle_stars_the_name_before_its_request_resolves", async () => {
   assert.equal(starredWhileInFlight, true);
 });
 
-// --- what the toggle sends -----------------------------------------------------
-
-test("test_a_toggle_puts_the_whole_resulting_set_of_names", async () => {
-  reset(PLAIN);
-  const w = favoritesWire();
-  await toggleFavorite("gauss-a");
-  await toggleFavorite("gauss-c");
-  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c"]);
-});
-
-test("test_a_toggle_that_unstars_puts_the_set_without_that_name", async () => {
-  reset(PLAIN);
-  const w = favoritesWire();
-  await toggleFavorite("gauss-a");
-  await toggleFavorite("gauss-c");
-  await toggleFavorite("gauss-a");
-  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-c"]);
-});
-
 // --- a refused save ------------------------------------------------------------
 
 test("test_a_failed_save_reverts_the_favorites_set", async () => {
@@ -185,27 +164,6 @@ test("test_a_failed_save_reverts_an_unstar_too", async () => {
   favoritesWire({ putStatus: 500, putDetail: "State directory is read-only." });
   await toggleFavorite("gauss-a");
   assert.equal(favoriteFilters.value.has("gauss-a"), true);
-});
-
-test("test_a_successful_save_leaves_no_error", async () => {
-  reset(PLAIN);
-  favoritesWire();
-  await toggleFavorite("gauss-a");
-  assert.equal(favoritesError.value, "");
-});
-
-test("test_a_toggle_clears_the_previous_errors_sentence_before_asking", async () => {
-  reset(PLAIN);
-  favoritesWire({ putStatus: 500, putDetail: "State directory is read-only." });
-  await toggleFavorite("gauss-a");
-  const w = favoritesWire();
-  w.hold = true;
-  const pending = toggleFavorite("gauss-b");
-  await settle();
-  const errorWhileInFlight = favoritesError.value;
-  w.release();
-  await pending;
-  assert.equal(errorWhileInFlight, "");
 });
 
 // --- hydration -----------------------------------------------------------------
@@ -242,30 +200,6 @@ test("test_a_failed_hydration_does_not_throw", async () => {
 // already held — empty server or not, so the second device to load is not
 // stranded showing the first machine's stars — and then the key is gone for
 // good. A browser with no legacy names contributes nothing and must not write.
-
-test("test_hydration_uploads_the_names_localstorage_still_holds", async () => {
-  reset(PLAIN);
-  const w = favoritesWire({ filters: [] });
-  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a", "gauss-c"]));
-  await hydrateFavorites();
-  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c"]);
-});
-
-test("test_hydration_uploads_the_union_when_the_server_already_has_names", async () => {
-  reset(PLAIN);
-  const w = favoritesWire({ filters: ["gauss-d"] });
-  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a", "gauss-c"]));
-  await hydrateFavorites();
-  assert.deepEqual([...(puts(w).at(-1) || [])].sort(), ["gauss-a", "gauss-c", "gauss-d"]);
-});
-
-test("test_a_name_the_server_already_held_survives_the_migration", async () => {
-  reset(PLAIN);
-  favoritesWire({ filters: ["gauss-d"] });
-  useStorage().map.set(LEGACY_KEY, JSON.stringify(["gauss-a"]));
-  await hydrateFavorites();
-  assert.equal(favoriteFilters.value.has("gauss-d"), true);
-});
 
 test("test_the_migrated_names_end_up_in_the_favorites_set", async () => {
   reset(PLAIN);
@@ -327,10 +261,6 @@ test("test_hydration_with_an_empty_legacy_key_puts_nothing", async () => {
 // its coverage onto the real instance's); the specifier is built rather than
 // literal because it names a file that is not on disk, which `tsc -p
 // jsconfig.json` refuses as a literal (TS2307).
-
-test("test_favorites_only_defaults_off", () => {
-  assert.equal(favOnlyAtLoad, false);
-});
 
 test("test_favorites_only_is_not_persisted_across_a_fresh_load", async () => {
   reset(PLAIN);

@@ -127,12 +127,6 @@ def test_a_stored_setting_outside_the_set_does_not_overwrite_the_running_one(
 # --- nothing to fold: no preset, or an active one with no snapshot ----------
 
 
-def test_with_no_active_preset_the_running_value_is_what_boots(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    http_client.post("/api/config/apply")
-    assert _booted_config(http_client)["mode"] == RUNNING_MODE
-
-
 def test_an_active_preset_with_no_stored_snapshot_folds_nothing(http_client: TestClient, tmp_path: Path) -> None:
     PresetStore(tmp_path / "presets").set_active("Ghost")
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})

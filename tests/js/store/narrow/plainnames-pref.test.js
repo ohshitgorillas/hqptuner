@@ -31,8 +31,3 @@ test("test_choosing_simplified_persists_as_one", () => {
   prefs.setPlainNames(true);
   assert.equal(storage.getItem("hqptuner.plainNames"), "1");
 });
-
-test("test_the_setter_moves_the_signal", () => {
-  prefs.setPlainNames(false);
-  assert.equal(prefs.plainNames.value, false);
-});

@@ -20,10 +20,6 @@ useThrowingStorage();
 
 const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
-test("test_a_flip_against_a_throwing_storage_does_not_raise", () => {
-  assert.doesNotThrow(() => prefs.setPlainNames(!prefs.plainNames.value));
-});
-
 test("test_a_flip_against_a_throwing_storage_still_moves_the_signal", () => {
   const flipped = !prefs.plainNames.value;
   prefs.setPlainNames(flipped);

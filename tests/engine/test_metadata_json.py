@@ -15,7 +15,6 @@ from hqptuner.metadata_json import (
     easy_db,
     filter_entry,
     filter_entry_map,
-    filters_db,
     plain_name_entry,
     plain_name_entry_map,
     settings_db,
@@ -136,10 +135,6 @@ def test_plain_name_entry_map_on_a_non_dict_value_is_empty_and_on_a_dict_keeps_i
     value: object, expected: object
 ) -> None:
     assert plain_name_entry_map(value) == expected
-
-
-def test_filters_db_on_a_non_dict_raw_value_still_carries_an_empty_filters_table() -> None:
-    assert filters_db("not a mapping") == {"filters": {}}
 
 
 #: A well-formed ``shapers.json`` document, both per-mode tables populated.

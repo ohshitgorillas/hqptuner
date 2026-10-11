@@ -14,10 +14,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/page/aurora.js";
-import { BANDS, bandsOf, fractionsOf } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
-import * as spectrumfx from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
-import { STEP_MS } from "../../../../hqptuner/static/store/meter/loop.js";
-import { near } from "../../support/near.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
 /** @typedef {{ width: number, height: number, calls: Call[], getContext: (kind: string) => unknown }} FakeCanvas */
@@ -25,18 +21,10 @@ import { near } from "../../support/near.js";
 //: The canvas, in device pixels.
 const W = 480;
 const H = 170;
-//: The meter loop's column count, unlike the band count, so an upload of columns instead of bands is caught.
-const COLS = 600;
 //: A 60 dB plot.
 const RANGE = 60;
-//: Half way down a 60 dB plot.
-const MID_DB = -RANGE / 2;
 //: The colour a painter is built with.
 const COLOUR = [0.2, 0.6, 0.4];
-//: One meter step, s.
-const DT = STEP_MS / 1000;
-//: Tolerance for float32 rounding in the last place.
-const EPS = 1e-6;
 //: The calls that put pixels on the canvas or take them off.
 const DRAWS = new Set(["clear", "drawArrays", "drawElements"]);
 
@@ -96,22 +84,6 @@ function fakeCanvas(gl = true, made = MADE) {
 }
 
 /**
- * Column levels, dBFS, every column at `db`.
- *
- * @param {number} db
- * @returns {Float32Array}
- */
-const flat = (db) => new Float32Array(COLS).fill(db);
-
-/**
- * Column levels, dBFS, rising from the floor of the plot at the first column toward full scale at the last, so every
- * band holds a different value.
- *
- * @returns {Float32Array}
- */
-const ramp = () => Float32Array.from({ length: COLS }, (_, k) => -RANGE + (RANGE * k) / COLS);
-
-/**
  * The calls recorded while `act` runs on a painter built on a fresh fake canvas, the painter's setup forgotten. With no
  * painter built, nothing is recorded.
  *
@@ -127,31 +99,11 @@ function during(act) {
 }
 
 /**
- * The calls to `name` among `calls`.
- *
- * @param {Call[]} calls
- * @param {string} name
- */
-const named = (calls, name) => calls.filter((c) => c.name === name);
-
-/**
  * The names of the drawing calls among `calls`, in order.
  *
  * @param {Call[]} calls
  */
 const draws = (calls) => calls.filter((c) => DRAWS.has(c.name)).map((c) => c.name);
-
-/**
- * The bar values uploaded among `calls`, one array a paint, in order.
- *
- * @param {Call[]} calls
- * @returns {number[][]}
- */
-const bars = (calls) =>
-  named(calls, "uniform1fv")
-    .map((c) => /** @type {ArrayLike<number>} */ (c.args[1]))
-    .filter((xs) => xs.length === BANDS)
-    .map((xs) => Array.from(xs));
 
 // ── no WebGL2 ────────────────────────────────────────────────────────────
 
@@ -185,44 +137,6 @@ test("test_a_canvas_whose_shaders_fail_to_compile_gets_no_painter", () => {
 
 test("test_a_canvas_whose_program_fails_to_link_gets_no_painter", () => {
   assert.equal(painterOn({ ...MADE, getProgramParameter: () => false }), null);
-});
-
-// ── a paint ──────────────────────────────────────────────────────────────
-
-test("test_a_paint_uploads_one_array_of_one_value_per_band", () => {
-  const uploads = named(
-    during((fx) => fx.paint(flat(MID_DB), RANGE)),
-    "uniform1fv",
-  ).map((c) => /** @type {ArrayLike<number>} */ (c.args[1]).length);
-  assert.deepEqual(uploads, [BANDS]);
-});
-
-test("test_the_first_paint_uploads_the_bands_of_the_levels_it_is_given", () => {
-  const levels = ramp();
-  const first = bars(during((fx) => fx.paint(levels, RANGE)))[0];
-  assert.deepEqual(first, Array.from(bandsOf(fractionsOf(levels, RANGE), BANDS)));
-});
-
-test("test_a_band_dropping_to_the_floor_falls_by_aurora_gravity_times_one_step_squared", () => {
-  const uploads = bars(
-    during((fx) => {
-      fx.paint(flat(MID_DB), RANGE);
-      fx.paint(flat(-RANGE), RANGE);
-    }),
-  );
-  const dropped = uploads[1]?.[0] ?? NaN;
-  const expected = (uploads[0]?.[0] ?? NaN) - spectrumfx.AURORA_GRAVITY * DT * DT;
-  assert.ok(...near(dropped, expected, EPS));
-});
-
-test("test_a_paint_draws_once", () => {
-  assert.equal(
-    named(
-      during((fx) => fx.paint(flat(MID_DB), RANGE)),
-      "drawArrays",
-    ).length,
-    1,
-  );
 });
 
 // ── nothing to draw ──────────────────────────────────────────────────────

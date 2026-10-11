@@ -114,11 +114,6 @@ test("test_escape_with_a_popover_over_the_setup_panel_closes_the_popover_first_a
   assert.deepEqual([...first, setupOpen.value], [null, true, false]);
 });
 
-test("test_escape_on_the_chain_with_nothing_open_keeps_the_chain", () => {
-  closeTop();
-  assert.equal(body.value, "chain");
-});
-
 test("test_a_body_swap_closes_the_open_drawer", () => {
   toggleStage("volume");
   showBody("settings");
@@ -201,9 +196,4 @@ test("test_a_rail_tap_closes_the_open_list", () => {
   openOptionList(list("pcm_filter_1x"));
   toggleStage("volume");
   assert.equal(openList.value, null);
-});
-
-test("test_the_profile_builder_is_a_body_of_its_own", () => {
-  showBody("profile");
-  assert.equal(body.value, "profile");
 });

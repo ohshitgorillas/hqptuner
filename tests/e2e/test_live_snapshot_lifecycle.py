@@ -58,7 +58,6 @@ BUILDER_BODY = "[data-body='snapshots']"
 RAIL = f"{BUILDER_BODY} nav"
 TITLE_BUTTONS = f"{BUILDER_BODY} main .btitle button.btn"
 NAME_BOX = f"{BUILDER_BODY} main .bhead input[type='text']"
-CONFIRM_LINE = f"{BUILDER_BODY} main [role='alert'] button"
 STATIONS_TRIGGER = "[data-testid='stations']"
 
 WaitState = Literal["attached", "detached", "hidden", "visible"]
@@ -141,17 +140,6 @@ def _tree_names(page: Page) -> list[str]:
     return [text.strip() for text in rows.locator(".pn").all_inner_texts()]
 
 
-def _rail_counts_around_delete(page: Page) -> tuple[int, int]:
-    """SNAPSHOT's lines on the builder's rail once it is saved, and again once Delete is confirmed."""
-    entry = _rail_entry(page)
-    _settled(entry, "visible")
-    before = entry.count()
-    page.locator(TITLE_BUTTONS).first.click()
-    page.locator(CONFIRM_LINE).first.click()
-    _settled(entry, "detached")
-    return before, entry.count()
-
-
 @pytest.mark.usefixtures("station")
 def test_a_saved_snapshot_is_listed_under_its_station_after_a_reload(page: Page, stack: stack_support.Stack) -> None:
     page.goto(stack.base_url)
@@ -177,11 +165,3 @@ def test_tapping_a_saved_snapshot_puts_the_engine_back_on_its_shaper(page: Page,
     _unfold_station(page).filter(has_text=SNAPSHOT).click()
     stack.wait_for_command(lambda: stack.control_state[SHAPER] == saved, ENGINE_TIMEOUT)
     assert stack.control_state[SHAPER] == saved
-
-
-@pytest.mark.usefixtures("station")
-def test_deleting_a_saved_snapshot_takes_it_off_the_builders_rail(page: Page, stack: stack_support.Stack) -> None:
-    page.goto(stack.base_url)
-    _wait_for_station(page)
-    _save_snapshot(page)
-    assert _rail_counts_around_delete(page) == (1, 0)

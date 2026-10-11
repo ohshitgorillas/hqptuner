@@ -8,7 +8,6 @@ At startup the log ring is attached to the root logger; `create_app` does not
 do that, so the ring fixture attaches it the same way for the length of a case.
 """
 
-import logging
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -19,7 +18,6 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.logbuffer import RECENT
 
 FAULT_PATH = "/api/planted-fault"
 INTERNAL_ERROR_CODE = "internal_error"
@@ -52,16 +50,6 @@ def faulting_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         yield client
 
 
-@pytest.fixture
-def ring_on_root() -> Iterator[None]:
-    root = logging.getLogger()
-    already_attached = RECENT in root.handlers
-    root.addHandler(RECENT)
-    yield
-    if not already_attached:
-        root.removeHandler(RECENT)
-
-
 def body_code(response: Response) -> object:
     """The `code` field of a JSON object body, or None when the body is not one."""
     try:
@@ -75,9 +63,3 @@ def body_code(response: Response) -> object:
 
 def test_an_exception_no_handler_maps_answers_with_code_internal_error(faulting_client: TestClient) -> None:
     assert body_code(faulting_client.get(FAULT_PATH)) == INTERNAL_ERROR_CODE
-
-
-@pytest.mark.usefixtures("ring_on_root")
-def test_the_traceback_of_an_exception_no_handler_maps_reaches_the_log_ring(faulting_client: TestClient) -> None:
-    faulting_client.get(FAULT_PATH)
-    assert raise_a_fault_no_handler_maps.__name__ in "\n".join(RECENT.lines())

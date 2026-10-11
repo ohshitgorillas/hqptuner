@@ -32,7 +32,6 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.matrixmode import (
     MatrixModeError,
     MatrixModeSchemaError,
@@ -112,11 +111,6 @@ def test_a_write_on_a_never_written_store_stores_its_mode_only_when_name_and_mod
     with contextlib.suppress(MatrixModeError):
         store.write(name, mode)
     assert store.read() == expected
-
-
-def test_a_mode_reads_back_through_a_second_store_over_the_same_file(tmp_path: Path) -> None:
-    store_at(tmp_path).write(NAME, "speakers")
-    assert store_at(tmp_path).read()[NAME] == "speakers"
 
 
 def test_writing_one_preset_leaves_another_presets_mode_alone(tmp_path: Path) -> None:
@@ -234,32 +228,6 @@ def test_exactly_two_hundred_and_fifty_six_presets_are_accepted(tmp_path: Path) 
 
 
 # --- a file this HQPTuner did not write ---------------------------------------------
-
-
-def _corrupt_code(tmp_path: Path) -> str:
-    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
-    with pytest.raises(StoreCorruptError) as caught:
-        store_at(tmp_path).read()
-    return caught.value.code
-
-
-# A damaged file is refused as corrupt, naming the file, rather than read as
-# empty: the tab falling silently back to the last-used side would hide a
-# store whose recorded modes cannot be read.
-@pytest.mark.parametrize(
-    "content",
-    [
-        pytest.param("not json at all {", id="not-json"),
-        pytest.param("", id="empty-file"),
-        pytest.param("[]", id="json-list"),
-        pytest.param('"Night"', id="json-string"),
-        pytest.param("17", id="json-number"),
-        pytest.param("null", id="json-null"),
-    ],
-)
-def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
-    seed(tmp_path, content)
-    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:

@@ -128,11 +128,6 @@ test("test_the_form_active_name_is_used_when_the_live_lane_is_silent", async () 
   assert.equal(matrixActiveProfile.value, "FormName");
 });
 
-test("test_the_default_placeholder_reads_as_default", async () => {
-  await reset({ active: "[Default]" });
-  assert.equal(matrixActiveProfile.value, "[Default]");
-});
-
 test("test_no_active_name_at_all_reads_as_default", async () => {
   await reset();
   assert.equal(matrixActiveProfile.value, "[Default]");

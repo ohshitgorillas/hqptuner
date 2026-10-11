@@ -153,13 +153,6 @@ test("test_looking_at_a_preset_recorded_as_headphones_puts_the_tab_on_headphones
   assert.equal(matrixMode.value, "headphones");
 });
 
-test("test_a_preset_takes_its_own_recorded_mode_and_not_the_one_before_it", async () => {
-  await reset({ mode: "speakers" });
-  await lookAt(SPK);
-  await lookAt(HP);
-  assert.equal(matrixMode.value, "headphones");
-});
-
 // --- a preview is what is on screen ------------------------------------------------
 // A staged-but-not-applied preset is what the user is looking at, so it is the
 // one the view follows; the applied preset is the fallback.

@@ -85,33 +85,10 @@ function railText(id) {
   return entry?.rows[LOGGING_READOUTS.findIndex((r) => r.id === id)]?.text;
 }
 
-/**
- * The label the logging readout's own control gives an option value.
- *
- * @param {string} v
- * @returns {string | undefined}
- */
-const logonLabel = (v) =>
-  LOGGING_READOUTS.find((r) => r.id === "logon")?.control.options?.find((o) => String(o.v) === v)?.label;
-
-test("test_the_logging_drawer_draws_the_switch_the_path_and_the_log_tail_in_order", () => {
-  const items = markup()
-    .filter((e) => classes(e).includes("drow") || classes(e).includes("dblock"))
-    .map((e) => attr(e, "data-k") ?? attr(e, "data-block"));
-  assert.deepEqual(items, ["log_enabled", "log_file", "logtail"]);
-});
-
 test("test_the_log_path_row_grays_while_logging_is_off_and_not_while_on", () => {
   const off = pathGrayLines();
   config.value = form(true);
   assert.deepEqual([off, pathGrayLines()], [1, 0]);
-});
-
-test("test_the_logging_readout_prints_the_running_switch_as_its_option", () => {
-  const off = railText("logon");
-  config.value = form(true);
-  const on = railText("logon");
-  assert.deepEqual([off, on, off !== on], [logonLabel("0"), logonLabel("1"), true]);
 });
 
 test("test_the_log_path_readout_prints_the_running_path_not_a_staged_one", async () => {

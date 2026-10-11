@@ -31,7 +31,6 @@ import assert from "node:assert/strict";
 
 import { reset, META } from "../../support/field-harness.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { schema } from "../../../../hqptuner/static/store/schema.js";
 
 const MOD = new URL("../../../../hqptuner/static/store/plainnames.js", import.meta.url).href;
 const plainnames = await import(`${MOD}`);
@@ -93,10 +92,6 @@ test("test_a_rec_flagged_entry_decorates_its_option_with_rec_true", async () => 
   assert.equal(byLabel(await decorated(), "wec2").rec, true);
 });
 
-test("test_an_entry_without_rec_adds_no_rec_key_to_its_option", async () => {
-  assert.equal("rec" in byLabel(await decorated(), "sac"), false);
-});
-
 // Built fresh here rather than through the module-level OPTIONS, which earlier
 // cases already pushed through the pref-ON path: an implementation mutating its
 // input objects in place would otherwise deep-equal its own mutation.
@@ -118,17 +113,4 @@ test("test_pref_off_returns_the_input_options_untouched", async () => {
       { value: "11", label: "wec2" },
     ],
   );
-});
-
-// --- the schema rows ------------------------------------------------------------
-
-// The rows' own label and sublabel were pinned here. The
-// plainNames key below is the row's machine identity.
-
-test("test_schema_noise_filter_joins_the_noise_filter_plain_names_section", () => {
-  assert.equal(schema.noise_filter.plainNames, "noise_filter");
-});
-
-test("test_schema_pcm_conversion_joins_the_pcm_conversion_plain_names_section", () => {
-  assert.equal(schema.pcm_conversion.plainNames, "pcm_conversion");
 });

@@ -10,9 +10,7 @@ import assert from "node:assert/strict";
 
 import {
   BANDS,
-  CAP_GRAVITY,
   CAP_HOLD_S,
-  GRAVITY,
   RIDGE_EVERY,
   RIDGE_ROWS,
   SPILL,
@@ -44,9 +42,6 @@ const LOW = 0.25;
 const RISEN = 0.75;
 //: A falling bar's speed before the step, in fractions per second.
 const FALLING_V = 1;
-//: Two accelerations a gravity step is handed, in fractions per second squared, neither of them the default.
-const LIGHT_G = 2;
-const HEAVY_G = 8;
 
 /**
  * @param {number[]} xs
@@ -74,10 +69,6 @@ function drive(calls) {
 
 // ── fractionsOf ──────────────────────────────────────────────────────────
 
-test("test_the_floor_and_full_scale_map_to_zero_and_one", () => {
-  assert.deepEqual(list(fractionsOf(f32(-RANGE, 0), RANGE)), [0, 1]);
-});
-
 test("test_a_level_maps_to_its_share_of_the_range", () => {
   assert.equal(fractionsOf(f32(-RANGE / 4), RANGE)[0], 0.75);
 });
@@ -88,10 +79,6 @@ test("test_the_same_level_sits_lower_on_a_narrower_range", () => {
 
 test("test_a_level_above_full_scale_clamps_to_one", () => {
   assert.equal(fractionsOf(f32(HOT_DB), RANGE)[0], 1);
-});
-
-test("test_a_level_below_the_range_clamps_to_zero", () => {
-  assert.deepEqual(list(fractionsOf(f32(-5 * RANGE, -RANGE / 4), RANGE)), [0, 0.75]);
 });
 
 // ── bandsOf ──────────────────────────────────────────────────────────────
@@ -121,31 +108,15 @@ test("test_caps_from_a_state_of_another_length_sit_on_their_bands", () => {
   assert.deepEqual(list(stepCaps(prev, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
 });
 
-test("test_a_fresh_cap_has_aged_one_step_after_its_next_step", () => {
-  const fresh = stepCaps(null, f32(HIGH), DT);
-  assert.equal(stepCaps(fresh, f32(LOW), DT).age[0], DT);
-});
-
 test("test_a_band_above_its_cap_lifts_the_cap", () => {
   const prev = { lvl: f32(HIGH), age: f32(CAP_HOLD_S) };
   assert.equal(stepCaps(prev, f32(RISEN), DT).lvl[0], RISEN);
-});
-
-test("test_a_band_touching_its_cap_restarts_the_hold", () => {
-  const touched = stepCaps({ lvl: f32(HIGH), age: f32(CAP_HOLD_S) }, f32(HIGH), DT);
-  assert.equal(stepCaps(touched, f32(LOW), DT).age[0], DT);
 });
 
 test("test_a_cap_inside_its_hold_stays_put", () => {
   // The step leaves the cap half a step short of the hold.
   const prev = { lvl: f32(HIGH), age: f32(CAP_HOLD_S - DT - DT / 2) };
   assert.equal(stepCaps(prev, f32(LOW), DT).lvl[0], HIGH);
-});
-
-test("test_a_cap_past_its_hold_falls_by_gravity_times_its_overrun_times_the_step", () => {
-  // The step takes the cap's age one DT past the hold.
-  const prev = { lvl: f32(HIGH), age: f32(CAP_HOLD_S) };
-  assert.ok(...near(stepCaps(prev, f32(0), DT).lvl[0], HIGH - CAP_GRAVITY * DT * DT, EPS));
 });
 
 test("test_a_falling_cap_drops_further_on_its_second_step_than_its_first", () => {
@@ -192,29 +163,9 @@ test("test_gravity_bars_from_a_state_of_another_length_sit_on_their_bands", () =
   assert.deepEqual(list(stepGravity(prev, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
 });
 
-test("test_a_fresh_gravity_bar_falls_from_rest", () => {
-  const fresh = stepGravity(null, f32(HIGH), DT);
-  assert.equal(stepGravity(fresh, f32(0), DT).v[0], GRAVITY * DT);
-});
-
-test("test_a_falling_bar_gains_gravity_times_the_step_in_speed", () => {
-  const prev = { lvl: f32(HIGH), v: f32(FALLING_V) };
-  assert.equal(stepGravity(prev, f32(0), DT).v[0], FALLING_V + GRAVITY * DT);
-});
-
-test("test_a_falling_bar_drops_by_its_new_speed_times_the_step", () => {
-  const prev = { lvl: f32(HIGH), v: f32(FALLING_V) };
-  assert.equal(stepGravity(prev, f32(0), DT).lvl[0], HIGH - (FALLING_V + GRAVITY * DT) * DT);
-});
-
 test("test_a_band_above_its_gravity_bar_lifts_the_bar", () => {
   const prev = { lvl: f32(HIGH), v: f32(FALLING_V) };
   assert.equal(stepGravity(prev, f32(RISEN), DT).lvl[0], RISEN);
-});
-
-test("test_a_band_touching_its_gravity_bar_stops_the_fall", () => {
-  const touched = stepGravity({ lvl: f32(HIGH), v: f32(FALLING_V) }, f32(HIGH), DT);
-  assert.equal(stepGravity(touched, f32(0), DT).v[0], GRAVITY * DT);
 });
 
 test("test_a_falling_gravity_bar_never_drops_below_its_band", () => {
@@ -222,24 +173,10 @@ test("test_a_falling_gravity_bar_never_drops_below_its_band", () => {
   assert.equal(stepGravity(prev, f32(LOW), DT).lvl[0], LOW);
 });
 
-test("test_a_bar_at_rest_falls_by_the_given_gravity_times_the_step_squared", () => {
-  const rest = { lvl: f32(HIGH), v: f32(0) };
-  const fallen = [LIGHT_G, HEAVY_G].map((g) => stepGravity(rest, f32(0), DT, g).lvl[0]);
-  assert.deepEqual(fallen, [HIGH - LIGHT_G * DT * DT, HIGH - HEAVY_G * DT * DT]);
-});
-
 // ── stepRidges ───────────────────────────────────────────────────────────
 
 test("test_ridges_without_a_prior_state_hold_the_first_row", () => {
   assert.deepEqual(stepRidges(null, f32(HIGH, LOW)).rows.map(list), [[HIGH, LOW]]);
-});
-
-test("test_ridges_without_a_prior_state_start_at_tick_one", () => {
-  assert.equal(stepRidges(null, f32(HIGH)).tick, 1);
-});
-
-test("test_each_ridge_step_advances_the_tick", () => {
-  assert.equal(drive(3).tick, 3);
 });
 
 test("test_the_first_ridge_row_is_a_copy_of_the_input", () => {

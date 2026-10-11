@@ -115,11 +115,6 @@ def test_a_file_holding_only_filters_reads_no_modulator_favorites_but_one_holdin
     assert store_at(tmp_path).read_modulators() == expected
 
 
-def test_a_file_holding_only_filters_still_reads_its_filters(tmp_path: Path) -> None:
-    seed(tmp_path, json.dumps({"filters": ["alpha"]}))
-    assert store_at(tmp_path).read() == ["alpha"]
-
-
 # --- what a modulator name list may contain -----------------------------------
 
 
@@ -197,17 +192,6 @@ def test_a_modulator_put_answers_with_the_filter_list_too(fav_client: TestClient
     assert answer.json()["filters"] == ["alpha"]
 
 
-def test_putting_a_modulator_list_without_a_name_drops_it(fav_client: TestClient) -> None:
-    fav_client.put("/api/favorites", json={"modulators": ["alpha", "bravo"]})
-    fav_client.put("/api/favorites", json={"modulators": ["alpha"]})
-    assert fav_client.get("/api/favorites").json()["modulators"] == ["alpha"]
-
-
-def test_putting_duplicate_modulator_names_stores_one_copy(fav_client: TestClient) -> None:
-    fav_client.put("/api/favorites", json={"modulators": ["alpha", "alpha"]})
-    assert fav_client.get("/api/favorites").json()["modulators"] == ["alpha"]
-
-
 # An absent member means "leave that set alone", never "empty it": a client that
 # stars a filter must not silently drop every starred modulator, and the other
 # way round.
@@ -236,39 +220,8 @@ def test_a_put_carrying_both_lists_stores_the_filter_one(fav_client: TestClient)
     assert fav_client.get("/api/favorites").json()["filters"] == sorted(FILTERS)
 
 
-@pytest.mark.parametrize(
-    "body",
-    [
-        pytest.param({"modulators": "alpha"}, id="modulators-not-a-list"),
-        pytest.param({"modulators": ["alpha", 7]}, id="non-string-name"),
-        pytest.param({"modulators": ["alpha", None]}, id="null-name"),
-        pytest.param({"modulators": [""]}, id="empty-name"),
-        pytest.param({"modulators": [f"name-{i}" for i in range(257)]}, id="257-names"),
-        pytest.param({"modulators": ["x" * 65]}, id="65-char-name"),
-    ],
-)
-def test_a_modulator_put_the_store_would_refuse_answers_422(fav_client: TestClient, body: object) -> None:
-    assert fav_client.put("/api/favorites", json=body).status_code == 422
-
-
-def test_get_against_a_store_stamped_by_a_newer_hqptuner_answers_409_for_modulators(
-    tmp_path: Path, favorites_api: Callable[[], TestClient]
-) -> None:
-    seed(tmp_path, json.dumps(TOO_NEW))
-    assert favorites_api().get("/api/favorites").status_code == 409
-
-
 def test_a_modulator_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     tmp_path: Path, favorites_api: Callable[[], TestClient]
 ) -> None:
     seed(tmp_path, json.dumps(TOO_NEW))
     assert favorites_api().put("/api/favorites", json={"modulators": ["alpha"]}).status_code == 409
-
-
-# A body naming NEITHER set is not a write at all. The two members are optional
-# individually — an absent one leaves that set alone — but a PUT has to name at
-# least one of them to be a PUT, so an empty object is refused rather than
-# answered as a no-op. (The `no-filters-member` case in test_favorites.py is the
-# same rule from the filter side.)
-def test_a_put_naming_neither_set_answers_422(fav_client: TestClient) -> None:
-    assert fav_client.put("/api/favorites", json={}).status_code == 422

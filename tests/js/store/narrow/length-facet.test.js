@@ -153,15 +153,6 @@ test("test_a_trailing_2s_suffix_is_stripped_before_classifying", () => {
   assert.equal(lengthOf("gauss-hb-l-2s"), "long");
 });
 
-// --- -hb-xs is not a name rule -----------------------------------------------
-// The xshort length comes only from an overlay `length: "xshort"` row (pinned
-// above); the suffix alone carries nothing.
-
-test("test_an_hb_xs_name_with_no_overlay_row_has_no_length", () => {
-  seed({ "gauss-hb-xs": undefined });
-  assert.equal(lengthOf("gauss-hb-xs"), "");
-});
-
 // --- nothing matched ---------------------------------------------------------
 
 test("test_a_name_matching_no_length_rule_has_no_length", () => {

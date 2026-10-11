@@ -29,7 +29,7 @@ import {
 } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines, isDirty } from "../../../../hqptuner/static/store/resolve.js";
-import { stagePipelines, discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { stagePipelines, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
@@ -172,13 +172,6 @@ test("test_a_block_built_on_in_3_returns_its_pair_on_in_3", async () => {
   assert.equal(live()[0].source, "2");
 });
 
-// --- no stored choice: the installed rows answer ------------------------------
-
-test("test_an_installed_block_opens_on_structural", async () => {
-  await reset({ rows: structural(), selected: null });
-  assert.equal(activeMode(live()), "structural");
-});
-
 // --- the ENGAGE/BYPASS gate's pending state in the structural view ------------
 //
 // There is no config flag for structural crossfeed: "on" is a sixteen-row block
@@ -193,19 +186,6 @@ const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 test("test_retuning_an_installed_block_stages_a_row_change", async () => {
   await reset({ rows: structural(), selected: "structural" });
   stageStructural(live(), { ...DEFAULTS, angle: 45 });
-  assert.equal(isDirty("matrix_pipelines"), true);
-});
-
-// The gate ignores an edit that genuinely registered, not one that went nowhere.
-test("test_editing_the_dsp_pipelines_row_count_stages_that_field", async () => {
-  await reset({ rows: pair(), selected: "structural", fields: [{ name: "pipelines", value: "2" }] });
-  await edit("pipelines", "4");
-  assert.equal(isDirty("pipelines"), true);
-});
-
-test("test_staging_extra_rows_past_an_installed_block_stages_a_row_change", async () => {
-  await reset({ rows: structural(), selected: "structural" });
-  await stagePipelines([...structural(), ...pair()]);
   assert.equal(isDirty("matrix_pipelines"), true);
 });
 

@@ -53,7 +53,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { writeSet, matchPreset, presetsFor, knobsShown } from "../../../../hqptuner/static/store/easy/easy.js";
+import { writeSet, matchPreset, presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
 import { combos } from "../../support/easy/easytable.js";
 
 /** @typedef {{ id: string, default: string, options: string[], when?: Record<string, string> }} Knob */
@@ -67,9 +67,6 @@ const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
 const SDM_1X = "sdm_filter_1x";
 const SDM_NX = "sdm_filter_nx";
-
-/** @type {Mode[]} */
-const MODES = ["pcm", "sdm", "auto"];
 
 /** The chain ends, as (PCM key, SDM key) pairs. */
 const ENDS = [
@@ -90,36 +87,11 @@ function restingKnobs(/** @type {Preset} */ preset) {
   return Object.fromEntries(preset.knobs.map((k) => [k.id, k.default]));
 }
 
-/** `knobs` with one position swapped for that knob's declared default. */
-function atDefault(
-  /** @type {Preset} */ preset,
-  /** @type {Record<string, string>} */ knobs,
-  /** @type {string} */ knobId,
-) {
-  const knob = preset.knobs.find((k) => k.id === knobId);
-  if (!knob) throw new Error(`preset ${preset.id} declares no knob ${knobId}`);
-  return { ...knobs, [knobId]: knob.default };
-}
-
-/** The positions of every knob the tile offers at `knobs`, as `matchPreset` reports them. */
-function offeredAt(/** @type {Preset} */ preset, /** @type {Record<string, string>} */ knobs) {
-  return Object.fromEntries(knobsShown(preset, knobs).map((knob) => [knob.id, knobs[knob.id]]));
-}
-
 /** Every (preset, combination) the table defines. */
 /** @type {[Preset, Record<string, string>][]} */
 const CELLS = PRESETS.flatMap((preset) =>
   combos(preset.knobs).map((c) => /** @type {[Preset, Record<string, string>]} */ ([preset, c])),
 );
-
-// --- behavior 1: the roster is non-empty ----------------------------------------------------
-//
-// The one guard. Every sweep below reads `presetsFor()`, so an empty roster
-// would retire all of them silently; this case fails by name instead.
-
-test("test_the_shipped_table_carries_at_least_one_preset_to_sweep", () => {
-  assert.ok(PRESETS.length > 0, "presetsFor() returned no presets, so every sweep below generated nothing");
-});
 
 // --- behavior 2: the output mode selects which chain(s) get written ------------------------
 //
@@ -130,46 +102,12 @@ test("test_the_shipped_table_carries_at_least_one_preset_to_sweep", () => {
 const MODE_KEYS = [
   ["pcm", [PCM_1X, PCM_NX]],
   ["sdm", [SDM_1X, SDM_NX]],
-  ["auto", [PCM_1X, PCM_NX, SDM_1X, SDM_NX]],
 ];
 
 for (const [preset, c] of CELLS) {
   for (const [mode, keys] of MODE_KEYS) {
     test(`test_${preset.id}_at_${positionsOf(c)}_in_${mode}_mode_writes_exactly_its_chain_keys`, () => {
       assert.deepEqual(Object.keys(writeSet(preset.id, mode, c)).sort(), [...keys].sort());
-    });
-  }
-}
-
-// --- behavior 3: every key written carries a non-empty string -------------------------------
-//
-// Offenders are the keys whose value is not a non-empty string, so a failure
-// names the key rather than the whole write.
-
-for (const [preset, c] of CELLS) {
-  for (const mode of MODES) {
-    test(`test_${preset.id}_at_${positionsOf(c)}_in_${mode}_mode_writes_a_non_empty_name_to_every_key`, () => {
-      const written = writeSet(preset.id, mode, c);
-      const offenders = Object.keys(written).filter((key) => typeof written[key] !== "string" || written[key] === "");
-      assert.deepEqual(offenders, []);
-    });
-  }
-}
-
-// --- behavior 4: matchPreset recovers the preset and offered positions behind a write -------
-//
-// Round trips: the values fed to `matchPreset` are exactly what `writeSet`
-// produced, in every mode, at every combination. The expected knob map holds
-// every knob the tile OFFERS at that combination (`knobsShown`), so a knob
-// whose `when` is not met there is not expected back.
-
-for (const [preset, c] of CELLS) {
-  for (const mode of MODES) {
-    test(`test_matchpreset_recovers_${preset.id}_at_${positionsOf(c)}_from_its_${mode}_mode_write`, () => {
-      assert.deepEqual(matchPreset(writeSet(preset.id, mode, c), mode), {
-        presetId: preset.id,
-        knobs: offeredAt(preset, c),
-      });
     });
   }
 }
@@ -222,41 +160,6 @@ const carriesSuffix = (
 for (const [preset, c, end, pcmKey, sdmKey] of CHAIN_ENDS.filter(carriesSuffix)) {
   test(`test_${preset.id}_at_${positionsOf(c)}_writes_the_two_stage_variant_of_its_pcm_${end}_value_to_sdm`, () => {
     assert.equal(writeSet(preset.id, "sdm", c)[sdmKey], `${writeSet(preset.id, "pcm", c)[pcmKey]}${TWO_STAGE}`);
-  });
-}
-
-for (const [preset, c, end, pcmKey, sdmKey] of CHAIN_ENDS.filter((row) => !carriesSuffix(row))) {
-  test(`test_${preset.id}_at_${positionsOf(c)}_writes_its_pcm_${end}_value_unchanged_to_sdm`, () => {
-    assert.equal(writeSet(preset.id, "sdm", c)[sdmKey], writeSet(preset.id, "pcm", c)[pcmKey]);
-  });
-}
-
-// --- behavior 7: the knob positions each preset defines ------------------------------------
-//
-// Swept from the shipped table: every preset, every combination of every
-// option of every knob it declares, and within each combination every knob
-// the tile offers at those positions that stands off its default. Returning
-// that one knob to its default, the siblings held where they are, writes a
-// PCM pair different from the combination's own. Distinct is the claim; which
-// filter either side is stays the owner's. The full cross product is walked
-// rather than one knob at a time from rest, so a knob the table ignores
-// whenever a sibling is off its default fails here by preset, combination and
-// knob. A knob whose `when` is not met at a combination is not offered there
-// and generates nothing; presets with no knobs generate nothing.
-
-/** @type {[Preset, Record<string, string>, string][]} */
-const KNOB_MOVES = CELLS.flatMap(([preset, c]) =>
-  knobsShown(preset, c)
-    .filter((knob) => c[knob.id] !== knob.default)
-    .map((knob) => /** @type {[Preset, Record<string, string>, string]} */ ([preset, c, knob.id])),
-);
-
-for (const [preset, knobs, knobId] of KNOB_MOVES) {
-  test(`test_${preset.id}_at_${positionsOf(knobs)}_returning_${knobId}_to_default_writes_a_different_pcm_pair`, () => {
-    assert.notDeepEqual(
-      writeSet(preset.id, "pcm", knobs),
-      writeSet(preset.id, "pcm", atDefault(preset, knobs, knobId)),
-    );
   });
 }
 

@@ -177,7 +177,24 @@ ignore_decorators = ["@router.get", "@router.post", "@router.put", "@router.dele
 # http.server via getattr, never called by name; pytest_plugins is read by
 # pytest itself. socketserver reads daemon_threads and block_on_close off the
 # server class rather than from any call site. All read as unused to a static sweep.
-ignore_names = ["do_GET", "do_POST", "log_message", "pytest_plugins", "daemon_threads", "block_on_close"]
+# Response-model fields the frontend reads as JSON keys (connected_at, app_version,
+# speakers, plain_names, ceiling_khz) and junkcal statistics the CLI reads by name
+# through getattr (argmax_hz, slope_db_per_khz) have no Python call site either.
+ignore_names = [
+    "do_GET",
+    "do_POST",
+    "log_message",
+    "pytest_plugins",
+    "daemon_threads",
+    "block_on_close",
+    "connected_at",
+    "app_version",
+    "speakers",
+    "plain_names",
+    "ceiling_khz",
+    "argmax_hz",
+    "slope_db_per_khz",
+]
 
 [tool.ruff]
 line-length = 120

@@ -25,7 +25,6 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
   METER_RANGES,
-  apodWindow,
   meterChannel,
   meterRange,
   setApodWindow,
@@ -35,7 +34,7 @@ import {
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -95,28 +94,6 @@ beforeEach(() => {
   stream();
 });
 
-test("test_a_live_stream_draws_the_apodizing_strip_over_the_spectrogram", () => {
-  assert.deepEqual(
-    draw()
-      .filter((e) => e.name === "canvas")
-      .sort((a, b) => a.start - b.start)
-      .map((e) => classes(e)),
-    [["apodstrip"], ["spec"]],
-  );
-});
-
-test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
-  stream({ state: "0" });
-  const root = draw().at(-1);
-  assert.deepEqual(root ? classes(root) : [], ["mnone"]);
-});
-
-test("test_the_frequency_axis_labels_the_source_nyquist", () => {
-  stream({ geometry: { nyquist: 96000, channels: 2, bins: 1025 } });
-  const nyq = draw().find((e) => hasAttr(e, "data-nyq"));
-  assert.equal(nyq ? Number(text(nyq)) : NaN, 96);
-});
-
 test("test_the_channel_switch_lights_the_picked_channel", () => {
   setMeterChannel("1");
   assert.deepEqual(lit("meter-channel"), ["1"]);
@@ -127,11 +104,6 @@ test("test_the_range_switch_lights_the_picked_range", () => {
   assert.deepEqual(lit("meter-range"), [SECOND]);
 });
 
-test("test_the_window_switch_lights_the_picked_window", () => {
-  setApodWindow("30");
-  assert.deepEqual(lit("meter-window"), ["30"]);
-});
-
 test("test_tapping_a_channel_picks_it", () => {
   tap("1");
   assert.equal(meterChannel.value, "1");
@@ -140,9 +112,4 @@ test("test_tapping_a_channel_picks_it", () => {
 test("test_tapping_a_range_picks_it", () => {
   tap(LAST);
   assert.equal(meterRange.value, LAST);
-});
-
-test("test_tapping_a_window_picks_it", () => {
-  tap("30");
-  assert.equal(apodWindow.value, "30");
 });

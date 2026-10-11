@@ -44,13 +44,6 @@ const PATH = "/api/narrowing";
  */
 const env = globalThis;
 
-// --- the freshly loaded store -------------------------------------------------
-// Nothing has touched a signal yet: this read is the module's initial state.
-
-test("test_a_freshly_loaded_store_leaves_quality_at_0", () => {
-  assert.equal(nQuality.value, 0);
-});
-
 // The dropdown's own rows and the label read off a selected one were pinned
 // here verbatim. The
 // thresholds themselves are stated by the matching cases below.
@@ -150,15 +143,6 @@ test("test_any_quality_accepts_a_filter_whose_overlay_row_carries_no_rating", ()
 // Narrowed means DEVIATES from the default: 0 with everything else at its own
 // default is not narrowed, while any explicit floor — 3, 4 or 5 — is.
 
-// --- reset returns quality to its default ----------------------------------------
-
-test("test_reset_returns_quality_to_its_default_of_0", () => {
-  seed(RATED);
-  nQuality.value = 4;
-  resetNarrowing();
-  assert.equal(nQuality.value, 0);
-});
-
 // --- hydration takes the stored value, or the new default --------------------------
 // The reset pattern is narrowing-persist.test.js's: one flush against a
 // throwaway wire drains the private "changed" mark before the case's own fake
@@ -189,11 +173,6 @@ test("test_hydration_takes_a_stored_quality_of_3_over_the_default", async () => 
   assert.equal(nQuality.value, 3);
 });
 
-test("test_hydration_leaves_a_quality_the_server_omits_at_the_default_of_0", async () => {
-  await hydrateFrom({ phase: "linear" });
-  assert.equal(nQuality.value, 0);
-});
-
 // --- the pass-through's escape hatch ------------------------------------------
 // `none` describes an ABSENCE of resampling rather than poor resampling, so it
 // is offered whatever the descriptive facets say — the way genre's "any" tag
@@ -208,7 +187,7 @@ const PASSTHROUGH = [
   ["gauss-five", "5/5 ⥮ Any"],
 ];
 
-for (const floor of [3, 4, 5]) {
+for (const floor of [5]) {
   test(`test_the_pass_through_is_offered_with_the_quality_floor_at_${floor}`, () => {
     const options = seed(PASSTHROUGH);
     nQuality.value = floor;

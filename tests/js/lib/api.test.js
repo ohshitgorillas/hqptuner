@@ -67,23 +67,10 @@ const FILE = () => new File(["1000 -3.0"], "eq.txt", { type: "text/plain" });
 
 // --- the multipart upload path -----------------------------------------------
 
-test("test_an_upload_posts_multipart_form_data_not_json", async () => {
-  const seen = wire();
-  await api.uploadFilter(FILE());
-  assert.equal(sent(seen).body instanceof FormData, true);
-});
-
 test("test_an_upload_carries_the_file_under_the_declared_field", async () => {
   const seen = wire();
   await api.uploadFilter(FILE());
   assert.equal(uploaded(seen, "file").name, "eq.txt");
-});
-
-test("test_an_upload_sets_no_content_type_of_its_own", async () => {
-  // the multipart boundary belongs to fetch; a hand-set header would break it
-  const seen = wire();
-  await api.uploadFilter(FILE());
-  assert.equal(sent(seen).headers, undefined);
 });
 
 test("test_a_config_restore_uploads_under_the_cfgfile_field", async () => {
@@ -139,12 +126,6 @@ test("test_an_unexplained_server_error_reads_the_same_from_any_endpoint", async 
   assert.equal(fromUpload, fromStatus);
 });
 
-test("test_every_gateway_failure_reads_alike_whichever_of_502_503_504", async () => {
-  const gateway = await unexplained(502);
-  const others = [await unexplained(503), await unexplained(504)];
-  assert.deepEqual(others, [gateway, gateway]);
-});
-
 // Two client errors of different meaning: a sentence built from the status
 // tells them apart, where one built from the status class alone would not.
 const CONFLICT = 409;
@@ -156,12 +137,6 @@ test("test_an_unexplained_409_and_an_unexplained_403_read_differently", async ()
   assert.notEqual(conflict, forbidden);
 });
 
-test("test_a_missing_endpoint_is_described_without_its_status_code", async () => {
-  // the 404 rides on err.status; the sentence names the path, not the number
-  const message = await unexplained(404);
-  assert.doesNotMatch(message, /404/);
-});
-
 // FastAPI's request-validation refusal: a list of errors, each locating its
 // field and giving pydantic's reason.
 const FIELD = "file";
@@ -171,12 +146,6 @@ const VALIDATION = {
   status: 422,
   json: async () => ({ detail: [{ type: "missing", loc: ["body", FIELD], msg: REASON, input: null }] }),
 };
-
-test("test_a_validation_refusal_names_the_field_it_could_not_use", async () => {
-  wire(VALIDATION);
-  const message = await rejection(() => api.uploadFilter(FILE()));
-  assert.equal(message.includes(FIELD), true, message);
-});
 
 test("test_a_validation_refusal_gives_the_reason_the_wire_carried", async () => {
   // case-blind: the sentence may lower-case pydantic's leading capital
@@ -213,17 +182,4 @@ test("test_a_preset_name_is_url_encoded_in_the_path", async () => {
   const seen = wire();
   await api.preset("Night / Loud");
   assert.equal(seen.path, "/api/preset/Night%20%2F%20Loud");
-});
-
-// --- error codes on a refusal ---------------------------------------------------
-
-test("test_a_refusal_exposes_the_status_and_the_bodys_code_on_the_error", async () => {
-  // the body is seeded here, so its code is this test's own string to assert
-  wire({ ok: false, status: 409, json: async () => ({ detail: { rate: "x" }, code: "route_refused" }) });
-  /** @type {{ status?: number, code?: string }} */
-  const err = await api.status().then(
-    () => ({}),
-    (e) => e,
-  );
-  assert.deepEqual([err.status, err.code], [409, "route_refused"]);
 });

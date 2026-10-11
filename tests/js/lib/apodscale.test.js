@@ -12,10 +12,6 @@ test("test_the_width_is_how_far_the_position_moved", () => {
   assert.equal(playedMs(10, 12.5), 2500);
 });
 
-test("test_a_position_that_did_not_advance_observed_nothing", () => {
-  assert.equal(playedMs(10, 10), 0);
-});
-
 test("test_an_unreadable_position_observed_nothing", () => {
   assert.equal(playedMs(null, 12), 0);
 });

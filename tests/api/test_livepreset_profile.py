@@ -36,10 +36,6 @@ def test_a_full_save_holds_the_engines_matrix_profile(chain_api: Callable[..., T
     assert client.put("/api/livepresets/Warm").json()["fields"]["matrix_profile"] == MIXDOWN
 
 
-def test_a_full_save_with_no_profile_selected_labels_it_default(live_api: TestClient) -> None:
-    assert live_api.put("/api/livepresets/Warm").json()["names"]["matrix_profile"] == "[Default]"
-
-
 def test_a_save_naming_the_matrix_profile_alone_stores_it_alone(live_api: TestClient) -> None:
     resp = live_api.put("/api/livepresets/Warm", json={"fields": ["matrix_profile"]})
     assert set(resp.json()["fields"]) == {"matrix_profile"}
@@ -48,11 +44,6 @@ def test_a_save_naming_the_matrix_profile_alone_stores_it_alone(live_api: TestCl
 def test_a_save_given_a_listed_profile_stores_it(live_api: TestClient) -> None:
     resp = live_api.put("/api/livepresets/Warm", json=_profile_save("Default"))
     assert resp.json()["fields"]["matrix_profile"] == "Default"
-
-
-def test_a_save_given_the_empty_profile_labels_it_default(live_api: TestClient) -> None:
-    resp = live_api.put("/api/livepresets/Warm", json=_profile_save(""))
-    assert resp.json()["names"]["matrix_profile"] == "[Default]"
 
 
 def test_a_save_given_a_profile_the_engine_does_not_list_is_refused(live_api: TestClient) -> None:

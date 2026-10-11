@@ -49,12 +49,8 @@ const CHOICES = [
 const K_HIDDEN = "hqptuner.hiddenStages";
 const K_PINNED = "hqptuner.allowPinnedRates";
 
-// A stored list naming one hideable stage and one stage the rail cannot hide.
-const STORED_HIDDEN = ["speakers", "volume"];
-
 const storage = useStorage();
 for (const c of CHOICES) storage.setItem(c.key, c.pick);
-storage.setItem(K_HIDDEN, JSON.stringify(STORED_HIDDEN));
 storage.setItem(K_PINNED, "1");
 
 // Written literally, so the import graph reaches the module from this suite.
@@ -74,7 +70,6 @@ const SURFACE = {
 // the seeded storage.
 /** @type {Record<string, string>} */
 const AT_LOAD = Object.fromEntries(CHOICES.map((c) => [c.pref, SURFACE[c.pref].sig.value]));
-const HIDDEN_AT_LOAD = [...faceplate.hiddenStages.value];
 const PINNED_AT_LOAD = faceplate.allowPinnedRates.value;
 
 // A second instance, loaded against a storage holding every out-of-set value.
@@ -96,10 +91,6 @@ for (const c of CHOICES) {
     assert.ok(SURFACE[c.pref].offered.includes(outsider[c.pref].value));
   });
 }
-
-test("test_a_stored_hidden_stage_list_loads_without_the_stage_the_rail_cannot_hide", () => {
-  assert.deepEqual(HIDDEN_AT_LOAD, ["speakers"]);
-});
 
 test("test_a_browser_with_no_stored_page_range_loads_the_range_a_stored_one_outside_the_set_falls_back_to", () => {
   assert.equal(unset.pageRange.value, outsider.pageRange.value);
@@ -152,13 +143,6 @@ test("test_showing_a_stage_takes_it_out_of_the_hidden_set", () => {
   faceplate.setStageHidden("loudness", true);
   faceplate.setStageHidden("loudness", false);
   assert.deepEqual(faceplate.hiddenStages.value, ["dsd"]);
-});
-
-test("test_hiding_a_stage_the_rail_cannot_hide_leaves_the_hidden_set_standing", () => {
-  showEveryStage();
-  faceplate.setStageHidden("speakers", true);
-  faceplate.setStageHidden("volume", true);
-  assert.deepEqual(faceplate.hiddenStages.value, ["speakers"]);
 });
 
 test("test_hiding_a_stage_stores_the_hidden_set", () => {

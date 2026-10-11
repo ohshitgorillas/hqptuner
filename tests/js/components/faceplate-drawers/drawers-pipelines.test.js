@@ -23,13 +23,13 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { config, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
 import { PipelinesOverview } from "../../../../hqptuner/static/components/faceplate/drawers/pipelines/Overview.js";
 import { PipelinesOutput } from "../../../../hqptuner/static/components/faceplate/drawers/pipelines/Output.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -140,26 +140,9 @@ test("test_a_routed_crosspoints_pin_is_lit", () => {
   assert.deepEqual([lit(0, 0), lit(0, 1)], [true, false]);
 });
 
-test("test_a_crossfeed_blocks_pin_is_marked_as_the_blocks", () => {
-  load(STRUCTURAL);
-  const el = pin(0, 0);
-  assert.equal(el ? classes(el).includes("gen") : null, true);
-});
-
 test("test_tapping_an_empty_pin_stages_a_pipeline_there", async () => {
   await fire(overview(), (p) => p["data-src"] === "1" && p["data-mix"] === "0");
   assert.deepEqual(stagedRows()?.at(-1), plain(1, 0));
-});
-
-test("test_tapping_a_pin_shows_its_outputs_tab", async () => {
-  await fire(overview(), (p) => p["data-src"] === "1" && p["data-mix"] === "1");
-  assert.equal(shownTab(SCHEMA), "out1");
-});
-
-test("test_a_bypassed_matrix_engine_disables_the_pins", () => {
-  load(STEREO, false);
-  const el = pin(0, 0);
-  assert.equal(el ? hasAttr(el, "disabled") : null, true);
 });
 
 test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () => {

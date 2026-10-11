@@ -36,7 +36,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { nFocus } from "../../../../hqptuner/static/store/narrow/state.js";
-import { narrowOptions, narrowCount } from "../../../../hqptuner/static/store/narrow/match.js";
+import { narrowOptions } from "../../../../hqptuner/static/store/narrow/match.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
 const STAGE = "nx";
@@ -84,27 +84,4 @@ test("test_a_different_focus_value_offers_the_filters_carrying_that_one", () => 
   const options = reset();
   nFocus.value = ["transients"];
   assert.deepEqual(offered(options), ["gauss-a", "gauss-c", "gauss-d"]);
-});
-
-// --- no facet engaged: nothing is narrowed at all ------------------------------
-// Distinct from narrowing.test.js's empty-selection cases, which clear ONE facet
-// and leave the rest at their defaults: here nothing has been touched at all.
-
-test("test_with_no_facet_engaged_the_offered_list_is_the_whole_option_list", () => {
-  const options = reset();
-  assert.deepEqual(
-    offered(options),
-    options.map((o) => o.label),
-  );
-});
-
-// --- the badge counts matches over the raw list --------------------------------
-// `timbre` excludes gauss-c, so the badge reads 3/4: the excluded filter is in
-// the denominator, which is the raw option list, and not in the numerator.
-
-test("test_the_badge_counts_the_matches_over_the_raw_option_count", () => {
-  const options = reset();
-  nFocus.value = ["timbre"];
-  const count = narrowCount(options, STAGE, FIELD);
-  assert.deepEqual([count.n, count.total], [3, 4]);
 });

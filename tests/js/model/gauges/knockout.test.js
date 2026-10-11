@@ -43,10 +43,6 @@ test("test_the_knockout_reaches_past_the_labels_left_side", () => {
   assert.ok(leftMargin(NARROW) > 0);
 });
 
-test("test_the_knockout_reaches_past_the_labels_right_side", () => {
-  assert.ok(rightMargin(NARROW) > 0);
-});
-
 test("test_the_knockout_reaches_as_far_past_the_right_side_as_past_the_left", () => {
   assert.equal(rightMargin(NARROW), leftMargin(NARROW));
 });

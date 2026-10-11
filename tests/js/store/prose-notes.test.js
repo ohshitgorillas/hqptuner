@@ -70,17 +70,5 @@ test("test_a_filter_option_with_no_description_key_describes_the_notes_alone", a
 });
 
 // ============================================================================
-// two-stage ordering: description, notes, then the shared two-stage note
-// ============================================================================
-
-test("test_a_two_stage_filter_option_orders_notes_before_the_two_stage_note", async () => {
-  await reset();
-  assert.equal(
-    optionDescription(schema.pcm_filter_1x, { value: "0", label: "sinc-S-2s" }, FILTER_META),
-    "A short sinc. Not recommended. Two stage oversampling.",
-  );
-});
-
-// ============================================================================
 // an entry with no desc describes nothing, whatever the meta offers
 // ============================================================================

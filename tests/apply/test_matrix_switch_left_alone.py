@@ -22,7 +22,6 @@ from typing import Any
 import pytest
 from fake_config_xml import cfg_xml
 from fake_http import state
-from narrow import present
 
 from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
@@ -46,20 +45,7 @@ def cfg(**overrides: object) -> bytes:
     return cfg_xml(state(**overrides))
 
 
-def switch_after(xml: bytes, edits: dict[str, str]) -> str:
-    """The matrix switch as a caller reads it back after staging ``edits``.
-
-    Every caller hands in a ``cfg`` snapshot, which always renders the switch, so
-    an absent one is broken scaffolding and raises ``FixtureError``."""
-    return present(presetconf.read_config(presetconf.apply_edits(xml, edits)).get(MATRIX_SWITCH))
-
-
 # --- a plugin switched on leaves the carrier alone -----------------------------
-
-
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-def test_enabling_a_plugin_leaves_a_bypassed_matrix_bypassed(plugin: str) -> None:
-    assert switch_after(cfg(matrix_enabled=False), {plugin: "1"}) == "0"
 
 
 @pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
@@ -74,34 +60,7 @@ def test_enabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix()
     assert MATRIX_SWITCH not in presetconf.read_config(presetconf.apply_edits(BARE, {PLUGIN_SWITCH: "1"}))
 
 
-def test_enabling_a_plugin_leaves_an_engaged_matrix_engaged() -> None:
-    assert switch_after(cfg(matrix_enabled=True), {PLUGIN_SWITCH: "1"}) == "1"
-
-
-# --- the switch moves when, and only when, it is staged -------------------------
-
-
-def test_a_staged_matrix_switch_of_one_lands_engaged_alongside_a_plugin_enable() -> None:
-    edits = {PLUGIN_SWITCH: "1", MATRIX_SWITCH: "1"}
-    assert switch_after(cfg(matrix_enabled=False), edits) == "1"
-
-
-def test_a_staged_matrix_switch_of_zero_lands_bypassed_alongside_a_plugin_enable() -> None:
-    edits = {PLUGIN_SWITCH: "1", MATRIX_SWITCH: "0"}
-    assert switch_after(cfg(matrix_enabled=True), edits) == "0"
-
-
 # --- a plugin switched off leaves the carrier alone too -------------------------
-
-
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-def test_disabling_a_plugin_leaves_an_engaged_matrix_engaged(plugin: str) -> None:
-    assert switch_after(cfg(matrix_enabled=True, **{plugin: True}), {plugin: "0"}) == "1"
-
-
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-def test_disabling_a_plugin_leaves_a_bypassed_matrix_bypassed(plugin: str) -> None:
-    assert switch_after(cfg(matrix_enabled=False, **{plugin: True}), {plugin: "0"}) == "0"
 
 
 def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix() -> None:

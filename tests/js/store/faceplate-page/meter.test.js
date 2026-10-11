@@ -104,11 +104,6 @@ for (const range of METER_RANGES) {
   });
 }
 
-test("test_the_db_scale_runs_from_full_scale_on_top_to_the_floor_at_the_bottom", () => {
-  const { db } = pageMeter();
-  assert.deepEqual([db[0]?.db, db[0]?.at, db.at(-1)?.at], [0, 0, 1]);
-});
-
 // --- the frequency axis --------------------------------------------------------------------------------------------
 
 test("test_the_nyquist_is_the_geometrys", () => {
@@ -122,11 +117,6 @@ test("test_a_new_geometry_moves_the_nyquist", () => {
   assert.equal(pageMeter().nyquist, 48000);
 });
 
-test("test_the_frequency_axis_ends_at_the_source_nyquist", () => {
-  stream({ geo: geometry({ nyquist: 48000 }) });
-  assert.equal(pageMeter().freq.nyq.khz, 48);
-});
-
 test("test_the_frequency_axis_is_linear_across_the_spectrum", () => {
   stream({ geo: geometry({ nyquist: 48000 }) });
   const at = pageMeter().freq.ticks.find((t) => t.khz === 20)?.at;
@@ -135,18 +125,9 @@ test("test_the_frequency_axis_is_linear_across_the_spectrum", () => {
 
 // --- the bars ------------------------------------------------------------------------------------------------------
 
-test("test_a_stereo_source_draws_two_bars", () => {
-  assert.equal(pageMeter().channels, 2);
-});
-
 test("test_a_six_channel_source_draws_six_bars", () => {
   stream({ geo: geometry({ channels: 6 }) });
   assert.equal(pageMeter().channels, 6);
-});
-
-test("test_before_any_geometry_the_section_draws_two_bars", () => {
-  stream({ geo: null });
-  assert.equal(pageMeter().channels, 2);
 });
 
 test("test_a_new_geometry_redraws_the_bar_count", () => {

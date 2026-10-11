@@ -24,7 +24,6 @@ from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyOutcome
 
 _CHANNELS = ("Left", "Right")
-_NO_FORM: dict[str, object] = {}
 
 ManagerBuilder = Callable[..., ConnectionManager]
 
@@ -116,22 +115,6 @@ async def test_apply_rides_out_the_reload_window_and_confirms(
     manager = speakers_manager(reloading_daemon)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result.outcome is SpeakerApplyOutcome.CONFIRMED
-
-
-async def test_the_applied_level_lands_on_the_daemon(
-    speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
-) -> None:
-    manager = speakers_manager(reloading_daemon)
-    await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
-    assert reloading_daemon["level_0"] == "-3"
-
-
-async def test_a_confirmed_apply_reports_the_refreshed_form(
-    speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
-) -> None:
-    manager = speakers_manager(reloading_daemon)
-    result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
-    assert (result.speakers or _NO_FORM)["enabled"] is True
 
 
 async def test_apply_gives_up_honestly_when_the_daemon_never_returns(

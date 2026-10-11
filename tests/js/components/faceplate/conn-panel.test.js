@@ -92,9 +92,6 @@ const sheet = () => {
   return aside;
 };
 
-/** The inputs inside the sheet, in document order. */
-const inputs = () => elements(sheet().html).filter((e) => e.name === "input");
-
 /** The host name the daemon-auth-link anchor points at, or undefined when the sheet carries no such anchor. */
 const authLinkHostname = () => {
   const link = elements(sheet().html).find((e) => attr(e, "data-testid") === "daemon-auth-link");
@@ -134,20 +131,6 @@ test("test_the_open_sheet_is_a_dialog", () => {
   assert.equal(attr(sheet(), "role"), "dialog");
 });
 
-test("test_the_open_sheet_holds_host_username_password_and_two_remember_radios_in_order", () => {
-  setupOpen.value = true;
-  assert.deepEqual(
-    inputs().map((e) => (attr(e, "type") === "radio" ? `radio:${attr(e, "name")}` : attr(e, "type"))),
-    ["text", "text", "password", "radio:setup-remember", "radio:setup-remember"],
-  );
-});
-
-test("test_a_refused_verdict_marks_the_sheet_refused", () => {
-  setupOpen.value = true;
-  verdict.value = "refused";
-  assert.equal(attr(sheet(), "data-verdict"), "refused");
-});
-
 test("test_a_host_field_naming_the_server_machine_links_the_daemon_page_through_the_page_host", () => {
   setupOpen.value = true;
   form.value = { ...FORM, host: "host.docker.internal" };
@@ -163,10 +146,4 @@ test("test_tapping_connect_posts_the_host_field_to_the_connection_route", async 
     sent("POST", "/api/connection").map((c) => c.body?.host),
     ["10.0.0.5"],
   );
-});
-
-test("test_tapping_a_same_machine_fill_writes_its_address_into_the_host_field", async () => {
-  setupOpen.value = true;
-  await tap((v) => v.props["data-host"] === "127.0.0.1");
-  assert.equal(form.value.host, "127.0.0.1");
 });

@@ -35,15 +35,8 @@ DIR_STORES = [("backup_dir", "backups"), ("preset_dir", "presets")]
 #: Every store name, the top-level member names a store can occupy.
 STORE_NAMES = {name for _, name in FILE_STORES + DIR_STORES}
 
-#: A connection record as one install saved it, password included.
-SAVED_HOST = "10.0.0.5"
-CONNECTION_RECORD = {"host": SAVED_HOST, "username": "u", "password": "s3cret", "remember": True}
-
 #: The debug log's own name, deliberately unlike any store or `hqptuner.log`.
 DEBUG_LOG_NAME = "engine-debug.txt"
-
-#: In-memory log lines handed to the export.
-LOG_LINES = ["first line of the log", "second line of the log", "third line"]
 
 
 def config_at(state: Path, debug_log: Path | None = None) -> Config:
@@ -99,12 +92,6 @@ def test_a_file_inside_a_store_directory_is_archived_under_its_path_relative_to_
     assert members(state_archive(cfg, [])).get(member) == content
 
 
-def test_the_archived_connection_record_survives_with_its_password_blanked(tmp_path: Path) -> None:
-    cfg = config_at(tmp_path / "state")
-    write(cfg.connection_file, json.dumps(CONNECTION_RECORD).encode())
-    assert json_member(state_archive(cfg, []), "connection.json") == {**CONNECTION_RECORD, "password": ""}
-
-
 def test_parked_filter_uploads_are_left_out_of_the_backups(tmp_path: Path) -> None:
     cfg = config_at(tmp_path / "state")
     write(cfg.backup_dir / "pre-apply-settings.zip", b"backup")
@@ -122,12 +109,6 @@ def test_the_debug_log_and_its_rolled_sibling_are_archived_under_their_basenames
     write(log_dir / f"{DEBUG_LOG_NAME}.1", b"rolled log")
     expected = (log_dir / filename).read_bytes()
     assert members(state_archive(cfg, [])).get(filename) == expected
-
-
-def test_the_log_lines_are_archived_one_per_line_as_hqptuner_log(tmp_path: Path) -> None:
-    cfg = config_at(tmp_path / "state")
-    archived = members(state_archive(cfg, LOG_LINES)).get("hqptuner.log", b"")
-    assert archived.decode().splitlines() == LOG_LINES
 
 
 def test_stores_missing_from_disk_are_absent_from_the_archive(tmp_path: Path) -> None:

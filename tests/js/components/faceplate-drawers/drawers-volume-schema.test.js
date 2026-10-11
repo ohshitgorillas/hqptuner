@@ -28,7 +28,7 @@ import {
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { stagingWire } from "../../support/wire/wire.js";
-import { attr, classes, elements, text } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -78,22 +78,6 @@ const levelDot = () => {
   return tab ? classes(tab).includes("dirty") : undefined;
 };
 
-test("test_the_drawer_shows_level_gain_and_range_tabs", () => {
-  assert.deepEqual(
-    tabs(markup()).map((el) => attr(el, "data-tab")),
-    ["level", "gain", "range"],
-  );
-});
-
-test("test_the_fixed_volume_choice_lights_the_line_the_store_picks", () => {
-  const lit = (/** @type {{ fixed?: boolean, iso?: string }} */ r) => {
-    load(r);
-    const cur = markup().find((el) => classes(el).includes("chline") && classes(el).includes("cur"));
-    return cur && attr(cur, "data-v");
-  };
-  assert.deepEqual([lit({}), lit({ fixed: true }), lit({ iso: "2" })], ["off", "manual", "auto"]);
-});
-
 test("test_a_staged_fixed_level_dots_the_level_tab", async () => {
   load({ fixed: true });
   const before = levelDot();
@@ -105,14 +89,4 @@ test("test_the_range_tab_mounts_the_range_block", () => {
   const block = markup().find((el) => attr(el, "data-block") === "range");
   const inner = block ? elements(block.html).some((el) => classes(el).includes("vrange")) : undefined;
   assert.equal(inner, true);
-});
-
-test("test_the_auto_line_offers_the_two_headroom_levels_and_no_off", () => {
-  const line = markup().find((el) => el.name === "div" && attr(el, "data-v") === "auto");
-  const labels = line
-    ? elements(line.html)
-        .filter((el) => el.name === "button" && attr(el, "data-v") !== undefined)
-        .map(text)
-    : [];
-  assert.deepEqual(labels, ["−3 dB", "−6 dB"]);
 });

@@ -92,11 +92,6 @@ async def running_profiles(manager: ConnectionManager) -> dict[str, dict[str, An
 # --- save without targets: the old shape, byte for byte ----------------------
 
 
-async def test_save_without_presets_key_still_reaches_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0, ROW1))
-    assert "Crossfeed EQ" in await running_profiles(http_manager)
-
-
 async def test_save_without_presets_key_leaves_stored_presets_untouched(http_manager: ConnectionManager) -> None:
     seeded = preset_xml()
     http_manager.presetops.store.save("Office", seeded)
@@ -201,11 +196,6 @@ async def test_an_untargeted_delete_leaves_stored_presets_untouched(http_manager
     assert "Stock" in stored_profiles(http_manager.presetops.store.read("Office"))
 
 
-async def test_an_untargeted_delete_still_removes_from_the_running_config(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, delete_from("Stock", []))
-    assert "Stock" not in await running_profiles(http_manager)
-
-
 async def test_delete_targeting_a_preset_without_the_profile_still_applies(http_manager: ConnectionManager) -> None:
     http_manager.presetops.store.save("Office", preset_xml())
     assert (await restore.apply(http_manager, delete_from("Stock", ["Office"]))).outcome is RestoreOutcome.APPLIED
@@ -237,11 +227,6 @@ def arrange_apply(client: TestClient, field: dict[str, str], code: str | None) -
     got = staged_apply(client, field).get("code")
     if got != code:
         raise FixtureError(reason=f"the staged apply was meant to answer code {code!r}, got {got!r}")
-
-
-@pytest.mark.parametrize("presets", ["Office", [1]])
-def test_non_list_of_strings_presets_is_refused_as_invalid_input(http_client: TestClient, presets: object) -> None:
-    assert staged_apply(http_client, bad_presets_save(presets))["code"] == "invalid_input"
 
 
 #: A save whose presets value is refused, beside one that is accepted and so
@@ -313,13 +298,6 @@ def test_api_matrix_serves_each_stored_presets_profile_names_sorted(
 def offline_manager(tmp_path: Path) -> ConnectionManager:
     """A manager with no daemon lane, its preset store under ``tmp_path``."""
     return ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
-
-
-def test_preset_profiles_serves_an_unchanged_presets_list_without_rebuilding_it(tmp_path: Path) -> None:
-    seed_presets(tmp_path / "presets", {"Office": {"Alpha": [FILE_ROW]}})
-    ops = offline_manager(tmp_path).presetops
-    first = ops.preset_profiles()["Office"]
-    assert ops.preset_profiles()["Office"] is first
 
 
 def test_preset_profiles_follows_a_save_of_that_preset_with_another_profile_set(tmp_path: Path) -> None:

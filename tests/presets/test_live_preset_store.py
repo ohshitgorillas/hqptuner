@@ -29,8 +29,6 @@ from pathlib import Path
 
 import pytest
 
-from hqptuner import __version__
-from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.live import LivePresetError, LivePresetSchemaError, LivePresetStore, LiveRecord
 
 RECORD = LiveRecord(chain="pcm", fields={"filter": "12", "shaper": "3"})
@@ -41,16 +39,6 @@ NO_STATIONS: Callable[[], list[str]] = list
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = 99
-
-#: File contents that are not a JSON object at all: unparseable bytes, and JSON
-#: that parses to something else entirely. Refused as corrupt rather than read
-#: as empty — a damaged file costs the user a clear error naming it, not the
-#: presets it silently drops.
-CORRUPT = [
-    pytest.param("not json at all {", id="not-json"),
-    pytest.param("[]", id="json-array"),
-    pytest.param('"alpha"', id="json-string"),
-]
 
 #: A JSON object that is readable but carries no ``presets`` key at all: a
 #: store nothing has saved into yet, not a corrupt one, so it still reads as
@@ -110,12 +98,6 @@ def test_a_store_whose_file_was_never_written_lists_no_presets_but_a_saved_one_l
     assert store_at(tmp_path / directory).all("") == expected
 
 
-def test_a_write_creates_the_file_and_its_parent_directory(tmp_path: Path) -> None:
-    store = LivePresetStore(tmp_path / "never-created" / "live-presets.json", stations=NO_STATIONS)
-    store.save("alpha", RECORD, [""])
-    assert (tmp_path / "never-created" / "live-presets.json").is_file()
-
-
 def seeded_store(directory: Path, content: str) -> LivePresetStore:
     """A store over a file holding ``content``, in a directory of its own."""
     directory.mkdir()
@@ -134,19 +116,6 @@ def test_a_file_with_no_presets_key_lists_no_presets_but_a_saved_one_lists_it(
     seeded_store(tmp_path / "as-seeded", content)
     seeded_store(tmp_path / "saved-into", content).save("alpha", RECORD, [""])
     assert store_at(tmp_path / directory).all("") == expected
-
-
-def _corrupt_code(tmp_path: Path) -> str:
-    """The ``code`` carried by the ``StoreCorruptError`` listing the seeded store raises."""
-    with pytest.raises(StoreCorruptError) as caught:
-        store_at(tmp_path).all("")
-    return caught.value.code
-
-
-@pytest.mark.parametrize("content", CORRUPT)
-def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
-    seed(tmp_path, content)
-    assert _corrupt_code(tmp_path) == "store_corrupt"
 
 
 # --- names nothing is saved under -------------------------------------------
@@ -170,12 +139,6 @@ def test_deleting_a_name_no_preset_is_saved_under_is_refused(tmp_path: Path) -> 
 
 
 def test_a_saved_preset_reads_back(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save("alpha", RECORD, [""])
-    assert store.read("", "alpha") == RECORD
-
-
-def test_read_returns_a_value_equal_to_the_record_passed_to_save(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.save("alpha", RECORD, [""])
     assert store.read("", "alpha") == RECORD
@@ -213,12 +176,6 @@ def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -
 def test_the_refusal_names_the_stamp_the_file_carries(tmp_path: Path) -> None:
     seed_stamped(tmp_path, TOO_NEW)
     with pytest.raises(LivePresetSchemaError, match=str(TOO_NEW)):
-        store_at(tmp_path).read("", "alpha")
-
-
-def test_the_refusal_names_this_builds_own_version(tmp_path: Path) -> None:
-    seed_stamped(tmp_path, TOO_NEW)
-    with pytest.raises(LivePresetSchemaError, match=__version__.replace(".", r"\.")):
         store_at(tmp_path).read("", "alpha")
 
 

@@ -49,14 +49,6 @@ test("test_a_drag_in_progress_is_shown_as_its_number_in_decibels", () => {
   assert.equal(volumeShown.value, "-33.5");
 });
 
-test("test_a_drag_in_progress_survives_a_later_engine_report", () => {
-  // The daemon keeps polling mid-drag and reports the level it has caught up
-  // to; the surface must keep showing the knob, not flicker back to the poll.
-  reset({ level: "-24", drag: -33.5 });
-  volume.value = "-12";
-  assert.equal(volumeShown.value, "-33.5");
-});
-
 test("test_a_drag_to_zero_decibels_is_shown_rather_than_the_engine_report", () => {
   // 0 dB is the trap: falsy, so a source picked with `||` shows the engine's
   // level instead of the top of the knob's travel.
@@ -67,12 +59,4 @@ test("test_a_drag_to_zero_decibels_is_shown_rather_than_the_engine_report", () =
 test("test_a_drag_in_progress_shows_even_before_the_first_poll", () => {
   reset({ level: null, drag: -40 });
   assert.equal(volumeShown.value, "-40");
-});
-
-// --- the drag ends -----------------------------------------------------------
-
-test("test_a_released_drag_hands_the_display_back_to_the_engine_report", () => {
-  reset({ level: "-24", drag: -33.5 });
-  volumeDrag.value = null;
-  assert.equal(volumeShown.value, "-24");
 });

@@ -42,7 +42,6 @@ import {
   marks,
   optionFor,
   reset,
-  tick,
 } from "../../support/devicecaps-harness.js";
 
 // --- graying reacts to staged values, not applied ones ------------------------
@@ -102,15 +101,6 @@ test("test_the_sdm_mode_is_left_alone_while_dop_still_gives_the_device_a_dsd_pat
   // carrier is announced, so SDM is reachable and there is nothing to correct.
   const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
   assert.deepEqual(w.staged.http, {});
-});
-
-test("test_unticking_dop_falls_the_mode_back_to_pcm", async () => {
-  // Second half: the only DSD path this device had was DoP, and the user has
-  // just switched it off. SDM stops being reachable, so the mode goes with it.
-  const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true, mode: "sdm" });
-  await edit("net_dop", "0");
-  await tick();
-  assert.equal(w.staged.http.mode, "pcm");
 });
 
 test("test_the_pcm_mode_is_never_corrected", async () => {

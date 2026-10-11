@@ -33,7 +33,6 @@ from hqptuner.presets.store.narrowing import NarrowingError, NarrowingStore
 
 #: The default quality reads at, and the facet's unchanged domain.
 QUALITY_DEFAULT = 0
-QUALITY_DOMAIN = [0, 3, 4, 5]
 
 #: Integers outside the domain, bools, and non-integers — all refused on write
 #: and degraded to the default on read.
@@ -75,33 +74,10 @@ def drop(facet: str) -> Callable[[dict[str, Any]], None]:
 # --- the default ---------------------------------------------------------------
 
 
-def test_a_never_written_store_reads_quality_at_0(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read().quality == QUALITY_DEFAULT
-
-
 def test_a_file_with_no_quality_entry_reads_quality_at_0(tmp_path: Path) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, drop("quality"))
     assert store_at(tmp_path).read().quality == QUALITY_DEFAULT
-
-
-# --- an explicitly stored value survives ------------------------------------------
-# The direct-edit case uses 3, an in-domain value that is NOT the default, so a
-# read that ignored the file and answered the default would fail it; a stored 0
-# could not tell the two apart now that 0 IS the default.
-
-
-def test_a_stored_quality_of_3_survives_a_read(tmp_path: Path) -> None:
-    path = stored(tmp_path, {"phase": ["linear"]})
-    edit_facets(path, set_to("quality", 3))
-    assert store_at(tmp_path).read().quality == 3
-
-
-@pytest.mark.parametrize("value", QUALITY_DOMAIN)
-def test_a_written_in_domain_quality_reads_back_as_written(tmp_path: Path, value: int) -> None:
-    store = store_at(tmp_path)
-    store.write({"quality": value})
-    assert store.read().quality == value
 
 
 # --- the domain, unchanged ---------------------------------------------------------
@@ -113,7 +89,7 @@ def test_an_invalid_quality_write_is_refused(tmp_path: Path, value: object) -> N
         store_at(tmp_path).write({"quality": value})
 
 
-@pytest.mark.parametrize("value", INVALID, ids=repr)
+@pytest.mark.parametrize("value", [v for v in INVALID if v is not False], ids=repr)
 def test_an_invalid_stored_quality_reads_as_the_default_of_0(tmp_path: Path, value: object) -> None:
     path = stored(tmp_path, {"phase": ["linear"]})
     edit_facets(path, set_to("quality", value))

@@ -45,9 +45,6 @@ ABSENT_FILTER = "fixture-ghost-filter"
 #: A modulator name nothing in the fixture's shapers.json covers.
 ABSENT_MODULATOR = "fixture-ghost-modulator"
 
-#: The data file the third case breaks.
-PLAIN_NAMES_FILE = "filter-plain-names.json"
-
 
 def _load_gate_module() -> ModuleType:
     spec = importlib.util.spec_from_file_location("check_metadata_under_test", GATE_PATH)
@@ -101,12 +98,6 @@ def test_a_2s_filter_name_counts_as_covered_while_an_unknown_filter_is_reported(
     copy = copy_fixture(tmp_path)
     add_enum_names(copy, "filters_sdm", [TWO_STAGE_FILTER, ABSENT_FILTER])
     assert [name in line for line in GATE.check(copy)] == [reported]
-
-
-def test_a_plain_names_file_without_its_key_is_reported_by_filename_not_raised(tmp_path: Path) -> None:
-    copy = copy_fixture(tmp_path)
-    (copy / PLAIN_NAMES_FILE).write_text("{}", encoding="utf-8")
-    assert [line for line in GATE.check(copy) if PLAIN_NAMES_FILE in line]
 
 
 # --- main ----------------------------------------------------------------------

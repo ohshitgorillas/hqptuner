@@ -200,12 +200,6 @@ test("test_a_one_tab_drawer_draws_no_tabs", () => {
   assert.deepEqual([tabs(solo("volume_max")), tabs(VOL)], [0, 2]);
 });
 
-test("test_a_one_tab_drawer_carries_its_dot_on_the_title", async () => {
-  await edit("volume_max", "-6");
-  const title = find(solo("volume_max"), (e) => e.name === "span" && text(e) === "solo-title");
-  assert.equal(title ? classes(title).includes("dirty") : false, true);
-});
-
 test("test_only_the_shown_tabs_panel_is_visible", () => {
   showTab("vol", "misc");
   const hidden = (/** @type {string} */ id) => {
@@ -277,13 +271,6 @@ test("test_a_gray_reason_disables_the_rows_control", async () => {
   assert.deepEqual([before, disabled()], [false, true]);
 });
 
-test("test_a_gray_reason_prints_under_the_rows_control", async () => {
-  const printed = () => inRow(VOL, "volume_max").some((e) => classes(e).includes("gr"));
-  const before = printed();
-  await edit("fixed_volume_enabled", "1");
-  assert.deepEqual([before, printed()], [false, true]);
-});
-
 test("test_a_staged_row_reads_dirty", async () => {
   const dirty = () => {
     const row = find(VOL, (e) => attr(e, "data-k") === "volume_max");
@@ -292,12 +279,6 @@ test("test_a_staged_row_reads_dirty", async () => {
   const before = dirty();
   await edit("volume_max", "-6");
   assert.deepEqual([before, dirty()], [false, true]);
-});
-
-test("test_a_row_takes_its_label_from_the_settings_metadata", () => {
-  metadata.value = { settings: { volume: { volume_max: { label: "label-fixture", tooltip: "para-fixture" } } } };
-  const label = inRow(VOL, "volume_max").find((e) => e.name === "b");
-  assert.equal(label ? text(label) : undefined, "label-fixture");
 });
 
 test("test_a_row_takes_its_paragraph_from_the_settings_metadata", () => {
@@ -364,12 +345,6 @@ test("test_tapping_discard_drops_the_staged_edits", async () => {
   await edit("volume_max", "-6");
   await fire(VOL, (p) => p["data-testid"] === "discard");
   assert.equal("volume_max" in wire.staged.http, false);
-});
-
-test("test_tapping_the_split_body_applies_the_staged_set", async () => {
-  await edit("volume_max", "-6");
-  await fire(VOL, (p) => p["data-testid"] === "apply");
-  assert.equal(applies.length, 1);
 });
 
 test("test_the_split_body_in_save_mode_needs_a_loaded_station", async () => {

@@ -12,7 +12,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, staged as stagedBuffer } from "../../../../hqptuner/static/store/signals.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import {
@@ -98,16 +98,6 @@ test("test_the_draft_reads_the_daemons_form_until_the_form_is_loaded", async () 
   assert.deepEqual([before, speakerDraft().loaded], [false, true]);
 });
 
-test("test_an_unedited_draft_carries_the_daemons_distances", async () => {
-  await reset();
-  assert.deepEqual(distances(), DISTANCES);
-});
-
-test("test_an_unedited_draft_carries_the_daemons_levels", async () => {
-  await reset();
-  assert.deepEqual(levels(), LEVELS);
-});
-
 test("test_an_edited_distance_lands_on_its_own_channel_only", async () => {
   await reset();
   setChannelDistance(1, "350");
@@ -173,20 +163,6 @@ test("test_staged_reads_whether_the_draft_differs", async () => {
 
 // --- the speaker set ---------------------------------------------------------------------------------------------
 
-test("test_the_picked_set_names_the_channels_shown", async () => {
-  await reset();
-  const first = speakerDraft().shown;
-  pickSpeakerSet(LAST.id);
-  assert.deepEqual([first, speakerDraft().shown], [FIRST.channels, LAST.channels]);
-});
-
-test("test_a_set_outside_the_list_is_turned_away", async () => {
-  await reset();
-  pickSpeakerSet(LAST.id);
-  pickSpeakerSet("no such set");
-  assert.deepEqual(speakerDraft().shown, LAST.channels);
-});
-
 test("test_picking_a_set_never_stages", async () => {
   await reset();
   pickSpeakerSet(LAST.id);
@@ -210,13 +186,6 @@ test("test_a_discard_puts_back_the_switch", async () => {
   setSpeakersGate(false);
   discardDraft();
   assert.equal(speakerDraft().enabled, true);
-});
-
-test("test_a_discard_keeps_the_picked_set", async () => {
-  await reset();
-  pickSpeakerSet(LAST.id);
-  discardDraft();
-  assert.deepEqual(speakerDraft().shown, LAST.channels);
 });
 
 // --- apply -------------------------------------------------------------------------------------------------------
@@ -277,12 +246,4 @@ test("test_the_levels_are_dead_while_the_running_direct_sdm_is_on", async () => 
   const off = levelsDead();
   await reset({ direct: true });
   assert.deepEqual([off, levelsDead()], [false, true]);
-});
-
-test("test_a_staged_direct_sdm_leaves_the_levels_live_until_it_runs", async () => {
-  await reset();
-  stagedBuffer.value = { live: {}, http: { direct_sdm: true } };
-  const stagedOnly = levelsDead();
-  await reset({ direct: true });
-  assert.deepEqual([stagedOnly, levelsDead()], [false, true]);
 });

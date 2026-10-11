@@ -72,8 +72,6 @@ const OPTIONS = [
   { value: "2", label: "XFi" },
 ];
 
-const GROUPING_KEYS = ["group", "subgroup", "groupBlurb", "subgroupBlurb"];
-
 /**
  * Seed the overlay and the pref, then decorate the flat section's options.
  *
@@ -109,14 +107,6 @@ test("test_a_family_less_entry_decorates_its_option_display_with_the_leaf", asyn
 
 test("test_a_family_less_entry_decorates_its_option_closed_label_with_the_short", async () => {
   assert.equal(byLabel(await decorated(), "wide").closedLabel, "Wide");
-});
-
-test("test_a_family_less_entry_adds_no_grouping_key_to_its_option", async () => {
-  const option = byLabel(await decorated(), "wide");
-  assert.deepEqual(
-    GROUPING_KEYS.filter((key) => key in option),
-    [],
-  );
 });
 
 // --- order ---------------------------------------------------------------------

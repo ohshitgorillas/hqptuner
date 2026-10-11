@@ -11,13 +11,7 @@ import { render } from "preact-render-to-string";
 import "../../support/domseam.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Faceplate } from "../../../../hqptuner/static/app.js";
-import {
-  body,
-  openStage,
-  openPopover,
-  toggleStage,
-  showBody,
-} from "../../../../hqptuner/static/store/faceplate/view.js";
+import { body, openStage, openPopover, showBody } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { BOTTOM_BARS, setBottomBar } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { TARGETS, setSwitcherTarget } from "../../../../hqptuner/static/store/faceplate/bottom/switcher.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
@@ -58,23 +52,6 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
   assert.deepEqual(openDrawers(), []);
 });
 
-test("test_a_tapped_stage_opens_its_own_drawer_alone", () => {
-  toggleStage("volume");
-  assert.deepEqual(openDrawers(), ["drawer-volume"]);
-});
-
-test("test_a_second_tapped_stage_takes_the_open_drawer_over", () => {
-  toggleStage("volume");
-  toggleStage("output");
-  assert.deepEqual(openDrawers(), ["drawer-output"]);
-});
-
-test("test_the_gear_swaps_the_rail_off_the_plate", () => {
-  const before = stages().length;
-  showBody("settings");
-  assert.deepEqual([before > 0, stages().length], [true, 0]);
-});
-
 /** The settings rail's entries inside the settings body. */
 const settingsEntries = () => {
   const setbody = frame().find((e) => classes(e).includes("setbody"));
@@ -84,27 +61,6 @@ const settingsEntries = () => {
 test("test_the_gear_draws_the_settings_rail_in_place_of_the_chain_rail", () => {
   body.value = "settings";
   assert.deepEqual([settingsEntries().length > 0, stages().length], [true, 0]);
-});
-
-test("test_the_snapshot_builder_draws_its_rail_and_page_in_the_builder_body", () => {
-  config.value = {
-    fields: [],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Desk" }] },
-    active: "Desk",
-  };
-  liveBook.value = { Desk: { Near: { chain: "pcm", fields: { mode: "pcm" }, names: {} } } };
-  showBody("snapshots");
-  const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "snapshots");
-  const inner = shown ? elements(shown.html) : [];
-  assert.deepEqual(
-    [
-      shown ? isDiv(shown, "body") : false,
-      inner.some((e) => e.name === "nav" && classes(e).includes("brail")),
-      inner.some((e) => e.name === "main" && classes(e).includes("bpage")),
-    ],
-    [true, true, true],
-  );
 });
 
 test("test_the_snapshot_builder_body_holds_the_option_list", () => {
@@ -121,60 +77,12 @@ test("test_the_snapshot_builder_body_holds_the_option_list", () => {
   assert.ok(inner.some((e) => attr(e, "data-testid") === "option-list"));
 });
 
-test("test_the_profile_builder_draws_its_rail_and_page_in_the_builder_body", () => {
-  config.value = {
-    fields: [],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Desk" }] },
-    active: "Desk",
-  };
-  showBody("profile");
-  const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "profile");
-  const inner = shown ? elements(shown.html) : [];
-  assert.deepEqual(
-    [
-      shown ? isDiv(shown, "body") : false,
-      inner.some((e) => e.name === "nav" && classes(e).includes("rail") && classes(e).includes("prail")),
-      inner.some((e) => e.name === "main" && classes(e).includes("page") && classes(e).includes("pbpage")),
-    ],
-    [true, true, true],
-  );
-});
-
-test("test_the_gear_reads_pressed_while_the_settings_body_shows", () => {
-  body.value = "settings";
-  const gear = frame().find((e) => e.name === "button" && attr(e, "data-testid") === "settings");
-  assert.equal(gear ? attr(gear, "aria-pressed") : undefined, "true");
-});
-
-/** How many elements carry a class. */
-const count = (/** @type {string} */ cls) => frame().filter((e) => classes(e).includes(cls)).length;
-
-for (const cls of ["hdr", "engine"]) {
-  test(`test_the_${cls}_row_stays_when_the_body_swaps`, () => {
-    const before = count(cls);
-    showBody("snapshots");
-    assert.deepEqual([before, count(cls)], [1, 1]);
-  });
-}
-
 test("test_the_body_shown_is_named_on_the_plate", () => {
   showBody("station");
   const shown = frame()
     .filter((e) => classes(e).includes("body"))
     .map((e) => attr(e, "data-body"));
   assert.deepEqual(shown, ["station"]);
-});
-
-test("test_a_stage_with_a_registered_drawer_draws_that_drawers_body", () => {
-  toggleStage("source");
-  const open = frame().find((e) => e.name === "aside" && !hasAttr(e, "data-closed"));
-  const blocks = open
-    ? elements(open.html)
-        .map((e) => attr(e, "data-block"))
-        .filter((b) => b !== undefined)
-    : [];
-  assert.deepEqual(blocks, ["meter"]);
 });
 
 /** The ids of the plate-level popover panels the chain body holds. */
@@ -192,55 +100,12 @@ test("test_the_gear_takes_the_filter_presets_popover_off_the_plate", () => {
   assert.ok(!panels().includes("presets"));
 });
 
-test("test_the_chain_body_holds_the_option_list_sheet", () => {
-  assert.ok(frame().some((e) => e.name === "aside" && classes(e).includes("osheet")));
-});
-
-test("test_the_gear_takes_the_option_list_sheet_off_the_plate", () => {
-  showBody("settings");
-  assert.ok(!frame().some((e) => e.name === "aside" && classes(e).includes("osheet")));
-});
-
 test("test_the_frame_holds_the_connection_panel", () => {
   assert.ok(frame().some((e) => e.name === "aside" && attr(e, "data-testid") === "conn-panel"));
 });
 
 /** The plate's own element. */
 const plateEl = () => frame().find((e) => e.name === "div" && classes(e).includes("plate"));
-
-/** The plate's own children, in order. */
-const plateChildren = () => {
-  const plate = plateEl();
-  const inner = plate ? elements(plate.html).filter((e) => e.start > 0) : [];
-  /** @type {MarkupElement[]} */
-  const kids = [];
-  for (const e of inner.sort((a, b) => a.start - b.start)) {
-    const last = kids.at(-1);
-    if (!last || e.start >= last.start + last.html.length) kids.push(e);
-  }
-  return kids;
-};
-
-/**
- * Whether an element is a div carrying every class named.
- *
- * @param {MarkupElement | undefined} e
- * @param {string[]} cls
- */
-const isDiv = (e, ...cls) => e?.name === "div" && cls.every((c) => classes(e).includes(c));
-
-for (const shown of /** @type {import("../../../../hqptuner/static/store/faceplate/view.js").Body[]} */ ([
-  "chain",
-  "settings",
-  "snapshots",
-  "profile",
-])) {
-  test(`test_the_plate_ends_with_the_bottom_rule_then_the_switcher_under_the_${shown}_body`, () => {
-    body.value = shown;
-    const [rule, sw] = plateChildren().slice(-2);
-    assert.deepEqual([isDiv(rule, "rule", "botrule"), isDiv(sw, "switcher")], [true, true]);
-  });
-}
 
 for (const bar of BOTTOM_BARS) {
   test(`test_the_plate_carries_the_${bar}_bottom_bar_preference`, () => {

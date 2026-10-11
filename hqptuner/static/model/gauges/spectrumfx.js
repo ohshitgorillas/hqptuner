@@ -8,9 +8,9 @@ import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
 export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
-export const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
+const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
 export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outward
-export const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
+const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
 export const RIDGE_ROWS = 24; // ridge rows kept, newest first
 export const RIDGE_EVERY = 4; // steps between ridge rows

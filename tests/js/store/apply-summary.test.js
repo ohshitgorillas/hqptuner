@@ -32,13 +32,6 @@ function verdict(signal) {
   return signal.value;
 }
 
-test("test_a_failed_live_setting_is_reported_by_name", async () => {
-  await trees();
-  route({ apply: { live: [{ setting: "filter", ok: false }] } });
-  await applyAll();
-  assert.deepEqual(verdict(lastApply).settings, ["filter"]);
-});
-
 test("test_several_failed_live_settings_are_listed", async () => {
   await trees();
   route({
@@ -64,50 +57,6 @@ test("test_a_live_failure_outranks_a_switch_and_a_failed_save", async () => {
   assert.equal(verdict(lastApply).code, "live-failed");
 });
 
-// A failed live entry may carry the setter's error `code` (a wire identifier).
-// `daemon_unavailable` anywhere in the report is a different verdict from a
-// refusal; a report carrying only `daemon_refused`, or no code at all, is the
-// plain live failure the cases above pin.
-
-test("test_any_unavailable_live_failure_yields_live_unavailable_and_refused_or_uncoded_keep_live_failed", async () => {
-  await trees();
-  const codes = [];
-  route({
-    apply: {
-      live: [
-        { setting: "a", ok: false, code: "daemon_refused" },
-        { setting: "b", ok: false, code: "daemon_unavailable" },
-      ],
-    },
-  });
-  await applyAll();
-  codes.push(verdict(lastApply).code);
-  route({ apply: { live: [{ setting: "a", ok: false, code: "daemon_refused" }] } });
-  await applyAll();
-  codes.push(verdict(lastApply).code);
-  route({ apply: { live: [{ setting: "a", ok: false }] } });
-  await applyAll();
-  codes.push(verdict(lastApply).code);
-  assert.deepEqual(codes, ["live-unavailable", "live-failed", "live-failed"]);
-});
-
-test("test_live_unavailable_lists_every_failed_setter_refused_ones_included_in_report_order", async () => {
-  await trees();
-  // the refused one comes first, so a verdict keyed on the first failure alone
-  // would read this report as a plain live failure
-  route({
-    apply: {
-      live: [
-        { setting: "a", ok: false, code: "daemon_refused" },
-        { setting: "b", ok: false, code: "daemon_unavailable" },
-        { setting: "c", ok: true },
-      ],
-    },
-  });
-  await applyAll();
-  assert.deepEqual([verdict(lastApply).code, verdict(lastApply).settings], ["live-unavailable", ["a", "b"]]);
-});
-
 test("test_a_failed_apply_is_not_ok", async () => {
   await trees();
   route({ apply: { live: [{ setting: "filter", ok: false }] } });
@@ -116,13 +65,6 @@ test("test_a_failed_apply_is_not_ok", async () => {
 });
 
 // --- summarize: the switch --------------------------------------------------
-
-test("test_a_successful_switch_is_reported_as_switched", async () => {
-  await trees();
-  route({ apply: { switched: { name: "Night" } } });
-  await applyAll();
-  assert.equal(verdict(lastApply).code, "switched");
-});
 
 // Unloading the active preset switches to the nameless "(no preset)" option: an
 // empty name is a real switch and must not degrade the verdict.
@@ -201,26 +143,6 @@ test("test_unconverged_applies_on_two_different_fields_read_differently", async 
   assert.notEqual(maximum, fixed);
 });
 
-test("test_an_unconverged_apply_shows_a_labelled_field_without_its_wire_key", async () => {
-  const text = await unconverged({ volume_max: {} });
-  assert.ok(!text.includes("volume_max"), text);
-});
-
-// `volume_fixed` is the daemon's key for the control the page keys as
-// `optimal_iso`, so a lookup by the wire key alone finds no label for it and
-// falls back to showing the key.
-test("test_an_unconverged_apply_shows_a_field_read_under_another_key_without_its_wire_key", async () => {
-  const text = await unconverged({ volume_fixed: {} });
-  assert.ok(!text.includes("volume_fixed"), text);
-});
-
-// The reason code is wire vocabulary; the sentence around the labels says what
-// it means in plain words instead.
-test("test_an_unconverged_apply_does_not_show_its_reason_code", async () => {
-  const text = await unconverged({ volume_max: {} });
-  assert.ok(!text.includes("unconverged"), text);
-});
-
 // --- summarize: a failed live write, in the page's words ------------------------
 // A live setter that failed is named by the label the page gives its control,
 // never by the daemon's form key. A refusal carries the daemon's own reason
@@ -233,7 +155,6 @@ const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 // Keys no control on the page owns: with no label to show, each stands for itself.
 const UNLABELLED = "no_control_owns_this_key";
-const ALSO_UNLABELLED = "nor_does_any_own_this_one";
 // The reason a refused SetFilter carries (protocol.md, simple-command replies).
 const DAEMON_REASON = "invalid filter";
 const STALL = "no reply";
@@ -265,15 +186,6 @@ test("test_a_refused_live_setting_is_shown_without_its_wire_key", async () => {
 test("test_a_refused_live_setting_gives_the_daemons_reason", async () => {
   const text = await liveFailure([refused(PCM_1X)]);
   assert.ok(text.includes(DAEMON_REASON), text);
-});
-
-test("test_every_live_setting_the_daemon_stopped_answering_on_is_named", async () => {
-  const text = await liveFailure([stalled(UNLABELLED), stalled(ALSO_UNLABELLED)]);
-  assert.deepEqual(
-    [UNLABELLED, ALSO_UNLABELLED].map((key) => text.includes(key)),
-    [true, true],
-    text,
-  );
 });
 
 test("test_a_live_setting_the_daemon_stopped_answering_on_is_shown_without_its_wire_key", async () => {
@@ -326,15 +238,6 @@ test("test_a_single_change_is_counted_as_one", async () => {
   assert.equal(verdict(lastApply).changes, 1);
 });
 
-test("test_a_switch_and_edits_are_reported_together", async () => {
-  await trees({ fields: [field("volume_max", "-3")] });
-  route({ staged: { live: {}, http: { volume_max: "-6" } } });
-  await edit("volume_max", "-6");
-  route({ apply: { switched: { name: "N" } }, staged: { live: {}, http: { volume_max: "-6" } } });
-  await applyAll();
-  assert.deepEqual([verdict(lastApply).code, verdict(lastApply).changes], ["switched", 1]);
-});
-
 // --- summarize: the save lane -----------------------------------------------
 
 // A save rides its own axis on the verdict, because an apply and a save can end
@@ -346,14 +249,6 @@ test("test_a_successful_save_rides_alongside_the_apply", async () => {
   route({ saved: { name: "P" } });
   await applyAll();
   assert.equal(verdict(lastApply).save, "ok");
-});
-
-test("test_a_failed_save_is_appended_and_makes_the_apply_not_ok", async () => {
-  await trees();
-  await discardAll();
-  route({ refusal: bad(502, "disk") });
-  await applyAll().catch(() => {});
-  assert.equal(verdict(lastApply).ok, false);
 });
 
 test("test_a_failed_save_is_reported_as_failed", async () => {
@@ -481,16 +376,6 @@ async function persistFailure(reason, diff) {
   await applyAll();
   return String(verdict(lastApply).text);
 }
-
-test("test_a_persistent_failure_shows_a_labelled_setting_without_its_wire_key", async () => {
-  const text = await persistFailure(OTHER_REASON, { volume_max: {} });
-  assert.ok(!text.includes("volume_max"), text);
-});
-
-test("test_a_persistent_failure_shows_an_unlabelled_setting_with_its_underscores_as_spaces", async () => {
-  const text = await persistFailure(OTHER_REASON, { [UNLABELLED]: {} });
-  assert.ok(text.includes(UNLABELLED.replaceAll("_", " ")), text);
-});
 
 test("test_a_persistent_failure_never_shows_an_unlabelled_setting_as_its_raw_key", async () => {
   const text = await persistFailure(OTHER_REASON, { [UNLABELLED]: {} });

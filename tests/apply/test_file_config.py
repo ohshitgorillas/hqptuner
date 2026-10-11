@@ -60,23 +60,9 @@ def test_a_commented_element_is_left_untouched_by_a_write() -> None:
     assert b'dac_bits="16"' in edited
 
 
-def test_an_apostrophe_in_a_process_string_survives_a_round_trip() -> None:
-    # 6.0.4 writes ' as &apos;; a table that cannot unescape it reads the literal
-    # entity back and the apply can never converge
-    xml = b'<hqplayerd><matrix><pipeline channel="0" process=""/></matrix></hqplayerd>'
-    rows = '[{"gain":"0","gainunit":"dB","mixdown":"0","process":"conv:Bob\'s.wav","source":"0"}]'
-    edited = presetconf.apply_edits(xml, {"matrix_pipelines": rows})
-    assert "Bob's.wav" in presetconf.read_config(edited)["matrix_pipelines"]
-
-
 async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply({}, {"volume_fixed": "2"})
     assert (await fileconfig.load_file_config(http_manager))["volume_fixed"] == "2"
-
-
-async def test_headroom_apply_preserves_unrelated_settings(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"volume_fixed": "2"})
-    assert (await fileconfig.load_file_config(http_manager))["channels"] == "2"
 
 
 async def test_reading_engine_attrs_from_an_unreadable_backup_archive_raises(

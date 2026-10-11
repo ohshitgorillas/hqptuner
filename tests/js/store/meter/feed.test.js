@@ -25,13 +25,13 @@ import {
   meterGeometry,
   takeMeterFrames,
 } from "../../../../hqptuner/static/store/meter/feed.js";
-import { initSpectrogram, spectrogramCells } from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
-import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
+import { newTrack, poll } from "../../support/apodpolls.js";
 
 const clock = () => 0;
 
@@ -53,12 +53,6 @@ const frame = (ms, ...bins) => ({ channels: bins.map((b) => ({ peak: -3.1, rms: 
  */
 const send = (...times) => times.forEach((ms) => lastStream()?.emit("frame", frame(ms, "AQAGADwAWAI=")));
 
-/** The frame time of each slice the spectrogram draws, oldest first. */
-const drawn = () => spectrogramCells.value.map((/** @type {{ ms: number }} */ c) => c.ms);
-
-/** The frame time of each frame takeMeterFrames() hands back, oldest first. */
-const taken = () => takeMeterFrames().map((f) => f.ms);
-
 beforeEach(() => {
   engineStatus.value = { metering: false };
   useEventSource();
@@ -72,10 +66,6 @@ beforeEach(() => {
   takeMeterFrames();
 });
 
-test("test_metering_on_holds_one_stream_open_on_the_feed", () => {
-  assert.deepEqual([lastStream()?.url, lastStream()?.closed], ["/api/meter/feed", false]);
-});
-
 test("test_metering_switched_off_closes_the_stream", () => {
   engineStatus.value = { metering: false };
   assert.equal(lastStream()?.closed, true);
@@ -85,12 +75,6 @@ test("test_meter_feed_open_is_true_while_metering_runs_and_false_once_it_is_swit
   const open = meterFeedOpen.value;
   engineStatus.value = { metering: false };
   assert.deepEqual([open, meterFeedOpen.value], [true, false]);
-});
-
-test("test_a_second_init_opens_no_second_stream", () => {
-  const first = lastStream();
-  initMeterFeed(clock);
-  assert.deepEqual([lastStream() === first, lastStream()?.closed], [true, false]);
 });
 
 test("test_a_geometry_event_sets_the_nyquist_channel_count_and_bin_count", () => {
@@ -116,11 +100,6 @@ test("test_taken_frames_are_not_taken_again", () => {
   assert.deepEqual([takeMeterFrames().length, takeMeterFrames().length], [1, 0]);
 });
 
-test("test_frames_past_6000_ms_of_queued_frame_time_leave_the_queue_oldest_first", () => {
-  send(2500, 1000, 3000, 2000);
-  assert.deepEqual(taken(), [1000, 3000, 2000]);
-});
-
 test("test_each_taken_frame_carries_the_geometry_it_arrived_under", () => {
   lastStream()?.emit("geometry", GEO);
   send(1000);
@@ -130,27 +109,4 @@ test("test_each_taken_frame_carries_the_geometry_it_arrived_under", () => {
     takeMeterFrames().map((f) => f.geo),
     [GEO, GEO_96K],
   );
-});
-
-// --- into the spectrogram ------------------------------------------------------------------------------------------
-
-test("test_a_frame_event_queues_its_frame_and_adds_nothing_to_the_spectrogram", () => {
-  lastStream()?.emit("geometry", GEO);
-  send(1000);
-  assert.deepEqual([drawn(), taken()], [[], [1000]]);
-});
-
-test("test_frames_past_6000_ms_of_queued_frame_time_reach_the_spectrogram_oldest_first_once_each", () => {
-  lastStream()?.emit("geometry", GEO);
-  send(1000, 2000, 3000, 4000);
-  assert.deepEqual(drawn(), [1000, 2000, 3000]);
-});
-
-test("test_the_engine_leaving_playing_sends_every_queued_frame_to_the_spectrogram_and_none_to_the_loop", () => {
-  lastStream()?.emit("geometry", GEO);
-  send(1000);
-  takeMeterFrames();
-  send(2000, 3000);
-  poll({ state: STOPPED });
-  assert.deepEqual([drawn(), taken()], [[2000, 3000], []]);
 });

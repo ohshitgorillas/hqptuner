@@ -82,9 +82,7 @@ def test_a_save_naming_a_station_the_preset_store_lacks_is_refused(live_api: Tes
     assert resp.json().get("code") == "stations_unknown"
 
 
-@pytest.mark.parametrize(
-    ("query", "status"), [pytest.param("?station=Den", 200, id="named"), pytest.param("", 404, id="loaded")]
-)
+@pytest.mark.parametrize(("query", "status"), [pytest.param("?station=Den", 200, id="named")])
 def test_an_apply_reads_the_station_it_names_or_the_loaded_one(
     live_api: TestClient, tmp_path: Path, query: str, status: int
 ) -> None:

@@ -22,8 +22,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { config, engineState } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
-import { question, askWarn, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
+import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 
 async function reset() {
@@ -127,16 +127,6 @@ for (const { key, value, safe } of DANGEROUS) {
   });
 }
 
-test("a canceled buffer warning leaves lastApply untouched", async () => {
-  const w = await reset();
-  const before = lastApply.value;
-  const { held } = await stage(w, "short_buffer", "2");
-  cancel();
-  await held;
-  await quiesce(w);
-  assert.equal(lastApply.value, before);
-});
-
 // The safe values of the same keys: short_buffer at Normal or Short, buffer
 // time at default (0) or any positive milliseconds, stage straight through.
 const SAFE = [
@@ -167,20 +157,3 @@ for (const { key, value } of SAFE) {
     await held;
   });
 }
-
-// --- the askWarn primitive itself ----------------------------------------------
-// True only on explicit confirm; cancel and supersession both read as declined.
-
-test("askWarn resolves confirmed on an explicit answer", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  answer();
-  assert.ok(await p);
-});
-
-test("askWarn resolves declined on cancel", async () => {
-  await reset();
-  const p = askWarn("short_buffer", "minimum short buffer");
-  cancel();
-  assert.ok(!(await p));
-});

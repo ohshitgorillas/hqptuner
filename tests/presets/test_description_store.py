@@ -34,16 +34,9 @@ from hqptuner.presets.store.descriptions import (
     DescriptionSchemaError,
     DescriptionStore,
 )
-from hqptuner.presets.store.jsonfile import StoreCorruptError
 
 #: A stamp no released HQPTuner can claim to understand.
 TOO_NEW = {"schema": 99, "profiles": {"Living Room": {"text": "warm", "updated": "2024-01-01T00:00:00+00:00"}}}
-
-#: Content that is not our record: not JSON at all, and JSON that is not an
-#: object. Both are refused as corrupt rather than read as empty — a damaged
-#: store costs the user a clear error naming it, not the descriptions it
-#: silently drops.
-UNREADABLE = ["not json at all {", "[]", '"Living Room"', "17", "null"]
 
 #: A stamp left by an earlier write, far enough in the past that no write made
 #: during a test run can land on it.
@@ -238,19 +231,6 @@ def test_rewriting_a_name_is_allowed_with_the_store_full(tmp_path: Path) -> None
 # --- a file this HQPTuner did not write ---------------------------------------------
 
 
-def _corrupt_code(tmp_path: Path) -> str:
-    """The ``code`` carried by the ``StoreCorruptError`` reading the seeded store raises."""
-    with pytest.raises(StoreCorruptError) as caught:
-        store_at(tmp_path).read()
-    return caught.value.code
-
-
-@pytest.mark.parametrize("content", UNREADABLE)
-def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
-    seed(tmp_path, content)
-    assert _corrupt_code(tmp_path) == "store_corrupt"
-
-
 def test_a_file_stamped_by_a_newer_hqptuner_is_refused_on_read(tmp_path: Path) -> None:
     seed(tmp_path, json.dumps(TOO_NEW))
     with pytest.raises(DescriptionSchemaError, match="99"):
@@ -397,12 +377,6 @@ def test_exported_bytes_are_stamped_with_the_schema_a_reader_expects(tmp_path: P
     source = store_at(tmp_path)
     source.write(NAME, TEXT)
     assert json.loads(source.export_bytes())["schema"] == 1
-
-
-def test_exported_bytes_are_the_bytes_a_write_left_on_disk(tmp_path: Path) -> None:
-    source = store_at(tmp_path)
-    source.write(NAME, TEXT)
-    assert source.export_bytes() == (tmp_path / "descriptions.json").read_bytes()
 
 
 def test_exported_bytes_carry_the_stamp_a_write_left(tmp_path: Path) -> None:

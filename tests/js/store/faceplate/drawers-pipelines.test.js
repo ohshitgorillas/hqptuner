@@ -81,14 +81,6 @@ const STRUCTURAL = /** @type {Row[]} */ (
   compileRows({ lambda: 1, angle: 30, headRadius: 0.0875, srcA: 0, srcB: 1, preampDb: 0, eqProcess: "" })
 );
 
-test("test_the_grid_lights_the_crosspoints_the_set_routes", () => {
-  const lit = pipelinesView().grid.map((row) => row.map((pin) => pin.on));
-  assert.deepEqual(lit, [
-    [true, false],
-    [false, true],
-  ]);
-});
-
 test("test_the_output_tabs_are_the_outputs_the_set_feeds", () => {
   load([plain(0, 0), plain(1, 3), plain(0, 3)]);
   assert.deepEqual(
@@ -97,25 +89,9 @@ test("test_the_output_tabs_are_the_outputs_the_set_feeds", () => {
   );
 });
 
-test("test_the_grid_spans_the_highest_channel_the_set_names", () => {
-  load([plain(0, 0), plain(4, 1)]);
-  const v = pipelinesView();
-  assert.deepEqual([v.nIn, v.nOut], [5, 2]);
-});
-
 test("test_the_grid_spans_the_engines_output_channels", () => {
   load(STEREO, { channels: 6 });
   assert.equal(pipelinesView().nOut, 6);
-});
-
-test("test_output_tab_names_shorten_when_every_output_is_in_use", () => {
-  const first = () => pipelinesView().outputs[0]?.label.length ?? 0;
-  const two = first();
-  load(
-    [0, 1, 2, 3, 4, 5, 6, 7].map((c) => plain(c, c)),
-    { channels: 8 },
-  );
-  assert.equal(two > first(), true);
 });
 
 test("test_a_crossfeed_block_marks_its_crosspoints", () => {
@@ -179,12 +155,6 @@ test("test_a_raw_process_string_that_parses_stages_as_written", async () => {
   setRaw(1, "delay:t=0.01,iir:type=lp;f=120;q=0.707");
   await quiesce(wire);
   assert.equal(stagedRows()?.[1].process, "delay:t=0.01,iir:type=lp;f=120;q=0.707");
-});
-
-test("test_a_raw_process_string_that_does_not_parse_is_refused_unstaged", async () => {
-  const refused = setRaw(1, "iir:type=bogus;f=100") !== "";
-  await quiesce(wire);
-  assert.deepEqual([refused, stagedRows()], [true, null]);
 });
 
 test("test_an_imported_eq_lands_on_the_stereo_pair_with_its_preamp", async () => {

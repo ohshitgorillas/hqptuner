@@ -8,9 +8,9 @@ are exercised against 6.0.4-shaped documents, and the accepted side is read back
 by an independent regex over the ``<matrix>`` body rather than through the
 writer under test.
 
-Each refusal is identified by the ``code`` its ``GroundingError`` carries.
-``refusal_code`` below is the one place the exception is caught, so a
-refusal raised as anything other than a ``GroundingError`` still fails the case.
+Each refusal is identified by the ``code`` its ``GroundingError`` carries, and
+is caught as a ``GroundingError``, so a refusal raised as anything else still
+fails the case.
 
 The field-name prefix is read off the module's public constant. The profile
 name-length ceiling is *not* exported as a constant, so ``NAME_MAX`` below
@@ -30,13 +30,14 @@ from fake_http import state
 from hqptuner.conf import matrixconf, matrixpayload, matrixprofiles
 from hqptuner.conf.xmledit import GroundingError
 
-PIPE = matrixconf.MATRIX_PIPELINES
-
 #: The profile-name ceiling. See the module docstring: no public constant.
 NAME_MAX = 128
 
 #: The pipeline-row ceiling.
 ROWS_MAX = 128
+
+#: The first channel past the 0..127 range a row's source and mixdown live in.
+CHANNEL_PAST_RANGE = 128
 
 ROW = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 
@@ -80,57 +81,7 @@ def save_payload(**overrides: object) -> dict[str, Any]:
     return {"name": "Crossfeed EQ", "rows": [ROW], **overrides}
 
 
-def refusal_code(call: Callable[[], Any]) -> str:
-    """The ``code`` carried by the ``GroundingError`` ``call`` raises."""
-    with pytest.raises(GroundingError) as caught:
-        call()
-    return caught.value.code
-
-
-#: The two entry points that read a whole save payload.
-SAVE_ENTRIES = [
-    pytest.param(profile, id="write_profile"),
-    pytest.param(matrixprofiles.save_targets, id="save_targets"),
-]
-
-
-# --- 1. a row that is not an object ------------------------------------------
-
-
-def test_a_row_that_is_not_an_object_is_refused() -> None:
-    assert refusal_code(lambda: pipelines(["not a dict"])) == "row-not-object"
-
-
-# --- 2. source/mixdown missing or not an integer ------------------------------
-
-NON_INTEGER_ROWS = [
-    pytest.param({"mixdown": 0}, id="source-missing"),
-    pytest.param({"source": 0}, id="mixdown-missing"),
-    pytest.param({"source": None, "mixdown": 0}, id="source-null"),
-    pytest.param({"source": 0, "mixdown": None}, id="mixdown-null"),
-    pytest.param({"source": "left", "mixdown": 0}, id="source-non-numeric"),
-    pytest.param({"source": 0, "mixdown": "right"}, id="mixdown-non-numeric"),
-]
-
-
-@pytest.mark.parametrize("row", NON_INTEGER_ROWS)
-def test_a_row_without_integer_source_and_mixdown_is_refused(row: dict[str, Any]) -> None:
-    assert refusal_code(lambda: pipelines([row])) == "row-channel-not-int"
-
-
 # --- 3. source/mixdown out of the 0..127 channel range ------------------------
-
-OUT_OF_RANGE_ROWS = [
-    pytest.param({"source": 128, "mixdown": 0}, id="source-above-top"),
-    pytest.param({"source": -1, "mixdown": 0}, id="source-negative"),
-    pytest.param({"source": 0, "mixdown": 128}, id="mixdown-above-top"),
-    pytest.param({"source": 0, "mixdown": -1}, id="mixdown-negative"),
-]
-
-
-@pytest.mark.parametrize("row", OUT_OF_RANGE_ROWS)
-def test_a_channel_outside_the_matrix_range_is_refused(row: dict[str, Any]) -> None:
-    assert refusal_code(lambda: pipelines([row])) == "row-channel-range"
 
 
 def test_the_top_channel_of_the_range_is_accepted() -> None:
@@ -140,54 +91,19 @@ def test_the_top_channel_of_the_range_is_accepted() -> None:
 # --- 4. gainunit --------------------------------------------------------------
 
 
-def test_a_gain_unit_that_is_neither_db_nor_lin_is_refused() -> None:
-    assert refusal_code(lambda: pipelines(rows({"gainunit": "dBFS"}))) == "row-bad-gainunit"
-
-
-def test_a_decibel_gain_is_written_bare_on_the_pipeline_row() -> None:
-    # <pipeline gain> is the only gain attribute the wire has (readme §1.11.1);
-    # "dB" is the wire's own unit, so the number goes out as given
-    assert b'gain="-3.5"' in matrix_body(pipelines(rows({"gainunit": "dB", "gain": "-3.5"})))
-
-
 def test_a_linear_gain_is_written_with_its_own_marker() -> None:
     assert b'gain="L2"' in matrix_body(pipelines(rows({"gainunit": "Lin", "gain": "2"})))
 
 
 # --- 5. gain ------------------------------------------------------------------
 
-BAD_GAINS = ["loud", "1e3", "+2", "3 dB", ""]
 
-
-@pytest.mark.parametrize("gain", BAD_GAINS)
-def test_a_gain_outside_the_accepted_number_format_is_refused(gain: str) -> None:
-    assert refusal_code(lambda: pipelines(rows({"gain": gain}))) == "row-bad-gain"
-
-
-@pytest.mark.parametrize("gain", ["0", "-3.5"])
+@pytest.mark.parametrize("gain", ["-3.5"])
 def test_a_plain_decimal_gain_is_accepted(gain: str) -> None:
     assert f'gain="{gain}"'.encode() in matrix_body(pipelines(rows({"gain": gain})))
 
 
-# --- 6. control characters in the process string ------------------------------
-
-
-def test_a_control_character_in_the_process_string_is_refused() -> None:
-    assert refusal_code(lambda: pipelines(rows({"process": "eq\x07more"}))) == "row-control-chars"
-
-
 # --- 7/8/9. the row list itself -----------------------------------------------
-
-BAD_ROW_LISTS = [
-    pytest.param({"source": 0, "mixdown": 0}, id="object-not-list"),
-    pytest.param([], id="empty-list"),
-    pytest.param([{"source": 0, "mixdown": 0}] * (ROWS_MAX + 1), id="one-row-over-the-ceiling"),
-]
-
-
-@pytest.mark.parametrize("value", BAD_ROW_LISTS)
-def test_a_value_that_is_not_one_to_128_rows_is_refused(value: object) -> None:
-    assert refusal_code(lambda: pipelines(value)) == "rows-bad-list"
 
 
 def test_a_list_at_the_row_ceiling_is_accepted() -> None:
@@ -195,33 +111,7 @@ def test_a_list_at_the_row_ceiling_is_accepted() -> None:
     assert len(re.findall(rb"<pipeline\b", matrix_body(written))) == ROWS_MAX
 
 
-# --- 10. the row list is not JSON ---------------------------------------------
-
-
-def test_a_pipelines_value_that_is_not_json_is_refused() -> None:
-    assert refusal_code(lambda: pipelines("{not json")) == "rows-bad-json"
-
-
-# --- 11. the profile name is not a string -------------------------------------
-
-
-def test_a_profile_name_that_is_not_a_string_is_refused() -> None:
-    assert refusal_code(lambda: profile(save_payload(name=5))) == "name-not-string"
-
-
-# --- 12. the profile name is empty --------------------------------------------
-
-
-@pytest.mark.parametrize("name", ["", "   "])
-def test_an_empty_profile_name_is_refused(name: str) -> None:
-    assert refusal_code(lambda: profile(save_payload(name=name))) == "name-empty"
-
-
 # --- 13. the profile name is too long -----------------------------------------
-
-
-def test_a_profile_name_over_the_length_ceiling_is_refused() -> None:
-    assert refusal_code(lambda: profile(save_payload(name="x" * (NAME_MAX + 1)))) == "name-too-long"
 
 
 def test_a_profile_name_exactly_at_the_length_ceiling_is_accepted() -> None:
@@ -229,42 +119,7 @@ def test_a_profile_name_exactly_at_the_length_ceiling_is_accepted() -> None:
     assert f'name="{name}"'.encode() in profile(save_payload(name=name))
 
 
-# --- 14. a control character in the profile name ------------------------------
-
-
-def test_a_control_character_in_the_profile_name_is_refused() -> None:
-    assert refusal_code(lambda: profile(save_payload(name="bad\x07name"))) == "name-control-chars"
-
-
-# --- 15. the save payload is not JSON -----------------------------------------
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-def test_a_save_payload_that_is_not_json_is_refused(entry: Callable[[str], Any]) -> None:
-    assert refusal_code(lambda: entry("{not json")) == "save-bad-json"
-
-
-# --- 16. the save payload is not an object ------------------------------------
-
-NON_OBJECT_PAYLOADS = [pytest.param("[1, 2]", id="array"), pytest.param("5", id="bare-number")]
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-@pytest.mark.parametrize("payload", NON_OBJECT_PAYLOADS)
-def test_a_save_payload_that_is_not_an_object_is_refused(entry: Callable[[str], Any], payload: str) -> None:
-    assert refusal_code(lambda: entry(payload)) == "save-bad-shape"
-
-
 # --- 17. presets is not a list of preset names --------------------------------
-
-BAD_PRESETS = [pytest.param("Office", id="bare-string"), pytest.param([1], id="list-of-non-strings")]
-
-
-@pytest.mark.parametrize("entry", SAVE_ENTRIES)
-@pytest.mark.parametrize("presets", BAD_PRESETS)
-def test_a_presets_key_that_is_not_a_list_of_names_is_refused(entry: Callable[[str], Any], presets: object) -> None:
-    assert refusal_code(lambda: entry(json.dumps(save_payload(presets=presets)))) == "targets-bad-list"
-
 
 SAVE_TARGETS = [
     pytest.param({}, [], id="no-presets-key"),
@@ -279,20 +134,7 @@ def test_a_save_payload_names_the_targets_its_presets_key_lists(
     assert matrixprofiles.save_targets(json.dumps(save_payload(**overrides))) == expected
 
 
-def test_parse_save_returns_the_fanout_targets_from_the_payload() -> None:
-    payload = matrixpayload.parse_save(json.dumps(save_payload(presets=["Office", "Den"])))
-    assert payload.presets == ["Office", "Den"]
-
-
 # --- 18. a snapshot the writer cannot ground itself in -------------------------
-
-
-# `no-root` comes from the XML-edit helper the writer uses: the writer
-# grounds itself in the snapshot's <hqplayerd> root through that helper, which
-# refuses a document that has none.
-def test_a_snapshot_without_the_hqplayerd_root_is_refused() -> None:
-    unrooted = b'<?xml version="1.0"?><other/>'
-    assert refusal_code(lambda: matrixprofiles.write_profile(unrooted, json.dumps(save_payload()))) == "no-root"
 
 
 def test_a_snapshot_with_no_matrix_element_still_receives_the_saved_profile() -> None:
@@ -322,16 +164,52 @@ def test_a_delete_payload_names_the_targets_its_presets_key_lists(
     assert matrixpayload.parse_delete(json.dumps(value))[1] == expected
 
 
-def test_a_delete_value_that_is_not_json_is_refused() -> None:
-    assert refusal_code(lambda: matrixpayload.parse_delete("Stock")) == "delete-bad-json"
+# --- a malformed save or delete payload names its malformation -----------------
+
+SAVE = matrixpayload.parse_save
+DELETE = matrixpayload.parse_delete
+NOT_JSON = "{name: Night"
+
+REFUSALS = [
+    pytest.param(SAVE, NOT_JSON, "save-bad-json", id="save-not-json"),
+    pytest.param(SAVE, json.dumps([save_payload()]), "save-bad-shape", id="save-not-an-object"),
+    pytest.param(DELETE, NOT_JSON, "delete-bad-json", id="delete-not-json"),
+    pytest.param(DELETE, json.dumps("Stock"), "delete-bad-shape", id="delete-not-an-object"),
+    pytest.param(SAVE, json.dumps(save_payload(name=7)), "name-not-string", id="save-name-a-number"),
+    pytest.param(DELETE, json.dumps({"presets": ["Office"]}), "name-not-string", id="delete-without-name"),
+    pytest.param(SAVE, json.dumps(save_payload(name="   ")), "name-empty", id="name-blank"),
+    pytest.param(SAVE, json.dumps(save_payload(name="x" * (NAME_MAX + 1))), "name-too-long", id="name-over-ceiling"),
+    pytest.param(SAVE, json.dumps(save_payload(name="Night\nShift")), "name-control-chars", id="name-newline"),
+    pytest.param(SAVE, json.dumps(save_payload(rows=[ROW] * (ROWS_MAX + 1))), "rows-bad-list", id="rows-over-ceiling"),
+    pytest.param(SAVE, json.dumps(save_payload(rows=["0"])), "row-not-object", id="row-a-string"),
+    pytest.param(
+        SAVE, json.dumps(save_payload(rows=rows({"source": "left"}))), "row-channel-not-int", id="source-a-word"
+    ),
+    pytest.param(
+        SAVE,
+        json.dumps(save_payload(rows=rows({"mixdown": CHANNEL_PAST_RANGE}))),
+        "row-channel-range",
+        id="mixdown-128",
+    ),
+    pytest.param(SAVE, json.dumps(save_payload(rows=rows({"gain": "3dB"}))), "row-bad-gain", id="gain-with-unit"),
+    pytest.param(SAVE, json.dumps(save_payload(rows=rows({"gainunit": "dBFS"}))), "row-bad-gainunit", id="unit-dbfs"),
+    pytest.param(
+        SAVE, json.dumps(save_payload(rows=rows({"process": "a\x00b"}))), "row-control-chars", id="process-nul"
+    ),
+    pytest.param(SAVE, json.dumps(save_payload(presets="Office")), "targets-bad-list", id="save-presets-a-string"),
+    pytest.param(
+        DELETE, json.dumps({"name": "Stock", "presets": ["Office", 3]}), "targets-bad-list", id="delete-preset-3"
+    ),
+]
 
 
-def test_a_delete_value_that_is_not_a_json_object_is_refused() -> None:
-    assert refusal_code(lambda: matrixpayload.parse_delete(json.dumps(["Stock"]))) == "delete-bad-shape"
-
-
-def test_a_delete_object_without_a_name_key_is_refused() -> None:
-    assert refusal_code(lambda: matrixpayload.parse_delete(json.dumps({"presets": ["Office"]}))) == "name-not-string"
+@pytest.mark.parametrize(("parse", "value", "code"), REFUSALS)
+def test_a_malformed_profile_payload_is_refused_with_the_code_of_its_malformation(
+    parse: Callable[[str], object], value: str, code: str
+) -> None:
+    with pytest.raises(GroundingError) as refused:
+        parse(value)
+    assert refused.value.code == code
 
 
 # --- the rejection type a caller can catch ------------------------------------

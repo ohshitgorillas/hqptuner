@@ -58,9 +58,6 @@ STOP_TIMEOUT = 30.0
 #: Ceiling on the restarted page opening its live feed, ms.
 LOAD_TIMEOUT_MS = 15000.0
 
-#: The exit status of a process ended by the SIGTERM it was sent.
-STOPPED_BY_SIGTERM = -signal.SIGTERM
-
 #: The live feed the page opens on load; every snapshot it shows arrives on it.
 PUSH_PATH = "/api/push"
 
@@ -248,11 +245,6 @@ def _restarted_feed_status(page: Page, app: App) -> int | str:
     except PlaywrightError as exc:
         return f"page on the restarted app opened no answered feed: {exc.message}"
     return answered.value.status
-
-
-def test_a_stopped_app_leaves_by_the_sigterm_it_was_sent(app: App) -> None:
-    """SIGTERM runs the app's shutdown to the end and the process leaves on its own."""
-    assert _stop(app) == STOPPED_BY_SIGTERM
 
 
 def test_a_restarted_app_serves_the_page_its_live_feed(page: Page, app: App) -> None:

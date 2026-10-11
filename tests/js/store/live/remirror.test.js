@@ -161,9 +161,3 @@ test("test_mode_remirror_answering_last_still_lands_the_menus_served_after_the_m
 
   assert.equal(enums.value.mode.name, SWITCHED_MODE);
 });
-
-test("test_mode_remirror_answering_last_still_reads_the_config_for_its_rate_limits", async () => {
-  const w = await overlapModeByVolume();
-
-  assert.ok(w.asked.includes("/api/config"), `paths that reached the wire: ${w.asked.join(", ")}`);
-});

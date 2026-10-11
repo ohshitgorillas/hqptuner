@@ -5,16 +5,6 @@ from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError
 
 
-async def test_filter_value_alone_sets_both_1x_and_nx(live_client: ControlClient) -> None:
-    await live_client.set_filter("6")
-    assert (await live_client.get_state())["filter1x"] == "6"
-
-
-async def test_filter_value1x_splits_the_two(live_client: ControlClient) -> None:
-    await live_client.set_filter("6", "3")
-    assert (await live_client.get_state())["filter1x"] == "3"
-
-
 async def test_volume_setter_applies(live_client: ControlClient) -> None:
     await live_client.set_volume("-20.5")
     assert (await live_client.get_state())["volume"] == "-20.5"

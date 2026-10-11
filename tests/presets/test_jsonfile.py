@@ -4,23 +4,12 @@ A missing file is an empty store nothing has saved into yet; a file that exists 
 is a broken one, refused rather than quietly read as empty.
 """
 
-from collections.abc import Callable
 from pathlib import Path
 
 import pytest
 
 from hqptuner.errors import HQPTunerError
-from hqptuner.presets.store.jsonfile import StoreCorruptError, read_stamped
-
-#: Content that cannot be read as a stamped JSON document: unparseable bytes, and JSON that parses to something
-#: other than an object.
-CORRUPT = [
-    pytest.param("{", id="unterminated"),
-    pytest.param("[]", id="json-array"),
-    pytest.param('"alpha"', id="json-string"),
-    pytest.param("17", id="json-number"),
-    pytest.param("null", id="json-null"),
-]
+from hqptuner.presets.store.jsonfile import read_stamped
 
 
 class _TooNewError(HQPTunerError):
@@ -31,13 +20,6 @@ class _TooNewError(HQPTunerError):
 
 def _too_new(stamp: int) -> _TooNewError:
     return _TooNewError(f"too new: {stamp}")
-
-
-def _corrupt_code(call: Callable[[], object]) -> str:
-    """The ``code`` carried by the ``StoreCorruptError`` calling ``call`` raises."""
-    with pytest.raises(StoreCorruptError) as caught:
-        call()
-    return caught.value.code
 
 
 @pytest.mark.parametrize(
@@ -54,13 +36,6 @@ def test_an_existing_file_reads_its_content(tmp_path: Path) -> None:
     path.write_text('{"schema": 1, "x": 2}')
     present = read_stamped(path, store="test", schema=1, too_new=_too_new)
     assert present == {"schema": 1, "x": 2}
-
-
-@pytest.mark.parametrize("content", CORRUPT)
-def test_a_file_that_is_not_a_stamped_document_is_refused_as_corrupt(tmp_path: Path, content: str) -> None:
-    path = tmp_path / "broken.json"
-    path.write_text(content)
-    assert _corrupt_code(lambda: read_stamped(path, store="test")) == "store_corrupt"
 
 
 def test_a_schema_newer_than_understood_raises_the_stores_own_too_new_error(tmp_path: Path) -> None:

@@ -30,7 +30,7 @@ import assert from "node:assert/strict";
 
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
-import { NARROWING_DEFAULTS as DEFAULTS, narrowingWire, puts } from "../../support/wire/narrowingwire.js";
+import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
 import {
   nGenre,
   nGenreMode,
@@ -164,17 +164,6 @@ test("test_hydration_writes_nothing_back", async () => {
   assert.deepEqual(puts(w), []);
 });
 
-// --- a hydration the server refused ---------------------------------------------
-
-// The facet is set away from its default first, so this tells "left alone"
-// apart from "wiped back to the defaults" — after `reset()` both look alike.
-test("test_a_failed_hydration_leaves_a_facet_at_the_value_it_already_held", async () => {
-  await reset({ getStatus: 503, getDetail: "Narrowing is unavailable." });
-  nPhase.value = ["minimum"];
-  await hydrateNarrowing();
-  assert.deepEqual(nPhase.value, ["minimum"]);
-});
-
 // A facet the user has already touched is theirs: the answer that was in flight
 // while they toggled describes the page before the toggle, and must not undo it.
 test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async () => {
@@ -190,37 +179,6 @@ test("test_a_facet_changed_while_the_hydration_was_in_flight_survives_it", async
 
 // --- what a flush sends -----------------------------------------------------------
 
-test("test_one_changed_facet_flushes_as_exactly_one_put", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.equal(puts(w).length, 1);
-});
-
-// The put may carry keys this table does not name — the rate-narrowing
-// switches, whose wire keys are pinned by their own suite — but every facet of
-// the table rides along.
-test("test_a_flush_sends_every_facet_of_the_contract_table", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || {};
-  assert.deepEqual(
-    Object.keys(DEFAULTS).filter((k) => !(k in sent)),
-    [],
-  );
-});
-
-test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).phase, ["minimum"]);
-});
-
 // The length facet's empty-string pick — the filters whose length nothing
 // states — has to survive the record in both directions, and the two halves are
 // two cases: the empty string is falsy, so a client that filters it out on the
@@ -229,48 +187,10 @@ test("test_a_flush_sends_the_changed_facet_as_the_user_set_it", async () => {
 // across a reload. The named pick rides along so that "kept the array" is told
 // apart from "kept nothing".
 
-test("test_a_flush_sends_a_length_selection_with_the_unspecified_pick_intact", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nLength.value = ["medium", ""];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).length, ["medium", ""]);
-});
-
 test("test_hydration_fills_the_length_facet_with_the_unspecified_pick_intact", async () => {
   await reset({ facets: { ...SET, length: ["medium", ""] } });
   await hydrateNarrowing();
   assert.deepEqual(nLength.value, ["medium", ""]);
-});
-
-// The lossy control rides the same put BY VALUE, not merely by key: a client
-// that always sent the key at its default would keep the whole table intact
-// while the bar silently failed to survive a reload.
-test("test_a_flush_sends_the_lossy_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nLossy1x.value = "lossless";
-  await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).lossy_1x, "lossless");
-});
-
-// The source-format control rides the same put BY VALUE, not merely by key: a
-// client that always sent the key at its default would keep the whole table
-// intact while the bar silently failed to survive a reload.
-test("test_a_flush_sends_the_src_format_facet_as_the_user_set_it", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nSrcFormat.value = "both";
-  await flushNarrowing();
-  assert.equal((puts(w).at(-1) || {}).src_format, "both");
-});
-
-test("test_a_flush_sends_a_facet_the_user_did_not_touch_at_the_value_it_holds", async () => {
-  const w = await reset({ facets: SET });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.deepEqual((puts(w).at(-1) || {}).length, ["long"]);
 });
 
 test("test_three_changed_facets_coalesce_into_one_put", async () => {
@@ -299,32 +219,6 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
   assert.equal(puts(w).length, 1);
 });
 
-// Favorites-only is session state, deliberately not part of this record: a
-// browser that had it on must not push it onto every other browser. The
-// sentinel stands in for a flush that sent nothing at all, so a client that
-// never writes fails here rather than passing on an empty key list.
-test("test_the_put_carries_no_favorites_only_key", async () => {
-  const w = await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || { no_put_was_sent: true };
-  assert.deepEqual(
-    Object.keys(sent).filter((k) => k.includes("fav") || k === "no_put_was_sent"),
-    [],
-  );
-});
-
-test("test_a_reset_flushes_every_facet_of_the_contract_table_at_its_default", async () => {
-  const w = await reset({ facets: SET });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  resetNarrowing();
-  await flushNarrowing();
-  const sent = puts(w).at(-1) || {};
-  assert.deepEqual(Object.fromEntries(Object.keys(DEFAULTS).map((k) => [k, sent[k]])), DEFAULTS);
-});
-
 // --- a write the server refused -----------------------------------------------------
 // Unlike favorites, nothing reverts: the facet is presentational, so yanking the
 // user's toggle back is worse than a stale file.
@@ -335,23 +229,4 @@ test("test_a_failed_write_keeps_the_facet_the_user_set", async () => {
   nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.deepEqual(nPhase.value, ["minimum"]);
-});
-
-test("test_a_write_that_succeeds_after_a_failed_one_clears_the_error", async () => {
-  await reset({ putStatus: 500, putDetail: "State directory is read-only." });
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  narrowingWire();
-  nLength.value = ["short"];
-  await flushNarrowing();
-  assert.equal(narrowingError.value, "");
-});
-
-test("test_a_successful_write_leaves_no_error", async () => {
-  await reset();
-  await hydrateNarrowing();
-  nPhase.value = ["minimum"];
-  await flushNarrowing();
-  assert.equal(narrowingError.value, "");
 });

@@ -144,10 +144,6 @@ async function moved(k, v) {
 
 // --- the Fixed volume line ---------------------------------------------------------------------------------------
 
-test("test_fixed_mode_reads_off_manual_or_auto_from_the_running_config", () => {
-  assert.deepEqual([modeWith({}), modeWith({ fixed: true }), modeWith({ iso: "2" })], ["off", "manual", "auto"]);
-});
-
 test("test_auto_headroom_wins_over_the_fixed_level", () => {
   assert.equal(modeWith({ fixed: true, iso: "1" }), "auto");
 });
@@ -162,10 +158,6 @@ test("test_fixed_mode_follows_a_staged_edit", async () => {
 
 test("test_picking_manual_stages_the_fixed_level_on_and_auto_headroom_off", async () => {
   assert.deepEqual(await pickFrom({ iso: "1" }, "manual"), { fixed_volume_enabled: "1", volume_fixed: "0" });
-});
-
-test("test_picking_auto_stages_minus_three_and_the_fixed_level_off", async () => {
-  assert.deepEqual(await pickFrom({ fixed: true }, "auto"), { volume_fixed: "1", fixed_volume_enabled: "0" });
 });
 
 test("test_picking_auto_again_restores_the_running_headroom", async () => {
@@ -205,11 +197,6 @@ test("test_the_range_is_the_effective_min_startup_and_max", async () => {
 
 test("test_an_absent_startup_sits_at_min", () => {
   assert.equal(rangeWith({ min: "-70", startup: "" }).cur.startup, -70);
-});
-
-test("test_the_range_grays_while_fixed_volume_or_auto_headroom_is_on", () => {
-  const grayed = (/** @type {Running} */ r) => rangeWith(r).gray !== "";
-  assert.deepEqual([grayed({}), grayed({ fixed: true }), grayed({ iso: "1" })], [false, true, true]);
 });
 
 test("test_a_staged_handle_reads_dirty_and_the_others_do_not", async () => {

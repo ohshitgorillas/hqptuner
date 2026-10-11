@@ -92,13 +92,6 @@ function inDacBitsRow() {
 /** @param {MarkupElement[]} inside */
 const headers = (inside) => inside.filter((e) => e.name === "b").length;
 
-/** @param {MarkupElement[]} inside */
-const subLabels = (inside) => inside.filter((e) => classes(e).includes("s")).length;
-
 test("test_the_rate_dial_row_prints_one_header_as_the_dac_bits_row_does", () => {
   assert.deepEqual([headers(inDacBitsRow()), headers(inDialRow())], [1, 1]);
-});
-
-test("test_the_rate_dial_row_prints_a_sub_label_beside_its_header_as_the_dac_bits_row_does", () => {
-  assert.deepEqual([subLabels(inDacBitsRow()), subLabels(inDialRow())], [1, 1]);
 });

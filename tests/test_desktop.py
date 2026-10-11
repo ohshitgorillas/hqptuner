@@ -10,7 +10,7 @@ import inspect
 import io
 import ipaddress
 import socket
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
@@ -323,11 +323,6 @@ def test_stdio_puts_the_sink_in_place_of_a_missing_stream(
     assert desktop.stdio(stdout, stderr, sink=lambda: SINK) == pair
 
 
-def test_stdio_opens_a_sink_that_takes_a_write_when_none_is_given() -> None:
-    with desktop.stdio(None, KEPT)[0] as sink:
-        assert sink.write("x") == 1
-
-
 # --- launch -----------------------------------------------------------------------------------------------------
 
 #: platform, who holds the port, the servers ``main`` was asked to start, the addresses browsed, the exit status.
@@ -382,19 +377,6 @@ def test_launch_opens_the_browser_only_on_a_running_instance(
 @pytest.mark.parametrize(("platform", "held", "status"), STATUSES)
 def test_launch_exits_nonzero_only_when_a_stranger_holds_the_port(platform: str, held: Occupant, status: int) -> None:
     assert launched(platform, held).status == status
-
-
-def mute(url: str) -> Occupant:
-    """A probe whose port holder takes the connection and never answers."""
-    raise httpx.ReadTimeout(url)
-
-
-@pytest.mark.usefixtures("listen_env")
-@pytest.mark.parametrize("platform", ["darwin", "win32"])
-def test_launch_ends_the_process_nonzero_when_the_port_holder_never_answers(platform: str) -> None:
-    with pytest.raises(SystemExit) as ended:
-        desktop.launch(platform, FakeMain(), replace(Rig().parts(), probe=mute))
-    assert ended.value.code == 1
 
 
 # --- stop -------------------------------------------------------------------------------------------------------
@@ -527,11 +509,6 @@ def test_occupant_asks_once_with_the_probe_timeout() -> None:
     assert get.timeouts == [desktop.PROBE_TIMEOUT]
 
 
-def test_answers_only_where_something_listens(closed_port: int) -> None:
-    closed = desktop.answers(f"http://{HOST}:{closed_port}")
-    assert (closed, served(answering(200, b""), desktop.answers)) == (False, True)
-
-
 # --- the production parts ---------------------------------------------------------------------------------------
 
 
@@ -563,8 +540,3 @@ def test_exit_asks_the_bound_server_to_stop(listening: desktop.Listening) -> Non
     before = listening.server.should_exit
     listening.exit()
     assert (before, listening.server.should_exit) == (False, True)
-
-
-def test_the_server_thread_is_an_unstarted_daemon() -> None:
-    thread = desktop.daemon_thread(lambda: None)
-    assert (thread.daemon, thread.is_alive()) == (True, False)

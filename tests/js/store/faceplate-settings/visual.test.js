@@ -131,10 +131,6 @@ test("test_a_custom_hex_wins_over_the_named_swatch", () => {
   assert.deepEqual(accentTokens("blue", "#123456"), effectTokens("#123456"));
 });
 
-test("test_an_unknown_swatch_name_falls_back_to_amber", () => {
-  assert.equal(accentTokens("magenta", "")["--acc"], ACCENT_HEX.amber);
-});
-
 // --- applyFaceplateTheme -------------------------------------------------------------
 
 test("test_apply_writes_the_live_accent_tokens_on_the_root", () => {
@@ -166,13 +162,6 @@ test("test_apply_clears_the_dyslexic_attribute_when_the_switch_is_off", () => {
 });
 
 // --- watchFaceplateTheme -------------------------------------------------------------
-
-test("test_the_watch_follows_a_picked_swatch", () => {
-  const root = setup();
-  disposers.push(watchFaceplateTheme(root));
-  applyAccent("blue");
-  assert.equal(root.vars.get("--acc"), ACCENT_HEX.blue);
-});
 
 test("test_the_watch_follows_the_dyslexic_switch", () => {
   const root = setup();

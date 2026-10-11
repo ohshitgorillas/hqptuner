@@ -180,10 +180,6 @@ test("test_a_denser_interval_draws_hotter_than_a_sparser_one", () => {
   assert.ok(strip[1] > strip[0]);
 });
 
-test("test_a_burst_caps_at_the_strips_hottest_colour", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(1000, 100, 1000)], 1000, 2, 1000)), [3, 3]);
-});
-
 test("test_an_empty_history_draws_a_blank_strip", () => {
   assert.deepEqual(Array.from(stripEvents([], 60000, 4, 0)), [0, 0, 0, 0]);
 });

@@ -18,7 +18,6 @@ import {
   dialScale,
   drawingX,
   groupDevices,
-  minorTicks,
   moveNeedle,
   nearestTier,
   percentOf,
@@ -49,8 +48,6 @@ const SCALE = dialScale(BANDS.length, DIAL.width, DIAL.x0);
 //: The PCM band of BANDS, and the inset its rule keeps from the edges of its outer tiers' cells.
 const PCM_SPAN = { lo: 0, hi: 2 };
 const INSET = 8;
-//: Quarter steps between the PCM band's rule ends (5.5 … 64.5) that miss every tier.
-const PCM_MINOR = [16.25, 22.5, 28.75, 41.25, 47.5, 53.75];
 
 //: The drawing's viewBox, and the x of its first tier in drawing units.
 const VIEWBOX = { w: 806, h: 106 };
@@ -106,10 +103,6 @@ test("test_band_rule_starts_its_inset_inside_the_first_tier_cell", () => {
 
 test("test_band_rule_ends_its_inset_inside_the_last_tier_cell", () => {
   assert.equal(bandEdges(SCALE, PCM_SPAN, INSET).x2, 64.5);
-});
-
-test("test_minor_ticks_fall_on_quarter_steps_inside_the_rule_and_off_the_tiers", () => {
-  assert.deepEqual(minorTicks(SCALE, PCM_SPAN, bandEdges(SCALE, PCM_SPAN, INSET)), PCM_MINOR);
 });
 
 test("test_a_pointer_short_of_half_way_lands_on_the_tier_before", () => {

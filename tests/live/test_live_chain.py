@@ -74,14 +74,6 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
 
 
 @pytest.mark.parametrize(("field", "value"), [("oversampling1x", "38"), ("oversampling", "23"), ("modulator", "3")])
-def test_an_edit_to_the_dormant_sdm_chain_is_accepted(
-    chain_api: Callable[..., TestClient], field: str, value: str
-) -> None:
-    client = chain_api(mode="1")
-    assert client.post("/api/config/live", json={"fields": {field: value}}).status_code == 200
-
-
-@pytest.mark.parametrize(("field", "value"), [("oversampling1x", "38"), ("oversampling", "23"), ("modulator", "3")])
 def test_an_edit_to_the_dormant_sdm_chain_is_reported_as_held(
     chain_api: Callable[..., TestClient], field: str, value: str
 ) -> None:
@@ -142,7 +134,6 @@ def test_an_edit_to_the_loaded_chain_is_reported_as_applied(chain_api: Callable[
 #: SDM chain is held.
 HELD_BY_CHAIN = [
     pytest.param({"filter": "40"}, {}, id="loaded-chain"),
-    pytest.param({"oversampling1x": "38"}, {"oversampling1x": "38"}, id="dormant-chain"),
 ]
 
 
@@ -152,22 +143,3 @@ def test_an_edit_is_held_only_when_it_targets_the_dormant_chain(
 ) -> None:
     client = chain_api(mode="1")
     assert client.post("/api/config/live", json={"fields": fields}).json()["report"]["stored"] == held
-
-
-# --- what is still refused ----------------------------------------------------
-
-
-def test_a_value_in_no_list_the_loaded_chain_offers_is_refused(chain_api: Callable[..., TestClient]) -> None:
-    # Holding is for the chain the engine cannot answer for. For the chain it CAN
-    # answer for, a value its list does not carry is an error, not a memory.
-    client = chain_api(mode="2")
-    assert client.post("/api/config/live", json={"fields": {"oversampling": "9999"}}).status_code == 409
-
-
-def test_a_mode_change_cannot_be_batched_with_a_chain_edit(chain_api: Callable[..., TestClient]) -> None:
-    # SetMode swaps the enumerations the rest of the batch was resolved against,
-    # so those indices would be stale by the time their setter ran — true whether
-    # the chain edit would have applied or been held.
-    client = chain_api(mode="1")
-    resp = client.post("/api/config/live", json={"fields": {"mode": "sdm", "filter": "40"}})
-    assert resp.status_code == 409

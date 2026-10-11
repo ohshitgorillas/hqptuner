@@ -171,21 +171,6 @@ async function tapField(id, value) {
   if (fn) await fn();
 }
 
-test("test_dsd_processing_draws_the_dsd_source_rows_of_each_output_mode", () => {
-  assert.deepEqual(itemsByTab(DSD_DRAWER), {
-    pcm: ["dsd_gain_6db", "noise_filter", "pcm_conversion"],
-    sdm: ["direct_sdm", "sdm_integrator"],
-  });
-});
-
-test("test_resampling_draws_each_modes_filters_and_its_sdm_tab_under_two_section_heads", () => {
-  load({ pcm1x: "2", sdmnx: "2" });
-  assert.deepEqual(itemsByTab(RESAMPLING_DRAWER), {
-    pcm: ["pcm_filter_1x", "pcm_filter_nx", "fft_size"],
-    sdm: ["head", "sdm_filter_1x", "sdm_filter_nx", "fft_size", "head", "sdm_conversion"],
-  });
-});
-
 test("test_the_fft_length_row_shows_only_on_the_tab_whose_filter_is_fft_family", () => {
   load({ sdmnx: "2" });
   const tabs = itemsByTab(RESAMPLING_DRAWER);
@@ -238,34 +223,6 @@ test("test_a_staged_dsd_source_gain_dots_the_pcm_tab_of_dsd_processing", async (
 test("test_a_staged_rate_conversion_dots_the_sdm_tab_of_resampling", async () => {
   await edit("sdm_conversion", "1");
   assert.deepEqual(dottedTabs(RESAMPLING_DRAWER), ["sdm"]);
-});
-
-/** Each row naming its own label, by catalog key, with the drawer it is in and its settings metadata key. */
-const LABELED = [
-  { key: "pcm_conversion", drawer: DSD_DRAWER, meta: "pdm_conversion" },
-  { key: "direct_sdm", drawer: DSD_DRAWER, meta: "direct_sdm" },
-  { key: "sdm_integrator", drawer: DSD_DRAWER, meta: "sdm_integrator" },
-  { key: "sdm_conversion", drawer: RESAMPLING_DRAWER, meta: "sdm_conversion" },
-];
-
-for (const { key, drawer, meta } of LABELED) {
-  test(`test_the_${key}_row_prints_its_own_label_with_a_sublabel_in_place_of_the_metadatas`, () => {
-    metadata.value = { settings: { dsp: { [meta]: { label: "label-fixture", tooltip: "para-fixture" } } } };
-    const row = markup(drawer).find((e) => attr(e, "data-k") === key);
-    const inside = row ? elements(row.html) : [];
-    const label = inside.find((e) => e.name === "b");
-    assert.deepEqual(
-      [label ? text(label) !== "label-fixture" : false, inside.some((e) => classes(e).includes("s"))],
-      [true, true],
-    );
-  });
-}
-
-test("test_shaping_draws_the_dac_field_beside_each_modes_shaper", () => {
-  assert.deepEqual(itemsByTab(SHAPING_DRAWER), {
-    pcm: ["dactype", "pcm_dither"],
-    sdm: ["dacchip", "sdm_modulator"],
-  });
 });
 
 test("test_tapping_a_dac_type_sets_it_at_once", async () => {

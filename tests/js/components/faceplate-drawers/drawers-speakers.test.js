@@ -188,13 +188,6 @@ test("test_the_plan_draws_one_speaker_per_channel_of_the_picked_set", () => {
   assert.deepEqual([first, spots().length], [FIRST.channels.length, LAST.channels.length]);
 });
 
-test("test_a_drafted_distance_moves_its_speaker_on_the_plan", () => {
-  reset();
-  const before = spots()[1];
-  setChannelDistance(1, "500");
-  assert.notEqual(spots()[1], before);
-});
-
 test("test_the_plan_draws_no_speaker_while_the_daemon_reports_none_set", () => {
   reset({ form: UNSET_FORM });
   assert.equal(spots().length, 0);

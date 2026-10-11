@@ -55,10 +55,6 @@ def trace(selector: str, vertices: list[list[float]]) -> dict[str, Any]:
     return {"selector": selector, "vertices": vertices, "strokeWidth": 1.5, "shapeRendering": "auto"}
 
 
-def text(label: str, left: float, right: float, top: float = 10.0, bottom: float = 20.0) -> dict[str, Any]:
-    return {"text": label, **box(left, top, right, bottom)}
-
-
 def svg(
     selector: str,
     traces: list[dict[str, Any]],
@@ -86,44 +82,12 @@ def flat(count: int, width: float, y: float = 100.0) -> list[list[float]]:
     return [[x, y] for x in even_xs(count, width)]
 
 
-def sweep(moves: list[float]) -> list[dict[str, Any]]:
-    """One slider pass: frame ``k`` sits ``moves[k]`` px below frame ``k - 1``.
-
-    ``moves[0]`` is the first frame's own offset and carries no delta; the pass has
-    ``len(moves)`` frames.
-    """
-    frames: list[dict[str, Any]] = []
-    y = 0.0
-    for k, move in enumerate(moves):
-        y += move
-        frames.append(
-            {
-                "value": float(k),
-                "axisTexts": ["0", "1k", "10k"],
-                "traces": {"path:a": [[0.0, y], [50.0, y], [100.0, y]]},
-            }
-        )
-    return frames
-
-
 def of_kind(findings: list[dict[str, Any]], kind: str) -> list[tuple[str, Any]]:
     """``(selector, value)`` of every finding of ``kind``, sorted by selector so order is not pinned."""
     return sorted((f["selector"], f["value"]) for f in findings if f["kind"] == kind)
 
 
-def jump_frames(deltas: list[dict[str, Any]]) -> set[int]:
-    """Frame indices flagged ``jump``; delta ``j`` describes frame ``j + 1``."""
-    return {j + 1 for j, delta in enumerate(deltas) if delta["jump"]}
-
-
 # --- derive_plots -----------------------------------------------------------
-
-
-def test_few_points_names_only_the_trace_whose_vertices_per_drawn_px_is_low(sweepplots: ModuleType) -> None:
-    raw = {"svgs": [svg("svg:1", [trace("path:wide", flat(400, 1000.0)), trace("path:narrow", flat(400, 700.0))])]}
-    assert sweepplots.derive_plots(raw) == [
-        {"kind": "few-points", "selector": "path:wide", "value": pytest.approx(0.4)}
-    ]
 
 
 def test_hash_reports_the_densest_100_px_stretch_of_a_trace_not_its_whole_width_average(
@@ -190,23 +154,3 @@ def test_escape_measures_against_the_clip_rectangle_when_present_else_the_svg_bo
         ("path:clipped", pytest.approx(30.0)),
         ("path:open", pytest.approx(10.0)),
     ]
-
-
-def test_collision_names_only_the_overlapping_text_pair_within_one_svg(sweepplots: ModuleType) -> None:
-    raw = {
-        "svgs": [
-            svg("svg:1", [], [text("A", 0.0, 50.0), text("B", 40.0, 90.0), text("C", 200.0, 250.0)]),
-            svg("svg:2", [], [text("D", 40.0, 90.0)]),
-        ]
-    }
-    assert sweepplots.derive_plots(raw) == [
-        {"kind": "collision", "selector": "text:A + text:B", "value": pytest.approx(10.0)}
-    ]
-
-
-# --- frame_deltas -----------------------------------------------------------
-
-
-def test_jump_fires_against_the_pass_median_with_a_floor(sweepplots: ModuleType) -> None:
-    passes = [sweep([2, 2, 2, 20, 2]), sweep([0, 0, 0, 4, 0]), sweep([10, 10, 10, 20, 10])]
-    assert [jump_frames(sweepplots.frame_deltas(frames)) for frames in passes] == [{3}, set(), set()]

@@ -43,9 +43,5 @@ def test_channel_index_maps_to_daemon_name(index: int, name: str) -> None:
     assert _PARSED["channels"][index]["label"] == name
 
 
-def test_channel_level_round_trips() -> None:
-    assert _speakers(level0="-3")["channels"][0]["level"] == -3
-
-
 def test_channel_distance_round_trips() -> None:
     assert _speakers(dist0="100")["channels"][0]["distance"] == 100

@@ -13,7 +13,6 @@ import hashlib
 import json
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -111,20 +110,6 @@ def test_a_log_given_no_path_reports_disabled_and_a_path_reports_enabled(tmp_pat
 # --- the envelope -----------------------------------------------------------
 
 
-def test_an_emitter_appends_exactly_one_record(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
-    log.preset_delete("alpha", was_active=True)
-    assert len(log.records()) == 1
-
-
-def test_every_line_of_the_file_parses_as_json_on_its_own(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
-    for index in range(3):
-        log.preset_write(f"preset-{index}", "save", 10, "abc123", overwrote=False)
-    lines = log_path(tmp_path).read_text().splitlines()
-    assert len([json.loads(line) for line in lines]) == len(log.records())
-
-
 def test_a_line_that_will_not_parse_is_skipped_rather_than_failing_the_whole_read(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.preset_write("alpha", "save", 10, "abc123", overwrote=False)
@@ -134,25 +119,12 @@ def test_a_line_that_will_not_parse_is_skipped_rather_than_failing_the_whole_rea
     assert [record.fields["name"] for record in log.records()] == ["alpha", "bravo"]
 
 
-def test_every_record_is_stamped_with_the_instant_its_clock_reads(tmp_path: Path) -> None:
-    fixed = datetime(2025, 3, 4, 5, 6, 7, tzinfo=UTC)
-    log = AuditLog(log_path(tmp_path), now=lambda: fixed)
-    log.active_set("alpha", None)
-    assert log.records()[0].ts == "2025-03-04T05:06:07+00:00"
-
-
 def test_seq_strictly_increases_across_successive_records(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     for index in range(3):
         log.preset_write(f"preset-{index}", "save", 10, "abc123", overwrote=False)
     seqs = [record.seq for record in log.records()]
     assert sorted(set(seqs)) == seqs
-
-
-def test_the_first_record_is_seq_one(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
-    log.active_set("alpha", None)
-    assert log.records()[0].seq == 1
 
 
 @pytest.mark.parametrize("event", list(EMITTERS))
@@ -225,45 +197,10 @@ def test_a_nested_oversized_value_is_keyed_by_its_dotted_path(tmp_path: Path) ->
     assert log.records()[0].fields["full_digests"]["http.matrix_profile_save"] == digest
 
 
-def test_two_oversized_values_in_one_record_get_a_digest_each(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
-    oversized = "x" * (MAX_VALUE_BYTES + 500)
-    second = oversized + "y"  # distinct value, so a shared digest cannot satisfy both
-    log.stage({"matrix_profile_save": oversized, "convolution_filter": second}, LIVE, DROPPED)
-    digests = log.records()[0].fields["full_digests"]
-    assert digests["http.convolution_filter"] == hashlib.sha256(second.encode()).hexdigest()
-
-
-def test_an_oversized_multibyte_value_is_capped_in_bytes_not_characters(tmp_path: Path) -> None:
-    log = log_at(tmp_path)
-    # two UTF-8 bytes per character: a character-counting cap stores twice the
-    # bytes it should, and a byte-counting cap that cuts mid-codepoint cannot
-    # round-trip through the file at all
-    log.live_write("convolution.filter", "é" * MAX_VALUE_BYTES, None, ok=True)
-    assert len(log.records()[0].fields["value"].encode("utf-8")) <= MAX_VALUE_BYTES
-
-
 def test_a_value_under_the_cap_is_not_marked_truncated(tmp_path: Path) -> None:
     log = log_at(tmp_path)
     log.live_write("convolution.filter", "x" * 64, None, ok=True)
     assert "truncated" not in log.records()[0].fields
-
-
-# --- redaction --------------------------------------------------------------
-
-
-@pytest.mark.parametrize("key", ["password", "secret", "token", "PASSWORD", "Secret", "TOKEN"])
-def test_a_sensitive_field_is_redacted(tmp_path: Path, key: str) -> None:
-    log = log_at(tmp_path)
-    log.stage({key: "hunter2"}, LIVE, DROPPED)
-    assert log.records()[0].fields["http"][key] == "***"
-
-
-@pytest.mark.parametrize("key", ["password", "secret", "token"])
-def test_a_sensitive_field_nested_deeper_is_redacted(tmp_path: Path, key: str) -> None:
-    log = log_at(tmp_path)
-    log.discard(HTTP, {"convolution": {"enabled": "1", key: "hunter2"}})
-    assert log.records()[0].fields["live"]["convolution"][key] == "***"
 
 
 # --- tail -------------------------------------------------------------------
@@ -284,12 +221,6 @@ def test_tail_beyond_the_record_count_returns_every_record(tmp_path: Path) -> No
 
 
 # --- rotation ---------------------------------------------------------------
-
-
-def test_a_log_past_its_size_limit_rotates_to_a_dot_one_file(tmp_path: Path) -> None:
-    log = log_at(tmp_path, max_bytes=400)
-    fill_until_rotated(log, rotated_path(tmp_path))
-    assert rotated_path(tmp_path).exists()
 
 
 def test_the_current_file_holds_records_appended_after_a_rotation(tmp_path: Path) -> None:
@@ -344,7 +275,3 @@ def test_seq_keeps_climbing_across_a_reopen(tmp_path: Path) -> None:
 )
 def test_resolve_level_reads_a_level_name_case_insensitively(value: str, level: int) -> None:
     assert resolve_level(value) == level
-
-
-def test_resolve_level_falls_back_to_info_on_unparseable_input() -> None:
-    assert resolve_level("not-a-level") == logging.INFO

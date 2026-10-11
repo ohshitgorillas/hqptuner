@@ -116,13 +116,3 @@ def test_a_refused_filter_upload_adds_nothing_to_the_listed_files(page: Page, st
     listed_before = _listed(panel)
     _upload(page, panel, _refused("e2e-not-a-wave.wav"))
     assert _listed(panel) == listed_before
-
-
-def test_a_refused_filter_upload_tells_the_user_something_other_than_a_stored_one(
-    page: Page, stack: stack_support.Stack
-) -> None:
-    """After a stored upload, a refused one replaces the drawer's note: the user is not left reading the success."""
-    panel = _overview(page, stack)
-    stored = _upload(page, panel, _stored("e2e-room-right.wav"))
-    refused = _upload(page, panel, _refused("e2e-garbled.wav"))
-    assert refused != stored

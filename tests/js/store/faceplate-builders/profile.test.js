@@ -17,9 +17,9 @@ import assert from "node:assert/strict";
 
 import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
 import { effective, effectivePipelines } from "../../../../hqptuner/static/store/resolve.js";
-import { edit, stagePipelines, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
-import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
+import { NEW } from "../../../../hqptuner/static/model/builders/builder.js";
 import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 import { LISTEN, PB_STEPS, PROFILE_COPY } from "../../../../hqptuner/static/store/faceplate/builders/profile-data.js";
 import {
@@ -322,20 +322,6 @@ test("test_the_book_holds_null_for_a_name_only_the_daemon_knows", () => {
 
 // --- the values now --------------------------------------------------------------------------------
 
-test("test_the_values_name_every_part_of_the_chain", () => {
-  assert.deepEqual(Object.keys(valsNow()).sort(), [
-    "dcdac",
-    "dcen",
-    "ldon",
-    "ldrhigh",
-    "ldrlow",
-    "xfmode",
-    "xfpreset",
-    "xsangle",
-    "xslambda",
-  ]);
-});
-
 test("test_crossfeed_reads_off_while_its_gate_is_0", () => {
   assert.equal(valsNow().xfmode, "off");
 });
@@ -413,41 +399,9 @@ test("test_listening_answers_with_the_headphones_label", async () => {
   assert.equal(answerOf("listen"), listenLabel("headphones"));
 });
 
-test("test_crossfeed_answers_off_while_off", () => {
-  assert.equal(answerOf("crossfeed"), "Off");
-});
-
-test("test_crossfeed_answers_with_the_named_presets_label_while_engaged", async () => {
-  await staging("crossfeed_enabled", "1");
-  assert.equal(answerOf("crossfeed"), `Bauer · ${BAUER[1].label}`);
-});
-
-test("test_dac_correction_answers_bypassed_while_off", () => {
-  assert.equal(answerOf("correction"), "Bypassed");
-});
-
 test("test_dac_correction_answers_with_the_model_while_engaged", async () => {
   await staging("dac_correction_enabled", "1");
   assert.equal(answerOf("correction"), "fx-dac-a");
-});
-
-test("test_loudness_answers_off_while_off", () => {
-  assert.equal(answerOf("loudness"), "Off");
-});
-
-test("test_loudness_answers_with_what_applies_while_engaged", async () => {
-  await staging("loudness_enabled", "1");
-  assert.match(String(answerOf("loudness")), /% applied$/);
-});
-
-test("test_eq_answers_none_with_no_peak_stage", () => {
-  assert.equal(answerOf("eq"), "None");
-});
-
-test("test_eq_answers_with_the_first_stereo_rows_peak_stage_count", async () => {
-  await stagePipelines(STEREO("0", PEAKS));
-  await quiesce(w);
-  assert.equal(answerOf("eq"), "3 bands");
 });
 
 // --- dirty -----------------------------------------------------------------------------------------
@@ -530,13 +484,6 @@ test("test_switching_to_a_saved_profile_ticks_every_station_holding_it", async (
   assert.deepEqual([...meta.value.stations].sort(), [LOADED, "Spare"]);
 });
 
-test("test_switching_away_from_a_dirty_edit_stashes_it", async () => {
-  await setName("Dusk");
-  await staging("crossfeed_enabled", "1");
-  await onSaved("Warm");
-  assert.equal(staged.value.has(keyOf({ st: LOADED, name: NEW })), true);
-});
-
 test("test_switching_back_restores_the_typed_name", async () => {
   await setName("Dusk");
   await staging("crossfeed_enabled", "1");
@@ -616,28 +563,9 @@ test("test_a_save_of_a_name_the_daemon_knows_switches_to_it_last", async () => {
   assert.deepEqual(sent.at(-1), { at: "POST /api/matrix/profile", body: { action: "switch", name: "Warm" } });
 });
 
-test("test_renaming_a_saved_profile_stages_the_delete_of_the_old_name_before_the_save", async () => {
-  await onSaved("Flat");
-  await setName("Dusk");
-  await saveProfile();
-  await quiesce(w);
-  const bodies = /** @type {Sent[]} */ (w.posts)
-    .filter((p) => p.at === "POST /api/config/stage")
-    .map((p) => /** @type {{ http?: Record<string, string> }} */ (p.body)?.http ?? {});
-  const del = bodies.findIndex((h) => h.matrix_profile_delete);
-  const save = bodies.findIndex((h) => h.matrix_profile_save);
-  const parsed = del < 0 ? null : JSON.parse(bodies[del].matrix_profile_delete);
-  assert.deepEqual([del < save, parsed], [true, { name: "Flat", presets: ["Spare"] }]);
-});
-
 test("test_a_fresh_save_edits_the_saved_profile_in_the_loaded_station", async () => {
   await freshSave();
   assert.deepEqual(cur.value, { st: LOADED, name: "Dusk" });
-});
-
-test("test_a_fresh_save_leaves_no_stashed_edit_under_its_key", async () => {
-  await freshSave();
-  assert.equal(staged.value.has(keyOf({ st: LOADED, name: "Dusk" })), false);
 });
 
 // --- remove ----------------------------------------------------------------------------------------

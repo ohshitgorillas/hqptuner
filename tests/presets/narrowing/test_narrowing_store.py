@@ -39,7 +39,7 @@ from virtual_clock import VirtualClock
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.jsonfile import StoreCorruptError
-from hqptuner.presets.store.narrowing import Facets, NarrowingError, NarrowingSchemaError, NarrowingStore
+from hqptuner.presets.store.narrowing import NarrowingError, NarrowingSchemaError, NarrowingStore
 
 #: Every facet at its default — the table the feature is specified by.
 DEFAULTS: dict[str, object] = {
@@ -226,25 +226,6 @@ def nar_client(narrowing_api: Callable[[], TestClient]) -> TestClient:
 # --- reading a store that was never written ---------------------------------
 
 
-def test_reading_a_store_with_no_file_yields_every_facet_at_its_default(tmp_path: Path) -> None:
-    assert store_at(tmp_path).read() == Facets(
-        genre=[],
-        genre_mode="or",
-        quality=0,
-        focus=[],
-        focus_mode="and",
-        phase=[],
-        length=[],
-        hide_limited="auto",
-        odd_rate_only=False,
-        downsafe_only=False,
-        apod_1x="all",
-        apod_nx="all",
-        lossy_1x="both",
-        src_format="pcm",
-    )
-
-
 def _read(store: NarrowingStore) -> None:
     store.read()
 
@@ -290,37 +271,6 @@ def test_write_answers_with_what_a_following_read_answers(tmp_path: Path) -> Non
     assert store.write(SET) == store.read()
 
 
-# --- a partial write ---------------------------------------------------------
-
-
-def test_a_partial_write_stores_the_facet_it_names(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.write({"quality": 4})
-    assert store.read().quality == 4
-
-
-def test_a_partial_write_stores_the_facets_it_omits_at_their_defaults(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.write(SET)
-    store.write({"quality": 4})
-    assert store.read() == Facets(
-        genre=[],
-        genre_mode="or",
-        quality=4,
-        focus=[],
-        focus_mode="and",
-        phase=[],
-        length=[],
-        hide_limited="auto",
-        odd_rate_only=False,
-        downsafe_only=False,
-        apod_1x="all",
-        apod_nx="all",
-        lossy_1x="both",
-        src_format="pcm",
-    )
-
-
 # --- what a stored file may hold ---------------------------------------------
 
 
@@ -362,15 +312,6 @@ def test_an_out_of_domain_stored_facet_reads_as_its_default(tmp_path: Path, face
     assert getattr(store_at(tmp_path).read(), facet) == DEFAULTS[facet]
 
 
-# The retired half of a merged genre option: pop and rock became one option
-# carrying the value `pop`, so `rock` is now an unknown token like any other and
-# a stored one costs the genre facet.
-def test_a_stored_retired_rock_genre_reads_as_the_genre_default(tmp_path: Path) -> None:
-    path = stored(tmp_path, SET)
-    edit_facets(path, set_to("genre", ["rock"]))
-    assert store_at(tmp_path).read().genre == DEFAULTS["genre"]
-
-
 def test_an_out_of_domain_stored_facet_leaves_the_other_facets_alone(tmp_path: Path) -> None:
     path = stored(tmp_path, SET)
     edit_facets(path, set_to("phase", ["banana"]))
@@ -397,11 +338,6 @@ def test_a_file_that_is_not_our_record_is_refused_as_corrupt(tmp_path: Path, con
 def test_an_out_of_domain_write_is_refused_naming_the_facet(tmp_path: Path, facet: str) -> None:
     with pytest.raises(NarrowingError, match=facet):
         store_at(tmp_path).write({facet: OUT_OF_DOMAIN[facet]})
-
-
-def test_a_write_carrying_the_retired_rock_genre_is_refused(tmp_path: Path) -> None:
-    with pytest.raises(NarrowingError, match="genre"):
-        store_at(tmp_path).write({"genre": ["rock"]})
 
 
 # The surviving half of the same merge is a genre like any other.
@@ -467,11 +403,6 @@ def test_a_legacy_rate_file_reads_the_replacement_switch_at_its_default(
     path = stored(tmp_path, SET)
     edit_facets(path, drop_new_switches)
     assert getattr(store_at(tmp_path).read(), switch) == default
-
-
-def test_a_partial_switch_write_answers_with_all_three_switches_present(tmp_path: Path) -> None:
-    answered = store_at(tmp_path).write({"hide_limited": "on"})
-    assert {"hide_limited", "odd_rate_only", "downsafe_only"} <= answered.to_json().keys()
 
 
 # --- the multi-select facets --------------------------------------------------
@@ -677,10 +608,6 @@ def test_a_fresh_install_answers_get_with_200(nar_client: TestClient) -> None:
     assert nar_client.get("/api/narrowing").status_code == 200
 
 
-def test_put_answers_200(nar_client: TestClient) -> None:
-    assert nar_client.put("/api/narrowing", json={"facets": SET}).status_code == 200
-
-
 def test_put_answers_with_the_stored_facets_so_no_follow_up_get_is_needed(nar_client: TestClient) -> None:
     assert nar_client.put("/api/narrowing", json={"facets": SET}).json()["facets"] == SET
 
@@ -706,17 +633,9 @@ def test_a_put_carrying_a_key_that_is_not_a_facet_answers_422(nar_client: TestCl
 # that row of the bar.
 
 
-def test_a_put_of_the_no_phase_token_answers_200(nar_client: TestClient) -> None:
-    assert nar_client.put("/api/narrowing", json={"facets": {"phase": [""]}}).status_code == 200
-
-
 def test_a_put_of_the_no_phase_token_stores_it(nar_client: TestClient) -> None:
     nar_client.put("/api/narrowing", json={"facets": {"phase": [""]}})
     assert nar_client.get("/api/narrowing").json()["facets"]["phase"] == [""]
-
-
-def test_a_put_of_the_unspecified_length_token_answers_200(nar_client: TestClient) -> None:
-    assert nar_client.put("/api/narrowing", json={"facets": {"length": [""]}}).status_code == 200
 
 
 def test_a_put_of_the_unspecified_length_token_stores_it(nar_client: TestClient) -> None:

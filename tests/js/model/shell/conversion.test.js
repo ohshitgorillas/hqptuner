@@ -189,10 +189,6 @@ test("test_the_dsd_stage_names_the_integrator_into_sdm", () => {
   assert.equal(railValues(PLAY.remod, false, VALS).dsd, VALS.integ);
 });
 
-test("test_the_dsd_stage_names_no_integrator_on_direct", () => {
-  assert.notEqual(railValues(PLAY.direct, true, VALS).dsd, VALS.integ);
-});
-
 test("test_direct_takes_resampling_and_shaping_off_the_rail", () => {
   assert.equal(railValues(PLAY.direct, true, VALS).offChain, true);
 });

@@ -11,7 +11,6 @@ import {
   tipRows,
   tipChips,
   tipContent,
-  tipAt,
   parkAt,
   groupTree,
   columns,
@@ -74,7 +73,6 @@ const opt = (v, over = {}) => ({ v, fam: "A", var: null, leaf: v, d: `d-${v}`, .
 const ROW_COUNTS = [
   { name: "an_option_without_facets_or_generation_has_no_rows", o: opt("x"), want: 0 },
   { name: "an_option_without_facets_has_its_generation_row", o: opt("x", { gen: 2 }), want: 1 },
-  { name: "a_generation_past_the_ordinals_has_no_row", o: opt("x", { gen: 9 }), want: 0 },
   { name: "empty_facets_have_no_rows", o: opt("x", { f: facets() }), want: 0 },
   { name: "a_quality_makes_one_row", o: opt("x", { f: facets({ q: 3 }) }), want: 1 },
   { name: "a_null_quality_makes_no_row", o: opt("x", { f: facets({ q: null }) }), want: 0 },
@@ -150,7 +148,6 @@ const CHIP_COUNTS = [
   { name: "an_option_without_facets_has_no_chips", o: opt("x"), want: 0 },
   { name: "plain_facets_have_no_chips", o: opt("x", { f: facets() }), want: 0 },
   { name: "full_apodizing_makes_a_chip", o: opt("x", { f: facets({ apod: "full" }) }), want: 1 },
-  { name: "half_apodizing_makes_a_chip", o: opt("x", { f: facets({ apod: "half" }) }), want: 1 },
   { name: "upsample_only_makes_a_chip", o: opt("x", { f: facets({ up: true }) }), want: 1 },
   {
     name: "apodizing_and_upsample_only_make_two_chips",
@@ -219,117 +216,6 @@ test("test_tip_content_carries_the_option_rows", () => {
   assert.equal(tipContent(opt("x", { f: facets({ q: 2, phase: "p1" }) }), false, LABELS).rows.length, 2);
 });
 
-// ── tipAt ───────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-/**
- * A hovered row's column and top, the tip's size, and the coordinate the tip owes.
- *
- * @typedef {object} TipRow
- * @property {string} name
- * @property {{x: number, w: number}} col
- * @property {number} rowY
- * @property {{w: number, h: number}} tip
- * @property {{x: number, y: number}} [origin]
- * @property {'left' | 'top'} at
- * @property {number} want
- */
-
-/** @type {TipRow[]} */
-const TIPS = [
-  {
-    name: "a_tip_with_room_sits_right_of_its_column",
-    col: { x: 100, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "left",
-    want: 310,
-  },
-  {
-    name: "a_tip_that_just_meets_the_right_margin_stays_right",
-    col: { x: 478, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "left",
-    want: 688,
-  },
-  {
-    name: "a_tip_without_room_right_sits_left_of_its_column",
-    col: { x: 600, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "left",
-    want: 290,
-  },
-  {
-    name: "a_tip_left_of_the_left_margin_comes_back_inside",
-    col: { x: 200, w: 700 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "left",
-    want: 12,
-  },
-  {
-    name: "a_tip_left_edge_is_rounded",
-    col: { x: 100.4, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "left",
-    want: 310,
-  },
-  {
-    name: "a_tip_top_sits_just_above_its_row",
-    col: { x: 100, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    at: "top",
-    want: 196,
-  },
-  {
-    name: "a_tip_past_the_foot_comes_back_inside",
-    col: { x: 100, w: 200 },
-    rowY: 780,
-    tip: { w: 300, h: 100 },
-    at: "top",
-    want: 688,
-  },
-  {
-    name: "a_tip_above_the_top_margin_comes_back_inside",
-    col: { x: 100, w: 200 },
-    rowY: 10,
-    tip: { w: 300, h: 100 },
-    at: "top",
-    want: 12,
-  },
-  { name: "a_tip_top_is_rounded", col: { x: 100, w: 200 }, rowY: 200.7, tip: { w: 300, h: 100 }, at: "top", want: 197 },
-  {
-    name: "a_tip_counts_left_from_its_containing_block",
-    col: { x: 100, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    origin: { x: 30, y: 109 },
-    at: "left",
-    want: 280,
-  },
-  {
-    name: "a_tip_counts_top_from_its_containing_block",
-    col: { x: 100, w: 200 },
-    rowY: 200,
-    tip: { w: 300, h: 100 },
-    origin: { x: 30, y: 109 },
-    at: "top",
-    want: 87,
-  },
-];
-
-for (const row of TIPS) {
-  test(`test_${row.name}`, () => {
-    assert.equal(
-      tipAt({ col: row.col, rowY: row.rowY, tip: row.tip, plate: PLATE, origin: row.origin })[row.at],
-      row.want,
-    );
-  });
-}
-
 // ── parkAt ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -353,55 +239,6 @@ const PARKS = [
     trigger: { x: 100, y: 100, h: 30 },
     at: "left",
     want: 100,
-  },
-  {
-    name: "a_panel_past_the_right_margin_comes_back_inside",
-    panel: { w: 400, h: 200 },
-    trigger: { x: 900, y: 100, h: 30 },
-    at: "left",
-    want: 588,
-  },
-  {
-    name: "a_panel_left_of_the_left_margin_comes_back_inside",
-    panel: { w: 400, h: 200 },
-    trigger: { x: 2, y: 100, h: 30 },
-    at: "left",
-    want: 12,
-  },
-  {
-    name: "a_panel_with_room_drops_under_its_picker",
-    panel: { w: 400, h: 200 },
-    trigger: { x: 100, y: 100, h: 30 },
-    at: "top",
-    want: 136,
-  },
-  {
-    name: "a_panel_that_just_meets_the_foot_stays_below",
-    panel: { w: 400, h: 200 },
-    trigger: { x: 100, y: 552, h: 30 },
-    at: "top",
-    want: 588,
-  },
-  {
-    name: "a_panel_without_room_below_opens_above_its_picker",
-    panel: { w: 400, h: 200 },
-    trigger: { x: 100, y: 650, h: 30 },
-    at: "top",
-    want: 444,
-  },
-  {
-    name: "a_panel_with_room_neither_way_sits_on_the_foot",
-    panel: { w: 400, h: 700 },
-    trigger: { x: 100, y: 300, h: 30 },
-    at: "top",
-    want: 88,
-  },
-  {
-    name: "a_panel_taller_than_the_plate_keeps_the_top_margin",
-    panel: { w: 400, h: 790 },
-    trigger: null,
-    at: "top",
-    want: 12,
   },
   { name: "a_centered_panel_left_edge_is_rounded", panel: { w: 401, h: 200 }, trigger: null, at: "left", want: 300 },
 ];

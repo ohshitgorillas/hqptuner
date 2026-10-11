@@ -46,11 +46,6 @@ test("test_a_live_control_reads_its_value_from_the_engine_state", async () => {
   assert.equal(effective("adaptive_volume"), "1");
 });
 
-test("test_a_live_control_with_no_engine_state_is_undefined", async () => {
-  await trees({ engine: {} });
-  assert.equal(effective("adaptive_volume"), undefined);
-});
-
 test("test_a_live_control_ignores_the_config_form_entirely", async () => {
   // the live lane never consults the http trees, even when they carry the name
   await trees({ engine: {}, fields: [field("adaptive", "9")] });

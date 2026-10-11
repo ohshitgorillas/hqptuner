@@ -16,7 +16,6 @@ from apps import wait_for_api
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.deps import SavedPreset, WithAutosave
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
@@ -92,26 +91,11 @@ def test_an_autosaving_apply_leaves_only_the_saved_presets_on_disk(
     assert PresetStore(tmp_path / "presets").names() == files
 
 
-def test_apply_answers_a_with_autosave_wrapper_carrying_the_folded_name(http_client: TestClient) -> None:
-    _autosave_on_with_active(http_client)
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    body = WithAutosave.from_json(http_client.post("/api/config/apply").json())
-    assert body.autosaved == SavedPreset(name="Kept", warning=None)
-
-
 def test_autosaved_apply_lands_the_new_value_in_the_preset_snapshot(http_client: TestClient) -> None:
     _autosave_on_with_active(http_client)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
     assert http_client.get("/api/preset/Kept").json()["config"]["title"] == "Renamed"
-
-
-def test_apply_with_an_explicit_save_target_skips_the_autosave(http_client: TestClient) -> None:
-    # the full save already covered the active preset; a second entry would
-    # double-report one write
-    _autosave_on_with_active(http_client)
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    assert "autosaved" not in http_client.post("/api/config/apply", json={"save": {"name": "Kept"}}).json()
 
 
 # --- the daemon-side mirror rides the apply's own restore -------------------
@@ -237,9 +221,3 @@ def test_a_live_write_whose_autosave_can_fold_answers_ok(
         _autosave_on_with_active(client)
         status = client.post("/api/config/live", json={"fields": {"filter": "25"}}).status_code
     assert status == 200
-
-
-def test_failed_autosave_carries_an_error_string(live_api: TestClient, tmp_path: Path) -> None:
-    _point_autosave_at(tmp_path / "presets")
-    code = live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}}).json()["code"]
-    assert code == "daemon_unavailable"

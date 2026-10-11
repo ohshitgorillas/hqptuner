@@ -31,7 +31,7 @@ export const HARDWARE_KEYS = ["cuda", "multicore", "ecores", "nblocks", "cuda_de
  *
  * @type {HardwareValues}
  */
-export const DEFAULTS = {
+const DEFAULTS = {
   cuda: "0",
   multicore: "auto",
   ecores: "default",

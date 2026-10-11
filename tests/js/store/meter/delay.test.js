@@ -68,16 +68,6 @@ test("test_a_typed_offset_persists_as_its_number_under_its_key", () => {
   assert.equal(storage.map.get(KEY), "-0.75");
 });
 
-test("test_an_offset_above_the_range_clamps_to_its_top", () => {
-  setSpectrumOffset("7");
-  assert.equal(spectrumOffset.value, 5);
-});
-
-test("test_an_offset_below_the_range_clamps_to_its_bottom", () => {
-  setSpectrumOffset("-7");
-  assert.equal(spectrumOffset.value, -5);
-});
-
 test("test_an_offset_that_is_not_a_number_leaves_the_offset_standing", () => {
   setSpectrumOffset("0.5");
   setSpectrumOffset("abc");

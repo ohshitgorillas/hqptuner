@@ -25,12 +25,12 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from conftest import DaemonFactory
 from fake_control import restart_into
-from narrow import FixtureError, present
+from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
-from hqptuner.core.applyops import ApplyReport, EngineApplyResult
+from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import presetlane
@@ -97,14 +97,6 @@ def _applied(report: ApplyReport) -> None:
         raise FixtureError(reason=f"the apply never reached the persistent lane: {report.persistent}")
 
 
-def _submitted(result: EngineApplyResult) -> None:
-    """An engine apply that reached the daemon, or a failure naming the setup
-    that never got there. Same premise as ``_applied``: no restore, no restart,
-    and nothing the case is about could have happened."""
-    if result.backup_bytes <= 0:
-        raise FixtureError(reason=f"the engine apply never reached the daemon: {result}")
-
-
 # --- when the engine cannot be re-read, the picture is empty -----------------
 # A stale reading is worse than none: everything that folds the picture into a
 # saved config would write settings off a process that is gone.
@@ -114,20 +106,6 @@ def _filter_nx(manager: ConnectionManager) -> str:
     """The ``filterNx`` the manager's picture holds: ``NO_STATE`` or ``NO_FILTER_NX`` when it holds none."""
     state = manager.readings.state
     return NO_STATE if state is None else state.get("filterNx", NO_FILTER_NX)
-
-
-async def _preset_load_with_no_control_connection(
-    http_daemon: dict[str, Any], tmp_path: Path, _dual_lane: DualLane
-) -> ConnectionManager:
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
-    cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    manager = ConnectionManager(cfg, http, VirtualClock())
-    try:
-        await manager.presetops.save_preset("Stored")
-        await presetlane.load(manager, "Stored")
-    finally:
-        await http.aclose()
-    return manager
 
 
 async def _staged_apply(http_daemon: dict[str, Any], _tmp_path: Path, dual_lane: DualLane) -> ConnectionManager:
@@ -140,7 +118,6 @@ async def _staged_apply(http_daemon: dict[str, Any], _tmp_path: Path, dual_lane:
 @pytest.mark.parametrize(
     ("write", "expected"),
     [
-        pytest.param(_preset_load_with_no_control_connection, NO_STATE, id="preset-load-no-control-connection"),
         pytest.param(_staged_apply, POST_RESTORE_FILTER_NX, id="staged-apply"),
     ],
 )
@@ -152,21 +129,6 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_stag
     expected: str,
 ) -> None:
     assert _filter_nx(await write(http_daemon, tmp_path, dual_lane)) == expected
-
-
-# --- the other two restart-shaped writes -------------------------------------
-# A preset load is not the only ``POST /restore``: a staged apply that reaches
-# the persistent lane and an engine-attribute apply both restart the daemon the
-# same way, so both leave the same picture of a process that no longer exists.
-
-
-async def test_an_engine_apply_leaves_the_post_restore_state_in_the_picture(
-    dual_lane: DualLane, http_daemon: dict[str, Any]
-) -> None:
-    manager, state = await dual_lane()
-    http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
-    _submitted(await manager.applyops.apply_engine({"cuda": "0"}))
-    assert present(manager.readings.state).get("filterNx") == "2"
 
 
 # --- what a preset load costs the 8088 lane ----------------------------------

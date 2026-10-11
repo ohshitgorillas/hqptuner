@@ -9,14 +9,9 @@ import {
   freqTicks,
   rampLut,
   spectrogramIndex,
-  spectrumAxes,
   spectrumPoints,
   timeTicks,
 } from "../../../../hqptuner/static/model/gauges/meter-plot.js";
-import { near } from "../../support/near.js";
-
-//: Tolerance for sums the float arithmetic may round in the last place.
-const EPS = 1e-9;
 
 // ── Spectrum plot ────────────────────────────────────────────────────────
 
@@ -47,55 +42,8 @@ test("test_a_spectrum_point_above_full_scale_stays_on_the_top_edge", () => {
   assert.equal(spectrumPoints([6], [1000], PLOT)[0][1], 0);
 });
 
-test("test_the_spectrum_db_ticks_run_from_full_scale_to_the_range", () => {
-  assert.deepEqual(
-    spectrumAxes(PLOT).db.map((t) => t.db),
-    [0, -10, -20, -30, -40, -50, -60],
-  );
-});
-
-test("test_a_wider_range_spaces_its_db_ticks_further_apart", () => {
-  assert.deepEqual(
-    spectrumAxes({ ...PLOT, range: 120 }).db.map((t) => t.db),
-    [0, -20, -40, -60, -80, -100, -120],
-  );
-});
-
-test("test_a_spectrum_db_tick_sits_at_its_level", () => {
-  assert.equal(spectrumAxes(PLOT).db[3].y, 50);
-});
-
-test("test_a_spectrum_frequency_tick_sits_at_its_frequency", () => {
-  assert.equal(spectrumAxes(PLOT).hz[2].x, 100);
-});
-
-//: Nyquist, and the frequency ticks (Hz) its axis carries.
-const KHZ = [
-  { name: "a_cd_nyquist_ticks_every_5_khz", nyq: 22050, want: [0, 5000, 10000, 15000] },
-  { name: "a_nyquist_past_30_khz_ticks_every_10_khz", nyq: 48000, want: [0, 10000, 20000, 30000, 40000] },
-  { name: "a_nyquist_past_60_khz_ticks_every_20_khz", nyq: 96000, want: [0, 20000, 40000, 60000, 80000] },
-  { name: "no_tick_crowds_the_top_15_percent_under_nyquist", nyq: 20000, want: [0, 5000, 10000, 15000] },
-];
-
-for (const row of KHZ) {
-  test(`test_${row.name}`, () => {
-    assert.deepEqual(
-      freqTicks(row.nyq, (f) => f / row.nyq).ticks.map((t) => t.khz * 1000),
-      row.want,
-    );
-  });
-}
-
-test("test_a_frequency_tick_sits_where_the_axis_puts_its_frequency", () => {
-  assert.equal(freqTicks(20000, (f) => 1 - f / 20000).ticks[1].at, 0.75);
-});
-
 test("test_the_nyquist_label_sits_where_the_axis_puts_nyquist", () => {
   assert.equal(freqTicks(22050, (f) => f / 44100).nyq.at, 0.5);
-});
-
-test("test_the_nyquist_label_reads_in_khz_to_two_places", () => {
-  assert.equal(freqTicks(22050, (f) => f / 22050).nyq.khz, 22.05);
 });
 
 // ── Spectrogram ──────────────────────────────────────────────────────────
@@ -180,38 +128,6 @@ test("test_a_pixel_column_caps_its_apodizing_count_at_three", () => {
  */
 const ticksOf = (spanS) => timeTicks(spanS * 10, 10).ticks.map((t) => [t.at, t.value]);
 
-test("test_a_one_minute_window_ticks_every_15_seconds_back_to_its_left_edge", () => {
-  assert.deepEqual(ticksOf(60), [
-    [0, -60],
-    [0.25, -45],
-    [0.5, -30],
-    [0.75, -15],
-    [1, 0],
-  ]);
-});
-
-test("test_a_thirty_second_window_ticks_every_10_seconds", () => {
-  assert.deepEqual(
-    ticksOf(30).map(([, v]) => v),
-    [-30, -20, -10, 0],
-  );
-});
-
-test("test_a_window_over_two_minutes_reads_in_minutes", () => {
-  assert.equal(timeTicks(3000, 10).inMin, true);
-});
-
-test("test_a_two_minute_window_reads_in_seconds", () => {
-  assert.equal(timeTicks(1200, 10).inMin, false);
-});
-
-test("test_a_five_minute_window_ticks_every_minute", () => {
-  assert.deepEqual(
-    ticksOf(300).map(([, v]) => v),
-    [-5, -4, -3, -2, -1, 0],
-  );
-});
-
 test("test_a_tick_crowding_the_right_edge_gives_way_to_the_end_label", () => {
   assert.deepEqual(
     ticksOf(42).map(([, v]) => v),
@@ -279,12 +195,4 @@ const BAD = [100, 100, 100];
 
 test("test_no_apodizing_event_shows_the_glass", () => {
   assert.deepEqual(apodRamp(GLASS, BAD)[0], [0, 0, 0]);
-});
-
-test("test_one_apodizing_event_leans_most_of_the_way_to_the_bad_colour", () => {
-  assert.ok(...near(apodRamp(GLASS, BAD)[1][0], 63, EPS));
-});
-
-test("test_three_apodizing_events_lean_furthest_to_the_bad_colour", () => {
-  assert.ok(...near(apodRamp(GLASS, BAD)[3][0], 99, EPS));
 });

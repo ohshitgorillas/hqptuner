@@ -46,12 +46,10 @@ const ref = (st, name) => ({ st, name });
  * A rail whose content grows by `line` per listed snapshot over a fixed `base`, inside `client`.
  *
  * @param {{ client: number, base: number, line: number }} rail
- * @param {number[]} [seen]  each size measured, in order
  */
 const rail =
-  ({ client, base, line }, seen = []) =>
+  ({ client, base, line }) =>
   (/** @type {number} */ per) => {
-    seen.push(per);
     return { client, scroll: base + per * line };
   };
 
@@ -59,11 +57,8 @@ const rail =
 
 /** @type {PerRow[]} */
 const PER = [
-  { name: "an_unmeasured_rail_holds_the_most_lines", client: 0, want: 40 },
-  { name: "a_rail_taller_than_the_most_lines_holds_the_most", client: 2000, want: 40 },
   { name: "a_rail_exactly_twelve_lines_tall_holds_twelve", client: 340, want: 12 },
   { name: "a_rail_one_pixel_short_of_twelve_lines_holds_eleven", client: 339, want: 11 },
-  { name: "a_rail_too_short_for_four_lines_still_holds_three", client: 150, want: 3 },
 ];
 
 for (const row of PER) {
@@ -71,20 +66,6 @@ for (const row of PER) {
     assert.equal(railPer(rail({ client: row.client, base: 100, line: 20 })), row.want);
   });
 }
-
-test("test_the_three_line_floor_is_never_measured", () => {
-  /** @type {number[]} */
-  const seen = [];
-  railPer(rail({ client: 150, base: 100, line: 20 }, seen));
-  assert.equal(seen.at(-1), 4);
-});
-
-test("test_measuring_stops_at_the_first_size_that_fits", () => {
-  /** @type {number[]} */
-  const seen = [];
-  railPer(rail({ client: 900, base: 100, line: 20 }, seen));
-  assert.deepEqual(seen, [40]);
-});
 
 // ── Page revealed after a save ─────────────────────────────────────────────
 

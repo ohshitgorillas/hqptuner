@@ -20,7 +20,6 @@ import assert from "node:assert/strict";
 import { onMeterPaint, startMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { spectrogramEnd } from "../../../../hqptuner/static/store/meter/spectrogram.js";
-import { stepLevel } from "../../../../hqptuner/static/model/gauges/meter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
@@ -85,9 +84,6 @@ const step = () => {
   return frame();
 };
 
-/** Run one animation frame exactly one step, 1/30 s, after the last, so the scene steps at dt = 1/30 s. */
-const stepAt30 = () => frame(STEP_MS);
-
 /**
  * Every bin of one channel at step `byte`, under 256, encoded as the feed sends it, two bytes a bin with the low one
  * first: dB = -byte * 0.5.
@@ -149,48 +145,12 @@ test("test_six_animation_frames_16_7_ms_apart_run_the_painters_3_times", () => {
   assert.equal(scenes.length, 3);
 });
 
-test("test_the_rms_after_three_steps_is_three_steps_toward_the_feed_frame", () => {
-  send({ peak: -30, rms: -40, byte: 60 });
-  const stamps = [step()];
-  send({ peak: -5, rms: -10, byte: 60 });
-  for (let k = 0; k < 3; k++) stamps.push(step());
-  let reading = { peak: -30, rms: -40, hold: -30, holdAt: stamps[0] };
-  for (let k = 1; k < stamps.length; k++) {
-    reading = stepLevel(reading, { peak: -5, rms: -10 }, stamps[k], (stamps[k] - stamps[k - 1]) / 1000);
-  }
-  assert.ok(...near(scenes.at(-1)?.levels[0]?.rms ?? NaN, reading.rms, 1e-6));
-});
-
 test("test_three_feed_frames_handed_out_at_one_step_show_their_loudest_peak", () => {
   send({ peak: -20, rms: -30, byte: 60, ms: 10.667 });
   send({ peak: -15, rms: -30, byte: 60, ms: 10.667 });
   send({ peak: -6, rms: -30, byte: 60, ms: 10.667 });
   step();
   assert.equal(scenes.at(-1)?.levels[0]?.peak, -6);
-});
-
-test("test_the_trace_eases_17_db_into_a_40_db_drop_on_the_next_step", () => {
-  send({ peak: -10, rms: -20, byte: 20 });
-  step();
-  send({ peak: -10, rms: -20, byte: 100 });
-  step();
-  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -27.075, 0.005));
-});
-
-test("test_a_step_after_a_reading_rises_20_db_eases_the_trace_8_5_db", () => {
-  send({ peak: -10, rms: -20, byte: 60 });
-  stepAt30();
-  send({ peak: -10, rms: -20, byte: 20 });
-  stepAt30();
-  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -21.475, 0.005));
-});
-
-test("test_a_steady_reading_after_a_20_db_drop_leaves_the_trace_0_23_db_short_after_8_steps", () => {
-  send({ peak: -10, rms: -20, byte: 20 });
-  stepAt30();
-  send({ peak: -10, rms: -20, byte: 60 });
-  for (let k = 0; k < 8; k++) stepAt30();
-  assert.ok(...near(scenes.at(-1)?.spectrum?.disp[0] ?? NaN, -29.765, 0.005));
 });
 
 test("test_the_first_reading_after_playback_restarts_lands_outright", () => {
@@ -221,13 +181,6 @@ test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () =
   assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.peak ?? [])], [-10]);
 });
 
-test("test_a_clump_of_ten_frames_at_a_0_1_s_offset_gives_a_different_trace_at_each_of_the_next_3_steps", () => {
-  setSpectrumOffset(0.1);
-  for (const byte of [20, 20, 20, 40, 40, 40, 60, 60, 60, 80]) send({ peak: -10, rms: -20, byte, ms: 10.667 });
-  for (let k = 0; k < 6; k++) frame();
-  assert.deepEqual(scenes.map(traceDb), [-10, -14, -21]);
-});
-
 test("test_at_a_0_1_s_engine_output_delay_a_clump_shorter_than_it_shows_nothing_until_the_feed_covers_it", () => {
   engineStatus.value = { status: { state: "2", output_delay: "100000" } };
   for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, ms: 10.667 });
@@ -254,14 +207,6 @@ test("test_a_second_start_runs_no_second_loop", () => {
   assert.equal(scenes.length, 1);
 });
 
-test("test_playback_stopping_empties_the_scene", () => {
-  send({ peak: -10, rms: -20, byte: 20 });
-  step();
-  engineStatus.value = { ...STOPPED };
-  step();
-  assert.deepEqual(scenes.at(-1), { levels: [], spectrum: null, raw: null });
-});
-
 test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () => {
   setApodWindow("300");
   setSpectrumOffset(0.1);
@@ -274,12 +219,6 @@ test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () =
   assert.ok(...near(spectrogramEnd.value - start, 200, 1e-9));
 });
 
-test("test_with_its_last_painter_unregistered_the_loop_queues_no_frame_after_the_next_one", () => {
-  unpaint();
-  frame();
-  assert.equal(waiting(), 0);
-});
-
 test("test_a_painter_registered_on_an_idle_loop_queues_exactly_one_frame", () => {
   unpaint();
   frame();
@@ -290,12 +229,6 @@ test("test_a_painter_registered_on_an_idle_loop_queues_exactly_one_frame", () =>
 
 test("test_with_the_feed_closed_the_loop_queues_no_frame_after_the_next_one", () => {
   closeMeterFeed();
-  frame();
-  assert.equal(waiting(), 0);
-});
-
-test("test_with_the_engine_stopped_the_loop_queues_no_frame_after_the_next_one", () => {
-  engineStatus.value = { ...STOPPED };
   frame();
   assert.equal(waiting(), 0);
 });

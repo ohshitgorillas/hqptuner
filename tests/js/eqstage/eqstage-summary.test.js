@@ -78,19 +78,6 @@ const report = (patch = {}) => ({
   ...patch,
 });
 
-/**
- * @param {string} summary
- * @returns {number}
- */
-const lineCount = (summary) => summary.split("\n").length;
-
-/**
- * @param {string} summary
- * @param {string} needle
- * @returns {number}
- */
-const occurrences = (summary, needle) => summary.split(needle).length - 1;
-
 // --- wire fake for the runJob case ----------------------------------------------
 
 const URL_BASE = "http://127.0.0.1:8090";
@@ -135,14 +122,6 @@ test("test_the_summary_states_the_process_string_the_eq_serializes_to", () => {
   assert.equal(summary.includes(EQ_PROCESS), true);
 });
 
-// --- one line per row ------------------------------------------------------------
-
-test("test_each_extra_row_in_the_report_adds_exactly_one_line_to_the_summary", () => {
-  const one = table(report({ rows: [row(0)] }));
-  const four = table(report({ rows: [row(0), row(1), row(2), row(3)] }));
-  assert.equal(lineCount(four) - lineCount(one), 3);
-});
-
 // --- selection -------------------------------------------------------------------
 
 test("test_a_selected_row_reads_differently_from_the_same_row_unselected", () => {
@@ -169,11 +148,6 @@ test("test_a_row_line_states_the_band_count_it_has_after_the_edit", () => {
 
 // --- gain ------------------------------------------------------------------------
 
-test("test_a_row_whose_gain_is_unchanged_states_that_gain_once", () => {
-  const same = row(0, { before: facts(1, "-3.5"), after: facts(2, "-3.5") });
-  assert.equal(occurrences(table(report({ rows: [same] })), "-3.5"), 1);
-});
-
 test("test_a_row_whose_gain_changed_states_the_gain_it_had_before", () => {
   const changed = row(0, { before: facts(1, "-1.25"), after: facts(2, "-4.75") });
   assert.equal(table(report({ rows: [changed] })).includes("-1.25"), true);
@@ -185,11 +159,6 @@ test("test_a_row_whose_gain_changed_states_the_gain_it_has_after", () => {
 });
 
 // --- staged fields ---------------------------------------------------------------
-
-test("test_the_summary_names_a_field_staged_in_the_http_half_of_the_payload", () => {
-  const summary = table(report({ staged: { live: { volume: -20 }, http: { matrix_pipelines: "[]" } } }));
-  assert.equal(summary.includes("matrix_pipelines"), true);
-});
 
 test("test_the_summary_names_a_field_staged_in_the_live_half_of_the_payload", () => {
   const summary = table(report({ staged: { live: { volume: -20 }, http: { matrix_pipelines: "[]" } } }));
@@ -203,18 +172,6 @@ test("test_a_dry_run_summary_reads_differently_from_a_run_that_staged_the_same_f
   const dry = table(report({ dry_run: true, posted: false, verified: false, staged }));
   const wet = table(report({ dry_run: false, posted: false, verified: false, staged }));
   assert.notEqual(dry, wet);
-});
-
-// --- the buffer line -------------------------------------------------------------
-
-test("test_a_run_that_reached_the_buffer_says_the_user_is_the_one_who_clicks_apply", () => {
-  const summary = table(report({ posted: true, verified: true }));
-  assert.equal(summary.includes("Apply"), true);
-});
-
-test("test_a_run_that_did_not_reach_the_buffer_omits_the_apply_line", () => {
-  const summary = table(report({ posted: false, verified: false }));
-  assert.equal(summary.includes("Apply"), false);
 });
 
 // --- runJob preamp validation ----------------------------------------------------

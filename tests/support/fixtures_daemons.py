@@ -133,12 +133,6 @@ def threaded_daemon_port() -> Iterator[int]:
     yield from spawn_threaded_daemon()
 
 
-@pytest.fixture
-def threaded_disabled_volume_port() -> Iterator[int]:
-    """Threaded daemon with volume control disabled — a Volume write is refused."""
-    yield from spawn_threaded_daemon({"_vol_enabled": "0"})
-
-
 # --- fake HTTP config daemon (port 8088 lane), implemented in fake_http ---
 
 

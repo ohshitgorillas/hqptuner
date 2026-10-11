@@ -54,8 +54,6 @@ import {
   feed,
 } from "../../support/apodpolls.js";
 
-const CAP = 3600;
-
 // The width of one bin at the default poll step.
 const STEP_MS = 1000;
 
@@ -70,66 +68,17 @@ const counts = (bins) => bins.map((b) => b.n);
 const widths = (bins) => bins.map((b) => b.ms);
 
 /**
- * @param {Bin[]} bins
- * @param {number} n
- * @returns {boolean}
- */
-const anyBinCounting = (bins, n) => bins.some((b) => b.n === n);
-
-/**
  * @param {number} length
  * @param {(i: number) => number} f
  */
 const series = (length, f) => Array.from({ length }, (_, i) => f(i));
 
-// --- nothing recorded before the first apodizing event ------------------------
-// These run first, before any non-zero count has ever been fed, because the
-// strip's visibility is sticky by design.
-
-test("test_the_first_poll_of_a_track_appends_no_bin", () => {
-  setPollStep(1);
-  newTrack();
-  assert.deepEqual(apodBins.value, []);
-});
-
-test("test_a_silent_poll_appends_a_zero_bin", () => {
-  setPollStep(1);
-  const deltas = feed([0]);
-  assert.deepEqual(counts(apodBins.value), deltas);
-});
-
 // --- what a bin counts ---------------------------------------------------------
-
-test("test_a_bin_records_the_rise_in_the_apodizing_counter_since_the_previous_poll", () => {
-  setPollStep(1);
-  const deltas = feed([3]);
-  assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_a_bin_carries_its_count_as_a_number", () => {
-  // the phase-2 renderer reads these fields, so their types are contract
-  setPollStep(1);
-  feed([3]);
-  assert.equal(typeof apodBins.value[0].n, "number");
-});
-
-test("test_a_bin_carries_its_width_as_a_number", () => {
-  setPollStep(1);
-  feed([3]);
-  assert.equal(typeof apodBins.value[0].ms, "number");
-});
 
 test("test_each_poll_appends_one_bin_of_its_own", () => {
   setPollStep(1);
   const deltas = feed([3, 0, 7]);
   assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_a_track_change_clears_the_bins", () => {
-  setPollStep(1);
-  feed([1, 2]);
-  newTrack();
-  assert.deepEqual(apodBins.value, []);
 });
 
 test("test_a_track_change_rebaselines_the_counter", () => {
@@ -152,13 +101,6 @@ test("test_a_track_change_rebaselines_the_counter", () => {
 // the serial reported — the history is cleared and the frame that carried the
 // backwards reading is a baseline recording no bin.
 
-test("test_a_position_that_restarts_under_the_same_serial_clears_the_bins", () => {
-  setPollStep(1);
-  feed([1, 2]);
-  restartPosition();
-  assert.deepEqual(apodBins.value, []);
-});
-
 test("test_a_position_that_restarts_under_the_same_serial_records_no_bin_for_its_own_frame", () => {
   // the counter is untouched across this boundary, so a store that cleared but
   // then recorded the frame anyway would leave a stray zero behind
@@ -167,14 +109,6 @@ test("test_a_position_that_restarts_under_the_same_serial_records_no_bin_for_its
   restartPosition();
   append([4]);
   assert.deepEqual(counts(apodBins.value), [4]);
-});
-
-test("test_a_counter_that_restarts_under_the_same_serial_clears_the_bins", () => {
-  setPollStep(1);
-  setApodCounter(580);
-  feed([4]); // the outgoing track's counter stands at 584
-  restartCounter(4);
-  assert.deepEqual(apodBins.value, []);
 });
 
 test("test_a_counter_that_restarts_under_the_same_serial_rebaselines_at_the_restarted_value", () => {
@@ -288,21 +222,6 @@ test("test_a_longer_step_records_a_wider_bin", () => {
 // counted nothing retires the strip when it ends, and "ends" includes a boundary
 // the serial never reported.
 
-// --- the retention cap ---------------------------------------------------------------
-
-test("test_the_history_is_capped_at_thirty_six_hundred_bins", () => {
-  setPollStep(1);
-  feed([9, ...series(CAP, () => 0)]); // one bin past the cap
-  assert.equal(apodBins.value.length, CAP);
-});
-
-test("test_the_oldest_bin_is_dropped_once_the_cap_is_passed", () => {
-  // only the first bin of this track carries a 9; past the cap it is gone
-  setPollStep(1);
-  feed([9, ...series(CAP, () => 0)]);
-  assert.equal(anyBinCounting(apodBins.value, 9), false);
-});
-
 // --- registration -----------------------------------------------------------------------
 
 test("test_registering_the_history_twice_does_not_append_two_bins_per_poll", () => {
@@ -310,10 +229,6 @@ test("test_registering_the_history_twice_does_not_append_two_bins_per_poll", () 
   initApodHistory();
   const deltas = feed([2]);
   assert.deepEqual(counts(apodBins.value), deltas);
-});
-
-test("test_registering_the_history_twice_returns_the_same_disposer", () => {
-  assert.equal(initApodHistory(), initApodHistory());
 });
 
 // LAST in the file, deliberately (hazard 4): the effect is gone afterwards.

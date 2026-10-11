@@ -51,16 +51,6 @@ test("test_input_while_a_pointer_is_held_on_the_slider_is_honored", () => {
   assert.deepEqual(calls, [event]);
 });
 
-// A track click: pointerdown jumps the thumb, the input event lands between the
-// down and the up.
-test("test_input_between_pointerdown_and_pointerup_is_honored", () => {
-  const { el, calls, handler } = setup();
-  press(el);
-  fire(handler, el, "input");
-  release(el);
-  assert.equal(calls.length, 1);
-});
-
 for (const key of SLIDER_KEYS) {
   test(`test_input_after_${key}_keydown_on_the_slider_is_honored`, () => {
     const { el, calls, handler } = setup();

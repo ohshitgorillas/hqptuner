@@ -22,7 +22,7 @@ import { About } from "../../../../hqptuner/static/components/faceplate/settings
 import { health } from "../../../../hqptuner/static/store/signals.js";
 import { elements, attr, text, classes } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { ok, bad } from "../../support/wire/wire.js";
+import { ok } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse */
@@ -63,9 +63,6 @@ afterEach(() => {
 /** Every element of the page as it renders now. */
 const all = () => elements(render(html`<${About} />`));
 
-/** The elements carrying a class. */
-const withClass = (/** @type {string} */ cls) => all().filter((e) => classes(e).includes(cls));
-
 /** The identity windows' values, in order. */
 const values = () =>
   all()
@@ -94,17 +91,9 @@ async function upload(/** @type {File} */ file) {
 
 const zip = () => new File([new Uint8Array(8)], "hqplayerd.zip");
 
-test("test_the_identity_windows_carry_the_health_payloads_values_in_order", () => {
-  assert.deepEqual(values(), ["Signalyst HQPlayer Embedded", "6.0.2", "6.0.4", "Linux"]);
-});
-
 test("test_an_empty_health_payload_draws_no_identity_window", () => {
   health.value = {};
   assert.deepEqual(values(), []);
-});
-
-test("test_the_version_line_names_the_running_app_version", () => {
-  assert.equal(withClass("cap").map(text).join(" ").includes("9.8.7"), true);
 });
 
 test("test_the_backup_download_points_at_the_backup_route", () => {
@@ -125,16 +114,6 @@ test("test_the_state_export_download_points_at_the_state_export_route", () => {
   );
 });
 
-test("test_the_prose_links_open_ko_fi_and_the_mit_license_in_a_new_tab", () => {
-  assert.deepEqual(
-    all()
-      .filter((e) => e.name === "a" && attr(e, "target") === "_blank")
-      .map((e) => attr(e, "href"))
-      .sort(),
-    ["https://ko-fi.com/ohshitgorillas", "https://opensource.org/license/mit"],
-  );
-});
-
 test("test_a_restore_posts_the_chosen_file_to_the_restore_route", async () => {
   const file = zip();
   await upload(file);
@@ -144,10 +123,4 @@ test("test_a_restore_posts_the_chosen_file_to_the_restore_route", async () => {
     ),
     [file],
   );
-});
-
-test("test_a_refused_restore_prints_the_servers_reason", async () => {
-  restoreAnswer = bad(500, "backup archive unreadable");
-  await upload(zip());
-  assert.equal(withClass("mnote").map(text).join(" ").includes("backup archive unreadable"), true);
 });

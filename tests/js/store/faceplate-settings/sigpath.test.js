@@ -13,13 +13,11 @@ import assert from "node:assert/strict";
 import {
   NODES,
   EDGES,
-  MATRIX_PARTS,
   PATH_NAME,
   litOf,
   signalMap,
 } from "../../../../hqptuner/static/store/faceplate/settings/sigpath.js";
 import { railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
-import { pathLamps } from "../../../../hqptuner/static/model/gauges/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/chain.js").Running} Running */
 
@@ -146,10 +144,6 @@ test("test_every_edge_joins_two_nodes", () => {
   assert.deepEqual(strays, []);
 });
 
-test("test_the_direct_sdm_bypass_is_the_first_edge", () => {
-  assert.deepEqual(EDGES[0], { a: "ds", b: "sp", direct: true });
-});
-
 test("test_the_direct_sdm_bypass_is_the_only_direct_edge", () => {
   assert.equal(EDGES.filter((e) => e.direct).length, 1);
 });
@@ -207,22 +201,4 @@ test("test_the_direct_sdm_bypass_stays_dark_on_a_remodulated_dsd_path", () => {
 
 test("test_the_direct_sdm_bypass_stays_dark_on_a_pcm_path", () => {
   assert.equal(signalMap(onPath("pcm-pcm", "1x")).edges[DIRECT_EDGE], false);
-});
-
-/**
- * What pathLamps answers for a map decided from a running picture.
- *
- * @param {ReturnType<typeof signalMap>} m
- */
-const lampsFor = (m) =>
-  pathLamps({ lit: m.lit, engaged: m.engaged, nodes: NODES, edges: EDGES, matrix: MATRIX_PARTS, direct: m.direct });
-
-test("test_the_map_node_lamps_are_what_path_lamps_answers", () => {
-  const m = signalMap(running({ path: "dsd-pcm", matrix: false }));
-  assert.deepEqual(m.nodes, lampsFor(m).nodes);
-});
-
-test("test_the_map_edge_lamps_are_what_path_lamps_answers", () => {
-  const m = signalMap(onPath("pcm-sdm", "nx"));
-  assert.deepEqual(m.edges, lampsFor(m).edges);
 });

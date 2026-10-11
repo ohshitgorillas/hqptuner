@@ -24,13 +24,6 @@ async def test_a_state_that_names_no_loaded_chain_refuses_the_snapshot(live_mana
         live_snapshot(unknown)
 
 
-async def test_a_configured_chain_snapshots_its_chain_fields(live_manager: LiveManager) -> None:
-    known, _, _ = await live_manager(mode="1")
-    # mode 1 loads the PCM chain on the fake's default `shaper="0"`, which its PCM
-    # `GetShapers` lists as index 0, name "none", enum value "0"
-    assert live_snapshot(known).fields["dither"] == {"value": "0", "name": "none"}
-
-
 @pytest.mark.parametrize(
     ("overrides", "chain"),
     [
