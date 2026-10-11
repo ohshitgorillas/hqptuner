@@ -2,7 +2,7 @@
 
 The buffer holds two buckets, ``live`` (Control-API edits keyed by live setting)
 and ``http`` (persistent config fields keyed by field name), and a stage merges
-into them the way ``dict.update`` does (docs/eq-assistant/STAGING.md). These
+into them the way ``dict.update`` does. These
 cases build the buffer from ``hqptuner.core.pending`` with no app, no client and
 no daemon, so nothing above ``core`` takes part in staging. The HTTP routes over
 the same buffer are covered in ``tests/api/test_api_write.py``.

@@ -88,8 +88,7 @@ fi
 # not in dev's. Git refuses when such a path is an untracked file on disk — but
 # NOT when the file is ignored: those it overwrites without a word. A file that
 # is ignored here and still tracked downstream is therefore destroyed by the
-# checkout, and the ff-merge then deletes it outright. That is not hypothetical;
-# it is how this script ate an in-flight docs/eq-assistant/todo.md.
+# checkout, and the ff-merge then deletes it outright. That is not hypothetical.
 clobber_check() {   # clobber_check <ref>...
   local ref path hit=0
   for ref in "$@"; do
