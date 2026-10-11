@@ -1,12 +1,12 @@
-// Suite for the WAV header sample-rate sniff in components/matrix/StageEditor.js:
+// Suite for the WAV header sample-rate sniff in lib/wav.js:
 // a RIFF/WAVE header yields its fmt-chunk rate, a corrupted RIFF tag yields null.
 //
-// Run: node --test --import ./tests/js/support/vendor-resolve.js tests/js/components/matrix/stageeditor-wavrate.test.js
+// Run: node --test --import ./tests/js/support/vendor-resolve.js tests/js/lib/wav.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { wavRateFromHeader } from "../../../../hqptuner/static/components/matrix/StageEditor.js";
+import { wavRateFromHeader } from "../../../hqptuner/static/lib/wav.js";
 
 /**
  * A canonical 44-byte PCM WAV header: RIFF/WAVE, a 16-byte fmt chunk, an empty data chunk.

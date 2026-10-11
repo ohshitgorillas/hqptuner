@@ -1,5 +1,4 @@
-// The WAV header sniff behind the DSP pipelines drawer's filter upload
-// (faceplate/drawers/pipelines/upload.js).
+// WAV header sniffing: reads the sample rate from a file's fmt chunk.
 
 /**
  * Sniff a WAV header's sample rate (fmt chunk) for the 352.8 kHz recommendation
