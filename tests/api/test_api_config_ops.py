@@ -50,8 +50,9 @@ def test_engine_apply_rejects_a_value_outside_its_domain(http_client: TestClient
 # --- preset CRUD over REST ------------------------------------------------------
 
 
-def test_profile_save_persists_a_named_preset(http_client: TestClient) -> None:
-    assert http_client.post("/api/profile/save", json={"name": "Kept"}).json()["name"] == "Kept"
+def _save(client: TestClient, name: str) -> None:
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
 
 
 def test_previewing_a_missing_preset_is_not_found(http_client: TestClient) -> None:
@@ -78,21 +79,8 @@ def test_a_preset_name_carrying_a_path_separator_is_refused(http_client: TestCli
     assert http_client.get("/api/preset/sub/Kept").status_code == 422
 
 
-@pytest.mark.parametrize("loaded", ["Kept", "Other"])
-def test_profile_load_activates_the_stored_preset(http_client: TestClient, loaded: str) -> None:
-    http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
-    http_client.post("/api/profile/save", json={"name": "Kept"})
-    http_client.post("/api/profile/save", json={"name": "Other"})
-    http_client.post("/api/profile/load", json={"name": loaded})
-    assert http_client.get("/api/config").json()["data"]["active"] == loaded
-
-
 def test_loading_a_missing_preset_is_not_found(http_client: TestClient) -> None:
-    assert http_client.post("/api/profile/load", json={"name": "Nope"}).status_code == 404
-
-
-def test_deleting_a_missing_preset_is_not_found(http_client: TestClient) -> None:
-    assert http_client.delete("/api/preset/Nope").status_code == 404
+    assert http_client.post("/api/config/apply", json={"switch_to": "Nope"}).status_code == 404
 
 
 # --- Apply & Save ---------------------------------------------------------------
@@ -126,8 +114,8 @@ def _active(client: TestClient) -> str:
 @pytest.mark.parametrize("switch_to", ["Kept", ""], ids=["a-preset", "no-preset"])
 def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestClient, switch_to: str) -> None:
     http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
-    http_client.post("/api/profile/save", json={"name": "Kept"})
-    http_client.post("/api/profile/save", json={"name": "Other"})
+    _save(http_client, "Kept")
+    _save(http_client, "Other")
     if _active(http_client) != "Other":
         raise FixtureError(reason="saving Other did not make it the active preset to switch away from")
     http_client.post("/api/config/apply", json={"switch_to": switch_to})
@@ -135,7 +123,7 @@ def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestCli
 
 
 def _switch_report(client: TestClient, switch_to: str) -> dict[str, Any]:
-    client.post("/api/profile/save", json={"name": "Kept"})
+    _save(client, "Kept")
     switched: dict[str, Any] = client.post("/api/config/apply", json={"switch_to": switch_to}).json()["report"][
         "switched"
     ]
@@ -152,7 +140,7 @@ def test_applying_no_preset_sends_no_restore_to_the_daemon(
 ) -> None:
     # asserted at the wire: the fake counts POST /restore arrivals, and an unload
     # that routed through the load path would restart the daemon mid-playback
-    http_client.post("/api/profile/save", json={"name": "Kept"})
+    _save(http_client, "Kept")
     before = http_daemon["_restore_attempts"]
     http_client.post("/api/config/apply", json={"switch_to": ""})
     assert http_daemon["_restore_attempts"] == before

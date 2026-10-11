@@ -143,8 +143,8 @@ def a_third_refresh_after_the_startup_volume_moved(scene: Scene) -> None:
 
 def two_loads_of_one_preset(scene: Scene) -> None:
     seed_preset(scene.tmp_path, "Headphones", "-30")
-    scene.client.post("/api/profile/load", json={"name": "Headphones"})
-    scene.client.post("/api/profile/load", json={"name": "Headphones"})
+    scene.client.post("/api/config/apply", json={"switch_to": "Headphones"})
+    scene.client.post("/api/config/apply", json={"switch_to": "Headphones"})
 
 
 # --- 1. which checkpoints repeat, and which only speak when something moved ---
@@ -184,7 +184,7 @@ def test_a_preset_load_records_the_startup_volume_the_stored_preset_carries(
     # the checkpoint's name with no volume behind it says a load happened; the
     # question after the bug is what the load carried
     seed_preset(tmp_path, "Headphones", startup_volume)
-    audit_client.post("/api/profile/load", json={"name": "Headphones"})
+    audit_client.post("/api/config/apply", json={"switch_to": "Headphones"})
     assert level(last_observation(audit_log, "preset.stored")["fields"]["defaults_volume"]) == expected
 
 
@@ -209,5 +209,5 @@ def test_an_observation_reports_the_last_level_hqptuner_itself_asked_for(
     if wrote_first:
         client.post("/api/volume", json={"level": POSTED})
         engine["volume"] = MOVED
-    client.post("/api/profile/load", json={"name": "Headphones"})
+    client.post("/api/config/apply", json={"switch_to": "Headphones"})
     assert level(last_observation(audit_log, "preset.stored")["last_write"]) == expected

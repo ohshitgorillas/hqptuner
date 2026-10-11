@@ -27,10 +27,12 @@ from apps import wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, restart_into
 from fastapi.testclient import TestClient
+from state_import import export, source, upload
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.presets.store.presets import PresetStore
 
 
 @pytest.fixture
@@ -219,12 +221,20 @@ def test_the_shared_restore_carries_the_new_mode(client: TestClient, pcm_file_da
 # --- live truth outlives the stale config file --------------------------------
 
 
-def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: TestClient) -> None:
+def _arm_autosave(client: TestClient, tmp_path: Path) -> None:
+    """Import a state archive whose preset store carries auto-save on. The import
+    clears the active pointer, so it runs before the save meant to stay active."""
+    origin = source(tmp_path)
+    PresetStore(origin.preset_dir).set_autosave(enabled=True)
+    upload(client, export(origin))
+
+
+def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: TestClient, tmp_path: Path) -> None:
     # the pure-live apply never touched the config file, so the file still says
     # dither "0"; the later live write's auto-save fold must not let that stale
     # value overwrite the dither the engine is actually running
-    client.post("/api/profile/save", json={"name": "Kept"})
-    client.post("/api/autosave", json={"enabled": True})
+    _arm_autosave(client, tmp_path)
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Kept"}})
     _apply_staged(client, {"dither": "5"})
     client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
     # the fold under test only runs on a landed write: a dead live route would

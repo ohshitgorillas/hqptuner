@@ -362,7 +362,7 @@
         "type": "object"
       },
       "AutopilotReport": {
-        "description": "``GET``/``POST /api/autopilot``: auto-pilot's current switch state.",
+        "description": "``POST /api/autopilot``: auto-pilot's current switch state.",
         "properties": {
           "enabled": {
             "title": "Enabled",
@@ -371,30 +371,6 @@
         },
         "required": ["enabled"],
         "title": "AutopilotReport",
-        "type": "object"
-      },
-      "AutosaveBody": {
-        "description": "Carry the on/off flag ``POST /api/autosave`` sets on the preset store.",
-        "properties": {
-          "enabled": {
-            "title": "Enabled",
-            "type": "boolean"
-          }
-        },
-        "required": ["enabled"],
-        "title": "AutosaveBody",
-        "type": "object"
-      },
-      "AutosaveState": {
-        "description": "``POST /api/autosave``'s answer: whether auto-save is now armed.",
-        "properties": {
-          "autosave": {
-            "title": "Autosave",
-            "type": "boolean"
-          }
-        },
-        "required": ["autosave"],
-        "title": "AutosaveState",
         "type": "object"
       },
       "Body_matrix_filter_api_matrix_filter_post": {
@@ -2221,18 +2197,6 @@
         "title": "PresetChoice",
         "type": "object"
       },
-      "PresetDeleted": {
-        "description": "A preset removed from the store, under the trimmed name it was stored as.",
-        "properties": {
-          "name": {
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "required": ["name"],
-        "title": "PresetDeleted",
-        "type": "object"
-      },
       "PresetOption": {
         "description": "One entry of the preset picker: the preset name it selects, and the label it shows.",
         "properties": {
@@ -2266,18 +2230,6 @@
         },
         "required": ["name", "config"],
         "title": "PresetPreview",
-        "type": "object"
-      },
-      "ProfileBody": {
-        "description": "Carry the preset name ``POST /api/profile/{action}`` loads, saves, or deletes.",
-        "properties": {
-          "name": {
-            "default": "",
-            "title": "Name",
-            "type": "string"
-          }
-        },
-        "title": "ProfileBody",
         "type": "object"
       },
       "ProfileSelect": {
@@ -3535,23 +3487,6 @@
       }
     },
     "/api/autopilot": {
-      "get": {
-        "description": "Auto-pilot's state.\n\n409 when the store on disk is stamped newer than this HQPTuner reads \u2014 reporting \"off\" would be a lie about a file\nthat is there and full.",
-        "operationId": "autopilot_api_autopilot_get",
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AutopilotReport"
-                }
-              }
-            },
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Autopilot"
-      },
       "post": {
         "description": "Switch auto-pilot on or off, and answer with the state that was stored.\n\nNeither direction reads the engine: what is engaged when the switch is flipped has no bearing on what auto-pilot\ndoes next.",
         "operationId": "set_autopilot_api_autopilot_post",
@@ -3588,45 +3523,6 @@
           }
         },
         "summary": "Set Autopilot"
-      }
-    },
-    "/api/autosave": {
-      "post": {
-        "description": "Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.\n\nPure store flag \u2014 no daemon touch.",
-        "operationId": "set_autosave_api_autosave_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AutosaveBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AutosaveState"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Set Autosave"
       }
     },
     "/api/backup": {
@@ -4656,44 +4552,6 @@
       }
     },
     "/api/preset/{name}": {
-      "delete": {
-        "description": "Delete a preset from the store and remove its daemon mirror.\n\nBacks the Delete button on the preset picker.",
-        "operationId": "delete_preset_api_preset__name__delete",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "name",
-            "required": true,
-            "schema": {
-              "title": "Name",
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PresetDeleted"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Delete Preset"
-      },
       "get": {
         "description": "Read a preset's saved settings from its snapshot without loading it.\n\nThe editor previews these when the user picks a preset, before any apply. The empty name is \"(no preset)\" and\npreviews the running config.",
         "operationId": "preset_api_preset__name__get",
@@ -4731,67 +4589,6 @@
           }
         },
         "summary": "Preset"
-      }
-    },
-    "/api/profile/{action}": {
-      "post": {
-        "description": "Load, save, or delete a named preset, dispatching on the path segment.\n\n404 on an action outside those three or a name the store does not hold, 422 on an empty name.",
-        "operationId": "profile_api_profile__action__post",
-        "parameters": [
-          {
-            "in": "path",
-            "name": "action",
-            "required": true,
-            "schema": {
-              "title": "Action",
-              "type": "string"
-            }
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/ProfileBody"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "anyOf": [
-                    {
-                      "$ref": "#/components/schemas/PresetActivation"
-                    },
-                    {
-                      "$ref": "#/components/schemas/SavedPreset"
-                    },
-                    {
-                      "$ref": "#/components/schemas/PresetDeleted"
-                    }
-                  ],
-                  "title": "Response Profile Api Profile  Action  Post"
-                }
-              }
-            },
-            "description": "Successful Response"
-          },
-          "422": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            },
-            "description": "Validation Error"
-          }
-        },
-        "summary": "Profile"
       }
     },
     "/api/push": {

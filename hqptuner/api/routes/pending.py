@@ -7,10 +7,10 @@ from fastapi import APIRouter, Request
 
 from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import ErrorBody, refuse
-from hqptuner.api.models import AutosaveBody, StageBody
+from hqptuner.api.models import StageBody
 from hqptuner.audit import AuditLog
 from hqptuner.core.applyops import ApplyReport
-from hqptuner.core.pending import AutosaveState, PendingSnapshot, PendingStore
+from hqptuner.core.pending import PendingSnapshot, PendingStore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.writer import LiveWriteFailed, stageable_live_settings
 
@@ -92,13 +92,3 @@ def discard(request: Request, manager: Mgr) -> PendingSnapshot:
     # parked filter uploads belong to the staged process strings just discarded
     manager.presetops.clear_parked_filters()
     return store.snapshot()
-
-
-@router.post("/autosave")
-def set_autosave(body: AutosaveBody, manager: Mgr) -> AutosaveState:
-    """Toggle auto-save: every successful apply/live write is folded back into the active preset's store file.
-
-    Pure store flag — no daemon touch.
-    """
-    manager.presetops.store.set_autosave(enabled=body.enabled)
-    return AutosaveState(manager.presetops.store.autosave)

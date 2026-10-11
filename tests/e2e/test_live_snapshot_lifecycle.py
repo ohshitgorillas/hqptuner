@@ -72,10 +72,8 @@ def station(page: Page, stack: stack_support.Stack) -> Iterator[None]:
     left under STATION would reach it as a 404. The teardown deletes it here, by
     station; a 404 means the test already deleted it.
     """
-    for action in ("save", "load"):
-        response = page.request.post(
-            f"{stack.base_url}/api/profile/{action}", data={"name": STATION}, timeout=CALL_TIMEOUT
-        )
+    for body in ({"switch_to": "", "save": {"name": STATION}}, {"switch_to": STATION}):
+        response = page.request.post(f"{stack.base_url}/api/config/apply", data=body, timeout=CALL_TIMEOUT)
         expect(response).to_be_ok()
     yield
     page.request.delete(f"{stack.base_url}/api/livepresets/{SNAPSHOT}?station={STATION}", timeout=CALL_TIMEOUT)

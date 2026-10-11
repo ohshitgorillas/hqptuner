@@ -126,16 +126,6 @@ def test_an_unusable_live_snapshot_name_is_refused_before_the_engine_is_read(
     assert _code(_send(chainless, "PUT", "/api/livepresets/a/b")) == "name_invalid"
 
 
-@pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
-def test_a_config_preset_delete_refuses_an_unusable_name_by_the_name_rule(http_client: TestClient, path: str) -> None:
-    assert _code(_send(http_client, "DELETE", path)) == "name_invalid"
-
-
-@pytest.mark.parametrize("path", ["/api/preset/a/b", "/api/preset/"])
-def test_a_config_preset_delete_of_an_unusable_name_is_a_client_error(http_client: TestClient, path: str) -> None:
-    assert _send(http_client, "DELETE", path).status_code // 100 == 4
-
-
 #: Both verbs at a path under `/api` that no route claims. A page server mounted
 #: at `/` that still catches unrouted `/api` paths answers the GET as a missing
 #: file and the POST as the wrong verb, with a code on neither.
