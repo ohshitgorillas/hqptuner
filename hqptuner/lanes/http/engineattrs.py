@@ -22,7 +22,7 @@ from hqptuner.conf import engineconf, presetconf
 from hqptuner.lanes import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
     from hqptuner.lanes.http.storecarry import StoreCarry
 
 # readback window after the restore, before reporting the apply unconfirmed —
@@ -50,7 +50,7 @@ class EngineAttrsResult:
     backup_bytes: int
 
 
-async def verify(mgr: ConnectionManager, overrides: dict[str, str]) -> EngineVerification:
+async def verify(mgr: LaneManager, overrides: dict[str, str]) -> EngineVerification:
     """Poll a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
 
     Returns the last-read attributes either way, so a caller can report what actually landed.
@@ -90,7 +90,7 @@ def _with_carried_live_fields(backup: bytes, active: str | None, stored: dict[st
 
 
 async def apply(
-    mgr: ConnectionManager,
+    mgr: LaneManager,
     backup: bytes,
     overrides: dict[str, str],
     carry: StoreCarry,

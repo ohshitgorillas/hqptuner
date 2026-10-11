@@ -24,7 +24,7 @@ from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, mode_form_value
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 MATRIX_PROFILE = "matrix_profile"
 DEFAULT_PROFILE_NAME = "[Default]"
@@ -83,7 +83,7 @@ def _spec(field: str) -> LiveField:
     return ROUTABLE.get(field) or LIVE_ONLY[field]
 
 
-def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
+def _mode_snapshot(mgr: LaneManager, index: str) -> dict[str, str] | None:
     """Return the running output mode as ``{value, name}``.
 
     Mode is the one field whose stored value is not an enum ID: the live lane
@@ -99,7 +99,7 @@ def _mode_snapshot(mgr: ConnectionManager, index: str) -> dict[str, str] | None:
     return {"value": form, "name": name}
 
 
-def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> dict[str, str] | None:
+def _snapshot_field(mgr: LaneManager, field: str, chain: str | None) -> dict[str, str] | None:
     """One field's current value+name, or None when it is off-chain or unreadable."""
     spec = _spec(field)
     if spec.chain is not None and spec.chain != chain:
@@ -112,7 +112,7 @@ def _snapshot_field(mgr: ConnectionManager, field: str, chain: str | None) -> di
     return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _STATE_VALUE.get(field, "value"))
 
 
-def _direct_snapshot(mgr: ConnectionManager) -> dict[str, dict[str, str]]:
+def _direct_snapshot(mgr: LaneManager) -> dict[str, dict[str, str]]:
     """Return the DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
     state = mgr.readings.state or {}
     snapshot = {}
@@ -131,7 +131,7 @@ class LiveSnapshot:
     fields: dict[str, dict[str, str]]
 
 
-def live_state(mgr: ConnectionManager) -> LiveSnapshot:
+def live_state(mgr: LaneManager) -> LiveSnapshot:
     """Read every live setting the engine reports, junk filter included, and the chain they were read on, in one pass.
 
     ``ChainUnknownError`` when ``active_chain`` cannot say which chain is loaded:
@@ -145,7 +145,7 @@ def live_state(mgr: ConnectionManager) -> LiveSnapshot:
     return LiveSnapshot(chain, {**chained, **_direct_snapshot(mgr)})
 
 
-def live_snapshot(mgr: ConnectionManager) -> LiveSnapshot:
+def live_snapshot(mgr: LaneManager) -> LiveSnapshot:
     """Read the settings a saved snapshot holds (``SNAPSHOT_FIELDS``) and the chain they were read on.
 
     ``ChainUnknownError`` as ``live_state`` raises it.

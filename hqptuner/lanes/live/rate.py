@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, NamedTuple
 from hqptuner.lanes.live.chain import EnumItems, configured_chain
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 #: The LIVE field, and the ``writer.SETTINGS`` key its edit goes out under.
 RATE = "rate"
@@ -36,7 +36,7 @@ def _index_for(items: EnumItems, hz: str) -> str | None:
     return None
 
 
-def _rates(mgr: ConnectionManager) -> EnumItems:
+def _rates(mgr: LaneManager) -> EnumItems:
     return (mgr.readings.enums or {}).get("rates") or []
 
 
@@ -47,7 +47,7 @@ class PinRoute(NamedTuple):
     reasons: dict[str, str]
 
 
-def _refusal(mgr: ConnectionManager, fields: dict[str, str], index: str | None) -> str | None:
+def _refusal(mgr: LaneManager, fields: dict[str, str], index: str | None) -> str | None:
     """Return why the batch cannot pin its rate, or None when it can.
 
     Alone in its batch, because the mode and the filter both swap the rate list
@@ -63,7 +63,7 @@ def _refusal(mgr: ConnectionManager, fields: dict[str, str], index: str | None) 
     return None
 
 
-def route(mgr: ConnectionManager, fields: dict[str, str]) -> PinRoute:
+def route(mgr: LaneManager, fields: dict[str, str]) -> PinRoute:
     """Resolve the ``rate`` in a LIVE batch to its ``SetRate`` index, or refuse it."""
     index = _index_for(_rates(mgr), fields[RATE])
     why = _refusal(mgr, fields, index)

@@ -304,11 +304,11 @@ ignore_missing_imports = true
 # core and lanes: core drives it (core/manager.py, core/applyops.py) and it
 # drives the lanes (presets/presetlane.py reaching overrides and settle).
 #
-# `exclude_type_checking_imports` is set because a layers contract constrains
-# runtime dependencies, and an `if TYPE_CHECKING:` import is not one — every
-# excluded edge here is a lane annotating `mgr: ConnectionManager`, which is the
-# manager driving the lane, not the lane depending on the manager. Real edges
-# are still caught; this option removes nothing else.
+# `exclude_type_checking_imports` is false: an `if TYPE_CHECKING:` import is held
+# to the same layers as a runtime one. A layer below core that is handed the
+# manager types it as a protocol declared in its own layer (voltrace.py,
+# engine/trackcontext.py, lanes/__init__.py, presets/__init__.py), which the
+# concrete ConnectionManager satisfies structurally.
 #
 # audit.py, config.py and metadata.py are deliberately outside the contract.
 # They are top-level modules that import nothing from any hqptuner subpackage,
@@ -316,7 +316,7 @@ ignore_missing_imports = true
 # contract is not `exhaustive`, so unlisted siblings are simply unconstrained.
 [tool.importlinter]
 root_package = "hqptuner"
-exclude_type_checking_imports = true
+exclude_type_checking_imports = false
 
 [[tool.importlinter.contracts]]
 name = "Layered architecture"

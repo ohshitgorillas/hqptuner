@@ -16,10 +16,10 @@ from hqptuner.lanes.http.storecarry import StoreHooks
 from hqptuner.lanes.live import overrides
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets import PresetManager
 
 
-def _stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
+def _stored_live_fields(mgr: PresetManager) -> dict[str, str]:
     """Return the active preset's stored values for the live domain, or empty when there is no store to read."""
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.exists(name):
@@ -28,7 +28,7 @@ def _stored_live_fields(mgr: ConnectionManager) -> dict[str, str]:
     return {field: value for field, value in stored.items() if field in overrides.LIVE_DOMAIN}
 
 
-def carried_live_fields(mgr: ConnectionManager) -> dict[str, str]:
+def carried_live_fields(mgr: PresetManager) -> dict[str, str]:
     """Return what a restore must carry for the settings a live edit never writes to the config file.
 
     Those settings are output mode, both chains' filters and shapers, adaptive
@@ -53,7 +53,7 @@ def carried_live_fields(mgr: ConnectionManager) -> dict[str, str]:
     return {**_stored_live_fields(mgr), **overrides.live_overrides(mgr)}
 
 
-def _mirrored_preset(mgr: ConnectionManager) -> str | None:
+def _mirrored_preset(mgr: PresetManager) -> str | None:
     """Return the active preset's name when auto-save owes the daemon a mirror of it.
 
     None when auto-save is off, nothing is active, or it has no store file yet.
@@ -64,7 +64,7 @@ def _mirrored_preset(mgr: ConnectionManager) -> str | None:
     return name
 
 
-def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
+def autosave_mirror(mgr: PresetManager, intended_xml: bytes | None = None) -> dict[str, bytes]:
     """Return the ``data/cfgs`` member a restore should carry.
 
     Carrying it is how the daemon's native profile list catches up with auto-save.
@@ -84,7 +84,7 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     return {member: presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))}
 
 
-def restore_hooks(mgr: ConnectionManager) -> StoreHooks:
+def restore_hooks(mgr: PresetManager) -> StoreHooks:
     """Return what a staged restore owes the preset store, bound to ``mgr``.
 
     Each hook reads the store when the restore calls it, so every pass sees the

@@ -47,10 +47,10 @@ if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 
-async def refresh(mgr: ConnectionManager) -> FormsRefresh:
+async def refresh(mgr: LaneManager) -> FormsRefresh:
     """Best-effort refresh of the /config, /matrix and /speakers snapshots, answering what the pass did.
 
     A wire failure on the 8088 lane must never fail the 4321 poll — the last-good form is
@@ -105,7 +105,7 @@ async def refresh(mgr: ConnectionManager) -> FormsRefresh:
     return FormsRefresh(_outcome(mgr, fetched, len(getters)))
 
 
-def _outcome(mgr: ConnectionManager, fetched: int, total: int) -> FormsOutcome:
+def _outcome(mgr: LaneManager, fetched: int, total: int) -> FormsOutcome:
     """Decide what this pass answers, from state alone — never from a caught exception.
 
     A refusal outranks a partial fetch: the three pages share one credential, so a
@@ -120,7 +120,7 @@ def _outcome(mgr: ConnectionManager, fetched: int, total: int) -> FormsOutcome:
     return FormsOutcome.NO_ANSWER
 
 
-def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
+def _record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
     """Record what the 8088 lane just proved about the credentials, logging only the transition.
 
     Per poll would put the same line in the log every two seconds for as long as
@@ -135,7 +135,7 @@ def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
         log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
 
 
-def decline(mgr: ConnectionManager) -> httpauth.HttpLaneDeclinedError | None:
+def decline(mgr: LaneManager) -> httpauth.HttpLaneDeclinedError | None:
     """Return the refusal a use of the 8088 lane would meet for ``mgr``, or None when it is usable.
 
     Read off the client the manager holds and the credential verdict this module records.

@@ -35,7 +35,7 @@ from hqptuner.presets.store.matrixmode import MatrixModeSchemaError
 from hqptuner.presets.store.presets import canonical_name
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets import PresetManager
 
 log = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ class NoRunningConfigToAutosaveError(ControlError):
         super().__init__("HQPlayer's settings backup has no running configuration, so the auto-save did not run.")
 
 
-def listing(mgr: ConnectionManager) -> PresetListing:
+def listing(mgr: PresetManager) -> PresetListing:
     """Preset list + active name for the API.
 
     Shaped like the daemon profile field the frontend already renders: an empty "(no preset)" option, then every
@@ -127,7 +127,7 @@ def listing(mgr: ConnectionManager) -> PresetListing:
     return PresetListing(value=active, options=options, active=active, autosave=mgr.presetops.store.autosave)
 
 
-async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
+async def read(mgr: PresetManager, name: str) -> dict[str, str]:
     """Read a preset's saved settings in form-field terms for the editor preview — no daemon touch.
 
     A named preset reads from the store; the empty ("(no preset)") selection reads the current running config.
@@ -137,7 +137,7 @@ async def read(mgr: ConnectionManager, name: str) -> dict[str, str]:
     return presetconf.read_config(mgr.presetops.store.read(name))
 
 
-async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
+async def load(mgr: PresetManager, name: str) -> PresetActivation:
     """Load a stored preset.
 
     Restores its config as the ``[default]`` working config (the reliable primitive) and marks it active, mirroring
@@ -180,7 +180,7 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     return PresetActivation(name)
 
 
-def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> None:
+def switch_autopilot(mgr: PresetManager, source: str, *, enabled: bool) -> None:
     """Move auto-pilot's switch and record which ``source`` moved it.
 
     Every path that writes the switch comes through here. The store keeps only the resulting value, so a user who
@@ -203,7 +203,7 @@ def switch_autopilot(mgr: ConnectionManager, source: str, *, enabled: bool) -> N
     mgr.audit.autopilot_set(source, enabled=enabled, previous=previous)
 
 
-def stamp_autopilot_on_active(mgr: ConnectionManager) -> None:
+def stamp_autopilot_on_active(mgr: PresetManager) -> None:
     """Fold auto-pilot's current state into the active preset, when auto-save is armed to do that.
 
     The switch writes only the top-level flag, and the per-preset copy was written by a save or an auto-save alone.
@@ -217,7 +217,7 @@ def stamp_autopilot_on_active(mgr: ConnectionManager) -> None:
     _record_autopilot(mgr, name)
 
 
-def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
+def _restore_autopilot(mgr: PresetManager, name: str) -> None:
     """Put auto-pilot back to what this preset carries.
 
     hqplayerd's config has no junk-filter field, so a config preset carries auto-pilot's state and nothing about the
@@ -229,7 +229,7 @@ def _restore_autopilot(mgr: ConnectionManager, name: str) -> None:
         log.warning("auto-pilot state not restored for preset %r: %s", name, exc)
 
 
-async def switch(mgr: ConnectionManager, name: str) -> PresetActivation:
+async def switch(mgr: PresetManager, name: str) -> PresetActivation:
     """Make ``name`` the active preset as the first step of an apply.
 
     A named preset loads (restore + mirror); the empty name is the picker's "(no preset)" and only drops the
@@ -240,7 +240,7 @@ async def switch(mgr: ConnectionManager, name: str) -> PresetActivation:
     return await load(mgr, name)
 
 
-def unload(mgr: ConnectionManager) -> PresetActivation:
+def unload(mgr: PresetManager) -> PresetActivation:
     """Select "(no preset)".
 
     Drops HQPTuner's active-preset bookmark and leaves the running config exactly as it is.
@@ -254,7 +254,7 @@ def unload(mgr: ConnectionManager) -> PresetActivation:
     return PresetActivation("")
 
 
-async def save(mgr: ConnectionManager, name: str) -> PresetSaveResult:
+async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     """Persist the current running config as preset ``name``.
 
     Stores our copy and mirrors it into the daemon's ``data/cfgs``. Called after a successful apply, so the running
@@ -282,7 +282,7 @@ async def save(mgr: ConnectionManager, name: str) -> PresetSaveResult:
     return PresetSaveResult(name, mirror=await _mirror(mgr, name, working, backup))
 
 
-async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
+async def autosave(mgr: PresetManager) -> PresetSaveResult | None:
     """Fold the current audible state back into the active preset's store file.
 
     This is the auto-save checkbox's whole write path. Store only, never the daemon
@@ -309,7 +309,7 @@ async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
     return PresetSaveResult(name)
 
 
-def _record_autopilot(mgr: ConnectionManager, name: str) -> None:
+def _record_autopilot(mgr: PresetManager, name: str) -> None:
     """Record auto-pilot's current state as the one preset ``name`` carries.
 
     The high-frequency filter's auto-pilot has no home in the XML — hqplayerd's config carries no junk-filter field at
@@ -326,7 +326,7 @@ def _record_autopilot(mgr: ConnectionManager, name: str) -> None:
         log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
 
 
-async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: bytes) -> MirrorOutcome:
+async def _mirror(mgr: PresetManager, name: str, working: bytes, backup: bytes) -> MirrorOutcome:
     """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile list mirrors our store.
 
     Retries through the shared settle loop instead of firing once: this runs
@@ -350,7 +350,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     return MirrorOutcome.NOT_LANDED
 
 
-async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
+async def delete(mgr: PresetManager, name: str) -> PresetDeleted:
     """Delete a preset from the store and remove its daemon mirror via ``profile/delete``.
 
     Restore is additive and cannot remove a member.
@@ -373,12 +373,12 @@ async def delete(mgr: ConnectionManager, name: str) -> PresetDeleted:
     return PresetDeleted(name)
 
 
-def _migration_owed(mgr: ConnectionManager) -> bool:
+def _migration_owed(mgr: PresetManager) -> bool:
     """Whether the import of the daemon's own presets is still owed: not yet run in this process, and HTTP is up."""
     return not mgr.presetops.migrated and mgr.http_client is not None
 
 
-async def migrate_once(mgr: ConnectionManager, active_hint: str | None, *, backup: bytes | None = None) -> None:
+async def migrate_once(mgr: PresetManager, active_hint: str | None, *, backup: bytes | None = None) -> None:
     """Import hqplayerd's existing ``data/cfgs`` presets into the store, at most once per process and only over HTTP.
 
     Idempotent — existing store presets win. Seeds the active pointer from the daemon's reported active config when

@@ -35,7 +35,7 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
     from hqptuner.lanes.http.storecarry import StoreHooks
 
 log = logging.getLogger(__name__)
@@ -179,9 +179,7 @@ class PassVerdict:
         return not self.diff or self.unfixable is not None
 
 
-async def apply(
-    mgr: ConnectionManager, edits: dict[str, str], hooks: StoreHooks, *, switched: bool = False
-) -> RestoreResult:
+async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, switched: bool = False) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
     ``hooks`` is what the restore owes the preset store (``StoreHooks``).
@@ -252,7 +250,7 @@ async def apply(
 
 
 async def _outcome(
-    mgr: ConnectionManager, mark: settle.Mark | None, verdict: PassVerdict | None, attempts: int
+    mgr: LaneManager, mark: settle.Mark | None, verdict: PassVerdict | None, attempts: int
 ) -> RestoreResult:
     """Answer for the passes that ran: the last judged one decides, and none judged means none got through."""
     if verdict is None:
@@ -269,7 +267,7 @@ async def _outcome(
     return RestoreUnavailable(verdict.diff, {presetconf.NET_DEVICE: verdict.unfixable})
 
 
-def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
+def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
     """Return the matrix profile this apply should install as the live matrix.
 
     Empty for the default matrix, and empty too when this batch deletes the
@@ -281,7 +279,7 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
     return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
 
 
-async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
+async def _judge(mgr: LaneManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
     """Read the running config back after one restore and say how it differs from what the pass intended."""
     keys = verified_keys(merged, intended)
     # both sides of the persistent apply, recorded whether or not it converged: a
@@ -300,7 +298,7 @@ async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[
 
 
 async def _restore_once(
-    mgr: ConnectionManager,
+    mgr: LaneManager,
     merged: dict[str, str],
     hooks: StoreHooks,
     active_profile: str = "",
@@ -340,7 +338,7 @@ async def _restore_once(
     return presetconf.read_config(intended_xml)
 
 
-async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
+async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
     """Poll a fresh /backup until the running config reflects this apply's intended fields, or the deadline passes.
 
     The fields polled for are the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the
@@ -369,7 +367,7 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 
 
-def _net_device_options(mgr: ConnectionManager) -> set[str] | None:
+def _net_device_options(mgr: LaneManager) -> set[str] | None:
     """Endpoint values the daemon offers for net_device, off the /config form snapshot; None when there is none.
 
     An absent form is treated as 'no evidence', never as 'gone'.
@@ -381,7 +379,7 @@ def _net_device_options(mgr: ConnectionManager) -> set[str] | None:
     return {o["value"] for o in (field or {}).get("options", [])}
 
 
-async def _unfixable_device(mgr: ConnectionManager, diff: Diff) -> UnfixableDevice | None:
+async def _unfixable_device(mgr: LaneManager, diff: Diff) -> UnfixableDevice | None:
     """Report a divergence as unfixable only when the intended net_device is no longer in the daemon's endpoint list.
 
     The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry. The

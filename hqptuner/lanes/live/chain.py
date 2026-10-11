@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 PCM = "pcm"
 SDM = "sdm"
@@ -39,7 +39,7 @@ def _chain_name(name: str) -> str | None:
     return SDM if upper.startswith(("SDM", "DSD")) else None
 
 
-def configured_chain(mgr: ConnectionManager) -> str | None:
+def configured_chain(mgr: LaneManager) -> str | None:
     """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto or when State cannot say."""
     index = (mgr.readings.state or {}).get("mode")
     if index is None:
@@ -50,7 +50,7 @@ def configured_chain(mgr: ConnectionManager) -> str | None:
     return None
 
 
-def _chain_from_status(mgr: ConnectionManager) -> str | None:
+def _chain_from_status(mgr: LaneManager) -> str | None:
     """Return the chain the engine is running RIGHT NOW, from what Status reports.
 
     ``Status.active_mode`` looks like the whole answer and is not: it echoes the
@@ -67,7 +67,7 @@ def _chain_from_status(mgr: ConnectionManager) -> str | None:
     return rate_family(hz) if hz.isdigit() and hz != "0" else None
 
 
-def active_chain(mgr: ConnectionManager) -> str | None:
+def active_chain(mgr: LaneManager) -> str | None:
     """Which filter/shaper chain the engine currently has loaded.
 
     The configured mode answers it outright when set to pcm or sdm. In ``auto``

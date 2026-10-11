@@ -26,7 +26,7 @@ from hqptuner.presets.store.presets import PresetError, PresetStore
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.config import Config
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets import PresetManager
     from hqptuner.presets.store.signed import Signature
 
 log = logging.getLogger(__name__)
@@ -102,7 +102,7 @@ class PresetAftermath:
 
 
 async def after_restore(
-    mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str]
+    mgr: "PresetManager", persistent: RestoreResult | None, http_fields: dict[str, str]
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
 
@@ -138,7 +138,7 @@ def _failure_code(exc: Exception) -> str:
 class PresetOps:
     """The manager's preset store, filter park, and settings-archive persistence as one collaborator."""
 
-    def __init__(self, cfg: "Config", mgr: "ConnectionManager") -> None:
+    def __init__(self, cfg: "Config", mgr: "PresetManager") -> None:
         """Open the store and filter park from ``cfg``'s directories, with no migration run."""
         self._cfg = cfg
         self._mgr = mgr
