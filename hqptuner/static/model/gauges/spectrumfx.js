@@ -1,19 +1,21 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
-// fractions and bands; bars carry falling peak caps, soft bars spill onto their neighbours, gravity bars fall under
-// acceleration, aurora bands fall under their own, ridge rows stack on a cadence, and aurora gives way to the trace
-// without WebGL2. Every height is a fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new
-// state and leaves its inputs alone, so a painter draws what it gets back and a test drives it from a table.
+// fractions and bands; bars carry falling peak caps, gravity bars fall under acceleration, aurora bands fall under
+// their own, ridge rows stack on a cadence, the Fade halo fades where the trace has been and says how much of the
+// canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot,
+// 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone, so a painter draws
+// what it gets back and a test drives it from a table.
 
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
 export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
 const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
-export const SPILL = 1.5; // factor a soft bar's spill shrinks by per band outward
 const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
 export const RIDGE_ROWS = 24; // ridge rows kept, newest first
 export const RIDGE_EVERY = 4; // steps between ridge rows
+const HALO_START = 0.5; // the halo's glow where the trace has just been, share of the trace's strength
+const HALO_TAU_S = 0.2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
 
 /**
  * Peak caps, one per band: where each sits and how long since its band last reached it. Float32 storage is part of the
@@ -39,6 +41,18 @@ export const RIDGE_EVERY = 4; // steps between ridge rows
  * @property {Float32Array[]} rows  plot fractions per column
  * @property {number} tick          steps taken, the first counting one
  */
+
+/**
+ * The Fade halo on the canvas: whether a paint has drawn one there yet, and the share of the canvas to dim before
+ * this frame's strokes.
+ *
+ * @typedef {object} HaloState
+ * @property {boolean} drawn  whether the canvas holds a halo to dim
+ * @property {number} dim     share of each pixel's strength to take away this frame, 0 to 1
+ */
+
+/** The halo after a reset: nothing on the canvas, nothing to dim. */
+export const HALO_FRESH = Object.freeze({ drawn: false, dim: 0 });
 
 /**
  * Levels as plot fractions on a plot spanning `range` dB down from full scale, clamped to [0, 1].
@@ -98,24 +112,6 @@ export function stepCaps(prev, bands, dt) {
 }
 
 /**
- * Soft bars: each band the larger of its own value and every other band's value divided by SPILL once per band
- * between them, so a peak spills onto its neighbours and fades outward, and overlapping spills take the larger.
- *
- * @param {ArrayLike<number>} bands  plot fractions
- * @returns {Float32Array}
- */
-export function softBars(bands) {
-  const n = bands.length;
-  const out = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    let top = 0;
-    for (let j = 0; j < n; j++) top = Math.max(top, bands[j] / SPILL ** Math.abs(i - j));
-    out[i] = top;
-  }
-  return out;
-}
-
-/**
  * Gravity bars after a step of `dt` seconds: a band at or above its bar lifts it and stops its fall; otherwise the bar
  * gains `gravity` times the step in speed and drops by its new speed times the step, never below its band. Without a
  * `prev` of the same length every bar sits on its band at rest.
@@ -152,6 +148,30 @@ export function stepRidges(prev, row) {
   const tick = prev.tick + 1;
   if (prev.tick % RIDGE_EVERY !== 0) return { rows: prev.rows, tick };
   return { rows: [Float32Array.from(row), ...prev.rows].slice(0, RIDGE_ROWS), tick };
+}
+
+/**
+ * The halo's glow at a spot the trace left `age` seconds ago, as a share of the trace's strength: HALO_START where the
+ * trace has just been, falling continuously by e every HALO_TAU_S.
+ *
+ * @param {number} age  s
+ * @returns {number}
+ */
+export function haloStrength(age) {
+  return HALO_START * Math.exp(-age / HALO_TAU_S);
+}
+
+/**
+ * The halo after a paint `dt` seconds after the last: with a halo already drawn, the canvas dims by the share that
+ * takes every pixel from its glow at one age to its glow `dt` later, so pixels dimmed frame by frame follow
+ * haloStrength; with none, there is nothing to dim. Either way the paint draws, so the halo after it is drawn.
+ *
+ * @param {Readonly<HaloState>} prev
+ * @param {number} dt  s
+ * @returns {HaloState}
+ */
+export function stepHalo(prev, dt) {
+  return { drawn: true, dim: prev.drawn ? 1 - haloStrength(dt) / HALO_START : 0 };
 }
 
 /**

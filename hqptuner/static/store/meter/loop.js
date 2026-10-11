@@ -1,8 +1,8 @@
 // The meters' animation loop: thirty times a second it takes the feed frames that arrived since its last step
 // (store/meter/feed.js) into its own queue and paces them out on their frame time, the engine's reported output delay
 // plus the user's offset behind the feed (model/gauges/pace.js), since the daemon sends them in clumps. Each step
-// folds the frames handed out, steps the level bars toward them on the real time elapsed, eases the spectrum toward
-// that reading smoothed across frequency while its held peaks hold and decay, keeps the reading's columns as they
+// folds the frames handed out, steps the level bars toward them on the real time elapsed, steps the spectrum toward
+// that reading smoothed across frequency, rising at once and settling as it falls, keeps the reading's columns as they
 // came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
 //
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
@@ -13,7 +13,6 @@
 import { batch, effect, signal } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import {
-  easeTrace,
   emptySpectrum,
   foldFrames,
   frameDt,
@@ -42,8 +41,8 @@ const SLACK_MS = 4;
 /** @typedef {import("../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../model/gauges/pace.js").PaceState} PaceState */
 /**
- * One step's scene: the level bars, the eased and smoothed trace with its held peaks, and the held target's trace
- * columns before that smoothing and easing, dBFS.
+ * One step's scene: the level bars, the smoothed trace as shown, and the held target's trace columns before that
+ * smoothing and its fall, dBFS.
  *
  * @typedef {{ levels: LevelReading[], spectrum: SpectrumHold | null, raw: Float32Array | null }} MeterScene
  */
@@ -123,8 +122,8 @@ function handOut(ms) {
 }
 
 /**
- * The spectrum one step moves to from `held` toward `t`, smoothed across frequency; the trace eases toward each reading,
- * alike up and down, and the held peaks hold what it shows.
+ * The spectrum one step moves to from `held` toward `t`, smoothed across frequency: a rise shows at once and a fall
+ * settles toward the reading; with no `held` of the same length the trace lands on the reading outright.
  *
  * @param {SpectrumHold | null} held
  * @param {MeterFrame} t
@@ -134,8 +133,7 @@ function handOut(ms) {
 function traceStep(held, t, at) {
   const cols = smoothColumns(traceOf(t));
   const was = held && held.disp.length === cols.length ? held : null;
-  const shown = easeTrace(was && was.disp, cols, at.dt);
-  return stepSpectrum(was || emptySpectrum(cols.length), shown, at, true);
+  return stepSpectrum(was || emptySpectrum(cols.length), cols, at, !was);
 }
 
 /** Send the queued frames to the spectrogram and empty the scene and its target. */

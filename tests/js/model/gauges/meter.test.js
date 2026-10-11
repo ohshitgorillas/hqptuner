@@ -1,7 +1,6 @@
-// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin
-// bytes, folding feed frames, picking a channel's bins, spreading bins across trace columns, smoothing the columns and
-// easing the trace toward them, where a level sits on a bar, spectrum peak-hold decay, the level ballistics and hold, and the frame-loop step that clamps dt and owes
-// spectrogram columns.
+// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin bytes, folding
+// feed frames, picking a channel's bins, spreading bins across trace columns, where a level sits on a bar, how the shown
+// spectrum rises and falls, and the level ballistics and hold.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
 // Nothing here reads a clock or waits on one.
@@ -48,30 +47,50 @@ const nearEach = (actual, expected, tol) => [
 ];
 
 /**
- * The one bin's shown level, held peak and peak stamp after the rows run in order from an empty spectrum.
+ * The one bin's shown level after the rows run in order from an empty spectrum.
  *
  * @param {SpectrumRow[]} rows
- * @returns {{ disp: number, peak: number, peakAt: number }}
+ * @returns {{ disp: number }}
  */
 function spectrumAfter(rows) {
   const end = rows.reduce(
     (st, row) => stepSpectrum(st, Float64Array.of(row.level), { now: row.now, dt: row.dt }, row.jump ?? false),
     emptySpectrum(1),
   );
-  return { disp: end.disp[0], peak: end.peak[0], peakAt: end.peakAt[0] };
+  return { disp: end.disp[0] };
 }
 
+//: One frame of a falling trace: its dt in seconds and the same step in ms.
+const FRAME_S = 0.1;
+const FRAME_MS = 100;
+//: A frame ten frames long, as a stalled loop hands the step.
+const LONG_FRAME_S = 1;
+//: The level a falling trace starts at, and two levels it falls to, the second twice as far below it as the first.
+const LOUD = -10;
+const QUIETER = -40;
+const QUIETEST = -70;
+//: Tolerance for a ratio of levels a Float32Array may round in the last place.
+const RATIO_EPS = 1e-4;
+
 /**
- * Spectrum rows every `ms` from `from` to `to` ms inclusive, each stepping `ms` of dt, every one at `level`.
+ * One frame at `LOUD`, then `n` frames at `to`, every frame `FRAME_MS` apart.
  *
- * @param {number} from
  * @param {number} to
- * @param {number} ms
- * @param {number} level
+ * @param {number} n
  * @returns {SpectrumRow[]}
  */
-const paced = (from, to, ms, level) =>
-  Array.from({ length: Math.floor((to - from) / ms) + 1 }, (_, k) => ({ now: from + ms * k, dt: ms / 1000, level }));
+const falling = (to, n) => [
+  { now: 0, dt: FRAME_S, level: LOUD },
+  ...Array.from({ length: n }, (_, k) => ({ now: FRAME_MS * (k + 1), dt: FRAME_S, level: to })),
+];
+
+/**
+ * How far above `to` the shown level still sits after `n` frames of falling to it from `LOUD`.
+ *
+ * @param {number} to
+ * @param {number} n
+ */
+const gapAfter = (to, n) => spectrumAfter(falling(to, n)).disp - to;
 
 /**
  * The reading after every frame of the table steps it toward one fixed target.
@@ -236,38 +255,24 @@ test("test_a_rising_level_is_shown_at_once", () => {
   );
 });
 
-test("test_a_falling_level_falls_half_as_far_in_half_the_time", () => {
-  assert.equal(
-    spectrumAfter([
-      { now: 0, dt: 0.05, level: -10 },
-      { now: 50, dt: 0.05, level: -40 },
-    ]).disp,
-    -11.5,
-  );
+test("test_one_frame_of_a_fall_closes_the_same_share_of_a_gap_twice_as_wide", () => {
+  const wide = LOUD - spectrumAfter(falling(QUIETEST, 1)).disp;
+  const narrow = LOUD - spectrumAfter(falling(QUIETER, 1)).disp;
+  assert.ok(...near(wide / narrow, 2, RATIO_EPS));
+});
+
+test("test_each_frame_of_a_fall_closes_the_same_share_of_the_gap_left", () => {
+  const first = gapAfter(QUIETER, 1) / (LOUD - QUIETER);
+  const second = gapAfter(QUIETER, 2) / gapAfter(QUIETER, 1);
+  assert.ok(...near(second, first, RATIO_EPS));
 });
 
 test("test_a_falling_level_is_never_shown_below_the_new_level", () => {
-  assert.equal(
-    spectrumAfter([
-      { now: 0, dt: 0.1, level: -10 },
-      { now: 100, dt: 0.1, level: -12 },
-    ]).disp,
-    -12,
-  );
-});
-
-test("test_a_released_spectrum_peak_falls_half_as_far_in_half_the_time", () => {
-  assert.equal(spectrumAfter([{ now: 0, dt: 0.05, level: -10 }, ...paced(50, 2050, 50, -40)]).peak, -10.5);
-});
-
-test("test_the_spectrum_peak_never_falls_below_the_shown_level", () => {
-  assert.equal(
-    spectrumAfter([
-      { now: 0, dt: 0.1, level: -10 },
-      { now: 2100, dt: 0.1, level: -10.5 },
-    ]).peak,
-    -10.5,
-  );
+  const end = spectrumAfter([
+    { now: 0, dt: FRAME_S, level: LOUD },
+    { now: 1000 * LONG_FRAME_S, dt: LONG_FRAME_S, level: QUIETER },
+  ]).disp;
+  assert.ok(end >= QUIETER, `shown ${end} dBFS, below the ${QUIETER} dBFS it falls to`);
 });
 
 // ── Level ballistics and hold ────────────────────────────────────────────

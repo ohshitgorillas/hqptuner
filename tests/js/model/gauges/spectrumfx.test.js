@@ -1,28 +1,29 @@
 // Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
-// dBFS to plot fractions, columns to bands, falling peak caps, soft bars, gravity bars and ridge rows,
-// and the style a page draws when the picked one needs WebGL2 it lacks. Every height is a fraction of the plot, 0 on the
-// floor and 1 at full scale.
+// dBFS to plot fractions, columns to bands, falling peak caps, gravity bars and ridge rows, how strongly the Fade
+// style's halo glows where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
+// Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
+//
+// The halo's strength is read off the module namespace with optional access, so a module without it fails the halo
+// cases on their assertions.
 //
 // Run: node --test tests/js/model/gauges/spectrumfx.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import * as gauges from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
 import {
   BANDS,
   CAP_HOLD_S,
   RIDGE_EVERY,
   RIDGE_ROWS,
-  SPILL,
   bandsOf,
   effectiveStyle,
   fractionsOf,
-  softBars,
   stepCaps,
   stepGravity,
   stepRidges,
 } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
-import { near } from "../../support/near.js";
 
 //: A 60 dB plot.
 const RANGE = 60;
@@ -30,8 +31,6 @@ const RANGE = 60;
 const COLUMNS = 600;
 //: A step length float32 holds exactly, so sums of steps compare exactly.
 const DT = 0.125;
-//: Tolerance for float32 rounding in the last place.
-const EPS = 1e-6;
 //: A level above full scale.
 const HOT_DB = 6;
 //: A cap or bar height the tests start from.
@@ -42,6 +41,20 @@ const LOW = 0.25;
 const RISEN = 0.75;
 //: A falling bar's speed before the step, in fractions per second.
 const FALLING_V = 1;
+//: One frame of a 60 Hz display, in seconds.
+const FRAME = 1 / 60;
+//: One step of an 8-bit canvas channel: a glow weaker than this shows nothing.
+const INVISIBLE = 1 / 255;
+//: How long ago the trace left a spot whose glow has faded to nothing, in seconds.
+const GONE_S = 1.2;
+
+/**
+ * The halo's surface on the gauges module: the strength of the glow, as a share of the trace's, at a spot the trace
+ * left `age` seconds ago.
+ *
+ * @type {{ BANDS: number, haloStrength?: (age: number) => number }}
+ */
+const halo = gauges;
 
 /**
  * @param {number[]} xs
@@ -132,26 +145,6 @@ test("test_a_falling_cap_never_drops_below_its_band", () => {
   assert.equal(stepCaps(prev, f32(LOW), DT).lvl[0], LOW);
 });
 
-// ── softBars ─────────────────────────────────────────────────────────────
-
-test("test_a_lone_band_spills_onto_its_neighbour_shrunk_by_the_spill", () => {
-  assert.ok(...near(softBars(f32(0, 0, 0, 1, 0, 0, 0))[2], 1 / SPILL, EPS));
-});
-
-test("test_a_lone_band_spills_two_steps_out_shrunk_twice", () => {
-  assert.ok(...near(softBars(f32(0, 0, 0, 1, 0, 0, 0))[1], 1 / SPILL ** 2, EPS));
-});
-
-test("test_a_band_above_its_neighbours_spill_keeps_its_own_value", () => {
-  const bands = f32(1, 0.9);
-  assert.equal(softBars(bands)[1], bands[1]);
-});
-
-test("test_overlapping_spills_take_the_larger_not_the_sum", () => {
-  // Index 1 takes HIGH spilled one step and 1 spilled two steps; the second is larger.
-  assert.ok(...near(softBars(f32(HIGH, 0, 0, 1))[1], 1 / SPILL ** 2, EPS));
-});
-
 // ── stepGravity ──────────────────────────────────────────────────────────
 
 test("test_gravity_bars_without_a_prior_state_sit_on_their_bands", () => {
@@ -235,3 +228,76 @@ for (const style of ["bars", "ridges"]) {
     assert.equal(effectiveStyle(style, false), style);
   });
 }
+
+// ── haloStrength ─────────────────────────────────────────────────────────
+
+test("test_a_spot_the_trace_has_just_left_glows_at_half_the_trace_strength", () => {
+  assert.equal(halo.haloStrength?.(0), 0.5);
+});
+
+for (const age of [0, GONE_S / 4, GONE_S / 2, (3 * GONE_S) / 4]) {
+  test(`test_a_halo_${Math.round(age * 1000)}_ms_old_is_dimmer_one_frame_later`, () => {
+    const now = halo.haloStrength?.(age) ?? Number.NaN;
+    const later = halo.haloStrength?.(age + FRAME) ?? Number.NaN;
+    assert.ok(later < now, `strength ${later} one frame after ${age} s is not below ${now}`);
+  });
+}
+
+test("test_a_spot_the_trace_left_half_the_fade_ago_still_glows", () => {
+  const strength = halo.haloStrength?.(GONE_S / 2) ?? Number.NaN;
+  assert.ok(strength >= INVISIBLE, `strength ${strength} at ${GONE_S / 2} s is below one 8-bit step`);
+});
+
+test("test_a_spot_the_trace_left_1_2_s_ago_has_faded_to_nothing_visible", () => {
+  const strength = halo.haloStrength?.(GONE_S) ?? Number.NaN;
+  assert.ok(strength < INVISIBLE, `strength ${strength} at ${GONE_S} s is not below one 8-bit step`);
+});
+
+// ── stepHalo ─────────────────────────────────────────────────────────────
+
+//: Frames a halo is dimmed for before its glow is compared, half a second at 60 Hz.
+const DIMMED_FRAMES = 30;
+//: How far two floating-point strengths may differ and still be the same.
+const EPS = 1e-9;
+
+/**
+ * The painter's surface on the gauges module: the halo after a reset, and the halo after a paint `dt` seconds after
+ * the last, with the share of the canvas that paint dims.
+ *
+ * @type {{
+ *   HALO_FRESH?: { drawn: boolean, dim: number },
+ *   stepHalo?: (prev: { drawn: boolean, dim: number }, dt: number) => { drawn: boolean, dim: number },
+ * }}
+ */
+const painter = gauges;
+
+/**
+ * The glow left on a spot the first paint after a reset stroked, after `frames` more paints a frame apart, each dimming
+ * it by the share its step returns.
+ *
+ * @param {number} frames
+ * @returns {number}
+ */
+function dimmedGlow(frames) {
+  const { HALO_FRESH: fresh, stepHalo: step } = painter;
+  if (!fresh || !step) return Number.NaN;
+  let state = step(fresh, FRAME);
+  let glow = halo.haloStrength?.(0) ?? Number.NaN;
+  for (let k = 0; k < frames; k += 1) {
+    state = step(state, FRAME);
+    glow *= 1 - state.dim;
+  }
+  return glow;
+}
+
+test("test_the_first_paint_after_a_reset_dims_nothing", () => {
+  const fresh = painter.HALO_FRESH;
+  const dim = fresh ? painter.stepHalo?.(fresh, FRAME).dim : Number.NaN;
+  assert.equal(dim, 0);
+});
+
+test("test_a_halo_dimmed_frame_by_frame_glows_as_its_age_says", () => {
+  const glow = dimmedGlow(DIMMED_FRAMES);
+  const law = halo.haloStrength?.(DIMMED_FRAMES * FRAME) ?? Number.NaN;
+  assert.ok(Math.abs(glow - law) < EPS, `glow ${glow} after ${DIMMED_FRAMES} frames is not the law's ${law}`);
+});

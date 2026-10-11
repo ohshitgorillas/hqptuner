@@ -30,6 +30,7 @@ import { fitCanvas, fxPainter } from "./spectrumfx.js";
 const STEREO = 2;
 const METER_RGB = [233, 166, 60]; // --meter, where the token is not a hex colour
 const CHANNEL_MAX = 255;
+const RAMP = "strace-ramp"; // the trace's stroke under the Trace style, spanning the viewBox, not the trace's own box
 
 /**
  * A fraction of an axis as a CSS percentage.
@@ -115,7 +116,7 @@ function RangeStep({ to, glyph, label, testid }) {
 }
 
 /**
- * The Range control in the spectrum's corner: the page's Range between a narrower and a wider step.
+ * The Range control in the spectrum's corner: a narrower and a wider step of the page's Range.
  *
  * @param {{ view: PageMeterView }} props
  */
@@ -123,7 +124,6 @@ function RangeControl({ view }) {
   return html`
     <div class="mzoom">
       <${RangeStep} to=${view.narrower} glyph="−" label="Narrower range" testid="range-narrower" />
-      <output class="zv" aria-label="Range, dB" data-testid="range-readout">${view.range} <span class="u">dB</span></output>
       <${RangeStep} to=${view.wider} glyph="+" label="Wider range" testid="range-wider" />
     </div>
   `;
@@ -144,12 +144,18 @@ function Spectrum({ view, plot, fx, sgl }) {
         <${DbScale} cls="gut gy" db=${view.db} />
         <div class="splot" ref=${plot}>
           <svg class="spectrum" viewBox=${`0 0 ${SW} ${SH}`} preserveAspectRatio="none" role="img" aria-label="Spectrum">
+            <defs>
+              <linearGradient id=${RAMP} class="sramp" gradientUnits="userSpaceOnUse" x1="0" y1=${SH} x2="0" y2="0">
+                <stop class="dim" offset="0" />
+                <stop class="mid" offset="0.5" />
+                <stop class="hi" offset="1" />
+              </linearGradient>
+            </defs>
             <g class="sgridl">
               ${view.db.slice(1, -1).map((t) => html`<line class="gdb" x1="0" x2=${SW} y1=${t.at * SH} y2=${t.at * SH} />`)}
               ${view.freq.ticks.slice(1).map((t) => html`<line x1=${t.at * SW} x2=${t.at * SW} y1="0" y2=${SH} />`)}
             </g>
             <path class="sarea" />
-            <path class="shold" />
             <path class="strace" />
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>

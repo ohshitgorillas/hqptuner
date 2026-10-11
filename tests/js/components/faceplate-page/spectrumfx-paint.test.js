@@ -1,8 +1,13 @@
 // Painter suite for hqptuner/static/components/faceplate/page/spectrumfx.js: how big the page spectrum's canvas is
 // drawn for a box and a pixel ratio, and what one paint draws on it under each spectrum style. "trace" and "aurora"
-// leave the canvas clear for the SVG under it; "bars" and "soft" clear and fill one rect per band, bars adding a peak
-// cap per band; "ridges" clears and strokes one line per ridge row, a row more every RIDGE_EVERY paints. A change of
-// style starts the new style's state afresh.
+// leave the canvas clear for the SVG under it; "bars" clears and fills one rect per band, adding a peak cap per band;
+// "ridges" clears and strokes one line per ridge row, a row more every RIDGE_EVERY paints; "fade" draws a halo where the
+// trace has been and strokes the live trace over it. A change of style starts the new style's state afresh, and under
+// "fade" so does a paint with no spectrum. Whether a halo carried over is read by comparing what the last paint draws
+// after one history against what it draws after another, since the fake keeps no pixels.
+//
+// Under "fade", a change of style starting the halo afresh has no case here: a change of style already clears the
+// canvas under every style, so a paint after one differs from a paint after none with or without a halo.
 //
 // The canvas is a fake whose 2D context records every method called on it by name and arguments; every property write
 // is kept and read back, and `createImageData` hands back a plain image of the asked size. Only the drawing calls are
@@ -30,6 +35,8 @@ const COLS = 600;
 const RANGE = 60;
 //: Half way down a 60 dB plot.
 const MID_DB = -RANGE / 2;
+//: Three quarters of the way down a 60 dB plot, where the trace moves to from `MID_DB`.
+const LOW_DB = (-3 * RANGE) / 4;
 //: The calls that put pixels on the canvas or take them off.
 const DRAWS = new Set([
   "clearRect",
@@ -112,7 +119,7 @@ function fakeCanvas() {
  */
 function hold(db) {
   const disp = new Float32Array(COLS).fill(db);
-  return { disp, peak: new Float32Array(COLS).fill(db), peakAt: new Float32Array(COLS) };
+  return { disp };
 }
 
 /**
@@ -184,9 +191,9 @@ test("test_clear_clears_the_whole_canvas_once", () => {
   );
 });
 
-// ── bars and soft ────────────────────────────────────────────────────────
+// ── bars ─────────────────────────────────────────────────────────────────
 
-for (const style of ["bars", "soft", "ridges"]) {
+for (const style of ["bars", "ridges"]) {
   test(`test_a_${style}_paint_starts_by_clearing_the_whole_canvas`, () => {
     assert.deepEqual(lastPaint(style)[0], CLEAR_ALL);
   });
@@ -194,10 +201,6 @@ for (const style of ["bars", "soft", "ridges"]) {
 
 test("test_a_bars_paint_fills_a_bar_and_a_peak_cap_for_every_band", () => {
   assert.equal(count(lastPaint("bars"), "fillRect"), 2 * BANDS);
-});
-
-test("test_a_soft_paint_fills_one_bar_for_every_band_and_no_caps", () => {
-  assert.equal(count(lastPaint("soft"), "fillRect"), BANDS);
 });
 
 // ── ridges ───────────────────────────────────────────────────────────────
@@ -217,4 +220,43 @@ test("test_ridges_picked_again_after_another_style_start_over_at_one_ridge", () 
   canvas.calls = [];
   fx.paint(hold(MID_DB), RANGE, "ridges");
   assert.equal(count(canvas.calls, "stroke"), 1);
+});
+
+// ── fade ─────────────────────────────────────────────────────────────────
+
+/**
+ * The drawing calls of the last of `steps` paints on one fresh painter, each step a spectrum (or none) and a style.
+ *
+ * @param {[SpectrumHold | null, string][]} steps
+ * @returns {Call[]}
+ */
+function lastOf(steps) {
+  const { canvas, fx } = painter();
+  for (const [spectrum, style] of steps) {
+    canvas.calls = [];
+    fx.paint(spectrum, RANGE, style);
+  }
+  return canvas.calls.filter((c) => DRAWS.has(c.name));
+}
+
+/** Three fade paints with the trace half way down, then one with it moved lower: the halo of the first three lingers. */
+const KEPT_FADE = /** @type {[SpectrumHold | null, string][]} */ ([
+  [hold(MID_DB), "fade"],
+  [hold(MID_DB), "fade"],
+  [hold(MID_DB), "fade"],
+  [hold(LOW_DB), "fade"],
+]);
+
+test("test_a_fade_paint_strokes_the_live_trace_last", () => {
+  assert.equal(lastPaint("fade", 3).at(-1)?.name, "stroke");
+});
+
+test("test_a_fade_paint_after_one_with_no_spectrum_starts_without_the_old_halo", () => {
+  const blanked = lastOf([
+    [hold(MID_DB), "fade"],
+    [hold(MID_DB), "fade"],
+    [null, "fade"],
+    [hold(LOW_DB), "fade"],
+  ]);
+  assert.notDeepEqual(blanked, lastOf(KEPT_FADE));
 });
