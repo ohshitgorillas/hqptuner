@@ -1,6 +1,6 @@
 """Auto-pilot REST surface — the high-frequency filter's one app-level switch.
 
-Two routes and no engine write: switching auto-pilot on does not itself move the filter, it only tells auto-pilot's
+One route and no engine write: switching auto-pilot on does not itself move the filter, it only tells auto-pilot's
 own background task it may. What the filter does next is that task's (``core/autopilotops.py``), so a browser that
 flips the switch sees the change land the way it sees any other background move, through ``GET /api/status``.
 
@@ -28,23 +28,13 @@ class AutopilotBody(BaseModel):
 
 @dataclass(frozen=True)
 class AutopilotReport:
-    """``GET``/``POST /api/autopilot``: auto-pilot's current switch state."""
+    """``POST /api/autopilot``: auto-pilot's current switch state."""
 
     enabled: bool
 
 
 def _reported(store: AutopilotStore) -> AutopilotReport:
     return AutopilotReport(enabled=store.enabled)
-
-
-@router.get("/autopilot")
-def autopilot(manager: Mgr) -> AutopilotReport:
-    """Auto-pilot's state.
-
-    409 when the store on disk is stamped newer than this HQPTuner reads — reporting "off" would be a lie about a file
-    that is there and full.
-    """
-    return _reported(manager.presetops.autopilot)
 
 
 @router.post("/autopilot")

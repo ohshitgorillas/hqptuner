@@ -212,7 +212,7 @@ def app(state: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.
 def _write_into_every_store(app: stack_support.Stack) -> None:
     """One value into each of the seven stores, as a hostile run would leave them."""
     _call(app, "PUT", "/api/livepresets/junk", {})
-    _call(app, "POST", "/api/profile/save", {"name": "junkpreset"})
+    _call(app, "POST", "/api/config/apply", {"switch_to": "", "save": {"name": "junkpreset"}})
     _call(app, "PUT", "/api/favorites", {"filters": ["junk-filter"]})
     _call(app, "PUT", "/api/descriptions", {"name": "junkpreset", "text": "junk"})
     _call(app, "PUT", "/api/narrowing", {"facets": {"odd_rate_only": True}})

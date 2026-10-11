@@ -3,9 +3,8 @@
 // it gets back and a test drives it from a table.
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
-const SPEC_FALL_DBPS = 30; // shown spectrum fall, dB/s
-const SPEC_HOLD_MS = 2000; // spectrum peak hold before it decays
-const SPEC_DECAY_DBPS = 10; // spectrum peak decay once released, dB/s
+const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
+const SPEC_GHOST_TAU_MS = 1000; // ghost relaxation time constant: about a thirtieth of its gap closed per 30 Hz frame
 const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed (engine/meterfeed.py)
 const BIN_BYTES = 2; // bytes a bin's steps travel in, low byte first
 const HIGH_BYTE = 256; // steps one count of the high byte stands for
@@ -15,16 +14,14 @@ const HOLD_MS = 1500; // level hold before it decays
 const HOLD_DECAY_DBPS = 10; // level hold decay once released, dB/s
 const MAX_DT_S = 0.1; // longest step one frame may take
 const SMOOTH_COLS = 2; // trace columns averaged either side of each, across frequency
-const SMOOTH_TAU_MS = 60; // trace easing time constant, in dB
 
 /**
- * Shown spectrum, held peaks and the time each peak was last reached, one entry per bin. Float32 storage is part of
- * the result: each step reads back the rounded values it stored.
+ * Shown spectrum, one entry per bin. Float32 storage is part of the result: each step reads back the rounded values it
+ * stored.
  *
  * @typedef {object} SpectrumHold
- * @property {Float32Array} disp    shown level, dBFS
- * @property {Float32Array} peak    held peak, dBFS
- * @property {Float32Array} peakAt  ms the peak was last reached
+ * @property {Float32Array} disp   shown level, dBFS
+ * @property {Float32Array} ghost  held peak, dBFS, never below `disp`
  */
 
 /**
@@ -46,23 +43,22 @@ const SMOOTH_TAU_MS = 60; // trace easing time constant, in dB
  */
 
 /**
- * A spectrum with nothing shown and nothing held.
+ * A spectrum with nothing shown.
  *
  * @param {number} bins
  * @returns {SpectrumHold}
  */
 export function emptySpectrum(bins) {
-  return {
-    disp: new Float32Array(bins).fill(FLOOR_DB),
-    peak: new Float32Array(bins).fill(FLOOR_DB),
-    peakAt: new Float32Array(bins),
-  };
+  return { disp: new Float32Array(bins).fill(FLOOR_DB), ghost: new Float32Array(bins).fill(FLOOR_DB) };
 }
 
 /**
- * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, a fall shows falling at a fixed
- * rate (or lands at once on a jump), and each held peak stays put for two seconds after it was last reached, then
- * decays at a fixed rate, never below the shown level.
+ * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, and a fall closes the same share
+ * of the gap left to the new level each frame of a given length, so it lands fast, settles gently and never passes below
+ * the level it falls to. Each bin's ghost rises with the shown level at once and, while it sits above it, closes a
+ * smaller fixed share of its gap to the shown level each frame of a given length, so it keeps the shape of the trace it
+ * came from as it settles, with no hold, and never passes below the shown level. On a jump the new levels show
+ * outright and the ghost lands on them.
  *
  * @param {SpectrumHold} prev
  * @param {ArrayLike<number>} levels  this frame's bin levels, dBFS
@@ -70,19 +66,12 @@ export function emptySpectrum(bins) {
  * @param {boolean} jump              show the new levels outright (reset, first paint)
  * @returns {SpectrumHold}
  */
-export function stepSpectrum(prev, levels, { now, dt }, jump) {
-  const next = emptySpectrum(levels.length);
-  const fall = SPEC_FALL_DBPS * dt;
-  const decay = SPEC_DECAY_DBPS * dt;
-  for (let i = 0; i < levels.length; i++) {
-    const v = levels[i];
-    next.disp[i] = jump || v > prev.disp[i] ? v : Math.max(v, prev.disp[i] - fall);
-    const d = next.disp[i];
-    const released = now - prev.peakAt[i] > SPEC_HOLD_MS;
-    next.peak[i] = d >= prev.peak[i] ? d : released ? Math.max(d, prev.peak[i] - decay) : prev.peak[i];
-    next.peakAt[i] = d >= prev.peak[i] ? now : prev.peakAt[i];
-  }
-  return next;
+export function stepSpectrum(prev, levels, { dt }, jump) {
+  const left = Math.exp((-dt * 1000) / SPEC_FALL_TAU_MS);
+  const disp = Float32Array.from(levels, (v, i) => (jump || v > prev.disp[i] ? v : v + (prev.disp[i] - v) * left));
+  const kept = jump ? 0 : Math.exp((-dt * 1000) / SPEC_GHOST_TAU_MS);
+  const ghost = disp.map((d, i) => d + Math.max(0, prev.ghost[i] - d) * kept);
+  return { disp, ghost };
 }
 
 /**
@@ -238,21 +227,6 @@ export function smoothColumns(cols) {
     out[c] = toDb(sum / weight);
   }
   return out;
-}
-
-/**
- * The trace `dt` seconds on from `prev` toward `next`, each column closing the same share of its gap in dB, so it
- * rises and falls alike; without a `prev` of the same length the trace lands on `next`.
- *
- * @param {ArrayLike<number> | null} prev  dBFS
- * @param {ArrayLike<number>} next  dBFS
- * @param {number} dt  s
- * @returns {Float32Array}
- */
-export function easeTrace(prev, next, dt) {
-  if (!prev || prev.length !== next.length) return Float32Array.from(next);
-  const share = 1 - Math.exp((-dt * 1000) / SMOOTH_TAU_MS);
-  return Float32Array.from(next, (v, i) => prev[i] + (v - prev[i]) * share);
 }
 
 /**

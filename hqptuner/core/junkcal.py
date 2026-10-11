@@ -22,7 +22,7 @@ import enum
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from hqptuner.engine import junkadvisor, junkcurve
@@ -86,11 +86,11 @@ class CalRow:
     spectrum: list[list[float]] | None
 
 
-def _build_row(reader: MeteringReader, ctx: TrackContext, agg: SpectralAggregate) -> CalRow:
-    """Build this tick's row from an already-eligible reading."""
+def _build_row(reader: MeteringReader, ctx: TrackContext, agg: SpectralAggregate, now: datetime) -> CalRow:
+    """Build this tick's row from an already-eligible reading, stamped with the instant ``now``."""
     verdict = reader.verdict()
     return CalRow(
-        timestamp=datetime.now(UTC).isoformat(),
+        timestamp=now.isoformat(),
         verdict=verdict,
         desired_junk_filter=autopilot.desired_junk_filter(verdict, ctx.filter),
         junk_filter=ctx.junk_filter,
@@ -151,7 +151,7 @@ class Capture:
         self._idle = 0.0
         if tick_state(ctx.samplerate, agg.bandwidth, agg.bins, sdm=ctx.sdm) is TickState.INELIGIBLE:
             return
-        row = _build_row(reader, ctx, agg)
+        row = _build_row(reader, ctx, agg, mgr.clock.now())
         key = (row.samplerate, row.bins, row.bandwidth)
         if key != self._key:
             self._path, self._key = None, key

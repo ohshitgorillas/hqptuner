@@ -30,6 +30,8 @@ const DISPLAY = "display";
 // Two spectrum styles, as the store holds them: the trace, and one other so a pick of it shows.
 const TRACE = "trace";
 const RIDGES = "ridges";
+//: The Fade style, as the store holds it.
+const FADE = "fade";
 
 // The Levels floors the owner offers, as the store holds them, in dBFS.
 const SHALLOW = "-48";
@@ -66,6 +68,11 @@ function pick(v) {
 test("test_picking_a_spectrum_style_in_the_display_popover_sets_it", () => {
   pick(RIDGES);
   assert.equal(spectrumStyle.value, RIDGES);
+});
+
+test("test_picking_fade_in_the_display_popover_sets_it", () => {
+  pick(FADE);
+  assert.equal(spectrumStyle.value, FADE);
 });
 
 test("test_picking_a_levels_floor_in_the_display_popover_sets_it", () => {

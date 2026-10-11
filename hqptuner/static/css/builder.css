@@ -149,6 +149,7 @@ label.vfd.pbpick{height:var(--vbrd-h);padding:var(--sp-2) var(--sp-9) 0 var(--sp
 .pbstw{display:flex;flex-direction:column;gap:var(--hair);min-width:0}
 .pbstate{font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
 .pbstate.dirty{color:var(--ink)}
+.pbstate .rs{margin-right:var(--sp-4)}
 .pbcap{font-size:var(--fs-3);line-height:var(--lh-text)}
 .pbcap:empty{display:none}
 .pbask:empty{display:none}

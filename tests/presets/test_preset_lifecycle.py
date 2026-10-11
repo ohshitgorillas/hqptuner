@@ -186,7 +186,7 @@ def test_a_save_answers_a_warning_only_when_its_mirror_did_not_land(
     served = app(request.getfixturevalue(daemon), tmp_path, closed_port, None)
     client = next(served)
     try:
-        body = client.post("/api/profile/save", json={"name": "Studio"}).json()
+        body = client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Studio"}}).json()
     finally:
         next(served, None)
-    assert bool(body.get("warning")) is warned
+    assert bool(body["saved"].get("warning")) is warned

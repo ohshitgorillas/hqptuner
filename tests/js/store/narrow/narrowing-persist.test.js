@@ -12,9 +12,10 @@
 // No daemon is behind it;
 // narrowing is HQPTuner's own presentational state.
 //
-// Writing is coalesce-then-flush. The debounce window is not a behavior to
-// test on a clock (rule 7), so every case that sends drives the write through
-// `flushNarrowing()`, the way descriptions.test.js drives `flushDescriptions`.
+// Writing is coalesce-then-flush. The quiet window is driven on the suite's
+// fake clock (tests/js/support/clock.js), handed in through `initNarrowing`;
+// the cases outside that section drive the write through `flushNarrowing()`,
+// the way descriptions.test.js drives `flushDescriptions`.
 //
 // `reset()` puts every piece of module state a case touches back: the facet
 // signals, the error line, and the private "changed since the last write"
@@ -45,7 +46,13 @@ import {
   nSrcFormat,
   resetNarrowing,
 } from "../../../../hqptuner/static/store/narrow/state.js";
-import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
+import {
+  narrowingError,
+  hydrateNarrowing,
+  flushNarrowing,
+  initNarrowing,
+} from "../../../../hqptuner/static/store/narrow/persist.js";
+import { fakeClock } from "../../support/clock.js";
 
 const PATH = "/api/narrowing";
 
@@ -229,4 +236,59 @@ test("test_a_failed_write_keeps_the_facet_the_user_set", async () => {
   nPhase.value = ["minimum"];
   await flushNarrowing();
   assert.deepEqual(nPhase.value, ["minimum"]);
+});
+
+// --- the quiet window --------------------------------------------------------------
+// Each case hands the module a fresh fake clock before `reset()`, so the
+// drain inside it and every timer the case arms run on a clock only that case
+// advances. The module's window is not stated anywhere a test may read it, so
+// these cases bound it instead: longer than one fake ms, shorter than
+// QUIET_CEILING.
+
+/** Fake ms between two toggles of a burst: inside any quiet window. */
+const TOGGLE_GAP = 1;
+/** Fake ms of quiet that outlasts the module's quiet window. */
+const QUIET_CEILING = 10_000;
+/** Two in-domain quality picks, alternated so every toggle is a change. */
+const QUALITY_PICKS = [4, 5];
+
+/**
+ * A case's wire, after the module is put on a fresh fake clock, reset and hydrated.
+ *
+ * @returns {Promise<{ w: NarrowingWire, advance: (ms: number) => void }>}
+ */
+async function onFakeClock() {
+  const { clock, advance } = fakeClock();
+  initNarrowing(clock);
+  const w = await reset();
+  await hydrateNarrowing();
+  return { w, advance };
+}
+
+test("test_a_burst_of_toggles_across_facets_costs_one_write_once_the_user_is_quiet", async () => {
+  const { w, advance } = await onFakeClock();
+  nGenre.value = ["classical"];
+  advance(TOGGLE_GAP);
+  nPhase.value = ["minimum"];
+  advance(TOGGLE_GAP);
+  nQuality.value = 5;
+  advance(QUIET_CEILING);
+  await settle();
+  assert.equal(puts(w).length, 1);
+});
+
+// The toggles keep landing one fake ms apart for longer than the window
+// lasts, so a window counted from the first toggle would have sent mid-run;
+// one restarted by every toggle sends only once they stop.
+test("test_a_toggle_inside_the_quiet_window_restarts_it", async () => {
+  const { w, advance } = await onFakeClock();
+  for (let t = 0; t < QUIET_CEILING; t += TOGGLE_GAP) {
+    nQuality.value = QUALITY_PICKS[t % QUALITY_PICKS.length];
+    advance(TOGGLE_GAP);
+  }
+  await settle();
+  const whileToggling = puts(w).length;
+  advance(QUIET_CEILING);
+  await settle();
+  assert.deepEqual([whileToggling, puts(w).length], [0, 1]);
 });

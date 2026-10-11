@@ -9,16 +9,21 @@ by default.
 
 The stations are seeded straight into the preset store under ``tmp_path``, since
 saving a config preset needs the 8088 lane this app does not carry. The station
-delete case runs on the http lane instead, where a preset delete is a route.
+delete case runs on the http lane instead, where a preset save is a route; no
+route deletes a preset, so the case deletes through the preset lane, on the
+app's own manager and event loop.
 """
 
-import json
+import functools
 from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import NotAVirtualAppError, app_manager
 from fastapi.testclient import TestClient
 
+from hqptuner.presets import presetlane
+from hqptuner.presets.store.live import LiveRecord
 from hqptuner.presets.store.presets import PresetStore
 
 
@@ -34,6 +39,19 @@ def book(client: TestClient) -> dict[str, Any]:
     """The whole book as ``GET /api/livepresets`` answers it, or empty when it carries none."""
     answered: dict[str, Any] = client.get("/api/livepresets").json().get("stations", {})
     return answered
+
+
+def save_preset(client: TestClient, name: str) -> None:
+    """Save config preset ``name`` as the v2 UI does, folded into an apply that switches nothing."""
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
+
+
+def delete_preset(client: TestClient, name: str) -> None:
+    """Delete config preset ``name`` through the preset lane, on the app's own event loop."""
+    portal = client.portal
+    if portal is None:
+        raise NotAVirtualAppError
+    portal.call(functools.partial(presetlane.delete, app_manager(client), name))
 
 
 def held(client: TestClient, station: str) -> list[str]:
@@ -107,13 +125,12 @@ def test_a_delete_removes_the_snapshot_from_the_station_it_names_alone(
     ("station", "names"), [pytest.param("Den", [], id="deleted"), pytest.param("Attic", ["Warm"], id="kept")]
 )
 def test_a_station_saved_again_after_its_delete_holds_none_of_its_old_snapshots(
-    http_client: TestClient, tmp_path: Path, station: str, names: list[str]
+    http_client: TestClient, station: str, names: list[str]
 ) -> None:
-    http_client.post("/api/profile/save", json={"name": "Den"})
-    http_client.post("/api/profile/save", json={"name": "Attic"})
-    record = {"chain": "pcm", "fields": {"adaptive_volume": "1"}, "names": {"adaptive_volume": "1"}}
-    book = {"Den": {"Warm": record}, "Attic": {"Warm": record}}
-    (tmp_path / "live-presets.json").write_text(json.dumps({"schema": 5, "stations": book}))
-    http_client.delete("/api/preset/Den")
-    http_client.post("/api/profile/save", json={"name": "Den"})
+    save_preset(http_client, "Den")
+    save_preset(http_client, "Attic")
+    record = LiveRecord(chain="pcm", fields={"adaptive_volume": "1"}, names={"adaptive_volume": "1"})
+    app_manager(http_client).presetops.live_presets.save("Warm", record, ["Den", "Attic"])
+    delete_preset(http_client, "Den")
+    save_preset(http_client, "Den")
     assert held(http_client, station) == names

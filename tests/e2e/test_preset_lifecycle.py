@@ -15,8 +15,8 @@ Policy notes:
 - Each action's own request or download is waited on as an event, under a
   ceiling.
 - Server state left behind: the stations these tests create are removed by
-  `clean_slate`. The active station pointer is not reset by `clean_slate`; it
-  is cleared when `clean_slate` deletes the test station that was active.
+  `clean_slate`, which resets by a state import; the import clears the active
+  station pointer.
 """
 
 from playwright.sync_api import Page
@@ -54,7 +54,7 @@ def _active(page: Page, base_url: str) -> object:
 
 def _save_station(page: Page, base_url: str, name: str) -> None:
     """Save the running configuration as station `name`; the server makes it the loaded station."""
-    _post(page, base_url, "/api/profile/save", {"name": name})
+    _post(page, base_url, "/api/config/apply", {"switch_to": "", "save": {"name": name}})
 
 
 def _open_tree(page: Page, base_url: str) -> None:

@@ -147,27 +147,10 @@ def test_restaging_a_live_key_replaces_its_whole_bucket(api_client: TestClient) 
     assert api_client.get("/api/config/pending").json()["live"]["filter"] == {"value1x": "3"}
 
 
-def test_unknown_profile_action_is_not_found(api_client: TestClient) -> None:
-    assert api_client.post("/api/profile/bogus", json={"name": "x"}).status_code == 404
-
-
-def _load_without_a_name(client: TestClient) -> Response:
-    resp: Response = client.post("/api/profile/load", json={"name": ""})
-    return resp
-
-
-def test_profile_action_requires_a_name(api_client: TestClient) -> None:
-    # the empty name is refused by the shared name rule, so it carries that rule's code
-    assert _load_without_a_name(api_client).json()["code"] == "name_invalid"
-
-
-def test_a_profile_action_without_a_name_is_a_client_error(api_client: TestClient) -> None:
-    assert _load_without_a_name(api_client).status_code // 100 == 4
-
-
 def _save_with_the_daemon_down(client: TestClient, daemon: dict[str, Any]) -> Response:
     daemon["_down"] = True
-    resp: Response = client.post("/api/profile/save", json={"name": "Kept"})
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    resp: Response = client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Kept"}})
     return resp
 
 

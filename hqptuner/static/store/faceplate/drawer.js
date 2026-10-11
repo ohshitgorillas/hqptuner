@@ -4,10 +4,10 @@
 // renders, and the apply mode the head's split button runs. The DOM half is components/faceplate/drawer/; the schema
 // grammar is drawer/grammar.js.
 //
-// A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
-// the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one makes its tab
-// a restart tab. Members of one `family` share their staged state: any member's staged edit lights every member's
-// apply group. A family is declared once (`FAMILIES`): the rail stages its members draw and the catalog keys they hold,
+// A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is off the live
+// lane and the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one
+// makes its tab a restart tab. Members of one `family` share their staged state: any member's staged edit lights every
+// member's apply group. A family is declared once (`FAMILIES`): the rail stages its members draw and the catalog keys they hold,
 // so the store knows it with no drawer loaded. A drawer with its own form (`own`) stands that form in for the staged
 // set: its staged state dots every tab, its apply group always shows, and Apply and Discard run the form.
 //
@@ -169,13 +169,15 @@ export const FAMILY_KEYS = Object.fromEntries(Object.entries(FAMILIES).map(([nam
 export const MATRIX_STAGES = FAMILIES.matrix.stages;
 
 /**
- * Whether a catalog key stages for a restart: http-lane and not routed live.
+ * Whether a catalog key stages for a restart: on any lane but the live one, and not routed live. A row or choice line
+ * holding such a key carries the restart mark from the moment it is drawn.
  *
  * @param {string} key
+ * @returns {boolean}
  */
-const restartLane = (key) => {
+export const restartLane = (key) => {
   const e = catalog[key];
-  return !!e && e.lane === "http" && !e.appliesLive;
+  return !!e && e.lane !== "live" && !e.appliesLive;
 };
 
 /**

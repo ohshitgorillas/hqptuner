@@ -17,9 +17,9 @@ const LABEL = "Display";
 const SPECTRA = [
   { v: "trace", label: "Trace" },
   { v: "bars", label: "Bars" },
-  { v: "soft", label: "Soft bars" },
   { v: "ridges", label: "Ridges" },
   { v: "aurora", label: "Aurora" },
+  { v: "fade", label: "Fade" },
 ];
 
 /** @type {Opt[]} */

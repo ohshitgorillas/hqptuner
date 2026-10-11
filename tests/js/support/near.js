@@ -1,4 +1,4 @@
-// Tolerance helper for the eqstage suites. No test() and no assert lives here:
+// Tolerance helper. No test() and no assert lives here:
 // every assertion stays at its call site in the suite that owns it.
 
 /**

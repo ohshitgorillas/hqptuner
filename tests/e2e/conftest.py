@@ -79,6 +79,7 @@ Controls are addressed by machine identity: `data-testid` on the shell chrome,
 `data-k` on every field wrapper, `data-v` on every option row.
 """
 
+import http.client
 import json
 import os
 import urllib.parse
@@ -98,7 +99,15 @@ HERE = Path(__file__).parent
 
 #: pytest finds the hook below by name, never by reference; naming it here is
 #: what tells a static dead-code sweep it is live.
-__all__ = ["browser", "clean_slate", "page", "pytest_collection_modifyitems", "session_start", "stack"]
+__all__ = [
+    "browser",
+    "clean_slate",
+    "page",
+    "pytest_collection_modifyitems",
+    "session_archive",
+    "session_start",
+    "stack",
+]
 
 #: Chromium flags that give the headless shell a software WebGL2 context, so a
 #: test can compile and draw the app's shaders with no GPU on the host.
@@ -107,6 +116,15 @@ CHROMIUM_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
 #: Ceiling on one reset call. Generous — the app is on loopback and answering
 #: already, so a reset that takes this long is a hang worth failing on.
 RESET_TIMEOUT = 10.0
+
+#: The form field `POST /api/state-import` takes the archive under, and the file
+#: name the reset uploads it as.
+STATE_FIELD = "statefile"
+STATE_FILENAME = "e2e-session-start-state.zip"
+
+#: The multipart boundary around that upload: a run of characters a zip of the
+#: stores does not carry.
+STATE_BOUNDARY = "e2e-clean-slate-7f3a9c41d2b8"
 
 
 def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
@@ -175,18 +193,70 @@ def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]
     return _server_state(stack.base_url)
 
 
+def _raw(base_url: str, method: str, path: str, body: bytes | None = None, content_type: str | None = None) -> bytes:
+    """Send one call whose body is not JSON to the running stack and return the raw answer, raising on a non-2xx."""
+    conn = http.client.HTTPConnection(urllib.parse.urlsplit(base_url).netloc, timeout=RESET_TIMEOUT)
+    try:
+        conn.request(method, path, body=body, headers={"Content-Type": content_type} if content_type else {})
+        response = conn.getresponse()
+        answer = response.read()
+    finally:
+        conn.close()
+    if response.status // 100 != 2:
+        raise _ResetRefusedError(route=path, status=response.status, body=answer)
+    return answer
+
+
+class _ResetRefusedError(RuntimeError):
+    """A call `clean_slate` makes to put the server back was refused, so the next test would inherit leavings."""
+
+    def __init__(self, *, route: str, status: int, body: bytes) -> None:
+        super().__init__(f"{route} refused the reset: {status} {body!r}")
+
+
+class _ResetIncompleteError(RuntimeError):
+    """The session-start state import left a preset or the auto-save flag as a test had it."""
+
+    def __init__(self, *, presets: set[str], autosave: bool) -> None:
+        super().__init__(f"after the import the server still holds presets {sorted(presets)} and auto-save {autosave}")
+
+
+def _import_state(base_url: str, archive: bytes) -> None:
+    """Upload `archive` to `POST /api/state-import`, the way the settings page's state import sends a file."""
+    head = (
+        f"--{STATE_BOUNDARY}\r\n"
+        f'Content-Disposition: form-data; name="{STATE_FIELD}"; filename="{STATE_FILENAME}"\r\n'
+        "Content-Type: application/zip\r\n\r\n"
+    ).encode()
+    body = head + archive + f"\r\n--{STATE_BOUNDARY}--\r\n".encode()
+    _raw(base_url, "POST", "/api/state-import", body, f"multipart/form-data; boundary={STATE_BOUNDARY}")
+
+
+@pytest.fixture(scope="session")
+def session_archive(stack: stack_support.Stack) -> bytes:
+    """The server's own stores as `GET /api/state-export` served them before any test ran.
+
+    Importing it back replaces the preset store, the auto-save flag with it, so
+    it is how `clean_slate` drops a preset a test saved and restores the flag.
+    """
+    return _raw(stack.base_url, "GET", "/api/state-export")
+
+
 @pytest.fixture(autouse=True)
-def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]]) -> None:
+def clean_slate(
+    stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]], session_archive: bytes
+) -> None:
     """Put the server back to its session-start state, so no test inherits another's leavings."""
     base = stack.base_url
     # Also releases the filter uploads parked against those staged edits.
     _call(f"{base}/api/config/pending", "DELETE")
     presets, autosave, live = _server_state(base)
     started_with, autosave_at_start, live_at_start = session_start
-    if autosave != autosave_at_start:
-        _call(f"{base}/api/autosave", "POST", {"enabled": autosave_at_start})
-    for name in sorted(presets - started_with):
-        _call(f"{base}/api/preset/{urllib.parse.quote(name, safe='')}", "DELETE")
+    if autosave != autosave_at_start or presets - started_with:
+        _import_state(base, session_archive)
+        presets, autosave, live = _server_state(base)
+        if autosave != autosave_at_start or presets - started_with:
+            raise _ResetIncompleteError(presets=presets - started_with, autosave=autosave)
     for name in sorted(live - live_at_start):
         _call(f"{base}/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
 

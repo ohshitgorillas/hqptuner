@@ -30,6 +30,7 @@ from state_import import (
     loaded_station,
     seed_install,
     source,
+    store_config,
     upload,
     write,
     zip_of,
@@ -166,6 +167,17 @@ def test_an_import_whose_pre_import_backup_cannot_be_written_leaves_the_loaded_s
 # --- an import landing inside an autosave's wait on the daemon -----------------
 
 
+def arm_autosave_with_den_loaded(client: TestClient, tmp_path: Path) -> None:
+    """Turn autosave on by importing an archive whose preset store carries the flag
+    and ``Den``, then load ``Den`` again, since an import leaves no preset loaded."""
+    cfg = store_config(tmp_path / "armed")
+    presets = PresetStore(cfg.preset_dir)
+    presets.save("Den", PRESET_XML)
+    presets.set_autosave(enabled=True)
+    upload(client, export(cfg))
+    client.post("/api/config/apply", json={"switch_to": "Den"})
+
+
 def import_inside_the_autosave(client: TestClient, http_daemon: dict[str, Any], tmp_path: Path) -> list[int]:
     """With autosave on and ``Den`` loaded, make a live write whose autosave reads the
     daemon's backup; while that read waits, import an archive replacing ``Den``.
@@ -174,7 +186,7 @@ def import_inside_the_autosave(client: TestClient, http_daemon: dict[str, Any], 
     PresetStore(cfg.preset_dir).save("Den", ARCHIVE_DEN_XML)
     archive = export(cfg)
     statuses: list[int] = []
-    client.post("/api/autosave", json={"enabled": True})
+    arm_autosave_with_den_loaded(client, tmp_path)
     http_daemon["_on_backup"] = lambda: statuses.append(upload(client, archive).status_code)
     client.post("/api/config/live", json={"fields": {"filter": "25"}})
     return statuses

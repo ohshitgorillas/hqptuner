@@ -321,9 +321,8 @@ test("test_a_live_setting_hqptuner_refused_does_not_read_as_a_refusal_by_hqplaye
   assert.notEqual(ours, theirs);
 });
 
-// The level rides the live half of the pending buffer, `{live: {volume: {value}}}`
-// (tests/js/eqstage/eqstage-summary.test.js stages it there), and the report
-// names only the setting, so the level the user sees comes from what was sent.
+// The level rides the live half of the pending buffer, `{live: {volume: {value}}}`,
+// and the report names only the setting, so the level the user sees comes from what was sent.
 test("test_a_volume_level_hqptuner_refused_names_the_level_that_was_sent", async () => {
   await trees();
   route({

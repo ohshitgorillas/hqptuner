@@ -175,7 +175,7 @@ export function enumPref(key, allowed, dflt) {
 export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
 
 // How the spectrum is drawn. An unset or junk value reads as the trace.
-const SPECTRUM_STYLES = ["trace", "bars", "soft", "ridges", "aurora"];
+const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
 // The Levels floor, dBFS: where the page's Source level bars and their dB scale

@@ -22,11 +22,14 @@
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
+import { PLATFORM } from "../../lib/clock.js";
+import { quietWindow } from "../../model/shell/timing.js";
 
 // How long the typist has to pause before the queue drains on its own.
 const QUIET_MS = 800;
 
 /** @typedef {{ text: string, updated: string }} Description */
+/** @typedef {import("../../lib/clock.js").Clock} Clock */
 
 /** Every stored description, keyed by profile name. */
 export const descriptions = signal(/** @type {Record<string, Description>} */ ({}));
@@ -36,8 +39,10 @@ export const descriptionError = signal("");
 
 /** @type {Map<string, string>} name -> the newest text not yet sent */
 const queued = new Map();
-/** @type {ReturnType<typeof setTimeout> | null} the open drain timer, or null when idle */
-let timer = null;
+/** @type {Clock} the clock `quiet` is paced on */
+let quietClock = PLATFORM;
+/** The quiet window a keystroke restarts; it drains the queue when it closes. */
+let quiet = quietWindow(QUIET_MS, () => void flushDescriptions(), quietClock);
 
 /**
  * The stored description for a profile name, or null when it has none.
@@ -68,12 +73,17 @@ export async function hydrateDescriptions() {
  * was queued — only the newest text is ever sent.
  * @param {string} name
  * @param {string} text
+ * @param {Clock} [clock] what the quiet window is paced on
  * @returns {void}
  */
-export function queueDescription(name, text) {
+export function queueDescription(name, text, clock = PLATFORM) {
   queued.set(name, text);
-  if (timer !== null) clearTimeout(timer);
-  timer = setTimeout(() => void flushDescriptions(), QUIET_MS);
+  if (clock !== quietClock) {
+    quiet.cancel();
+    quietClock = clock;
+    quiet = quietWindow(QUIET_MS, () => void flushDescriptions(), clock);
+  }
+  quiet.arm();
 }
 
 /**
@@ -84,10 +94,7 @@ export function queueDescription(name, text) {
  * @returns {Promise<void>}
  */
 export async function flushDescriptions() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   const draining = [...queued];
   queued.clear();
   for (const [name, text] of draining) {
@@ -110,10 +117,7 @@ export async function flushDescriptions() {
  * @returns {void}
  */
 export function dropQueuedDescriptions() {
-  if (timer !== null) {
-    clearTimeout(timer);
-    timer = null;
-  }
+  quiet.cancel();
   queued.clear();
   descriptionError.value = "";
 }

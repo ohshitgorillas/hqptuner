@@ -211,5 +211,5 @@ def test_loading_a_config_preset_with_no_stored_flag_records_its_source(
 ) -> None:
     seed_config_preset(tmp_path, "Office")
     switch_on(autopilot_client)
-    autopilot_client.post("/api/profile/load", json={"name": "Office"})
+    autopilot_client.post("/api/config/apply", json={"switch_to": "Office"})
     assert last(audit_log, "autopilot.set")["source"] == "preset.load"

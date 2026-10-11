@@ -12,13 +12,6 @@ class PendingSnapshot:
     http: dict[str, str]
 
 
-@dataclass(frozen=True)
-class AutosaveState:
-    """``POST /api/autosave``'s answer: whether auto-save is now armed."""
-
-    autosave: bool
-
-
 class PendingStore:
     """Server-side staged-changes buffer.
 

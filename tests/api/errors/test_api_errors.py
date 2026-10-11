@@ -92,9 +92,9 @@ def test_no_credentials_still_buffers_staged_edits(nocreds_client: TestClient) -
     assert nocreds_client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
 
 
-def test_profile_load_without_credentials_is_unavailable(nocreds_client: TestClient) -> None:
+def test_switching_to_a_stored_preset_without_credentials_is_unavailable(nocreds_client: TestClient) -> None:
     # the preset exists in the store, so the failure is the missing http lane
-    assert nocreds_client.post("/api/profile/load", json={"name": "Kept"}).status_code == 503
+    assert nocreds_client.post("/api/config/apply", json={"switch_to": "Kept"}).status_code == 503
 
 
 # --- snapshots before the first daemon load (deps.snapshot) ----------------------

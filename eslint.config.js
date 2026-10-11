@@ -116,9 +116,6 @@ const JSDOC_RULES = {
 //
 // A layer imports below it and never above.
 //
-// The eqstage node CLI sits on the vendored eqlab and reaches into neither
-// store/ nor components/.
-//
 // Patterns match the import SPECIFIER, not a resolved path, so each rule lists
 // the shapes a relative specifier can take from the depths that layer occupies.
 // `**` matches a leading `..` the same as any other segment.
@@ -198,17 +195,9 @@ export default [
     },
   },
   {
-    // scripts/eqstage is a node CLI, not browser code: it runs under node with
-    // stdin, stdout and fetch.
-    files: ["scripts/**/*.js"],
-    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
-    plugins: PLUGINS,
-    rules: RULES,
-  },
-  {
-    // Production JS: the served frontend, the eqstage node CLI and the local
-    // eslint rules. tests/js is deliberately absent.
-    files: ["hqptuner/static/**/*.js", "scripts/eqstage/**/*.js", "eslint-rules/**/*.js"],
+    // Production JS: the served frontend and the local eslint rules. tests/js is
+    // deliberately absent.
+    files: ["hqptuner/static/**/*.js", "eslint-rules/**/*.js"],
     plugins: { jsdoc },
     rules: JSDOC_RULES,
   },
@@ -228,10 +217,6 @@ export default [
   {
     files: ["hqptuner/static/components/**/*.js"],
     rules: noUp([ABOVE.app], LAYER_MSG),
-  },
-  {
-    files: ["scripts/eqstage/**/*.js"],
-    rules: noUp([ABOVE.app, ...ABOVE.components, ...ABOVE.store], LAYER_MSG),
   },
   {
     // The config and its local rules run in node.
