@@ -62,7 +62,7 @@ In signal order:
 
 ## Phase 6: Settings body
 
-Timing, Hardware acceleration (CPU and GPU tabs), UPnP, Logging, Behavior, the Signal path map, Visual settings (Display and Layout tabs), About.
+Timing, Hardware acceleration (CPU and GPU tabs), UPnP, Logging, Behavior, Visual settings (Display and Layout tabs), About.
 
 ## Phase 7: bottom bar and Snapshot builder
 

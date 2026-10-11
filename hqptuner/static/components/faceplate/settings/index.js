@@ -15,7 +15,6 @@ import { LOGGING_DRAWER, LOGGING_READOUTS } from "./logging.js";
 import { LOGTAIL_BLOCKS } from "./LogTail.js";
 import { VISUAL_DRAWER, VISUAL_READOUTS } from "./visual.js";
 import { VISUAL_BLOCKS } from "./VisualBlocks.js";
-import { SIGPATH_BLOCKS, SIGPATH_DRAWER, SIGPATH_LIVE } from "./SignalPath.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../drawer/Rows.js").Blocks} Blocks */
@@ -36,12 +35,4 @@ export const CATEGORIES = [
   { id: "logging", name: "Logging", schema: LOGGING_DRAWER, blocks: LOGTAIL_BLOCKS, readouts: LOGGING_READOUTS },
   { id: "behavior", name: "Behavior", schema: BEHAVIOR_DRAWER, blocks: {}, readouts: BEHAVIOR_READOUTS },
   { id: "visual", name: "Visual settings", schema: VISUAL_DRAWER, blocks: VISUAL_BLOCKS, readouts: VISUAL_READOUTS },
-  {
-    id: "sigpath",
-    name: "Signal path",
-    schema: SIGPATH_DRAWER,
-    blocks: SIGPATH_BLOCKS,
-    readouts: [],
-    live: SIGPATH_LIVE,
-  },
 ];

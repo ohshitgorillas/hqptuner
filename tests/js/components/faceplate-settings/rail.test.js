@@ -34,7 +34,7 @@ const SEG = {
 //: An accent control: a pick no accent names prints as itself, its swatch the pick.
 const ACCENT = { type: "accent", options: [] };
 
-//: Categories the test writes, in an order no sort produces: one with a live row and a wide readout, one with an accent
+//: Categories the test writes, in an order no sort produces: one with a wide readout, one with an accent
 //: readout, and the Timing category the Roon alert homes on.
 const CATEGORIES = [
   {
@@ -49,7 +49,6 @@ const CATEGORIES = [
       { id: "mode", label: "Mode", control: SEG, value: () => "a" },
       { id: "rate", label: "Rate", wide: true, control: SEG, value: () => "b" },
     ],
-    live: { label: "Path", value: () => "Upsampling" },
   },
   {
     id: "timing",
@@ -132,18 +131,18 @@ test("test_tapping_a_category_opens_its_drawer", () => {
   assert.equal(openStage.value, "timing");
 });
 
-test("test_a_category_shows_its_readout_labels_then_the_live_label", () => {
-  assert.deepEqual(inside("dsp", "dt").map(text), ["Mode", "Rate", "Path"]);
+test("test_a_category_shows_its_readout_labels", () => {
+  assert.deepEqual(inside("dsp", "dt").map(text), ["Mode", "Rate"]);
 });
 
-test("test_a_category_shows_each_readout_as_its_control_prints_it_then_the_live_value", () => {
-  assert.deepEqual(inside("dsp", "dd").map(text), ["Alpha", "Beta", "Upsampling"]);
+test("test_a_category_shows_each_readout_as_its_control_prints_it", () => {
+  assert.deepEqual(inside("dsp", "dd").map(text), ["Alpha", "Beta"]);
 });
 
 test("test_only_the_readout_set_wide_is_wide", () => {
   assert.deepEqual(
     inside("dsp", "div").map((d) => classes(d).includes("wide")),
-    [false, true, false],
+    [false, true],
   );
 });
 

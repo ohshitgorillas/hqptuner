@@ -1,6 +1,6 @@
 // Behavioral suite for hqptuner/static/store/faceplate/settings/rail.js: the Settings rail as data. Each category comes
 // back in order with its open flag, the blink the alert plan holds for it, and one row per readout printed through the
-// control's readout form, followed by the live row when the category carries one.
+// control's readout form.
 //
 // The seam is the pure function's arguments: categories, controls, accents and alerts the test writes, and an alert
 // plan built from them by the model's own alertPlan. Every expected string is one this file put in.
@@ -36,7 +36,7 @@ const TOGGLES = {
 };
 const ACCENT = { type: "accent", options: ACCENTS };
 
-//: Categories the test writes: one with a live row and a wide readout, one with an accent readout.
+//: Categories the test writes: one with a wide readout, one with an accent readout.
 const CATEGORIES = [
   {
     id: "dsp",
@@ -46,7 +46,6 @@ const CATEGORIES = [
       { id: "rate", label: "Rate", control: SEG, value: () => "b" },
       { id: "dither", label: "Dither", wide: true, control: TOGGLES, value: () => "" },
     ],
-    live: { label: "Path", value: () => "Upsampling" },
   },
   {
     id: "view",
@@ -103,14 +102,6 @@ test("test_a_readout_set_wide_is_wide", () => {
 
 test("test_a_readout_not_set_wide_is_not_wide", () => {
   assert.equal(rowOf("dsp", "Mode")?.wide, false);
-});
-
-test("test_the_live_row_comes_last", () => {
-  assert.equal(entryOf("dsp")?.rows.at(-1)?.label, "Path");
-});
-
-test("test_the_live_row_prints_the_live_value", () => {
-  assert.equal(rowOf("dsp", "Path")?.text, "Upsampling");
 });
 
 test("test_the_category_named_open_is_open", () => {

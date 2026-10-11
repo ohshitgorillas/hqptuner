@@ -1,22 +1,19 @@
-// Behavioral suite for hqptuner/static/model/gauges/wire.js: where the chain rail's lamp dots land from measured boxes, the
-// path data of the wire joining them in both styles, the frame a signal-path group draws around its nodes, and which
-// signal-path nodes and edges read lit or bypassed.
+// Behavioral suite for hqptuner/static/model/gauges/wire.js: where the chain rail's lamp dots land from measured boxes
+// and the path data of the wire joining them in both styles.
 //
-// Every box is one the test writes, in screen px from the viewport corner; every dot, path and frame is worked out by
-// hand from those boxes. The wire's corners are 5 px chamfers.
+// Every box is one the test writes, in screen px from the viewport corner; every dot and path is worked out by hand
+// from those boxes. The wire's corners are 5 px chamfers.
 //
 // Run: node --test tests/js/model/gauges/wire.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { lampDots, pathLamps, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
+import { lampDots, wirePath } from "../../../../hqptuner/static/model/gauges/wire.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Box} Box */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Dot} Dot */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").Lamp} Lamp */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").MapEdge} MapEdge */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/wire.js").MapNode} MapNode */
 
 // --- lamp dots ---------------------------------------------------------------------------------------------------
 
@@ -137,106 +134,5 @@ const WIRES = [
 for (const row of WIRES) {
   test(`test_${row.name}`, () => {
     assert.equal(wirePath(row.dots, row.style), row.want);
-  });
-}
-
-// --- lit and bypassed --------------------------------------------------------------------------------------------
-
-/** @type {MapNode[]} */
-const NODES = [{ id: "src" }, { id: "mx" }, { id: "fx", rail: "fx" }, { id: "out" }];
-
-/** @type {MapEdge[]} */
-const EDGES = [
-  { a: "src", b: "mx" },
-  { a: "src", b: "out", direct: true },
-];
-
-/**
- * One reading of the map: what the path runs, which stages are engaged, and the flag one node or edge owes.
- *
- * @typedef {object} LampRow
- * @property {string} name
- * @property {string[]} lit
- * @property {string[]} engaged
- * @property {boolean} [direct]
- * @property {(m: ReturnType<typeof pathLamps>) => boolean} pick
- * @property {boolean} want
- */
-
-/** @type {LampRow[]} */
-const LAMPS = [
-  { name: "a_node_on_the_path_reads_lit", lit: ["src"], engaged: [], pick: (m) => m.nodes.src.lit, want: true },
-  { name: "a_node_off_the_path_reads_unlit", lit: ["src"], engaged: [], pick: (m) => m.nodes.out.lit, want: false },
-  {
-    name: "a_matrix_part_on_the_path_is_bypassed_with_the_matrix_disengaged",
-    lit: ["mx"],
-    engaged: [],
-    pick: (m) => m.nodes.mx.off,
-    want: true,
-  },
-  {
-    name: "a_matrix_part_on_the_path_runs_with_the_matrix_engaged",
-    lit: ["mx"],
-    engaged: ["matrix"],
-    pick: (m) => m.nodes.mx.off,
-    want: false,
-  },
-  {
-    name: "a_node_on_the_path_is_bypassed_with_its_own_stage_disengaged",
-    lit: ["fx"],
-    engaged: ["matrix"],
-    pick: (m) => m.nodes.fx.off,
-    want: true,
-  },
-  {
-    name: "a_node_on_the_path_runs_with_its_own_stage_engaged",
-    lit: ["fx"],
-    engaged: ["fx"],
-    pick: (m) => m.nodes.fx.off,
-    want: false,
-  },
-  { name: "a_node_off_the_path_is_never_bypassed", lit: [], engaged: [], pick: (m) => m.nodes.mx.off, want: false },
-  {
-    name: "an_edge_with_both_ends_on_the_path_reads_lit",
-    lit: ["src", "mx"],
-    engaged: [],
-    pick: (m) => m.edges[0],
-    want: true,
-  },
-  {
-    name: "an_edge_with_one_end_off_the_path_reads_unlit",
-    lit: ["src"],
-    engaged: [],
-    pick: (m) => m.edges[0],
-    want: false,
-  },
-  {
-    name: "the_direct_edge_reads_lit_on_the_direct_path",
-    lit: [],
-    engaged: [],
-    direct: true,
-    pick: (m) => m.edges[1],
-    want: true,
-  },
-  {
-    name: "the_direct_edge_ignores_its_lit_ends_off_the_direct_path",
-    lit: ["src", "out"],
-    engaged: [],
-    pick: (m) => m.edges[1],
-    want: false,
-  },
-];
-
-for (const row of LAMPS) {
-  test(`test_${row.name}`, () => {
-    const m = pathLamps({
-      lit: new Set(row.lit),
-      engaged: new Set(row.engaged),
-      nodes: NODES,
-      edges: EDGES,
-      matrix: ["mx"],
-      direct: row.direct ?? false,
-    });
-    assert.equal(row.pick(m), row.want);
   });
 }

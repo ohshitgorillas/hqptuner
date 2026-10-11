@@ -22,7 +22,6 @@
 
   /* Surfaces */
   --page:#0e0f12;          /* room behind the plate */
-  --plate:#1c1e22;         /* the plate's flat fill */
   --plate-2:#212429;       /* a flat face on the plate: a disabled button, a bar */
   --glass:#08090b;         /* VFD windows, segments, meters, plots */
   --pop:#16181c;           /* popover sheets */
@@ -68,7 +67,6 @@
   --key:linear-gradient(180deg,#121418,#0b0c0e);   /* glass key face: the ▾ end of a split control */
   --well:inset 0 2px 8px #000;
   --pop-shadow:0 14px 40px #000c;
-  --hatch-unav:repeating-linear-gradient(45deg,transparent 0 var(--sp-1),var(--hatch) var(--sp-1) var(--sp-2));   /* stripes over what cannot run */
 
   /* Type */
   --f-eng:'Saira Extra Condensed',sans-serif;   /* engraved legends */
@@ -234,7 +232,6 @@
   --vrange-num-w:74px;     /* a Volume Range box and its readout */
   --idrow-h:54px;          /* an About HQPlayer identity window */
   --logtail-min:60px;      /* the live log tail, least height */
-  --key-mark-w:22px; --key-mark-h:12px;   /* a mark in the signal path's key */
   /* Popovers */
   --pop-at-x:132px; --pop-at-y:50px;   /* where an unparked popover sits on the plate */
   --pop-w:330px;           /* a popover sheet */

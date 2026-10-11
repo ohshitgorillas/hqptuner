@@ -1,6 +1,4 @@
-// Wire and map geometry, free of the DOM: where the chain rail's lamp dots land and the path joining them, the frame a
-// signal-path group draws around its nodes, and which map nodes and edges read lit or bypassed. A test drives these
-// from tables.
+// Wire geometry, free of the DOM: where the chain rail's lamp dots land and the path joining them.
 
 const CHAMFER = 5;
 
@@ -131,65 +129,4 @@ export function wirePath(pts, style) {
   if (style === "routed") routed(pts, d);
   else trunk(pts, d);
   return d.join(" ");
-}
-
-/**
- * A point in map px.
- *
- * @typedef {object} Point
- * @property {number} x
- * @property {number} y
- */
-
-/**
- * The hairline frame around a group's node boxes and where its title and subtitle sit.
- *
- * @param {{boxes: Box[], sub: boolean}} o
- * @returns {{frame: {x: number, y: number, width: number, height: number}, title: Point, sub: Point}}
- */
-export function groupFrame({ boxes, sub }) {
-  const x0 = Math.min(...boxes.map((b) => b.left)) - 9,
-    x1 = Math.max(...boxes.map((b) => b.left + b.width)) + 9;
-  const y0 = Math.min(...boxes.map((b) => b.top)) - (sub ? 46 : 30),
-    y1 = Math.max(...boxes.map((b) => b.top + b.height)) + 12;
-  return {
-    frame: { x: x0, y: y0, width: x1 - x0, height: y1 - y0 },
-    title: { x: x0 + 9, y: y0 + 18 },
-    sub: { x: x0 + 9, y: y0 + 34 },
-  };
-}
-
-/**
- * A map node; `rail` is the chain stage whose lamp says engaged.
- *
- * @typedef {object} MapNode
- * @property {string} id
- * @property {string} [rail]
- */
-
-/**
- * A map edge between two node ids; `direct` marks the Direct SDM bypass, lit only on that path.
- *
- * @typedef {object} MapEdge
- * @property {string} a
- * @property {string} b
- * @property {boolean} [direct]
- */
-
-/**
- * Which nodes read lit (on the path playing) or bypassed (on it but not running), and which edges read lit. A node in
- * `matrix` is bypassed while the `matrix` stage is disengaged; a node with its own rail stage, while that stage is.
- *
- * @param {{lit: Set<string>, engaged: Set<string>, nodes: MapNode[], edges: MapEdge[], matrix: string[], direct: boolean}} o
- * @returns {{nodes: Record<string, {lit: boolean, off: boolean}>, edges: boolean[]}}
- */
-export function pathLamps({ lit, engaged, nodes, edges, matrix, direct }) {
-  /** @type {Record<string, {lit: boolean, off: boolean}>} */
-  const byId = {};
-  for (const { id, rail } of nodes) {
-    const gated =
-      (matrix.includes(id) && !engaged.has("matrix")) || (!!rail && rail !== "matrix" && !engaged.has(rail));
-    byId[id] = { lit: lit.has(id), off: lit.has(id) && gated };
-  }
-  return { nodes: byId, edges: edges.map((e) => (e.direct ? direct : lit.has(e.a) && lit.has(e.b))) };
 }

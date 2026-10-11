@@ -1,5 +1,5 @@
 // The Settings rail as data: per category, its open flag, the blink the alert plan holds for it, and its readout rows,
-// each printed through the control's readout form, then the live row when the category carries one.
+// each printed through the control's readout form.
 
 import { readoutOf } from "../../../model/shell/settings.js";
 
@@ -9,8 +9,7 @@ import { readoutOf } from "../../../model/shell/settings.js";
  * @typedef {import("../../../model/shell/alerts.js").AlertPlan} AlertPlan
  * @typedef {import("../../../model/shell/alerts.js").Blink} Blink
  * @typedef {{ id: string, label: string, wide?: boolean, control: Control, value: () => string }} SettingsReadout
- * @typedef {{ label: string, value: () => string }} LiveReadout  a readout that is not a setting
- * @typedef {{ id: string, name: string, readouts: readonly SettingsReadout[], live?: LiveReadout }} SettingsCategory
+ * @typedef {{ id: string, name: string, readouts: readonly SettingsReadout[] }} SettingsCategory
  * @typedef {{ label: string, text: string, swatch: string | null, wide: boolean }} RailRow
  * @typedef {{ id: string, name: string, open: boolean, alert: Blink | undefined, rows: RailRow[] }} RailEntry
  */
@@ -39,7 +38,6 @@ function readoutRow(r, accents) {
 export function settingsRail(categories, plan, open, accents) {
   return categories.map((c) => {
     const rows = c.readouts.map((r) => readoutRow(r, accents));
-    if (c.live) rows.push({ label: c.live.label, text: c.live.value(), swatch: null, wide: false });
     return { id: c.id, name: c.name, open: c.id === open, alert: plan.blinks.set.get(c.id), rows };
   });
 }

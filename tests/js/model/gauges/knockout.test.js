@@ -5,8 +5,8 @@
 // The margin's size is a design choice and is not pinned; the suite pins that it covers the box, that it is the same on
 // both sides, and that it does not change with where the label sits or how wide it is.
 //
-// Gap: the components that draw a knockout (KnockedText, the Signal path's edges) measure the label in a layout effect
-// through getBBox and ResizeObserver, which server-side rendering never runs, so the measured branch is a browser check.
+// Gap: the component that draws a knockout (KnockedText) measures the label in a layout effect through getBBox and
+// ResizeObserver, which server-side rendering never runs, so the measured branch is a browser check.
 //
 // Run: node --test tests/js/model/gauges/knockout.test.js
 
