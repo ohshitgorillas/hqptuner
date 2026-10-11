@@ -5,13 +5,12 @@ the engine comes back on the config file — which never learned a live-routed
 setting, because a live setting is applied over 4321 and written nowhere
 (``snapshot``). Every OTHER daemon reload survives that, since a
 restore-shaped write folds the active preset's stored values into the XML it
-pushes (``presetfields.carried_live_fields``); a rescan writes no config at all,
+pushes (``presets/presetfields.carried_live_fields``); a rescan writes no config at all,
 so nothing carries them and the user's filters and mode are gone.
 
 This is the carrier for that one case: read what the engine is running BEFORE the
 rescan, put it back after. Gated on auto-save, because auto-save is the user
-saying "keep what I set" — with it off a rescan loses live settings exactly as it
-always did.
+saying "keep what I set" — with it off a rescan loses the live settings.
 
 A replay that cannot run says so. Losing the settings quietly is the bug this
 module exists to fix, and a rescan that reports nothing but success while the
@@ -35,7 +34,7 @@ from hqptuner.lanes.live.snapshot import live_state
 from hqptuner.lanes.writer import LiveWriteOk
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
     from hqptuner.lanes.live.lane import LiveApplyReport
     from hqptuner.lanes.writer import LiveWriteResult
 
@@ -47,7 +46,7 @@ NO_DAEMON = "The engine did not come back after the rescan — your live setting
 WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 
 
-def snapshot(mgr: ConnectionManager) -> dict[str, str]:
+def snapshot(mgr: LaneManager, *, autosave: bool) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
     ``live_state`` is the reader: the chains' filters and shapers, output mode,
@@ -59,13 +58,13 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     limits are persistent config (``live.chain.RATE_LIMIT_FIELD``) and survive a
     rescan on their own.
 
-    Empty when auto-save is off — the flag is the whole gate, and the auto-save
+    Empty when ``autosave``, the preset store's auto-save flag, is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
     empty when the engine cannot say which chain it has loaded, which
     ``live_state`` refuses with ``ChainUnknownError`` rather than report a
     half-taken record.
     """
-    if not mgr.presetops.store.autosave:
+    if not autosave:
         return {}
     if chain.active_chain(mgr) is None:
         return {}
@@ -90,7 +89,7 @@ def _restored(report: list[LiveWriteResult], fields: dict[str, str]) -> dict[str
     return {name: value for name, value in fields.items() if _setting_of(name) in landed}
 
 
-async def _await_engine(mgr: ConnectionManager) -> bool:
+async def _await_engine(mgr: LaneManager) -> bool:
     """Wait until the control lane answers again, polling to the alarm deadline; False when it never does.
 
     Asks the lane, not the manager's reachable flag: that flag is flipped by the
@@ -110,7 +109,7 @@ async def _await_engine(mgr: ConnectionManager) -> bool:
     return False
 
 
-async def _reread_engine(mgr: ConnectionManager) -> None:
+async def _reread_engine(mgr: LaneManager) -> None:
     """Re-read State and the enumerations the engine came back on.
 
     Without this the manager is still holding what it read BEFORE the rescan, and
@@ -126,7 +125,7 @@ async def _reread_engine(mgr: ConnectionManager) -> None:
     mgr.readings.enums = await client.get_all_enumerations()
 
 
-def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
+def _moved(mgr: LaneManager, fields: dict[str, str]) -> dict[str, str]:
     """Return the snapshot fields the engine is no longer running.
 
     Read through the same ``snapshot`` the snapshot was taken with, so both
@@ -139,7 +138,7 @@ def _moved(mgr: ConnectionManager, fields: dict[str, str]) -> dict[str, str]:
     return {field: value for field, value in fields.items() if (after.get(field) or {}).get("value") != value}
 
 
-def _lost(mgr: ConnectionManager, fields: dict[str, str], restored: dict[str, str], held: dict[str, str]) -> set[str]:
+def _lost(mgr: LaneManager, fields: dict[str, str], restored: dict[str, str], held: dict[str, str]) -> set[str]:
     """Return the snapshot fields that neither landed nor were deliberately held.
 
     Judged on the readback-verified report, because nothing else can be trusted
@@ -183,7 +182,7 @@ class ReplayResult:
     restored: dict[str, str] = field(default_factory=dict)
 
 
-async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> ReplayResult:
+async def replay(mgr: LaneManager, fields: dict[str, str]) -> ReplayResult:
     """Put a snapshot back on the engine once it answers again.
 
     Answers ``restored`` — the fields whose setter verified by readback — and an
@@ -211,7 +210,7 @@ async def replay(mgr: ConnectionManager, fields: dict[str, str]) -> ReplayResult
     return _judge(mgr, moved, report)
 
 
-def _judge(mgr: ConnectionManager, moved: dict[str, str], report: LiveApplyReport | None) -> ReplayResult:
+def _judge(mgr: LaneManager, moved: dict[str, str], report: LiveApplyReport | None) -> ReplayResult:
     """Say what a replay put back, on the readback-verified report; no report means the write itself died."""
     if report is None:
         return ReplayResult(ReplayOutcome.WRITE_FAILED)

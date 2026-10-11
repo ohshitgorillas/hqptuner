@@ -1,7 +1,7 @@
 """The live write lane — one batch of live settings, applied on the spot.
 
 ``POST /api/config/live`` lands here. It is deliberately not stage+apply: the
-pending buffer holds every staged edit (``api/pendingapi.PendingStore``) and
+pending buffer holds every staged edit (``core/pending.PendingStore``) and
 ``POST /config/apply`` flushes everything in it, so a live control routed through
 that pair would also apply edits the user staged elsewhere and never asked for.
 This lane touches neither the pending store nor the persistent 8088 lane, so it
@@ -29,8 +29,8 @@ from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
     from hqptuner.engine.control import ControlClient
+    from hqptuner.lanes import LaneManager
 
 log = logging.getLogger(__name__)
 
@@ -98,7 +98,7 @@ def _held_fields(stored: dict[str, dict[str, str]]) -> dict[str, str]:
     return {field: value for chain_held in stored.values() for field, value in chain_held.items()}
 
 
-def _remember_chain(mgr: ConnectionManager, chain: str, fields: dict[str, str]) -> None:
+def _remember_chain(mgr: LaneManager, chain: str, fields: dict[str, str]) -> None:
     """Record what LIVE set on one chain, in config-form terms.
 
     Applied and held edits are both recorded, and for the same reason: the engine
@@ -120,7 +120,7 @@ def _applied_chain_fields(report: list[LiveWriteResult], fields: dict[str, str])
     }
 
 
-def remember_routed(mgr: ConnectionManager, report: list[LiveWriteResult], fields: dict[str, str]) -> None:
+def remember_routed(mgr: LaneManager, report: list[LiveWriteResult], fields: dict[str, str]) -> None:
     """Record a staged apply's live-routed chain fields, the same bookkeeping ``apply_now`` does for LIVE's.
 
     The staged lane routes chain fields live too (``routing.split_live``), and a
@@ -134,7 +134,7 @@ def remember_routed(mgr: ConnectionManager, report: list[LiveWriteResult], field
         _remember_chain(mgr, chain, _applied_chain_fields(report, fields))
 
 
-async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[LiveWriteResult]:
+async def reassert_chain(mgr: LaneManager, client: ControlClient) -> list[LiveWriteResult]:
     """Put back what LIVE set on the chain the engine has now loaded.
 
     `GetFilters`/`GetShapers` answer for the loaded chain only, so an edit made to
@@ -156,9 +156,7 @@ async def reassert_chain(mgr: ConnectionManager, client: ControlClient) -> list[
     return await apply_live(client, edits, mgr.audit) if edits else []
 
 
-async def chain_entered(
-    mgr: ConnectionManager, client: ControlClient, before: str | None, *, reenumerated: bool
-) -> None:
+async def chain_entered(mgr: LaneManager, client: ControlClient, before: str | None, *, reenumerated: bool) -> None:
     """Handle the engine having loaded a different filter/shaper chain.
 
     Refresh the lists it enumerates, then put back what LIVE set on the chain it entered.
@@ -180,14 +178,14 @@ async def chain_entered(
         await _reread_state(mgr, client)
 
 
-async def _reread_state(mgr: ConnectionManager, client: ControlClient) -> None:
+async def _reread_state(mgr: LaneManager, client: ControlClient) -> None:
     """Re-read State into the manager, keeping the last good reading when HQPlayer refuses the read."""
     state = await client.state_unless_refused()
     if state is not None:
         mgr.readings.state = state
 
 
-async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
+async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
     """Re-read what a live batch just invalidated: the running state always, the enumerations when the batch moved one.
 
     Live edits bypass the config file, so State is the only record of them. The
@@ -204,7 +202,7 @@ async def refresh_after_live(mgr: ConnectionManager, client: ControlClient, edit
 
 
 async def _bookkeep(
-    mgr: ConnectionManager,
+    mgr: LaneManager,
     client: ControlClient,
     edits: dict[str, dict[str, str]],
     stored: dict[str, dict[str, str]],
@@ -225,7 +223,7 @@ async def _bookkeep(
         _remember_chain(mgr, loaded, applied)
 
 
-async def _after_mode(mgr: ConnectionManager, client: ControlClient) -> list[LiveWriteResult]:
+async def _after_mode(mgr: LaneManager, client: ControlClient) -> list[LiveWriteResult]:
     """Re-assert the entered chain's held settings after a verified mode write, and re-read State.
 
     Runs after the re-enumeration: the held settings resolve against the lists SetMode just swapped.
@@ -240,13 +238,13 @@ async def _after_mode(mgr: ConnectionManager, client: ControlClient) -> list[Liv
     return reasserted
 
 
-async def apply_now(mgr: ConnectionManager, fields: dict[str, str]) -> LiveApplyReport:
+async def apply_now(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyReport:
     """Apply one batch of LIVE config-form fields under ``mgr.live_writes`` (``_apply_batch``)."""
     async with mgr.live_writes:
         return await _apply_batch(mgr, fields)
 
 
-async def _apply_batch(mgr: ConnectionManager, fields: dict[str, str]) -> LiveApplyReport:
+async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyReport:
     """Resolve, apply and readback-verify a batch of LIVE config-form fields; the caller holds ``mgr.live_writes``.
 
     Fields for the chain the engine has not loaded are held rather than refused —
@@ -269,7 +267,7 @@ async def _apply_batch(mgr: ConnectionManager, fields: dict[str, str]) -> LiveAp
     return LiveApplyReport(report, _held_fields(stored))
 
 
-def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
+def mode_already_running(mgr: LaneManager, want: str) -> bool:
     """Whether the engine is already in the mode a preset asks for.
 
     Worth checking because ``SetMode`` is not free even when it changes nothing:
@@ -282,7 +280,7 @@ def mode_already_running(mgr: ConnectionManager, want: str) -> bool:
     return routing.mode_form_value((mgr.readings.enums or {}).get("modes") or [], index) == want
 
 
-async def apply_preset(mgr: ConnectionManager, fields: dict[str, str]) -> LiveApplyReport:
+async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyReport:
     """Apply a live snapshot — a batch that may carry the output mode.
 
     ``resolve_live`` refuses mode beside anything else, and rightly: ``SetMode``
@@ -328,7 +326,7 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     return http_fields.get("mode")
 
 
-async def apply_mode_first(mgr: ConnectionManager, mode: str) -> list[LiveWriteResult] | None:
+async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult] | None:
     """Write a staged mode as its own re-enumerating batch; None when it cannot go live at all.
 
     A mode the engine is already running is not re-sent (``mode_already_running``). A mode the
@@ -346,7 +344,7 @@ async def apply_mode_first(mgr: ConnectionManager, mode: str) -> list[LiveWriteR
 
 
 def split_remainder(
-    mgr: ConnectionManager,
+    mgr: LaneManager,
     http_fields: dict[str, str],
     live_edits: dict[str, dict[str, str]],
     report: list[LiveWriteResult],
@@ -364,7 +362,7 @@ def split_remainder(
 
 
 async def mode_then_split(
-    mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+    mgr: LaneManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> SplitPlan:
     """Route a staged batch, mode first.
 

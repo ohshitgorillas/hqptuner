@@ -22,6 +22,7 @@ from hqptuner.engine.control import ControlClient
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -72,7 +73,9 @@ async def test_saved_profile_row_count_is_its_own(http_manager: ConnectionManage
 
 
 async def test_save_reports_applied(http_manager: ConnectionManager) -> None:
-    assert (await restore.apply(http_manager, save("Crossfeed EQ", ROW0))).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(http_manager, save("Crossfeed EQ", ROW0), restore_hooks(http_manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_save_to_an_existing_name_replaces_it(http_manager: ConnectionManager) -> None:
@@ -98,7 +101,9 @@ async def test_delete_removes_the_profile_from_the_running_config(http_manager: 
 async def test_deleting_an_unknown_profile_still_applies(http_manager: ConnectionManager) -> None:
     # a profile the daemon holds in memory only has no element to remove, and the
     # edit's whole intent — "not in the config" — is already satisfied
-    assert (await restore.apply(http_manager, delete("never saved"))).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(http_manager, delete("never saved"), restore_hooks(http_manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_a_profile_survives_an_unrelated_apply(http_manager: ConnectionManager) -> None:

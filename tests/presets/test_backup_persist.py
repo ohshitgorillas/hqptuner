@@ -23,7 +23,7 @@ from hqptuner.presets.presetops import BackupFailedError
 
 
 async def test_apply_with_switch_to_reports_the_loaded_preset(http_manager: ConnectionManager) -> None:
-    await http_manager.presetops.save_preset("Base")
+    await presetlane.save(http_manager, "Base")
     report = await http_manager.applyops.apply({}, {}, switch_to="Base")
     assert report.switched == presetlane.PresetActivation(name="Base")
 
@@ -31,7 +31,7 @@ async def test_apply_with_switch_to_reports_the_loaded_preset(http_manager: Conn
 async def test_apply_with_switch_to_restores_the_presets_config(
     http_manager: ConnectionManager, http_daemon: dict[str, Any]
 ) -> None:
-    await http_manager.presetops.save_preset("Base")
+    await presetlane.save(http_manager, "Base")
     await http_manager.applyops.apply({}, {"title": "Drift"})
     await http_manager.applyops.apply({}, {}, switch_to="Base")
     assert http_daemon["title"] == "Opal"
@@ -40,7 +40,7 @@ async def test_apply_with_switch_to_restores_the_presets_config(
 async def test_apply_with_switch_to_lands_staged_edits_on_top_of_the_preset(
     http_manager: ConnectionManager, http_daemon: dict[str, Any]
 ) -> None:
-    await http_manager.presetops.save_preset("Base")
+    await presetlane.save(http_manager, "Base")
     await http_manager.applyops.apply({}, {"title": "Tweaked"}, switch_to="Base")
     assert http_daemon["title"] == "Tweaked"
 
@@ -79,7 +79,7 @@ async def test_apply_engine_reports_an_unreachable_http_lane(dead_lane_manager: 
 
 async def test_a_save_that_cannot_reach_the_daemon_reports_its_failure(dead_lane_manager: ConnectionManager) -> None:
     with pytest.raises(httpx.HTTPError):
-        await dead_lane_manager.presetops.save_preset("Studio")
+        await presetlane.save(dead_lane_manager, "Studio")
 
 
 # --- persist_backup: the backup is taken before a destructive restore, so a --
@@ -102,7 +102,7 @@ async def test_a_failed_backup_aborts_a_load_before_any_restore(
     blocker = tmp_path / "blocker"
     blocker.write_text("a file where the backup dir should be")
     manager = http_manager_factory(http_daemon, backup_dir=blocker / "backups", preset_dir=tmp_path / "presets")
-    await manager.presetops.save_preset("Base")  # its own daemon mirror already posts one /restore
+    await presetlane.save(manager, "Base")  # its own daemon mirror already posts one /restore
     before = http_daemon.get("_restore_attempts", 0)
     with contextlib.suppress(BackupFailedError):
         await presetlane.load(manager, "Base")

@@ -25,12 +25,12 @@ from hqptuner.api.routes import (
 )
 from hqptuner.api.routes.audit import audit_router
 from hqptuner.api.routes.matrix import matrix, matrixmodes
-from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
 from hqptuner.config import Config
 from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
@@ -94,7 +94,6 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
-    app.state.live_presets = manager.presetops.live_presets
     # Both `/preset/{name:path}` routes are greedy so that an empty or
     # separator-bearing name reaches the store's name rule instead of falling
     # past every route to the router's own 404. Their registration order carries

@@ -39,7 +39,7 @@ from hqptuner.core.manager import ConnectionManager
 
 if TYPE_CHECKING:
     import asyncio
-from hqptuner.lanes.presetfields import carried_live_fields
+from hqptuner.presets.presetfields import carried_live_fields
 from hqptuner.presets.store.presets import PresetStore
 
 #: Build a manager on a control fake started with the given State overrides.

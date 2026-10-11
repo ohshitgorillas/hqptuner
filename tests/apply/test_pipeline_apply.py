@@ -14,6 +14,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "0", "gainunit": "dB", "mixdown": "1", "process": ""}
@@ -56,7 +57,9 @@ async def test_process_string_with_xml_specials_round_trips(http_manager: Connec
 
 async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -> None:
     assert (
-        await restore.apply(http_manager, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)})
+        await restore.apply(
+            http_manager, {"matrix_pipelines": rows_json({**ROW0, "gain": "1.5"}, ROW1)}, restore_hooks(http_manager)
+        )
     ).outcome is RestoreOutcome.APPLIED
 
 

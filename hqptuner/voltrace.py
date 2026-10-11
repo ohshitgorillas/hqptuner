@@ -24,14 +24,34 @@ from __future__ import annotations
 
 import contextlib
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.audit import AuditLog
 
 log = logging.getLogger(__name__)
+
+
+class VoltraceReadings(Protocol):
+    """The readings this trace reads the playing volume from and stamps the last volume write into."""
+
+    state: dict[str, str] | None
+    last_volume_write: str | None
+
+
+class VoltraceManager(Protocol):
+    """The manager as this trace reaches it: its readings and the audit log it writes through."""
+
+    @property
+    def readings(self) -> VoltraceReadings:
+        """Return what the daemon last told us."""
+
+    @property
+    def audit(self) -> AuditLog:
+        """Return the audit log every record goes through."""
+
 
 #: The config-form fields this trace watches, both volume mechanisms in one set:
 #: the startup volume (``defaults_volume``), the range and mode the engine holds
@@ -79,7 +99,7 @@ def form_subset(form: Mapping[str, Any] | None) -> dict[str, str | None]:
     return subset({field.get("name"): field.get("value") for field in fields})
 
 
-def live_volume(mgr: ConnectionManager) -> dict[str, str | None]:
+def live_volume(mgr: VoltraceManager) -> dict[str, str | None]:
     """Return the playing volume the engine is currently reporting, as a one-field mapping.
 
     None where State carries no ``volume`` attribute at all, which is the fixed-volume and no-volume paths rather
@@ -89,7 +109,7 @@ def live_volume(mgr: ConnectionManager) -> dict[str, str | None]:
 
 
 def observe(
-    mgr: ConnectionManager,
+    mgr: VoltraceManager,
     source: str,
     fields: dict[str, str | None],
     *,
@@ -106,7 +126,7 @@ def observe(
 
 
 def observe_change(
-    mgr: ConnectionManager,
+    mgr: VoltraceManager,
     source: str,
     fields: dict[str, str | None],
     previous: dict[str, str | None],
@@ -122,7 +142,7 @@ def observe_change(
 
 
 def write(
-    mgr: ConnectionManager,
+    mgr: VoltraceManager,
     source: str,
     want: str,
     readback: str | None,
@@ -141,7 +161,7 @@ def write(
         mgr.audit.volume_write(source, want, readback, ok=ok)
 
 
-def _record(mgr: ConnectionManager, source: str, fields: dict[str, str | None], name: str | None) -> None:
+def _record(mgr: VoltraceManager, source: str, fields: dict[str, str | None], name: str | None) -> None:
     """Emit one observation to both halves of the trace.
 
     ``OSError`` is suppressed around the audit call alone. Two of the callers sit inside the poll tick, where an

@@ -20,6 +20,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 
 # 6.0.4 shape, fixed volume OFF: the daemon keeps the last level in a COMMENTED
 # top-level line, and that comment is its memory. HQPTuner used to delete the
@@ -143,10 +144,14 @@ def test_a_live_fixed_element_reports_the_level_it_carries(volume: bytes, level:
 
 
 async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -> None:
-    assert (await restore.apply(http_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(http_manager, {"volume_max": "-6"}, restore_hooks(http_manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_an_apply_with_a_daemon_rewrite_reports_applied(
     clamping_manager: ConnectionManager,
 ) -> None:
-    assert (await restore.apply(clamping_manager, {"volume_max": "-6"})).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(clamping_manager, {"volume_max": "-6"}, restore_hooks(clamping_manager))
+    ).outcome is RestoreOutcome.APPLIED

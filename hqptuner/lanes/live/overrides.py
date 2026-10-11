@@ -18,12 +18,12 @@ from hqptuner.lanes.live.chain import RATE_LIMIT_FIELD, EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 # Every config field a live edit can reach — which is exactly the set the config
 # file cannot learn on its own, since a live edit never writes it. hqplayerd boots
 # from that file, so a restore-shaped write has to carry these from somewhere else
-# or the daemon comes back without them (``presetfields.carried_live_fields``).
+# or the daemon comes back without them (``presets/presetfields.carried_live_fields``).
 LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *RATE_LIMIT_FIELD.values()})
 
 
@@ -36,7 +36,7 @@ def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
     return None
 
 
-def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> str | None:
+def _override_for(mgr: LaneManager, field: str, state: dict[str, str]) -> str | None:
     """One field's current live value in config-form terms, or None when the engine cannot answer for it."""
     spec = ROUTABLE[field]
     index = state.get(spec.state)
@@ -46,7 +46,7 @@ def _override_for(mgr: ConnectionManager, field: str, state: dict[str, str]) -> 
     return mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
 
 
-def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
+def _chain_overrides(mgr: LaneManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
     """Both chains' filter/shaper settings.
 
     The engine's own reading for the chain it is running, LIVE's memory for the chain it is not.
@@ -63,7 +63,7 @@ def _chain_overrides(mgr: ConnectionManager, chain: str | None, state: dict[str,
     return overrides
 
 
-def live_overrides(mgr: ConnectionManager) -> dict[str, str]:
+def live_overrides(mgr: LaneManager) -> dict[str, str]:
     """Return the engine's current live settings as config-form fields.
 
     So a save captures what is actually playing rather than a stale file.

@@ -127,7 +127,7 @@ async def refresh_devices(mgr: "ConnectionManager") -> RescanReport:
     names what landed, and ``replay`` says whether the replay put everything back.
     No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
     """
-    snap = rescan.snapshot(mgr)
+    snap = rescan.snapshot(mgr, autosave=mgr.presetops.store.autosave)
     await mgr.require_http().refresh_devices()
     await mgr.refresh_http_forms()
     replayed = await rescan.replay(mgr, snap)

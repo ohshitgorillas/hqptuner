@@ -13,15 +13,16 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from hqptuner import voltrace
-from hqptuner.conf import engineconf, httpauth
+from hqptuner.conf import engineconf
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
-from hqptuner.lanes.http import engineattrs, restore
+from hqptuner.lanes.http import engineattrs, forms, restore
 from hqptuner.lanes.http.engineattrs import EngineVerification
 from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
+from hqptuner.lanes.http.storecarry import StoreCarry
 from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
-from hqptuner.presets import presetlane
+from hqptuner.presets import presetfields, presetlane
 from hqptuner.presets.presetlane import PresetActivation
 from hqptuner.presets.presetops import PresetAftermath, after_restore
 
@@ -71,10 +72,10 @@ async def _persistent_apply(
     Checked before the lane is ever called: a compound action's outcome is data, while the restore
     lane called alone raises the same refusal.
     """
-    declined = httpauth.decline_error(mgr)
+    declined = forms.decline(mgr)
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
-    return await restore.apply(mgr, http_fields, switched=switch_to is not None)
+    return await restore.apply(mgr, http_fields, presetfields.restore_hooks(mgr), switched=switch_to is not None)
 
 
 async def _write_live(
@@ -182,12 +183,13 @@ class ApplyOps:
         """
         mgr = self._mgr
         engineconf.validate_overrides(overrides)
-        declined = httpauth.decline_error(mgr)
+        declined = forms.decline(mgr)
         if declined is not None:
             raise declined
         backup = await mgr.require_http().backup()
         mgr.presetops.persist_backup_for_apply(backup)
-        result = await engineattrs.apply(mgr, backup, overrides, mgr.readings.active_config, all_presets=all_presets)
+        carry = StoreCarry(mirror=presetfields.autosave_mirror(mgr), carried=presetfields.carried_live_fields(mgr))
+        result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
         # same restart, same stale readings as the staged-apply path above
         await settle.resync_engine_state(mgr)
         if result.verified.engine:

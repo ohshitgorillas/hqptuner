@@ -22,6 +22,7 @@ from fake_control import CommandLog
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
+from hqptuner.presets.presetfields import restore_hooks
 
 if TYPE_CHECKING:
     import asyncio
@@ -94,7 +95,9 @@ async def test_an_apply_under_an_active_profile_reports_applied(
 ) -> None:
     with_night(http_daemon)
     manager, _log = await running_profile("Night")
-    assert (await restore.apply(manager, {"title": "Renamed"})).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 # --- and the engine is never asked to re-select the profile -------------------
@@ -125,7 +128,9 @@ async def test_an_apply_under_a_profile_the_config_lacks_still_reports_applied(
 ) -> None:
     with_night(http_daemon)
     manager, _log = await running_profile("Ghost")
-    assert (await restore.apply(manager, {"title": "Renamed"})).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_an_apply_under_a_profile_the_config_lacks_keeps_the_live_rows(

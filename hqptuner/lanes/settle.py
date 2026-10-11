@@ -30,7 +30,7 @@ from hqptuner.engine.controlerrors import ControlError
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from collections.abc import Awaitable, Callable
 
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 log = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ class Mark:
     drops: int
 
 
-async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None, scope: str = "system") -> None:
+async def restore(mgr: LaneManager, cfgfile: bytes, *, mark: Mark | None, scope: str = "system") -> None:
     """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
 
     Every restore the app submits goes through here, so every one of them reports
@@ -63,7 +63,7 @@ async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None, 
         await mgr.restarting()
 
 
-def mark_connect(mgr: ConnectionManager) -> Mark | None:
+def mark_connect(mgr: LaneManager) -> Mark | None:
     """Return the manager's connect and drop counts while it holds a whole control connection, else None.
 
     None says there is no whole control connection for the restart to kill, so
@@ -75,7 +75,7 @@ def mark_connect(mgr: ConnectionManager) -> Mark | None:
     return Mark(mgr.connects, mgr.drops) if mgr.connected.is_set() else None
 
 
-async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
+async def await_ready(mgr: LaneManager, mark: Mark | None) -> bool:
     """Wait until BOTH lanes are up on a control connection made after ``mark``, or the alarm window passes.
 
     Three things have to be true together, and each clause is one of them.
@@ -120,7 +120,7 @@ async def await_ready(mgr: ConnectionManager, mark: Mark | None) -> bool:
     return True
 
 
-async def resync_engine_state(mgr: ConnectionManager) -> None:
+async def resync_engine_state(mgr: LaneManager) -> None:
     """Re-read the engine after something restarted it, so nothing reads the old engine's answers.
 
     ``state``, ``enums`` and ``live`` all describe a daemon process that is gone the moment a
@@ -148,7 +148,7 @@ async def resync_engine_state(mgr: ConnectionManager) -> None:
     mgr.readings.state, mgr.readings.enums = state, enums
 
 
-async def await_http_ready(mgr: ConnectionManager) -> bool:
+async def await_http_ready(mgr: LaneManager) -> bool:
     """Wait until the HTTP config lane serves again.
 
     The daemon restarts on a preset load and on every restore, and its active
@@ -164,7 +164,7 @@ async def await_http_ready(mgr: ConnectionManager) -> bool:
 
 
 async def poll_until[T](
-    mgr: ConnectionManager,
+    mgr: LaneManager,
     probe: Callable[[], Awaitable[T | None]],
     *,
     interval: float,
@@ -192,7 +192,7 @@ async def poll_until[T](
     return None
 
 
-async def fresh_backup(mgr: ConnectionManager) -> bytes | None:
+async def fresh_backup(mgr: LaneManager) -> bytes | None:
     """Return a ``/backup`` archive, or ``None`` while the daemon is mid-restart.
 
     A restarting daemon answers /backup with something that is not a zip yet —

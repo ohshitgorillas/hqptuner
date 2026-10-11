@@ -31,10 +31,12 @@ from hqptuner.conf.matrixprofiles import (
 )
 from hqptuner.conf.matrixscope import has_profile
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes import presetfields, settle
+from hqptuner.lanes import settle
+from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
+    from hqptuner.lanes.http.storecarry import StoreHooks
 
 log = logging.getLogger(__name__)
 
@@ -177,8 +179,10 @@ class PassVerdict:
         return not self.diff or self.unfixable is not None
 
 
-async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> RestoreResult:
+async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, switched: bool = False) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
+
+    ``hooks`` is what the restore owes the preset store (``StoreHooks``).
 
     ``switched`` marks an apply that just loaded a different preset: the restart
     dropped the live matrix profile (the daemon persists the selection nowhere,
@@ -199,13 +203,13 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     when no pass got a write through at all, and ``GroundingError`` for an edit that
     cannot be built against the running config.
     """
-    declined = httpauth.decline_error(mgr)
+    declined = forms.decline(mgr)
     if declined is not None:
         raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
-    # along (store as fallback), under the staged edits, which win (presetfields)
-    merged = {**presetfields.carried_live_fields(mgr), **edits, **FORCED_CONFIG}
+    # along (store as fallback), under the staged edits, which win (StoreHooks.carried)
+    merged = {**hooks.carried(), **edits, **FORCED_CONFIG}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
@@ -221,14 +225,14 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
         # to actually serve before writing, rather than racing it
         await settle.await_http_ready(mgr)
         try:
-            intended = await _restore_once(mgr, merged, active_profile, mark=mark)
+            intended = await _restore_once(mgr, merged, hooks, active_profile, mark=mark)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
             mgr.readings.credentials_ok = False
-            declined = httpauth.decline_error(mgr)
+            declined = forms.decline(mgr)
             if declined is not None:
                 raise declined from exc
             raise
@@ -246,7 +250,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
 
 
 async def _outcome(
-    mgr: ConnectionManager, mark: settle.Mark | None, verdict: PassVerdict | None, attempts: int
+    mgr: LaneManager, mark: settle.Mark | None, verdict: PassVerdict | None, attempts: int
 ) -> RestoreResult:
     """Answer for the passes that ran: the last judged one decides, and none judged means none got through."""
     if verdict is None:
@@ -263,7 +267,7 @@ async def _outcome(
     return RestoreUnavailable(verdict.diff, {presetconf.NET_DEVICE: verdict.unfixable})
 
 
-def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
+def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
     """Return the matrix profile this apply should install as the live matrix.
 
     Empty for the default matrix, and empty too when this batch deletes the
@@ -275,7 +279,7 @@ def _active_profile(mgr: ConnectionManager, edits: dict[str, str]) -> str:
     return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
 
 
-async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
+async def _judge(mgr: LaneManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
     """Read the running config back after one restore and say how it differs from what the pass intended."""
     keys = verified_keys(merged, intended)
     # both sides of the persistent apply, recorded whether or not it converged: a
@@ -294,7 +298,12 @@ async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[
 
 
 async def _restore_once(
-    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: settle.Mark | None
+    mgr: LaneManager,
+    merged: dict[str, str],
+    hooks: StoreHooks,
+    active_profile: str = "",
+    *,
+    mark: settle.Mark | None,
 ) -> dict[str, str]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
@@ -303,7 +312,7 @@ async def _restore_once(
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
     backup = await mgr.require_http().backup()
-    mgr.presetops.persist_backup_for_restore(backup)  # survives a crash mid-apply
+    hooks.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
     running = presetzip.snapshot_member(backup, None, mgr.readings.active_config)
@@ -317,19 +326,19 @@ async def _restore_once(
             active=mgr.readings.active_config,
             matrix_profile=adopt,
             audit=mgr.audit,
-            extra_members=mgr.presetops.parked_filter_members(),
+            extra_members=hooks.parked_members(),
         ),
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
     # restore that is happening anyway — this one qualifies
-    mirror = presetfields.autosave_mirror(mgr, intended_xml)
+    mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
     await settle.restore(mgr, restore_zip, mark=mark, scope="system")
     return presetconf.read_config(intended_xml)
 
 
-async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
+async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
     """Poll a fresh /backup until the running config reflects this apply's intended fields, or the deadline passes.
 
     The fields polled for are the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the
@@ -358,7 +367,7 @@ async def verify(mgr: ConnectionManager, intended: dict[str, str], keys: set[str
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 
 
-def _net_device_options(mgr: ConnectionManager) -> set[str] | None:
+def _net_device_options(mgr: LaneManager) -> set[str] | None:
     """Endpoint values the daemon offers for net_device, off the /config form snapshot; None when there is none.
 
     An absent form is treated as 'no evidence', never as 'gone'.
@@ -370,7 +379,7 @@ def _net_device_options(mgr: ConnectionManager) -> set[str] | None:
     return {o["value"] for o in (field or {}).get("options", [])}
 
 
-async def _unfixable_device(mgr: ConnectionManager, diff: Diff) -> UnfixableDevice | None:
+async def _unfixable_device(mgr: LaneManager, diff: Diff) -> UnfixableDevice | None:
     """Report a divergence as unfixable only when the intended net_device is no longer in the daemon's endpoint list.
 
     The target NAA endpoint is gone, and no restart brings it back. Everything else is correctable by retry. The

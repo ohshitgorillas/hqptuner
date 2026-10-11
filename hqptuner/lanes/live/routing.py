@@ -32,7 +32,7 @@ from hqptuner.lanes.live import rate
 from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 
 class LiveField(NamedTuple):
@@ -114,7 +114,7 @@ def mode_form_value(items: EnumItems, index: str) -> str | None:
     return None
 
 
-def _resolve(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
+def _resolve(mgr: LaneManager, field: str, value: str, chain: str | None) -> str | None:
     """Return the live list index this form field+value becomes, or None when it cannot route live.
 
     It cannot route live on a wrong chain, a missing enumeration, or an unknown value.
@@ -160,7 +160,7 @@ def _mode_blocks_batch(routable: dict[str, str]) -> bool:
 
 
 def _route_all(
-    mgr: ConnectionManager, routable: dict[str, str], chain: str | None
+    mgr: LaneManager, routable: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], set[str]]:
     """Resolve every routable field into setter args, dropping the ones that cannot translate.
 
@@ -196,7 +196,7 @@ def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) ->
 
 
 def split_live(
-    mgr: ConnectionManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+    mgr: LaneManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
     """Fold the whole batch into ``live_edits`` when every field routes live, else hand the whole batch back.
 
@@ -263,7 +263,7 @@ def _known_index(items: EnumItems, index: str) -> str | None:
     return str(index) if any(str(item.get("index")) == str(index) for item in items) else None
 
 
-def _live_index(mgr: ConnectionManager, field: str, value: str, chain: str | None) -> str | None:
+def _live_index(mgr: LaneManager, field: str, value: str, chain: str | None) -> str | None:
     """Return the list index this LIVE field+value becomes, or None when it cannot."""
     if field in ROUTABLE:
         return _resolve(mgr, field, value, chain)
@@ -291,7 +291,7 @@ def _off_chain(field: str, chain: str | None) -> bool:
 
 
 def _route_live(
-    mgr: ConnectionManager, fields: dict[str, str], chain: str | None
+    mgr: LaneManager, fields: dict[str, str], chain: str | None
 ) -> tuple[dict[str, dict[str, str]], dict[str, str], dict[str, str]]:
     """Every field as setter args, alongside the held ones and the unresolvable ones.
 
@@ -335,7 +335,7 @@ def _route_live(
 
 
 def resolve_live(
-    mgr: ConnectionManager, fields: dict[str, str]
+    mgr: LaneManager, fields: dict[str, str]
 ) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
     """Return a LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
 
@@ -375,7 +375,7 @@ def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
     return grouped
 
 
-def resolve_chain(mgr: ConnectionManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
+def resolve_chain(mgr: LaneManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
     """Return a chain's remembered settings as ``writer.apply_live`` edits, alongside fields its lists do not carry.
 
     Those dropped fields are dropped rather than approximated: the nearest filter

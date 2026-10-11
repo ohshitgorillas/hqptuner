@@ -152,7 +152,7 @@ async def test_a_preset_load_whose_restart_reconnects_reads_the_settings_archive
         state, http_daemon["mode"], http_daemon["dither"], http_daemon["modulator"]
     )
     await manager.connected.wait()
-    await manager.presetops.save_preset("Stored")
+    await presetlane.save(manager, "Stored")
     already_read = http_daemon["_backup_reads"]
     await presetlane.load(manager, "Stored")
     # the pre-restore backup the restore is built from, and the connect body's

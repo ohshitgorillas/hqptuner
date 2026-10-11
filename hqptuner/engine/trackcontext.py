@@ -5,15 +5,12 @@ Building it reads only the manager's last poll and is independent of the 4322 so
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import Protocol
 
 from hqptuner.engine.controlerrors import ControlError
 
 #: the module's public surface
 __all__ = ["PLAYING", "TrackContext", "UnparseableStatusAttributeError", "context_from", "is_playing"]
-
-if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
 
 PLAYING = 2
 
@@ -37,7 +34,28 @@ class TrackContext:
     filter: str | None = None  # active main filter's display name
 
 
-def context_from(manager: "ConnectionManager") -> TrackContext | None:
+class TrackReadings(Protocol):
+    """The parts of the manager's last poll a track context is built from."""
+
+    state: dict[str, str] | None
+    status: dict[str, str] | None
+    status_metadata: dict[str, str] | None
+    enums: dict[str, list[dict[str, str]]] | None
+
+
+class TrackManager(Protocol):
+    """The manager as a track context reads it: whether the daemon is reachable, and its last poll."""
+
+    @property
+    def reachable(self) -> bool:
+        """Return whether the daemon answered the handshake on the current connection."""
+
+    @property
+    def readings(self) -> TrackReadings:
+        """Return what the daemon last told us."""
+
+
+def context_from(manager: TrackManager) -> TrackContext | None:
     """Return the reader's view of the manager's last poll — None while unreachable.
 
     Raises ``ControlError`` where State's ``state`` or Status's ``samplerate`` will not parse: the daemon answered

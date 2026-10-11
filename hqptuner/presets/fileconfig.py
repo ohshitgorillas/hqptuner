@@ -10,10 +10,10 @@ from typing import TYPE_CHECKING
 from hqptuner.conf import engineconf, presetconf
 
 if TYPE_CHECKING:
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.presets import PresetManager
 
 
-async def read_engine(mgr: "ConnectionManager") -> dict[str, str]:
+async def read_engine(mgr: "PresetManager") -> dict[str, str]:
     """Return current hardware-accel engine attributes, parsed from a fresh backup's base config.
 
     That backup is the only lane that carries them — they are not on the form.
@@ -24,7 +24,7 @@ async def read_engine(mgr: "ConnectionManager") -> dict[str, str]:
     return readings.engine
 
 
-async def load_file_config(mgr: "ConnectionManager", *, backup: bytes | None = None) -> dict[str, str]:
+async def load_file_config(mgr: "PresetManager", *, backup: bytes | None = None) -> dict[str, str]:
     """Read running config from the backup archive's working ``hqplayerd.xml``, in form-field terms.
 
     Serves the fields the ``/config`` form renders lossily (``volume_fixed``: 0/1/2 in XML, a

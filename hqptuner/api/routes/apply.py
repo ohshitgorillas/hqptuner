@@ -78,7 +78,7 @@ async def _persist_after_apply(
     if save is None:
         return await with_autosave(report, manager)
     with preset_refusals():
-        saved = await manager.presetops.save_preset(save)
+        saved = await presetlane.save(manager, save)
     return WithSaved(report, SavedPreset.of(saved))
 
 

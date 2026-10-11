@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes import LaneManager
 
 
 @dataclass(frozen=True)
@@ -33,7 +33,7 @@ class MatrixProfileSwitch:
     active: str
 
 
-async def switch_profile(mgr: ConnectionManager, name: str) -> MatrixProfileSwitch:
+async def switch_profile(mgr: LaneManager, name: str) -> MatrixProfileSwitch:
     """Live switch + State readback + form resync. Empty name = ``[Default]``."""
     client = mgr.require_control()
     await client.set_matrix_profile(name)
