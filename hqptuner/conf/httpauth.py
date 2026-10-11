@@ -28,7 +28,7 @@ AUTH_REFUSED_MESSAGE = (
 # at all — distinct from a credential the daemon refused (AUTH_REFUSED_MESSAGE).
 # Shared by the config-lane error and the API's no-credentials refusal.
 NO_HTTP_CLIENT_MESSAGE = (
-    "HQPTuner has no HQPlayer username and password. Open the Connection panel from the status pill and enter them."
+    "HQPTuner has no HQPlayer username and password. Open connection settings from the knob and enter them."
 )
 
 # What the daemon answers when it will not accept who we say we are. 401 is the
