@@ -29,6 +29,9 @@ const FORMATS = [
   { id: "expanded", w: 1366, h: 1024, both: true, meter: "full" },
 ];
 
+/** The Compact format, the smallest. */
+export const COMPACT = FORMATS[0];
+
 /** The lowest scale at which Auto still gives the window a format. */
 const AUTO_FLOOR = 0.95;
 

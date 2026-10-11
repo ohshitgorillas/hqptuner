@@ -46,7 +46,7 @@ import { dialView, dragTier, keyTier, pickPin, pickTier } from "../../../../stor
  * @property {{ setPointerCapture?: (id: number) => void, parentElement: { parentElement: Element } }} currentTarget
  */
 
-const W = 806; // viewBox width: the Format row at the 1080 plate, so the printing is 1:1
+const W = 806; // viewBox width: the printing is 1:1 in a Format row this wide and scales with the row
 const H = 106;
 const X0 = 38; // x of the first tier
 const RULE_Y = 56;

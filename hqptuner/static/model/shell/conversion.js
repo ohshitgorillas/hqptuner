@@ -119,8 +119,9 @@ export function railValues(play, direct, vals) {
 }
 
 /**
- * How far the page's lowest child runs past the page's bottom, in layout px. The plate is scaled below 1080×810 (screen
- * px = layout px × scale), so screen rects are divided by the scale before the padding (layout px) is added.
+ * How far the page's lowest child runs past the page's bottom, in layout px. The plate is scaled in a window smaller
+ * than its format (screen px = layout px × scale), so screen rects are divided by the scale before the padding (layout
+ * px) is added.
  *
  * @param {{ bottoms: number[], pageBottom: number, scale: number, padding: number }} m  measured in screen px
  * @returns {number}

@@ -3,11 +3,11 @@
 // fit.
 
 import { signal, computed } from "@preact/signals";
-import { plateFit } from "../../model/shell/plate.js";
+import { COMPACT, plateFit } from "../../model/shell/plate.js";
 import { displayFormat } from "../ui/prefs.js";
 
-/** The window's inner size, CSS px. The entry writes it at load and on every resize. */
-export const viewport = signal({ w: 1080, h: 810 });
+/** The window's inner size, CSS px: the Compact format's until the plate mounts, then read from the window. */
+export const viewport = signal({ w: COMPACT.w, h: COMPACT.h });
 
 /** The plate's format and scale for the window and the display-format choice. */
 export const plate = computed(() => plateFit(viewport.value, displayFormat.value));

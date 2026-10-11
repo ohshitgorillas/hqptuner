@@ -5,7 +5,7 @@ body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);
 /* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
 button,input,select,textarea{line-height:inherit}
 
-/* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: at exactly 1080×810 it renders 1:1. */
+/* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: in a window exactly its format's size it renders 1:1. */
 #stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
 .plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(var(--sp-7) + env(safe-area-inset-top)) var(--sp-9) 0;display:flex;flex-direction:column;
   background:var(--plate-face);border:var(--hair) solid var(--edge);border-radius:var(--r-plate);
