@@ -10,9 +10,6 @@ import zipfile
 from pathlib import Path
 from typing import Any
 
-import pytest
-from conftest import ManagerFactory
-from fixtures_clients import app
 from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetconf, presetzip
@@ -20,7 +17,6 @@ from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import presetlane
-from hqptuner.presets.presetlane import MirrorOutcome
 
 #: A preset name carrying an em dash, the character HQPlayer's charset rules bend around.
 DASHED_NAME = "Headphones — ZMF Ori 3.0"
@@ -126,67 +122,3 @@ async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any
     finally:
         await http.aclose()
     assert "Temp" not in names
-
-
-# --- the daemon mirror: a save is the STORE write, not the mirror -------------
-#
-# The mirror (``data/cfgs/<name>.xml``) only feeds hqplayerd's own profile list.
-# It rides a POST /restore that routinely lands while the daemon is still
-# restarting from the apply the save follows, so it retries — and when it finally
-# does not land, the save is still a save. Reporting it as failed is what sent a
-# user hunting for a preset that was already on disk.
-
-
-async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
-) -> None:
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    await presetlane.save(manager, "Studio")
-    assert "Studio" in [o.value for o in presetlane.listing(manager).options]
-
-
-async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
-    restore_refusing_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
-) -> None:
-    # the active pointer moved with the store write, not with the daemon: a save
-    # that reached disk is the active preset even when the mirror is behind
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
-    await presetlane.save(manager, "Studio")
-    assert presetlane.listing(manager).active == "Studio"
-
-
-#: Each daemon a save's mirror meets, and how the mirror ends. The recovering one refuses
-#: twice then accepts: a single-shot POST would call that mirror failed the second before
-#: the daemon would have taken it.
-MIRROR_CASES = [
-    ("http_daemon", MirrorOutcome.LANDED),
-    ("restore_recovering_http_daemon", MirrorOutcome.LANDED),
-    ("restore_refusing_http_daemon", MirrorOutcome.NOT_LANDED),
-]
-
-
-@pytest.mark.parametrize(("daemon", "mirror"), MIRROR_CASES, ids=["healthy", "recovering", "refusing"])
-async def test_a_mirror_lands_unless_the_daemon_refuses_it_past_the_deadline(
-    request: pytest.FixtureRequest, http_manager_factory: ManagerFactory, daemon: str, mirror: MirrorOutcome
-) -> None:
-    manager = http_manager_factory(request.getfixturevalue(daemon), alarm_threshold=3.0)
-    assert (await presetlane.save(manager, "Studio")).mirror is mirror
-
-
-@pytest.mark.parametrize(
-    ("daemon", "warned"),
-    [("http_daemon", False), ("restore_refusing_http_daemon", True)],
-    ids=["landed", "not landed"],
-)
-def test_a_save_answers_a_warning_only_when_its_mirror_did_not_land(
-    request: pytest.FixtureRequest, tmp_path: Path, closed_port: int, daemon: str, *, warned: bool
-) -> None:
-    served = app(request.getfixturevalue(daemon), tmp_path, closed_port, None)
-    client = next(served)
-    try:
-        body = client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Studio"}}).json()
-    finally:
-        next(served, None)
-    assert bool(body["saved"].get("warning")) is warned

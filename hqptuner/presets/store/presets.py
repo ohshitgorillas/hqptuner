@@ -249,6 +249,18 @@ class PresetStore:
                 raise PresetNotFoundError(name=name)
             return path.read_bytes()
 
+    def save_name(self, name: str, *, trigger: str = "save") -> str:
+        """Return the name a save of ``name`` is keyed under, raising ``PresetError`` when the store would refuse it.
+
+        A name the store does not hold yet takes the stricter first-save rule. A
+        migration copies a name the daemon already holds and an import a name a
+        state file already holds, rather than creating one, so both are exempt.
+        """
+        name = canonical_name(name)
+        if trigger in {"migration", "import"} or self._path(name).is_file():
+            return name
+        return names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
+
     def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
         """Write (or overwrite) a preset. Creates the store directory if needed.
 
@@ -258,14 +270,9 @@ class PresetStore:
         asks.
         """
         self._ensure_dir()
-        name = canonical_name(name)
+        name = self.save_name(name, trigger=trigger)
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
-        if not overwrote and trigger not in {"migration", "import"}:
-            # A first save takes the stricter rule; a migration copies a name the
-            # daemon already holds and an import a name a state file already holds,
-            # rather than creating one, so both are exempt.
-            names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
         with saving(PRESET_STORE.what, self._dir):
             path.write_bytes(xml)
         self._listing.drop()

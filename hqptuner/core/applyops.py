@@ -65,17 +65,19 @@ class ApplyReport:
 
 
 async def _persistent_apply(
-    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None
+    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None, save: str | None
 ) -> RestoreResult:
     """Return the persistent lane's outcome: declined as data, or the restore lane's own answer.
 
     Checked before the lane is ever called: a compound action's outcome is data, while the restore
-    lane called alone raises the same refusal.
+    lane called alone raises the same refusal. ``save`` names the preset the apply is being saved
+    as, whose mirror the restore carries.
     """
     declined = forms.decline(mgr)
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
-    return await restore.apply(mgr, http_fields, presetfields.restore_hooks(mgr), switched=switch_to is not None)
+    hooks = presetfields.restore_hooks(mgr, saving=save)
+    return await restore.apply(mgr, http_fields, hooks, switched=switch_to is not None)
 
 
 async def _write_live(
@@ -140,6 +142,7 @@ class ApplyOps:
         live_edits: dict[str, dict[str, str]],
         http_fields: dict[str, str],
         switch_to: str | None = None,
+        save: str | None = None,
     ) -> ApplyReport:
         """Apply staged changes.
 
@@ -147,7 +150,9 @@ class ApplyOps:
         becomes the active preset (the only way HQPlayer sets the active label), then apply the
         staged tweaks on top of its snapshot. Then the live setters (readback-verified), then the
         persistent lane, which re-asserts the active snapshot ⊕ tweaks via POST /restore — so drift
-        never survives — and self-corrects fixable divergence.
+        never survives — and self-corrects fixable divergence. ``save`` names the preset the caller
+        saves this apply as afterwards; the persistent lane's restore carries its mirror, so the save
+        that follows never restores on its own.
         """
         mgr = self._mgr
         switched = await presetlane.switch(mgr, switch_to) if switch_to is not None else None
@@ -165,7 +170,7 @@ class ApplyOps:
         if plan.live_edits:
             live = live + await _write_live(mgr, plan.live_edits, dict(http_fields))
         restore_fields = plan.restore_fields
-        persistent = await _persistent_apply(mgr, restore_fields, switch_to) if restore_fields else None
+        persistent = await _persistent_apply(mgr, restore_fields, switch_to, save) if restore_fields else None
         aftermath = await after_restore(mgr, persistent, restore_fields)
         # after all of it: a preset load is the FIRST step of an apply, so every
         # checkpoint inside the load reads state the live setters and the restore
@@ -188,7 +193,7 @@ class ApplyOps:
             raise declined
         backup = await mgr.require_http().backup()
         mgr.presetops.persist_backup_for_apply(backup)
-        carry = StoreCarry(mirror=presetfields.autosave_mirror(mgr), carried=presetfields.carried_live_fields(mgr))
+        carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=presetfields.carried_live_fields(mgr))
         result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
         # same restart, same stale readings as the staged-apply path above
         await settle.resync_engine_state(mgr)

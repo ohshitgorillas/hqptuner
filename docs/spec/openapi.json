@@ -2510,22 +2510,11 @@
         "type": "object"
       },
       "SavedPreset": {
-        "description": "A preset save as the API answers it: the name stored, and ``warning`` when the daemon mirror did not land.",
+        "description": "A preset save as the API answers it: the name stored.",
         "properties": {
           "name": {
             "title": "Name",
             "type": "string"
-          },
-          "warning": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Warning"
           }
         },
         "required": ["name"],

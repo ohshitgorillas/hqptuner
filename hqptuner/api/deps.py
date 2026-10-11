@@ -27,7 +27,7 @@ from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets import presetlane
-from hqptuner.presets.presetlane import MirrorOutcome, PresetSaveResult
+from hqptuner.presets.presetlane import PresetSaveResult
 
 
 class NoCredentialsConfiguredError(ErrorBody):
@@ -120,16 +120,13 @@ def snapshot[T](manager: ConnectionManager, data: T | None) -> Snapshot[T]:
 
 @dataclass(frozen=True)
 class SavedPreset:
-    """A preset save as the API answers it: the name stored, and ``warning`` when the daemon mirror did not land."""
+    """A preset save as the API answers it: the name stored."""
 
     name: str
-    warning: str | None = None
 
     @classmethod
     def of(cls, result: PresetSaveResult) -> "SavedPreset":
-        """Word a save's mirror outcome for the wire; a mirror that landed carries no warning."""
-        if result.mirror is MirrorOutcome.NOT_LANDED:
-            return cls(result.name, warning="hqplayerd's own profile list was not updated")
+        """Answer a save that reached the store by the name it was stored as."""
         return cls(result.name)
 
 
@@ -146,12 +143,8 @@ class WithAutosave[T]:
         folded = body["autosaved"]
         if not isinstance(folded, Mapping):
             return WithAutosave(body["report"], None)
-        name, warning = folded.get("name"), folded.get("warning")
-        autosaved = SavedPreset(
-            name=name if isinstance(name, str) else "",
-            warning=warning if isinstance(warning, str) else None,
-        )
-        return WithAutosave(body["report"], autosaved)
+        name = folded.get("name")
+        return WithAutosave(body["report"], SavedPreset(name=name if isinstance(name, str) else ""))
 
 
 @dataclass(frozen=True)

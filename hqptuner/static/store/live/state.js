@@ -46,7 +46,7 @@ export const RATE_MIRRORED = new Set(["mode"]);
  * @typedef {object} LiveAnswer
  *   What a live write answers with: the report, and the auto-save fold beside it.
  * @property {LiveReport} report
- * @property {{ name: string, warning?: string }} [autosaved]
+ * @property {{ name: string }} [autosaved]
  */
 
 /** @type {string | number | undefined} */

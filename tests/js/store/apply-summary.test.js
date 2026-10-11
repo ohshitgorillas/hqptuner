@@ -270,24 +270,37 @@ test("test_the_save_errors_own_text_reaches_the_user", async () => {
   assert.ok(String(verdict(lastApply).text).includes("disk"));
 });
 
-// A WARNED save is a save: only hqplayerd's own mirror of the preset is behind,
-// so the caveat rides a success rather than turning it into a failure. Reporting
-// it as failed is what sent a user hunting for a preset already on disk.
+// A save into a station tells the user which station now holds the set. Nothing
+// about hqplayerd's own profile list rides along: the station on disk is the
+// whole story. The station name and the warning string are the fixture's own.
 
-test("test_a_warned_save_is_reported_as_warned", async () => {
+const SAVED_STATION = "Attic listening chair";
+const PROFILE_LIST_WARNING = "fixture: hqplayerd profile list behind";
+
+/**
+ * The summary text a save into `SAVED_STATION` left behind, the save carrying
+ * `extra` beside its name.
+ *
+ * @param {Record<string, unknown>} extra
+ * @returns {Promise<string>}
+ */
+async function savedText(extra) {
   await trees();
   await discardAll();
-  route({ saved: { name: "P", warning: "list not updated" } });
+  route({ saved: { name: SAVED_STATION, ...extra } });
   await applyAll();
-  assert.equal(verdict(lastApply).save, "warned");
+  return String(verdict(lastApply).text);
+}
+
+test("test_a_save_summary_names_the_station_it_saved_to", async () => {
+  const text = await savedText({});
+  assert.ok(text.includes(SAVED_STATION), text);
 });
 
-test("test_a_warned_save_is_still_ok", async () => {
-  await trees();
-  await discardAll();
-  route({ saved: { name: "P", warning: "list not updated" } });
-  await applyAll();
-  assert.equal(verdict(lastApply).ok, true);
+test("test_a_save_summary_appends_no_caveat_about_hqplayerds_profile_list", async () => {
+  const plain = await savedText({});
+  const warned = await savedText({ warning: PROFILE_LIST_WARNING });
+  assert.equal(warned, plain);
 });
 
 // --- summarize: transport failure -------------------------------------------
