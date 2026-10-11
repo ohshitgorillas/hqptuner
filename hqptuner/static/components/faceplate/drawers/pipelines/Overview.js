@@ -1,16 +1,19 @@
 // The DSP pipelines drawer's Overview tab: the pin grid (inputs down the side, outputs across the top, one pin per
-// crosspoint, so a column is one output bus), the totals beside it, Import EQ, Upload convolution filters and the
-// manual's paragraphs. A lit pin engraves its gain (or `×n` when it holds several), `ø` marks a negative Lin gain, a
-// crossfeed block's pins are dashed and named, and a fill along a pin's foot is its share of all pipelines. Tapping a
-// lit pin shows that output's tab on that input; tapping an empty one stages a new pipeline there and shows it. The
-// whole tab grays, its reason legible, while the matrix engine is bypassed. The decisions are
-// store/faceplate/drawers/pipelines.js's and model/shell/pipelines.js's.
+// crosspoint, so a column is one output bus), the totals beside it, Import EQ, the whole set's EQ export, Upload
+// convolution filters and the manual's paragraphs. A lit pin engraves its gain (or `×n` when it holds several), `ø`
+// marks a negative Lin gain, a crossfeed block's pins are dashed and named, and a fill along a pin's foot is its share
+// of all pipelines. Tapping a lit pin shows that output's tab on that input; tapping an empty one stages a new
+// pipeline there and shows it. The whole tab grays, its reason legible, while the matrix engine is bypassed. The
+// decisions are store/faceplate/drawers/pipelines.js's and model/shell/pipelines.js's.
 
 import { html } from "../../../../lib/dom.js";
+import { downloadText } from "../../../../lib/download.js";
 import { classNames } from "../../../../model/shell/format.js";
 import { MAXP, range } from "../../../../model/shell/pipelines.js";
 import { showTab } from "../../../../store/faceplate/drawer.js";
 import { addPipeline, chName, chShort, pipelinesView } from "../../../../store/faceplate/drawers/pipelines.js";
+import { effectivePipelines } from "../../../../store/resolve.js";
+import { pipelinesToRewText } from "../../../../vendor/eqlab/core/eqexport.js";
 import { PMAN } from "./copy.js";
 import { focus, note, uploaded } from "./state.js";
 import { uploadFilter } from "./upload.js";
@@ -114,6 +117,30 @@ async function onFiles(files) {
 }
 
 /**
+ * Export every pipeline's parametric EQ as one REW / Equalizer APO file.
+ *
+ * @param {{ off: boolean }} props
+ */
+function ExportEq({ off }) {
+  const eq = pipelinesToRewText(effectivePipelines.value);
+  const k = eq.skipped.length;
+  const title = eq.count
+    ? `Export all ${eq.count} pipeline(s)' EQ as REW / Equalizer APO text${k ? ` (${k} stage(s) not representable, omitted)` : ""}`
+    : "No parametric EQ in the pipeline set to export";
+  return html`
+    <button
+      type="button"
+      class="btn xs"
+      title=${title}
+      disabled=${off || !eq.count}
+      onClick=${() => downloadText("hqptuner-matrix-eq.txt", eq.text)}
+    >
+      Export AutoEq / REW .txt…
+    </button>
+  `;
+}
+
+/**
  * The Overview tab.
  *
  * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn
@@ -137,6 +164,7 @@ export function PipelinesOverview({ schema, here }) {
         ${off ? html`<span class="gr">${withXref(v.gray, here)}</span>` : null}
         <div class=${classNames("oacts", dim)}>
           <${ImportEq} off=${off} />
+          <${ExportEq} off=${off} />
           <${FileKey} label="Upload convolution filters" accept=".wav" multiple=${true} off=${off} onFiles=${onFiles} />
         </div>
         <div class=${classNames("ofiles", dim)}>
