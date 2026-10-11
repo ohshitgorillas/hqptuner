@@ -69,8 +69,6 @@ import { applyPreset, markFor } from "../../easy/apply.js";
  * @property {PresetRow[]} subs  a flagship's nested rows, empty on every other row
  */
 
-const LANE = "live";
-
 /** The flagship whose nested rows show, or "" for none. */
 const openFlagship = signal("");
 
@@ -244,7 +242,7 @@ function rowOf(preset, nest, pass) {
  * @returns {PresetRow[]}
  */
 export function presetRows() {
-  const lane = easyLane(LANE);
+  const lane = easyLane();
   /** @type {Pass} */
   const pass = { mode: lane.mode, running: matchPreset(lane.values, lane.mode) };
   const offered = presetsFor().filter((p) => presetOffered(p, pass.mode));
@@ -272,5 +270,5 @@ export function presetRows() {
  */
 export async function pickPreset(id, knobs) {
   const preset = presetsFor().find((p) => p.id === id);
-  if (preset) await applyPreset(LANE, preset, knobs);
+  if (preset) await applyPreset(preset, knobs);
 }

@@ -3,7 +3,7 @@
 // store rather than in either one's component.
 //
 // Clicking is an ordinary field edit, four of them at most and only for the fields whose value actually changes,
-// through whichever lane the page is on (store/easy/easylane.js). No idle gate: a preset is honored whether or not the
+// through the live lane (store/easy/easylane.js). No idle gate: a preset is honored whether or not the
 // daemon is playing, which is the binding product rule.
 import { rememberKnobs } from "./easyview.js";
 import { writeSet } from "./easy.js";
@@ -14,18 +14,16 @@ import { filterFacets } from "../narrow/facets.js";
  * @typedef {import("./easy.js").Preset} Preset
  */
 
-// The fields go one at a time because both lanes write one at a time: staging
-// returns the whole pending set on each POST, and a live write re-mirrors the
-// engine behind it. Sequential is the honest shape of both.
+// The fields go one at a time because a live write re-mirrors the engine
+// behind it. Sequential is the honest shape.
 /**
- * Write one preset's filters at the given knob positions, through this page's lane.
+ * Write one preset's filters at the given knob positions.
  *
- * @param {string} lane
  * @param {Preset} preset
  * @param {Record<string, string>} knobs
  * @returns {Promise<void>}
  */
-export async function applyPreset(lane, preset, knobs) {
+export async function applyPreset(preset, knobs) {
   // Recorded before the write, not after: the positions are what the user asked
   // for, and a write that resolves no filter name still leaves the tile showing
   // where they put its knobs. Unconditional, so a press that writes nothing
@@ -35,7 +33,7 @@ export async function applyPreset(lane, preset, knobs) {
     Object.entries(knobs).filter(([id]) => !preset.knobs.some((k) => k.card && k.id === id)),
   );
   rememberKnobs(preset.id, own);
-  const l = easyLane(lane);
+  const l = easyLane();
   for (const [key, name] of Object.entries(writeSet(preset.id, l.mode, knobs))) {
     // A field already holding this filter is skipped. On the live lane every write is a
     // POST the engine acts on, so writing a value a field already holds reloads
