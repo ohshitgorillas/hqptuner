@@ -1,7 +1,6 @@
 // The Settings categories in rail order: each category's drawer schema, the components its blocks mount, and the
 // readouts its rail entry prints.
 
-import { registerDrawer } from "../../../store/faceplate/drawer.js";
 import {
   BEHAVIOR_DRAWER,
   BEHAVIOR_READOUTS,
@@ -46,5 +45,3 @@ export const CATEGORIES = [
     live: SIGPATH_LIVE,
   },
 ];
-
-for (const c of CATEGORIES) registerDrawer(c.schema);

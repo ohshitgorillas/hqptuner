@@ -7,7 +7,8 @@
 // A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
 // the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one makes its tab
 // a restart tab. Members of one `family` share their staged state: any member's staged edit lights every member's
-// apply group. A drawer with its own form (`own`) stands that form in for the staged set: its staged state dots every
+// apply group. A family is the catalog keys its members hold (`FAMILY_KEYS`), so the store knows it with no drawer
+// loaded. A drawer with its own form (`own`) stands that form in for the staged set: its staged state dots every
 // tab, its apply group always shows, and Apply and Discard run the form.
 //
 // The apply mode is a browser-held preference, one choice for every drawer: `apply` applies the staged set, `save`
@@ -112,20 +113,39 @@ export const applyDrawer = async (drawer) => (drawer.own ? drawer.own.apply() : 
  */
 export const discardDrawer = async (drawer) => (drawer.own ? drawer.own.discard() : discardAll());
 
-/** Registered drawers, by family, then by id. @type {Map<string, Map<string, DrawerSchema>>} */
-const families = new Map();
-
 /**
- * Register a drawer so the other members of its family share its staged state. Registering an id again replaces it.
+ * The catalog keys each family's members hold, by family: a staged edit to any of them lights the apply group of every
+ * drawer declaring that family.
  *
- * @param {DrawerSchema} drawer
+ * @type {Readonly<Record<string, readonly string[]>>}
  */
-export function registerDrawer(drawer) {
-  if (!drawer.family) return;
-  const members = families.get(drawer.family) ?? new Map();
-  members.set(drawer.id, drawer);
-  families.set(drawer.family, members);
-}
+export const FAMILY_KEYS = {
+  matrix: [
+    "matrix_enabled",
+    "matrix_expand_hf",
+    "matrix_engine",
+    "matrix_iir2fir",
+    "matrix_pipelines",
+    "pipelines",
+    "crossfeed_enabled",
+    "crossfeed_preset",
+    "crossfeed_frequency",
+    "crossfeed_level",
+    "loudness_enabled",
+    "loudness_low_type",
+    "loudness_low_freq",
+    "loudness_low_steep",
+    "loudness_low_level",
+    "loudness_high_type",
+    "loudness_high_freq",
+    "loudness_high_steep",
+    "loudness_high_level",
+    "loudness_range_low",
+    "loudness_range_high",
+    "dac_correction_enabled",
+    "dac_correction_profile",
+  ],
+};
 
 /**
  * Whether a catalog key stages for a restart: http-lane and not routed live.
@@ -159,15 +179,14 @@ const holdsStaged = (drawer) =>
   drawer.own ? drawer.own.staged() : drawer.tabs.some((t) => tabKeys(t).some((k) => isDirty(k)));
 
 /**
- * The other registered members of a drawer's family, as the staged test reads them.
+ * A drawer's family as the staged test reads it: none, or one holding a staged edit while any of its keys is staged.
  *
  * @param {DrawerSchema} drawer
  * @returns {{ hasDirty: () => boolean }[]}
  */
-function siblings(drawer) {
-  const members = drawer.family ? families.get(drawer.family) : undefined;
-  if (!members) return [];
-  return [...members.values()].filter((m) => m.id !== drawer.id).map((m) => ({ hasDirty: () => holdsStaged(m) }));
+function family(drawer) {
+  const keys = drawer.family ? FAMILY_KEYS[drawer.family] : undefined;
+  return keys ? [{ hasDirty: () => keys.some((k) => isDirty(k)) }] : [];
 }
 
 /**
@@ -180,7 +199,7 @@ function siblings(drawer) {
 export function drawerHead(drawer, tabId) {
   const dirty = dirtyTabs(drawer);
   const tab = drawer.tabs.find((t) => t.id === tabId) ?? drawer.tabs[0];
-  const staged = drawer.own ? drawer.own.staged() : isStaged(holdsStaged(drawer), siblings(drawer));
+  const staged = drawer.own ? drawer.own.staged() : isStaged(holdsStaged(drawer), family(drawer));
   const restart = !!drawer.own || shownKeys(drawer, tab).some(restartLane);
   return {
     dirty,
