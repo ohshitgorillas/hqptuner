@@ -1,11 +1,13 @@
 // Three-tree resolution: given a schema key, what does a control render, what is
 // its baseline, and is it dirty? Reads the source signals (store/signals.js) and
-// nothing else — no `api` import, no writes. The write side is store/actions.js.
+// the speakers form with its drafted switch (store/matrix/speakers.js), and
+// nothing else — no writes. The write side is store/actions.js.
 
 import { computed } from "@preact/signals";
 import { schema } from "./schema.js";
 import { truthy } from "../lib/coerce.js";
 import { config, engineState, matrixConfig, staged, liveOverride, previewConfig } from "./signals.js";
+import { daemonGate, gateDraft } from "./matrix/speakers.js";
 
 // A form's fields keyed by name — the baseline/constraint source a control
 // reads from. Empty until that form has been polled at least once.
@@ -205,6 +207,7 @@ function formValue(entry) {
  */
 function baseline(entry) {
   if (entry.lane === "live") return (engineState.value || {})[stateKey(entry)];
+  if (entry.lane === "speakers") return daemonGate();
   // Not a form field: with no file truth (read-only mode) formValue finds nothing
   // and it reads permanently dirty against undefined. pipelineBaseline already
   // picks file-truth-or-form-rows; re-canonicalized to keep the compare a string.
@@ -213,11 +216,14 @@ function baseline(entry) {
   return grounded ? grounded.value : formValue(entry);
 }
 
+// The speakers lane stages nothing in the config staging buffer: its edit is the
+// switch drafted over the daemon's /speakers form, which the form's own apply sends.
 /**
  * @param {SchemaField} entry
- * @returns {string | undefined}
+ * @returns {string | boolean | undefined}
  */
 function stagedValue(entry) {
+  if (entry.lane === "speakers") return gateDraft.value ?? undefined;
   const st = staged.value;
   if (entry.lane === "live") {
     const bucket = st.live[entry.liveKey || ""];
@@ -241,6 +247,7 @@ export function runningValue(key) {
   const e = schema[key];
   if (!e) return undefined;
   if (e.lane === "live") return (engineState.value || {})[stateKey(e)];
+  if (e.lane === "speakers") return daemonGate();
   if (e.fileTruth || e.appliesLive) {
     const fv = fileConfig.value[fieldKey(e)];
     if (fv !== undefined) return fv;
@@ -271,6 +278,8 @@ export function effective(key) {
 // stops reading as dirty (else it stays highlighted until Discard). That is every
 // checkbox plus every `bool` entry — the enable gates render as two-button
 // segments but their value is a truth, not a token (see Field.js controlValue).
+// A speakers-lane draft is never dirty here: it rides the speakers form's own
+// apply, so it stays out of the pending-changes count and the stage drop list.
 /**
  * Whether a key's staged value differs from its baseline, compared in the
  * control's own domain.
@@ -280,7 +289,7 @@ export function effective(key) {
  */
 export function isDirty(key) {
   const e = schema[key];
-  if (!e) return false;
+  if (!e || e.lane === "speakers") return false;
   const sv = stagedValue(e);
   if (sv === undefined) return false;
   const base = baseline(e);
@@ -303,7 +312,7 @@ export function cleanStagedKeys() {
   const st = staged.value;
   const keys = Object.keys(schema);
   const httpKeys = (/** @type {string} */ field) =>
-    keys.filter((k) => schema[k].lane !== "live" && schema[k].field === field);
+    keys.filter((k) => schema[k].lane === "http" && schema[k].field === field);
   const liveKeys = (/** @type {string} */ liveKey, /** @type {string} */ arg) =>
     keys.filter(
       (k) => schema[k].lane === "live" && schema[k].liveKey === liveKey && (schema[k].arg || "value") === arg,

@@ -16,6 +16,25 @@ const speakersStale = signal(false);
 export const speakersError = signal("");
 export const speakersBusy = signal(false);
 
+/** The speaker-processing switch as drafted over the daemon's; null follows the daemon's. */
+export const gateDraft = signal(/** @type {boolean | null} */ (null));
+
+/** The daemon's speaker-processing switch, off before the form's first read. */
+export const daemonGate = () => !!(/** @type {{ enabled?: boolean } | null} */ (speakers.value)?.enabled);
+
+/**
+ * Draft the speaker-processing switch: the speakers form's own write, which stages nothing in the config staging
+ * buffer. Back at the daemon's, it is no edit.
+ *
+ * @param {boolean} on
+ */
+export function setSpeakersGate(on) {
+  gateDraft.value = on === daemonGate() ? null : on;
+}
+
+/** Whether the drafted switch differs from the daemon's, which a later read can have moved onto it. */
+export const gateDiffers = () => gateDraft.value !== null && gateDraft.value !== daemonGate();
+
 /**
  * @typedef {{ level?: string, distance?: string }} ChannelEdit
  *   One channel's pending edit. Both fields are strings — the card writes what
