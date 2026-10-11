@@ -342,6 +342,9 @@
 
   /* Spectrogram ramp, floor to full scale: glass → indigo → magenta-red → orange-red → orange → pale yellow, after matplotlib's Inferno. OKLab lightness rises at every stop, so loudness still reads as brightness. */
   --spec-0:#08090b; --spec-1:#420a68; --spec-2:#932667; --spec-3:#dd513a; --spec-4:#fca50a; --spec-5:#fcffa4;
+
+  /* Aurora spectrum ramp, floor to full scale: dark teal → deep green → aurora green → pale green → violet → pink-red, the northern lights' own colours, whatever the accent. */
+  --aurora-0:#0a2a2e; --aurora-1:#0e6b45; --aurora-2:#2bdc7a; --aurora-3:#8ef0b0; --aurora-4:#7a5cff; --aurora-5:#e04f8a;
 }
 
 /* The dyslexic switch swaps the body face only; engraved legends and readouts keep theirs. */

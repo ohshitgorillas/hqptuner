@@ -3,10 +3,11 @@
 The unit is `NORTHERN_LIGHTS_FRAG` with `PASS_THROUGH_VERT`, both exported by
 `hqptuner/static/vendor/cava/northern_lights.js` and loaded from the running
 stack's static server. Each test compiles them the way the page's aurora painter
-does (`#version 300 es`, and `#define BANDS <n>` ahead of the fragment shader),
-draws one full-canvas quad over a transparent clear with the uniforms `bars`,
-`bars_count` and `fg_color` set, and reads one pixel back. The shader's output
-alpha is its brightest colour channel, so the alpha is the brightness.
+does (`#version 300 es`, and `#define BANDS <n>` and `#define STOPS <n>` ahead of
+the fragment shader), draws one full-canvas quad over a transparent clear with
+the uniforms `bars`, `bars_count` and `ramp` set, and reads pixels back. The
+shader writes its colour premultiplied and its alpha is its brightest channel,
+so the alpha is the brightness and the colour channels are the hue.
 
 Policy notes:
 
@@ -31,35 +32,56 @@ BANDS = 8
 #: vertical middle on the centre of a pixel: 4 * 161 / 8 = 80.5 = 161 / 2.
 SIZE = 161
 
-#: The pixel column and row whose centre lies on the boundary and at half height.
+#: The pixel row whose centre lies half way up the plot.
 MIDDLE_ROW = 80
 
-#: The pixel column at the centre of band `LEFT_BAND`: 3.5 * 161 / 8 = 70.4.
-BAND_CENTRE_COLUMN = 70
+#: The pixel column whose centre lies on the boundary between bands 3 and 4.
+EDGE_COLUMN = 80
 
-#: A colour dim enough that no channel clamps at the levels below.
-DIM = (0.2, 0.2, 0.2)
+#: The pixel column at the centre of band 3: 3.5 * 161 / 8 = 70.4.
+CENTRE_COLUMN = 70
 
-#: Full colour, for the cases that read whether a pixel is lit or saturated.
-BRIGHT = (1.0, 1.0, 1.0)
+#: The pixel column at the centre of band 1, inside the left half: 1.5 * 161 / 8 = 30.2.
+LEFT_HALF_COLUMN = 30
 
-#: The two levels whose brightnesses are compared; a linear response gives 4.
-HIGH_LEVEL = 0.4
-LOW_LEVEL = 0.1
+#: The pixel column at the centre of band 6, inside the right half: 6.5 * 161 / 8 = 130.8.
+RIGHT_HALF_COLUMN = 130
 
-#: The linear ratio less what 8-bit rounding of both readings can take off it
-#: when the dimmer one reads 6 or more: (4 * 6 - 0.5) / (6 + 0.5) = 3.6.
-CONCAVE_CEILING = 3.6
+#: A ramp whose stops are all white, so brightness alone varies with level.
+WHITE_RAMP = [1.0, 1.0, 1.0] * 3
 
-#: Two levels below full scale, both high enough that a clamping response
-#: saturates on them at full colour.
-UPPER_LEVEL = 0.9
-LOWER_LEVEL = 0.6
+#: A ramp from red at the floor through green to blue at full scale, so how far
+#: up the ramp a pixel sits reads as how much of it is blue.
+RGB_RAMP = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
 
-#: Compiles the pair, draws once and answers the alpha byte at each column, on one row.
+#: Components per ramp stop.
+RGB = 3
+
+#: The channel of `RGB_RAMP`'s top stop.
+BLUE = 2
+
+#: A level two percent of full scale: quiet.
+QUIET_LEVEL = 0.02
+
+#: A level five percent of full scale: faint, above the quiet floor.
+FAINT_LEVEL = 0.05
+
+#: A level forty percent of full scale.
+MODERATE_LEVEL = 0.4
+
+#: A level ninety percent of full scale: loud.
+LOUD_LEVEL = 0.9
+
+#: The darkest alpha byte a full glow at the band centre reads: the centre pixel
+#: sits 0.06 px off the band's middle, which costs it under one percent, and
+#: 8-bit rounding costs it under one more byte.
+FULL_GLOW_FLOOR = 250
+
+#: Compiles the pair, draws once and answers the RGBA bytes at each column, on one row.
 DRAW_JS = """
-async ({ url, bands, size, levels, colour, columns, row }) => {
+async ({ url, bands, size, levels, ramp, columns, row }) => {
   const { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } = await import(url);
+  const stops = ramp.length / 3;
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
@@ -76,7 +98,10 @@ async ({ url, bands, size, levels, colour, columns, row }) => {
   gl.attachShader(program, compile(gl.VERTEX_SHADER, "#version 300 es\\n" + PASS_THROUGH_VERT));
   gl.attachShader(
     program,
-    compile(gl.FRAGMENT_SHADER, "#version 300 es\\n#define BANDS " + bands + "\\n" + NORTHERN_LIGHTS_FRAG),
+    compile(
+      gl.FRAGMENT_SHADER,
+      "#version 300 es\\n#define BANDS " + bands + "\\n#define STOPS " + stops + "\\n" + NORTHERN_LIGHTS_FRAG,
+    ),
   );
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
@@ -94,7 +119,7 @@ async ({ url, bands, size, levels, colour, columns, row }) => {
   }
   gl.uniform1fv(gl.getUniformLocation(program, "bars"), new Float32Array(levels));
   gl.uniform1i(gl.getUniformLocation(program, "bars_count"), levels.length);
-  gl.uniform3f(gl.getUniformLocation(program, "fg_color"), colour[0], colour[1], colour[2]);
+  gl.uniform3fv(gl.getUniformLocation(program, "ramp"), new Float32Array(ramp));
   gl.viewport(0, 0, size, size);
   gl.clearColor(0, 0, 0, 0);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -102,20 +127,16 @@ async ({ url, bands, size, levels, colour, columns, row }) => {
   return columns.map((column) => {
     const pixel = new Uint8Array(4);
     gl.readPixels(column, row, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    return pixel[3];
+    return Array.from(pixel);
   });
 }
 """
 
 
-def _alphas(
-    page: Page,
-    stack: stack_support.Stack,
-    levels: list[float],
-    colour: tuple[float, float, float],
-    columns: list[int],
-) -> list[int]:
-    """The alpha bytes one draw writes at each of `columns`, half way up, for one set of band levels."""
+def _pixels(
+    page: Page, stack: stack_support.Stack, levels: list[float], ramp: list[float], columns: list[int]
+) -> list[list[int]]:
+    """The RGBA bytes one draw writes at each of `columns`, half way up, with the bands at `levels`."""
     url = f"{stack.base_url}{MODULE_PATH}"
     page.goto(url)
     args: dict[str, Any] = {
@@ -123,29 +144,56 @@ def _alphas(
         "bands": BANDS,
         "size": SIZE,
         "levels": levels,
-        "colour": list(colour),
+        "ramp": ramp,
         "columns": columns,
         "row": MIDDLE_ROW,
     }
-    return [int(alpha) for alpha in page.evaluate(DRAW_JS, args)]
+    return [[int(byte) for byte in pixel] for pixel in page.evaluate(DRAW_JS, args)]
 
 
-def _alpha(
-    page: Page, stack: stack_support.Stack, levels: list[float], colour: tuple[float, float, float], column: int
-) -> int:
-    """The alpha byte the shader writes at `column`, half way up, for one set of band levels."""
-    return _alphas(page, stack, levels, colour, [column])[0]
+def _alphas(page: Page, stack: stack_support.Stack, levels: list[float], columns: list[int]) -> list[int]:
+    """The brightness bytes one draw writes at each of `columns`, half way up, with a white ramp."""
+    return [pixel[RGB] for pixel in _pixels(page, stack, levels, WHITE_RAMP, columns)]
 
 
-def test_brightness_rises_more_slowly_than_level(page: Page, stack: stack_support.Stack) -> None:
-    """Brightness follows a concave power curve of level: quadrupling the level less than quadruples it."""
-    high = _alpha(page, stack, [HIGH_LEVEL] * BANDS, DIM, BAND_CENTRE_COLUMN)
-    low = _alpha(page, stack, [LOW_LEVEL] * BANDS, DIM, BAND_CENTRE_COLUMN)
-    assert high / low < CONCAVE_CEILING
+def _alpha(page: Page, stack: stack_support.Stack, level: float, column: int) -> int:
+    """The brightness byte the shader writes at `column`, half way up, with a white ramp and every band at `level`."""
+    return _alphas(page, stack, [level] * BANDS, [column])[0]
 
 
-def test_brightness_keeps_rising_below_full_scale(page: Page, stack: stack_support.Stack) -> None:
-    """Below full scale a louder level is brighter at full colour, so the response has not clamped."""
-    upper = _alpha(page, stack, [UPPER_LEVEL] * BANDS, BRIGHT, BAND_CENTRE_COLUMN)
-    lower = _alpha(page, stack, [LOWER_LEVEL] * BANDS, BRIGHT, BAND_CENTRE_COLUMN)
-    assert upper > lower
+def _top_share(page: Page, stack: stack_support.Stack, level: float) -> float:
+    """The share of the band centre's colour that is the RGB ramp's top stop, with every band at `level`."""
+    colour = _pixels(page, stack, [level] * BANDS, RGB_RAMP, [CENTRE_COLUMN])[0][:RGB]
+    return colour[BLUE] / sum(colour)
+
+
+def test_quiet_column_stays_dark_where_a_loud_one_lights(page: Page, stack: stack_support.Stack) -> None:
+    """In one plot with its left half quiet and its right half loud, only the loud half lights."""
+    levels = [QUIET_LEVEL] * (BANDS // 2) + [LOUD_LEVEL] * (BANDS // 2)
+    alphas = _alphas(page, stack, levels, [LEFT_HALF_COLUMN, RIGHT_HALF_COLUMN])
+    assert [alpha > 0 for alpha in alphas] == [False, True]
+
+
+def test_loud_column_glows_at_full_brightness(page: Page, stack: stack_support.Stack) -> None:
+    """A loud column glows at full brightness at its centre, half way up."""
+    assert _alpha(page, stack, LOUD_LEVEL, CENTRE_COLUMN) >= FULL_GLOW_FLOOR
+
+
+def test_faint_column_glows_dimmer_than_loud_one(page: Page, stack: stack_support.Stack) -> None:
+    """A column just above the quiet floor fades in rather than jumping straight to full glow."""
+    faint = _alpha(page, stack, FAINT_LEVEL, CENTRE_COLUMN)
+    loud = _alpha(page, stack, LOUD_LEVEL, CENTRE_COLUMN)
+    assert faint < loud
+
+
+def test_louder_column_takes_colour_further_up_the_ramp(page: Page, stack: stack_support.Stack) -> None:
+    """The colour is sampled from the ramp by level, so a louder column sits nearer the ramp's top stop."""
+    louder = _top_share(page, stack, LOUD_LEVEL)
+    quieter = _top_share(page, stack, MODERATE_LEVEL)
+    assert louder > quieter
+
+
+def test_column_edge_is_dimmer_than_its_centre(page: Page, stack: stack_support.Stack) -> None:
+    """Across a column, brightness falls from its centre towards the edge it shares with the next band."""
+    edge, centre = _alphas(page, stack, [LOUD_LEVEL] * BANDS, [EDGE_COLUMN, CENTRE_COLUMN])
+    assert edge < centre

@@ -12,11 +12,13 @@ import {
   bandsOf,
   fractionsOf,
   haloStrength,
+  ridgeShade,
   stepCaps,
   stepHalo,
   stepRidges,
 } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
+import { rgb } from "../tokencolours.js";
 
 /** @typedef {import("../../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../../model/gauges/spectrumfx.js").CapState} CapState */
@@ -30,7 +32,8 @@ import { STEP_MS } from "../../../store/meter/loop.js";
  * @property {string} lo     bar gradient at the floor
  * @property {string} mid    bar gradient half way up
  * @property {string} hi     bar gradient at full scale
- * @property {string} meter  peak caps, ridge lines, and the fade trace and its halo
+ * @property {string} meter  peak caps, the front ridge line, and the fade trace and its halo
+ * @property {string} [dim]  the back ridge line, the rows between stepping from `meter` to it; `meter` when not given
  * @property {string} glass  the fill under each ridge, hiding the rows behind it
  */
 
@@ -60,8 +63,8 @@ import { STEP_MS } from "../../../store/meter/loop.js";
 const DT = STEP_MS / 1000;
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
 const CAP_PX = 2; // a peak cap's height, canvas pixels
-const RIDGE_SPAN = 0.5; // share of the plot height the ridge rows' baselines spread over, up from the floor
-const RIDGE_AMP = 0.5; // a full-scale ridge's height, share of the plot height
+const RIDGE_SPAN = 0.65; // share of the plot height the ridge rows' baselines spread over, up from the floor
+const RIDGE_AMP = 0.35; // a full-scale ridge's height, share of the plot height
 const RIDGE_LINE = 1.5; // a ridge's stroke width, canvas pixels
 const TRACE_LINE = 1.5; // the fade trace's stroke width, CSS pixels, as the SVG trace's
 const HALO_LINE = 6; // the halo's stroke width before its blur, CSS pixels
@@ -123,7 +126,24 @@ function bars(f) {
 }
 
 /**
- * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide.
+ * The stroke of ridge row `k`: `colours.meter` moved toward `colours.dim` by the row's ridgeShade. Where either is not
+ * a hex colour, the row strokes in `colours.meter`.
+ *
+ * @param {FxColours} colours
+ * @param {number} k
+ * @returns {string}
+ */
+function ridgeInk(colours, k) {
+  const front = rgb(colours.meter, []);
+  if (front.length !== 3) return colours.meter;
+  const back = rgb(colours.dim ?? "", front);
+  const s = ridgeShade(k, RIDGE_ROWS);
+  return `rgb(${front.map((c, i) => Math.round(c + (back[i] - c) * s)).join(", ")})`;
+}
+
+/**
+ * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide, its
+ * stroke dimmer the older it is.
  *
  * @param {Frame} f
  */
@@ -135,11 +155,11 @@ function ridges(f) {
   const step = (h * RIDGE_SPAN) / (RIDGE_ROWS - 1);
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = colours.glass;
-  ctx.strokeStyle = colours.meter;
   ctx.lineWidth = RIDGE_LINE;
   for (let k = rows.length - 1; k >= 0; k--) {
     const row = rows[k];
     const base = h - RIDGE_LINE - k * step;
+    ctx.strokeStyle = ridgeInk(colours, k);
     ctx.beginPath();
     ctx.moveTo(0, base);
     for (let c = 0; c < row.length; c++) ctx.lineTo(((c + 0.5) / row.length) * w, base - row[c] * h * RIDGE_AMP);

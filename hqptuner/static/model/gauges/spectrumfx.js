@@ -1,9 +1,9 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
 // fractions and bands; bars carry falling peak caps, gravity bars fall under acceleration, aurora bands fall under
-// their own, ridge rows stack on a cadence, the Fade halo fades where the trace has been and says how much of the
-// canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot,
-// 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone, so a painter draws
-// what it gets back and a test drives it from a table.
+// their own, ridge rows stack on a cadence and dim toward the back, the Fade halo fades where the trace has been and
+// says how much of the canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a
+// fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs
+// alone, so a painter draws what it gets back and a test drives it from a table.
 
 import { fraction } from "./meter.js";
 
@@ -12,8 +12,8 @@ export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
 const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
 const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
-export const RIDGE_ROWS = 24; // ridge rows kept, newest first
-export const RIDGE_EVERY = 4; // steps between ridge rows
+export const RIDGE_ROWS = 12; // ridge rows kept, newest first
+export const RIDGE_EVERY = 6; // steps between ridge rows
 const HALO_START = 0.5; // the halo's glow where the trace has just been, share of the trace's strength
 const HALO_TAU_S = 0.2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
 
@@ -148,6 +148,18 @@ export function stepRidges(prev, row) {
   const tick = prev.tick + 1;
   if (prev.tick % RIDGE_EVERY !== 0) return { rows: prev.rows, tick };
   return { rows: [Float32Array.from(row), ...prev.rows].slice(0, RIDGE_ROWS), tick };
+}
+
+/**
+ * How far ridge row `k` of `n`, newest first, has dimmed from the front row's stroke toward the back row's: none at the
+ * front, all of it at row `n - 1`, in even steps between. A stack of one row has no back.
+ *
+ * @param {number} k
+ * @param {number} n
+ * @returns {number}  0 to 1
+ */
+export function ridgeShade(k, n) {
+  return n > 1 ? Math.min(1, Math.max(0, k / (n - 1))) : 0;
 }
 
 /**
