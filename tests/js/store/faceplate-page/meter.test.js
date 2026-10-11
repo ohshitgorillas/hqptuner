@@ -144,3 +144,8 @@ test("test_the_section_is_slim_on_a_10_inch_plate_and_full_on_a_13_inch_plate", 
   viewport.value = FULL;
   assert.deepEqual([ten, pageMeter().slim], [true, false]);
 });
+
+test("test_a_window_a_little_shorter_than_expanded_takes_the_full_section", () => {
+  viewport.value = { w: 1366, h: 1004 };
+  assert.equal(pageMeter().slim, false);
+});

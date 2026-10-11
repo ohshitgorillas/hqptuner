@@ -8,17 +8,22 @@
 // catalog and the local module, so the suite does not presume which one an id belongs in.
 //
 // Every string asserted is a control id the drawers and their rendered suites already name (`data-field`) or a
-// property name of a drawer item.
+// property name of a drawer item. The Visual drawer's Display row is found by the four display-format ids it offers in
+// the rendered drawer (tests/js/support/fields-offering.js), not by an id the suite presumes.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/drawer-homes-settings.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
 
 import { BEHAVIOR_DRAWER } from "../../../../hqptuner/static/components/faceplate/settings/engine-rows.js";
 import { HARDWARE_DRAWER } from "../../../../hqptuner/static/components/faceplate/settings/hardware.js";
 import { VISUAL_DRAWER } from "../../../../hqptuner/static/components/faceplate/settings/visual.js";
+import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { homeCount, ownDerivations } from "../../support/drawer-homes.js";
+import { fieldsOffering } from "../../support/fields-offering.js";
 
 /** Each control id with the Settings drawer that draws it. */
 const CONTROLS = [
@@ -46,3 +51,17 @@ for (const { id, drawer } of CONTROLS) {
     assert.deepEqual(await ownDerivations(drawer, id), []);
   });
 }
+
+const FORMATS = ["auto", "expanded", "normal", "compact"];
+
+/** The Visual drawer's Display row id, or a name no schema carries when the drawer draws none. */
+const displayRow = () =>
+  fieldsOffering(render(html`<${Drawer} schema=${VISUAL_DRAWER} />`), FORMATS)[0] ?? "(no display row)";
+
+test("test_the_display_row_control_is_declared_in_exactly_one_home", async () => {
+  assert.equal(await homeCount(displayRow()), 1);
+});
+
+test("test_the_display_row_drawer_item_derives_nothing_of_its_own", async () => {
+  assert.deepEqual(await ownDerivations(VISUAL_DRAWER, displayRow()), []);
+});

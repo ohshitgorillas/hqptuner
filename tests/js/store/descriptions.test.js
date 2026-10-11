@@ -24,6 +24,7 @@ import assert from "node:assert/strict";
 
 import { ok, bad } from "../support/wire/wire.js";
 import { settle } from "../support/wire/livepresetwire.js";
+import { fakeClock } from "../support/clock.js";
 import {
   descriptions,
   descriptionError,
@@ -167,6 +168,90 @@ test("test_a_second_flush_does_not_resend_what_the_first_already_saved", async (
   await flushDescriptions();
   await flushDescriptions();
   assert.equal(puts(w).length, 1);
+});
+
+// --- the send that goes out on its own ----------------------------------------------
+// Typing paces on the Clock handed to `queueDescription`, here a fake that moves
+// only on `advance`. The quiet window is the module's own choice, so no case
+// states it: `pacedClock` reads it off the delay of the timer the module last
+// armed, and every case is stated relative to it.
+
+/** @typedef {import("../../../hqptuner/static/lib/clock.js").Clock} Clock */
+
+/**
+ * A fake Clock that also reports the delay of the last timeout armed on it,
+ * which is the module's quiet window; 0 while nothing has been armed.
+ *
+ * @returns {{ clock: Clock, advance: (ms: number) => void, quiet: () => number }}
+ */
+function pacedClock() {
+  const { clock, advance } = fakeClock();
+  /** @type {number[]} */
+  const delays = [];
+  /** @type {Clock} */
+  const paced = {
+    ...clock,
+    setTimeout: (fn, ms) => {
+      delays.push(ms);
+      return clock.setTimeout(fn, ms);
+    },
+  };
+  return { clock: paced, advance, quiet: () => delays.at(-1) ?? 0 };
+}
+
+/**
+ * How many PUTs the wire holds once the clock has moved `ms` on and whatever
+ * send that fired has settled.
+ *
+ * @param {DescriptionWire} w
+ * @param {(ms: number) => void} advance
+ * @param {number} ms
+ * @returns {Promise<number>}
+ */
+async function putsAfter(w, advance, ms) {
+  advance(ms);
+  await settle();
+  return puts(w).length;
+}
+
+const DRAFT = "Wide stereo, gentle";
+const STUDY_TEXT = "near field";
+
+/** @param {{ name: string }} a @param {{ name: string }} b */
+const byName = (a, b) => a.name.localeCompare(b.name, "en");
+
+test("test_a_queued_description_goes_out_on_its_own_once_the_typist_has_been_quiet_for_the_window", async () => {
+  const w = await reset();
+  const { clock, advance, quiet } = pacedClock();
+  queueDescription(NAME, TEXT, clock);
+  const quietMs = quiet();
+  const counts = [await putsAfter(w, advance, quietMs - 1), await putsAfter(w, advance, 1)];
+  assert.deepEqual(counts, [0, 1]);
+});
+
+test("test_typing_again_inside_the_quiet_window_restarts_the_window", async () => {
+  const w = await reset();
+  const { clock, advance, quiet } = pacedClock();
+  queueDescription(NAME, DRAFT, clock);
+  const quietMs = quiet();
+  advance(quietMs - 1);
+  queueDescription(NAME, TEXT, clock);
+  const counts = [await putsAfter(w, advance, quietMs - 1), await putsAfter(w, advance, 1)];
+  assert.deepEqual(counts, [0, 1]);
+});
+
+test("test_one_burst_of_typing_sends_one_put_per_profile_carrying_its_newest_text", async () => {
+  const w = await reset();
+  const { clock, advance, quiet } = pacedClock();
+  queueDescription(NAME, DRAFT, clock);
+  queueDescription(OTHER, STUDY_TEXT, clock);
+  queueDescription(NAME, TEXT, clock);
+  advance(quiet());
+  await settle();
+  assert.deepEqual(puts(w).sort(byName), [
+    { name: NAME, text: TEXT },
+    { name: OTHER, text: STUDY_TEXT },
+  ]);
 });
 
 // --- what the save leaves on screen --------------------------------------------------

@@ -148,7 +148,7 @@ test("test_a_click_inside_the_open_popover_keeps_it_open", () => {
 
 test("test_the_plate_follows_the_window_to_a_larger_size", () => {
   viewport.value = { w: 1366, h: 1024 };
-  assert.equal(plate.value.id, "13");
+  assert.equal(plate.value.id, "expanded");
 });
 
 /**

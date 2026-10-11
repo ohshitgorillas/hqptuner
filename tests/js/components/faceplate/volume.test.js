@@ -27,8 +27,8 @@ import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { fakeClock } from "../../support/clock.js";
 
-/** @typedef {import("../../../../hqptuner/static/lib/clock.js").Clock} Clock */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 /**
@@ -55,44 +55,6 @@ function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness =
     ],
   };
   openPopover.value = null;
-}
-
-/** A clock that moves only on `advance`: each timer is a row with its deadline and, for an interval, its period. */
-function fakeClock() {
-  let now = 0;
-  let next = 0;
-  /** @type {Map<number, { fn: () => void, at: number, every: number }>} */
-  const rows = new Map();
-  const arm = (/** @type {() => void} */ fn, /** @type {number} */ ms, /** @type {number} */ every) => {
-    next += 1;
-    rows.set(next, { fn, at: now + ms, every });
-    return next;
-  };
-  const drop = (/** @type {unknown} */ handle) => void rows.delete(Number(handle));
-  /** @type {Clock} */
-  const clock = {
-    setTimeout: (fn, ms) => arm(fn, ms, 0),
-    clearTimeout: drop,
-    setInterval: (fn, ms) => arm(fn, ms, ms),
-    clearInterval: drop,
-    requestAnimationFrame: (fn) => arm(() => fn(now), 16, 0),
-    queueMicrotask: (fn) => void arm(fn, 0, 0),
-    now: () => now,
-  };
-  /** @param {number} ms */
-  const advance = (ms) => {
-    const end = now + ms;
-    const due = () => [...rows].filter(([, r]) => r.at <= end).sort(([, a], [, b]) => a.at - b.at)[0];
-    for (let hit = due(); hit; hit = due()) {
-      const [handle, row] = hit;
-      now = row.at;
-      if (row.every) row.at += row.every;
-      else rows.delete(handle);
-      row.fn();
-    }
-    now = end;
-  };
-  return { clock, advance };
 }
 
 /**

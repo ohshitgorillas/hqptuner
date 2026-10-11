@@ -1,10 +1,10 @@
-// Rendered suite for the entry, hqptuner/static/app.js: the plate it mounts carries the size the window holds
+// Rendered suite for the entry, hqptuner/static/app.js: the plate it mounts carries the format the window holds
 // and the scale that fits it. Under node there is no #app to mount into, so the entry only exports its root.
 //
 // Not reachable here: the window's resize listener and the document's Escape and outside-click listeners, which the
 // plate registers in an effect; server rendering runs no effects. A browser run closes that gap.
 //
-// Run: node --test tests/js/components/faceplate/plate.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/plate.test.js
 
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
@@ -26,12 +26,12 @@ function plateEl() {
   return found;
 }
 
-test("test_the_plate_carries_the_size_the_window_holds", () => {
+test("test_the_plate_carries_the_format_the_window_holds", () => {
   viewport.value = { w: 1200, h: 900 };
-  assert.equal(attr(plateEl(), "data-size"), "11");
+  assert.equal(attr(plateEl(), "data-size"), "normal");
 });
 
-test("test_a_window_half_the_smallest_size_scales_the_plate_by_half", () => {
-  viewport.value = { w: 540, h: 405 };
+test("test_a_window_half_the_compact_format_scales_the_plate_by_half", () => {
+  viewport.value = { w: 566.5, h: 372 };
   assert.match(String(attr(plateEl(), "style")), /scale\(0\.5\)/);
 });
