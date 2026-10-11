@@ -11,6 +11,10 @@
 import { autopilot, metering, setAutopilot } from "../actions.js";
 import { advisor } from "../signals.js";
 import {
+  BOTTOM_BARS,
+  DAC_CHIPS,
+  DAC_TYPES,
+  TOP_OF_PAGE,
   allowPinnedRates,
   apodLight,
   bottomBar,
@@ -31,6 +35,7 @@ import {
 import { applyDyslexic, dyslexic } from "../ui/theme.js";
 import { allStations, setAllStations } from "../faceplate/settings/hardware.js";
 import { fixedMode, pickFixedMode } from "../faceplate/drawers/volume.js";
+import { DISPLAY_FORMATS } from "../../model/shell/plate.js";
 import { describe } from "../prose.js";
 import { schema as catalog } from "../schema.js";
 import { ISO_LEVELS } from "./options.js";
@@ -63,6 +68,15 @@ const OFF_ON = [
   { value: "0", label: "Off" },
   { value: "1", label: "On" },
 ];
+
+/**
+ * A row's options from the values its preference accepts, in that order, each labelled from `labels`.
+ *
+ * @param {string[]} values
+ * @param {Record<string, string>} labels
+ * @returns {FieldOption[]}
+ */
+const labelled = (values, labels) => values.map((value) => ({ value, label: labels[value] }));
 
 /** @param {boolean} on */
 const bit = (on) => (on ? "1" : "0");
@@ -104,10 +118,7 @@ const DACTYPE = {
     "Also when a suitable noise-shaper, such as LNS15, NS9 or NS5 is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower distortion of especially low level signals and reduce zero-crossing distortions.",
     "R-2R collapses the Additive family in the dither list.",
   ],
-  options: [
-    { value: "other", label: "Other" },
-    { value: "r2r", label: "R-2R" },
-  ],
+  options: labelled(DAC_TYPES, { other: "Other", r2r: "R-2R" }),
   value: () => dacType.value,
   set: setDacType,
 };
@@ -120,10 +131,7 @@ const DACCHIP = {
     "For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
     "ESS Sabre collapses the seventh order variants in the modulator list.",
   ],
-  options: [
-    { value: "other", label: "Other" },
-    { value: "ess", label: "ESS Sabre" },
-  ],
+  options: labelled(DAC_CHIPS, { other: "Other", ess: "ESS Sabre" }),
   value: () => dacChip.value,
   set: setDacChip,
 };
@@ -193,12 +201,7 @@ const VFORMAT = {
   id: "vformat",
   label: "Display",
   man: [VISUAL_MAN.format],
-  options: [
-    { value: "auto", label: "Auto" },
-    { value: "expanded", label: "Expanded" },
-    { value: "normal", label: "Normal" },
-    { value: "compact", label: "Compact" },
-  ],
+  options: labelled(DISPLAY_FORMATS, { auto: "Auto", expanded: "Expanded", normal: "Normal", compact: "Compact" }),
   value: () => displayFormat.value,
   set: setDisplayFormat,
 };
@@ -244,11 +247,7 @@ const VFILL = {
   id: "vfill",
   label: "Top of page",
   man: [VISUAL_MAN.fill],
-  options: [
-    { value: "auto", label: "Auto" },
-    { value: "profile", label: "Matrix profile" },
-    { value: "spectrum", label: "Spectrum" },
-  ],
+  options: labelled(TOP_OF_PAGE, { auto: "Auto", profile: "Matrix profile", spectrum: "Spectrum" }),
   value: () => topOfPage.value,
   set: setTopOfPage,
 };
@@ -258,10 +257,7 @@ const VBOTTOM = {
   id: "vbottom",
   label: "Bottom bar",
   man: [VISUAL_MAN.bottom],
-  options: [
-    { value: "switcher", label: "Setting Switcher" },
-    { value: "none", label: "None" },
-  ],
+  options: labelled(BOTTOM_BARS, { switcher: "Setting Switcher", none: "None" }),
   value: () => bottomBar.value,
   set: setBottomBar,
 };
