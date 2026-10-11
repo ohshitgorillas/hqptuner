@@ -1,18 +1,17 @@
 // The Timing, UPnP and Behavior drawers' schemas and their Settings rail readouts. Timing and UPnP are catalog rows
-// that stage like any engine setting; Behavior's pinned-rates switch is a browser preference that writes at once. A
-// catalog readout follows the running value, not the staged one, and prints that option's label.
+// that stage like any engine setting; Behavior's pinned-rates switch is a browser preference that writes at once,
+// declared as a local control (store/schema/local.js). A catalog readout follows the running value, not the staged
+// one, and prints that option's label.
 
 import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { runningValue } from "../../../store/resolve.js";
 import { rowOptions } from "../../../store/faceplate/drawer.js";
-import { allowPinnedRates, setAllowPinnedRates } from "../../../store/ui/prefs.js";
+import { local } from "../../../store/schema/local.js";
+import { fieldReadout } from "./readouts.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
-
-const PIN_RATES_NOTE =
-  "Adds the capacity to pin a specific output rate without restarting the engine. Note: this will cause certain filters (integer- or 2x-upsampling only) to produce no output when mixing rate families! That is, certain filters cannot produce output with, e.g., a pinned 44.1k-family output rate and 48k-family source material.";
 
 /**
  * The running value of a catalog key as its options are written: a truth as "1" or "0", anything else as a string.
@@ -86,37 +85,10 @@ export const BEHAVIOR_DRAWER = {
     {
       id: "behavior",
       label: "Behavior",
-      body: [
-        {
-          field: {
-            id: "pinallow",
-            label: "Allow pinned rates",
-            man: [PIN_RATES_NOTE],
-            options: [
-              { value: "0", label: "Off" },
-              { value: "1", label: "On" },
-            ],
-            value: () => (allowPinnedRates.value ? "1" : "0"),
-            set: (v) => setAllowPinnedRates(v === "1"),
-          },
-        },
-      ],
+      body: [{ field: local.pinallow }],
     },
   ],
 };
 
 /** @type {SettingsReadout[]} */
-export const BEHAVIOR_READOUTS = [
-  {
-    id: "pinallow",
-    label: "Allow pinned rates",
-    control: {
-      type: "seg",
-      options: [
-        { v: "0", label: "Off" },
-        { v: "1", label: "On" },
-      ],
-    },
-    value: () => (allowPinnedRates.value ? "1" : "0"),
-  },
-];
+export const BEHAVIOR_READOUTS = [fieldReadout(local.pinallow)];

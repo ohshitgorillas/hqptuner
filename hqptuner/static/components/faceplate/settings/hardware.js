@@ -1,17 +1,18 @@
 // The Hardware acceleration drawer's schema and its Settings rail readouts. The settings are engine attributes held by
 // store/faceplate/settings/hardware.js, never in the staged set: the engine's own POST restarts the daemon, so the
 // apply group runs that form (`own`). The block count and the CUDA devices are blocks the caller mounts by name. The
-// all-stations switch sits at the foot of both tabs over one value.
+// all-stations switch sits at the foot of both tabs over one value, a local control under each tab's id
+// (store/schema/local.js).
 
 import {
-  allStations,
   applyHardware,
   discardHardware,
   hardwareDraft,
-  setAllStations,
   setHardware,
   staged,
 } from "../../../store/faceplate/settings/hardware.js";
+import { local } from "../../../store/schema/local.js";
+import { seg } from "./readouts.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").FieldOption} FieldOption */
@@ -50,12 +51,6 @@ const CUDA = [
   { value: "convolution", label: "Convolution only" },
 ];
 
-/** @type {FieldOption[]} */
-const OFF_ON = [
-  { value: "0", label: "Off" },
-  { value: "1", label: "On" },
-];
-
 /**
  * A field over one drafted engine attribute.
  *
@@ -76,23 +71,6 @@ const draftField = (key, label, man, options) => ({
   },
 });
 
-/**
- * The all-stations switch under its tab's id: where the next apply lands, never an edit.
- *
- * @param {string} id
- * @returns {{ field: FieldSpec }}
- */
-const allStationsField = (id) => ({
-  field: {
-    id,
-    label: "Apply to all stations",
-    man: [],
-    options: OFF_ON,
-    value: () => (allStations.value ? "1" : "0"),
-    set: (v) => setAllStations(v === "1"),
-  },
-});
-
 /** @type {DrawerSchema} */
 export const HARDWARE_DRAWER = {
   id: "hardware",
@@ -106,25 +84,17 @@ export const HARDWARE_DRAWER = {
         draftField("multicore", "Multicore DSP", MAN.multicore, MULTICORE),
         draftField("ecores", "E-core allocation", MAN.ecores, ECORES),
         { block: "nblocks" },
-        allStationsField("hwallcpu"),
+        { field: local.hwallcpu },
       ],
     },
     {
       id: "gpu",
       label: "GPU",
-      body: [draftField("cuda", "CUDA offload", MAN.cuda, CUDA), { block: "cudadevs" }, allStationsField("hwallgpu")],
+      body: [draftField("cuda", "CUDA offload", MAN.cuda, CUDA), { block: "cudadevs" }, { field: local.hwallgpu }],
     },
   ],
   own: { staged: () => staged.value, apply: applyHardware, discard: discardHardware },
 };
-
-/**
- * A seg readout's control over a field's options.
- *
- * @param {FieldOption[]} options
- * @returns {Control}
- */
-const seg = (options) => ({ type: "seg", options: options.map((o) => ({ v: o.value, label: o.label })) });
 
 /**
  * A readout of the engine's value for one attribute, as the daemon last reported or verified it.
