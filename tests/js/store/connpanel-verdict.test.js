@@ -1,11 +1,11 @@
-// Behavioral suite for store/setup.js — what a save puts on the wire when the
+// Behavioral suite for store/connpanel.js — what a save puts on the wire when the
 // panel was opened over a connection that already holds a password, and what
 // the panel then concludes the save did.
 //
 // `fetch` is faked at the real REST paths with the real response shapes, the
 // `health` signal is assigned the readings a poll would have delivered, and the
 // panel's own exported signals are assigned to state the situation.
-// The clock is injected through `initSetup(now)`,
+// The clock is injected through `initPanel(now)`,
 // so every "at N ms" below is a reading of that function and never a
 // duration this suite spends; `settle()` turns the event loop rather than
 // waiting on one.
@@ -13,21 +13,21 @@
 // Readings are fresh objects every time: writing the same reference to a signal
 // does not notify.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/setup-verdict.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/connpanel-verdict.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
 import {
-  setupOpen,
+  panelOpen,
   form,
   hostTouched,
   verdict,
-  initSetup,
-  openSetup,
+  initPanel,
+  openPanel,
   submitConnection,
-} from "../../../hqptuner/static/store/setup.js";
+} from "../../../hqptuner/static/store/connpanel.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 
 /** The globals a wire fake installs a `fetch` on. */
@@ -61,11 +61,11 @@ afterEach(() => {
 function start(at = 0) {
   clock = at;
   health.value = null;
-  setupOpen.value = false;
+  panelOpen.value = false;
   hostTouched.value = false;
   verdict.value = null;
   form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initSetup(() => clock);
+  dispose = initPanel(() => clock);
 }
 
 // Turns of the event loop, never a duration: enough for the fake's immediate
@@ -144,7 +144,7 @@ for (const kase of SAVES) {
   test(kase.name, async () => {
     start();
     const posts = wire({ hasPassword: kase.held });
-    openSetup();
+    openPanel();
     await settle();
     form.value = { ...form.value, host: "10.0.0.9", username: "tuner", password: kase.typed };
     await submitConnection();

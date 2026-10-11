@@ -4,7 +4,7 @@
 
 import { signal, computed } from "@preact/signals";
 import { plateFit } from "../../model/shell/plate.js";
-import { setupOpen, closeSetup } from "../setup.js";
+import { panelOpen, closePanel } from "../connpanel.js";
 
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 
@@ -90,7 +90,7 @@ export function togglePopover(id) {
  */
 export function closeTop() {
   if (openPopover.value !== null) openPopover.value = null;
-  else if (setupOpen.value) closeSetup();
+  else if (panelOpen.value) closePanel();
   else if (openList.value !== null) openList.value = null;
   else if (openStage.value !== null) openStage.value = null;
   else body.value = "chain";

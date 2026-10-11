@@ -35,7 +35,7 @@ import { initMeterFeed } from "./store/meter/feed.js";
 import { startMeterLoop } from "./store/meter/loop.js";
 import { bookWanted } from "./store/live/presets.js";
 import { loadSpeakers } from "./store/matrix/speakers.js";
-import { initSetup, pageHost } from "./store/setup.js";
+import { initPanel, pageHost } from "./store/connpanel.js";
 
 /** The chain body: rail, hairline, page, and the stage drawers over the page. */
 function ChainBody() {
@@ -104,7 +104,7 @@ if (root) {
   startMeterLoop();
   bookWanted.value = true;
   loadSpeakers();
-  initSetup();
+  initPanel();
   pageHost.value = location.hostname;
   startSync();
   watchFaceplateTheme(document.documentElement);

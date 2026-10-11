@@ -33,7 +33,7 @@ import { api } from "../lib/api.js";
 const GRACE_MS = 3000;
 
 /** Whether the connection panel is showing. */
-export const setupOpen = signal(false);
+export const panelOpen = signal(false);
 /** The host name the page was served from, written once at startup. */
 export const pageHost = signal("");
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
@@ -67,7 +67,7 @@ export const hostTouched = signal(false);
  */
 export const verdict = signal(null);
 
-// The page's own clock, swapped by initSetup so a test can drive it.
+// The page's own clock, swapped by initPanel so a test can drive it.
 let clock = () => performance.now();
 // When this page started watching. The grace is measured from here rather than
 // from the first failing reading: a page loaded into an install that is already
@@ -103,14 +103,14 @@ let closeOnSuccess = false;
  * The seed is awaited before the sweep: both write the host field, and the
  * sweep's answer is the one that should win when it has exactly one.
  */
-export function openSetup() {
-  setupOpen.value = true;
+export function openPanel() {
+  panelOpen.value = true;
   loadConnection().then(runDiscovery);
 }
 
 /** Close the panel and forget the save it was reporting on. */
-export function closeSetup() {
-  setupOpen.value = false;
+export function closePanel() {
+  panelOpen.value = false;
   awaitingVerdict = false;
 }
 
@@ -126,7 +126,7 @@ function judgeSave(h) {
   if (h.ready) {
     verdict.value = "saved";
     awaitingVerdict = false;
-    if (closeOnSuccess) closeSetup();
+    if (closeOnSuccess) closePanel();
     return;
   }
   if (savedLane === "refused") verdict.value = "refused";
@@ -152,10 +152,10 @@ function judge(h) {
     judgeSave(h);
     return;
   }
-  if (everConnected || autoOpened || setupOpen.value) return;
+  if (everConnected || autoOpened || panelOpen.value) return;
   if (cannotUseDaemon(h)) {
     autoOpened = true;
-    openSetup();
+    openPanel();
   }
 }
 
@@ -182,7 +182,7 @@ let dispose = watch();
  *
  * @param {() => number} [now] the page's clock; the default is `performance.now`
  */
-export function initSetup(now) {
+export function initPanel(now) {
   if (now) clock = now;
   watchingSince = clock();
   everConnected = false;

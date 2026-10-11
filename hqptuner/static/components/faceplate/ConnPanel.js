@@ -1,21 +1,21 @@
-// The connection panel as a faceplate sheet: the connection fields over store/setup.js, from the body's top to the
+// The connection panel as a faceplate sheet: the connection fields over store/connpanel.js, from the body's top to the
 // plate's foot, so the header and the knob's lamp stay in view. Escape is the Plate's (closeTop).
 
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { plate } from "../../store/faceplate/view.js";
 import {
-  setupOpen,
+  panelOpen,
   discovering,
   form,
   hostTouched,
   pageHost,
   verdict,
-  closeSetup,
+  closePanel,
   detectHosts,
   fillHost,
   submitConnection,
-} from "../../store/setup.js";
+} from "../../store/connpanel.js";
 
 /** @type {Record<string, string>} */
 const VERDICTS = {
@@ -144,7 +144,7 @@ function place(el) {
 
 /** The connection panel, always drawn; closed, it carries `data-closed`. */
 export function ConnPanel() {
-  const open = setupOpen.value;
+  const open = panelOpen.value;
   const fit = plate.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
   useLayoutEffect(() => place(ref.current), [open, fit]);
@@ -183,7 +183,7 @@ export function ConnPanel() {
         </div>
         <div class="cbtns">
           <button type="button" class="btn" data-testid="conn-save" onClick=${() => submitConnection(true)}>Save</button>
-          <button type="button" class="btn" data-testid="conn-close" onClick=${closeSetup}>Close</button>
+          <button type="button" class="btn" data-testid="conn-close" onClick=${closePanel}>Close</button>
         </div>
       </div>
     </aside>
