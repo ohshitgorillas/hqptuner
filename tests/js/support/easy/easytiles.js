@@ -32,7 +32,6 @@ import { writeSet, presetsFor } from "../../../../hqptuner/static/store/easy/eas
 import { easyKnobs, setEasyMaterial } from "../../../../hqptuner/static/store/easy/easyview.js";
 import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
@@ -336,7 +335,6 @@ export async function resetLive({
     active_chain: chain,
   };
   signals.config.value = configPayload(FORM(output, {}, engine), output, engine);
-  liveMode.value = true;
   await discardAll();
   return w;
 }

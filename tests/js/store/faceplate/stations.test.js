@@ -12,7 +12,6 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { rec, presetWire, settle } from "../../support/wire/livepresetwire.js";
@@ -43,7 +42,6 @@ const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
 beforeEach(() => {
   bookWanted.value = false;
-  liveMode.value = false;
   config.value = offering("Night", ["Day", "Night"]);
   liveBook.value = { Day: { Warm: snap(), Bright: snap() }, Night: { Quiet: snap() }, "": { Loose: snap() } };
   unfolded.value = null;

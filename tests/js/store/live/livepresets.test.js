@@ -20,10 +20,10 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, engineState } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import {
   livePresets,
   liveBook,
+  bookWanted,
   livePresetStation,
   livePresetsBusy,
   livePresetError,
@@ -75,7 +75,7 @@ function reset({ state, ...wire } = {}) {
   livePresetStation.value = null;
   livePresetsBusy.value = "";
   livePresetError.value = "";
-  liveMode.value = false;
+  bookWanted.value = false;
   return presetWire(wire);
 }
 
@@ -93,16 +93,9 @@ test("test_the_preset_list_is_unknown_before_the_first_read", () => {
   assert.equal(livePresets.value, null);
 });
 
-test("test_turning_live_mode_on_reads_the_saved_presets", async () => {
-  reset({ presets: [rec("Living Room", "pcm")] });
-  liveMode.value = true;
-  await settle();
-  assert.deepEqual(names(), ["Living Room"]);
-});
-
 test("test_a_failed_read_leaves_the_list_empty", async () => {
   reset({ listStatus: 500, listDetail: "the preset store is unreadable" });
-  liveMode.value = true;
+  bookWanted.value = true;
   await settle();
   assert.deepEqual(livePresets.value, []);
 });
@@ -273,14 +266,14 @@ test("test_a_preset_setting_the_daemon_stopped_answering_on_does_not_show_the_se
 
 test("test_a_read_holds_every_stations_snapshots_in_the_book", async () => {
   reset({ presets: [rec("Den", "pcm")], station: "Office", others: { "": [rec("Hall", "pcm")] } });
-  liveMode.value = true;
+  bookWanted.value = true;
   await settle();
   assert.deepEqual(Object.keys((liveBook.value || {})[""] || {}), ["Hall"]);
 });
 
 test("test_a_change_of_loaded_station_re_reads_the_list", async () => {
   const w = reset({ presets: [rec("Hall", "pcm")] });
-  liveMode.value = true;
+  bookWanted.value = true;
   await settle();
   w.station = "Den";
   w.presets = [rec("Warm", "pcm")];
@@ -291,7 +284,7 @@ test("test_a_change_of_loaded_station_re_reads_the_list", async () => {
 
 test("test_an_apply_names_the_station_its_list_was_read_for", async () => {
   const w = reset({ presets: [rec("Warm", "pcm")], station: "Den" });
-  liveMode.value = true;
+  bookWanted.value = true;
   await settle();
   await applyLivePreset("Warm");
   assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Warm/apply?station=Den").length, 1);

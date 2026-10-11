@@ -16,7 +16,6 @@ import { engineStatus } from "../../store/signals.js";
 import { clipFlash, outputBufferApplies, trackCounters } from "../../store/health.js";
 import { apodLampLevel } from "../../store/meter/apodlamp.js";
 import { apodBinSeq } from "../../store/apodhistory.js";
-import { fastPollMs } from "../../store/ui/ui.js";
 import { engineReadings } from "../../store/faceplate/engine.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
 import { togglePopover } from "../../store/faceplate/view.js";
@@ -86,7 +85,7 @@ const Counter = ({ k, label, count, level, seq }) => html`
   <div class="counter" data-k=${k}>
     <span
       class=${`lamp big flash-${seq % 2}`}
-      style=${`--lamp: ${(count.total === null ? 0 : level).toFixed(3)}; --lamp-decay: ${Math.round(fastPollMs.value / 4)}ms`}
+      style=${`--lamp: ${(count.total === null ? 0 : level).toFixed(3)}`}
     ></span>
     <span class="eng">${label}</span>
     <span class="cnt">${count.track === null ? figure(count.total) : `${figure(count.track)}/${figure(count.total)}`}</span>

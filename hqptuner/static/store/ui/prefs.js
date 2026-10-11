@@ -5,14 +5,11 @@
 import { signal } from "@preact/signals";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
-const K_QUICK_SYS = "hqptuner.quickSystemUpdates";
 const K_SIMPLE = "hqptuner.plainNames";
-const K_LIVE = "hqptuner.liveMode";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
 const K_APOD_LIGHT = "hqptuner.apodLight";
 const K_METER_FLOOR = "hqptuner.meterFloor";
 const K_METER_CHANNEL = "hqptuner.meterChannel";
-const K_METER_SCALE = "hqptuner.meterScale";
 const K_METER_RANGE = "hqptuner.meterRange";
 
 // A dead store is worth exactly one line of console noise: silence hides the
@@ -79,12 +76,6 @@ export function setPlainNames(on) {
   plainNames.value = !!on;
   persist(K_SIMPLE, plainNames.value);
 }
-
-// The System page's faster-poll opt-in. Off by default (the 2 s default is fine
-// for diagnostic readings); ticked, it drives store/ui/ui.js's fastPollMs to a
-// 1 s status-poll interval while the page is shown. The volume page and LIVE
-// take that cadence unconditionally and have no pref of their own.
-export const quickSystemUpdates = signal(loadBool(K_QUICK_SYS, false));
 
 // The header's apodizing indicator, in three states: dark, lit by every
 // apodizing event, or lit only by what the running filter left uncorrected.
@@ -191,18 +182,12 @@ export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPEC
 export const METER_FLOORS = ["-48", "-60", "-90"];
 export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
-// The METER spectrogram: which channel it draws ("sum" or a channel index), its
-// frequency scale, and how many dB below full scale its color ramp reaches.
+// The METER spectrogram: which channel it draws ("sum" or a channel index) and
+// how many dB below full scale its color ramp reaches.
 const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
 export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
-const METER_SCALES = ["log", "linear"];
-export const [,] = enumPref(K_METER_SCALE, METER_SCALES, "linear");
 export const METER_RANGES = ["120", "180", "240", "300"];
 export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "120");
-
-// The LIVE switch. Persisted like every other pref, so a reload lands back on
-// the page the user was working from rather than dropping them into the tabs.
-export const liveMode = signal(loadBool(K_LIVE, false));
 
 // Collapsed dropdown groups (Simplified option style). One JSON list of
 // "<kind>|<family>" and "<kind>|<family>|<variant>" keys; a key's absence

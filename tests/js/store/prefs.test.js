@@ -43,12 +43,6 @@ test("test_a_setter_does_not_repeat_the_warning", () => {
   assert.equal(warns.length, 1);
 });
 
-// --- defaults when storage is unreadable ------------------------------------------
-
-test("test_quick_system_updates_default_off_without_storage", () => {
-  assert.equal(prefs.quickSystemUpdates.value, false);
-});
-
 // --- the quick/fast setters ----------------------------------------------------------
 
 // The volume page is fast unconditionally now, so there is no volume opt-in to

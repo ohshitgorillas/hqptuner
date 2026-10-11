@@ -16,7 +16,6 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { NEW, keyOf, stateOf } from "../../../../hqptuner/static/model/builders/builder.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import {
   cur,
@@ -60,7 +59,6 @@ const QUIET = { st: "Night", name: "Quiet" };
 let w;
 
 beforeEach(() => {
-  liveMode.value = false;
   bookWanted.value = false;
   liveBook.value = null;
   cur.value = { ...WARM };

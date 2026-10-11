@@ -162,7 +162,6 @@ const { nPhase, nQuality } = await import("../../../../hqptuner/static/store/nar
 const { hydrateNarrowing, flushNarrowing } = await import("../../../../hqptuner/static/store/narrow/persist.js");
 const { descriptions, descriptionFor } = await import("../../../../hqptuner/static/store/matrix/descriptions.js");
 const { livePresets } = await import("../../../../hqptuner/static/store/live/presets.js");
-const { liveMode } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { matrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
 
 /** The state upload's change handler, or a no-op when the page draws no state upload. */
@@ -179,7 +178,6 @@ await hydrateNarrowing();
 nPhase.value = PHASE_BEFORE;
 await flushNarrowing();
 descriptions.value = { ...server.descriptions };
-liveMode.value = true;
 matrixMode.value = "speakers";
 await quiesce(W);
 

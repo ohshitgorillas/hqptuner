@@ -10,7 +10,6 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
-import { liveMode } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { loadPreset, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 
@@ -46,7 +45,6 @@ beforeEach(async () => {
   config.value = { fields: [], file: {}, active: "Day" };
   lastApply.value = null;
   pendingPreset.value = null;
-  liveMode.value = false;
   await discardAll();
   CALLS.length = 0;
 });
