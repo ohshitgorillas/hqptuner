@@ -5,9 +5,8 @@ touch only HQPTuner's own files and log, so take ``Cfg`` and answer without cred
 """
 
 import hashlib
-import logging
 from dataclasses import dataclass
-from typing import Annotated
+from typing import TYPE_CHECKING, Annotated
 
 import httpx
 from fastapi import APIRouter, File, Request, Response, UploadFile
@@ -17,22 +16,21 @@ from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
-from hqptuner.conf import presetzip
 from hqptuner.conf.engineconf import UnreadableArchiveError
 from hqptuner.conf.httpforms import FormField
 from hqptuner.core import engineread
 from hqptuner.core.applyops import EngineApplyResult
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.devicecaps import DeviceCaps
-from hqptuner.lanes import rescan, settle
+from hqptuner.lanes import rescan
 from hqptuner.lanes.live import overrides
-from hqptuner.presets import fileconfig, presetlane, presetops
+from hqptuner.presets import archive, fileconfig, presetlane, presetops
 from hqptuner.presets.presetlane import PresetOption
 from hqptuner.presets.store import stateimport
-from hqptuner.presets.store.descriptions import DescriptionError, DescriptionStore
 from hqptuner.presets.store.export import state_archive
 
-log = logging.getLogger(__name__)
+if TYPE_CHECKING:
+    from hqptuner.presets.store.descriptions import DescriptionStore
 
 router = APIRouter(prefix="/api")
 
@@ -248,16 +246,11 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     what the user has here, not the daemon's half of it; every daemon member is copied byte-for-byte, so the archive
     still restores anywhere. A store with nothing in it adds no member.
     """
-    try:
-        data = await manager.presetops.backup()
-    except (ControlError, httpx.HTTPError) as exc:
-        raise refuse(BackupFailedError(error=exc)) from exc
     store: DescriptionStore = request.app.state.descriptions
     try:
-        data = presetzip.embed_descriptions(data, store.export_bytes())
-    except DescriptionError as exc:
-        # An unreadable store is not a reason to withhold the daemon's own backup.
-        log.warning("descriptions not carried in backup: %s", exc)
+        data = await archive.backup(manager, store)
+    except (ControlError, httpx.HTTPError) as exc:
+        raise refuse(BackupFailedError(error=exc)) from exc
     return Response(
         content=data,
         media_type="application/zip",
@@ -350,29 +343,11 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     """
     data = await cfgfile.read()
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
-    # a bare XML upload is not an archive and carries no descriptions: checked, not caught
-    taken: tuple[bytes, bytes | None] = (data, None)
-    if presetzip.is_archive(data):
-        try:
-            taken = presetzip.take_descriptions(data)
-        except UnreadableArchiveError as exc:
-            raise refuse(ArchiveUnreadableError(error=exc)) from exc
-    data, carried = taken
-    if carried is not None:
-        store: DescriptionStore = request.app.state.descriptions
-        try:
-            store.merge(carried)
-        except DescriptionError as exc:
-            # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a 4xx
-            # in front of the user's restore.
-            log.warning("carried descriptions not restored: %s", exc)
-    mark = settle.mark_connect(manager)
+    store: DescriptionStore = request.app.state.descriptions
     try:
-        await settle.restore(manager, data, mark=mark)
+        pushed = await archive.restore(manager, store, data)
+    except UnreadableArchiveError as exc:
+        raise refuse(ArchiveUnreadableError(error=exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(RestoreFailedError(error=exc)) from exc
-    # The restore restarted the daemon under us. Answering here would report a restore
-    # done while both lanes are still down, and the page would read Unreachable a moment
-    # after being told it succeeded; the answer waits for the daemon to come back whole.
-    await settle.await_ready(manager, mark)
-    return RestoreAnswer(bytes=len(data))
+    return RestoreAnswer(bytes=pushed)
