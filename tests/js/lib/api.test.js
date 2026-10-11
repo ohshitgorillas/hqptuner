@@ -4,7 +4,7 @@
 // The wire is faked at globalThis.fetch and restored after every test. File
 // and FormData are the platform's own.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/api.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/api.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";

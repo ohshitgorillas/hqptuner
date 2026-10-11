@@ -1,10 +1,10 @@
-// The stage drawer's store half: what a drawer drawn from its schema decides over the v1 store. Which tabs carry a
+// The stage drawer's store half: what a drawer drawn from its schema decides over the staged store. Which tabs carry a
 // dirty dot, whether the title carries it, whether the apply group shows and whether its buttons are live, which tab
 // is shown, which open question the drawer pins under its head, the options, value and option lines a row's control
 // renders, and the apply mode the head's split button runs. The DOM half is components/faceplate/drawer/; the schema
 // grammar is drawer/grammar.js.
 //
-// A drawer's items name v1 catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
+// A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is http-lane and
 // the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one makes its tab
 // a restart tab. Members of one `family` share their staged state: any member's staged edit lights every member's
 // apply group. A drawer with its own form (`own`) stands that form in for the staged set: its staged state dots every

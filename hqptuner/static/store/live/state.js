@@ -1,4 +1,4 @@
-// The LIVE view's store: what its controls read, and the one path they write by.
+// The live lane's store: what its controls read, and the one path they write by.
 //
 // This module owns the lane's own mutable state — which control is mid-write,
 // what the last error on each control was, and the rules that say which writes

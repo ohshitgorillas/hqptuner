@@ -29,7 +29,7 @@ CAPS_RETRY = 30.0
 # cost a whole log fetch every CAPS_RETRY for as long as it stays selected.
 CAPS_MISSES = 5
 # How old a held log text may be and still answer a log-tail read: under the
-# System tab's 3 s poll (LogTail.js POLL_MS), so one tab still sees every poll
+# Logging drawer's 3 s poll (LogTail.js POLL_MS), so one tab still sees every poll
 # fresh while several tabs polling together cost one fetch.
 LOG_MAX_AGE = 2.5
 
@@ -102,7 +102,7 @@ class RescanReport:
 
 
 async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
-    """Return a static tail of the daemon's log for the System-tab live view.
+    """Return a static tail of the daemon's log for the Logging drawer's tail.
 
     Not a stream — GET /log over the 8088 web interface, so it works regardless of the daemon's
     `<log file>` setting and needs no host mount. Read through the manager's shared log reader, so

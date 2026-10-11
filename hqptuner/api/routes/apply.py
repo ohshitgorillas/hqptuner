@@ -1,4 +1,4 @@
-"""Apply surface — the staged-buffer apply and the LIVE view's immediate write path.
+"""Apply surface — the staged-buffer apply and the live lane's immediate write path.
 
 ``/config/apply`` drains the pending buffer through the persistent lane; ``/config/live`` never stages and never
 restarts. Both fold a clean write into a preset when auto-save is armed.
@@ -141,12 +141,12 @@ def _stand_autopilot_down(manager: ConnectionManager, fields: dict[str, str]) ->
 async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyReport]:
     """Apply live-lane config-form fields immediately, readback-verified.
 
-    This is the LIVE view's whole write path. Never staged and never persistent, so it cannot restart the daemon and
-    cannot flush what the tabs view has staged.
+    This is the whole write path of the controls that write on the spot. Never staged and never persistent, so it
+    cannot restart the daemon and cannot flush the pending buffer.
 
-    Routed through the lane rather than a manager method because the LIVE lane's
-    only caller is this route, and `/state` already reads `routing`
-    directly for the same reason.
+    Routed through the lane rather than a manager method because ``lane.apply_now``'s
+    only callers outside the lane are this route and auto-pilot (``core/autopilotops``),
+    and `/state` already reads `routing` directly.
     """
     if not body.fields:
         raise refuse(NoLiveFieldsGivenError())

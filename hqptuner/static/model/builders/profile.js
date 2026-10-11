@@ -8,7 +8,7 @@ import { bauerPreset, structuralPreset } from "../gauges/crossfeed.js";
 import { percentApplied } from "../gauges/loudness.js";
 import { NEW, OVERVIEW, keyOf } from "./builder.js";
 
-/** The station's unnamed profile: the daemon's own name, kept and never deleted (v1). */
+/** The station's unnamed profile: the daemon's own name, kept and never deleted. */
 export const DEFAULT = "[Default]";
 
 /** @typedef {Record<string, string | number>} Vals  a profile's values (the family's, so numbers may arrive as strings) */

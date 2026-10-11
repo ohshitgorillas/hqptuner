@@ -1,4 +1,4 @@
-// The Source drawer's meter, store half: what the block shows over the v1 stream. Whether the meter or a no-stream
+// The Source drawer's meter, store half: what the block shows over the meter feed (store/meter/feed.js). Whether the meter or a no-stream
 // line shows and which line, the linear frequency axis up to the source Nyquist, the channel switch's choices and the
 // channel drawn, the colour span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.

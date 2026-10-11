@@ -2,7 +2,7 @@
 // level it shows on a 0.5 dB step, the range it moves over, the pins that hold it (Direct SDM over Fixed volume), the
 // write that moves it, and the loudness bounds and where they sit along its slider.
 //
-// The range is the one the Volume tab's dial is drawn on (components/volume/Playback.js): the engine's own report while
+// The range is the one the volume slider is drawn on: the engine's own report while
 // it has the control, else the running config's, since the range the engine reports while it holds the control is not
 // the configured one. A collapsed running range (min at or above max; 0 / 0 bypasses the volume control, manual §4.2)
 // draws on the daemon's full −60…0 dB with the level pinned at 0 dB, nothing being attenuated.
@@ -25,7 +25,7 @@ import { dbText, directPin, fixedPin, loudSpan, volumeView } from "../../model/g
 /** @typedef {import("../../model/gauges/volume.js").VolumeView} VolumeView */
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 
-const STEP = 0.5; // dB, the Volume tab dial's step
+const STEP = 0.5; // dB, the volume slider's step
 const FULL = { min: -60, max: 0 }; // dBFS, the daemon's own range
 const SEND_EVERY = 100; // ms, the least time between two writes
 /** The level a collapsed running range pins: nothing attenuated. @type {Pin} */
@@ -108,7 +108,7 @@ export function volumeNow() {
  * A sender that writes at most once per SEND_EVERY ms on `clock`: a write with no window open goes at once and opens
  * one; a write inside it is held, a newer one replacing it, and goes when the window closes, opening the next. The
  * level asked for is held in `volumeDrag` while a window is open, so neither an engine answer nor a poll moves what
- * shows under a drag; a window closing with nothing held adopts the last level sent, as the Volume tab's dial does on
+ * shows under a drag; a window closing with nothing held adopts the last level sent, as a slider does on
  * release.
  *
  * @param {Clock} clock

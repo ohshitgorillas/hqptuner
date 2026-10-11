@@ -5,8 +5,8 @@
 :is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel{display:flex;flex-direction:column}
 .dblock[data-block="crossfeed"],.dblock[data-block="loudness"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 
-/* Plot traces (resp-plot.js): amber = what you get; ghost = the reference (dashed ink-3); side = ink-2.
-   Each trace named once at its right end, in its own ink. Handles = draggable dots (v1 REW-style). */
+/* Plot traces (RespPlot.js): amber = what you get; ghost = the reference (dashed ink-3); side = ink-2.
+   Each trace named once at its right end, in its own ink. Handles = draggable dots (REW-style). */
 .eq .trace.ghost{stroke:var(--ink-3);stroke-width:1.25;stroke-dasharray:4 3}
 .eq .trace.side{stroke:var(--ink-2);stroke-width:1.25}
 .eq .tl text{font-family:var(--f-mono);font-size:var(--fs-1);fill:var(--acc);paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round;line-height:var(--lh-text)}
@@ -102,8 +102,8 @@
 .lrange .vrbox .cl{width:var(--lvtab-l)}
 
 /* ── Speakers ────────────────────────────────────────────────────────────
-   Set + channel rows left (control column), v1's room plan right, filling the height left. Speakers in the set amber,
-   the rest dimmed (drawn, never hidden: v1). */
+   Set + channel rows left (control column), the room plan right, filling the height left. Speakers in the set amber,
+   the rest dimmed (drawn, never hidden). */
 #drawer-speakers .dpanel{display:flex;flex-direction:column}
 .dblock[data-block="speakers"]{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
 .spbody{flex:1 1 0;min-height:0;display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-5);border-top:var(--hair) solid var(--row-rule)}
@@ -134,7 +134,7 @@
 .xgate .gr{flex:1 1 0}
 .xctl .ci{align-items:flex-start}
 
-/* Structural cartoon (v1 Geometry.js conventions): near paths solid amber, far paths dashed ink-2, ±30° ticks. */
+/* Structural cartoon: near paths solid amber, far paths dashed ink-2, ±30° ticks. */
 .xfgeo{flex:1 1 0;min-height:var(--plot-min-xf);display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-3)}
 .xfpic{min-height:0;display:flex;justify-content:center}
 .xfdiag{display:block;width:100%;height:100%}
@@ -300,11 +300,11 @@ input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--f
 .pdock input.vfd[type=number]{-moz-appearance:textfield}
 .pdock input.vfd[type=number]::-webkit-inner-spin-button,.pdock input.vfd[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 
-/* Speakers under Direct SDM (mock scenario): level boxes dead, distances live; v1's note under the rows. */
+/* Speakers under Direct SDM (mock scenario): level boxes dead, distances live; a note under the rows. */
 .spleft.sdm .sprow .num:first-of-type input{color:var(--ink-4);cursor:not-allowed}
 .spsdm{margin:var(--sp-5) 0 0;font-size:var(--fs-3);line-height:1.45;color:var(--ink-2);max-width:var(--measure-note)}
 
-/* v1's plot frame (components/plots.js PlotFrame), as the DSP pipelines drawer draws its response plot: the page
+/* The plot frame (components/plots.js PlotFrame), as the DSP pipelines drawer draws its response plot: the page
    plot's glass, grid and zero line in the hairline inks, traces in the accent, handles as the .eq dots. */
 .plot{display:flex;flex-direction:column;gap:var(--sp-3);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-4)}
 .plot-svg{width:100%;height:auto;display:block}

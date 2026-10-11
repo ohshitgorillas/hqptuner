@@ -1,5 +1,5 @@
-// The connection panel as a faceplate sheet: v1's fields and copy (components/Setup.js) over store/setup.js, from the
-// body's top to the plate's foot, so the header and the knob's lamp stay in view. Escape is the Plate's (closeTop).
+// The connection panel as a faceplate sheet: the connection fields over store/setup.js, from the body's top to the
+// plate's foot, so the header and the knob's lamp stay in view. Escape is the Plate's (closeTop).
 
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";

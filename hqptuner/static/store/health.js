@@ -29,7 +29,7 @@ const streak = signal({ warn: 0, crit: 0 });
 
 // Whether output_fill has been seen > 0 at least once this track. A buffer that
 // only ever holds at 0 does not apply to this output (SDM/DSD direct paths
-// report a flat 0, input_fill a flat -1) — the meter shows it as N/A rather
+// report a flat 0, input_fill a flat -1) — the engine row shows no reading rather
 // than a false 0%. There is deliberately no sustained-low "starvation" alert:
 // a real output-buffer underrun is transient by design — the buffer drains to
 // 0, playback skips for a moment, then it refills to 100% — never a sustained
@@ -150,8 +150,8 @@ function nextStreak(st, s) {
   };
 }
 
-// This track's counter deltas — the System-tab health card shows them alongside
-// the raw totals.
+// This track's counter deltas — the engine row shows them alongside the raw
+// totals.
 export const trackCounters = computed(() => {
   const st = (engineStatus.value || {}).status;
   const t = track.value;
@@ -162,12 +162,12 @@ export const trackCounters = computed(() => {
   };
 });
 
-// The alert list the strip renders: [{kind, sev: "warn"|"crit", text}]. Empty
-// when healthy or idle — the strip contributes zero chrome then.
+// The engine-health alert list: [{kind, sev: "warn"|"crit", text}]. Empty
+// when healthy or idle.
 //
-// `kind` names WHICH alert fired, independent of its wording; the strip renders
-// it as `data-alert`. Without it the sentence is the only thing telling two
-// alerts apart, which makes the copy load-bearing for anything reading the DOM.
+// `kind` names WHICH alert fired, independent of its wording; the faceplate
+// homes each alert by it (store/faceplate/alerts.js). Without it the sentence
+// would be the only thing telling two alerts apart, making the copy load-bearing.
 // One alert per category, or null. Order below is the order they render in.
 // Critical speed supersedes the warning rather than joining it — they describe
 // the same fault at two severities. The remedy names the DSP chain, not the

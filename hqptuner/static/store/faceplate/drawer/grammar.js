@@ -17,7 +17,7 @@
  */
 
 /**
- * A row naming a v1 catalog key (store/schema.js): its control column (label, control, gray reason) beside the
+ * A row naming a catalog key (store/schema.js): its control column (label, control, gray reason) beside the
  * setting's paragraph, both from the settings metadata. It writes through the write path; a staged edit to a
  * restart-lane key dots its tab.
  *

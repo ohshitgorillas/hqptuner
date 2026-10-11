@@ -1,5 +1,5 @@
 // Rendered suite for the Output drawer's two blocks: the rate dial (components/faceplate/drawers/output/RateDial.js) and the
-// device picker (components/faceplate/drawers/output/DevicePicker.js), each over the v1 store. The dial: which tier each
+// device picker (components/faceplate/drawers/output/DevicePicker.js), each over the store. The dial: which tier each
 // band's needle prints selected, which tiers are hatched, where the playing lamp sits, that the output mode never takes
 // a band away, and the write a key makes. The picker: the list opening from its trigger, a tap
 // staging a device and closing the list, the current and dirty marks, and the rescan.

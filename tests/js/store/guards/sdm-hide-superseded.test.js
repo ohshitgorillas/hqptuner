@@ -25,13 +25,13 @@
 // the effective value by different routes.
 //
 // Surfaces under test, both public:
-//   - the /config page dropdown — the list a field's option source hands it,
+//   - the config-form dropdown — the list a field's option source hands it,
 //     `optionsFor("config", <form field>)` (store/ui/options.js), which is also the
 //     list the chain's count chip counts; `narrowOptions(options, stage, field)`
 //     is what the dropdown then offers and `narrowCount(...)` is the `{n, total}`
 //     badge beside it (store/narrow/match.js), `total` being the length of the
 //     list the dropdown holds BEFORE facet narrowing;
-//   - the LIVE page — `liveModel`'s per-chain controls, whose options for the
+//   - the live chain controls — `liveModel`'s per-chain controls, whose options for the
 //     chain the engine has LOADED come off the engine's own `<GetFilters/>`
 //     enumeration rather than the daemon's /config form. Each
 //     live case reads the chain its own scenario loaded, never the two chains
@@ -258,7 +258,7 @@ test("test_the_pcm_nx_dropdown_still_offers_a_filter_a_two_stage_twin_supersedes
   assert.equal(offered(held("filter"), "nx", "pcm_filter_nx").includes(HIDDEN), true);
 });
 
-// --- the LIVE page ----------------------------------------------------------------
+// --- the live chain controls ------------------------------------------------------
 // The loaded chain's controls take their options from the engine's enumeration,
 // not from the /config form, so the rule has to hold on that list too. The two
 // chains number the same names differently, which is why the two
@@ -337,7 +337,7 @@ const LIVE_METADATA = {
 };
 
 /**
- * The LIVE page with one chain loaded and its Nx filter set to `nx`, named by
+ * The live chain controls with one chain loaded and its Nx filter set to `nx`, named by
  * FILTER NAME. State reports LIST INDICES of the loaded chain's enumeration;
  * `chain` names which chain that is.
  *
@@ -391,7 +391,7 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
 }
 
 /**
- * The filter names one LIVE chain control offers, read off the column named by
+ * The filter names one live chain control offers, read off the column named by
  * `chain` — never the two columns concatenated, so a control answering out of the
  * dormant chain is a miss rather than a pass. `label` is the option's engine
  * name, and it is read directly: a fallback chain would answer a list of empty
@@ -419,7 +419,7 @@ test("test_the_live_sdm_nx_control_offers_the_enumeration_less_its_superseded_na
   assert.equal(liveOptionNames("sdmChain", "oversampling").length, OFFERED);
 });
 
-// The exception on the other surface: LIVE reaches the effective value through
+// The exception on the other surface: a live control reaches the effective value through
 // the engine's own State report, so it is its own path and its own case.
 test("test_the_live_sdm_nx_control_still_offers_a_superseded_filter_it_is_set_to", async () => {
   await resetLivePage({ chain: "sdm", mode: "2", nx: HIDDEN });

@@ -1,4 +1,4 @@
-// Per-track apodizing-event history — the data behind the Engine Health card's
+// Per-track apodizing-event history — the data behind the Source drawer's
 // density strip. The daemon reports `apod` as a cumulative counter, so the
 // strip's shape comes from per-poll increases: one bin per distinct Status frame
 // while PLAYING, cleared when the track changes. Distinct is the operative word
@@ -14,7 +14,7 @@
 //
 // Visibility is stateful, not a threshold on the current reading: the strip
 // appears on the first event of a track and stays up for as long as playback
-// continues, so a burst in an opening section does not vanish from the card the
+// continues, so a burst in an opening section does not vanish from the strip the
 // moment the burst ends. It comes back down only when playback stops, or when a
 // track ends having produced no events at all.
 //

@@ -5,7 +5,7 @@
 // This module owns the read/derive core: the joins from /api/state and the
 // enumerations to the config-form domain the controls speak, and the two chain
 // descriptions built on them. Everything here is pure — no signal is written and
-// no request is made — which is why the rate card, the chain cards and the view
+// no request is made — which is why the chain controls (./chains.js) and the view
 // model can all sit on top of it without depending on each other.
 
 import { engineState, engineStatus, enums, modeName } from "../signals.js";
@@ -62,7 +62,7 @@ export function idValue(key, attr) {
 // (store/prose.js). Nothing on this page writes prose of its own — a live
 // control and its persistent twin are the same knob and must say the same
 // thing.
-/** A catalog key paired with its schema entry — the words a live control shares with its tab twin. */
+/** A catalog key paired with its schema entry —  the words a live control borrows from the catalog. */
 export const catalog = (/** @type {string} */ key) => ({ key, entry: schema[key] });
 
 // The two chains' form fields, in signal order. Mirrors routing.ROUTABLE, which

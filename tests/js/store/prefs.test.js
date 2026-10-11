@@ -1,5 +1,5 @@
 // Behavioral suite for store/ui/prefs.js — the localStorage-persisted UI prefs:
-// the storage-disabled warn contract, the quick/fast poll opt-in setters, and
+// the storage-disabled warn contract, the absent fast-volume opt-in, and
 // the two derived visibility computeds.
 //
 // The environment is the seam here: this process has no localStorage (plain
@@ -10,7 +10,7 @@
 // pull it in first. Where a test needs working storage, a fake localStorage is
 // installed and removed again after every test.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/prefs.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -43,12 +43,12 @@ test("test_a_setter_does_not_repeat_the_warning", () => {
   assert.equal(warns.length, 1);
 });
 
-// --- the quick/fast setters ----------------------------------------------------------
+// --- the absent fast-volume opt-in -----------------------------------------------------
 
-// The volume page is fast unconditionally now, so there is no volume opt-in to
-// store, no key to persist it under, and nothing for a caller to read. Membership
-// rather than a property read: after the export goes, naming it directly is a
-// type error, and the question here is exactly whether the name is there.
+// The store keeps no fast-volume opt-in: no preference, no key to persist it
+// under, and nothing for a caller to read. Membership rather than a property
+// read: naming an absent export directly is a type error, and the question here
+// is exactly whether the name is there.
 
 test("test_the_store_offers_no_fast_volume_preference", () => {
   assert.equal("fastVolumeUpdates" in prefs, false);

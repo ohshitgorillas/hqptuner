@@ -1,9 +1,9 @@
-// The one path the LIVE view's controls write by.
+// The one path the live controls write by.
 //
 // Every control writes the moment it changes — one field, one
 // POST /api/config/live, readback-verified by the backend before it answers.
-// Nothing here stages. The pending buffer belongs to the tabs view and Apply
-// flushes all of it, so a LIVE control that touched it would apply edits the
+// Nothing here stages. Apply flushes all of the pending buffer, so a live
+// control that touched it would apply edits the
 // user never asked for (lanes/live/lane.py says the same from the other side).
 //
 // Two mirrors follow a write. `engineState` always: a live edit never reaches the
@@ -44,12 +44,12 @@ function recordOwed(fields, report) {
   // An edit to the chain the engine has not loaded is HELD, not applied
   // (lanes/live/routing.resolve_live) — so State cannot show it and no engine list
   // moved. The running config's live overlay is where a held edit appears, and
-  // that overlay is what the dormant chain's card reads back.
+  // that overlay is what the dormant chain's controls read back.
   const held = !!(report && report.stored && Object.keys(report.stored).length);
   if (!held && fields.some((f) => REENUMERATES.has(f))) owed.enums = true;
   // A mode write moves what the running config reports for BOTH rate limits
-  // (routing.live_overrides), and that overlay is what the Output tab's rate
-  // columns read. Its own poll is on the slow cadence, so pull it here rather
+  // (routing.live_overrides), and that overlay is what the Output drawer's rate
+  // dial reads. Its own poll is on the slow cadence, so pull it here rather
   // than leave them showing the pre-switch tier for a few seconds.
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) owed.config = true;
 }
@@ -71,9 +71,9 @@ export async function remirrorLive(fields, report) {
   const state = await api.state();
   // The new lists are pulled BEFORE either signal is installed, and the pair is
   // then installed together. State carries the new active_chain, so installing
-  // it first rendered the new chain's card against the pre-switch lists for as
+  // it first would render the new chain's controls against the pre-switch lists for as
   // long as the enumerations request took — a filter picked in that window
-  // posted an ID from a list the engine had already replaced.
+  // would post an ID from a list the engine had already replaced.
   const fresh = owed.enums ? await api.enumerations() : null;
   if (seq !== remirrorSeq) return;
   engineState.value = state.data;

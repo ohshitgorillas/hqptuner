@@ -13,7 +13,7 @@
 //
 //   * The engine answers for the chain it has LOADED and nothing else, so the
 //     dormant family's rate and shaper come from the running configuration
-//     (`file`, which already carries LIVE's overrides) and its option list from
+//     (`file`, which already carries the live lane's overrides) and its option list from
 //     the daemon's own /config form. `reset()` therefore always states BOTH, and
 //     always states them in agreement: the engine's pin is the same tier as the
 //     configuration's limit, and the engine's shaper is the same name as the

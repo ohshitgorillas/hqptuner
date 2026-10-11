@@ -1,4 +1,4 @@
-// A stage drawer drawn from its schema over the v1 store: the head, the open question pinned under it, then one panel
+// A stage drawer drawn from its schema over the store: the head, the open question pinned under it, then one panel
 // per tab. It is closed unless its stage is the open one (store/faceplate/view.js); closing never discards, so staged
 // edits stay put. It reads idle while its shown tab carries a status word, and combo while its backend shows every
 // group. The decisions are store/faceplate/drawer.js's.

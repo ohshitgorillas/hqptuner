@@ -5,7 +5,7 @@
 // (tests/js/store/faceplate/drawers-source.test.js); this suite covers what the block draws from them.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
-// since server rendering fires no events. The stream reaches the store at the wire: METER feed events through the
+// since server rendering fires no events. The stream reaches the store at the wire: meter feed events through the
 // EventSource fake, playback through a fresh /api/status object. Switches are found by `data-testid` and options by
 // `data-v`; every string asserted is a wire value or a number derived from one.
 //

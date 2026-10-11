@@ -33,7 +33,7 @@ export const liveBook = signal(/** @type {Record<string, Record<string, unknown>
 // backend takes the loaded one.
 export const livePresetStation = signal(/** @type {string | null} */ (null));
 // The preset with a call in flight (""=none), and the last failure. One error
-// for the whole card, latest wins — the same rule the LIVE controls follow,
+// for the whole card, latest wins — the same rule the live controls follow,
 // because the card has one place to put it and the user has one thing in mind.
 export const livePresetsBusy = signal("");
 export const livePresetError = signal("");

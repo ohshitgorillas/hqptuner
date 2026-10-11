@@ -1,19 +1,15 @@
-// The docked inline stage editor.
-// Selecting a stage chip outlines it and docks this panel under its row (no
-// modal). `convDraft` and `uploadNote` are
-// private to this module, and `setSelected` lives here because clearing the
-// draft is exactly what it is for.
+// The WAV header sniff behind the DSP pipelines drawer's filter upload
+// (faceplate/drawers/pipelines/upload.js), and the stage typedefs.
 import {} from "../../vendor/eqlab/core/matrixspec.js";
 
 /**
  * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} MatrixStage
  * @typedef {import("../../vendor/eqlab/core/matrixspec.js").IirSchema} IirSchema
  * @typedef {{ row: number, stage: number }} StageRef
- *   Which stage the editor is docked under: pipeline row, then index within
- *   that row's parsed chain.
+ *   A stage's place: pipeline row, then index within that row's parsed chain.
  * @typedef {(patch: Record<string, string>) => void} Commit
  *   Land an argument patch on the edited stage (or `file` on a conv stage) —
- *   the same patch shape lib/matrixspec.js editedStage takes.
+ *   the same patch shape vendor/eqlab/core/matrixspec.js editedStage takes.
  * @typedef {(props: { stage: MatrixStage, commit: Commit }) => unknown} EditorFn
  *   One per-kind editor body, dispatched on the stage's kind.
  */

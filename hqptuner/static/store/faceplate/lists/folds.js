@@ -1,5 +1,5 @@
-// Which option-list groups are folded. A user's fold is v1's collapsed-group preference, keyed `<kind>|<family>` or
-// `<kind>|<family>|<variant>`, so a group folded in either shell is folded in both. The DAC preferences fold the groups
+// Which option-list groups are folded. A user's fold is the persisted collapsed-group preference (store/ui/prefs.js),
+// keyed `<kind>|<family>` or `<kind>|<family>|<variant>`. The DAC preferences fold the groups
 // the manual calls the wrong fit: R-2R the Additive dither family (noise shaping corrects "linearity errors inherent to
 // all R2R DACs", manual §4), ESS Sabre each modulator family's Seventh order variant ("For ESS Sabre based DACs, fifth
 // order modulators are recommended", §4.6). A tap still opens such a group, and the taps are dropped whenever either
@@ -56,7 +56,7 @@ export function isFolded(kind, fam, variant) {
 }
 
 /**
- * A group head's tap: a DAC-folded group opens or folds again for as long as the preferences stand; any other is v1's
+ * A group head's tap: a DAC-folded group opens or folds again for as long as the preferences stand; any other is the
  * persisted fold.
  *
  * @param {ListKind} kind

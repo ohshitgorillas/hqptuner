@@ -81,7 +81,7 @@ export function setPlainNames(on) {
 // apodizing event, or lit only by what the running filter left uncorrected.
 // Off by default: it is a monitor for a question most listening does not ask,
 // and an indicator nobody switched on has no business flashing in the chrome.
-// components/widgets/ApodLamp.js chooses its lit state by this list's index.
+// store/meter/apodlamp.js reads the mode to decide what lights the lamp.
 const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
 
 // An existing install may hold persist()'s boolean "1" or "0" on this key. "1"
@@ -122,7 +122,7 @@ export function setApodLight(mode) {
   }
 }
 
-// Time window of the Engine health card's apodizing-events density strip: how
+// Time window of the Source drawer's apodizing-events density strip: how
 // much recent playback the strip covers, in seconds, at most the spectrogram's
 // 300 s history. An unset or junk value reads as the 60 s default.
 export const APOD_WINDOWS = ["30", "60", "120", "300"];
@@ -182,7 +182,7 @@ export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPEC
 export const METER_FLOORS = ["-48", "-60", "-90"];
 export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
 
-// The METER spectrogram: which channel it draws ("sum" or a channel index) and
+// The Source drawer's spectrogram: which channel it draws ("sum" or a channel index) and
 // how many dB below full scale its color ramp reaches. METER_RANGES is also the
 // set the page's Source meter Range (pageRange, below) chooses from.
 const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];

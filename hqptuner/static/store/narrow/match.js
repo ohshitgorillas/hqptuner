@@ -248,7 +248,7 @@ export function favOnlyModulators(options) {
 }
 
 // The active selection snapshot. Number() on quality — the raw signal in
-// narrowingActive and this can disagree: a non-numeric value reads as active in
+// filterNarrowingActive and this can disagree: a non-numeric value reads as active in
 // the bar but narrows nothing. Apod and lossy read the dropdown's STAGE
 // switch; `field` only selects the ratio family (pcm vs sdm).
 /**

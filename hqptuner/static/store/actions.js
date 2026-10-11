@@ -120,7 +120,7 @@ function applyBauerCoupling(key, value, http) {
 // from the other is the trap that already shipped once: a grayed-but-nonzero
 // Auto headroom kept the volume control locked with no reachable control left to
 // clear it. So enabling either mode CLEARS the other, as a visible staged edit
-// in the same POST — the pending bar shows both moves, nothing happens silently.
+// in the same POST — both moves show as staged, nothing happens silently.
 /**
  * @param {string} key
  * @param {string | number | boolean} value
@@ -154,9 +154,8 @@ export async function edit(key, value) {
     return;
   }
   // The last apply's verdict is about the set the user just changed, so it stops
-  // being true here. The pending bar shows a FAILED verdict alongside the staged
-  // count (a failed apply keeps its staging), and a stale one sitting next to a
-  // fresh edit would read as this edit having failed before it was ever sent.
+  // being true here: a failed apply keeps its staging, and a stale FAILED verdict
+  // beside a fresh edit would read as this edit having failed before it was ever sent.
   lastApply.value = null;
   /** @type {StageBody} */
   const body = { live: {}, http: {} };
@@ -236,13 +235,13 @@ export function clearPreview() {
   previewConfig.value = null;
 }
 
-// apply lifecycle, shared so the pill and the pending bar both reflect it
+// apply lifecycle: `applying` turns the brand knob busy (store/faceplate/conn.js)
 export const applying = signal(false);
 export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdict | null }} */ (signal(null));
 
 // Both write lanes share a lifecycle: hold `applying` for the duration so the
-// pill and the pending bar can show it, and report a thrown failure as a
-// `lastApply` the user can read rather than a rejected promise nobody catches.
+// brand knob can show it, and report a thrown failure as a
+// `lastApply` verdict rather than a rejected promise nobody catches.
 // The lane still rethrows — the caller decides what a hard failure means.
 /**
  * @template T
@@ -288,8 +287,9 @@ export async function applyAll(save) {
 }
 
 // The apply itself, guard-free: applyGuard asks with owner "pending", and that
-// question renders only in PendingBar, which LIVE does not put on the page — so
-// asked from LIVE the promise never settles and the click does nothing at all.
+// question renders only under an open drawer's head (store/faceplate/drawer.js),
+// and a station load from the header can run with no drawer open — so asked then the
+// promise would never settle and the click would do nothing at all.
 /** @param {{ name: string }} [save] */
 async function commitApply(save) {
   const [count, live] = [stagedCount.value, staged.value.live]; // capture before apply clears the staged set

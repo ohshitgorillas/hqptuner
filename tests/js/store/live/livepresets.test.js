@@ -1,6 +1,5 @@
-// Behavioral suite for store/live/presets.js — the LIVE page's own presets: the
-// saved list and the four verbs (read / apply / save / delete). The LIVE MODE
-// card LiveView renders from them is covered in livepresetscard.test.js; the
+// Behavioral suite for store/live/presets.js — the live snapshots: the
+// saved list and the four verbs (read / apply / save / delete). The
 // wire fake and the records it serves live in livepresetwire.js.
 //
 // A live snapshot is HQPTuner's, not the daemon's: it stores a batch of live
@@ -14,7 +13,7 @@
 // the list the way the backend does, so "a save re-reads the list" is
 // observable as the list having moved.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/livepresets.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/livepresets.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";

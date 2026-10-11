@@ -75,8 +75,8 @@ export async function mirror(fn, sig, unwrap = data) {
 /**
  * Take one health reading now, off the push stream.
  *
- * The pill and the page dim read `health`. A write that restarts the daemon
- * finishes with a reading of its own here, so the pill leaves its Applying…
+ * The brand knob reads `health`. A write that restarts the daemon
+ * finishes with a reading of its own here, so the knob leaves its Applying…
  * state onto the health the daemon has now rather than whatever the stream
  * last sent mid-restart.
  *

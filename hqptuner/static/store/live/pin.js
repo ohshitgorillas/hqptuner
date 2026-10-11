@@ -1,5 +1,5 @@
 // The pinned output rate: an exact rate the engine runs at until the next mode
-// switch, written through the LIVE lane as the field `rate`, in Hz, "0" clearing
+// switch, written through the live lane as the field `rate`, in Hz, "0" clearing
 // it (lanes/live/rate.py).
 //
 // The pin is read off the engine, never held here: State reports the RatesItem

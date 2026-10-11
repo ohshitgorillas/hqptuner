@@ -7,7 +7,7 @@
 // stubbed. Both globals are restored after every test, and the two exported
 // signals are re-zeroed by setup() because module-level signals outlive a test.
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/theme.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/theme.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";

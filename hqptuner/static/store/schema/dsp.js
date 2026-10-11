@@ -15,10 +15,10 @@ export const dsp = {
   // Mode graying is handled by the PCM/SDM collapsibles auto-closing (ResamplingTab.js),
   // not per-field grayWhen. desc drives the inline manual description line.
   // appliesLive: the write path routes these through the Control API's own
-  // setters instead of the restore lane, so they take effect immediately and the
+  // setters, not the restore lane, so they take effect immediately and the
   // daemon never restarts for them (lanes/live/routing.py). They stay lane 'http'
-  // because their VALUE domain is still the form's enum id — only the delivery
-  // changed. The pending bar reads this to count them as live changes.
+  // because their VALUE domain is the form's enum id; only the delivery is live.
+  // store/resolve.js `split` reads this to count them as live changes.
   pcm_filter_1x: {
     label: "1x filter",
     sublabel: "Sources up to 48 kHz",
@@ -125,8 +125,8 @@ export const dsp = {
   channels: { label: "Output Channels", group: "dsp", widget: "number", lane: "http", field: "channels" },
   // Detented slider rather than a dropdown: the eight lengths are one scale
   // (short = gentler roll-off, long = steeper, manual §4.7), not eight names.
-  // It renders inside whichever chain card has an FFT filter selected
-  // (components/tabs/ConversionCards.js), so it has no card of its own.
+  // Its row shows under whichever chain has an FFT filter selected
+  // (components/faceplate/drawers/modes.js).
   fft_size: {
     label: "FFT filter length",
     group: "dsp",
@@ -147,9 +147,7 @@ export const dsp = {
   },
 
   // --- DSP: DSD source decoding (SDM input processing) ---
-  // No longer grayed by mode — each folds into its matching PCM/SDM
-  // Resampling-tab card as a "Sources" subsection, with a mode-mismatch note
-  // shown there instead (ResamplingTab.js).
+  // Not grayed by mode — each shows with its matching PCM/SDM chain.
   direct_sdm: {
     label: "DSD playback",
     // HQPlayer's own name for it, so the manual and the daemon's vocabulary are
@@ -198,7 +196,7 @@ export const dsp = {
     desc: "config",
     // Flat overlay — three options group into nothing — and `plainQuiet`,
     // because the Simplified rows are the manual's option wording verbatim and
-    // the per-option sentence under them would repeat it (components/binder.js).
+    // the per-option sentence under them would repeat it.
     plainNames: "sdm_conversion",
     plainQuiet: true,
   },

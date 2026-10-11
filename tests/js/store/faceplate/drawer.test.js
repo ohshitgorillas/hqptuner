@@ -4,7 +4,7 @@
 // split button runs.
 //
 // The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js) and the
-// source signals are assigned the shapes their endpoints serve. The schema keys are v1 catalog keys chosen for their
+// source signals are assigned the shapes their endpoints serve. The schema keys are catalog keys chosen for their
 // lane: volume_max and quick_pause stage for a restart, output_mode is an http field the write path routes live, and
 // adaptive_volume is a live-lane setter. The storage key is named because it is the contract a persisted preference
 // makes with the browser.

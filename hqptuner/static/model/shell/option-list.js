@@ -62,8 +62,8 @@ import { ON_PLATE } from "./place.js";
  */
 
 /** @type {Record<string, string>} */
-const RATIO = { integer: "Integer", "2x": "2x", "1:1": "1:1", any: "Any" }; // v1 facet-data.js RATIOS + "Any" (facettip.js)
-const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"]; // v1 options.js GENERATION_ORDINALS
+const RATIO = { integer: "Integer", "2x": "2x", "1:1": "1:1", any: "Any" };
+const ORD = ["", "1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th"];
 const MARGIN = 12;
 
 /**

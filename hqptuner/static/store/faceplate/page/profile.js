@@ -1,5 +1,5 @@
 // The page's Matrix profile section: the choices its select offers, the live switch, and the running profile's
-// description. The switch is v1's LIVE card's (components/live/MatrixProfile.js): MatrixSetProfile is a live switch, not
+// description. MatrixSetProfile is a live switch, not
 // a config field, so it never stages; the daemon reaches only the profiles it read at startup, and a saved name it did
 // not read is offered disabled. The description is the stored one for the profile running, edited in place: an edit
 // shows at once and is written when the typist pauses or the well loses focus (store/matrix/descriptions.js).

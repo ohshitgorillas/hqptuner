@@ -14,7 +14,7 @@ import { junkAdvice } from "../alerts/junkadvice.js";
 /** @typedef {import("../../model/shell/alerts.js").Home} Home */
 /** @typedef {import("../../model/shell/alerts.js").Sev} Sev */
 /** @typedef {import("../../model/shell/alerts.js").AlertPlan} AlertPlan */
-/** @typedef {import("../health.js").Alert} V1Alert */
+/** @typedef {import("../health.js").Alert} SourceAlert */
 
 /**
  * Where each kind lives: stages and drawers by rail id, sections by page section id, header elements by name, fixing
@@ -33,17 +33,17 @@ const HOMES = {
   junk: { stage: "hf", drawer: "hf", row: ["junk_filter"] },
 };
 
-/** v1's engine-health kinds, by the faceplate kind each lands as. @type {Record<string, string>} */
+/** The engine-health kinds (store/health.js), by the faceplate kind each lands as. @type {Record<string, string>} */
 const ENGINE_KIND = { "dsp-speed": "speed", clipping: "clip", apodizing: "apod" };
 
-/** v1's shaper-fit kinds, by the faceplate kind and the chain each judges. @type {Record<string, { kind: string, chain: "pcm" | "sdm" }>} */
+/** The shaper-fit kinds (store/alerts/shaperfit.js), by the faceplate kind and the chain each judges. @type {Record<string, { kind: string, chain: "pcm" | "sdm" }>} */
 const SHAPER_KIND = {
   "shaper-fit-sdm": { kind: "shaperSdm", chain: "sdm" },
   "shaper-fit-pcm": { kind: "shaperPcm", chain: "pcm" },
 };
 
 /**
- * One v1 alert as the faceplate raises it.
+ * One source store's alert as the faceplate raises it.
  *
  * @param {string} kind
  * @param {string} sev
@@ -53,7 +53,7 @@ const SHAPER_KIND = {
 const raised = (kind, sev, text) => ({ kind, sev: /** @type {Sev} */ (sev), text });
 
 /**
- * The alerts the faceplate raises, in v1's order: credentials, engine health, the shaper fit, Roon, the junk advice.
+ * The alerts the faceplate raises, in this order: credentials, engine health, the shaper fit, Roon, the junk advice.
  *
  * @returns {Alert[]}
  */
@@ -63,8 +63,8 @@ export function faceplateAlerts() {
   const junk = junkAdvice.value;
   return [
     ...(creds ? [raised("credentials", creds.sev, creds.text)] : []),
-    ...engineAlerts.value.map((/** @type {V1Alert} */ a) => raised(ENGINE_KIND[a.kind], a.sev, a.text)),
-    ...shaperAlerts.value.map((/** @type {V1Alert} */ a) => ({
+    ...engineAlerts.value.map((/** @type {SourceAlert} */ a) => raised(ENGINE_KIND[a.kind], a.sev, a.text)),
+    ...shaperAlerts.value.map((/** @type {SourceAlert} */ a) => ({
       ...raised(SHAPER_KIND[a.kind].kind, a.sev, a.text),
       chain: SHAPER_KIND[a.kind].chain,
     })),

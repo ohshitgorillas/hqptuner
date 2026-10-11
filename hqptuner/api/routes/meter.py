@@ -1,4 +1,4 @@
-"""The METER page's event stream — the metering reader's feed as server-sent events.
+"""The Source meter's event stream — the metering reader's feed as server-sent events.
 
 One ``geometry`` event ahead of the ``frame`` events it describes, then one ``frame`` per stride
 (``engine/meterfeed.py``). The stream sends nothing while the engine is not playing and stays open.

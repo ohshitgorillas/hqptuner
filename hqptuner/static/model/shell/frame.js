@@ -211,7 +211,7 @@ export function pathView(p, run, scene, { engine, zones, out }) {
 }
 
 /**
- * The mock alerts the picks raise where v1's would fire. Apodizing fires only where a filter runs (not a DSD → SDM path)
+ * The mock alerts the picks raise. Apodizing fires only where a filter runs (not a DSD → SDM path)
  * and only for a running filter its list marks non-apodizing; the shaper fits are judged in the chain that will produce
  * output, playing or not; junk advice is for Nx PCM content only.
  *

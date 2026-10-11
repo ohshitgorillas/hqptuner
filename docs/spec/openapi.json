@@ -3721,7 +3721,7 @@
     },
     "/api/config/live": {
       "post": {
-        "description": "Apply live-lane config-form fields immediately, readback-verified.\n\nThis is the LIVE view's whole write path. Never staged and never persistent, so it cannot restart the daemon and\ncannot flush what the tabs view has staged.\n\nRouted through the lane rather than a manager method because the LIVE lane's\nonly caller is this route, and `/state` already reads `routing`\ndirectly for the same reason.",
+        "description": "Apply live-lane config-form fields immediately, readback-verified.\n\nThis is the whole write path of the controls that write on the spot. Never staged and never persistent, so it\ncannot restart the daemon and cannot flush the pending buffer.\n\nRouted through the lane rather than a manager method because ``lane.apply_now``'s\nonly callers outside the lane are this route and auto-pilot (``core/autopilotops``),\nand `/state` already reads `routing` directly.",
         "operationId": "config_live_api_config_live_post",
         "requestBody": {
           "content": {
@@ -4353,7 +4353,7 @@
     },
     "/api/log": {
       "get": {
-        "description": "Return a static tail of the daemon's log file (System-tab live view).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;\none with no log to serve is refused under a code of its own.",
+        "description": "Return a static tail of the daemon's log file (the Logging drawer's tail).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;\none with no log to serve is refused under a code of its own.",
         "operationId": "log_tail_api_log_get",
         "parameters": [
           {
@@ -4983,7 +4983,7 @@
     },
     "/api/status": {
       "get": {
-        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``advisor`` says whether\nthe advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, the recommendation\nis null and auto-pilot reads as off whatever its store holds.",
+        "description": "Return the Status frame with its track metadata, the advisor's recommendation, and auto-pilot's state.\n\n503 until the first Status has landed; the recommendation is null whenever the metering reader has nothing to say.\nAuto-pilot rides along because it moves in the background \u2014 its own task can switch the filter, and a page that\nonly asked when it last wrote would show the wrong control. An auto-pilot store too new to read reads as off here;\na corrupt one refuses with ``store_corrupt``. ``metering``\nsays whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays\nagainst: a null recommendation cannot tell \"nothing to report\" from \"nothing is reading\". ``advisor`` says whether\nthe advisor and auto-pilot are offered at all (``Config.advisor_enabled``); off, the recommendation\nis null and auto-pilot reads as off whatever its store holds.",
         "operationId": "status_api_status_get",
         "responses": {
           "200": {

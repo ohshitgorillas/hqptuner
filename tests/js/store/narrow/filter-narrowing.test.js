@@ -1,18 +1,11 @@
 // Behavioral suite for `filterNarrowingActive` (store/narrow/state.js): the
 // predicate that says whether any facet which actually NARROWS A DROPDOWN has
-// moved off its default. It is `narrowingActive` minus the source-format term,
-// because source format narrows no dropdown — it discloses the chain cards' "DSD
-// Sources" subsections instead (tests/js/store/srcformat.test.js pins that it
-// leaves every filter list whole).
+// moved off its default. It leaves the source-format facet out, because source
+// format narrows no dropdown (tests/js/store/srcformat.test.js pins that it leaves
+// every filter list whole).
 //
-// The two predicates are what the two narrow bars reset on: the Output tab's bar
-// offers the source-format control and so follows `narrowingActive`, and the
-// Live view's bar has no such control and so follows this one.
-//
-// `narrowingActive` keeping its meaning at "both", and resetNarrowing() still
-// clearing source format, are pinned where they already were —
-// tests/js/store/srcformat.test.js. Those cases are the regression guard on this
-// split and are deliberately not restated here.
+// resetNarrowing() clearing source format is pinned in
+// tests/js/store/srcformat.test.js and not restated here.
 //
 // Facet data is driven by assigning the two source signals
 // the real payloads carry — `enums.filters` is the running engine's

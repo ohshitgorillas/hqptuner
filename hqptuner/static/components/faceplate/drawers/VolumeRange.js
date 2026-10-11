@@ -1,6 +1,5 @@
-// The Volume drawer's Range block: HQPTuner v1's range bar on the faceplate. Min, Startup and Max on one shared dBFS
-// axis, so the relationship three separate boxes never stated is drawn: the span between the brackets is the range the
-// engine will allow at runtime. Under the bar, the typed boxes and the Playback readout beside the settings'
+// The Volume drawer's Range block: Min, Startup and Max on one shared dBFS axis, the span between the brackets the
+// range the engine will allow at runtime. Under the bar, the typed boxes and the Playback readout beside the settings'
 // paragraphs, then the loudness bounds, read-only here since they are Loudness settings, beside theirs. Every mark on
 // the bar is named once, beside its own glyph; a readout shows only while its mark is on the bar.
 //

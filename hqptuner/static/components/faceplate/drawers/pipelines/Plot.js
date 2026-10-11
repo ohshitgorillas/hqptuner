@@ -1,8 +1,8 @@
-// The response plot beside the dock, drawn by v1's plot frame (components/plots.js PlotFrame, as the Matrix response
-// card draws it): `#n` the picked pipeline · `L → L` its crosspoint summed · `Out L` one trace per input, each trace
-// the complex sum of its pipelines, gains included. The picked pipeline's peak and shelf bands ride the curve as dots
-// and drag on it; a crossfeed block's row has none to drag. Which scope is drawn, its traces and its bands are
-// model/shell/pipelines-edit.js's `plotInputs`; the curves are the vendored chain response.
+// The response plot beside the dock, drawn by the shared plot frame (components/plots.js PlotFrame): `#n` the picked
+// pipeline · `L → L` its crosspoint summed · `Out L` one trace per input, each trace the complex sum of its pipelines,
+// gains included. The picked pipeline's peak and shelf bands ride the curve as dots and drag on it; a crossfeed block's
+// row has none to drag. Which scope is drawn, its traces and its bands are model/shell/pipelines-edit.js's
+// `plotInputs`; the curves are the vendored chain response.
 
 import { signal } from "@preact/signals";
 import { html } from "../../../../lib/dom.js";
@@ -22,7 +22,7 @@ import { Seg } from "./parts.js";
 /** @typedef {import("./Output.js").Tab} Tab */
 /** @typedef {{ i: number, k: number, f: number, g: number }} Drag  a band in flight: pipeline, stage, where it is */
 
-// The same fixed audio-band reference rate as v1's matrix plot: a biquad's shape across 20 Hz–20 kHz is near
+// A fixed audio-band reference rate: a biquad's shape across 20 Hz–20 kHz is near
 // rate-independent once fs is well above audio.
 const FS = 48000;
 const FREQS = bandFreqs(160);

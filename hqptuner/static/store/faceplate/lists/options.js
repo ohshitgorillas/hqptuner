@@ -1,8 +1,9 @@
 // The options a catalog key's list holds, and the ones narrowing keeps. The running engine enumerates: the loaded
-// chain's list is its enumeration and the dormant chain's the daemon's /config form, both as the chain cards read them
-// (store/live/chains.js), and a key no chain holds lists its drawer row's options. Each option joins v1's overlays by
+// chain's list is its enumeration and the dormant chain's the daemon's /config form, both as the chain controls read them
+// (store/live/chains.js), and a key no chain holds lists its drawer row's options. Each option joins the store's overlays by
 // engine name: its facets (store/narrow/facets.js), its plain-names family, variant and leaf in Simplified, a
-// modulator's rate floor tier and generation, and its manual prose. Narrowing is v1's matching over v1's facet state;
+// modulator's rate floor tier and generation, and its manual prose. Narrowing is store/narrow/match.js's matching over
+// the narrowing state;
 // the value running in the field is never hidden.
 
 import { schema } from "../../schema.js";
@@ -32,7 +33,7 @@ import { ditherRate, modTier, shaperKeeps } from "./shapers.js";
 /** @typedef {MenuOption & { display?: string, group?: string, subgroup?: string | null }} Decorated */
 
 /**
- * A key's options before any narrowing, valued by enum ID and labeled by engine name: a chain key's as its chain card
+ * A key's options before any narrowing, valued by enum ID and labeled by engine name: a chain key's as its chain's control
  * lists them, any other key's as its drawer row does.
  *
  * @param {string} key

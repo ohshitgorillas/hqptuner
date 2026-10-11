@@ -48,7 +48,7 @@ import { applySpeakers, speakers } from "../../matrix/speakers.js";
  * @typedef {{ index: number, label: string, level: unknown, distance: unknown, [limit: string]: unknown }} FormChannel
  */
 
-/** The speaker sets, in menu order (v1 components/speakers/Card.js, owner copy). @type {SpeakerSet[]} */
+/** The speaker sets, in menu order (owner copy). @type {SpeakerSet[]} */
 export const SETS = [
   { id: "2.0", label: "2.0 — stereo", channels: [0, 1] },
   { id: "2.1", label: "2.1 — stereo + sub", channels: [0, 1, 3] },
@@ -58,7 +58,7 @@ export const SETS = [
   { id: "7.1", label: "7.1 — surround + sides", channels: [0, 1, 2, 3, 4, 5, 6, 7] },
 ];
 
-// The set is a browser preference under v1's own key, so the set picked on either shell is the one both open on.
+// The set is a browser preference under the storage key `hqptuner.speakerSet`, so a browser opens on the set it last picked.
 const [speakerSet, setSpeakerSet] = enumPref(
   "hqptuner.speakerSet",
   SETS.map((s) => s.id),
@@ -90,7 +90,7 @@ const box = (c, kind) => ({
   step: limit(c[`${kind}_step`]),
 });
 
-// The daemon calls slot 3 LFE; the drawer, like v1, shows the box on the floor as a sub. Display name only.
+// The daemon calls slot 3 LFE; the drawer shows the box on the floor as a sub. Display name only.
 /** @param {string} label */
 const displayName = (label) => (label === "LFE" ? "Sub" : label);
 
@@ -215,7 +215,7 @@ export function speakerDraft() {
 /** Whether the drawer holds an edit to apply. */
 export const staged = computed(() => speakerDraft().differs);
 
-/** The line the drawer prints while the level trims are dead (v1 copy, owner: components/speakers/Card.js). */
+/** The line the drawer prints while the level trims are dead (owner copy). */
 export const DIRECT_SDM_NOTE =
   "Direct SDM bypasses the volume control, so the level trims have no effect. Distances still apply.";
 

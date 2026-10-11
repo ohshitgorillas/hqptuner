@@ -42,7 +42,7 @@ export function wireLabel(key) {
 export const engineStopped = (fails) => fails.some((f) => f.code === "daemon_unavailable");
 
 // A failed live write in the page's words, shared by the apply verdict and the
-// LIVE view's per-control and live-preset error. An engine that stopped
+// live lane's per-control and live-snapshot error (store/live/state.js). An engine that stopped
 // answering explains every other failure in the same write, so one such entry
 // makes the whole list one sentence naming every failed setting. Otherwise each
 // failed setting gets its own sentence. One HQPTuner refused before sending it

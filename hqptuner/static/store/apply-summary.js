@@ -1,5 +1,5 @@
 // Apply-report summarization: turns the backend's apply report into the
-// {ok, text} pair the apply pill and the pending bar both render.
+// {ok, text} verdict store/actions.js holds as `lastApply`.
 //
 // Pure apart from the names: its one store import is the wire-key label
 // lookup, which reads the static control catalog and the loaded /api/metadata
@@ -14,7 +14,7 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
 // ("2 staged" -> "Applied 1 change") undercounts the real changes.
 /**
  * @typedef {object} Verdict
- *   What the apply pill and the pending bar render. `text` is the sentence the
+ *   One apply's verdict (store/actions.js `lastApply`). `text` is the sentence the
  *   reader gets and is the owner's to reword; `code` names WHICH outcome this
  *   is, and the fields beside it carry the parts the sentence interpolates. An
  *   apply has two axes — what the apply itself did, and how its preset save went

@@ -1,8 +1,8 @@
-// The narrowing console's store half. The facets are v1's own signals (store/narrow/state.js, the favorites switch in
-// store/narrow/favorites.js), persisted by v1's narrowing store, plus this phase's two shaper facets
+// The narrowing console's store half. The facets are the narrowing store's signals (store/narrow/state.js, the
+// favorites switch in store/narrow/favorites.js), persisted by store/narrow/persist.js, plus the two shaper facets
 // (store/faceplate/lists/shapers.js). This module reads them as the one state record the console's model reads
 // (model/shell/narrow-view.js), writes a facet by its console key, resets and tests a set of keys, and counts what a
-// pick would leave: the running chain's 1x and Nx filter lists through v1's preview count, or a shaper list.
+// pick would leave: the running chain's 1x and Nx filter lists through the narrowing preview count (store/narrow/match.js), or a shaper list.
 
 import { batch } from "@preact/signals";
 import {
@@ -159,7 +159,7 @@ const SELECTION_KEY = {
 };
 
 /**
- * The console keys of a preview as v1's matching selection reads them at one stage. Apodizing and 1x sources apply
+ * The console keys of a preview as the matching selection (store/narrow/match.js) reads them at one stage. Apodizing and 1x sources apply
  * at their own stage only.
  *
  * @param {Over} over

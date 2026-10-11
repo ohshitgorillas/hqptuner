@@ -65,7 +65,7 @@ def _optional_path(name: str) -> Path | None:
 # variable name — still sees every one of these fields.
 _UNSET_PATH = Path()
 
-#: Whether any build offers the junk-filter advisor, auto-pilot and the METER page. Not an operator knob: the three
+#: Whether any build offers the junk-filter advisor and auto-pilot. Not an operator knob: the two
 #: ship only when this reads True, and a stored auto-pilot state never acts while it reads False.
 ADVISOR_ENABLED = False
 
@@ -111,8 +111,8 @@ class Config:
     # reader is never constructed, nothing connects to 4322, and the advisor's
     # recommendation is permanently null — the rest of HQPTuner is unaffected.
     metering_enabled: bool = field(default_factory=lambda: _env_flag("METERING_ENABLED", "1"))
-    # Whether the junk-filter advisor, auto-pilot and the METER page are offered at all. A build
-    # constant, not an operator knob: off hides the three and makes auto-pilot inert while they
+    # Whether the junk-filter advisor and auto-pilot are offered at all. A build
+    # constant, not an operator knob: off hides the two and makes auto-pilot inert while they
     # are reworked, with every stored state left where it is.
     advisor_enabled: bool = ADVISOR_ENABLED
     # hqplayerd's stock management credentials (Signalyst embedded-install docs) —
@@ -158,7 +158,7 @@ class Config:
     # HQPTuner-owned preset store (see presets/store/presets.py) — full-config XML snapshots we
     # manage ourselves instead of hqplayerd's unreliable named-profile subsystem.
     preset_dir: Path = field(default_factory=lambda: Path(_env("PRESET_DIR", str(_UNSET_PATH))))
-    # The LIVE view's named live snapshots (see presets/store/live.py) — one JSON file, not a
+    # The stations' named live snapshots (see presets/store/live.py) — one JSON file, not a
     # directory, because a live snapshot is a handful of enum IDs rather than a
     # config snapshot. Defaults beside the dev container's bind-mounted state dir
     # so a host run and the dev container read the same presets.

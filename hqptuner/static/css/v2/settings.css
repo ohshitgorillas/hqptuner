@@ -28,7 +28,7 @@ dl.about dd{margin:0;font-family:var(--f-mono);font-size:var(--fs-4);color:var(-
 .spage a:not(.btn){color:var(--acc);text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .spage .cap{font-size:var(--fs-3);color:var(--ink-2)}
 
-/* Drawer controls added for settings: a text box (Log path) and the accent picker (v1 AccentPicker). */
+/* Settings drawer controls: the text box (Log path) and the accent picker (swatch and hex field). */
 input.vfd.txt{width:100%;text-align:left;font-size:var(--fs-4);font-weight:var(--fw-regular)}
 input.vfd.txt:disabled{color:var(--acc-dim)}
 .accpick{display:flex;align-items:center;gap:var(--sp-5)}
@@ -45,7 +45,7 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
 
 /* Overflow rule: copy in closer to its setting first (control column 300, the CUDA offload seg's width); then tabs. */
 #drawer-hardware .drow{grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10)}
-/* CPU tab: copy in closer again once Apply to all stations joined it: 240px, the E-core allocation
+/* CPU tab: copy in closer, with Apply to all stations beside it: 240px, the E-core allocation
    seg's width (the 300 is GPU's CUDA offload seg). */
 #hardware-p-cpu .drow{grid-template-columns:var(--drow-col-cpu) minmax(0,1fr)}
 

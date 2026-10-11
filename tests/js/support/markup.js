@@ -1,6 +1,5 @@
 // Rendered-markup scanning shared by the suites that ask what a region of a
-// card encloses. Lifted from tests/js/components/liveplayback.test.js, which
-// settled the convention: the disabled state a control carries when the engine
+// card encloses. The convention: the disabled state a control carries when the engine
 // has taken it away is the `off` class token (`knob knob-lg off`, `dsp-body
 // off`), and the region carrying it is the OUTERMOST element inside the
 // fragment that carries the token.

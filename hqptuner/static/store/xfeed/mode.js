@@ -124,8 +124,8 @@ function installedMode(rows) {
 }
 
 // What stands between the current config and an installed block. Reported, never
-// applied behind the user's back — the caller stages these so they appear in the
-// pending bar like any other edit.
+// applied behind the user's back — the caller stages these so they show as staged
+// like any other edit.
 /** Report the config settings that stand between the current config and an installed block. */
 export function conflicts() {
   return blockConflicts(effective);
@@ -223,8 +223,8 @@ function disableBauer(rows) {
 // and it is what keeps the two crossfeeds — matrix block and post-process — from
 // ever running in series. Turning either one on stays a button the user presses.
 //
-// Both directions stage like any other edit: the pending bar counts them and
-// Discard puts them back.
+// Both directions stage like any other edit: they show as staged and Discard
+// puts them back.
 /**
  * Switch the view to a crossfeed mode, staging the mode being left off and
  * enabling nothing.

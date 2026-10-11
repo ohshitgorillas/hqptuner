@@ -1,19 +1,18 @@
-// Behavioral suite for rate/shaper fit inside the LIVE page's chain cards —
+// Behavioral suite for rate/shaper fit inside `liveModel`'s chain cards —
 // which modulator rows the SDM card grays, and the PCM card's refusal to gray a
 // dither for any reason of rate at all.
 //
 // The split is a product decision, not something the manual draws: a modulator
 // below its rate floor makes the engine produce NOTHING, so the row cannot be
 // picked; a dither below its floor still plays, so the row stays pickable and
-// the advice goes in the alert strip instead (shaperfit-alerts.test.js).
+// the advice goes in an alert instead (shaperfit-alerts.test.js).
 //
 // Constraints live only in data/shapers.json, which joins to the engine's own
 // shaper names, so every floor below arrives through the
 // /api/metadata overlay the fixture states — `min_rate_hz` in Hz, null for a
 // shaper the file records no floor for.
 //
-// The cards are read through the exported `liveModel`, the same
-// surface components/live/View.js renders from.
+// The cards are read through the exported `liveModel`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/guards/shaperfit-graying.test.js
 

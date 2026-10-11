@@ -156,7 +156,7 @@ const asChain = (v) => (v === "sdm" ? "sdm" : "pcm");
 export const recordChain = (rec) => asChain(rec.fields.mode ?? rec.chain);
 
 /**
- * One chain's rows as enum IDs, read the way its chain card reads them.
+ * One chain's rows as enum IDs, read the way its chain's controls read them.
  *
  * @param {Chain} ch
  * @param {string | null} loaded

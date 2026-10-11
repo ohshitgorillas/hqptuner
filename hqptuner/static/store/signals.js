@@ -63,8 +63,8 @@ export const liveOverride = signal({});
 // reader here actually wants.
 export const ready = computed(() => !!(health.value && health.value.ready));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
-// Whether the junk-filter advisor, auto-pilot and the METER page are offered at
-// all (Config.advisor_enabled, on /api/status as `advisor`). Off, their controls
-// do not render. A payload without the field reads as offered: hiding a control
+// Whether the junk-filter advisor and its auto-pilot are offered at all
+// (Config.advisor_enabled, on /api/status as `advisor`). Off, the HF filter
+// drawer's auto-pilot switch does not render. A payload without the field reads as offered: hiding a control
 // that in fact works is the worse failure.
 export const advisor = computed(() => (engineStatus.value || {}).advisor !== false);

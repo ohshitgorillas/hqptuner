@@ -4,8 +4,8 @@
 // half is components/faceplate/drawers/Loudness.js.
 //
 // A bound dragged on the bar moves a draft and stages once, on release; a typed one stages at once. Both pass the
-// lifted range-axis clamp: whole dB on the axis, the lower never above the upper. A plot handle streams v1's live
-// override while dragged and stages its whole-hertz frequency and tenth-dB level on release (v1 plots.js).
+// lifted range-axis clamp: whole dB on the axis, the lower never above the upper. A plot handle streams a live
+// override while dragged and stages its whole-hertz frequency and tenth-dB level on release.
 
 import { signal } from "@preact/signals";
 import { clampBounds, clampToAxis } from "../../../model/gauges/range-axis.js";
@@ -95,7 +95,7 @@ export function typeBound(key, v) {
 }
 
 /**
- * The dot on each switch button: on the side not shown while it holds a staged edit (v1 VolumeTab.js).
+ * The dot on each switch button: on the side not shown while it holds a staged edit.
  *
  * @returns {Record<Side, boolean>}
  */
@@ -151,7 +151,7 @@ export function dropHandle(side, f, db) {
 }
 
 /**
- * Both bands as the v1 loudness curve reads them, from the staged store (v1 plots.js LoudnessPlot's fallbacks).
+ * Both bands as the loudness plot reads them, from the staged store, with a fallback for each setting that has no value.
  *
  * @returns {{ lowType: string, lowFreq: number, lowLevel: number, lowSteep: number,
  *   highType: string, highFreq: number, highLevel: number, highSteep: number }}
@@ -169,11 +169,11 @@ export function bands() {
   };
 }
 
-/** Why the block's controls gray ('' while loudness can act): v1's reason for its band and bound settings. */
+/** Why the block's controls gray ('' while loudness can act): the schema's reason for its band and bound settings. */
 export const loudnessGray = () => grayReason(bandKey("low", "freq"));
 
 /**
- * A number setting's bounds and step: the daemon form's own where it ships them, else the catalog's (v1 Field.js).
+ * A number setting's bounds and step: the daemon form's own where it ships them, else the catalog's.
  *
  * @param {string} key
  * @returns {{ min?: number, max?: number, step?: number }}

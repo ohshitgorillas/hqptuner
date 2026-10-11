@@ -1,5 +1,5 @@
 // Shared fixtures for the live-snapshot suites: the wire fake, the records it
-// serves, and the enumeration/metadata trees the LIVE page reads.
+// serves, and the enumeration/metadata trees the live store reads.
 //
 // A live snapshot is HQPTuner's, not the daemon's: it stores a batch of live
 // settings keyed by form-field name, and it carries the OUTPUT MODE among them

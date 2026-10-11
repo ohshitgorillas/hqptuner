@@ -1,4 +1,4 @@
-// Store suite for hqptuner/static/store/meter/feed.js: initMeterFeed() holds the METER feed open while metering runs
+// Store suite for hqptuner/static/store/meter/feed.js: initMeterFeed() holds the meter feed open while metering runs
 // and closed while it is off, meterFeedOpen saying which, and a repeated call registers nothing further. A `geometry`
 // event sets meterGeometry; each `frame` event's base64 bins come back from takeMeterFrames() in dBFS, once, carrying
 // the geometry they arrived under. A frame reaches the spectrogram from the feed only by leaving the queue there: pushed

@@ -1,5 +1,5 @@
 // An option list's rows: one option's name, its marks and its heart, and the key to the filter rows' marks. A filter
-// row marks its apodizing (v1's circled A or ½) and its quality stars, a modulator row the DSD rate floor it needs, a
+// row marks its apodizing (a circled A or ½) and its quality stars, a modulator row the DSD rate floor it needs, a
 // dither or DSD row nothing. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking,
 // on the kinds that keep favorites.
 
@@ -12,7 +12,7 @@ import { TierMark } from "../NameFace.js";
 /** @typedef {import("../../../store/faceplate/view.js").ListRequest} ListRequest */
 /** @typedef {import("../../../store/faceplate/lists/open.js").ListKind} ListKind */
 
-// The glyphs as outlines, Inter 400's "A" and "onehalf", each centered on the circle (v1 components/controls/apod.js).
+// The glyphs as outlines, Inter 400's "A" and "onehalf", each centered on the circle.
 const APOD_PATH = {
   full:
     "M5.61 15.00 9.24 5.00H10.71L14.39 15.00H13.05L10.93 9.07Q10.73 8.52 10.48 7.69Q10.22 6.87 9.85 5.60H10.09Q9.73 " +
@@ -111,7 +111,7 @@ export function Row({ o, req, kind, std }) {
   `;
 }
 
-/** The key to the filter rows' marks, in v1's `glyph = word` grammar. */
+/** The key to the filter rows' marks, each as `glyph = word`. */
 export function Legend() {
   return html`
     <div class="olegend" role="presentation">

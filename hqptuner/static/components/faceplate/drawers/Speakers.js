@@ -1,9 +1,9 @@
 // The Speakers drawer's block, under its switch row. Left: the speaker set (which channels the drawer lists; a view
 // choice that never stages), then one row per listed channel with its level (dBFS) and distance (cm) boxes. Right:
-// v1's top-down room plan, the listener facing up the page and each listed speaker the model places (one with a
+// the top-down room plan, the listener facing up the page and each listed speaker the model places (one with a
 // distance or level entered) at its layout angle, toed in, at a radius set by its own distance, its level riding as a
 // label; the box fits the placed speakers, centred on the listener. While Direct SDM runs the level boxes are dead and
-// v1's line says why; distances stay live. Edits are held by store/faceplate/drawers/speakers.js, which decides
+// a line says why; distances stay live. Edits are held by store/faceplate/drawers/speakers.js, which decides
 // everything drawn here.
 
 import { useEffect } from "preact/hooks";
@@ -29,14 +29,13 @@ import { withXref } from "../Xref.js";
 /** @typedef {import("../../../model/gauges/speakers.js").Spot} Spot */
 /** @typedef {{ currentTarget: { value: string } }} ChangeEv */
 
-/** Each channel's angle on the plan, degrees clockwise from front, in the daemon's order (v1 Diagram.js). */
+/** Each channel's angle on the plan, degrees clockwise from front, in the daemon's order. */
 const LAYOUT = [-30, 30, 0, -55, -145, 145, -90, 90];
-/** Each channel's tag on the plan, in the daemon's order (v1 Diagram.js). */
+/** Each channel's tag on the plan, in the daemon's order. */
 const SHORT = ["L", "R", "C", "Sub", "Lr", "Rr", "Ls", "Rs"];
 /** How far the listener's nose reaches past the head. */
 const NOSE = 5;
 
-// v1 copy (owner): components/speakers/Card.js.
 const LOADING = "Loading speaker processing…";
 
 /**

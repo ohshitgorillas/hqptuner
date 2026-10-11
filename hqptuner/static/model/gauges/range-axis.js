@@ -134,7 +134,7 @@ export function clampBounds(k, v, pair, axis) {
 }
 
 /**
- * A volume handle moved to `n` (v1 lib/volume.js clampVolume): whole dB; Min on the axis, at most 0 dB and never above
+ * A volume handle moved to `n` (lib/volume.js clampVolume, on `axis`): whole dB; Min on the axis, at most 0 dB and never above
  * Startup or Max; Max on the axis and never below Min or Startup; Startup between Min and Max.
  *
  * @param {VolumeKey} which

@@ -118,7 +118,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
     a corrupt one refuses with ``store_corrupt``. ``metering``
     says whether the reader is running at all (``HQPTUNER_METERING_ENABLED``), which is what auto-pilot's switch grays
     against: a null recommendation cannot tell "nothing to report" from "nothing is reading". ``advisor`` says whether
-    the advisor, auto-pilot and the METER page are offered at all (``Config.advisor_enabled``); off, the recommendation
+    the advisor and auto-pilot are offered at all (``Config.advisor_enabled``); off, the recommendation
     is null and auto-pilot reads as off whatever its store holds.
     """
     frame = manager.readings.status
@@ -182,7 +182,7 @@ class DaemonHasNoLogError(ErrorBody):
 
 @router.get("/log", response_model_exclude_none=True)
 async def log_tail(manager: Mgr, lines: int = 50) -> LogTail:
-    """Return a static tail of the daemon's log file (System-tab live view).
+    """Return a static tail of the daemon's log file (the Logging drawer's tail).
 
     Read-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;
     one with no log to serve is refused under a code of its own.

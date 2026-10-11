@@ -10,7 +10,7 @@
 // Module-level signals outlive a test, so reset() reassigns every tree and
 // clears the staged buffer via discardAll().
 //
-// Run: node --import ./tests/js/vendor-resolve.js --test tests/js/profiles.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/profiles.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";

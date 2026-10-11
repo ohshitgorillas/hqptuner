@@ -5,7 +5,7 @@
 // (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
-// since server rendering fires no events. The stream reaches the store at the wire: METER feed events through the
+// since server rendering fires no events. The stream reaches the store at the wire: meter feed events through the
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.
 // The Range control's readout and buttons are found by `data-testid`; every string asserted is a wire value or a
 // number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,

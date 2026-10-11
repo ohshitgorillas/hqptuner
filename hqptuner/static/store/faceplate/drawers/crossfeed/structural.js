@@ -1,7 +1,8 @@
-// The Structural line's controls in the Crossfeed drawer (v1 xfeed/Card.js StructuralMode): speaker angle, head
-// circumference and center character, the preset they land on, and the settings an install would change. A drag
-// streams through v1's live params so the drawing follows without restaging sixteen rows per pixel; a commit remembers
-// the values and restages an installed block. With no block installed nothing stages: the gate installs it.
+// The Structural line's controls in the Crossfeed drawer: speaker angle, head
+// circumference and center character, the preset they land on, and the settings an install would change.
+// A drag streams through the crossfeed store's live params (store/xfeed/mode.js liveParams), so the drawing
+// follows without restaging sixteen rows per pixel; a commit remembers the values and restages an installed
+// block. With no block installed nothing stages: the gate installs it.
 
 import { PRESETS, matchPreset } from "../../../../lib/binaural-setup.js";
 import { effectivePipelines } from "../../../resolve.js";

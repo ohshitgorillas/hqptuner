@@ -1,7 +1,7 @@
 // The connection panel's own state: whether it is showing, what discovery
 // found, what the user has typed, and what the daemon said after a save.
 //
-// Two things open the panel. A user opening it from the status pill, and this
+// Two things open the panel. A user opening it from the brand knob, and this
 // module deciding an install cannot use its daemon. The second reading is taken
 // off the health poll and is deliberately not symmetric:
 //
@@ -21,7 +21,7 @@
 // subtracting it here would put two clocks in one comparison.
 //
 // A page that has seen the daemon connected is never auto-opened again. The
-// pill and the alert strip already report a daemon that goes away mid-session,
+// brand knob already reports a daemon that goes away mid-session,
 // and a panel thrown over a working page on every dropout would be its own
 // fault report.
 import { signal, effect } from "@preact/signals";
