@@ -31,6 +31,12 @@ This gate enforces that form, in both directions:
    number their headings (``## 4. Writing``, ``### 4.2 Live vs restart``), and
    ``architecture §4.2`` fails unless a heading carries that number.
 
+4. **A backticked path in a design doc must name something in the tree.** A
+   file under ``docs/spec/`` that cites `` `scripts/gate.sh` `` fails once
+   that path is gone. Only paths under ``hqptuner/``, ``scripts/``, ``docs/``
+   and ``tests/`` are checked, resolved against the repo root; ``main`` always
+   scans ``docs/spec/*.md`` beside the files it is handed.
+
 **A citation must sit on one line.** Matching is per-line, so a citation
 wrapped across two lines matches nothing and is silently unverified. Where a heading is
 too long to wrap, cite a *unique prefix* of it rather than breaking the line:
@@ -135,6 +141,23 @@ SECTION = re.compile(
 )
 
 
+#: a backticked repo path under one of the roots a design doc cites into; a
+#: token with whitespace is a command, and one with a scheme or a dotted symbol
+#: never starts with a bare root followed by a slash
+CITED_PATH = re.compile(r"`((?:hqptuner|scripts|docs|tests)/[^`\s]*)`")
+
+
+def design_doc(path: Path) -> bool:
+    """Report whether this file sits under a ``docs/spec/`` directory."""
+    parts = path.parts
+    return any(parts[i : i + 2] == ("docs", "spec") for i in range(len(parts) - 1))
+
+
+def missing_paths(line: str) -> list[str]:
+    """Each backticked path on this line that names nothing in the repo tree."""
+    return [cited for cited in CITED_PATH.findall(line) if not (ROOT / cited).exists()]
+
+
 def unresolved_sections(line: str, docs: dict[str, list[str]]) -> list[str]:
     """Each ``§N`` citation on this line naming no numbered heading in its doc."""
     missing = []
@@ -187,9 +210,12 @@ def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
     stems = [k for k in docs if not k.endswith(".md")]
     ordinal = ordinal_re(stems)
     label = relabel(path)
+    cites_paths = design_doc(path.resolve())
     for index, line in enumerate(lines, start=1):
         if exempt(lines, index - 1):
             continue
+        if cites_paths:
+            problems.extend(f"{label}:{index}: `{cited}` — no such path" for cited in missing_paths(line))
         for match in ordinal.finditer(line):
             cite = match.group(0).strip()
             problems.append(f"{label}:{index}: ordinal citation '{cite}' — rot risk")
@@ -211,9 +237,11 @@ def main(argv: list[str]) -> int:
         print("check_doc_refs: no docs found", file=sys.stderr)
         return 1
     problems = []
-    for arg in argv:
-        path = Path(arg)
-        if path.is_file() and path.resolve() != Path(__file__).resolve():
+    seen: set[Path] = set()
+    for path in [Path(arg) for arg in argv] + sorted((ROOT / "docs" / "spec").glob("*.md")):
+        resolved = path.resolve()
+        if path.is_file() and resolved != Path(__file__).resolve() and resolved not in seen:
+            seen.add(resolved)
             problems.extend(check(path, docs))
     for problem in problems:
         print(problem, file=sys.stderr)

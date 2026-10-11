@@ -141,7 +141,7 @@ Current state only.
 - **Profile-wide:** one value store. An edit anywhere lights every member's apply group; Apply in any member applies all.
 - Nothing is live; the rail follows on Apply. Matrix bypassed grays every child.
 - **Matrix engine:** tabs Basic (Matrix processing, Expand HF) | Advanced (Engine, IIR to FIR); enum options listed with their manual lines.
-  - Basic opens on an intro (DRAFT, `data/matrix.js` MX_INTRO): what the matrix engine runs, each part a link to its drawer (`DSP pipelines ›`, `Crossfeed ›`, `Loudness ›`, `DAC correction ›`), and what bypassing does to them. The one cross-reference that isn't a cause or a fix: a family index.
+  - Basic opens on an intro (DRAFT, the `intro` of the Basic tab of `MATRIX_DRAWER` in `hqptuner/static/components/faceplate/drawers/matrix.js`): what the matrix engine runs, each part a link to its drawer (`DSP pipelines ›`, `Crossfeed ›`, `Loudness ›`, `DAC correction ›`), and what bypassing does to them. The one cross-reference that isn't a cause or a fix: a family index.
 - **Crossfeed:** gate, then a Bauer / Structural choice. The pick is a view choice and never engages crossfeed. The unpicked line folds to a summary.
   - Bauer: presets, Frequency / Level (Custom only), compensation, plot.
   - Structural: presets, angle, head circumference, center character; v1's top-down drawing and readouts, no plot.
@@ -231,7 +231,7 @@ Current state only.
 
 ## Station builder
 - The setup wizard's station walk (repo `docs/spec/wizard/wizard.md` §1–§1.7, §4), one station at a time, in the Profile builder's grammar. Edits a copy; Save writes the station. Saving the loaded station, or new Hardware answers, restarts the engine.
-- Wizard copy verbatim, `preset` renamed `station`. Agent copy is marked DRAFT in `data/station-builder.js`.
+- Wizard copy verbatim, `preset` renamed `station`. Agent copy is marked DRAFT. The Station builder's copy is not yet in the tree.
 - **Rail:** Overview + steps with their answers (`Skipped` where a step doesn't apply); tap to jump, nothing forces the order.
 - **Overview:**
   - The wizard's intro beside the chain picture with the station's part lit (Volume, Output).

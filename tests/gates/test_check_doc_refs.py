@@ -81,3 +81,57 @@ def test_a_quoted_heading_resolves_with_or_without_its_section_number(tmp_path: 
     source = tmp_path / "source.py"
     source.write_text(line + "\n", encoding="utf-8")
     assert len(GATE.check(source, QUOTED_DOCS)) == problems
+
+
+#: A cited path no file in the tree carries, under the ``scripts/`` root.
+MISSING_SCRIPT = "scripts/no_such_probe.sh"
+
+
+def _design_doc(tmp_path: Path, line: str) -> Path:
+    """Write ``line`` as the whole body of a design doc under a ``docs/spec/`` directory."""
+    spec_dir = tmp_path / "docs" / "spec"
+    spec_dir.mkdir(parents=True)
+    doc = spec_dir / "fixture-design.md"
+    doc.write_text(line + "\n", encoding="utf-8")
+    return doc
+
+
+@pytest.mark.parametrize(
+    "missing",
+    [
+        "hqptuner/no_such_module.py",
+        MISSING_SCRIPT,
+        "docs/spec/no_such_section.md",
+        "tests/no_such_suite.py",
+    ],
+)
+def test_a_design_doc_citing_a_path_that_names_no_file_is_a_problem(tmp_path: Path, missing: str) -> None:
+    """A backticked path under any of the four checked roots must name a file in the tree."""
+    doc = _design_doc(tmp_path, f"The behavior lives in `{missing}`.")
+    assert len(GATE.check(doc, {})) == 1
+
+
+@pytest.mark.parametrize(
+    "existing",
+    ["hqptuner/config.py", "scripts/gate.sh", "docs/spec/testing.md", "tests/gates/test_check_doc_refs.py"],
+)
+def test_a_cited_path_that_names_a_file_is_not_a_problem(tmp_path: Path, existing: str) -> None:
+    """Beside one missing path, an existing one adds no problem of its own."""
+    doc = _design_doc(tmp_path, f"The knobs live in `{existing}` and the probe in `{MISSING_SCRIPT}`.")
+    assert len(GATE.check(doc, {})) == 1
+
+
+@pytest.mark.parametrize(
+    "token",
+    [
+        "hqplayerd.xml",
+        "HQPTUNER_HQP_USERNAME",
+        "make check",
+        "https://example.invalid/docs/spec/gone.md",
+        "hqptuner.core.no_such_symbol",
+    ],
+)
+def test_a_backticked_token_that_is_not_a_path_under_a_checked_root_is_not_checked(tmp_path: Path, token: str) -> None:
+    """Beside one missing path, a filename, env var, command, URL or symbol adds no problem of its own."""
+    doc = _design_doc(tmp_path, f"Set `{token}` before the probe in `{MISSING_SCRIPT}`.")
+    assert len(GATE.check(doc, {})) == 1

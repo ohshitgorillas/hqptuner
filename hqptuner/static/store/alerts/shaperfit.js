@@ -1,4 +1,4 @@
-// Rate/shaper conflicts, as alert-strip rows.
+// Rate/shaper conflicts, as alerts on the Shaping stage.
 //
 // The option lists gray a shaper the rate cannot reach (store/ui/options.js
 // grayShapersByRate), which closes one direction only: pick the rate first and

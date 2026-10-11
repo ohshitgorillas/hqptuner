@@ -137,8 +137,8 @@ function sdmReason() {
 // unticking DoP on a device whose only DSD path was DoP. Left alone it shows a
 // rate the hardware refuses and applies it on the next Apply.
 //
-// So the store corrects it — as an ordinary STAGED edit, visible in the pending
-// bar, marked dirty on its control, discardable — never as a silent display
+// So the store corrects it — as an ordinary STAGED edit, visible in the Output
+// drawer, marked dirty on its control, discardable — never as a silent display
 // substitution, since a control must never disagree with the config it writes.
 // The correction stages even when it costs a daemon restart at Apply: the
 // restart is the user's to spend, at the moment they click.

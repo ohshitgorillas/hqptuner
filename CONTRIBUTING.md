@@ -4,10 +4,11 @@
 
 To report a bug, please reach out with the following information:
 
-* HQPTuner version (System → About) and hqplayerd version (top bar, next to the daemon name)
+* HQPTuner version (Settings → About HQPTuner) and hqplayerd version (Settings → About HQPlayer, the Version window)
 * What you changed, what you expected, what happened
 * Browser and OS, for anything visual
-* Relevant lines from HQPTuner's log (System tab) — the failure detail that doesn't fit on screen goes there
+* Relevant lines from hqplayerd's log (Settings → Logging)
+* HQPTuner's state file (Settings → About HQPTuner → Download state): it carries HQPTuner's log, where the failure detail that doesn't fit on screen goes, and your stations and snapshots
 
 ## Setup
 

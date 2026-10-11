@@ -30,7 +30,7 @@ Discovery (UDP 4321 multicast, `239.192.0.199`) is unauthenticated and read-only
 
 HQPTuner takes the HQPlayer management username and password from `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`, or from the install's saved connection record when the variables are unset or empty (`hqptuner/core/connection.py`; `POST /api/connection` rebuilds the 8088 client in place rather than waiting for a restart). It uses them for HTTP Digest auth against 8088 (realm `com.signalyst.hqplayer.embedded`) and holds the credential server-side. Read-only use and all live (4321) settings work without them; only persistent writes and preset switching require them. The 4321 `SessionAuthentication` crypto handshake is **not** used, and the daemon rejects self-generated client keys anyway (`docs/spec/protocol.md` §3.5–§3.6).
 
-An install whose username or password is empty has no 8088 lane, so `ready` never turns true: the status pill reads Unreachable and the page runs dimmed, the same reading a refused credential gets. Neither field is empty by default: both fall back to hqplayerd's published stock pair (`config.STOCK_CREDENTIAL`), so an install that has configured nothing connects outright against a daemon still on that pair.
+An install whose username or password is empty has no 8088 lane, so `ready` never turns true: the brand knob reads Unreachable and every rail lamp reads unlit, the same reading a refused credential gets. Neither field is empty by default: both fall back to hqplayerd's published stock pair (`config.STOCK_CREDENTIAL`), so an install that has configured nothing connects outright against a daemon still on that pair.
 
 **A field's emptiness therefore does not say whether the install has been configured; `Config.hqp_password_chosen` does**: a password that is not the stock default. `GET /api/connection` reports it as `has_password`, so the connection panel can tell a stored credential from a defaulted one. A blank password field in that panel keeps whichever credential is in force and never clears one.
 
@@ -74,13 +74,13 @@ So `ControlClient.request` closes its own connection on a read timeout, a socket
 
 ### 4.2 Live vs restart split is all-or-nothing per batch
 
-Every control is classified live or restart-required (tagging: `docs/spec/settings-classification.md`), and the pending-changes bar reports the split before Apply. One restart-required field sends the whole staged batch down the restore lane (`lanes/live/routing.split_live`): the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
+Every control is classified live or restart-required (tagging: `docs/spec/settings-classification.md`), and the stage drawer's head reports the split before Apply: a staged restart edit dots its tab, or the title of a drawer of one part, and a tab showing a restart setting shows the apply group (`store/faceplate/drawer.js`). One restart-required field sends the whole staged batch down the restore lane (`lanes/live/routing.split_live`): the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
 
-Chain fields a staged apply does route live are recorded per chain (`lanes/live/lane.remember_routed`), the same record LIVE keeps, so auto-save and chain re-entry report and re-assert them while the chain is dormant.
+Chain fields a staged apply does route live are recorded per chain (`lanes/live/lane.remember_routed`), the same record the live write path keeps (`lane.apply_now`), so auto-save and chain re-entry report and re-assert them while the chain is dormant.
 
 ### 4.3 Two write paths share no staging state
 
-The tabs view stages into the shared `PendingStore`, and Apply flushes **everything** in it (`api/routes/pending.py`, apply route in `api/routes/apply.py`). LIVE writes one batch on the spot, readback-verified, and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a LIVE control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
+The stage drawers' rows stage into the shared `PendingStore` through `edit()` (`store/actions.js`), and a drawer's apply button flushes **everything** in it (`store/faceplate/drawer.js` `runApply`; `api/routes/pending.py`, apply route in `api/routes/apply.py`). The live controls write one batch on the spot through `writeLive` (`store/live/write.js`): the page's chain pickers (`store/faceplate/page/conversion.js`), the engine row's HF filter menu (`store/faceplate/hf.js`), the Setting Switcher (`store/faceplate/bottom/switcher.js`), the Filter presets (`store/faceplate/page/presets.js`) and the rate pin (`store/live/pin.js`). That write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
 
 ### 4.4 Mode rides alone, then the rest re-resolves
 
@@ -110,13 +110,13 @@ Five operations, all built on that one primitive (`presets/store/presets.py` plu
 
 - **Load**: restore the preset's config as `hqplayerd.xml`, so it runs on `[default]`, and mirror it to `data/cfgs/<name>.xml`. Never `profile/load`.
 - **Save / Save-as-new**: snapshot the running config into the store *and* mirror it to `data/cfgs/<name>.xml` via restore. Never `profile/save`. Auto-pilot's state is recorded under the preset's name in `state/autopilot.json` rather than in the XML, because hqplayerd's config carries no junk-filter field for it to sit beside; a load restores it, and auto-pilot settles the filter itself from the next tick.
-- **Delete**: remove from the store, plus `profile/delete` for the daemon's mirror (the one native profile route that works cleanly). The preset's Matrix-tab mode goes with it, from `state/matrixmodes.json`: that store is keyed by preset name, so an entry left behind is read by nothing and would be inherited by the next preset saved under the same name.
+- **Delete**: remove from the store, plus `profile/delete` for the daemon's mirror (the one native profile route that works cleanly). The preset's listening mode (speakers or headphones, `store/matrix/mode.js`) goes with it, from `state/matrixmodes.json`: that store is keyed by preset name, so an entry left behind is read by nothing and would be inherited by the next preset saved under the same name.
 - **Ephemeral Apply**: edit the running config and restore it, touching neither store nor snapshot, so the change reverts on the next preset load. The user experiments freely without spending a preset.
 - **Migration**: on first connect, import the daemon's existing `data/cfgs/*.xml` into the store. Idempotent; store presets win on a name collision; the active pointer is seeded from the daemon's reported active config.
 
 ### 5.3 Live snapshots are a separate store
 
-A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the LIVE lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets. The one exception is the matrix profile, which a snapshot holds as `matrix_profile` and an apply switches through the matrix lane's `MatrixSetProfile` after the live settings land, refusing a name the daemon does not list.
+A config preset is a whole `hqplayerd.xml` applied by restarting the daemon. A live snapshot is a handful of enum IDs applied through the live lane, so it never writes the config file and never restarts anything (`hqptuner/presets/store/live.py`, routes in `api/routes/livepreset.py`). The daemon never sees them: one JSON file HQPTuner owns, with the same name rule as presets. The one exception is the matrix profile, which a snapshot holds as `matrix_profile` and an apply switches through the matrix lane's `MatrixSetProfile` after the live settings land, refusing a name the daemon does not list.
 
 **Snapshots belong to a station.** A station is a config preset, or `""`, the unnamed default loaded while none is. The file is one book, `{"schema": 6, "stations": {station: {name: record}}}`. `GET /api/livepresets` answers the loaded station, its snapshots as `presets`, and the whole book as `stations`, every station the preset store holds with `""` first. A `PUT` writes the one record under each station its body's `stations` names, the loaded one when it names none; a station the preset store does not hold refuses the whole save (`stations_unknown`). Apply and delete take `?station=`, the loaded one when absent. Deleting a config preset drops its station's snapshots. A file in the flat layout earlier schemas wrote reads with each record under every station and under `""`.
 
@@ -130,9 +130,9 @@ Every JSON store under `presets/store/` follows the `store/presets.py` pattern (
 
 ### 5.5 Narrowing persists for the install
 
-The narrowing facets persist per install (`state/narrowing.json`, `presets/store/narrowing.py`, `GET`/`PUT /api/narrowing`), the way stars and live snapshots do: the bar has no daemon field behind it, so there is nothing to reconcile with and nowhere else it can live. Nothing polls; last write wins across browsers.
+The narrowing facets persist per install (`state/narrowing.json`, `presets/store/narrowing.py`, `GET`/`PUT /api/narrowing`), the way stars and live snapshots do: the narrowing console (`components/faceplate/lists/Console.js`) has no daemon field behind it, so there is nothing to reconcile with and nowhere else it can live. Nothing polls; last write wins across browsers.
 
-Two asymmetries are deliberate. A **write** refuses an unknown or out-of-domain facet, because the client is our own frontend and anything else is a bug, while a **read** degrades any damaged entry to that facet's default, so a hand-edited file costs the narrowing rather than the bar. A **refused write leaves the facet where the user put it** (unlike a refused star, which reverts), because narrowing changes nothing but what the menu offers. The favorites-only switch is not stored; it stays session state beside the stars.
+Two asymmetries are deliberate. A **write** refuses an unknown or out-of-domain facet, because the client is our own frontend and anything else is a bug, while a **read** degrades any damaged entry to that facet's default, so a hand-edited file costs the narrowing rather than the console. A **refused write leaves the facet where the user put it** (unlike a refused star, which reverts), because narrowing changes nothing but what the menu offers. The favorites-only switch is not stored; it stays session state beside the stars.
 
 ### 5.6 Where stores live
 
@@ -156,7 +156,7 @@ Shipped as JSON, extracted from the HQPlayer manual, joined against the live enu
 
 ### 6.2 Filter prose is chain-dependent
 
-An entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only on the SDM chain. Both filter chains render at once (four persistent dropdowns), so the chain is the control's own `desc` (`filter` vs `sdm_filter` in `store/schema.js`), never the live output mode, which says nothing about which dropdown is being read. This is unrelated to `two_stage_note`, which is keyed by the `-2s` name.
+An entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only on the SDM chain. Both filter chains stay settable whatever mode runs: the Resampling drawer carries a PCM out and an SDM out tab, each with its own 1x and Nx filter rows (`components/faceplate/drawers/modes.js`), so the chain is the control's own `desc` (`filter` vs `sdm_filter` in `store/schema.js`), never the live output mode, which says nothing about which tab is being read. This is unrelated to `two_stage_note`, which is keyed by the `-2s` name.
 
 ### 6.3 Metadata coverage is gated
 
@@ -172,19 +172,15 @@ The control set is **not enumerated in prose**. Three checked artifacts own it:
 - `hqptuner/data/settings.json`: tooltip prose for every exposed control, plus a `_comment` block listing settings with upstream prose HQPTuner deliberately does not expose.
 - `docs/spec/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
 
-### 7.4 METER is a mode, not a tab
-
-A header switch on the mini spectrum (`store/prefs.meterMode`, not persisted) replaces the tab bar and tab body with the METER page (`static/components/meter/View.js`); the pending bar stays. LIVE and METER exclude each other: each setter, turning its mode on, turns the other off.
-
 ### 7.5 Signal path order
 
-The signal path bar shows the live chain in physical processing order:
+The rail shows the chain in physical processing order (`store/faceplate/chain.js`):
 
 ```
-source → matrix → Bauer crossfeed → conversion stages → DAC correction → output rate
+Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Resampling → DAC correction → Volume → Shaping → Speakers → Output
 ```
 
-Crossfeed is input-side and operates on the source-rate signal. **DAC correction is output-rate-dependent**, so it runs *after* the conversion stages and cannot precede the filter. Disabled post-process stages are omitted from the bar entirely.
+Crossfeed is input-side and operates on the source-rate signal. **DAC correction is output-rate-dependent**, so it runs *after* Resampling and cannot precede the filter. A stage that is off or bypassed keeps its place on the rail, its lamp unlit and its tap dropped from the wire; only a stage the preferences hide leaves the rail (`components/faceplate/Rail.js`).
 
 ### 7.6 Graying reacts to staged values
 
@@ -192,20 +188,20 @@ Disclosure follows staged values, not applied ones, so it updates before Apply.
 
 ### 7.7 Disclosure by mode and backend
 
-- The per-family rate control grays for the inactive mode on the tabs view; Auto ungrays both.
+- The Output drawer's rate dial keeps both families' rate limits settable in either output mode and grays neither band by mode; only the device hatches a tier (`store/faceplate/drawers/output.js`).
 - **Transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" belongs to the *desktop* app and does not apply here. IPv6 is Network-only.
 - ALSA / Network sections **collapse** by backend rather than gray; every field still persists, because the daemon rejects a partial form.
-- FFT filter length has no card of its own: it renders inside a chain card only while that chain's OWN filter slots select an FFT-family filter, so auto mode with FFT on both sides shows it in both cards, and it is absent everywhere else. The daemon carries one `fft_size` field, so the two renders are two views of one value.
+- FFT filter length has no row of its own: it renders on a Resampling drawer tab only while that tab's OWN 1x or Nx filter is FFT-family, so FFT on both chains shows it on both the PCM out and SDM out tabs, and it is absent everywhere else (`components/faceplate/drawers/modes.js`). The daemon carries one `fft_size` field, so the two renders are two views of one value.
 - E-core allocation is meaningful only on hybrid CPUs and carries a muted "hybrid CPUs only" caption.
 - Graying carries no caption where a reason string would reflow the row on a mode change (`quietGray`).
 
 ### 7.8 Mode switch coherence
 
-Flipping PCM ↔ SDM swaps the rate option set and the shaper card (label and option list) in the same interaction.
+Flipping PCM ↔ SDM swaps the rate dial's running band and the page's Shaping section (label and option list) in the same interaction.
 
-### 7.9 Rate selection lives on the Output tab
+### 7.9 Rate selection lives in the Output drawer
 
-**`SetRate` is sent only as a pin the user asks for.** It writes the FIXED rate slot (`samplerate`/`bitrate`), and an exact rate there overrides automatic base-rate selection, so 44.1k material can go out at a 48k base and the engine can refuse the filter. So the pin is opt-in: the LIVE field `rate`, in Hz with `"0"` clearing it, goes out only while the Allow pinned rates preference is on (`store/live/pin.js`), as exactly the rate asked for, alone in its batch, and never in `[source]` mode (`lanes/live/rate`). It lasts until the next mode switch drops it on the engine: HQPTuner keeps no memory of it, no snapshot or post-rescan replay holds it, and the config file's fixed slot stays forced to auto (`FORCED_CONFIG`). The rate limits (`lanes/live/chain.RATE_LIMIT_FIELD`, always a tier's 48k member under forced `auto_family`) are config fields with no live route, so rate selection lives on the Output tab, where an apply is expected to restart the daemon. The loaded chain takes filter and shaper edits live (`active_chain`, resolved from `Status.active_rate`).
+**`SetRate` is sent only as a pin the user asks for.** It writes the FIXED rate slot (`samplerate`/`bitrate`), and an exact rate there overrides automatic base-rate selection, so 44.1k material can go out at a 48k base and the engine can refuse the filter. So the pin is opt-in: the live field `rate`, in Hz with `"0"` clearing it, goes out only while the Allow pinned rates preference is on (`store/live/pin.js`), as exactly the rate asked for, alone in its batch, and never in `[source]` mode (`lanes/live/rate`). It lasts until the next mode switch drops it on the engine: HQPTuner keeps no memory of it, no snapshot or post-rescan replay holds it, and the config file's fixed slot stays forced to auto (`FORCED_CONFIG`). The rate limits (`lanes/live/chain.RATE_LIMIT_FIELD`, always a tier's 48k member under forced `auto_family`) are config fields with no live route, so rate selection lives on the Output drawer's rate dial, where an apply is expected to restart the daemon. The loaded chain takes filter and shaper edits live (`active_chain`, resolved from `Status.active_rate`).
 
 ### 7.10 Rate-aware shaper graying and conflict alerts
 
@@ -213,15 +209,15 @@ SDM modulator options whose floor is above the selected SDM rate are grayed **wi
 
 **PCM dithers gray nowhere**: their floors are the manual's recommendations, and a dither below its floor still produces output, so every dither stays selectable at every rate. **Rates never gray by shaper**, in either family: that would lock the user into the higher rate, a worse failure than the one it fixes.
 
-The order graying cannot close (rate dropped under an already-selected shaper) is reported as an alert-strip row instead (`store/alerts/shaperfit.js`): `crit` for an SDM modulator below its floor, which stops output outright, `warn` for a PCM dither below its floor, which does not. One row per family, scoped to the family that will produce output (the loaded chain, else the mode, both in `[source]`), with thresholds named as tiers rounded up rather than as frequencies.
+The order graying cannot close (rate dropped under an already-selected shaper) is reported as an alert instead (`store/alerts/shaperfit.js`), homed on the Shaping stage's lamp and the page's Shaping section header (`store/faceplate/alerts.js`): `crit` for an SDM modulator below its floor, which stops output outright and darkens every stage after Shaping, `warn` for a PCM dither below its floor, which does not. One alert per family, scoped to the family that will produce output (the loaded chain, else the mode, both in `[source]`), with thresholds named as tiers rounded up rather than as frequencies.
 
 ### 7.11 Device-aware rate and mode graying
 
-Rate tiers and the SDM mode gray against what the selected output device announced it can carry. The daemon reports that nowhere on the wire (its `/config` form offers every rate whatever device is selected, and the Control API has no capability command), so the source is the device announcement in the daemon's own log, read over the same `GET /log` lane as the System tab (`hqptuner/engine/devicecaps.py`, frontend in `store/narrow/devicecaps.js`). A DSD tier the device did not announce natively is still reachable when DoP is on and the device announced its carrier rate, the DSD rate ÷ 16 (DoP v1.1).
+Rate tiers and the SDM mode gray against what the selected output device announced it can carry. The daemon reports that nowhere on the wire (its `/config` form offers every rate whatever device is selected, and the Control API has no capability command), so the source is the device announcement in the daemon's own log, read over the same `GET /log` lane as the Logging drawer's log tail in Settings (`components/faceplate/settings/LogTail.js`, `hqptuner/engine/devicecaps.py`, frontend in `store/narrow/devicecaps.js`). A DSD tier the device did not announce natively is still reachable when DoP is on and the device announced its carrier rate, the DSD rate ÷ 16 (DoP v1.1).
 
-**Uncertainty narrows nothing**: no announcement, an announcement naming a device other than the staged one, or the `combo` backend (two devices, one announcement, unknown which limits bind) all leave every menu whole. Graying an option the hardware can in fact reach is the worse failure, so the rule is one-directional. Every grayed rate option carries the one word `unavailable` whatever made it unreachable, because the reason renders on the option's own label and has no room for a sentence; the mode segment keeps the explanation, being the one surface with room.
+**Uncertainty narrows nothing**: no announcement, an announcement naming a device other than the staged one, or the `combo` backend (two devices, one announcement, unknown which limits bind) all leave every menu whole. Graying an option the hardware can in fact reach is the worse failure, so the rule is one-directional. Every rate tier the dial hatches carries the one word `unavailable` whatever made it unreachable, because the reason renders on the tier's own label and has no room for a sentence (`components/faceplate/drawers/output/RateDial.js`); the Output mode row keeps the explanation, being the one surface with room.
 
-**A setting already sitting on an unreachable value falls back**, to the highest reachable tier, or to PCM where no DSD rate is reachable at all, **as a staged edit, never a display-only substitution**, so the pending bar shows it and Discard undoes it. That it costs a restart at Apply is the user's to spend.
+**A setting already sitting on an unreachable value falls back**, to the highest reachable tier, or to PCM where no DSD rate is reachable at all, **as a staged edit, never a display-only substitution**, so the Output drawer marks it staged and its Discard undoes it. That it costs a restart at Apply is the user's to spend.
 
 ### 7.12 Filter narrowing
 
@@ -231,7 +227,7 @@ A mode set while its facet is unpicked narrows nothing and does not count as nar
 
 ### 7.13 Crossfeed gate is mode-aware; the view selector never installs processing
 
-The card's one ENGAGE|BYPASS gate drives two mechanisms: in the Bauer view the `crossfeed_enabled` config key, in the Structural view the install and removal of the sixteen-row matrix block (no config key exists for it). The Bauer|Structural switch below the gate selects a VIEW: it disables the mode being left and turns nothing on.
+The Crossfeed drawer's one BYPASS | ENGAGE gate drives two mechanisms: on the Bauer line the `crossfeed_enabled` config key, on the Structural line the install and removal of the sixteen-row matrix block (no config key exists for it) (`store/faceplate/drawers/crossfeed.js` `setGate`). The Bauer | Structural pick below the gate selects a VIEW: it disables the mode being left and turns nothing on.
 
 ## 8. REST API contract
 
@@ -281,7 +277,7 @@ The daemon sends metering frames in clumps, with gaps of up to a quarter second 
 
 ## 9. Background tasks
 
-**The advisor, auto-pilot and the METER page are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the reader is never built, `presetlane.switch_autopilot` writes nothing, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders none of the three; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
+**The advisor and auto-pilot are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the reader is never built, `presetlane.switch_autopilot` writes nothing, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders neither; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
 
 ### 9.1 Metering reader
 
@@ -289,7 +285,7 @@ The backend reads the engine's metering stream (`engine/metering.py`, wire in `p
 
 ### 9.2 Junk-filter advisor advises and never acts
 
-The advisor classifies the playing track's spectrum (`engine/junkadvisor.py`; signatures, thresholds and design rationale live in its module docstring) and surfaces a note in the alert-strip chip, present in both the tabs and LIVE views. The note has no apply button and no dismiss: the user acts or ignores it. Auto-pilot is the one thing that acts on it.
+The advisor classifies the playing track's spectrum (`engine/junkadvisor.py`; signatures, thresholds and design rationale live in its module docstring) and surfaces a note on the HF filter stage: its lamp blinks and its drawer pins the line under the head (`store/faceplate/alerts.js`). The note has no apply button and no dismiss: the user acts or ignores it. Auto-pilot is the one thing that acts on it.
 
 Detection (`classify`) and treatment (`treats`) are separate and the caller combines them: the note goes quiet under treatment, while auto-pilot needs the untreated signature to know what to engage and what to let go of. The note clears once the engaged junk filter treats it (corner at or below the recommended one, or any rate-relative choice); `none` never clears it. Rate-relative filters (2x/4x/8x) are never recommended.
 
@@ -307,7 +303,7 @@ With it on, auto-pilot moves the junk filter to what the playing track's signatu
 
 **Auto-pilot's resting state is nothing engaged, and it stores no baseline.** The junk filter is a corrective rather than a preference, so with auto-pilot on it is engaged for the signature that calls for it and released the moment that signature clears; a filter that happened to be engaged when the switch was flipped is released too, rate-relative filters included. The one thing that stays its hand is `junkadvisor.treats`: a spur verdict is also treated by a main filter from one of its families, so switching to a hires filter drops the junk filter and switching away brings it back. Auto-pilot engages as soon as the stream carries a signature it can read, and follows each verdict's hold as the advisor defines it.
 
-**Setting the junk filter by hand switches auto-pilot off** (`POST /api/config/live` carrying `junk_filter`): the user taking the control back, before the write rather than after, so no poll can revert the choice they just made, and the only way to hold a filter of one's own. The write is the ordinary LIVE lane, readback-verified and audited like any other; it costs the stream nothing (manual §2.8).
+**Setting the junk filter by hand switches auto-pilot off** (`POST /api/config/live` carrying `junk_filter`): the user taking the control back, before the write rather than after, so no poll can revert the choice they just made, and the only way to hold a filter of one's own. The write is the ordinary live lane, readback-verified and audited like any other; it costs the stream nothing (manual §2.8).
 
 ## 10. Event log
 

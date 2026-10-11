@@ -37,8 +37,6 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 **3. Filter Presets.** Jargon-free filter selection. Curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play.
 
-*Easy Mode, with the Lifelike preset selected. The Lossless/Lossy switch at the top swaps in filters optimized for lossy sources, and the Emphasis knob on a tile chooses between linear and minimum phase.*
-
 **4. Headphone Auto EQ.** A built-in AutoEq library of 8850+ headphone models: search your headphones, A/B the correction curve against your current response, and load it into a stereo pipeline pair in one click. AutoEq/REW ParametricEQ text files import directly too, and every EQ band becomes a draggable dot on the live response plot. Tune by ear, REW-style.
 
 **5. Crossfeed, two ways.** HQPlayer ships Bauer crossfeed: a three-preset model with a crossover frequency and a level in dB, which are coefficients of its own filter rather than anything you can picture. It's good, but it's not my jam. So I built in an alternative: structural crossfeed feature modeling an actual head and an actual pair of speakers, from Brown & Duda's structural HRTF model. Three controls, all quantities you can picture: **speaker angle**, **head circumference**, and **center character** (ok, the last one is hard to picture, but the plots make it easy to understand). It compiles to sixteen matrix pipelines carrying an explicit interaural delay and a head-shadow filter; the shadow filter factors exactly into a flat row plus a first-order lowpass, so nothing is numerically fitted and nothing is sample-rate-bound. Integrates with and doesn't disturb your EQ curve.
@@ -47,7 +45,7 @@ The above five features are my flagships, but the following benefits are offered
 
 * **Surface the manual's knowledge**: Every feature has its manual's description printed somewhere nearby.
 * **Small surface area**: The entire interface can fit on tablets as small as an iPad Mini with no scroll bars.
-* **More sensible organization**: The main features are always on the front page; other settings are organized into "drawers" opened by clicking on that portion of the signal chain.
+* **More sensible organization**: The main features are always on the page; other settings are organized into drawers, opened from the rail that draws the signal chain.
 * **Easier rate selection**: No more memorizing raw Hz values: select, e.g., PCM 4x or DSD512 from the output rate menu.
 * **Idiot proofing**: Only see options that are appropriate for the settings you're running. Don't waste time trying to figure out the best Integrator if you're only outputting PCM. Running DSD512? Modulators that only work at DSD1024 are grayed out.
 * **Full matrix pipeline editing**: Visual signal-flow editing of matrix DSP pipelines, organized into routing blocks and output channels with a stage editor for every plugin type and live response plot.
@@ -77,14 +75,14 @@ HQPTuner is a single small Python backend plus a no-build-step web frontend. It 
 * **Control API (TCP 4321)** — live, restart-free settings (filters, dither/modulator, mode, rate, volume, matrix profile switching) plus status and enumerations. The running engine is the sole authority for filter/modulator names and IDs; HQPTuner never trusts shipped lists.
 * **HTTP configuration interface (TCP 8088, Digest auth)** — persistent settings. Every change — including the ones the daemon's config form never exposed (CUDA offload, multicore DSP, E-core allocation, blocks/cycle) — goes through a backup → surgical `hqplayerd.xml` edit → `POST /restore` cycle; the daemon self-restarts (~5.6 s), and HQPTuner rides that out and verifies by readback.
 
-Edits are staged in a pending-changes bar showing the live/restart split before you apply. Presets are full-config XML snapshots stored and managed by HQPTuner itself (the daemon's native profile subsystem proved unreliable), mirrored into the daemon's own config directory so the stock UI stays populated.
+In each drawer, live settings apply as you change them; settings that restart the engine wait, marked with a dot on their tab, until you press Apply. Stations are full-config XML copies stored and managed by HQPTuner itself, mirrored into the daemon's own config directory so the stock UI stays populated.
 
 Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate) are extracted once from the HQPlayer manual into JSON and joined against the live engine's enumerations by name at runtime. The headphone EQ library is a pinned, vendored snapshot of [AutoEq](https://github.com/jaakkopasanen/AutoEq) (MIT).
 
 ## Requirements
 
 * A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
-* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
+* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and stations. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
 * Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR a PC running Windows on x64 or Arm64, OR Python v3.12+
 
 ## Install & run
@@ -114,7 +112,7 @@ Then start the Docker daemon:
 sudo systemctl enable --now docker
 ```
 
-Create a new folder for HQPTuner, e.g., `~/hqptuner`. You'll also need to make the folder `~/hqptuner/state/` yourself, which holds backups and presets. If Docker creates it, it will end up owned by root.
+Create a new folder for HQPTuner, e.g., `~/hqptuner`. You'll also need to make the folder `~/hqptuner/state/` yourself, which holds backups and stations. If Docker creates it, it will end up owned by root.
 
 ```sh
 mkdir -p ~/hqptuner/state && cd ~/hqptuner
@@ -167,7 +165,7 @@ HQPTuner starts right away, and again at every boot. Open `http://yourserverIP:8
 
 To update, install the newer package the same way. To set anything from the configuration reference below, run `sudo systemctl edit hqptuner` and add an `Environment=` line under `[Service]`.
 
-Presets, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
+Stations, backups and settings are kept in `/var/lib/hqptuner`, and removing the package leaves them there. On Debian and Ubuntu, `sudo apt purge hqptuner` asks whether to delete them. On Fedora, RHEL and AlmaLinux, delete the folder by hand.
 
 The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL 8, or anything later.
 
@@ -179,7 +177,7 @@ Launching HQPTuner puts an icon in the menu bar and opens the UI in your default
 
 The menu bar icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
-To update, quit HQPTuner and drag the newer app into Applications. Presets, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
+To update, quit HQPTuner and drag the newer app into Applications. Stations, backups and settings are kept in `~/Library/Application Support/HQPTuner`, and deleting the app leaves them there.
 
 ### Windows app
 
@@ -191,7 +189,7 @@ Launching HQPTuner from the Start Menu puts an icon in the notification area and
 
 The icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
-To update, quit HQPTuner and run the newer installer. Presets, backups and settings are kept in `%LOCALAPPDATA%\HQPTuner`, and uninstalling leaves them there.
+To update, quit HQPTuner and run the newer installer. Stations, backups and settings are kept in `%LOCALAPPDATA%\HQPTuner`, and uninstalling leaves them there.
 
 ### From a clone (no Docker)
 
@@ -233,10 +231,10 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_DISCOVERY_TARGET` | `239.192.0.199` | Where discovery sends its datagram; HQPlayer's multicast group by default, or a host address on a network that drops multicast. `host:port` overrides the port |
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
-| `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned preset store |
-| `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | The LIVE view's saved setting combos, one JSON file |
+| `HQPTUNER_PRESET_DIR` | `presets/` | HQPTuner-owned station store |
+| `HQPTUNER_LIVE_PRESET_FILE` | `state/live-presets.json` | Snapshots, the live settings saved under each station, one JSON file |
 | `HQPTUNER_FAVORITES_FILE` | `state/favorites.json` | Starred filter names, one JSON file shared by every browser |
-| `HQPTUNER_AUTOPILOT_FILE` | `state/autopilot.json` | The high-frequency filter's auto-pilot: whether it is on and which config presets carry it |
+| `HQPTUNER_AUTOPILOT_FILE` | `state/autopilot.json` | The high-frequency filter's auto-pilot: whether it is on and which stations carry it |
 | `HQPTUNER_DEBUG_LOG` | unset (off) | Path to the append-only event log. Unset means no file and no records. Set it to record every durable write — staged edits, applies, profile writes, preset writes — as JSON Lines, e.g. `/state/audit.jsonl` in the container |
 | `HQPTUNER_JUNKCAL_DIR` | unset (off) | Directory for the junk-filter detector's calibration capture. Unset means no files. Set it to write one JSON Lines file per playback period while Nx content plays, one row every 15 s with the detector's verdict and the noise-floor spectrum above 13 kHz, e.g. `/state/junkcal` in the container |
 | `HQPTUNER_LOG_LEVEL` | `INFO` | Level for ordinary prose logging. A level name, not a number; an unparseable value falls back to `INFO` rather than refusing to start |
