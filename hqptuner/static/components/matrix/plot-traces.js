@@ -8,7 +8,6 @@ import { chainResponse } from "../../vendor/eqlab/core/dsp/chain.js";
 import { bandFreqs } from "../../vendor/eqlab/core/dsp/curves.js";
 import { xfeedBlock } from "../../store/xfeed/block.js";
 import { structuralBlock } from "../../store/xfeed/mode.js";
-import { withDrag } from "./BandStrip.js";
 
 /**
  * @typedef {{ source: string, gain: string, gainunit: string, mixdown: string, process: string }} PipelineRow
@@ -22,8 +21,6 @@ import { withDrag } from "./BandStrip.js";
  * @typedef {{ stages: Stage[], idxs: number[] }} Group
  *   Rows sharing a byte-identical chain, drawn as one curve labeled with every
  *   pipeline number it covers.
- * @typedef {PlotTrace & { ghost?: boolean }} GhostTrace
- *   A reference curve: a PlotTrace flagged for the muted dashed style.
  * @typedef {{ eqProcess: { left: string, right: string } }} StructuralRec
  *   The part of a recognized structural crossfeed block these traces read: the
  *   per-ear EQ chain it was built from (store/xfeed/mode.js).
@@ -54,7 +51,7 @@ export function rowTraces(rows, plotted, bounds) {
   /** @type {Map<string, Group>} */
   const byKey = new Map();
   plotted.forEach((i) => {
-    const stages = withDrag(rows, i);
+    const stages = parseProcess(rows[i].process);
     const key = serializeProcess(stages);
     let g = byKey.get(key);
     if (!g) {

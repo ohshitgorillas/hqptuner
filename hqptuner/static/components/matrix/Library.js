@@ -1,9 +1,8 @@
 // AutoEq profile library picker, in the DSP pipelines drawer's Import EQ
 // popover (faceplate/drawers/pipelines/Import.js). The vendored blob
 // (scripts/build_autoeq_db.py → GET /api/autoeq, upstream MIT) is lazy-loaded
-// on first render, searched client-side, and a selected profile is set as
-// `previewEq` (Plot.js) WITHOUT touching pipeline state. Load profile hands the
-// profile's verbatim ParametricEQ.txt to the caller's applyText — the exact
+// on first render, searched client-side, and selecting a profile leaves pipeline
+// state untouched. Load profile hands the profile's verbatim ParametricEQ.txt to the caller's applyText — the exact
 // same bytes and code path as the popover's `.txt` file, so library load ≡
 // file load by construction. Sources are never merged: every hit shows its measurement
 // source, with oratory1990 preferred in ranking on equal match quality.
@@ -13,7 +12,6 @@ import { html } from "../../lib/dom.js";
 import { errText } from "../../lib/errtext.js";
 import { rankProfiles } from "../../lib/profilerank.js";
 import { parseEqText } from "../../vendor/eqlab/core/eqimport.js";
-import { previewEq } from "./Plot.js";
 
 const db = signal(null); // { meta, profiles } once fetched
 const dbState = signal(""); // "" | "loading…" | error text
@@ -47,13 +45,11 @@ function results() {
 /** @param {Profile} p */
 function select(p) {
   libSel.value = p;
-  previewEq.value = { label: `${p.model} (${p.source})`, stages: parseEqText(p.text).stages };
 }
 
-/** Drops the picked library profile and the response-plot preview it drives. */
+/** Drops the picked library profile. */
 export function clearLibrarySelection() {
   libSel.value = null;
-  previewEq.value = null;
 }
 
 /** @param {{ p: Profile }} props */
@@ -82,10 +78,7 @@ function Selection({ applyText }) {
     <div>
       <span>${p.model}</span>
       <span>${p.source}${p.form ? ` · ${p.form}` : ""}</span>
-      <span
-        >${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""} — previewing on
-        the Response card</span
-      >
+      <span>${parsed.stages.length} band(s)${parsed.preamp !== null ? ` · preamp ${parsed.preamp} dB` : ""}</span>
       <button type="button" onClick=${() => applyText(p.text)}>Load profile</button>
       <button type="button" onClick=${clearLibrarySelection}>Clear</button>
     </div>

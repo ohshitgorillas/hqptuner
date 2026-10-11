@@ -54,8 +54,8 @@ export async function applyPreset(lane, preset, knobs) {
 // entirely: building one per preset per render to learn a mode all four fields
 // agree on is work for an answer already known.
 //
-// Derived from the same facet map the engine-health alerts read (store/health.js), not
-// from a table here: apodizing is a fact about a filter, and a preset naming it
+// The mark reads the same facet map the engine-health alerts read (store/health.js),
+// not a table here: apodizing is a fact about a filter, and a preset naming it
 // again is a second place to keep true.
 /**
  * The error-correction mark a preset wears at these knob positions.

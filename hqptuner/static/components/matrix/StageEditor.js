@@ -1,18 +1,5 @@
 // The WAV header sniff behind the DSP pipelines drawer's filter upload
-// (faceplate/drawers/pipelines/upload.js), and the stage typedefs.
-import {} from "../../vendor/eqlab/core/matrixspec.js";
-
-/**
- * @typedef {import("../../vendor/eqlab/core/matrixspec.js").MatrixStage} MatrixStage
- * @typedef {import("../../vendor/eqlab/core/matrixspec.js").IirSchema} IirSchema
- * @typedef {{ row: number, stage: number }} StageRef
- *   A stage's place: pipeline row, then index within that row's parsed chain.
- * @typedef {(patch: Record<string, string>) => void} Commit
- *   Land an argument patch on the edited stage (or `file` on a conv stage) —
- *   the same patch shape vendor/eqlab/core/matrixspec.js editedStage takes.
- * @typedef {(props: { stage: MatrixStage, commit: Commit }) => unknown} EditorFn
- *   One per-kind editor body, dispatched on the stage's kind.
- */
+// (faceplate/drawers/pipelines/upload.js).
 
 /**
  * Sniff a WAV header's sample rate (fmt chunk) for the 352.8 kHz recommendation
