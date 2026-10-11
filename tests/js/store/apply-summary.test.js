@@ -151,7 +151,7 @@ test("test_unconverged_applies_on_two_different_fields_read_differently", async 
 // asserting it back pins no shipped wording.
 
 // The daemon's form keys for the PCM chain's two filter slots, each owned by a
-// control on the page (tests/js/components/controls/combobox-favstars.test.js).
+// control on the page.
 const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 // Keys no control on the page owns: with no label to show, each stands for itself.

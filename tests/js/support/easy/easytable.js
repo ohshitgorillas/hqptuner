@@ -11,8 +11,8 @@
 //
 // Its own module rather than part of tests/js/support/easy/easytiles.js, because
 // both a rendering suite and the pure store suite need it and that harness
-// cannot be imported by the latter: it pulls in preact, EasyCard and the store
-// signals, and `store/easy/easyview.js` reads localStorage at import.
+// cannot be imported by the latter: it pulls in the store signals, and
+// `store/easy/easyview.js` reads localStorage at import.
 
 import { writeSet, presetsFor } from "../../../../hqptuner/static/store/easy/easy.js";
 
