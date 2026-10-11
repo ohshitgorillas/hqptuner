@@ -1,8 +1,6 @@
-// The alerts the faceplate raises and where each one lives. v1 decides every alert already; this renames each to the
-// home it lands on and keeps its severity and sentence, with two exceptions: the credentials and Roon lines name the v2
-// place to go, the knob and Settings → Timing, where v1's name the status pill and the System tab. The shaper pair
-// carries the chain it judges, so a lit row lights on that chain's tab only, and the junk advice is advice, carrying the
-// backend's reason as given. v1's failed preset pick is not raised: it tells the user nothing they can act on.
+// The alerts the faceplate raises and where each one lives. Each alert keeps the severity and sentence its source
+// store decides. The shaper pair carries the chain it judges, so a lit row lights on that chain's tab only, and the junk
+// advice is advice, carrying the backend's reason as given.
 
 import { computed } from "@preact/signals";
 import { alertPlan, alertsAt } from "../../model/shell/alerts.js";
@@ -35,13 +33,6 @@ const HOMES = {
   junk: { stage: "hf", drawer: "hf", row: ["junk_filter"] },
 };
 
-const CREDENTIALS_TEXT =
-  "Authentication rejected: username and password are bad. Open connection settings from the knob and try again.";
-
-const ROON_TEXT =
-  "Recommend setting Engine idle time (Settings → Timing) to 10 or longer; " +
-  "at default idle time, Roon inefficiently restarts the engine between tracks.";
-
 /** v1's engine-health kinds, by the faceplate kind each lands as. @type {Record<string, string>} */
 const ENGINE_KIND = { "dsp-speed": "speed", clipping: "clip", apodizing: "apod" };
 
@@ -71,13 +62,13 @@ export function faceplateAlerts() {
   const roon = roonIdleAlert.value;
   const junk = junkAdvice.value;
   return [
-    ...(creds ? [raised("credentials", creds.sev, CREDENTIALS_TEXT)] : []),
+    ...(creds ? [raised("credentials", creds.sev, creds.text)] : []),
     ...engineAlerts.value.map((/** @type {V1Alert} */ a) => raised(ENGINE_KIND[a.kind], a.sev, a.text)),
     ...shaperAlerts.value.map((/** @type {V1Alert} */ a) => ({
       ...raised(SHAPER_KIND[a.kind].kind, a.sev, a.text),
       chain: SHAPER_KIND[a.kind].chain,
     })),
-    ...(roon ? [raised("roon", roon.sev, ROON_TEXT)] : []),
+    ...(roon ? [raised("roon", roon.sev, roon.text)] : []),
     ...(junk ? [raised("junk", "advice", junk.reason)] : []),
   ];
 }

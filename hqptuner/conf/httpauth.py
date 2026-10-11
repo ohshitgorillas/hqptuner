@@ -21,8 +21,7 @@ if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest l
 # row, the apply caption and the log line all carry exactly this. Owner-approved
 # copy, verbatim (CLAUDE.md): reworded only with its own approval.
 AUTH_REFUSED_MESSAGE = (
-    "Authentication rejected: username and password are bad. "
-    "Open the Connection panel from the status pill and try again."
+    "Authentication rejected: username and password are bad. Open connection settings from the knob and try again."
 )
 
 # The one sentence a caller gets when the app was never given HTTP credentials
