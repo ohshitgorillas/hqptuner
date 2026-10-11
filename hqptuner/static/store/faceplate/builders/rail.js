@@ -7,7 +7,7 @@ import { staged } from "./shell.js";
 
 /** @typedef {import('../../../model/builders/snapshot.js').Fold} Fold */
 
-/** The rail's heights in px (css/v2/builder.css): its top padding, the gap between items, and each item. */
+/** The rail's heights in px (css/builder.css): its top padding, the gap between items, and each item. */
 const PAD_PX = 8;
 const GAP_PX = 2;
 const HEADER_PX = 30;
