@@ -19,6 +19,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreConverged, RestoreOutcome, RestoreUnavailable
 from hqptuner.presets import presetlane
+from hqptuner.presets.presetfields import restore_hooks
 
 
 @pytest.fixture
@@ -39,7 +40,7 @@ async def test_apply_converges_after_one_5xx_restore_refusal(
     http_manager_factory: ManagerFactory,
 ) -> None:
     manager = http_manager_factory(once_refusing_http_daemon)
-    result = await restore.apply(manager, {"title": "Renamed"})
+    result = await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     assert isinstance(result, RestoreConverged)
     assert result.attempts == 2
 
@@ -88,7 +89,7 @@ async def test_a_value_the_daemon_refuses_reports_not_applied(
     # the daemon refuses the value on restore, so the running config never
     # reflects it — the apply must report not-applied, never a silent success
     manager, _ = apply_via
-    result = await restore.apply(manager, {"title": "REJECT"})
+    result = await restore.apply(manager, {"title": "REJECT"}, restore_hooks(manager))
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
@@ -99,7 +100,7 @@ async def test_a_daemon_that_never_returns_reports_not_applied(
     # the daemon accepts the restore then never comes back; the apply must report
     # not-applied so the caller keeps the staging, not a false success
     manager = http_manager_factory(dying_http_daemon)
-    result = await restore.apply(manager, {"title": "Renamed"})
+    result = await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
@@ -110,7 +111,7 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
     # the daemon serves the old form for a read after the POST; a single-GET
     # verify would false-negative here — the poll must ride through the stale read
     manager = http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
-    result = await restore.apply(manager, {"title": "Renamed"})
+    result = await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     assert result.outcome is RestoreOutcome.APPLIED
 
 
@@ -136,7 +137,7 @@ async def test_a_net_device_converges_only_when_the_daemon_offers_it(
     """An endpoint missing from the daemon's bindable devices can never converge, so it reads unfixable rather than a
     false success; one on the list, though not the one running, is a real change that converges."""
     manager, _ = apply_via
-    result = await restore.apply(manager, {"net_device": device})
+    result = await restore.apply(manager, {"net_device": device}, restore_hooks(manager))
     assert result.outcome is outcome
 
 
@@ -144,7 +145,7 @@ async def test_a_net_device_the_daemon_no_longer_offers_names_it_unfixable(
     apply_via: tuple[ConnectionManager, HttpConfigClient],
 ) -> None:
     manager, _ = apply_via
-    result = await restore.apply(manager, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"})
+    result = await restore.apply(manager, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"}, restore_hooks(manager))
     assert isinstance(result, RestoreUnavailable)
     assert result.unfixable[presetconf.NET_DEVICE].want == "GHOST/hw:CARD=Gone,DEV=0"
 

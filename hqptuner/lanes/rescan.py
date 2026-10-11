@@ -5,13 +5,12 @@ the engine comes back on the config file — which never learned a live-routed
 setting, because a live setting is applied over 4321 and written nowhere
 (``snapshot``). Every OTHER daemon reload survives that, since a
 restore-shaped write folds the active preset's stored values into the XML it
-pushes (``presetfields.carried_live_fields``); a rescan writes no config at all,
+pushes (``presets/presetfields.carried_live_fields``); a rescan writes no config at all,
 so nothing carries them and the user's filters and mode are gone.
 
 This is the carrier for that one case: read what the engine is running BEFORE the
 rescan, put it back after. Gated on auto-save, because auto-save is the user
-saying "keep what I set" — with it off a rescan loses live settings exactly as it
-always did.
+saying "keep what I set" — with it off a rescan loses the live settings.
 
 A replay that cannot run says so. Losing the settings quietly is the bug this
 module exists to fix, and a rescan that reports nothing but success while the
@@ -47,7 +46,7 @@ NO_DAEMON = "The engine did not come back after the rescan — your live setting
 WRITE_FAILED = "The rescan finished, but restoring your live settings failed."
 
 
-def snapshot(mgr: ConnectionManager) -> dict[str, str]:
+def snapshot(mgr: ConnectionManager, *, autosave: bool) -> dict[str, str]:
     """Read the live settings a rescan is about to cost, in live-write terms.
 
     ``live_state`` is the reader: the chains' filters and shapers, output mode,
@@ -59,13 +58,13 @@ def snapshot(mgr: ConnectionManager) -> dict[str, str]:
     limits are persistent config (``live.chain.RATE_LIMIT_FIELD``) and survive a
     rescan on their own.
 
-    Empty when auto-save is off — the flag is the whole gate, and the auto-save
+    Empty when ``autosave``, the preset store's auto-save flag, is off — the flag is the whole gate, and the auto-save
     toggle cannot be on without an active preset (``store/actions.js``) — and
     empty when the engine cannot say which chain it has loaded, which
     ``live_state`` refuses with ``ChainUnknownError`` rather than report a
     half-taken record.
     """
-    if not mgr.presetops.store.autosave:
+    if not autosave:
         return {}
     if chain.active_chain(mgr) is None:
         return {}

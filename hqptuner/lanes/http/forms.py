@@ -133,3 +133,13 @@ def _record_credentials(mgr: ConnectionManager, *, accepted: bool) -> None:
         log.info("hqplayerd management credentials accepted")
     else:
         log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
+
+
+def decline(mgr: ConnectionManager) -> httpauth.HttpLaneDeclinedError | None:
+    """Return the refusal a use of the 8088 lane would meet for ``mgr``, or None when it is usable.
+
+    Read off the client the manager holds and the credential verdict this module records.
+    """
+    return httpauth.decline_error(
+        has_client=mgr.http_client is not None, credentials_refused=mgr.readings.credentials_ok is False
+    )

@@ -8,14 +8,9 @@ own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
 parsing an error page as if it were a form.
 """
 
-from typing import TYPE_CHECKING
-
 import httpx
 
 from hqptuner.errors import HQPTunerError
-
-if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest layer
-    from hqptuner.core.manager import ConnectionManager
 
 # The one sentence every surface reports a refused credential with — the alert
 # row, the apply caption and the log line all carry exactly this. Owner-approved
@@ -98,16 +93,19 @@ class CredentialsRefusedError(HttpLaneDeclinedError):
         super().__init__(AUTH_REFUSED_MESSAGE)
 
 
-def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
+def decline_error(*, has_client: bool, credentials_refused: bool) -> HttpLaneDeclinedError | None:
     """Return the refusal a use of the 8088 lane would meet, or None when the lane is usable.
+
+    ``has_client`` says whether the app holds an 8088 client at all, and
+    ``credentials_refused`` whether the daemon has already refused the credential it holds.
 
     The one owner of the cause-to-sentence mapping. A plain value, not a raise: a compound
     action reads it to build its outcome as data before it ever calls the lane; a standalone
     caller that wants the lane or nothing raises the returned error itself.
     """
-    if mgr.http_client is None:
+    if not has_client:
         return NoHttpClientError()
-    if mgr.readings.credentials_ok is False:
+    if credentials_refused:
         return CredentialsRefusedError()
     return None
 

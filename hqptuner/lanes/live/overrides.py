@@ -23,7 +23,7 @@ if TYPE_CHECKING:
 # Every config field a live edit can reach — which is exactly the set the config
 # file cannot learn on its own, since a live edit never writes it. hqplayerd boots
 # from that file, so a restore-shaped write has to carry these from somewhere else
-# or the daemon comes back without them (``presetfields.carried_live_fields``).
+# or the daemon comes back without them (``presets/presetfields.carried_live_fields``).
 LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *RATE_LIMIT_FIELD.values()})
 
 

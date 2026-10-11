@@ -31,10 +31,12 @@ from hqptuner.conf.matrixprofiles import (
 )
 from hqptuner.conf.matrixscope import has_profile
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes import presetfields, settle
+from hqptuner.lanes import settle
+from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
+    from hqptuner.lanes.http.storecarry import StoreHooks
 
 log = logging.getLogger(__name__)
 
@@ -177,8 +179,12 @@ class PassVerdict:
         return not self.diff or self.unfixable is not None
 
 
-async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> RestoreResult:
+async def apply(
+    mgr: ConnectionManager, edits: dict[str, str], hooks: StoreHooks, *, switched: bool = False
+) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
+
+    ``hooks`` is what the restore owes the preset store (``StoreHooks``).
 
     ``switched`` marks an apply that just loaded a different preset: the restart
     dropped the live matrix profile (the daemon persists the selection nowhere,
@@ -199,13 +205,13 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     when no pass got a write through at all, and ``GroundingError`` for an edit that
     cannot be built against the running config.
     """
-    declined = httpauth.decline_error(mgr)
+    declined = forms.decline(mgr)
     if declined is not None:
         raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
-    # along (store as fallback), under the staged edits, which win (presetfields)
-    merged = {**presetfields.carried_live_fields(mgr), **edits, **FORCED_CONFIG}
+    # along (store as fallback), under the staged edits, which win (StoreHooks.carried)
+    merged = {**hooks.carried(), **edits, **FORCED_CONFIG}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
@@ -221,14 +227,14 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
         # to actually serve before writing, rather than racing it
         await settle.await_http_ready(mgr)
         try:
-            intended = await _restore_once(mgr, merged, active_profile, mark=mark)
+            intended = await _restore_once(mgr, merged, hooks, active_profile, mark=mark)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
             mgr.readings.credentials_ok = False
-            declined = httpauth.decline_error(mgr)
+            declined = forms.decline(mgr)
             if declined is not None:
                 raise declined from exc
             raise
@@ -294,7 +300,12 @@ async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[
 
 
 async def _restore_once(
-    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: settle.Mark | None
+    mgr: ConnectionManager,
+    merged: dict[str, str],
+    hooks: StoreHooks,
+    active_profile: str = "",
+    *,
+    mark: settle.Mark | None,
 ) -> dict[str, str]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
@@ -303,7 +314,7 @@ async def _restore_once(
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
     backup = await mgr.require_http().backup()
-    mgr.presetops.persist_backup_for_restore(backup)  # survives a crash mid-apply
+    hooks.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
     running = presetzip.snapshot_member(backup, None, mgr.readings.active_config)
@@ -317,12 +328,12 @@ async def _restore_once(
             active=mgr.readings.active_config,
             matrix_profile=adopt,
             audit=mgr.audit,
-            extra_members=mgr.presetops.parked_filter_members(),
+            extra_members=hooks.parked_members(),
         ),
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
     # restore that is happening anyway — this one qualifies
-    mirror = presetfields.autosave_mirror(mgr, intended_xml)
+    mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
     await settle.restore(mgr, restore_zip, mark=mark, scope="system")

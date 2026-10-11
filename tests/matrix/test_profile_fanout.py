@@ -30,6 +30,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import fileconfig
+from hqptuner.presets.presetfields import restore_hooks
 from hqptuner.presets.store.presets import PresetNotFoundError, PresetStore
 
 if TYPE_CHECKING:
@@ -124,7 +125,7 @@ async def test_fanout_preserves_the_presets_other_settings(http_manager: Connect
 
 async def test_fanout_to_a_missing_preset_still_applies(http_manager: ConnectionManager) -> None:
     assert (
-        await restore.apply(http_manager, save("Crossfeed EQ", ROW0, presets=["Ghost"]))
+        await restore.apply(http_manager, save("Crossfeed EQ", ROW0, presets=["Ghost"]), restore_hooks(http_manager))
     ).outcome is RestoreOutcome.APPLIED
 
 
@@ -198,7 +199,9 @@ async def test_an_untargeted_delete_leaves_stored_presets_untouched(http_manager
 
 async def test_delete_targeting_a_preset_without_the_profile_still_applies(http_manager: ConnectionManager) -> None:
     http_manager.presetops.store.save("Office", preset_xml())
-    assert (await restore.apply(http_manager, delete_from("Stock", ["Office"]))).outcome is RestoreOutcome.APPLIED
+    assert (
+        await restore.apply(http_manager, delete_from("Stock", ["Office"]), restore_hooks(http_manager))
+    ).outcome is RestoreOutcome.APPLIED
 
 
 async def test_delete_no_op_leaves_the_presets_file_unchanged(http_manager: ConnectionManager) -> None:

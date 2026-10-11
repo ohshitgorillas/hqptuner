@@ -8,9 +8,9 @@ mirror removal (restore is additive and cannot delete a member).
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
-than ``lanes`` because it depends on the store; ``carried_live_fields`` and
-``autosave_mirror`` live in ``lanes/presetfields.py``, where the engine and http
-lanes can reach them.
+than ``lanes`` because it depends on the store, as do ``carried_live_fields`` and
+``autosave_mirror`` in ``presets/presetfields.py``, which the engine and http
+lanes are handed by their callers.
 """
 
 from __future__ import annotations
@@ -287,7 +287,7 @@ async def autosave(mgr: ConnectionManager) -> PresetSaveResult | None:
 
     This is the auto-save checkbox's whole write path. Store only, never the daemon
     mirror: the mirror costs a restore restart, so it catches up by riding the
-    next restore that happens anyway (``lanes/presetfields.autosave_mirror``).
+    next restore that happens anyway (``presets/presetfields.autosave_mirror``).
     Returns None when
     auto-save is off or no preset is active, and when the active preset changed while the
     daemon's backup was read, since the preset it read may have been replaced since. A

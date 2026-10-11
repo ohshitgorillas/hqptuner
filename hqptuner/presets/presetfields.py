@@ -1,10 +1,10 @@
 """What a restore-shaped write owes the settings that never reach the config file.
 
 Both readers here answer from the manager's cached engine state and the preset
-store — never from the daemon, which is why they sit in ``lanes`` while the rest
-of the preset lane (``presets/presetlane.py``) drives it. The engine and http
-lanes call them while assembling a restore, so they must stay reachable from
-below the ``presets`` layer.
+store, never from the daemon. The engine and http lanes sit below the store, so
+they never call these themselves: their caller hands the answers in, as
+``restore_hooks`` for a staged restore and as plain values for an
+engine-attribute restore.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from hqptuner.conf import engineconf, presetconf, xmledit
+from hqptuner.lanes.http.storecarry import StoreHooks
 from hqptuner.lanes.live import overrides
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -81,3 +82,17 @@ def autosave_mirror(mgr: ConnectionManager, intended_xml: bytes | None = None) -
     if intended_xml is None or xmledit.find_element(intended_xml, xmledit.ROOT) is None:
         return {member: mgr.presetops.store.read(name)}
     return {member: presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))}
+
+
+def restore_hooks(mgr: ConnectionManager) -> StoreHooks:
+    """Return what a staged restore owes the preset store, bound to ``mgr``.
+
+    Each hook reads the store when the restore calls it, so every pass sees the
+    store as it stands at that pass.
+    """
+    return StoreHooks(
+        carried=lambda: carried_live_fields(mgr),
+        persist_backup=mgr.presetops.persist_backup_for_restore,
+        parked_members=mgr.presetops.parked_filter_members,
+        mirror=lambda intended_xml: autosave_mirror(mgr, intended_xml),
+    )
