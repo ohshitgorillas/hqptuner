@@ -94,7 +94,6 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
-    app.state.live_presets = manager.presetops.live_presets
     # Both `/preset/{name:path}` routes are greedy so that an empty or
     # separator-bearing name reaches the store's name rule instead of falling
     # past every route to the router's own 404. Their registration order carries

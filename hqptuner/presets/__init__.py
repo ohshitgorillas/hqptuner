@@ -12,9 +12,10 @@ if TYPE_CHECKING:
 
 
 class PresetReadings(LaneReadings, Protocol):
-    """The readings the preset lifecycle reads and refills: everything a lane does, plus the engine attributes."""
+    """The readings the preset lifecycle reads and refills: a lane's, plus the engine attributes and matrix profiles."""
 
     engine: dict[str, str] | None
+    matrix_profiles: list[str] | None
 
 
 class PresetManager(LaneManager, Protocol):
