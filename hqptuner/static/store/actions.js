@@ -5,6 +5,7 @@
 import { signal, computed } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { failText } from "../lib/errtext.js";
+import { truthy } from "../lib/coerce.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import {
@@ -19,6 +20,7 @@ import {
 } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
+import { setSpeakersGate } from "./matrix/speakers.js";
 import { mirror, refreshConfig } from "./sync.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 import { applyBauerCoupling, applyFixedVolumeCoupling } from "./schema/couplings.js";
@@ -148,6 +150,23 @@ export async function edit(key, value) {
   // An edit that walks back out of a hazard withdraws the yes that was about it,
   // so walking into it again asks again (store/guards.js).
   pruneAcknowledged();
+}
+
+/**
+ * Write one catalog key through its entry's lane: a `speakers`-lane key drafts the speakers form's switch, which
+ * stages nothing in the config staging buffer and goes out with the form's own apply; every other key stages
+ * through `edit()`.
+ *
+ * @param {string} key
+ * @param {string | number | boolean} value  a speakers-lane value is a truth: "1"/"0" or a boolean
+ * @returns {Promise<void>}
+ */
+export async function setControl(key, value) {
+  if (schema[key]?.lane === "speakers") {
+    setSpeakersGate(truthy(value));
+    return;
+  }
+  await edit(key, value);
 }
 
 /** Throw away every staged edit and the previewed preset with them. */

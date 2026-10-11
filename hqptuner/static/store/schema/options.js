@@ -70,6 +70,11 @@ export const ENGAGE_BYPASS = [
   { value: "1", label: "ENGAGE" },
   { value: "0", label: "BYPASS" },
 ];
+// A drawer's gate reads bypass first.
+export const BYPASS_ENGAGE = [
+  { value: "0", label: "Bypass" },
+  { value: "1", label: "Engage" },
+];
 export const ON_OFF = [
   { value: "1", label: "ON" },
   { value: "0", label: "OFF" },

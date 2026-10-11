@@ -6,7 +6,7 @@ import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../schema.js";
 import { describe, idFor, optionDescription, optionProse } from "../../prose.js";
 import { effective, formFieldName } from "../../resolve.js";
-import { edit } from "../../actions.js";
+import { setControl } from "../../actions.js";
 import { enumOptions, optionsFor } from "../../ui/options.js";
 import { plainOf } from "../page/conversion.js";
 
@@ -75,7 +75,7 @@ export function drawerPlate(key) {
 }
 
 /**
- * A pick from a row's list: the picked engine name's enum ID staged through edit(). A name the row does not list
+ * A pick from a row's list: the picked engine name's enum ID staged through setControl(). A name the row does not list
  * stages nothing.
  *
  * @param {string} key
@@ -84,7 +84,7 @@ export function drawerPlate(key) {
  */
 export async function drawerPick(key, name) {
   const id = idFor(rowOptions(key), name);
-  if (id) await edit(key, id);
+  if (id) await setControl(key, id);
 }
 
 /**
