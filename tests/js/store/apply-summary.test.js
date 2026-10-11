@@ -8,7 +8,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { edit, applyAll, lastApply, discardAll } from "../../../hqptuner/static/store/actions.js";
+import { edit, applyAll, discardAll } from "../../../hqptuner/static/store/actions.js";
+import { lastApply } from "../../../hqptuner/static/store/signals.js";
 import { refreshConfig } from "../../../hqptuner/static/store/sync.js";
 import { bad, ok } from "../support/wire/wire.js";
 import { env, route, trees, field } from "../support/threetrees.js";

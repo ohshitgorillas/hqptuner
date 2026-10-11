@@ -12,7 +12,7 @@
 
 import { computed } from "@preact/signals";
 import { metadata } from "./signals.js";
-import { plate } from "./faceplate/view.js";
+import { plate } from "./faceplate/plate.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.

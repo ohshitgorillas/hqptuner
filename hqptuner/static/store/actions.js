@@ -7,12 +7,21 @@ import { api } from "../lib/api.js";
 import { failText } from "../lib/errtext.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
-import { truthy } from "../lib/coerce.js";
-import { config, volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus } from "./signals.js";
+import {
+  config,
+  volume,
+  staged,
+  liveOverride,
+  previewConfig,
+  pendingPreset,
+  engineStatus,
+  lastApply,
+} from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { mirror, refreshConfig } from "./sync.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
+import { applyBauerCoupling, applyFixedVolumeCoupling } from "./schema/couplings.js";
 
 // Latest-wins on the pipelines path: rapid successive edits (stage editor
 // keystrokes) each POST, and an EARLIER request's response must not clobber a
@@ -89,48 +98,6 @@ function clearLive(key) {
   const next = { ...liveOverride.value };
   delete next[key];
   liveOverride.value = next;
-}
-
-// Bauer crossfeed preset <-> params coupling: selecting a named preset loads its
-// frequency/level (so the graph shows that preset); adjusting either param
-// switches the preset to "custom". Values are the libbs2b canonical parameter
-// sets HQPlayer's Bauer plugin is built on. Applied within the same stage POST
-// as the primary edit, so the coupled fields move together.
-/** @type {Record<string, [string, string]>} */
-const BAUER_PRESETS = { default: ["700", "4.5"], cmoy: ["700", "6.0"], jmeier: ["650", "9.5"] };
-
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @param {Record<string, string>} http the same POST's http lane, written in place
- * @returns {void}
- */
-function applyBauerCoupling(key, value, http) {
-  if (key === "crossfeed_preset" && BAUER_PRESETS[String(value)]) {
-    const [f, l] = BAUER_PRESETS[String(value)];
-    http.post_bauer_frequency = f;
-    http.post_bauer_level = l;
-  } else if (key === "crossfeed_frequency" || key === "crossfeed_level") {
-    http.post_bauer_preset = "custom";
-  }
-}
-
-// Fixed volume and Auto headroom (volume_fixed) are mutually exclusive fixed-
-// volume modes, and either one on bypasses the live volume control. Graying one
-// from the other is the trap that already shipped once: a grayed-but-nonzero
-// Auto headroom kept the volume control locked with no reachable control left to
-// clear it. So enabling either mode CLEARS the other, as a visible staged edit
-// in the same POST — both moves show as staged, nothing happens silently.
-/**
- * @param {string} key
- * @param {string | number | boolean} value
- * @param {Record<string, string>} http the same POST's http lane, written in place
- * @returns {void}
- */
-function applyFixedVolumeCoupling(key, value, http) {
-  const on = truthy(value);
-  if (key === "fixed_volume_enabled" && on) http.volume_fixed = "0";
-  else if (key === "optimal_iso" && String(value) !== "0") http.fixed_volume_enabled = "0";
 }
 
 /**
@@ -237,7 +204,6 @@ export function clearPreview() {
 
 // apply lifecycle: `applying` turns the brand knob busy (store/faceplate/conn.js)
 export const applying = signal(false);
-export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdict | null }} */ (signal(null));
 
 // Both write lanes share a lifecycle: hold `applying` for the duration so the
 // brand knob can show it, and report a thrown failure as a

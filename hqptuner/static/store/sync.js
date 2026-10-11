@@ -4,8 +4,8 @@
 // The write paths that need a snapshot at once pull it over REST instead.
 
 import { api } from "../lib/api.js";
-import { lastApply } from "./actions.js";
 import {
+  lastApply,
   health,
   engineState,
   engineStatus,

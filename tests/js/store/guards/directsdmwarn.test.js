@@ -30,8 +30,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
-import { applyAll, discardAll, edit, lastApply } from "../../../../hqptuner/static/store/actions.js";
+import { config, matrixConfig, engineState, lastApply } from "../../../../hqptuner/static/store/signals.js";
+import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../../hqptuner/static/store/schema/gray.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";

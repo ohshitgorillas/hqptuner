@@ -11,9 +11,15 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { pendingPreset, config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
+import {
+  pendingPreset,
+  config,
+  matrixConfig,
+  engineState,
+  lastApply,
+} from "../../../../hqptuner/static/store/signals.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
-import { previewPreset, clearPreview, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { previewPreset, clearPreview, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 
 /**

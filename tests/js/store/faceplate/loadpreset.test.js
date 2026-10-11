@@ -9,8 +9,14 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, pendingPreset, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
-import { loadPreset, lastApply, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import {
+  config,
+  pendingPreset,
+  engineState,
+  matrixConfig,
+  lastApply,
+} from "../../../../hqptuner/static/store/signals.js";
+import { loadPreset, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
 
 /** @type {{ fetch?: unknown }} */
