@@ -2,7 +2,7 @@
 """Gate: every element that renders a staged edit is marked in a stylesheet.
 
 A template that sets ``data-dirty=`` on an element says the element carries a
-staged edit; the dirty dot is what shows it (docs/design-system.md, Accent).
+staged edit; the dirty dot is what shows it (docs/spec/design-system.md, Accent).
 The attribute alone paints nothing, so a producer whose class no stylesheet
 pairs with ``[data-dirty]`` ships an edit the user cannot see.
 

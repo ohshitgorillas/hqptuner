@@ -311,7 +311,7 @@ def self_checks(check: Callable[..., bool]) -> list[bool]:
         )
     )
     ok.append(check("empty trailing period still emits a record", condition=rec[2]["free_read_calls"] == 0))
-    paths = read_paths("Bash", {"command": "sed -n '1,5p' docs/protocol.md"}, str(ROOT))
+    paths = read_paths("Bash", {"command": "sed -n '1,5p' docs/spec/protocol.md"}, str(ROOT))
     ok.append(
         check("bash operand resolved against the row cwd", condition=paths == [str(ROOT / "docs" / "protocol.md")])
     )

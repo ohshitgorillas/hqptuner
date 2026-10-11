@@ -21,7 +21,7 @@ Paint in place. A component that rebuilds its subtree on every update is changed
 
 The decision moves; it does not change. If the old code looks wrong, keep its behavior and name it in the report with its file and line.
 
-Tests for the model follow `docs/testing.md`. Where the plan's red test already covers the model, make it green without editing it; where the brief asks you to characterize existing behavior, the test asserts what the code did before the move.
+Tests for the model follow `docs/spec/testing.md`. Where the plan's red test already covers the model, make it green without editing it; where the brief asks you to characterize existing behavior, the test asserts the behavior the code has before you move it.
 
 Make the gates pass by making the code right: no `eslint-disable`, no exemption, no raised threshold. Run `scripts/gate.sh make check`, never piped.
 

@@ -1,6 +1,6 @@
 """HQPlayer Control API (TCP 4321) client.
 
-Wire behavior per docs/protocol.md §1/§4: each request is a complete XML
+Wire behavior per docs/spec/protocol.md §1/§4: each request is a complete XML
 document; responses are XML documents with newline as a flush hint, so the
 receiver accumulates and parses until a document is valid. Lenient in both
 directions: bare '&' in attribute values is re-escaped before parsing
@@ -275,8 +275,8 @@ class ControlClient:
     async def set_matrix_profile(self, name: str) -> None:
         """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty = the unnamed [Default]).
 
-        Probe-verified on 6.0.4: unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
-        restart (docs/protocol.md "Matrix profile commands").
+        Unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
+        restart (docs/spec/protocol.md "Matrix profile commands").
         """
         await self.set_command("MatrixSetProfile", value=name)
 

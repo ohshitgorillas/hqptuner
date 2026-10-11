@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Probe what a live ``MatrixSetProfile`` does to the running post-process chain.
 
-``docs/protocol.md`` "Matrix profile commands" asserts the switch installs the profile's whole
+``docs/spec/protocol.md`` "Matrix profile commands" asserts the switch installs the profile's whole
 matrix context, ``<post_process>`` included, and derives it from the readme's
 content model (§1.12 -> §1.11) rather than from a measurement. Everything that
 decides how a saved profile should carry DAC correction rests on that assertion,

@@ -47,7 +47,7 @@ repos:
         entry: .venv/bin/triviajudge-md
         language: system
         files: \.md$
-        exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
+        exclude: ^(CHANGELOG\.md|docs/internal/copy-before-after\.md)$
       - id: changelog-trivia
         name: changelog entries are new work, not repeats (LLM judge)
         entry: .venv/bin/triviajudge-changelog
@@ -297,7 +297,7 @@ repos:
         entry: .venv/bin/python scripts/gates/check_openapi.py
         language: system
         pass_filenames: false
-        files: ^(hqptuner/api/|docs/openapi\.json$)
+        files: ^(hqptuner/api/|docs/spec/openapi\.json$)
 
       # Reads the config module and the Dockerfile together: a new Path field and
       # an ENV block that forgot it are the same defect seen from two files.

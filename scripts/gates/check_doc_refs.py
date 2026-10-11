@@ -11,7 +11,7 @@ The fix is to cite the target's **heading text**, which moves with the content
 it names instead of with its position::
 
     # ... the daemon keeps saved profiles in memory only
-    # (docs/matrix-spec.md "Probe findings, round 5 — saved matrix profiles do not persist")
+    # (docs/spec/protocol.md "Saved matrix profiles do not persist")
 
 This gate enforces that form, in both directions:
 
@@ -73,7 +73,7 @@ HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$")
 #: inline markup that carries no meaning for a heading's identity
 DECORATION = re.compile(r"[`*_]+")
 #: `"..."` or `“...”` — the quoted heading in a citation. A backtick may sit
-#: between the two: `docs/matrix-spec.md` "Heading" is the normal Markdown form.
+#: between the two: `docs/spec/matrix-spec.md` "Heading" is the normal Markdown form.
 #:
 #: The name must NOT open with a double quote, or every Python string literal
 #: naming a doc reads as a citation of it and the code right after it reads as
@@ -129,7 +129,7 @@ def ordinal_re(stems: list[str]) -> re.Pattern[str]:
 
 
 #: a ``§N`` citation of a numbered doc; the gap takes the closing backtick of
-#: `` `docs/architecture.md` §2``
+#: `` `docs/spec/architecture.md` §2``
 SECTION = re.compile(
     rf"\b({'|'.join(re.escape(s) for s in sorted(NUMBERED, key=len, reverse=True))})(?:\.md)?`?\s*§\s*(\d+(?:\.\d+)*)"
 )

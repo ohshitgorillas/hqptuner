@@ -8,27 +8,27 @@
 
 HQPTuner is a configuration interface for HQPlayer Embedded. It replaces the stock configuration, matrix and speaker pages for day-to-day settings work.
 
-**Non-goals:** playback, library and media control of any kind; a standalone convolution-engine page. Convolution *within* matrix pipelines is in scope, and so is matrix pipeline editing; its design of record is `docs/matrix-spec.md`.
+**Non-goals:** playback, library and media control of any kind; a standalone convolution-engine page. Convolution *within* matrix pipelines is in scope, and so is matrix pipeline editing; its design of record is `docs/spec/matrix-spec.md`.
 
 ## 2. Engine interfaces
 
 ### 2.1 Control API lane (TCP 4321)
 
-XML messages, unauthenticated. Carries the runtime-switchable settings (filters, dither/modulator, mode, rate, matrix profile) and all status and metering, with no restart. Changes are **memory-only, never persisted** (§3.6). Wire reference: `docs/protocol.md`.
+XML messages, unauthenticated. Carries the runtime-switchable settings (filters, dither/modulator, mode, rate, matrix profile) and all status and metering, with no restart. Changes are **memory-only, never persisted** (§3.6). Wire reference: `docs/spec/protocol.md`.
 
 ### 2.2 HTTP lane and the restore path (TCP 8088)
 
 Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope=system`), on which the daemon self-restarts in about 5.6 s.
 
-**There is no `POST /config`.** `/config` is GET-only. The genuine form POSTs are `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (about 3 s engine reload each), plus `POST /config/profile/delete` for removing a preset mirror. Per-field lane assignments and the evidence base live in `docs/settings-classification.md`.
+**There is no `POST /config`.** `/config` is GET-only. The genuine form POSTs are `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (about 3 s engine reload each), plus `POST /config/profile/delete` for removing a preset mirror. Per-field lane assignments and the evidence base live in `docs/spec/settings-classification.md`.
 
 ### 2.3 Discovery is not a lane
 
-Discovery (UDP 4321 multicast, `239.192.0.199`) is unauthenticated and read-only, carries no setting and no status, and runs on demand before a lane exists, to find out where to point one: `hqptuner/engine/discovery.py`, surfaced as `GET /api/discover`. Wire reference: `docs/protocol.md` §2. The app also asks one address itself at startup, the container-host alias, where no record and no host variable have named a daemon.
+Discovery (UDP 4321 multicast, `239.192.0.199`) is unauthenticated and read-only, carries no setting and no status, and runs on demand before a lane exists, to find out where to point one: `hqptuner/engine/discovery.py`, surfaced as `GET /api/discover`. Wire reference: `docs/spec/protocol.md` §2. The app also asks one address itself at startup, the container-host alias, where no record and no host variable have named a daemon.
 
 ### 2.4 Credentials
 
-HQPTuner takes the HQPlayer management username and password from `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`, or from the install's saved connection record when the variables are unset or empty (`hqptuner/core/connection.py`; `POST /api/connection` rebuilds the 8088 client in place rather than waiting for a restart). It uses them for HTTP Digest auth against 8088 (realm `com.signalyst.hqplayer.embedded`) and holds the credential server-side. Read-only use and all live (4321) settings work without them; only persistent writes and preset switching require them. The 4321 `SessionAuthentication` crypto handshake is **not** used, and the daemon rejects self-generated client keys anyway (`docs/protocol.md` §3.5–§3.6).
+HQPTuner takes the HQPlayer management username and password from `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`, or from the install's saved connection record when the variables are unset or empty (`hqptuner/core/connection.py`; `POST /api/connection` rebuilds the 8088 client in place rather than waiting for a restart). It uses them for HTTP Digest auth against 8088 (realm `com.signalyst.hqplayer.embedded`) and holds the credential server-side. Read-only use and all live (4321) settings work without them; only persistent writes and preset switching require them. The 4321 `SessionAuthentication` crypto handshake is **not** used, and the daemon rejects self-generated client keys anyway (`docs/spec/protocol.md` §3.5–§3.6).
 
 An install whose username or password is empty has no 8088 lane, so `ready` never turns true: the status pill reads Unreachable and the page runs dimmed, the same reading a refused credential gets. Neither field is empty by default: both fall back to hqplayerd's published stock pair (`config.STOCK_CREDENTIAL`), so an install that has configured nothing connects outright against a daemon still on that pair.
 
@@ -74,7 +74,7 @@ So `ControlClient.request` closes its own connection on a read timeout, a socket
 
 ### 4.2 Live vs restart split is all-or-nothing per batch
 
-Every control is classified live or restart-required (tagging: `docs/settings-classification.md`), and the pending-changes bar reports the split before Apply. One restart-required field sends the whole staged batch down the restore lane (`lanes/live/routing.split_live`): the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
+Every control is classified live or restart-required (tagging: `docs/spec/settings-classification.md`), and the pending-changes bar reports the split before Apply. One restart-required field sends the whole staged batch down the restore lane (`lanes/live/routing.split_live`): the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
 
 Chain fields a staged apply does route live are recorded per chain (`lanes/live/lane.remember_routed`), the same record LIVE keeps, so auto-save and chain re-entry report and re-assert them while the chain is dormant.
 
@@ -102,7 +102,7 @@ HQPTuner never refuses a user action because the daemon is playing; see the bind
 
 Presets are full-config XML snapshots in a directory HQPTuner owns (`hqptuner/presets/store/presets.py`), driven through one reliable daemon primitive, `POST /restore` onto `[default]`.
 
-hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops the daemon to `[default]` and ignores the named working member, `profile/save` to an existing name silently no-ops, and `/backup` empties after a profile load. The daemon's own `data/cfgs/<name>.xml` files are kept **mirrored** so its native web UI stays populated, but they are never HQPTuner's load/save path. Matrix profiles are separate and switch cleanly live, via 4321 `MatrixSetProfile` (`docs/protocol.md` "Matrix profile commands").
+hqplayerd's named-profile subsystem cannot serve this: `POST /restore` drops the daemon to `[default]` and ignores the named working member, `profile/save` to an existing name silently no-ops, and `/backup` empties after a profile load. The daemon's own `data/cfgs/<name>.xml` files are kept **mirrored** so its native web UI stays populated, but they are never HQPTuner's load/save path. Matrix profiles are separate and switch cleanly live, via 4321 `MatrixSetProfile` (`docs/spec/protocol.md` "Matrix profile commands").
 
 ### 5.2 Preset operations
 
@@ -160,7 +160,7 @@ An entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only o
 
 ### 6.3 Metadata coverage is gated
 
-`scripts/gates/check_metadata.py`: the shipped files load through `StaticMetadata`, every shaper and filter in the `engine-enums.json` snapshot has a row (filters through the join rules), and every exposed control has its prose. The offline suite never reads the shipped files; it runs on `tests/support/fixtures/metadata_min` (`docs/testing.md` rule 9).
+`scripts/gates/check_metadata.py`: the shipped files load through `StaticMetadata`, every shaper and filter in the `engine-enums.json` snapshot has a row (filters through the join rules), and every exposed control has its prose. The offline suite never reads the shipped files; it runs on `tests/support/fixtures/metadata_min` (`docs/spec/testing.md` rule 9).
 
 ## 7. UI
 
@@ -170,7 +170,7 @@ The control set is **not enumerated in prose**. Three checked artifacts own it:
 
 - `hqptuner/static/store/schema.js`: every control, its lane, its widget, its `grayWhen` disclosure logic. The glue between the control surface and the two lanes.
 - `hqptuner/data/settings.json`: tooltip prose for every exposed control, plus a `_comment` block listing settings with upstream prose HQPTuner deliberately does not expose.
-- `docs/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
+- `docs/spec/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
 
 ### 7.4 METER is a mode, not a tab
 
@@ -237,7 +237,7 @@ The card's one ENGAGE|BYPASS gate drives two mechanisms: in the Bauer view the `
 
 ### 8.1 API errors
 
-Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is FastAPI's field, a sentence or the live lane's per-field reasons dict, user-facing and reworded at will; nothing branches on it and no test asserts it (`docs/testing.md` rule 9). `code` is the stable identifier a client acts on. The status is a property of the code (`hqptuner/api/errors.py` `STATUS`), so a route names the cause and never picks a status; project exceptions carry their code from `hqptuner/errors.py` `HQPTunerError` and reach the body through `refuse(exc)`. The frontend surfaces both as `status` and `code` on the rejected `ApiFailure` (`static/lib/api.js`).
+Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is FastAPI's field, a sentence or the live lane's per-field reasons dict, user-facing and reworded at will; nothing branches on it and no test asserts it (`docs/spec/testing.md` rule 9). `code` is the stable identifier a client acts on. The status is a property of the code (`hqptuner/api/errors.py` `STATUS`), so a route names the cause and never picks a status; project exceptions carry their code from `hqptuner/errors.py` `HQPTunerError` and reach the body through `refuse(exc)`. The frontend surfaces both as `status` and `code` on the rejected `ApiFailure` (`static/lib/api.js`).
 
 | code | status | meaning |
 |---|---|---|
@@ -321,7 +321,7 @@ With it on, auto-pilot moves the junk filter to what the playing track's signatu
 
 - **One instance, threaded from `ConnectionManager.audit`.** Each instance resumes `seq` from the file on construction, so a second copy reissues numbers the first already used. A sequence that repeats is worse than none: it reads authoritative.
 - **`conf/` stays pure.** XML editors take bytes and return bytes, with no logging inside them. Profile writes emit at the two callers that land an element, the fan-out into a stored preset (`target` is `preset:<name>`) and the running config (`target` is `config`), which is also where the pre-edit XML is in hand, so `replaced` is answerable.
-- **Emitters are typed per event, never free-form.** The vocabulary is the contract, and it is what tests assert; log *text* stays off-limits per `docs/testing.md` rule 1. A new durable write path gets an emitter or reuses one; a silent write is a defect.
+- **Emitters are typed per event, never free-form.** The vocabulary is the contract, and it is what tests assert; log *text* stays off-limits per `docs/spec/testing.md` rule 1. A new durable write path gets an emitter or reuses one; a silent write is a defect.
 - **Values are captured whole to 128 KB**, so a payload is recoverable from the log rather than merely described by it; larger ones truncate, and the record carries `truncated` plus `full_digests` keyed by dotted field path. The file rolls to `<path>.1` past `max_bytes`.
 - **`password` / `secret` / `token` never reach a record**, at any depth.
 - **The volume trace is the one reader in the vocabulary** (`hqptuner/voltrace.py`). Volume rides two mechanisms, the config file's `defaults_volume` the daemon boots on and the live 4321 value, and two write paths reach the second, so `volume.write` names which path and `volume.observe` records a checkpoint's reading. Every observation carries `last_write`, the level HQPTuner most recently asked for: a reading that has moved to something else is a move HQPTuner did not make. The trace's own entry points suppress `OSError` around the emitter, because two checkpoints sit inside the poll tick and an unwritable log path would otherwise stall every reading in the app.

@@ -78,7 +78,7 @@ def restore_zip_from_running(
 
     The working config is read from ``hqplayerd.xml``, or from the root ``<Profile>.xml`` when a named preset is
     active, and written to ``hqplayerd.xml`` either way: the restore boots ``[default]`` off that member
-    (docs/protocol.md §3.6). Every other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the
+    (docs/spec/protocol.md §3.6). Every other member, including the ``cfgs`` snapshots, is copied byte-for-byte. So the
     running config becomes ``{running config} ⊕ {edits}``, and the named preset's saved definition is left untouched
     (edits are ephemeral until the user Saves). Returns ``(restore_zip, intended_working_xml)``.
 

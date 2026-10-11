@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: the faceplate has no card (docs/design-system.md).
+"""Gate: the faceplate has no card (docs/spec/design-system.md).
 
 A faceplate stylesheet has one surface, sections marked by an engraved header
 and a hairline, every section on the same two columns. The gate fails

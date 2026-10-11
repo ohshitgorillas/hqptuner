@@ -46,10 +46,10 @@ SECTION_DOCS = {"architecture": ["2. engine interfaces", "2.1 control api lane",
     ("line", "problems"),
     [
         # The section sign is escaped so this file does not cite the docs it names.
-        ("# lanes restart the daemon (docs/architecture.md \u00a72)", 0),
+        ("# lanes restart the daemon (docs/spec/architecture.md \u00a72)", 0),
         ("# the unauthenticated lane (architecture \u00a72.1)", 0),
-        ("# credentials follow `docs/architecture.md` \u00a72.4", 0),
-        ("# credentials follow `docs/architecture.md` \u00a72.2", 1),
+        ("# credentials follow `docs/spec/architecture.md` \u00a72.4", 0),
+        ("# credentials follow `docs/spec/architecture.md` \u00a72.2", 1),
         ("# see architecture \u00a798 for the graying rules", 1),
         ("# the stock pair (architecture \u00a72.4, architecture \u00a73)", 1),
         ("# the modulator floor (manual \u00a77.2)", 0),

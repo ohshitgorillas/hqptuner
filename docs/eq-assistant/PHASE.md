@@ -1,6 +1,6 @@
 # PHASE.md — what phase does on this chain, and who can hear it
 
-Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener), `docs/crossfeed-math.md` (the M/S transform).
+Companion to `SOURCES.md` (citations), `PSYCHOACOUSTICS.md` (magnitude thresholds), `FILTER-MATH.md` (the biquad arithmetic), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `HEARING.md` (the listener), `docs/research/crossfeed-math.md` (the M/S transform).
 
 **Verification legend** — as `SOURCES.md`, plus `[VA]` = read by a delegated research agent that returned verbatim quotes and a URL or page number (same artifact class as `[V]`; the difference is who read it). Figures computed by us are labeled **derived** in place and are never presented as source claims.
 
@@ -95,7 +95,7 @@ Measured on the shipped oratory1990 **Sennheiser HD 650** `ParametricEQ.txt` —
 
 Compensation shelves taken from the shipped implementation (`fitComp(700, 4.5)` in `hqptuner/static/lib/xfeed.js`): `hshelf f=378 q=0.575 g=+0.904` and `hshelf f=803.3 q=0.668 g=+0.904`, max fit error 0.0125 dB.
 
-**Rate independence.** Recomputing the whole cascade at `f_s = 192000` moves every figure by ≤ 2 µs. In-band group delay is a property of the parametrics, not of the sample rate — which matches `docs/crossfeed-math.md`'s treatment of the analog-prototype math as rate-independent.
+**Rate independence.** Recomputing the whole cascade at `f_s = 192000` moves every figure by ≤ 2 µs. In-band group delay is a property of the parametrics, not of the sample rate — which matches `docs/research/crossfeed-math.md`'s treatment of the analog-prototype math as rate-independent.
 
 **Where the delay lives:** almost all of it is the low bass, and it is dominated by the two highest-Q low-frequency stages (the Q 3.96 band at 37 Hz and the Q 0.50 band at 118 Hz against the 105 Hz shelf). Across the entire midrange the chain is flat to within a sixth of a millisecond.
 
@@ -239,7 +239,7 @@ That paragraph is the *discharge* of an assumption, not the whole of it. Phase e
 
 Everything above is about a phase shift applied **identically to both channels**, which is what the tuner does today. A common-mode phase shift produces no interaural difference at all, and that is why §4's answer is "inaudible". Break the symmetry and the numbers change by an order of magnitude.
 
-**Where asymmetry could come from.** `HEARING.md` §4.3 already states the boundary: "No per-ear control. All four change types are stereo-symmetric." The wire format does not enforce that — `docs/crossfeed-math.md` notes "Per-ear EQ appends to all four rows feeding that ear" in the proposed structural-binaural design — so this section exists to price the capability *before* anything grows it, and to give `clarify`/`recommends` turns about asymmetric hearing a real number to stand on.
+**Where asymmetry could come from.** `HEARING.md` §4.3 already states the boundary: "No per-ear control. All four change types are stereo-symmetric." The wire format does not enforce that — `docs/research/crossfeed-math.md` notes "Per-ear EQ appends to all four rows feeding that ear" in the proposed structural-binaural design — so this section exists to price the capability *before* anything grows it, and to give `clarify`/`recommends` turns about asymmetric hearing a real number to stand on.
 
 **The relevant thresholds** `[VA]`:
 
@@ -269,7 +269,7 @@ Everything above is about a phase shift applied **identically to both channels**
 
 `fitComp()` in `hqptuner/static/lib/xfeed.js` fits its two high shelves to `-centerMagDb(...)`, and its error metric is magnitude in dB. The compensation is a **magnitude-only inverse of the M-path tilt**, realized as two minimum-phase shelves. The M-path phase — and the M-versus-S phase relationship — is left exactly as bs2b produced it.
 
-**That is correct, and it must stay that way.** The interaural phase and time relationship *is* the crossfeed effect. `docs/crossfeed-math.md` makes this explicit for the structural design: the head-shadow filter's group delay deliberately "supplies the low-frequency excess — 135 µs of the 397 µs total", with the `delay:` stage carrying only the high-frequency ray component. Group delay there is a *feature being synthesized*, not an artifact being removed. A future agent that notices the compensation "only corrects magnitude" and sets out to correct its phase as well would be deleting the feature. Do not.
+**That is correct, and it must stay that way.** The interaural phase and time relationship *is* the crossfeed effect. `docs/research/crossfeed-math.md` makes this explicit for the structural design: the head-shadow filter's group delay deliberately "supplies the low-frequency excess — 135 µs of the 397 µs total", with the `delay:` stage carrying only the high-frequency ray component. Group delay there is a *feature being synthesized*, not an artifact being removed. A future agent that notices the compensation "only corrects magnitude" and sets out to correct its phase as well would be deleting the feature. Do not.
 
 The compensation's own dispersion is negligible on top of that — 40 µs of spread across 300 Hz–1 kHz and 6.5° of phase (§2.4) — so it neither helps nor harms the interaural cue it sits beside.
 

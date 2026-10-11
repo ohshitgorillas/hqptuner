@@ -1,6 +1,6 @@
 # FILTER-MATH.md — biquad response, what "Q" means, and headroom
 
-Companion to `SOURCES.md` (citations), `docs/protocol.md` (wire truth), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `PHASE.md` (what the phase half of these transfer functions does, and whether it is audible).
+Companion to `SOURCES.md` (citations), `docs/spec/protocol.md` (wire truth), `PRIMER.md` (the agent's domain brief), `FEATURE-CONTRACT.md` (the web feature's contract), `PHASE.md` (what the phase half of these transfer functions does, and whether it is audible).
 
 The tuner's `evaluate_chain` tool computes the summed magnitude response of a filter chain in order to measure a candidate change and to recompute the required negative preamp. That computation is only meaningful if our `q` means the same thing the engine's `q` means. This document is the primary-source basis for that arithmetic — and it names, explicitly, the one link in the chain that is still asserted rather than sourced.
 

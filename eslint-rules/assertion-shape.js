@@ -1,5 +1,5 @@
 // Gate: the one assertion a test makes has a shape a test may take
-// (docs/testing.md rules 2 and 10, and the Markers section). This is the JS peer
+// (docs/spec/testing.md rules 2 and 10, and the Markers section). This is the JS peer
 // of the shape checks in scripts/gates/testing/check_test_assertions.py. The count
 // rule is separate, in one-assertion-per-test.js, so the two rules can run at
 // different severities.
@@ -121,13 +121,13 @@ function isSkip(call) {
 export default /** @type {import("eslint").Rule.RuleModule} */ ({
   meta: {
     type: "problem",
-    docs: { description: "require the one assertion per test to have a shape a test may take (docs/testing.md)" },
+    docs: { description: "require the one assertion per test to have a shape a test may take (docs/spec/testing.md)" },
     schema: [],
     messages: {
       count: "{{count}} assertions in one call, one per operand: assert the operand that names the behavior",
       existence:
         "existence pinned where a value was owed: assert what the fixture supplied, or exempt it under rule 10",
-      skip: "a skipped test is an owner-approved exemption (docs/testing.md, Markers)",
+      skip: "a skipped test is an owner-approved exemption (docs/spec/testing.md, Markers)",
     },
   },
   create(context) {

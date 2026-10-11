@@ -108,7 +108,7 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # from its own module constant. copy-before-after.md is a record of
 # owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
 # not product: no gate reads it.
-md_skip = ["CHANGELOG.md", "docs/copy-before-after.md", "docs/faceplate-spec.md"]
+md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate-spec.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.

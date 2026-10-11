@@ -44,7 +44,7 @@ def check(report: Path) -> int:
         kinds = ", ".join(f"{kind} {seconds * 1000:.0f} ms" for kind, seconds in sorted(tests[name].items()))
         print(f"{name}: real-clock timeout ran out ({kinds})")
     if names:
-        print(f"\n{len(names)} test(s) waiting on a real clock (docs/testing.md rule 7).")
+        print(f"\n{len(names)} test(s) waiting on a real clock (docs/spec/testing.md rule 7).")
         return 1
     return 0
 

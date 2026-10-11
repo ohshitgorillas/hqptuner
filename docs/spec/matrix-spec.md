@@ -1,6 +1,6 @@
 # Matrix pipeline editing — design of record
 
-The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/protocol.md` §3.7 and §6; crossfeed compensation is `docs/crossfeed-compensation.md`; layout is `docs/faceplate-spec.md`.
+The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/spec/protocol.md` §3.7 and §6; crossfeed compensation is `docs/spec/crossfeed-compensation.md`; layout is `docs/spec/faceplate-spec.md`.
 
 **Headings are the citation contract.** Code cites this file by heading text, and `scripts/gates/check_doc_refs.py` fails the build when a cited heading vanishes. Reword a heading and update its citers in the same commit.
 
@@ -24,13 +24,13 @@ A profile carries **Load**, **Save as new**, **Save** and **Delete**.
 
 Load and Switch are **one button**: they differ only in whether the choice persists, and a button that deliberately does not persist is not worth its own control.
 
-**Save and Delete are staged `<matrix_profile>` edits on the restore lane**, so a saved profile lands in `hqplayerd.xml` and the daemon reads it at startup. HQPTuner writes the element itself, so a save to an existing name replaces it, and no delete-then-save recipe is needed. Save, Load and Delete cost **zero engine reloads**; the only restart is the apply the user chooses. The form lane carries no profile operation, because a profile saved through it does not persist (`docs/protocol.md` "Saved matrix profiles do not persist").
+**Save and Delete are staged `<matrix_profile>` edits on the restore lane**, so a saved profile lands in `hqplayerd.xml` and the daemon reads it at startup. HQPTuner writes the element itself, so a save to an existing name replaces it, and no delete-then-save recipe is needed. Save, Load and Delete cost **zero engine reloads**; the only restart is the apply the user chooses. The form lane carries no profile operation, because a profile saved through it does not persist (`docs/spec/protocol.md` "Saved matrix profiles do not persist").
 
 **The live-active profile grounds the pipeline baseline (binding).** A switch is memory-only, so the config file keeps its own rows while the engine runs the profile's, the one case where file truth is not running truth. The pipeline baseline therefore takes the daemon's `/matrix` rows whenever `live_active` names a profile, and the file otherwise (and as the fallback when the daemon reported no rows). The editor and the matrix graph show what is playing, and an edit stages its diff against that; otherwise a Load leaves the user reading the config's EQ curve and pipelines while a different profile plays.
 
-**A load through `/matrix/load` keeps the post-process the user had.** That route replaces the whole matrix context (`docs/protocol.md` "Matrix form lane"), so HQPTuner snapshots the form's `post_*` slice, wire-encoded with the checkbox contract intact, re-applies it with a plain `POST /matrix` once the load settles, and verifies by readback past the reload transient.
+**A load through `/matrix/load` keeps the post-process the user had.** That route replaces the whole matrix context (`docs/spec/protocol.md` "Matrix form lane"), so HQPTuner snapshots the form's `post_*` slice, wire-encoded with the checkbox contract intact, re-applies it with a plain `POST /matrix` once the load settles, and verifies by readback past the reload transient.
 
-**A profile without a chain gets the running chain at apply.** Switching to a chain-less profile installs an empty chain (`docs/protocol.md` "Matrix profile commands"), so every stored profile with no `<post_process>` is filled from the live `<matrix>` when a config is applied: the applied config from its own matrix, stored presets from theirs. A profile that already carries a chain is never overwritten; that chain is the user's saved choice.
+**A profile without a chain gets the running chain at apply.** Switching to a chain-less profile installs an empty chain (`docs/spec/protocol.md` "Matrix profile commands"), so every stored profile with no `<post_process>` is filled from the live `<matrix>` when a config is applied: the applied config from its own matrix, stored presets from theirs. A profile that already carries a chain is never overwritten; that chain is the user's saved choice.
 
 ### Profile descriptions
 
@@ -62,11 +62,11 @@ The vendored AutoEq library and a `.txt` file both parse into ParametricEQ stage
 
 ### Response plot
 
-The response plot is always present; with nothing toggled it draws its axes and says how to plot a pipeline. It overlays magnitude (solid, dB, auto-fit to ±36) and phase (dashed, ±180° on a second axis) for each toggled row, on a log frequency axis from 20 Hz to 20 kHz, one hue per row. It is computed client-side, and a convolution stage uses a client-side FFT of its uploaded impulse, since the daemon renders no plot (`docs/protocol.md` "`/matrix/plot` as a numeric oracle"). It updates live while a stage field changes. An AutoEq preview draws as a dashed accent trace labelled "preview", for A/B against the plotted rows.
+The response plot is always present; with nothing toggled it draws its axes and says how to plot a pipeline. It overlays magnitude (solid, dB, auto-fit to ±36) and phase (dashed, ±180° on a second axis) for each toggled row, on a log frequency axis from 20 Hz to 20 kHz, one hue per row. It is computed client-side, and a convolution stage uses a client-side FFT of its uploaded impulse, since the daemon renders no plot (`docs/spec/protocol.md` "`/matrix/plot` as a numeric oracle"). It updates live while a stage field changes. An AutoEq preview draws as a dashed accent trace labelled "preview", for A/B against the plotted rows.
 
 ### Filter upload
 
-`POST /api/matrix/filter` parks an uploaded filter and the next apply carries it to the daemon as a `data/` member of the restore archive (`docs/protocol.md` "Matrix filter upload"). The route refuses (422 `invalid_input`):
+`POST /api/matrix/filter` parks an uploaded filter and the next apply carries it to the daemon as a `data/` member of the restore archive (`docs/spec/protocol.md` "Matrix filter upload"). The route refuses (422 `invalid_input`):
 
 - an upload over `HQPTUNER_FILTER_MAX_BYTES`;
 - a name that is not a plain `.wav` or `.txt` filename: no path, no `,` `:` `;` (the `process` attribute parses those), no control bytes;

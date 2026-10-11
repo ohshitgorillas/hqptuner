@@ -162,7 +162,7 @@ function v2Visitors(context) {
 export default {
   meta: {
     type: "problem",
-    docs: { description: "no card frame or pack grid classes (docs/design-system.md)" },
+    docs: { description: "no card frame or pack grid classes (docs/spec/design-system.md)" },
     schema: [],
     messages: {
       v2Card: "v1 class `{{token}}` in v2 code — v2 ships neither v1's card frame nor its .pack grid.",

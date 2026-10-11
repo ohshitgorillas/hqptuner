@@ -5,7 +5,7 @@
 //
 // The mark lives in the metadata, so the fixture puts it where drawer code could not have guessed it: on the IPv6 and
 // channel offset entries, one per backend, while the DAC bits entry carries the owner's whole DAC bits paragraph
-// (docs/copy-before-after.md, DAC bits tooltip) as its tooltip and no `more`.
+// (docs/internal/copy-before-after.md, DAC bits tooltip) as its tooltip and no `more`.
 //
 // Renders through preact-render-to-string with the store driven at the wire by the staging fake. Rows are found by their
 // catalog key (`data-k`), the trigger by its `data-testid`, the popover by its `role`.

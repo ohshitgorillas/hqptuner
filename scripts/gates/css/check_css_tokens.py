@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: a faceplate stylesheet uses tokens (docs/design-system.md).
+"""Gate: a faceplate stylesheet uses tokens (docs/spec/design-system.md).
 
 - no raw color outside tokens.css, on any property, custom ones included;
 - ``line-height`` is never ``normal``: it follows each font file's metrics,

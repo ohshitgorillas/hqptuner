@@ -32,7 +32,7 @@ Scan every Bash string before sending it:
 
 - Batch shell commands (`&&`, one script, one compose invocation); leave edits as separate `Edit` calls a reviewer can read, except small repetitive consistent write tasks.
 - Report like it matters at a trip: findings, plan next in one to three lines, any open question that is genuinely the owner's. Full plans arrive only through the plan gate.
-- Work inside the budget quietly. Hooks stay on and unweakened; requests to disable them are refused, in continuations too. If a purely investigative command metered incorrectly, say so and record it in `docs/gate-notes.md`.
+- Work inside the budget quietly. Hooks stay on and unweakened; requests to disable them are refused, in continuations too. If a purely investigative command metered incorrectly, say so and record it in `docs/internal/gate-notes.md`.
 
 ## Gate and worktree traps
 

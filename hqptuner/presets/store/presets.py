@@ -3,7 +3,7 @@
 hqplayerd's named-profile subsystem is ``[default]``-centric and unreliable (POST
 ``/restore`` drops the daemon to ``[default]`` and ignores a named working member;
 ``profile/save`` with an existing name silently no-ops; ``/backup`` empties after a
-profile load). See ``docs/protocol.md``. HQPTuner therefore keeps each preset as a
+profile load). See ``docs/spec/protocol.md``. HQPTuner therefore keeps each preset as a
 full config XML here and drives the daemon through the one reliable primitive —
 ``POST /restore`` onto ``[default]``. The daemon's own ``data/cfgs/<name>.xml``
 files are kept mirrored so its native web UI stays populated, but are never

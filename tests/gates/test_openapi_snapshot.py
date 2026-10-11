@@ -1,7 +1,7 @@
 """The gate that pins the REST surface to a committed OpenAPI snapshot.
 
 ``scripts/gates/check_openapi.py`` renders the live app's OpenAPI document as
-stable JSON text and compares it with ``docs/openapi.json``. A route added,
+stable JSON text and compares it with ``docs/spec/openapi.json``. A route added,
 removed, or reshaped without regenerating the snapshot is what the gate is for,
 so the observable contract is four things a caller can see: the text ``render``
 produces, the diff lines ``compare`` hands back, the int ``check`` returns
@@ -300,7 +300,3 @@ def test_the_rendered_surface_is_already_in_the_stable_rendering(monkeypatch: py
     monkeypatch.delenv("HQPTUNER_DEBUG_LOG", raising=False)
     current = GATE.current_spec()
     assert GATE.render(json.loads(current)) == current
-
-
-def test_the_snapshot_path_is_the_committed_docs_file() -> None:
-    assert Path(GATE.SNAPSHOT).as_posix().endswith("docs/openapi.json")

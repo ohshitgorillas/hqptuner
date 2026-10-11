@@ -27,8 +27,8 @@ import { route, trees } from "../support/threetrees.js";
 // Each control with no label of its own, by the wire key the persistent lane
 // reports it under: the post-process gates by their /matrix form field
 // (card-gates.test.js), the matrix engine's gate by its config-XML mapping
-// (docs/matrix-spec.md, wire truth), the log switch and the fixed level by
-// their /config form fields (docs/settings-classification.md).
+// (docs/spec/matrix-spec.md, wire truth), the log switch and the fixed level by
+// their /config form fields (docs/spec/settings-classification.md).
 /** @type {[string, string][]} */
 const UNLABELLED_CONTROLS = [
   ["crossfeed_enabled", "post_bauer_enabled"],

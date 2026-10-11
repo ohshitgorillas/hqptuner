@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: a test never asserts a string it did not put on the wire itself (docs/testing.md rule 9).
+"""Gate: a test never asserts a string it did not put on the wire itself (docs/spec/testing.md rule 9).
 
 A sentence inside an ``assert`` or a ``pytest.raises(match=...)`` is copy unless
 the tests themselves seeded it: a fixture body, a fake's reply, a request

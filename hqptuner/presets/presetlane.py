@@ -3,14 +3,14 @@
 Presets live in a store HQPTuner owns (``store.presets``); the daemon
 is driven only through ``POST /restore`` onto ``[default]`` with a ``data/cfgs``
 mirror — never ``profile/load``/``profile/save``, which are unreliable
-(docs/protocol.md §3.6). ``profile/delete`` is the one profile route kept, for
+(docs/spec/protocol.md §3.6). ``profile/delete`` is the one profile route kept, for
 mirror removal (restore is additive and cannot delete a member).
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
-than ``lanes`` because it depends on the store: the two readers that do not
-(``carried_live_fields``, ``autosave_mirror``) stayed behind in
-``lanes/presetfields.py``, where the engine and http lanes can still reach them.
+than ``lanes`` because it depends on the store; ``carried_live_fields`` and
+``autosave_mirror`` live in ``lanes/presetfields.py``, where the engine and http
+lanes can reach them.
 """
 
 from __future__ import annotations

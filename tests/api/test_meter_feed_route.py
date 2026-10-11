@@ -2,7 +2,7 @@
 
 Each case builds the app on two fakes: a threaded control daemon whose `State`
 reports the engine playing, and a 4322 stream of frames the case packs itself
-in the layout of docs/protocol.md section 7. The route is an endless event
+in the layout of docs/spec/protocol.md section 7. The route is an endless event
 stream, so the case reads it through `sse.open_stream` until the first
 complete server-sent event and then hangs up.
 """

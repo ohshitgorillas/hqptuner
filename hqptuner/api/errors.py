@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from hqptuner.engine.controlerrors import ControlError
 
 # code -> HTTP status. Every code the API can answer with is here; the
-# vocabulary is documented for clients in docs/architecture.md "API errors".
+# vocabulary is documented for clients in docs/spec/architecture.md "API errors".
 STATUS: dict[str, int] = {
     "no_credentials": 503,
     "no_http_client": 503,

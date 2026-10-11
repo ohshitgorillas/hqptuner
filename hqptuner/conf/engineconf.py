@@ -251,7 +251,7 @@ def with_boot_member(zip_bytes: bytes, active: str | None = None) -> bytes:
     """Return ``zip_bytes`` with its working config also carried as ``hqplayerd.xml``, the member a restore boots.
 
     A restore lands the daemon on ``[default]`` and discards an edit to a root
-    ``<Profile>.xml`` (docs/protocol.md §3.6), so an archive built while a named
+    ``<Profile>.xml`` (docs/spec/protocol.md §3.6), so an archive built while a named
     profile is active has to write its edits where the restart reads them. An
     archive that already has ``hqplayerd.xml``, or has no working config, is
     returned unchanged.

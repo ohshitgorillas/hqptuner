@@ -230,7 +230,7 @@ Current state only.
   - Skipped steps say why. Values rows lay out two per line.
 
 ## Station builder
-- The setup wizard's station walk (repo `docs/wizard/wizard.md` §1–§1.7, §4), one station at a time, in the Profile builder's grammar. Edits a copy; Save writes the station. Saving the loaded station, or new Hardware answers, restarts the engine.
+- The setup wizard's station walk (repo `docs/spec/wizard/wizard.md` §1–§1.7, §4), one station at a time, in the Profile builder's grammar. Edits a copy; Save writes the station. Saving the loaded station, or new Hardware answers, restarts the engine.
 - Wizard copy verbatim, `preset` renamed `station`. Agent copy is marked DRAFT in `data/station-builder.js`.
 - **Rail:** Overview + steps with their answers (`Skipped` where a step doesn't apply); tap to jump, nothing forces the order.
 - **Overview:**

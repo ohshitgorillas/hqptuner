@@ -7,7 +7,7 @@ because each of them is asking about the Python and none of them is asking what
 the browser is handed. The break surfaces later, in the frontend, as a fetch
 that returns the wrong shape.
 
-So the surface is committed as a file. ``docs/openapi.json`` is the app's own
+So the surface is committed as a file. ``docs/spec/openapi.json`` is the app's own
 OpenAPI document, normalized to sorted-key JSON so a diff is readable, and this
 gate rebuilds it and compares. A deliberate change to the API is one command and
 one reviewable file in the diff; an accidental one is a red gate.
@@ -38,7 +38,7 @@ from hqptuner.config import Config
 ROOT = Path(__file__).resolve().parent.parent.parent
 
 #: The committed surface this gate compares against.
-SNAPSHOT = ROOT / "docs" / "openapi.json"
+SNAPSHOT = ROOT / "docs" / "spec" / "openapi.json"
 
 #: Printed on every failure. The fix is one command, whichever way the gate red.
 ACCEPT = "run scripts/gates/check_openapi.py --write to accept this change"
@@ -69,7 +69,7 @@ def compare(committed: str, current: str) -> list[str]:
         difflib.unified_diff(
             render(json.loads(committed)).splitlines(),
             render(json.loads(current)).splitlines(),
-            fromfile="docs/openapi.json",
+            fromfile="docs/spec/openapi.json",
             tofile="current",
             lineterm="",
         )

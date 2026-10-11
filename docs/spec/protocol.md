@@ -2,7 +2,7 @@
 
 Derived from the official `hqp-control` 6.0.1 source (signalyst.eu, `hqp-control-601-src.zip`), MIT-licensed, © 2011–2026 Jussi Laako. File revision: `$Id: 13554 2026-03-02$`, Qt client classes `clControlInterface` / `clControlApplication`. Empirical results from a live hqplayerd 6.0.4 are folded in.
 
-This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. The normative rules that follow from it — enumeration volatility, the index/ID domain split, live-vs-file divergence — are stated once in `docs/architecture.md` §3.1 and are not repeated here. Per-field lane assignments live in `docs/settings-classification.md`.
+This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. The normative rules that follow from it — enumeration volatility, the index/ID domain split, live-vs-file divergence — are stated once in `docs/spec/architecture.md` §3.1 and are not repeated here. Per-field lane assignments live in `docs/spec/settings-classification.md`.
 
 ## 1. Transport and framing
 
@@ -51,7 +51,7 @@ hqplayerd's built-in web server (default **port 8088**, the same one the stock c
 - **Credentials:** the management username/password provisioned by `hqplayerd -u <user> <pass>` (per-user) or `-s` (system), or via the `/auth` web page.
 - **Stored digest = HTTP Digest HA1.** `hqplayerd-auth.xml` stores exactly the Digest HA1 for this realm: the `legacy` attribute = `MD5("<user>:com.signalyst.hqplayer.embedded:<pass>")`, and `digest` = `SHA-256(` same string `)`. No hidden salt. There is no reason for HQPTuner to read this file; the daemon validates Digest itself.
 
-HQPTuner's use of these credentials is described in `docs/architecture.md` §2.4.
+HQPTuner's use of these credentials is described in `docs/spec/architecture.md` §2.4.
 
 ## 3.6. HTTP configuration routes (port 8088)
 
@@ -116,7 +116,7 @@ hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **no
 - **`POST /restore scope=system` lands the daemon on `[default]`** and discards an edit to a root-renamed working member (see the configuration model above). Restore is the one reliable write primitive, but it is `[default]`-centric.
 - **A named `profile/load` empties `/backup`** (bug note above).
 
-HQPTuner's model is described in `docs/architecture.md` §5.1; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
+HQPTuner's model is described in `docs/spec/architecture.md` §5.1; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
 
 ## 3.7. Matrix routes (port 8088)
 

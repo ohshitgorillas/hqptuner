@@ -1,6 +1,6 @@
 # HQPTuner v2 implementation roadmap
 
-The target is `docs/faceplate-spec.md`. Where the spec and a v1 document or v1 code disagree, the spec wins and the v1 side changes.
+The target is `docs/spec/faceplate-spec.md`. Where the spec and a v1 document or v1 code disagree, the spec wins and the v1 side changes.
 
 ## Strategy
 
@@ -11,10 +11,10 @@ The target is `docs/faceplate-spec.md`. Where the spec and a v1 document or v1 c
 
 ## Phase 0: rules before code
 
-- Rewrite `docs/design-system.md` for v2: plate sizes, the ink ladder, surfaces, spacing, motion (alert blink, knob sweep), no cards, no two-track pack grid.
+- Rewrite `docs/spec/design-system.md` for v2: plate sizes, the ink ladder, surfaces, spacing, motion (alert blink, knob sweep), no cards, no two-track pack grid.
 - Retarget the CSS gates to the new rules: `scripts/gates/css/check_css_tokens.py`, `scripts/gates/css/check_css_cards.py`, and the eslint `no-hand-rolled-card` rule.
 - Self-host Saira Extra Condensed, IBM Plex Sans and IBM Plex Mono under `hqptuner/static/fonts/`.
-- Renumber `docs/wizard/wizard.md`: it carries two sections numbered 1.5 and two numbered 4, and the spec cites it by number.
+- Renumber `docs/spec/wizard/wizard.md`: it carries two sections numbered 1.5 and two numbered 4, and the spec cites it by number.
 - Correct the spec's Behavior list: it names Live / Stage and Auto-save.
 
 ## Phase 1: backend and store deltas
@@ -87,7 +87,7 @@ The Overview and its five steps, on the existing matrix profile, AutoEq and desc
 ## Phase 11: cutover
 
 - The v2 entry becomes the only entry. The v1 components, CSS, LIVE and METER modes and their tests are deleted.
-- `docs/architecture.md` is rewritten where it describes the v1 shell: §4.2, §4.3, §5.3, §6.2, §7 and §9. `README.md` and the bug-report directions in `CONTRIBUTING.md` follow.
+- `docs/spec/architecture.md` is to be rewritten where it describes the v1 shell: §4.2, §4.3, §5.3, §6.2, §7 and §9. `README.md` and the bug-report directions in `CONTRIBUTING.md` follow.
 - Changelog and release 2.0.0.
 
 ## Owner inputs

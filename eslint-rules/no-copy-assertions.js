@@ -1,5 +1,5 @@
 // Gate: a test never asserts a string it did not put on the wire itself
-// (docs/testing.md rule 9). It enforces for JS what
+// (docs/spec/testing.md rule 9). It enforces for JS what
 // scripts/gates/testing/check_no_copy_assertions.py enforces for Python, with the same semantics:
 //
 //   a literal of two or more words the assertion compares against is copy unless
@@ -269,7 +269,7 @@ function covered(text, pool) {
 export default {
   meta: {
     type: "problem",
-    docs: { description: "never assert a string the test did not seed itself (docs/testing.md rule 9)" },
+    docs: { description: "never assert a string the test did not seed itself (docs/spec/testing.md rule 9)" },
     schema: [],
     messages: {
       copy: "asserts copy {{text}} — assert a wire identifier, a data-* state or a number, never a sentence",

@@ -1,6 +1,6 @@
 # Crossfeed compensation (M/S) — design of record
 
-Compensation for the tonal tilt HQPlayer's Bauer crossfeed puts on headphone EQ. The structural crossfeed that generalizes it is `docs/crossfeed-math.md`; the matrix wire it compiles to is `docs/protocol.md` §3.7.
+Compensation for the tonal tilt HQPlayer's Bauer crossfeed puts on headphone EQ. The structural crossfeed that generalizes it is `docs/research/crossfeed-math.md`; the matrix wire it compiles to is `docs/spec/protocol.md` §3.7.
 
 ## Motivation
 

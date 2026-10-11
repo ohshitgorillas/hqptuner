@@ -2,7 +2,7 @@
 
 Research output. Grounds question "should HQPTuner bypass HQPlayer's Bauer post-process and build own crossfeed in matrix pipelines?" in real psychoacoustic and filter math.
 
-**Implemented** as Structural mode of Crossfeed card. Implementation notes marked as such. Companion: `docs/protocol.md` §3.7 (matrix wire contract, probe findings) and `docs/crossfeed-compensation.md` (crossfeed-compensation design of record).
+Structural mode of Crossfeed card implements this design; implementation notes are marked as such. Companion: `docs/spec/protocol.md` §3.7 (matrix wire contract, probe findings) and `docs/spec/crossfeed-compensation.md` (crossfeed-compensation design of record).
 
 ## Provenance
 

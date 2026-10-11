@@ -28,7 +28,7 @@ CI runs Python 3.14. `requires-python` still admits 3.12+, but 3.14 is what is a
 
 `make check` must be green. It is the same set the pre-commit hooks run, plus the JS test suite. See the Development section of `README.md` for what each target covers.
 
-I am extremely strict about what tests make it into the codebase, so please review `docs/testing.md` for the binding testing policy.
+I am extremely strict about what tests make it into the codebase, so please review `docs/spec/testing.md` for the binding testing policy.
 
 Every user-visible change lands with a `CHANGELOG.md` entry under `[Unreleased]`, in the same commit as the change. Write it for the person hitting the bug, not for the person who fixed it: what went wrong from their side, what it does now.
 

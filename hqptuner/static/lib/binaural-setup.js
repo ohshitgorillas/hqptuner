@@ -16,7 +16,7 @@
 //     this block is two crossfeeds in series.
 //   matrix_iir2fir = 2 — converts the matrix's parametric stages to linear phase,
 //     and linear phase means constant group delay, which deletes the low-frequency
-//     ITD the head-shadow filter supplies (docs/crossfeed-math.md §3). The
+//     ITD the head-shadow filter supplies (docs/research/crossfeed-math.md §3). The
 //     magnitude response stays correct, so nothing on a plot would show it.
 //
 // iir2fir = 1 is ALLOWED. The manual calls it "direct conversion, retain

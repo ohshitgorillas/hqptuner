@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Gate: the assertion shapes docs/testing.md rule 2 and the Markers section forbid.
+"""Gate: the assertion shapes docs/spec/testing.md rule 2 and the Markers section forbid.
 
 One finding is a ``(category, location)`` pair:
 

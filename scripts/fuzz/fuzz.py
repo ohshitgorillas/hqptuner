@@ -3,7 +3,7 @@
 
   .venv/bin/python scripts/fuzz/fuzz.py http://127.0.0.1:8090 OUTDIR [--cap 12] [--dry-run]
 
-The attacks are built off ``docs/openapi.json`` before the first request.
+The attacks are built off ``docs/spec/openapi.json`` before the first request.
 Records go to ``OUTDIR/attacks.jsonl``, one object per attack: the request, the
 status, the body, and one ordinary ``GET /api/health`` after it, which is the
 instrument that says whether the app survived.
@@ -40,7 +40,7 @@ import httpx
 from fuzzgen import RACE_CATEGORY, Attack, generate
 
 ROOT = Path(__file__).resolve().parents[2]
-SPEC = ROOT / "docs" / "openapi.json"
+SPEC = ROOT / "docs" / "spec" / "openapi.json"
 CURRENT = ROOT / "state" / "abuse" / "current"
 
 DEFAULT_CAP = 12

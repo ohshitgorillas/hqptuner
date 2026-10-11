@@ -4,7 +4,7 @@ The faceplate rules bind every stylesheet under `hqptuner/static/css/`. All visu
 
 ## The faceplate
 
-The target is `docs/faceplate-spec.md`. A tuner or integrated-amp faceplate, dark only.
+The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate, dark only.
 
 ### Plate
 

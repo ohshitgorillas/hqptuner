@@ -13,7 +13,7 @@ The owner wants the step built correctly and nothing else changed. The red test 
 
 ## What that means in practice
 
-Read `docs/design-system.md` before any CSS or layout work, and follow it over anything you would choose yourself.
+Read `docs/spec/design-system.md` before any CSS or layout work, and follow it over anything you would choose yourself.
 
 Keep decisions out of the DOM. A component renders what a model decided; where the step needs a new decision, it goes in a function under `hqptuner/static/model/` whose return value is the decision. If the step needs a model the plan did not name, report it instead of burying the decision in a component.
 

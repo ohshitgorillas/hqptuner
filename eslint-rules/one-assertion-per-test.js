@@ -1,4 +1,4 @@
-// Gate: every test contains exactly one assertion (docs/testing.md rule 2).
+// Gate: every test contains exactly one assertion (docs/spec/testing.md rule 2).
 // It enforces for JS what scripts/gates/testing/check_test_assertions.py enforces for Python,
 // with the same semantics:
 //
@@ -69,7 +69,7 @@ function walk(node, inLoop, acc) {
 export default /** @type {import("eslint").Rule.RuleModule} */ ({
   meta: {
     type: "problem",
-    docs: { description: "require exactly one assertion per test (docs/testing.md)" },
+    docs: { description: "require exactly one assertion per test (docs/spec/testing.md)" },
     schema: [],
     messages: {
       count: "{{count}} assertions (want 1) — a failure must name exactly one broken behavior",
