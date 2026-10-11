@@ -62,7 +62,6 @@ import { applyPreset, markFor } from "../../easy/apply.js";
  * @property {"full" | "half" | "none" | ""} mark  "" when nothing is known about the filter
  * @property {number} pips
  * @property {string} costWord  the caption standing in for pips, "" where pips count
- * @property {boolean} grayed  false on every row: the section offers every preset it shows
  * @property {boolean} current  the preset, at these positions, is what the engine runs
  * @property {boolean} open  a flagship whose nested rows show
  * @property {PresetRow[]} subs  a flagship's nested rows, empty on every other row
@@ -224,7 +223,6 @@ function rowOf(preset, nest, pass) {
     mark: markFor(preset.id, at) || "",
     pips,
     costWord: preset.costText && pips === 0 ? easyProse(preset.id, "cost") : "",
-    grayed: false,
     current: isRunning(preset, nest, pass),
     open: false,
     subs: [],
