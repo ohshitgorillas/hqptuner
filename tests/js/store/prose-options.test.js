@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 
 import { idFor, optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
+import { viewport } from "../../../hqptuner/static/store/faceplate/view.js";
 import { reset, META } from "../support/field-harness.js";
 
 const INTEGRATOR_META = META.settings.dsp.sdm_integrator;
@@ -119,6 +120,20 @@ for (const plain of [false, true]) {
     assert.deepEqual(prose("sinc-M-2s").more, [NOTE]);
   });
 }
+
+const FIRST_PARAGRAPH = `${LEAD}: the first paragraph of the fixture note.`;
+const SECOND_PARAGRAPH = "The second paragraph of the fixture note.";
+const TWO_PARAGRAPH_META = {
+  ...META,
+  filters: { ...META.filters, two_stage_note: `${FIRST_PARAGRAPH}\n\n${SECOND_PARAGRAPH}` },
+};
+
+// The note is held back only below 13″, so the plate is set to the smallest size.
+test("test_a_two_stage_note_of_two_paragraphs_is_held_back_as_two_paragraphs", async () => {
+  await reset({ meta: TWO_PARAGRAPH_META });
+  viewport.value = { w: 1080, h: 810 };
+  assert.deepEqual(prose("sinc-M-2s").more, [FIRST_PARAGRAPH, SECOND_PARAGRAPH]);
+});
 
 test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin_then_the_notes_lead", async () => {
   await reset({ meta: LEAD_META });

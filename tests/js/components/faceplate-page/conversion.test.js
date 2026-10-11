@@ -202,14 +202,65 @@ test("test_the_copy_carries_the_running_options_prose", () => {
 /** How many "see more" triggers Resampling's body shows. */
 const seeMores = () => bodyEls("resampling").filter((e) => attr(e, "data-testid") === "see-more").length;
 
+/** The two-stage note the overlay carries while a two-stage filter runs. */
+const TWO_STAGE_NOTE = "fixture-lead: fixture-rest.";
+
 /** Run the two-stage variant of the open filter, with a two-stage note in the overlay. */
 function runTwoStage() {
   enums.value = { ...enums.value, filters: ["minphaseFIR-2s", "sinc-L"].map(item) };
   metadata.value = {
     ...metadata.value,
-    filters: { ...metadata.value?.filters, two_stage_note: "fixture-lead: fixture-rest." },
+    filters: { ...metadata.value?.filters, two_stage_note: TWO_STAGE_NOTE },
   };
 }
+
+/** The window at each plate size: 10.2″, 11″ and 13″. */
+const SMALL = { w: 1080, h: 810 };
+const MIDDLE = { w: 1180, h: 820 };
+const LARGE = { w: 1366, h: 1024 };
+
+/**
+ * How many see-more triggers the two-stage note adds to Resampling's body at one plate size, over its single-stage
+ * twin's.
+ *
+ * @param {{ w: number, h: number }} size
+ */
+function addedByTwoStage(size) {
+  play();
+  viewport.value = size;
+  const single = seeMores();
+  runTwoStage();
+  return seeMores() - single;
+}
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) => inner.start >= outer.start && inner.start < outer.start + outer.html.length;
+
+/** The first copy in Resampling's body as it reads in sight: less any see-more popover and trigger inside it. */
+function copyInSight() {
+  const els = bodyEls("resampling");
+  const copy = els.find((e) => classes(e).includes("man"));
+  if (!copy) return "no .man";
+  const held = els.filter(
+    (e) => within(e, copy) && (attr(e, "role") === "dialog" || attr(e, "data-testid") === "see-more"),
+  );
+  return text({ ...copy, html: held.reduce((h, e) => h.replace(e.html, ""), copy.html) });
+}
+
+test("test_the_two_stage_note_waits_behind_see_more_at_10_2_and_11_inches_and_not_at_13", () => {
+  assert.deepEqual([SMALL, MIDDLE, LARGE].map(addedByTwoStage), [1, 1, 0]);
+});
+
+test("test_at_13_inches_the_two_stage_copy_ends_on_the_whole_two_stage_note_in_sight", () => {
+  viewport.value = LARGE;
+  runTwoStage();
+  assert.equal(copyInSight().slice(-TWO_STAGE_NOTE.length), TWO_STAGE_NOTE);
+});
 
 test("test_a_two_stage_copy_shows_one_more_see_more_than_its_single_stage_twin", () => {
   const single = seeMores();

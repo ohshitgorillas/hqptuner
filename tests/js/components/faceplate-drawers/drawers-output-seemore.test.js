@@ -1,7 +1,9 @@
 // Rendered suite for a drawer row whose settings metadata entry holds part of its paragraph back: an entry may carry
 // `more`, the prose held back, beside `tooltip`, the start shown. A row whose entry carries `more` shows its tooltip and
 // then the `see more` trigger, and the trigger's popover holds the `more` prose. A row whose entry carries no `more`
-// shows its tooltip whole, with no trigger.
+// shows its tooltip whole, with no trigger. That holds at 10.2″ and 11″; at 13″ nothing is held back, so a marked row
+// shows its tooltip and then its `more` prose in sight, with no trigger. A `more` of several paragraphs, a blank line
+// between each, comes back as that many paragraphs, in the popover and in sight alike.
 //
 // The mark lives in the metadata, so the fixture puts it where drawer code could not have guessed it: on the IPv6 and
 // channel offset entries, one per backend, while the DAC bits entry carries the owner's whole DAC bits paragraph
@@ -21,7 +23,7 @@ import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/
 import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
 import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { openPopover, openStage, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
@@ -86,6 +88,12 @@ const META = {
   },
 };
 
+/** The window at each plate size: 10.2″, 11″ and 13″. */
+const SMALL = { w: 1080, h: 810 };
+const MIDDLE = { w: 1180, h: 820 };
+const LARGE = { w: 1366, h: 1024 };
+const SIZES = [SMALL, MIDDLE, LARGE];
+
 const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
 const ALSA = "hw:CARD=NVidia,DEV=3";
 
@@ -123,6 +131,7 @@ beforeEach(async () => {
   metadata.value = META;
   openStage.value = null;
   openPopover.value = null;
+  viewport.value = SMALL;
   await pickChannelLayout("2");
   await discardAll();
 });
@@ -222,19 +231,57 @@ function aroundTrigger(key) {
 }
 
 /**
- * The text of the paragraphs inside a row's see-more popover.
+ * The text of each paragraph inside a row's see-more popover.
  *
  * @param {string} key
- * @returns {string}
+ * @returns {string[]}
  */
-function popoverText(key) {
+function popoverParagraphs(key) {
   const pop = inRow(key).find(isPopover);
   return pop
     ? elements(pop.html)
         .filter((e) => e.name === "p")
         .map(text)
-        .join(" ")
-    : "";
+    : [];
+}
+
+/**
+ * The text of the paragraphs inside a row's see-more popover.
+ *
+ * @param {string} key
+ * @returns {string}
+ */
+const popoverText = (key) => popoverParagraphs(key).join(" ");
+
+/**
+ * For each plate size, whether the row drawn for `key` shows a see-more trigger.
+ *
+ * @param {string} key
+ * @returns {boolean[]}
+ */
+const triggerBySize = (key) =>
+  SIZES.map((size) => {
+    viewport.value = size;
+    return inRow(key).some(isTrigger);
+  });
+
+/**
+ * The text of the last paragraph a row shows in sight.
+ *
+ * @param {string} key
+ * @returns {string | undefined}
+ */
+const lastParagraphInSight = (key) => inSight(inRow(key)).map(text).at(-1);
+
+/** The row whose entry is handed a `more` of two paragraphs. */
+const TWO_PARAGRAPH_ROW = "net_ipv6";
+const FIRST_PARAGRAPH = "First paragraph the fixture entry holds back.";
+const SECOND_PARAGRAPH = "Second paragraph the fixture entry holds back.";
+
+/** Hand the IPv6 entry a `more` of two paragraphs, a blank line between them. */
+function holdBackTwoParagraphs() {
+  const output = { ...OUTPUT_META, ipv6: { ...OUTPUT_META.ipv6, more: `${FIRST_PARAGRAPH}\n\n${SECOND_PARAGRAPH}` } };
+  metadata.value = { settings: { ...META.settings, output } };
 }
 
 test("test_the_rows_with_a_see_more_trigger_are_the_rows_whose_metadata_entry_carries_more", () => {
@@ -262,3 +309,27 @@ for (const key of DAC_BITS_ROWS) {
     assert.equal(shownDescription(key), words(DAC_BITS_PARAGRAPH));
   });
 }
+
+for (const key of MARKED_ROWS) {
+  test(`test_the_${key}_row_holds_its_more_prose_behind_see_more_at_10_2_and_11_inches_and_not_at_13`, () => {
+    assert.deepEqual(triggerBySize(key), [true, true, false]);
+  });
+}
+
+for (const [key, { tooltip, more }] of Object.entries(MARKED)) {
+  test(`test_at_13_inches_the_${key}_row_shows_its_tooltip_then_its_more_prose_in_sight`, () => {
+    viewport.value = LARGE;
+    assert.deepEqual(shownDescription(key).split(" "), words(`${tooltip} ${more}`).split(" "));
+  });
+}
+
+test("test_a_more_prose_of_two_paragraphs_opens_as_two_paragraphs_in_the_see_more_popover", () => {
+  holdBackTwoParagraphs();
+  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW), [FIRST_PARAGRAPH, SECOND_PARAGRAPH]);
+});
+
+test("test_at_13_inches_the_second_paragraph_of_a_more_prose_shows_as_a_paragraph_of_its_own", () => {
+  holdBackTwoParagraphs();
+  viewport.value = LARGE;
+  assert.equal(lastParagraphInSight(TWO_PARAGRAPH_ROW), SECOND_PARAGRAPH);
+});

@@ -18,7 +18,7 @@ import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
 import { field } from "./Field.js";
 import { choice } from "./Choice.js";
 import { Xref } from "../Xref.js";
-import { MoreNote, seeMore } from "../SeeMore.js";
+import { folded } from "../SeeMore.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/drawer.js").BodyItem} BodyItem */
@@ -28,7 +28,7 @@ import { MoreNote, seeMore } from "../SeeMore.js";
 /** @typedef {import("../../../store/faceplate/drawer.js").IntroPart} IntroPart */
 /** @typedef {import("../../../store/faceplate/drawer.js").NoteLine} NoteLine */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
-/** @typedef {import("../../../store/prose.js").ControlProse} ControlProse */
+/** @typedef {import("../../../store/prose.js").Described} Described */
 /** @typedef {Record<string, (props: { schema: DrawerSchema, here: XrefHere }) => unknown>} Blocks */
 
 /**
@@ -57,33 +57,35 @@ const optList = (spec, label) => html`
 `;
 
 /**
- * A select's picked option's line, full width under the row; nothing unless its options carry lines.
+ * A select's picked option's line, full width under the row, as the prose folds it: its first paragraph, then `see
+ * more` where any are held back, which opens them, then those in place after it; nothing unless its options carry
+ * lines.
  *
  * @param {RowSpec} spec
  * @param {SchemaField} entry
+ * @param {XrefHere} here
  */
-function pickedLine(spec, entry) {
+function pickedLine(spec, entry, here) {
   if (!drawsSelect(entry.widget)) return null;
   const lines = rowLines(spec.key, spec.options);
   const cur = lines.some((l) => l.man) ? lines.find((l) => l.cur) : undefined;
   if (!cur) return null;
-  return html`<div class="optfull"><p class="optman"><code>${cur.label}</code> ${cur.man}</p></div>`;
+  const head = html`<code>${cur.label}</code>`;
+  const id = `pick-${here.drawer}-${spec.key}`;
+  return html`<div class="optfull">${folded({ head, fold: cur.fold, id, label: cur.label, cls: "optman" })}</div>`;
 }
 
 /**
- * A row's paragraph: its tooltip whole, or, where its metadata entry holds `more` back, the tooltip, then `see more`,
- * which opens the rest.
+ * A row's paragraphs as the prose folds them: the first, then `see more` where any are held back, which opens them,
+ * then those in place after it.
  *
  * @param {RowSpec} spec
- * @param {ControlProse} prose
+ * @param {Described} prose
  * @param {string} label
  * @param {XrefHere} here
  */
 function rowProse(spec, prose, label, here) {
-  const { tooltip, more } = prose;
-  if (!more) return html`<p>${tooltip}</p>`;
-  const pop = `more-${here.drawer}-${spec.key}`;
-  return html`<p>${tooltip} ${seeMore(pop)}</p><${MoreNote} id=${pop} label=${label} paras=${[more]} />`;
+  return folded({ head: null, fold: prose.fold, id: `more-${here.drawer}-${spec.key}`, label });
 }
 
 /**
@@ -107,7 +109,7 @@ function row(spec, here) {
     <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
       <div class="ctl">${labelHead(label, spec.sub, spec.band)} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
       <div class="man">${rowProse(spec, prose, label, here)}</div>
-      ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry)}
+      ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry, here)}
     </div>
   `;
 }

@@ -4,13 +4,14 @@
 
 import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../schema.js";
-import { describe, idFor, optionDescription } from "../../prose.js";
+import { describe, idFor, optionDescription, optionProse } from "../../prose.js";
 import { effective, formFieldName } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import { enumOptions, optionsFor } from "../../ui/options.js";
 import { plainOf } from "../page/conversion.js";
 
 /** @typedef {import("./grammar.js").RowOption} RowOption */
+/** @typedef {import("../../prose.js").Fold} Fold */
 
 /**
  * One option as a row's option list prints it: its value as the control writes it, its label, its line, and whether
@@ -19,7 +20,8 @@ import { plainOf } from "../page/conversion.js";
  * @typedef {object} OptionLine
  * @property {string} value
  * @property {string} label
- * @property {string} man
+ * @property {string} man   its line whole
+ * @property {Fold} fold    its line as the prose folds it, for a surface that can hold part of it behind "see more"
  * @property {boolean} cur
  */
 
@@ -97,10 +99,15 @@ export function rowLines(key, own) {
   if (!e) return [];
   const meta = describe(e, key);
   const value = rowValue(key);
-  return rowOptions(key, own).map((o) => ({
-    value: String(o.value),
-    label: o.label,
-    man: optionDescription(e, o, meta) || o.man || "",
-    cur: String(o.value) === value,
-  }));
+  return rowOptions(key, own).map((o) => {
+    const prose = optionDescription(e, o, meta);
+    const man = prose || o.man || "";
+    return {
+      value: String(o.value),
+      label: o.label,
+      man,
+      fold: prose ? optionProse(e, o, meta) : { text: man, rest: [], more: [] },
+      cur: String(o.value) === value,
+    };
+  });
 }

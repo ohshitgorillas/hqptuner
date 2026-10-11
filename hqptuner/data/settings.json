@@ -9,7 +9,14 @@
     },
     "backend": {
       "label": "Backend",
-      "tooltip": "Specifies the type of output device. ALSA uses an ALSA hardware device. ASIO uses an ASIO device. WASAPI uses a Windows audio endpoint. Network uses a Signalyst Network Audio Adapter — for the Network Audio driver type, a list of remote audio devices is shown. Combo holds a set of sub-elements of type \"alsa\" and/or type \"network\"; these form a combined output device with as many channels as the sum of the channels of the sub-elements, and channel mapping follows the order of the sub-devices.",
+      "tooltip": "Specifies the type of output device.",
+      "options": {
+        "alsa": "Uses an ALSA hardware device.",
+        "asio": "Uses an ASIO device.",
+        "wasapi": "Uses a Windows audio endpoint.",
+        "network": "Uses a Signalyst Network Audio Adapter.",
+        "combo": "Combines several output devices into one, with as many channels as the sum of theirs; channel mapping follows the order of the sub-devices."
+      },
       "source": "readme §1.3, manual §4.3"
     },
     "pcm_rate": {
@@ -316,7 +323,8 @@
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
-      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain a useful signal in addition to increasing noise-shaping noise. For example, piano doesn't contain high-frequency harmonics; for such a case, \"narrow\" is suitable. Close-miked percussion usually contains high level high-frequency content so that \"wide\" may be more suitable. \"XFi\" is suitable for all cases and is the default.",
+      "tooltip": "Different options for SDM → SDM rate conversions. These affect the frequency aperture that is assumed to contain a useful signal in addition to increasing noise-shaping noise.",
+      "more": "For example, piano doesn't contain high-frequency harmonics; for such a case, \"narrow\" is suitable. Close-miked percussion usually contains high level high-frequency content so that \"wide\" may be more suitable. \"XFi\" is suitable for all cases and is the default.",
       "options": {
         "0": "Wide bandwidth signal.",
         "1": "Narrow bandwidth signal.",
@@ -326,7 +334,8 @@
     },
     "pdm_filter": {
       "label": "Noise filter",
-      "tooltip": "Different types of noise filters for PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data. Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. More aggressive noise filters can therefore be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will reduce playback quality.",
+      "tooltip": "Different types of noise filters for PCM output of DSD/SDM sources. These reduce the amount of ultrasonic noise present in the source data.",
+      "more": "Standard filtering leaves a low level of ultrasonic noise. Some loudspeakers with tweeters of low power-handling capability can be sensitive to this noise, especially when higher listening volumes are used. Also some poorly designed, or class-D, amplifiers can misbehave in the presence of such ultrasonic content. More aggressive noise filters can therefore be selected. These filters will also limit the bandwidth available for the audio content. When the processing output rate of a DSD source (assuming DSD64) is 88.2/96 kHz PCM, the use of extra noise filtering in addition to \"standard\" is less important, since most of the noise will be cut out. When the processing output rate of a DSDIFF or DSF source is 44.1/48 kHz, extra noise filtering in addition to \"standard\" is not needed and will reduce playback quality.",
       "options": {
         "0": "Standard noise filter will be applied. Recommended.",
         "1": "Similar to standard, but has a lower corner frequency and results in an almost flat noise profile in the ultrasonic range. Recommended.",
@@ -384,7 +393,8 @@
     },
     "volume_max": {
       "label": "Max volume",
-      "tooltip": "Maximum output volume setting in dB. Also allows positive values (gain). Together with the minimum, this configures the adjustment range of the volume control. Setting both to the same value gives a fixed volume at that level. Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting, either on the HQPlayer side or on the DAC side.",
+      "tooltip": "Maximum output volume setting in dB. Also allows positive values (gain). Together with the minimum, this configures the adjustment range of the volume control. Setting both to the same value gives a fixed volume at that level.",
+      "more": "Note! When both values are set to zero (0), volume control is bypassed completely. However, this is not suitable for normal cases since it will cause inter-sample overs and thus limiting, either on the HQPlayer side or on the DAC side.",
       "source": "manual §4.2, readme §1.3 (volume_max)"
     },
     "volume_min": {
@@ -394,12 +404,13 @@
     },
     "startup_volume": {
       "label": "Startup volume",
-      "tooltip": "Startup volume setting if defined.",
+      "tooltip": "Volume applied at startup, if defined.",
       "source": "readme §1.3.1 (defaults/volume)"
     },
     "gain_compensation": {
       "label": "PCM gain compensation",
       "tooltip": "Many DACs have different output levels for 0 dBFS PCM vs 0 dB DSD. PCM gain compensation can be used to compensate for this level difference.",
+      "more": "Typical compensation by DAC type:\n\nAsahi Kasei Micro (AKM), AK4490: -3.5 dB\n\nAsahi Kasei Micro (AKM), AK4493: -1 to -3.5 dB depending on reference level settings\n\nAsahi Kasei Micro (AKM), AK4499: -4.1 dB\n\nAsahi Kasei Micro (AKM), AK4499EX: -3 dB depending on settings\n\nCirrus Logic: -3 dB\n\nESS Sabre: 0 dB\n\nROHM BD34352: -5.25 dB\n\nTexas Instruments / Burr-Brown: depends on selected AFIR; refer to the datasheet for details\n\nHolo Audio: -6 dB\n\nDenafrips: -3.2 dB\n\nMerging Hapi: -0.6 dB",
       "source": "manual §4.2"
     },
     "adaptive_volume": {

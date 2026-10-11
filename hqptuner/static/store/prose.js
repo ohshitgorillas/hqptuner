@@ -10,7 +10,9 @@
 // different strings is how a UI ends up disagreeing with itself, so both read
 // from here and neither writes prose of its own.
 
+import { computed } from "@preact/signals";
 import { metadata } from "./signals.js";
+import { plate } from "./faceplate/view.js";
 
 // Static per-control prose from settings.json, keyed by tab group. `entry.note`
 // names the settings.json key when it differs from the control key (e.g.
@@ -20,9 +22,25 @@ import { metadata } from "./signals.js";
  * @typedef {object} ControlProse
  *   One control's settings.json row.
  * @property {string} label
- * @property {string} tooltip  the start of the paragraph, shown
- * @property {string} [more]  the rest of the paragraph, held behind "see more"
+ * @property {string} tooltip  the start of the paragraph
+ * @property {string} [more]  the rest of the paragraph, then any paragraphs after it, a blank line between each
  * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
+ *
+ * @typedef {object} Fold
+ *   An explanation split by the plate: what reads in place and what waits behind "see more".
+ * @property {string} text    the first paragraph in place; "see more" follows it where `more` holds any
+ * @property {string[]} rest  the paragraphs in place after it, each its own
+ * @property {string[]} more  the paragraphs held behind "see more", none where nothing is held
+ *
+ * @typedef {object} Described
+ *   One control's prose as a surface shows it.
+ * @property {string} label
+ * @property {string} tooltip  the start of the paragraph, alone
+ * @property {Record<string, string> | undefined} options  per-VALUE prose (`desc: "config"`)
+ * @property {Fold} fold  the whole paragraph, split by the plate
+ *
+ * @typedef {Pick<ControlProse, "label" | "tooltip" | "options">} ValueProse  a control's prose, read for its per-VALUE
+ *   prose
  *
  * @typedef {object} OverlayEntry
  *   One filters.json / shapers.json row. This module reads the prose; the rate
@@ -45,24 +63,29 @@ import { metadata } from "./signals.js";
  * @property {Record<string, unknown>} [easy] Easy Mode's tile copy, a nested tree keyed by preset id
  *   and knob id (data/easy-presets.json). Deliberately not typed further: the tiles that read the
  *   leaves arrive in a later phase, and a shape written before them would be a guess.
- *
- * @typedef {object} OptionProse
- *   One option's prose, split for a surface that can hold some of it back.
- * @property {string} text    what reads inline
- * @property {string[]} more  paragraphs held behind "see more", none where nothing is held
  */
 
+/** Whether the plate holds every explanation whole in place. */
+const inPlace = computed(() => plate.value.both);
+
 /**
- * One control's label and tooltip from settings.json, falling back to the key
- * itself and no tooltip.
+ * One control's label, tooltip and paragraph from settings.json, falling back to
+ * the key itself and no tooltip.
  *
  * @param {SchemaField} entry
  * @param {string} key
- * @returns {ControlProse}
+ * @returns {Described}
  */
 export function describe(entry, key) {
   const g = (metadata.value && metadata.value.settings && metadata.value.settings[entry.group]) || {};
-  return g[entry.note || key] || { label: key, tooltip: "" };
+  /** @type {ControlProse} */
+  const row = g[entry.note || key] || { label: key, tooltip: "" };
+  return {
+    label: row.label,
+    tooltip: row.tooltip,
+    options: row.options,
+    fold: fold(row.tooltip, row.more || "", "", inPlace.value),
+  };
 }
 
 // Easy Mode's copy comes through the same door as every other string the UI
@@ -195,16 +218,33 @@ function filterParts(name, md, sdm) {
 const whole = (p) => joinProse(p.base, p.note);
 
 /**
- * The parts split for a surface that holds the note behind "see more": the note's lead, its words before the first
- * colon, reads inline after the prose, and the note itself is held back.
+ * What of an explanation reads in place and what waits behind "see more". On a plate that holds everything nothing
+ * waits: the held part follows the lead, its first paragraph joined to it and each paragraph after its own. On a
+ * smaller plate the held part waits, one entry per paragraph, and only `inline` follows the lead.
+ *
+ * @param {string} lead    what always reads in place
+ * @param {string} held    what may wait, a blank line between its paragraphs
+ * @param {string} inline  what reads in place after the lead while `held` waits
+ * @param {boolean} all    whether the plate holds everything in place
+ * @returns {Fold}
+ */
+function fold(lead, held, inline, all) {
+  const paras = paragraphs(held);
+  if (!all) return { text: joinProse(lead, inline), rest: [], more: paras };
+  return { text: joinProse(lead, paras[0]), rest: paras.slice(1), more: [] };
+}
+
+/**
+ * The parts folded for a surface that can hold the note behind "see more": while it waits, the note's lead, its words
+ * before the first colon, reads in place after the prose.
  *
  * @param {ProseParts} p
- * @returns {OptionProse}
+ * @returns {Fold}
  */
 function heldBack(p) {
   const colon = p.note.indexOf(":");
   const lead = colon > 0 ? p.note.slice(0, colon) : "";
-  return { text: joinProse(p.base, lead), more: p.note ? [p.note] : [] };
+  return fold(p.base, p.note, lead, inPlace.value);
 }
 
 // desc = dither|modulator -> name-keyed prose from the shapers overlay.
@@ -229,7 +269,7 @@ function shaperDescription(kind, name, md) {
  *
  * @param {SchemaField} entry
  * @param {{ value: string | number | undefined, label: string }} option
- * @param {ControlProse} meta
+ * @param {ValueProse} meta
  * @returns {string}
  */
 export function optionDescription(entry, option, meta) {
@@ -237,19 +277,19 @@ export function optionDescription(entry, option, meta) {
 }
 
 /**
- * The same prose as optionDescription, split for a surface that holds the two-stage note behind "see more".
+ * The same prose as optionDescription, folded for a surface that can hold the two-stage note behind "see more".
  *
  * @param {SchemaField} entry
  * @param {{ value: string | number | undefined, label: string }} option
- * @param {ControlProse} meta
- * @returns {OptionProse}
+ * @param {ValueProse} meta
+ * @returns {Fold}
  */
 export const optionProse = (entry, option, meta) => heldBack(optionParts(entry, option, meta));
 
 /**
  * @param {SchemaField} entry
  * @param {{ value: string | number | undefined, label: string }} option
- * @param {ControlProse} meta
+ * @param {ValueProse} meta
  * @returns {ProseParts}
  */
 function optionParts(entry, option, meta) {

@@ -84,7 +84,7 @@ export const OUTPUT_DRAWER = {
       id: "device",
       label: "Device",
       body: [
-        { row: { key: "backend" } },
+        { row: { key: "backend", optMan: true } },
         { block: "netdev", keys: ["net_device"] },
         {
           group: "network",

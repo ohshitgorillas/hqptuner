@@ -4,6 +4,8 @@
 import { html } from "../../lib/dom.js";
 import { Popover, parkAt, triggerProps } from "./Popover.js";
 
+/** @typedef {import("../../store/prose.js").Fold} Fold */
+
 export const SEE_MORE = "… see more";
 
 /** Under its link, flipped above it where below would cross the plate's foot. */
@@ -43,3 +45,22 @@ export const MoreNote = ({ id, label, paras }) => html`
     ${paras.map((p) => html`<p>${p}</p>`)}
   <//>
 `;
+
+/**
+ * Prose as its fold reads: the head and the first paragraph, then `see more` where any paragraphs are held back, which
+ * opens them, then the paragraphs in place after it.
+ *
+ * @param {object} props
+ * @param {unknown} props.head  what leads the first paragraph, null for nothing
+ * @param {Fold} props.fold
+ * @param {string} props.id  the note's popover id
+ * @param {string} props.label  the note's accessible name
+ * @param {string} [props.cls]  each paragraph's class
+ */
+export function folded({ head, fold, id, label, cls }) {
+  const { text, rest, more } = fold;
+  const first = head ? html`${head} ${text}` : text;
+  const after = rest.map((p) => html`<p class=${cls}>${p}</p>`);
+  if (more.length === 0) return html`<p class=${cls}>${first}</p>${after}`;
+  return html`<p class=${cls}>${first} ${seeMore(id)}</p>${after}<${MoreNote} id=${id} label=${label} paras=${more} />`;
+}

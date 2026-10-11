@@ -3,7 +3,8 @@
 // control: the window picks.
 
 /**
- * One iPad landscape size in points. `both`: tall enough to open both Resampling filters. `meter`: how the page's
+ * One iPad landscape size in points. `both`: the expanded size, tall enough to open both Resampling filters and to
+ * show every setting explanation in place, with nothing behind `… see more`. `meter`: how the page's
  * Source meter takes the fill, `full` or `slim`.
  *
  * @typedef {object} PlateSize

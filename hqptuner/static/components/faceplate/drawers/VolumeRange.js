@@ -16,6 +16,7 @@ import { RANGE_KEYS, volumeRangeNow } from "../../../store/faceplate/drawers/vol
 import { RangeBar } from "./volume/Bar.js";
 import { RangeBox, Readout } from "./volume/marks.js";
 import { Xref, withXref } from "../Xref.js";
+import { folded } from "../SeeMore.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -29,18 +30,22 @@ const VOLUME_MAN = [RANGE_KEYS.min, RANGE_KEYS.max, RANGE_KEYS.startup];
 const LOUD_MAN = ["loudness_range_low", "loudness_range_high"];
 
 /**
- * Each setting's paragraph from the settings metadata, its label bolded ahead of it.
+ * One setting's paragraphs as the prose folds them, its label bolded ahead of the first: the first, then `see more`
+ * where any are held back, which opens them, then those in place after it.
+ *
+ * @param {string} k
+ */
+function manualOf(k) {
+  const { label, fold } = describe(catalog[k], k);
+  return folded({ head: html`<b>${label}</b>`, fold, id: `more-range-${k}`, label });
+}
+
+/**
+ * Each setting's paragraphs from the settings metadata, its label bolded ahead of them.
  *
  * @param {{ keys: string[] }} props
  */
-const Manual = ({ keys }) => html`
-  <div class="man">
-    ${keys.map((k) => {
-      const { label, tooltip } = describe(catalog[k], k);
-      return html`<p><b>${label}</b> ${tooltip}</p>`;
-    })}
-  </div>
-`;
+const Manual = ({ keys }) => html`<div class="man">${keys.map(manualOf)}</div>`;
 
 /**
  * The three typed boxes, each fenced as its handle is: Min on the axis and at most 0 dB and Startup, Startup between

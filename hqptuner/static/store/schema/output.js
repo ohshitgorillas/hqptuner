@@ -113,6 +113,7 @@ export const output = {
     field: "backend",
     // the daemon's own list, under fixed labels (store/ui/backends.js)
     optionsFrom: "backends",
+    desc: "config",
     hoverNote: true,
   },
   idle_time: {

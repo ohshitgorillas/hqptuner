@@ -33,7 +33,8 @@ import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/c
  * @property {string | null} variant  its plain variant, null where it has none
  * @property {string} leaf      its name as the option style prints it: the plain row text, or the engine name
  * @property {string} tier      its rate tier, "512+" for a modulator with a DSD512 floor, "" where it has none
- * @property {string} prose     its manual prose that reads inline, "" where the overlay has none
+ * @property {string} prose     its manual prose's first paragraph in place, "" where the overlay has none
+ * @property {string[]} rest    its manual paragraphs in place after the first, each its own
  * @property {string[]} more    its manual paragraphs held behind "see more", none where nothing is held
  *
  * @typedef {object} ConvSection
@@ -97,7 +98,7 @@ export function plainOf(kind, name) {
 function fieldOf(c, id, play) {
   const opt = c.optionsRaw.find((o) => String(o.value) === String(c.value));
   const value = opt ? opt.label : "";
-  const words = opt ? optionProse(c.entry, opt, describe(c.entry, c.key)) : { text: "", more: [] };
+  const words = opt ? optionProse(c.entry, opt, describe(c.entry, c.key)) : { text: "", rest: [], more: [] };
   return {
     id,
     key: c.key,
@@ -106,6 +107,7 @@ function fieldOf(c, id, play) {
     idle: !fieldRuns(play, play.run, id),
     ...plainOf(c.entry.plainNames || "", value),
     prose: words.text,
+    rest: words.rest,
     more: words.more,
   };
 }

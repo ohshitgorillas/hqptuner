@@ -169,8 +169,9 @@ function scheduleFit(host) {
 // --- the bodies ---------------------------------------------------------------------------
 
 /**
- * The open field's copy: its engine name and prose, ending in `… see more` where the prose holds paragraphs back, which
- * opens them, or is cut short, which opens the whole of it.
+ * The open field's copy: its engine name and first paragraph, ending in `… see more` where the prose holds paragraphs
+ * back, which opens them, then the paragraphs in place after it; or, cut short, its first words and `… see more`, which
+ * opens the whole of it.
  *
  * @param {object} props
  * @param {string} props.id  the copy's id on the page
@@ -185,21 +186,22 @@ function Copy({ id, field }) {
   // where it was.
   useLayoutEffect(() => {
     if (ref.current) scheduleFit(ref.current);
-  }, [now, cut, fit, field.value, field.prose, field.more.length]);
+  }, [now, cut, fit, field.value, field.prose, field.rest.length, field.more.length]);
   const pop = `copy-${id}`;
   const shown = cut === undefined ? field.prose : wordsOf(field.prose).slice(0, cut).join(" ");
-  const rest =
+  const first =
     cut === undefined && field.more.length === 0
       ? field.prose
       : html`${shown}${" "}${seeMore(pop)}
           <${MoreNote}
             id=${pop}
             label=${field.value}
-            paras=${cut === undefined ? field.more : [field.prose, ...field.more]}
+            paras=${cut === undefined ? field.more : [field.prose, ...field.rest, ...field.more]}
           />`;
+  const after = cut === undefined ? field.rest.map((p) => html`<p>${p}</p>`) : null;
   return html`
     <div ref=${ref} class="man" data-copy=${id} data-name=${field.value} data-prose=${field.prose}>
-      <code>${field.value}</code>${" "}${rest}
+      <code>${field.value}</code>${" "}${first}${after}
     </div>
   `;
 }
