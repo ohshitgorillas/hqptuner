@@ -1,4 +1,4 @@
-// Shared harness for the components/widgets/Field.js suites — field.test.js (binding,
+// Shared harness for the components/faceplate/drawer/Field.js suites — field.test.js (binding,
 // classes, values, constraints, option sources, graying, unit/rescan) and
 // fielddesc.test.js (hover titles, inline notes, per-selection descriptions).
 //

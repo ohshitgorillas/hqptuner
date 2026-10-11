@@ -4,7 +4,7 @@
 A run that exits 0 with at least one ``live``-marked test passed and none
 skipped adds the release the daemon's /about page reports to
 ``hqptuner/data/tested-releases.json`` under the run's rootdir, once. The app
-reads that record to decide whether the System tab flags the daemon's release
+reads that record to decide whether the Settings surface flags the daemon's release
 as untested. A failed run, a skipped canary or a run with the live tests
 deselected records nothing; a green run that still records nothing says why.
 

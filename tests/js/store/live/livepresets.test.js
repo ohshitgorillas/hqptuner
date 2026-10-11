@@ -192,7 +192,7 @@ test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
 // setting's form key.
 
 // The PCM chain's two filter slots, by form key, each owned by a control on the
-// page (tests/js/components/controls/combobox-favstars.test.js).
+// page.
 const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 const REASON = "invalid filter";
