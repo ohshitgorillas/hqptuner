@@ -8,7 +8,8 @@
 // The wire is the seam: `GET /api/engine` answers the engine table a case hands the fake. Readout text is never
 // asserted as a literal: a readout of a catalog setting is held to what its own control's readout form prints for the
 // engine's value, found by the catalog entry's label, and a zero count to what a slider readout with an automatic zero
-// prints. Field rows are found by their `data-field` id, the restart mark by its one style, the `rs` class token.
+// prints. A catalog setting's row is found by its `data-k` wire key, a field's row by its `data-field` id, both read off
+// the drawer's schema, and the restart mark by its `data-testid`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/hardware.test.js
 
@@ -171,26 +172,37 @@ test("test_all_stations_on_the_gpu_tab_lights_it_on_the_cpu_tab", () => {
 
 // --- the restart mark -------------------------------------------------------------------------------------------
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
-
-//: Every field the drawer draws, by its id, on both tabs.
-const FIELD_IDS = ["multicore", "ecores", "hwallcpu", "cuda", "hwallgpu"];
+/** The restart mark's state-bearing handle, shared by every surface that carries it. */
+const MARK = "restart-mark";
 
 /**
- * Whether the row drawn for a field carries the restart mark, or null when the row is not drawn.
+ * Every head the schema draws as a row, on both tabs: a catalog setting by its wire key, found by `data-k`, and a
+ * field by its id, found by `data-field`.
  *
- * @param {string} id
+ * @type {{ id: string, handle: string }[]}
+ */
+const HEADS = HARDWARE_DRAWER.tabs.flatMap((t) =>
+  t.body.flatMap((it) => {
+    if ("row" in it) return [{ id: it.row.key, handle: "data-k" }];
+    if ("field" in it) return [{ id: it.field.id, handle: "data-field" }];
+    return [];
+  }),
+);
+
+/**
+ * Whether the row drawn for a head carries the restart mark, or null when the row is not drawn.
+ *
+ * @param {{ id: string, handle: string }} head
  * @returns {boolean | null}
  */
-function markedField(id) {
-  const row = all().find((e) => attr(e, "data-field") === id);
-  return row ? elements(row.html).some((e) => classes(e).includes(MARK)) : null;
+function markedHead({ id, handle }) {
+  const row = all().find((e) => attr(e, handle) === id);
+  return row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null;
 }
 
-for (const id of FIELD_IDS) {
-  test(`test_the_unedited_${id}_field_head_carries_the_restart_mark`, () => {
-    assert.equal(markedField(id), true);
+for (const head of HEADS) {
+  test(`test_the_unedited_${head.id}_head_carries_the_restart_mark`, () => {
+    assert.equal(markedHead(head), true);
   });
 }
 

@@ -104,9 +104,9 @@ async def apply(
     restore itself fails; the caller decides how to report that.
     """
     active = mgr.readings.active_config
-    # under auto-save the active preset's data/cfgs mirror catches up on any
-    # restore that happens anyway — swap in the store's copy before editing, so
-    # the overrides land on the auto-saved state rather than a stale mirror
+    # the active preset's data/cfgs mirror catches up on any restore that
+    # happens anyway — swap in the store's copy before editing, so the overrides
+    # land on the stored preset rather than a stale mirror
     if carry.mirror:
         backup = engineconf.rewrite_zip(backup, carry.mirror)
     backup = _with_carried_live_fields(engineconf.with_boot_member(backup, active or None), active, carry.carried)

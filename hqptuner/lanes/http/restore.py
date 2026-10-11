@@ -329,8 +329,8 @@ async def _restore_once(
             extra_members=hooks.parked_members(),
         ),
     )
-    # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
-    # restore that is happening anyway — this one qualifies
+    # neither a save nor an auto-save restores, so the daemon's data/cfgs mirror
+    # is only ever refreshed by a restore that is happening anyway, this one included
     mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)

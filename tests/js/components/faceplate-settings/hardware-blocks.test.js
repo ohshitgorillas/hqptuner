@@ -7,7 +7,7 @@
 // Renders through preact-render-to-string; a change is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. The store is driven at the wire: `GET /api/engine` answers the engine table
 // a case hands the fake, and the draft is read back through `hardwareDraft`. Controls are found by input type and by
-// the `data-k` wire key, the restart mark by its one style, the `rs` class token; a device box is the smallest label
+// the `data-k` wire key, the restart mark by its `data-testid`; a device box is the smallest label
 // enclosing its `data-k` input. Every string asserted is a wire value the test put there or the daemon's own auto value.
 //
 // Not reachable here: a slider drag and its release, which fire input and change events SSR never fires. A browser
@@ -32,7 +32,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/settings/hardware.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { attr, elements, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {Record<string, string>} EngineTable */
@@ -109,8 +109,8 @@ test("test_each_device_box_drafts_its_own_key", () => {
   assert.deepEqual([cuda_dev, cuda_cdev], ["5", "3"]);
 });
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's state-bearing handle, shared by every surface that carries it. */
+const MARK = "restart-mark";
 
 /** The wire keys of the two CUDA device boxes. */
 const DEVICE_KEYS = ["cuda_dev", "cuda_cdev"];
@@ -125,12 +125,13 @@ const within = (inner, outer) =>
   inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
 /** @param {MarkupElement} e */
-const isMark = (e) => classes(e).includes(MARK);
+const isMark = (e) => attr(e, "data-testid") === MARK;
 
 /**
- * Where the CUDA devices block draws the restart mark: outside its device boxes, and inside them.
+ * Where the CUDA devices block draws the restart mark: outside its device boxes, and inside them; `boxes` is null when
+ * the block does not draw every device box.
  *
- * @returns {[boolean, boolean]}
+ * @returns {{ header: boolean, boxes: boolean | null }}
  */
 function cudaMarks() {
   const drawn = markup(CudaDevicesBlock);
@@ -142,13 +143,20 @@ function cudaMarks() {
   }).filter((b) => b !== undefined);
   const marks = drawn.filter(isMark);
   const inBox = (/** @type {MarkupElement} */ m) => boxes.some((b) => within(m, b));
-  return [marks.some((m) => !inBox(m)), marks.some(inBox)];
+  return {
+    header: marks.some((m) => !inBox(m)),
+    boxes: boxes.length === DEVICE_KEYS.length ? marks.some(inBox) : null,
+  };
 }
 
 test("test_the_unedited_blocks_per_cycle_block_carries_the_restart_mark", () => {
   assert.equal(markup(NblocksBlock).some(isMark), true);
 });
 
-test("test_the_unedited_cuda_devices_header_carries_the_restart_mark_and_its_boxes_carry_none", () => {
-  assert.deepEqual(cudaMarks(), [true, false]);
+test("test_the_unedited_cuda_devices_header_carries_the_restart_mark", () => {
+  assert.equal(cudaMarks().header, true);
+});
+
+test("test_the_unedited_cuda_device_boxes_carry_no_restart_mark", () => {
+  assert.equal(cudaMarks().boxes, false);
 });

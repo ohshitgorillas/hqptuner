@@ -9,8 +9,8 @@
 // edit a setting that restarts the engine (an http field in docs/spec/settings-classification.md: the per-backend
 // output device, `channels`, the rate limits), so each carries the mark from the moment the drawer is drawn, before
 // any edit. The Output mode row is the live reference in the same drawer: `SetMode` applies it at once, so it carries
-// none, and a drawer that marked every row fails on it. The mark is found by its one style, the `rs` class token, so
-// no copy is asserted; the Channels and Output mode rows are found by catalog key (`data-k`), the device row as the
+// none, and a drawer that marked every row fails on it. The mark is found by its `data-testid`, so no copy is
+// asserted; the Channels and Output mode rows are found by catalog key (`data-k`), the device row as the
 // smallest drawer row enclosing the network device picker, the rate row as the smallest drawer row enclosing the dial.
 //
 // Renders through preact-render-to-string. A handler is fired through the vnode seam (tests/js/support/vnodeseam.js),
@@ -224,8 +224,8 @@ test("test_the_rescan_cost_shows_only_while_auto_save_puts_live_settings_back", 
   assert.deepEqual([on, shown()], [1, 0]);
 });
 
-/** The mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
 
 /** The drawer row style every row carries. */
 const ROW = "drow";
@@ -267,7 +267,7 @@ function rowAround(all, pred) {
  * @param {MarkupElement | undefined} row
  * @returns {boolean | null}
  */
-const marked = (row) => (row ? elements(row.html).some((e) => classes(e).includes(MARK)) : null);
+const marked = (row) => (row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null);
 
 /** @param {MarkupElement[]} all @param {string} key */
 const rowOf = (all, key) => all.find((e) => classes(e).includes(ROW) && attr(e, "data-k") === key);

@@ -114,7 +114,7 @@ Preset CRUD not 4321 Control API operation for HQPTuner — go through port-8088
 | Operation | Route | Field |
 |---|---|---|
 | Switch | `POST /restore` (`scope=system`) onto `[default]` | preset's XML as working config, mirrored into `data/cfgs` |
-| Save (create/overwrite) | `POST /restore` (`scope=system`) | running config as working config, mirrored into `data/cfgs` |
+| Save (create/overwrite) | none: store write only | running config into the store; its `data/cfgs` mirror rides the next `POST /restore` that happens anyway |
 | Delete | `POST /config/profile/delete` | `profile=<name>` |
 | List / active | 4321 `ConfigurationList` / `ConfigurationGet` (unauth) or `GET /config` | — |
 

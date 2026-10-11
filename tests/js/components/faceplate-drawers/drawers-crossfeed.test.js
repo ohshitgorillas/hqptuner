@@ -4,8 +4,8 @@
 //
 // The restart mark: the gate and the Bauer controls write http-lane settings the engine restarts for
 // (docs/spec/settings-classification.md, Bauer crossfeed enable, preset and params), so each carries the mark on its
-// own head; the Bauer | Structural lines are a view choice and carry none. The mark is found by its one style, the
-// `rs` class token, and a head is told apart by which controls the smallest element holding it and the control encloses.
+// own head; the Bauer | Structural lines are a view choice and carry none. The mark is found by its test handle, its
+// `data-testid`, and a head is told apart by which controls the smallest element holding it and the control encloses.
 //
 // Renders through preact-render-to-string; a click is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. The store is driven at the wire by the staging fake, the /matrix form in
@@ -39,8 +39,11 @@ const EQ = "iir:type=peak;f=1000;q=1;g=-3";
 const FC = 900;
 const SCHEMA = { id: "crossfeed", title: "crossfeed", aria: "crossfeed", tabs: [] };
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test handle, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** @param {MarkupElement} e  whether the element is a restart mark */
+const isMark = (e) => attr(e, "data-testid") === MARK;
 
 /** @param {string} source @param {string} mixdown @returns {PipelineRow} */
 const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process: EQ, source });
@@ -194,7 +197,7 @@ const rooted = () =>
  * @returns {MarkupElement | undefined}
  */
 function markHolder(els, anchors) {
-  const marks = els.filter(hasClass(MARK));
+  const marks = els.filter(isMark);
   const holders = els.filter(
     (e) => anchors.length > 0 && anchors.every((a) => holds(e, a)) && marks.some((m) => holds(e, m)),
   );

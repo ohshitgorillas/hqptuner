@@ -10,7 +10,7 @@
 //
 // Renders through preact-render-to-string with the store driven at the wire by the staging fake. The dial is found by
 // its role (`group`) and class, its row as the smallest drawer row enclosing it; a header is a row label (`b`), a
-// sub-label the head's `s`, the restart mark its one style `rs`.
+// sub-label the head's `s`, the restart mark its `data-testid`.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-ratedesc.test.js
 
@@ -93,6 +93,9 @@ async function load(mode) {
   await discardAll();
 }
 
+/** The restart mark's test id. */
+const MARK = "restart-mark";
+
 /**
  * Whether `inner` lies inside `outer`.
  *
@@ -125,7 +128,9 @@ function textBesidesHeadAndGlass() {
   if (!row) return null;
   const head = all.filter(
     (e) =>
-      within(e, row) && !within(e, dial) && (e.name === "b" || classes(e).includes("s") || classes(e).includes("rs")),
+      within(e, row) &&
+      !within(e, dial) &&
+      (e.name === "b" || classes(e).includes("s") || attr(e, "data-testid") === MARK),
   );
   return stripped([dial, ...head].reduce((h, e) => h.replace(e.html, ""), row.html));
 }

@@ -8,8 +8,7 @@
 //
 // Renders through preact-render-to-string; the store is driven at the wire by the staging fake. Tabs are found by
 // `data-tab`, the choice by `data-choice`, its lines by `data-v`, the block by `data-block`, a range box by its input's
-// `data-k` and the label enclosing it, and the restart mark by its one style, the `rs` class token; nothing asserted is
-// copy.
+// `data-k` and the label enclosing it, and the restart mark by its `data-testid`; nothing asserted is copy.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-volume-schema.test.js
 
@@ -94,8 +93,8 @@ test("test_the_range_tab_mounts_the_range_block", () => {
   assert.equal(inner, true);
 });
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
 
 /** The Fixed volume choice and its three lines, by the values the store picks. */
 const FIXED_CHOICE = "fixed_mode";
@@ -115,7 +114,7 @@ const within = (inner, outer) =>
   inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
 /** @param {MarkupElement} el */
-const isMark = (el) => classes(el).includes(MARK);
+const isMark = (el) => attr(el, "data-testid") === MARK;
 
 /**
  * Whether the Fixed volume choice's header carries the mark, then whether each line does, in Off, Manual, Auto order;

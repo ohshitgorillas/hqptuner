@@ -122,13 +122,6 @@ def test_autosaved_apply_carries_the_mirror_in_its_restore(
     assert "data/cfgs/Kept.xml" in http_daemon["_restore_members"]
 
 
-def test_plain_apply_with_autosave_off_carries_no_mirror(http_client: TestClient, http_daemon: dict[str, Any]) -> None:
-    _save(http_client)
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    http_client.post("/api/config/apply")
-    assert "data/cfgs/Kept.xml" not in http_daemon["_restore_members"]
-
-
 # --- the other write routes fold back too -----------------------------------
 
 

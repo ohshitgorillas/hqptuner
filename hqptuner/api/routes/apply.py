@@ -20,6 +20,7 @@ from hqptuner.lanes.live import lane, routing
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotError
+from hqptuner.presets.store.presets import PresetStore
 
 router = APIRouter(prefix="/api")
 
@@ -82,15 +83,28 @@ async def _persist_after_apply(
     return WithSaved(report, SavedPreset.of(saved))
 
 
+def _save_target(body: ApplyBody | None, store: PresetStore) -> str | None:
+    """Return the preset name the apply is to be saved as, under the name ``store`` keys it, or None for no save.
+
+    Checked before anything is written: a name the store would refuse, the first-save rule included, refuses the
+    request with the save's own code, while the engine is still untouched and the staged edits still pending.
+    """
+    if body is None or body.save is None:
+        return None
+    with preset_refusals():
+        return store.save_name(body.save.name)
+
+
 async def _apply_staged(
     manager: ConnectionManager,
     live: dict[str, dict[str, str]],
     http: dict[str, str],
     switch_to: str | None,
+    save: str | None,
 ) -> ApplyReport:
-    """Run the staged apply, refusing on what stopped it."""
+    """Run the staged apply, refusing on what stopped it; ``save`` is the preset the apply is being saved as."""
     try:
-        return await manager.applyops.apply(live, http, switch_to)
+        return await manager.applyops.apply(live, http, switch_to, save)
     except ControlError as exc:
         raise refuse(ApplyFailedError(error=exc)) from exc
     except GroundingError as exc:
@@ -113,8 +127,8 @@ async def apply(
     # the staged set as it stands NOW — a clean apply clears the buffer below, so
     # nothing captured after this point can say what was applied
     staged_http, staged_live = dict(store.http), dict(store.live)
-    save = body.save.name if body is not None and body.save is not None else None
-    report = await _apply_staged(manager, store.live, store.http, switch_to)
+    save = _save_target(body, manager.presetops.store)
+    report = await _apply_staged(manager, store.live, store.http, switch_to, save)
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:

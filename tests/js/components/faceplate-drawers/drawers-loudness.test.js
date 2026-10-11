@@ -5,7 +5,7 @@
 // The restart mark: every loudness setting is a /matrix form field the engine reloads for
 // (docs/spec/settings-classification.md), so each band row on the shown side carries the mark on its head, the bounds
 // block carries one on its shared header with its boxes bare, and nothing else the block draws carries one, the
-// playback readout included. The mark is found by its one style, the `rs` class token, and placed by markup position:
+// playback readout included. The mark is found by its test handle, its `data-testid`, and placed by markup position:
 // a head is the run of markup from the end of the control before it to the end of its own control, so no copy and no
 // layout is named.
 //
@@ -31,7 +31,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements } from "../../support/markup.js";
+import { attr, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -120,8 +120,11 @@ test("test_the_bounds_boxes_hold_the_staged_bounds", async () => {
   assert.deepEqual([box("loudness_range_low"), box("loudness_range_high")], ["-50", "-20"]);
 });
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test handle, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** @param {MarkupElement} e  whether the element is a restart mark */
+const isMark = (e) => attr(e, "data-testid") === MARK;
 
 /** The shown (low) side's band settings, each a restart setting with a row of its own. */
 const BAND = ["loudness_low_level", "loudness_low_freq", "loudness_low_steep", "loudness_low_type"];
@@ -151,7 +154,7 @@ function headMarked(all, keys) {
   const top = wired.filter((e) => !wired.some((o) => o !== e && within(e, o)));
   const own = top.find((e) => within(keyed, e)) ?? keyed;
   const from = Math.max(0, ...top.filter((e) => end(e) <= own.start).map(end));
-  return all.some((e) => classes(e).includes(MARK) && e.start >= from && end(e) <= end(own));
+  return all.some((e) => isMark(e) && e.start >= from && end(e) <= end(own));
 }
 
 for (const key of BAND) {
@@ -165,5 +168,5 @@ test("test_the_bounds_block_carries_the_restart_mark_on_its_header_before_any_ed
 });
 
 test("test_only_the_band_rows_and_the_bounds_header_carry_the_restart_mark", () => {
-  assert.equal(markup().filter((e) => classes(e).includes(MARK)).length, BAND.length + 1);
+  assert.equal(markup().filter(isMark).length, BAND.length + 1);
 });

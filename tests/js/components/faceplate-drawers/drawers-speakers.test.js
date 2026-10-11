@@ -10,8 +10,8 @@
 // The wire is the seam: each case writes the daemon's /speakers form into `speakers` and the running direct_sdm into
 // `config`. A box's change handler is reached through preact's own `options.vnode` hook
 // (tests/js/support/vnodeseam.js). A channel row is found by its `sprow` class, the set's head as the smallest element
-// enclosing the set select, which is found by its option values, the set ids; the restart mark by its one style, the
-// `rs` class token.
+// enclosing the set select, which is found by its option values, the set ids; the restart mark by its test handle, its
+// `data-testid`.
 //
 // Not reachable here: the form's first read, which runs in an effect that server rendering never fires. A browser run
 // closes it.
@@ -76,8 +76,11 @@ const LAST = SETS[SETS.length - 1];
 //: The drawer schema the block sits in; its own form is what the restart mark derives from.
 const SCHEMA = SPEAKERS_DRAWER;
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test handle, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** @param {MarkupElement} e  whether the element is a restart mark */
+const isMark = (e) => attr(e, "data-testid") === MARK;
 
 /** @param {{ direct?: boolean, busy?: boolean, form?: ReturnType<typeof formAt> }} [s] */
 function reset({ direct = false, busy = false, form = FORM } = {}) {
@@ -200,7 +203,7 @@ const within = (inner, outer) =>
   inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
 /** @param {MarkupElement} el  whether the element's markup holds the restart mark */
-const holdsMark = (el) => elements(el.html).some((e) => classes(e).includes(MARK));
+const holdsMark = (el) => elements(el.html).some(isMark);
 
 /**
  * Whether the head around the set select carries the restart mark, or null when no set select is drawn.
@@ -219,9 +222,17 @@ function setHeadMarked() {
   return head ? holdsMark(head) : null;
 }
 
-test("test_every_unedited_channel_row_carries_the_restart_mark_and_the_set_head_carries_none", () => {
+test("test_every_unedited_channel_row_carries_the_restart_mark", () => {
   reset();
-  assert.deepEqual([withClass("sprow").map(holdsMark), setHeadMarked()], [FIRST.channels.map(() => true), false]);
+  assert.deepEqual(
+    withClass("sprow").map(holdsMark),
+    FIRST.channels.map(() => true),
+  );
+});
+
+test("test_the_set_head_carries_no_restart_mark", () => {
+  reset();
+  assert.equal(setHeadMarked(), false);
 });
 
 // --- the room plan -----------------------------------------------------------------------------------------------

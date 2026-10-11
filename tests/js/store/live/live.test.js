@@ -244,7 +244,7 @@ test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => 
 // for two controls, and never shows a labelled control's form key.
 
 // The PCM chain's two filter slots, by form key, each owned by a control on the
-// page (tests/js/components/controls/combobox-favstars.test.js).
+// page.
 const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 const REFUSAL = { code: "daemon_refused", error: "invalid filter" };

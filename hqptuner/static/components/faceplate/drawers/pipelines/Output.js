@@ -1,7 +1,8 @@
 // The DSP pipelines drawer's output tab: everything feeding one output, one input at a time. An input switch (each
-// input feeding it with its count, `+` adding one that does not yet), `+ Pipeline`, that input's pipelines as a fixed
-// page of lines with page buttons (a crossfeed block folds to one line); under the list the picked pipeline's strip
-// and its stage dock, then the plot. The whole tab grays, its reason legible, while the matrix engine is bypassed.
+// input feeding it with its count, `+` adding one that does not yet), `+ Pipeline`, Export EQ for the picked pipeline,
+// that input's pipelines as a fixed page of lines with page buttons (a crossfeed block folds to one line); under the
+// list the picked pipeline's strip and its stage dock, then the plot. The whole tab grays, its reason legible, while
+// the matrix engine is bypassed.
 //
 // Every output tab mounts this one block, and it draws the output its own tab names (`out<n>`): it finds its panel
 // once mounted, and draws only while that panel's tab is the one shown. Until it has found it (server rendered, or the
@@ -9,10 +10,13 @@
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
+import { downloadText } from "../../../../lib/download.js";
 import { classNames } from "../../../../model/shell/format.js";
 import { PAGE, crosspoint, listItems, outputView } from "../../../../model/shell/pipelines.js";
 import { shownTab } from "../../../../store/faceplate/drawer.js";
 import { addPipeline, chName, chShort, pipelinesView } from "../../../../store/faceplate/drawers/pipelines.js";
+import { effectivePipelines } from "../../../../store/resolve.js";
+import { rowToRewText } from "../../../../vendor/eqlab/core/eqexport.js";
 import { openBlocks, putSel, selOf } from "./state.js";
 import { Menu, Seg } from "./parts.js";
 import { List } from "./List.js";
@@ -102,6 +106,31 @@ function inputSwitch(t) {
 }
 
 /**
+ * Export the picked pipeline's parametric EQ as a REW / Equalizer APO file.
+ *
+ * @param {Tab} t
+ */
+function exportKey(t) {
+  const i = t.cur.selPipe;
+  const eq = rowToRewText(effectivePipelines.value[i]);
+  const k = eq.skipped.length;
+  const title = eq.count
+    ? `Export this pipeline's EQ as REW / Equalizer APO text${k ? ` (${k} stage(s) not representable, omitted)` : ""}`
+    : "No parametric EQ on this pipeline to export";
+  return html`
+    <button
+      type="button"
+      class=${classNames("btn xs", t.off && "grayed")}
+      title=${title}
+      disabled=${t.off || !eq.count}
+      onClick=${() => downloadText(`hqptuner-pipeline-${i + 1}.txt`, eq.text)}
+    >
+      Export EQ
+    </button>
+  `;
+}
+
+/**
  * One output's tab body.
  *
  * @param {{ o: number, here: XrefHere }} props  here: where it is drawn
@@ -136,6 +165,7 @@ function OutTab({ o, here }) {
       >
         + Pipeline
       </button>
+      ${exportKey(t)}
     </div>
     <div class=${classNames("olist", dim)}><${List} t=${t} /></div>
     <div class=${classNames("pedit", dim)}>

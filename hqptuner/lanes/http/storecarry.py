@@ -23,7 +23,7 @@ class StoreHooks:
     pass's fresh backup before the push, so a crash mid-apply leaves it on disk;
     ``parked_members`` are the parked filter uploads the archive carries; and
     ``mirror`` maps the pass's intended working config to the ``data/cfgs``
-    members auto-save owes the daemon.
+    members that bring hqplayerd's own profile list up to the store.
     """
 
     carried: Callable[[], dict[str, str]]
@@ -37,7 +37,7 @@ class StoreCarry:
     """What an engine-attribute restore (``engineattrs.apply``) carries from the preset store.
 
     ``carried`` is the live-domain values the restart has to come back on, and
-    ``mirror`` the ``data/cfgs`` members auto-save owes the daemon.
+    ``mirror`` the ``data/cfgs`` members that bring hqplayerd's own profile list up to the store.
     """
 
     carried: dict[str, str]

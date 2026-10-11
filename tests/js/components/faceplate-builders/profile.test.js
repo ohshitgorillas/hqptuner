@@ -261,11 +261,11 @@ const askLines = () => every(drawn(), "div", "bask");
 /** The foot's state line. */
 const stateLine = () => inside(one("div", "pbfoot")).find((e) => classes(e).includes("pbstate"));
 
-//: The restart mark's one style, named by docs/spec/faceplate-spec.md, "Drawers (all)".
-const MARK_CLASS = "rs";
+//: The restart mark's state-bearing handle, its `data-testid`.
+const MARK = "restart-mark";
 
 /** The restart marks the foot draws, in document order. */
-const footMarks = () => inside(one("div", "pbfoot")).filter((e) => classes(e).includes(MARK_CLASS));
+const footMarks = () => inside(one("div", "pbfoot")).filter((e) => attr(e, "data-testid") === MARK);
 
 /**
  * What a reader sees of a run of markup.
@@ -484,17 +484,24 @@ test("test_the_state_line_reads_dirty_only_while_pending", async () => {
 
 // --- the restart mark on the state line --------------------------------------------------------------------------
 
-test("test_the_foot_marks_a_restart_while_a_new_profile_waits_for_save_and_not_on_the_clean_profile_the_engine_runs", async () => {
-  const fresh = footMarks().length;
-  await onSaved("Warm");
-  assert.deepEqual([fresh, footMarks().length], [1, 0]);
+test("test_the_foot_marks_a_restart_while_a_new_profile_waits_for_save", () => {
+  assert.equal(footMarks().length, 1);
 });
 
-test("test_the_foot_marks_a_restart_on_an_edited_saved_profile_and_not_once_it_is_clean_again", async () => {
+test("test_the_foot_draws_no_restart_mark_on_the_clean_profile_the_engine_runs", async () => {
+  await onSaved("Warm");
+  assert.equal(footMarks().length, 0);
+});
+
+test("test_the_foot_marks_a_restart_on_an_edited_saved_profile", async () => {
   await onSaved("Flat");
-  const clean = footMarks().length;
   await setName(TYPED);
-  assert.deepEqual([footMarks().length, clean], [1, 0]);
+  assert.equal(footMarks().length, 1);
+});
+
+test("test_the_foot_draws_no_restart_mark_on_a_clean_saved_profile", async () => {
+  await onSaved("Flat");
+  assert.equal(footMarks().length, 0);
 });
 
 test("test_the_restart_mark_stands_directly_in_front_of_the_state_lines_sentence", () => {

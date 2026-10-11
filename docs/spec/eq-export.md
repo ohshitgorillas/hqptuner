@@ -1,6 +1,6 @@
 # EQ export — format reference + save-to recommendations
 
-Reference for **Export EQ** feature — inverse of AutoEq/REW **import** lane (`hqptuner/static/vendor/eqlab/core/eqimport.js`). Serializer: `hqptuner/static/vendor/eqlab/core/eqexport.js` (`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons on Matrix tab: master **Export AutoEq / REW .txt…** beside Load button (whole pipeline set → `hqptuner-matrix-eq.txt`) and per-row **Export EQ** beside each row's Import EQ (`hqptuner-pipeline-N.txt`). The target formats and the mapping are below.
+Reference for **Export EQ** feature — inverse of AutoEq/REW **import** lane (`hqptuner/static/vendor/eqlab/core/eqimport.js`). Serializer: `hqptuner/static/vendor/eqlab/core/eqexport.js` (`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons in DSP pipelines drawer: master **Export AutoEq / REW .txt…** on drawer's Overview beside Import EQ (whole pipeline set → `hqptuner-matrix-eq.txt`) and per-pipeline **Export EQ** on each output tab (picked pipeline → `hqptuner-pipeline-N.txt`). The target formats and the mapping are below.
 
 ## 1. What we export *from*
 

@@ -7,7 +7,7 @@
 //
 // Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
-// their value (`data-v`), the restart mark by its one style, the `rs` class token; every string asserted is one the
+// their value (`data-v`), the restart mark by its `data-testid`; every string asserted is one the
 // test put on the wire or into the schema. The restart mark's keys are catalog keys chosen for their lane
 // (docs/spec/settings-classification.md): volume_max and quick_pause are http fields the engine restarts for,
 // adaptive_volume has a live setter, and output_mode is an http field the write path routes live through SetMode.
@@ -59,8 +59,11 @@ const FIELDS = [
   { name: "mode", type: "select", value: "pcm" },
 ];
 
-/** The restart mark's one style, shared by every surface that carries it. */
-const MARK = "rs";
+/** The restart mark's test id, shared by every surface that carries it. */
+const MARK = "restart-mark";
+
+/** @param {MarkupElement} e */
+const isMark = (e) => attr(e, "data-testid") === MARK;
 
 /** The attribute that carries a hover tip on this plate. */
 const TIP = "title";
@@ -130,7 +133,7 @@ function inRow(schema, key) {
  */
 function marked(schema, key) {
   const row = inRow(schema, key);
-  return row.length > 0 ? row.some((e) => classes(e).includes(MARK)) : null;
+  return row.length > 0 ? row.some(isMark) : null;
 }
 
 /**
@@ -285,7 +288,7 @@ test("test_an_unedited_restart_row_carries_the_mark_and_an_http_field_routed_liv
  */
 function markTips(schema, key) {
   return inRow(schema, key)
-    .filter((e) => classes(e).includes(MARK))
+    .filter(isMark)
     .map((e) => (attr(e, TIP) ?? "") !== "");
 }
 

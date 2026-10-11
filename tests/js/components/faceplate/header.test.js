@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/Header.js, the faceplate's header row: the brand knob shows
 // the connection state, the Station · Snapshot tree loads stations and applies the loaded station's snapshots, and
 // the builders and the gear swap the body, each pressed while its body shows. Every station but the loaded one carries
-// the restart mark, in the mark's one style (`.rs`, the faceplate spec's "Drawers (all)"), and that mark carries a hover
+// the restart mark, found by its `data-testid` (the faceplate spec's "Drawers (all)"), and that mark carries a hover
 // tip on itself, its `title`, whose words are the owner's copy and are never read.
 //
 // A fetch fake answers the real REST paths with their real shapes and records every request; no store function is
@@ -39,7 +39,7 @@ import {
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { elements, attr, text, hasAttr, classes } from "../../support/markup.js";
+import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
 
@@ -258,6 +258,9 @@ const encloses = (/** @type {MarkupElement} */ outer, /** @type {MarkupElement} 
 /** The attribute that carries a hover tip on this plate. */
 const TIP = "title";
 
+/** The restart mark's state-bearing handle, its `data-testid`. */
+const MARK = "restart-mark";
+
 /**
  * Every restart mark the header draws, each with the station it belongs to. A mark belongs to a station when the
  * smallest element around it that holds any station name holds that station's name alone.
@@ -274,7 +277,7 @@ function stationMarks() {
     const held = row === undefined ? [] : names.filter((n) => encloses(row, n));
     return held.length === 1 ? text(held[0]) : undefined;
   };
-  return all.filter((e) => classes(e).includes("rs")).map((mark) => ({ station: owner(mark), mark }));
+  return all.filter((e) => attr(e, "data-testid") === MARK).map((mark) => ({ station: owner(mark), mark }));
 }
 
 /** Whether each station's row carries a restart mark, in STATIONS order. */
@@ -305,9 +308,9 @@ test("test_with_night_loaded_only_day_carries_the_restart_mark", () => {
   assert.deepEqual(marksByStation(), [true, false]);
 });
 
-test("test_the_restart_mark_on_every_station_not_loaded_carries_a_hover_tip", () => {
-  config.value = { ...config.value, active: "Day" };
-  const night = markTips("Night");
-  config.value = { ...config.value, active: "Night" };
-  assert.deepEqual([night, markTips("Day")], [[true], [true]]);
-});
+for (const [loaded, other] of [STATIONS, [...STATIONS].reverse()]) {
+  test(`test_with_${loaded.toLowerCase()}_loaded_the_restart_mark_on_${other.toLowerCase()}_carries_a_hover_tip`, () => {
+    config.value = { ...config.value, active: loaded };
+    assert.deepEqual(markTips(other), [true]);
+  });
+}

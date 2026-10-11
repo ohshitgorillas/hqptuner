@@ -68,7 +68,7 @@ const TIP = {
  * @param {boolean} [setting]  whether the mark sits on a setting's head
  */
 export const restartMark = (setting = false) =>
-  html`<span class="rs" title=${setting ? TIP.setting : TIP.other}>↻</span>`;
+  html`<span class="rs" data-testid="restart-mark" title=${setting ? TIP.setting : TIP.other}>↻</span>`;
 
 /**
  * A setting head's restart mark where `restarts` holds; nothing where it does not.

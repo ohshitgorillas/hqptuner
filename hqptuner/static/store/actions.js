@@ -292,12 +292,12 @@ async function commitApply(save) {
   const previewed = pendingPreset.value;
   const switchTo = previewed !== null && previewed !== activePreset.value ? previewed : null;
   // Whether this apply takes the daemon down, decided before the await because the
-  // apply clears the staged set. Three ways it does: a restart-required field in the
-  // batch (which sends the whole batch down the restore lane), a preset switch that is
-  // actually sent, and a save target — the save lane POSTs /restore like any other.
-  // An all-live batch with none of the three never leaves the Control API, and the
-  // page must not dim for it.
-  const restarts = split.value.restart > 0 || switchTo !== null || !!save;
+  // apply clears the staged set. Two ways it does: a restart-required field in the
+  // batch (which sends the whole batch down the restore lane), and a preset switch that
+  // is actually sent. A save target is not a third: the server saves the preset without
+  // restarting the engine. An all-live batch with neither never leaves the Control API,
+  // saved or not, and the page must not dim for it.
+  const restarts = split.value.restart > 0 || switchTo !== null;
   return applyLane(
     async () => {
       /** @type {{ save?: { name: string }, switch_to?: string }} */

@@ -1,22 +1,23 @@
 """HQPTuner-owned preset lane (``store.presets`` + the daemon's restore primitive).
 
 Presets live in a store HQPTuner owns (``store.presets``); the daemon
-is driven only through ``POST /restore`` onto ``[default]`` with a ``data/cfgs``
-mirror — never ``profile/load``/``profile/save``, which are unreliable
-(docs/spec/protocol.md §3.6). ``profile/delete`` is the one profile route kept, for
-mirror removal (restore is additive and cannot delete a member).
+is driven only through ``POST /restore`` onto ``[default]`` — never
+``profile/load``/``profile/save``, which are unreliable (docs/spec/protocol.md
+§3.6). A load's restore carries the loaded preset's ``data/cfgs`` mirror; a save
+and an auto-save only store, and their mirror rides the next restore that happens
+anyway. ``profile/delete`` is the one profile route kept, for mirror removal
+(restore is additive and cannot delete a member).
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
 than ``lanes`` because it depends on the store, as do ``carried_live_fields`` and
-``autosave_mirror`` in ``presets/presetfields.py``, which the engine and http
+``preset_mirror`` in ``presets/presetfields.py``, which the engine and http
 lanes are handed by their callers.
 """
 
 from __future__ import annotations
 
 import contextlib
-import enum
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -39,25 +40,12 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 log = logging.getLogger(__name__)
 
-RECONNECT_FAST = 1.0
-
-
-class MirrorOutcome(enum.Enum):
-    """Whether a save's ``data/cfgs`` mirror reached the daemon; a mirror that did not land leaves the save standing."""
-
-    LANDED = "landed"
-    NOT_LANDED = "not_landed"
-
 
 @dataclass(frozen=True)
 class PresetSaveResult:
-    """A save or auto-save that reached the store, and how its daemon mirror went.
-
-    An auto-save never mirrors, so it has no failed mirror to report and reads ``LANDED``.
-    """
+    """A save or auto-save that reached the store, under the name it was stored as."""
 
     name: str
-    mirror: MirrorOutcome = MirrorOutcome.LANDED
 
 
 @dataclass(frozen=True)
@@ -257,13 +245,14 @@ def unload(mgr: PresetManager) -> PresetActivation:
 async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     """Persist the current running config as preset ``name``.
 
-    Stores our copy and mirrors it into the daemon's ``data/cfgs``. Called after a successful apply, so the running
-    config already carries the user's edits.
+    Called after a successful apply, so the running config already carries the user's edits.
 
-    The store write is the save; the daemon mirror is a convenience for
-    hqplayerd's own profile list. So the mirror runs AFTER the store commits and
-    reports a warning rather than a failure: a save that reached disk is a save.
-    A daemon, store or grounding failure before the commit raises to the caller, the way ``load`` does.
+    Store only, like ``autosave``: the store write is the save, and it never
+    restores. hqplayerd's own profile list catches up through the mirror the
+    restores that happen anyway carry (``presets/presetfields.preset_mirror``).
+    An apply that restores has already stored this config under ``name`` before
+    its restore carried the mirror, so this store write repeats it from the backup. A
+    daemon, store or grounding failure raises to the caller, the way ``load`` does.
     """
     name = canonical_name(name)  # everything after keys on the trimmed name
     await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
@@ -279,7 +268,7 @@ async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     mgr.presetops.store.save(name, working, trigger="save")
     mgr.presetops.store.set_active(name)
     _record_autopilot(mgr, name)
-    return PresetSaveResult(name, mirror=await _mirror(mgr, name, working, backup))
+    return PresetSaveResult(name)
 
 
 async def autosave(mgr: PresetManager) -> PresetSaveResult | None:
@@ -287,7 +276,7 @@ async def autosave(mgr: PresetManager) -> PresetSaveResult | None:
 
     This is the auto-save checkbox's whole write path. Store only, never the daemon
     mirror: the mirror costs a restore restart, so it catches up by riding the
-    next restore that happens anyway (``presets/presetfields.autosave_mirror``).
+    next restore that happens anyway (``presets/presetfields.preset_mirror``).
     Returns None when
     auto-save is off or no preset is active, and when the active preset changed while the
     daemon's backup was read, since the preset it read may have been replaced since. A
@@ -317,37 +306,13 @@ def _record_autopilot(mgr: PresetManager, name: str) -> None:
     it: a save and an auto-save fold the same audible state into the same preset, and one of them skipping this leaves
     the flag frozen at whatever the other last wrote.
 
-    Runs after the store commit and is best-effort for the same reason the daemon mirror is: the preset already reached
-    disk, and a store we cannot write is not worth failing a good save over.
+    Runs after the store commit and is best-effort: the preset already reached disk, and a store we cannot write is not
+    worth failing a good save over.
     """
     try:
         mgr.presetops.autopilot.set_for_preset(name, enabled=mgr.presetops.autopilot.enabled)
     except AutopilotError as exc:
         log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
-
-
-async def _mirror(mgr: PresetManager, name: str, working: bytes, backup: bytes) -> MirrorOutcome:
-    """Plant ``data/cfgs/<name>.xml`` on the daemon so hqplayerd's native profile list mirrors our store.
-
-    Retries through the shared settle loop instead of firing once: this runs
-    right after an apply's own restore, so the daemon is routinely still
-    restarting and a single-shot POST reports a failure the next second would
-    not have seen. Re-sending is safe — the archive is the same bytes either
-    way.
-    """
-    archive = presetzip.restore_zip_with_working(backup, working, mirror_name=name, mirror_xml=working)
-
-    mark = settle.mark_connect(mgr)
-
-    async def push() -> bool:
-        await settle.restore(mgr, archive, mark=mark, scope="system")
-        return True
-
-    if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):
-        await settle.await_ready(mgr, mark)
-        return MirrorOutcome.LANDED
-    log.warning("preset %r saved, but its daemon mirror did not land", name)
-    return MirrorOutcome.NOT_LANDED
 
 
 async def delete(mgr: PresetManager, name: str) -> PresetDeleted:
