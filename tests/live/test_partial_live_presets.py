@@ -23,7 +23,7 @@ def test_applying_a_preset_leaves_the_autopilot_switch_where_the_user_put_it(
     live_api.put("/api/livepresets/Warm")
     live_api.post("/api/autopilot", json={"enabled": enabled})
     live_api.post("/api/livepresets/Warm/apply")
-    assert live_api.get("/api/autopilot").json()["enabled"] is enabled
+    assert live_api.get("/api/status").json()["data"]["autopilot"] is enabled
 
 
 #: What a save naming these settings stores: a chain setting brings the output

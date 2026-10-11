@@ -20,7 +20,7 @@ UNROUTED_PATHS = ["/api/nowhere", "/api/no/such/thing"]
 #: allowed method, or one fixed method, fails.
 WRONG_METHODS = [
     pytest.param("DELETE", "/api/health", id="DELETE-health"),
-    pytest.param("PUT", "/api/autosave", id="PUT-autosave"),
+    pytest.param("PUT", "/api/config/apply", id="PUT-config-apply"),
 ]
 
 #: What `_detail` reads off an answer whose `detail` is not a sentence. No

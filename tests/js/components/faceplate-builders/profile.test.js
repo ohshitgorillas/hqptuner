@@ -261,6 +261,33 @@ const askLines = () => every(drawn(), "div", "bask");
 /** The foot's state line. */
 const stateLine = () => inside(one("div", "pbfoot")).find((e) => classes(e).includes("pbstate"));
 
+//: The restart mark's one style, named by docs/spec/faceplate-spec.md, "Drawers (all)".
+const MARK_CLASS = "rs";
+
+/** The restart marks the foot draws, in document order. */
+const footMarks = () => inside(one("div", "pbfoot")).filter((e) => classes(e).includes(MARK_CLASS));
+
+/**
+ * What a reader sees of a run of markup.
+ *
+ * @param {string} markup
+ */
+const readOf = (markup) => said({ name: "", attrs: "", start: 0, html: markup }) ?? "";
+
+/** What a reader sees of the foot after its first restart mark; null when the foot draws none. */
+const readAfterMark = () => {
+  const foot = one("div", "pbfoot");
+  const mark = footMarks()[0];
+  return foot && mark ? readOf(foot.html.slice(mark.start + mark.html.length)) : null;
+};
+
+/** The state line's own sentence: what a reader sees of it, any restart mark inside it left out. */
+const sentence = () => {
+  const line = stateLine();
+  const marks = footMarks();
+  return line ? readOf(marks.reduce((rest, m) => rest.replace(m.html, ""), line.html)) : "";
+};
+
 // --- vnodes ------------------------------------------------------------------------------------------------------
 
 /** A vnode's classes. @param {VNode | undefined} v */
@@ -453,6 +480,26 @@ test("test_the_state_line_reads_dirty_only_while_pending", async () => {
     [fresh && classes(fresh).includes("dirty"), saved && classes(saved).includes("dirty")],
     [true, false],
   );
+});
+
+// --- the restart mark on the state line --------------------------------------------------------------------------
+
+test("test_the_foot_marks_a_restart_while_a_new_profile_waits_for_save_and_not_on_the_clean_profile_the_engine_runs", async () => {
+  const fresh = footMarks().length;
+  await onSaved("Warm");
+  assert.deepEqual([fresh, footMarks().length], [1, 0]);
+});
+
+test("test_the_foot_marks_a_restart_on_an_edited_saved_profile_and_not_once_it_is_clean_again", async () => {
+  await onSaved("Flat");
+  const clean = footMarks().length;
+  await setName(TYPED);
+  assert.deepEqual([footMarks().length, clean], [1, 0]);
+});
+
+test("test_the_restart_mark_stands_directly_in_front_of_the_state_lines_sentence", () => {
+  const line = sentence();
+  assert.equal(readAfterMark()?.slice(0, line.length), line);
 });
 
 // --- the foot's buttons ------------------------------------------------------------------------------------------

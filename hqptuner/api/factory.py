@@ -19,7 +19,6 @@ from hqptuner.api.routes import (
     meter,
     narrowing,
     pending,
-    preset,
     status,
     volume,
 )
@@ -94,16 +93,10 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     # One instance, not two: the prune on preset delete lives with the preset
     # operations, so the routes read the store that delete writes.
     app.state.matrix_modes = manager.presetops.matrix_modes
-    # Both `/preset/{name:path}` routes are greedy so that an empty or
-    # separator-bearing name reaches the store's name rule instead of falling
-    # past every route to the router's own 404. Their registration order carries
-    # nothing: they differ by method, and a route whose path matches but whose
-    # method does not is a partial match, never a full one.
     app.include_router(status.router)
     app.include_router(config.router)
     app.include_router(apply.router)
     app.include_router(volume.router)
-    app.include_router(preset.router)
     app.include_router(pending.router)
     app.include_router(matrix.router)
     app.include_router(livepreset.router)

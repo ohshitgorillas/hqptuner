@@ -374,6 +374,12 @@
         "254": "No decimation; intermediate output rate is equal to the source DSD rate."
       },
       "source": "manual §4.4, readme §1.2 (pdm_conv). Value 10 is the daemon's 'sinc-S'; its tap count is disputed upstream (manual §4.4 says 65536, readme §1.2 says 4096 × ratio — the latter is the wording for the same-named resampling filter in manual §4.6), so no figure is quoted."
+    },
+    "spken": {
+      "label": "Speakers",
+      "tooltip": "Level trims each channel's output; distance delays the nearer speakers so every channel arrives at the listening position together.",
+      "more": "This method is suitable for simplest per-channel level adjustment and is processed in simpler and lighter way than full pipeline matrix.\n\nNote! Distance processing is available also for bit-perfect pass-through of DSD when Direct SDM is enabled!",
+      "source": "hqptuner, manual §5"
     }
   },
   "volume": {

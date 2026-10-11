@@ -14,6 +14,7 @@ from typing import Any
 import pytest
 from apps import wait_for_api
 from fastapi.testclient import TestClient
+from state_import import export, source, upload
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
@@ -21,23 +22,34 @@ from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
 
-def _autosave_on_with_active(client: TestClient, name: str = "Kept") -> None:
-    """The way in: save the running config as a named preset (which makes it
-    active), then flip the store flag over the REST surface."""
-    client.post("/api/profile/save", json={"name": name})
-    client.post("/api/autosave", json={"enabled": True})
+def _set_autosave(client: TestClient, tmp_path: Path, *, enabled: bool) -> None:
+    """Set the store flag over the REST surface: import a state archive whose
+    preset store carries it. The import clears the active pointer, so it runs
+    before any save that is meant to stay active."""
+    origin = source(tmp_path)
+    PresetStore(origin.preset_dir).set_autosave(enabled=enabled)
+    upload(client, export(origin))
+
+
+def _save(client: TestClient, name: str = "Kept") -> None:
+    """Save the running config as a named preset, which makes it active, through
+    an apply that stages nothing and switches to "(no preset)" first."""
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
+
+
+def _autosave_on_with_active(client: TestClient, tmp_path: Path, name: str = "Kept") -> None:
+    """The way in: arm the store flag, then save the running config as a named
+    preset, which makes it active."""
+    _set_autosave(client, tmp_path, enabled=True)
+    _save(client, name)
 
 
 # --- the flag itself --------------------------------------------------------
 
 
-def test_enabling_autosave_answers_the_new_flag(http_client: TestClient) -> None:
-    assert http_client.post("/api/autosave", json={"enabled": True}).json()["autosave"] is True
-
-
-def test_enabled_autosave_shows_in_the_config_payload(http_client: TestClient) -> None:
+def test_enabled_autosave_shows_in_the_config_payload(http_client: TestClient, tmp_path: Path) -> None:
     http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
-    http_client.post("/api/autosave", json={"enabled": True})
+    _set_autosave(http_client, tmp_path, enabled=True)
     assert http_client.get("/api/config").json()["data"]["autosave"] is True
 
 
@@ -58,11 +70,11 @@ FOLDS = [((False, True), None), ((True, False), None), ((True, True), "Kept")]
 FOLD_IDS = ["autosave off", "no active preset", "autosave on and active"]
 
 
-def _apply_under(client: TestClient, *, autosave: bool, active: bool) -> dict[str, Any]:
+def _apply_under(client: TestClient, tmp_path: Path, *, autosave: bool, active: bool) -> dict[str, Any]:
     """Set the flag and the active preset as given, then apply one staged edit; answer the apply."""
+    _set_autosave(client, tmp_path, enabled=autosave)
     if active:
-        client.post("/api/profile/save", json={"name": "Kept"})
-    client.post("/api/autosave", json={"enabled": autosave})
+        _save(client)
     client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     answer: dict[str, Any] = client.post("/api/config/apply").json()
     return answer
@@ -76,10 +88,10 @@ def _folded_name(answer: dict[str, Any]) -> str | None:
 
 @pytest.mark.parametrize(("under", "folded"), FOLDS, ids=FOLD_IDS)
 def test_an_apply_reports_a_fold_only_with_autosave_on_and_a_preset_active(
-    http_client: TestClient, under: tuple[bool, bool], folded: str | None
+    http_client: TestClient, tmp_path: Path, under: tuple[bool, bool], folded: str | None
 ) -> None:
     autosave, active = under
-    assert _folded_name(_apply_under(http_client, autosave=autosave, active=active)) == folded
+    assert _folded_name(_apply_under(http_client, tmp_path, autosave=autosave, active=active)) == folded
 
 
 @pytest.mark.parametrize(("active", "files"), [(False, []), (True, ["Kept"])], ids=["no active preset", "active"])
@@ -87,12 +99,12 @@ def test_an_autosaving_apply_leaves_only_the_saved_presets_on_disk(
     http_client: TestClient, tmp_path: Path, files: list[str], *, active: bool
 ) -> None:
     # with nothing active there is nowhere to fold, so no preset file is invented
-    _apply_under(http_client, autosave=True, active=active)
+    _apply_under(http_client, tmp_path, autosave=True, active=active)
     assert PresetStore(tmp_path / "presets").names() == files
 
 
-def test_autosaved_apply_lands_the_new_value_in_the_preset_snapshot(http_client: TestClient) -> None:
-    _autosave_on_with_active(http_client)
+def test_autosaved_apply_lands_the_new_value_in_the_preset_snapshot(http_client: TestClient, tmp_path: Path) -> None:
+    _autosave_on_with_active(http_client, tmp_path)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
     assert http_client.get("/api/preset/Kept").json()["config"]["title"] == "Renamed"
@@ -102,16 +114,16 @@ def test_autosaved_apply_lands_the_new_value_in_the_preset_snapshot(http_client:
 
 
 def test_autosaved_apply_carries_the_mirror_in_its_restore(
-    http_client: TestClient, http_daemon: dict[str, Any]
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    _autosave_on_with_active(http_client)
+    _autosave_on_with_active(http_client, tmp_path)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
     assert "data/cfgs/Kept.xml" in http_daemon["_restore_members"]
 
 
 def test_plain_apply_with_autosave_off_carries_no_mirror(http_client: TestClient, http_daemon: dict[str, Any]) -> None:
-    http_client.post("/api/profile/save", json={"name": "Kept"})
+    _save(http_client)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
     assert "data/cfgs/Kept.xml" not in http_daemon["_restore_members"]
@@ -120,14 +132,14 @@ def test_plain_apply_with_autosave_off_carries_no_mirror(http_client: TestClient
 # --- the other write routes fold back too -----------------------------------
 
 
-def test_engine_apply_with_autosave_on_reports_the_fold(http_client: TestClient) -> None:
-    _autosave_on_with_active(http_client)
+def test_engine_apply_with_autosave_on_reports_the_fold(http_client: TestClient, tmp_path: Path) -> None:
+    _autosave_on_with_active(http_client, tmp_path)
     resp = http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
     assert resp.json()["autosaved"]["name"] == "Kept"
 
 
-def test_speakers_apply_with_autosave_on_reports_the_fold(http_client: TestClient) -> None:
-    _autosave_on_with_active(http_client)
+def test_speakers_apply_with_autosave_on_reports_the_fold(http_client: TestClient, tmp_path: Path) -> None:
+    _autosave_on_with_active(http_client, tmp_path)
     resp = http_client.post("/api/speakers", json={"enabled": True, "channels": {"0": {"level": "-3"}}})
     assert resp.json()["autosaved"]["name"] == "Kept"
 
@@ -162,7 +174,7 @@ def test_autosaved_live_write_sends_no_restore_to_the_daemon(
     # asserted at the wire: the fold rides no restore, so a live write with
     # auto-save on never restarts the daemon (auto-save costs no restart)
     for client in _dual_lane_client(threaded_daemon_port, http_daemon, tmp_path):
-        _autosave_on_with_active(client)
+        _autosave_on_with_active(client, tmp_path)
         before = http_daemon.get("_restore_attempts", 0)
         client.post("/api/config/live", json={"fields": {"filter": "25"}})
         after = http_daemon.get("_restore_attempts", 0)
@@ -173,7 +185,7 @@ def test_live_preset_apply_with_autosave_on_reports_the_fold(
     threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     for client in _dual_lane_client(threaded_daemon_port, http_daemon, tmp_path):
-        _autosave_on_with_active(client)
+        _autosave_on_with_active(client, tmp_path)
         client.put("/api/livepresets/Snap")  # snapshot the running engine
         report = client.post("/api/livepresets/Snap/apply").json()
     assert report["autosaved"]["name"] == "Kept"
@@ -185,7 +197,7 @@ def test_autosaved_live_write_lands_in_the_preset_snapshot(
     # a live write never touches the daemon's config file; the fold is the only
     # thing that keeps the preset from going stale for exactly those settings
     for client in _dual_lane_client(threaded_daemon_port, http_daemon, tmp_path):
-        _autosave_on_with_active(client)
+        _autosave_on_with_active(client, tmp_path)
         client.post("/api/config/live", json={"fields": {"filter": "25"}})
         saved = client.get("/api/preset/Kept").json()["config"]["filter"]
     assert saved == "25"
@@ -218,6 +230,6 @@ def test_a_live_write_whose_autosave_can_fold_answers_ok(
 ) -> None:
     # the credential-less case above answers the failed fold's refusal instead
     for client in _dual_lane_client(threaded_daemon_port, http_daemon, tmp_path):
-        _autosave_on_with_active(client)
+        _autosave_on_with_active(client, tmp_path)
         status = client.post("/api/config/live", json={"fields": {"filter": "25"}}).status_code
     assert status == 200

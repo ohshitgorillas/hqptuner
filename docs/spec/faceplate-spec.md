@@ -53,7 +53,8 @@ Current state only.
   - The split body runs Apply or Apply & save. Its ▾ only switches which one, one choice for all drawers.
   - The group shows while the open tab holds a restart setting or edits are staged.
   - Closing never discards.
-- **Lanes:** live rows apply at once; restart rows stage, with a dirty dot on the tab. A drawer with one part has no tab strip; the dot goes on the title. No `↻ restart` marks in drawers.
+- **Lanes:** live rows apply at once and carry no mark. A restart row carries `↻` after its label from the moment it is drawn, before any edit, so the cost is known before the tap; a choice line whose detail control restarts carries it after the line's name. Restart rows stage, with a dirty dot on the tab. A drawer with one part has no tab strip; the dot goes on the title.
+- **The restart mark is `↻`, the glyph alone, everywhere:** one style (`.rs`), on a station row not loaded, on a restart row's label, and in front of a builder's state line while saving restarts the engine. Nothing marks what applies live.
 - **Row grammar:** control column | the manual's paragraph. The picked option's line runs full width under the row, lit. Choice lines are vertical radios, each with its detail control (grayed, never hidden) and its paragraph.
 - **Gray:** a reason line under the controls, from v1 copy.
 - **One home per setting.** The documented exceptions are two-home pairs that stay in sync.

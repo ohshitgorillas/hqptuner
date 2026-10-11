@@ -89,7 +89,7 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
 def _preset_stored_on(client: TestClient, preset_dir: Path, edits: dict[str, str]) -> None:
     """Save the running config as the active preset, then move ``edits`` in its
     stored snapshot so the store disagrees with both the file and the engine."""
-    client.post("/api/profile/save", json={"name": "Kept"})
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Kept"}})
     store = PresetStore(preset_dir)
     store.save("Kept", presetconf.apply_edits(store.read("Kept"), edits))
 

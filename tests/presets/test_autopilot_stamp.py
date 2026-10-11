@@ -8,8 +8,9 @@ the active preset's copy too; with auto-save off, or with no preset active, the
 switch writes the top-level flag alone.
 
 Everything here is driven over the REST surface — ``POST /api/autopilot``,
-``POST /api/autosave``, ``POST /api/profile/save``, ``POST /api/profile/load`` —
-and read back either off a route or off the store's own file on disk. Nothing
+``POST /api/state-import`` for the auto-save flag, and ``POST /api/config/apply``
+for a preset save and a preset load — and read back either off a route or off
+the store's own file on disk. Nothing
 reads a private attribute, and nothing asserts the whole file: the two keys
 pinned, ``enabled`` and ``presets``, are wire contract.
 
@@ -27,10 +28,12 @@ from typing import Any
 import pytest
 from apps import wait_for_api
 from fastapi.testclient import TestClient
+from state_import import export, source, upload
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.presets.store.presets import PresetStore
 
 #: The preset every case makes active.
 ACTIVE = "Kept"
@@ -73,13 +76,22 @@ def switch(client: TestClient, *, enabled: bool) -> None:
     client.post("/api/autopilot", json={"enabled": enabled})
 
 
-def arm_autosave(client: TestClient) -> None:
-    client.post("/api/autosave", json={"enabled": True})
+def set_autosave(client: TestClient, tmp_path: Path, *, enabled: bool) -> None:
+    """Import a state archive whose preset store carries the flag. The import
+    clears the active pointer, so it runs before ``make_active``."""
+    origin = source(tmp_path)
+    PresetStore(origin.preset_dir).set_autosave(enabled=enabled)
+    upload(client, export(origin))
 
 
 def make_active(client: TestClient, name: str = ACTIVE) -> None:
     """Saving the running config as a named preset is what makes it active."""
-    client.post("/api/profile/save", json={"name": name})
+    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
+
+
+def autopilot_on(client: TestClient) -> bool:
+    """Auto-pilot's switch as ``GET /api/status`` carries it."""
+    return bool(client.get("/api/status").json()["data"]["autopilot"])
 
 
 # --- auto-save armed, a preset active: the switch folds in --------------------
@@ -94,8 +106,8 @@ def test_switching_on_under_autosave_records_it_on_and_switching_off_records_it_
     # switch if the fold wrote it, and a build that folded nothing in leaves the
     # saved copy behind
     switch(stamp_client, enabled=not enabled)
+    set_autosave(stamp_client, tmp_path, enabled=True)
     make_active(stamp_client)
-    arm_autosave(stamp_client)
     switch(stamp_client, enabled=enabled)
     assert stamped(tmp_path, ACTIVE) is enabled
 
@@ -110,8 +122,8 @@ def test_switching_on_with_autosave_off_leaves_the_flag_alone_but_under_autosave
     # saved with auto-pilot off: with auto-save off the switch is the user's
     # own, not an applied change the active preset asked to carry, so the stored
     # copy stays off; with auto-save armed the same switch folds into the store
+    set_autosave(stamp_client, tmp_path, enabled=autosave)
     make_active(stamp_client)
-    stamp_client.post("/api/autosave", json={"enabled": autosave})
     switch(stamp_client, enabled=True)
     assert stamped(tmp_path, ACTIVE) is autosave
 
@@ -120,10 +132,10 @@ def test_switching_on_with_autosave_off_leaves_the_flag_alone_but_under_autosave
 
 
 def test_switching_on_under_autosave_with_no_active_preset_still_answers_on(
-    stamp_client: TestClient,
+    stamp_client: TestClient, tmp_path: Path
 ) -> None:
     # there is no preset to stamp; the switch itself still has to land
-    arm_autosave(stamp_client)
+    set_autosave(stamp_client, tmp_path, enabled=True)
     assert stamp_client.post("/api/autopilot", json={"enabled": True}).json()["enabled"] is True
 
 
@@ -131,12 +143,12 @@ def test_switching_on_under_autosave_with_no_active_preset_still_answers_on(
 
 
 def test_loading_the_active_preset_after_switching_on_under_autosave_leaves_it_on(
-    stamp_client: TestClient,
+    stamp_client: TestClient, tmp_path: Path
 ) -> None:
     # the whole point: without the fold the load restores the stale copy the
     # save wrote and silently switches auto-pilot back off
+    set_autosave(stamp_client, tmp_path, enabled=True)
     make_active(stamp_client)
-    arm_autosave(stamp_client)
     switch(stamp_client, enabled=True)
-    stamp_client.post("/api/profile/load", json={"name": ACTIVE})
-    assert stamp_client.get("/api/autopilot").json()["enabled"] is True
+    stamp_client.post("/api/config/apply", json={"switch_to": ACTIVE})
+    assert autopilot_on(stamp_client) is True

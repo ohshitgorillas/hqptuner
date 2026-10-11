@@ -196,7 +196,8 @@ def test_config_file_view_prefers_the_live_engine_filter_over_the_file(wired_api
 
 
 def test_config_active_preset_is_the_stores_truth(wired_api: TestClient) -> None:
-    wired_api.post("/api/profile/save", json={"name": "Mine"})
+    # nothing is staged, so the save rides an apply of the "(no preset)" switch
+    wired_api.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Mine"}})
     assert wired_api.get("/api/config").json()["data"]["active"] == "Mine"
 
 

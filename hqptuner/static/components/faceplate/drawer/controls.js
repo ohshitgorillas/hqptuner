@@ -1,11 +1,11 @@
 // The controls a drawer draws: segment buttons over an option list, and the control a catalog key's widget is drawn as.
 // A segment or a checkbox is segment buttons, a dropdown or a steps widget a select (a nameplate opening the key's
 // option list where the key has a plain-names overlay), a number, slidernum or knob widget a number box, a text widget a
-// text box; each writes through edit(). Also the label head and the gray reason line
-// every row-shaped item shares, with the link to the place the reason names.
+// text box; each writes through setControl(), by the key's lane. Also the label head, the restart mark and the gray
+// reason line every row-shaped item shares, with the link to the place the reason names.
 
 import { html, TypedInput } from "../../../lib/dom.js";
-import { edit } from "../../../store/actions.js";
+import { setControl } from "../../../store/actions.js";
 import { drawerPick, drawerPlate, rowLines, rowOptions, rowValue } from "../../../store/faceplate/drawer.js";
 import { openOptionList } from "../../../store/faceplate/view.js";
 import { NameFace } from "../NameFace.js";
@@ -55,17 +55,29 @@ export function segButtons({ options, value, label, off, pick }) {
   `;
 }
 
+/** The restart mark, a fresh element for each place that draws it. */
+export const restartMark = () => html`<span class="rs">↻</span>`;
+
 /**
- * A row's label head: the label, then its sublabel and band tag when given, then a control parked on the line.
+ * What a label head draws beside its label, every part optional.
+ *
+ * @typedef {object} HeadOpts
+ * @property {string} [sub]  the sublabel
+ * @property {string} [band]  the band tag
+ * @property {unknown} [tail]  a control drawn at the line's end
+ * @property {boolean} [restarts]  whether the setting restarts the engine, which draws the restart mark
+ */
+
+/**
+ * A row's label head: the label, the restart mark when its setting restarts the engine, then its sublabel and band
+ * tag when given, then a control parked on the line.
  *
  * @param {string} label
- * @param {string} [sub]
- * @param {string} [band]
- * @param {unknown} [tail]  a control drawn at the line's end
+ * @param {HeadOpts} [opts]
  */
-export const labelHead = (label, sub, band, tail) => html`
+export const labelHead = (label, { sub, band, tail, restarts } = {}) => html`
   <div class="fh">
-    <b>${label}</b>${sub ? html`<span class="s">${sub}</span>` : null}
+    <b>${label}</b>${restarts ? restartMark() : null}${sub ? html`<span class="s">${sub}</span>` : null}
     ${band ? html`<span class="band">${band.toUpperCase()}</span>` : null}${tail ?? null}
   </div>
 `;
@@ -85,7 +97,7 @@ const segment = (c) =>
     value: rowValue(c.key),
     label: c.label,
     off: c.off,
-    pick: (v) => edit(c.key, v),
+    pick: (v) => setControl(c.key, v),
   });
 
 /**
@@ -142,7 +154,7 @@ function select(c) {
       class=${off ? "vfd grayed" : "vfd"}
       aria-label=${label}
       disabled=${off}
-      onChange=${(/** @type {ChangeEv} */ e) => edit(key, e.currentTarget.value)}
+      onChange=${(/** @type {ChangeEv} */ e) => setControl(key, e.currentTarget.value)}
     >
       ${rowOptions(key, options).map(
         (o) => html`
@@ -172,7 +184,7 @@ function number({ key, entry, label, off, hint }) {
         max=${entry.max}
         step=${entry.step}
         disabled=${off}
-        onChange=${(/** @type {ChangeEv} */ e) => edit(key, e.currentTarget.value)}
+        onChange=${(/** @type {ChangeEv} */ e) => setControl(key, e.currentTarget.value)}
       />
       ${entry.unit ? html`<span class="u">${entry.unit}</span>` : null}
       ${hint ? html`<span class="h">${hint}</span>` : null}
@@ -193,7 +205,7 @@ const textBox = ({ key, label, off }) => html`
     aria-label=${label}
     value=${rowValue(key)}
     disabled=${off}
-    onChange=${(/** @type {ChangeEv} */ e) => edit(key, e.currentTarget.value)}
+    onChange=${(/** @type {ChangeEv} */ e) => setControl(key, e.currentTarget.value)}
   />
 `;
 

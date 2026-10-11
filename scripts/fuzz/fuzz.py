@@ -20,7 +20,7 @@ but puts nothing back in HQPTuner's own store:
           the write-back confirmed by readback. At most 3.
   store   writes HQPTuner's own store; captured before the run and restored
           after, and name-taking routes get only names this script invented.
-  never   backup, restore and autosave are not sent at all.
+  never   backup and restore are not sent at all.
 
 Rails: at most 8 requests in flight, every loop over a list built before the
 first request, a timeout on every one. The daemon's own port is never addressed.
@@ -52,7 +52,9 @@ BODY_LIMIT = 2000
 
 HEALTH = "/api/health"
 LIVE_PATHS = ["/api/config", "/api/volume"]
-STORE_PATHS = ["/api/favorites", "/api/narrowing", "/api/autopilot", "/api/descriptions", "/api/matrixmodes"]
+STATUS = "/api/status"
+AUTOPILOT = "/api/autopilot"
+STORE_PATHS = ["/api/favorites", "/api/narrowing", "/api/descriptions", "/api/matrixmodes"]
 NO_BRACKET = (
     f"{CURRENT.relative_to(ROOT)} is not there: no abuse bracket is open.\n"
     "The caller opens one with `scripts/abuse.sh open` and closes it after."
@@ -143,6 +145,23 @@ def snapshot(client: httpx.Client, paths: list[str]) -> dict[str, Any]:
     return out
 
 
+def autopilot_switch(status: dict[str, Any]) -> bool | None:
+    """Auto-pilot's switch off a ``GET /api/status`` answer, or None where that answer is no reading of it.
+
+    Before the first Status frame, or with the advisor off, status reads the switch as off whatever the store holds.
+    """
+    data = status.get("data")
+    switch = data.get("autopilot") if isinstance(data, dict) and data.get("advisor") is True else None
+    return switch if isinstance(switch, bool) else None
+
+
+def store_state(client: httpx.Client) -> dict[str, Any]:
+    """Read every store surface into one dict, auto-pilot's switch under its write route."""
+    out = snapshot(client, STORE_PATHS)
+    out[AUTOPILOT] = {"enabled": autopilot_switch(snapshot(client, [STATUS])[STATUS])}
+    return out
+
+
 def form_of(body: dict[str, Any]) -> dict[str, str]:
     """Return the config form as field/value pairs, the shape a live write-back takes."""
     fields = body.get("data", {}).get("fields", [])
@@ -182,13 +201,17 @@ def store_restore(client: httpx.Client, before: dict[str, Any]) -> list[str]:
     drop_descriptions(client, before)
     client.put("/api/favorites", json=before["/api/favorites"])
     client.put("/api/narrowing", json={"facets": before["/api/narrowing"].get("facets", {})})
-    client.post("/api/autopilot", json={"enabled": bool(before["/api/autopilot"].get("enabled"))})
-    after = snapshot(client, STORE_PATHS)
+    switch = before[AUTOPILOT]["enabled"]
+    if switch is not None:
+        client.post(AUTOPILOT, json={"enabled": switch})
+    after = store_state(client)
     problems = [
         f"{path} did not read back as captured"
-        for path in ("/api/favorites", "/api/narrowing", "/api/autopilot")
+        for path in ("/api/favorites", "/api/narrowing", AUTOPILOT)
         if after[path] != before[path]
     ]
+    if switch is None:
+        problems.append(f"{AUTOPILOT} could not be read off {STATUS} before the run, so it was not restored")
     return problems + [
         f"{path} changed and has no route that removes an entry; residue left"
         for path in ("/api/descriptions", "/api/matrixmodes")
@@ -324,7 +347,7 @@ def report(run: Run, attacks: list[Attack], out: Path) -> None:
 def execute(url: str, attacks: list[Attack], out: Path) -> int:
     """Run every attack against the live app, restoring the store around the whole run."""
     with httpx.Client(base_url=url, timeout=TIMEOUT) as client, out.open("w", encoding="utf-8") as handle:
-        before = snapshot(client, STORE_PATHS)
+        before = store_state(client)
         run = Run(client, handle)
         try:
             for number, attack in enumerate(attacks, start=1):
