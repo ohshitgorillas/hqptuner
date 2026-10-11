@@ -192,7 +192,6 @@ Disclosure follows staged values, not applied ones, so it updates before Apply.
 - **Transport params are per-backend, not mode-gated.** The Embedded `/config` form scopes device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`, independent values). "DAC bits grays in SDM / DoP grays in PCM" belongs to the *desktop* app and does not apply here. IPv6 is Network-only.
 - ALSA / Network sections **collapse** by backend rather than gray; every field still persists, because the daemon rejects a partial form.
 - FFT filter length has no row of its own: it renders on a Resampling drawer tab only while that tab's OWN 1x or Nx filter is FFT-family, so FFT on both chains shows it on both the PCM out and SDM out tabs, and it is absent everywhere else; the rule is the catalog entry's `fftChains` (`store/schema/dsp.js`), read by `store/faceplate/drawer/grammar.js`. The daemon carries one `fft_size` field, so the two renders are two views of one value.
-- E-core allocation is meaningful only on hybrid CPUs and carries a muted "hybrid CPUs only" caption.
 - Graying carries no caption where a reason string would reflow the row on a mode change (`quietGray`).
 
 ### 7.8 Mode switch coherence
