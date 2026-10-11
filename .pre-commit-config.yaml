@@ -212,7 +212,7 @@ repos:
         entry: .venv/bin/python scripts/gates/check_control_catalog.py
         language: system
         pass_filenames: false
-        files: ^(hqptuner/static/store/schema\.js|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
+        files: ^(hqptuner/static/store/schema\.js|hqptuner/static/store/schema/.*|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
 
       # The shipped metadata is read by the application alone: the offline suite
       # runs on fixtures, so a data file that stops loading or stops covering the

@@ -1,75 +1,19 @@
-// The Hardware acceleration drawer's schema and its Settings rail readouts. The settings are engine attributes held by
-// store/faceplate/settings/hardware.js, never in the staged set: the engine's own POST restarts the daemon, so the
-// apply group runs that form (`own`). The block count and the CUDA devices are blocks the caller mounts by name. The
-// all-stations switch sits at the foot of both tabs over one value, a local control under each tab's id
-// (store/schema/local.js).
+// The Hardware acceleration drawer's schema and its Settings rail readouts. Multicore DSP, E-core allocation and CUDA
+// offload are the catalog's rows (`multicore`, `ecores`, `cuda`, store/schema/hardware.js), and their readouts name and
+// list what each entry does. The settings are engine attributes held by store/faceplate/settings/hardware.js, never in
+// the staged set: the engine's own POST restarts the daemon, so the apply group runs that form (`own`). The block count
+// and the CUDA devices are blocks the caller mounts by name. The all-stations switch sits at the foot of both tabs over
+// one value, a local control under each tab's id (store/schema/local.js).
 
-import {
-  applyHardware,
-  discardHardware,
-  hardwareDraft,
-  setHardware,
-  staged,
-} from "../../../store/faceplate/settings/hardware.js";
+import { applyHardware, discardHardware, hardwareDraft, staged } from "../../../store/faceplate/settings/hardware.js";
 import { local } from "../../../store/schema/local.js";
+import { schema } from "../../../store/schema.js";
 import { seg } from "./readouts.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-/** @typedef {import("../../../store/faceplate/drawer.js").FieldOption} FieldOption */
-/** @typedef {import("../../../store/faceplate/drawer.js").FieldSpec} FieldSpec */
 /** @typedef {import("../../../store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
 /** @typedef {import("../../../store/faceplate/settings/hardware.js").HardwareKey} HardwareKey */
 /** @typedef {import("../../../model/shell/settings.js").Control} Control */
-
-/** The settings' paragraphs. */
-const MAN = {
-  cuda: 'Utilizes an NVIDIA GPU to partially offload processing from the CPU to the GPU. CUDA offload requires an NVIDIA GPU with a minimum Compute Capability level of 5.2, 2 GB of graphics RAM, and the latest official NVIDIA drivers. When CUDA offload is enabled, Multicore DSP should also be enabled, or left at the automatic setting, to achieve the best performance. With "convolution only", only convolution algorithms are offloaded to the GPU.',
-  multicore:
-    'Multicore DSP increases parallelization of various DSP operations. With "auto", automatic detection and configuration is active and can utilize any number of cores. For best performance, it is recommended to use the auto-detection. When disabled, processing is optimized for cases where the number of cores is equal to or less than the number of output channels, such as dual-core CPUs when output is stereo. When enabled, processing is optimized for modern multi-core CPUs with a much higher core count than the number of output channels. Since this parallelization increases processing overhead, it will increase total CPU time consumption. If there are performance problems with the "auto" setting, it is typically useful to try this option.',
-  ecores:
-    "On newer CPUs that have both performance and efficiency cores, efficiency cores can be allocated as offload processors instead of normal (default) use. These e-cores can be allocated either for processing resampling filters, or for a generic DSP pool for performing other tasks such as convolution.",
-};
-
-/** @type {FieldOption[]} */
-const MULTICORE = [
-  { value: "auto", label: "Auto" },
-  { value: "1", label: "Enabled" },
-  { value: "0", label: "Disabled" },
-];
-
-/** @type {FieldOption[]} */
-const ECORES = [
-  { value: "default", label: "Disabled" },
-  { value: "pool", label: "DSP pool" },
-  { value: "filter", label: "Resampling" },
-];
-
-/** @type {FieldOption[]} */
-const CUDA = [
-  { value: "0", label: "Disabled" },
-  { value: "1", label: "Full offload" },
-  { value: "convolution", label: "Convolution only" },
-];
-
-/**
- * A field over one drafted engine attribute.
- *
- * @param {HardwareKey} key
- * @param {string} label
- * @param {string} man
- * @param {FieldOption[]} options
- * @returns {{ field: FieldSpec }}
- */
-const draftField = (key, label, man, options) => ({
-  field: {
-    id: key,
-    label,
-    man: [man],
-    options,
-    value: () => hardwareDraft().values[key],
-    set: (v) => setHardware(key, v),
-  },
-});
 
 /** @type {DrawerSchema} */
 export const HARDWARE_DRAWER = {
@@ -81,8 +25,8 @@ export const HARDWARE_DRAWER = {
       id: "cpu",
       label: "CPU",
       body: [
-        draftField("multicore", "Multicore DSP", MAN.multicore, MULTICORE),
-        draftField("ecores", "E-core allocation", MAN.ecores, ECORES),
+        { row: { key: "multicore" } },
+        { row: { key: "ecores" } },
         { block: "nblocks" },
         { field: local.hwallcpu },
       ],
@@ -90,7 +34,7 @@ export const HARDWARE_DRAWER = {
     {
       id: "gpu",
       label: "GPU",
-      body: [draftField("cuda", "CUDA offload", MAN.cuda, CUDA), { block: "cudadevs" }, { field: local.hwallgpu }],
+      body: [{ row: { key: "cuda" } }, { block: "cudadevs" }, { field: local.hwallgpu }],
     },
   ],
   own: { staged: () => staged.value, apply: applyHardware, discard: discardHardware },
@@ -106,10 +50,18 @@ export const HARDWARE_DRAWER = {
  */
 const readout = (key, label, control) => ({ id: key, label, control, value: () => hardwareDraft().base[key] });
 
+/**
+ * A readout of one catalog entry's engine attribute: its label and its options as a seg are the entry's.
+ *
+ * @param {HardwareKey} key
+ * @returns {SettingsReadout}
+ */
+const catalogReadout = (key) => readout(key, schema[key].label, seg(schema[key].options ?? []));
+
 /** The rail readouts, in the drawer's order. @type {SettingsReadout[]} */
 export const HARDWARE_READOUTS = [
-  readout("multicore", "Multicore DSP", seg(MULTICORE)),
-  readout("ecores", "E-core allocation", seg(ECORES)),
+  catalogReadout("multicore"),
+  catalogReadout("ecores"),
   readout("nblocks", "Blocks per cycle", { type: "slider", auto: { v: 0 } }),
-  readout("cuda", "CUDA offload", seg(CUDA)),
+  catalogReadout("cuda"),
 ];

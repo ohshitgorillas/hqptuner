@@ -1,6 +1,7 @@
 // Painter suite for hqptuner/static/components/faceplate/page/sourcepaint.js: what one paint writes into the page's
-// Source section. Given a meter scene and the page's Range, the spectrum's trace, its held peaks and its filled area;
-// given the Levels floor, each level bar's peak, RMS and hold; and the readings table's held peak and RMS.
+// Source section. Given a meter scene and the page's Range, the spectrum's trace and its filled area, and its ghost as
+// the held-peaks path under the Trace style only; given the Levels floor, each level bar's peak, RMS and hold; and the
+// readings table's held peak and RMS.
 //
 // The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″, so the
 // readings table is drawn. The painter needs a live element to write into, and node has none: the rendered markup is
@@ -31,7 +32,6 @@ import { attr, elements, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").LevelReading} LevelReading */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").SpectrumHold} SpectrumHold */
 
 const COLS = 600; // the trace's columns, store/meter/loop.js TRACE_COLS
 const PLOT_H = 170;
@@ -227,13 +227,12 @@ function columns(floor, at = {}) {
 }
 
 /**
- * A scene: the given levels, and a spectrum showing `disp` and holding `peak`.
+ * A scene: the given levels, and a spectrum showing `disp` with its ghost at `ghost`.
  *
- * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array, peak?: Float32Array }} [o]
+ * @param {{ levels?: Partial<LevelReading>[], disp?: Float32Array, ghost?: Float32Array }} [o]
  */
-function scene({ levels = [{}, {}], disp = columns(-200), peak = disp } = {}) {
-  /** @type {SpectrumHold} */
-  const spectrum = { disp, peak, peakAt: new Float32Array(COLS) };
+function scene({ levels = [{}, {}], disp = columns(-200), ghost = disp } = {}) {
+  const spectrum = { disp, ghost };
   const full = levels.map((lv) => ({ peak: -200, rms: -200, hold: -200, holdAt: 0, ...lv }));
   return { levels: full, spectrum, raw: null };
 }
@@ -334,11 +333,6 @@ test("test_a_column_over_full_scale_stops_at_the_top", () => {
   assert.equal(yAt(root, "strace", 300), 0);
 });
 
-test("test_the_held_peaks_trace_the_peak_not_the_shown_level", () => {
-  const root = painted(scene({ disp: columns(-72), peak: columns(-72, { 300: -9 }) }), 90);
-  assert.equal(yAt(root, "shold", 300), 17);
-});
-
 // --- the bars ------------------------------------------------------------------------------------------------------
 
 test("test_a_peak_over_full_scale_fills_its_bar", () => {
@@ -415,10 +409,10 @@ function styled(sc, range, style) {
   return root;
 }
 
-/** A scene with something to draw in every path: the trace at -45 dBFS, a held peak at -9 dBFS on column 300. */
-const busy = () => scene({ disp: columns(-45), peak: columns(-45, { 300: -9 }) });
+/** A scene with something to draw in every path: the trace at -45 dBFS, its ghost at -9 dBFS on column 300. */
+const busy = () => scene({ disp: columns(-45), ghost: columns(-45, { 300: -9 }) });
 
-for (const style of ["bars", "soft", "ridges", "aurora"]) {
+for (const style of ["bars", "ridges", "aurora"]) {
   for (const cls of ["strace", "sarea"]) {
     test(`test_a_${style}_paint_blanks_the_${cls}_path`, () => {
       assert.equal(styled(busy(), 90, style).querySelector(`path.${cls}`)?.getAttribute("d"), "");
@@ -426,11 +420,17 @@ for (const style of ["bars", "soft", "ridges", "aurora"]) {
   }
 }
 
-for (const style of ["bars", "soft", "ridges", "aurora"]) {
-  test(`test_a_${style}_paint_blanks_the_held_peaks_path`, () => {
-    assert.equal(styled(busy(), 90, style).querySelector("path.shold")?.getAttribute("d"), "");
+for (const style of ["bars", "ridges", "aurora"]) {
+  test(`test_a_${style}_paint_draws_no_held_peaks_path`, () => {
+    setSpectrumStyle(style);
+    assert.deepEqual(pointsOf(styled(busy(), 90, style), "shold"), []);
   });
 }
+
+test("test_a_trace_paint_draws_the_ghost_where_it_sits_not_where_the_trace_sits", () => {
+  const root = styled(scene({ disp: columns(-72), ghost: columns(-72, { 100: -18, 300: -9 }) }), 90, "trace");
+  assert.deepEqual([yAt(root, "shold", 100), yAt(root, "shold", 300)], [34, 17]);
+});
 
 test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace", () => {
   setSpectrumStyle("aurora");

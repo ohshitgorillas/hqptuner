@@ -173,14 +173,6 @@ test("test_the_scene_carries_a_lone_loud_column_at_the_frames_level_before_smoot
   assert.ok(...near(scenes.at(-1)?.raw?.[SPIKE_AT] ?? NaN, LOUD_DB, 1e-3));
 });
 
-test("test_the_held_peaks_stay_at_the_loudest_level_after_the_trace_drops", () => {
-  send({ peak: -10, rms: -20, byte: 20 });
-  step();
-  send({ peak: -10, rms: -20, byte: 100 });
-  step();
-  assert.deepEqual([...new Set(scenes.at(-1)?.spectrum?.peak ?? [])], [-10]);
-});
-
 test("test_at_a_0_1_s_engine_output_delay_a_clump_shorter_than_it_shows_nothing_until_the_feed_covers_it", () => {
   engineStatus.value = { status: { state: "2", output_delay: "100000" } };
   for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, ms: 10.667 });

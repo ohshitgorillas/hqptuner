@@ -21,6 +21,7 @@ import {
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { setSpeakersGate } from "./matrix/speakers.js";
+import { setHardware } from "./faceplate/settings/hardware.js";
 import { mirror, refreshConfig } from "./sync.js";
 import { guard, applyGuard, pruneAcknowledged } from "./guards.js";
 import { applyBauerCoupling, applyFixedVolumeCoupling } from "./schema/couplings.js";
@@ -153,17 +154,22 @@ export async function edit(key, value) {
 }
 
 /**
- * Write one catalog key through its entry's lane: a `speakers`-lane key drafts the speakers form's switch, which
- * stages nothing in the config staging buffer and goes out with the form's own apply; every other key stages
- * through `edit()`.
+ * Write one catalog key through its entry's lane: a `speakers`-lane key drafts the speakers form's switch and a
+ * `hardware`-lane key drafts the engine attribute of its name, each staging nothing in the config staging buffer and
+ * going out with its form's own apply; every other key stages through `edit()`.
  *
  * @param {string} key
  * @param {string | number | boolean} value  a speakers-lane value is a truth: "1"/"0" or a boolean
  * @returns {Promise<void>}
  */
 export async function setControl(key, value) {
-  if (schema[key]?.lane === "speakers") {
+  const lane = schema[key]?.lane;
+  if (lane === "speakers") {
     setSpeakersGate(truthy(value));
+    return;
+  }
+  if (lane === "hardware") {
+    setHardware(/** @type {import("./faceplate/settings/hardware.js").HardwareKey} */ (key), String(value));
     return;
   }
   await edit(key, value);
