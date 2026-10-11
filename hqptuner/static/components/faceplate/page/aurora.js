@@ -95,7 +95,7 @@ function quad(gl) {
 /**
  * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
  * one meter scene's spectrum column levels at `range` dB as northern lights coloured base to crown through `ramp`,
- * `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall afresh.
+ * `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall and the columns' sway afresh.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {ArrayLike<number>} ramp  colour stops, base to crown, one RGB triple each in one flat list, each 0 to 1
@@ -107,14 +107,17 @@ export function auroraPainter(canvas, ramp) {
   if (!gl || !program) return null;
   const vao = quad(gl);
   const bars = gl.getUniformLocation(program, "bars");
+  const time = gl.getUniformLocation(program, "time");
   gl.useProgram(program);
   gl.uniform1i(gl.getUniformLocation(program, "bars_count"), BANDS);
   gl.uniform3fv(gl.getUniformLocation(program, "ramp"), Float32Array.from(ramp).subarray(0, stops * RGB));
   gl.clearColor(0, 0, 0, 0);
   /** @type {GravityState | null} */
   let gravity = null;
+  let elapsed = 0; // s, DT for every paint that drew since the last clear
   const clear = () => {
     gravity = null;
+    elapsed = 0;
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
   };
@@ -124,12 +127,15 @@ export function auroraPainter(canvas, ramp) {
    */
   const paint = (levels, range) => {
     const prev = gravity;
+    const was = elapsed;
     clear();
     if (!levels) return;
     gravity = stepGravity(prev, bandsOf(fractionsOf(levels, range), BANDS), DT, AURORA_GRAVITY);
+    elapsed = was + DT;
     gl.useProgram(program);
     gl.bindVertexArray(vao);
     gl.uniform1fv(bars, gravity.lvl);
+    gl.uniform1f(time, elapsed);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, QUAD_VERTICES);
   };
   return { paint, clear };
