@@ -1,7 +1,8 @@
 // The Volume drawer's Range block: Min, Startup and Max on one shared dBFS axis, the span between the brackets the
 // range the engine will allow at runtime. Under the bar, the typed boxes and the Playback readout beside the settings'
 // paragraphs, then the loudness bounds, read-only here since they are Loudness settings, beside theirs. Every mark on
-// the bar is named once, beside its own glyph; a readout shows only while its mark is on the bar.
+// the bar is named once, beside its own glyph; a readout shows only while its mark is on the bar. The block's head
+// carries the restart mark when its settings restart the engine; its boxes carry none.
 //
 // Edits stage through the store (store/faceplate/drawers/volume.js), so they mark the tab through the drawer. The
 // block grays whole while Fixed volume is not Off. The loudness row's `Loudness ›` is the link to the Loudness drawer.
@@ -12,6 +13,8 @@ import { signed } from "../../../model/shell/format.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { describe } from "../../../store/prose.js";
 import { RANGE_KEYS, volumeRangeNow } from "../../../store/faceplate/drawers/volume.js";
+import { restartLane } from "../../../store/faceplate/drawer.js";
+import { labelHead } from "../drawer/controls.js";
 import { RangeBar } from "./volume/Bar.js";
 import { RangeBox, Readout } from "./volume/marks.js";
 import { Xref, withXref } from "../Xref.js";
@@ -130,7 +133,7 @@ export function VolumeRangeBody({ here }) {
   const view = volumeRangeNow();
   return html`
     <div class=${view.gray ? "vrange grayed-range" : "vrange"}>
-      <div class="fh"><b>Range</b></div>
+      ${labelHead("Range", { restarts: Object.values(RANGE_KEYS).some(restartLane) })}
       <${RangeBar} view=${view} />
       <${VolumeRow} view=${view} here=${here} />
       <${LoudnessRow} loud=${view.loud} />

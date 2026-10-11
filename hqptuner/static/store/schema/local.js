@@ -135,6 +135,7 @@ const FIXED_MODE = {
   },
   value: fixedMode,
   pick: pickFixedMode,
+  writes: ["fixed_volume_enabled", "optimal_iso"],
   lines: [
     { v: "off", label: "Off", man: "Volume is adjustable live." },
     {

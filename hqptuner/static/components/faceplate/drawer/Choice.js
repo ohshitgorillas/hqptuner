@@ -1,14 +1,14 @@
-// A choice: vertical radio lines spanning the row under its label and paragraphs. Each line is its radio and name
-// (both pick it), the restart mark after the name when its detail key restarts the engine, its detail control when it
-// names a catalog key, and its paragraph. A detail is grayed and disabled
-// unless its line is picked; the picked line's detail prints its gray reason in the choice's control column.
+// A choice: vertical radio lines spanning the row under its label and paragraphs, the label carrying the restart mark
+// when a key its pick writes or a line's detail key restarts the engine. Each line is its radio and name (both pick
+// it), its detail control when it names a catalog key, and its paragraph. A detail is grayed and disabled unless its
+// line is picked; the picked line's detail prints its gray reason in the choice's control column.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
 import { describe } from "../../../store/prose.js";
 import { grayReason } from "../../../store/ui/graying.js";
 import { restartLane } from "../../../store/faceplate/drawer.js";
-import { grayLine, keyControl, labelHead, restartMark } from "./controls.js";
+import { grayLine, keyControl, labelHead } from "./controls.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").ChoiceSpec} ChoiceSpec */
 /** @typedef {import("../../../store/faceplate/drawer.js").ChoiceLine} ChoiceLine */
@@ -37,7 +37,6 @@ function detail(l, on) {
  */
 function line(c, l, on) {
   const pick = () => (on ? undefined : c.pick(l.v));
-  const mark = l.key && restartLane(l.key) ? restartMark() : null;
   return html`
     <div class=${on ? "chline cur" : "chline"} data-v=${l.v}>
       <div class="chl">
@@ -49,13 +48,20 @@ function line(c, l, on) {
           aria-label=${l.label}
           onClick=${pick}
         ></button>
-        <span class="chn" onClick=${pick}><b>${l.label}</b>${mark}${l.sub ? html`<span class="s">${l.sub}</span>` : null}</span>
+        <span class="chn" onClick=${pick}><b>${l.label}</b>${l.sub ? html`<span class="s">${l.sub}</span>` : null}</span>
         ${l.key ? detail(l, on) : null}
       </div>
       <div class="man"><p>${l.man}</p></div>
     </div>
   `;
 }
+
+/**
+ * Whether a choice restarts the engine: a key its pick writes or a line's detail key does.
+ *
+ * @param {ChoiceSpec} c
+ */
+const restarts = (c) => [...(c.writes ?? []), ...c.lines.flatMap((l) => (l.key ? [l.key] : []))].some(restartLane);
 
 /**
  * One choice.
@@ -69,7 +75,7 @@ export function choice(c, here) {
   const why = picked?.key ? grayReason(picked.key) : "";
   return html`
     <div class="drow" data-choice=${c.id}>
-      <div class="ctl">${labelHead(c.label)} ${grayLine(why, here)}</div>
+      <div class="ctl">${labelHead(c.label, { restarts: restarts(c) })} ${grayLine(why, here)}</div>
       <div class="man">${c.man.map((p) => html`<p>${p}</p>`)}</div>
       <div class="chlist" role="radiogroup" aria-label=${c.label}>
         ${c.lines.map((l) => line(c, l, l === picked))}

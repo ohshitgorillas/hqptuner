@@ -15,6 +15,9 @@ import {
   pickStructuralPreset,
   structuralView,
 } from "../../../../store/faceplate/drawers/crossfeed/structural.js";
+import { restartLane } from "../../../../store/faceplate/drawer.js";
+import { PIPELINE_WRITES } from "../../../../store/xfeed/mode.js";
+import { restartMarkIf } from "../../drawer/controls.js";
 import { ManPara } from "../loudness/parts.js";
 import { Slider } from "./Slider.js";
 import { LABEL, NAME, READOUT, STRUCTURAL_MAN, radiusSub } from "./copy.js";
@@ -22,28 +25,40 @@ import { LABEL, NAME, READOUT, STRUCTURAL_MAN, radiusSub } from "./copy.js";
 /** @typedef {import("../../../../store/faceplate/drawers/crossfeed.js").CrossfeedLive} CrossfeedLive */
 /** @typedef {[number, number]} Point */
 
+/**
+ * The Structural preset select under its label, the preset in force selected.
+ *
+ * @param {{ preset: string, off: boolean, restarts: boolean }} props
+ */
+function PresetPick({ preset, off, restarts }) {
+  return html`
+    <div class="ci">
+      <span class="cl">${LABEL.preset}${restartMarkIf(restarts)}</span>
+      <select
+        class="vfd xspre"
+        aria-label=${LABEL.preset}
+        disabled=${off}
+        onWheel=${wheelGuard}
+        onChange=${(/** @type {{ currentTarget: HTMLSelectElement }} */ e) => pickStructuralPreset(e.currentTarget.value)}
+      >
+        ${PRESETS.map((p) => html`<option value=${p.id} selected=${p.id === preset}>${p.label}</option>`)}
+        ${preset === "custom" ? html`<option value="custom" selected>${LABEL.custom}</option>` : null}
+      </select>
+    </div>
+  `;
+}
+
 /** The Structural line's controls. @param {{ live: CrossfeedLive }} props */
 export function StructuralControls({ live }) {
   const s = structuralView();
   const off = !live.controls;
+  const restarts = PIPELINE_WRITES.some(restartLane);
   return html`
     <div class=${live.linesGrayed ? "xctl grayed" : "xctl"}>
-      <div class="ci">
-        <span class="cl">${LABEL.preset}</span>
-        <select
-          class="vfd xspre"
-          aria-label=${LABEL.preset}
-          disabled=${off}
-          onWheel=${wheelGuard}
-          onChange=${(/** @type {{ currentTarget: HTMLSelectElement }} */ e) =>
-            pickStructuralPreset(e.currentTarget.value)}
-        >
-          ${PRESETS.map((p) => html`<option value=${p.id} selected=${p.id === s.preset}>${p.label}</option>`)}
-          ${s.preset === "custom" ? html`<option value="custom" selected>${LABEL.custom}</option>` : null}
-        </select>
-      </div>
+      <${PresetPick} preset=${s.preset} off=${off} restarts=${restarts} />
       <${Slider}
         label=${LABEL.angle}
+        restarts=${restarts}
         min=${5}
         max=${60}
         step=${0.5}
@@ -56,6 +71,7 @@ export function StructuralControls({ live }) {
       />
       <${Slider}
         label=${LABEL.circ}
+        restarts=${restarts}
         sub=${radiusSub((s.headRadius * 100).toFixed(2))}
         min=${41}
         max=${66}
@@ -69,6 +85,7 @@ export function StructuralControls({ live }) {
       />
       <${Slider}
         label=${LABEL.lambda}
+        restarts=${restarts}
         min=${0}
         max=${150}
         step=${1}

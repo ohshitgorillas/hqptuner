@@ -1,8 +1,10 @@
 // The Hardware acceleration drawer's two blocks over the hardware draft. Blocks per cycle: a `Set manually` box gating
 // the slider, automatic (0, the daemon's own configuration) until ticked, which seeds 8. CUDA devices: the DSP and
-// convolution device boxes, both grayed while CUDA offload is off and the DSP box alone under convolution-only.
+// convolution device boxes, both grayed while CUDA offload is off and the DSP box alone under convolution-only. Each
+// block's head carries the restart mark when its drawer's form restarts the engine, one mark per block.
 
 import { html, TypedInput } from "../../../lib/dom.js";
+import { formRestarts } from "../../../store/faceplate/drawer.js";
 import { hardwareDraft, setHardware } from "../../../store/faceplate/settings/hardware.js";
 import { grayLine, labelHead } from "../drawer/controls.js";
 import { Slider } from "../drawers/crossfeed/Slider.js";
@@ -29,8 +31,12 @@ const MANUAL_SEED = "8";
 /** @param {number} v */
 const setBlocks = (v) => setHardware("nblocks", String(v));
 
-/** Blocks per cycle: the `Set manually` box, the slider it gates, and the automatic note while unticked. */
-export function NblocksBlock() {
+/**
+ * Blocks per cycle: the `Set manually` box, the slider it gates, and the automatic note while unticked.
+ *
+ * @param {BlockProps} props
+ */
+export function NblocksBlock({ schema }) {
   const nblocks = hardwareDraft().values.nblocks;
   const auto = nblocks === AUTO;
   return html`
@@ -48,6 +54,7 @@ export function NblocksBlock() {
           <div class=${auto ? "grayed" : undefined}>
             <${Slider}
               label="Blocks per cycle"
+              restarts=${formRestarts(schema)}
               min=${1}
               max=${16}
               step=${1}
@@ -100,14 +107,14 @@ function DeviceBox({ k, sub, aria, off, hint }) {
  *
  * @param {BlockProps} props
  */
-export function CudaDevicesBlock({ here }) {
+export function CudaDevicesBlock({ schema, here }) {
   const cuda = hardwareDraft().values.cuda;
   const off = cuda === "0";
   const convOnly = cuda === "convolution";
   return html`
     <div class="drow" data-field="cudadevs">
       <div class="ctl">
-        ${labelHead("CUDA devices")}
+        ${labelHead("CUDA devices", { restarts: formRestarts(schema) })}
         <div class="cgrp">
           <${DeviceBox} k="cuda_dev" sub="DSP" aria="CUDA device for DSP" off=${off || convOnly} />
           <${DeviceBox}

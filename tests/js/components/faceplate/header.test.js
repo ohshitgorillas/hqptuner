@@ -1,7 +1,8 @@
 // Rendered suite for hqptuner/static/components/faceplate/Header.js, the faceplate's header row: the brand knob shows
 // the connection state, the Station · Snapshot tree loads stations and applies the loaded station's snapshots, and
 // the builders and the gear swap the body, each pressed while its body shows. Every station but the loaded one carries
-// the restart mark, in the mark's one style (`.rs`, the faceplate spec's "Drawers (all)").
+// the restart mark, in the mark's one style (`.rs`, the faceplate spec's "Drawers (all)"), and that mark carries a hover
+// tip on itself, its `title`, whose words are the owner's copy and are never read.
 //
 // A fetch fake answers the real REST paths with their real shapes and records every request; no store function is
 // stubbed. Taps are fired through the renderer's vnode seam, since render-to-string fires no events. Preset and
@@ -254,11 +255,16 @@ const STATIONS = ["Day", "Night"];
 const encloses = (/** @type {MarkupElement} */ outer, /** @type {MarkupElement} */ inner) =>
   outer.start <= inner.start && inner.start + inner.html.length <= outer.start + outer.html.length;
 
+/** The attribute that carries a hover tip on this plate. */
+const TIP = "title";
+
 /**
- * Whether each station's row carries a restart mark, in STATIONS order. A mark belongs to a station when the
+ * Every restart mark the header draws, each with the station it belongs to. A mark belongs to a station when the
  * smallest element around it that holds any station name holds that station's name alone.
+ *
+ * @returns {{ station: string | undefined, mark: MarkupElement }[]}
  */
-function marksByStation() {
+function stationMarks() {
   const all = elements(render(html`<${Header} />`));
   const names = all.filter((e) => attr(e, "data-testid") === "station-name");
   const owner = (/** @type {MarkupElement} */ mark) => {
@@ -268,9 +274,26 @@ function marksByStation() {
     const held = row === undefined ? [] : names.filter((n) => encloses(row, n));
     return held.length === 1 ? text(held[0]) : undefined;
   };
-  const marks = all.filter((e) => classes(e).includes("rs"));
-  return STATIONS.map((s) => marks.some((m) => owner(m) === s));
+  return all.filter((e) => classes(e).includes("rs")).map((mark) => ({ station: owner(mark), mark }));
 }
+
+/** Whether each station's row carries a restart mark, in STATIONS order. */
+function marksByStation() {
+  const marks = stationMarks();
+  return STATIONS.map((s) => marks.some((m) => m.station === s));
+}
+
+/**
+ * Whether each restart mark on a station's row carries a hover tip of its own: a non-empty `title` on the mark
+ * itself, not on the station name or row around it. The tip's words are the owner's copy and are not read.
+ *
+ * @param {string} station
+ * @returns {boolean[]}
+ */
+const markTips = (station) =>
+  stationMarks()
+    .filter((m) => m.station === station)
+    .map((m) => (attr(m.mark, TIP) ?? "") !== "");
 
 test("test_with_day_loaded_only_night_carries_the_restart_mark", () => {
   config.value = { ...config.value, active: "Day" };
@@ -280,4 +303,11 @@ test("test_with_day_loaded_only_night_carries_the_restart_mark", () => {
 test("test_with_night_loaded_only_day_carries_the_restart_mark", () => {
   config.value = { ...config.value, active: "Night" };
   assert.deepEqual(marksByStation(), [true, false]);
+});
+
+test("test_the_restart_mark_on_every_station_not_loaded_carries_a_hover_tip", () => {
+  config.value = { ...config.value, active: "Day" };
+  const night = markTips("Night");
+  config.value = { ...config.value, active: "Night" };
+  assert.deepEqual([night, markTips("Day")], [[true], [true]]);
 });

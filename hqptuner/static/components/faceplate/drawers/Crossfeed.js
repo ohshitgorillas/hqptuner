@@ -9,10 +9,12 @@
 
 import { html } from "../../../lib/dom.js";
 import { minus } from "../../../model/shell/format.js";
-import { rowOptions } from "../../../store/faceplate/drawer.js";
+import { restartLane, rowOptions } from "../../../store/faceplate/drawer.js";
 import { crossfeedView, pickLine, setGate, xfRefusal } from "../../../store/faceplate/drawers/crossfeed.js";
+import { restartMarkIf } from "../drawer/controls.js";
 import { Seg } from "./loudness/parts.js";
 import { BauerControls, BauerCopy, BauerPlot } from "./crossfeed/Bauer.js";
+import { PIPELINE_WRITES } from "../../../store/xfeed/mode.js";
 import { Geometry, StructuralControls, StructuralCopy } from "./crossfeed/Structural.js";
 import { LABEL, NAME } from "./crossfeed/copy.js";
 import { withXref } from "../Xref.js";
@@ -24,6 +26,9 @@ import { withXref } from "../Xref.js";
 
 /** @type {Line[]} */
 const LINES = ["bauer", "structural"];
+
+/** The settings the gate writes: Bauer's switch, or Structural's pipeline rows. */
+const GATE_WRITES = ["crossfeed_enabled", ...PIPELINE_WRITES];
 
 /**
  * The folded line's one summary line: what it would install, in engine names and numbers.
@@ -83,7 +88,7 @@ export function CrossfeedBody({ here }) {
   const why = xfRefusal.value || view.gray;
   return html`
     <div class="xgate">
-      <b class=${live.matrix ? "grayed" : undefined}>${NAME.gate}</b>
+      <b class=${live.matrix ? "grayed" : undefined}>${NAME.gate}${restartMarkIf(GATE_WRITES.some(restartLane))}</b>
       <${Seg}
         aria=${NAME.gate}
         options=${rowOptions("crossfeed_enabled")}

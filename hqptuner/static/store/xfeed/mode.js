@@ -131,6 +131,12 @@ export function conflicts() {
   return blockConflicts(effective);
 }
 
+/**
+ * The settings a pipeline-row stage writes: the rows (`stagePipelines`) and their count. `stageStructural` writes both,
+ * and so does the compensation's `commitComp` (store/faceplate/drawers/crossfeed/comp.js).
+ */
+export const PIPELINE_WRITES = ["matrix_pipelines", "pipelines"];
+
 // Install or update the block, or REFUSE. Returns null when the block is in, and
 // the refusal note when the rows it was pointed at are not a stereo pair it can
 // carry — see `pairInfo`.

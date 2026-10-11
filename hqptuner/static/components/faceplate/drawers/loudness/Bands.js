@@ -6,10 +6,11 @@ import { html } from "../../../../lib/dom.js";
 import { schema as catalog } from "../../../../store/schema.js";
 import { describe } from "../../../../store/prose.js";
 import { edit } from "../../../../store/actions.js";
-import { rowOptions, rowValue } from "../../../../store/faceplate/drawer.js";
+import { restartLane, rowOptions, rowValue } from "../../../../store/faceplate/drawer.js";
 import { loudnessSide } from "../../../../store/ui/ui.js";
 import { PARAMS, bandKey, formBounds, showSide, sideDots } from "../../../../store/faceplate/drawers/loudness.js";
 import { ManPara, NumBox, Seg } from "./parts.js";
+import { restartMarkIf } from "../../drawer/controls.js";
 import { withXref } from "../../Xref.js";
 
 /** @typedef {import("../../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -58,7 +59,9 @@ function Row({ k, param, disabled }) {
           disabled=${disabled}
           onSet=${(/** @type {number} */ v) => edit(k, v)}
         />`;
-  return html`<div class="lrow" data-k=${k}><span class="ll">${p.label}</span>${control}</div>`;
+  return html`<div class="lrow" data-k=${k}>
+    <span class="ll">${p.label}${restartMarkIf(restartLane(k))}</span>${control}
+  </div>`;
 }
 
 /**

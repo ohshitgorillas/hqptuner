@@ -55,8 +55,27 @@ export function segButtons({ options, value, label, off, pick }) {
   `;
 }
 
-/** The restart mark, a fresh element for each place that draws it. */
-export const restartMark = () => html`<span class="rs">↻</span>`;
+/** The restart mark's hover tips: on a setting's head, and on anything else that restarts the engine. */
+const TIP = {
+  setting: "Applying this setting restarts the engine",
+  other: "This restarts the engine",
+};
+
+/**
+ * The restart mark, a fresh element for each place that draws it, with the tip for a setting's head or for anything
+ * else.
+ *
+ * @param {boolean} [setting]  whether the mark sits on a setting's head
+ */
+export const restartMark = (setting = false) =>
+  html`<span class="rs" title=${setting ? TIP.setting : TIP.other}>↻</span>`;
+
+/**
+ * A setting head's restart mark where `restarts` holds; nothing where it does not.
+ *
+ * @param {boolean} restarts
+ */
+export const restartMarkIf = (restarts) => (restarts ? restartMark(true) : null);
 
 /**
  * What a label head draws beside its label, every part optional.
@@ -75,9 +94,9 @@ export const restartMark = () => html`<span class="rs">↻</span>`;
  * @param {string} label
  * @param {HeadOpts} [opts]
  */
-export const labelHead = (label, { sub, band, tail, restarts } = {}) => html`
+export const labelHead = (label, { sub, band, tail, restarts = false } = {}) => html`
   <div class="fh">
-    <b>${label}</b>${restarts ? restartMark() : null}${sub ? html`<span class="s">${sub}</span>` : null}
+    <b>${label}</b>${restartMarkIf(restarts)}${sub ? html`<span class="s">${sub}</span>` : null}
     ${band ? html`<span class="band">${band.toUpperCase()}</span>` : null}${tail ?? null}
   </div>
 `;

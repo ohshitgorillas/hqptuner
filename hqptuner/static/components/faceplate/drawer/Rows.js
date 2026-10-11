@@ -11,7 +11,7 @@ import { describe } from "../../../store/prose.js";
 import { isDirty } from "../../../store/resolve.js";
 import { grayReason } from "../../../store/ui/graying.js";
 import { setControl } from "../../../store/actions.js";
-import { groupShown, restartLane, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
+import { formRestarts, groupShown, restartLane, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
 import { alertsNow } from "../../../store/faceplate/alerts.js";
 import { worseBlink } from "../../../model/shell/alerts.js";
 import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
@@ -189,7 +189,7 @@ function block(schema, it, blocks, here) {
 export function item(schema, it, blocks, tab) {
   const here = { drawer: schema.id, tab };
   if ("row" in it) return row(it.row, here);
-  if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field, here);
+  if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field, here, formRestarts(schema));
   if ("choice" in it) return choice(it.choice, here);
   if ("head" in it) return secHead(it.head, "msec");
   if ("note" in it) return html`<p class="mnote">${noteLine(it.note())}</p>`;

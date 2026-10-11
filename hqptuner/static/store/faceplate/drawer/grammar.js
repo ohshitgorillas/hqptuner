@@ -73,7 +73,8 @@ import { rowOptions, rowValue } from "./rows.js";
  */
 
 /**
- * Vertical radio lines spanning the row.
+ * Vertical radio lines spanning the row. The choice's header carries the restart mark when a key `pick` writes or a
+ * line's detail key restarts the engine; its lines carry none.
  *
  * @typedef {object} ChoiceSpec
  * @property {string} id  unique in its drawer
@@ -81,6 +82,7 @@ import { rowOptions, rowValue } from "./rows.js";
  * @property {string[]} man  the choice's paragraphs
  * @property {() => string} value  the line picked now
  * @property {(v: string) => unknown} pick  picks a line; tapping the picked one does not call it
+ * @property {string[]} [writes]  the catalog keys `pick` writes
  * @property {ChoiceLine[]} lines
  */
 

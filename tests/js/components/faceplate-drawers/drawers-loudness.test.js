@@ -2,6 +2,13 @@
 // Bass | Treble switch with the shown side's four rows, the dot a hidden side's staged edit puts on the switch, what
 // grays while loudness cannot act, the writes its controls make, the bounds boxes and the plot's applied figure.
 //
+// The restart mark: every loudness setting is a /matrix form field the engine reloads for
+// (docs/spec/settings-classification.md), so each band row on the shown side carries the mark on its head, the bounds
+// block carries one on its shared header with its boxes bare, and nothing else the block draws carries one, the
+// playback readout included. The mark is found by its one style, the `rs` class token, and placed by markup position:
+// a head is the run of markup from the end of the control before it to the end of its own control, so no copy and no
+// layout is named.
+//
 // Renders through preact-render-to-string; a click is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. The store is driven at the wire by the staging fake, the /matrix form in
 // `matrixConfig`, the engine's reported volume in `volume`. Controls are found by schema key (`data-k`), option value
@@ -24,7 +31,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, elements } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -111,4 +118,52 @@ test("test_the_bounds_boxes_hold_the_staged_bounds", async () => {
     return el ? attr(el, "value") : undefined;
   };
   assert.deepEqual([box("loudness_range_low"), box("loudness_range_high")], ["-50", "-20"]);
+});
+
+/** The restart mark's one style, shared by every surface that carries it. */
+const MARK = "rs";
+
+/** The shown (low) side's band settings, each a restart setting with a row of its own. */
+const BAND = ["loudness_low_level", "loudness_low_freq", "loudness_low_steep", "loudness_low_type"];
+
+/** The bounds block's two settings, sharing one header. */
+const RANGE = ["loudness_range_low", "loudness_range_high"];
+
+/** @param {MarkupElement} e */
+const end = (e) => e.start + e.html.length;
+
+/** @param {MarkupElement} inner @param {MarkupElement} outer */
+const within = (inner, outer) => inner.start >= outer.start && end(inner) <= end(outer);
+
+/**
+ * Whether the head of the control for `keys` carries the restart mark, or null when no control for them is drawn.
+ * The control is the outermost wire-identified element (`data-k` or `data-v`) enclosing the first element keyed to
+ * any of `keys`; its head runs from the end of the outermost wire-identified element before it to its own end.
+ *
+ * @param {MarkupElement[]} all
+ * @param {string[]} keys
+ * @returns {boolean | null}
+ */
+function headMarked(all, keys) {
+  const keyed = all.filter((e) => keys.includes(attr(e, "data-k") ?? "")).sort((a, b) => a.start - b.start)[0];
+  if (!keyed) return null;
+  const wired = all.filter((e) => attr(e, "data-k") !== undefined || attr(e, "data-v") !== undefined);
+  const top = wired.filter((e) => !wired.some((o) => o !== e && within(e, o)));
+  const own = top.find((e) => within(keyed, e)) ?? keyed;
+  const from = Math.max(0, ...top.filter((e) => end(e) <= own.start).map(end));
+  return all.some((e) => classes(e).includes(MARK) && e.start >= from && end(e) <= end(own));
+}
+
+for (const key of BAND) {
+  test(`test_the_${key}_row_carries_the_restart_mark_before_any_edit`, () => {
+    assert.equal(headMarked(markup(), [key]), true);
+  });
+}
+
+test("test_the_bounds_block_carries_the_restart_mark_on_its_header_before_any_edit", () => {
+  assert.equal(headMarked(markup(), RANGE), true);
+});
+
+test("test_only_the_band_rows_and_the_bounds_header_carry_the_restart_mark", () => {
+  assert.equal(markup().filter((e) => classes(e).includes(MARK)).length, BAND.length + 1);
 });

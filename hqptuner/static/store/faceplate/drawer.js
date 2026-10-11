@@ -213,6 +213,14 @@ function family(drawer) {
 }
 
 /**
+ * Whether a drawer's own form restarts the engine on apply, which marks the head of every control the form applies.
+ * Every own form does; a drawer without one restarts only by its keys' lanes.
+ *
+ * @param {DrawerSchema} drawer
+ */
+export const formRestarts = (drawer) => !!drawer.own;
+
+/**
  * What a drawer's head shows with `tabId` open.
  *
  * @param {DrawerSchema} drawer
@@ -223,7 +231,7 @@ export function drawerHead(drawer, tabId) {
   const dirty = dirtyTabs(drawer);
   const tab = drawer.tabs.find((t) => t.id === tabId) ?? drawer.tabs[0];
   const staged = drawer.own ? drawer.own.staged() : isStaged(holdsStaged(drawer), family(drawer));
-  const restart = !!drawer.own || shownKeys(drawer, tab).some(restartLane);
+  const restart = formRestarts(drawer) || shownKeys(drawer, tab).some(restartLane);
   return {
     dirty,
     titleDot: drawer.tabs.length === 1 && dirty.length > 0,

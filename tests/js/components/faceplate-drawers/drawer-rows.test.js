@@ -2,7 +2,8 @@
 // sublabel, band tag and hint, the option list it draws under itself with every option's line, the picked option's line
 // a select prints full width, a row left out by its `when`, a row's own options, the widgets drawn as a select, a
 // number box or a text box, and the restart mark a row whose setting restarts the engine carries from the moment the
-// drawer is drawn, before any edit, where a row whose setting applies live carries none.
+// drawer is drawn, before any edit, where a row whose setting applies live carries none, and the hover tip that mark
+// carries on itself, its `title`, whose words are the owner's copy and are never read.
 //
 // Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
@@ -60,6 +61,9 @@ const FIELDS = [
 
 /** The restart mark's one style, shared by every surface that carries it. */
 const MARK = "rs";
+
+/** The attribute that carries a hover tip on this plate. */
+const TIP = "title";
 
 /** Restart-lane keys. */
 const RANGE_MAX = "volume_max";
@@ -269,4 +273,23 @@ test("test_an_unedited_restart_row_carries_the_mark_and_a_live_setter_row_carrie
 test("test_an_unedited_restart_row_carries_the_mark_and_an_http_field_routed_live_carries_none", () => {
   const schema = rowsOf({ key: QUICK_PAUSE }, { key: OUTPUT_MODE });
   assert.deepEqual([marked(schema, QUICK_PAUSE), marked(schema, OUTPUT_MODE)], [true, false]);
+});
+
+/**
+ * Whether each restart mark a row draws carries a hover tip of its own: a non-empty `title` on the mark itself, not on
+ * the label or row around it. The tip's words are the owner's copy and are not read.
+ *
+ * @param {DrawerSchema} schema
+ * @param {string} key
+ * @returns {boolean[]}
+ */
+function markTips(schema, key) {
+  return inRow(schema, key)
+    .filter((e) => classes(e).includes(MARK))
+    .map((e) => (attr(e, TIP) ?? "") !== "");
+}
+
+test("test_the_restart_mark_on_every_restart_row_carries_a_hover_tip", () => {
+  const schema = rowsOf({ key: RANGE_MAX }, { key: QUICK_PAUSE }, { key: ADAPTIVE });
+  assert.deepEqual([markTips(schema, RANGE_MAX), markTips(schema, QUICK_PAUSE)], [[true], [true]]);
 });

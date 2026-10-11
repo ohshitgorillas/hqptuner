@@ -12,9 +12,11 @@ import { chainResponse } from "../../../../vendor/eqlab/core/dsp/chain.js";
 import { schema as catalog } from "../../../../store/schema.js";
 import { describe } from "../../../../store/prose.js";
 import { edit } from "../../../../store/actions.js";
-import { rowOptions, rowValue } from "../../../../store/faceplate/drawer.js";
+import { PIPELINE_WRITES } from "../../../../store/xfeed/mode.js";
+import { restartLane, rowOptions, rowValue } from "../../../../store/faceplate/drawer.js";
 import { formBounds } from "../../../../store/faceplate/drawers/loudness.js";
 import { commitComp, compView, dragComp } from "../../../../store/faceplate/drawers/crossfeed/comp.js";
+import { restartMarkIf } from "../../drawer/controls.js";
 import { ManPara, NumBox, Seg } from "../loudness/parts.js";
 import { RespPlot } from "../loudness/RespPlot.js";
 import { Slider } from "./Slider.js";
@@ -40,7 +42,7 @@ function Custom({ k, disabled }) {
   const m = meta(k);
   return html`
     <label class="ci">
-      <span class="cl">${catalog[k]?.label ?? k}</span>
+      <span class="cl">${catalog[k]?.label ?? k}${restartMarkIf(restartLane(k))}</span>
       <${NumBox}
         k=${k}
         aria=${m.label}
@@ -60,7 +62,7 @@ export function BauerControls({ live }) {
   return html`
     <div class=${live.linesGrayed ? "xctl grayed" : "xctl"}>
       <div class="ci">
-        <span class="cl">${catalog.crossfeed_preset.label}</span>
+        <span class="cl">${catalog.crossfeed_preset.label}${restartMarkIf(restartLane("crossfeed_preset"))}</span>
         <${Seg}
           aria=${meta("crossfeed_preset").label}
           options=${rowOptions("crossfeed_preset")}
@@ -76,6 +78,7 @@ export function BauerControls({ live }) {
       <div class="ci">
         <${Slider}
           label=${LABEL.comp}
+          restarts=${PIPELINE_WRITES.some(restartLane)}
           min=${0}
           max=${150}
           step=${1}

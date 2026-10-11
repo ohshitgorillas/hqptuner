@@ -16,8 +16,17 @@ import {
 } from "../../../../model/gauges/range-axis.js";
 import { schema as catalog } from "../../../../store/schema.js";
 import { describe } from "../../../../store/prose.js";
-import { AXIS, dropBound, loudnessBar, moveBound, typeBound } from "../../../../store/faceplate/drawers/loudness.js";
+import {
+  AXIS,
+  boundKey,
+  dropBound,
+  loudnessBar,
+  moveBound,
+  typeBound,
+} from "../../../../store/faceplate/drawers/loudness.js";
+import { restartLane } from "../../../../store/faceplate/drawer.js";
 import { pointerIn, useBox } from "./parts.js";
+import { labelHead } from "../../drawer/controls.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/loudness.js").Side} Side */
 /** @typedef {PointerEvent & { currentTarget: Element }} BarEvent */
@@ -32,6 +41,9 @@ const LABELS = new Map([
   [0, "0 dBFS"],
 ]);
 const MARKS = tickMarks(ticksEvery(AXIS.min, AXIS.max, 10), LABELS, []);
+
+/** The keys the range writes, whose lanes decide the restart mark on its header. */
+const BOUND_KEYS = [boundKey("low"), boundKey("high")];
 
 /** The key glyphs beside the boxes, named where each mark is typed. */
 const GLYPH = {
@@ -93,7 +105,7 @@ function Marks({ W, m }) {
  * @param {{ k: Side, value: number, other: number, disabled: boolean }} props
  */
 function Bound({ k, value, other, disabled }) {
-  const key = `loudness_range_${k}`;
+  const key = boundKey(k);
   const entry = catalog[key];
   return html`
     <div class="lbound">
@@ -121,6 +133,20 @@ function Bound({ k, value, other, disabled }) {
 }
 
 /**
+ * The playback readout parked at the end of the range's head line, empty while nothing plays.
+ *
+ * @param {number | null} needle
+ */
+const playback = (needle) => html`
+  <div class="vrbox lpb">
+    <${Key} kind="needle" />
+    <span class="cl">Playback</span>
+    <output class="vfd ro live" aria-label="Playback volume">${needle === null ? "" : signed(needle, 1)}</output>
+    <span class="u">dB</span>
+  </div>
+`;
+
+/**
  * The range: head line with the playback readout, the bar in its well, then each bound's box.
  *
  * @param {{ grayed: boolean }} props
@@ -142,15 +168,7 @@ export function RangeBar({ grayed }) {
   const move = (e) => (m.active ? moveBound(m.active, valueAt(e)) : undefined);
   return html`
     <div class=${grayed ? "lrange grayed" : "lrange"}>
-      <div class="fh lrh">
-        <b>Range</b>
-        <div class="vrbox lpb">
-          <${Key} kind="needle" />
-          <span class="cl">Playback</span>
-          <output class="vfd ro live" aria-label="Playback volume">${m.needle === null ? "" : signed(m.needle, 1)}</output>
-          <span class="u">dB</span>
-        </div>
-      </div>
+      ${labelHead("Range", { restarts: BOUND_KEYS.some(restartLane), tail: playback(m.needle) })}
       <div class="vrwell" ref=${ref}>
         <svg
           class="vrbar lrbar"

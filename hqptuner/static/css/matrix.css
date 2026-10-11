@@ -86,9 +86,9 @@
 :is(#drawer-matrix,#pb-drawer-matrix) .drow{grid-template-columns:var(--drow-col-cpu) minmax(0,1fr)}
 :is(#drawer-matrix,#pb-drawer-matrix) .optrow{grid-template-columns:var(--row-key-w) minmax(0,1fr)}
 :is(#drawer-loudness,#pb-drawer-loudness) .drow{grid-template-columns:var(--drow-col-gpu) minmax(0,1fr)}
-.lrh{justify-content:space-between;align-items:center}
-.lrh .lpb .ro{height:var(--ro-h);font-size:var(--fs-4);width:var(--ro-w)}
-.lrh .lpb .cl{font-size:var(--fs-cl)}
+.lrange > .fh{justify-content:space-between;align-items:center}
+.lrange > .fh .lpb .ro{height:var(--ro-h);font-size:var(--fs-4);width:var(--ro-w)}
+.lrange > .fh .lpb .cl{font-size:var(--fs-cl)}
 /* …and its rhythm tightened a step (rows, option lines) so all four settings and every option fit without scrolling. */
 :is(#drawer-matrix,#pb-drawer-matrix) .drow{padding:var(--sp-3) 0}
 :is(#drawer-matrix,#pb-drawer-matrix) .drow .man{line-height:1.42}

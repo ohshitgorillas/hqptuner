@@ -40,8 +40,8 @@ export const PARAMS = ["type", "freq", "steep", "level"];
  */
 export const bandKey = (side, param) => `loudness_${side}_${param}`;
 
-/** @param {Side} side */
-const boundKey = (side) => `loudness_range_${side}`;
+/** A bound's catalog key. @param {Side} side */
+export const boundKey = (side) => `loudness_range_${side}`;
 
 /** The bound being dragged and where it is now, or null. */
 const draft = signal(/** @type {{ key: Side, value: number } | null} */ (null));

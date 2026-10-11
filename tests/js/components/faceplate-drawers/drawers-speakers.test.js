@@ -3,11 +3,15 @@
 // tests/js/store/faceplate/drawers-speakers.test.js; this suite pins what the block draws from them: one row of two
 // boxes per channel of the picked set, holding the draft's values and writing back to it, the room plan with a speaker
 // per shown channel at its drafted distance, none for a channel with no distance or level drafted, the level boxes disabled with the Direct SDM line under the rows while the
-// running Direct SDM is on, and every control disabled while an apply is in flight.
+// running Direct SDM is on, every control disabled while an apply is in flight, and the restart mark from the moment
+// the drawer is drawn: on every channel row, whose level and distance the form applies and the engine reloads for, and
+// never on the set's head, since the set is a browser preference that never stages.
 //
 // The wire is the seam: each case writes the daemon's /speakers form into `speakers` and the running direct_sdm into
 // `config`. A box's change handler is reached through preact's own `options.vnode` hook
-// (tests/js/support/vnodeseam.js).
+// (tests/js/support/vnodeseam.js). A channel row is found by its `sprow` class, the set's head as the smallest element
+// enclosing the set select, which is found by its option values, the set ids; the restart mark by its one style, the
+// `rs` class token.
 //
 // Not reachable here: the form's first read, which runs in an effect that server rendering never fires. A browser run
 // closes it.
@@ -19,6 +23,7 @@ import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SpeakersBody } from "../../../../hqptuner/static/components/faceplate/drawers/Speakers.js";
+import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { speakers, speakersBusy, speakersError } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import {
@@ -68,7 +73,11 @@ const UNSET_FORM = formAt(LABELS.map(() => UNSET_CM));
 
 const FIRST = SETS[0];
 const LAST = SETS[SETS.length - 1];
-const SCHEMA = { id: "speakers", title: "", aria: "", tabs: [] };
+//: The drawer schema the block sits in; its own form is what the restart mark derives from.
+const SCHEMA = SPEAKERS_DRAWER;
+
+/** The restart mark's one style, shared by every surface that carries it. */
+const MARK = "rs";
 
 /** @param {{ direct?: boolean, busy?: boolean, form?: ReturnType<typeof formAt> }} [s] */
 function reset({ direct = false, busy = false, form = FORM } = {}) {
@@ -177,6 +186,42 @@ test("test_an_apply_in_flight_disables_every_control", () => {
   reset({ busy: true });
   const busy = all().filter((e) => ["input", "select"].includes(e.name) && hasAttr(e, "disabled")).length;
   assert.deepEqual([live, busy], [0, FIRST.channels.length * 2 + 1]);
+});
+
+// --- the restart mark -------------------------------------------------------------------------------------------
+
+/**
+ * Whether `inner` lies inside `outer`.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const within = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/** @param {MarkupElement} el  whether the element's markup holds the restart mark */
+const holdsMark = (el) => elements(el.html).some((e) => classes(e).includes(MARK));
+
+/**
+ * Whether the head around the set select carries the restart mark, or null when no set select is drawn.
+ *
+ * @returns {boolean | null}
+ */
+function setHeadMarked() {
+  const drawn = all();
+  const select = drawn.find(
+    (e) => e.name === "select" && elements(e.html).some((o) => o.name === "option" && attr(o, "value") === FIRST.id),
+  );
+  if (!select) return null;
+  const head = drawn
+    .filter((e) => within(select, e) && e.html.length > select.html.length)
+    .sort((a, b) => a.html.length - b.html.length)[0];
+  return head ? holdsMark(head) : null;
+}
+
+test("test_every_unedited_channel_row_carries_the_restart_mark_and_the_set_head_carries_none", () => {
+  reset();
+  assert.deepEqual([withClass("sprow").map(holdsMark), setHeadMarked()], [FIRST.channels.map(() => true), false]);
 });
 
 // --- the room plan -----------------------------------------------------------------------------------------------

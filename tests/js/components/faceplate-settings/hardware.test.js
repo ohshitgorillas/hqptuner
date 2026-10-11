@@ -2,11 +2,14 @@
 // schema drawn by the generic drawer, and its rail readouts. The form is store/faceplate/settings/hardware.js's, pinned
 // in its own suite; this suite pins the wiring: each tab draws its fields and blocks in order, a field lights the
 // drafted value and drafts a tap, an edit lights the drawer's own apply group and a discard clears it, the
-// all-stations field on both tabs moves together, and the readouts print the engine's values, never the draft's.
+// all-stations field on both tabs moves together, every field's head carries the restart mark from the moment the drawer
+// is drawn, since the form restarts the engine when applied, and the readouts print the engine's values, never the
+// draft's.
 //
 // The wire is the seam: `GET /api/engine` answers the engine table a case hands the fake. Readout text is never
 // asserted as a literal: a seg readout is held to the label the drawer's own field gives the engine's value, the block
 // count to the number the engine reported, and a zero count to what a slider readout with an automatic zero prints.
+// Field rows are found by their `data-field` id, the restart mark by its one style, the `rs` class token.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/hardware.test.js
 
@@ -139,6 +142,31 @@ test("test_all_stations_on_the_gpu_tab_lights_it_on_the_cpu_tab", () => {
   fieldOf("gpu", "hwallgpu")?.set("0");
   assert.deepEqual([before, litOf("hwallcpu")], ["1", "0"]);
 });
+
+// --- the restart mark -------------------------------------------------------------------------------------------
+
+/** The restart mark's one style, shared by every surface that carries it. */
+const MARK = "rs";
+
+//: Every field the drawer draws, by its id, on both tabs.
+const FIELD_IDS = ["multicore", "ecores", "hwallcpu", "cuda", "hwallgpu"];
+
+/**
+ * Whether the row drawn for a field carries the restart mark, or null when the row is not drawn.
+ *
+ * @param {string} id
+ * @returns {boolean | null}
+ */
+function markedField(id) {
+  const row = all().find((e) => attr(e, "data-field") === id);
+  return row ? elements(row.html).some((e) => classes(e).includes(MARK)) : null;
+}
+
+for (const id of FIELD_IDS) {
+  test(`test_the_unedited_${id}_field_head_carries_the_restart_mark`, () => {
+    assert.equal(markedField(id), true);
+  });
+}
 
 // --- the readouts ------------------------------------------------------------------------------------------------
 
