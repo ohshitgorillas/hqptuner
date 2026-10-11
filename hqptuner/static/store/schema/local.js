@@ -56,7 +56,7 @@ const VISUAL_MAN = {
     "The format the plate is laid out at. Auto picks the largest of the three that fits the screen: Expanded suits 13-inch tablets, Normal 11-inch, and Compact an iPad Mini and other small tablets.",
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
-  apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected events", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
+  apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',
   fill: "What the top of the page shows. Auto shows both: the Source spectrum, with the matrix profile picker on one line above it. Matrix profile shows the matrix engine at full size, with its response plot; Spectrum shows the spectrum alone. With the matrix engine bypassed, the spectrum shows either way.",
   bottom:
     "Show the Setting Switcher for easy A/B comparisons (pick Volume from its dropdown for a volume slider), or hide the bottom bar entirely.",
@@ -227,7 +227,7 @@ const VAPOD = {
   man: [VISUAL_MAN.apod],
   options: [
     { value: "all", label: "All events" },
-    { value: "uncorrected", label: "Uncorrected events" },
+    { value: "uncorrected", label: "Uncorrected" },
   ],
   value: () => apodLight.value,
   set: setApodLight,
