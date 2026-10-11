@@ -1,10 +1,12 @@
 /* Stage drawer: a sheet out of the rail's right edge, over the page only.
    Rail, header, engine row and Setting Switcher stay in view. Tabs = the parts of one stage.
    Every drawer setting is restart-lane, so it stages (dirty dot on its tab).
-   left = rail + rail gap + rule, so the drawer starts at the rule's right edge. */
+   left = rail + rail gap + rule, so the drawer starts at the rule's right edge.
+   The wipe moves only the clip's right edge. Open, the other three edges reach one drawer past the box, so a popover
+   inside shows whole over the header, rail or Setting Switcher; its right edge stays put, where popovers already stop. */
 .drawer{position:absolute;top:0;bottom:0;left:calc(var(--body-rail) + var(--rail-gap) + var(--hair));right:0;z-index:4;display:flex;flex-direction:column;
   background:linear-gradient(180deg,var(--panel-hi),var(--panel-lo));border-left:var(--hair) solid var(--line-2);box-shadow:inset var(--hair) 0 0 var(--highlight-lo);
-  clip-path:inset(0 0 0 0);transition:clip-path var(--wipe)}
+  clip-path:inset(-100% 0 -100% -100%);transition:clip-path var(--wipe)}
 .drawer[data-closed]{clip-path:inset(0 100% 0 0);pointer-events:none}
 .drawer.snap{transition:none}   /* closing because another drawer opens (or the body swaps): no second wipe */
 @media (prefers-reduced-motion:reduce){.drawer{transition:none}}

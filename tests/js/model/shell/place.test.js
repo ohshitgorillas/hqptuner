@@ -251,3 +251,30 @@ for (const row of TOPS) {
     assert.equal(placed(row).top, row.want);
   });
 }
+
+/** The plate's top edge, in plate px. */
+const PLATE_TOP = 0;
+
+/** @type {Row[]} */
+const TALL_FLIPS = [
+  {
+    name: "a_tall_flip_panel_near_the_plate_top_is_not_pushed_off_the_top",
+    anchor: { left: 0, top: 200, width: 40, height: 30 },
+    panel: { w: 300, h: 700 },
+    at: FLIP,
+    want: PLATE_TOP,
+  },
+  {
+    name: "a_flip_panel_as_tall_as_the_room_is_not_pushed_off_the_top",
+    anchor: { left: 0, top: 40, width: 40, height: 30 },
+    panel: { w: 300, h: PLATE.h - FOOT },
+    at: FLIP,
+    want: PLATE_TOP,
+  },
+];
+
+for (const row of TALL_FLIPS) {
+  test(`test_${row.name}`, () => {
+    assert.ok(placed(row).top >= row.want);
+  });
+}
