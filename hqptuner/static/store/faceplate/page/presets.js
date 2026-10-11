@@ -1,7 +1,6 @@
 // The Filter presets popover's rows: the Easy Mode table (store/easy/easy.js) in the owner's order, on the live lane.
 // Each row says what pressing it writes and what that costs: its filters, its knobs, its error-correction mark and its
-// pips, whether the engine's current state offers it and whether the card's material grays it, and whether it is the
-// preset running now.
+// pips, whether the engine's current state offers it, and whether it is the preset running now.
 //
 // A subset preset is one with a version knob, a knob whose every position names another preset: Concert Hall and The
 // Crucible, the flagships taken further. It draws no row of its own. It nests under each flagship its version knob
@@ -12,7 +11,7 @@
 import { signal } from "@preact/signals";
 import { easyProse, paragraphs } from "../../prose.js";
 import { filterFor, matchPreset, presetsFor } from "../../easy/easy.js";
-import { cardPositions, knobsOffered, presetGrayed, presetOffered } from "../../easy/easyoffer.js";
+import { knobsOffered, presetOffered } from "../../easy/easyoffer.js";
 import { pipsFor } from "../../easy/easycost.js";
 import { easyLane } from "../../easy/easylane.js";
 import { knobsFor } from "../../easy/easyview.js";
@@ -63,7 +62,7 @@ import { applyPreset, markFor } from "../../easy/apply.js";
  * @property {"full" | "half" | "none" | ""} mark  "" when nothing is known about the filter
  * @property {number} pips
  * @property {string} costWord  the caption standing in for pips, "" where pips count
- * @property {boolean} grayed
+ * @property {boolean} grayed  false on every row: the section offers every preset it shows
  * @property {boolean} current  the preset, at these positions, is what the engine runs
  * @property {boolean} open  a flagship whose nested rows show
  * @property {PresetRow[]} subs  a flagship's nested rows, empty on every other row
@@ -97,19 +96,15 @@ const versionKnob = (preset, ids) => preset.knobs.find((k) => k.options.every((o
 
 /**
  * Where a preset's knobs stand when it is not the running one: the position recorded for it, else each knob's default,
- * the card's knobs at the card's positions.
+ * the card's knobs at their defaults.
  *
  * @param {Preset} preset
  * @returns {Record<string, string>}
  */
 function resting(preset) {
   const kept = knobsFor(preset.id);
-  const card = cardPositions();
   return Object.fromEntries(
-    preset.knobs.map((k) => {
-      if (k.card) return [k.id, card[k.id]];
-      return [k.id, k.options.includes(kept[k.id]) ? kept[k.id] : k.default];
-    }),
+    preset.knobs.map((k) => [k.id, !k.card && k.options.includes(kept[k.id]) ? kept[k.id] : k.default]),
   );
 }
 
@@ -229,7 +224,7 @@ function rowOf(preset, nest, pass) {
     mark: markFor(preset.id, at) || "",
     pips,
     costWord: preset.costText && pips === 0 ? easyProse(preset.id, "cost") : "",
-    grayed: presetGrayed(preset, pass.mode),
+    grayed: false,
     current: isRunning(preset, nest, pass),
     open: false,
     subs: [],

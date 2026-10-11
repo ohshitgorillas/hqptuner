@@ -25,9 +25,9 @@ import { filterFacets } from "../narrow/facets.js";
  */
 export async function applyPreset(preset, knobs) {
   // Recorded before the write, not after: the positions are what the user asked
-  // for, and a write that resolves no filter name still leaves the tile showing
+  // for, and a write that resolves no filter name leaves the tile showing
   // where they put its knobs. Unconditional, so a press that writes nothing
-  // still moves the record. The card's knobs are the card's, so the record
+  // moves the record. A card knob belongs to no tile, so the record
   // keeps the tile's own.
   const own = Object.fromEntries(
     Object.entries(knobs).filter(([id]) => !preset.knobs.some((k) => k.card && k.id === id)),

@@ -80,7 +80,6 @@ function knob(row, k) {
             class=${o.value === k.value ? "on" : undefined}
             data-v=${o.value}
             title=${o.tip || undefined}
-            disabled=${row.grayed}
             onClick=${() => (o.value === k.value ? undefined : pickPreset(row.id, { ...row.at, [k.id]: o.value }))}
           >
             ${o.label}
@@ -96,7 +95,7 @@ function knob(row, k) {
  * @param {PresetRow} row
  */
 const pick = (row) =>
-  html`<button type="button" class="pick" disabled=${row.grayed} onClick=${() => pickPreset(row.id, row.at)}>
+  html`<button type="button" class="pick" onClick=${() => pickPreset(row.id, row.at)}>
     <span class=${row.current ? "lamp on" : "lamp"}></span>
     <span class="em" aria-hidden="true">${row.emoji}</span>
     <span class="pn">${row.title}${row.hires && html`<span class="hires" title=${HIRES_TIP}>${HIRES_LABEL}</span>`}</span>
@@ -115,7 +114,6 @@ const presetRow = (row, first = false, names = "") =>
     class=${classNames("frow", row.under && "sub", row.current && "cur", first && "first", row.open && "opened")}
     data-preset=${row.id}
     data-lane=${row.under || undefined}
-    data-grayed=${row.grayed ? "1" : undefined}
   >
     ${pick(row)}
     <span class="fl">

@@ -18,7 +18,7 @@
  * @property {string[]} options
  * @property {Record<string, string>} [when] sibling positions required for this knob to be offered
  * @property {boolean} [whenHires] offered only while the filter the tile names is a hi-res one
- * @property {boolean} [card] set once on the card rather than on each tile; its position reaches every tile that takes it
+ * @property {boolean} [card] offered on no tile: it rests at its default, and stands elsewhere only where the running filters match another of its positions
  * @property {boolean} [inert] a VIEW fact, never declared in the table: the tile shows this knob but will not take a move (store/easy/easyoffer.js)
  *
  * @typedef {object} Preset
@@ -57,9 +57,9 @@ const EMPHASIS_HIRES = { ...EMPHASIS, whenHires: true };
 
 // Lossy material is a knob rather than a tile of its own: the lossy filters are
 // the same presets aimed at material damaged by its encoder rather than by its
-// mastering. Lossless rests, because most material is lossless. A CARD knob: the
-// source is a fact about what is playing, not about a preset, so it is set once
-// on the card (store/easy/easyview.js) and every tile that takes it follows.
+// mastering. Lossless rests, because most material is lossless. A CARD knob: no
+// control moves it, so every tile that takes it rests at Lossless, and it reads
+// Lossy only where the filters the engine runs match a lossy row.
 //
 // On the flagships the knob picks how the two fields are filled. Lossless puts
 // the standard filter on 1x and the hi-res filter on Nx, so the engine takes

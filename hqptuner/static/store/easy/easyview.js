@@ -15,7 +15,6 @@
 import { signal } from "@preact/signals";
 
 const K_KNOBS = "hqptuner.easyKnobs";
-const K_MATERIAL = "hqptuner.easyMaterial";
 
 /**
  * @param {string} key
@@ -40,24 +39,6 @@ function write(key, value) {
   } catch {
     /* storage disabled — the in-memory value drives the session */
   }
-}
-
-// The card's one knob: what material is playing. A fact about the source, not
-// about a preset, so it is held once here rather than per tile, and remembered
-// the way the mode is — the same person plays the same library next time.
-// Nothing here is written to a field: moving it changes what the tiles name and
-// what a press writes, and the press is still the write.
-/** The card's material position: "lossless" (default) or "lossy". */
-export const easyMaterial = signal(read(K_MATERIAL) || "lossless");
-
-/**
- * Set the card's material position, and remember it for next time.
- * @param {string} value
- * @returns {void}
- */
-export function setEasyMaterial(value) {
-  easyMaterial.value = value;
-  write(K_MATERIAL, value);
 }
 
 // Where each preset's knobs were left. A tile's knob positions are otherwise

@@ -27,7 +27,6 @@ const { elements, classes, attr, hasAttr } = await import("../../support/markup.
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 const { knobsOffered } = await import("../../../../hqptuner/static/store/easy/easyoffer.js");
-const { setEasyMaterial } = await import("../../../../hqptuner/static/store/easy/easyview.js");
 const { openPopover } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { presetRows, showSubsets, foldSubsets } =
   await import("../../../../hqptuner/static/store/faceplate/page/presets.js");
@@ -293,20 +292,6 @@ test("test_only_the_rows_of_hi_res_presets_wear_the_hi_res_badge", async () => {
     ),
     Object.fromEntries(TOP.map((p) => [p.id, !!p.hires])),
   );
-});
-
-test("test_a_grayed_rows_pick_is_disabled_and_no_other", async () => {
-  await live();
-  const card = PRESETS.flatMap((p) => p.knobs).find((k) => k.card);
-  setEasyMaterial(String(card?.options.find((o) => o !== card.default)));
-  const picks = Object.fromEntries(
-    topRows(drawn().out).map((e) => {
-      const pick = elements(e.html).find((x) => x.name === "button" && is(x, "pick"));
-      return [attr(e, "data-preset"), !!pick && hasAttr(pick, "disabled")];
-    }),
-  );
-  const store = presetRows();
-  assert.deepEqual(picks, Object.fromEntries(TOP.map((p) => [p.id, store.find((r) => r.id === p.id)?.grayed])));
 });
 
 // ============================================================================
