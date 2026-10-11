@@ -12,7 +12,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Faceplate } from "../../../../hqptuner/static/app.js";
-import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes } from "../../support/markup.js";
 
 beforeEach(() => {

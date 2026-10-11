@@ -14,7 +14,7 @@ import { loadedChain } from "../../live/rates.js";
 import { liveUnsettled } from "../../live/state.js";
 import { writeLive } from "../../live/write.js";
 import { playbackPath, runningChain } from "../path.js";
-import { plate } from "../view.js";
+import { plate } from "../plate.js";
 import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/conversion.js";
 
 /**

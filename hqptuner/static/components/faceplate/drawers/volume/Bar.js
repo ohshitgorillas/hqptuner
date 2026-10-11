@@ -19,7 +19,7 @@ import {
   ticksEvery,
 } from "../../../../model/gauges/range-axis.js";
 import { signed } from "../../../../model/shell/format.js";
-import { plate } from "../../../../store/faceplate/view.js";
+import { plate } from "../../../../store/faceplate/plate.js";
 import { moveVolumeHandle, RANGE_KEYS } from "../../../../store/faceplate/drawers/volume.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/volume.js").VolumeKey} VolumeKey */

@@ -28,7 +28,8 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, elements } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";

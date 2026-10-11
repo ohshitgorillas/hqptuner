@@ -18,7 +18,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Page } from "../../../../hqptuner/static/components/faceplate/Page.js";
 import { matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { topOfPage, allowPinnedRates } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, PCM_4X } from "../../support/shaperfit-fixtures.js";
 

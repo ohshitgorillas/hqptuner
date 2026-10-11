@@ -5,7 +5,8 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
-import { openPopover, togglePopover, plate } from "../../store/faceplate/view.js";
+import { openPopover, togglePopover } from "../../store/faceplate/view.js";
+import { plate } from "../../store/faceplate/plate.js";
 
 /** @typedef {import("../../model/shell/place.js").Side} Side */
 /** @typedef {import("../../model/shell/place.js").Margin} Margin */

@@ -11,7 +11,8 @@ import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { railBreak, railLamp, railNow, railStages, railValue } from "../../store/faceplate/chain.js";
 import { transportNow } from "../../store/faceplate/path.js";
-import { openStage, toggleStage, plate } from "../../store/faceplate/view.js";
+import { openStage, toggleStage } from "../../store/faceplate/view.js";
+import { plate } from "../../store/faceplate/plate.js";
 import { lampDots, wirePath } from "../../model/gauges/wire.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
 

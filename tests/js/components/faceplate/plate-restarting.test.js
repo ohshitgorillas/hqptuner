@@ -13,7 +13,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Plate } from "../../../../hqptuner/static/components/faceplate/Plate.js";
 import { engineRestarting } from "../../../../hqptuner/static/store/enginewrite.js";
-import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, classes, hasAttr } from "../../support/markup.js";
 
 const DESIGN_SIZE = { w: 1080, h: 810 };

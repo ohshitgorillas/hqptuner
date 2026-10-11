@@ -3,7 +3,7 @@
 
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { plate } from "../../store/faceplate/view.js";
+import { plate } from "../../store/faceplate/plate.js";
 import {
   panelOpen,
   discovering,

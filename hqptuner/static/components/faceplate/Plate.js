@@ -4,7 +4,8 @@
 
 import { useEffect } from "preact/hooks";
 import { html } from "../../lib/dom.js";
-import { plate, viewport, closeTop, closeOutside } from "../../store/faceplate/view.js";
+import { closeTop, closeOutside } from "../../store/faceplate/view.js";
+import { plate, viewport } from "../../store/faceplate/plate.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
 import { engineRestarting } from "../../store/enginewrite.js";
 

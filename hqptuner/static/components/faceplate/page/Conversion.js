@@ -11,7 +11,7 @@ import { signal } from "@preact/signals";
 import { html } from "../../../lib/dom.js";
 import { schema } from "../../../store/schema.js";
 import { conversionSections, openField } from "../../../store/faceplate/page/conversion.js";
-import { plate } from "../../../store/faceplate/view.js";
+import { plate } from "../../../store/faceplate/plate.js";
 import { FIT_PASSES, fitStep, overrunOf, overruns } from "../../../model/shell/conversion.js";
 import { Fields } from "./Fields.js";
 import { MoreNote, SEE_MORE, seeMore } from "../SeeMore.js";

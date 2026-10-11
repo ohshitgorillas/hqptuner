@@ -30,7 +30,8 @@ import {
   staged,
 } from "../../../../hqptuner/static/store/signals.js";
 import { plainNames } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { openList, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";

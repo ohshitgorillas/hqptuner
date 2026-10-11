@@ -23,7 +23,8 @@ import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/
 import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
 import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { openPopover, openStage, viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements, text } from "../../support/markup.js";

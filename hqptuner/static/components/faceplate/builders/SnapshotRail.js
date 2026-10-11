@@ -13,7 +13,7 @@ import { classNames } from "../../../model/shell/format.js";
 import { home, editNow } from "../../../store/faceplate/builders/snapshot.js";
 import { railView } from "../../../store/faceplate/builders/rail.js";
 import { cur, staged, go } from "../../../store/faceplate/builders/shell.js";
-import { plate } from "../../../store/faceplate/view.js";
+import { plate } from "../../../store/faceplate/plate.js";
 
 /** @typedef {import("../../../model/builders/builder.js").Ref} Ref */
 /** @typedef {import("../../../model/builders/snapshot.js").Edit} Edit */

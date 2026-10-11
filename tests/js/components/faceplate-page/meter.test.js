@@ -25,7 +25,7 @@ import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/pa
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { METER_RANGES, pageRange, setPageRange, setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
-import { viewport } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";

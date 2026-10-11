@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 
 import { optionDescription, optionProse } from "../../../hqptuner/static/store/prose.js";
 import { schema } from "../../../hqptuner/static/store/schema.js";
-import { viewport } from "../../../hqptuner/static/store/faceplate/view.js";
+import { viewport } from "../../../hqptuner/static/store/faceplate/plate.js";
 import { reset, META } from "../support/field-harness.js";
 
 const INTEGRATOR_META = META.settings.dsp.sdm_integrator;

@@ -12,7 +12,7 @@ import { freqTicks, levelTicks, rangeSteps, spectrumAxes } from "../../../model/
 import { meterGeometry } from "../../meter/feed.js";
 import { METER_RANGES, meterFloor, pageRange } from "../../ui/prefs.js";
 import { sourceMeter } from "../drawers/source.js";
-import { plate } from "../view.js";
+import { plate } from "../plate.js";
 
 const CD_NYQUIST = 22050; // the axis top while no geometry has arrived
 const STEREO = 2;

@@ -19,11 +19,10 @@ import {
   togglePopover,
   closeTop,
   closeOutside,
-  viewport,
-  plate,
   openList,
   openOptionList,
 } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { viewport, plate } from "../../../../hqptuner/static/store/faceplate/plate.js";
 
 let setupWas = panelOpen.value;
 

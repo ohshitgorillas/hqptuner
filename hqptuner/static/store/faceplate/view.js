@@ -5,8 +5,6 @@
 import { signal } from "@preact/signals";
 import { panelOpen, closePanel } from "../connpanel.js";
 
-export { viewport, plate } from "./plate.js";
-
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 
 /**
