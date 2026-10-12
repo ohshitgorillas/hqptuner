@@ -79,6 +79,38 @@ def write_report(tmp_path: Path, percentages: dict[str, float]) -> Path:
     return path
 
 
+#: What coverage.py reports for every file it saw run to the last line, and
+#: also for a file with no statements at all.
+FULLY_COVERED = 100.0
+
+
+def write_fully_covered_report(tmp_path: Path, statements: dict[str, int]) -> Path:
+    """Write a coverage.py-shaped JSON report naming each file fully covered, with its statement count."""
+    report = {
+        "meta": {"format": 3, "version": "7.6.1"},
+        "files": {
+            path: {"summary": {"percent_covered": FULLY_COVERED, "num_statements": count}}
+            for path, count in statements.items()
+        },
+        "totals": {"percent_covered": FULLY_COVERED},
+    }
+    path = tmp_path / "coverage.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("statements", "code"),
+    [({"hqptuner/__init__.py": 0}, 1), ({"hqptuner/tiny.py": 1}, 0)],
+    ids=["no statements", "one statement"],
+)
+def test_a_file_with_no_statements_is_not_measured_so_a_report_of_only_those_measures_nothing(
+    tmp_path: Path, statements: dict[str, int], code: int
+) -> None:
+    """A file with no code is skipped, not counted as fully covered; the 'one statement' case is the control."""
+    assert CHECK(write_fully_covered_report(tmp_path, statements), 90, {}) == code
+
+
 @pytest.mark.parametrize("expected", ["hqptuner/thin.py", "71.5", "90"])
 def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
     tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str

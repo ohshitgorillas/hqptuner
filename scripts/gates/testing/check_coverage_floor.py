@@ -39,10 +39,18 @@ EXEMPT: dict[str, str] = {
 
 
 def percentages(report: Path) -> dict[str, float]:
-    """Return path -> percent covered, as coverage.py's JSON report carries it."""
+    """Return path -> percent covered, as coverage.py's JSON report carries it, for files with code.
+
+    coverage.py reports 100% for a file with no statements; such a file has
+    nothing to cover, so it is left out rather than counted as a pass.
+    """
     data: dict[str, Any] = json.loads(report.read_text())
     files: dict[str, Any] = data.get("files") or {}
-    return {path: float(entry["summary"]["percent_covered"]) for path, entry in files.items()}
+    return {
+        path: float(entry["summary"]["percent_covered"])
+        for path, entry in files.items()
+        if entry["summary"].get("num_statements") != 0
+    }
 
 
 def below(measured: dict[str, float], floor: int, exempt: dict[str, str]) -> list[str]:
