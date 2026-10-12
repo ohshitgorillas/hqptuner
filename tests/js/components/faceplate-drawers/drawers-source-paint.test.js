@@ -43,6 +43,7 @@ import {
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
 import { poll } from "../../support/apodpolls.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
@@ -156,7 +157,7 @@ beforeEach(() => {
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(() => 0);
+  openMeterFeed(fakeClock().clock);
   lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: 4 });
 });
 

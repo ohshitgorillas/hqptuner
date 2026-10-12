@@ -32,8 +32,9 @@ import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
+import { fakeClock } from "../../support/clock.js";
 
-const clock = () => 0;
+const { clock } = fakeClock();
 
 const GEO = { nyquist: 24000, channels: 1, bins: 4 };
 const GEO_96K = { nyquist: 48000, channels: 1, bins: 4 };

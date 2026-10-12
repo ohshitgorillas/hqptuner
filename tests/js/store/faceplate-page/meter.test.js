@@ -28,6 +28,7 @@ import {
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
 
 const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
@@ -54,7 +55,7 @@ function stream({ state = "2", geo = geometry() } = {}) {
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(() => 0);
+  openMeterFeed(fakeClock().clock);
   if (geo) lastStream()?.emit("geometry", geo);
 }
 

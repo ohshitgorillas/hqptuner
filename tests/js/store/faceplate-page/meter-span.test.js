@@ -21,6 +21,7 @@ import { setFreqSpan } from "../../../../hqptuner/static/store/faceplate/view.js
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
 
 const FULL_PLATE = { w: 1366, h: 1024 };
 
@@ -50,7 +51,7 @@ function stream(nyquist) {
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: String(nyquist * 2) } };
-  openMeterFeed(() => 0);
+  openMeterFeed(fakeClock().clock);
   lastStream()?.emit("geometry", { nyquist, channels: 2, bins: 1025 });
 }
 

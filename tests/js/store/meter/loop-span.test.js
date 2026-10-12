@@ -121,7 +121,7 @@ beforeEach(() => {
   engineStatus.value = { status: { state: "2" } };
   closeMeterFeed();
   useEventSource();
-  openMeterFeed(clock.now);
+  openMeterFeed(clock);
   scenes = [];
   unpaint = onMeterPaint((scene) => scenes.push(scene));
 });

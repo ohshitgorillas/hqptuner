@@ -26,6 +26,7 @@ import {
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { setPollStep } from "../../support/apodpolls.js";
+import { fakeClock } from "../../support/clock.js";
 
 const QUIET_MS = 2000; // the feed's silence threshold, store/meter/feed.js
 
@@ -33,8 +34,7 @@ const QUIET_MS = 2000; // the feed's silence threshold, store/meter/feed.js
 const [FIRST_RANGE = ""] = METER_RANGES;
 const LAST_RANGE = METER_RANGES.at(-1) ?? "";
 
-let now = 0;
-const clock = () => now;
+let feed = fakeClock();
 
 /**
  * Open a fresh feed over one /api/status object, and send the geometry event when one is given.
@@ -44,9 +44,9 @@ const clock = () => now;
 function stream({ state = "2", metering = true, metadata = { samplerate: "44100" }, geometry } = {}) {
   closeMeterFeed();
   useEventSource();
-  now = 0;
+  feed = fakeClock();
   engineStatus.value = { status: { state }, metering, metadata };
-  openMeterFeed(clock);
+  openMeterFeed(feed.clock);
   if (geometry) lastStream()?.emit("geometry", geometry);
 }
 
@@ -80,20 +80,20 @@ test("test_nothing_playing_shows_the_idle_line", () => {
 });
 
 test("test_a_playing_pcm_source_whose_feed_went_quiet_shows_the_silent_line", () => {
-  now = QUIET_MS;
+  feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");
 });
 
 test("test_a_quiet_dsd_source_with_the_matrix_off_shows_the_matrix_line", () => {
   stream({ metadata: { samplerate: "2822400" } });
-  now = QUIET_MS;
+  feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "matrix");
 });
 
 test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", () => {
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: true }] };
   stream({ metadata: { sdm: "1", samplerate: "2822400" } });
-  now = QUIET_MS;
+  feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");
 });
 

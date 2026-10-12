@@ -29,6 +29,7 @@ import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
 
@@ -75,7 +76,7 @@ function stream({ state = "2", nyquist = 22050, channels = 2 } = {}) {
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(() => 0);
+  openMeterFeed(fakeClock().clock);
   lastStream()?.emit("geometry", { nyquist, channels, centres: [1000, 2000] });
 }
 

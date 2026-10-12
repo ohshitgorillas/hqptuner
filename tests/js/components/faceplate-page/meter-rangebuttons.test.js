@@ -20,6 +20,7 @@ import { METER_RANGES, rangeButtons, setPageRange } from "../../../../hqptuner/s
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
+import { fakeClock } from "../../support/clock.js";
 import { attr, elements } from "../../support/markup.js";
 
 const FULL = { w: 1366, h: 1024 };
@@ -35,7 +36,7 @@ function stream() {
   closeMeterFeed();
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
-  openMeterFeed(() => 0);
+  openMeterFeed(fakeClock().clock);
   lastStream()?.emit("geometry", { nyquist: 22050, channels: 2, centres: [1000, 2000] });
 }
 

@@ -129,7 +129,7 @@ beforeEach(() => {
   setSpectrumOffset(0);
   engineStatus.value = { ...PLAYING };
   useEventSource();
-  openMeterFeed(clock.now);
+  openMeterFeed(clock);
   lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: BINS });
   frame(STEP_MS);
   scenes = [];

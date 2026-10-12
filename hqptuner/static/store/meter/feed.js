@@ -10,9 +10,10 @@
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
-// latest. The clock is the one openMeterFeed() is handed: a monotonic one, since
-// it measures an interval and nothing else.
+// latest. The clock is the Clock openMeterFeed() is handed (lib/clock.js), read
+// through its monotonic `now`, since it measures an interval and nothing else.
 import { signal, effect } from "@preact/signals";
+import { PLATFORM } from "../../lib/clock.js";
 import { decodeBins } from "../../model/gauges/meter.js";
 import { engineStatus } from "../signals.js";
 import { metering } from "../actions.js";
@@ -25,6 +26,7 @@ const QUIET_MS = 2000;
 // delay the loop paces at, and a second past it.
 const MAX_PENDING_MS = 6000;
 
+/** @typedef {import("../../lib/clock.js").Clock} Clock */
 /** @typedef {{ nyquist: number, channels: number, bins: number }} Geometry */
 /** @typedef {import("../../model/gauges/meter.js").MeterFrame} MeterFrame */
 /** @typedef {{ channels: Array<{ peak: number, rms: number, bins: string }>, ms: number }} WireFrame */
@@ -37,7 +39,8 @@ export const meterFeedOpen = signal(false);
 let source = null;
 /** @type {(() => void) | null} */
 let unwatch = null;
-let clock = () => performance.now();
+/** @type {Clock} */
+let clock = PLATFORM;
 let since = 0;
 /** @type {MeterFrame[]} */
 let pending = [];
@@ -76,12 +79,12 @@ function trim() {
 /**
  * Open the feed, dropping any feed and frames already held.
  *
- * @param {() => number} [now]
+ * @param {Clock} [next] the clock the feed's silence is measured on
  */
-export function openMeterFeed(now = () => performance.now()) {
+export function openMeterFeed(next = PLATFORM) {
   closeMeterFeed();
-  clock = now;
-  since = now();
+  clock = next;
+  since = clock.now();
   meterGeometry.value = null;
   pending = [];
   const es = new EventSource(FEED);
@@ -89,7 +92,7 @@ export function openMeterFeed(now = () => performance.now()) {
     meterGeometry.value = JSON.parse(e.data);
   });
   es.addEventListener("frame", (e) => {
-    since = clock();
+    since = clock.now();
     pending.push(decode(JSON.parse(e.data)));
     trim();
   });
@@ -97,7 +100,7 @@ export function openMeterFeed(now = () => performance.now()) {
   let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
   unwatch = effect(() => {
     const on = playing();
-    if (on && !was) since = clock();
+    if (on && !was) since = clock.now();
     if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
   });
@@ -131,17 +134,17 @@ let dispose = null;
  * Register once the effect that holds the feed open while metering runs and
  * closed while it is off, and hand back its disposer.
  *
- * @param {() => number} [now]
+ * @param {Clock} [next] the clock each feed it opens is handed
  * @returns {() => void}
  */
-export function initMeterFeed(now = () => performance.now()) {
+export function initMeterFeed(next = PLATFORM) {
   if (dispose) return dispose;
-  const registered = effect(() => (metering.value ? openMeterFeed(now) : closeMeterFeed()));
+  const registered = effect(() => (metering.value ? openMeterFeed(next) : closeMeterFeed()));
   dispose = registered;
   return registered;
 }
 
 /** Whether the engine plays and the open feed has sent nothing for too long. @returns {boolean} */
 export function meterSilent() {
-  return source !== null && playing() && clock() - since >= QUIET_MS;
+  return source !== null && playing() && clock.now() - since >= QUIET_MS;
 }
