@@ -9,11 +9,11 @@ before login, like the rest of the read-only surface.
 """
 
 import asyncio
-from collections.abc import Callable
 from dataclasses import dataclass
 
 import httpx
 
+from hqptuner.clock import Clock
 from hqptuner.conf.httpauth import HttpRefusedError
 from hqptuner.conf.httpconf import HttpOptions, hqplayer_request
 from hqptuner.conf.httpforms import ConfigForm
@@ -87,9 +87,9 @@ class LogReader:
     from: a caller naming another address (the daemon moved) is never served the old daemon's log.
     """
 
-    def __init__(self, monotonic: Callable[[], float]) -> None:
-        """Build the client on the default ``HttpOptions``; ``monotonic`` is the clock a held text's age is on."""
-        self._monotonic = monotonic
+    def __init__(self, clock: Clock) -> None:
+        """Build the client on the default ``HttpOptions``; a held text's age is read on ``clock.monotonic``."""
+        self._clock = clock
         self._options = HttpOptions()
         self._client = httpx.AsyncClient(timeout=self._options.timeout, transport=self._options.transport)
         self._held: _Held | None = None
@@ -104,7 +104,7 @@ class LogReader:
         """
         url = _log_url(host, port)
         held = self._held
-        if held is not None and held.url == url and self._monotonic() - held.at < max_age:
+        if held is not None and held.url == url and self._clock.monotonic() - held.at < max_age:
             return held.text
         if self._inflight is None or self._inflight[0] != url:
             task = asyncio.ensure_future(self._fetch(host, port))
@@ -120,7 +120,7 @@ class LogReader:
         finally:
             if self._inflight is not None and self._inflight[1] is asyncio.current_task():
                 self._inflight = None
-        self._held = _Held(_log_url(host, port), text, self._monotonic())
+        self._held = _Held(_log_url(host, port), text, self._clock.monotonic())
         return text
 
     async def aclose(self) -> None:

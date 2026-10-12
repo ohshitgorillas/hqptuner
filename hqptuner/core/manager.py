@@ -132,7 +132,7 @@ class ConnectionManager:
         self.readings = Readings()
         # The one GET /log reader (engine/logtail): the log tail and the device-capability read share its
         # client, its held text and any fetch in flight. It fetches from the configured 8088 address as of each call.
-        self.log_reader = LogReader(self.clock.monotonic)
+        self.log_reader = LogReader(self.clock)
         # The 4322 metering reader (junk-filter advisor). Owned and started by
         # the app lifespan; held here so the status route can ask for advice.
         self.metering: MeteringReader | None = None
