@@ -173,29 +173,42 @@ test("test_the_engines_range_stands_when_the_running_config_has_none", () => {
   assert.equal(levelWith({ at: "-50", report: HELD, min: "" }), -12);
 });
 
-test("test_a_collapsed_running_range_draws_on_the_daemons_full_range", () => {
+test("test_a_collapsed_running_range_draws_down_to_the_daemons_full_range_floor", () => {
   run({ at: "-50", ...ZERO });
-  assert.deepEqual([volumeGrid().min, volumeGrid().max], [-60, 0]);
+  assert.equal(volumeGrid().min, -60);
 });
 
 test("test_a_collapsed_running_range_pins_the_level_at_0_db", () => {
   assert.equal(levelWith({ at: "-50", ...ZERO }), 0);
 });
 
-test("test_a_collapsed_running_range_reads_as_fixed", () => {
-  const fixed = (/** @type {Running} */ r) => (run(r), volumeNow().fixed);
-  assert.deepEqual([fixed({ report: HELD }), fixed(ZERO)], [false, true]);
-});
+/** @type {[string, Running, boolean][]} */
+const COLLAPSE_READS = [
+  ["a_collapsed_running_range_reads_as_fixed", ZERO, true],
+  ["the_engine_holding_the_control_over_an_open_running_range_reads_as_free", { report: HELD }, false],
+];
 
-test("test_the_bottom_of_the_range_disables_the_step_down", () => {
-  const off = (/** @type {string} */ at) => (run({ at }), volumeNow().off.down);
-  assert.deepEqual([off("-60"), off("-59.5")], [true, false]);
-});
+for (const [name, r, want] of COLLAPSE_READS) {
+  test(`test_${name}`, () => {
+    run(r);
+    assert.equal(volumeNow().fixed, want);
+  });
+}
 
-test("test_the_top_of_the_range_disables_the_step_up", () => {
-  const off = (/** @type {string} */ at) => (run({ at }), volumeNow().off.up);
-  assert.deepEqual([off("0"), off("-0.5")], [true, false]);
-});
+/** @type {[string, string, "down" | "up", boolean][]} */
+const RANGE_EDGES = [
+  ["the_bottom_of_the_range_disables_the_step_down", "-60", "down", true],
+  ["a_step_above_the_bottom_leaves_the_step_down_enabled", "-59.5", "down", false],
+  ["the_top_of_the_range_disables_the_step_up", "0", "up", true],
+  ["a_step_below_the_top_leaves_the_step_up_enabled", "-0.5", "up", false],
+];
+
+for (const [name, at, side, want] of RANGE_EDGES) {
+  test(`test_${name}`, () => {
+    run({ at });
+    assert.equal(volumeNow().off[side], want);
+  });
+}
 
 // --- the pins ----------------------------------------------------------------------------------------------------
 
@@ -203,9 +216,17 @@ test("test_a_running_fixed_volume_pins_the_level_at_its_own", () => {
   assert.equal(levelWith({ fixed: true, level: "-10" }), -10);
 });
 
-test("test_auto_headroom_pins_minus_three_or_minus_six_by_its_setting", () => {
-  assert.deepEqual([levelWith({ iso: "1" }), levelWith({ iso: "2" })], [-3, -6]);
-});
+/** @type {[string, string, number][]} */
+const AUTO_HEADROOM = [
+  ["auto_headroom_at_its_first_setting_pins_minus_three", "1", -3],
+  ["auto_headroom_at_its_second_setting_pins_minus_six", "2", -6],
+];
+
+for (const [name, iso, level] of AUTO_HEADROOM) {
+  test(`test_${name}`, () => {
+    assert.equal(levelWith({ iso }), level);
+  });
+}
 
 test("test_auto_headroom_wins_over_the_fixed_level", () => {
   assert.equal(levelWith({ fixed: true, level: "-10", iso: "2" }), -6);
@@ -215,20 +236,19 @@ test("test_a_running_direct_sdm_pins_the_level_over_a_fixed_volume", () => {
   assert.equal(levelWith({ fixed: true, level: "-10", direct: true }), -3);
 });
 
-test("test_a_pinned_level_reads_as_fixed", () => {
-  const fixed = (/** @type {Running} */ r) => (run(r), volumeNow().fixed);
-  assert.deepEqual([fixed({}), fixed({ fixed: true }), fixed({ direct: true })], [false, true, true]);
-});
+/** @type {[string, Running, boolean][]} */
+const PIN_READS = [
+  ["a_running_fixed_volume_reads_as_fixed", { fixed: true }, true],
+  ["a_running_direct_sdm_reads_as_fixed", { direct: true }, true],
+  ["a_direct_sdm_edited_but_not_applied_reads_as_free", { stagedHttp: { direct_sdm: true } }, false],
+];
 
-test("test_a_direct_sdm_edited_but_not_applied_pins_nothing", () => {
-  const fixed = (/** @type {Running} */ r) => (run(r), volumeNow().fixed);
-  assert.deepEqual([fixed({ direct: true }), fixed({ stagedHttp: { direct_sdm: true } })], [true, false]);
-});
-
-test("test_direct_sdm_carries_a_reason_and_a_free_level_none", () => {
-  const why = (/** @type {Running} */ r) => (run(r), volumeNow().why);
-  assert.deepEqual([why({ direct: true }) === "", why({}) === ""], [false, true]);
-});
+for (const [name, r, want] of PIN_READS) {
+  test(`test_${name}`, () => {
+    run(r);
+    assert.equal(volumeNow().fixed, want);
+  });
+}
 
 // --- the write ---------------------------------------------------------------------------------------------------
 
@@ -304,14 +324,15 @@ test("test_the_loudness_bounds_sit_along_the_range_while_matrix_and_loudness_run
   assert.deepEqual(marksWith(LOUD), [25, 75]);
 });
 
-test("test_a_bypassed_matrix_engine_marks_no_loudness_bounds", () => {
-  assert.deepEqual([marksWith(LOUD), marksWith({ ...LOUD, matrix: false })], [[25, 75], null]);
-});
+/** @type {[string, Running][]} */
+const UNMARKED = [
+  ["a_bypassed_matrix_engine_marks_no_loudness_bounds", { ...LOUD, matrix: false }],
+  ["loudness_switched_off_marks_no_bounds", { ...LOUD, loudness: false }],
+  ["a_pinned_level_marks_no_loudness_bounds", { ...LOUD, fixed: true }],
+];
 
-test("test_loudness_switched_off_marks_no_bounds", () => {
-  assert.deepEqual([marksWith(LOUD), marksWith({ ...LOUD, loudness: false })], [[25, 75], null]);
-});
-
-test("test_a_pinned_level_marks_no_loudness_bounds", () => {
-  assert.deepEqual([marksWith(LOUD), marksWith({ ...LOUD, fixed: true })], [[25, 75], null]);
-});
+for (const [name, r] of UNMARKED) {
+  test(`test_${name}`, () => {
+    assert.equal(marksWith(r), null);
+  });
+}

@@ -97,7 +97,8 @@ test("test_a_frames_base64_bins_come_back_in_dbfs_per_channel", () => {
 
 test("test_taken_frames_are_not_taken_again", () => {
   lastStream()?.emit("frame", frame(21.333, "AQAGADwAWAI="));
-  assert.deepEqual([takeMeterFrames().length, takeMeterFrames().length], [1, 0]);
+  takeMeterFrames();
+  assert.deepEqual(takeMeterFrames(), []);
 });
 
 test("test_each_taken_frame_carries_the_geometry_it_arrived_under", () => {

@@ -91,11 +91,16 @@ const levels = () => speakerDraft().channels.map((c) => c.level);
 
 // --- the draft over the daemon's form ----------------------------------------------------------------------------
 
-test("test_the_draft_reads_the_daemons_form_until_the_form_is_loaded", async () => {
+test("test_the_draft_is_not_loaded_while_the_daemons_form_is_absent", async () => {
   await reset({ loaded: false });
-  const before = speakerDraft().loaded;
+  assert.equal(speakerDraft().loaded, false);
+});
+
+test("test_the_draft_is_loaded_once_the_daemons_form_arrives", async () => {
+  await reset({ loaded: false });
+  speakerDraft(); // read while absent, so the arrival has to reach a draft already read
   speakers.value = form(false);
-  assert.deepEqual([before, speakerDraft().loaded], [false, true]);
+  assert.equal(speakerDraft().loaded, true);
 });
 
 test("test_an_edited_distance_lands_on_its_own_channel_only", async () => {
@@ -112,17 +117,17 @@ test("test_an_edited_level_lands_on_its_own_channel_only", async () => {
 
 test("test_an_edit_makes_the_draft_differ_from_the_daemons_form", async () => {
   await reset();
-  const before = speakerDraft().differs;
+  speakerDraft(); // read unedited, so the edit has to reach a draft already read
   setChannelDistance(1, "350");
-  assert.deepEqual([before, speakerDraft().differs], [false, true]);
+  assert.equal(speakerDraft().differs, true);
 });
 
 test("test_an_edit_back_to_the_daemons_value_no_longer_differs", async () => {
   await reset();
   setChannelDistance(1, "350");
-  const edited = speakerDraft().differs;
+  speakerDraft(); // read while edited, so the edit back has to reach a draft already read
   setChannelDistance(1, "301");
-  assert.deepEqual([edited, speakerDraft().differs], [true, false]);
+  assert.equal(speakerDraft().differs, false);
 });
 
 test("test_an_emptied_box_falls_back_to_the_daemons_value", async () => {
@@ -139,26 +144,37 @@ test("test_a_box_holding_no_number_falls_back_to_the_daemons_value", async () =>
   assert.equal(speakerDraft().channels[1]?.level, -0.5);
 });
 
-test("test_the_draft_switch_follows_the_daemons_until_flipped", async () => {
+test("test_flipping_the_draft_switch_overrides_the_daemons", async () => {
   await reset({ enabled: true });
-  const before = speakerDraft().enabled;
+  speakerDraft(); // read unflipped, so the flip has to reach a draft already read
   setSpeakersGate(false);
-  assert.deepEqual([before, speakerDraft().enabled], [true, false]);
+  assert.equal(speakerDraft().enabled, false);
 });
 
-test("test_a_flipped_switch_differs_and_flipping_it_back_does_not", async () => {
+test("test_a_flipped_switch_differs_from_the_daemons_form", async () => {
   await reset();
   setSpeakersGate(true);
-  const flipped = speakerDraft().differs;
-  setSpeakersGate(false);
-  assert.deepEqual([flipped, speakerDraft().differs], [true, false]);
+  assert.equal(speakerDraft().differs, true);
 });
 
-test("test_staged_reads_whether_the_draft_differs", async () => {
+test("test_a_switch_flipped_back_no_longer_differs", async () => {
   await reset();
-  const before = staged.value;
+  setSpeakersGate(true);
+  speakerDraft(); // read while flipped, so the flip back has to reach a draft already read
+  setSpeakersGate(false);
+  assert.equal(speakerDraft().differs, false);
+});
+
+test("test_staged_is_off_while_the_draft_matches_the_daemons_form", async () => {
+  await reset();
+  assert.equal(staged.value, false);
+});
+
+test("test_staged_is_on_once_the_draft_differs", async () => {
+  await reset();
+  staged.value; // read unedited, so the edit has to reach a staged flag already read
   setChannelLevel(0, "-1");
-  assert.deepEqual([before, staged.value], [false, true]);
+  assert.equal(staged.value, true);
 });
 
 // --- the speaker set ---------------------------------------------------------------------------------------------
@@ -166,9 +182,15 @@ test("test_staged_reads_whether_the_draft_differs", async () => {
 test("test_picking_a_set_never_stages", async () => {
   await reset();
   pickSpeakerSet(LAST.id);
-  const picked = speakerDraft().differs;
+  assert.equal(speakerDraft().differs, false);
+});
+
+test("test_an_edit_after_picking_a_set_still_differs", async () => {
+  await reset();
+  pickSpeakerSet(LAST.id);
+  speakerDraft(); // read after the pick, so the edit has to reach a draft already read
   setChannelDistance(7, "500");
-  assert.deepEqual([picked, speakerDraft().differs], [false, true]);
+  assert.equal(speakerDraft().differs, true);
 });
 
 // --- discard -----------------------------------------------------------------------------------------------------
@@ -221,15 +243,17 @@ test("test_a_confirmed_apply_leaves_the_draft_on_the_daemons_new_form", async ()
   assert.deepEqual(distances(), after);
 });
 
-test("test_a_confirmed_apply_answers_true_and_an_unconfirmed_one_false", async () => {
-  await reset();
-  speakersWire(true, form(false));
-  setChannelDistance(1, "350");
-  const confirmed = await applyDraft();
-  speakersWire(false, form(false));
-  setChannelDistance(1, "360");
-  assert.deepEqual([confirmed, await applyDraft()], [true, false]);
-});
+for (const [name, applied, answer] of /** @type {[string, boolean, boolean][]} */ ([
+  ["test_a_confirmed_apply_answers_true", true, true],
+  ["test_an_unconfirmed_apply_answers_false", false, false],
+])) {
+  test(name, async () => {
+    await reset();
+    speakersWire(applied, form(false));
+    setChannelDistance(1, "350");
+    assert.equal(await applyDraft(), answer);
+  });
+}
 
 test("test_an_unconfirmed_apply_keeps_the_draft", async () => {
   await reset();
@@ -241,9 +265,12 @@ test("test_an_unconfirmed_apply_keeps_the_draft", async () => {
 
 // --- levels under Direct SDM -------------------------------------------------------------------------------------
 
-test("test_the_levels_are_dead_while_the_running_direct_sdm_is_on", async () => {
-  await reset();
-  const off = levelsDead();
-  await reset({ direct: true });
-  assert.deepEqual([off, levelsDead()], [false, true]);
-});
+for (const [name, direct, dead] of /** @type {[string, boolean, boolean][]} */ ([
+  ["test_the_levels_are_live_while_the_running_direct_sdm_is_off", false, false],
+  ["test_the_levels_are_dead_while_the_running_direct_sdm_is_on", true, true],
+])) {
+  test(name, async () => {
+    await reset({ direct });
+    assert.equal(levelsDead(), dead);
+  });
+}

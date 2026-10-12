@@ -104,11 +104,19 @@ test("test_a_reason_on_the_tab_it_names_carries_no_link", () => {
   assert.deepEqual([reasonXref(BYPASSED, { drawer: "pipelines" }), reasonXref(BYPASSED, inside)], ["matrix", null]);
 });
 
-test("test_a_fixed_volume_reason_on_another_tab_of_its_drawer_names_the_level_tab", () => {
-  const fixed = volumeRangeGray(ctx({ fixed_volume_enabled: true }));
-  const on = (/** @type {string} */ tab) => reasonXref(fixed, { drawer: "volume", tab });
-  assert.deepEqual([on("gain"), on("range"), on("level")], ["volume-level", "volume-level", null]);
-});
+/** @type {[string, string, string | null][]} */
+const FIXED_VOLUME_ON = [
+  ["a_fixed_volume_reason_on_the_gain_tab_of_its_drawer_names_the_level_tab", "gain", "volume-level"],
+  ["a_fixed_volume_reason_on_the_range_tab_of_its_drawer_names_the_level_tab", "range", "volume-level"],
+  ["a_fixed_volume_reason_on_the_level_tab_it_names_carries_no_link", "level", null],
+];
+
+for (const [name, tab, place] of FIXED_VOLUME_ON) {
+  test(`test_${name}`, () => {
+    const fixed = volumeRangeGray(ctx({ fixed_volume_enabled: true }));
+    assert.equal(reasonXref(fixed, { drawer: "volume", tab }), place);
+  });
+}
 
 test("test_a_zero_range_reason_off_the_range_tab_names_the_range_tab", () => {
   const zero = volumeBypassed(ctx({ volume_min: 0, volume_max: 0 }));

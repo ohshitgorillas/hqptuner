@@ -59,20 +59,39 @@ test("test_a_dormant_chains_list_names_the_options_its_config_form_offers", () =
   assert.deepEqual(names(listOptions("pcm_filter_1x")), ["none", "poly-sinc-gauss-long"]);
 });
 
-test("test_a_filter_reads_the_quality_its_enumeration_description_rates", () => {
-  const q = (/** @type {string} */ v) => option("sdm_filter_1x", v)?.f?.q;
-  assert.deepEqual([q("poly-sinc-gauss-long"), q("sinc-M")], [4, 2]);
-});
+/** @type {[string, number][]} */
+const QUALITIES = [
+  ["poly-sinc-gauss-long", 4],
+  ["sinc-M", 2],
+];
 
-test("test_a_filters_apodizing_follows_its_enumerations_arg_bits", () => {
-  const apod = (/** @type {string} */ v) => option("sdm_filter_1x", v)?.f?.apod;
-  assert.deepEqual([apod("poly-sinc-gauss-long"), apod("sinc-M"), apod("IIR")], ["full", "half", null]);
-});
+for (const [v, quality] of QUALITIES) {
+  test(`test_a_filter_reads_the_quality_${quality}_its_enumeration_description_rates`, () => {
+    assert.equal(option("sdm_filter_1x", v)?.f?.q, quality);
+  });
+}
 
-test("test_a_simplified_option_carries_its_plain_family_and_variant", () => {
+/** @type {[string, string | null][]} */
+const APODIZING = [
+  ["poly-sinc-gauss-long", "full"],
+  ["sinc-M", "half"],
+  ["IIR", null],
+];
+
+for (const [v, apod] of APODIZING) {
+  test(`test_a_filters_apodizing_follows_its_enumerations_arg_bits_as_${apod}`, () => {
+    assert.equal(option("sdm_filter_1x", v)?.f?.apod, apod);
+  });
+}
+
+test("test_a_simplified_option_carries_its_plain_family", () => {
   loadLists({ plain: true });
-  const o = option("sdm_filter_1x", "sinc-M");
-  assert.deepEqual([o?.fam, o?.var], ["Fam A", "Var B"]);
+  assert.equal(option("sdm_filter_1x", "sinc-M")?.fam, "Fam A");
+});
+
+test("test_a_simplified_option_carries_its_plain_variant", () => {
+  loadLists({ plain: true });
+  assert.equal(option("sdm_filter_1x", "sinc-M")?.var, "Var B");
 });
 
 test("test_a_simplified_option_carries_its_plain_leaf", () => {
@@ -80,15 +99,29 @@ test("test_a_simplified_option_carries_its_plain_leaf", () => {
   assert.equal(option("sdm_filter_1x", "IIR")?.leaf, "Leaf iir");
 });
 
-test("test_a_modulator_carries_the_tier_its_rate_floor_names", () => {
-  const tier = (/** @type {string} */ v) => option("sdm_modulator", v)?.tier;
-  assert.deepEqual([tier("ASDM7EC 512+fs"), tier("ASDM5")], ["512+", undefined]);
-});
+/** @type {[string, string, string | undefined][]} */
+const TIERS = [
+  ["a_modulator_carries_the_tier_its_rate_floor_names", "ASDM7EC 512+fs", "512+"],
+  ["a_modulator_with_no_rate_floor_carries_no_tier", "ASDM5", undefined],
+];
 
-test("test_a_modulator_carries_the_generation_its_overlay_records", () => {
-  const gen = (/** @type {string} */ v) => option("sdm_modulator", v)?.gen;
-  assert.deepEqual([gen("ASDM7EC 512+fs"), gen("ASDM5")], [4, 2]);
-});
+for (const [name, v, tier] of TIERS) {
+  test(`test_${name}`, () => {
+    assert.equal(option("sdm_modulator", v)?.tier, tier);
+  });
+}
+
+/** @type {[string, number][]} */
+const GENERATIONS = [
+  ["ASDM7EC 512+fs", 4],
+  ["ASDM5", 2],
+];
+
+for (const [v, gen] of GENERATIONS) {
+  test(`test_a_modulator_carries_the_generation_${gen}_its_overlay_records`, () => {
+    assert.equal(option("sdm_modulator", v)?.gen, gen);
+  });
+}
 
 test("test_an_option_carries_the_prose_its_overlay_writes", () => {
   assert.equal(option("sdm_filter_1x", "sinc-M")?.d, SINC_PROSE);
