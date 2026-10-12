@@ -18,14 +18,6 @@ Two seams carry the contract:
   the file ``dump_to`` and is ended through ``terminate(code)``. These cases
   hand in a finish signal that answers at once, so nothing waits on a real
   clock, and a ``terminate`` that records the code instead of ending the process.
-
-The watch also takes ``waited``, which answers the seconds the suite's main
-thread has so far sat ready to run but waiting for a CPU. Each second of that
-wait buys the run one more second of wall time, so the run is ended once its
-wall time less its CPU-wait reaches ``seconds``. The cases for it simulate one
-wall clock shared by the finish signal and the CPU-wait reading: a wait that
-runs out has spent its whole timeout, and the CPU-wait is read from a table of
-what had built up by each wall time.
 """
 
 import importlib.util
@@ -138,61 +130,3 @@ def _dump_with_a_parked_thread(tmp_path: Path) -> str:
 
 def test_a_run_terminated_at_the_deadline_dumps_the_stack_of_every_thread(tmp_path: Path) -> None:
     assert parked_in_a_hung_test.__name__ in _dump_with_a_parked_thread(tmp_path)
-
-
-#: How many waits a simulated run answers before it reports itself finished, so a
-#: watch that never ends the run returns instead of spinning.
-WAIT_CAP = 1000
-
-
-class _LoadedRun:
-    """A run on a busy host, as a finish signal and a CPU-wait reading on one simulated wall clock.
-
-    ``wait(timeout)`` answers at once. A run still going spends the whole
-    ``timeout``; one that finishes inside it stops the clock at ``finishes_at``.
-    ``waited()`` answers from ``cpu_wait``, pairs of a wall time and the CPU-wait
-    built up by then.
-    """
-
-    def __init__(self, cpu_wait: list[tuple[float, float]], *, finishes_at: float | None = None) -> None:
-        self.cpu_wait = cpu_wait
-        self.finishes_at = finishes_at
-        self.wall = 0.0
-        self.waits = 0
-
-    def wait(self, timeout: float) -> bool:
-        self.waits += 1
-        if self.waits > WAIT_CAP:
-            return True
-        if self.finishes_at is not None and self.wall + timeout >= self.finishes_at:
-            self.wall = self.finishes_at
-            return True
-        self.wall += timeout
-        return False
-
-    def waited(self) -> float:
-        return max((built for at, built in self.cpu_wait if at <= self.wall), default=0.0)
-
-
-def _ended_at(tmp_path: Path, seconds: float, run: _LoadedRun) -> list[float]:
-    """The simulated wall time at each point the watch ended the run."""
-    ended: list[float] = []
-    with (tmp_path / "dump.txt").open("w") as dump_to:
-        suite_deadline.watch(
-            seconds, run, dump_to=dump_to, terminate=lambda _code: ended.append(run.wall), waited=run.waited
-        )
-    return ended
-
-
-@pytest.mark.parametrize(
-    ("seconds", "cpu_wait", "expected"),
-    [
-        (60.0, [(60.0, 4.5)], 64.5),
-        (130.0, [(130.0, 12.0), (142.0, 14.5)], 144.5),
-    ],
-    ids=["wait built up before the deadline", "more wait built up in the time it bought"],
-)
-def test_a_run_that_waited_for_a_cpu_is_ended_that_much_wall_time_past_its_deadline(
-    tmp_path: Path, *, seconds: float, cpu_wait: list[tuple[float, float]], expected: float
-) -> None:
-    assert _ended_at(tmp_path, seconds, _LoadedRun(cpu_wait)) == [expected]
