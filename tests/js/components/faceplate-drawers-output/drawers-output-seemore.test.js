@@ -12,7 +12,7 @@
 // Renders through preact-render-to-string with the store driven at the wire by the staging fake. Rows are found by their
 // catalog key (`data-k`), the trigger by its `data-testid`, the popover by its `role`.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-seemore.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-seemore.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

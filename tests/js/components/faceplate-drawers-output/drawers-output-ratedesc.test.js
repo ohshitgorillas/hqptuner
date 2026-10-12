@@ -12,7 +12,7 @@
 // its role (`group`) and class, its row as the smallest drawer row enclosing it; a header is a row label (`b`), a
 // sub-label the head's `s`, the restart mark its `data-testid`.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-ratedesc.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-ratedesc.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -221,12 +221,11 @@
   --psrc-min:148px;        /* the slim page Source section, least height */
   /* Settings */
   --drow-col:360px;        /* a drawer row's control column */
-  --drow-col-gpu:300px;    /* the same, narrowed: to the CUDA offload segment; Loudness and its bands, Output device, a chain's rows, Output format at Compact */
+  --drow-col-gpu:300px;    /* a drawer row's control column at the CUDA offload segment's width: Loudness and its bands, both Output tabs, a chain's rows */
   --drow-col-xf:340px;     /* the same, narrowed: the crossfeed choice lines at Compact, the compensation hint still on one line */
   --drow-col-visual:280px; /* the same, narrowed to the accent picker */
   --drow-col-cpu:240px;    /* the same, narrowed: to the E-core allocation segment; the Matrix engine drawer */
   --drow-col-pb:330px;     /* the same, in the profile builder's steps: a row, a choice line, the EQ step's pair */
-  --drow-col-format:220px; /* the same, narrowed to the DSD support segment */
   --swatch:30px;           /* an accent swatch */
   --swatch-dot:8px;        /* the accent swatch in a settings readout */
   --hex-w:100px;           /* the accent's hex box */

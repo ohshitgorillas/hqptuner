@@ -3,9 +3,9 @@
 // backend's device picker and device rows. Only the effective backend's groups and picker show; Combo shows all.
 //
 // Labels and paragraphs come from the settings metadata through the generic drawer; the strings below are the ones the
-// metadata does not hold. A backend group carries rows only, so each device picker is a block of its own ahead of its
-// backend's group, and hides itself with it. A row has no gray of its own, so Channels is a block: the layout segment
-// beside the `channels` number, the number grayed unless the layout is Manual.
+// metadata does not hold. A backend group carries rows and stacks only, so each device picker is a block of its own
+// ahead of its backend's group, and hides itself with it. A row has no gray of its own, so Channels is a block: the
+// layout segment beside the `channels` number, the number grayed unless the layout is Manual.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
@@ -19,7 +19,7 @@ import { RateDial } from "./output/RateDial.js";
 import { DevicePicker } from "./output/DevicePicker.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-/** @typedef {import("../../../store/faceplate/drawer.js").RowSpec} RowSpec */
+/** @typedef {import("../../../store/faceplate/drawer.js").GroupItem} GroupItem */
 
 /** The section header over each backend's rows. */
 const BACKEND_NAMES = { network: "Network Audio", alsa: "ALSA" };
@@ -44,6 +44,9 @@ const LAYOUT = {
   ],
 };
 
+/** The label over a backend's two DSD settings. */
+const DSD_LABEL = "DSD support";
+
 /** The hint after a DAC bits box. */
 const BITS_HINT = "0 = default";
 
@@ -54,14 +57,13 @@ const MODE_OPTIONS = MODES.filter((o) => o.value !== "auto");
 const DISCOVERY_OPTIONS = [...DISCOVERY].reverse();
 
 /**
- * One backend's format rows: DSD support and DSD rates tagged SDM, DAC bits tagged PCM.
+ * One backend's format rows: DoP over DSD rates in one stack tagged SDM, then DAC bits tagged PCM.
  *
  * @param {"net" | "alsa"} p  the backend's key prefix
- * @returns {RowSpec[]}
+ * @returns {GroupItem["rows"]}
  */
 const formatRows = (p) => [
-  { key: `${p}_dop`, band: "sdm" },
-  { key: `${p}_anydsd`, band: "sdm" },
+  { label: DSD_LABEL, band: "sdm", stack: [{ key: `${p}_dop` }, { key: `${p}_anydsd` }] },
   { key: `${p}_bits`, band: "pcm", sub: catalog[`${p}_bits`].sublabel, hint: BITS_HINT },
 ];
 

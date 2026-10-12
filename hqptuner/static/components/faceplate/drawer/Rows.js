@@ -1,6 +1,7 @@
 // A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
 // reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine, then, under it, every option with its line (`optMan`) or a select's picked
-// option's line. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
+// option's line. A stack is several rows under one label line: each row's control and gray reason stacked one over the
+// other, each row's paragraphs in order beside them. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
 // resolution, the gray reason from the schema's own rule; a control writes through setControl(), by the key's lane.
 // Beside rows: a field and a choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by
 // the schema's backend, an intro, and a block the caller passes in by name.
@@ -24,6 +25,7 @@ import { folded } from "../SeeMore.js";
 /** @typedef {import("../../../store/faceplate/drawer.js").BodyItem} BodyItem */
 /** @typedef {import("../../../store/faceplate/drawer.js").RowSpec} RowSpec */
 /** @typedef {import("../../../store/faceplate/drawer.js").GroupItem} GroupItem */
+/** @typedef {import("../../../store/faceplate/drawer/grammar.js").StackSpec} StackSpec */
 /** @typedef {import("../../../store/faceplate/drawer.js").BlockItem} BlockItem */
 /** @typedef {import("../../../store/faceplate/drawer.js").IntroPart} IntroPart */
 /** @typedef {import("../../../store/faceplate/drawer.js").NoteLine} NoteLine */
@@ -89,6 +91,44 @@ function rowProse(spec, prose, label, here) {
 }
 
 /**
+ * The worst alert lit in the drawer on any of `keys`, on the tab's chain or on none.
+ *
+ * @param {string[]} keys
+ * @param {XrefHere} here  the drawer and tab the keys are drawn on
+ */
+const keysAlert = (keys, here) =>
+  (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
+    .filter((r) => keys.includes(r.label) && (!r.chain || r.chain === here.tab))
+    .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
+
+/**
+ * Whether any of `keys` is staged, as a row's `data-dirty`.
+ *
+ * @param {string[]} keys
+ */
+const dirtyAttr = (keys) => (keys.some((k) => isDirty(k)) ? "" : undefined);
+
+/**
+ * A row's parts under its label line: its label, its control then its gray reason, and its paragraphs.
+ *
+ * @param {RowSpec} spec
+ * @param {SchemaField} entry
+ * @param {XrefHere} here  the drawer and tab the row is drawn on
+ */
+function rowParts(spec, entry, here) {
+  const { key } = spec;
+  const prose = describe(entry, key);
+  const label = spec.label ?? prose.label;
+  const gray = grayReason(key);
+  const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
+  return {
+    label,
+    ctl: html`${control} ${grayLine(entry.quietGray ? "" : gray, here)}`,
+    man: rowProse(spec, prose, label, here),
+  };
+}
+
+/**
  * One row; nothing for an unknown key or a row not shown on its tab.
  *
  * @param {RowSpec} spec
@@ -98,19 +138,34 @@ function row(spec, here) {
   const entry = catalog[spec.key];
   if (!entry || !rowShown(spec, here.tab)) return null;
   const { key } = spec;
-  const prose = describe(entry, key);
-  const label = spec.label ?? prose.label;
-  const gray = grayReason(key);
+  const { label, ctl, man } = rowParts(spec, entry, here);
   const head = labelHead(label, { sub: spec.sub, band: spec.band, restarts: restartLane(key) });
-  const control = keyControl({ key, entry, label, off: !!gray, options: spec.options, hint: spec.hint });
-  const lit = (alertsNow.value.drawers.get(here.drawer)?.rows ?? [])
-    .filter((r) => r.label === key && (!r.chain || r.chain === here.tab))
-    .reduce((/** @type {string | undefined} */ cur, r) => worseBlink(cur, r.sev), undefined);
   return html`
-    <div class="drow" data-k=${key} data-dirty=${isDirty(key) ? "" : undefined} data-alert=${lit}>
-      <div class="ctl">${head} ${control} ${grayLine(entry.quietGray ? "" : gray, here)}</div>
-      <div class="man">${rowProse(spec, prose, label, here)}</div>
+    <div class="drow" data-k=${key} data-dirty=${dirtyAttr([key])} data-alert=${keysAlert([key], here)}>
+      <div class="ctl">${head} ${ctl}</div>
+      <div class="man">${man}</div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry, here)}
+    </div>
+  `;
+}
+
+/**
+ * A stack: its label line, then each shown row's control and gray reason one over the other, each under its row's key,
+ * and each shown row's paragraphs in order beside them; nothing while none of its rows is shown.
+ *
+ * @param {StackSpec} spec
+ * @param {XrefHere} here  the drawer and tab the stack is drawn on
+ */
+function stack(spec, here) {
+  const rows = spec.stack.filter((r) => catalog[r.key] && rowShown(r, here.tab));
+  if (rows.length === 0) return null;
+  const keys = rows.map((r) => r.key);
+  const parts = rows.map((r) => rowParts(r, catalog[r.key], here));
+  const head = labelHead(spec.label, { band: spec.band, restarts: keys.some((k) => restartLane(k)) });
+  return html`
+    <div class="drow" data-dirty=${dirtyAttr(keys)} data-alert=${keysAlert(keys, here)}>
+      <div class="ctl">${head} ${parts.map((p, i) => html`<div class="dstk" data-k=${keys[i]}>${p.ctl}</div>`)}</div>
+      <div class="man">${parts.map((p) => p.man)}</div>
     </div>
   `;
 }
@@ -124,7 +179,7 @@ function row(spec, here) {
 const secHead = (text, cls) => html`<div class=${cls}><span class="t">${text}</span><span class="ln"></span></div>`;
 
 /**
- * A backend's rows under its header, hidden unless the schema names its backend or `combo`.
+ * A backend's rows and stacks under its header, hidden unless the schema names its backend or `combo`.
  *
  * @param {DrawerSchema} schema
  * @param {GroupItem} g
@@ -132,7 +187,7 @@ const secHead = (text, cls) => html`<div class=${cls}><span class="t">${text}</s
  */
 const group = (schema, g, here) => html`
   <div class="begrp" data-be=${g.group} hidden=${!groupShown(schema, g.group)}>
-    ${secHead(g.label, "dsec")} ${g.rows.map((r) => row(r, here))}
+    ${secHead(g.label, "dsec")} ${g.rows.map((r) => ("stack" in r ? stack(r, here) : row(r, here)))}
   </div>
 `;
 

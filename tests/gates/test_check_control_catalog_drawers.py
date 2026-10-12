@@ -8,6 +8,11 @@ id is neither a key of the engine catalog nor a key of ``local`` in
 ``store/schema/local.js`` is one problem line naming that id. A drawer's own
 id, a tab's id and a choice line's value are not control ids.
 
+A backend group (``{group, label, rows}``) may hold a stack among its rows:
+``{label, band?, stack: [row, ...]}``, several rows under one label. The
+stack has no key of its own; each row inside it names its own ``key`` and is
+checked like any other row.
+
 The seam is ``check_drawer_homes(modules, catalog, local) -> list[str]``:
 ``modules`` maps each drawer module's path under ``hqptuner/static/`` to its
 exports as JSON-shaped data, ``catalog`` and ``local`` are the two homes' keys.
@@ -101,5 +106,25 @@ def test_an_item_whose_id_names_neither_home_is_the_one_problem_reported(path: s
 def test_an_item_whose_id_names_a_home_is_not_reported(home_key: str, item: Item) -> None:
     """Beside one stray row, an item naming a catalog key or a declared local adds no problem line."""
     modules = _modules(STAGE_MODULE, _row(STRAY_ID), item(home_key))
+    problems = GATE.check_drawer_homes(modules, CATALOG, LOCAL)
+    assert [STRAY_ID in line for line in problems] == [True]
+
+
+def _stacked_group(*keys: str) -> dict[str, Any]:
+    """One backend group whose only row is a stack of one row per key."""
+    stack = {"label": "fixture_stack", "stack": [{"key": key} for key in keys]}
+    return {"group": "fixture_group", "label": "fixture_group", "rows": [stack]}
+
+
+def test_a_stacked_row_whose_key_names_neither_home_is_the_one_problem_reported() -> None:
+    """Under a stack beside a catalog row, a row keyed outside both homes is one problem line naming it."""
+    modules = _modules(STAGE_MODULE, _stacked_group(CATALOG_KEY, STRAY_ID))
+    problems = GATE.check_drawer_homes(modules, CATALOG, LOCAL)
+    assert [STRAY_ID in line for line in problems] == [True]
+
+
+def test_a_stack_whose_rows_name_homes_adds_no_problem() -> None:
+    """Beside one stray row, a stack of a catalog row and a declared-local row adds no problem line."""
+    modules = _modules(STAGE_MODULE, _row(STRAY_ID), _stacked_group(CATALOG_KEY, LOCAL_KEY))
     problems = GATE.check_drawer_homes(modules, CATALOG, LOCAL)
     assert [STRAY_ID in line for line in problems] == [True]

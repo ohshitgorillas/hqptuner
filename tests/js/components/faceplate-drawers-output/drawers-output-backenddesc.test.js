@@ -12,7 +12,7 @@
 // its catalog key (`data-k`); its text is read whole, the see-more popover's included, and each fixture line counted
 // where it occurs.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-backenddesc.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-backenddesc.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";

@@ -173,14 +173,14 @@ def orphan_prose(schema: Schema, settings: Settings) -> list[str]:
 
 
 def item_ids(item: dict[str, Any]) -> list[tuple[str, Any]]:
-    """Name the control ids one drawer body item draws, each beside the kind of item drawing it."""
+    """Name the control ids one drawer body item draws, each beside its item kind; a stack opens into its rows."""
     if "row" in item:
         return [("row", item["row"].get("key"))]
     if "field" in item:
         return [("field", item["field"].get("id"))]
     if "choice" in item:
         return [("choice", item["choice"].get("id"))]
-    return [("row", row.get("key")) for row in item.get("rows", [])]
+    return [("row", row.get("key")) for entry in item.get("rows", []) for row in entry.get("stack", [entry])]
 
 
 def drawers(exports: dict[str, Any]) -> list[dict[str, Any]]:

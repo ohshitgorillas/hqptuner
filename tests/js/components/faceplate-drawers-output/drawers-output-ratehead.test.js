@@ -6,7 +6,7 @@
 // its role (`group`) and class, its row as the smallest drawer row enclosing it, the DAC bits row by its catalog key
 // (`data-k`); a header is a row label (`b`), a sub-label the head's `s`.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-ratehead.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-ratehead.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

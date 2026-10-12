@@ -15,7 +15,7 @@
 // Not reachable here: whether the glass keeps the other family's values on screen under a pick. That holds today,
 // so no red run can say anything about it.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-pin-glass.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-pin-glass.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

@@ -18,7 +18,7 @@
 // in `engineState.rate` as /api/state serves it, the running rate in the Status frame; a pin goes out over the faked
 // fetch on the real POST /api/config/live path and a limit over the staging fake (tests/js/support/wire/wire.js).
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-output-pin.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers-output/drawers-output-pin.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";

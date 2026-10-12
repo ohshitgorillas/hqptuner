@@ -2,7 +2,7 @@
 // stage. store/faceplate/drawer.js decides over these shapes and re-exports them; components/faceplate/drawer/ draws
 // them.
 //
-// A row names one key, a backend group its rows' keys, a choice its lines' detail keys, a block the keys it says it
+// A row names one key, a stack its rows' keys, a backend group its rows' and stacks' keys, a choice its lines' detail keys, a block the keys it says it
 // stages; a field, a header, a note and an intro stage none. A row its `when` or its catalog entry leaves out, and the
 // rows of a group its backend hides, stay staged but are not shown.
 
@@ -87,12 +87,24 @@ import { rowOptions, rowValue } from "./rows.js";
  */
 
 /**
- * A backend's rows under a section header, shown while the schema's `group` names the backend or `combo`.
+ * Several rows under one label line: each row's control stacked one over the other under the label, each with its own
+ * gray reason, and each row's paragraphs in order beside them. The label line carries the restart mark when any row's
+ * key restarts the engine; the stack reads dirty when any key is staged and carries the worst alert of its keys. A row
+ * in a stack draws no label line and no option lines of its own. Shown while any of its rows is.
+ *
+ * @typedef {object} StackSpec
+ * @property {string} label  the one label
+ * @property {string} [band]  a band tag after the label, printed in capitals
+ * @property {RowSpec[]} stack  the rows, top to bottom
+ */
+
+/**
+ * A backend's rows and stacks under a section header, shown while the schema's `group` names the backend or `combo`.
  *
  * @typedef {object} GroupItem
  * @property {string} group  the backend
  * @property {string} label  the section header
- * @property {RowSpec[]} rows
+ * @property {(RowSpec | StackSpec)[]} rows
  */
 
 /**
@@ -207,6 +219,14 @@ export function groupShown(drawer, group) {
 }
 
 /**
+ * The rows one of a group's entries stands for: a stack's rows, or the row itself.
+ *
+ * @param {RowSpec | StackSpec} r
+ * @returns {RowSpec[]}
+ */
+const groupRows = (r) => ("stack" in r ? r.stack : [r]);
+
+/**
  * The catalog keys one body item stages.
  *
  * @param {BodyItem} it
@@ -214,7 +234,7 @@ export function groupShown(drawer, group) {
  */
 function itemKeys(it) {
   if ("row" in it) return [it.row.key];
-  if ("group" in it) return it.rows.map((r) => r.key);
+  if ("group" in it) return it.rows.flatMap(groupRows).map((r) => r.key);
   if ("choice" in it) return it.choice.lines.flatMap((l) => (l.key ? [l.key] : []));
   if ("block" in it) return it.keys ?? [];
   return [];
@@ -239,6 +259,11 @@ export const shownKeys = (drawer, tab) =>
   tab.body.flatMap((it) => {
     if ("row" in it) return rowShown(it.row, tab.id) ? [it.row.key] : [];
     if ("group" in it)
-      return groupShown(drawer, it.group) ? it.rows.filter((r) => rowShown(r, tab.id)).map((r) => r.key) : [];
+      return groupShown(drawer, it.group)
+        ? it.rows
+            .flatMap(groupRows)
+            .filter((r) => rowShown(r, tab.id))
+            .map((r) => r.key)
+        : [];
     return itemKeys(it);
   });
