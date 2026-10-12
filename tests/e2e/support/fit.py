@@ -22,8 +22,9 @@ plate laid out with the engine's data in, and `hiddenPast`, the measure itself.
   reach past the line box without drawing there, so measuring text by them
   would read a whole line as cut. What a nearer box already hides is not
   counted again further out.
-- Waits are bounded condition-polls: fonts loaded and every finite animation
-  settled.
+- Waits are bounded condition-polls: every finite animation settled, then,
+  with the surface open, every font face its drawn text and form fields use
+  loaded.
 """
 
 from playwright.sync_api import Page, ViewportSize
@@ -65,8 +66,44 @@ const until = async (cond, ceiling, what) => {
     await frame();
   }
 };
+const FIELD_TEXT = ["text", "search", "email", "url", "tel", "number", "submit", "button", "reset"];
+const fontsUsed = () => {
+  const used = new Map();
+  const add = (s, text) => {
+    if (text.trim() === "" || parseFloat(s.fontSize) === 0) return;
+    const font = `${s.fontStyle} ${s.fontWeight} ${s.fontSize} ${s.fontFamily}`;
+    used.set(font, (used.get(font) ?? "") + text);
+  };
+  const texts = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let t = texts.nextNode(); t !== null; t = texts.nextNode()) {
+    const el = t.parentElement;
+    if (el === null || t.textContent.trim() === "") continue;
+    const s = getComputedStyle(el);
+    if (s.visibility === "hidden") continue;
+    const range = document.createRange();
+    range.selectNodeContents(t);
+    if ([...range.getClientRects()].some((r) => r.width > 0 && r.height > 0)) add(s, t.textContent);
+  }
+  for (const el of document.body.querySelectorAll("input, textarea, select")) {
+    if (el.getClientRects().length === 0) continue;
+    const s = getComputedStyle(el);
+    if (s.visibility === "hidden") continue;
+    if (el instanceof HTMLSelectElement) add(s, [...el.selectedOptions].map((o) => o.text).join(""));
+    else if (el instanceof HTMLTextAreaElement || FIELD_TEXT.includes(el.type)) {
+      if (el.value !== "") add(s, el.value);
+      else add(getComputedStyle(el, "::placeholder"), el.placeholder);
+    }
+  }
+  for (const el of document.body.querySelectorAll("*")) {
+    if (el.getClientRects().length === 0) continue;
+    for (const pseudo of ["::before", "::after"]) {
+      const p = getComputedStyle(el, pseudo);
+      if (p.visibility !== "hidden" && p.content.startsWith('"')) add(p, p.content.slice(1, -1));
+    }
+  }
+  return [...used].map(([font, text]) => [font, [...new Set(text)].join("")]);
+};
 const settle = async (ceiling) => {
-  await document.fonts.ready;
   const end = performance.now() + ceiling;
   const running = () => document.getAnimations().filter(
     (a) => a.effect !== null && a.effect.getComputedTiming().iterations !== Infinity && a.playState === "running",
@@ -74,6 +111,13 @@ const settle = async (ceiling) => {
   for (let left = running(); left.length > 0; left = running()) {
     if (performance.now() > end) throw new Error("timed out waiting for animations to settle");
     await Promise.race([Promise.allSettled(left.map((a) => a.finished)), frame()]);
+  }
+  await frame();
+  const used = fontsUsed();
+  const loading = () => used.filter(([font, text]) => !document.fonts.check(font, text)).map(([font]) => font);
+  for (let left = loading(); left.length > 0; left = loading()) {
+    if (performance.now() > end) throw new Error(`timed out waiting for fonts to load: ${left.join("; ")}`);
+    await frame();
   }
   await frame();
   await frame();

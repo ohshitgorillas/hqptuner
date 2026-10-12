@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """Screenshot / measure a page with headless chromium — the visual hand-back harness.
 
-Replaces the per-session playwright boilerplate scratchpad scripts. Two modes,
-combinable in one invocation:
+Two modes, combinable in one invocation:
 
   screenshot   .venv/bin/python scripts/snap.py http://127.0.0.1:8090 out.png
   measure      .venv/bin/python scripts/snap.py http://127.0.0.1:8090 --measure ".card"
@@ -14,7 +13,7 @@ Measure prints one JSON object per matching element: bounding box plus any
   --full-page        capture full scrollable page
   --dark / --light   emulate prefers-color-scheme (default: dark)
   --wait SELECTOR    wait for selector before acting
-  --settle MS        extra settle delay after load (default 250)
+  --settle MS        extra settle delay after the fonts load (default 250)
   --eval JS          run JS in page context after load, print its JSON result
   --measure SELECTOR repeatable; dump geometry for every match
   --style PROP       repeatable; computed style properties to include in measure
@@ -25,6 +24,11 @@ Measure prints one JSON object per matching element: bounding box plus any
                      numbered blocks after the JSON, with the element's title,
                      aria-label and any popover or tooltip body the DOM already
                      holds (nothing is hovered, clicked or opened)
+
+Before any capture or measurement the page's text is laid out in its real
+fonts: every face the drawn text uses is loaded and the document's font set
+reports loaded. The app's faces swap in late (``font-display: swap``), so a
+capture taken before then measures fallback-font widths.
 
 Browser binary comes from ``HQPTUNER_CHROMIUM`` if set (on hosts that use a
 system chromium instead of an ms-playwright cache), else playwright's default.
@@ -46,6 +50,27 @@ MEASURE_JS = """
   return {selector: sel, x: r.x, y: r.y, width: r.width, height: r.height, ...styles};
 })
 """
+
+# Loads every font face the page's drawn text and form fields use, then resolves.
+FONTS_JS = """
+async () => {
+  const faces = new Set();
+  for (const el of document.querySelectorAll("body *")) {
+    const drawn = el.matches("input, textarea, select")
+      || [...el.childNodes].some((n) => n.nodeType === Node.TEXT_NODE && n.textContent.trim() !== "");
+    if (!drawn) continue;
+    const s = getComputedStyle(el);
+    faces.add(`${s.fontStyle} ${s.fontWeight} 16px ${s.fontFamily}`);
+  }
+  await Promise.all([...faces].map((face) => document.fonts.load(face)));
+}
+"""
+
+# True once the document's font set has no load in flight.
+FONTS_LOADED_JS = '() => document.fonts.status === "loaded"'
+
+# Ceiling, in ms, on the fonts loading. A ceiling on a condition, never a duration anything is expected to take.
+FONTS_TIMEOUT = 10_000
 
 # Status at or above which a response counts as a failed request rather than a served one.
 HTTP_ERROR_STATUS = 400
@@ -155,6 +180,8 @@ def run(page: Page, args: argparse.Namespace) -> None:
     page.goto(args.url, wait_until="networkidle")
     if args.wait:
         page.wait_for_selector(args.wait)
+    page.evaluate(FONTS_JS)
+    page.wait_for_function(FONTS_LOADED_JS, timeout=FONTS_TIMEOUT)
     page.wait_for_timeout(args.settle)
     results: dict[str, Any] = {}
     if args.console:
