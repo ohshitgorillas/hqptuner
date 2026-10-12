@@ -27,7 +27,7 @@ from typing import Literal, NamedTuple
 
 from hqptuner.audit import AuditLog
 from hqptuner.engine.control import ControlClient, Reply
-from hqptuner.engine.controlerrors import CommandError, readback_mismatch
+from hqptuner.engine.controlerrors import CommandError, ControlError, readback_mismatch
 
 _VOLUME_TOLERANCE = 0.05
 # a decimal level as the volume control sends it: sign, digits, optional fraction and exponent
@@ -35,6 +35,9 @@ _NUMBER = re.compile(r"\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*")
 
 # A setter answers with the daemon's refusal, or None when its readback verified.
 Handler = Callable[[ControlClient, dict[str, str]], Awaitable[CommandError | None]]
+
+# Told the setting whose write a dropped connection interrupted, before the ``ControlError`` propagates.
+Interrupted = Callable[[str], None]
 
 
 class LiveWriteOutcome(Enum):
@@ -161,12 +164,18 @@ def stageable_live_settings() -> tuple[str, ...]:
 
 
 async def apply_live(
-    client: ControlClient, edits: dict[str, dict[str, str]], audit: AuditLog | None = None
+    client: ControlClient,
+    edits: dict[str, dict[str, str]],
+    audit: AuditLog | None = None,
+    *,
+    on_interrupted: Interrupted | None = None,
 ) -> list[LiveWriteResult]:
     """Apply each live edit in the safe order, verifying by readback.
 
     One refused edit does not abort the rest — each reports its own outcome. A ``ControlError``
-    (a dead transport is not an answer) propagates and aborts the batch.
+    (a dead transport is not an answer) propagates and aborts the batch, after the edit it
+    interrupted is audited as unverified and named to ``on_interrupted``, so a caller can tell
+    the setting in flight from the ones never sent.
 
     ``audit`` arrives from the caller rather than a module-level handle so this
     stays a pure function of its arguments; omitting it logs nothing.
@@ -176,7 +185,12 @@ async def apply_live(
     for setting in SETTINGS:
         if setting not in edits:
             continue
-        report.append(await _apply_one(client, setting, edits[setting], log))
+        try:
+            report.append(await _apply_one(client, setting, edits[setting], log))
+        except ControlError:
+            if on_interrupted is not None:
+                on_interrupted(setting)
+            raise
     return report
 
 
@@ -212,7 +226,12 @@ async def _apply_one(client: ControlClient, setting: str, params: dict[str, str]
         audit.live_write(setting, value, None, ok=False)
         return LiveWriteFailed(setting=setting, error=malformed, code="invalid_input")
     # daemon_refused for a refusal or a readback mismatch: the refusal's own code is the verdict
-    refused = await _send(client, setting, params)
+    try:
+        refused = await _send(client, setting, params)
+    except ControlError:
+        # the write may have reached the engine, so it is on the record, unverified, before it propagates
+        audit.live_write(setting, value, None, ok=False)
+        raise
     if refused is not None:
         audit.live_write(setting, value, None, ok=False)
         return LiveWriteFailed(setting=setting, error=str(refused), code=refused.code)

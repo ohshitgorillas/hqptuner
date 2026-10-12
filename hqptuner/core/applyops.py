@@ -35,12 +35,14 @@ def _trace_live_volume(
     live_edits: dict[str, dict[str, str]],
     report: list[LiveWriteResult],
 ) -> None:
-    """Record a volume the live lane just set, where this batch carried one.
+    """Record a volume the live lane just wrote, where this batch carried one.
 
     The second of the two paths that reach the playing volume. Emitted here rather than inside ``lanes/writer`` for
     two reasons: ``_apply_one`` is handed an ``AuditLog`` and not the manager, and the attribution field lives on the
     manager's readings — so emitting from the caller leaves every existing signature alone. A setter that returns
-    without raising has had its readback matched (``lanes/writer``), so the value sent is the value confirmed.
+    without raising has had its readback matched (``lanes/writer``), so the value sent is the value confirmed; a
+    volume with no ``report`` row, as in the empty report of a volume write whose connection died, is traced as not
+    verified.
     """
     want = live_edits.get("volume", {}).get("value")
     if want is None:
@@ -80,13 +82,32 @@ async def _persistent_apply(
     return await restore.apply(mgr, http_fields, hooks, switched=switch_to is not None)
 
 
+def _staged_live(http_fields: dict[str, str], restore_fields: dict[str, str]) -> dict[str, str]:
+    """Return the staged fields that went to the engine live: all of them, or none when the batch took the restore lane.
+
+    Routing is all-or-nothing (``routing.split_live``), so one field on the restore lane means every staged field
+    rode the restore and none was confirmed live.
+    """
+    return {} if restore_fields else dict(http_fields)
+
+
 async def _write_live(
     mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]], staged: dict[str, str]
 ) -> list[LiveWriteResult]:
-    """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on."""
+    """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on.
+
+    ``staged`` holds only the staged fields that went to the engine live (``_staged_live``).
+    """
     async with mgr.live_writes:
         client = mgr.require_control()
-        report = await lane.write_live(mgr, client, live_edits)
+        interrupted: list[str] = []
+        try:
+            report = await lane.write_live(mgr, client, live_edits, on_interrupted=interrupted.append)
+        except ControlError:
+            # only a volume write the drop caught in flight is traced; one never sent is no write at all
+            if "volume" in interrupted:
+                _trace_live_volume(mgr, live_edits, [])
+            raise
         _trace_live_volume(mgr, live_edits, report)
         await lane.refresh_after_live(mgr, client, live_edits)
         lane.remember_routed(mgr, report, staged)
@@ -125,12 +146,13 @@ class ApplyOps:
         client = self._mgr.require_control()
         try:
             await client.set_volume(db)
+            self._mgr.readings.state = await client.get_state()
         except ControlError:
-            # recorded before it propagates: a refused write is exactly the one a
-            # later reading cannot be told from a write that never happened
+            # recorded before it propagates: a refused write, or one whose readback
+            # never came, is exactly the one a later reading cannot be told from a
+            # write that never happened
             voltrace.write(self._mgr, "api.volume", db, None, ok=False)
             raise
-        self._mgr.readings.state = await client.get_state()
         readback = self._mgr.readings.state.get("volume")
         voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
         return VolumeReport(readback)
@@ -168,7 +190,7 @@ class ApplyOps:
             plan = await lane.mode_then_split(mgr, http_fields, live_edits)
         live = plan.report
         if plan.live_edits:
-            live = live + await _write_live(mgr, plan.live_edits, dict(http_fields))
+            live = live + await _write_live(mgr, plan.live_edits, _staged_live(http_fields, plan.restore_fields))
         restore_fields = plan.restore_fields
         persistent = await _persistent_apply(mgr, restore_fields, switch_to, save) if restore_fields else None
         aftermath = await after_restore(mgr, persistent, restore_fields)

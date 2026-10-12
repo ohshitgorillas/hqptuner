@@ -31,6 +31,7 @@ from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.engine.control import ControlClient
     from hqptuner.lanes import LaneManager
+    from hqptuner.lanes.writer import Interrupted
 
 log = logging.getLogger(__name__)
 
@@ -83,27 +84,37 @@ def _remember_chain(mgr: LaneManager, chain: str, fields: dict[str, str]) -> Non
         mgr.readings.live.chain.setdefault(chain, {}).update(fields)
 
 
-def _applied_chain_fields(report: list[LiveWriteResult], fields: dict[str, str]) -> dict[str, str]:
-    """Return the chain-scoped fields in this batch whose setter verified by readback."""
+def _applied_chain_fields(report: list[LiveWriteResult], fields: dict[str, str], chain: str) -> dict[str, str]:
+    """Return this batch's fields of ``chain`` whose setter verified by readback.
+
+    The two chains share setters (``SetFilter``, ``SetShaping``), so a verified
+    setter confirms only the field of the chain it was written for. A field of the
+    other chain behind the same setter was held, not sent, and is not confirmed here.
+    """
     return {
         field: value
         for field, value in fields.items()
         if field in routing.ROUTABLE
-        and routing.ROUTABLE[field].chain is not None
+        and routing.ROUTABLE[field].chain == chain
         and _applied(report, routing.ROUTABLE[field].setting)
     }
 
 
 async def write_live(
-    mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]
+    mgr: LaneManager,
+    client: ControlClient,
+    edits: dict[str, dict[str, str]],
+    *,
+    on_interrupted: Interrupted | None = None,
 ) -> list[LiveWriteResult]:
     """Apply live edits, readback-verified (``writer.apply_live``), and record what they changed on the engine.
 
     Every live-setter batch goes through here, so the record (``memory.LiveMemory.written``) learns
-    each one against the engine it was resolved against, taken before the write.
+    each one against the engine it was resolved against, taken before the write. ``on_interrupted``
+    is handed to ``writer.apply_live``, which names to it the setting a dropped connection interrupted.
     """
     resolved_against = memory.engine_view(mgr)
-    report = await apply_live(client, edits, mgr.audit)
+    report = await apply_live(client, edits, mgr.audit, on_interrupted=on_interrupted)
     mgr.readings.live.confirm(edits, report, resolved_against)
     return report
 
@@ -119,7 +130,7 @@ def remember_routed(mgr: LaneManager, report: list[LiveWriteResult], fields: dic
     """
     chain = active_chain(mgr)
     if chain is not None:
-        _remember_chain(mgr, chain, _applied_chain_fields(report, fields))
+        _remember_chain(mgr, chain, _applied_chain_fields(report, fields, chain))
 
 
 async def reassert_chain(mgr: LaneManager, client: ControlClient) -> list[LiveWriteResult]:
@@ -189,14 +200,8 @@ async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dic
         mgr.readings.enums = await client.get_all_enumerations()
 
 
-async def _bookkeep(
-    mgr: LaneManager,
-    client: ControlClient,
-    edits: dict[str, dict[str, str]],
-    stored: dict[str, dict[str, str]],
-    applied: dict[str, str],
-) -> None:
-    """Refresh what the batch invalidated and record what LIVE set, held or applied, per chain.
+async def _refresh_quietly(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
+    """Refresh what the batch invalidated (``refresh_after_live``).
 
     A control failure here is logged, not raised: the write is already readback-verified.
     """
@@ -204,11 +209,21 @@ async def _bookkeep(
         await refresh_after_live(mgr, client, edits)
     except ControlError as exc:
         log.warning("post-apply refresh failed: %s", exc)
+
+
+def _record_batch(
+    mgr: LaneManager, stored: dict[str, dict[str, str]], fields: dict[str, str], report: list[LiveWriteResult]
+) -> None:
+    """Record what LIVE set, held or applied, per chain.
+
+    The loaded chain records only its own fields whose setter verified, judged
+    against the chain State says is loaded, so the caller refreshes State first.
+    """
     for chain, held in stored.items():
         _remember_chain(mgr, chain, held)
     loaded = active_chain(mgr)
     if loaded is not None:
-        _remember_chain(mgr, loaded, applied)
+        _remember_chain(mgr, loaded, _applied_chain_fields(report, fields, loaded))
 
 
 async def _after_mode(mgr: LaneManager, client: ControlClient) -> list[LiveWriteResult]:
@@ -249,7 +264,8 @@ async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
     client = mgr.require_control()
     edits, stored = routing.resolve_live(mgr, fields)
     report = await write_live(mgr, client, edits)
-    await _bookkeep(mgr, client, edits, stored, _applied_chain_fields(report, fields))
+    await _refresh_quietly(mgr, client, edits)
+    _record_batch(mgr, stored, fields, report)
     if _applied(report, "mode"):
         report = report + await _after_mode(mgr, client)
     return LiveApplyReport(report, _held_fields(stored))
