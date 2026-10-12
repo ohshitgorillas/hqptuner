@@ -1,5 +1,6 @@
 // Where raised alerts land, free of the DOM: which homes blink and in what colour, which drawers and page sections pin
-// which alert lines, which drawer rows light, which stages go dark, and which header homes open a popover.
+// which alert lines, which lines the plate shows under its top bar, which drawer rows light, which stages go dark, and
+// which header homes open a popover.
 
 /** @typedef {'crit' | 'warn' | 'advice'} Sev */
 /** @typedef {'crit' | 'warn'} Blink */
@@ -20,6 +21,7 @@
  * @property {string} [drawer]  drawer that pins the alert line
  * @property {string[]} [row]  drawer rows that fix it
  * @property {string} [section]  page section whose header pins the line
+ * @property {boolean} [plate]  the plate shows the line under its top bar, on every view
  * @property {string} [el]  header element that blinks
  * @property {string} [set]  Settings rail category that blinks
  * @property {string[]} [dark]  rail stages that go dark
@@ -30,6 +32,7 @@
  * @property {{ stage: Map<string, Blink>, el: Map<string, Blink>, set: Map<string, Blink> }} blinks  each blinking home's colour
  * @property {Map<string, { alerts: Alert[], rows: LitRow[] }>} drawers  each drawer's pinned lines and lit rows
  * @property {Map<string, Alert[]>} sections  each page section's pinned lines
+ * @property {Alert[]} plate  the lines the plate shows under its top bar, in raised order
  * @property {string[]} dark  stages that go dark
  */
 
@@ -86,6 +89,7 @@ export function alertPlan(list, homes) {
     blinks: { stage: new Map(), el: new Map(), set: new Map() },
     drawers: new Map(),
     sections: new Map(),
+    plate: [],
     dark: [],
   };
   /** @type {Map<string, Alert[]>} */
@@ -98,6 +102,7 @@ export function alertPlan(list, homes) {
     raise(plan.blinks.set, home.set, a.sev);
     if (home.drawer) push(byDrawer, home.drawer, a);
     if (home.section) push(plan.sections, home.section, a);
+    if (home.plate) plan.plate.push(a);
     for (const id of home.dark || []) if (!plan.dark.includes(id)) plan.dark.push(id);
   }
   for (const [id, alerts] of byDrawer) {

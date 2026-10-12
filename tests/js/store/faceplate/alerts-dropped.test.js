@@ -1,16 +1,16 @@
 // Behavioral suite for the engine alert hqptuner/static/store/faceplate/alerts.js raises from the health report's
-// `dropped_settings`: while the report lists any setting the alert is up, amber on the brand knob and on no rail stage,
-// it comes after the credentials alert in the knob's popover, it outlives the track it was raised on, and it comes down
-// once the report lists nothing.
+// `dropped_settings`: the brand knob shows connection status only, so the alert never lights the knob and never joins
+// the credentials alert in the knob's popover, and the alert comes down once the report lists nothing. Where it does
+// show, directly under the top bar, is pinned in tests/js/components/faceplate-alerts/plate-dropped.test.js.
 //
 // Driven at the wire as tests/js/store/faceplate/alerts.test.js drives it: the /api/health reading goes into `health`
 // and the /api/status frame into `engineStatus`, every simulated poll a fresh object, each case starting on a fresh track
 // with a healthy speed and nothing else wrong. The new alert's kind is the implementation's to name, so no case names
-// it: the alert is found by where it lands and the severity it carries. The sentences are owner copy and are nowhere in
-// this file.
+// it: the knob is read with the report listing settings and compared with the knob read with the report empty. The
+// sentences are owner copy and are nowhere in this file.
 //
 // Not reachable here: a timeout measured on a clock. The alerts store takes no clock seam, so this file pins the
-// alert's dependence on the report alone, across polls and a track change, and not on elapsed time.
+// alert's dependence on the report alone, and not on elapsed time.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/alerts-dropped.test.js
 
@@ -77,30 +77,36 @@ const report = (dropped, refused = false) => {
   health.value = { ...HEALTHY, credentials_ok: !refused, dropped_settings: dropped.map((d) => ({ ...d })) };
 };
 
-/** Every blink and darkened stage in the plan, one row each: where it lands, the home, and the colour. */
-const footprint = () => {
-  const p = alertsNow.value;
-  return [
-    ...[...p.blinks.el].map(([home, sev]) => ["el", home, sev]),
-    ...[...p.blinks.stage].map(([home, sev]) => ["stage", home, sev]),
-    ...[...p.blinks.set].map(([home, sev]) => ["set", home, sev]),
-    ...p.dark.map((stage) => ["dark", stage]),
-  ];
+/**
+ * The knob's blink while the report lists `dropped`, on a quiet plate.
+ *
+ * @param {WrittenSetting[]} dropped
+ */
+const knobBlink = async (dropped) => {
+  await quiet();
+  report(dropped);
+  return alertsNow.value.blinks.el.get(KNOB);
 };
 
-test("test_dropped_settings_blink_the_knob_amber_and_nothing_else", async () => {
+/**
+ * The severities in the knob's popover while the credentials are refused and the report lists `dropped`.
+ *
+ * @param {WrittenSetting[]} dropped
+ */
+const knobNotes = async (dropped) => {
   await quiet();
-  report(DROPPED);
-  assert.deepEqual(footprint(), [["el", KNOB, "warn"]]);
+  report(dropped, true);
+  return alertNotes(KNOB).map((a) => a.sev);
+};
+
+test("test_dropped_settings_leave_the_knob_unlit", async () => {
+  const unlit = await knobBlink([]);
+  assert.equal(await knobBlink(DROPPED), unlit);
 });
 
-test("test_the_knobs_popover_holds_the_dropped_settings_alert_after_the_credentials_alert", async () => {
-  await quiet();
-  report(DROPPED, true);
-  assert.deepEqual(
-    alertNotes(KNOB).map((a) => a.sev),
-    ["crit", "warn"],
-  );
+test("test_the_knobs_popover_holds_only_the_credentials_alert_while_settings_are_dropped", async () => {
+  const credentialsOnly = await knobNotes([]);
+  assert.deepEqual(await knobNotes(DROPPED), credentialsOnly);
 });
 
 test("test_an_emptied_report_takes_down_the_alert_it_raised", async () => {
@@ -109,14 +115,4 @@ test("test_an_emptied_report_takes_down_the_alert_it_raised", async () => {
   const listing = faceplateAlerts().length;
   report([]);
   assert.equal(listing - faceplateAlerts().length, 1);
-});
-
-test("test_the_alert_stays_up_on_the_next_track_while_the_report_still_lists_a_setting", async () => {
-  await quiet();
-  report(DROPPED);
-  serial += 1;
-  poll();
-  poll();
-  report(DROPPED);
-  assert.equal(alertsNow.value.blinks.el.get(KNOB), "warn");
 });

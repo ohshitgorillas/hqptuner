@@ -280,8 +280,9 @@
 
 /* Alert line (alerts.js): pinned under a drawer's head, one line per alert, in a glass
    well. crit --bad, warn --warn, advice ink-2; never the accent. The row that fixes it reads in the alert's colour, the glyph
-   before its label. */
+   before its label. The plate's own lines (.dalert.pline) sit in the same well under the top bar, clear of the rule below. */
 .dalert{display:flex;flex-direction:column;gap:var(--sp-1);flex-shrink:0;margin:var(--sp-3) 0 0;padding:var(--sp-2) var(--sp-5);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well)}
+.dalert.pline{margin-bottom:var(--sp-3)}
 .aline{display:grid;grid-template-columns:var(--apod-mark) minmax(0,1fr);gap:0 var(--sp-3);margin:0;font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text);color:var(--ink-2)}
 .aline .ag{text-align:center}
 .aline[data-sev="crit"]{color:var(--bad)}

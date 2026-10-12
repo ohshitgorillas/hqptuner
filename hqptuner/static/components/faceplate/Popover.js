@@ -5,7 +5,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
-import { openPopover, togglePopover } from "../../store/faceplate/view.js";
+import { body, openPopover, togglePopover } from "../../store/faceplate/view.js";
 import { plate } from "../../store/faceplate/plate.js";
 
 /** @typedef {import("../../model/shell/place.js").Side} Side */
@@ -61,6 +61,27 @@ export function originOf(panel, face) {
   if (!box) return ON_PLATE;
   const o = onFace(box, face);
   return { x: o.x + box.clientLeft, y: o.y + box.clientTop };
+}
+
+/**
+ * Run `fn` whenever the plate's body changes size, as when a line above it comes, grows or goes and moves its top. It
+ * watches the body the plate shows, moving to the new one when the body swaps, and stops when the caller unmounts. Where
+ * there is no ResizeObserver it watches nothing.
+ *
+ * @param {{ current: Element | null }} ref  an element on the plate
+ * @param {() => void} fn  re-places the caller; the latest one passed runs
+ */
+export function useBodyResize(ref, fn) {
+  const latest = useRef(fn);
+  latest.current = fn;
+  const shown = body.value;
+  useLayoutEffect(() => {
+    const b = ref.current?.closest(".plate")?.querySelector(".body");
+    if (!b || typeof ResizeObserver !== "function") return undefined;
+    const ro = new ResizeObserver(() => latest.current());
+    ro.observe(b);
+    return () => ro.disconnect();
+  }, [shown]);
 }
 
 /**

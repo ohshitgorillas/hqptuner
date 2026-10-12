@@ -20,13 +20,13 @@ import { AFTER_SHAPING } from "./chain.js";
 
 /**
  * Where each kind lives: stages and drawers by rail id, sections by page section id, header elements by name, fixing
- * rows by catalog key.
+ * rows by catalog key, and `plate` for a line the plate shows under its top bar.
  *
  * @type {Record<string, Home>}
  */
 const HOMES = {
   credentials: { el: "conn" },
-  engine: { el: "conn" },
+  engine: { plate: true },
   speed: { el: "gauge" },
   clip: { stage: "volume", drawer: "volume" },
   apod: { stage: "resampling", section: "resampling" },

@@ -1,24 +1,25 @@
-// Rendered suite for clearing the dropped-settings report from the brand knob's popover on
-// hqptuner/static/components/faceplate/Header.js: tapping the engine alert's line asks the server to clear the report
+// Rendered suite for clearing the dropped-settings report from the faceplate (the frame hqptuner/static/app.js
+// composes), where the alert shows directly under the top bar: tapping that line asks the server to clear the report
 // (DELETE /api/health/dropped-settings, answered 204 with no body) and then reads /api/health again, and once that
-// reading lists nothing the alert is gone from the knob and from the popover. A tap on the knob only opens the popover,
-// a refused clear leaves the line up to be tapped again, and the credentials line beside it clears nothing.
+// reading lists nothing the line is gone; while it still lists a setting, the line stays. A tap on the knob clears
+// nothing, a refused clear leaves the line up to be tapped again, and the credentials line in the knob's popover clears
+// nothing.
 //
 // The wire is the seam, as tests/js/components/faceplate-alerts/header-dropped.test.js drives it: the /api/health
-// reading carrying `dropped_settings` goes into `health`, the rest of the header's state is set the way that file sets
+// reading carrying `dropped_settings` goes into `health`, the rest of the frame's state is set the way that file sets
 // it, and a fetch fake answers the staging reads, the clear and the health read from this file's own table. The clear's
-// 204 is the platform's own empty Response. Taps are fired through the renderer's vnode seam, since render-to-string
-// fires no events; a line is the element carrying a severity, and tapping it fires the first tap handler on that
-// element or inside it. The sentences are owner copy and are nowhere in this file: a line is found by its severity.
+// 204 is the platform's own empty Response. The region under the top bar is read through tests/js/support/plateline.js.
+// Taps are fired through the renderer's vnode seam, since render-to-string fires no events; a line is the element
+// carrying a severity, and tapping it fires the first tap handler on that element or inside it. The sentences are owner
+// copy and are nowhere in this file: a line is found by its severity, and the alert is read for the engine name the
+// fixture put on the wire.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-alerts/header-dropped-clear.test.js
 
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Header } from "../../../../hqptuner/static/components/faceplate/Header.js";
+import "../../support/domseam.js";
 import {
   health,
   config,
@@ -33,12 +34,11 @@ import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
 import { liveBook, livePresets } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { elements, attr, hasAttr } from "../../support/markup.js";
-import { renderTree } from "../../support/vnodeseam.js";
+import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
+import { readPlate, shownText, lineTap } from "../../support/plateline.js";
 import { stagingWire, quiesce, bad } from "../../support/wire/wire.js";
 
 /** @typedef {{ field: string, value: string, name: string | null }} WrittenSetting */
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
 /** @type {{ fetch?: unknown }} */
@@ -54,7 +54,10 @@ const HEALTH_PATH = "/api/health";
 /** The knob's test id. */
 const KNOB = "conn";
 
-/** The credentials alert's severity, and the dropped-settings alert's, as the knob's popover carries them. */
+/** The plate's design size. */
+const DESIGN_SIZE = { w: 1080, h: 810 };
+
+/** The credentials alert's severity, and the dropped-settings alert's, as their lines carry them. */
 const CRED_SEV = "crit";
 const DROPPED_SEV = "warn";
 
@@ -65,13 +68,16 @@ const REFUSAL_DETAIL = "hqplayerd is not answering";
 /** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {}, dropped_settings: [] };
 
+/** The engine name of the dropped filter, as the wire carries it. */
+const FILTER_NAME = "poly-sinc-gauss-xla";
+
 /**
  * Two settings a daemon restart dropped.
  *
  * @type {WrittenSetting[]}
  */
 const DROPPED = [
-  { field: "filter", value: "42", name: "poly-sinc-gauss-xla" },
+  { field: "filter", value: "42", name: FILTER_NAME },
   { field: "rate", value: "352800", name: null },
 ];
 
@@ -110,6 +116,7 @@ beforeEach(async () => {
       return undefined;
     },
   });
+  viewport.value = { ...DESIGN_SIZE };
   engineState.value = {};
   engineStatus.value = null;
   matrixConfig.value = { fields: [] };
@@ -148,75 +155,46 @@ const report = (dropped, refused = false) => {
   health.value = { ...HEALTHY, credentials_ok: !refused, dropped_settings: dropped.map((d) => ({ ...d })) };
 };
 
-/** Every element of the rendered header. */
-const all = () => elements(render(html`<${Header} />`));
-
-/** One attribute of the knob, or undefined when it carries none. */
-const knobAttr = (/** @type {string} */ name) => {
-  const el = all().find((e) => attr(e, "data-testid") === KNOB);
-  return el && attr(el, name);
-};
-
-/** The severities of the lines inside the header's shown popover panels, in order. */
-const shownSevs = () =>
-  all()
-    .filter((e) => e.name !== "button" && hasAttr(e, "data-pop") && !hasAttr(e, "hidden"))
-    .flatMap((p) => elements(p.html).filter((e) => hasAttr(e, "data-sev")))
-    .map((e) => attr(e, "data-sev"));
+/** Whether the dropped filter's engine name shows directly under the top bar. */
+const underBarShows = () => shownText(readPlate().under).includes(FILTER_NAME);
 
 /**
- * The first tap handler on a vnode or anywhere inside it, or undefined when there is none.
+ * Fire a tap handler, if there is one, and wait for the wire to go quiet. How the handler itself settles is not this
+ * suite's question: the wire and the render are.
  *
- * @param {unknown} node
- * @returns {((e?: unknown) => unknown) | undefined}
+ * @param {((e?: unknown) => unknown) | undefined} onTap
  */
-function handlerIn(node) {
-  if (Array.isArray(node)) {
-    for (const child of node) {
-      const hit = handlerIn(child);
-      if (hit) return hit;
-    }
-    return undefined;
-  }
-  if (node === null || typeof node !== "object") return undefined;
-  const props = /** @type {VNode} */ (node).props;
-  if (!props) return undefined;
-  const onClick = props.onClick;
-  if (typeof onClick === "function") return /** @type {(e?: unknown) => unknown} */ (onClick);
-  return handlerIn(props.children);
+async function fire(onTap) {
+  if (typeof onTap === "function") await Promise.resolve(onTap(TAP)).catch(() => undefined);
+  await quiesce(wire);
 }
 
-/** Open the knob's popover from closed, by tapping the knob. */
-async function openKnob() {
+/** Tap the knob, from a closed popover. */
+async function tapKnob() {
   openPopover.value = null;
-  const { seen } = renderTree(html`<${Header} />`);
+  const { seen } = readPlate();
   const hit = seen.find((v) => v.props["data-testid"] === KNOB);
-  const onClick = /** @type {((e?: unknown) => unknown) | undefined} */ (hit?.props.onClick);
-  if (typeof onClick === "function") await Promise.resolve(onClick(TAP)).catch(() => undefined);
-  await quiesce(wire);
+  await fire(/** @type {((e?: unknown) => unknown) | undefined} */ (hit?.props.onClick));
 }
 
-/**
- * Tap the first line of a severity in the rendered header, and wait for the wire to go quiet. Taps nothing when no
- * such line takes a tap. How the handler itself settles is not this suite's question: the wire and the render are.
- *
- * @param {string} sev
- */
-async function tapLine(sev) {
-  const { seen } = renderTree(html`<${Header} />`);
-  const line = seen.find((v) => typeof v.type === "string" && v.props["data-sev"] === sev);
-  const onTap = handlerIn(line);
-  if (onTap) await Promise.resolve(onTap(TAP)).catch(() => undefined);
-  await quiesce(wire);
+/** Tap the first line directly under the top bar carrying the dropped-settings alert's severity. */
+async function tapUnderBar() {
+  const { seen, under } = readPlate();
+  await fire(lineTap(seen, DROPPED_SEV, under));
+}
+
+/** Tap the first credentials line anywhere on the faceplate, the knob's popover included. */
+async function tapCredentials() {
+  const { seen } = readPlate();
+  await fire(lineTap(seen, CRED_SEV));
 }
 
 /** How many clears the fake has been asked for. */
 const clears = () => calls.filter(([method, path]) => method === "DELETE" && path === CLEAR_PATH).length;
 
-test("test_tapping_the_dropped_settings_line_clears_the_report_and_then_reads_health_again", async () => {
+test("test_tapping_the_line_under_the_top_bar_clears_the_report_and_then_reads_health_again", async () => {
   report(DROPPED);
-  await openKnob();
-  await tapLine(DROPPED_SEV);
+  await tapUnderBar();
   assert.deepEqual(
     calls.filter(([, path]) => path === CLEAR_PATH || path === HEALTH_PATH),
     [
@@ -226,28 +204,26 @@ test("test_tapping_the_dropped_settings_line_clears_the_report_and_then_reads_he
   );
 });
 
-test("test_a_cleared_report_takes_the_alert_off_the_knob", async () => {
-  const unalerted = knobAttr("data-alert");
+test("test_a_cleared_report_takes_the_line_from_under_the_top_bar", async () => {
   report(DROPPED);
-  await openKnob();
-  await tapLine(DROPPED_SEV);
-  assert.equal(knobAttr("data-alert"), unalerted);
+  const before = underBarShows();
+  await tapUnderBar();
+  assert.deepEqual([before, underBarShows()], [true, false]);
 });
 
-test("test_a_cleared_report_leaves_only_the_credentials_line_in_the_knobs_popover", async () => {
-  table.served = { ...HEALTHY, credentials_ok: false };
-  report(DROPPED, true);
-  await openKnob();
-  await tapLine(DROPPED_SEV);
-  await openKnob();
-  assert.deepEqual(shownSevs(), [CRED_SEV]);
+test("test_a_health_read_that_still_lists_a_setting_after_the_clear_keeps_the_line_up", async () => {
+  table.served = { ...HEALTHY, dropped_settings: DROPPED.map((d) => ({ ...d })) };
+  report(DROPPED);
+  const before = underBarShows();
+  await tapUnderBar();
+  assert.deepEqual([before, underBarShows()], [true, true]);
 });
 
 test("test_tapping_the_knob_sends_no_clear_until_the_line_is_tapped", async () => {
   report(DROPPED);
-  await openKnob();
+  await tapKnob();
   const afterKnob = clears();
-  await tapLine(DROPPED_SEV);
+  await tapUnderBar();
   assert.deepEqual([afterKnob, clears()], [0, 1]);
 });
 
@@ -255,18 +231,16 @@ test("test_after_a_refused_clear_the_line_can_be_tapped_again", async () => {
   table.clearRefused = true;
   table.served = { ...HEALTHY, dropped_settings: DROPPED.map((d) => ({ ...d })) };
   report(DROPPED);
-  await openKnob();
-  await tapLine(DROPPED_SEV);
-  await openKnob();
-  await tapLine(DROPPED_SEV);
+  await tapUnderBar();
+  await tapUnderBar();
   assert.equal(clears(), 2);
 });
 
 test("test_tapping_the_credentials_line_clears_nothing", async () => {
   report(DROPPED, true);
-  await openKnob();
-  await tapLine(CRED_SEV);
+  await tapKnob();
+  await tapCredentials();
   const afterCredentials = clears();
-  await tapLine(DROPPED_SEV);
+  await tapUnderBar();
   assert.deepEqual([afterCredentials, clears()], [0, 1]);
 });

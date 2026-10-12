@@ -14,7 +14,7 @@ import { openList } from "../../../store/faceplate/view.js";
 import { plate } from "../../../store/faceplate/plate.js";
 import { closeOptionList, hasConsole, isPanel, kindOf } from "../../../store/faceplate/lists/open.js";
 import { listBlurbs, listOptions, narrowedOptions } from "../../../store/faceplate/lists/options.js";
-import { onFace, originOf } from "../Popover.js";
+import { onFace, originOf, useBodyResize } from "../Popover.js";
 import { Columns } from "./Columns.js";
 import { Console } from "./Console.js";
 import { FacetPopovers } from "./FacetPopover.js";
@@ -147,6 +147,7 @@ export function OptionList() {
   const view = contents(req ?? last.current, std);
   const fit = plate.value;
   useLayoutEffect(() => place(ref.current, req), [req, std, view.n, fit]);
+  useBodyResize(ref, () => place(ref.current, req));
   useEffect(listen, []);
   return html`
     <aside

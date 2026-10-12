@@ -89,6 +89,7 @@ Current state only.
 
 ## Alerts
 - No strip. Each alert lives where it belongs and blinks there: red = crit, amber = warn or advice. Fixed colours, never the accent. The blink overlays the lamp's state (an unlit lamp blinks too). Reduced motion: steady.
+- The one exception is settings a daemon restart dropped (warn). Its line, one row per setting, shows directly under the header on every view, with no tap, until tapped; the tap clears the report. The brand knob shows connection status only and never carries it.
 - v1's alerts and copy, verbatim, each where v1's would fire:
   - Credentials rejected (crit) → brand knob, blinking red (steady red stays Unreachable).
   - DSP speed (crit / warn) → engine-row speed figure.

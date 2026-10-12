@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { plate } from "../../store/faceplate/plate.js";
 import { panelOpen } from "../../store/faceplate/view.js";
+import { useBodyResize } from "./Popover.js";
 import {
   discovering,
   form,
@@ -142,12 +143,13 @@ function place(el) {
   el.style.top = `${b?.offsetTop ?? 0}px`;
 }
 
-/** The connection panel, always drawn; closed, it carries `data-closed`. */
+/** The connection panel, always drawn; closed, it carries `data-closed`. Its top follows the body's. */
 export function ConnPanel() {
   const open = panelOpen.value;
   const fit = plate.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
   useLayoutEffect(() => place(ref.current), [open, fit]);
+  useBodyResize(ref, () => place(ref.current));
   useEffect(() => {
     if (open) ref.current?.querySelector("input")?.focus();
   }, [open]);

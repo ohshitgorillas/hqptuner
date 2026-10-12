@@ -1,10 +1,11 @@
 // The entry, served at /: the faceplate's root, mounted where the page has a mount point.
-// Header and engine row stay; under them the chain body (rail, page, one drawer per rail stage over the page, each
-// drawn from its registered schema, the page's plate-level popovers, and the option list a chain picker opens over the
-// body with its hover tip), the Settings body the gear swaps in, the Snapshot builder's body with the same option list
-// and tip for its list pickers, the Profile builder's body, or the empty body any other builder swaps in. Under the
-// body, a hairline and the bottom bar. The connection panel the brand knob opens is a sheet over the body. The
-// faceplate theme is stamped on the document root before the first render.
+// Header and engine row stay, with the plate's alert lines between them on every view; under them the chain body
+// (rail, page, one drawer per rail stage over the page, each drawn from its registered schema, the page's plate-level
+// popovers, and the option list a chain picker opens over the body with its hover tip), the Settings body the gear
+// swaps in, the Snapshot builder's body with the same option list and tip for its list pickers, the Profile builder's
+// body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The connection
+// panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
+// first render.
 import { render } from "preact";
 import { html } from "./lib/dom.js";
 import { Plate } from "./components/faceplate/Plate.js";
@@ -23,6 +24,8 @@ import { SnapshotBuilder } from "./components/faceplate/builders/SnapshotBuilder
 import { ProfileBuilder } from "./components/faceplate/builders/ProfileBuilder.js";
 import { Switcher } from "./components/faceplate/bottom/Switcher.js";
 import { ConnPanel } from "./components/faceplate/ConnPanel.js";
+import { AlertLines } from "./components/faceplate/AlertLines.js";
+import { alertsNow } from "./store/faceplate/alerts.js";
 import { body } from "./store/faceplate/view.js";
 import { watchFaceplateTheme } from "./store/faceplate/settings/visual.js";
 import { railStages, railNow } from "./store/faceplate/chain.js";
@@ -78,11 +81,23 @@ function shownBody(shown) {
   return html`<div class="body" data-body=${shown}></div>`;
 }
 
-/** The faceplate: header and engine row over the body that shows. */
+/** The lines the plate shows under its top bar; nothing while there are none. */
+function PlateAlerts() {
+  const alerts = alertsNow.value.plate;
+  if (!alerts.length) return null;
+  return html`
+    <div class="dalert pline" role="status">
+      <${AlertLines} alerts=${alerts} />
+    </div>
+  `;
+}
+
+/** The faceplate: header, the plate's alert lines and engine row over the body that shows. */
 export function Faceplate() {
   return html`
     <${Plate}>
       <${Header} />
+      <${PlateAlerts} />
       <${ConnPanel} />
       <div class="rule"></div>
       <${EngineRow} />
