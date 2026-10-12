@@ -5,9 +5,9 @@
 // The `health` signal is assigned the readings a poll would have delivered, the
 // panel's own exported signals are assigned to state the situation, and `fetch` is
 // faked at the real REST paths with the real response shapes.
-// The clock is injected through `initPanel(now)`,
-// so every "at N ms" below is a reading of that
-// function and never a duration this suite spends.
+// The suite's fake clock (tests/js/support/clock.js) is handed in through `initPanel`,
+// so every "at N ms" below is a reading of that clock and never a duration this
+// suite spends.
 //
 // Readings are fresh objects every time: writing the same reference to a signal
 // does not notify and the auto-open effect would never run.
@@ -27,6 +27,7 @@ import {
 } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
+import { fakeClock } from "../support/clock.js";
 
 /** The globals a wire fake installs a `fetch` on. */
 /** @type {{ fetch?: unknown }} */
@@ -49,10 +50,16 @@ const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok:
 // product, platform.
 const FOUND = [{ address: "10.0.0.9", name: "hqplayerd", version: "5.10.0", product: "Embedded", platform: "linux" }];
 
-/** The injected clock, in milliseconds since the page loaded. */
-let clock = 0;
+/** The fake clock the page reads, in milliseconds since the page loaded. */
+let fake = fakeClock();
 /** @type {(() => void) | undefined} */
 let dispose;
+
+// Moves the fake clock on to `at` ms since the page loaded.
+/** @param {number} at */
+function moveTo(at) {
+  fake.advance(at - fake.clock.now());
+}
 
 afterEach(() => {
   if (dispose) dispose();
@@ -64,12 +71,13 @@ afterEach(() => {
 // loopback address it opens with and not yet edited.
 /** @param {number} [at] */
 function start(at = 0) {
-  clock = at;
+  fake = fakeClock();
+  moveTo(at);
   health.value = null;
   panelOpen.value = false;
   hostTouched.value = false;
   form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(() => clock);
+  dispose = initPanel(fake.clock);
 }
 
 // One health poll landing at `at` ms, answered with what the panel then shows.
@@ -79,7 +87,7 @@ function start(at = 0) {
  * @returns {boolean}
  */
 function reading(fields, at) {
-  clock = at;
+  moveTo(at);
   health.value = { ...fields };
   return panelOpen.value;
 }

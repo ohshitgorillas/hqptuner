@@ -30,6 +30,9 @@ import { signal, effect } from "@preact/signals";
 import { health } from "./signals.js";
 import { panelOpen } from "./faceplate/view.js";
 import { api } from "../lib/api.js";
+import { PLATFORM } from "../lib/clock.js";
+
+/** @typedef {import("../lib/clock.js").Clock} Clock */
 
 // How long `reachable` false must hold, from the page's own clock, before the
 // panel treats it as an install that cannot reach its daemon.
@@ -69,11 +72,12 @@ export const hostTouched = signal(false);
 export const verdict = signal(null);
 
 // The page's own clock, swapped by initPanel so a test can drive it.
-let clock = () => performance.now();
+/** @type {Clock} */
+let clock = PLATFORM;
 // When this page started watching. The grace is measured from here rather than
 // from the first failing reading: a page loaded into an install that is already
 // down should not owe the grace twice.
-let watchingSince = clock();
+let watchingSince = clock.now();
 // Whether the daemon has been connected at any point since this page loaded.
 let everConnected = false;
 // Whether this page has already auto-opened. One per page load; a user who
@@ -144,7 +148,7 @@ function judgeSave(h) {
     return;
   }
   if (savedLane === "refused") verdict.value = "refused";
-  else if (h.reachable === false && clock() - savedAt >= GRACE_MS) verdict.value = "unreachable";
+  else if (h.reachable === false && clock.now() - savedAt >= GRACE_MS) verdict.value = "unreachable";
   else if (h.reachable && savedLane === "no_credentials") verdict.value = "no-8088";
   else if (h.reachable && savedLane === "no_answer") verdict.value = "no-answer";
   else verdict.value = "connecting";
@@ -155,7 +159,7 @@ function judgeSave(h) {
 /** @param {Record<string, unknown>} h */
 function cannotUseDaemon(h) {
   if (h.credentials_ok === false) return true;
-  return h.reachable === false && clock() - watchingSince >= GRACE_MS;
+  return h.reachable === false && clock.now() - watchingSince >= GRACE_MS;
 }
 
 /** @param {Record<string, unknown> | null} h */
@@ -194,11 +198,11 @@ let dispose = watch();
  * disposes must not be able to leave the module deaf to the health poll for
  * everything that comes after it.
  *
- * @param {() => number} [now] the page's clock; the default is `performance.now`
+ * @param {Clock} [next] the page's clock
  */
-export function initPanel(now) {
-  if (now) clock = now;
-  watchingSince = clock();
+export function initPanel(next = PLATFORM) {
+  clock = next;
+  watchingSince = clock.now();
   everConnected = false;
   autoOpened = false;
   awaitingVerdict = false;
@@ -287,7 +291,7 @@ export async function submitConnection(andClose = false) {
   const answer = await api.saveConnection(body);
   // The panel went down while the POST was out: the save is forgotten, so its answer is not judged.
   if (!awaitingVerdict) return;
-  savedAt = clock();
+  savedAt = clock.now();
   savedLane = answer && answer.lane;
   // Judge the reading already in hand rather than waiting for the next poll: the
   // credential outcome is in `answer`, and a user who typed a wrong password should

@@ -5,8 +5,8 @@
 // `fetch` is faked at the real REST paths with the real response shapes, the
 // `health` signal is assigned the readings a poll would have delivered, and the
 // panel's own exported signals are assigned to state the situation.
-// The clock is injected through `initPanel(now)`,
-// so every "at N ms" below is a reading of that function and never a
+// The suite's fake clock (tests/js/support/clock.js) is handed in through `initPanel`,
+// so every "at N ms" below is a reading of that clock and never a
 // duration this suite spends; `settle()` turns the event loop rather than
 // waiting on one.
 //
@@ -29,6 +29,7 @@ import {
 } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
+import { fakeClock } from "../support/clock.js";
 
 /** The globals a wire fake installs a `fetch` on. */
 /** @type {{ fetch?: unknown }} */
@@ -44,10 +45,16 @@ const SILENT = { reachable: false, ready: false, connected: false, credentials_o
 /** @type {Reading} */
 const CONTROL_ONLY = { reachable: true, ready: false, connected: true, credentials_ok: null };
 
-/** The injected clock, in milliseconds since the page loaded. */
-let clock = 0;
+/** The fake clock the page reads, in milliseconds since the page loaded. */
+let fake = fakeClock();
 /** @type {(() => void) | undefined} */
 let dispose;
+
+// Moves the fake clock on to `at` ms since the page loaded.
+/** @param {number} at */
+function moveTo(at) {
+  fake.advance(at - fake.clock.now());
+}
 
 afterEach(() => {
   if (dispose) dispose();
@@ -59,13 +66,14 @@ afterEach(() => {
 // holding the loopback address it opens with and not yet edited.
 /** @param {number} [at] */
 function start(at = 0) {
-  clock = at;
+  fake = fakeClock();
+  moveTo(at);
   health.value = null;
   panelOpen.value = false;
   hostTouched.value = false;
   verdict.value = null;
   form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(() => clock);
+  dispose = initPanel(fake.clock);
 }
 
 // Turns of the event loop, never a duration: enough for the fake's immediate
@@ -85,7 +93,7 @@ async function settle(turns = 8) {
  * @returns {void}
  */
 function reading(fields, at) {
-  clock = at;
+  moveTo(at);
   health.value = { ...fields };
 }
 

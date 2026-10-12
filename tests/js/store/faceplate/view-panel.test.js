@@ -7,9 +7,10 @@
 // `undefined` and fails the assertion rather than the module link.
 //
 // `fetch` is faked at the real REST paths with the real response shapes, the `health` signal is assigned the
-// readings a poll would have delivered, and the clock is injected through `initPanel(now)`, so every "at N ms" below
-// is a reading of that function and never a duration this suite spends; `settle()` turns the event loop rather than
-// waiting on one. Readings are fresh objects every time: writing the same reference to a signal does not notify.
+// readings a poll would have delivered, and the suite's fake clock (tests/js/support/clock.js) is handed in through
+// `initPanel`, so every "at N ms" below is a reading of that clock and never a duration this suite spends; `settle()`
+// turns the event loop rather than waiting on one. Readings are fresh objects every time: writing the same reference
+// to a signal does not notify.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/view-panel.test.js
 
@@ -27,6 +28,7 @@ import {
 } from "../../../../hqptuner/static/store/connpanel.js";
 import * as view from "../../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../../support/wire/wire.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** The globals a wire fake installs a `fetch` on. */
 /** @type {{ fetch?: unknown }} */
@@ -47,8 +49,8 @@ const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok:
 /** Ten minutes after the save, in ms: past any window a watcher waits before calling a silent daemon unreachable. */
 const LONG_AFTER = 600000;
 
-/** The injected clock, in milliseconds since the page loaded. */
-let clock = 0;
+/** The fake clock the page reads, in milliseconds since the page loaded. */
+let fake = fakeClock();
 /** @type {(() => void) | undefined} */
 let dispose;
 
@@ -90,12 +92,12 @@ afterEach(() => {
 // A freshly loaded page: no reading seen, no verdict, host field holding the loopback address it opens with and not
 // yet edited.
 function start() {
-  clock = 0;
+  fake = fakeClock();
   health.value = null;
   hostTouched.value = false;
   verdict.value = null;
   form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(() => clock);
+  dispose = initPanel(fake.clock);
 }
 
 // Turns of the event loop, never a duration: enough for the fake's immediate answers and the store's continuations
@@ -180,7 +182,7 @@ for (const kase of FORGOTTEN) {
     form.value = { ...form.value, host: "10.0.0.9", username: "tuner", password: "s3cret" };
     await submitConnection();
     setOverlay(false);
-    clock = kase.at;
+    fake.advance(kase.at);
     health.value = { ...kase.reading };
     await settle();
     assert.notEqual(verdict.value, kase.leftover);
