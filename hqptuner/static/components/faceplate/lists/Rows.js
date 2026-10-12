@@ -1,7 +1,7 @@
-// An option list's rows: one option's name, its marks and its heart, and the key to the filter rows' marks. A filter
-// row marks its apodizing (a circled A or ½) and its quality stars, a modulator row the DSD rate floor it needs, a
-// dither or DSD row nothing. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking,
-// on the kinds that keep favorites.
+// An option list's rows: one option's name, its marks and its heart, and the key to the rows' marks. Any row that is
+// HQPlayer's factory default for its setting carries ⌂ after its name. A filter row marks its apodizing (a circled A or
+// ½) and its quality stars, a modulator row the DSD rate floor it needs, a dither or DSD row nothing more. Hover or
+// focus shows the row's tip, a tap picks it, the heart stars it without picking, on the kinds that keep favorites.
 
 import { html } from "../../../lib/dom.js";
 import { hasFavorites, hideTip, pickFromList, showTip } from "../../../store/faceplate/lists/open.js";
@@ -9,6 +9,7 @@ import { isListFavorite, toggleListFavorite } from "../../../store/faceplate/lis
 import { AMark, TierMark } from "../NameFace.js";
 
 /** @typedef {import("../../../model/shell/option-list.js").Opt} Opt */
+/** @typedef {import("../../../model/shell/option-list.js").KeyMark} KeyMark */
 /** @typedef {import("../../../store/faceplate/view.js").ListRequest} ListRequest */
 /** @typedef {import("../../../store/faceplate/lists/open.js").ListKind} ListKind */
 
@@ -74,20 +75,32 @@ export function Row({ o, req, kind, std }) {
       onFocus=${() => showTip(o.v)}
       onBlur=${() => hideTip(o.v)}
     >
-      <span class="nm">${std ? o.v : o.leaf}</span>
+      <span class="onm">
+        <span class="nm">${std ? o.v : o.leaf}</span>
+        ${o.def ? html`<span class="dmk" data-mark="default" role="img" aria-label="Default">⌂</span>` : null}
+      </span>
       ${marks(kind, o)} ${hasFavorites(kind) ? heart(req, o) : null}
     </div>
   `;
 }
 
-/** The key to the filter rows' marks, each as `glyph = word`. */
-export function Legend() {
+/** Each mark's entry in the key, as `glyph = word`. @type {Record<KeyMark, () => unknown>} */
+const KEY_ENTRY = {
+  apod: () => html`<${AMark} kind="full" /> = Apodizing`,
+  half: () => html`<${AMark} kind="half" /> = Half apodizing`,
+  quality: () => html`<span class="lq">★</span> = Quality`,
+  fav: () => html`<span class="lf">♥</span> = Favorite`,
+  default: () => html`⌂ = Default`,
+};
+
+/**
+ * The key to the marks a window's rows carry, one entry per mark it names; none named, no key.
+ *
+ * @param {{ entries: KeyMark[] }} props
+ */
+export function Legend({ entries }) {
+  if (!entries.length) return null;
   return html`
-    <div class="olegend" role="presentation">
-      <span><${AMark} kind="full" /> = Apodizing</span>
-      <span><${AMark} kind="half" /> = Half apodizing</span>
-      <span><span class="lq">★</span> = Quality</span>
-      <span><span class="lf">♥</span> = Favorite</span>
-    </div>
+    <div class="olegend" role="presentation">${entries.map((m) => html`<span data-mark=${m}>${KEY_ENTRY[m]()}</span>`)}</div>
   `;
 }

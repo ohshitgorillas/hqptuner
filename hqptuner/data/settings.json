@@ -120,12 +120,14 @@
     "filter_1x": {
       "label": "1x filter",
       "tooltip": "This selection can be used to switch between resampling / oversampling filters, and has an impact on the available hardware sampling rates. Filter/oversampling selection for \"1x\" rates covers source sampling rates below 50 kHz, so-called base rates.",
-      "source": "manual §4.6"
+      "source": "manual §4.6",
+      "default": "poly-sinc-gauss-long"
     },
     "filter_nx": {
       "label": "Nx filter",
       "tooltip": "Filter selection for \"Nx\" rates covers everything above the 1x rates.",
-      "source": "manual §4.6"
+      "source": "manual §4.6",
+      "default": "poly-sinc-gauss-hires-lp"
     },
     "filter_narrowing": {
       "label": "Filter narrowing",
@@ -160,13 +162,15 @@
     "pcm_dither": {
       "label": "Dither",
       "tooltip": "Word-length algorithms. This selection can be used to switch between different word-length reduction algorithms. It is always recommended to use at least TPDF dither.",
-      "source": "manual §4.4/§4.5"
+      "source": "manual §4.4/§4.5",
+      "default": "TPDF"
     },
     "sdm_modulator": {
       "label": "Sigma-delta modulator",
       "tooltip": "The delta-sigma modulator used to produce SDM output. Fifth order modulators are more suitable for DACs that have simple analog reconstruction filters. Seventh order modulators provide better technical performance, but also put more demands on the DAC's analog reconstruction filter.",
       "more": "Typically this means that fifth order modulators suit DACs that have one switching element while seventh order modulators have the potential for better performance on DACs that have multi-element switching arrays. DSD* modulators are fixed configuration ones while ASDM* modulators are adaptive in various ways based on the source signal. For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
-      "source": "manual §4.4/§4.5"
+      "source": "manual §4.4/§4.5",
+      "default": "ASDM7EC-fast"
     },
     "matrix_enabled": {
       "label": "Matrix processing",
@@ -320,7 +324,8 @@
         "7": "FIR-type integrator structure with brickwall band-limiting. 21.5 kHz audio bandwidth re: DSD64 with complete cut by 30 kHz.",
         "2": "Cascade comb-type integrator structure."
       },
-      "source": "manual §4.5"
+      "source": "manual §4.5",
+      "default": "FIR2"
     },
     "sdm_conversion": {
       "label": "SDM → SDM conversion",
@@ -331,7 +336,8 @@
         "1": "Narrow bandwidth signal.",
         "2": "Extreme fidelity medium bandwidth."
       },
-      "source": "manual §4.5"
+      "source": "manual §4.5",
+      "default": "XFi"
     },
     "pdm_filter": {
       "label": "Noise filter",
@@ -352,7 +358,8 @@
         "5": "Fast roll-off minimum phase filter.",
         "13": "Brickwall filter that doesn't pass any out-of-band noise. Very steep linear phase filter. Cut-off at 25 kHz for DSD64, 50 kHz for DSD128, 100 kHz for DSD256, 200 kHz for DSD512 and 400 kHz for DSD1024."
       },
-      "source": "manual §4.4, readme §1.2 (pdm_filt)"
+      "source": "manual §4.4, readme §1.2 (pdm_filt)",
+      "default": "medium"
     },
     "pdm_conversion": {
       "label": "SDM → PCM conversion",
@@ -373,7 +380,8 @@
         "12": "Linear phase Gaussian extremely high attenuation single-pass conversion algorithm. Optimal time-frequency response.",
         "254": "No decimation; intermediate output rate is equal to the source DSD rate."
       },
-      "source": "manual §4.4, readme §1.2 (pdm_conv). Value 10 is the daemon's 'sinc-S'; its tap count is disputed upstream (manual §4.4 says 65536, readme §1.2 says 4096 × ratio — the latter is the wording for the same-named resampling filter in manual §4.6), so no figure is quoted."
+      "source": "manual §4.4, readme §1.2 (pdm_conv). Value 10 is the daemon's 'sinc-S'; its tap count is disputed upstream (manual §4.4 says 65536, readme §1.2 says 4096 × ratio — the latter is the wording for the same-named resampling filter in manual §4.6), so no figure is quoted.",
+      "default": "poly-ext2"
     },
     "spken": {
       "label": "Speakers",

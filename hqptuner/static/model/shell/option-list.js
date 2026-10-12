@@ -1,6 +1,6 @@
 // Option lists, free of the DOM: what the hover tip says and where it lands beside its row, where a panel parks at its
-// picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, and how the
-// Standard style fills its columns in engine order.
+// picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, how the
+// Standard style fills its columns in engine order, and which marks a window's key explains.
 
 import { ON_PLATE } from "./place.js";
 
@@ -35,7 +35,10 @@ import { ON_PLATE } from "./place.js";
  * @property {Facets} [f]
  * @property {number} [gen]
  * @property {string} [tier]
+ * @property {boolean} [def]  HQPlayer's factory default for the setting
  */
+
+/** A mark a window's key explains: apodizing, half apodizing, quality, favorite, factory default. @typedef {"apod" | "half" | "quality" | "fav" | "default"} KeyMark */
 
 /** Facet labels by facet key, then by option value: the narrowing bar's own words. @typedef {Record<string, Record<string, string>>} Labels */
 
@@ -264,4 +267,21 @@ export function flatColumns(opts, { total, cols, order }) {
   const out = [];
   for (let i = 0; i < list.length; i += per) out.push(list.slice(i, i + per));
   return out;
+}
+
+/** The marks a filter list's key always explains. @type {KeyMark[]} */
+const FILTER_KEY = ["apod", "half", "quality", "fav"];
+
+/**
+ * The marks a window's key explains, in order: a filter list's own four, then the factory default whenever a row the
+ * window draws carries it. An empty key is not drawn.
+ *
+ * @param {boolean} filters  a filter list
+ * @param {Opt[]} drawn  the rows the window draws: narrowed, and none of a folded group's
+ * @returns {KeyMark[]}
+ */
+export function keyMarks(filters, drawn) {
+  /** @type {KeyMark[]} */
+  const own = filters ? FILTER_KEY : [];
+  return drawn.some((o) => o.def) ? [...own, "default"] : own;
 }

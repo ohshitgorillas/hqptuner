@@ -59,6 +59,9 @@
 .orow[aria-selected="true"] .nm{color:var(--acc);font-weight:var(--fw-medium)}
 .orow[aria-selected="true"]::before{content:"";position:absolute;left:0;top:var(--sp-1);bottom:var(--sp-1);width:var(--stroke);border-radius:var(--hair);background:var(--acc)}   /* left-hand selection bar, as everywhere */
 .orow .mk{display:flex;align-items:center;justify-content:center}
+/* The name's cell: the name, then ⌂ on the factory default's row, which never clips while a Standard name ellipsizes. */
+.orow .onm{display:flex;align-items:center;min-width:0}
+.orow .dmk{flex:0 0 auto;font-size:var(--fs-3);line-height:1;color:var(--ink-2)}
 .orow .qst{display:flex;align-items:center;padding-left:var(--sp-1);height:var(--orow-h);font-size:var(--fs-1);letter-spacing:var(--ls-stars);color:var(--ink-2);white-space:nowrap;line-height:1}
 .amark{display:inline-flex;width:var(--pencil);height:var(--pencil)}
 .amark svg{width:100%;height:100%}
@@ -137,7 +140,8 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .otip .tc span{border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);font-size:var(--fs-2);line-height:var(--lh-tip-chip);color:var(--ink-2)}
 .orow:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:calc(var(--stroke)*-1)}
 
-/* Filter list: key to the row marks under the Polyphase sinc family (option-list.js legend()). ink-2, row-mark sizes. */
+/* Key to the row marks (lists/Rows.js Legend()): a filter list's under the Polyphase sinc family while it shows, any
+   other under the columns. ink-2, row-mark sizes. */
 .olegend{display:flex;flex-wrap:wrap;align-items:center;gap:var(--sp-2) var(--sp-7);margin-top:var(--sp-5);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line);font-size:var(--fs-3);color:var(--ink-2);line-height:var(--lh-text)}
 .olegend>span{display:inline-flex;align-items:center;gap:var(--sp-2);white-space:nowrap}
 .olegend .amark{width:var(--pencil);height:var(--pencil)}
@@ -159,7 +163,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .osheet[data-style="standard"] .fav{width:var(--fav-w-touch);font-size:var(--fs-4)}
 .osheet[data-style="standard"][data-kind="filters"] .orow{grid-template-columns:1fr var(--apod-mark) var(--stars-w-touch) var(--fav-w-touch)}
 .osheet[data-style="standard"][data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
-.osheet[data-style="standard"] .olegend{position:absolute;left:0;right:0;bottom:var(--sp-6);margin:0}
+.osheet:not(.opanel)[data-style="standard"] .olegend{position:absolute;left:0;right:0;bottom:var(--sp-6);margin:0}
 
 /* Panel (option-list.js PANEL: modulators, dithers): the list parked at its picker, sized to its content, instead of a sheet
    over the body. A popover's frame; the sheet's head, rows and narrowing. Rows --fold-h (touch). park() sets left / top. */
@@ -174,6 +178,11 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .opanel .fav{width:var(--fav-w-touch);height:var(--fold-h);font-size:var(--fs-4)}
 .opanel .osub{line-height:var(--lh-variant-panel)}
 .osheet.opanel[data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
+/* A key under the columns (any list but a filter list showing Polyphase sinc): a line of its own, as wide as the columns
+   and never widening a panel; the columns' line keeps its height. */
+.ocols:has(>.olegend){flex-wrap:wrap;align-content:flex-start}
+.ocols>.olegend{flex:1 0 100%;contain:inline-size}
+.osheet.opanel[data-style="standard"] .olegend{grid-row:2;grid-column:1/-1}   /* the row under the flat columns, across them */
 /* Compact: the modulators' three columns close up a step (panel padding, column gaps, row and variant indents) so the
    panel fits inside the plate's width. */
 .plate[data-size="compact"] .osheet.opanel[data-kind="modulators"] .ocols{padding-left:var(--sp-5);padding-right:var(--sp-5);gap:0 var(--sp-6)}

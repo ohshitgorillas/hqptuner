@@ -2,11 +2,13 @@
 // (`<Family> family`) and blurb, each variant's head and blurb, then its rows; a variant head folds its rows, and so
 // does a dither family's header, the dithers having no variants. A family the placement does not name lands in a
 // column of its own after the placed ones. Standard drops the outline for one flat list in the engine's order, down a
-// fixed number of columns (STD_COLS), reflowing as narrowing thins it. The marks' key sits under Polyphase sinc, or
-// along the foot in Standard.
+// fixed number of columns (STD_COLS), reflowing as narrowing thins it. The marks' key holds the entries
+// model/shell/option-list.js keyMarks() names for the rows drawn, and is drawn once: a filter list's under Polyphase
+// sinc while that family shows, along the foot in Standard; any other list's, and a filter list's once narrowing leaves
+// Polyphase sinc out, under the columns. A key with no entries (any other list drawing no default mark) is not drawn.
 
 import { html } from "../../../lib/dom.js";
-import { columns, flatColumns, groupTree } from "../../../model/shell/option-list.js";
+import { columns, flatColumns, groupTree, keyMarks } from "../../../model/shell/option-list.js";
 import { isFolded, toggleFold } from "../../../store/faceplate/lists/folds.js";
 import { Legend, Row } from "./Rows.js";
 
@@ -18,6 +20,7 @@ import { Legend, Row } from "./Rows.js";
 /** @typedef {import("../../../store/faceplate/lists/open.js").ListKind} ListKind */
 /** @typedef {import("../../../store/faceplate/lists/options.js").Blurbs} Blurbs */
 /** @typedef {{ req: ListRequest, kind: ListKind, std: boolean, blurbs: Blurbs }} Ctx */
+/** @typedef {import("../../../model/shell/option-list.js").KeyMark} KeyMark */
 
 /**
  * Custom placement per list kind, columns left to right. Filters: Polyphase sinc split by lineage over two columns, Pure
@@ -104,6 +107,15 @@ function famHead(ctx, f, under) {
 }
 
 /**
+ * Whether a group is folded: a variant, or a dither family's rows.
+ *
+ * @param {Ctx} ctx
+ * @param {string} f
+ * @param {string} v  '' for none
+ */
+const isShut = (ctx, f, v) => (v !== "" || ctx.kind === "dithers") && isFolded(ctx.kind, f, v);
+
+/**
  * A variant's head, blurb and rows, or a family's rows without a variant; a folded group draws no rows.
  *
  * @param {Ctx} ctx
@@ -112,7 +124,7 @@ function famHead(ctx, f, under) {
  * @param {Opt[]} rows
  */
 function group(ctx, f, v, rows) {
-  const shut = (v !== "" || ctx.kind === "dithers") && isFolded(ctx.kind, f, v);
+  const shut = isShut(ctx, f, v);
   const blurb = v && !shut ? ctx.blurbs.variants[`${f}|${v}`] : "";
   return html`
     <div class=${v ? "ogrp var" : "ogrp"}>
@@ -172,16 +184,17 @@ const titled = (ctx, fams, title, fs) => html`
 `;
 
 /**
- * A split family: two columns under one header while both halves have rows, else one; the filter marks' key under it.
+ * A split family: two columns under one header while both halves have rows, else one; a filter list's key under it.
  *
  * @param {Ctx} ctx
  * @param {Families} fams
  * @param {Extract<Column, { kind: "split" }>} c
+ * @param {KeyMark[]} entries  the key's entries
  */
-function splitCol(ctx, fams, c) {
+function splitCol(ctx, fams, c, entries) {
   const vs = variantsOf(fams, c.fam);
   const [a, b] = c.halves.map((names) => names.map((v) => group(ctx, c.fam, v, vs.get(v) ?? [])));
-  const key = ctx.kind === "filters" ? html`<${Legend} />` : null;
+  const key = ctx.kind === "filters" ? html`<${Legend} entries=${entries} />` : null;
   return c.band
     ? html`<div class="oband">
         ${famHead(ctx, c.fam, false)}
@@ -219,15 +232,23 @@ const stackCol = (ctx, fams, c) => html`
  */
 export function Columns({ req, kind, std, opts, full, blurbs }) {
   const ctx = { req, kind, std, blurbs };
+  const filters = kind === "filters";
   if (std) {
     const order = { total: full.length, cols: STD_COLS[kind], order: full.map((o) => o.v) };
     return html`
       ${flatColumns(opts, order).map((rows) => html`<div class="ocol flat">${rowsOf(ctx, rows)}</div>`)}
-      ${kind === "filters" ? html`<${Legend} />` : null}
+      <${Legend} entries=${keyMarks(filters, opts)} />
     `;
   }
   const fams = groupTree(opts);
-  return html`${columns(placement(kind, fams), fams).map((c) =>
-    c.kind === "split" ? splitCol(ctx, fams, c) : stackCol(ctx, fams, c),
-  )}`;
+  const cols = columns(placement(kind, fams), fams);
+  const entries = keyMarks(
+    filters,
+    opts.filter((o) => !isShut(ctx, o.fam, o.var ?? "")),
+  );
+  const underSplit = filters && cols.some((c) => c.kind === "split");
+  return html`
+    ${cols.map((c) => (c.kind === "split" ? splitCol(ctx, fams, c, entries) : stackCol(ctx, fams, c)))}
+    ${underSplit ? null : html`<${Legend} entries=${entries} />`}
+  `;
 }

@@ -8,7 +8,7 @@ loader reads, or forgets the row for a modulator the engine reports would
 surface first in a running container. This gate reads the real files the way
 the application does and refuses the commit instead.
 
-Four checks, each a list of problem lines:
+Five checks, each a list of problem lines:
 
 - every file the loader opens exists, parses, and carries the key the loader
   indexes (``<stem>-plain-names.json`` must carry its stem key);
@@ -16,7 +16,9 @@ Four checks, each a list of problem lines:
   with the rate fields the fit alerts read and a description;
 - every filter the snapshot names resolves through the production join
   (``StaticMetadata.filter_entry``: exact, alias, ``-2s`` stripped);
-- every exposed control in ``settings.json`` carries label, tooltip, source.
+- every exposed control in ``settings.json`` carries label, tooltip, source;
+- every recorded ``default`` on a filter or shaper setting names an option the
+  snapshot lists.
 
 Usage: ``python scripts/gates/check_metadata.py [DATA_DIR]`` — the shipped
 directory when no argument is given.
@@ -32,7 +34,7 @@ from typing import TYPE_CHECKING, Any
 from hqptuner.metadata import OVERLAYS, StaticMetadata
 
 if TYPE_CHECKING:
-    from hqptuner.metadata_types import SettingsDb, ShapersDb
+    from hqptuner.metadata_types import SettingEntry, SettingsDb, ShapersDb
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DATA = ROOT / "hqptuner" / "data"
@@ -47,6 +49,14 @@ SHAPER_TABLES = (
 FILTER_LISTS = ("filters_sdm", "filters_pcm")
 SETTINGS_GROUPS = ("output", "dsp", "volume", "system")
 PROSE_FIELDS = ("label", "tooltip", "source")
+#: dsp setting -> the snapshot lists its recorded default must appear in. DSD
+#: settings are absent: the snapshot enumerates none of their options.
+DEFAULT_LISTS: dict[str, tuple[str, ...]] = {
+    "filter_1x": FILTER_LISTS,
+    "filter_nx": FILTER_LISTS,
+    "pcm_dither": ("shapers_pcm",),
+    "sdm_modulator": ("shapers_sdm",),
+}
 
 
 def _file_problems(path: Path, key: str | None = None) -> list[str]:
@@ -119,6 +129,23 @@ def check_settings(settings: SettingsDb) -> list[str]:
     ]
 
 
+def _unlisted_default(entry: SettingEntry | None, listed: set[str]) -> str | None:
+    """Name the entry's recorded default when it is no option in ``listed``; ``None`` when absent or listed."""
+    default = entry.get("default") if entry else None
+    return default if default is not None and default not in listed else None
+
+
+def check_defaults(enums: dict[str, Any], settings: SettingsDb) -> list[str]:
+    """Every recorded default on a setting the snapshot enumerates names an option the snapshot lists."""
+    problems: list[str] = []
+    for key, list_keys in DEFAULT_LISTS.items():
+        listed = {item["name"] for list_key in list_keys for item in enums.get(list_key, [])}
+        default = _unlisted_default(settings.dsp.get(key), listed)
+        if default is not None:
+            problems.append(f"settings.json: dsp.{key} default {default!r} not in engine {'/'.join(list_keys)}")
+    return problems
+
+
 def check(data_dir: Path) -> list[str]:
     """Every problem with the metadata under ``data_dir``; empty when it is sound.
 
@@ -131,7 +158,12 @@ def check(data_dir: Path) -> list[str]:
     static = StaticMetadata(data_dir)
     enums: dict[str, Any] = json.loads((data_dir / "engine-enums.json").read_text())
     raw = static.raw
-    return check_shapers(enums, raw.shapers) + check_filters(enums, static) + check_settings(raw.settings)
+    return (
+        check_shapers(enums, raw.shapers)
+        + check_filters(enums, static)
+        + check_settings(raw.settings)
+        + check_defaults(enums, raw.settings)
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

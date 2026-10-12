@@ -25,6 +25,7 @@ import { plate } from "./faceplate/plate.js";
  * @property {string} tooltip  the start of the paragraph
  * @property {string} [more]  the rest of the paragraph, then any paragraphs after it, a blank line between each
  * @property {Record<string, string>} [options] per-VALUE prose (`desc: "config"`)
+ * @property {string} [default]  the engine option name HQPlayer ships as the setting
  *
  * @typedef {object} Fold
  *   An explanation split by the plate: what reads in place and what waits behind "see more".
@@ -38,6 +39,7 @@ import { plate } from "./faceplate/plate.js";
  * @property {string} tooltip  the start of the paragraph, alone
  * @property {Record<string, string> | undefined} options  per-VALUE prose (`desc: "config"`)
  * @property {Fold} fold  the whole paragraph, split by the plate
+ * @property {string} [default]  the engine option name HQPlayer ships as the setting, where the row records one
  *
  * @typedef {Pick<ControlProse, "label" | "tooltip" | "options">} ValueProse  a control's prose, read for its per-VALUE
  *   prose
@@ -69,8 +71,8 @@ import { plate } from "./faceplate/plate.js";
 const inPlace = computed(() => plate.value.both);
 
 /**
- * One control's label, tooltip and paragraph from settings.json, falling back to
- * the key itself and no tooltip.
+ * One control's label, tooltip and paragraph from settings.json, and the factory
+ * default its row records, falling back to the key itself, no tooltip and no default.
  *
  * @param {SchemaField} entry
  * @param {string} key
@@ -85,6 +87,7 @@ export function describe(entry, key) {
     tooltip: row.tooltip,
     options: row.options,
     fold: fold(row.tooltip, row.more || "", "", inPlace.value),
+    ...(row.default === undefined ? {} : { default: row.default }),
   };
 }
 

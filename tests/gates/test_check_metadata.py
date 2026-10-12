@@ -42,6 +42,12 @@ TWO_STAGE_FILTER = f"{BASE_FILTER}-2s"
 #: A filter name nothing in the fixture covers.
 ABSENT_FILTER = "fixture-ghost-filter"
 
+#: The one SDM modulator the fixture's shapers.json and engine-enums.json carry.
+SDM_MODULATOR = "fixture-sdm-mod"
+
+#: The one PCM dither the fixture's shapers.json and engine-enums.json carry.
+PCM_DITHER = "fixture-pcm-dither"
+
 #: A modulator name nothing in the fixture's shapers.json covers.
 ABSENT_MODULATOR = "fixture-ghost-modulator"
 
@@ -110,3 +116,40 @@ def test_main_exits_nonzero_on_a_problem_and_zero_on_the_clean_fixture(
     copy = copy_fixture(tmp_path)
     add_enum_names(copy, "shapers_sdm", added)
     assert GATE.main([str(copy)]) == code
+
+
+# --- recorded factory defaults ---------------------------------------------------
+
+#: An option name no list in the fixture's ``engine-enums.json`` carries.
+GHOST_DEFAULT = "fixture-ghost-default"
+
+#: Each setting whose options ``engine-enums.json`` enumerates, with an option
+#: the fixture's snapshot lists for it.
+LISTED_DEFAULTS = {
+    "filter_1x": BASE_FILTER,
+    "filter_nx": BASE_FILTER,
+    "pcm_dither": PCM_DITHER,
+    "sdm_modulator": SDM_MODULATOR,
+}
+
+
+def defaults_copy(tmp_path: Path, unlisted: str) -> Path:
+    """A copy whose settings record a listed default on every setting but ``unlisted``."""
+    copy = copy_fixture(tmp_path)
+    dsp = {
+        key: {
+            "label": f"invented label for {key}",
+            "tooltip": f"invented prose for {key}",
+            "source": "hqptuner",
+            "default": GHOST_DEFAULT if key == unlisted else listed,
+        }
+        for key, listed in LISTED_DEFAULTS.items()
+    }
+    (copy / "settings.json").write_text(json.dumps({"dsp": dsp}), encoding="utf-8")
+    return copy
+
+
+@pytest.mark.parametrize("unlisted", sorted(LISTED_DEFAULTS))
+def test_only_a_recorded_default_the_engine_snapshot_does_not_list_is_reported(tmp_path: Path, unlisted: str) -> None:
+    """A default naming an enumerated option passes; one naming no enumerated option is the one line."""
+    assert [GHOST_DEFAULT in line for line in GATE.check(defaults_copy(tmp_path, unlisted))] == [True]

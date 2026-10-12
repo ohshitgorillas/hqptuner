@@ -2,9 +2,9 @@
 // chain's list is its enumeration and the dormant chain's the daemon's /config form, both as the chain controls read them
 // (store/live/chains.js), and a key no chain holds lists its drawer row's options. Each option joins the store's overlays by
 // engine name: its facets (store/narrow/facets.js), its plain-names family, variant and leaf in Simplified, a
-// modulator's rate floor tier and generation, and its manual prose. Narrowing is store/narrow/match.js's matching over
-// the narrowing state;
-// the value running in the field is never hidden.
+// modulator's rate floor tier and generation, its manual prose, and whether it is the factory default the key's
+// settings.json entry records (store/prose.js describe()). Narrowing is store/narrow/match.js's matching over the
+// narrowing state; the value running in the field is never hidden.
 
 import { schema } from "../../schema.js";
 import { metadata } from "../../signals.js";
@@ -100,6 +100,7 @@ export function listOptions(key) {
     d: optionDescription(entry, o, meta),
     ...(kind === "filters" ? { f: facetsOf(facets[o.label]) } : {}),
     ...(kind === "modulators" ? shaperMarks(o.label) : {}),
+    ...(meta.default !== undefined && o.label === meta.default ? { def: true } : {}),
   }));
 }
 

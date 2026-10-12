@@ -2542,8 +2542,12 @@
         "type": "object"
       },
       "SettingEntry": {
-        "description": "One ``settings.json`` leaf: tooltip prose, the rest held behind ``see more``, citation, option glossary.",
+        "description": "One ``settings.json`` leaf: tooltip prose, ``see more`` prose, citation, option glossary, factory default.",
         "properties": {
+          "default": {
+            "title": "Default",
+            "type": "string"
+          },
           "label": {
             "title": "Label",
             "type": "string"

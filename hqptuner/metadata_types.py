@@ -47,13 +47,14 @@ class ShaperEntry(TypedDict, total=False):
 
 
 class SettingEntry(TypedDict, total=False):
-    """One ``settings.json`` leaf: tooltip prose, the rest held behind ``see more``, citation, option glossary."""
+    """One ``settings.json`` leaf: tooltip prose, ``see more`` prose, citation, option glossary, factory default."""
 
     label: str
     tooltip: str
     more: str
     source: str
     options: dict[str, str]
+    default: str
 
 
 class FiltersDb(TypedDict, total=False):

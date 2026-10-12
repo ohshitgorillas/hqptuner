@@ -213,6 +213,9 @@ def _setting_entry(raw: object) -> SettingEntry:
     options = raw.get("options")
     if _is_str_map(options):
         entry["options"] = options
+    default = raw.get("default")
+    if _is_str(default):
+        entry["default"] = default
     return entry
 
 
