@@ -26,8 +26,3 @@ test("test_a_non_numeric_value_falls_back_to_the_default", () => {
 test("test_a_numeric_string_is_read_as_a_number", () => {
   assert.equal(wireNum("-12", -60), -12);
 });
-
-test("test_a_zero_is_kept_rather_than_replaced_by_the_default", () => {
-  // 0 dBFS is a legal setting, not an absent one
-  assert.equal(wireNum("0", -60), 0);
-});

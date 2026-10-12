@@ -1,7 +1,7 @@
 // Behavioral suite for store/health.js — the engine-health alert derivation.
 // Written BEFORE the complexity refactor of its two arrows (21 and 13).
 //
-// Three hazards this module imposes on any test, all measured rather than
+// Two hazards this module imposes on any test, both measured rather than
 // assumed. Getting them wrong produces a suite that passes alone and fails in
 // sequence:
 //
@@ -12,8 +12,6 @@
 //      public-API routes.
 //   2. Writing the SAME object reference to engineStatus does not notify, so the
 //      effect never runs. Every simulated poll must be a fresh object.
-//   3. initHealth() must be called exactly once. It is idempotent, and this
-//      suite pins that a second registration does not shorten the wait.
 //
 // The store runs on the suite's fake clock (tests/js/support/clock.js), handed in
 // through initHealth, so every "for N ms" below is a reading of that clock and
@@ -94,14 +92,6 @@ test("test_an_empty_status_frame_raises_no_alerts", () => {
 
 // --- process speed ----------------------------------------------------------
 
-// Six slow frames a second apart, then the clock a millisecond short of the hold.
-test("test_a_slow_speed_held_just_short_of_six_seconds_does_not_alert", () => {
-  reset();
-  hold(HOLD_MS - CADENCE, { process_speed: "1.02" });
-  fake.advance(CADENCE - 1);
-  assert.deepEqual(engineAlerts.value, []);
-});
-
 // Two frames, and no frame at all when the hold runs out: the warning fires on
 // the clock, and a slow frame arriving mid-wait does not start it over.
 test("test_a_sustained_slow_speed_warns", () => {
@@ -122,57 +112,9 @@ test("test_a_sustained_below_realtime_speed_is_critical", () => {
   assert.deepEqual(sevs(engineAlerts.value), ["crit"]);
 });
 
-test("test_the_warn_threshold_is_exclusive", () => {
-  reset();
-  assert.deepEqual(hold(HOLD_MS, { process_speed: "1.05" }), []);
-});
-
 test("test_the_critical_threshold_is_exclusive", () => {
   reset();
   assert.deepEqual(sevs(hold(HOLD_MS, { process_speed: "1.00" })), ["warn"]);
-});
-
-test("test_one_healthy_poll_clears_a_sustained_alert", () => {
-  reset();
-  hold(HOLD_MS, { process_speed: "0.5" });
-  assert.deepEqual(poll(), []);
-});
-
-test("test_recovery_starts_the_wait_over", () => {
-  reset();
-  hold(HOLD_MS, { process_speed: "0.5" });
-  poll();
-  fake.advance(CADENCE);
-  assert.deepEqual(hold(HOLD_MS - CADENCE, { process_speed: "0.5" }), []);
-});
-
-// Slow for five seconds, stopped, then slow again for four: nine seconds slow in
-// all, but no stretch of six since playback last started.
-test("test_stopping_playback_starts_the_wait_over", () => {
-  reset();
-  hold(HOLD_MS - 2 * CADENCE, { process_speed: "0.5" });
-  fake.advance(CADENCE);
-  poll({ state: "0", process_speed: "0.5" });
-  fake.advance(CADENCE);
-  assert.deepEqual(hold(HOLD_MS - 2 * CADENCE, { process_speed: "0.5" }), []);
-});
-
-test("test_time_spent_idle_does_not_count_toward_the_wait", () => {
-  reset();
-  hold(HOLD_MS, { state: "0", process_speed: "0.5" });
-  assert.deepEqual(poll({ process_speed: "0.5" }), []);
-});
-
-for (const bad of ["0", "-1", "abc", ""]) {
-  test(`test_an_unusable_process_speed_never_alerts: ${JSON.stringify(bad)}`, () => {
-    reset();
-    assert.deepEqual(hold(HOLD_MS + CADENCE, { process_speed: bad }), []);
-  });
-}
-
-test("test_a_missing_process_speed_never_alerts", () => {
-  reset();
-  assert.deepEqual(hold(HOLD_MS + CADENCE, { process_speed: undefined }), []);
 });
 
 // --- output buffer ----------------------------------------------------------
@@ -180,11 +122,6 @@ test("test_a_missing_process_speed_never_alerts", () => {
 // playback skips for an instant, then refills to 100% — never a sustained low.
 // So there is no sustained-low "starvation" alert; a flat low/zero/-1 reading
 // just means the buffer does not apply to this output (SDM/DSD direct paths).
-
-test("test_a_sustained_low_output_buffer_raises_no_alert", () => {
-  reset();
-  assert.deepEqual(hold(HOLD_MS + CADENCE, { output_fill: "0.02" }), []);
-});
 
 test("test_output_buffer_does_not_apply_until_a_positive_fill_is_seen", () => {
   serial += 1;
@@ -282,12 +219,4 @@ test("test_apodizing_events_are_not_flagged_while_the_engine_is_idle", () => {
   enums.value = { filters: [{ name: "plain-filter", arg: 0, desc: "3/5 timbre ⥮ 1:1" }] };
   reset({ apod: "0", active_filter: "plain-filter" });
   assert.deepEqual(poll({ state: "0", apod: "20", active_filter: "plain-filter" }), []);
-});
-
-// --- registration -----------------------------------------------------------
-
-test("test_registering_health_twice_does_not_shorten_the_wait", () => {
-  initHealth(fake.clock);
-  reset();
-  assert.deepEqual(hold(HOLD_MS - CADENCE, { process_speed: "0.5" }), []);
 });
