@@ -6,6 +6,7 @@
 
 import { signal } from "@preact/signals";
 import { html } from "../../../../lib/dom.js";
+import { ampToDb, dbToAmp } from "../../../../lib/units.js";
 import { classNames } from "../../../../model/shell/format.js";
 import { groups, stageAt } from "../../../../model/shell/pipelines.js";
 import { bandGain, dockState, plotInputs } from "../../../../model/shell/pipelines-edit.js";
@@ -53,18 +54,18 @@ function toWire(st) {
 function curve(members) {
   const chains = members.map((q) => ({
     wire: q.stages.map(toWire),
-    k: q.unit === "Lin" ? +q.gain : 10 ** (+q.gain / 20),
+    k: q.unit === "Lin" ? +q.gain : dbToAmp(+q.gain),
   }));
   return FREQS.map((f) => {
     let re = 0;
     let im = 0;
     for (const c of chains) {
       const r = chainResponse(c.wire, f, FS);
-      const m = c.k * 10 ** (r.db / 20);
+      const m = c.k * dbToAmp(r.db);
       re += m * Math.cos((r.deg * Math.PI) / 180);
       im += m * Math.sin((r.deg * Math.PI) / 180);
     }
-    return /** @type {[number, number]} */ ([f, 20 * Math.log10(Math.hypot(re, im) || 1e-6)]);
+    return /** @type {[number, number]} */ ([f, ampToDb(Math.hypot(re, im) || 1e-6)]);
   });
 }
 

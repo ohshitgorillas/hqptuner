@@ -19,6 +19,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { clamp } from "../../lib/coerce.js";
+import { dbToPower, powerToDb } from "../../lib/units.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter.js";
 import { alignStrip, stripEdge } from "../../model/gauges/stripedge.js";
 import { apodBins } from "../apodhistory.js";
@@ -81,9 +82,6 @@ const version = signal(0);
 let geoHeld = null;
 const anchor = signal(/** @type {StripAnchor | null} */ (null));
 
-const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
-const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
-
 /**
  * Drop a history's slice in hand.
  *
@@ -117,7 +115,7 @@ function closeSlice(h, geo) {
   const n = h.count;
   /** @type {MeterFrame} */
   const mean = {
-    channels: h.power.map((ch) => ({ peak: 0, rms: 0, bins: Float32Array.from(ch, (p) => toDb(p / n)) })),
+    channels: h.power.map((ch) => ({ peak: 0, rms: 0, bins: Float32Array.from(ch, (p) => powerToDb(p / n)) })),
     ms: h.frameMs,
   };
   h.list.push({
@@ -149,7 +147,7 @@ function addTo(h, geo, channels, ms) {
     h.frameMs = 0;
   }
   const acc = h.power;
-  channels.forEach((ch, c) => ch.bins.forEach((db, k) => (acc[c][k] += toPower(db))));
+  channels.forEach((ch, c) => ch.bins.forEach((db, k) => (acc[c][k] += dbToPower(db))));
   h.count++;
   h.frameMs += ms;
   if (h.frameMs < h.sliceMs) return false;

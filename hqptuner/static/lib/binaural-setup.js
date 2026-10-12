@@ -4,8 +4,9 @@
 // binaural.js holds the maths, this file the install surface,
 // and callers import from whichever they need.
 //
-// Like binaural.js, this module imports NOTHING — that is what lets the
-// binaural tests run under plain node with no shim.
+// Like binaural.js, this module imports NOTHING but units.js, which itself
+// imports nothing — that is what lets the binaural tests run under plain node
+// with no shim.
 
 // --- invariants --------------------------------------------------------------
 // Two settings elsewhere in the app are incompatible with this block, and both
@@ -29,10 +30,12 @@
 // the user can see, and a conflict arriving via a preset load (whose snapshot
 // carries post_bauer_enabled) has to be visible for the same reason.
 
+import { ampToDb } from "./units.js";
+
 /**
  * @typedef {import("../vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  *   A type-only reference: JSDoc `import()` is erased, so this file still pulls
- *   in nothing at runtime (see the header).
+ *   in nothing at runtime beyond units.js (see the header).
  * @typedef {string | number | boolean | undefined} ConfigValue
  *   One control's rendered value, as `effective` resolves it.
  * @typedef {{ refused?: boolean, eq?: { left: string, right: string },
@@ -109,7 +112,7 @@ function gainDb(row) {
   const raw = Number(row.gain);
   if (!Number.isFinite(raw)) return null;
   if (row.gainunit === "dB") return snapDb(raw);
-  return raw > 0 ? snapDb(20 * Math.log10(raw)) : null;
+  return raw > 0 ? snapDb(ampToDb(raw)) : null;
 }
 
 /**

@@ -3,6 +3,7 @@
 // it gets back and a test drives it from a table.
 
 import { clamp } from "../../lib/coerce.js";
+import { dbToPower, powerToDb } from "../../lib/units.js";
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
@@ -115,9 +116,6 @@ export function frameDt(prev, now) {
  * @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number, geo?: FrameGeometry | null }} MeterFrame
  */
 
-const toPower = (/** @type {number} */ db) => 10 ** (db / 10);
-const toDb = (/** @type {number} */ p) => 10 * Math.log10(p);
-
 /**
  * A frame's bins off the wire: two bytes per bin, low byte first, base64, each `BIN_STEP_DB` per step below full scale.
  *
@@ -143,8 +141,8 @@ export function decodeBins(text) {
 function powerMean(rows) {
   const n = rows[0].length;
   const acc = new Float64Array(n);
-  for (const row of rows) for (let k = 0; k < n; k++) acc[k] += toPower(row[k]);
-  return Float32Array.from(acc, (p) => toDb(p / rows.length));
+  for (const row of rows) for (let k = 0; k < n; k++) acc[k] += dbToPower(row[k]);
+  return Float32Array.from(acc, (p) => powerToDb(p / rows.length));
 }
 
 /**
@@ -237,7 +235,7 @@ export function traceColumns(bins, cols, share = 1) {
  */
 export function smoothColumns(cols) {
   const n = cols.length;
-  const power = Float64Array.from(cols, toPower);
+  const power = Float64Array.from(cols, dbToPower);
   const out = new Float32Array(n);
   for (let c = 0; c < n; c++) {
     let sum = 0;
@@ -249,7 +247,7 @@ export function smoothColumns(cols) {
       sum += w * power[k];
       weight += w;
     }
-    out[c] = toDb(sum / weight);
+    out[c] = powerToDb(sum / weight);
   }
   return out;
 }

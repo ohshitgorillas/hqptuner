@@ -2,6 +2,7 @@
 // resolve against their tables, and the inputs the response plot draws.
 
 import { clamp } from "../../lib/coerce.js";
+import { ampToDb, dbToAmp } from "../../lib/units.js";
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus } from "./format.js";
 import { crosspoint, groups, inputsOf } from "./pipelines.js";
@@ -126,7 +127,7 @@ export function lockedFields(p, gr, tables) {
  * @returns {number}
  */
 export const gainSwitch = (gain, unit) =>
-  unit === "Lin" ? +(10 ** (gain / 20)).toFixed(4) : +(20 * Math.log10(Math.abs(gain) || 1e-6)).toFixed(2);
+  unit === "Lin" ? +dbToAmp(gain).toFixed(4) : +ampToDb(Math.abs(gain) || 1e-6).toFixed(2);
 
 /**
  * An iir stage's fields once retyped: the arguments both types take kept, a missing width, frequency or gain seeded,
@@ -235,7 +236,7 @@ export function plotInputs(pipes, { o, selPipe, scope, ear }, names) {
     `${names.short(x.src)} → ${names.short(o)}` + (x.members.some(partial) ? " (partial)" : "");
   const eqOf = /** @type {Pipe} */ (gen ? ear[/** @type {number} */ (p.ear)] : p);
   const traces = tracesOf(sc, { p, n: selPipe + 1, eqOf, xps, label });
-  const off = eqOf.unit === "Lin" ? 20 * Math.log10(Math.abs(+eqOf.gain) || 1e-6) : +eqOf.gain;
+  const off = eqOf.unit === "Lin" ? ampToDb(Math.abs(+eqOf.gain) || 1e-6) : +eqOf.gain;
   const bands =
     sc === "bus"
       ? []

@@ -1,4 +1,4 @@
-// Units for on-screen numbers.
+// Units for on-screen numbers, and the decibel conversions behind them.
 //
 // This module owns the two decisions the call sites kept making differently:
 // whether a positive dB value carries a "+", and which unit a frequency picks.
@@ -38,3 +38,36 @@ export function hz(n, dp) {
  * @param {number} dp decimals
  */
 export const dbOffset = (v, dp) => `${Number(v) >= 0 ? "+" : ""}${Number(v).toFixed(dp)} dB`;
+
+// Decibel conversions, bare. A floor for zero, an absolute value or a rounding
+// is the caller's: what a silent bin or a zero gain should read as differs by
+// site. This module imports nothing, so lib/binaural-setup.js can use it and
+// still run under plain node.
+
+/**
+ * A power ratio in decibels.
+ * @param {number} p power ratio
+ * @returns {number} decibels
+ */
+export const powerToDb = (p) => 10 * Math.log10(p);
+
+/**
+ * A level in decibels as a power ratio.
+ * @param {number} db decibels
+ * @returns {number} power ratio
+ */
+export const dbToPower = (db) => 10 ** (db / 10);
+
+/**
+ * An amplitude ratio in decibels.
+ * @param {number} a amplitude ratio
+ * @returns {number} decibels
+ */
+export const ampToDb = (a) => 20 * Math.log10(a);
+
+/**
+ * A level in decibels as an amplitude ratio.
+ * @param {number} db decibels
+ * @returns {number} amplitude ratio
+ */
+export const dbToAmp = (db) => 10 ** (db / 20);

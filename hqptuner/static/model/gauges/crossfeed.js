@@ -4,6 +4,7 @@
 // arrive as strings (the family's values).
 
 import { clamp } from "../../lib/coerce.js";
+import { ampToDb } from "../../lib/units.js";
 
 /**
  * The name of crossfeed mode `mode` in `modes`, or undefined for a mode the table does not hold.
@@ -214,6 +215,6 @@ export function listeningGeometry(angle, circ) {
 export const geometryReadouts = (pp, lambda) => ({
   itd: Math.round(pp.itd * 1e6),
   itdLow: Math.round((pp.itd + pp.gdF - pp.gdN) * 1e6),
-  far: 20 * Math.log10(pp.af),
-  center: 20 * Math.log10((lambda * (pp.an + pp.af)) / 2 + (1 - lambda)),
+  far: ampToDb(pp.af),
+  center: ampToDb((lambda * (pp.an + pp.af)) / 2 + (1 - lambda)),
 });
