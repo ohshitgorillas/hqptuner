@@ -2,6 +2,8 @@
 // seam sit on the rate dial and where its needles settle, how an engine device string splits, how a device list falls
 // under its group headers, and where a value sits along a slider's range.
 
+import { clamp } from "../../lib/coerce.js";
+
 /**
  * @typedef {object} DialScale
  * @property {number} x0    x of the first tier
@@ -142,7 +144,7 @@ export function drawingX(clientX, rect, viewBox) {
  * @returns {{ i: number, moved: boolean }}
  */
 export function moveNeedle(span, cur, target) {
-  const i = Math.max(span.lo, Math.min(span.hi, target));
+  const i = clamp(target, span.lo, span.hi);
   return { i, moved: i !== cur };
 }
 

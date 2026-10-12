@@ -2,6 +2,7 @@
 // streams, the release or a typed number commits, held to the slider's range.
 
 import { html, userEdit, wheelGuard, TypedInput } from "../../../../lib/dom.js";
+import { clamp } from "../../../../lib/coerce.js";
 import { restartMarkIf } from "../../drawer/controls.js";
 
 /** @typedef {import("../../../../lib/dom.js").ControlEvent} ControlEvent */
@@ -13,7 +14,7 @@ import { restartMarkIf } from "../../drawer/controls.js";
  *   value: number, disabled: boolean, onDrag: (v: number) => void, onCommit: (v: number) => void }} props
  */
 export function Slider({ label, sub, restarts = false, min, max, step, unit, dp, value, disabled, onDrag, onCommit }) {
-  const held = (/** @type {number} */ v) => Math.max(min, Math.min(max, v));
+  const held = (/** @type {number} */ v) => clamp(v, min, max);
   const rangeOn = (/** @type {(v: number) => void} */ fn) =>
     userEdit(value, (/** @type {ControlEvent} */ e) => fn(Number(e.target.value)));
   return html`

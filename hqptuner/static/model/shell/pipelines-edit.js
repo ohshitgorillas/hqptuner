@@ -1,6 +1,7 @@
 // DOM-free decisions of the DSP pipelines drawer's editing surfaces: the stage dock's field values and whether they
 // resolve against their tables, and the inputs the response plot draws.
 
+import { clamp } from "../../lib/coerce.js";
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus } from "./format.js";
 import { crosspoint, groups, inputsOf } from "./pipelines.js";
@@ -251,4 +252,4 @@ export function plotInputs(pipes, { o, selPipe, scope, ear }, names) {
  * @param {number} off
  * @returns {number}
  */
-export const bandGain = (d, off) => Math.round(Math.max(-20, Math.min(20, d - off)) * 10) / 10;
+export const bandGain = (d, off) => Math.round(clamp(d - off, -20, 20) * 10) / 10;

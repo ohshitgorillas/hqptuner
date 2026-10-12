@@ -7,7 +7,7 @@
 // newest slice it holds, the strip on that slice's track position (store/meter/spectrogram.js stripEnd), which runs
 // past the newest apodizing bin into playback no Status has observed yet, drawn blank.
 
-import { truthy } from "../../../lib/coerce.js";
+import { clamp, truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
 import { freqTicks, timeTicks } from "../../../model/gauges/meter-plot.js";
 import { metering } from "../../actions.js";
@@ -134,5 +134,5 @@ export function stripEvents(bins, span, cols, end) {
     const left = end - span;
     for (const b of bins) if (b.ms > 0 && b.n > 0 && b.at > left) spread(acc, b, left, span / cols);
   }
-  return Uint8Array.from(acc, (ev) => (ev > 0 ? Math.min(MAX_EVENTS, Math.max(1, Math.round(ev))) : 0));
+  return Uint8Array.from(acc, (ev) => (ev > 0 ? clamp(Math.round(ev), 1, MAX_EVENTS) : 0));
 }

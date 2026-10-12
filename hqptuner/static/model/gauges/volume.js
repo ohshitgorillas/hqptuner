@@ -2,6 +2,7 @@
 // Fixed volume and Direct SDM pinning it (Direct SDM wins while it lasts), which ± buttons disable, what the windows and
 // the rail print, and where the loudness bounds sit along a slider.
 
+import { clamp } from "../../lib/coerce.js";
 import { minus } from "../shell/format.js";
 import { percentOf } from "./output.js";
 
@@ -115,7 +116,7 @@ export function volumeView(v, value, { fixed, direct }, grid) {
  * @returns {{ lo: number, hi: number, width: number }}
  */
 export function loudSpan(low, high, { min, max }) {
-  const pct = (/** @type {number} */ v) => Math.min(100, Math.max(0, percentOf(v, min, max)));
+  const pct = (/** @type {number} */ v) => clamp(percentOf(v, min, max), 0, 100);
   const lo = pct(low),
     hi = pct(high);
   return { lo, hi, width: hi - lo };

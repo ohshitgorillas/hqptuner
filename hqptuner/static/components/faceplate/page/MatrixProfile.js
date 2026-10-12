@@ -6,6 +6,7 @@
 
 import { useEffect } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
+import { clamp } from "../../../lib/coerce.js";
 import { parseProcess } from "../../../vendor/eqlab/core/matrixspec.js";
 import { pipelineBaseline } from "../../../store/resolve.js";
 import { xfeedBlock } from "../../../store/xfeed/block.js";
@@ -50,7 +51,7 @@ const sampled = (points) => (f) => {
   while (i < points.length - 1 && points[i][0] < f) i++;
   const [f0, d0] = points[i - 1];
   const [f1, d1] = points[i];
-  const t = Math.min(1, Math.max(0, Math.log(f / f0) / Math.log(f1 / f0)));
+  const t = clamp(Math.log(f / f0) / Math.log(f1 / f0), 0, 1);
   return d0 + (d1 - d0) * t;
 };
 

@@ -2,6 +2,7 @@
 // (store/meter/loop.js) hands its scene here, and the trace, the level bars and the readings table are
 // written straight into the elements SourceMeter rendered. Nothing re-renders while the meter runs.
 
+import { clamp } from "../../../lib/coerce.js";
 import { fraction } from "../../../model/gauges/meter.js";
 import { minusText } from "../../../model/shell/format.js";
 import { levelsFloor } from "../../../store/faceplate/page/meter.js";
@@ -31,7 +32,7 @@ function pathOf(levels, range) {
   const n = levels.length;
   let d = "";
   for (let c = 0; c < n; c++) {
-    const y = Math.min(SH, Math.max(0, (-levels[c] / range) * SH));
+    const y = clamp((-levels[c] / range) * SH, 0, SH);
     d += `${c ? " L" : "M"}${(((c + 0.5) / n) * SW).toFixed(1)},${y.toFixed(1)}`;
   }
   return d;

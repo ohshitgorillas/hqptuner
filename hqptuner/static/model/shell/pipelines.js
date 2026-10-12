@@ -1,6 +1,7 @@
 // DOM-free decisions of the DSP pipelines drawer: a pipeline's chain as chips, which pins of the routing grid are lit
 // and what they carry, the overview's and an output tab's summaries, and whether a wire row does any work.
 
+import { clamp } from "../../lib/coerce.js";
 import { PEQ_TYPES } from "../gauges/eq.js";
 import { minus, signed } from "./format.js";
 import { paging } from "../builders/pager.js";
@@ -283,7 +284,7 @@ export function pinState(pipes, src, mix) {
  * @returns {{ cell: number, over: boolean }}
  */
 export const overviewSummary = (nIn, nOut, nPipes) => ({
-  cell: Math.max(44, Math.min(112, Math.floor(440 / Math.max(nIn, nOut)))),
+  cell: clamp(Math.floor(440 / Math.max(nIn, nOut)), 44, 112),
   over: nPipes > MAXP,
 });
 

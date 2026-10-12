@@ -3,6 +3,7 @@
 // user's offset, held in localStorage like every UI pref, moves the meters from there, and together they never put the
 // meters ahead of the feed.
 import { computed, signal } from "@preact/signals";
+import { clamp } from "../../lib/coerce.js";
 import { engineStatus } from "../signals.js";
 import { warnStorage } from "../ui/prefs.js";
 
@@ -19,7 +20,7 @@ const US_PER_S = 1e6;
 function offsetOf(text) {
   if (text == null || String(text).trim() === "") return null;
   const v = Number(text);
-  return Number.isFinite(v) ? Math.min(SPECTRUM_OFFSET_MAX, Math.max(-SPECTRUM_OFFSET_MAX, v)) : null;
+  return Number.isFinite(v) ? clamp(v, -SPECTRUM_OFFSET_MAX, SPECTRUM_OFFSET_MAX) : null;
 }
 
 /** @returns {number} */

@@ -3,6 +3,8 @@
 // meaning nothing entered. The listener is at the origin facing up the page (negative y); a speaker sits at its layout
 // angle, clockwise from front, at a radius set by its distance (6 m spans the ring), the sub pushed out past the mains.
 
+import { clamp } from "../../lib/coerce.js";
+
 /** The listener's head radius on the plan: where a speaker at no distance sits. */
 export const HEAD = 13;
 const R_MAX = 122,
@@ -27,7 +29,7 @@ const R_MAX = 122,
  * @param {number} d  distance, cm
  */
 const radius = (i, d) => {
-  const r = HEAD + (Math.max(0, Math.min(DIST_FULL, d)) / DIST_FULL) * (R_MAX - HEAD);
+  const r = HEAD + (clamp(d, 0, DIST_FULL) / DIST_FULL) * (R_MAX - HEAD);
   return i === SUB ? Math.min(r * SUB_OUT, SUB_MAX) : r;
 };
 

@@ -9,6 +9,8 @@
 // time, so the field reads as continuous rather than as a grid of rows and
 // slices. An interval with no feed frame is left unpainted.
 
+import { clamp } from "./coerce.js";
+
 /**
  * @typedef {{ ms: number, slices: Uint8Array[], nyquist: number }} Cell
  *   One visible column in one channel; `slices` is empty where the interval
@@ -50,7 +52,7 @@ function fromOklab([L, a, b]) {
     -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
     -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
   ];
-  return /** @type {Triple} */ (rgb.map((c) => Math.round(255 * Math.min(1, Math.max(0, toSrgb(c))))));
+  return /** @type {Triple} */ (rgb.map((c) => Math.round(255 * clamp(toSrgb(c), 0, 1))));
 }
 
 /** @param {string} hex `#rrggbb` @returns {Triple} 0..1 sRGB */
@@ -238,7 +240,7 @@ export function scrollPlan(prev, next) {
 }
 
 /** A level's step on the ramp, from the range's floor to full scale. @param {number} db @param {number} range */
-const rampIndex = (db, range) => Math.round(Math.min(1, Math.max(0, (db + range) / range)) * (STEPS - 1));
+const rampIndex = (db, range) => Math.round(clamp((db + range) / range, 0, 1) * (STEPS - 1));
 
 /**
  * Paint one pixel column x of an image from a slice blended toward its

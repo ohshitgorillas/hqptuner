@@ -18,6 +18,7 @@
 // the older slices drawn at their own frequencies.
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
+import { clamp } from "../../lib/coerce.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter.js";
 import { alignStrip, stripEdge } from "../../model/gauges/stripedge.js";
 import { apodBins } from "../apodhistory.js";
@@ -102,7 +103,7 @@ function dropPartial(h) {
  */
 function rowsOf(bins) {
   const cols = traceColumns(bins, ROWS);
-  return Uint8Array.from(cols, (db) => Math.min(ROW_MAX, Math.max(0, Math.round(-db / ROW_STEP_DB))));
+  return Uint8Array.from(cols, (db) => clamp(Math.round(-db / ROW_STEP_DB), 0, ROW_MAX));
 }
 
 /**

@@ -14,8 +14,9 @@ import { effective, isDirty, runningValue } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import { grayReason } from "../../ui/graying.js";
 import { fixedVolumeMode, isoLevel } from "../../schema/gray.js";
-import { AXIS_MAX, AXIS_MIN, clampVolume } from "../../../lib/volume.js";
-import { wireNum } from "../../../lib/coerce.js";
+import { AXIS, AXIS_MAX, AXIS_MIN } from "../../../lib/volume.js";
+import { clamp, wireNum } from "../../../lib/coerce.js";
+import { clampVolume } from "../../../model/gauges/range-axis.js";
 import { loudnessBounds } from "../volume.js";
 
 /** @typedef {import("../../schema/gray.js").FixedMode} FixedMode */
@@ -87,7 +88,7 @@ function liveLevel() {
   const vr = volumeRange.value;
   if (!vr || !(vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true)) return null;
   const db = wireNum(volumeShown.value, NaN);
-  return Number.isNaN(db) ? null : Math.max(AXIS_MIN, Math.min(AXIS_MAX, db));
+  return Number.isNaN(db) ? null : clamp(db, AXIS_MIN, AXIS_MAX);
 }
 
 /**
@@ -108,7 +109,7 @@ export function volumeRangeNow() {
 
 /**
  * Move a handle to `v` dBFS: it lands on whole dB, inside its own bound and never past its neighbours
- * (lib/volume.js clampVolume), and stages unless it lands where it already is.
+ * (model/gauges/range-axis.js clampVolume on lib/volume.js AXIS), and stages unless it lands where it already is.
  *
  * @param {VolumeKey} k
  * @param {number} v
@@ -116,7 +117,7 @@ export function volumeRangeNow() {
  */
 export function moveVolumeHandle(k, v) {
   const cur = trio();
-  const n = clampVolume(k, v, cur);
+  const n = clampVolume(k, wireNum(v, 0), cur, AXIS);
   if (HANDLES.includes(k) && n !== cur[k]) edit(RANGE_KEYS[k], String(n));
   return n;
 }

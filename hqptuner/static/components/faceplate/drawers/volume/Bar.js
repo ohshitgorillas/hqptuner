@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
-import { AXIS_MAX, AXIS_MIN } from "../../../../lib/volume.js";
+import { AXIS } from "../../../../lib/volume.js";
 import {
   barValueAt,
   barX,
@@ -29,7 +29,6 @@ import { moveVolumeHandle, RANGE_KEYS } from "../../../../store/faceplate/drawer
  *   currentTarget: { getBoundingClientRect(): { left: number, top: number }, setPointerCapture(id: number): void } }} PressEv
  */
 
-const AXIS = { min: AXIS_MIN, max: AXIS_MAX };
 const PADX = 16; // track inset, room for the end labels
 const Y = { pin: 3, bar: 30, barH: 14, tick: 56, label: 80, H: 86 };
 const FIRST_W = 960; // px drawn at before the box is measured

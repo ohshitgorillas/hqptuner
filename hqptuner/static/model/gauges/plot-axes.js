@@ -2,6 +2,8 @@
 // frequency labels in a bottom band. Every function takes the box in px and the scale in Hz / dB as arguments, so the
 // plots draw what they get back and a test drives it from a table.
 
+import { clamp } from "../../lib/coerce.js";
+
 export const GUTTER = 28; // left, for dB labels
 const BAND = 16; // bottom, for frequency labels
 export const PAD = 6; // top
@@ -133,5 +135,5 @@ export function pointAt(geo, px, py) {
   const { W, fMin, fMax, decades, plotH, lo, hi } = geo;
   const f = fMin * 10 ** ((decades * (px - GUTTER)) / (W - GUTTER - RIGHT));
   const d = hi - ((py - PAD) * (hi - lo)) / plotH;
-  return [Math.round(Math.max(fMin, Math.min(fMax, f))), round1(d)];
+  return [Math.round(clamp(f, fMin, fMax)), round1(d)];
 }

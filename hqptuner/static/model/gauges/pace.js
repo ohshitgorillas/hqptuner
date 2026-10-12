@@ -8,6 +8,8 @@
 //
 // Pure: the caller owns the queue and the clock, and hands in the real time elapsed.
 
+import { clamp } from "../../lib/coerce.js";
+
 /** @typedef {import("./meter.js").MeterFrame} MeterFrame */
 /**
  * @typedef {object} PaceState
@@ -93,7 +95,7 @@ export function pace(state, queue, { dt, delay }) {
   }
   const start = primed ? state : { budget: 0, avg: buffered };
   const avg = start.avg + (buffered - start.avg) * Math.min(1, dt / AVG_MS);
-  const trim = 1 + Math.max(-TRIM, Math.min(TRIM, (avg - delay) / TRIM_SPAN_MS));
+  const trim = 1 + clamp((avg - delay) / TRIM_SPAN_MS, -TRIM, TRIM);
   const { out, budget } = spend(rest, resumed ? 0 : start.budget + dt * trim);
   return { state: { primed: true, budget, avg, delay }, out, dropped, rest };
 }

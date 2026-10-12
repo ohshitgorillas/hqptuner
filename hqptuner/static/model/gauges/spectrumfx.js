@@ -5,6 +5,7 @@
 // fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs
 // alone, so a painter draws what it gets back and a test drives it from a table.
 
+import { clamp } from "../../lib/coerce.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
@@ -159,7 +160,7 @@ export function stepRidges(prev, row) {
  * @returns {number}  0 to 1
  */
 export function ridgeShade(k, n) {
-  return n > 1 ? Math.min(1, Math.max(0, k / (n - 1))) : 0;
+  return n > 1 ? clamp(k / (n - 1), 0, 1) : 0;
 }
 
 /**

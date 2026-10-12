@@ -2,6 +2,8 @@
 // ‹ and › are live. ‹ and › wrap, so either goes somewhere whenever there is more than one page. A test
 // drives it from a table.
 
+import { clamp } from "../../lib/coerce.js";
+
 /**
  * A list's paging at one asked-for page.
  *
@@ -24,7 +26,7 @@
  */
 export function paging(n, per, page) {
   const pages = Math.max(1, Math.ceil(n / per));
-  const shown = Math.max(0, Math.min(page, pages - 1));
+  const shown = clamp(page, 0, pages - 1);
   const more = pages > 1;
   return { pages, page: shown, start: shown * per, end: Math.min(n, (shown + 1) * per), prev: more, next: more };
 }

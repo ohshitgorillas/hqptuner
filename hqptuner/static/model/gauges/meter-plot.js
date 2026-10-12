@@ -1,6 +1,8 @@
 // Source meter plots: where the spectrum and the spectrogram put their axes, free of the DOM. The spectrum's axes, the
 // Ranges a step wider and narrower, the level bars' dB scale, the frequency and time axes' ticks, and the colour ramps.
 
+import { clamp } from "../../lib/coerce.js";
+
 const RAMP_SIZE = 256; // colour ramp entries
 const DB_STEPS = 6; // dB scale steps from full scale to the spectrum's range or the level bars' floor
 const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
@@ -31,7 +33,7 @@ const freqX = (f, plot) => (f / plot.nyq) * plot.w;
  * @param {SpectrumPlot} plot
  * @returns {number}
  */
-const levelY = (db, plot) => Math.max(0, Math.min(plot.h, (-db / plot.range) * plot.h));
+const levelY = (db, plot) => clamp((-db / plot.range) * plot.h, 0, plot.h);
 
 /**
  * The tick steps of a frequency axis, Hz, each after the axis top it takes over above, widest first.

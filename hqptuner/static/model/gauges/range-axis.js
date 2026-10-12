@@ -2,6 +2,8 @@
 // ticks and end labels under it, which handle a press takes, and the clamps a dragged or typed value passes through.
 // The bars draw what they get back and a test drives it from a table.
 
+import { clamp } from "../../lib/coerce.js";
+
 const TICK_LEN = { minor: 5, major: 9, strong: 13 };
 
 /**
@@ -129,12 +131,12 @@ export function pickVolumeHandle(v, yTop, cur, pinBelow) {
  * @returns {number}
  */
 export function clampBounds(k, v, pair, axis) {
-  const n = Math.round(Math.max(axis.min, Math.min(axis.max, v)));
+  const n = Math.round(clamp(v, axis.min, axis.max));
   return k === "low" ? Math.min(n, pair.high) : Math.max(n, pair.low);
 }
 
 /**
- * A volume handle moved to `n` (lib/volume.js clampVolume, on `axis`): whole dB; Min on the axis, at most 0 dB and never above
+ * A volume handle moved to `n` on `axis`: whole dB; Min on the axis, at most 0 dB and never above
  * Startup or Max; Max on the axis and never below Min or Startup; Startup between Min and Max.
  *
  * @param {VolumeKey} which
@@ -147,7 +149,7 @@ export function clampVolume(which, n, { min, startup, max }, axis) {
   n = Math.round(n);
   if (which === "min") return Math.max(axis.min, Math.min(n, 0, startup, max));
   if (which === "max") return Math.min(axis.max, Math.max(n, min, startup));
-  return Math.max(min, Math.min(n, max));
+  return clamp(n, min, max);
 }
 
 /**
@@ -158,5 +160,5 @@ export function clampVolume(which, n, { min, startup, max }, axis) {
  * @returns {number}
  */
 export function clampToAxis(v, axis) {
-  return Math.max(axis.min, Math.min(axis.max, v));
+  return clamp(v, axis.min, axis.max);
 }

@@ -3,6 +3,8 @@
 // Bauer plot draws, which fields are live, and the top-down view's listening geometry and readouts. Stored values may
 // arrive as strings (the family's values).
 
+import { clamp } from "../../lib/coerce.js";
+
 /**
  * The name of crossfeed mode `mode` in `modes`, or undefined for a mode the table does not hold.
  *
@@ -176,7 +178,7 @@ function farPath(P, ear, r, sweep) {
  */
 export function listeningGeometry(angle, circ) {
   const a = circ / (2 * Math.PI);
-  const r = 15 + (Math.max(6.5, Math.min(10.5, a)) - 6.5) * 2.5;
+  const r = 15 + (clamp(a, 6.5, 10.5) - 6.5) * 2.5;
   /** @type {Point} */ const earL = [CX - r, CY];
   /** @type {Point} */ const earR = [CX + r, CY];
   const speakers = [-angle, angle].map((d) => ({ d, p: at(d, R) }));

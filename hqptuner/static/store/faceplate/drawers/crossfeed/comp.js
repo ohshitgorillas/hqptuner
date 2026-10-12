@@ -6,6 +6,7 @@
 
 import { signal } from "@preact/signals";
 import { centerTiltDb, fitComp, msCompile } from "../../../../vendor/eqlab/core/xfeed.js";
+import { clamp } from "../../../../lib/coerce.js";
 import { effectivePipelines } from "../../../resolve.js";
 import { edit, stagePipelines } from "../../../actions.js";
 import { bauerSettings, removeBlock, xfeedBlock } from "../../../xfeed/block.js";
@@ -104,7 +105,7 @@ export function commitComp(pct) {
   drag.value = null;
   const rows = effectivePipelines.value;
   const { rec } = xfeedBlock(rows);
-  const p = Math.max(0, Math.min(150, Math.round(pct)));
+  const p = clamp(Math.round(pct), 0, 150);
   if (p === 0) {
     if (rec) removeBlock(rows, rec);
     return;

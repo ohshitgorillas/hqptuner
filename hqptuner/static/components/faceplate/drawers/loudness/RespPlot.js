@@ -6,6 +6,7 @@
 
 import { useRef, useState } from "preact/hooks";
 import { html } from "../../../../lib/dom.js";
+import { clamp } from "../../../../lib/coerce.js";
 import { signed } from "../../../../model/shell/format.js";
 import {
   GUTTER,
@@ -89,7 +90,7 @@ function TraceLabels({ geo, traces }) {
     <g class="tl">
       ${lab.map(
         ({ t, yy }) =>
-          html`<text class=${t.cls} data-trace=${t.id} x=${geo.x1 - 2} y=${r(Math.max(PAD + 9, Math.min(geo.yb - 3, yy)))} text-anchor="end">
+          html`<text class=${t.cls} data-trace=${t.id} x=${geo.x1 - 2} y=${r(clamp(yy, PAD + 9, geo.yb - 3))} text-anchor="end">
             ${t.label}
           </text>`,
       )}
@@ -127,7 +128,7 @@ export function RespPlot({ cls, aria, scale, traces, handles = [] }) {
     /** @type {Element} */ (e.currentTarget).closest("svg")?.setPointerCapture(e.pointerId);
     handles[i].onGrab?.();
   };
-  const clampDb = (/** @type {number} */ d) => Math.max(scale.lo - 2, Math.min(scale.hi + 2, d));
+  const clampDb = (/** @type {number} */ d) => clamp(d, scale.lo - 2, scale.hi + 2);
   return html`
     <div class=${cls} ref=${ref}>
       <svg
@@ -152,7 +153,7 @@ export function RespPlot({ cls, aria, scale, traces, handles = [] }) {
             html`<circle
               class=${classNames("hdl", act === i && "act", hd.off && "off")}
               cx=${r(geo.x(hd.f))}
-              cy=${r(geo.y(Math.max(scale.lo, Math.min(scale.hi, hd.db))))}
+              cy=${r(geo.y(clamp(hd.db, scale.lo, scale.hi)))}
               r="6"
               onPointerDown=${grab(i)}
             />`,

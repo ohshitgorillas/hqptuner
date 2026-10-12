@@ -5,6 +5,7 @@
 // volume cannot move or loudness is off. The decisions are store/faceplate/drawers/loudness.js's.
 
 import { html } from "../../../lib/dom.js";
+import { clamp } from "../../../lib/coerce.js";
 import { loudnessMagDb } from "../../../vendor/eqlab/core/dsp/curves.js";
 import { loudnessApplied } from "../../../store/matrix/loudness.js";
 import {
@@ -39,7 +40,7 @@ const SCALE = { lo: -3, hi: 24, step: 6, minor: 3 };
  */
 function handle(side, f, db, off) {
   const { min = -20, max = 20 } = formBounds(bandKey(side, "level"));
-  const held = (/** @type {number} */ d) => Math.max(min, Math.min(max, d));
+  const held = (/** @type {number} */ d) => clamp(d, min, max);
   return {
     f,
     db,

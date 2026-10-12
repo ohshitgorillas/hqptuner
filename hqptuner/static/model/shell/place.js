@@ -2,6 +2,8 @@
 // and how the plate's side and foot margins pull it back inside. A test drives it from a
 // table.
 
+import { clamp } from "../../lib/coerce.js";
+
 /**
  * An anchor's box in screen px, measured from the plate's top-left corner (the scale has not been divided out).
  *
@@ -61,11 +63,11 @@ export function clampToPlate({ anchor, panel, plate, scale, side, foot, at, orig
   const x = anchor.left / scale,
     y = anchor.top / scale;
   const x0 = at.x === "before" ? x - panel.w - at.gap : x;
-  const left = Math.max(room(l), Math.min(x0, plate.w - room(r) - panel.w)) - origin.x;
+  const left = clamp(x0, room(l), plate.w - room(r) - panel.w) - origin.x;
   const floor = plate.h - room(foot);
   if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) - origin.y };
   const below = y + anchor.height / scale + at.gap;
   if (at.y === "below") return { left, top: Math.min(below, floor - panel.h) - origin.y };
   const flipped = below + panel.h > floor ? y - panel.h - at.gap : below;
-  return { left, top: Math.max(PLATE_TOP, Math.min(flipped, floor - panel.h)) - origin.y };
+  return { left, top: clamp(flipped, PLATE_TOP, floor - panel.h) - origin.y };
 }

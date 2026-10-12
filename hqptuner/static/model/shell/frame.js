@@ -2,6 +2,8 @@
 // speed gauge, the source meter's no-stream line and the page's top section each come back as a value; the caller
 // writes it into the page.
 
+import { clamp } from "../../lib/coerce.js";
+
 /** Zone seams [bad|warn, warn|ok]. @typedef {[number, number]} Seams */
 
 /**
@@ -57,7 +59,7 @@ export const zone = (v, [lo, hi]) => (v == null ? "" : v < lo ? "bad" : v < hi ?
  * @returns {GaugeReading}
  */
 export function gaugeReading(v, seams) {
-  const th = ((v == null ? 180 : Math.max(0, Math.min(180, 107.2 - 74.7 * Math.log2(v)))) * Math.PI) / 180;
+  const th = ((v == null ? 180 : clamp(107.2 - 74.7 * Math.log2(v), 0, 180)) * Math.PI) / 180;
   return {
     x2: (55 + 44 * Math.cos(th)).toFixed(1),
     y2: (54 - 44 * Math.sin(th)).toFixed(1),

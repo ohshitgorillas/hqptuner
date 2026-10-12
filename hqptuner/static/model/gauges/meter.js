@@ -2,6 +2,8 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
+import { clamp } from "../../lib/coerce.js";
+
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
 const SPEC_GHOST_TAU_MS = 1000; // ghost relaxation time constant: about a thirtieth of its gap closed per 30 Hz frame
@@ -102,7 +104,7 @@ export function stepLevel(v, t, now, dt) {
  * @returns {number}
  */
 export function frameDt(prev, now) {
-  return Math.max(0, Math.min(MAX_DT_S, (now - prev) / 1000));
+  return clamp((now - prev) / 1000, 0, MAX_DT_S);
 }
 
 /**
@@ -260,5 +262,5 @@ export function smoothColumns(cols) {
  * @returns {number}
  */
 export function fraction(db, floor) {
-  return Math.min(1, Math.max(0, (db - floor) / -floor));
+  return clamp((db - floor) / -floor, 0, 1);
 }

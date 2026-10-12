@@ -2,6 +2,7 @@
 // picker, how the narrowed list groups into families and variants, which placement columns survive narrowing, how the
 // Standard style fills its columns in engine order, and which marks a window's key explains.
 
+import { clamp } from "../../lib/coerce.js";
 import { ON_PLATE } from "./place.js";
 
 /**
@@ -167,7 +168,7 @@ export function tipContent(o, std, facet) {
 export function tipAt({ col, rowY, tip, plate, origin = ON_PLATE }) {
   const right = col.x + col.w + 10;
   const x = right + tip.w <= plate.w - MARGIN ? right : Math.max(MARGIN, col.x - tip.w - 10);
-  const y = Math.max(MARGIN, Math.min(rowY - 4, plate.h - MARGIN - tip.h));
+  const y = clamp(rowY - 4, MARGIN, plate.h - MARGIN - tip.h);
   return { left: Math.round(x - origin.x), top: Math.round(y - origin.y) };
 }
 
@@ -189,7 +190,7 @@ export function parkAt({ panel, trigger, plate }) {
     y = below + panel.h <= plate.h - MARGIN ? below : above >= MARGIN ? above : plate.h - MARGIN - panel.h;
   }
   return {
-    left: Math.round(Math.max(MARGIN, Math.min(x, plate.w - MARGIN - panel.w))),
+    left: Math.round(clamp(x, MARGIN, plate.w - MARGIN - panel.w)),
     top: Math.round(Math.max(MARGIN, y)),
   };
 }
