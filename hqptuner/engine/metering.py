@@ -24,11 +24,12 @@ import logging
 import math
 import struct
 from collections import deque
-from collections.abc import Awaitable, Callable
+from collections.abc import Callable
 
 import numpy as np
 import numpy.typing as npt
 
+from hqptuner.clock import Clock
 from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed, reduce_frame
@@ -144,24 +145,25 @@ class MeteringReader:
 
     def __init__(
         self,
-        host: str,
-        port: int,
+        address: tuple[str, int],
         context: Callable[[], TrackContext | None],
         *,
-        pace: Callable[[asyncio.Event, float], Awaitable[bool]],
+        clock: Clock,
+        timeout: float,
         advisor: bool,
     ) -> None:
-        """Record where the metering port is and how to read track context; nothing connects until ``run``.
+        """Record the metering port's host and port and how to read track context; nothing connects until ``run``.
 
-        ``pace`` is the manager's clock: it idles the reader for a number of seconds or until the event it is given
-        is set. ``advisor`` says whether the junk-filter advisor reads the stream; without it the reader holds the
-        socket only while the feed has a subscriber, a subscriber attaching wakes an idle reader at once, and no
-        aggregate or verdict is ever kept.
+        ``clock`` is the manager's clock: the reader idles on its ``pace`` and waits for the connection under its
+        ``wait_for``, which gives the dial up after ``timeout`` seconds and backs off as from a refused one.
+        ``advisor`` says whether the junk-filter advisor reads the stream; without it the reader holds the socket only
+        while the feed has a subscriber, a subscriber attaching wakes an idle reader at once, and no aggregate or
+        verdict is ever kept.
         """
-        self._host = host
-        self._port = port
+        self._host, self._port = address
         self._context = context
-        self._pace = pace
+        self._clock = clock
+        self._timeout = timeout
         self._advisor = advisor
         self._stop = asyncio.Event()
         self._wake = asyncio.Event()
@@ -170,14 +172,13 @@ class MeteringReader:
         self._verdict: junkadvisor.JunkVerdict | None = None
         self.feed = MeterFeed(on_subscribe=self._wake.set)
 
-    def retarget(self, host: str, port: int) -> None:
+    def retarget(self, address: tuple[str, int]) -> None:
         """Point the reader at another daemon; the next dial uses it.
 
         The address is read at ``open_connection`` time rather than latched at construction, so a connection setting
         the user changed at runtime reaches the metering side channel with the reconnect the manager already forces.
         """
-        self._host = host
-        self._port = port
+        self._host, self._port = address
 
     def stop(self) -> None:
         """Ask the reader to shut down: the stream loop, the idle wait and the backoff all end at the next check."""
@@ -255,7 +256,7 @@ class MeteringReader:
                 self._agg = None
                 self._holder = junkadvisor.SpurHolder()  # and the spur hold that rested on it
             if not self._stop.is_set():
-                await self._pace(wake, delay)
+                await self._clock.pace(wake, delay)
 
     def _wanted(self) -> bool:
         """Whether anything reads the stream: the advisor, or a subscriber to the feed."""
@@ -268,7 +269,7 @@ class MeteringReader:
         still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
         as long as the daemon stays silent.
         """
-        reader, writer = await asyncio.open_connection(self._host, self._port)
+        reader, writer = await self._clock.wait_for(asyncio.open_connection(self._host, self._port), self._timeout)
         self.feed.reset()  # a resume never mixes frames from before the pause
         log.info("metering stream connected (%s:%s)", self._host, self._port)
         read: asyncio.Task[tuple[tuple[float, ...], bytes]] | None = None
@@ -298,7 +299,7 @@ class MeteringReader:
         """Wait up to one idle tick for the pending frame; False means the tick won and the read is still running."""
         arrived = asyncio.Event()
         read.add_done_callback(lambda _: arrived.set())
-        await self._pace(arrived, IDLE_RECHECK)
+        await self._clock.pace(arrived, IDLE_RECHECK)
         return read.done()
 
     def _ingest(self, header: tuple[float, ...], body: bytes) -> None:

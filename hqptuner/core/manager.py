@@ -344,7 +344,7 @@ class ConnectionManager:
         await self._drop("connection settings changed")
         self._wake.set()
         if self.metering is not None:
-            self.metering.retarget(self.cfg.hqp_host, self.cfg.hqp_metering_port)
+            self.metering.retarget((self.cfg.hqp_host, self.cfg.hqp_metering_port))
 
     @property
     def control(self) -> ControlClient | None:

@@ -94,10 +94,10 @@ def make_lifespan(
         junkcal_task: asyncio.Task[None] | None = None
         if cfg.metering_enabled:
             reader = MeteringReader(
-                cfg.hqp_host,
-                cfg.hqp_metering_port,
+                (cfg.hqp_host, cfg.hqp_metering_port),
                 lambda: context_from(manager),
-                pace=manager.clock.pace,
+                clock=manager.clock,
+                timeout=cfg.request_timeout,
                 advisor=cfg.advisor_enabled,
             )
             manager.metering = reader
