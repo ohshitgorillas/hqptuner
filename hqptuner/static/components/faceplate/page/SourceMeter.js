@@ -12,7 +12,7 @@ import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
-import { setPageRange, spectrumStyle } from "../../../store/ui/prefs.js";
+import { rangeButtons, setPageRange, spectrumStyle } from "../../../store/ui/prefs.js";
 import { rgb } from "../tokencolours.js";
 import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
@@ -130,8 +130,8 @@ function RangeControl({ view }) {
 
 /**
  * The spectrum: its title at 13″, the dB scale beside a glass well holding the grid, the filled trace and the held
- * peaks under the effects canvas and the shader canvas the picked style draws on, the Range control in its corner, the
- * frequency axis under it.
+ * peaks under the effects canvas and the shader canvas the picked style draws on, the Range control in its corner while
+ * the Range buttons are shown, the frequency axis under it.
  *
  * @param {{ view: PageMeterView, plot: BoxRef, fx: CanvasRef, sgl: CanvasRef }} props
  */
@@ -153,7 +153,7 @@ function Spectrum({ view, plot, fx, sgl }) {
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>
           <canvas class="sgl" ref=${sgl}></canvas>
-          <${RangeControl} view=${view} />
+          ${rangeButtons.value && html`<${RangeControl} view=${view} />`}
         </div>
         <span></span>
         <${FreqScale} freq=${view.freq} />

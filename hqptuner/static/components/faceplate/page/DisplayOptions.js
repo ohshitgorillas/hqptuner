@@ -1,8 +1,20 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
-// style and the level bars' floor, each a row of options writing its preference at once. Parked under its button.
+// style, the level bars' floor, whether the spectrum shows its Range buttons and the page's Range, each a row of
+// options writing its preference at once. Parked under its button.
 
 import { html } from "../../../lib/dom.js";
-import { METER_FLOORS, meterFloor, setMeterFloor, setSpectrumStyle, spectrumStyle } from "../../../store/ui/prefs.js";
+import {
+  METER_FLOORS,
+  METER_RANGES,
+  meterFloor,
+  pageRange,
+  rangeButtons,
+  setMeterFloor,
+  setPageRange,
+  setRangeButtons,
+  setSpectrumStyle,
+  spectrumStyle,
+} from "../../../store/ui/prefs.js";
 import { Seg } from "../drawers/pipelines/parts.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 
@@ -25,6 +37,18 @@ const SPECTRA = [
 /** @type {Opt[]} */
 const FLOORS = METER_FLOORS.map((v) => ({ v, label: v }));
 
+/** @type {Opt[]} */
+const SHOW_HIDE = [
+  { v: "1", label: "Show" },
+  { v: "0", label: "Hide" },
+];
+
+/** @type {Opt[]} */
+const RANGES = METER_RANGES.map((v) => ({ v, label: v }));
+
+/** @param {string} v */
+const setShown = (v) => setRangeButtons(v === "1");
+
 /** @typedef {import("../../../model/shell/place.js").Side} Side */
 /** @typedef {import("../../../model/shell/place.js").Place} Place */
 
@@ -43,11 +67,11 @@ function parkUnder(panel) {
 /**
  * One field: its label (and unit) over its options, the one in force lit; another writes it.
  *
- * @param {{ label: string, unit?: string, opts: Opt[], value: string, set: (v: string) => void }} props
+ * @param {{ label: string, unit?: string, opts: Opt[], value: string, set: (v: string) => void, testid?: string }} props
  */
-function Field({ label, unit, opts, value, set }) {
+function Field({ label, unit, opts, value, set, testid }) {
   return html`
-    <div class="dfield">
+    <div class="dfield" data-testid=${testid}>
       <span class="cl">${label}${unit && html` <span class="u">${unit}</span>`}</span>
       <${Seg} aria=${unit ? `${label}, ${unit}` : label} cls="view" value=${value} options=${opts} onChange=${set} />
     </div>
@@ -60,6 +84,14 @@ export function DisplayOptions() {
     <${Popover} id=${DISPLAY} cls="dpop" role="dialog" label=${LABEL} park=${parkUnder}>
       <${Field} label="Spectrum style" opts=${SPECTRA} value=${spectrumStyle.value} set=${setSpectrumStyle} />
       <${Field} label="Levels floor" unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />
+      <${Field}
+        label="Range buttons"
+        opts=${SHOW_HIDE}
+        value=${rangeButtons.value ? "1" : "0"}
+        set=${setShown}
+        testid="display-range-buttons"
+      />
+      <${Field} label="Range" unit="dB" opts=${RANGES} value=${pageRange.value} set=${setPageRange} testid="display-range" />
     <//>
   `;
 }

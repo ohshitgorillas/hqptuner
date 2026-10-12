@@ -267,6 +267,9 @@ export function toggleCollapsedGroup(key) {
 //   hiddenStages     — the stages hidden from the chain rail, a subset of
 //                      HIDEABLE_STAGES, held in that order.
 //   allowPinnedRates — the opt-in for pinning an output rate; off by default.
+//   rangeButtons     — whether the spectrum draws its −/+ Range buttons; shown
+//                      by default. Hidden, the Display popover still sets the
+//                      Range.
 //   displayFormat    — the format the plate is laid out at, one of
 //                      DISPLAY_FORMATS: "auto" (the window picks), "expanded",
 //                      "normal" or "compact".
@@ -281,6 +284,7 @@ export const HIDEABLE_STAGES = ["dsd", "speakers", "crossfeed", "loudness", "cor
 
 const K_HIDDEN = "hqptuner.hiddenStages";
 const K_PINNED = "hqptuner.allowPinnedRates";
+const K_RANGE_BUTTONS = "hqptuner.rangeButtons";
 
 export const [dacType, setDacType] = enumPref("hqptuner.dacType", DAC_TYPES, "other");
 export const [dacChip, setDacChip] = enumPref("hqptuner.dacChip", DAC_CHIPS, "other");
@@ -334,4 +338,17 @@ export const allowPinnedRates = signal(loadBool(K_PINNED, false));
 export function setAllowPinnedRates(on) {
   allowPinnedRates.value = !!on;
   persist(K_PINNED, allowPinnedRates.value);
+}
+
+export const rangeButtons = signal(loadBool(K_RANGE_BUTTONS, true));
+
+/**
+ * Show or hide the spectrum's Range buttons and persist the choice.
+ *
+ * @param {boolean} on
+ * @returns {void}
+ */
+export function setRangeButtons(on) {
+  rangeButtons.value = !!on;
+  persist(K_RANGE_BUTTONS, rangeButtons.value);
 }
