@@ -30,11 +30,9 @@ FLOOR = 90
 #: Files excused from the floor, path to the reason.
 EXEMPT: dict[str, str] = {
     "hqptuner/__main__.py": "uvicorn launch shim — no behavior to assert, and running it starts a server",
-    "hqptuner/engine/control.py": "cover struck with the wall-clock tests; retired by cover-floor",
-    "hqptuner/engine/metering.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/lanes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
-    "hqptuner/api/routes/autopilot.py": "cover struck with the wall-clock tests; retired by cover-floor",
     "hqptuner/core/autopilotops.py": "cover struck with the wall-clock tests; retired by cover-floor",
+    "hqptuner/core/junkcal.py": "advisor stack dormant by owner ruling",
 }
 
 
