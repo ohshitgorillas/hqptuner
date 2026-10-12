@@ -133,13 +133,13 @@ async def _describe(address: str, port: int, request_timeout: float, deadline: D
         await client.close()
 
 
-async def probe(address: str, control_port: int, request_timeout: float, *, clock: Clock | None = None) -> Daemon:
+async def probe(address: str, control_port: int, request_timeout: float, *, clock: Clock) -> Daemon:
     """Answer the record for one address, raising ``OSError`` or ``ControlError`` where nothing answers there.
 
     The one path that names an address instead of waiting for a datagram. Whether "nothing there" is worth
     reporting is the caller's call, not this function's: a silent sweep decides differently from a one-shot dial.
     """
-    info = await _describe(address, control_port, request_timeout, clock or Clock())
+    info = await _describe(address, control_port, request_timeout, clock)
     return Daemon(
         address=address,
         name=info.get("name", ""),
@@ -187,7 +187,7 @@ async def discover(
     search: Search,
     wait_seconds: float = 3.0,
     *,
-    clock: Clock | None = None,
+    clock: Clock,
 ) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
@@ -203,7 +203,6 @@ async def discover(
     ``clock`` paces the sweep, and its ``wait_for`` is what every connect, send and read of the daemons it then
     asks waits under.
     """
-    clock = clock or Clock()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
     try:
