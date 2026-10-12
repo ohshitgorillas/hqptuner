@@ -242,11 +242,10 @@
   --tree-chev-w:24px; --tree-chev-h:28px;   /* a station tree row's fold chevron; the width of a pipeline chip's × key */
   --shead-h:42px;          /* a sheet's head row */
   --fp-w:940px;            /* the filter presets sheet */
-  --fp-cols:minmax(0,1fr) 176px 196px 64px 104px;   /* preset | filter | adjust | correction | resources */
+  --fp-cols:minmax(0,1fr) 176px 116px 68px 104px;   /* preset | filter | emphasis | correction | resources */
   --fp-name-x:76px;        /* where a preset's name starts in its row */
   --fp-em-w:36px;          /* a preset's emoji column */
   --fp-em-w-sub:28px;      /* a nested preset's emoji column */
-  --fp-knob-l:62px;        /* a preset knob's label */
   --fp-sub-indent:48px;    /* a nested preset's step in */
   --apod-mark:14px;        /* a mark's box: the apodizing mark in a dense option row and its column, in the Simplified list's key and on a facet bar button; in a dense option row the heart's column and the tier tag's height; an alert line's glyph column */
   --apod-mark-touch:16px;  /* the apodizing mark at touch size: a Standard filter row's mark and its column, the Standard filter list's key, the Apodizing facet's segments, a filter preset's mark */

@@ -1,5 +1,6 @@
 // The Filter presets popover on the Resampling header, and the button that opens it. One row per preset: the pick
-// (lamp, emoji, name, description), the filters it writes, its knobs, its error-correction mark and its pips. The lit
+// (lamp, emoji, name, description), the filters it writes, its emphasis choice, its error-correction mark (or, on a
+// nested row that offers it, the error-correction on / off choice in the mark's place) and its pips. The lit
 // row is the preset running now. Each flagship carries a fold line naming the subsets; opening it shows them as nested
 // rows in that flagship's version, and ▾ on the first folds them again. The rows are store/faceplate/page/presets.js's.
 // Parked to the left of its button.
@@ -43,9 +44,19 @@ const HIRES_TIP =
   "Uses a special hi-res-optimized filter at rates above 48 kHz; these filters can also be used for Lossy content";
 
 const LABEL = "Filter presets";
-const COLUMNS = ["Preset", "Filter", "Adjust", "Correction", "Resources"];
-// The correction knob's label in the popover, shorter than the tile's: the column heading already says what it adjusts.
-const CORRECTION_KNOB = "Correction";
+// The heads of the two columns that hold a knob. Each also names its knob's radiogroup, after the row's title: a
+// constant, so the name is there on first paint, before the knob prose arrives with the metadata.
+const EMPHASIS_HEAD = "Emphasis";
+const CORRECTION_HEAD = "Correction";
+// Each column's name, carried as `data-col` on its head and on every row's cell in it, and the head's text.
+/** @type {[string, string][]} */
+const COLUMNS = [
+  ["preset", "Preset"],
+  ["filter", "Filter"],
+  ["emphasis", EMPHASIS_HEAD],
+  ["correction", CORRECTION_HEAD],
+  ["resources", "Resources"],
+];
 
 // Left of the button, its top level with the button's, kept 22 px off the plate's left edge and 14 px off its foot.
 /** @type {{ side: import("../../../model/shell/place.js").Side, foot: number, at: import("../../../model/shell/place.js").Place }} */
@@ -61,23 +72,22 @@ function parkLeft(panel) {
 
 /** @param {PresetRow} row */
 function cost(row) {
-  if (row.costWord) return html`<span class="pips"><span class="w">${row.costWord}</span></span>`;
-  return html`<span class="pips" role="img" aria-label=${`${row.pips} ${row.pips === 1 ? "pip" : "pips"}`}>
+  if (row.costWord) return html`<span class="pips" data-col="resources"><span class="w">${row.costWord}</span></span>`;
+  return html`<span class="pips" data-col="resources" role="img" aria-label=${`${row.pips} ${row.pips === 1 ? "pip" : "pips"}`}>
     ${Array.from({ length: row.pips }, (_, i) => html`<span class="pip" key=${String(i)}></span>`)}
   </span>`;
 }
 
 /**
- * One knob: its label and its positions, the one it stands at lit; another writes the preset there.
+ * One knob: its positions, the one it stands at lit; another writes the preset there. Its column's head names it.
  *
  * @param {PresetRow} row
  * @param {KnobView} k
+ * @param {string} head  the head of the column it stands in
  */
-function knob(row, k) {
-  const label = k.id === "correction" ? CORRECTION_KNOB : k.label;
+function knob(row, k, head) {
   return html`<span class="kseg" data-knob=${k.id} title=${k.tip || undefined}>
-    <span class="kl">${label}</span>
-    <span class="seg" role="radiogroup" aria-label=${`${row.title} ${label}`}>
+    <span class="seg" role="radiogroup" aria-label=${`${row.title} ${head}`}>
       ${k.options.map(
         (o) =>
           html`<button
@@ -100,12 +110,23 @@ function knob(row, k) {
  * @param {PresetRow} row
  */
 const pick = (row) =>
-  html`<button type="button" class="pick" onClick=${() => pickPreset(row.id, row.at)}>
+  html`<button type="button" class="pick" data-col="preset" onClick=${() => pickPreset(row.id, row.at)}>
     <span class=${row.current ? "lamp on" : "lamp"}></span>
     <span class="em" aria-hidden="true">${row.emoji}</span>
     <span class="pn">${row.title}${row.hires && html`<span class="hires" title=${HIRES_TIP}>${HIRES_LABEL}</span>`}</span>
     <span class="ds">${row.description}</span>
   </button>`;
+
+/**
+ * The Correction column's cell: the error-correction on / off choice where the row offers it, else the row's mark.
+ *
+ * @param {PresetRow} row
+ */
+function correction(row) {
+  if (row.correction)
+    return html`<span class="kn" data-col="correction">${knob(row, row.correction, CORRECTION_HEAD)}</span>`;
+  return html`<span class="ap" data-col="correction"><${AMark} kind=${row.mark} label=${MARK_LABEL[row.mark]} /></span>`;
+}
 
 /**
  * One row; a nested one carries its flagship as `data-lane`, and the first of a pair the button that folds them.
@@ -121,11 +142,13 @@ const presetRow = (row, first = false, names = "") =>
     data-lane=${row.under || undefined}
   >
     ${pick(row)}
-    <span class="fl">
+    <span class="fl" data-col="filter">
       ${row.filters.map((f) => html`<span>${f.stage && html`<span class="k">${f.stage}</span>`}${f.name}</span>`)}
     </span>
-    <span class="kn">${row.knobs.map((k) => knob(row, k))}</span>
-    <span class="ap"><${AMark} kind=${row.mark} label=${MARK_LABEL[row.mark]} /></span>
+    <span class="kn" data-col="emphasis">
+      ${row.knobs.filter((k) => k !== row.correction).map((k) => knob(row, k, EMPHASIS_HEAD))}
+    </span>
+    ${correction(row)}
     ${cost(row)}
     ${first && html`<button type="button" class="fsubx" aria-label=${`Hide ${names}`} onClick=${foldSubsets}></button>`}
   </div>`;
@@ -170,7 +193,9 @@ export function FilterPresets() {
   return html`
     <${Popover} id=${FILTER_PRESETS} cls="fpop" role="dialog" label=${LABEL} park=${park}>
       <div class="fhead">
-        ${COLUMNS.map((c, i) => html`<span class=${i === COLUMNS.length - 1 ? "r" : undefined}>${c}</span>`)}
+        ${COLUMNS.map(
+          ([col, head]) => html`<span class=${col === "resources" ? "r" : undefined} data-col=${col}>${head}</span>`,
+        )}
       </div>
       <div class="frows">${rows.flatMap(withSubs)}</div>
     <//>

@@ -1,6 +1,7 @@
 // The Filter presets popover's rows: the Easy Mode table (store/easy/easy.js) in the owner's order, on the live lane.
-// Each row says what pressing it writes and what that costs: its filters, its knobs, its error-correction mark and its
-// pips, whether the engine's current state offers it, and whether it is the preset running now.
+// Each row says what pressing it writes and what that costs: its filters, its knobs, its error-correction mark (or the
+// error-correction on / off knob drawn in its place) and its pips, whether the engine's current state offers it, and
+// whether it is the preset running now.
 //
 // A subset preset is one with a version knob, a knob whose every position names another preset: Concert Hall and The
 // Crucible, the flagships taken further. It draws no row of its own. It nests under each flagship its version knob
@@ -60,6 +61,8 @@ import { applyPreset, markFor } from "../../easy/apply.js";
  * @property {KnobView[]} knobs
  * @property {Record<string, string>} at  the knob positions a press writes
  * @property {"full" | "half" | "none" | ""} mark  "" when nothing is known about the filter
+ * @property {KnobView | undefined} correction  the error-correction on / off knob, drawn in place of the mark; undefined
+ *   where the row draws its mark
  * @property {number} pips
  * @property {string} costWord  the caption standing in for pips, "" where pips count
  * @property {boolean} current  the preset, at these positions, is what the engine runs
@@ -171,6 +174,9 @@ function knobsOf(preset, mode, at, fixed) {
 /** @type {Nest} */
 const TOP = { under: "", fixed: "" };
 
+/** The error-correction on / off knob's id, the knob a row draws in place of its mark. */
+const CORRECTION_KNOB = "correction";
+
 /**
  * Whether a row is the running preset: the preset matches and, nested, in its flagship's version.
  *
@@ -210,6 +216,7 @@ function positionsOf(preset, nest, pass) {
 function rowOf(preset, nest, pass) {
   const at = positionsOf(preset, nest, pass);
   const pips = pipsFor(preset.id, pass.mode, at);
+  const knobs = knobsOf(preset, pass.mode, at, nest.fixed);
   return {
     id: preset.id,
     under: nest.under,
@@ -218,9 +225,10 @@ function rowOf(preset, nest, pass) {
     description: paragraphs(easyProse(preset.id, "description")).join(" "),
     hires: !!preset.hires,
     filters: filtersOf(preset.id, pass.mode, at),
-    knobs: knobsOf(preset, pass.mode, at, nest.fixed),
+    knobs,
     at,
     mark: markFor(preset.id, at) || "",
+    correction: knobs.find((k) => k.id === CORRECTION_KNOB),
     pips,
     costWord: preset.costText && pips === 0 ? easyProse(preset.id, "cost") : "",
     current: isRunning(preset, nest, pass),

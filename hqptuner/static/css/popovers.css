@@ -23,7 +23,8 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 
 /* ── Filter presets ──────────────────────────────────────────────────────
    One vertical list, every description in view. Emoji spans the name + description lines.
-   Columns: preset | filter | adjust (knobs) | correction | resources. Lit row = running and selected. */
+   Columns: preset | filter | emphasis (Space / Transients) | correction (the mark, or a nested row's On / Off) |
+   resources. Lit row = running and selected. */
 .fpop{left:auto;top:auto;width:var(--fp-w);padding:var(--sp-3) var(--sp-3) var(--sp-4)}
 .fhead{display:grid;grid-template-columns:var(--fp-cols);gap:0 var(--sp-6);padding:var(--sp-2) var(--sp-4) var(--sp-3) var(--fp-name-x);border-bottom:var(--hair) solid var(--line);margin-bottom:var(--sp-2)}
 .fhead span{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
@@ -45,8 +46,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .frow .seg{display:inline-flex}
 .frow .seg button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-4);letter-spacing:var(--ls-1)}
 .hires{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:var(--hair) var(--sp-2);line-height:1.2;white-space:nowrap}
-.kseg{display:flex;align-items:center;gap:var(--sp-3)}
-.kseg .kl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--fp-knob-l);white-space:nowrap;line-height:var(--lh-eng)}
+.kseg{display:flex;align-items:center}
 .frow .ap .amark{width:var(--apod-mark-touch);height:var(--apod-mark-touch);flex-shrink:0}
 .pips{display:flex;align-items:center;gap:var(--sp-1);justify-content:flex-end;white-space:nowrap;justify-self:end}
 .pip{width:var(--pip);height:var(--pip);border-radius:var(--r-round);background:var(--ink-3);flex-shrink:0}

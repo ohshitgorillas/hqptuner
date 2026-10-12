@@ -403,3 +403,114 @@ for (const { p, knob, at } of MOVED) {
     assert.deepEqual(postedFields(w), liveExpected(p.id, { ...resting(p), [knob]: at }));
   });
 }
+
+// ============================================================================
+// the columns
+// ============================================================================
+
+// A column is named by `data-col` on its head and on each row's cell in it. A control or mark belongs to the column of
+// the innermost `data-col` element enclosing it. Column names are this suite's contract, not the words the heads show.
+
+const COLUMNS = ["preset", "filter", "emphasis", "correction", "resources"];
+const EMPHASIS_COLUMN = "emphasis";
+const CORRECTION_COLUMN = "correction";
+
+/** The knob ids of the Space / Transients choice and of the error-correction on / off choice: wire identifiers. */
+const EMPHASIS_KNOB = "emphasis";
+const ON_OFF_KNOB = "correction";
+
+/** Stands in for a column when the row draws no such element, so a missing control never reads as a column. */
+const NOT_DRAWN = "the row draws no such element";
+
+/**
+ * Whether `inner` lies within `outer`, both scanned from the same fragment.
+ *
+ * @param {MarkupElement} inner
+ * @param {MarkupElement} outer
+ */
+const inside = (inner, outer) =>
+  inner.start >= outer.start && inner.start + inner.html.length <= outer.start + outer.html.length;
+
+/**
+ * The column holding the first element of a row that `pick` selects.
+ *
+ * @param {MarkupElement | undefined} row
+ * @param {(el: MarkupElement) => boolean} pick
+ */
+function columnOf(row, pick) {
+  const all = row ? elements(row.html) : [];
+  const target = all.find((e) => e.start > 0 && pick(e));
+  if (!target) return NOT_DRAWN;
+  const cells = all.filter((e) => hasAttr(e, "data-col") && inside(target, e)).sort((a, b) => b.start - a.start);
+  return cells.length > 0 ? attr(cells[0], "data-col") : undefined;
+}
+
+/** @param {string} knob */
+const knobSeg = (knob) => (/** @type {MarkupElement} */ el) => attr(el, "data-knob") === knob;
+
+/** @param {MarkupElement} el */
+const apodMark = (el) => hasAttr(el, "data-kind");
+
+/**
+ * The column heads, in the order drawn: the panel's `data-col` elements outside every row and fold line.
+ *
+ * @param {string} out
+ */
+function heads(out) {
+  const p = panel(out);
+  const all = p ? elements(p.html) : [];
+  const rows = all.filter((e) => is(e, "frow") || (e.name === "button" && is(e, "fsubs")));
+  return all
+    .filter((e) => hasAttr(e, "data-col") && !rows.some((r) => inside(e, r)))
+    .sort((a, b) => a.start - b.start)
+    .map((e) => attr(e, "data-col"));
+}
+
+/**
+ * Whether a nested row offers the error-correction on / off choice in its flagship's version.
+ *
+ * @param {{ under: string, sub: Preset, vk: string }} nested
+ */
+const offersOnOff = ({ under, sub, vk }) =>
+  knobsOffered(sub, { ...resting(sub), [vk]: under }, "pcm").some((k) => !k.inert && k.id === ON_OFF_KNOB);
+
+const EMPHASIS_ROWS = TOP.filter((p) =>
+  knobsOffered(p, resting(p), "pcm").some((k) => !k.inert && k.id === EMPHASIS_KNOB),
+);
+const ON_OFF_NESTED = NESTED.filter(offersOnOff);
+const MARKED_NESTED = NESTED.filter((n) => !offersOnOff(n));
+
+test("test_the_popover_heads_the_preset_filter_emphasis_correction_and_resources_columns_and_no_other", async () => {
+  await live();
+  assert.deepEqual(heads(drawn().out).sort(), [...COLUMNS].sort());
+});
+
+for (const p of EMPHASIS_ROWS) {
+  test(`test_the_${p.id}_row_offers_its_emphasis_choice_in_the_emphasis_column`, async () => {
+    await live();
+    assert.equal(columnOf(rowsByKey(drawn().out)[p.id], knobSeg(EMPHASIS_KNOB)), EMPHASIS_COLUMN);
+  });
+}
+
+for (const { under, sub } of MARKED_NESTED) {
+  test(`test_${sub.id}_nested_under_${under}_with_no_correction_switch_draws_its_mark_in_the_correction_column`, async () => {
+    await live();
+    showSubsets(under);
+    assert.equal(columnOf(rowsByKey(drawn().out)[`${under}>${sub.id}`], apodMark), CORRECTION_COLUMN);
+  });
+}
+
+for (const { under, sub } of ON_OFF_NESTED) {
+  test(`test_${sub.id}_nested_under_${under}_offers_its_correction_switch_in_the_correction_column`, async () => {
+    await live();
+    showSubsets(under);
+    assert.equal(columnOf(rowsByKey(drawn().out)[`${under}>${sub.id}`], knobSeg(ON_OFF_KNOB)), CORRECTION_COLUMN);
+  });
+
+  test(`test_${sub.id}_nested_under_${under}_draws_no_apodizing_mark_where_its_correction_switch_stands`, async () => {
+    await live();
+    showSubsets(under);
+    const row = rowsByKey(drawn().out)[`${under}>${sub.id}`];
+    assert.equal(row ? elements(row.html).filter((e) => e.start > 0 && apodMark(e)).length : NOT_DRAWN, 0);
+  });
+}
