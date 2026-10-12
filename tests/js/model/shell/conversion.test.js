@@ -1,6 +1,6 @@
 // Behavioral suite: which field of which chain runs on a playback path, what the page opens on, which rows a section
-// shows (one field open, or both filters open), the rail value per stage, and the fit arithmetic (overrun from measured
-// bottoms, which copy gives height back and how much).
+// shows (one field open, or both filters open), and the fit arithmetic (overrun from measured bottoms, which copy gives
+// height back and how much).
 //
 // Plays, picks and measured sizes are tables the test writes; no shipped data supplies an input or an expected value.
 
@@ -14,7 +14,6 @@ import {
   openOn,
   overrunOf,
   overruns,
-  railValues,
   sectionRows,
 } from "../../../../hqptuner/static/model/shell/conversion.js";
 
@@ -27,20 +26,6 @@ const PLAY = {
   remod: { run: "sdm", path: "sdm-sdm", stage: "1x" },
   direct: { run: "sdm", path: "direct", stage: "1x" },
   idlePcm: { run: "pcm", path: "idle", stage: "1x" },
-};
-
-//: One pick per control id, each distinct.
-const VALS = {
-  pcm1x: "f-p1",
-  pcmnx: "f-pn",
-  pcmsh: "d-p",
-  sdm1x: "f-s1",
-  sdmnx: "f-sn",
-  sdmsh: "m-s",
-  noise: "nz",
-  decim: "dc",
-  integ: "ig",
-  sdmconv: "cv",
 };
 
 //: Chains on the page, open chain first and last.
@@ -161,72 +146,6 @@ test("test_both_open_shows_both_filters_of_the_open_chain", () => {
 
 test("test_both_open_folds_every_other_chain", () => {
   assert.deepEqual(bothRows(CHAINS, "sdm").others, ["pcm"]);
-});
-
-// ── railValues ───────────────────────────────────────────────────────────
-
-test("test_the_dsd_stage_is_in_the_path_on_dsd_to_pcm", () => {
-  assert.equal(railValues(PLAY.dsdToPcm, false, VALS).dsdInPath, true);
-});
-
-test("test_the_dsd_stage_is_in_the_path_on_remodulation", () => {
-  assert.equal(railValues(PLAY.remod, false, VALS).dsdInPath, true);
-});
-
-test("test_the_dsd_stage_is_out_of_the_path_on_a_pcm_source", () => {
-  assert.equal(railValues(PLAY.pcm1x, false, VALS).dsdInPath, false);
-});
-
-test("test_the_dsd_stage_names_the_noise_filter_into_pcm", () => {
-  assert.ok(railValues(PLAY.dsdToPcm, false, VALS).dsd.includes(VALS.noise));
-});
-
-test("test_the_dsd_stage_names_the_decimation_into_pcm", () => {
-  assert.ok(railValues(PLAY.dsdToPcm, false, VALS).dsd.includes(VALS.decim));
-});
-
-test("test_the_dsd_stage_names_the_integrator_into_sdm", () => {
-  assert.equal(railValues(PLAY.remod, false, VALS).dsd, VALS.integ);
-});
-
-test("test_direct_takes_resampling_and_shaping_off_the_rail", () => {
-  assert.equal(railValues(PLAY.direct, true, VALS).offChain, true);
-});
-
-test("test_remodulation_keeps_resampling_and_shaping_on_the_rail", () => {
-  assert.equal(railValues(PLAY.remod, false, VALS).offChain, false);
-});
-
-test("test_remodulation_puts_rate_conversion_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.remod, false, VALS).rateConversion, true);
-});
-
-test("test_a_pcm_source_keeps_resampling_in_its_slot", () => {
-  assert.equal(railValues(PLAY.pcm1x, false, VALS).rateConversion, false);
-});
-
-test("test_remodulation_names_the_sdm_conversion_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.remod, false, VALS).resampling, VALS.sdmconv);
-});
-
-test("test_dsd_to_pcm_names_the_nx_filter_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.dsdToPcm, false, VALS).resampling, VALS.pcmnx);
-});
-
-test("test_a_1x_source_names_the_1x_filter_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.pcm1x, false, VALS).resampling, VALS.pcm1x);
-});
-
-test("test_an_nx_source_names_the_nx_filter_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.pcmNx, false, VALS).resampling, VALS.pcmnx);
-});
-
-test("test_nothing_playing_names_the_1x_filter_in_the_resampling_slot", () => {
-  assert.equal(railValues(PLAY.idlePcm, false, VALS).resampling, VALS.pcm1x);
-});
-
-test("test_the_shaping_slot_names_the_running_chains_shaper", () => {
-  assert.equal(railValues(PLAY.pcmToSdm, false, VALS).shaping, VALS.sdmsh);
 });
 
 // ── overrunOf / overruns ─────────────────────────────────────────────────

@@ -1,7 +1,9 @@
 // The chain rail's stages, decided from what runs and never from a staged edit: railStages decides them from a plain
-// running picture, railNow reads that picture off the store. On a DSD source remodulated to SDM nothing resamples, so
-// Resampling's slot carries the SDM to SDM conversion; Direct SDM runs none of the processing stages, and Resampling and
-// Shaping leave the chain while it plays.
+// running picture, railNow reads that picture off the store. The rate stage is lit only while the output rate differs
+// from the source rate: through a running PCM resampling filter other than none on PCM to PCM, PCM to SDM and DSD to PCM,
+// and through the SDM to SDM conversion on a remodulated DSD source, whatever the filter. It reads Resampling only while
+// lit on a resampling path, Rate conversion otherwise. Direct SDM runs none of the processing stages, and the rate stage
+// and Shaping leave the chain while it plays.
 
 import { computed } from "@preact/signals";
 import { engineStatus, volumeShown } from "../signals.js";
@@ -16,6 +18,7 @@ import { speakers } from "../matrix/speakers.js";
 import { structuralBlock } from "../xfeed/mode.js";
 import { passesThrough } from "../../model/shell/pipelines.js";
 import { modeName } from "../../model/gauges/crossfeed.js";
+import { rateStage } from "../../model/shell/conversion.js";
 import { playbackPath, runningChain, outputIsSdm } from "./path.js";
 import { volumeNow } from "./volume.js";
 import { truthy } from "../../lib/coerce.js";
@@ -59,7 +62,7 @@ import { hz } from "../../lib/units.js";
  * @property {string[]} hidden  the stages the preferences hide
  * @typedef {{ id: string, level: number, name: string, value: string, on: boolean, hidden: boolean, byp: boolean }} RailStage
  * @typedef {{ value: string, on: boolean }} Reading  one stage's value and lamp
- * @typedef {{ dsdInPath: boolean, dsd: string, offChain: boolean, rateConversion: boolean, resampling: string, shaping: string }} Paths
+ * @typedef {{ dsdInPath: boolean, dsd: string, offChain: boolean, rateOn: boolean, resamples: boolean, resampling: string, shaping: string }} Paths
  */
 
 const DASH = "—";
@@ -74,15 +77,18 @@ const CHAIN = [
   { id: "crossfeed", level: 1, name: "Crossfeed" },
   { id: "loudness", level: 1, name: "Loudness" },
   { id: "resampling", level: 0, name: "Resampling" },
+  { id: "speakers", level: 0, name: "Speakers" },
   { id: "correction", level: 0, name: "DAC correction" },
   { id: "volume", level: 0, name: "Volume" },
   { id: "shaping", level: 0, name: "Shaping" },
-  { id: "speakers", level: 0, name: "Speakers" },
   { id: "output", level: 0, name: "Output" },
 ];
 
-/** Resampling's name where its slot carries the SDM to SDM conversion. */
+/** The rate stage's name wherever it is not lit by a resampling filter. */
 const RATE_CONVERSION = "Rate conversion";
+
+/** The ids of the stages after Shaping, in signal order. */
+export const AFTER_SHAPING = CHAIN.slice(CHAIN.findIndex((s) => s.id === "shaping") + 1).map((s) => s.id);
 
 /** Crossfeed's implementations as the rail names them. */
 export const XF_MODES = [
@@ -182,30 +188,24 @@ function configLabel(key) {
 }
 
 /**
- * Whether the filter that runs is the Nx one: a DSD source to PCM always decimates to it; on a PCM source the source
- * rate decides; nothing resamples with nothing playing, under Direct SDM or on a remodulated DSD source.
- *
- * @param {Running} r
- */
-const runsNx = (r) => r.path === "dsd-pcm" || (["pcm-pcm", "pcm-sdm"].includes(r.path) && r.stage === "nx");
-
-/**
- * DSD Processing, Resampling and Shaping for what plays. DSD Processing names what it runs for the running chain: on
- * PCM the noise filter and the decimation filter, on SDM the integrator, or Direct.
+ * DSD Processing, the rate stage and Shaping for what plays. DSD Processing names what it runs for the running chain:
+ * on PCM the noise filter and the decimation filter, on SDM the integrator, or Direct.
  *
  * @param {Running} r
  * @returns {Paths}
  */
 function conversion(r) {
   const { conv } = r;
-  const remod = r.path === "sdm-sdm";
   const sdm = r.direct ? "Direct" : conv.integ;
   return {
-    dsdInPath: remod || r.path === "dsd-pcm",
+    dsdInPath: r.path === "sdm-sdm" || r.path === "dsd-pcm",
     dsd: r.chain === "pcm" ? `${conv.noise} · ${conv.decim}` : sdm,
     offChain: r.path === "direct",
-    rateConversion: remod,
-    resampling: remod ? conv.sdmconv : runsNx(r) ? conv.filterNx : conv.filter1x,
+    ...rateStage(
+      { run: r.chain, path: r.path, stage: r.stage },
+      { from: r.metadata.samplerate, to: r.status.active_rate },
+      conv,
+    ),
     shaping: conv.shaper,
   };
 }
@@ -237,7 +237,7 @@ const READ = {
   pipelines: (r) => part(r, r.working, `${r.pipelines} active`),
   crossfeed: (r) => part(r, r.crossfeed !== null, r.crossfeed ? (modeName(XF_MODES, r.crossfeed) ?? "") : ""),
   loudness: (r) => part(r, r.loudness, `${r.applied}% applied`),
-  resampling: (_r, p) => ({ value: p.resampling, on: true }),
+  resampling: (_r, p) => ({ value: p.resampling, on: p.rateOn }),
   correction: (r) => part(r, r.correction, r.correction ? r.model || "[none]" : ""),
   volume: (r) => ({ value: r.volume, on: true }),
   shaping: (_r, p) => ({ value: p.shaping, on: true }),
@@ -258,7 +258,7 @@ export function railStages(r) {
   return CHAIN.map((s) => ({
     ...s,
     ...READ[s.id](r, p),
-    name: s.id === "resampling" && p.rateConversion ? RATE_CONVERSION : s.name,
+    name: s.id === "resampling" && !p.resamples ? RATE_CONVERSION : s.name,
     hidden: r.hidden.includes(s.id) || (p.offChain && OFF_CHAIN.includes(s.id)),
     byp: (direct && BYPASSED_BY_DIRECT.includes(s.id)) || (s.id === "dsd" && !p.dsdInPath),
   }));

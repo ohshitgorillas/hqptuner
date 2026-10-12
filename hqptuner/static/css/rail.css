@@ -9,6 +9,9 @@
 .st .n{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-3);line-height:var(--lh-eng)}
 .st .v{grid-column:2;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--acc);overflow:hidden;line-height:var(--lh-text);
   display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}   /* a long value (DAC model) wraps to a second line, never cut off */
+/* The staged mark (primitives.css dirty dot) sits at the top of the name's line and takes no room on it, its margin
+   cancelling its width and the name's gap: a name wraps, and its lamp sits, as they do without it. */
+.st .n > .stg{align-self:flex-start;flex-shrink:0;margin-right:calc(-1 * (var(--dot) + 2 * var(--sp-3)))}
 /* A name that wraps (the DSD conversion stage): the lamp sits centred on its first line. */
 .st.wrap .lamp{align-self:start;margin-top:calc((var(--fs-5) * var(--lh-eng) - var(--lamp-d-rail)) / 2)}
 .st.sub{padding:0 0 0 var(--sp-8)}

@@ -1,5 +1,7 @@
 // Rendered suite for the alert homes on hqptuner/static/components/faceplate/Rail.js: a raised alert blinks its stage in
-// its colour, and an SDM modulator below its rate floor darkens the stages after Shaping.
+// its colour, and the stages the alerts darken, the ones after Shaping under an SDM modulator below its rate floor, are
+// drawn dead. Which stages darken is the store's decision, owned by tests/js/store/faceplate/alerts.test.js; this suite
+// checks only that the rail draws that decision.
 //
 // The wire is the seam, as tests/js/store/faceplate/alerts.test.js drives it: the shared shaper-fit scenario builder
 // states the /api/state, enumerations, config and metadata payloads, the /api/health reading goes into `health`, and
@@ -22,6 +24,7 @@ import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { engineStatus, health, matrixConfig, volume } from "../../../../hqptuner/static/store/signals.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
+import { alertsNow } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, DSD512, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
 
@@ -95,10 +98,10 @@ test("test_a_modulator_below_its_floor_blinks_the_shaping_stage_red", async () =
   assert.equal(attr(button("shaping"), "data-alert"), "crit");
 });
 
-test("test_a_modulator_below_its_floor_darkens_speakers_and_output_and_not_shaping", async () => {
+test("test_the_rail_draws_dead_on_exactly_the_stages_the_alerts_darken", async () => {
   await quiet({ sdmRate: DSD512 });
-  assert.deepEqual(
-    ["shaping", "speakers", "output"].filter((id) => classes(button(id)).includes("dead")),
-    ["speakers", "output"],
-  );
+  const drawn = buttons()
+    .filter((b) => classes(b).includes("dead"))
+    .map((b) => attr(b, "data-stage"));
+  assert.deepEqual(drawn.sort(), [...alertsNow.value.dark].sort());
 });

@@ -150,6 +150,57 @@ for (const [name, over, value] of RESAMPLING) {
   });
 }
 
+const CD_SOURCE = { samplerate: "44100", bits: "16" };
+const DSD64_SOURCE = { samplerate: "2822400", bits: "1", sdm: "1" };
+const CD_OUT = { active_rate: "44100", active_bits: "32" };
+const PCM_8X_OUT = { active_rate: "352800", active_bits: "32" };
+const DSD64_OUT = { active_rate: "2822400", active_bits: "1" };
+const DSD256_OUT = { active_rate: "11289600", active_bits: "1" };
+const NO_FILTER = { ...CONV, filter1x: "none", filterNx: "none" };
+
+/**
+ * The Rate conversion lamp while the source plays.
+ *
+ * @param {Partial<Running>} over
+ * @returns {string}
+ */
+const rateLamp = (over) => railLamp(stage(over, "resampling"), false, "playing");
+
+/** @type {[string, Partial<Running>, Partial<Running>][]} */
+const RATE_LAMP = [
+  [
+    "pcm_to_pcm_lights_the_rate_lamp_only_while_the_output_rate_differs_from_the_source_rate",
+    { metadata: CD_SOURCE, status: PCM_8X_OUT },
+    { metadata: CD_SOURCE, status: CD_OUT },
+  ],
+  [
+    "pcm_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { metadata: CD_SOURCE, status: PCM_8X_OUT },
+    { metadata: CD_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
+  ],
+  [
+    "pcm_to_sdm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT },
+    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+  ],
+  [
+    "dsd_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
+    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT },
+    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
+  ],
+  [
+    "sdm_to_sdm_lights_the_rate_lamp_only_while_the_output_rate_differs_whatever_the_pcm_filter",
+    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD64_OUT, conv: NO_FILTER },
+  ],
+];
+
+for (const [name, converting, still] of RATE_LAMP) {
+  test(`test_${name}`, () => {
+    assert.deepEqual([rateLamp(converting), rateLamp(still)], ["on", "off"]);
+  });
+}
+
 test("test_resampling_is_renamed_on_a_remodulated_dsd_source", () => {
   assert.notEqual(stage({ path: "sdm-sdm", chain: "sdm" }, "resampling").name, stage({}, "resampling").name);
 });

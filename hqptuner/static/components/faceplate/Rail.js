@@ -5,7 +5,7 @@
 // floor) reads unlit and drops its tap as a bypassed one does. The lamps follow the transport: paused, the Source lamp
 // alone reads paused, in amber; stopped or unreachable, every lamp is unlit. A stage whose lamp reads unlit prints no
 // value. A stage whose name runs past one line puts its lamp on the first, measured with the wire and again once the
-// fonts land.
+// fonts land. A stage whose drawer holds a staged edit carries the staged mark after its name.
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
@@ -15,12 +15,16 @@ import { openStage, toggleStage } from "../../store/faceplate/view.js";
 import { plate } from "../../store/faceplate/plate.js";
 import { lampDots, wirePath } from "../../model/gauges/wire.js";
 import { alertsNow } from "../../store/faceplate/alerts.js";
+import { markedStages } from "./drawers/index.js";
 
 /** @typedef {import("../../store/faceplate/chain.js").RailStage} RailStage */
 /** @typedef {import("../../store/faceplate/path.js").Transport} Transport */
 
 /** A name box taller than this, layout px, runs past one line. */
 const ONE_LINE = 30;
+
+/** The staged mark's hover and accessible text. */
+const STAGED = "Staged changes";
 
 /**
  * Mark each stage whose name runs past one line, so its lamp sits on the first, then draw the wire.
@@ -70,11 +74,12 @@ function valueParts(value) {
 }
 
 /**
- * One stage's button: `alert` the blink up on it, `dead` when the alerts darken it, `transport` what its lamp follows.
+ * One stage's button: `alert` the blink up on it, `dead` when the alerts darken it, `staged` when its drawer holds a
+ * staged edit, `transport` what its lamp follows.
  *
- * @param {{ st: RailStage, open: boolean, alert: string | undefined, dead: boolean, transport: Transport }} props
+ * @param {{ st: RailStage, open: boolean, alert: string | undefined, dead: boolean, staged: boolean, transport: Transport }} props
  */
-function Stage({ st, open, alert, dead, transport }) {
+function Stage({ st, open, alert, dead, staged, transport }) {
   const lamp = railLamp(st, dead, transport);
   const cls = [
     "st",
@@ -84,6 +89,7 @@ function Stage({ st, open, alert, dead, transport }) {
     st.byp && "byp",
     dead && "dead",
     open && "open",
+    staged && "dirty",
   ]
     .filter(Boolean)
     .join(" ");
@@ -98,7 +104,7 @@ function Stage({ st, open, alert, dead, transport }) {
       onClick=${() => toggleStage(st.id)}
     >
       <span class=${lamp === "off" ? "lamp" : `lamp ${lamp}`}></span>
-      <span class="n">${st.name}</span>
+      <span class="n">${st.name}${staged ? html`<i class="stg" role="img" aria-label=${STAGED} title=${STAGED}></i>` : null}</span>
       <span class="v">${valueParts(railValue(st, dead, transport))}</span>
     </button>
   `;
@@ -115,7 +121,8 @@ export function Rail() {
   const open = openStage.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
   const transport = transportNow();
-  const drawn = JSON.stringify([stages, open, [...plan.blinks.stage], plan.dark, transport]);
+  const staged = markedStages.value;
+  const drawn = JSON.stringify([stages, open, [...plan.blinks.stage], plan.dark, staged, transport]);
   useEffect(() => {
     if (ref.current) layout(ref.current, fit.scale);
   }, [drawn, fit]);
@@ -135,6 +142,7 @@ export function Rail() {
             open=${open === st.id}
             alert=${plan.blinks.stage.get(st.id)}
             dead=${plan.dark.includes(st.id)}
+            staged=${staged.includes(st.id)}
             transport=${transport}
           />`,
       )}

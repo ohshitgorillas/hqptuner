@@ -36,10 +36,12 @@ Current state only.
 - **Bottom bar:** Setting Switcher (or None). Target dropdown, then two slots. A slot's body makes it live; its ▾ opens its list. No A/B keys, no lamp. Slots show the full simplified name under Option style Simplified, and the engine name alone under Standard. Output mode is a target: its slots are the two bands, PCM | SDM (DSD) (no list, no ▾); a slot going live sets the mode, and the mode moving anywhere lights its slot. Output rate is not a target: its live pin is the Output drawer's rate dial. **Volume** is a target: the slots give way to the volume bar (−, slider with scale marks and loudness bounds, +, readout), and the engine-row volume hides while it shows. Slot names read in the body face (not mono), so a full simplified name fits one line.
 
 ## Rail
-- Order (true signal order, the physical processing order of architecture §7.5): Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Resampling → DAC correction → Volume → Shaping → Speakers → Output.
+- Order (true signal order, the physical processing order of architecture §7.5): Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Rate conversion → Speakers → DAC correction → Volume → Shaping → Output.
   - DSD Processing: always shown, hideable; in the path (lit) only while a DSD source plays processed. Value = what it runs for the running mode (`noise · decimation` / the integrator / `Direct`). It comes first because the matrix runs after the conversion to PCM (Jussi).
-  - Resampling is the source rate | output rate seam. DAC correction runs at the output rate (Jussi) and needs the matrix (its lamp goes dark with it). Volume sits before Shaping (manual §2.15); its order against DAC correction is unconfirmed.
-- Speakers sits after Shaping because delays run at the target rate and apply to Direct SDM's bit-perfect DSD. It is not a matrix plugin.
+  - Rate conversion is the source rate | output rate seam. Its name is `Rate conversion`, and `Resampling` while a PCM resampling filter other than `none` converts the rate (PCM → PCM, PCM → SDM, DSD → PCM). Lit only while the output rate differs from the source rate: the running filter on a resampling path, the SDM → SDM conversion on SDM → SDM. Its drawer's title follows the name.
+  - Speakers runs at the output rate (manual §5), after Rate conversion and before the shaping stages, and applies to Direct SDM's bit-perfect DSD. It is not a matrix plugin.
+  - DAC correction and Volume are part of shaping. DAC correction runs at the output rate and needs the matrix (its lamp goes dark with it). Volume's order against DAC correction is undocumented.
+- A stage whose drawer holds a staged, unapplied edit carries an accent dot after its name, hover text `Staged changes`. Only that drawer's stage carries it, never its family's other members.
 - Every stage always shows. Off is the name under an unlit lamp, never grayed. Stages flex to fill the rail.
 - A stage whose lamp reads unlit prints no value: off, bypassed on the playing path, or darkened by an alert.
 - Drawers open only from the rail. One open at a time, one wipe at a time.
@@ -92,7 +94,7 @@ Current state only.
   - DSP speed (crit / warn) → engine-row speed figure.
   - Clipping (warn) → Volume lamp.
   - Apodizing on a non-apodizing filter (warn) → Resampling lamp + the page's Resampling header.
-  - SDM modulator below its rate floor (crit) → Shaping lamp; every stage after Shaping (Speakers, Output) goes dark (unlit, no wire tap): no output. Line in the page's Shaping header.
+  - SDM modulator below its rate floor (crit) → Shaping lamp; every stage after Shaping (Output) goes dark (unlit, no wire tap): no output. Line in the page's Shaping header.
   - PCM ditherer below its rate floor (warn) → Shaping lamp + the page's Shaping header.
   - Roon at default idle time (warn) → gear, and Settings → Timing.
   - Junk / HF filter advice (advice) → HF filter lamp. Nx PCM content only: the HF filter can't be engaged at 1x rates.
@@ -132,12 +134,10 @@ Current state only.
 ## DSD Processing · Resampling · Shaping drawers
 - One drawer per stage, one grammar: title, then **PCM out | SDM out** tabs (the output modes; the engine keeps a chain per mode, both settable in every mode). Opens on the running mode; the other tab reads `idle`, and while it shows the head is hatched and the plate darker.
 - **DSD Processing:** PCM out = Source gain, Noise filter, Decimation filter; SDM out = DSD playback (Processed | Direct, Direct SDM), Remodulator structure.
-- **Resampling:** 1x filter, Nx filter, FFT filter length (only with an FFT-family filter). SDM out heads them `PCM sources` and adds `DSD sources` → Rate conversion (SDM → SDM conversion), the official config page's sections, in the backend subhead grammar.
+- **Rate conversion** (titled as the rail names the stage): 1x filter, Nx filter, FFT filter length (only with an FFT-family filter). SDM out heads them `PCM sources` and adds `DSD sources` → Rate conversion (SDM → SDM conversion), the official config page's sections, in the backend subhead grammar.
 - **Shaping:** each tab opens on a DAC question (HQPTuner pref, live; manual copy + a DRAFT effect line): PCM out **DAC type** Other | R-2R, SDM out **DAC chip** Other | ESS Sabre. It collapses (never hides) the shaper list's wrong-fit groups: R-2R folds the dither list's Additive family; ESS Sabre folds every Seventh order variant. A tap opens a folded group.
   - Then PCM out = Dither, then a read-only line naming what it dithers to (DAC bits, read off the Output drawer) with `Output ›` (copy DRAFT); SDM out = Sigma-delta modulator. DAC bits stays in Output: it describes the DAC.
 - Filters and shapers are live, with two homes (page and drawer) in sync: the drawer shows them too. Everything else stages.
-- Under consideration: renaming Resampling → Rate conversion (collides with the SDM → SDM setting of that name; wraps to two lines on the rail).
-
 ## Matrix engine family (Matrix engine, Crossfeed, Loudness, DAC correction, DSP pipelines)
 - **Profile-wide:** one value store. An edit anywhere lights every member's apply group; Apply in any member applies all.
 - Nothing is live; the rail follows on Apply. Matrix bypassed grays every child.

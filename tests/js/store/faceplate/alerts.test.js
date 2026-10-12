@@ -17,6 +17,7 @@ import assert from "node:assert/strict";
 import { health, engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/static/store/faceplate/alerts.js";
+import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
 import { reset, DSD512, DSD1024, PCM_4X, PCM_8X } from "../../support/shaperfit-fixtures.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
@@ -25,6 +26,9 @@ import { reset, DSD512, DSD1024, PCM_4X, PCM_8X } from "../../support/shaperfit-
 initHealth();
 
 const SUSTAIN = 3;
+
+/** The rail stage that runs the SDM modulator. */
+const MODULATOR_STAGE = "shaping";
 
 /** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
@@ -193,9 +197,10 @@ test("test_a_ditherer_below_its_floor_pins_its_line_on_the_shaping_section", asy
   );
 });
 
-test("test_a_modulator_below_its_floor_darkens_speakers_and_output", async () => {
+test("test_a_modulator_below_its_floor_darkens_exactly_the_stages_after_shaping_in_rail_order", async () => {
   await quiet({ sdmRate: DSD512 });
-  assert.deepEqual(alertsNow.value.dark, ["speakers", "output"]);
+  const order = railStages(railNow()).map((s) => s.id);
+  assert.deepEqual([...alertsNow.value.dark].sort(), order.slice(order.indexOf(MODULATOR_STAGE) + 1).sort());
 });
 
 test("test_roon_blinks_the_gear", async () => {

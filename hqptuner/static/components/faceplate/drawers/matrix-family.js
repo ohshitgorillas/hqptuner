@@ -2,9 +2,13 @@
 // member's apply group, and Apply in any member applies all. Crossfeed is one block (components/faceplate/drawers/
 // Crossfeed.js); Loudness is its gate row, then its block (Loudness.js). Each block names the catalog keys it stages,
 // so the tab takes the dot and the apply group follows. The gate's label and paragraph come from the settings metadata.
+// Crossfeed's rail stage is marked by its own settings alone: a staged Bauer edit, or a staged rows edit while it
+// changes the crossfeed that would run, its Structural or compensation block (store/faceplate/drawers/crossfeed.js).
+// An IIR to FIR fix it stages marks the Matrix engine stage, whose setting it is.
 
 import { CrossfeedBody } from "./Crossfeed.js";
 import { LoudnessBody } from "./Loudness.js";
+import { crossfeedMarks } from "../../../store/faceplate/drawers/crossfeed.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
@@ -36,6 +40,7 @@ const LOUDNESS_KEYS = [
 export const CROSSFEED_DRAWER = {
   id: "crossfeed",
   family: "matrix",
+  marks: crossfeedMarks,
   title: "Crossfeed",
   aria: "Crossfeed settings",
   tabs: [{ id: "crossfeed", label: "Crossfeed", body: [{ block: "crossfeed", keys: CROSSFEED_KEYS }] }],

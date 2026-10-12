@@ -266,12 +266,6 @@
 .cvbar .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;white-space:nowrap;line-height:var(--lh-eng)}
 .cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .cvbar .ar{color:var(--ink-2);font-size:var(--fs-3)}
-/* A staged row, device or rate dial dots its row's label; a staged volume box dots its own label. */
-.cvbar.dirty .t::after,
-.drow[data-dirty] > .ctl > .fh > b::after,
-.drow > .ctl > .fh:has(~ .devpick[data-dirty]) > b::after,
-.drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
-.vrbox:has(> input.vfd[data-dirty]) > .cl::after{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 /* One section left in the running chain: no tab strip; the head names it as the drawer's title (dirty dot like a tab). */
 .cvhead .csec{position:relative;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);padding-left:var(--sp-8);margin-left:var(--sp-3);border-left:var(--hair) solid var(--line-2);line-height:var(--mhead-h);white-space:nowrap}
 .cvhead .csec.dirty::after{content:"";position:absolute;top:var(--sp-2);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}

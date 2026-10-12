@@ -9,6 +9,7 @@ import { engineAlerts } from "../health.js";
 import { shaperAlerts } from "../alerts/shaperfit.js";
 import { roonIdleAlert } from "../alerts/roonidle.js";
 import { junkAdvice } from "../alerts/junkadvice.js";
+import { AFTER_SHAPING } from "./chain.js";
 
 /** @typedef {import("../../model/shell/alerts.js").Alert} Alert */
 /** @typedef {import("../../model/shell/alerts.js").Home} Home */
@@ -27,7 +28,7 @@ const HOMES = {
   speed: { el: "gauge" },
   clip: { stage: "volume", drawer: "volume" },
   apod: { stage: "resampling", section: "resampling" },
-  shaperSdm: { stage: "shaping", section: "shaping", dark: ["speakers", "output"] },
+  shaperSdm: { stage: "shaping", section: "shaping", dark: AFTER_SHAPING },
   shaperPcm: { stage: "shaping", section: "shaping" },
   roon: { el: "gear", set: "timing", drawer: "timing", row: ["idle_time"] },
   junk: { stage: "hf", drawer: "hf", row: ["junk_filter"] },

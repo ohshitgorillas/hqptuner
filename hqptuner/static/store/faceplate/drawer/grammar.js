@@ -174,6 +174,8 @@ import { rowOptions, rowValue } from "./rows.js";
  * @property {() => string} [group]  the backend whose groups show; `combo` shows every group
  * @property {() => string} [opensOn]  the tab a closed drawer opens on; a tab picked while open holds until it closes
  * @property {OwnForm} [own]
+ * @property {(key: string) => boolean} [marks]  whether a staged edit to one of its keys marks its rail stage; every
+ *   one does without it
  */
 
 /**

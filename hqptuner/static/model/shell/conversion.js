@@ -1,6 +1,6 @@
 // DOM-free derivations for the conversion page: which field of which chain runs on a playback path, what the page
-// opens on, which rows a section shows, the rail value per stage, and how far the page runs past the plate and which
-// copy gives that height back.
+// opens on, which rows a section shows, the rail's rate stage, and how far the page runs past the plate and which copy
+// gives that height back.
 
 /**
  * @typedef {object} Play
@@ -23,13 +23,18 @@
  */
 
 /**
- * @typedef {object} Rail
- * @property {boolean} dsdInPath       the DSD Processing stage is in this track's path
- * @property {string} dsd              the DSD Processing stage's value
- * @property {boolean} offChain        Resampling and Shaping leave the chain (Direct)
- * @property {boolean} rateConversion  Resampling's slot carries the SDM → SDM conversion
- * @property {string} resampling       the Resampling stage's value
- * @property {string} shaping          the Shaping stage's value
+ * @typedef {object} RateFilters  the running filters by engine name and the running SDM to SDM conversion by label
+ * @property {string} filter1x
+ * @property {string} filterNx
+ * @property {string} sdmconv
+ */
+
+/**
+ * @typedef {object} RateStage
+ * @property {boolean} rateOn      the rate stage is lit
+ * @property {boolean} resamples   a resampling filter lights it
+ * @property {string} resampling   what it runs: the SDM to SDM conversion on a remodulated DSD source, else the
+ *   running filter
  */
 
 /** A page whose overrun stays at or under this many layout px fits. */
@@ -95,27 +100,38 @@ export function bothRows(chains, chain) {
   return { fields: ["1x", "nx"].map((k) => ({ ch: chain, k })), others: chains.filter((ch) => ch !== chain) };
 }
 
+/** The paths a PCM resampling filter converts the rate on. */
+const RESAMPLING_PATHS = ["pcm-pcm", "pcm-sdm", "dsd-pcm"];
+
 /**
- * The rail's values for what plays. DSD Processing names what it runs for the running mode: PCM out = noise filter ·
- * decimation; SDM out = the integrator, or Direct. On DSD → SDM processed nothing resamples, so Resampling's slot
- * carries the SDM → SDM conversion.
+ * Whether the output rate differs from the source rate, both of them known.
+ *
+ * @param {string | undefined} from  the source rate as the engine reports it
+ * @param {string | undefined} to    the output rate as the engine reports it
+ * @returns {boolean}
+ */
+function rateDiffers(from, to) {
+  const a = Number(from);
+  const b = Number(to);
+  return !!a && !!b && a !== b;
+}
+
+/**
+ * The rate stage for what plays: what it runs, whether it is lit and whether a resampling filter lights it. It is lit
+ * while the rate changes through the SDM to SDM conversion, or through a running resampling filter other than none; an
+ * unknown filter counts as none.
  *
  * @param {Play} play
- * @param {boolean} direct  DSD playback as applied (Direct SDM)
- * @param {Record<string, string>} vals
- * @returns {Rail}
+ * @param {{ from: string | undefined, to: string | undefined }} rates  the source and output rates as reported
+ * @param {RateFilters} conv
+ * @returns {RateStage}
  */
-export function railValues(play, direct, vals) {
-  const { run, path: p } = play;
-  const remod = p === "sdm-sdm";
-  return {
-    dsdInPath: ["dsd-pcm", "sdm-sdm"].includes(p),
-    dsd: run === "pcm" ? `${vals.noise} · ${vals.decim}` : direct ? "Direct" : vals.integ,
-    offChain: p === "direct",
-    rateConversion: remod,
-    resampling: remod ? vals.sdmconv : vals[run + (fieldRuns(play, run, "nx") || p === "dsd-pcm" ? "nx" : "1x")],
-    shaping: vals[run + "sh"],
-  };
+export function rateStage(play, rates, conv) {
+  const remod = play.path === "sdm-sdm";
+  const filter = fieldRuns(play, play.run, "nx") ? conv.filterNx : conv.filter1x;
+  const filtered = RESAMPLING_PATHS.includes(play.path) && filter !== "" && filter !== "none";
+  const rateOn = rateDiffers(rates.from, rates.to) && (remod || filtered);
+  return { rateOn, resamples: rateOn && filtered, resampling: remod ? conv.sdmconv : filter };
 }
 
 /**

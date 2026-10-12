@@ -85,6 +85,16 @@ a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;te
 /* "↻ restart" mark: setting or station that needs an engine restart. It keeps its own gap from the words it sits beside, on either side. */
 .rs{margin-inline:var(--sp-2);font-family:var(--f-mono);font-size:inherit;color:var(--ink-2);letter-spacing:0;text-transform:none;font-weight:var(--fw-regular);line-height:inherit}
 .fh > .rs{margin-inline-start:0}   /* a flex head already gaps its children */
+/* Dirty dot after a label: a staged row, device or rate dial dots its row's label, a staged volume box its own label, a
+   rail stage, snapshot or station fold its name. */
+.cvbar.dirty .t::after,
+.drow[data-dirty] > .ctl > .fh > b::after,
+.drow > .ctl > .fh:has(~ .devpick[data-dirty]) > b::after,
+.drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
+.vrbox:has(> input.vfd[data-dirty]) > .cl::after,
+.brh.dirty .sn::after,
+.st.bst.dirty .n::after,
+.st.dirty .n > .stg{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 /* Two-stage note collapsed to its lead-in: `… see more` expands it in place. */
 .seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .seemore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}

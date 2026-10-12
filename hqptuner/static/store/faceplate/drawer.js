@@ -1,8 +1,8 @@
 // The stage drawer's store half: what a drawer drawn from its schema decides over the staged store. Which tabs carry a
-// dirty dot, whether the title carries it, whether the apply group shows and whether its buttons are live, which tab
-// is shown, which open question the drawer pins under its head, the options, value and option lines a row's control
-// renders, and the apply mode the head's split button runs. The DOM half is components/faceplate/drawer/; the schema
-// grammar is drawer/grammar.js.
+// dirty dot, whether the title carries it, whether the drawer's rail stage carries the staged mark, whether the apply
+// group shows and whether its buttons are live, which tab is shown, which open question the drawer pins under its head,
+// the options, value and option lines a row's control renders, and the apply mode the head's split button runs. The DOM
+// half is components/faceplate/drawer/; the schema grammar is drawer/grammar.js.
 //
 // A drawer's items name catalog keys (store/schema.js). A key stages for a restart when its entry is off the live
 // lane and the write path cannot route it live (`appliesLive`); a staged restart key dots its tab, and a shown one
@@ -193,13 +193,24 @@ function dirtyTabs(drawer) {
 }
 
 /**
- * Whether a drawer holds a staged edit of either lane: its own form's, else any key of any of its tabs.
+ * Whether a drawer holds a staged edit of either lane: its own form's, else a key of its tabs that `counts` passes,
+ * every key without it.
+ *
+ * @param {DrawerSchema} drawer
+ * @param {(key: string) => boolean} [counts]
+ * @returns {boolean}
+ */
+const holdsStaged = (drawer, counts = () => true) =>
+  drawer.own ? drawer.own.staged() : drawer.tabs.some((t) => tabKeys(t).some((k) => isDirty(k) && counts(k)));
+
+/**
+ * Whether a drawer's rail stage carries the staged mark: it holds a staged edit its `marks` counts. Its family's other
+ * members' edits never count.
  *
  * @param {DrawerSchema} drawer
  * @returns {boolean}
  */
-const holdsStaged = (drawer) =>
-  drawer.own ? drawer.own.staged() : drawer.tabs.some((t) => tabKeys(t).some((k) => isDirty(k)));
+export const stageMarked = (drawer) => holdsStaged(drawer, drawer.marks);
 
 /**
  * A drawer's family as the staged test reads it: none, or one holding a staged edit while any of its keys is staged.

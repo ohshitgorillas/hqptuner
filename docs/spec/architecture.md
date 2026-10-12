@@ -177,10 +177,10 @@ The control set is **not enumerated in prose**. Three checked artifacts own it:
 The rail shows the chain in physical processing order (`store/faceplate/chain.js`):
 
 ```
-Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Resampling → DAC correction → Volume → Shaping → Speakers → Output
+Source → HF filter → DSD Processing → Matrix engine { DSP pipelines, Crossfeed, Loudness } → Rate conversion → Speakers → DAC correction → Volume → Shaping → Output
 ```
 
-Crossfeed is input-side and operates on the source-rate signal. **DAC correction is output-rate-dependent**, so it runs *after* Resampling and cannot precede the filter. A stage that is off or bypassed keeps its place on the rail, its lamp unlit and its tap dropped from the wire; only a stage the preferences hide leaves the rail (`components/faceplate/Rail.js`).
+Crossfeed is input-side and operates on the source-rate signal. Rate conversion is the source rate | output rate seam. **Speakers runs at the output rate** (manual §5), so it follows Rate conversion and precedes the shaping stages. **DAC correction and Volume are part of shaping**: correction is specific to the DAC and the output rate (manual §7), and the dither or modulator sets the volume adjustment's quality (manual §2.14). The order of Volume against DAC correction is undocumented. One order serves every PCM and SDM input and output pairing; the path changes lamps, values and names, never the order. A modulator below its rate floor darkens every stage after Shaping. A stage that is off or bypassed keeps its place on the rail, its lamp unlit and its tap dropped from the wire; only a stage the preferences hide leaves the rail (`components/faceplate/Rail.js`).
 
 ### 7.6 Graying reacts to staged values
 

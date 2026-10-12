@@ -1,5 +1,6 @@
 // The Crossfeed drawer's store half: which implementation line is picked, what the folded line summarizes, why the
-// block is grayed, and the gate and the pick over the crossfeed store (store/xfeed/mode.js). The DOM half is
+// block is grayed, the gate and the pick over the crossfeed store (store/xfeed/mode.js), and which staged edits mark
+// its rail stage. The DOM half is
 // components/faceplate/drawers/Crossfeed.js; Bauer's compensation and the Structural controls are the two siblings
 // under crossfeed/.
 //
@@ -14,9 +15,10 @@ import { PRESETS } from "../../../lib/binaural-setup.js";
 import { uncompensatedRows, BAUER_PRESETS } from "../../../vendor/eqlab/core/xfeed.js";
 import { crossfeedOff, matrixBypassed } from "../../schema/gray.js";
 import { modeName } from "../../signals.js";
-import { effective, effectivePipelines } from "../../resolve.js";
+import { effective, effectivePipelines, pipelineBaseline } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import {
+  PIPELINE_WRITES,
   activeMode,
   removeStructural,
   setXfMode,
@@ -177,3 +179,25 @@ export function setGate(v) {
   if (v === "1" && !rec) installStructural(rows);
   else if (v === "0" && rec) removeStructural(rows, rec);
 }
+
+/** Bauer's own settings, each of whose staged edits marks the drawer's rail stage. */
+const BAUER_KEYS = ["crossfeed_enabled", "crossfeed_preset", "crossfeed_frequency", "crossfeed_level"];
+
+/**
+ * The crossfeed a set of rows would run: its Structural block and its Bauer compensation block, each null when absent.
+ *
+ * @param {PipelineRow[]} rows
+ */
+const crossfeedIn = (rows) => JSON.stringify([structuralBlock(rows), xfeedBlock(rows).rec]);
+
+/**
+ * Whether a staged edit to one of the drawer's keys marks its rail stage: Bauer's own settings always, the pipeline
+ * rows only while they change the crossfeed that would run, the Structural or the compensation block put in, taken
+ * out or changed against the running rows, and nothing else the drawer stages as a fix.
+ *
+ * @param {string} key
+ * @returns {boolean}
+ */
+export const crossfeedMarks = (key) =>
+  BAUER_KEYS.includes(key) ||
+  (PIPELINE_WRITES.includes(key) && crossfeedIn(effectivePipelines.value) !== crossfeedIn(pipelineBaseline.value));
