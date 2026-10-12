@@ -123,7 +123,6 @@ class ConnectionManager:
         # came first, and a connect that landed on the not-yet-restarted daemon has to
         # be told from one made after the daemon actually went away.
         self.drops_at_connect = 0
-        self.unreachable_since: float | None = self.clock.now().timestamp()
         # Stamped on the clock `alarm` reads it back through, so both sides of that subtraction run on one clock.
         self._unreachable_mono: float = self.clock.monotonic()
 
@@ -254,7 +253,6 @@ class ConnectionManager:
         if self.reachable or self._client is not None:
             log.warning("daemon unreachable: %s", reason)
         if self.reachable:
-            self.unreachable_since = self.clock.now().timestamp()
             self._unreachable_mono = self.clock.monotonic()
         if counts:
             self.drops += 1

@@ -18,9 +18,8 @@
 //
 // The grace is elapsed time rather than a count of readings because readings
 // have no cadence: the push stream (store/sync.js) sends health only when it
-// changes, so a count of readings measures nothing. It is browser time rather
-// than the age of `unreachable_since`, which is a server wall-clock stamp:
-// subtracting it here would put two clocks in one comparison.
+// changes, so a count of readings measures nothing. It is read off the page's
+// own clock, so every comparison stays on one clock.
 //
 // A page that has seen the daemon connected is never auto-opened again. The
 // brand knob already reports a daemon that goes away mid-session,

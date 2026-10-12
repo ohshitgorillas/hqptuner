@@ -19,7 +19,6 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
-  health,
   volume,
   volumeRange,
   config,
@@ -85,17 +84,12 @@ test("test_sync_opens_its_stream_on_the_push_route", () => {
   assert.equal(lastStream()?.url, "/api/push");
 });
 
-// --- each event lands in the signal its route's poll wrote -----------------------
-// The snapshot routes arrive wrapped as {stale, loaded_at, data} and land as their
-// `data`; health, volume and pending arrive raw and land whole.
+// --- each push event lands in its signal ------------------------------------------
+// The state, status, enumerations, config and matrix events arrive wrapped as
+// {stale, loaded_at, data} and land as their `data`; the pending and volume events
+// arrive unwrapped. The volume event feeds both the level and the range signal.
 
 const EVENTS = [
-  {
-    event: "health",
-    body: { reachable: true, ready: true, alarm: false, unreachable_since: 1700000000, info: {} },
-    read: () => health.value?.unreachable_since,
-    want: 1700000000,
-  },
   {
     event: "state",
     body: { stale: false, loaded_at: 1, data: { adaptive: "1" } },

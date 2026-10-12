@@ -82,7 +82,7 @@ test:
 	$(VENV)/python scripts/gates/check_clock_waits.py
 
 test-live:
-	PYTHONPATH=scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not e2e" -q -p tested_release
+	$(VENV)/pytest -m "not e2e" -q
 
 test-e2e:
 	$(VENV)/pytest -m e2e --no-cov -q

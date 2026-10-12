@@ -1517,32 +1517,15 @@
           "release": {
             "title": "Release",
             "type": "string"
-          },
-          "release_tested": {
-            "title": "Release Tested",
-            "type": "boolean"
-          },
-          "unreachable_since": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Unreachable Since"
           }
         },
         "required": [
           "reachable",
           "ready",
           "connected",
-          "unreachable_since",
           "connected_at",
           "info",
           "release",
-          "release_tested",
           "license",
           "app_version",
           "credentials_ok",

@@ -18,7 +18,7 @@
 import { signal, computed } from "@preact/signals";
 
 // --- source signals ---
-export const health = signal(null); // {reachable, ready, connected, unreachable_since, info}
+export const health = signal(null); // {reachable, ready, connected, info}
 export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null); // /api/enumerations data (merged w/ static)

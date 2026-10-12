@@ -46,11 +46,6 @@ def str_map(value: object) -> dict[str, str]:
     return value if is_str_map(value) else {}
 
 
-def str_list(value: object) -> list[str]:
-    """``value`` as a list of strings, empty when it is not one."""
-    return value if is_str_list(value) else []
-
-
 def _filter_taxonomy(raw: dict[str, object]) -> FilterEntry:
     """Keep the character facets of one filter entry: genre, quality, focus, apodizing and phase."""
     entry: FilterEntry = {}
@@ -132,11 +127,9 @@ def filter_entry_map(value: object) -> dict[str, FilterEntry]:
     return {key: filter_entry(v) for key, v in value.items() if isinstance(key, str)}
 
 
-def shaper_entry(raw: object) -> ShaperEntry:
-    """One ``shapers.json`` entry, keeping only the fields ``ShaperEntry`` names and whose value fits."""
+def _shaper_rates(raw: dict[str, object]) -> ShaperEntry:
+    """Keep the rate facets of one shaper entry: both rate bounds, ``None`` when absent, and the minimum's label."""
     entry: ShaperEntry = {}
-    if not isinstance(raw, dict):
-        return entry
     min_rate_hz = raw.get("min_rate_hz")
     if _is_opt_int(min_rate_hz):
         entry["min_rate_hz"] = min_rate_hz
@@ -146,6 +139,12 @@ def shaper_entry(raw: object) -> ShaperEntry:
     min_rate_label = raw.get("min_rate_label")
     if is_str(min_rate_label):
         entry["min_rate_label"] = min_rate_label
+    return entry
+
+
+def _shaper_character(raw: dict[str, object]) -> ShaperEntry:
+    """Keep the character facets of one shaper entry: description, notes, order, generation and type."""
+    entry: ShaperEntry = {}
     description = raw.get("description")
     if is_str(description):
         entry["description"] = description
@@ -161,6 +160,16 @@ def shaper_entry(raw: object) -> ShaperEntry:
     shaper_type = raw.get("type")
     if is_str(shaper_type):
         entry["type"] = shaper_type
+    return entry
+
+
+def shaper_entry(raw: object) -> ShaperEntry:
+    """One ``shapers.json`` entry, keeping only the fields ``ShaperEntry`` names and whose value fits."""
+    entry: ShaperEntry = {}
+    if not isinstance(raw, dict):
+        return entry
+    entry.update(_shaper_rates(raw))
+    entry.update(_shaper_character(raw))
     return entry
 
 
