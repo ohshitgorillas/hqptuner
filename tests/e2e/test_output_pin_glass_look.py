@@ -41,8 +41,8 @@ from playwright.sync_api import Page, ViewportSize
 
 from e2e.support import stack as stack_support
 
-#: The design size, iPad 10.2" landscape in points.
-VIEWPORT = ViewportSize(width=1080, height=810)
+#: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
+VIEWPORT = ViewportSize(width=1133, height=744)
 
 #: Where the app keeps the Allow pinned rates preference, and its On value.
 PINNED_RATES_KEY = "hqptuner.allowPinnedRates"

@@ -1,15 +1,15 @@
 """How the Output drawer's Format tab fills the larger plates.
 
-The plate is laid out at the largest iPad size the window holds: 1080x810 (10.2",
-the design size), 1180x820 (11") and 1366x1024 (13").
-On the 11" and 13" plates the drawer is wider and taller than at the design size,
+The plate is laid out at the largest format the window holds: Compact 1133x744
+(the smallest), Normal 1180x820 and Expanded 1366x1024.
+On the Normal and Expanded plates the drawer is wider and taller than on Compact,
 and the Format tab is to use that room: the rate dial's glass grows with the
 drawer's width, its text and its tap cells grow with it, no empty band opens up
 between the form's rows, and what height is left over sits at the bottom of the
 panel.
 
 Each test lays the plate out at a larger size, opens the Output drawer on its
-Format tab and measures it; most also lay it out at the design size and compare.
+Format tab and measures it; most also lay it out at Compact and compare.
 Every expected value is a relation between observations, never a pixel count of
 the current design.
 
@@ -24,7 +24,7 @@ Policy notes:
   wrapper stretched past its drawing reads as empty space, the way it looks.
 - Waits are bounded condition-polls: fonts loaded, the drawer's wipe and every
   other finite animation settled.
-- Not pinned here: that the iPad Mini plate's glass keeps today's size. No doc
+- Not pinned here: that the Compact plate's glass keeps today's size. No doc
   states that size, so the only source of an expected value is the current code.
 """
 
@@ -35,13 +35,13 @@ from playwright.sync_api import Page, ViewportSize
 
 from e2e.support import stack as stack_support
 
-#: The design size, the iPad Mini plate (10.2").
-DESIGN = ViewportSize(width=1080, height=810)
+#: The Compact plate, the smallest, laid out at scale 1.
+COMPACT = ViewportSize(width=1133, height=744)
 
-#: The two larger plates, by the size id the plate carries.
+#: The two larger plates, by the format id the plate carries (`data-size`).
 LARGER = {
-    "11": ViewportSize(width=1180, height=820),
-    "13": ViewportSize(width=1366, height=1024),
+    "normal": ViewportSize(width=1180, height=820),
+    "expanded": ViewportSize(width=1366, height=1024),
 }
 
 #: The Output drawer's rail stage.
@@ -141,9 +141,9 @@ def test_the_rate_dials_glass_widens_with_the_drawer_on_a_larger_plate(
     page: Page, stack: stack_support.Stack, plate: str
 ) -> None:
     """The glass widens at least in proportion to the drawer: a wider drawer is a wider glass, not a wider margin."""
-    design = _format(page, stack, DESIGN)
+    compact = _format(page, stack, COMPACT)
     larger = _format(page, stack, LARGER[plate])
-    assert larger.glass / design.glass >= larger.drawer / design.drawer - ROUNDING / design.glass
+    assert larger.glass / compact.glass >= larger.drawer / compact.drawer - ROUNDING / compact.glass
 
 
 @pytest.mark.parametrize("plate", sorted(LARGER))
@@ -160,6 +160,6 @@ def test_the_larger_plates_spare_height_falls_below_the_format_forms_last_row(
     page: Page, stack: stack_support.Stack, plate: str
 ) -> None:
     """Every pixel of empty height the larger plate adds to the panel lies under the last row, none above or between."""
-    design = _format(page, stack, DESIGN)
+    compact = _format(page, stack, COMPACT)
     larger = _format(page, stack, LARGER[plate])
-    assert larger.below - design.below >= larger.empty - design.empty - ROUNDING
+    assert larger.below - compact.below >= larger.empty - compact.empty - ROUNDING

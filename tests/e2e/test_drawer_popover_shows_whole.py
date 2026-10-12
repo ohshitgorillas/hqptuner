@@ -7,7 +7,7 @@ Switcher, the bar along the foot of the plate; it must not be cut off there.
 
 The case driven is the PCM gain compensation row on the Volume drawer's Gain
 tab, the last row of that tab and so the one nearest the foot of the plate, on
-the 10.2" plate, where its paragraph waits behind `see more`.
+the Compact plate, where its paragraph waits behind `see more`.
 
 Policy notes:
 
@@ -39,8 +39,8 @@ GAIN_TAB = "gain"
 #: The PCM gain compensation row's key: HQPlayer's own `/config` field name.
 GAIN_COMP_ROW = "gain_comp"
 
-#: The 10.2" plate, the design size: CSS pixels in landscape.
-PLATE_10_2 = (1080, 810)
+#: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
+COMPACT = (1133, 744)
 
 #: How far inside the popover's box each corner probe lands, CSS pixels, clear
 #: of a rounded corner's cut and of the border's antialiased edge.
@@ -82,8 +82,8 @@ async ({ row, inset }) => {
 
 
 def _gain_comp_note_corners(page: Page, base_url: str) -> tuple[bool, ...] | None:
-    """Open the PCM gain compensation row's see-more note on the 10.2" plate; return whether each corner shows it."""
-    width, height = PLATE_10_2
+    """Open the PCM gain compensation row's see-more note on the Compact plate; return whether each corner shows it."""
+    width, height = COMPACT
     page.set_viewport_size({"width": width, "height": height})
     page.goto(base_url)
     page.locator(f'button[data-stage="{VOLUME_STAGE}"]').click(timeout=SETTLE_TIMEOUT)

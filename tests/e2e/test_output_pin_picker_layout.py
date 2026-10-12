@@ -16,7 +16,7 @@ Policy notes:
 - The Rate row's label line has no wire identity, so it is found as the drawer
   row grammar's head line, `.fh`, inside the dial's block. A `data-testid` on
   that line would be the copy-free handle.
-- The page is laid out at 1080x810, the design size and the smallest plate.
+- The page is laid out at 1133x744, the Compact plate, the smallest, at scale 1.
 - Locators wait on conditions, and the drawer's own finite animations are
   awaited to their end before anything is measured.
 """
@@ -27,8 +27,8 @@ from playwright.sync_api import Locator, Page, ViewportSize
 
 from e2e.support import stack as stack_support
 
-#: The design size, iPad 10.2" landscape in points.
-VIEWPORT: ViewportSize = {"width": 1080, "height": 810}
+#: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
+VIEWPORT: ViewportSize = {"width": 1133, "height": 744}
 
 #: Where the app keeps the Allow pinned rates preference, and its On value.
 PINNED_RATES_KEY = "hqptuner.allowPinnedRates"

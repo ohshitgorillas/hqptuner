@@ -5,13 +5,12 @@ description with a `see more` trigger, and the trigger opens the rest in a note
 popover (the DAC bits rows carry one). What is pinned here is where that
 popover lands: wholly inside the open drawer's box, on every edge.
 
-The plates are the spec's design size, 1080x810 (10.2"), and the iPad Mini at
-full screen in landscape, 1133x744 points, the smallest screen the README and
-changelog promise to fit.
+The plate is Compact, 1133x744 CSS pixels in landscape, the smallest format,
+laid out at scale 1.
 
 Policy notes:
 
-- One case per plate. The helper returns two measured boxes, the popover's and
+- One case. The helper returns two measured boxes, the popover's and
   the same box clipped to the drawer, or None when there is no popover to
   measure; the test narrows the None and judges that the two boxes are equal,
   which they are only when the popover sits inside.
@@ -25,7 +24,6 @@ Policy notes:
 
 from typing import NamedTuple
 
-import pytest
 from playwright.sync_api import Page
 
 from e2e.support import stack as stack_support
@@ -40,11 +38,8 @@ FORMAT_TAB = "format"
 #: past an edge it actually sits on. The defect this file guards is whole pixels.
 SUBPIXEL = 0.5
 
-#: Viewport sizes, CSS pixels in landscape, keyed by the plate they lay out.
-PLATES = {
-    "ipad_10_2": (1080, 810),
-    "ipad_mini": (1133, 744),
-}
+#: The Compact plate, the smallest, laid out at scale 1: CSS pixels in landscape.
+COMPACT = (1133, 744)
 
 #: Ceiling on the open drawer and popover settling. A ceiling on a condition,
 #: never a duration anything is expected to take.
@@ -98,9 +93,8 @@ def _popover_boxes(page: Page, base_url: str, viewport: tuple[int, int]) -> Boxe
     return Boxes(tuple(float(v) for v in result["popover"]), tuple(float(v) for v in result["clipped"]))
 
 
-@pytest.mark.parametrize("plate", sorted(PLATES))
-def test_the_see_more_popover_stays_inside_the_drawer(page: Page, stack: stack_support.Stack, plate: str) -> None:
+def test_the_see_more_popover_stays_inside_the_drawer(page: Page, stack: stack_support.Stack) -> None:
     """The note popover a row's see-more opens is its own box clipped to the open drawer: it runs past no edge."""
-    boxes = _popover_boxes(page, stack.base_url, PLATES[plate])
+    boxes = _popover_boxes(page, stack.base_url, COMPACT)
     assert boxes is not None
     assert boxes.popover == boxes.clipped
