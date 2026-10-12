@@ -126,11 +126,6 @@ watch = 400
 [tool.filepawl.exempt]
 "scripts/junkcal/junkcal_fixture.py" = "junkcal fixture oracle, provenance kept whole"
 
-[tool.filepawl.absence.exempt]
-"tests/e2e/test_drawers_fit_every_format.py::test_no_drawer_tab_scrolls_or_cuts_off_content" = "passing is absence: no drawer tab holds hidden content"
-"tests/e2e/test_views_fit_every_format.py::test_no_view_entry_or_tab_scrolls_or_cuts_off_content" = "passing is absence: no view entry or tab holds hidden content"
-"tests/e2e/test_popovers_fit_every_format.py::test_no_opened_surface_or_profile_view_scrolls_or_cuts_off_content" = "passing is absence: no opened surface or the profile view holds hidden content"
-
 [tool.filepawl.barrels]
 include = ["hqptuner/**/*.py", "scripts/**/*.py"]
 # Route handlers under hqptuner/api/ are thin adapters by design.

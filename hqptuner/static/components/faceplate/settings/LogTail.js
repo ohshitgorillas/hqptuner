@@ -75,7 +75,7 @@ export function LogTailBlock({ clock = PLATFORM }) {
       </div>
       <div class="man"><p>Live stream of the hqplayerd log (file or journal). Read-only.</p></div>
     </div>
-    ${message ? html`<p class="mnote">${message}</p>` : html`<pre class="logtail" data-testid="log-tail" ref=${pre}>${text}</pre>`}
+    ${message ? html`<p class="mnote">${message}</p>` : html`<pre class="logtail" ref=${pre}>${text}</pre>`}
   `;
 }
 
