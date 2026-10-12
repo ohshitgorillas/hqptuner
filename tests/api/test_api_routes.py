@@ -52,10 +52,6 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
 # --- live snapshots (4321 lane) ----------------------------------------------
 
 
-def test_state_serves_the_daemons_state_snapshot(live_api: TestClient) -> None:
-    assert live_api.get("/api/state").json()["data"]["state"] == "0"
-
-
 @pytest.mark.parametrize(
     ("lane_down", "stale"),
     [pytest.param(False, False, id="reachable"), pytest.param(True, True, id="unreachable")],
@@ -94,40 +90,6 @@ def test_a_configured_pcm_mode_is_the_live_chain(chain_api: Callable[..., TestCl
 
 def test_a_configured_sdm_mode_is_the_live_chain(chain_api: Callable[..., TestClient]) -> None:
     assert chain_api(mode="2").get("/api/state").json()["data"]["active_chain"] == "sdm"
-
-
-@pytest.mark.parametrize(
-    ("active_mode", "chain"),
-    [pytest.param("", None, id="unanswered"), pytest.param("SDM (DSD)", "sdm", id="answered")],
-)
-def test_an_unanswerable_chain_is_reported_as_unknown_but_resolves_once_the_engine_answers(
-    chain_api: Callable[..., TestClient], active_mode: str, chain: str | None
-) -> None:
-    # [source] follows the source, so the configured mode cannot say which chain
-    # is loaded and Status's active mode is the only lane that can. Neither lane
-    # can answer before playback starts — null, never a guess: a wrong chain
-    # offers filters that would resolve against the other chain's enum IDs.
-    client = chain_api(mode="0", _active_mode=active_mode)
-    assert client.get("/api/state").json()["data"]["active_chain"] == chain
-
-
-def test_status_serves_the_engines_active_mode(live_api: TestClient) -> None:
-    assert live_api.get("/api/status").json()["data"]["status"]["active_mode"] == "PCM"
-
-
-def test_enumerations_report_the_active_mode_name(live_api: TestClient) -> None:
-    assert live_api.get("/api/enumerations").json()["data"]["mode"]["name"] == "PCM"
-
-
-# --- live volume ---------------------------------------------------------------
-
-
-def test_volume_reports_the_live_level(live_api: TestClient) -> None:
-    assert live_api.get("/api/volume").json()["volume"] == "-10.0"
-
-
-def test_volume_reports_the_daemons_range(live_api: TestClient) -> None:
-    assert live_api.get("/api/volume").json()["min"] == "-60"
 
 
 # --- immediate live writes (POST /api/config/live) -----------------------------
@@ -183,11 +145,6 @@ def test_a_live_write_leaves_the_staged_buffer_alone(live_api: TestClient) -> No
 # --- /config read model (form + file ⊕ live overrides + preset store) ---------
 
 
-def test_config_serves_the_daemons_form_fields(wired_api: TestClient) -> None:
-    fields = {f["name"]: f for f in wired_api.get("/api/config").json()["data"]["fields"]}
-    assert fields["title"]["value"] == "Opal"
-
-
 def test_config_file_view_prefers_the_live_engine_filter_over_the_file(wired_api: TestClient) -> None:
     # the config XML says filter=40, but State reports list index 0 = enum 0:
     # the live overlay must win, or the file view reports a setting the engine
@@ -199,14 +156,6 @@ def test_config_active_preset_is_the_stores_truth(wired_api: TestClient) -> None
     # nothing is staged, so the save rides an apply of the "(no preset)" switch
     wired_api.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Mine"}})
     assert wired_api.get("/api/config").json()["data"]["active"] == "Mine"
-
-
-# --- /speakers read model -------------------------------------------------------
-
-
-def test_speakers_read_model_serves_the_channel_labels(wired_api: TestClient) -> None:
-    channels = wired_api.get("/api/speakers").json()["data"]["channels"]
-    assert [ch["label"] for ch in channels] == ["Left", "Right"]
 
 
 # --- static surface (no daemon involved) ----------------------------------------

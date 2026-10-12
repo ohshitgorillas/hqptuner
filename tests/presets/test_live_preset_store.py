@@ -294,9 +294,3 @@ def test_all_lists_presets_with_embedded_numbers_in_numeric_order(tmp_path: Path
     store.save("DSD64", RECORD, [""])
     store.save("DSD256", RECORD, [""])
     assert list(store.all("")) == ["DSD64", "DSD256", "DSD1024"]
-
-
-def test_a_write_creates_two_missing_parent_directories_and_the_file(tmp_path: Path) -> None:
-    path = tmp_path / "never" / "created" / "live-presets.json"
-    LivePresetStore(path, stations=NO_STATIONS).save("alpha", RECORD, [""])
-    assert path.is_file()

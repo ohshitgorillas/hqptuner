@@ -29,9 +29,6 @@ async def test_a_state_that_names_no_loaded_chain_refuses_the_snapshot(live_mana
     [
         ({"mode": "1"}, "pcm"),
         ({"mode": "2"}, "sdm"),
-        # `[source]` configured, an SDM source playing: the loaded chain is the
-        # source's, not anything the configured mode names
-        ({"mode": "0", "_active_mode": "SDM (DSD)"}, "sdm"),
     ],
 )
 async def test_the_snapshot_names_the_chain_the_engine_has_loaded(

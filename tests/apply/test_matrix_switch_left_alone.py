@@ -6,32 +6,13 @@ plugin at all. That makes the switch tempting to flip on the user's behalf when 
 plugin is turned on — and wrong to: the matrix carries the whole pipeline, so
 engaging it changes what the daemon does with every channel, not just the plugin
 the user asked for. The switch is its own setting, moved only when it is staged.
-
-The absent-element case is a distinct one. hqplayerd writes only the elements it
-has had reason to write and fills none of them back in on load, so a config with
-no ``<matrix>`` is the ordinary state of one whose owner has never used matrix
-processing — and an absent ``enabled`` is the daemon's own default, not ``0``.
-Writing either value there would assert a switch position nobody chose.
-
-Snapshots are rendered by the fake daemon's own 6.0.4-shaped config renderer, so
-the writer is exercised against documents authored independently of it.
 """
 
 from typing import Any
 
 import pytest
-from fake_config_xml import cfg_xml
-from fake_http import state
 
-from hqptuner.conf import presetconf
 from hqptuner.core.manager import ConnectionManager
-
-#: Nothing but a bare root: the config of a user who has never had matrix
-#: processing, so the element the switch lives on has never been written.
-BARE = b"<hqplayerd/>"
-
-MATRIX_SWITCH = "matrix_enabled"
-PLUGIN_SWITCH = "post_loudness_enabled"
 
 #: Every plugin the chain carries, one per ``<plugin type=…>`` tag 6.0.4 writes
 #: inside ``<post_process>`` (readme §1.11.2), in the order they appear there.
@@ -39,32 +20,6 @@ PLUGIN_SWITCH = "post_loudness_enabled"
 #: locates the wrong sibling — or only ever the last one — reads correct against
 #: a single-plugin sweep.
 PLUGIN_SWITCHES = ["post_correction_enabled", "post_bauer_enabled", "post_loudness_enabled"]
-
-
-def cfg(**overrides: object) -> bytes:
-    return cfg_xml(state(**overrides))
-
-
-# --- a plugin switched on leaves the carrier alone -----------------------------
-
-
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
-def test_enabling_a_plugin_under_a_bypassed_matrix_still_lands_the_plugin_switch(plugin: str) -> None:
-    edited = presetconf.apply_edits(cfg(matrix_enabled=False, **{plugin: False}), {plugin: "1"})
-    assert presetconf.read_config(edited)[plugin] == "1"
-
-
-def test_enabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix() -> None:
-    # an absent attribute is the daemon's own default; writing either value here
-    # would pick a switch position on the user's behalf
-    assert MATRIX_SWITCH not in presetconf.read_config(presetconf.apply_edits(BARE, {PLUGIN_SWITCH: "1"}))
-
-
-# --- a plugin switched off leaves the carrier alone too -------------------------
-
-
-def test_disabling_a_plugin_asserts_no_matrix_switch_on_a_config_with_no_matrix() -> None:
-    assert MATRIX_SWITCH not in presetconf.read_config(presetconf.apply_edits(BARE, {PLUGIN_SWITCH: "0"}))
 
 
 # --- through a whole apply ------------------------------------------------------

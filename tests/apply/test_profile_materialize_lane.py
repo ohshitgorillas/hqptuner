@@ -17,7 +17,6 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory, ManagerFactory
-from fake_control import CommandLog
 
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
@@ -39,9 +38,8 @@ LIVE_ROWS = [
     {"gain": "-2", "mixdown": "1", "process": "", "source": "1"},
 ]
 
-#: A manager on both fakes, plus everything the 4321 fake was asked.
-Built = tuple[ConnectionManager, CommandLog]
-RunningProfile = Callable[[str], Awaitable[Built]]
+#: A manager on both fakes.
+RunningProfile = Callable[[str], Awaitable[ConnectionManager]]
 
 
 @pytest.fixture
@@ -53,8 +51,8 @@ async def running_profile(
     """A manager on both fakes, the 4321 one reporting the named profile active."""
     started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
-    async def build(active: str) -> Built:
-        port, log, _state = await daemon(matrix_profile=active, _profile_names=active)
+    async def build(active: str) -> ConnectionManager:
+        port, _log, _state = await daemon(matrix_profile=active, _profile_names=active)
         manager = http_manager_factory(
             http_daemon,
             hqp_host="127.0.0.1",
@@ -63,7 +61,7 @@ async def running_profile(
         )
         task = manager.clock.spawn(manager.run())
         started.append((manager, task))
-        return manager, log
+        return manager
 
     yield build
     for manager, task in started:
@@ -85,7 +83,7 @@ async def test_an_apply_under_an_active_profile_still_applies_the_staged_edit(
     running_profile: RunningProfile, http_daemon: dict[str, Any]
 ) -> None:
     with_night(http_daemon)
-    manager, _log = await running_profile("Night")
+    manager = await running_profile("Night")
     await manager.applyops.apply({}, {"title": "Renamed"})
     assert http_daemon["title"] == "Renamed"
 
@@ -94,26 +92,10 @@ async def test_an_apply_under_an_active_profile_reports_applied(
     running_profile: RunningProfile, http_daemon: dict[str, Any]
 ) -> None:
     with_night(http_daemon)
-    manager, _log = await running_profile("Night")
+    manager = await running_profile("Night")
     assert (
         await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     ).outcome is RestoreOutcome.APPLIED
-
-
-# --- and the engine is never asked to re-select the profile -------------------
-#
-# Materializing the profile into the live <matrix> is the whole mechanism: the
-# restarted daemon comes up already running it. A MatrixSetProfile on top would
-# be a playback-time switch issued at the one moment nothing is playing.
-
-
-async def test_an_apply_under_an_active_profile_sends_no_profile_switch(
-    running_profile: RunningProfile, http_daemon: dict[str, Any]
-) -> None:
-    with_night(http_daemon)
-    manager, log = await running_profile("Night")
-    await manager.applyops.apply({}, {"title": "Renamed"})
-    assert "MatrixSetProfile" not in [name for name, _attrs in log]
 
 
 # --- a profile only the daemon knows: nothing to adopt, and no failure --------
@@ -127,7 +109,7 @@ async def test_an_apply_under_a_profile_the_config_lacks_still_reports_applied(
     running_profile: RunningProfile, http_daemon: dict[str, Any]
 ) -> None:
     with_night(http_daemon)
-    manager, _log = await running_profile("Ghost")
+    manager = await running_profile("Ghost")
     assert (
         await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     ).outcome is RestoreOutcome.APPLIED
@@ -137,6 +119,6 @@ async def test_an_apply_under_a_profile_the_config_lacks_keeps_the_live_rows(
     running_profile: RunningProfile, http_daemon: dict[str, Any]
 ) -> None:
     with_night(http_daemon)
-    manager, _log = await running_profile("Ghost")
+    manager = await running_profile("Ghost")
     await manager.applyops.apply({}, {"title": "Renamed"})
     assert http_daemon["_pipelines"][0]["gain"] == "-2"

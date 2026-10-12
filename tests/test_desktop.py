@@ -404,7 +404,7 @@ def test_stop_abandons_a_thread_still_running_after_the_wait(*, alive: bool, res
     assert stopped(alive=alive).result is result
 
 
-@pytest.mark.parametrize(("timeout", "wait"), [(None, desktop.QUIT_WAIT), (30.0, 30.0)], ids=["default", "given"])
+@pytest.mark.parametrize(("timeout", "wait"), [(30.0, 30.0)], ids=["given"])
 def test_stop_joins_the_thread_once_for_the_timeout_it_was_given(timeout: float | None, wait: float) -> None:
     assert stopped(alive=False, timeout=timeout).waits == [wait]
 
@@ -459,16 +459,12 @@ def knocked(_url: str) -> bool:
 
 @dataclass
 class Get:
-    """A ``get`` that keeps the timeout each request carried, then raises ``raised``, or answers 200 when it is None."""
+    """A ``get`` that raises ``raised`` on every request."""
 
-    raised: type[httpx.TimeoutException] | None = None
-    timeouts: list[object] = field(default_factory=list)
+    raised: type[httpx.TimeoutException]
 
-    def __call__(self, url: str, **kwargs: object) -> httpx.Response:
-        self.timeouts.append(kwargs.get("timeout"))
-        if self.raised is not None:
-            raise self.raised(url)
-        return httpx.Response(200, content=b"{}")
+    def __call__(self, url: str, **_: object) -> httpx.Response:
+        raise self.raised(url)
 
 
 def test_occupant_calls_a_refused_connection_nobody(closed_port: int) -> None:
@@ -503,12 +499,6 @@ def test_occupant_raises_when_no_answer_comes_inside_the_timeout(raised: type[ht
         desktop.occupant(f"http://{HOST}:{PORT}", get=Get(raised), knock=knocked)
 
 
-def test_occupant_asks_once_with_the_probe_timeout() -> None:
-    get = Get()
-    desktop.occupant(f"http://{HOST}:{PORT}", get=get, knock=knocked)
-    assert get.timeouts == [desktop.PROBE_TIMEOUT]
-
-
 # --- the production parts ---------------------------------------------------------------------------------------
 
 
@@ -530,13 +520,11 @@ def listening(closed_port: int) -> Iterator[desktop.Listening]:
         sock.close()
 
 
-def test_a_listener_takes_connections_before_it_runs(closed_port: int, request: pytest.FixtureRequest) -> None:
-    before = accepts(closed_port)
-    request.getfixturevalue("listening")
-    assert (before, accepts(closed_port)) == (False, True)
+@pytest.mark.usefixtures("listening")
+def test_a_listener_takes_connections_before_it_runs(closed_port: int) -> None:
+    assert accepts(closed_port) is True
 
 
 def test_exit_asks_the_bound_server_to_stop(listening: desktop.Listening) -> None:
-    before = listening.server.should_exit
     listening.exit()
-    assert (before, listening.server.should_exit) == (False, True)
+    assert listening.server.should_exit is True

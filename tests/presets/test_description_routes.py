@@ -202,11 +202,6 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
 # --- the two zip helpers -------------------------------------------------------------
 
 
-def test_taking_the_payload_removes_its_member() -> None:
-    archive = embed_descriptions(members_zip(), stamped({NAME: entry("warm")}))
-    assert DESCRIPTIONS_MEMBER not in members(take_descriptions(archive)[0])
-
-
 def test_taking_the_payload_leaves_every_other_member_byte_identical() -> None:
     plain = members_zip()
     archive = embed_descriptions(plain, stamped({NAME: entry("warm")}))

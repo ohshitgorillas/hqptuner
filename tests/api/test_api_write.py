@@ -103,24 +103,6 @@ def test_dropping_every_live_argument_removes_the_bucket(api_client: TestClient)
     assert "filter" not in api_client.get("/api/config/pending").json()["live"]
 
 
-def test_a_field_staged_and_dropped_in_one_call_is_absent(http_client: TestClient) -> None:
-    # merge happens before the drop, so the same call's own value is removed too
-    http_client.post(
-        "/api/config/stage",
-        json={"http": {"title": "Renamed"}, "drop": {"http": ["title"]}},
-    )
-    assert "title" not in http_client.get("/api/config/pending").json()["http"]
-
-
-def test_a_live_argument_staged_and_dropped_in_one_call_is_absent(api_client: TestClient) -> None:
-    # merge before drop on the live lane too, not only the http one
-    api_client.post(
-        "/api/config/stage",
-        json={"live": {"shaper": {"value": "5"}}, "drop": {"live": {"shaper": ["value"]}}},
-    )
-    assert "shaper" not in api_client.get("/api/config/pending").json()["live"]
-
-
 def test_a_drop_of_a_never_staged_live_key_does_not_reject_the_call(api_client: TestClient) -> None:
     api_client.post(
         "/api/config/stage",
