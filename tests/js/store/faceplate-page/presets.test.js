@@ -1,11 +1,11 @@
-// Store suite for hqptuner/static/store/faceplate/page/presets.js: `presetRows()`, the Filter presets popover's rows,
-// and `pickPreset`, what a row's press writes. The rows are the Easy Mode table's (store/easy/easy.js) in its own order,
+// Store suite for hqptuner/static/store/faceplate/page/presets.js: `presetRows()`, the Filter presets popover's rows.
+// The rows are the Easy Mode table's (store/easy/easy.js) in its own order,
 // each subset preset nested under every flagship its version knob names, in that flagship's version; one flagship open
 // at a time (`showSubsets`, `foldSubsets`).
 //
 // Driven at the wire the way the Easy Mode suites are: the LIVE lane is seeded through the shared harness
-// (tests/js/support/easy/easytiles.js `resetLive`) with the engine's own enumeration, State and config form, and a
-// press leaves over a faked `globalThis.fetch` on `POST /api/config/live`. No store function is stubbed.
+// (tests/js/support/easy/easytiles.js `resetLive`) with the engine's own enumeration, State and config form. No store
+// function is stubbed.
 //
 // NAMES, NOT WORDS. Preset ids, knob ids and knob positions are wire identifiers; filter names, costs and marks are
 // read back through the shipped table (`writeSet`, `filterFor`, `pipsFor`), never typed. Which preset is a subset and
@@ -22,13 +22,13 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetLive, running, flush, postedFields, liveExpected } = await import("../../support/easy/easytiles.js");
+const { resetLive, running } = await import("../../support/easy/easytiles.js");
 const { sdmSubject, sdmNames, classedAs } = await import("../../support/easy/easytable.js");
 const { presetsFor, filterFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 const { knobsOffered } = await import("../../../../hqptuner/static/store/easy/easyoffer.js");
 const { rememberKnobs } = await import("../../../../hqptuner/static/store/easy/easyview.js");
 const { metadata, enums } = await import("../../../../hqptuner/static/store/signals.js");
-const { presetRows, pickPreset, showSubsets, foldSubsets } =
+const { presetRows, showSubsets, foldSubsets } =
   await import("../../../../hqptuner/static/store/faceplate/page/presets.js");
 
 /** @typedef {import("../../../../hqptuner/static/store/easy/easy.js").Preset} Preset */
@@ -168,14 +168,6 @@ for (const { under, sub, vk } of NESTED) {
     classify("full", { [filterFor(sub.id, "pcm", { ...resting(sub), [vk]: under })]: "half" });
     assert.equal(nestedRow(under, sub.id)?.mark, "half");
   });
-
-  test(`test_${sub.id}_nested_under_${under}_writes_its_${under}_version_when_picked`, async () => {
-    const w = await live();
-    const row = nestedRow(under, sub.id);
-    await pickPreset(sub.id, row?.at || {});
-    await flush(w);
-    assert.deepEqual(postedFields(w), liveExpected(sub.id, { ...resting(sub), [vk]: under }));
-  });
 }
 
 // A knob position recorded for a subset reaches its nested rows: the correction setting is per subset, so both copies
@@ -304,16 +296,3 @@ test("test_folding_closes_every_flagship", async () => {
     Object.fromEntries(TOP.map((p) => [p.id, false])),
   );
 });
-
-// ============================================================================
-// a press writes the preset
-// ============================================================================
-
-for (const p of TOP) {
-  test(`test_picking_the_${p.id}_row_posts_its_resting_filters_to_the_live_lane`, async () => {
-    const w = await live();
-    await pickPreset(p.id, topRow(p.id)?.at || {});
-    await flush(w);
-    assert.deepEqual(postedFields(w), liveExpected(p.id, resting(p)));
-  });
-}

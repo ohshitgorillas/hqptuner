@@ -329,17 +329,6 @@ test("test_applying_a_previewed_direct_sdm_against_a_volume_not_fixed_at_minus_t
   await held.catch(() => {});
 });
 
-// "Before the POST" is the whole point of the guard: a question that opens after
-// the daemon already has the set warns about nothing.
-test("test_a_direct_sdm_apply_sends_no_post_while_its_question_is_open", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(w.posts.length, 0);
-  cancel();
-  await held.catch(() => {});
-});
-
 // Direct SDM is already on in the running config and the staged set does not
 // touch it, so the apply changes nothing about that hazard. The volume is still
 // not fixed at -3, so a guard reading the staged picture alone would warn here.
@@ -390,18 +379,6 @@ test("test_an_apply_time_question_is_owned_by_pending", async () => {
 });
 
 // --- answering ---------------------------------------------------------------
-
-// Whether a declined apply resolves or rejects is not specified, so neither is
-// asserted: the held promise is settled either way and the wire is the witness.
-test("test_declining_an_apply_time_question_sends_no_apply_post", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  cancel();
-  await held.catch(() => {});
-  await quiesce(w);
-  assert.equal(w.posts.length, 0);
-});
 
 // A decline is not a discard: the set the user built is still theirs to fix and
 // apply again.

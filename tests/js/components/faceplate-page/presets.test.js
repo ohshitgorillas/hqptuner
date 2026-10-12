@@ -2,11 +2,11 @@
 // button that opens it. What each row says is store/faceplate/page/presets.js's, pinned in
 // tests/js/store/faceplate-page/presets.test.js; this suite pins what the popover draws of those rows and what its
 // buttons do: a row per top-level preset, the lit one marked, a fold line per flagship or that flagship's nested rows
-// once it is open, and the pick, knob and fold buttons wired to the store.
+// once it is open, and the open and fold buttons wired to the store.
 //
 // Driven at the wire like the Easy Mode suites (tests/js/support/easy/easytiles.js `resetLive`); a press is fired
 // through the onClick its vnode carries, collected by preact's own `options.vnode` hook
-// (tests/js/support/vnodeseam.js), and leaves over a faked `POST /api/config/live`.
+// (tests/js/support/vnodeseam.js).
 //
 // Not reachable here: the panel's parking left of its button, which runs in a layout effect.
 //
@@ -20,7 +20,7 @@ import { useStorage } from "../../support/storage.js";
 
 useStorage();
 
-const { resetLive, running, flush, postedFields, liveExpected } = await import("../../support/easy/easytiles.js");
+const { resetLive, running } = await import("../../support/easy/easytiles.js");
 const { enums } = await import("../../../../hqptuner/static/store/signals.js");
 const { renderTree } = await import("../../support/vnodeseam.js");
 const { propsOf } = await import("../../support/wheel.js");
@@ -103,40 +103,11 @@ const rowsByKey = (out) =>
     ...subRows(out).map((e) => [`${attr(e, "data-lane")}>${attr(e, "data-preset")}`, e]),
   ]);
 
-/**
- * Every vnode of a subtree, the node itself included.
- *
- * @param {unknown} node
- * @returns {VNode[]}
- */
-function within(node) {
-  if (node === false || node === null || node === undefined || typeof node !== "object") return [];
-  if (Array.isArray(node)) return node.flatMap(within);
-  const v = /** @type {VNode} */ (node);
-  return [v, ...(v.props ? within(v.props.children) : [])];
-}
-
 /** @param {VNode} v @param {string} cls */
 const hasClass = (v, cls) =>
   String(propsOf(v).class || "")
     .split(/\s+/)
     .includes(cls);
-
-/**
- * The row vnode for a preset, nested under `under` or top-level when `under` is undefined.
- *
- * @param {VNode[]} seen
- * @param {string} id
- * @param {string} [under]
- */
-const rowNode = (seen, id, under) =>
-  seen.find(
-    (v) =>
-      v.type === "div" &&
-      hasClass(v, "frow") &&
-      propsOf(v)["data-preset"] === id &&
-      (propsOf(v)["data-lane"] ?? undefined) === under,
-  );
 
 /**
  * The apodizing mark inside an element: the first element under it carrying the mark's state, `data-kind`.
@@ -382,27 +353,6 @@ test("test_only_the_rows_of_hi_res_presets_wear_the_hi_res_badge", async () => {
     Object.fromEntries(TOP.map((p) => [p.id, !!p.hires])),
   );
 });
-
-// ============================================================================
-// presses write through the store
-// ============================================================================
-
-const MOVED = TOP.flatMap((p) =>
-  knobsOffered(p, resting(p), "pcm")
-    .filter((k) => !k.inert)
-    .flatMap((k) => k.options.filter((o) => o !== k.default).map((o) => ({ p, knob: k.id, at: o }))),
-);
-
-for (const { p, knob, at } of MOVED) {
-  test(`test_moving_the_${p.id}_rows_${knob}_to_${at}_posts_the_filters_that_position_writes`, async () => {
-    const w = await live();
-    const row = rowNode(drawn().seen, p.id);
-    const seg = within(row ? propsOf(row).children : []).find((v) => propsOf(v)["data-knob"] === knob);
-    fire(within(seg ? propsOf(seg).children : []).find((v) => v.type === "button" && propsOf(v)["data-v"] === at));
-    await flush(w);
-    assert.deepEqual(postedFields(w), liveExpected(p.id, { ...resting(p), [knob]: at }));
-  });
-}
 
 // ============================================================================
 // the columns

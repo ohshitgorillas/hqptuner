@@ -1,6 +1,6 @@
 // The harness for Easy Mode's preset tiles: the daemon form and engine
 // enumeration the two lanes are driven with, the wire both lanes are watched
-// over, the readers a rendering is asked questions through, and the click seam
+// over, and the click seam
 // a cell is pressed by. The cases themselves are
 // tests/js/components/easytiles.test.js.
 //
@@ -34,7 +34,7 @@ import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
-import { stagingWire, quiesce, ok } from "../wire/wire.js";
+import { stagingWire, ok } from "../wire/wire.js";
 import { engineRows, configPayload, enumerations, loaded } from "./easyrate.js";
 
 /** @typedef {import("../wheel.js").VNode} VNode */
@@ -46,23 +46,12 @@ import { engineRows, configPayload, enumerations, loaded } from "./easyrate.js";
 
 // --- the four filter fields -------------------------------------------------------
 //
-// Schema keys on the left (store/schema.js), the daemon's own form-field names
-// on the right — `filter1x` / `filter` for the PCM chain and `oversampling1x` /
-// `oversampling` for the SDM chain, which is what the config form and the live
-// form alike key them by (store/live/derive.js).
+// Schema keys (store/schema.js).
 
 const PCM_1X = "pcm_filter_1x";
 const PCM_NX = "pcm_filter_nx";
 const SDM_1X = "sdm_filter_1x";
 const SDM_NX = "sdm_filter_nx";
-
-/** @type {Record<string, string>} */
-const FIELD = {
-  [PCM_1X]: "filter1x",
-  [PCM_NX]: "filter",
-  [SDM_1X]: "oversampling1x",
-  [SDM_NX]: "oversampling",
-};
 
 // --- the filter names the curated table can write ------------------------------------
 //
@@ -173,20 +162,6 @@ export function running(presetId, knobs = {}) {
   return { oneX: set[PCM_1X], nX: set[PCM_NX] };
 }
 
-/**
- * What the LIVE lane must post for a preset in PCM mode: the two PCM live
- * fields, each valued by the engine's enum id for the preset's filter. The knob
- * positions default to the resting ones.
- *
- * @param {string} presetId
- * @param {Record<string, string>} [knobs]
- * @returns {Record<string, string>}
- */
-export function liveExpected(presetId, knobs = {}) {
-  const set = writeSet(presetId, "pcm", knobs);
-  return { [FIELD[PCM_1X]]: idOf(set[PCM_1X]), [FIELD[PCM_NX]]: idOf(set[PCM_NX]) };
-}
-
 // --- the wire ----------------------------------------------------------------------
 //
 // One staging server for both lanes, so a case can ask what reached the tabs
@@ -210,17 +185,6 @@ const routes = (path, opts, w) => {
   if (path === "/api/config") return ok({ data: signals.config.value });
   return undefined;
 };
-
-/**
- * Every fetch this wire was handed, and every continuation waiting on one, run
- * to a standstill. Turns of the event loop, never a stopwatch (rule 7).
- *
- * @param {StagingWire} w
- */
-export async function flush(w) {
-  for (let i = 0; i < 50; i += 1) await Promise.resolve();
-  await quiesce(w);
-}
 
 // --- resets ------------------------------------------------------------------------
 //
@@ -315,20 +279,6 @@ export async function resetLive({
   await discardAll();
   return w;
 }
-
-// --- readers -------------------------------------------------------------------------
-
-/**
- * What reached the LIVE lane's path, merged across however many requests
- * carried it. `easyLane.write` takes one field at a time, so a press may leave
- * as one request or as several; which request carried which field is not a
- * behavior the spec states.
- *
- * @param {StagingWire} w
- * @returns {Record<string, unknown>}
- */
-export const postedFields = (w) =>
-  Object.assign({}, ...w.posts.map((post) => /** @type {{ fields?: unknown }} */ (post).fields || {}));
 
 // --- the click seam --------------------------------------------------------------------
 //

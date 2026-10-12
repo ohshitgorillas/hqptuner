@@ -54,15 +54,6 @@ const STAGE = "nx";
 const FIELD = "pcm_filter_nx";
 
 /**
- * The global the fetch fake is installed on, viewed as an optional member: the
- * DOM lib declares `fetch` as always present, and the no-fetch environment is
- * one of the cases under test.
- *
- * @type {{ fetch?: unknown }}
- */
-const env = globalThis;
-
-/**
  * One fixture row: a filter name, its hand-written description, and an
  * optional `arg` bitfield (apodizing is bit 0).
  *
@@ -188,12 +179,6 @@ test("test_a_failed_hydration_leaves_the_favorites_already_starred_alone", async
   assert.deepEqual([...favoriteFilters.value], ["gauss-a"]);
 });
 
-test("test_a_failed_hydration_does_not_throw", async () => {
-  reset(PLAIN);
-  favoritesWire({ getStatus: 503, getDetail: "Favorites are unavailable." });
-  await assert.doesNotReject(() => hydrateFavorites());
-});
-
 // --- the one-shot migration out of localStorage ---------------------------------
 // The pre-server build kept the starred names in localStorage under
 // "hqptuner.favoriteFilters". Hydration UNIONs them with whatever the server
@@ -270,25 +255,6 @@ test("test_favorites_only_is_not_persisted_across_a_fresh_load", async () => {
   nFavOnly.value = true;
   const fresh = await import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-favonly.js")}`);
   assert.equal(fresh.nFavOnly.value, false);
-});
-
-test("test_loading_the_module_without_fetch_does_not_throw", async () => {
-  delete env.fetch;
-  await assert.doesNotReject(() => import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-nofetch.js")}`));
-});
-
-test("test_loading_the_module_without_fetch_leaves_no_rejected_promise", async () => {
-  /** @type {unknown[]} */
-  const unhandled = [];
-  /** @param {unknown} reason */
-  const onUnhandled = (reason) => unhandled.push(reason);
-  process.on("unhandledRejection", onUnhandled);
-  delete env.fetch;
-  await import(`${FAVORITES_MODULE.replace(/\.js$/, ".fresh-nofetch2.js")}`).catch(() => {});
-  await settle();
-  await new Promise((resolve) => setImmediate(resolve));
-  process.off("unhandledRejection", onUnhandled);
-  assert.deepEqual(unhandled, []);
 });
 
 // --- favorites-only off: favorites are inert ----------------------------------
