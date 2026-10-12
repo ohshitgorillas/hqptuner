@@ -41,6 +41,8 @@ REJECT = 10.0
 
 #: Where the `test` target and the `pytest-offline` hook write their report.
 REPORT_NAME = ".pytest-junit.xml"
+#: The stamp ``scripts/pytest_plugins/run_stamp.py`` writes, holding the run's CPU-wait.
+STAMP_NAME = ".pytest-run.json"
 #: The bar, beside the main checkout's coverage report,
 #: for a tree whose branch cannot be read.
 BASELINE_NAME = ".suite-time.json"
@@ -123,11 +125,14 @@ def judge(seconds: float, last: float, *, accept: bool) -> tuple[bool, str]:
     return True, f"[ok] suite {seconds:.1f}s, bar {last:.1f}s ({over:+.1f}s)"
 
 
-def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
+def check(report: Path, baseline: Path, *, accept: bool = False, wait: float = 0.0) -> int:
     """Refuse a run slower than the bar by more than ESCALATE seconds.
 
-    A passing run faster than the bar records its time as the bar; one slower
-    leaves the bar where it is. A red report (failures or errors non-zero) is
+    The run's time is the report's wall time less ``wait``, the seconds the
+    suite's main thread sat waiting for a CPU, so a busy host does not move the
+    bar; that time is what is judged and what is recorded. A passing run faster
+    than the bar records its time as the bar; one slower leaves the bar where
+    it is. A red report (failures or errors non-zero) is
     not judged and not recorded. ``accept`` records a run in the escalate band;
     a run at or past REJECT over the bar is refused either way.
     """
@@ -141,7 +146,9 @@ def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
     if attrs.get("failures", "0") != "0" or attrs.get("errors", "0") != "0":
         print(f"{report}: suite red, time not judged")
         return 1
-    seconds = float(attrs["time"])
+    seconds = float(attrs["time"]) - wait
+    if wait:
+        print(f"suite wall time {float(attrs['time']):.1f}s less {wait:.1f}s waiting for a CPU")
     last = read_baseline(baseline)
     if last is None:
         record(baseline, seconds)
@@ -156,10 +163,18 @@ def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
     return 0
 
 
+def stamped_wait(stamp: Path) -> float:
+    """Return the CPU-wait the run stamp recorded at session finish, zero when it recorded none."""
+    if not stamp.is_file():
+        return 0.0
+    return float(json.loads(stamp.read_text(encoding="utf-8")).get("cpu_wait", 0.0))
+
+
 def main(argv: list[str] | None = None) -> int:
-    """CLI: optional ``--accept``; the report is this tree's, the baseline its branch's beside the main checkout."""
+    """CLI: optional ``--accept``; report and stamp are this tree's, the bar its branch's beside the main checkout."""
     args = sys.argv[1:] if argv is None else argv
-    return check(ROOT / REPORT_NAME, baseline_path(ROOT), accept="--accept" in args)
+    wait = stamped_wait(ROOT / STAMP_NAME)
+    return check(ROOT / REPORT_NAME, baseline_path(ROOT), accept="--accept" in args, wait=wait)
 
 
 if __name__ == "__main__":

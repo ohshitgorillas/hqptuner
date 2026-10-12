@@ -9,13 +9,18 @@ the owner's ``accept``, and an accepted run becomes the new baseline; one at or
 past ``REJECT`` over is refused with or without it. A red report is not judged and not recorded, and a
 missing baseline is seeded from the first green report.
 
+The run's time is its wall time less ``wait``, the seconds the suite's main
+thread sat ready to run but waiting for a CPU, so a busy host does not move the
+bar. That time is what is judged and what is recorded, on every path that
+records: a faster run, an accepted run and the first green run.
+
 These cases hand-build the report XML and the baseline JSON under ``tmp_path``
 and call the script's checking function with those paths, the pattern of
 ``test_coverage_floor.py``. Observable contract is the int exit code, over one
 call or a sequence of calls sharing a baseline path. Nothing here runs pytest,
 and nothing here reads the gate's internals or the baseline file it writes.
 
-The seam is ``check(report, baseline, *, accept=False) -> int``.
+The seam is ``check(report, baseline, *, accept=False, wait=0.0) -> int``.
 """
 
 import importlib.util

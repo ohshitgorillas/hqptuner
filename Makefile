@@ -74,7 +74,7 @@ lint-js:
 IDLE_GATE ?= on
 
 test:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline -p run_stamp --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
 	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py

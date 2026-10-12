@@ -23,6 +23,8 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TextIO
 
+import run_stamp
+
 if TYPE_CHECKING:
     from collections.abc import Callable
     from types import ModuleType
@@ -77,10 +79,30 @@ def deadline(baseline: Path) -> float | None:
     return None if last is None else last + REJECT
 
 
-def watch(seconds: float, finished: Finished, *, dump_to: TextIO, terminate: Callable[[int], None]) -> None:
-    """Give the run ``seconds`` to finish; one still going is dumped, every thread, and terminated with 1."""
+def _no_wait() -> float:
+    return 0.0
+
+
+def watch(
+    seconds: float,
+    finished: Finished,
+    *,
+    dump_to: TextIO,
+    terminate: Callable[[int], None],
+    waited: Callable[[], float] = _no_wait,
+) -> None:
+    """Give the run ``seconds`` to finish, plus every second ``waited`` says it sat waiting for a CPU.
+
+    A run still going once its wall time less its CPU-wait reaches ``seconds``
+    is dumped, every thread, and terminated with 1.
+    """
     if finished.wait(seconds):
         return
+    granted = 0.0
+    while (owed := waited() - granted) > 0:
+        granted += owed
+        if finished.wait(owed):
+            return
     dump_to.write(f"suite deadline: still running {seconds:.1f}s after session start, aborted\n")
     dump_to.flush()
     faulthandler.dump_traceback(file=dump_to, all_threads=True)
@@ -102,7 +124,7 @@ def pytest_sessionstart(session: pytest.Session) -> None:
     threading.Thread(
         target=watch,
         args=(seconds, _FINISHED),
-        kwargs={"dump_to": stderr, "terminate": os._exit},
+        kwargs={"dump_to": stderr, "terminate": os._exit, "waited": run_stamp.main_thread_wait},
         name="suite-deadline",
         daemon=True,
     ).start()
