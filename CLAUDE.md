@@ -14,6 +14,7 @@ This file is the project's rule sheet; procedure lives in the skills it names, l
 
 ## Agent conduct
 
+- **`filepawl accept` is not a gate exemption.** Run it whenever filepawl prints it, without asking: an allowance entry below the length cap is how a file grows under watch. Crossing the watch line is never a reason to split; split only at the cap. A file under the cap that grew past its allowance goes to the owner as a blocking question, not a split.
 - **Plan gate.** A prose plan goes to the owner before any `Write`, `Edit` or metered action: what is wrong, what changes, files touched, caller-side delta, cost, and only open questions that are genuinely the owner's. An open question that is genuinely the owner's goes to them the moment it surfaces; work stops until they rule. Required for anything touching state outside this repo, a service, or the alert path, and for any change to more than one file or to any file under `.claude/`; a single in-tree edit whose blast radius is the file itself is exempt, and so is a change confined to `tests/`.
 - **Plans cite.** Every load-bearing claim is verified with a citation (`file:line`, command output) or tagged ASSUMED, legal only when settling it needs a metered action, live experiment or owner decision. Revising a plan after reading material that was free to read before presenting it is a defect.
 - **A plan that splits or extracts states its caller-side delta**: how many call sites change and in which files. A count near zero means forwarders, not a split; gates catch the syntactic shapes, not intent.
