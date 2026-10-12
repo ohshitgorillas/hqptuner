@@ -63,7 +63,7 @@ lint-js:
 # would pass on those. The coverage floor is per file and lives in the gate on
 # the third line, not in --cov-fail-under, so a failing suite reports first.
 # The junit report carries the suite's wall time; the fourth line holds it to
-# the last green run's (scripts/gates/testing/check_suite_time.py). The idle probe
+# a bar a green run never raises (scripts/gates/testing/check_suite_time.py). The idle probe
 # measures each test's wall time against its CPU time and writes a second
 # report, which the fifth line holds per test (scripts/gates/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets

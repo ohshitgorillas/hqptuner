@@ -2,7 +2,7 @@
 """Pytest plugin: abort an offline run once it is past the suite-time gate's bar.
 
 ``scripts/gates/testing/check_suite_time.py`` rejects a run ``REJECT`` seconds or
-more slower than the last green run, but it judges the junit report, so it only
+more slower than its bar, but it judges the junit report, so it only
 sees a run that ended; a hung suite never reaches it. This plugin holds the run
 to the same bar while it is still going: at session start it reads the same
 baseline, and a run still going at the bar has every thread's stack dumped to

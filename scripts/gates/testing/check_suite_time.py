@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Gate: the offline suite runs no slower than the last green run, within a few seconds.
+"""Gate: the offline suite runs no slower than its bar, within a few seconds.
 
 Reads the junit report ``make test`` writes and compares its wall time with
-the last green run's, kept in a gitignored baseline file. A run within
-``ESCALATE`` seconds of the baseline passes and becomes the baseline. A run
-past that needs the owner: ``--accept`` records it. A run ``REJECT`` seconds
+the bar, kept in a gitignored baseline file. A run within ``ESCALATE``
+seconds over the bar passes and leaves it where it is; a passing run faster
+than the bar lowers it to that run's time, so the bar never creeps up. A run
+past that needs the owner: ``--accept`` records it as the bar. A run ``REJECT`` seconds
 or more over the baseline is refused with or without ``--accept``; the way
 past is a faster suite.
 
@@ -40,7 +41,7 @@ REJECT = 10.0
 
 #: Where the `test` target and the `pytest-offline` hook write their report.
 REPORT_NAME = ".pytest-junit.xml"
-#: The last green run's wall time, beside the main checkout's coverage report,
+#: The bar, beside the main checkout's coverage report,
 #: for a tree whose branch cannot be read.
 BASELINE_NAME = ".suite-time.json"
 #: The same, for one branch: ``{branch}`` with each ``/`` written as ``--``.
@@ -114,21 +115,21 @@ def judge(seconds: float, last: float, *, accept: bool) -> tuple[bool, str]:
     """Return whether the run passes against ``last`` and the line saying why."""
     over = seconds - last
     if over >= REJECT:
-        return False, f"suite {seconds:.1f}s, last green {last:.1f}s: {over:+.1f}s, rejected (limit {REJECT:.0f}s)"
+        return False, f"suite {seconds:.1f}s, bar {last:.1f}s: {over:+.1f}s, rejected (limit {REJECT:.0f}s)"
     if over > ESCALATE:
         if accept:
-            return True, f"suite {seconds:.1f}s, last green {last:.1f}s: {over:+.1f}s accepted by the owner"
-        return False, f"suite {seconds:.1f}s, last green {last:.1f}s: {over:+.1f}s, escalate to owner (--accept)"
-    return True, f"[ok] suite {seconds:.1f}s, last green {last:.1f}s ({over:+.1f}s)"
+            return True, f"suite {seconds:.1f}s, bar {last:.1f}s: {over:+.1f}s accepted by the owner"
+        return False, f"suite {seconds:.1f}s, bar {last:.1f}s: {over:+.1f}s, escalate to owner (--accept)"
+    return True, f"[ok] suite {seconds:.1f}s, bar {last:.1f}s ({over:+.1f}s)"
 
 
 def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
-    """Refuse a run slower than the last green run by more than ESCALATE seconds.
+    """Refuse a run slower than the bar by more than ESCALATE seconds.
 
-    Exit 0 records the report's time as the new baseline. A red report
-    (failures or errors non-zero) is not judged and not recorded. ``accept``
-    records a run in the escalate band; a run at or past REJECT over the
-    baseline is refused either way.
+    A passing run faster than the bar records its time as the bar; one slower
+    leaves the bar where it is. A red report (failures or errors non-zero) is
+    not judged and not recorded. ``accept`` records a run in the escalate band;
+    a run at or past REJECT over the bar is refused either way.
     """
     if not report.is_file():
         print(f"{report}: no junit report; the suite must run before this gate")
@@ -148,10 +149,11 @@ def check(report: Path, baseline: Path, *, accept: bool = False) -> int:
         return 0
     passed, line = judge(seconds, last, accept=accept)
     print(line)
-    if passed:
+    if not passed:
+        return 1
+    if seconds < last or seconds - last > ESCALATE:
         record(baseline, seconds)
-        return 0
-    return 1
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:

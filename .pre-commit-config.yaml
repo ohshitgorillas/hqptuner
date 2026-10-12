@@ -103,7 +103,7 @@ repos:
       # Reads the junit report the pytest hook writes; a red suite is not
       # judged, so this reports the red rather than a time.
       - id: suite-time
-        name: suite wall time against the last green run
+        name: suite wall time against its bar
         entry: .venv/bin/python scripts/gates/testing/check_suite_time.py
         language: system
         pass_filenames: false
