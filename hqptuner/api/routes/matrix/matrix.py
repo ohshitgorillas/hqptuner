@@ -23,6 +23,7 @@ from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyResult
 from hqptuner.lanes.matrixlane import MatrixProfileSwitch
 from hqptuner.paths import bundled
+from hqptuner.shape.guards import is_str_map
 
 router = APIRouter(prefix="/api")
 
@@ -72,19 +73,14 @@ class MatrixReport:
     preset_profiles: dict[str, list[str]]
 
 
-def _is_str_map(value: object) -> TypeGuard[dict[str, str]]:
-    """Return whether ``value`` is a JSON object with only string values."""
-    return isinstance(value, dict) and all(isinstance(k, str) and isinstance(v, str) for k, v in value.items())
-
-
 def _is_rows(value: object) -> TypeGuard[list[dict[str, str]]]:
     """Return whether ``value`` is a list of string-valued row maps."""
-    return isinstance(value, list) and all(_is_str_map(row) for row in value)
+    return isinstance(value, list) and all(is_str_map(row) for row in value)
 
 
 def _is_stored_profile(value: object) -> TypeGuard[StoredProfile]:
     """Return whether ``value`` has ``StoredProfile``'s shape: a ``rows`` list and a ``post`` map, string-valued."""
-    return isinstance(value, dict) and _is_rows(value.get("rows")) and _is_str_map(value.get("post"))
+    return isinstance(value, dict) and _is_rows(value.get("rows")) and is_str_map(value.get("post"))
 
 
 def _parse_file_profiles(raw: str) -> dict[str, StoredProfile]:

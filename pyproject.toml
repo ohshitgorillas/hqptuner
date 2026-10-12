@@ -344,6 +344,7 @@ packages = [
   "hqptuner.lanes.live",
   "hqptuner.presets",
   "hqptuner.presets.store",
+  "hqptuner.shape",
 ]
 
 [tool.setuptools.package-data]
