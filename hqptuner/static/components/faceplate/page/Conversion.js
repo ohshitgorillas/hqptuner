@@ -8,6 +8,7 @@
 
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
+import { PLATFORM } from "../../../lib/clock.js";
 import { html } from "../../../lib/dom.js";
 import { schema } from "../../../store/schema.js";
 import { conversionSections, openField } from "../../../store/faceplate/page/conversion.js";
@@ -21,6 +22,7 @@ import { ChainPick } from "./ChainPick.js";
  * @typedef {import("../../../store/faceplate/page/conversion.js").ConvField} ConvField
  * @typedef {import("../../../store/faceplate/page/conversion.js").SectionId} SectionId
  * @typedef {import("../../../store/faceplate/page/conversion.js").FieldId} FieldId
+ * @typedef {import("../../../lib/clock.js").Clock} Clock
  * @typedef {{ key: string, by: Record<string, number>, passes: number }} Cuts  each cut copy's prose word count, for
  *   the page as it was measured
  */
@@ -155,11 +157,12 @@ let queued = false;
  * Run one fit pass once the render in progress has committed, however many copies asked.
  *
  * @param {HTMLElement} host
+ * @param {Clock} clock  the clock the pass is queued on
  */
-function scheduleFit(host) {
+function scheduleFit(host, clock) {
   if (queued) return;
   queued = true;
-  queueMicrotask(() => {
+  clock.queueMicrotask(() => {
     queued = false;
     const page = host.closest("main");
     if (host.isConnected && page instanceof HTMLElement) refit(page);
@@ -176,8 +179,9 @@ function scheduleFit(host) {
  * @param {object} props
  * @param {string} props.id  the copy's id on the page
  * @param {ConvField} props.field
+ * @param {Clock} props.clock  the clock the fit pass is queued on
  */
-function Copy({ id, field }) {
+function Copy({ id, field, clock }) {
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
   const now = cuts.value;
   const cut = now.by[id];
@@ -185,8 +189,8 @@ function Copy({ id, field }) {
   // `now`, not only `cut`: the fit advances one pass per write to `cuts`, and a fresh key's write leaves every cut
   // where it was.
   useLayoutEffect(() => {
-    if (ref.current) scheduleFit(ref.current);
-  }, [now, cut, fit, field.value, field.prose, field.rest.length, field.more.length]);
+    if (ref.current) scheduleFit(ref.current, clock);
+  }, [now, cut, fit, clock, field.value, field.prose, field.rest.length, field.more.length]);
   const pop = `copy-${id}`;
   const shown = cut === undefined ? field.prose : wordsOf(field.prose).slice(0, cut).join(" ");
   const first =
@@ -222,14 +226,14 @@ function OpenField({ field }) {
 /**
  * One section's body for what runs.
  *
- * @param {{ section: SectionId }} props
+ * @param {{ section: SectionId, clock?: Clock }} props  the clock each copy's fit pass is queued on
  */
-export function Conversion({ section }) {
+export function Conversion({ section, clock = PLATFORM }) {
   const s = conversionSections()[section];
   /** @param {FieldId} id */
   const byId = (id) => s.fields.find((f) => f.id === id);
   /** @param {ConvField} f */
-  const copy = (f) => html`<${Copy} key=${`copy-${f.id}`} id=${`${section}-${f.id}`} field=${f} />`;
+  const copy = (f) => html`<${Copy} key=${`copy-${f.id}`} id=${`${section}-${f.id}`} field=${f} clock=${clock} />`;
   if (s.open.length > 1) {
     return s.open.map((id) => {
       const f = byId(id);
