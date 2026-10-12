@@ -7,7 +7,7 @@
 // components/faceplate/drawers/Speakers.js.
 
 import { computed, signal } from "@preact/signals";
-import { truthy } from "../../../lib/coerce.js";
+import { isBlank, num, truthy } from "../../../lib/coerce.js";
 import { effective, runningValue } from "../../resolve.js";
 import { enumPref } from "../../ui/prefs.js";
 import { applySpeakers, gateDiffers, gateDraft, speakers } from "../../matrix/speakers.js";
@@ -71,14 +71,8 @@ const [speakerSet, setSpeakerSet] = enumPref(
 /** Each channel's pending edits, by index as a string: exactly the overlay the POST takes. */
 const edits = signal(/** @type {Record<string, ChannelEdit>} */ ({}));
 
-/** @param {unknown} v */
-const num = (v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
-};
-
 /** @param {unknown} v  a form limit, absent where the input carried none */
-const limit = (v) => (v === undefined || v === null || v === "" ? undefined : num(v));
+const limit = (v) => (isBlank(v) ? undefined : num(v));
 
 /**
  * @param {FormChannel} c

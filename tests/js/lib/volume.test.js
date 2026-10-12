@@ -15,37 +15,10 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { clampVolume, num } from "../../../hqptuner/static/lib/volume.js";
+import { clampVolume } from "../../../hqptuner/static/lib/volume.js";
 
 // The handles' current positions, which every clamp is relative to.
 const CUR = { min: -60, startup: -20, max: 0 };
-
-// --- num: reading a form value ----------------------------------------------
-
-test("test_a_blank_value_falls_back_to_the_default", () => {
-  assert.equal(num("", -60), -60);
-});
-
-test("test_a_missing_value_falls_back_to_the_default", () => {
-  assert.equal(num(null, -60), -60);
-});
-
-test("test_an_undefined_value_falls_back_to_the_default", () => {
-  assert.equal(num(undefined, -60), -60);
-});
-
-test("test_a_non_numeric_value_falls_back_to_the_default", () => {
-  assert.equal(num("auto", -60), -60);
-});
-
-test("test_a_numeric_string_is_read_as_a_number", () => {
-  assert.equal(num("-12", -60), -12);
-});
-
-test("test_a_zero_is_kept_rather_than_replaced_by_the_default", () => {
-  // 0 dBFS is a legal setting, not an absent one
-  assert.equal(num("0", -60), 0);
-});
 
 // --- the min handle ----------------------------------------------------------
 

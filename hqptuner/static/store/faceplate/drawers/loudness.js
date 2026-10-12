@@ -9,7 +9,7 @@
 
 import { signal } from "@preact/signals";
 import { clampBounds, clampToAxis } from "../../../model/gauges/range-axis.js";
-import { num } from "../../../lib/coerce.js";
+import { isBlank, num } from "../../../lib/coerce.js";
 import { volumeShown } from "../../signals.js";
 import { effective, httpFieldMap, formFieldName, isDirty } from "../../resolve.js";
 import { schema as catalog } from "../../schema.js";
@@ -61,7 +61,7 @@ export function loudnessBar() {
   const d = /** @type {{ key: Side, value: number } | null} */ (draft.value);
   if (d) pair[d.key] = d.value;
   const v = volumeShown.value;
-  const needle = v == null || v === "" ? null : clampToAxis(num(v, 0), AXIS);
+  const needle = isBlank(v) ? null : clampToAxis(num(v, 0), AXIS);
   return { ...pair, needle, active: d ? d.key : null };
 }
 

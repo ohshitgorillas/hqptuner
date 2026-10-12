@@ -14,7 +14,8 @@ import { effective, isDirty, runningValue } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import { grayReason } from "../../ui/graying.js";
 import { fixedVolumeMode, isoLevel } from "../../schema/gray.js";
-import { AXIS_MAX, AXIS_MIN, clampVolume, num } from "../../../lib/volume.js";
+import { AXIS_MAX, AXIS_MIN, clampVolume } from "../../../lib/volume.js";
+import { wireNum } from "../../../lib/coerce.js";
 import { loudnessBounds } from "../volume.js";
 
 /** @typedef {import("../../schema/gray.js").FixedMode} FixedMode */
@@ -71,9 +72,9 @@ export async function pickFixedMode(v) {
 
 /** The three handles through the staged store; Max defaults to 0, Min to −60 and Startup to Min. */
 function trio() {
-  const max = num(effective("volume_max"), 0);
-  const min = num(effective("volume_min"), -60);
-  return { min, startup: num(effective("startup_volume"), min), max };
+  const max = wireNum(effective("volume_max"), 0);
+  const min = wireNum(effective("volume_min"), -60);
+  return { min, startup: wireNum(effective("startup_volume"), min), max };
 }
 
 /**
@@ -85,7 +86,7 @@ function trio() {
 function liveLevel() {
   const vr = volumeRange.value;
   if (!vr || !(vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true)) return null;
-  const db = num(volumeShown.value, NaN);
+  const db = wireNum(volumeShown.value, NaN);
   return Number.isNaN(db) ? null : Math.max(AXIS_MIN, Math.min(AXIS_MAX, db));
 }
 

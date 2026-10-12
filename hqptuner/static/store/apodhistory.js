@@ -27,6 +27,7 @@
 // for the two shapes it takes and how each was measured.
 import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
+import { num } from "../lib/coerce.js";
 import { engineStatus } from "./signals.js";
 
 const PLAYING = 2;
@@ -67,11 +68,6 @@ export const apodBins = computed(() => bins.value);
 
 /** How many bins have ever been recorded, counting past the window's slide. */
 export const apodBinSeq = computed(() => seq.value);
-
-const num = (/** @type {string | number | undefined | null} */ v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
 
 /**
  * @typedef {object} StatusFrame
@@ -141,10 +137,10 @@ export function initApodHistory() {
  */
 function isNewTrack(st, t) {
   if (st.track_serial !== t.serial) return true;
-  const apod = num(st.apod);
+  const apod = num(st.apod, null);
   if (apod !== null && t.apodPrev !== null && apod < t.apodPrev) return true;
-  const pos = num(st.position);
-  const prev = num(t.posPrev);
+  const pos = num(st.position, null);
+  const prev = num(t.posPrev, null);
   return pos !== null && prev !== null && pos < prev;
 }
 
@@ -180,14 +176,14 @@ function rollTrack(st) {
  * @returns {void}
  */
 function accumulate(st) {
-  const apod = num(st.apod) || 0;
+  const apod = num(st.apod);
   const t = track.peek();
   if (t.apodPrev === null) {
     track.value = { ...t, apodPrev: apod, posPrev: st.position };
     return;
   }
-  const pos = num(st.position);
-  const ms = playedMs(num(t.posPrev), pos);
+  const pos = num(st.position, null);
+  const ms = playedMs(num(t.posPrev, null), pos);
   if (ms <= 0 || pos === null) return;
   const n = Math.max(0, apod - t.apodPrev);
   const next = bins.peek().concat([{ ms, n, at: pos * 1000 }]);

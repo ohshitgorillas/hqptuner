@@ -11,20 +11,10 @@
 // which is a question about the daemon's contract and is worth stating (and
 // testing) on its own.
 
+import { wireNum } from "./coerce.js";
+
 export const AXIS_MIN = -120;
 export const AXIS_MAX = 12;
-
-/**
- * Read a form value as a number, keeping the caller's default for anything the
- * daemon may legitimately send as "no answer" — an empty box, a missing field,
- * or a non-numeric placeholder — so a blank never becomes NaN.
- * @param {string | number | boolean | null | undefined} v
- * @param {number} dflt
- * @returns {number}
- */
-export function num(v, dflt) {
-  return v === "" || v == null || Number.isNaN(Number(v)) ? dflt : Number(v);
-}
 
 /**
  * Clamp one handle against the axis, its own documented bound, and its
@@ -37,7 +27,7 @@ export function num(v, dflt) {
  * @returns {number}
  */
 export function clampVolume(which, v, { min, startup, max }) {
-  const n = Math.round(num(v, 0));
+  const n = Math.round(wireNum(v, 0));
   if (which === "min") return Math.max(AXIS_MIN, Math.min(n, 0, startup, max));
   if (which === "max") return Math.min(AXIS_MAX, Math.max(n, min, startup));
   return Math.max(min, Math.min(n, max)); // startup rides between the two

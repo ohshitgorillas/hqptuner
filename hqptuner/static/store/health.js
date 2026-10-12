@@ -11,6 +11,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { engineStatus } from "./signals.js";
 import { filterFacets } from "./narrow/facets.js";
 import { PLATFORM } from "../lib/clock.js";
+import { num } from "../lib/coerce.js";
 import { quietWindow } from "../model/shell/timing.js";
 
 /** @typedef {import("../lib/clock.js").Clock} Clock */
@@ -80,11 +81,6 @@ let prevClips = 0;
  *   it is; `text` is the wording, which nothing but the reader depends on.
  */
 
-const num = (/** @type {string | number | undefined} */ v) => {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-};
-
 // Slow-speed/baseline bookkeeping. Subscribes to engineStatus ONLY — internal
 // signals are peek()ed so the effect never re-triggers itself.
 //
@@ -112,7 +108,7 @@ export function initHealth(clock = PLATFORM) {
     if (!st) return;
     rebaseline(st);
     flashClips(st);
-    if (Number(st.state) === PLAYING && (num(st.output_fill) || 0) > 0 && !outputActive.peek()) {
+    if (Number(st.state) === PLAYING && num(st.output_fill) > 0 && !outputActive.peek()) {
       outputActive.value = true; // this output populates a buffer — latch for the track
     }
     const below = belowThresholds(st);
@@ -136,9 +132,9 @@ export function initHealth(clock = PLATFORM) {
 function rebaseline(st) {
   const t = track.peek();
   if (st.track_serial === t.serial) return;
-  track.value = { serial: st.track_serial, clips0: num(st.clips) || 0, apod0: num(st.apod) || 0 };
+  track.value = { serial: st.track_serial, clips0: num(st.clips), apod0: num(st.apod) };
   outputActive.value = false; // re-prove the buffer applies on each new track
-  prevClips = num(st.clips) || 0;
+  prevClips = num(st.clips);
 }
 
 /**
@@ -146,7 +142,7 @@ function rebaseline(st) {
  * @returns {void}
  */
 function flashClips(st) {
-  const clips = num(st.clips) || 0;
+  const clips = num(st.clips);
   const f = clipFlash.peek();
   if (clips > prevClips) clipFlash.value = { seq: f.seq + 1, level: 1 };
   else if (f.level !== 0) clipFlash.value = { seq: f.seq, level: 0 };
@@ -184,7 +180,7 @@ function markSlow(sev, on) {
 
 // A usable speed figure. 0 and negatives mean "no reading", not "infinitely
 // slow", so they start the wait over rather than tripping it.
-const usableSpeed = (/** @type {number} */ sp) => sp !== null && sp > 0;
+const usableSpeed = (/** @type {number} */ sp) => sp > 0;
 
 /**
  * @param {StatusFrame} st
@@ -192,8 +188,8 @@ const usableSpeed = (/** @type {number} */ sp) => sp !== null && sp > 0;
  */
 function belowThresholds(st) {
   const playing = Number(st.state) === PLAYING;
-  // an unreadable speed is 0, which usableSpeed rejects exactly as the null did
-  const sp = num(st.process_speed) ?? 0;
+  // an unreadable speed reads as 0, which usableSpeed rejects
+  const sp = num(st.process_speed);
   const speedOk = playing && usableSpeed(sp);
   return {
     warn: speedOk && sp < SPEED_WARN,
@@ -208,8 +204,8 @@ export const trackCounters = computed(() => {
   const t = track.value;
   if (!st) return { clips: 0, apod: 0 };
   return {
-    clips: Math.max(0, (num(st.clips) || 0) - t.clips0),
-    apod: Math.max(0, (num(st.apod) || 0) - t.apod0),
+    clips: Math.max(0, num(st.clips) - t.clips0),
+    apod: Math.max(0, num(st.apod) - t.apod0),
   };
 });
 
@@ -277,7 +273,7 @@ export const engineAlerts = computed(() => {
   const s = slow.value;
   const counters = trackCounters.value;
   return [
-    speedAlert(s, num(st.process_speed) ?? 0),
+    speedAlert(s, num(st.process_speed)),
     clipAlert(counters.clips),
     apodAlert(counters.apod, st.active_filter),
   ].filter(Boolean);

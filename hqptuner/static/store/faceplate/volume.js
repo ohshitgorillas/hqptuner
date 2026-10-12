@@ -14,7 +14,7 @@ import { volume, volumeDrag, volumeRange, volumeShown } from "../signals.js";
 import { runningValue } from "../resolve.js";
 import { setVolume } from "../actions.js";
 import { directSdm, fixedVolumeMode, isoLevel } from "../schema/gray.js";
-import { num, truthy } from "../../lib/coerce.js";
+import { truthy, wireNum } from "../../lib/coerce.js";
 import { PLATFORM } from "../../lib/clock.js";
 import { revertAfter } from "../../model/shell/timing.js";
 import { dbText, directPin, fixedPin, loudSpan, volumeView } from "../../model/gauges/volume.js";
@@ -30,14 +30,6 @@ const FULL = { min: -60, max: 0 }; // dBFS, the daemon's own range
 const SEND_EVERY = 100; // ms, the least time between two writes
 /** The level a collapsed running range pins: nothing attenuated. @type {Pin} */
 const BYPASS = { level: 0, level_txt: dbText(0), text: dbText(0) };
-
-/**
- * A wire number, `d` for an absent or empty one (`num` alone reads null as 0).
- *
- * @param {unknown} v
- * @param {number} d
- */
-const wireNum = (v, d) => (v == null || v === "" ? d : num(v, d));
 
 /**
  * The range the level moves over, and its step.
