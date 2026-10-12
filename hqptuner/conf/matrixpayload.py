@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import json
 import re
+from enum import Enum, auto
 from typing import Any, NamedTuple
 
 from hqptuner.conf.xmledit import GroundingError
 
 _GAIN_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _MAX_CHANNELS = 128
-_NAME_MAX = 128
-_FIRST_PRINTABLE = 0x20  # anything below is a control character the config XML cannot carry
+PROFILE_NAME_MAX = 128
+FIRST_PRINTABLE = 0x20  # anything below is a control character
 
 
 class RowNotObjectError(GroundingError):
@@ -94,7 +95,7 @@ class NameEmptyError(GroundingError):
 
 
 class NameTooLongError(GroundingError):
-    """A staged profile name exceeded ``_NAME_MAX`` characters."""
+    """A staged profile name exceeded ``PROFILE_NAME_MAX`` characters."""
 
     def __init__(self, *, limit: int) -> None:
         """Render the wording naming the length limit that was exceeded."""
@@ -165,7 +166,7 @@ def _validate_row(row: object) -> dict[str, str]:
     if unit not in ("dB", "Lin"):
         raise RowBadGainUnitError(unit=unit)
     process = str(row.get("process", ""))
-    if any(ord(c) < _FIRST_PRINTABLE for c in process):
+    if any(ord(c) < FIRST_PRINTABLE for c in process):
         raise RowControlCharsError()
     return {"source": str(source), "gain": gain, "gainunit": unit, "mixdown": str(mixdown), "process": process}
 
@@ -181,6 +182,43 @@ def rows_from_list(raw: object, field: str) -> list[dict[str, str]]:
     return [_validate_row(r) for r in raw]
 
 
+class NameFault(Enum):
+    """The rule a profile name broke."""
+
+    NOT_STRING = auto()
+    EMPTY = auto()
+    TOO_LONG = auto()
+    CONTROL_CHARS = auto()
+
+
+class NameCheck(NamedTuple):
+    """A checked profile name: the name with surrounding whitespace stripped, and the rule it broke, if any.
+
+    ``cleaned`` is empty when the name was not a string at all.
+    """
+
+    cleaned: str
+    fault: NameFault | None
+
+
+def check_profile_name(name: object) -> NameCheck:
+    """Strip ``name`` and report the first rule it breaks: not a string, empty, too long, then control characters.
+
+    A profile name also keys its stored description, so the descriptions store applies this same check and raises
+    its own errors for each fault.
+    """
+    if not isinstance(name, str):
+        return NameCheck("", NameFault.NOT_STRING)
+    cleaned = name.strip()
+    if not cleaned:
+        return NameCheck(cleaned, NameFault.EMPTY)
+    if len(cleaned) > PROFILE_NAME_MAX:
+        return NameCheck(cleaned, NameFault.TOO_LONG)
+    if any(ord(c) < FIRST_PRINTABLE for c in cleaned):
+        return NameCheck(cleaned, NameFault.CONTROL_CHARS)
+    return NameCheck(cleaned, None)
+
+
 def validate_name(name: object) -> str:
     """Return a profile name fit for an XML attribute.
 
@@ -188,16 +226,18 @@ def validate_name(name: object) -> str:
     empty or control-character name would produce a profile nothing can address
     again.
     """
-    if not isinstance(name, str):
-        raise NameNotStringError()
-    cleaned: str = name.strip()
-    if not cleaned:
-        raise NameEmptyError()
-    if len(cleaned) > _NAME_MAX:
-        raise NameTooLongError(limit=_NAME_MAX)
-    if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
-        raise NameControlCharsError()
-    return cleaned
+    cleaned, fault = check_profile_name(name)
+    match fault:
+        case NameFault.NOT_STRING:
+            raise NameNotStringError()
+        case NameFault.EMPTY:
+            raise NameEmptyError()
+        case NameFault.TOO_LONG:
+            raise NameTooLongError(limit=PROFILE_NAME_MAX)
+        case NameFault.CONTROL_CHARS:
+            raise NameControlCharsError()
+        case None:
+            return cleaned
 
 
 def _validate_targets(raw: dict[str, Any], field: str) -> list[str]:

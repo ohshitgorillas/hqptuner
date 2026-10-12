@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
 from hqptuner.clock import utc_now
+from hqptuner.conf.matrixpayload import FIRST_PRINTABLE, PROFILE_NAME_MAX, NameFault, check_profile_name
 from hqptuner.config import DESCRIPTION_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -38,16 +39,13 @@ if TYPE_CHECKING:
 _SCHEMA = 1
 
 # Ceilings on what a client may store. A description is a paragraph about a measurement, not a document; the profile
-# ceiling matches the daemon's 128-channel matrix with room to spare, and the name ceiling is the one
-# the profile element's own name validation enforces.
+# ceiling matches the daemon's 128-channel matrix with room to spare.
 _MAX_TEXT = 2000
 _MAX_PROFILES = 256
-_MAX_NAME_LEN = 128
 
 # Control characters the text may carry. Everything below 0x20 is refused except these two, which are what a pasted
 # measurement header is made of.
 _KEPT_CONTROLS = ("\n", "\t")
-_FIRST_PRINTABLE = 0x20
 
 
 class DescriptionEntry(TypedDict):
@@ -97,7 +95,7 @@ class NameEmptyError(DescriptionError):
 
 
 class NameTooLongError(DescriptionError):
-    """A staged profile name exceeded ``_MAX_NAME_LEN`` characters."""
+    """A staged profile name exceeded ``PROFILE_NAME_MAX`` characters."""
 
     def __init__(self, *, limit: int, name: str) -> None:
         """Render the wording naming the length limit and the (already-truncated) offending name."""
@@ -162,14 +160,16 @@ class CarriedNotAStoreError(DescriptionError):
 
 def _validate_name(name: object) -> str:
     """Return a profile name fit to key an entry, raising ``DescriptionError`` when it is not one."""
-    if not isinstance(name, str) or not name.strip():
-        raise NameEmptyError()
-    cleaned = name.strip()
-    if len(cleaned) > _MAX_NAME_LEN:
-        raise NameTooLongError(limit=_MAX_NAME_LEN, name=cleaned[:40])
-    if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
-        raise NameControlCharsError(name=cleaned[:40])
-    return cleaned
+    cleaned, fault = check_profile_name(name)
+    match fault:
+        case NameFault.NOT_STRING | NameFault.EMPTY:
+            raise NameEmptyError()
+        case NameFault.TOO_LONG:
+            raise NameTooLongError(limit=PROFILE_NAME_MAX, name=cleaned[:40])
+        case NameFault.CONTROL_CHARS:
+            raise NameControlCharsError(name=cleaned[:40])
+        case None:
+            return cleaned
 
 
 def _validate_text(text: object) -> str:
@@ -181,7 +181,7 @@ def _validate_text(text: object) -> str:
         raise TextNotStringError()
     if len(text) > _MAX_TEXT:
         raise TextTooLongError(limit=_MAX_TEXT, length=len(text))
-    if any(ord(c) < _FIRST_PRINTABLE and c not in _KEPT_CONTROLS for c in text):
+    if any(ord(c) < FIRST_PRINTABLE and c not in _KEPT_CONTROLS for c in text):
         raise TextControlCharsError()
     return text
 
