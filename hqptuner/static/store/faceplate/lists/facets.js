@@ -5,6 +5,7 @@
 // pick would leave: the running chain's 1x and Nx filter lists through the narrowing preview count (store/narrow/match.js), or a shaper list.
 
 import { batch } from "@preact/signals";
+import { sameJson } from "../../../lib/samejson.js";
 import {
   APOD_1X_DEFAULT,
   APOD_NX_DEFAULT,
@@ -141,8 +142,7 @@ export function resetFacets(keys) {
  * @param {string[]} keys
  * @returns {boolean}
  */
-export const facetsMoved = (keys) =>
-  keys.some((k) => FACETS[k] && JSON.stringify(FACETS[k][0].value) !== JSON.stringify(FACETS[k][1]));
+export const facetsMoved = (keys) => keys.some((k) => FACETS[k] && !sameJson(FACETS[k][0].value, FACETS[k][1]));
 
 /** The matching selection's key for each console key that applies at both stages. @type {Record<string, string>} */
 const SELECTION_KEY = {

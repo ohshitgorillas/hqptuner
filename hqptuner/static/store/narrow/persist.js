@@ -12,6 +12,7 @@ import { signal, effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
 import { PLATFORM } from "../../lib/clock.js";
+import { sameJson } from "../../lib/samejson.js";
 import { quietWindow } from "../../model/shell/timing.js";
 import {
   nGenre,
@@ -107,7 +108,7 @@ function snapshot() {
  * @returns {string[]}
  */
 function changedKeys(snap) {
-  return FACETS.map(([key]) => key).filter((key) => JSON.stringify(snap[key]) !== JSON.stringify(lastSent[key]));
+  return FACETS.map(([key]) => key).filter((key) => !sameJson(snap[key], lastSent[key]));
 }
 
 /**

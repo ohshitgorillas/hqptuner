@@ -4,6 +4,7 @@
 // The write paths that need a snapshot at once pull it over REST instead.
 
 import { api } from "../lib/api.js";
+import { sameJson } from "../lib/samejson.js";
 import {
   lastApply,
   health,
@@ -54,7 +55,7 @@ const data = (/** @type {Payload} */ r) => r.data;
  * @param {unknown} next
  */
 function assignChanged(sig, next) {
-  if (JSON.stringify(next) !== JSON.stringify(sig.value)) sig.value = next;
+  if (!sameJson(next, sig.value)) sig.value = next;
 }
 
 /**
