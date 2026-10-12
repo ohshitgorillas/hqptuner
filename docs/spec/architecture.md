@@ -245,7 +245,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `daemon_write_failed` | 502 | a write to hqplayerd failed |
 | `daemon_unavailable` | 503 | 4321 not connected, timed out, or answered unparseably |
 | `daemon_refused` | 503 | daemon answered `result="Error"` |
-| `not_found` | 404 | no preset, profile, action or library under that name |
+| `not_found` | 404 | no preset, profile or library under that name |
 | `name_invalid` | 422 | a preset name the shared name rule rejects |
 | `invalid_input` | 422 | a value a store or the config editor rejects |
 | `nothing_staged` | 400 | apply with nothing to apply |

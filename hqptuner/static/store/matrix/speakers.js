@@ -12,7 +12,6 @@ import { errText } from "../../lib/errtext.js";
 import { duringEngineWrite } from "../enginewrite.js";
 
 export const speakers = signal(null); // {enabled, channels:[{index,label,level,distance,...}]}
-const speakersStale = signal(false);
 export const speakersError = signal("");
 export const speakersBusy = signal(false);
 
@@ -47,12 +46,11 @@ function fail(e) {
   speakersError.value = errText(e);
 }
 
-/** Read the daemon's /speakers form into the store, recording staleness or failure. */
+/** Read the daemon's /speakers form into the store, recording any failure. */
 export async function loadSpeakers() {
   try {
     const r = await api.speakers();
     speakers.value = r.data;
-    speakersStale.value = !!r.stale;
     speakersError.value = "";
   } catch (e) {
     fail(e);
@@ -77,7 +75,6 @@ export async function applySpeakers(enabled, channels) {
     // lifecycle, which keeps the brand knob on Applying… across it rather than Unreachable.
     const { report: r } = await duringEngineWrite(() => api.applySpeakers({ enabled: !!enabled, channels }));
     if (r.speakers) speakers.value = r.speakers;
-    speakersStale.value = false;
     // The lane verifies by reading /speakers back past the reload; an unverified
     // apply is reported rather than dressed up as success.
     if (!r.applied) speakersError.value = "applied, but the daemon did not confirm the new values — check below";

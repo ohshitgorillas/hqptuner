@@ -48,7 +48,7 @@ function select(p) {
 }
 
 /** Drops the picked library profile. */
-export function clearLibrarySelection() {
+function clearLibrarySelection() {
   libSel.value = null;
 }
 

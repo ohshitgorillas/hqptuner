@@ -1815,19 +1815,14 @@
         "type": "object"
       },
       "MatrixProfileBody": {
-        "description": "Carry the verb and profile name for ``POST /api/matrix/profile``, the live matrix-profile switch.",
+        "description": "Carry the profile name for ``POST /api/matrix/profile``, the live matrix-profile switch.",
         "properties": {
-          "action": {
-            "title": "Action",
-            "type": "string"
-          },
           "name": {
             "default": "",
             "title": "Name",
             "type": "string"
           }
         },
-        "required": ["action"],
         "title": "MatrixProfileBody",
         "type": "object"
       },
@@ -2772,137 +2767,62 @@
         "type": "object"
       },
       "Snapshot_ConfigView_": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/ConfigView"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
       "Snapshot_MatrixReport_": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MatrixReport"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
       "Snapshot_MergedEnums_": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/MergedEnums"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
       "Snapshot_SpeakersForm_": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/SpeakersForm"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
       "Snapshot_StatusReport_": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "$ref": "#/components/schemas/StatusReport"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
       "Snapshot_dict_str__Union_str__NoneType___": {
-        "description": "Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded.",
+        "description": "Last-loaded state.",
         "properties": {
           "data": {
             "additionalProperties": {
@@ -2917,24 +2837,9 @@
             },
             "title": "Data",
             "type": "object"
-          },
-          "loaded_at": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Loaded At"
-          },
-          "stale": {
-            "title": "Stale",
-            "type": "boolean"
           }
         },
-        "required": ["stale", "loaded_at", "data"],
+        "required": ["data"],
         "title": "Snapshot",
         "type": "object"
       },
@@ -4335,7 +4240,7 @@
     },
     "/api/matrix": {
       "get": {
-        "description": "Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.\n\nServed from the last-loaded form snapshot, stale-flagged when the daemon is unreachable \u2014 never a socket wait.",
+        "description": "Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.\n\nServed from the last-loaded form snapshot, never a socket wait.",
         "operationId": "matrix_api_matrix_get",
         "responses": {
           "200": {
@@ -4694,7 +4599,7 @@
     },
     "/api/speakers": {
       "get": {
-        "description": "Speaker-processing read model (readme \u00a71.9): enabled + per-channel level (dBFS) / distance (cm).\n\nServed from the last-loaded form snapshot, stale-flagged when the daemon is unreachable \u2014 never a socket wait\n(fail-fast, see deps).",
+        "description": "Speaker-processing read model (readme \u00a71.9): enabled + per-channel level (dBFS) / distance (cm).\n\nServed from the last-loaded form snapshot, never a socket wait (fail-fast, see deps).",
         "operationId": "speakers_api_speakers_get",
         "responses": {
           "200": {
@@ -4750,7 +4655,7 @@
     },
     "/api/state": {
       "get": {
-        "description": "Return the daemon's last State frame with the engine's active filter/shaper chain folded in.\n\nStale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.",
+        "description": "Return the daemon's last State frame with the engine's active filter/shaper chain folded in.\n\nServed from the last-loaded copy, reachable daemon or not; 503 until the first frame has landed.",
         "operationId": "state_api_state_get",
         "responses": {
           "200": {

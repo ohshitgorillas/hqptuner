@@ -120,11 +120,11 @@ test("test_a_saved_name_the_engine_did_not_load_is_disabled", () => {
   );
 });
 
-test("test_a_switch_posts_the_name_to_the_profile_route", async () => {
+test("test_a_switch_sends_only_the_picked_profiles_name", async () => {
   await switchProfile("Desk");
   assert.deepEqual(
     sent("POST", "/api/matrix/profile").map((c) => c.body),
-    [{ action: "switch", name: "Desk" }],
+    [{ name: "Desk" }],
   );
 });
 

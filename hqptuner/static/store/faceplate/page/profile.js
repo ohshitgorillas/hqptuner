@@ -63,7 +63,7 @@ export async function switchProfile(name) {
   busy.value = true;
   error.value = "";
   try {
-    await api.matrixProfile("switch", name);
+    await api.matrixProfile(name);
     await refreshConfig();
   } catch (e) {
     error.value = errText(e);

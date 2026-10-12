@@ -197,7 +197,7 @@ def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
         file={**(manager.readings.file_config or {}), **overrides.live_overrides(manager)},
         device_caps=manager.readings.device_caps,
     )
-    return deps.snapshot(manager, view)
+    return deps.snapshot(view)
 
 
 # `:path` rather than the default convertor, which is `[^/]+` and so cannot match

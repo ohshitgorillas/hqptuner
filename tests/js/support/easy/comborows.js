@@ -36,24 +36,6 @@ export const classTokens = (vnode) => {
 };
 
 /**
- * Every clickable vnode strictly inside a subtree (never the subtree root).
- *
- * @param {unknown} node
- * @param {VNode[]} [found]
- * @returns {VNode[]}
- */
-export function clickablesIn(node, found = []) {
-  if (Array.isArray(node)) {
-    for (const kid of node) clickablesIn(kid, found);
-    return found;
-  }
-  if (!node || typeof node !== "object" || !("props" in node) || !node.props) return found;
-  const vnode = /** @type {VNode} */ (node);
-  if (typeof vnode.props.onClick === "function") found.push(vnode);
-  return clickablesIn(vnode.props.children, found);
-}
-
-/**
  * Fire a vnode's own click handler, with the event a pointer would bring.
  *
  * @param {VNode} vnode

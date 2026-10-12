@@ -101,21 +101,16 @@ Static = Annotated[StaticMetadata, Depends(static_of)]
 
 @dataclass(frozen=True)
 class Snapshot[T]:
-    """Last-loaded state, flagged stale when the daemon is unreachable, with when it was loaded."""
+    """Last-loaded state."""
 
-    stale: bool
-    loaded_at: float | None
     data: T
 
 
-def snapshot[T](manager: ConnectionManager, data: T | None) -> Snapshot[T]:
-    """Serve last-loaded state, flagged stale when the daemon is unreachable.
-
-    Never a socket wait (connection-manager fail-fast rule).
-    """
+def snapshot[T](data: T | None) -> Snapshot[T]:
+    """Wrap last-loaded state as a route's answer, refusing while nothing has loaded."""
     if data is None:
         raise refuse(NotLoadedError())
-    return Snapshot(not manager.reachable, manager.readings.loaded_at, data)
+    return Snapshot(data)
 
 
 @dataclass(frozen=True)

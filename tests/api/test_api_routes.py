@@ -7,10 +7,8 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
-import fake_control
 import pytest
-from apps import advance_app, app_manager, live_app, wait_for_api
-from conftest import spawn_threaded_daemon
+from apps import wait_for_api
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -47,29 +45,6 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
     with TestClient(create_app(cfg, VirtualClock())) as client:
         wait_for_api(client, _config_loaded)
         yield client
-
-
-# --- live snapshots (4321 lane) ----------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("lane_down", "stale"),
-    [pytest.param(False, False, id="reachable"), pytest.param(True, True, id="unreachable")],
-)
-def test_state_is_stale_only_once_the_manager_stops_being_reachable(
-    tmp_path: Path, *, lane_down: bool, stale: bool
-) -> None:
-    control_state = dict(fake_control.DEFAULTS)
-    daemon = spawn_threaded_daemon(state=control_state)
-    app = live_app(next(daemon), tmp_path)
-    client = next(app)
-    if lane_down:
-        fake_control.take_lane_down(control_state)
-    advance_app(client, app_manager(client).cfg.poll_interval)
-    reported = client.get("/api/state").json()["stale"]
-    next(app, None)
-    next(daemon, None)
-    assert reported is stale
 
 
 # --- which chain's controls are live-adjustable -------------------------------

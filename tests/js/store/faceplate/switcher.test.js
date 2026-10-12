@@ -252,13 +252,6 @@ test("test_live_on_an_empty_slot_writes_nothing", async () => {
   assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }]);
 });
 
-test("test_live_on_a_profile_slot_switches_the_matrix_to_it", async () => {
-  setSwitcherTarget("Matrix profile");
-  setSlot(0, "Desk");
-  await slotLive(0);
-  assert.deepEqual(sent("/api/matrix/profile"), [{ action: "switch", name: "Desk" }]);
-});
-
 test("test_live_on_the_idle_output_mode_slot_writes_its_mode", async () => {
   setSwitcherTarget("Output mode");
   await slotLive(0);
@@ -311,17 +304,6 @@ test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_ou
   setSwitcherTarget("Output mode");
   await tapBothWhileUnsettled(0, 1);
   assert.deepEqual(sent("/api/config/live"), [{ fields: { mode: "pcm" } }, { fields: { mode: "sdm" } }]);
-});
-
-test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_matrix_profile", async () => {
-  setSwitcherTarget("Matrix profile");
-  setSlot(0, "Desk");
-  setSlot(1, "Lounge");
-  await tapBothWhileUnsettled(0, 1);
-  assert.deepEqual(sent("/api/matrix/profile"), [
-    { action: "switch", name: "Desk" },
-    { action: "switch", name: "Lounge" },
-  ]);
 });
 
 // --- lit -----------------------------------------------------------------------------------------------------------

@@ -267,7 +267,7 @@ async function write(name) {
   meta.value = { ...meta.value, name };
   base = { meta: meta.value, sig: sigNow() };
   if (!live) return;
-  await api.matrixProfile("switch", name);
+  await api.matrixProfile(name);
   await refreshConfig();
 }
 

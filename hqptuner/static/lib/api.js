@@ -1,5 +1,5 @@
 // Thin REST wrappers over the Phase 2/3 backend. Read endpoints that serve a
-// daemon snapshot wrap it as {stale, loaded_at, data}; health/metadata/pending
+// daemon snapshot wrap it as {data}; health/metadata/pending
 // return their payload directly. Callers unwrap via `.data` where noted.
 
 // Every backend error carries FastAPI's `{"detail": "..."}` — the sentence that
@@ -284,9 +284,7 @@ export const api = {
   preset: (/** @type {string} */ name) => getJSON(`/api/preset/${encodeURIComponent(name)}`),
   autoeq: () => getJSON("/api/autoeq"),
   uploadFilter: (/** @type {File} */ file) => upload("/api/matrix/filter", "file", file),
-  matrixProfile: (/** @type {string} */ action, /** @type {string} */ name) =>
-    send("/api/matrix/profile", "POST", { action, name }),
-  volume: () => getJSON("/api/volume"),
+  matrixProfile: (/** @type {string} */ name) => send("/api/matrix/profile", "POST", { name }),
   setVolume: (/** @type {string | number} */ level) => send("/api/volume", "POST", { level: String(level) }),
   log: (/** @type {number} */ lines = 50) => getJSON(`/api/log?lines=${lines}`),
 };

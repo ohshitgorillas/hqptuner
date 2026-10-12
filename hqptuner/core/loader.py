@@ -95,7 +95,7 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     readings.enums = enums
     readings.matrix_profiles = matrix_profiles
     _reconcile_live(mgr)
-    readings.loaded_at = readings.connected_at = mgr.clock.now().timestamp()
+    readings.connected_at = mgr.clock.now().timestamp()
     mgr.reachable = True
     mgr.unreachable_since = None
     return info
@@ -234,7 +234,6 @@ async def poll(mgr: "ConnectionManager") -> None:
     # lanes sleeps on `changed`. Without an edge here that wait would be satisfied in
     # fact and slept through to its deadline.
     mgr.changed.set()
-    readings.loaded_at = mgr.clock.now().timestamp()
 
 
 async def poll_status(mgr: "ConnectionManager") -> None:

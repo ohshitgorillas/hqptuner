@@ -114,7 +114,7 @@ async def clear_dropped_settings(manager: Mgr) -> None:
 def state(manager: Mgr) -> deps.Snapshot[dict[str, str | None]]:
     """Return the daemon's last State frame with the engine's active filter/shaper chain folded in.
 
-    Stale-flagged from the last-loaded copy while the daemon is unreachable; 503 until the first frame has landed.
+    Served from the last-loaded copy, reachable daemon or not; 503 until the first frame has landed.
     """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
     # engine currently has loaded (chain.active_chain — the configured mode when
@@ -123,7 +123,7 @@ def state(manager: Mgr) -> deps.Snapshot[dict[str, str | None]]:
     # without duplicating that State/Status fallback in JS.
     live = manager.readings.state
     data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
-    return deps.snapshot(manager, data)
+    return deps.snapshot(data)
 
 
 @router.get("/status")
@@ -156,7 +156,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
         metering=manager.metering is not None,
         advisor=advisor,
     )
-    return deps.snapshot(manager, report)
+    return deps.snapshot(report)
 
 
 @router.get("/enumerations")
@@ -175,7 +175,7 @@ def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> d
     mode_name = engineread.current_mode_name(manager)
     merged = merge_enumerations(manager.readings.enums, static, mode_name)
     mode = ModeInfo(index=(manager.readings.state or {}).get("mode"), name=mode_name)
-    return deps.snapshot(manager, replace(merged, mode=mode))
+    return deps.snapshot(replace(merged, mode=mode))
 
 
 @router.get("/metadata")

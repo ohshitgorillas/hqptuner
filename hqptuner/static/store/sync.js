@@ -23,7 +23,7 @@ const PUSH = "/api/push";
 /**
  * @typedef {{ data?: unknown }} Payload
  *   What a snapshot route answers with. Most wrap their snapshot as
- *   `{stale, loaded_at, data}`; health/metadata/pending answer raw, which is
+ *   `{data}`; health/metadata/pending answer raw, which is
  *   what `unwrap` selects between.
  */
 

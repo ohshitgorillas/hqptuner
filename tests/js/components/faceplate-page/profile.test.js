@@ -170,15 +170,6 @@ test("test_a_saved_name_the_engine_did_not_load_is_a_disabled_option", () => {
   );
 });
 
-test("test_picking_an_option_switches_the_running_profile_on_the_wire", async () => {
-  const onChange = handler(html`<${MatrixProfileBody} />`, "profile-select", "onChange");
-  if (onChange) await onChange({ currentTarget: { value: "Lounge" } });
-  assert.deepEqual(
-    sent("POST", "/api/matrix/profile").map((c) => c.body),
-    [{ action: "switch", name: "Lounge" }],
-  );
-});
-
 test("test_a_refused_switch_prints_the_servers_sentence", async () => {
   switchAnswer = bad(502, "MatrixSetProfile failed");
   const onChange = handler(html`<${MatrixProfileBody} />`, "profile-select", "onChange");

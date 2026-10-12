@@ -47,7 +47,7 @@ def changed() -> asyncio.Event:
 @pytest.fixture
 async def feed(probe: Probe, clock: VirtualClock, changed: asyncio.Event) -> AsyncIterator[PushFeed]:
     """The feed on `probe`'s one event, its loop running and idle on `clock`."""
-    built = PushFeed([Source(NAME, probe.read, snapshot=False)])
+    built = PushFeed([Source(NAME, probe.read)])
     task = clock.spawn(built.run(clock, changed))
     await clock.idle()
     yield built

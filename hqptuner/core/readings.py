@@ -73,9 +73,8 @@ class Readings:
     # Saved matrix profile names from the live 4321 lane (MatrixListProfiles —
     # unauthenticated, no reload). The active one is State.matrix_profile.
     matrix_profiles: list[str] | None = None
-    loaded_at: float | None = None
     # When the control connection standing now was made: stamped by the connect's
-    # handshake only, so heartbeat polls, which move `loaded_at`, leave it alone.
+    # handshake only; heartbeat polls leave it alone.
     connected_at: float | None = None
     # Running config read from the config FILE (the /backup archive's working
     # hqplayerd.xml), in form-field terms. The /config form is lossy for

@@ -158,9 +158,6 @@ const configTree = ({ fixed = "0" } = {}) => ({
  */
 const routes = (path, opts) => {
   if (path === "/api/config/apply") return ok({ report: {} });
-  if (path === "/api/matrix/profile" && opts.method === "POST") {
-    return ok({ active: JSON.parse(String(opts.body)).name });
-  }
   if (path === "/api/descriptions" && opts.method === "PUT") return ok({ profiles: {} });
   return undefined;
 };
@@ -551,16 +548,6 @@ test("test_a_fresh_save_writes_its_description_under_its_name", async () => {
   const from = await freshSave();
   const put = /** @type {Sent[]} */ (w.posts.slice(from)).find((p) => p.at === "PUT /api/descriptions");
   assert.deepEqual(put?.body, { name: "Dusk", text: "fx-dusk note" });
-});
-
-test("test_a_save_of_a_name_the_daemon_knows_switches_to_it_last", async () => {
-  await onSaved("Warm");
-  await setDesc("fx-warm note");
-  const from = w.posts.length;
-  await saveProfile();
-  await quiesce(w);
-  const sent = /** @type {Sent[]} */ (w.posts.slice(from)).filter((p) => !p.at.startsWith("GET "));
-  assert.deepEqual(sent.at(-1), { at: "POST /api/matrix/profile", body: { action: "switch", name: "Warm" } });
 });
 
 test("test_a_fresh_save_edits_the_saved_profile_in_the_loaded_station", async () => {

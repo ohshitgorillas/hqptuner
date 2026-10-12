@@ -103,7 +103,7 @@ def _parse_file_profiles(raw: str) -> dict[str, StoredProfile]:
 def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
     """Return the Matrix tab's read model: the /matrix form plus the live, file-saved, and per-preset profile lists.
 
-    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait.
+    Served from the last-loaded form snapshot, never a socket wait.
     """
     form = deps.ensure_form(manager.readings.matrix_form, manager.readings.matrix_error)
     # form-derived shape (fields/rows/profiles/active) plus the live 4321 lane:
@@ -114,7 +114,6 @@ def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
     # daemon's own list (live_profiles) holds what it read at startup, so the
     # picker shows the union and only a name in live_profiles can switch live.
     return deps.snapshot(
-        manager,
         MatrixReport(
             fields=form["fields"],
             rows=form["rows"],
@@ -141,16 +140,6 @@ _NO_TRACK = "GetTrackFile"
 _NO_TRACK_MESSAGE = "Live playback is needed to load a matrix profile."
 
 
-class UnknownMatrixProfileActionError(ErrorBody):
-    """``POST /api/matrix/profile`` named a verb this route does not have."""
-
-    code = "not_found"
-
-    def __init__(self, *, action: str) -> None:
-        """Render the wording naming the unrecognized ``action``."""
-        super().__init__(f"unknown matrix profile action: {action}")
-
-
 class MatrixSwitchRefusedError(ControlFailedError):
     """The daemon refused a live matrix profile switch; the known no-track case is translated, alone."""
 
@@ -166,9 +155,8 @@ class MatrixSwitchRefusedError(ControlFailedError):
 
 
 class MatrixProfileBody(BaseModel):
-    """Carry the verb and profile name for ``POST /api/matrix/profile``, the live matrix-profile switch."""
+    """Carry the profile name for ``POST /api/matrix/profile``, the live matrix-profile switch."""
 
-    action: str  # switch — the only verb this route has (4321, live)
     name: str = ""  # empty = the unnamed [Default]
 
 
@@ -185,8 +173,6 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfile
     does not persist profiles itself. The client stages the loaded
     profile's rows alongside this call, so a load is live AND persists.
     """
-    if body.action != "switch":
-        raise refuse(UnknownMatrixProfileActionError(action=body.action))
     try:
         return await matrixlane.switch_profile(manager, body.name)
     except ControlError as exc:
@@ -197,11 +183,10 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfile
 def speakers(manager: HttpMgr) -> deps.Snapshot[SpeakersForm]:
     """Speaker-processing read model (readme §1.9): enabled + per-channel level (dBFS) / distance (cm).
 
-    Served from the last-loaded form snapshot, stale-flagged when the daemon is unreachable — never a socket wait
-    (fail-fast, see deps).
+    Served from the last-loaded form snapshot, never a socket wait (fail-fast, see deps).
     """
     form = deps.ensure_form(manager.readings.speakers_form, manager.readings.speakers_error)
-    return deps.snapshot(manager, form)
+    return deps.snapshot(form)
 
 
 class SpeakersBody(BaseModel):

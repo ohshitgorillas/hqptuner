@@ -1,9 +1,8 @@
 """The page's push stream: the read snapshots it would otherwise poll, as server-sent events sent again on change.
 
 Each event is named for its route and carries that route's JSON body: ``health``, ``state``, ``status``, ``volume``,
-``enumerations``, ``config``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves.
-For the routes answering a ``deps.Snapshot`` the content is its ``data`` member, since ``loaded_at`` moves on every
-poll pass; for the other three it is the whole body. A body its route would refuse is withheld, and the text held for
+``enumerations``, ``config``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves;
+every event's content is its whole body. A body its route would refuse is withheld, and the text held for
 it forgotten, so the next body that route answers goes out however it compares with the last one sent.
 
 While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``) and whenever the
@@ -47,11 +46,10 @@ KEEPALIVE_TEXT = ": keepalive\n\n"
 
 @dataclass(frozen=True)
 class Source:
-    """One event: its name, the read answering its route's body, and whether that body is a ``deps.Snapshot``."""
+    """One event: its name and the read answering its route's body."""
 
     name: str
     read: Callable[[], object]
-    snapshot: bool
 
 
 @dataclass(frozen=True)
@@ -65,14 +63,14 @@ class Held:
 def sources(manager: ConnectionManager, static: StaticMetadata, store: PendingStore) -> list[Source]:
     """Return the eight events in the order a new subscriber receives them, each read through its route's body."""
     return [
-        Source("health", lambda: status.health(manager, static), snapshot=False),
-        Source("state", lambda: status.state(manager), snapshot=True),
-        Source("status", lambda: status.status(manager), snapshot=True),
-        Source("volume", lambda: volume.volume_get(manager), snapshot=False),
-        Source("enumerations", lambda: status.merged_enumerations(manager, static), snapshot=True),
-        Source("config", lambda: config.config(credentialed(manager)), snapshot=True),
-        Source("matrix", lambda: matrix.matrix(credentialed(manager)), snapshot=True),
-        Source("pending", store.snapshot, snapshot=False),
+        Source("health", lambda: status.health(manager, static)),
+        Source("state", lambda: status.state(manager)),
+        Source("status", lambda: status.status(manager)),
+        Source("volume", lambda: volume.volume_get(manager)),
+        Source("enumerations", lambda: status.merged_enumerations(manager, static)),
+        Source("config", lambda: config.config(credentialed(manager))),
+        Source("matrix", lambda: matrix.matrix(credentialed(manager))),
+        Source("pending", store.snapshot),
     ]
 
 
@@ -149,7 +147,7 @@ class PushFeed:
     def _refresh(self, source: Source) -> bool:
         """Send ``source``'s body where its content moved, and answer whether it did; a route's refusal propagates."""
         body = jsonable_encoder(source.read())
-        key = _compact(body["data"] if source.snapshot else body)
+        key = _compact(body)
         held = self._held.get(source.name)
         if held is not None and held.key == key:
             return False
