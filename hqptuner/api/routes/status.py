@@ -1,6 +1,7 @@
-"""Read-only status surface — daemon health, State/Status frames, enumerations, static metadata, and the log tail.
+"""Status surface — daemon health, State/Status frames, enumerations, static metadata, and the log tail.
 
-Every route here answers from the poll loop's cached view or from files, so none of them writes to the daemon.
+Every route here answers from the poll loop's cached view or from files, so none of them writes to the daemon. The one
+route that changes anything empties HQPTuner's own report of dropped settings.
 """
 
 import contextlib
@@ -57,8 +58,9 @@ class HealthReport:
     # `reachable` cannot speak for the 8088 configuration lane; this is that
     # lane's own verdict on the configured management credentials.
     credentials_ok: bool | None
-    # Live settings HQPTuner wrote and the engine confirmed that the standing
-    # connection's State no longer holds: a daemon restart reverts to its config file.
+    # Live settings HQPTuner wrote and the engine confirmed that a daemon restart
+    # dropped: it reverts to its config file. Each stays listed until
+    # `DELETE /api/health/dropped-settings` clears the list.
     dropped_settings: tuple[WrittenSetting, ...]
 
 
@@ -95,6 +97,17 @@ def health(manager: Mgr, static: Static) -> HealthReport:
         credentials_ok=readings.credentials_ok,
         dropped_settings=readings.dropped_settings,
     )
+
+
+@router.delete("/health/dropped-settings", status_code=204)
+async def clear_dropped_settings(manager: Mgr) -> None:
+    """Empty ``GET /api/health``'s ``dropped_settings`` for every client, leaving the daemon untouched.
+
+    A restart after the clear lists only what that restart dropped.
+    """
+    # `async` keeps the clear on the event loop, where the connect's reconcile reads
+    # the list and writes it back, so it cannot land between that read and write.
+    manager.readings.dropped_settings = ()
 
 
 @router.get("/state")

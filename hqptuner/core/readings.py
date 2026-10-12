@@ -41,8 +41,8 @@ class Readings:
     # only, to report it once a restart drops it; nothing re-asserts it, so a mode
     # switch drops it for good (`lanes/live/rate`).
     live: memory.LiveMemory = field(default_factory=memory.LiveMemory)
-    # Confirmed live settings the standing connection's State does not hold
-    # (`lanes/live/dropped`): a daemon restart reverts to its config file.
+    # Confirmed live settings a daemon restart dropped (`lanes/live/dropped`): it
+    # reverts to its config file. Each stays listed until the user clears the list.
     dropped_settings: tuple[dropped.WrittenSetting, ...] = ()
     # The level of the most recent volume write HQPTuner issued, down either
     # path (voltrace.write) — the attribution every volume observation carries.

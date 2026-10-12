@@ -33,6 +33,18 @@ CommandLog = list[tuple[str, dict[str, str]]]
 CommandHooks = dict[str, Callable[[], None]]
 
 
+class OnNextArrival:
+    """A command hook that runs on its command's next arrival, including over a
+    connection that has sent that command before, such as a list a heartbeat
+    reads again."""
+
+    def __init__(self, run: Callable[[], None]) -> None:
+        self.run = run
+
+    def __call__(self) -> None:
+        self.run()
+
+
 DEFAULTS = {
     "state": "0",
     "mode": "1",
@@ -470,7 +482,8 @@ async def serve_shared(
         body = data.split(b"?>", 1)[-1].strip().decode()
         if hooks is not None:
             name = _fromstring(body).tag
-            hook = None if name in arrived else hooks.pop(name, None)
+            again = isinstance(hooks.get(name), OnNextArrival)
+            hook = hooks.pop(name, None) if again or name not in arrived else None
             arrived.add(name)
             if hook is not None:
                 # off this loop: the callable may call HQPTuner, which may call back here

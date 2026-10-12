@@ -144,3 +144,27 @@ def reconcile(record: Mapping[str, WrittenSetting], view: EngineView) -> Reconci
     """Hold the record against a new connection's engine: what it lost, in record order, and what stays recorded."""
     dropped = tuple(entry for entry in record.values() if _lost(entry, view))
     return Reconciled(dropped, {f: entry for f, entry in record.items() if entry not in dropped})
+
+
+def merged(report: tuple[WrittenSetting, ...], lost: tuple[WrittenSetting, ...]) -> tuple[WrittenSetting, ...]:
+    """Return the standing report with a reconcile's newly dropped entries in it, one entry per field.
+
+    A field already listed keeps its place and takes the newer entry; a field not listed yet is added after the rest.
+    """
+    return tuple({**{entry.field: entry for entry in report}, **{entry.field: entry for entry in lost}}.values())
+
+
+def taken_over(
+    record: Mapping[str, WrittenSetting], read: Mapping[str, WrittenSetting], view: EngineView, *, answered: bool
+) -> dict[str, WrittenSetting]:
+    """Return the record without the entries a poll's engine reports another client has moved.
+
+    A setting another client changed is no longer HQPTuner's to report. ``read`` is the record as it
+    stood when the poll asked for ``view``'s State, and ``answered`` whether the engine answered that
+    read. An entry confirmed since is newer than the reading and stays. So does every entry when the
+    read was refused: the State then held can predate a write whose own follow-up read was refused too.
+    """
+    if not answered:
+        return dict(record)
+    moved = reconcile({f: entry for f, entry in record.items() if read.get(f) is entry}, view).dropped
+    return {f: entry for f, entry in record.items() if entry not in moved}

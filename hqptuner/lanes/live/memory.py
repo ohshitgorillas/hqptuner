@@ -57,9 +57,10 @@ class LiveMemory:
     is exactly the condition this outlives.
 
     `written` is every live setting a write changed and the engine confirmed by
-    readback, keyed by config-form field, until a new connection finds it lost or
-    a restart or reload HQPTuner itself asked for takes it: what a restart can drop
-    (`dropped`). It outlives a connection that lost nothing.
+    readback, keyed by config-form field, until a new connection finds it lost, a
+    poll finds another client moved it, or a restart or reload HQPTuner itself asked
+    for takes it: what a restart can drop (`dropped`). It outlives a connection that
+    lost nothing.
 
     `own_restart` is HQPTuner's own restart or reload request the daemon accepted,
     until the connection after it lands or the engine is found to have taken it in place.

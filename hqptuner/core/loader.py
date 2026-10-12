@@ -105,17 +105,19 @@ def _reconcile_live(mgr: "ConnectionManager") -> None:
     """Hold the confirmed-writes record against this connection's State.
 
     After a restart the engine is back on its config file, and the record is all that
-    knows what it lost. What it still holds stays recorded, so a later restart can still
-    report it. After a restart HQPTuner asked for, what it lost was lost at HQPTuner's
-    own request: the record is let go with nothing listed, and an earlier report stands.
-    This connect is not counted yet, so it is tested as the one it will be counted as.
+    knows what it lost. What it lost joins the standing report, which keeps everything
+    it lists until the user clears it (``dropped.merged``). What it still holds stays
+    recorded, so a later restart can still report it. After a restart HQPTuner asked
+    for, what it lost was lost at HQPTuner's own request: the record is let go with
+    nothing listed, and the report stands as it was. This connect is not counted yet,
+    so it is tested as the one it will be counted as.
     """
     readings = mgr.readings
     if readings.live.follows_own_restart(mgr.connects + 1, mgr.drops):
         readings.live.restarted()
         return
     reconciled = dropped.reconcile(readings.live.written, memory.engine_view(mgr))
-    readings.dropped_settings = reconciled.dropped
+    readings.dropped_settings = dropped.merged(readings.dropped_settings, reconciled.dropped)
     readings.live.reconnected(reconciled.kept)
 
 
@@ -128,6 +130,15 @@ def _settle_own_reload(mgr: "ConnectionManager") -> None:
     live = mgr.readings.live
     if live.own_reload_in_place(mgr.connects, mgr.clock.monotonic(), mgr.alarm_threshold):
         live.reloaded(dropped.reconcile(live.written, memory.engine_view(mgr)).kept)
+
+
+def _let_go_taken_over(mgr: "ConnectionManager", read: dict[str, dropped.WrittenSetting], *, answered: bool) -> None:
+    """Let go, unreported, of each recorded live setting another client has since moved (``dropped.taken_over``).
+
+    ``read`` is the record as it stood when this poll asked for State, ``answered`` whether the engine answered.
+    """
+    live = mgr.readings.live
+    live.written = dropped.taken_over(live.written, read, memory.engine_view(mgr), answered=answered)
 
 
 def stamp_http_ok(mgr: "ConnectionManager") -> None:
@@ -188,7 +199,11 @@ async def poll(mgr: "ConnectionManager") -> None:
     known = readings.state is not None
     previous = readings.state or {}
     before = chain.active_chain(mgr)
-    state = _held_state(await client.state_unless_refused(), readings.state)
+    # The record as this State read finds it: a live write confirmed while the tick
+    # waits on the engine is newer than the reading and is not held against it.
+    read = readings.live.written
+    fresh = await client.state_unless_refused()
+    state = _held_state(fresh, readings.state)
     current = state or {}
     # Stored before any further await: a live write that lands while this tick
     # waits on the engine stores its own read-back State, which a later
@@ -204,12 +219,16 @@ async def poll(mgr: "ConnectionManager") -> None:
     if moved:
         log.info("engine moved (mode %s, state %s), re-enumerating", current.get("mode"), current.get("state"))
         readings.enums = await client.get_all_enumerations()
-    _settle_own_reload(mgr)
     readings.status, readings.status_metadata = await client.get_status()
     # The re-assert is a live-setter batch like any other: its State readback
     # verifies its own SetFilter only while no other batch's write lands first.
     async with mgr.live_writes:
         await lane.chain_entered(mgr, client, before, reenumerated=moved)
+    # Held against the engine only now: in `[source]` mode a change of source moves
+    # the chain with State's mode standing still, and only this tick's Status and
+    # `chain_entered` bring the chain and its lists up to this tick's State.
+    _settle_own_reload(mgr)
+    _let_go_taken_over(mgr, read, answered=fresh is not None)
     readings.volume_range = await client.get_volume_range()
     with contextlib.suppress(CommandError):  # profile saves/deletes land without an apply
         readings.matrix_profiles = await client.get_matrix_profiles()

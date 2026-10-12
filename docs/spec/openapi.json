@@ -4089,6 +4089,18 @@
         "summary": "Health"
       }
     },
+    "/api/health/dropped-settings": {
+      "delete": {
+        "description": "Empty ``GET /api/health``'s ``dropped_settings`` for every client, leaving the daemon untouched.\n\nA restart after the clear lists only what that restart dropped.",
+        "operationId": "clear_dropped_settings_api_health_dropped_settings_delete",
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Clear Dropped Settings"
+      }
+    },
     "/api/livepresets": {
       "get": {
         "description": "Return the loaded station, its saved live snapshots as ``presets``, and the whole book as ``stations``.\n\nNot judged against the engine: a preset carries its own output mode, so applying one taken on the other chain\nswitches the engine to it rather than conflicting with what is loaded \u2014 there is nothing here to gate on.",
