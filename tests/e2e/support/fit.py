@@ -14,6 +14,9 @@ plate laid out with the engine's data in, and `hiddenPast`, the measure itself.
   that is not replaced, a table's row, row group, column or column group, an
   element laid out as its children, and an element not laid out clip nothing,
   whatever their overflow reads.
+- Text a box shortens behind an ellipsis its stylesheet declares
+  (`text-overflow: ellipsis`, along the line) is the design's choice and is not
+  reported; a box that cuts its content off silently is.
 - A box hides only what it clips: content whose containing block lies outside
   the box (positioned past it, fixed, or in the top layer) is not cut by it, so
   a popover that escapes a scrolling panel is measured against what does clip it.
@@ -234,9 +237,12 @@ const hiddenPast = (root, skip, around, rounding) => {
   const found = [];
   const boxes = [root, ...root.querySelectorAll("*")].filter((el) => el instanceof HTMLElement && !skipped(el));
   for (let up = root.parentElement; up !== null && !OUTER.includes(up); up = up.parentElement) boxes.push(up);
+  const ellipsis = (el, axis) => axis === "x" && getComputedStyle(el).textOverflow === "ellipsis";
   for (const box of boxes) {
     const label = root.contains(box) ? name(box) : `${name(box)} (around ${around})`;
-    for (const axis of AXES) if (clips(box, axis)) found.push([label, axis, beyond(box, clipBox(box), axis)]);
+    for (const axis of AXES) {
+      if (clips(box, axis) && !ellipsis(box, axis)) found.push([label, axis, beyond(box, clipBox(box), axis)]);
+    }
   }
   const page = document.documentElement;
   const view = { left: 0, top: 0, right: page.clientWidth, bottom: page.clientHeight };
