@@ -25,6 +25,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Warnings and alerts use the signal chain lamps**.
 - **Amber is now the default accent color.**
 - **Detailed setting explanations fold behind "see more"** when a feature's manual explanation contains specific models, processing details, or other information secondary to the setting. Larger displays (~13") see the full explanations.
+- **Default sound-shaping settings** are marked with a "home" glyph.
 
 ## [1.19.2] — 2026-10-10
 
