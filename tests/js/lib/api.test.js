@@ -183,3 +183,52 @@ test("test_a_preset_name_is_url_encoded_in_the_path", async () => {
   await api.preset("Night / Loud");
   assert.equal(seen.path, "/api/preset/Night%20%2F%20Loud");
 });
+
+// --- clearing the dropped-settings report ---------------------------------------
+// The server answers the clear with 204 and no body at all, so that answer is the
+// platform's own Response: its json() rejects on the empty body exactly as a
+// browser's does.
+
+const DROPPED_SETTINGS_PATH = "/api/health/dropped-settings";
+const NO_CONTENT = () => new Response(null, { status: 204 });
+const REFUSAL_STATUS = 503;
+const REFUSAL_DETAIL = "hqplayerd is not answering";
+
+// How a call settled, as one comparable value. A call that never put a request on
+// the wire did not get the server's answer, so it reads as unasked rather than as
+// whatever the call returned without asking.
+/**
+ * @param {() => Promise<unknown>} call
+ * @param {Seen} seen
+ * @returns {Promise<string>}
+ */
+async function settled(call, seen) {
+  const outcome = await call().then(
+    () => "resolved",
+    (/** @type {unknown} */ e) => `rejected: ${e instanceof Error ? e.message : String(e)}`,
+  );
+  return seen.path === null ? "unasked" : outcome;
+}
+
+test("test_clearing_dropped_settings_asks_the_dropped_settings_path", async () => {
+  const seen = wire(NO_CONTENT());
+  await api.clearDroppedSettings();
+  assert.equal(seen.path, DROPPED_SETTINGS_PATH);
+});
+
+test("test_clearing_dropped_settings_is_a_delete", async () => {
+  const seen = wire(NO_CONTENT());
+  await api.clearDroppedSettings();
+  assert.equal(seen.opts?.method, "DELETE");
+});
+
+test("test_clearing_dropped_settings_completes_on_the_servers_empty_204", async () => {
+  const seen = wire(NO_CONTENT());
+  assert.equal(await settled(() => api.clearDroppedSettings(), seen), "resolved");
+});
+
+test("test_a_refused_clear_fails_the_way_any_other_call_fails", async () => {
+  const fromClear = await settled(() => api.clearDroppedSettings(), wire(bad(REFUSAL_STATUS, REFUSAL_DETAIL)));
+  const fromStatus = await settled(() => api.status(), wire(bad(REFUSAL_STATUS, REFUSAL_DETAIL)));
+  assert.equal(fromClear, fromStatus);
+});

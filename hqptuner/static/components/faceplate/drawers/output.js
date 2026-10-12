@@ -14,6 +14,7 @@ import { effective, isDirty } from "../../../store/resolve.js";
 import { groupShown, restartLane } from "../../../store/faceplate/drawer.js";
 import { channelLayout, pickChannelLayout } from "../../../store/faceplate/drawers/output.js";
 import { DISCOVERY, MODES } from "../../../store/schema/options.js";
+import { RATE_LABEL } from "../../../store/ui/wirelabels.js";
 import { keyControl, labelHead, segButtons } from "../drawer/controls.js";
 import { RateDial } from "./output/RateDial.js";
 import { DevicePicker } from "./output/DevicePicker.js";
@@ -26,7 +27,7 @@ const BACKEND_NAMES = { network: "Network Audio", alsa: "ALSA" };
 
 /** The Rate row's label and its sublabel. */
 const RATE = {
-  label: "Output rate",
+  label: RATE_LABEL,
   sub: "PCM and SDM target rates",
 };
 

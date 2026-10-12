@@ -286,6 +286,12 @@
 .aline .ag{text-align:center}
 .aline[data-sev="crit"]{color:var(--bad)}
 .aline[data-sev="warn"]{color:var(--warn)}
+/* A line that lists settings: one row each under the sentence, the value in the readout face. */
+.aline .aitems{grid-column:2;display:flex;flex-direction:column;gap:var(--sp-1);margin-top:var(--sp-2)}
+.aline .av{font-family:var(--f-mono);line-height:inherit}
+/* A line that takes a tap: a button drawn as the line, lit under the pointer as a popover row. */
+button.aline{width:100%;padding:0;border:0;border-radius:var(--r-2);background:none;text-align:left;font-weight:inherit;letter-spacing:inherit;cursor:pointer}
+button.aline:hover{background:var(--hover)}
 .drow[data-alert="crit"] > .ctl > .fh > b{color:var(--bad)}
 .drow[data-alert="warn"] > .ctl > .fh > b{color:var(--warn)}
 .drow[data-alert] > .ctl > .fh > b::before{content:"⚠ "}

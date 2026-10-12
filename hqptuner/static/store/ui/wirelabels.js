@@ -4,8 +4,9 @@
 // wire key (`optimal_iso` writes `volume_fixed`), so the map is built from the
 // wire names, not from the catalog keys. The name is resolved the way the page
 // resolves it: the control's own label, else the name its /api/metadata entry
-// gives it, which is why it is looked up on each call rather than at load. A
-// wire key no control reads, or one whose control has no name anywhere, is
+// gives it, which is why it is looked up on each call rather than at load. The
+// output rate, which no catalog control reads, takes the rate dial's label. Any
+// other wire key no control reads, or one whose control has no name anywhere, is
 // shown as itself. The same labels word a failed live write.
 import { endSentence } from "../../lib/errtext.js";
 import { describe } from "../prose.js";
@@ -19,12 +20,17 @@ for (const [key, entry] of Object.entries(schema)) {
   }
 }
 
+/** The label the Output drawer gives its rate dial, the one control over the output rate. */
+export const RATE_LABEL = "Output rate";
+
 /**
  * The UI label for one wire key.
  * @param {string} key a /config form field or a live setter key
- * @returns {string} the control's UI label, or the key itself when no control reads it or none is named
+ * @returns {string} the control's UI label, the rate dial's for the output rate, or the key itself when no control
+ *   reads it or none is named
  */
 export function wireLabel(key) {
+  if (key === "rate") return RATE_LABEL;
   const control = CONTROLS.get(key);
   if (!control) return key;
   const [catalogKey, entry] = control;

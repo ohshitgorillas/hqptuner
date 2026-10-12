@@ -290,7 +290,7 @@ export function RateDial({ label, sub }) {
     <div
       class="dial"
       role="group"
-      aria-label="Output rate"
+      aria-label=${label}
       data-dirty=${view.dirty.pcm || view.dirty.sdm ? "" : undefined}
     >
       <div class="dwg" style=${`aspect-ratio:${W} / ${H}`}>

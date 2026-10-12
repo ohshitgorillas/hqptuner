@@ -3,7 +3,17 @@
 
 /** @typedef {'crit' | 'warn' | 'advice'} Sev */
 /** @typedef {'crit' | 'warn'} Blink */
-/** @typedef {{ kind: string, sev: Sev, text: string, chain?: 'pcm' | 'sdm', rows?: string[] }} Alert */
+/** @typedef {{ label: string, value: string }} AlertItem */
+/**
+ * @typedef {object} Alert
+ * @property {string} kind
+ * @property {Sev} sev
+ * @property {string} text
+ * @property {'pcm' | 'sdm'} [chain]  the chain it judges
+ * @property {string[]} [rows]  drawer rows that fix it, in place of its home's
+ * @property {AlertItem[]} [items]  the settings the line lists under its sentence
+ * @property {() => unknown} [act]  what tapping the line does; a line without one takes no tap
+ */
 /**
  * @typedef {object} Home
  * @property {string} [stage]  rail stage whose lamp blinks

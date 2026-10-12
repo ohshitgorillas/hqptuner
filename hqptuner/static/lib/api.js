@@ -161,6 +161,8 @@ async function getJSON(path) {
   return r.json();
 }
 
+// A 204 answer carries no body by definition, and reading one as JSON rejects,
+// so a write the backend answers with 204 resolves with nothing.
 /**
  * @param {string} path
  * @param {string} method
@@ -175,6 +177,7 @@ async function send(path, method, body) {
   }
   const r = await reach(path, opts);
   if (!r.ok) throw await failure(path, r);
+  if (r.status === 204) return undefined;
   return r.json();
 }
 
@@ -198,6 +201,8 @@ const stationQuery = (station) => (station === undefined ? "" : `?station=${enco
 
 export const api = {
   health: () => getJSON("/api/health"),
+  // forgets the settings a daemon restart dropped, which /api/health reports until cleared
+  clearDroppedSettings: () => send("/api/health/dropped-settings", "DELETE"),
   engine: () => getJSON("/api/engine"),
   applyEngine: (/** @type {unknown} */ body) => send("/api/engine", "POST", body),
   restore: (/** @type {File} */ file) => upload("/api/restore", "cfgfile", file),
