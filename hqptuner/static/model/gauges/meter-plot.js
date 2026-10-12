@@ -68,13 +68,26 @@ export function spectrumPoints(levels, binHz, plot) {
 }
 
 /**
- * The frequency ticks of an axis from 0 to Nyquist, Hz: every 5, 10 or 20 kHz as Nyquist grows, none in the top 15%.
+ * The tick steps of a frequency axis, Hz, each after the axis top it takes over above, widest first.
  *
- * @param {number} nyq  Hz
+ * @type {[number, number][]}
+ */
+const KHZ_STEPS = [
+  [60000, 20000],
+  [30000, 10000],
+  [15000, 5000],
+  [7500, 2000],
+];
+
+/**
+ * The frequency ticks of an axis from 0 to its top, Hz: every 1, 2, 5, 10 or 20 kHz as the top grows, none in the top
+ * 15%.
+ *
+ * @param {number} nyq  the axis's top, Hz
  * @returns {number[]}
  */
 function khzTicks(nyq) {
-  const step = nyq > 60000 ? 20000 : nyq > 30000 ? 10000 : 5000;
+  const step = KHZ_STEPS.find(([above]) => nyq > above)?.[1] ?? 1000;
   return Array.from({ length: Math.floor(nyq / step) + 1 }, (_, i) => i * step).filter((f) => f <= nyq * 0.85);
 }
 
@@ -124,10 +137,10 @@ export function levelTicks(floor) {
 }
 
 /**
- * A frequency axis's tick labels in kHz and the Nyquist label (kHz to two places), each at the fraction of the axis
+ * A frequency axis's tick labels in kHz and the label at its top (kHz to two places), each at the fraction of the axis
  * `at` puts its frequency.
  *
- * @param {number} nyq  Hz
+ * @param {number} nyq  the axis's top, Hz
  * @param {(f: number) => number} at
  * @returns {{ ticks: { khz: number, at: number }[], nyq: { khz: number, at: number } }}
  */

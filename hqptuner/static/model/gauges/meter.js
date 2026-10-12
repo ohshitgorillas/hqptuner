@@ -182,23 +182,46 @@ export function pickBins(frame, pick) {
 }
 
 /**
- * Bins laid onto `cols` columns from 0 Hz to Nyquist, bin `k` of `n` at `k/(n-1)` of the way: each column the loudest
- * bin in its span, so a tone keeps its level however many bins share a column, and a column no bin falls in takes the
- * bin nearest its centre.
+ * The share of the band up to Nyquist each frequency span keeps in view, from 0 Hz.
+ *
+ * @type {Record<string, number>}
+ */
+const SPAN_SHARES = { full: 1, half: 0.5, quarter: 0.25 };
+
+/** The frequency spans, widest first. */
+export const FREQ_SPANS = Object.keys(SPAN_SHARES);
+
+/**
+ * The share of the band up to Nyquist that frequency span `span` keeps in view; the whole band for a span outside
+ * FREQ_SPANS.
+ *
+ * @param {string} span
+ * @returns {number}
+ */
+export function spanShare(span) {
+  return SPAN_SHARES[span] ?? 1;
+}
+
+/**
+ * Bins laid onto `cols` columns from 0 Hz to `share` of Nyquist, bin `k` of `n` at `k/((n-1)·share)` of the way: each
+ * column the loudest bin in its span, so a tone keeps its level however many bins share a column, and a column no bin
+ * falls in takes the bin nearest its centre. A bin above the top of that view falls in no column.
  *
  * @param {ArrayLike<number>} bins  dBFS
  * @param {number} cols
+ * @param {number} [share]  of the band up to Nyquist, from 0 Hz
  * @returns {Float32Array}
  */
-export function traceColumns(bins, cols) {
+export function traceColumns(bins, cols, share = 1) {
   const out = new Float32Array(cols).fill(-Infinity);
-  const last = bins.length - 1;
+  const top = (bins.length - 1) * share;
+  const last = Math.min(bins.length - 1, Math.floor(top));
   for (let k = 0; k <= last; k++) {
-    const c = Math.min(cols - 1, Math.floor((k / last) * cols));
+    const c = Math.min(cols - 1, Math.floor((k / top) * cols));
     if (bins[k] > out[c]) out[c] = bins[k];
   }
   for (let c = 0; c < cols; c++) {
-    if (out[c] === -Infinity) out[c] = bins[Math.round(((c + 0.5) / cols) * last)];
+    if (out[c] === -Infinity) out[c] = bins[Math.min(last, Math.round(((c + 0.5) / cols) * top))];
   }
   return out;
 }

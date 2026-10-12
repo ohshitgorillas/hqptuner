@@ -1,8 +1,9 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
-// style, the level bars' floor, whether the spectrum shows its Range buttons and the page's Range, each a row of
-// options writing its preference at once. Parked under its button.
+// style, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the spectrum's
+// frequency span, each a row of options writing its preference at once. Parked under its button.
 
 import { html } from "../../../lib/dom.js";
+import { FREQ_SPANS } from "../../../model/gauges/meter.js";
 import {
   METER_FLOORS,
   METER_RANGES,
@@ -15,6 +16,7 @@ import {
   setSpectrumStyle,
   spectrumStyle,
 } from "../../../store/ui/prefs.js";
+import { freqSpan, setFreqSpan } from "../../../store/faceplate/view.js";
 import { Seg } from "../drawers/pipelines/parts.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 
@@ -45,6 +47,12 @@ const SHOW_HIDE = [
 
 /** @type {Opt[]} */
 const RANGES = METER_RANGES.map((v) => ({ v, label: v }));
+
+/** @type {Record<string, string>} */
+const SPAN_LABELS = { full: "Full", half: "1/2", quarter: "1/4" };
+
+/** @type {Opt[]} */
+const SPANS = FREQ_SPANS.map((v) => ({ v, label: SPAN_LABELS[v] }));
 
 /** @param {string} v */
 const setShown = (v) => setRangeButtons(v === "1");
@@ -92,6 +100,7 @@ export function DisplayOptions() {
         testid="display-range-buttons"
       />
       <${Field} label="Range" unit="dB" opts=${RANGES} value=${pageRange.value} set=${setPageRange} testid="display-range" />
+      <${Field} label="Frequency span" opts=${SPANS} value=${freqSpan.value} set=${setFreqSpan} />
     <//>
   `;
 }
