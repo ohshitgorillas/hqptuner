@@ -132,7 +132,7 @@ export function Rail() {
     });
   }, []);
   return html`
-    <nav class="rail" ref=${ref} aria-label="Signal chain">
+    <nav class="rail crail" ref=${ref} aria-label="Signal chain">
       <svg class="wire" aria-hidden="true"><path /></svg>
       ${stages.map(
         (st) =>
