@@ -21,7 +21,7 @@ from hqptuner.lanes.http.engineattrs import EngineVerification
 from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
 from hqptuner.lanes.http.storecarry import StoreCarry
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
+from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult
 from hqptuner.presets import presetfields, presetlane
 from hqptuner.presets.presetlane import PresetActivation
 from hqptuner.presets.presetops import PresetAftermath, after_restore
@@ -86,7 +86,7 @@ async def _write_live(
     """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on."""
     async with mgr.live_writes:
         client = mgr.require_control()
-        report = await apply_live(client, live_edits, mgr.audit)
+        report = await lane.write_live(mgr, client, live_edits)
         _trace_live_volume(mgr, live_edits, report)
         await lane.refresh_after_live(mgr, client, live_edits)
         lane.remember_routed(mgr, report, staged)

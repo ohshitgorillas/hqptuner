@@ -17,11 +17,13 @@ back out.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.errors import HQPTunerError
+from hqptuner.lanes.live import rate
 from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, mode_form_value
+from hqptuner.lanes.writer import SETTINGS, LiveSetting
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
@@ -64,18 +66,38 @@ SNAPSHOT_FIELDS = (*ROUTABLE, *DIRECT, MATRIX_PROFILE)
 _STATE_FIELDS = (*ROUTABLE, *LIVE_ONLY)
 
 
-def _named(items: EnumItems, index: str, value_key: str) -> dict[str, str] | None:
-    """Return the item at this list index as ``{value, name}``, or None when absent.
+class Reading(NamedTuple):
+    """One live setting as State reports it: the config-form value, and the engine's own name for it if it has one."""
 
-    ``RatesItem`` carries no ``name`` (``<RatesItem index rate/>``),
-    so the value doubles as its own label there.
+    value: str
+    name: str | None
+
+
+def _named(items: EnumItems, index: str | None, value_key: str) -> Reading | None:
+    """Return the item at this list index as a reading, or None when absent.
+
+    ``RatesItem`` carries no ``name`` (``<RatesItem index rate/>``), so a rate's reading has none.
     """
     for item in items:
         if str(item.get("index")) != str(index):
             continue
         value = item.get(value_key)
-        return None if value is None else {"value": str(value), "name": str(item.get("name") or value)}
+        return None if value is None else Reading(str(value), item.get("name"))
     return None
+
+
+def reported_as(setting: str) -> str:
+    """Return the State attribute a uniform setter's value comes back in (``writer.SETTINGS``).
+
+    ``TypeError`` for a setter with a handler of its own, which has no single attribute to name.
+    """
+    spec = SETTINGS[setting]
+    if not isinstance(spec, LiveSetting):
+        raise TypeError(setting)
+    return spec.state
+
+
+_RATE_STATE = reported_as(rate.SETTING)
 
 
 def _spec(field: str) -> LiveField:
@@ -83,44 +105,43 @@ def _spec(field: str) -> LiveField:
     return ROUTABLE.get(field) or LIVE_ONLY[field]
 
 
-def _mode_snapshot(mgr: LaneManager, index: str) -> dict[str, str] | None:
-    """Return the running output mode as ``{value, name}``.
+def _mode_reading(items: EnumItems, index: str) -> Reading | None:
+    """Return the running output mode as a reading.
 
     Mode is the one field whose stored value is not an enum ID: the live lane
     takes the config-form strings auto/pcm/sdm and matches them to the running
     enumeration by NAME, because the modes list is device-dependent and its
     positions are not stable (``routing.MODE_NAMES``).
     """
-    items = (mgr.readings.enums or {}).get("modes") or []
     form = mode_form_value(items, index)
     if form is None:
         return None
-    name = next((str(item.get("name")) for item in items if str(item.get("index")) == str(index)), form)
-    return {"value": form, "name": name}
+    return Reading(form, next((item.get("name") for item in items if str(item.get("index")) == str(index)), None))
 
 
-def _snapshot_field(mgr: LaneManager, field: str, chain: str | None) -> dict[str, str] | None:
-    """One field's current value+name, or None when it is off-chain or unreadable."""
+def read_field(field: str, state: dict[str, str], enums: dict[str, EnumItems], chain: str | None) -> Reading | None:
+    """Return one live field's reading from ``state``, or None when it is off-chain or unreadable.
+
+    ``chain`` is the filter/shaper chain loaded. The DIRECT flags are 0/1 with no enumeration
+    behind them, and the pinned rate's list names none of its items, so neither reading has a name.
+    """
+    if field in DIRECT:
+        flag = state.get(DIRECT[field])
+        return None if flag is None else Reading(str(flag), None)
+    if field == rate.RATE:
+        return _named(enums.get("rates") or [], state.get(_RATE_STATE), "rate")
     spec = _spec(field)
-    if spec.chain is not None and spec.chain != chain:
-        return None
-    index = (mgr.readings.state or {}).get(spec.state)
-    if index is None:
+    index = state.get(spec.state)
+    if index is None or spec.chain not in {None, chain}:
         return None
     if field == "mode":
-        return _mode_snapshot(mgr, index)
-    return _named((mgr.readings.enums or {}).get(spec.enum) or [], index, _STATE_VALUE.get(field, "value"))
+        return _mode_reading(enums.get("modes") or [], index)
+    return _named(enums.get(spec.enum) or [], index, _STATE_VALUE.get(field, "value"))
 
 
-def _direct_snapshot(mgr: LaneManager) -> dict[str, dict[str, str]]:
-    """Return the DIRECT flags: 0/1 with no enumeration behind them, so each is its own label."""
-    state = mgr.readings.state or {}
-    snapshot = {}
-    for field, attr in DIRECT.items():
-        value = state.get(attr)
-        if value is not None:
-            snapshot[field] = {"value": str(value), "name": str(value)}
-    return snapshot
+def _shown(reading: Reading) -> dict[str, str]:
+    """Return a reading as the ``{value, name}`` a snapshot holds, the value labelling itself where it has no name."""
+    return {"value": reading.value, "name": reading.name or reading.value}
 
 
 @dataclass(frozen=True)
@@ -141,8 +162,9 @@ def live_state(mgr: LaneManager) -> LiveSnapshot:
     chain = active_chain(mgr)
     if chain is None:
         raise ChainUnknownError
-    chained = {f: item for f in _STATE_FIELDS if (item := _snapshot_field(mgr, f, chain)) is not None}
-    return LiveSnapshot(chain, {**chained, **_direct_snapshot(mgr)})
+    state, enums = mgr.readings.state or {}, mgr.readings.enums or {}
+    readings = ((f, read_field(f, state, enums, chain)) for f in (*_STATE_FIELDS, *DIRECT))
+    return LiveSnapshot(chain, {f: _shown(reading) for f, reading in readings if reading is not None})
 
 
 def live_snapshot(mgr: LaneManager) -> LiveSnapshot:

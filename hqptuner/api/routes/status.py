@@ -19,6 +19,7 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
 from hqptuner.lanes.live import chain
+from hqptuner.lanes.live.dropped import WrittenSetting
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -56,6 +57,9 @@ class HealthReport:
     # `reachable` cannot speak for the 8088 configuration lane; this is that
     # lane's own verdict on the configured management credentials.
     credentials_ok: bool | None
+    # Live settings HQPTuner wrote and the engine confirmed that the standing
+    # connection's State no longer holds: a daemon restart reverts to its config file.
+    dropped_settings: tuple[WrittenSetting, ...]
 
 
 @dataclass(frozen=True)
@@ -89,6 +93,7 @@ def health(manager: Mgr, static: Static) -> HealthReport:
         license=readings.license,
         app_version=__version__,
         credentials_ok=readings.credentials_ok,
+        dropped_settings=readings.dropped_settings,
     )
 
 

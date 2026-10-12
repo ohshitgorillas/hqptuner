@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
     from hqptuner.engine.control import ControlClient
     from hqptuner.lanes.http.forms import FormsOutcome
-    from hqptuner.lanes.live.lane import LiveMemory
+    from hqptuner.lanes.live.memory import LiveMemory
 
 
 class LaneClock(Protocol):

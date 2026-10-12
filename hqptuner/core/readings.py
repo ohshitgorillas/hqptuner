@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
 from hqptuner.engine.devicecaps import DeviceCaps
-from hqptuner.lanes.live import lane
+from hqptuner.lanes.live import dropped, memory
 
 
 @dataclass
@@ -36,9 +36,14 @@ class Readings:
     active_config: str | None = None
     enums: dict[str, list[dict[str, str]]] | None = None
     # What LIVE set that the engine cannot hold on to by itself — the dormant
-    # chain's filters and shaper (`lanes/live/lane`). Never a rate pin: a mode
-    # switch drops it and nothing puts it back (`lanes/live/rate`).
-    live: lane.LiveMemory = field(default_factory=lane.LiveMemory)
+    # chain's filters and shaper (`lanes/live/lane`) — and every live write the
+    # engine confirmed (`lanes/live/memory`). A rate pin is in that second record
+    # only, to report it once a restart drops it; nothing re-asserts it, so a mode
+    # switch drops it for good (`lanes/live/rate`).
+    live: memory.LiveMemory = field(default_factory=memory.LiveMemory)
+    # Confirmed live settings the standing connection's State does not hold
+    # (`lanes/live/dropped`): a daemon restart reverts to its config file.
+    dropped_settings: tuple[dropped.WrittenSetting, ...] = ()
     # The level of the most recent volume write HQPTuner issued, down either
     # path (voltrace.write) — the attribution every volume observation carries.
     # None until we have asked for one, which is different from having asked for

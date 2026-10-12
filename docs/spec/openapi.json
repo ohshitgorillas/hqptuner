@@ -1471,6 +1471,13 @@
             ],
             "title": "Credentials Ok"
           },
+          "dropped_settings": {
+            "items": {
+              "$ref": "#/components/schemas/WrittenSetting"
+            },
+            "title": "Dropped Settings",
+            "type": "array"
+          },
           "info": {
             "anyOf": [
               {
@@ -1538,7 +1545,8 @@
           "release_tested",
           "license",
           "app_version",
-          "credentials_ok"
+          "credentials_ok",
+          "dropped_settings"
         ],
         "title": "HealthReport",
         "type": "object"
@@ -3411,6 +3419,33 @@
         },
         "required": ["report", "saved"],
         "title": "WithSaved",
+        "type": "object"
+      },
+      "WrittenSetting": {
+        "description": "One live setting the engine confirmed: the config-form field, the form value written, the engine's name for it.\n\n``name`` is None where the engine names no value: the adaptive volume flag and a pinned rate.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["field", "value", "name"],
+        "title": "WrittenSetting",
         "type": "object"
       }
     }

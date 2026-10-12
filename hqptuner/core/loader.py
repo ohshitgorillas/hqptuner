@@ -18,7 +18,7 @@ from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError
 from hqptuner.lanes.http import forms
-from hqptuner.lanes.live import chain, lane
+from hqptuner.lanes.live import chain, dropped, lane, memory
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -94,7 +94,12 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     readings.volume_range = vrange
     readings.enums = enums
     readings.matrix_profiles = matrix_profiles
-    readings.live.forget()
+    # Held against this connection's State: after a restart the engine is back on its
+    # config file, and the record is all that knows what it lost. What it still holds
+    # stays recorded, so a later restart can still report it.
+    reconciled = dropped.reconcile(readings.live.written, memory.engine_view(mgr))
+    readings.dropped_settings = reconciled.dropped
+    readings.live.reconnected(reconciled.kept)
     readings.loaded_at = readings.connected_at = mgr.clock.now().timestamp()
     mgr.reachable = True
     mgr.unreachable_since = None

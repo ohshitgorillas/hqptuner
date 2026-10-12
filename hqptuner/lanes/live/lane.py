@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes.live import routing
+from hqptuner.lanes.live import memory, routing
 from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
@@ -56,32 +56,6 @@ class SplitPlan(NamedTuple):
     report: list[LiveWriteResult]
     live_edits: dict[str, dict[str, str]]
     restore_fields: dict[str, str]
-
-
-class LiveMemory:
-    """What LIVE has set that the engine itself cannot hold on to.
-
-    The engine keeps ONE filter/shaper pair, so the moment the loaded chain
-    changes there is nothing left on the engine to say what LIVE set for the
-    other one. This is that record, and it is what `overrides.live_overrides`
-    reports for whichever chain is dormant.
-
-    `chain` is per chain, config-form field -> enum ID — IDs rather than list
-    indices because an index is only meaningful while its chain is loaded, which
-    is exactly the condition this outlives.
-    """
-
-    def __init__(self) -> None:
-        """Start out remembering nothing — no setting held for any chain."""
-        self.chain: dict[str, dict[str, str]] = {}
-
-    def forget(self) -> None:
-        """Drop everything — a LIVE setting lasts only until the daemon restarts.
-
-        A fresh handshake is what a restart looks like from here. Holding on would report, and
-        re-assert, a setting nothing is playing any more.
-        """
-        self.chain.clear()
 
 
 def _applied(report: list[LiveWriteResult], setting: str) -> bool:
@@ -120,6 +94,20 @@ def _applied_chain_fields(report: list[LiveWriteResult], fields: dict[str, str])
     }
 
 
+async def write_live(
+    mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]
+) -> list[LiveWriteResult]:
+    """Apply live edits, readback-verified (``writer.apply_live``), and record what they changed on the engine.
+
+    Every live-setter batch goes through here, so the record (``memory.LiveMemory.written``) learns
+    each one against the engine it was resolved against, taken before the write.
+    """
+    resolved_against = memory.engine_view(mgr)
+    report = await apply_live(client, edits, mgr.audit)
+    mgr.readings.live.confirm(edits, report, resolved_against)
+    return report
+
+
 def remember_routed(mgr: LaneManager, report: list[LiveWriteResult], fields: dict[str, str]) -> None:
     """Record a staged apply's live-routed chain fields, the same bookkeeping ``apply_now`` does for LIVE's.
 
@@ -150,10 +138,10 @@ async def reassert_chain(mgr: LaneManager, client: ControlClient) -> list[LiveWr
     chain = active_chain(mgr)
     if chain is None:
         return []
-    edits, dropped = routing.resolve_chain(mgr, chain)
-    for field in dropped:
+    edits, unresolved = routing.resolve_chain(mgr, chain)
+    for field in unresolved:
         del mgr.readings.live.chain[chain][field]
-    return await apply_live(client, edits, mgr.audit) if edits else []
+    return await write_live(mgr, client, edits) if edits else []
 
 
 async def chain_entered(mgr: LaneManager, client: ControlClient, before: str | None, *, reenumerated: bool) -> None:
@@ -260,7 +248,7 @@ async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
     """
     client = mgr.require_control()
     edits, stored = routing.resolve_live(mgr, fields)
-    report = await apply_live(client, edits, mgr.audit)
+    report = await write_live(mgr, client, edits)
     await _bookkeep(mgr, client, edits, stored, _applied_chain_fields(report, fields))
     if _applied(report, "mode"):
         report = report + await _after_mode(mgr, client)

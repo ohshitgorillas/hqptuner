@@ -5,9 +5,11 @@ auto, so ``"0"`` clears the pin. ``[source]`` mode ignores it, the engine holds 
 pin, and ``SetMode`` drops it (protocol.md §SetRate). It writes the FIXED slot,
 which overrides automatic base-rate selection, so the pin is exactly the rate the
 user asked for, sent only while the Allow pinned rates preference is on
-(``store/live/pin.js``). Nothing here remembers it: a mode switch clears it on the
-engine and nothing puts it back. The config file's fixed slot stays forced to auto
-(``http.restore.FORCED_CONFIG``), so a pin never survives a restart.
+(``store/live/pin.js``). A mode switch clears it on the engine and nothing puts it
+back. The config file's fixed slot stays forced to auto
+(``http.restore.FORCED_CONFIG``), so a pin never survives a restart. A confirmed pin
+is remembered for one purpose only, reporting it once a restart has dropped it
+(``lanes/live/dropped``); it is never re-asserted.
 
 Kept out of ``routing.LIVE_ONLY``, which ``snapshot.live_state`` reads, so neither
 a saved snapshot nor the post-rescan replay ever holds a pin.
