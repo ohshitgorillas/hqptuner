@@ -13,24 +13,21 @@ sent has been read by the time it concludes there is none.
 
 from __future__ import annotations
 
-import contextlib
 import struct
 from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, wait_for_api
-from conftest import METADATA_MIN, spawn_threaded_daemon
-from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
+from apps import advance_app, app_manager, live_app
+from conftest import spawn_threaded_daemon
 
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 from hqptuner.engine.metering import BLOCK_SECONDS
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from pathlib import Path
+
+    from fastapi.testclient import TestClient
 
 SOURCE_RATE = 96_000
 BANDWIDTH = SOURCE_RATE / 2
@@ -57,40 +54,26 @@ def _spur_frame() -> bytes:
     return header + struct.pack(f"<4f{2 * BINS}f", *levels, *reals, *([0.0] * BINS))
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
 @pytest.fixture
-def streaming(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
+def streaming(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Callable[[int], TestClient]]:
     """The REST surface on a playing daemon and a 4322 stream of ``frames`` spur frames; torn down clients first,
     so each reader hangs up before the fakes behind it close."""
-    closing = contextlib.ExitStack()
     fakes: list[Iterator[int]] = []
+    apps: list[Iterator[TestClient]] = []
 
     def build(frames: int) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING, "_metadata": f'<metadata samplerate="{SOURCE_RATE}"/>'})
         stream = fake_metering.spawn(_spur_frame(), frames=frames)
         fakes.extend([daemon, stream])
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=next(daemon),
-            hqp_metering_port=next(stream),
-            hqp_username="",
-            hqp_password="",
-            data_dir=METADATA_MIN,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            advisor_enabled=True,
-        )
-        client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
-        wait_for_api(client, _reachable)
-        return client
+        control_port = next(daemon)
+        monkeypatch.setenv("HQPTUNER_HQP_METERING_PORT", str(next(stream)))
+        app = live_app(control_port, tmp_path)
+        apps.append(app)
+        return next(app)
 
     yield build
-    closing.close()
+    for app in reversed(apps):
+        next(app, None)
     for fake in fakes:
         next(fake, None)
 

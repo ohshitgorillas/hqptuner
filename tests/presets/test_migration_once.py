@@ -11,15 +11,12 @@ from pathlib import Path
 from typing import Any
 
 import fake_control
+import fixtures_clients
 import pytest
 from apps import settle_app, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_config_xml import cfg_xml
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
-
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
 
 #: The profile every fake 8088 archive carries under data/cfgs, there at the first connect.
 FIRST_CONNECT_PROFILE = "Test"
@@ -43,25 +40,13 @@ def reconnecting_api(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[tu
     daemon's presets."""
     control_state = dict(fake_control.DEFAULTS)
     daemon = spawn_threaded_daemon(state=control_state)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(daemon),
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        favorites_file=tmp_path / "favorites.json",
-        narrowing_file=tmp_path / "narrowing.json",
-        description_file=tmp_path / "descriptions.json",
-        matrix_mode_file=tmp_path / "matrixmodes.json",
-        autopilot_file=tmp_path / "autopilot.json",
-    )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    served = fixtures_clients.app(http_daemon, tmp_path, next(daemon), None)
+    client = next(served)
+    try:
         wait_for_api(client, lambda c: _preset_served(c, FIRST_CONNECT_PROFILE))
         yield client, control_state
+    finally:
+        next(served, None)
     next(daemon, None)
 
 

@@ -17,18 +17,21 @@ from pathlib import Path
 
 import fake_control
 import pytest
-from apps import advance_app, app_manager, live_app, settle_app, wait_for_api
+from apps import advance_app, app_manager, live_app, settle_app
 from conftest import spawn_threaded_daemon
 from fake_control import CommandHooks, CommandLog, OnNextArrival, apply_setter
 from narrow import FixtureError
 from test_health_dropped_settings import (
     CONFIG_FILE_STATE,
-    HEARTBEATS,
-    INTERRUPTIONS,
     JUNK_FILTER_WRITE,
     METERING_OFF,
     LiveWrite,
     RestartableApp,
+    dropped_after_reconnect,
+    listed,
+    restart_on_its_own,
+    run_heartbeats,
+    write_live,
 )
 
 from hqptuner.core.manager import ConnectionManager
@@ -38,37 +41,13 @@ from hqptuner.lanes.live.lane import LiveApplyReport, apply_now
 OTHER_CLIENT_MODE_SWITCH = ("SetMode", "2")
 
 
-def _write_live(app: RestartableApp, write: LiveWrite) -> None:
-    """Write ``write`` over the live lane and have the engine confirm it."""
-    app.client.post("/api/config/live", json={"fields": {write.field: write.value}})
-    if app.state[write.state_key] != write.landed:
-        raise FixtureError(reason=f"the engine never took {write.field}={write.value}")
-
-
-def _dropped_after_reconnect(app: RestartableApp) -> object:
-    """``dropped_settings`` once the app has made a new connection, read the
-    engine's State over it, and run heartbeats over it."""
-    served_before = len(app.log)
-    wait_for_api(app.client, lambda _c: any(name == "State" for name, _ in app.log[served_before:]))
-    settle_app(app.client)
-    interval = app_manager(app.client).cfg.poll_interval
-    for _ in range(HEARTBEATS):
-        advance_app(app.client, interval)
-    return app.client.get("/api/health").json().get("dropped_settings")
-
-
 def _dropped_with_engine_off(app: RestartableApp, write: LiveWrite) -> object:
     """``dropped_settings`` once the app has reconnected to an engine that no
     longer holds ``write``."""
-    dropped = _dropped_after_reconnect(app)
+    dropped = dropped_after_reconnect(app)
     if app.state[write.state_key] == write.landed:
         raise FixtureError(reason=f"the engine came back holding {write.field}={write.value}")
     return dropped
-
-
-def _entry(write: LiveWrite) -> dict[str, str | None]:
-    """The ``dropped_settings`` entry for ``write``."""
-    return {"field": write.field, "value": write.value, "name": write.name}
 
 
 # --- HQPTuner's own write inside a heartbeat that saw the engine change -------
@@ -181,10 +160,7 @@ def _dropped_after_write_inside_heartbeat(app: HookedApp) -> object:
     served_before = len(app.log)
     command, value = OTHER_CLIENT_MODE_SWITCH
     apply_setter(command, {"value": value}, app.state)
-    settle_app(app.client)
-    interval = app_manager(app.client).cfg.poll_interval
-    for _ in range(HEARTBEATS):
-        advance_app(app.client, interval)
+    run_heartbeats(app)
     served = [name for name, _ in app.log[served_before:]]
     if not started:
         raise FixtureError(reason=f"no {LIST_READ} reached the hook; served {served}")
@@ -197,14 +173,14 @@ def _dropped_after_write_inside_heartbeat(app: HookedApp) -> object:
         raise FixtureError(reason=f"{OWN_SETTER} did not land among the heartbeat's list reads; served {served}")
     if not refused:
         raise FixtureError(reason=f"no State read after the {OWN_SETTER} readback was refused; served {served}")
-    INTERRUPTIONS["restart"].cut(app.state)
-    return _dropped_after_reconnect(app)
+    restart_on_its_own(app.state)
+    return dropped_after_reconnect(app)
 
 
 def test_an_own_write_confirmed_inside_a_heartbeat_that_saw_the_engine_change_is_listed_after_a_restart(
     hooked_app: HookedApp,
 ) -> None:
-    assert _dropped_after_write_inside_heartbeat(hooked_app) == [_entry(OWN_WRITE)]
+    assert _dropped_after_write_inside_heartbeat(hooked_app) == listed(OWN_WRITE, lost=True)
 
 
 # --- refused State reads after a confirmed write ------------------------------
@@ -231,7 +207,7 @@ def _dropped_after_refused_reads(app: HookedApp) -> object:
     follow-up State read refused, a later heartbeat's State read has been
     refused too, and hqplayerd has then restarted on its own."""
     _state_refused_after_readback(app)
-    _write_live(app, OWN_WRITE)
+    write_live(app, OWN_WRITE)
     if app.state.get("_error") != "State":
         raise FixtureError(reason=f"no State read after the {OWN_SETTER} readback was refused")
     served_before = len(app.log)
@@ -239,7 +215,7 @@ def _dropped_after_refused_reads(app: HookedApp) -> object:
     advance_app(app.client, app_manager(app.client).cfg.poll_interval)
     if not any(name == "State" for name, _ in app.log[served_before:]):
         raise FixtureError(reason="no heartbeat read State while the engine refused it")
-    INTERRUPTIONS["restart"].cut(app.state)
+    restart_on_its_own(app.state)
     app.state.pop("_error")
     return _dropped_with_engine_off(app, OWN_WRITE)
 
@@ -247,4 +223,4 @@ def _dropped_after_refused_reads(app: HookedApp) -> object:
 def test_a_write_whose_follow_up_state_read_and_next_heartbeat_were_refused_is_listed_after_a_restart(
     hooked_app: HookedApp,
 ) -> None:
-    assert _dropped_after_refused_reads(hooked_app) == [_entry(OWN_WRITE)]
+    assert _dropped_after_refused_reads(hooked_app) == listed(OWN_WRITE, lost=True)

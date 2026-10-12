@@ -75,7 +75,6 @@ class LiveWrite(NamedTuple):
 JUNK_FILTER_WRITE = LiveWrite("junk_filter", "1", "filter_junk", "1", "20k")
 ADAPTIVE_VOLUME_WRITE = LiveWrite("adaptive_volume", "1", "adaptive", "1", None)
 RATE_PIN_WRITE = LiveWrite("rate", "705600", "rate", "3", None)
-WRITES = [JUNK_FILTER_WRITE]
 
 
 class StagedWrite(NamedTuple):
@@ -116,7 +115,7 @@ def restartable_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator
     next(daemon, None)
 
 
-def _write_live(app: RestartableApp, write: LiveWrite) -> None:
+def write_live(app: RestartableApp, write: LiveWrite) -> None:
     """Write ``write`` over the live lane and have the engine confirm it."""
     app.client.post("/api/config/live", json={"fields": {write.field: write.value}})
     if app.state[write.state_key] != write.landed:
@@ -138,7 +137,7 @@ def _sever(state: dict[str, str]) -> None:
     state["_generation"] = str(int(state.get("_generation", "0")) + 1)
 
 
-def _restart_on_its_own(state: dict[str, str]) -> None:
+def restart_on_its_own(state: dict[str, str]) -> None:
     """hqplayerd restarts by itself: every Control API change is gone, the
     engine is back on its config file, every open connection is severed, and the
     first connect inside the restart window is turned away."""
@@ -147,18 +146,23 @@ def _restart_on_its_own(state: dict[str, str]) -> None:
     state["_refuse_connects"] = "1"
 
 
-def _reconnect(app: RestartableApp) -> None:
-    """Let the app make a new connection, read the engine's State over it, and
-    run heartbeats over it."""
-    served_before = len(app.log)
-    wait_for_api(app.client, lambda _c: any(name == "State" for name, _ in app.log[served_before:]))
+def run_heartbeats(app: RestartableApp) -> None:
+    """Let the app settle, then run ``HEARTBEATS`` heartbeat polls."""
     settle_app(app.client)
     interval = app_manager(app.client).cfg.poll_interval
     for _ in range(HEARTBEATS):
         advance_app(app.client, interval)
 
 
-def _dropped_after_reconnect(app: RestartableApp) -> object:
+def _reconnect(app: RestartableApp) -> None:
+    """Let the app make a new connection, read the engine's State over it, and
+    run heartbeats over it."""
+    served_before = len(app.log)
+    wait_for_api(app.client, lambda _c: any(name == "State" for name, _ in app.log[served_before:]))
+    run_heartbeats(app)
+
+
+def dropped_after_reconnect(app: RestartableApp) -> object:
     """``dropped_settings`` once the app has reconnected."""
     _reconnect(app)
     return app.client.get("/api/health").json().get("dropped_settings")
@@ -175,25 +179,24 @@ class Interruption(NamedTuple):
 #: A restart onto the config file loses every write; a network blip or the
 #: daemon's idle close loses none.
 INTERRUPTIONS = {
-    "restart": Interruption(_restart_on_its_own, loses_writes=True),
+    "restart": Interruption(restart_on_its_own, loses_writes=True),
     "blip": Interruption(_sever, loses_writes=False),
 }
 
 
-def _listed(write: LiveWrite, *, lost: bool) -> list[dict[str, str | None]]:
+def listed(write: LiveWrite, *, lost: bool) -> list[dict[str, str | None]]:
     """What ``dropped_settings`` holds for ``write``: its entry when the engine
     lost it, nothing when the engine still holds it."""
     return [{"field": write.field, "value": write.value, "name": write.name}] if lost else []
 
 
 @pytest.mark.parametrize("interruption", INTERRUPTIONS.values(), ids=INTERRUPTIONS.keys())
-@pytest.mark.parametrize("write", WRITES, ids=[write.field for write in WRITES])
 def test_a_live_write_is_listed_with_the_value_written_and_the_engines_name_only_when_the_engine_lost_it(
-    restartable_app: RestartableApp, write: LiveWrite, interruption: Interruption
+    restartable_app: RestartableApp, interruption: Interruption
 ) -> None:
-    _write_live(restartable_app, write)
+    write_live(restartable_app, JUNK_FILTER_WRITE)
     interruption.cut(restartable_app.state)
-    assert _dropped_after_reconnect(restartable_app) == _listed(write, lost=interruption.loses_writes)
+    assert dropped_after_reconnect(restartable_app) == listed(JUNK_FILTER_WRITE, lost=interruption.loses_writes)
 
 
 @pytest.mark.parametrize("staged", STAGED_WRITES, ids=[staged.write.field for staged in STAGED_WRITES])
@@ -201,19 +204,18 @@ def test_a_staged_setting_applied_live_that_a_restart_dropped_is_listed_like_a_d
     restartable_app: RestartableApp, staged: StagedWrite
 ) -> None:
     _stage_and_apply(restartable_app, staged)
-    _restart_on_its_own(restartable_app.state)
-    assert _dropped_after_reconnect(restartable_app) == _listed(staged.write, lost=True)
+    restart_on_its_own(restartable_app.state)
+    assert dropped_after_reconnect(restartable_app) == listed(staged.write, lost=True)
 
 
-@pytest.mark.parametrize("write", WRITES, ids=[write.field for write in WRITES])
 def test_a_write_kept_through_a_reconnect_that_lost_nothing_is_listed_when_a_later_restart_drops_it(
-    restartable_app: RestartableApp, write: LiveWrite
+    restartable_app: RestartableApp,
 ) -> None:
-    _write_live(restartable_app, write)
+    write_live(restartable_app, JUNK_FILTER_WRITE)
     _sever(restartable_app.state)
     _reconnect(restartable_app)
-    _restart_on_its_own(restartable_app.state)
-    assert _dropped_after_reconnect(restartable_app) == _listed(write, lost=True)
+    restart_on_its_own(restartable_app.state)
+    assert dropped_after_reconnect(restartable_app) == listed(JUNK_FILTER_WRITE, lost=True)
 
 
 # --- restarts and reloads HQPTuner causes itself ------------------------------
@@ -232,10 +234,10 @@ PRESET = "Bench"
 #: A speaker apply: processing on, the first channel's level moved.
 SPEAKER_APPLY = {"enabled": True, "channels": {"0": {"level": "-3"}}}
 
-#: Live writes no restore can carry onto the config file: the junk filter has no
+#: A live write no restore can carry onto the config file: the junk filter has no
 #: config field. So the engine a restart brings back is always off what was
 #: written.
-UNCARRIED_WRITES = [JUNK_FILTER_WRITE]
+UNCARRIED_WRITE = JUNK_FILTER_WRITE
 
 
 @dataclass(frozen=True)
@@ -275,7 +277,7 @@ def own_restart_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator
         def restarted() -> None:
             restarts.append(cause)
             state.pop("_down", None)
-            _restart_on_its_own(state)
+            restart_on_its_own(state)
 
         return restarted
 
@@ -327,7 +329,7 @@ def _apply_speakers(app: OwnRestartApp) -> None:
 def _restart_by_itself(app: OwnRestartApp) -> None:
     """hqplayerd restarts onto its config file with no request from HQPTuner."""
     app.restarts.append("itself")
-    _restart_on_its_own(app.state)
+    restart_on_its_own(app.state)
 
 
 class Restart(NamedTuple):
@@ -351,11 +353,11 @@ RESTARTS = {
 }
 
 
-def _dropped_after_restart(app: OwnRestartApp, restart: Restart, write: LiveWrite) -> object:
-    """``dropped_settings`` once ``restart`` has restarted the engine off
+def _dropped_after_restart(app: OwnRestartApp, cause: Callable[[OwnRestartApp], None], write: LiveWrite) -> object:
+    """``dropped_settings`` once ``cause`` has restarted the engine off
     ``write`` and the app has reconnected to it."""
     before = len(app.restarts)
-    restart.cause(app)
+    cause(app)
     if len(app.restarts) == before:
         raise FixtureError(reason="the engine never restarted")
     _reconnect(app)
@@ -364,14 +366,15 @@ def _dropped_after_restart(app: OwnRestartApp, restart: Restart, write: LiveWrit
     return app.client.get("/api/health").json().get("dropped_settings")
 
 
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
 @pytest.mark.parametrize("restart", RESTARTS.values(), ids=RESTARTS.keys())
 def test_a_live_write_a_restart_changed_is_listed_only_when_hqptuner_did_not_cause_the_restart(
-    own_restart_app: OwnRestartApp, restart: Restart, write: LiveWrite
+    own_restart_app: OwnRestartApp, restart: Restart
 ) -> None:
     restart.prepare(own_restart_app)
-    _write_live(own_restart_app, write)
-    assert _dropped_after_restart(own_restart_app, restart, write) == _listed(write, lost=restart.listed)
+    write_live(own_restart_app, UNCARRIED_WRITE)
+    assert _dropped_after_restart(own_restart_app, restart.cause, UNCARRIED_WRITE) == listed(
+        UNCARRIED_WRITE, lost=restart.listed
+    )
 
 
 # --- an own restart request that never reached the engine ---------------------
@@ -418,16 +421,17 @@ def _dropped_after_unsent_then_restart(
     unsent(app)
     if len(app.restarts) != before:
         raise FixtureError(reason="the request restarted the engine")
-    return _dropped_after_restart(app, RESTARTS["hqplayerd on its own"], write)
+    return _dropped_after_restart(app, _restart_by_itself, write)
 
 
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
 @pytest.mark.parametrize("unsent", UNSENT_RESTARTS.values(), ids=UNSENT_RESTARTS.keys())
 def test_a_live_write_is_listed_when_hqplayerd_restarts_after_an_own_restart_request_that_never_reached_it(
-    own_restart_app: OwnRestartApp, unsent: Callable[[OwnRestartApp], None], write: LiveWrite
+    own_restart_app: OwnRestartApp, unsent: Callable[[OwnRestartApp], None]
 ) -> None:
-    _write_live(own_restart_app, write)
-    assert _dropped_after_unsent_then_restart(own_restart_app, unsent, write) == _listed(write, lost=True)
+    write_live(own_restart_app, UNCARRIED_WRITE)
+    assert _dropped_after_unsent_then_restart(own_restart_app, unsent, UNCARRIED_WRITE) == listed(
+        UNCARRIED_WRITE, lost=True
+    )
 
 
 # --- a live write confirmed while an own restart is under way -----------------
@@ -435,24 +439,20 @@ def test_a_live_write_is_listed_when_hqplayerd_restarts_after_an_own_restart_req
 
 class WriteDuring(NamedTuple):
     """What the case sets up first, the 8088 hook whose restart the live write
-    lands inside (None: the write lands before the restart), what restarts the
-    engine, and whether the write is listed."""
+    lands inside, and what restarts the engine."""
 
     prepare: Callable[[OwnRestartApp], None]
-    hook: str | None
+    hook: str
     cause: Callable[[OwnRestartApp], None]
-    listed: bool
 
 
 #: A write the engine confirms after HQPTuner's own restart request reached the
-#: daemon and before the restart lands is lost to that restart: not listed. The
-#: same write ahead of a restart hqplayerd makes on its own is.
+#: daemon and before the restart lands is lost to that restart: not listed.
 WRITES_DURING = {
-    "settings apply": WriteDuring(_nothing, "_on_restore", _apply_through_restore, listed=False),
-    "preset load": WriteDuring(_save_preset, "_on_restore", _load_preset, listed=False),
-    "rescan": WriteDuring(_nothing, "_on_refresh", _rescan, listed=False),
-    "speaker apply": WriteDuring(_nothing, "_on_speakers", _apply_speakers, listed=False),
-    "hqplayerd on its own": WriteDuring(_nothing, None, _restart_by_itself, listed=True),
+    "settings apply": WriteDuring(_nothing, "_on_restore", _apply_through_restore),
+    "preset load": WriteDuring(_save_preset, "_on_restore", _load_preset),
+    "rescan": WriteDuring(_nothing, "_on_refresh", _rescan),
+    "speaker apply": WriteDuring(_nothing, "_on_speakers", _apply_speakers),
 }
 
 
@@ -472,25 +472,21 @@ def _write_inside(app: OwnRestartApp, hook: str, write: LiveWrite) -> list[bool]
 
 
 def _dropped_after_write_during(app: OwnRestartApp, during: WriteDuring, write: LiveWrite) -> object:
-    """``dropped_settings`` once ``write`` has landed inside or ahead of the
-    restart ``during`` names and the app has reconnected."""
-    if during.hook is None:
-        _write_live(app, write)
-        return _dropped_after_restart(app, Restart(_nothing, during.cause, during.listed), write)
+    """``dropped_settings`` once ``write`` has landed inside the restart
+    ``during`` names and the app has reconnected."""
     confirmed = _write_inside(app, during.hook, write)
-    dropped = _dropped_after_restart(app, Restart(_nothing, during.cause, during.listed), write)
+    dropped = _dropped_after_restart(app, during.cause, write)
     if confirmed != [True]:
         raise FixtureError(reason=f"the engine never took {write.field}={write.value} inside the restart")
     return dropped
 
 
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
 @pytest.mark.parametrize("during", WRITES_DURING.values(), ids=WRITES_DURING.keys())
-def test_a_live_write_confirmed_while_a_restart_is_under_way_is_listed_only_when_hqptuner_did_not_cause_it(
-    own_restart_app: OwnRestartApp, during: WriteDuring, write: LiveWrite
+def test_a_live_write_confirmed_while_an_own_restart_is_under_way_is_not_listed(
+    own_restart_app: OwnRestartApp, during: WriteDuring
 ) -> None:
     during.prepare(own_restart_app)
-    assert _dropped_after_write_during(own_restart_app, during, write) == _listed(write, lost=during.listed)
+    assert _dropped_after_write_during(own_restart_app, during, UNCARRIED_WRITE) == listed(UNCARRIED_WRITE, lost=False)
 
 
 # --- an own reload the engine takes in place ----------------------------------
@@ -521,15 +517,15 @@ def _reload_in_place(app: OwnRestartApp) -> None:
 def _dropped_around_reload(app: OwnRestartApp) -> object:
     """``dropped_settings`` once ``PUT_BACK`` was written, an in-place reload put it
     back, ``WRITTEN_AFTER`` was written, and hqplayerd then restarted on its own."""
-    _write_live(app, PUT_BACK)
+    write_live(app, PUT_BACK)
     _reload_in_place(app)
     if app.state[PUT_BACK.state_key] == PUT_BACK.landed:
         raise FixtureError(reason=f"the reload left {PUT_BACK.field}={PUT_BACK.value} standing")
-    _write_live(app, WRITTEN_AFTER)
-    return _dropped_after_restart(app, RESTARTS["hqplayerd on its own"], WRITTEN_AFTER)
+    write_live(app, WRITTEN_AFTER)
+    return _dropped_after_restart(app, _restart_by_itself, WRITTEN_AFTER)
 
 
 def test_an_own_reload_in_place_lists_only_the_live_writes_confirmed_after_it(
     own_restart_app: OwnRestartApp,
 ) -> None:
-    assert _dropped_around_reload(own_restart_app) == _listed(WRITTEN_AFTER, lost=True)
+    assert _dropped_around_reload(own_restart_app) == listed(WRITTEN_AFTER, lost=True)

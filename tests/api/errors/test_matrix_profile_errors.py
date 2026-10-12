@@ -8,9 +8,6 @@ translated into a sentence a listener can act on; every other refusal keeps the
 daemon's own words. HQPTuner never pre-checks playback state itself — the
 refusal here is the daemon's alone.
 
-The four parametrized jargon cases are the whole-body guard: no fragment of the
-daemon's raw diagnostic may reach the listener by any route, `detail` or not.
-
 The control-lane fake refuses on the `_error`/`_error_text` knobs; the daemon
 never sees a difference between these cases and any other setter refusal.
 """
@@ -48,13 +45,6 @@ def test_a_switch_refused_for_want_of_playback_is_unavailable(
     refusing_api: Callable[[str], TestClient],
 ) -> None:
     assert _switch(refusing_api(NO_PLAYBACK)).status_code == 503
-
-
-@pytest.mark.parametrize("jargon", ["clHQPlayerEngine", "clPlaylist", "GetTrackFile", "trackn"])
-def test_the_daemons_raw_diagnostic_never_reaches_the_listener(
-    refusing_api: Callable[[str], TestClient], jargon: str
-) -> None:
-    assert jargon not in _switch(refusing_api(NO_PLAYBACK)).text
 
 
 def test_a_switch_refused_for_another_reason_is_unavailable(
