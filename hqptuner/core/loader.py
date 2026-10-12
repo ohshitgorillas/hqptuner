@@ -95,7 +95,7 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     readings.enums = enums
     readings.matrix_profiles = matrix_profiles
     readings.live.forget()
-    readings.loaded_at = mgr.clock.now().timestamp()
+    readings.loaded_at = readings.connected_at = mgr.clock.now().timestamp()
     mgr.reachable = True
     mgr.unreachable_since = None
     return info

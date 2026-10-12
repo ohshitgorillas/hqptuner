@@ -82,7 +82,7 @@ def health(manager: Mgr, static: Static) -> HealthReport:
         ready=manager.ready,
         connected=manager.connected.is_set(),
         unreachable_since=manager.unreachable_since,
-        connected_at=readings.loaded_at,
+        connected_at=readings.connected_at,
         info=readings.info,
         release=readings.release,
         release_tested=static.release_tested(readings.release),
