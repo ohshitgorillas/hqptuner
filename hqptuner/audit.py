@@ -24,15 +24,15 @@ import hashlib
 import json
 import logging
 from dataclasses import dataclass
-from datetime import UTC, datetime
-from functools import partial
 from typing import TYPE_CHECKING, Any, TypeGuard
 
 from hqptuner import audit_narrow, audit_types
+from hqptuner.clock import utc_now
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from pathlib import Path
 
 log = logging.getLogger(__name__)
@@ -49,8 +49,6 @@ WHAT = "the audit log"
 #: Field names whose value never reaches the log, at any depth.
 _REDACT_KEYS = frozenset({"password", "secret", "token"})
 _REDACTED = "***"
-
-_DEFAULT_NOW = partial(datetime.now, UTC)
 
 
 @dataclass(frozen=True)
@@ -130,7 +128,7 @@ class AuditLog:
         path: Path | None,
         *,
         max_bytes: int = DEFAULT_MAX_BYTES,
-        now: Callable[[], datetime] = _DEFAULT_NOW,
+        now: Callable[[], datetime] = utc_now,
     ) -> None:
         """Fix where records land, the size at which the file rolls and the clock ``ts`` is read from.
 

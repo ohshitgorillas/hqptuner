@@ -18,11 +18,11 @@ zip member and a stray byte there is a corrupt archive rather than a funny-looki
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime
-from functools import partial
+from datetime import UTC
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
+from hqptuner.clock import utc_now
 from hqptuner.config import DESCRIPTION_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -30,6 +30,7 @@ from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from datetime import datetime
     from pathlib import Path
 
 # The store's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. A file stamped higher is
@@ -47,9 +48,6 @@ _MAX_NAME_LEN = 128
 # measurement header is made of.
 _KEPT_CONTROLS = ("\n", "\t")
 _FIRST_PRINTABLE = 0x20
-
-# The store's default clock, a module-level singleton a constructor default reads.
-_DEFAULT_NOW = partial(datetime.now, UTC)
 
 
 class DescriptionEntry(TypedDict):
@@ -239,7 +237,7 @@ class DescriptionStore:
     reads as empty.
     """
 
-    def __init__(self, path: Path, *, now: Callable[[], datetime] = _DEFAULT_NOW) -> None:
+    def __init__(self, path: Path, *, now: Callable[[], datetime] = utc_now) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write.
 
         ``now`` supplies the instant stamped on a write; a test passes a fixed clock.
