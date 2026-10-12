@@ -1,6 +1,13 @@
 // The Crossfeed block's strings the settings metadata does not hold (owner copy). Labels and paragraphs the metadata
 // holds come through store/prose.js.
 
+/** The drawer's opening paragraph, under the gate. */
+export const INTRO =
+  "Crossfeed is processing for headphones, intended to make the listening experience more natural and spacious.";
+
+/** The Structural line's unlabeled first paragraph. */
+export const STRUCTURAL_INTRO = "Structural crossfeed is HQPTuner's own and uses the Matrix pipelines.";
+
 /** The crossfeed compensation's manual paragraph. */
 export const COMP_MAN =
   "Crossfeed makes centered sound — vocals, bass, most of the mix — slightly duller in the treble than the sides, much as real speakers do. This brings the centered part back to neutral, without touching the crossfeed's stereo effect.";

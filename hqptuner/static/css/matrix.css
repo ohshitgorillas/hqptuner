@@ -23,6 +23,7 @@
 .xlist .chline{grid-template-columns:var(--drow-col) minmax(0,1fr)}
 .xleft{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
 .xline .chl{min-height:var(--ctl-h-sm)}
+.xline.fold .xleft{grid-column:1/-1}   /* a folded line draws nothing on the right: its summary takes both tracks */
 .xline .chn{width:auto;flex-shrink:0}
 .xsum{min-width:0;flex:1 1 0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
 .xctl{display:flex;flex-direction:column;gap:var(--sp-4);padding:0 0 var(--sp-4) var(--sp-10)}
@@ -102,9 +103,16 @@
 .lrange .vrbox .cl{width:var(--lvtab-l)}
 
 /* Compact (1133×744). Crossfeed: copy in closer (overflow rule), to the column that keeps the compensation hint on one
-   line. Loudness: its control column is the taller side of every row (bands, range), so copy in closer cannot help;
-   the rhythm tightens a step, its segments and band boxes take the mid height and its range boxes the small one. */
+   line; the Structural line's controls stay the taller side, so the gate row, the opening paragraph and the lines'
+   controls tighten their rhythm a step. Loudness: its control column is the taller side of every row (bands, range), so
+   copy in closer cannot help; the rhythm tightens a step, its segments and band boxes take the mid height and its range
+   boxes the small one. */
 .plate[data-size="compact"] :is(#drawer-crossfeed,#pb-drawer-crossfeed) .xlist .chline{grid-template-columns:var(--drow-col-xf) minmax(0,1fr)}
+.plate[data-size="compact"] .xgate{padding:var(--sp-1) 0 var(--sp-2);margin-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xintro{margin-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xleft{gap:var(--sp-1)}
+.plate[data-size="compact"] .xctl{gap:var(--sp-2);padding-bottom:var(--sp-1)}
+.plate[data-size="compact"] .xctl .ci{gap:var(--sp-1)}
 .plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow{padding:var(--sp-2) 0}
 .plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .drow .seg:not(.mini) button{height:var(--ctl-h-mid)}
 .plate[data-size="compact"] :is(#drawer-loudness,#pb-drawer-loudness) .dpanel{padding-bottom:var(--sp-1)}
@@ -150,6 +158,7 @@
 .xgate b{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink)}
 .xgate .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-6)}
 .xgate .gr{flex:1 1 0}
+.xintro{margin:0 0 var(--sp-2);max-width:none;font-size:var(--fs-3);line-height:1.42;color:var(--ink)}   /* the picked line's copy voice, full width */
 .xctl .ci{align-items:flex-start}
 
 /* Structural cartoon: near paths solid amber, far paths dashed ink-2, ±30° ticks. */

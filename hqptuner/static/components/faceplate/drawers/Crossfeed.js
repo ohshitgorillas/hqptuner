@@ -1,8 +1,9 @@
-// The Crossfeed drawer's block. The gate (crossfeed_enabled, acting on whichever line is picked), then the
-// Bauer | Structural lines (Volume's choice grammar): the picked line holds its controls under its name and its copy
-// beside them, the other folds to one summary line, so the drawer never scrolls. Picking a line is a view choice: it
-// switches the implementation off on the line being left and never engages crossfeed by itself. Under the lines,
-// filling the height left: Bauer's response plot, or Structural's top-down drawing with its readouts.
+// The Crossfeed drawer's block. The gate (crossfeed_enabled, acting on whichever line is picked) and the drawer's
+// opening paragraph under it, then the Bauer | Structural lines (Volume's choice grammar): the picked line holds its
+// controls under its name and its copy beside them, the other folds to one summary line, so the drawer never scrolls.
+// Picking a line is a view choice: it switches the implementation off on the line being left and never engages
+// crossfeed by itself. Under the lines, filling the height left: Bauer's response plot, or Structural's top-down
+// drawing with its readouts.
 //
 // The block grays whole, its reason legible, while the matrix engine is bypassed; crossfeed bypassed grays the lines'
 // controls while the gate and the pick stay live. The decisions are store/faceplate/drawers/crossfeed.js's.
@@ -16,7 +17,7 @@ import { Seg } from "./loudness/parts.js";
 import { BauerControls, BauerCopy, BauerPlot } from "./crossfeed/Bauer.js";
 import { PIPELINE_WRITES } from "../../../store/xfeed/mode.js";
 import { Geometry, StructuralControls, StructuralCopy } from "./crossfeed/Structural.js";
-import { LABEL, NAME } from "./crossfeed/copy.js";
+import { INTRO, LABEL, NAME } from "./crossfeed/copy.js";
 import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
@@ -98,6 +99,7 @@ export function CrossfeedBody({ here }) {
       />
       <span class="gr" hidden=${!why}>${withXref(why, here)}</span>
     </div>
+    <p class="man xintro">${INTRO}</p>
     <div class=${live.matrix ? "chlist xlist grayed" : "chlist xlist"} role="radiogroup" aria-label=${NAME.lines}>
       ${LINES.map((line) => html`<${ImplLine} line=${line} view=${view} />`)}
     </div>

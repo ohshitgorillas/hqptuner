@@ -20,7 +20,7 @@ import { PIPELINE_WRITES } from "../../../../store/xfeed/mode.js";
 import { restartMarkIf } from "../../drawer/controls.js";
 import { ManPara } from "../loudness/parts.js";
 import { Slider } from "./Slider.js";
-import { LABEL, NAME, READOUT, STRUCTURAL_MAN, radiusSub } from "./copy.js";
+import { LABEL, NAME, READOUT, STRUCTURAL_INTRO, STRUCTURAL_MAN, radiusSub } from "./copy.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/crossfeed.js").CrossfeedLive} CrossfeedLive */
 /** @typedef {[number, number]} Point */
@@ -101,9 +101,10 @@ export function StructuralControls({ live }) {
   `;
 }
 
-/** The Structural line's manual copy. */
+/** The Structural line's manual copy: the line's own paragraph, then each control's. */
 export const StructuralCopy = () => html`
   <div class="man">
+    <${ManPara} text=${STRUCTURAL_INTRO} />
     <${ManPara} label=${LABEL.angle} text=${STRUCTURAL_MAN.angle} />
     <${ManPara} label=${LABEL.circ} text=${STRUCTURAL_MAN.circ} />
     <${ManPara} label=${LABEL.lambda} text=${STRUCTURAL_MAN.lambda} />

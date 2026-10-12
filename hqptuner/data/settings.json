@@ -218,7 +218,7 @@
     },
     "crossfeed_enabled": {
       "label": "Bauer crossfeed",
-      "tooltip": "Bauer cross-feed is processing for headphones, intended to make the listening experience more natural and spacious. This is a very simple model with three presets. Applied to the output mix bus, meaning output channels after matrix processing.",
+      "tooltip": "Bauer crossfeed is a very simple model with three presets. Applied to the output mix bus, meaning output channels after matrix processing.",
       "source": "manual §7"
     },
     "crossfeed_preset": {
