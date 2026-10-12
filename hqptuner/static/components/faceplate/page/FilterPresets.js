@@ -8,6 +8,7 @@ import { useCallback } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { classNames } from "../../../model/shell/format.js";
 import { foldSubsets, pickPreset, presetRows, showSubsets } from "../../../store/faceplate/page/presets.js";
+import { AMark } from "../NameFace.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 
 /** @typedef {import("../../../store/faceplate/page/presets.js").PresetRow} PresetRow */
@@ -56,25 +57,6 @@ function parkLeft(panel) {
   if (!at) return;
   panel.style.left = `${Math.round(at.left)}px`;
   panel.style.top = `${Math.round(at.top)}px`;
-}
-
-/**
- * Error-correction coverage: filled disc full, half disc partial, ring none.
- *
- * @param {PresetRow["mark"]} mark
- */
-function glyph(mark) {
-  if (!mark) return null;
-  const label = MARK_LABEL[mark];
-  let shape = html`<circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" />`;
-  if (mark === "full") shape = html`<circle cx="7" cy="7" r="6" fill="currentColor" />`;
-  if (mark === "half") {
-    shape = html`<circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" />
-      <path d="M7 1.5 A5.5 5.5 0 0 1 7 12.5 Z" fill="currentColor" />`;
-  }
-  return html`<svg class="apod" data-mark=${mark} viewBox="0 0 14 14" role="img" aria-label=${label}>
-    <title>${label}</title>${shape}
-  </svg>`;
 }
 
 /** @param {PresetRow} row */
@@ -143,7 +125,7 @@ const presetRow = (row, first = false, names = "") =>
       ${row.filters.map((f) => html`<span>${f.stage && html`<span class="k">${f.stage}</span>`}${f.name}</span>`)}
     </span>
     <span class="kn">${row.knobs.map((k) => knob(row, k))}</span>
-    <span class="ap">${glyph(row.mark)}</span>
+    <span class="ap"><${AMark} kind=${row.mark} label=${MARK_LABEL[row.mark]} /></span>
     ${cost(row)}
     ${first && html`<button type="button" class="fsubx" aria-label=${`Hide ${names}`} onClick=${foldSubsets}></button>`}
   </div>`;

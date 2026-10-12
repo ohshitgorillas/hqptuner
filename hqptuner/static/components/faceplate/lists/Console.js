@@ -9,9 +9,9 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { facetShown, stateKeys, summary } from "../../../model/shell/narrow-view.js";
 import { facetsMoved, narrowState, resetFacets, setFacet } from "../../../store/faceplate/lists/facets.js";
+import { AMark } from "../NameFace.js";
 import { triggerProps } from "../Popover.js";
 import { CONSOLES, popId } from "./facets.js";
-import { AMark } from "./Rows.js";
 
 /** @typedef {import("./facets.js").BarFacet} BarFacet */
 /** @typedef {import("../../../model/shell/narrow-view.js").Summary} Summary */

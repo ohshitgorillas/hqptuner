@@ -60,7 +60,7 @@
 .orow[aria-selected="true"]::before{content:"";position:absolute;left:0;top:var(--sp-1);bottom:var(--sp-1);width:var(--stroke);border-radius:var(--hair);background:var(--acc)}   /* left-hand selection bar, as everywhere */
 .orow .mk{display:flex;align-items:center;justify-content:center}
 .orow .qst{display:flex;align-items:center;padding-left:var(--sp-1);height:var(--orow-h);font-size:var(--fs-1);letter-spacing:var(--ls-stars);color:var(--ink-2);white-space:nowrap;line-height:1}
-.amark{display:inline-flex;width:var(--pencil);height:var(--pencil);color:var(--acc)}
+.amark{display:inline-flex;width:var(--pencil);height:var(--pencil)}
 .amark svg{width:100%;height:100%}
 .amark circle{fill:none;stroke:currentColor;stroke-width:1.3}
 .amark path{fill:currentColor}
@@ -114,7 +114,6 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .fbtn .amark{width:var(--pencil);height:var(--pencil)}
 .amk{display:inline-flex;align-items:center;gap:var(--sp-1);height:var(--apod-mark)}
 .amk .amark{width:var(--apod-mark);height:var(--apod-mark)}
-.seg button.on .amk .amark{color:var(--on-acc)}
 .shead .round.dx{margin-left:auto}
 /* Dithers: one column, families stacked, at a readable width (blurbs wrap at it). */
 .osheet[data-kind="dithers"] .ocol{width:var(--ocol-w-dithers)}

@@ -7,9 +7,9 @@ import { html } from "../../../lib/dom.js";
 import { deadChip } from "../../../model/shell/narrow-view.js";
 import { FOCUS_MODE_DEFAULT, GENRE_MODE_DEFAULT } from "../../../store/narrow/state.js";
 import { narrowState, previewCounts, setFacet, shaperCount } from "../../../store/faceplate/lists/facets.js";
+import { AMark } from "../NameFace.js";
 import { Popover, parkAt } from "../Popover.js";
 import { CONSOLES, popId } from "./facets.js";
-import { AMark } from "./Rows.js";
 
 /** @typedef {import("./facets.js").BarFacet} BarFacet */
 /** @typedef {import("./facets.js").FacetRow} FacetRow */

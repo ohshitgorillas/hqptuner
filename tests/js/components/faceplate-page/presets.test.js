@@ -14,6 +14,7 @@
 
 import test from "node:test";
 import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
 
@@ -27,11 +28,14 @@ const { elements, classes, attr, hasAttr } = await import("../../support/markup.
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { presetsFor } = await import("../../../../hqptuner/static/store/easy/easy.js");
 const { knobsOffered } = await import("../../../../hqptuner/static/store/easy/easyoffer.js");
-const { openPopover } = await import("../../../../hqptuner/static/store/faceplate/view.js");
+const { openPopover, openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { presetRows, showSubsets, foldSubsets } =
   await import("../../../../hqptuner/static/store/faceplate/page/presets.js");
 const { FilterPresets, FilterPresetsButton, FILTER_PRESETS } =
   await import("../../../../hqptuner/static/components/faceplate/page/FilterPresets.js");
+const { OptionList } = await import("../../../../hqptuner/static/components/faceplate/lists/OptionList.js");
+const { flushNarrowing } = await import("../../../../hqptuner/static/store/narrow/persist.js");
+const { loadLists, resetLists } = await import("../../support/listsfixture.js");
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -133,6 +137,16 @@ const rowNode = (seen, id, under) =>
       propsOf(v)["data-preset"] === id &&
       (propsOf(v)["data-lane"] ?? undefined) === under,
   );
+
+/**
+ * The apodizing mark inside an element: the first element under it carrying the mark's state, `data-kind`.
+ *
+ * @param {MarkupElement} el
+ */
+const markIn = (el) => elements(el.html).find((x) => x.start > 0 && hasAttr(x, "data-kind"));
+
+/** The state a mark carries, undefined for no mark. @param {MarkupElement | undefined} mark */
+const kindOf = (mark) => (mark ? attr(mark, "data-kind") : undefined);
 
 /** Fire a vnode's onClick, when it has one. @param {VNode | undefined} v */
 function fire(v) {
@@ -274,13 +288,88 @@ test("test_each_row_draws_the_half_mark_the_engine_states_for_its_filters", asyn
     filters: served.filters.map((/** @type {object} */ f) => Object.assign({}, f, { arg: "2", apodizing: false })),
   });
   assert.deepEqual(
-    Object.fromEntries(
-      topRows(drawn().out).map((e) => [
-        attr(e, "data-preset"),
-        attr(elements(e.html).find((x) => x.name === "svg" && is(x, "apod")) || e, "data-mark"),
-      ]),
-    ),
+    Object.fromEntries(topRows(drawn().out).map((e) => [attr(e, "data-preset"), kindOf(markIn(e))])),
     Object.fromEntries(TOP.map((p) => [p.id, "half"])),
+  );
+});
+
+// The filter lists' own wire (tests/js/support/listsfixture.js) serves one filter in each apodizing state; each state
+// below pairs its enumeration flags (`arg` bit 0 apodizing, bit 1 half-apodizing, and the `apodizing` flag from bit 0)
+// with the fixture filter the lists draw in that state.
+/** @type {Record<string, { arg: string, apodizing: boolean, listed: string }>} */
+const APOD_STATES = {
+  full: { arg: "1", apodizing: true, listed: "poly-sinc-gauss-long" },
+  half: { arg: "2", apodizing: false, listed: "sinc-M" },
+};
+
+/** What the filter lists open over the body for a 1x filter pick. */
+const LIST_KEY = "sdm_filter_1x";
+
+/** Stands in for the list's mark when the list draws none, so an absent mark on both sides never reads as the same. */
+const NO_LIST_MARK = "the filter list draws no mark";
+
+/**
+ * What a mark draws: its state and the drawing inside it, its own styling attributes left out.
+ *
+ * @param {MarkupElement | undefined} mark
+ */
+const drawingOf = (mark) =>
+  mark ? { kind: kindOf(mark), inside: mark.html.slice(`<${mark.name}${mark.attrs}>`.length) } : undefined;
+
+/**
+ * The mark a filter list's row draws for the fixture filter `name`.
+ *
+ * @param {string} name
+ */
+async function listMark(name) {
+  const before = openList.value;
+  resetLists();
+  loadLists();
+  openList.value = { key: LIST_KEY, stage: "1x", value: name, pick: () => undefined };
+  const row = elements(render(html`<${OptionList} />`)).find(
+    (e) => attr(e, "role") === "option" && attr(e, "data-v") === name,
+  );
+  const mark = row ? markIn(row) : undefined;
+  resetLists();
+  await flushNarrowing();
+  openList.value = before;
+  return mark;
+}
+
+/**
+ * Re-serve every enumerated filter with the given apodizing flags.
+ *
+ * @param {{ arg: string, apodizing: boolean }} flags
+ */
+function serveAll({ arg, apodizing }) {
+  const served = /** @type {Record<string, any>} */ (enums.value);
+  enums.value = /** @type {never} */ ({
+    ...served,
+    filters: served.filters.map((/** @type {object} */ f) => ({ ...f, arg, apodizing })),
+  });
+}
+
+for (const [state, flags] of Object.entries(APOD_STATES)) {
+  test(`test_each_preset_row_draws_the_mark_the_filter_lists_draw_for_${state}_apodizing`, async () => {
+    const want = drawingOf(await listMark(flags.listed)) ?? NO_LIST_MARK;
+    await live();
+    serveAll(flags);
+    assert.deepEqual(
+      Object.fromEntries(topRows(drawn().out).map((e) => [attr(e, "data-preset"), drawingOf(markIn(e))])),
+      Object.fromEntries(TOP.map((p) => [p.id, want])),
+    );
+  });
+}
+
+/** The enumeration flags of a filter with no apodizing: `arg` bits 0 and 1 clear, so the `apodizing` flag is clear. */
+const NO_APODIZING = { arg: "0", apodizing: false };
+
+test("test_each_row_draws_the_no_correction_mark_when_the_engine_serves_its_filters_unapodized", async () => {
+  await live();
+  serveAll(NO_APODIZING);
+  assert.deepEqual(
+    Object.fromEntries(topRows(drawn().out).map((e) => [attr(e, "data-preset"), kindOf(markIn(e))])),
+    Object.fromEntries(TOP.map((p) => [p.id, "none"])),
   );
 });
 
