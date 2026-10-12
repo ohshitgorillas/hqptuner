@@ -47,7 +47,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .hires{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:var(--hair) var(--sp-2);line-height:1.2;white-space:nowrap}
 .kseg{display:flex;align-items:center;gap:var(--sp-3)}
 .kseg .kl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);width:var(--fp-knob-l);white-space:nowrap;line-height:var(--lh-eng)}
-.frow .ap .amark{width:var(--apod-mark);height:var(--apod-mark);flex-shrink:0}
+.frow .ap .amark{width:var(--apod-mark-touch);height:var(--apod-mark-touch);flex-shrink:0}
 .pips{display:flex;align-items:center;gap:var(--sp-1);justify-content:flex-end;white-space:nowrap;justify-self:end}
 .pip{width:var(--pip);height:var(--pip);border-radius:var(--r-round);background:var(--ink-3);flex-shrink:0}
 .frow.cur .pip{background:var(--acc)}

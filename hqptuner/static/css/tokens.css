@@ -196,7 +196,7 @@
   --fold-mark:10px;        /* a line's leading mark column: a fold line's ▸, the builder's station fold, a check menu's ✓ */
   --cplate-h:52px;         /* a chain picker's nameplate; the output device button */
   --desc-min:44px;         /* the profile description well, least height: on the page and in the profile builder */
-  --pencil:12px;           /* the edit pencil in a description well; the apodizing mark in a dense option row and in the list's key */
+  --pencil:12px;           /* the edit pencil in a description well */
   --plot-min:100px;        /* the matrix response plot, least height */
   --plot-min-sm:90px;      /* the DSP pipelines drawer's response plot, least height */
   --plot-min-xf:120px;     /* the crossfeed plot and the crossfeed cartoon, least height */
@@ -248,7 +248,8 @@
   --fp-em-w-sub:28px;      /* a nested preset's emoji column */
   --fp-knob-l:62px;        /* a preset knob's label */
   --fp-sub-indent:48px;    /* a nested preset's step in */
-  --apod-mark:14px;        /* a mark's box: the apodizing mark; in a dense option row the heart's column and the tier tag's height; an alert line's glyph column */
+  --apod-mark:14px;        /* a mark's box: the apodizing mark in a dense option row and its column, in the Simplified list's key and on a facet bar button; in a dense option row the heart's column and the tier tag's height; an alert line's glyph column */
+  --apod-mark-touch:16px;  /* the apodizing mark at touch size: a Standard filter row's mark and its column, the Standard filter list's key, the Apodizing facet's segments, a filter preset's mark */
   --pip:4px;               /* a resource pip */
   --chip-h:26px;           /* a chip: a narrowing chip or segment, a pipeline stage chip and its + key; a small key: a pipeline file, a round page key; a page or band key's least width */
   --nrow-stg-w:22px;       /* a narrowing row's stage label */
@@ -264,7 +265,7 @@
   --fam-line:21px;         /* an option list's family head and title line */
   --fold-tri:4px; --fold-tri-d:5px;   /* an option list's fold triangle: half its base, its depth */
   --orow-h:18px;           /* a dense option row: its height, its name's line, a variant's header line, its stars and heart */
-  --stars-w:46px;          /* an option row's star rating */
+  --stars-w:52px;          /* an option row's star rating */
   --stars-w-touch:50px;    /* an option row's star rating at touch size: the Standard filter list */
   --fav-w-touch:20px;      /* the heart's column in an option row at touch size */
   --optkey-w:40px;         /* a short token column in an option row: a drawer option's engine token, a modulator's tier tag */

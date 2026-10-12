@@ -8,6 +8,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { describe, idFor, optionProse } from "../../prose.js";
 import { plainEntry, decorateOptions, withoutRate } from "../../plainnames.js";
 import { modulatorTier } from "../../ui/options.js";
+import { plainNames } from "../../ui/prefs.js";
 import { chainControlOf, chainControls } from "../../live/chains.js";
 import { sourceIsNx } from "../../live/derive.js";
 import { loadedChain } from "../../live/rates.js";
@@ -29,10 +30,11 @@ import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/c
  * @property {"1x" | "nx"} stage  the stage narrowing reads
  * @property {string} value     the engine name running in it
  * @property {boolean} idle     this track's path does not run it
- * @property {string} fam       the running option's plain family, "" where the overlay has none
- * @property {string | null} variant  its plain variant, null where it has none
+ * @property {string} fam       the running option's plain family, "" under Standard or where the overlay has none
+ * @property {string | null} variant  its plain variant, null under Standard or where it has none
  * @property {string} leaf      its name as the option style prints it: the plain row text, or the engine name
- * @property {string} tier      its rate tier, "512+" for a modulator with a DSD512 floor, "" where it has none
+ * @property {string} tier      its rate tier, "512+" for a modulator with a DSD512 floor, "" under Standard or where it
+ *                              has none
  * @property {string} prose     its manual prose's first paragraph in place, "" where the overlay has none
  * @property {string[]} rest    its manual paragraphs in place after the first, each its own
  * @property {string[]} more    its manual paragraphs held behind "see more", none where nothing is held
@@ -68,14 +70,27 @@ effect(() => {
 });
 
 /**
- * The running option's plain breakdown: family and variant whatever the option style, the name as the style prints it,
- * and a modulator's rate tier. A Simplified leaf drops the trailing rate clause that names its own tier.
+ * The running option's breakdown as the option style prints it. Simplified gives the plain family and variant, the
+ * plain name and a modulator's rate tier, the name dropping the trailing rate clause that names its own tier. Standard
+ * gives the engine name alone, with no family, variant or tier, since the engine name carries its own rate.
  *
  * @param {string} kind  the overlay section
  * @param {string} name  the engine name
  * @returns {{ fam: string, variant: string | null, leaf: string, tier: string }}
  */
 export function plainOf(kind, name) {
+  return plainNames.value ? simplifiedOf(kind, name) : { fam: "", variant: null, leaf: name, tier: "" };
+}
+
+/**
+ * The Simplified breakdown: the plain family and variant, the plain name without its own tier's rate clause, and a
+ * modulator's rate tier.
+ *
+ * @param {string} kind  the overlay section
+ * @param {string} name  the engine name
+ * @returns {{ fam: string, variant: string | null, leaf: string, tier: string }}
+ */
+function simplifiedOf(kind, name) {
   const e = kind ? plainEntry(kind, name) : null;
   const shown = kind ? decorateOptions([{ label: name }], kind)[0] : { label: name };
   const tier = kind === "modulators" ? (modulatorTier(name) ?? "") : "";

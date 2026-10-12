@@ -33,7 +33,7 @@ useStorage();
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
 const { config, engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
   await import("../../../../hqptuner/static/store/signals.js");
-const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
+const { setBottomBar, setPlainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
 const { setSwitcherTarget, switcherView, setSlot } =
@@ -282,6 +282,16 @@ test("test_each_slot_body_draws_its_names_plain_family_variant_and_leaf", () => 
     })),
     [FACES.ASDM5, FACES["ASDM7EC 512+fs"]],
   );
+});
+
+/** A fixture modulator with no rate floor, so its face carries no tier badge. */
+const UNTIERED = "ASDM5";
+
+test("test_under_standard_a_slot_body_reads_its_engine_name_alone", () => {
+  setPlainNames(false);
+  setSlot(0, UNTIERED);
+  const [body] = slotBodies();
+  assert.equal(body ? text(body) : null, UNTIERED);
 });
 
 test("test_each_slot_pick_names_its_own_slot", () => {

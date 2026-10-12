@@ -160,8 +160,19 @@ test("test_shaping_shows_the_shapers_nameplate", () => {
   assert.deepEqual(plates("shaping"), ["pcm_dither"]);
 });
 
-test("test_the_nameplate_names_the_running_option_by_its_engine_name_under_standard", () => {
-  assert.equal(textOf("cpl"), "minphaseFIR");
+/**
+ * What Resampling's open nameplate reads, or a string saying there is none, so a missing nameplate never reads as a
+ * name.
+ *
+ * @returns {string}
+ */
+const plateText = () => {
+  const found = bodyEls("resampling").find((e) => e.name === "button" && attr(e, "data-key"));
+  return found ? text(found) : "no nameplate";
+};
+
+test("test_under_standard_the_nameplate_reads_the_running_options_engine_name_alone", () => {
+  assert.equal(plateText(), "minphaseFIR");
 });
 
 test("test_the_nameplate_names_the_running_option_by_its_plain_leaf_under_simplified", () => {
