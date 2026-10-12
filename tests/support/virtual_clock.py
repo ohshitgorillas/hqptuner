@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from hqptuner.core.clock import Clock
+from hqptuner.clock import Clock
 
 #: The wall-clock instant a clock built without one answers with.
 DEFAULT_INSTANT = datetime(2025, 1, 1, tzinfo=UTC)

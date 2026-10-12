@@ -9,9 +9,9 @@ from contextlib import AbstractAsyncContextManager
 from fastapi import FastAPI
 
 from hqptuner.api.push import PushFeed
+from hqptuner.clock import Clock
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
-from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError

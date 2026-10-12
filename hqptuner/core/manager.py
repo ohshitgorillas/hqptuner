@@ -21,11 +21,11 @@ from typing import TYPE_CHECKING
 import httpx
 
 from hqptuner.audit import AuditLog
+from hqptuner.clock import Clock
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.core.clock import Clock
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import (

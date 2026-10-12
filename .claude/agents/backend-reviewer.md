@@ -17,7 +17,7 @@ Anything else is steering: the builder's report or reasoning, a list of things t
 
 Take the diff from git yourself: `git diff HEAD` and `git status --short` for untracked files, or `git log -p` over the range. Review only paths under `hqptuner/` outside `hqptuner/static/`; another reviewer holds the UI.
 
-Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Then search for what the change should have reused: the module in `core/`, `engine/` or `lanes/` that already does the job, `errors.py`, `paths.py`, `core/clock.py`, the standard library, and the dependencies in `pyproject.toml`. `docs/spec/architecture.md` §2–6 and `docs/spec/protocol.md` are the rules you hold the change to.
+Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Then search for what the change should have reused: the module in `core/`, `engine/` or `lanes/` that already does the job, `errors.py`, `paths.py`, `clock.py`, the standard library, and the dependencies in `pyproject.toml`. `docs/spec/architecture.md` §2–6 and `docs/spec/protocol.md` are the rules you hold the change to.
 
 Tests in the diff are read for one thing: a test loosened to fit the code. Everything else in them belongs to `test-writer`.
 
