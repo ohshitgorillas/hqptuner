@@ -9,6 +9,8 @@ __pycache__/
 .coverage
 .coverage.json
 .pytest-junit.xml
+# when the last run started, written by scripts/pytest_plugins/run_stamp.py and judged by scripts/gates/testing/check_fresh_reports.py
+.pytest-run.json
 # last green run's wall time, the bar scripts/gates/testing/check_suite_time.py holds the suite to
 .suite-time*.json
 # per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/check_idle.py

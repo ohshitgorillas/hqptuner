@@ -56,21 +56,26 @@ lint-js:
 	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
-# The coverage floor is per file and lives in the gate below, not in
-# --cov-fail-under. Second recipe line, so a failing suite reports first.
-# The junit report carries the suite's wall time; the third line holds it to
+# The run stamp records when the run started, and the second recipe line
+# refuses any report older than it or missing
+# (scripts/gates/testing/check_fresh_reports.py): a run that was aborted or
+# crashed leaves the previous run's reports behind, and the gates after it
+# would pass on those. The coverage floor is per file and lives in the gate on
+# the third line, not in --cov-fail-under, so a failing suite reports first.
+# The junit report carries the suite's wall time; the fourth line holds it to
 # the last green run's (scripts/gates/testing/check_suite_time.py). The idle probe
 # measures each test's wall time against its CPU time and writes a second
-# report, which the fourth line holds per test (scripts/gates/check_idle.py).
+# report, which the fifth line holds per test (scripts/gates/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
-# a reading the same on any machine, and the fifth line refuses any test with
+# a reading the same on any machine, and the sixth line refuses any test with
 # one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
-# still going at the third line's bar, so a hung suite fails instead of hanging.
+# still going at the fourth line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
 test:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p suite_deadline -p run_stamp --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
 	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
