@@ -33,11 +33,6 @@ POLL = 0.05
 #: The request datagram, byte for byte as protocol.md §2 gives it.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
-#: The address a container reaches its own host on, where the deployment provides
-#: it. Settable through ``Config.container_host_alias`` because the name resolves
-#: inside a container only, so nothing outside one can be pointed at it.
-ALIAS = "host.docker.internal"
-
 
 @dataclass(frozen=True)
 class Daemon:
@@ -177,8 +172,8 @@ async def _collect(sock: socket.socket, deadline: float, clock: Clock) -> list[t
 class Search:
     """Where the sweep looks and who it asks."""
 
+    alias: str
     target: str = GROUP
-    alias: str = ALIAS
     control_port: int = PORT
     request_timeout: float = 5.0
 
