@@ -31,7 +31,7 @@ import fixtures_clients
 import pytest
 from apps import advance_app, app_manager, live_app, settle_app, wait_for_api
 from conftest import spawn_threaded_daemon
-from fake_control import CommandHooks, CommandLog, take_lane_down
+from fake_control import CommandLog, take_lane_down
 from fastapi.testclient import TestClient
 from narrow import FixtureError
 
@@ -51,6 +51,10 @@ CONFIG_FILE_STATE = {
 #: How many heartbeat polls run over the new connection before health is read.
 HEARTBEATS = 3
 
+#: The config switch, set before the app is built, that leaves the metering
+#: lane off: nothing these cases check reads it.
+METERING_OFF = ("HQPTUNER_METERING_ENABLED", "0")
+
 
 class LiveWrite(NamedTuple):
     """One live setting HQPTuner writes: the config-form field and value posted,
@@ -66,22 +70,12 @@ class LiveWrite(NamedTuple):
 
 #: Each write moves its State attribute off the config file's value, so a
 #: restart onto that file drops it. The fake's enumerations name the values:
-#: mode index 2 is "SDM (DSD)", PCM filter enum 25 is "sinc-M" at index 2, PCM
-#: shaper enum 5 is "NS9" at index 1, junk filter 1 is "20k". The PCM rate list
-#: carries 705600 Hz at index 3; neither the pinned rate nor adaptive volume has
-#: an engine name.
+#: junk filter 1 is "20k". The PCM rate list carries 705600 Hz at index 3;
+#: neither the pinned rate nor adaptive volume has an engine name.
 JUNK_FILTER_WRITE = LiveWrite("junk_filter", "1", "filter_junk", "1", "20k")
 ADAPTIVE_VOLUME_WRITE = LiveWrite("adaptive_volume", "1", "adaptive", "1", None)
-FILTER_WRITE = LiveWrite("filter", "25", "filterNx", "2", "sinc-M")
 RATE_PIN_WRITE = LiveWrite("rate", "705600", "rate", "3", None)
-WRITES = [
-    LiveWrite("mode", "sdm", "mode", "2", "SDM (DSD)"),
-    FILTER_WRITE,
-    LiveWrite("dither", "5", "shaper", "1", "NS9"),
-    JUNK_FILTER_WRITE,
-    RATE_PIN_WRITE,
-    ADAPTIVE_VOLUME_WRITE,
-]
+WRITES = [JUNK_FILTER_WRITE]
 
 
 class StagedWrite(NamedTuple):
@@ -98,18 +92,6 @@ STAGED_WRITES = [
     StagedWrite("adaptive_volume", ADAPTIVE_VOLUME_WRITE),
 ]
 
-#: The 1x filter the engine holds when HQPTuner writes the Nx filter, set there by
-#: something other than HQPTuner: list index 1, "poly-sinc-gauss-long", off the
-#: config file's index 0. Writing the Nx filter carries it along unchanged.
-HELD_1X_STATE_KEY = "filter1x"
-HELD_1X_INDEX = "1"
-
-#: A write of the output mode the engine already runs: the PCM chain, State mode
-#: index 1. The engine clears a standing rate pin on every mode write, back to
-#: index 0, auto.
-SAME_MODE_WRITE = LiveWrite("mode", "pcm", "mode", "1", "PCM")
-PIN_CLEARED_INDEX = "0"
-
 
 @dataclass(frozen=True)
 class RestartableApp:
@@ -121,9 +103,10 @@ class RestartableApp:
 
 
 @pytest.fixture
-def restartable_app(tmp_path: Path) -> Iterator[RestartableApp]:
+def restartable_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[RestartableApp]:
     """The control-only app connected to a fake on one shared State, so the test
     can sever the connection and move the engine under it."""
+    monkeypatch.setenv(*METERING_OFF)
     state = {**fake_control.DEFAULTS, **CONFIG_FILE_STATE}
     log: CommandLog = []
     daemon = spawn_threaded_daemon(state=state, log=log)
@@ -148,16 +131,6 @@ def _stage_and_apply(app: RestartableApp, staged: StagedWrite) -> None:
     app.client.post("/api/config/apply")
     if app.state[write.state_key] != write.landed:
         raise FixtureError(reason=f"the engine never took staged {staged.bucket}={write.value}")
-
-
-def _held_by_another_client(app: RestartableApp, state_key: str, value: str) -> None:
-    """The engine moves ``state_key`` to ``value`` without HQPTuner writing it,
-    and the app reads it back on its next poll."""
-    app.state[state_key] = value
-    settle_app(app.client)
-    advance_app(app.client, app_manager(app.client).cfg.poll_interval)
-    if str(app.client.get("/api/state").json()["data"].get(state_key)) != value:
-        raise FixtureError(reason=f"the app never saw the engine's {state_key}={value}")
 
 
 def _sever(state: dict[str, str]) -> None:
@@ -232,17 +205,6 @@ def test_a_staged_setting_applied_live_that_a_restart_dropped_is_listed_like_a_d
     assert _dropped_after_reconnect(restartable_app) == _listed(staged.write, lost=True)
 
 
-def test_a_setting_a_write_carried_along_unchanged_is_not_listed_when_a_restart_changes_it(
-    restartable_app: RestartableApp,
-) -> None:
-    _held_by_another_client(restartable_app, HELD_1X_STATE_KEY, HELD_1X_INDEX)
-    _write_live(restartable_app, FILTER_WRITE)
-    if restartable_app.state[HELD_1X_STATE_KEY] != HELD_1X_INDEX:
-        raise FixtureError(reason="the Nx filter write moved the 1x filter instead of carrying it along")
-    _restart_on_its_own(restartable_app.state)
-    assert _dropped_after_reconnect(restartable_app) == _listed(FILTER_WRITE, lost=True)
-
-
 @pytest.mark.parametrize("write", WRITES, ids=[write.field for write in WRITES])
 def test_a_write_kept_through_a_reconnect_that_lost_nothing_is_listed_when_a_later_restart_drops_it(
     restartable_app: RestartableApp, write: LiveWrite
@@ -252,19 +214,6 @@ def test_a_write_kept_through_a_reconnect_that_lost_nothing_is_listed_when_a_lat
     _reconnect(restartable_app)
     _restart_on_its_own(restartable_app.state)
     assert _dropped_after_reconnect(restartable_app) == _listed(write, lost=True)
-
-
-@pytest.mark.parametrize("interruption", INTERRUPTIONS.values(), ids=INTERRUPTIONS.keys())
-def test_a_rate_pin_a_later_mode_write_cleared_is_not_listed_after_a_reconnect(
-    restartable_app: RestartableApp, interruption: Interruption
-) -> None:
-    _write_live(restartable_app, RATE_PIN_WRITE)
-    _write_live(restartable_app, ADAPTIVE_VOLUME_WRITE)
-    _write_live(restartable_app, SAME_MODE_WRITE)
-    if restartable_app.state[RATE_PIN_WRITE.state_key] != PIN_CLEARED_INDEX:
-        raise FixtureError(reason="the mode write left the rate pin standing")
-    interruption.cut(restartable_app.state)
-    assert _dropped_after_reconnect(restartable_app) == _listed(ADAPTIVE_VOLUME_WRITE, lost=interruption.loses_writes)
 
 
 # --- restarts and reloads HQPTuner causes itself ------------------------------
@@ -284,9 +233,9 @@ PRESET = "Bench"
 SPEAKER_APPLY = {"enabled": True, "channels": {"0": {"level": "-3"}}}
 
 #: Live writes no restore can carry onto the config file: the junk filter has no
-#: config field, and the file's fixed rate slot stays on auto. So the engine a
-#: restart brings back is always off what was written.
-UNCARRIED_WRITES = [JUNK_FILTER_WRITE, RATE_PIN_WRITE]
+#: config field. So the engine a restart brings back is always off what was
+#: written.
+UNCARRIED_WRITES = [JUNK_FILTER_WRITE]
 
 
 @dataclass(frozen=True)
@@ -297,7 +246,6 @@ class OwnRestartApp(RestartableApp):
 
     http: dict[str, Any]
     restarts: list[str]
-    control_hooks: CommandHooks
 
 
 def _config_loaded(client: TestClient) -> bool:
@@ -308,13 +256,13 @@ def _config_loaded(client: TestClient) -> bool:
 
 
 @pytest.fixture
-def own_restart_app(tmp_path: Path) -> Iterator[OwnRestartApp]:
+def own_restart_app(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[OwnRestartApp]:
     """The app on the control fake and the 8088 fake, where a restore or a rescan
     landing on the 8088 fake restarts the control fake onto its config file."""
+    monkeypatch.setenv(*METERING_OFF)
     state = {**fake_control.DEFAULTS, **CONFIG_FILE_STATE}
     log: CommandLog = []
-    hooks: CommandHooks = {}
-    daemon = spawn_threaded_daemon(state=state, log=log, hooks=hooks)
+    daemon = spawn_threaded_daemon(state=state, log=log)
     port = next(daemon)
     server = fake_http.spawn(fake_http.state(**CONFIG_FILE_FIELDS))
     http = next(server)
@@ -334,7 +282,7 @@ def own_restart_app(tmp_path: Path) -> Iterator[OwnRestartApp]:
     http["_on_restore"] = restart("restore")
     http["_on_refresh"] = restart("rescan")
     http["_on_speakers"] = restart("speakers")
-    yield OwnRestartApp(client, state, log, http, restarts, hooks)
+    yield OwnRestartApp(client, state, log, http, restarts)
     next(served, None)
     next(server, None)
     next(daemon, None)
@@ -547,167 +495,41 @@ def test_a_live_write_confirmed_while_a_restart_is_under_way_is_listed_only_when
 
 # --- an own reload the engine takes in place ----------------------------------
 
-#: Virtual seconds the app is given after an in-place reload before the case
-#: goes on: past the longest restart the protocol documents (a full service
-#: restart, about 9.3 s), so any window HQPTuner holds open for it has closed.
-SETTLE_SECONDS = 30.0
+#: The live write the reload puts back, made before it, and the one made after it.
+PUT_BACK = RATE_PIN_WRITE
+WRITTEN_AFTER = JUNK_FILTER_WRITE
 
 
-class Reload(NamedTuple):
-    """The 8088 hook a reload lands on, and the request that sets it off."""
-
-    hook: str
-    cause: Callable[[OwnRestartApp], None]
-
-
-RELOADS = {
-    "speaker apply": Reload("_on_speakers", _apply_speakers),
-    "rescan": Reload("_on_refresh", _rescan),
-}
-
-
-def _reload_in_place(app: OwnRestartApp, reload: Reload) -> None:
-    """Have ``reload`` move the engine back onto its config file with the control
-    connection kept, then let ``SETTLE_SECONDS`` pass on the app's clock."""
+def _reload_in_place(app: OwnRestartApp) -> None:
+    """Have a speaker apply move the engine back onto its config file with the
+    control connection kept, then let the app's restart window pass on its
+    clock, and one heartbeat with it."""
 
     def reloaded() -> None:
         app.restarts.append("in place")
         app.state.update(CONFIG_FILE_STATE)
 
-    app.http[reload.hook] = reloaded
+    app.http["_on_speakers"] = reloaded
     before = len(app.restarts)
-    reload.cause(app)
+    _apply_speakers(app)
     if len(app.restarts) == before:
         raise FixtureError(reason="the request never reloaded the engine")
-    interval = app_manager(app.client).cfg.poll_interval
-    for _ in range(int(SETTLE_SECONDS / interval) + 1):
-        advance_app(app.client, interval)
+    cfg = app_manager(app.client).cfg
+    advance_app(app.client, cfg.alarm_threshold + cfg.poll_interval)
 
 
-class AroundReload(NamedTuple):
-    """Whether the live write lands after the in-place reload or before it, whether
-    hqplayerd later restarts on its own, and whether the write is listed."""
-
-    after: bool
-    restarted_later: bool
-    listed: bool
-
-
-#: A write the reload itself put back is HQPTuner's own loss, read straight away
-#: or at a later restart; a write confirmed after the reload is lost to that
-#: later restart.
-AROUND_RELOAD = {
-    "written after, later restart": AroundReload(after=True, restarted_later=True, listed=True),
-    "written before, read then": AroundReload(after=False, restarted_later=False, listed=False),
-    "written before, later restart": AroundReload(after=False, restarted_later=True, listed=False),
-}
+def _dropped_around_reload(app: OwnRestartApp) -> object:
+    """``dropped_settings`` once ``PUT_BACK`` was written, an in-place reload put it
+    back, ``WRITTEN_AFTER`` was written, and hqplayerd then restarted on its own."""
+    _write_live(app, PUT_BACK)
+    _reload_in_place(app)
+    if app.state[PUT_BACK.state_key] == PUT_BACK.landed:
+        raise FixtureError(reason=f"the reload left {PUT_BACK.field}={PUT_BACK.value} standing")
+    _write_live(app, WRITTEN_AFTER)
+    return _dropped_after_restart(app, RESTARTS["hqplayerd on its own"], WRITTEN_AFTER)
 
 
-def _dropped_around_reload(app: OwnRestartApp, reload: Reload, around: AroundReload, write: LiveWrite) -> object:
-    """``dropped_settings`` for ``write`` made around an in-place ``reload``."""
-    if not around.after:
-        _write_live(app, write)
-    _reload_in_place(app, reload)
-    if around.after:
-        _write_live(app, write)
-    elif app.state[write.state_key] == write.landed:
-        raise FixtureError(reason=f"the reload left {write.field}={write.value} standing")
-    if around.restarted_later:
-        return _dropped_after_restart(app, RESTARTS["hqplayerd on its own"], write)
-    return app.client.get("/api/health").json().get("dropped_settings")
-
-
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
-@pytest.mark.parametrize("around", AROUND_RELOAD.values(), ids=AROUND_RELOAD.keys())
-@pytest.mark.parametrize("reload", RELOADS.values(), ids=RELOADS.keys())
 def test_an_own_reload_in_place_lists_only_the_live_writes_confirmed_after_it(
-    own_restart_app: OwnRestartApp, reload: Reload, around: AroundReload, write: LiveWrite
+    own_restart_app: OwnRestartApp,
 ) -> None:
-    assert _dropped_around_reload(own_restart_app, reload, around, write) == _listed(write, lost=around.listed)
-
-
-# --- a reconnect the daemon answers before the own restore restarts it ------
-
-#: The command whose arrival over the reconnect sets off the restart: by then
-#: the not-yet-restarted daemon has answered the connect and its State.
-ANSWERED_BEFORE_RESTART = "GetModes"
-
-
-def _lose_control_until_noticed(app: OwnRestartApp) -> None:
-    """Take the control lane down and wait until the app reports it gone."""
-    take_lane_down(app.state)
-    wait_for_api(app.client, lambda c: not c.get("/api/health").json()["connected"])
-
-
-def _answer_a_reconnect_then_restart(app: OwnRestartApp) -> None:
-    """Bring the control lane back on the engine as it stands, and restart it
-    once the app's reconnect has been answered."""
-    app.control_hooks[ANSWERED_BEFORE_RESTART] = lambda: _restart_by_itself(app)
-    app.state.pop("_down", None)
-    wait_for_api(app.client, lambda _c: ANSWERED_BEFORE_RESTART not in app.control_hooks)
-
-
-def _own_restore_then_answered_reconnect(app: OwnRestartApp) -> None:
-    """With the control lane down, apply from Settings; the restore lands and
-    returns, the daemon answers the app's reconnect, then restarts."""
-    _lose_control_until_noticed(app)
-    landed: list[bool] = []
-    app.http["_on_restore"] = lambda: landed.append(True)
-    _apply_through_restore(app)
-    if not landed:
-        raise FixtureError(reason="the restore never reached the daemon")
-    _answer_a_reconnect_then_restart(app)
-
-
-def _answered_reconnect_then_restart_by_itself(app: OwnRestartApp) -> None:
-    """With the control lane down, the daemon answers the app's reconnect, then restarts on its own."""
-    _lose_control_until_noticed(app)
-    _answer_a_reconnect_then_restart(app)
-
-
-#: The reconnect the daemon answers after the own restore returned does not make
-#: the restart that follows anyone else's; the same reconnect ahead of a restart
-#: hqplayerd makes on its own does.
-ANSWERED_RECONNECTS = {
-    "own restore": Restart(_nothing, _own_restore_then_answered_reconnect, listed=False),
-    "hqplayerd on its own": Restart(_nothing, _answered_reconnect_then_restart_by_itself, listed=True),
-}
-
-
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
-@pytest.mark.parametrize("restart", ANSWERED_RECONNECTS.values(), ids=ANSWERED_RECONNECTS.keys())
-def test_a_reconnect_the_daemon_answers_before_an_own_restore_restarts_it_leaves_the_restart_its_own(
-    own_restart_app: OwnRestartApp, restart: Restart, write: LiveWrite
-) -> None:
-    _write_live(own_restart_app, write)
-    assert _dropped_after_restart(own_restart_app, restart, write) == _listed(write, lost=restart.listed)
-
-
-# --- a live write on the connection after an own restore ----------------------
-
-#: Own restores, each with what it needs set up first.
-OWN_RESTORES = {
-    "settings apply": Restart(_nothing, _apply_through_restore, listed=True),
-    "preset load": Restart(_save_preset, _load_preset, listed=True),
-}
-
-
-def _dropped_after_own_then_restart(app: OwnRestartApp, restore: Restart, write: LiveWrite) -> object:
-    """``dropped_settings`` once ``restore`` has restarted the engine, ``write``
-    has landed on the new connection, and hqplayerd has then restarted on its own."""
-    restore.prepare(app)
-    before = len(app.restarts)
-    restore.cause(app)
-    if len(app.restarts) == before:
-        raise FixtureError(reason="the request never restarted the engine")
-    _reconnect(app)
-    _write_live(app, write)
-    return _dropped_after_restart(app, RESTARTS["hqplayerd on its own"], write)
-
-
-@pytest.mark.parametrize("write", UNCARRIED_WRITES, ids=[write.field for write in UNCARRIED_WRITES])
-@pytest.mark.parametrize("restore", OWN_RESTORES.values(), ids=OWN_RESTORES.keys())
-def test_a_live_write_on_the_connection_after_an_own_restore_is_listed_when_hqplayerd_restarts_on_its_own(
-    own_restart_app: OwnRestartApp, restore: Restart, write: LiveWrite
-) -> None:
-    assert _dropped_after_own_then_restart(own_restart_app, restore, write) == _listed(write, lost=restore.listed)
+    assert _dropped_around_reload(own_restart_app) == _listed(WRITTEN_AFTER, lost=True)

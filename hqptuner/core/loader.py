@@ -18,7 +18,7 @@ from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import CommandError, ControlError
 from hqptuner.lanes.http import forms
-from hqptuner.lanes.live import chain, dropped, lane, memory
+from hqptuner.lanes.live import chain, dropped, lane, memory, reconnect, reload
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -102,34 +102,27 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
 
 
 def _reconcile_live(mgr: "ConnectionManager") -> None:
-    """Hold the confirmed-writes record against this connection's State.
+    """Hold the confirmed-writes record against this connection's State, and apply ``reconnect.on_connect``'s verdict.
 
-    After a restart the engine is back on its config file, and the record is all that
-    knows what it lost. What it lost joins the standing report, which keeps everything
-    it lists until the user clears it (``dropped.merged``). What it still holds stays
-    recorded, so a later restart can still report it. After a restart HQPTuner asked
-    for, what it lost was lost at HQPTuner's own request: the record is let go with
-    nothing listed, and the report stands as it was. This connect is not counted yet,
-    so it is tested as the one it will be counted as.
+    This connect is not counted yet: ``mgr.connects`` is the count before it.
     """
     readings = mgr.readings
-    if readings.live.follows_own_restart(mgr.connects + 1, mgr.drops):
+    verdict = reconnect.on_connect(
+        readings.live, memory.engine_view(mgr), mgr.connects, mgr.drops, readings.dropped_settings
+    )
+    readings.dropped_settings = verdict.report
+    if verdict.own_restart:
         readings.live.restarted()
-        return
-    reconciled = dropped.reconcile(readings.live.written, memory.engine_view(mgr))
-    readings.dropped_settings = dropped.merged(readings.dropped_settings, reconciled.dropped)
-    readings.live.reconnected(reconciled.kept)
+    else:
+        readings.live.reconnected(verdict.kept)
 
 
 def _settle_own_reload(mgr: "ConnectionManager") -> None:
-    """Settle HQPTuner's own reload the engine took without dropping this connection.
-
-    What the engine no longer holds was put back by that reload, at HQPTuner's own
-    request: it leaves the record unreported. What it still holds stays recorded.
-    """
+    """Settle HQPTuner's own reload the engine took without dropping this connection (``reload.on_poll``)."""
     live = mgr.readings.live
-    if live.own_reload_in_place(mgr.connects, mgr.clock.monotonic(), mgr.alarm_threshold):
-        live.reloaded(dropped.reconcile(live.written, memory.engine_view(mgr)).kept)
+    verdict = reload.on_poll(live, memory.engine_view(mgr), mgr.connects, mgr.clock.monotonic(), mgr.alarm_threshold)
+    if verdict.in_place:
+        live.reloaded(verdict.kept)
 
 
 def _let_go_taken_over(mgr: "ConnectionManager", read: dict[str, dropped.WrittenSetting], *, answered: bool) -> None:
