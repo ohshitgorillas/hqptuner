@@ -33,18 +33,13 @@ const FIELDS = [
   { name: "mode", type: "select", value: "pcm" },
 ];
 
-/** @type {string[]} */
-let applies = [];
-
 /** @param {string} path */
 function routes(path) {
   if (path !== "/api/config/apply") return undefined;
-  applies.push(path);
   return ok({ report: {} });
 }
 
 beforeEach(async () => {
-  applies = [];
   stagingWire({ routes });
   config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
   engineState.value = { adaptive: 0 };
@@ -170,13 +165,26 @@ function inLine(schema, v) {
   return line ? elements(line.html) : [];
 }
 
-test("test_a_field_lights_the_option_its_value_names", () => {
-  const on = (/** @type {string} */ v) => {
-    const b = inField(fieldOf("b", [])).find((e) => e.name === "button" && attr(e, "data-v") === v);
-    return b ? classes(b).includes("on") : null;
-  };
-  assert.deepEqual([on("b"), on("a")], [true, false]);
-});
+/**
+ * Whether option `v` of a field over "b" is lit, or null when the option is missing.
+ *
+ * @param {string} v
+ */
+const fieldLit = (v) => {
+  const b = inField(fieldOf("b", [])).find((e) => e.name === "button" && attr(e, "data-v") === v);
+  return b ? classes(b).includes("on") : null;
+};
+
+const LIT = [
+  { name: "a_field_lights_the_option_its_value_names", v: "b", want: true },
+  { name: "a_field_leaves_dark_an_option_its_value_does_not_name", v: "a", want: false },
+];
+
+for (const row of LIT) {
+  test(`test_${row.name}`, () => {
+    assert.equal(fieldLit(row.v), row.want);
+  });
+}
 
 test("test_tapping_a_fields_option_writes_it_at_once", async () => {
   /** @type {string[]} */
@@ -185,13 +193,26 @@ test("test_tapping_a_fields_option_writes_it_at_once", async () => {
   assert.deepEqual(sets, ["b"]);
 });
 
-test("test_a_fields_gray_reason_disables_its_options", () => {
-  const disabled = (/** @type {string | undefined} */ gray) => {
-    const b = inField(fieldOf("a", [], gray)).find((e) => e.name === "button");
-    return b ? hasAttr(b, "disabled") : null;
-  };
-  assert.deepEqual([disabled(""), disabled("why")], [false, true]);
-});
+/**
+ * Whether the first option of a field grayed by `gray` is disabled, or null when it has none.
+ *
+ * @param {string} gray
+ */
+const fieldDisabled = (gray) => {
+  const b = inField(fieldOf("a", [], gray)).find((e) => e.name === "button");
+  return b ? hasAttr(b, "disabled") : null;
+};
+
+const GRAYED = [
+  { name: "a_fields_gray_reason_disables_its_options", gray: "why", want: true },
+  { name: "a_field_with_an_empty_gray_reason_leaves_its_options_enabled", gray: "", want: false },
+];
+
+for (const row of GRAYED) {
+  test(`test_${row.name}`, () => {
+    assert.equal(fieldDisabled(row.gray), row.want);
+  });
+}
 
 test("test_a_fields_gray_reason_prints_under_its_options", () => {
   const reason = inField(fieldOf("a", [], "why")).find((e) => classes(e).includes("gr"));
@@ -205,21 +226,47 @@ test("test_a_field_prints_each_paragraph_of_its_copy", () => {
   assert.deepEqual(paras, ["p1", "p2"]);
 });
 
-test("test_a_choice_checks_the_line_its_value_names", () => {
-  const checked = (/** @type {string} */ v) => {
-    const radio = inLine(choiceOf("y", []), v).find((e) => attr(e, "role") === "radio");
-    return radio ? attr(radio, "aria-checked") : undefined;
-  };
-  assert.deepEqual([checked("y"), checked("x")], ["true", "false"]);
-});
+/**
+ * The aria-checked of line `v`'s radio in a choice over "y".
+ *
+ * @param {string} v
+ */
+const lineChecked = (v) => {
+  const radio = inLine(choiceOf("y", []), v).find((e) => attr(e, "role") === "radio");
+  return radio ? attr(radio, "aria-checked") : undefined;
+};
 
-test("test_a_lines_detail_control_is_disabled_unless_its_line_is_picked", () => {
-  const disabled = (/** @type {string} */ value) => {
-    const input = inLine(choiceOf(value, []), "x").find((e) => e.name === "input");
-    return input ? hasAttr(input, "disabled") : null;
-  };
-  assert.deepEqual([disabled("x"), disabled("y")], [false, true]);
-});
+const CHECKED = [
+  { name: "a_choice_checks_the_line_its_value_names", v: "y", want: "true" },
+  { name: "a_choice_leaves_unchecked_a_line_its_value_does_not_name", v: "x", want: "false" },
+];
+
+for (const row of CHECKED) {
+  test(`test_${row.name}`, () => {
+    assert.equal(lineChecked(row.v), row.want);
+  });
+}
+
+/**
+ * Whether line x's detail control is disabled in a choice over `value`, or null when it has none.
+ *
+ * @param {string} value
+ */
+const detailDisabled = (value) => {
+  const input = inLine(choiceOf(value, []), "x").find((e) => e.name === "input");
+  return input ? hasAttr(input, "disabled") : null;
+};
+
+const DETAIL = [
+  { name: "a_lines_detail_control_is_enabled_while_its_line_is_picked", value: "x", want: false },
+  { name: "a_lines_detail_control_is_disabled_while_another_line_is_picked", value: "y", want: true },
+];
+
+for (const row of DETAIL) {
+  test(`test_${row.name}`, () => {
+    assert.equal(detailDisabled(row.value), row.want);
+  });
+}
 
 test("test_a_lines_detail_control_shows_its_keys_staged_value", async () => {
   await edit("volume_max", "-6");
@@ -239,34 +286,72 @@ test("test_a_head_item_prints_its_section_title", () => {
   assert.equal(head ? text(head) : undefined, "headfixture");
 });
 
-test("test_a_note_prints_what_its_function_reads_now", () => {
+/**
+ * The text a drawer's note prints.
+ *
+ * @param {DrawerSchema} schema
+ */
+const noteText = (schema) => {
+  const note = markup(schema).find((e) => classes(e).includes("mnote"));
+  return note ? text(note) : undefined;
+};
+
+test("test_a_note_prints_what_its_function_reads", () => {
+  const schema = drawerOf([{ note: () => "first" }]);
+  assert.equal(noteText(schema), "first");
+});
+
+test("test_a_note_prints_what_its_function_reads_now_after_it_changes", () => {
   let now = "first";
   const schema = drawerOf([{ note: () => now }]);
-  const read = () => {
-    const note = markup(schema).find((e) => classes(e).includes("mnote"));
-    return note ? text(note) : undefined;
-  };
-  const before = read();
+  noteText(schema);
   now = "second";
-  assert.deepEqual([before, read()], ["first", "second"]);
+  assert.equal(noteText(schema), "second");
 });
 
-test("test_a_group_shows_while_the_schema_names_its_backend_or_combo", () => {
-  const hidden = (/** @type {string} */ backend) => {
-    const schema = drawerOf([{ group: "net", label: "net", rows: [{ key: "volume_max" }] }], { group: () => backend });
-    const grp = markup(schema).find((e) => attr(e, "data-be") === "net");
-    return grp ? hasAttr(grp, "hidden") : null;
-  };
-  assert.deepEqual([hidden("alsa"), hidden("net"), hidden("combo")], [true, false, false]);
-});
+/**
+ * Whether the net group is hidden while the schema names `backend`, or null when the group is missing.
+ *
+ * @param {string} backend
+ */
+const netHidden = (backend) => {
+  const schema = drawerOf([{ group: "net", label: "net", rows: [{ key: "volume_max" }] }], { group: () => backend });
+  const grp = markup(schema).find((e) => attr(e, "data-be") === "net");
+  return grp ? hasAttr(grp, "hidden") : null;
+};
 
-test("test_a_drawer_whose_backend_is_combo_reads_combo", () => {
-  const combo = (/** @type {string} */ backend) => {
-    const aside = markup(drawerOf([], { group: () => backend })).find((e) => e.name === "aside");
-    return aside ? classes(aside).includes("combo") : null;
-  };
-  assert.deepEqual([combo("combo"), combo("net")], [true, false]);
-});
+const SHOWN = [
+  { name: "a_group_hides_while_the_schema_names_another_backend", backend: "alsa", want: true },
+  { name: "a_group_shows_while_the_schema_names_its_backend", backend: "net", want: false },
+  { name: "a_group_shows_while_the_schema_names_combo", backend: "combo", want: false },
+];
+
+for (const row of SHOWN) {
+  test(`test_${row.name}`, () => {
+    assert.equal(netHidden(row.backend), row.want);
+  });
+}
+
+/**
+ * Whether a drawer whose schema names `backend` reads combo, or null when it draws no aside.
+ *
+ * @param {string} backend
+ */
+const readsCombo = (backend) => {
+  const aside = markup(drawerOf([], { group: () => backend })).find((e) => e.name === "aside");
+  return aside ? classes(aside).includes("combo") : null;
+};
+
+const COMBO = [
+  { name: "a_drawer_whose_backend_is_combo_reads_combo", backend: "combo", want: true },
+  { name: "a_drawer_whose_backend_is_not_combo_does_not_read_combo", backend: "net", want: false },
+];
+
+for (const row of COMBO) {
+  test(`test_${row.name}`, () => {
+    assert.equal(readsCombo(row.backend), row.want);
+  });
+}
 
 test("test_a_group_draws_its_rows", () => {
   const schema = drawerOf([{ group: "net", label: "net", rows: [{ key: "volume_max" }] }], { group: () => "net" });
@@ -301,14 +386,27 @@ test("test_a_tabs_status_word_prints_after_its_label", () => {
   assert.equal(word ? text(word) : undefined, "idlefixture");
 });
 
-test("test_a_drawer_showing_a_tab_with_a_status_reads_idle", () => {
-  const idle = (/** @type {string} */ tab) => {
-    showTab("st", tab);
-    const aside = markup(STATUSED).find((e) => e.name === "aside");
-    return aside ? classes(aside).includes("idle") : null;
-  };
-  assert.deepEqual([idle("other"), idle("run")], [true, false]);
-});
+/**
+ * Whether the statused drawer reads idle while it shows `tab`, or null when it draws no aside.
+ *
+ * @param {string} tab
+ */
+const readsIdle = (tab) => {
+  showTab("st", tab);
+  const aside = markup(STATUSED).find((e) => e.name === "aside");
+  return aside ? classes(aside).includes("idle") : null;
+};
+
+const IDLE = [
+  { name: "a_drawer_showing_a_tab_with_a_status_reads_idle", tab: "other", want: true },
+  { name: "a_drawer_showing_a_tab_with_an_empty_status_does_not_read_idle", tab: "run", want: false },
+];
+
+for (const row of IDLE) {
+  test(`test_${row.name}`, () => {
+    assert.equal(readsIdle(row.tab), row.want);
+  });
+}
 
 /**
  * A one-tab drawer whose own form reports `staged` and counts its applies and discards into `calls`.
@@ -322,12 +420,12 @@ const ownOf = (staged, calls) =>
     own: { staged: () => staged, apply: () => calls.push("apply"), discard: () => calls.push("discard") },
   });
 
-test("test_an_own_forms_apply_runs_the_form_and_not_the_staged_set", async () => {
+test("test_an_own_forms_apply_runs_the_form", async () => {
   await edit("volume_max", "-6");
   /** @type {string[]} */
   const calls = [];
   await tap(ownOf(true, calls), (p) => p["data-testid"] === "apply");
-  assert.deepEqual([calls, applies], [["apply"], []]);
+  assert.deepEqual(calls, ["apply"]);
 });
 
 test("test_an_own_forms_discard_runs_the_form", async () => {
@@ -358,8 +456,7 @@ test("test_a_choice_lines_detail_lists_the_options_the_line_names_in_place_of_th
 
 test("test_a_field_whose_when_is_false_is_left_out", () => {
   const schema = fieldOf("a", []);
-  const shown = inField(schema).length > 0;
   const spec = /** @type {{ field: { when?: () => boolean } }} */ (schema.tabs[0].body[0]);
   spec.field.when = () => false;
-  assert.deepEqual([shown, inField(schema).length], [true, 0]);
+  assert.equal(inField(schema).length, 0);
 });

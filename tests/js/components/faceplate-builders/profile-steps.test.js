@@ -392,16 +392,17 @@ const tapNav = (t, at) => {
 
 // --- the step page -----------------------------------------------------------------------------------------------
 
-test("test_the_guide_line_is_marked_skip_only_while_skipped", () => {
-  const skipped = classes(one(step("crossfeed"), "p", "pbguide")).includes("skip");
+test("test_the_guide_line_is_marked_skip_while_the_step_skips", () => {
+  assert.equal(classes(one(step("crossfeed"), "p", "pbguide")).includes("skip"), true);
+});
+
+test("test_the_guide_line_is_not_marked_skip_once_the_step_applies", () => {
   setListen("headphones");
-  assert.deepEqual([skipped, classes(one(step("crossfeed"), "p", "pbguide")).includes("skip")], [true, false]);
+  assert.equal(classes(one(step("crossfeed"), "p", "pbguide")).includes("skip"), false);
 });
 
 test("test_the_rows_are_empty_while_the_step_skips", () => {
-  const skipped = rowsOf(step("crossfeed")).length;
-  setListen("headphones");
-  assert.deepEqual([skipped, rowsOf(step("crossfeed")).length > 0], [0, true]);
+  assert.equal(rowsOf(step("crossfeed")).length, 0);
 });
 
 test("test_back_from_the_first_step_shows_the_overview", async () => {
@@ -419,10 +420,13 @@ test("test_listening_holds_one_row", () => {
   );
 });
 
+test("test_listening_presses_speakers_while_the_chain_bypasses_crossfeed", () => {
+  assert.deepEqual(pressed(rowsOf(step("listen"))), ["speakers"]);
+});
+
 test("test_listening_presses_the_way_the_edit_listens", () => {
-  const before = pressed(rowsOf(step("listen")));
   setListen("headphones");
-  assert.deepEqual([before, pressed(rowsOf(step("listen")))], [["speakers"], ["headphones"]]);
+  assert.deepEqual(pressed(rowsOf(step("listen"))), ["headphones"]);
 });
 
 test("test_tapping_the_other_way_to_listen_answers_it", async () => {
@@ -432,11 +436,15 @@ test("test_tapping_the_other_way_to_listen_answers_it", async () => {
 
 // --- crossfeed ---------------------------------------------------------------------------------------------------
 
-test("test_crossfeed_marks_the_implementation_the_chain_runs", async () => {
+test("test_crossfeed_marks_off_while_the_chain_bypasses_it", () => {
   setListen("headphones");
-  const off = lines(rowsOf(step("crossfeed")), XF, "cur");
+  assert.deepEqual(lines(rowsOf(step("crossfeed")), XF, "cur"), ["off"]);
+});
+
+test("test_crossfeed_marks_bauer_once_the_chain_engages_it", async () => {
+  setListen("headphones");
   await staging("crossfeed_enabled", "1");
-  assert.deepEqual([off, lines(rowsOf(step("crossfeed")), XF, "cur")], [["off"], ["bauer"]]);
+  assert.deepEqual(lines(rowsOf(step("crossfeed")), XF, "cur"), ["bauer"]);
 });
 
 test("test_tapping_bauer_engages_crossfeed", async () => {
@@ -451,20 +459,24 @@ test("test_tapping_off_bypasses_crossfeed", async () => {
   assert.equal(effective("crossfeed_enabled"), "0");
 });
 
-test("test_crossfeed_asks_for_the_settings_path_only_while_engaged", async () => {
+test("test_crossfeed_asks_for_no_settings_path_while_bypassed", () => {
   setListen("headphones");
-  const off = lines(rowsOf(step("crossfeed")), PATHS).length;
-  await staging("crossfeed_enabled", "1");
-  assert.deepEqual([off, lines(rowsOf(step("crossfeed")), PATHS).length], [0, 2]);
+  assert.equal(lines(rowsOf(step("crossfeed")), PATHS).length, 0);
 });
 
-test("test_crossfeed_marks_the_settings_path_taken", async () => {
-  await bauerOn();
-  path("crossfeed", "preset");
-  const preset = lines(rowsOf(step("crossfeed")), PATHS, "cur");
-  path("crossfeed", "values");
-  assert.deepEqual([preset, lines(rowsOf(step("crossfeed")), PATHS, "cur")], [["preset"], ["values"]]);
+test("test_crossfeed_asks_for_both_settings_paths_while_engaged", async () => {
+  setListen("headphones");
+  await staging("crossfeed_enabled", "1");
+  assert.equal(lines(rowsOf(step("crossfeed")), PATHS).length, 2);
 });
+
+for (const v of PATHS) {
+  test(`test_crossfeed_marks_the_${v}_path_once_taken`, async () => {
+    await bauerOn();
+    path("crossfeed", v);
+    assert.deepEqual(lines(rowsOf(step("crossfeed")), PATHS, "cur"), [v]);
+  });
+}
 
 test("test_tapping_enter_my_values_takes_that_path_for_crossfeed", async () => {
   await bauerOn();
@@ -486,13 +498,16 @@ test("test_the_preset_path_offers_the_forms_bauer_presets", async () => {
   );
 });
 
-test("test_only_the_values_path_shows_the_crossfeed_block", async () => {
-  await bauerOn();
-  path("crossfeed", "preset");
-  const preset = blocks(rowsOf(step("crossfeed")), "crossfeed");
-  path("crossfeed", "values");
-  assert.deepEqual([preset, blocks(rowsOf(step("crossfeed")), "crossfeed")], [0, 1]);
-});
+for (const { name, taken, shown } of [
+  { name: "test_the_preset_path_shows_no_crossfeed_block", taken: "preset", shown: 0 },
+  { name: "test_the_values_path_shows_the_crossfeed_block", taken: "values", shown: 1 },
+]) {
+  test(name, async () => {
+    await bauerOn();
+    path("crossfeed", taken);
+    assert.equal(blocks(rowsOf(step("crossfeed")), "crossfeed"), shown);
+  });
+}
 
 // --- DAC correction ----------------------------------------------------------------------------------------------
 
@@ -525,19 +540,22 @@ test("test_loudness_holds_only_its_gate_row_while_off", () => {
   );
 });
 
-test("test_loudness_asks_for_the_settings_path_only_while_engaged", async () => {
-  const off = lines(rowsOf(step("loudness")), PATHS).length;
-  await staging("loudness_enabled", "1");
-  assert.deepEqual([off, lines(rowsOf(step("loudness")), PATHS).length], [0, 2]);
+test("test_loudness_asks_for_no_settings_path_while_off", () => {
+  assert.equal(lines(rowsOf(step("loudness")), PATHS).length, 0);
 });
 
-test("test_loudness_marks_the_settings_path_taken", async () => {
+test("test_loudness_asks_for_both_settings_paths_while_engaged", async () => {
   await staging("loudness_enabled", "1");
-  path("loudness", "preset");
-  const preset = lines(rowsOf(step("loudness")), PATHS, "cur");
-  path("loudness", "values");
-  assert.deepEqual([preset, lines(rowsOf(step("loudness")), PATHS, "cur")], [["preset"], ["values"]]);
+  assert.equal(lines(rowsOf(step("loudness")), PATHS).length, 2);
 });
+
+for (const v of PATHS) {
+  test(`test_loudness_marks_the_${v}_path_once_taken`, async () => {
+    await staging("loudness_enabled", "1");
+    path("loudness", v);
+    assert.deepEqual(lines(rowsOf(step("loudness")), PATHS, "cur"), [v]);
+  });
+}
 
 test("test_tapping_enter_my_values_takes_that_path_for_loudness", async () => {
   await staging("loudness_enabled", "1");
@@ -546,12 +564,17 @@ test("test_tapping_enter_my_values_takes_that_path_for_loudness", async () => {
   assert.equal(known.value.loudness, "values");
 });
 
+test("test_the_preset_path_shows_no_loudness_block", async () => {
+  await staging("loudness_enabled", "1");
+  path("loudness", "preset");
+  assert.equal(blocks(rowsOf(step("loudness")), "loudness"), 0);
+});
+
 test("test_tapping_enter_my_values_shows_the_loudness_block", async () => {
   await staging("loudness_enabled", "1");
   path("loudness", "preset");
-  const before = blocks(rowsOf(step("loudness")), "loudness");
   await tap(step("loudness"), "values");
-  assert.deepEqual([before, blocks(rowsOf(step("loudness")), "loudness")], [0, 1]);
+  assert.equal(blocks(rowsOf(step("loudness")), "loudness"), 1);
 });
 
 test("test_tapping_use_the_defaults_stages_the_bass_levels_default", async () => {

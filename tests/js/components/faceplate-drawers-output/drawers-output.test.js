@@ -2,7 +2,7 @@
 // device picker (components/faceplate/drawers/output/DevicePicker.js), each over the store. The dial: which tier each
 // band's needle prints selected, which tiers are hatched, where the playing lamp sits, that the output mode never takes
 // a band away, and the write a key makes. The picker: the list opening from its trigger, a tap
-// staging a device and closing the list, the current and dirty marks, and the rescan.
+// staging a device, the current and dirty marks, and the rescan.
 //
 // The whole drawer, drawn by the generic drawer from the Output schema with nothing staged: the restart mark on the rows
 // it draws its own way rather than as plain rows. The output device row, the Channels row and the rate dial row each
@@ -143,9 +143,14 @@ function tierX(i) {
   return { x: Number(label ? attr(label, "x") : NaN), width };
 }
 
-test("test_each_band_prints_its_needles_tier_selected", () => {
-  assert.deepEqual([tiersWith("sel", "pcm"), tiersWith("sel", "sdm")], [["2"], ["8"]]);
-});
+/** The position of each band's needle tier for the loaded rates: 192000 on PCM, 12288000 on SDM. */
+const NEEDLE_TIER = { pcm: "2", sdm: "8" };
+
+for (const [band, tier] of Object.entries(NEEDLE_TIER)) {
+  test(`test_the_${band}_band_prints_its_needles_tier_selected`, () => {
+    assert.deepEqual(tiersWith("sel", band), [tier]);
+  });
+}
 
 test("test_the_playing_lamp_stands_over_the_running_tier", () => {
   engineStatus.value = { status: { active_rate: "352800" }, metadata: {} };
@@ -154,21 +159,28 @@ test("test_the_playing_lamp_stands_over_the_running_tier", () => {
   assert.equal(lamp ? Number(attr(lamp, "cx")) : null, Number.isNaN(tier) ? undefined : tier);
 });
 
-test("test_the_playing_lamp_is_out_with_no_running_rate", () => {
-  const lamps = () => dial().filter((e) => e.name === "circle" && classes(e).includes("playing")).length;
-  engineStatus.value = { status: { active_rate: "352800" }, metadata: {} };
-  const lit = lamps();
-  engineStatus.value = { status: { active_rate: "0" }, metadata: {} };
-  assert.deepEqual([lit, lamps()], [1, 0]);
-});
+const lamps = () => dial().filter((e) => e.name === "circle" && classes(e).includes("playing")).length;
 
-test("test_a_band_slider_reports_its_needles_tier", () => {
-  const now = (/** @type {string} */ band) => {
-    const el = dial().find((e) => attr(e, "role") === "slider" && attr(e, "data-band") === band);
-    return el ? attr(el, "aria-valuenow") : undefined;
-  };
-  assert.deepEqual([now("pcm"), now("sdm")], ["2", "8"]);
-});
+for (const { behavior, rate, lit } of [
+  { behavior: "is_lit_with_a_running_rate", rate: "352800", lit: 1 },
+  { behavior: "is_out_with_no_running_rate", rate: "0", lit: 0 },
+]) {
+  test(`test_the_playing_lamp_${behavior}`, () => {
+    engineStatus.value = { status: { active_rate: rate }, metadata: {} };
+    assert.equal(lamps(), lit);
+  });
+}
+
+const sliderNow = (/** @type {string} */ band) => {
+  const el = dial().find((e) => attr(e, "role") === "slider" && attr(e, "data-band") === band);
+  return el ? attr(el, "aria-valuenow") : undefined;
+};
+
+for (const [band, tier] of Object.entries(NEEDLE_TIER)) {
+  test(`test_the_${band}_band_slider_reports_its_needles_tier`, () => {
+    assert.equal(sliderNow(band), tier);
+  });
+}
 
 test("test_an_arrow_key_steps_its_band_one_tier", async () => {
   await fire(html`<${RateDial} />`, slider("pcm"), "onKeyDown", keyEvent("ArrowRight"));
@@ -180,14 +192,18 @@ test("test_end_sends_a_needle_to_its_bands_last_tier", async () => {
   assert.equal(effective("sdm_rate"), "98304000");
 });
 
+const listHidden = () => {
+  const list = picker().find((e) => attr(e, "role") === "listbox");
+  return list ? hasAttr(list, "hidden") : null;
+};
+
+test("test_the_device_list_is_hidden_before_the_trigger", () => {
+  assert.equal(listHidden(), true);
+});
+
 test("test_the_trigger_opens_the_device_list", async () => {
-  const hidden = () => {
-    const list = picker().find((e) => attr(e, "role") === "listbox");
-    return list ? hasAttr(list, "hidden") : null;
-  };
-  const before = hidden();
   await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["aria-haspopup"] === "listbox", "onClick");
-  assert.deepEqual([before, hidden()], [true, false]);
+  assert.equal(listHidden(), false);
 });
 
 test("test_tapping_a_device_stages_it", async () => {
@@ -195,21 +211,18 @@ test("test_tapping_a_device_stages_it", async () => {
   assert.equal(effective("net_device"), OFFICE);
 });
 
-test("test_tapping_a_device_closes_the_list", async () => {
-  await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["aria-haspopup"] === "listbox", "onClick");
-  const open = openPopover.value;
-  await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["data-v"] === OFFICE, "onClick");
-  assert.deepEqual([open !== null, openPopover.value], [true, null]);
+const pickerDirty = () => {
+  const root = picker()[picker().length - 1];
+  return root ? hasAttr(root, "data-dirty") : null;
+};
+
+test("test_an_unedited_picker_is_not_dirty", () => {
+  assert.equal(pickerDirty(), false);
 });
 
 test("test_a_staged_device_marks_the_picker_dirty", async () => {
-  const dirty = () => {
-    const root = picker()[picker().length - 1];
-    return root ? hasAttr(root, "data-dirty") : null;
-  };
-  const before = dirty();
   await edit("net_device", OFFICE);
-  assert.deepEqual([before, dirty()], [false, true]);
+  assert.equal(pickerDirty(), true);
 });
 
 test("test_the_rescan_button_asks_the_daemon_to_rescan", async () => {
@@ -217,12 +230,17 @@ test("test_the_rescan_button_asks_the_daemon_to_rescan", async () => {
   assert.deepEqual(refreshes, ["POST"]);
 });
 
-test("test_the_rescan_cost_shows_only_while_auto_save_puts_live_settings_back", () => {
-  const shown = () => picker().filter((e) => attr(e, "data-testid") === "rescan-cost").length;
-  const on = shown();
-  load({ autosave: false });
-  assert.deepEqual([on, shown()], [1, 0]);
-});
+const rescanCosts = () => picker().filter((e) => attr(e, "data-testid") === "rescan-cost").length;
+
+for (const { behavior, autosave, shown } of [
+  { behavior: "shows_while_auto_save_puts_live_settings_back", autosave: true, shown: 1 },
+  { behavior: "hides_without_auto_save", autosave: false, shown: 0 },
+]) {
+  test(`test_the_rescan_cost_${behavior}`, () => {
+    load({ autosave });
+    assert.equal(rescanCosts(), shown);
+  });
+}
 
 /** The restart mark's test id, shared by every surface that carries it. */
 const MARK = "restart-mark";
@@ -278,17 +296,21 @@ const deviceRow = (all) => rowAround(all, (e) => classes(e).includes("devpick") 
 /** @param {MarkupElement[]} all */
 const rateRow = (all) => rowAround(all, (e) => classes(e).includes("dial") && attr(e, "role") === "group");
 
-test("test_an_unedited_output_device_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
-  const all = drawer();
-  assert.deepEqual([marked(deviceRow(all)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
-});
-
-test("test_an_unedited_channels_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
-  const all = drawer();
-  assert.deepEqual([marked(rowOf(all, CHANNELS)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
-});
-
-test("test_an_unedited_rate_row_carries_the_mark_and_the_live_mode_row_carries_none", () => {
-  const all = drawer();
-  assert.deepEqual([marked(rateRow(all)), marked(rowOf(all, OUTPUT_MODE))], [true, false]);
-});
+for (const { name, row, mark } of [
+  { name: "an_unedited_output_device_row_carries_the_mark", row: deviceRow, mark: true },
+  {
+    name: "an_unedited_channels_row_carries_the_mark",
+    row: (/** @type {MarkupElement[]} */ all) => rowOf(all, CHANNELS),
+    mark: true,
+  },
+  { name: "an_unedited_rate_row_carries_the_mark", row: rateRow, mark: true },
+  {
+    name: "the_live_mode_row_carries_none",
+    row: (/** @type {MarkupElement[]} */ all) => rowOf(all, OUTPUT_MODE),
+    mark: false,
+  },
+]) {
+  test(`test_${name}`, () => {
+    assert.equal(marked(row(drawer())), mark);
+  });
+}

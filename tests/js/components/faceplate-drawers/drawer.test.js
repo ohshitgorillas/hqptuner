@@ -170,14 +170,18 @@ async function fire(schema, pred, handler = "onClick", event = undefined) {
 /** @param {string} id */
 const byTestId = (id) => (/** @type {MarkupElement} */ e) => attr(e, "data-testid") === id;
 
-test("test_a_drawer_is_closed_unless_its_stage_is_the_open_one", () => {
-  const closed = () => {
-    const aside = find(VOL, (e) => e.name === "aside");
-    return aside ? hasAttr(aside, "data-closed") : null;
-  };
-  const before = closed();
+const drawerClosed = () => {
+  const aside = find(VOL, (e) => e.name === "aside");
+  return aside ? hasAttr(aside, "data-closed") : null;
+};
+
+test("test_a_drawer_is_closed_while_no_stage_is_open", () => {
+  assert.equal(drawerClosed(), true);
+});
+
+test("test_a_drawer_is_open_when_its_stage_is_the_open_one", () => {
   openStage.value = "vol";
-  assert.deepEqual([before, closed()], [true, false]);
+  assert.equal(drawerClosed(), false);
 });
 
 test("test_the_close_button_closes_the_open_drawer", async () => {
@@ -186,28 +190,43 @@ test("test_the_close_button_closes_the_open_drawer", async () => {
   assert.equal(openStage.value, null);
 });
 
-test("test_a_staged_edit_marks_its_own_tab_in_the_head", async () => {
-  await edit("volume_max", "-6");
-  const tab = (/** @type {string} */ id) => {
-    const el = find(VOL, (e) => attr(e, "role") === "tab" && attr(e, "data-tab") === id);
-    return el ? classes(el).includes("dirty") : false;
-  };
-  assert.deepEqual([tab("range"), tab("misc")], [true, false]);
-});
+for (const { name, tab: which, want } of [
+  { name: "test_a_staged_edit_marks_its_own_tab_in_the_head", tab: "range", want: true },
+  { name: "test_a_staged_edit_leaves_another_tab_in_the_head_unmarked", tab: "misc", want: false },
+]) {
+  test(name, async () => {
+    await edit("volume_max", "-6");
+    const tab = (/** @type {string} */ id) => {
+      const el = find(VOL, (e) => attr(e, "role") === "tab" && attr(e, "data-tab") === id);
+      return el ? classes(el).includes("dirty") : false;
+    };
+    assert.equal(tab(which), want);
+  });
+}
 
-test("test_a_one_tab_drawer_draws_no_tabs", () => {
-  const tabs = (/** @type {DrawerSchema} */ s) => markup(s).filter((e) => attr(e, "role") === "tab").length;
-  assert.deepEqual([tabs(solo("volume_max")), tabs(VOL)], [0, 2]);
-});
+for (const { name, schema, want } of [
+  { name: "test_a_one_tab_drawer_draws_no_tabs", schema: solo("volume_max"), want: 0 },
+  { name: "test_a_two_tab_drawer_draws_a_tab_for_each", schema: VOL, want: 2 },
+]) {
+  test(name, () => {
+    const tabs = (/** @type {DrawerSchema} */ s) => markup(s).filter((e) => attr(e, "role") === "tab").length;
+    assert.equal(tabs(schema), want);
+  });
+}
 
-test("test_only_the_shown_tabs_panel_is_visible", () => {
-  showTab("vol", "misc");
-  const hidden = (/** @type {string} */ id) => {
-    const el = find(VOL, (e) => e.name === "div" && attr(e, "data-tab") === id);
-    return el ? hasAttr(el, "hidden") : null;
-  };
-  assert.deepEqual([hidden("range"), hidden("misc")], [true, false]);
-});
+for (const { name, tab: which, want } of [
+  { name: "test_a_tab_panel_not_shown_is_hidden", tab: "range", want: true },
+  { name: "test_the_shown_tabs_panel_is_visible", tab: "misc", want: false },
+]) {
+  test(name, () => {
+    showTab("vol", "misc");
+    const hidden = (/** @type {string} */ id) => {
+      const el = find(VOL, (e) => e.name === "div" && attr(e, "data-tab") === id);
+      return el ? hasAttr(el, "hidden") : null;
+    };
+    assert.equal(hidden(which), want);
+  });
+}
 
 test("test_tapping_a_tab_shows_it", async () => {
   await fire(VOL, (p) => p.role === "tab" && p["data-tab"] === "misc");
@@ -220,31 +239,46 @@ test("test_a_number_row_shows_its_staged_value", async () => {
   assert.equal(input ? attr(input, "value") : undefined, "-6");
 });
 
-test("test_a_segment_row_lights_its_effective_option", () => {
-  const on = (/** @type {string} */ v) => {
-    const b = inRow(VOL, "fixed_volume_enabled").find((e) => attr(e, "data-v") === v);
-    return b ? classes(b).includes("on") : null;
-  };
-  assert.deepEqual([on("0"), on("1")], [true, false]);
-});
+for (const { name, option, want } of [
+  { name: "test_a_segment_row_lights_its_effective_option", option: "0", want: true },
+  { name: "test_a_segment_row_leaves_its_other_option_unlit", option: "1", want: false },
+]) {
+  test(name, () => {
+    const on = (/** @type {string} */ v) => {
+      const b = inRow(VOL, "fixed_volume_enabled").find((e) => attr(e, "data-v") === v);
+      return b ? classes(b).includes("on") : null;
+    };
+    assert.equal(on(option), want);
+  });
+}
 
-test("test_a_checkbox_row_is_a_segment_lighting_its_truth", () => {
-  showTab("vol", "misc");
-  const on = (/** @type {string} */ v) => {
-    const b = inRow(VOL, "quick_pause").find((e) => e.name === "button" && attr(e, "data-v") === v);
-    return b ? classes(b).includes("on") : null;
-  };
-  assert.deepEqual([on("1"), on("0")], [true, false]);
-});
+for (const { name, option, want } of [
+  { name: "test_a_checkbox_row_is_a_segment_lighting_its_truth", option: "1", want: true },
+  { name: "test_a_checkbox_row_leaves_the_segment_opposite_its_truth_unlit", option: "0", want: false },
+]) {
+  test(name, () => {
+    showTab("vol", "misc");
+    const on = (/** @type {string} */ v) => {
+      const b = inRow(VOL, "quick_pause").find((e) => e.name === "button" && attr(e, "data-v") === v);
+      return b ? classes(b).includes("on") : null;
+    };
+    assert.equal(on(option), want);
+  });
+}
 
-test("test_a_select_row_selects_its_effective_option", async () => {
-  await edit("idle_time", "60");
-  const selected = (/** @type {string} */ v) => {
-    const o = inRow(VOL, "idle_time").find((e) => e.name === "option" && attr(e, "value") === v);
-    return o ? hasAttr(o, "selected") : null;
-  };
-  assert.deepEqual([selected("60"), selected("30")], [true, false]);
-});
+for (const { name, option, want } of [
+  { name: "test_a_select_row_selects_its_effective_option", option: "60", want: true },
+  { name: "test_a_select_row_leaves_its_other_option_unselected", option: "30", want: false },
+]) {
+  test(name, async () => {
+    await edit("idle_time", "60");
+    const selected = (/** @type {string} */ v) => {
+      const o = inRow(VOL, "idle_time").find((e) => e.name === "option" && attr(e, "value") === v);
+      return o ? hasAttr(o, "selected") : null;
+    };
+    assert.equal(selected(option), want);
+  });
+}
 
 test("test_tapping_a_segment_option_stages_it", async () => {
   await fire(solo("fixed_volume_enabled"), (p) => p["data-v"] === "1");
@@ -261,24 +295,32 @@ test("test_changing_a_number_row_stages_the_typed_value", async () => {
   assert.equal(wire.staged.http.volume_max, "-9");
 });
 
+const volumeMaxDisabled = () => {
+  const input = inRow(VOL, "volume_max").find((e) => e.name === "input");
+  return input ? hasAttr(input, "disabled") : null;
+};
+
+test("test_a_row_without_a_gray_reason_keeps_its_control_enabled", () => {
+  assert.equal(volumeMaxDisabled(), false);
+});
+
 test("test_a_gray_reason_disables_the_rows_control", async () => {
-  const disabled = () => {
-    const input = inRow(VOL, "volume_max").find((e) => e.name === "input");
-    return input ? hasAttr(input, "disabled") : null;
-  };
-  const before = disabled();
   await edit("fixed_volume_enabled", "1");
-  assert.deepEqual([before, disabled()], [false, true]);
+  assert.equal(volumeMaxDisabled(), true);
+});
+
+const volumeMaxDirty = () => {
+  const row = find(VOL, (e) => attr(e, "data-k") === "volume_max");
+  return row ? hasAttr(row, "data-dirty") : null;
+};
+
+test("test_an_unstaged_row_does_not_read_dirty", () => {
+  assert.equal(volumeMaxDirty(), false);
 });
 
 test("test_a_staged_row_reads_dirty", async () => {
-  const dirty = () => {
-    const row = find(VOL, (e) => attr(e, "data-k") === "volume_max");
-    return row ? hasAttr(row, "data-dirty") : null;
-  };
-  const before = dirty();
   await edit("volume_max", "-6");
-  assert.deepEqual([before, dirty()], [false, true]);
+  assert.equal(volumeMaxDirty(), true);
 });
 
 test("test_a_row_takes_its_paragraph_from_the_settings_metadata", () => {
@@ -321,24 +363,32 @@ test("test_confirming_the_pinned_question_answers_yes", async () => {
   assert.equal(answer, true);
 });
 
-test("test_the_apply_group_on_a_live_tab_shows_once_something_is_staged", async () => {
-  const hidden = () => {
-    const group = find(LIVE_FIRST, byTestId("apply-group"));
-    return group ? hasAttr(group, "hidden") : null;
-  };
-  const before = hidden();
-  await edit("volume_max", "-6");
-  assert.deepEqual([before, hidden()], [true, false]);
+const applyGroupHidden = () => {
+  const group = find(LIVE_FIRST, byTestId("apply-group"));
+  return group ? hasAttr(group, "hidden") : null;
+};
+
+test("test_the_apply_group_on_a_live_tab_is_hidden_while_nothing_is_staged", () => {
+  assert.equal(applyGroupHidden(), true);
 });
 
-test("test_discard_is_live_only_with_staged_edits", async () => {
-  const disabled = () => {
-    const b = find(VOL, byTestId("discard"));
-    return b ? hasAttr(b, "disabled") : null;
-  };
-  const before = disabled();
+test("test_the_apply_group_on_a_live_tab_shows_once_something_is_staged", async () => {
   await edit("volume_max", "-6");
-  assert.deepEqual([before, disabled()], [true, false]);
+  assert.equal(applyGroupHidden(), false);
+});
+
+const discardDisabled = () => {
+  const b = find(VOL, byTestId("discard"));
+  return b ? hasAttr(b, "disabled") : null;
+};
+
+test("test_discard_is_disabled_without_staged_edits", () => {
+  assert.equal(discardDisabled(), true);
+});
+
+test("test_discard_is_live_with_staged_edits", async () => {
+  await edit("volume_max", "-6");
+  assert.equal(discardDisabled(), false);
 });
 
 test("test_tapping_discard_drops_the_staged_edits", async () => {
@@ -347,36 +397,51 @@ test("test_tapping_discard_drops_the_staged_edits", async () => {
   assert.equal("volume_max" in wire.staged.http, false);
 });
 
-test("test_the_split_body_in_save_mode_needs_a_loaded_station", async () => {
+const splitBodyDisabled = () => {
+  const b = find(VOL, byTestId("apply"));
+  return b ? hasAttr(b, "disabled") : null;
+};
+
+test("test_the_split_body_in_save_mode_is_live_with_a_loaded_station", async () => {
   await edit("volume_max", "-6");
   pickApplyMode("save");
-  const disabled = () => {
-    const b = find(VOL, byTestId("apply"));
-    return b ? hasAttr(b, "disabled") : null;
-  };
-  const loaded = disabled();
-  loadConfig("");
-  assert.deepEqual([loaded, disabled()], [false, true]);
+  assert.equal(splitBodyDisabled(), false);
 });
 
-test("test_the_save_choice_in_the_mode_menu_needs_a_loaded_station", () => {
-  const disabled = () => {
-    const b = find(VOL, (e) => attr(e, "data-mode") === "save");
-    return b ? hasAttr(b, "disabled") : null;
-  };
-  const loaded = disabled();
-  loadConfig("");
-  assert.deepEqual([loaded, disabled()], [false, true]);
-});
-
-test("test_the_mode_menu_ticks_the_mode_in_force", () => {
+test("test_the_split_body_in_save_mode_is_disabled_without_a_loaded_station", async () => {
+  await edit("volume_max", "-6");
   pickApplyMode("save");
-  const checked = (/** @type {string} */ m) => {
-    const b = find(VOL, (e) => attr(e, "data-mode") === m);
-    return b ? attr(b, "aria-checked") : undefined;
-  };
-  assert.deepEqual([checked("save"), checked("apply")], ["true", "false"]);
+  loadConfig("");
+  assert.equal(splitBodyDisabled(), true);
 });
+
+const saveChoiceDisabled = () => {
+  const b = find(VOL, (e) => attr(e, "data-mode") === "save");
+  return b ? hasAttr(b, "disabled") : null;
+};
+
+test("test_the_save_choice_in_the_mode_menu_is_live_with_a_loaded_station", () => {
+  assert.equal(saveChoiceDisabled(), false);
+});
+
+test("test_the_save_choice_in_the_mode_menu_is_disabled_without_a_loaded_station", () => {
+  loadConfig("");
+  assert.equal(saveChoiceDisabled(), true);
+});
+
+for (const { name, mode, want } of [
+  { name: "test_the_mode_menu_ticks_the_mode_in_force", mode: "save", want: "true" },
+  { name: "test_the_mode_menu_leaves_the_mode_not_in_force_unticked", mode: "apply", want: "false" },
+]) {
+  test(name, () => {
+    pickApplyMode("save");
+    const checked = (/** @type {string} */ m) => {
+      const b = find(VOL, (e) => attr(e, "data-mode") === m);
+      return b ? attr(b, "aria-checked") : undefined;
+    };
+    assert.equal(checked(mode), want);
+  });
+}
 
 test("test_picking_a_choice_in_the_mode_menu_sets_the_mode", async () => {
   await fire(VOL, (p) => p["data-mode"] === "save");
