@@ -229,7 +229,7 @@
   --swatch:30px;           /* an accent swatch */
   --swatch-dot:8px;        /* the accent swatch in a settings readout */
   --hex-w:100px;           /* the accent's hex box */
-  --slx-num-w:72px;        /* a compact number box: beside a settings slider, in a grouped row */
+  --slx-num-w:72px;        /* a compact number box: in a grouped row, in a range's box */
   --spk-num-w:76px;        /* a speaker row's number box */
   --vrange-num-w:74px;     /* a Volume Range box and its readout */
   --idrow-h:54px;          /* an About HQPlayer identity window */

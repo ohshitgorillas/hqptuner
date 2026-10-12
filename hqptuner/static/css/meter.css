@@ -43,8 +43,6 @@
    their rows by time, not dB: their dB grid lines and scale labels go, the kHz axis stays. */
 .sfx,.sgl{position:absolute;inset:0;display:block;width:100%;height:100%;pointer-events:none}
 .sgrid1[data-style="ridges"] :is(.sgridl .gdb,.gy span){visibility:hidden}
-.scross{stroke:var(--ink-2);stroke-width:1;stroke-dasharray:3 3}
-.sread{position:absolute;top:var(--sp-3);right:var(--sp-4);padding:var(--sp-1) var(--sp-3);background:var(--glass);border:var(--hair) solid var(--line);border-radius:var(--r-1);font-family:var(--f-mono);font-size:var(--fs-2);color:var(--meter);pointer-events:none;line-height:var(--lh-text)}
 
 /* Levels: vertical bars, 0 dBFS at top. Peak = dim fill, RMS = bright inner bar, hold = pale tick.
    Scale column | L | R, same columns as the readout table under it. The levels stand a spectrum plot and an axis row

@@ -52,10 +52,8 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
    seg's width (the 300 is GPU's CUDA offload seg). */
 #hardware-p-cpu .drow{grid-template-columns:var(--drow-col-cpu) minmax(0,1fr)}
 
-/* Slider control (Blocks per cycle): `Set manually` box, then crossfeed's slider + box; grayed while automatic. */
+/* Slider control (Blocks per cycle): `Set manually` box; grayed while automatic. */
 .slctl{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
-.slctl .slx{grid-template-columns:minmax(0,1fr) auto}
-.slctl .slx input.vfd{width:var(--slx-num-w);height:var(--ctl-h-sm)}
 
 /* About HQPlayer: identity as labelled VFD windows across the full width (Rate / Volume window grammar). */
 .two.pairs > .span{grid-column:1/-1}

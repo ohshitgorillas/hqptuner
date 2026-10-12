@@ -224,7 +224,6 @@
 .opr{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);margin-left:var(--sp-3);line-height:var(--lh-text)}
 .opg>.cl{font-size:var(--fs-cl);color:var(--ink-2);margin-right:var(--sp-1)}
 /* Pin grid: tuner-glass wells; a routed pin is an amber jewel with its gain engraved under it. */
-.pgrid{display:grid;gap:var(--sp-3);align-items:center;justify-items:center}
 .pcorner{position:relative;width:var(--pgrid-key-w);height:var(--pgrid-key-h);align-self:end;justify-self:start}
 .pcorner::after{content:"";position:absolute;left:var(--sp-1);right:var(--sp-1);top:50%;border-top:var(--hair) solid var(--ink-3);transform:rotate(35deg)}
 .pcorner span{position:absolute;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink);line-height:var(--lh-eng)}
@@ -262,9 +261,6 @@ input.vfd.praw{flex:1 1 0;min-width:0;height:var(--ctl-h-mid);font-size:var(--fs
 
 .pdock{display:flex;flex-direction:column;gap:var(--sp-3);padding:var(--sp-3) 0 var(--sp-1);border-top:var(--hair) solid var(--row-rule)}
 .pdock[hidden]{display:none}
-.pbands{display:flex;gap:var(--sp-1);flex-wrap:wrap}
-.pband{min-width:var(--chip-h);height:var(--tag-h);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-3);cursor:pointer;line-height:var(--lh-text)}
-.pband.add{color:var(--ink-2)}
 .pfields{display:flex;align-items:center;gap:var(--sp-9);flex-wrap:wrap}
 .pfield{display:flex;align-items:center;gap:var(--sp-3)}
 .pfield .cl,.pfields>.cl{font-family:var(--f-mono);font-size:var(--fs-cl);color:var(--ink-2);line-height:var(--lh-text)}
@@ -278,8 +274,6 @@ select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:va
 .pbnav{display:flex;align-items:center;gap:var(--sp-3)}
 .round.pbn{width:var(--chip-h);height:var(--chip-h);font-size:var(--fs-6);line-height:1;padding:0}
 .pbl{font-family:var(--f-mono);font-size:var(--fs-4);color:var(--ink);min-width:var(--lvtab-l);text-align:center;line-height:var(--lh-text)}
-.pman{font-size:var(--fs-3);line-height:1.4;max-width:none}
-.pman p{margin:0}
 .pplotwrap{flex:1 1 0;min-height:var(--plot-min-sm);min-width:0;display:flex;flex-direction:column;gap:var(--sp-3)}
 .pplotwrap[hidden]{display:none}
 .pscope{display:flex;align-items:center;gap:var(--sp-5)}
@@ -297,7 +291,6 @@ select.vfd.pkind{height:var(--ctl-h-view);line-height:var(--ctl-h-view);width:va
 .pmrow span{margin-left:auto;font-family:var(--f-mono);font-size:var(--fs-2);color:var(--ink-2);line-height:var(--lh-text)}
 .pimp{width:var(--pop-w-wide);left:auto;gap:var(--sp-3)}
 input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--fs-4)}
-.phits{display:flex;flex-direction:column}
 .pimpf{display:flex;align-items:center;gap:var(--sp-4);padding-top:var(--sp-3);border-top:var(--hair) solid var(--line)}
 .mtx-lib-hit.selected{background:var(--acc-lo);box-shadow:inset var(--stroke) 0 0 var(--acc)}   /* left-hand selection bar, as everywhere */
 /* Crossfeed blocks in the grid: dashed pins (the locked chips' dashed edge; hatch is reserved for unavailable, as on the

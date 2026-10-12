@@ -245,30 +245,9 @@
 /* Band tag on a family-only row (Format tab): the same engraved name as the rate dial's band legend. */
 .fh .band{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-2);letter-spacing:var(--ls-3);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-band);align-self:center}
 
-/* ── Resampling · Shaping drawer (conv-drawer.js) ──────────────────────────
-   One chain at a time. Head row = the expanded chain (name, state, its section tabs); bottom bar = the collapsed chain.
-   Running chain = its name lit amber, head or bar (no lamp). Idle expanded = hatched head band + darker
-   plate + boxed `idle`, so it can't pass for what plays.
-   Rows, one grammar (the HF drawer's): control | the setting's paragraph; the picked option's line full width under the row,
-   lit like the HF drawer's picked option. */
-.cvhead{gap:var(--sp-6)}
-.cvhead .round.dx{margin-left:var(--sp-2)}   /* the head gap here is 12px: close keeps its distance from the hairline */
-.cvhead .cst:empty,.cvbar .cst:empty{display:none}
-.cvhead .cst,.cvbar .cst{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-4);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);line-height:var(--lh-eng)}
-.cvhead .t.run,.cvbar .t.run{color:var(--acc)}
-.cvhead .dtabs{margin-left:var(--sp-5)}
-.cvbody{flex-grow:1;min-height:0;display:flex;flex-direction:column}
-.cvpanel{padding-top:var(--sp-2);padding-bottom:var(--sp-2)}
+/* The picked option's line (drawer/Rows.js), full width under its row on an accent rail. */
 .optman{margin:0 0 0 calc(-1 * var(--sp-6));padding:var(--sp-1) var(--sp-5);border-left:var(--stroke) solid var(--acc);border-radius:0 var(--r-2) var(--r-2) 0;background:var(--acc-lo);font-size:var(--fs-4);line-height:1.45;color:var(--ink)}
 .optman code{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);line-height:var(--lh-text)}
-.cvbar{position:relative;flex-shrink:0;height:var(--ctl-h);display:flex;align-items:center;gap:var(--sp-6);padding:0 var(--sp-8) 0 var(--sp-9);border:0;border-top:var(--hair) solid var(--line-2);background:var(--plate-2);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
-.cvbar:hover{background:var(--hover)}
-.cvbar .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;white-space:nowrap;line-height:var(--lh-eng)}
-.cvbar .sum{flex-grow:1;min-width:0;font-family:var(--f-mono);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:var(--lh-text)}
-.cvbar .ar{color:var(--ink-2);font-size:var(--fs-3)}
-/* One section left in the running chain: no tab strip; the head names it as the drawer's title (dirty dot like a tab). */
-.cvhead .csec{position:relative;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title-lg);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);padding-left:var(--sp-8);margin-left:var(--sp-3);border-left:var(--hair) solid var(--line-2);line-height:var(--mhead-h);white-space:nowrap}
-.cvhead .csec.dirty::after{content:"";position:absolute;top:var(--sp-2);right:calc(-1 * var(--sp-5));width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 
 /* Output, both tabs: copy closer (overflow rule). At 300px the channel count sits beside its segment and DAC bits'
    label takes one line. */

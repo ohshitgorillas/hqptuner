@@ -19,7 +19,6 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .chev{width:var(--tree-chev-w);height:var(--tree-chev-h);padding:0;display:inline-flex;align-items:center;justify-content:center;color:var(--ink-2);border-radius:var(--r-1);font-family:var(--f-body);font-size:var(--fs-3);font-weight:inherit;letter-spacing:inherit;background:none;border:0;cursor:pointer;flex-shrink:0;line-height:var(--lh-text)}
 .chev:hover{background:var(--line)}
 .chev.none{visibility:hidden}
-.pfoot{display:flex;gap:var(--sp-4);padding:var(--sp-4) var(--sp-2) var(--sp-1);border-top:var(--hair) solid var(--line);margin-top:var(--sp-3)}
 
 /* ── Filter presets ──────────────────────────────────────────────────────
    One vertical list, every description in view. Emoji spans the name + description lines.
@@ -83,11 +82,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 /* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).
    Ordered / per-stage facets are segments. Counts preview the list sizes the click would leave (1x·Nx, or that stage's
-   for a staged row); the head readout is the live result. A group's head is one engraved line tall. */
-.ng{display:flex;flex-direction:column;gap:var(--sp-2)}
-.ngh{display:flex;align-items:center;gap:var(--sp-5);height:calc(var(--fs-2) * var(--lh-eng))}
-.ngl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-3);text-transform:uppercase;color:var(--ink-2);white-space:nowrap;line-height:var(--lh-eng)}
-.ngh .mode{margin-left:auto;display:inline-flex;align-items:center;gap:var(--sp-3);font-size:var(--fs-2);color:var(--ink-2)}
+   for a staged row); the head readout is the live result. */
 .nchips{display:flex;flex-wrap:wrap;gap:var(--sp-2)}
 .nchip{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--chip-h);padding:0 var(--sp-4) 0 var(--sp-5);border:var(--hair) solid var(--line-2);border-radius:calc(var(--chip-h) / 2);background:none;color:var(--ink-2);font:inherit;font-size:var(--fs-3);cursor:pointer;white-space:nowrap}
 .nchip .c{font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);letter-spacing:0;line-height:var(--lh-text)}

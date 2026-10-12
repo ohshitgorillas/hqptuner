@@ -13,12 +13,9 @@
 .sh{display:flex;align-items:center;gap:var(--sp-7)}
 .sh .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-title);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);display:flex;align-items:center;gap:var(--sp-4);white-space:nowrap;line-height:var(--lh-eng)}
 .sh .ln{flex-grow:1;height:var(--hair);background:var(--line)}
-/* Narrowing tags: as many as fit between the rule and the buttons; the rest fold into a `+n` tag that opens Narrow filters
-   (too many facets pushed the buttons off the page). */
+/* The rule keeps a minimum length; the head's buttons never shrink. */
 .sh .ln{min-width:var(--sp-9)}
 .sh > .btn{flex-shrink:0}
-.tag.tmore{background:none;font:inherit;font-size:var(--fs-3);cursor:pointer;flex-shrink:0}
-.tag.tmore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1)}
 
 /* Section body: control column (524px) | manual copy. .stretch = equal-height columns. */
 .two{display:grid;grid-template-columns:var(--ctl-col) minmax(0,1fr);gap:0 var(--col-gap);align-items:start}
@@ -29,8 +26,6 @@
 
 /* Field: head + control, stacked. */
 .fld,.stack{display:flex;flex-direction:column;gap:var(--sp-3);max-width:100%}
-/* Resampling with the matrix engine bypassed: 1x and Nx both open, a row each. */
-.rsboth{display:flex;flex-direction:column;gap:var(--sp-7)}
 .inline{display:flex;gap:var(--sp-5);align-items:center}
 
 

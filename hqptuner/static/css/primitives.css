@@ -44,9 +44,9 @@ select option{background:var(--glass);color:var(--acc)}
 .seg button.on{background:var(--acc);color:var(--on-acc)}
 .seg .su{text-transform:none;letter-spacing:0}   /* unit inside a seg option: case kept */
 .seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
-/* View / navigation pick (drawer tabs, meter views, which input / band / page / plot): ink on a lifted key with an accent
+/* View / navigation pick (drawer tabs, meter views, which input / page / plot): ink on a lifted key with an accent
    foot. The solid accent fill is only for a setting's value, so the accent stays scarce. */
-.seg.view button.on,.dtabs button[aria-selected="true"],.opb.on,.pband.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 calc(-1 * var(--stroke)) 0 var(--acc)}
+.seg.view button.on,.dtabs button[aria-selected="true"],.opb.on{background:var(--raised);color:var(--ink);box-shadow:inset 0 calc(-1 * var(--stroke)) 0 var(--acc)}
 
 /* Raised push button. aria-expanded="true" = its popover is open. */
 .btn{height:var(--ctl-h);padding:0 var(--sp-7);border-radius:var(--r-2);border:var(--hair) solid var(--line-2);background:var(--raised);color:var(--ink);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;box-shadow:var(--raised-shadow);white-space:nowrap;line-height:var(--lh-eng)}
@@ -87,7 +87,6 @@ a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;te
 .fh > .rs{margin-inline-start:0}   /* a flex head already gaps its children */
 /* Dirty dot after a label: a staged row, device or rate dial dots its row's label, a staged volume box its own label, a
    rail stage, snapshot or station fold its name. */
-.cvbar.dirty .t::after,
 .drow[data-dirty] > .ctl > .fh > b::after,
 .drow > .ctl > .fh:has(~ .devpick[data-dirty]) > b::after,
 .drow > .ctl > .fh:has(~ .dial[data-dirty]) > b::after,
