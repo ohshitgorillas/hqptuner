@@ -10,6 +10,13 @@ plate laid out with the engine's data in, and `hiddenPast`, the measure itself.
   edges, whether the box scrolls or clips, so a surface that stops scrolling by
   hiding its overflow still fails. A box is measured at any size: one that
   collapses to nothing hides everything it holds, and all of it counts.
+- Overflow applies only to boxes that hold content in a block: an inline box
+  that is not replaced, a table's row, row group, column or column group, an
+  element laid out as its children, and an element not laid out clip nothing,
+  whatever their overflow reads.
+- A box hides only what it clips: content whose containing block lies outside
+  the box (positioned past it, fixed, or in the top layer) is not cut by it, so
+  a popover that escapes a scrolling panel is measured against what does clip it.
 - Content is what the surface draws: each visible box laid out in it, and each
   line of its visible text, held to its line box. A font's ascent and descent
   reach past the line box without drawing there, so measuring text by them
@@ -74,8 +81,13 @@ const settle = async (ceiling) => {
 const hiddenPast = (root, skip, around, rounding) => {
   const skipped = (el) => el.closest(skip) !== null;
   const AXES = ["x", "y"];
+  const REPLACED = ["IMG", "CANVAS", "VIDEO", "INPUT", "SELECT", "TEXTAREA", "IFRAME"];
+  const replaced = (el) => el instanceof SVGSVGElement || REPLACED.includes(el.tagName);
+  const NO_CLIP = ["inline", "contents", "none", "table-row", "table-row-group", "table-header-group",
+    "table-footer-group", "table-column", "table-column-group"];
   const clips = (el, axis) => {
     const style = getComputedStyle(el);
+    if (NO_CLIP.includes(style.display) && !replaced(el)) return false;
     return (axis === "x" ? style.overflowX : style.overflowY) !== "visible";
   };
   const clipBox = (el) => {
@@ -84,11 +96,10 @@ const hiddenPast = (root, skip, around, rounding) => {
     const top = b.top + el.clientTop;
     return { left, top, right: left + el.clientWidth, bottom: top + el.clientHeight };
   };
-  const REPLACED = ["IMG", "CANVAS", "VIDEO", "INPUT", "SELECT", "TEXTAREA", "IFRAME"];
   const flow = (el) => {
     if (el instanceof SVGElement) return el instanceof SVGSVGElement;
     const style = getComputedStyle(el);
-    return style.visibility !== "hidden" && (style.display !== "inline" || REPLACED.includes(el.tagName));
+    return style.visibility !== "hidden" && (style.display !== "inline" || replaced(el));
   };
   const items = [];
   for (const el of root.querySelectorAll("*")) {
@@ -114,9 +125,42 @@ const hiddenPast = (root, skip, around, rounding) => {
     }
   }
   const OUTER = [document.documentElement, document.body];
+  const topLayer = (el) => el.matches(":popover-open") || el.matches(":modal");
+  const holdsFixed = (s) => s.transform !== "none" || s.perspective !== "none" || s.filter !== "none"
+    || s.backdropFilter !== "none" || s.containerType !== "normal"
+    || /paint|layout|strict|content/.test(s.contain) || /transform|perspective|filter/.test(s.willChange);
+  const blocks = new Map();
+  const containing = (el) => {
+    if (blocks.has(el)) return blocks.get(el);
+    let found = el.parentElement;
+    const pos = getComputedStyle(el).position;
+    if (topLayer(el)) found = null;
+    else if (pos === "absolute" || pos === "fixed") {
+      found = null;
+      for (let a = el.parentElement; a !== null; a = a.parentElement) {
+        const s = getComputedStyle(a);
+        if (holdsFixed(s) || (pos === "absolute" && s.position !== "static")) {
+          found = a;
+          break;
+        }
+      }
+    }
+    blocks.set(el, found);
+    return found;
+  };
+  const clippedBy = (node, box) => {
+    let el = node instanceof Element ? node : node.parentElement;
+    while (el !== null && el !== box) {
+      const up = containing(el);
+      if (up === null || (up !== box && up.contains(box))) return false;
+      el = up;
+    }
+    return el === box;
+  };
   const seen = (item, box) => {
     const r = { ...item.rect };
     for (let a = item.node.parentElement; a !== null && a !== box && !OUTER.includes(a); a = a.parentElement) {
+      if (!clippedBy(item.node, a)) continue;
       const w = clipBox(a);
       if (clips(a, "x")) Object.assign(r, { left: Math.max(r.left, w.left), right: Math.min(r.right, w.right) });
       if (clips(a, "y")) Object.assign(r, { top: Math.max(r.top, w.top), bottom: Math.min(r.bottom, w.bottom) });
@@ -127,6 +171,7 @@ const hiddenPast = (root, skip, around, rounding) => {
     let most = 0;
     for (const item of items) {
       if (item.node === box || (box !== null && !box.contains(item.node))) continue;
+      if (box !== null && !clippedBy(item.node, box)) continue;
       const r = seen(item, box);
       if (r === null) continue;
       const past = axis === "x"
