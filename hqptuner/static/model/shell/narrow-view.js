@@ -1,5 +1,5 @@
-// What the facet bar reads off the narrowing state, free of the DOM: which facets show at a stage, which chips read
-// picked or dead, whether a set of facets is narrowing, the state keys a set owns, and each facet's state as data.
+// What the facet bar reads off the narrowing state, free of the DOM: which facets show at a stage, which unpicked
+// chips would empty both lists, the state keys a set of facets owns, and each facet's state as data.
 
 /** @typedef {Record<string, unknown>} State */
 /** @typedef {{ v: unknown, label: string }} Option */
@@ -110,19 +110,6 @@ export function summary(f, st, stage) {
 export const facetShown = (f, stage) => !(f.rows?.[0]?.key === "lossy" && stage === "nx");
 
 /**
- * Whether a chip reads picked: a toggle's state as is, a chips facet's when its value is among the picks.
- *
- * @param {State} st
- * @param {string} key
- * @param {unknown} v
- * @returns {boolean}
- */
-export function chipPressed(st, key, v) {
-  const sel = st[key];
-  return typeof sel === "boolean" ? sel : /** @type {unknown[]} */ (sel).includes(v);
-}
-
-/**
  * Whether a chip is dead: unpicked, and its pick would empty both lists (its count reads 0, or 0 for 1x and Nx both).
  *
  * @param {boolean} pressed
@@ -130,16 +117,6 @@ export function chipPressed(st, key, v) {
  * @returns {boolean}
  */
 export const deadChip = (pressed, count) => !pressed && ["0·0", "0"].includes(String(count));
-
-/**
- * Whether any of the keys holds a value other than its default (pick lists compare by content).
- *
- * @param {string[]} keys
- * @param {State} st
- * @param {State} d
- * @returns {boolean}
- */
-export const narrowing = (keys, st, d) => keys.some((k) => JSON.stringify(st[k]) !== JSON.stringify(d[k]));
 
 /**
  * Every state key a set of facets owns: each segment row's, each check item's, a chips or toggle facet's own, and the

@@ -1,12 +1,12 @@
 // DOM-free decisions the Profile builder makes: which steps a profile skips, what the rail and the overview read for
-// each part, which crossfeed preset and settings path a profile's values land on, whether an edit reads dirty, when a
-// step must be laid out again, and what the picker, the name box and Delete show. Each takes its tables as arguments,
-// returns a value and leaves its arguments as they were.
+// each part, which crossfeed preset and settings path a profile's values land on, whether an edit reads dirty, and what
+// the picker, the name box and Delete show. Each takes its tables as arguments, returns a value and leaves its
+// arguments as they were.
 
 import { shelfScale } from "../../vendor/eqlab/core/dsp/curves.js";
 import { bauerPreset, structuralPreset } from "../gauges/crossfeed.js";
 import { percentApplied } from "../gauges/loudness.js";
-import { NEW, OVERVIEW, keyOf } from "./builder.js";
+import { NEW, keyOf } from "./builder.js";
 
 /** The station's unnamed profile: the daemon's own name, kept and never deleted. */
 export const DEFAULT = "[Default]";
@@ -38,8 +38,6 @@ export const DEFAULT = "[Default]";
 /** @typedef {{ st: string, options: { key: string, name: string, dirty: boolean }[] }} PickerGroup */
 
 /** @typedef {{ fixedName: boolean, deletable: boolean, newDirty: boolean }} RenderView */
-
-/** @typedef {{ structural: string, dacModel: boolean }} PaintView */
 
 /**
  * What a step's guide and skip read: the listening answer, a fixed volume, and how many DAC models carry a value.
@@ -161,45 +159,6 @@ export function summaryOf(meta, vals, presets, env) {
  */
 export function holdSkipped(id, skip, vals) {
   return !!skip && !(id === "crossfeed" && vals.xfmode !== "off");
-}
-
-/**
- * What the step showing lays out: a change to any of these lays it out again.
- *
- * @param {{ at: string, meta: Meta, vals: Vals, known: Known, skip: string }} page  at: the page showing; skip: why it
- *   is skipped
- * @returns {string}
- */
-export function shapeOf({ at, meta, vals, known, skip }) {
-  return [at, meta.listen, vals.xfmode, known.crossfeed, vals.ldon, known.loudness, skip].join("|");
-}
-
-/**
- * Whether the page showing must be laid out again before it paints: a step whose shape moved (the overview and
- * Advanced settings never change shape).
- *
- * @param {string} at
- * @param {string} was  the shape it was laid out with
- * @param {string} now
- * @returns {boolean}
- */
-export function needsLayout(at, was, now) {
-  return at !== OVERVIEW && at !== "advanced" && now !== was;
-}
-
-/**
- * What the step controls show beyond their own values: the Structural preset the angle and center character land on
- * ('' = none), and whether the DAC model is live (correction engaged).
- *
- * @param {Vals} vals
- * @param {StructuralPreset[]} structural
- * @returns {PaintView}
- */
-export function paintView(vals, structural) {
-  return {
-    structural: structuralPreset(structural, vals.xsangle, vals.xslambda)?.v ?? "",
-    dacModel: vals.dcen === "1",
-  };
 }
 
 /**

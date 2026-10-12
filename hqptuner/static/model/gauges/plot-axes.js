@@ -60,26 +60,18 @@ export const round1 = (v) => Math.round(v * 10) / 10;
 const levelY = (lo, hi, plotH) => (d) => PAD + (plotH * (hi - d)) / (hi - lo);
 
 /**
- * The same map for a scale symmetric about 0 dB (lo = −hi), drawn from the middle out.
- *
- * @type {LevelMap}
- */
-export const centredLevelY = (_lo, hi, plotH) => (d) => PAD + plotH / 2 - (d * (plotH / 2)) / hi;
-
-/**
  * A plot's maps and frame edges for its box.
  *
  * @param {PlotBox} box
- * @param {LevelMap} [levelMap]  levelY unless given
  * @returns {PlotGeometry}
  */
-export function plotGeometry(box, levelMap = levelY) {
+export function plotGeometry(box) {
   const { W, H, fMin, fMax, lo, hi } = box;
   const decades = Math.log10(fMax / fMin);
   const plotH = H - PAD - BAND;
   /** @param {number} f */
   const x = (f) => GUTTER + ((W - GUTTER - RIGHT) * Math.log10(f / fMin)) / decades;
-  const y = levelMap(lo, hi, plotH);
+  const y = levelY(lo, hi, plotH);
   return { ...box, plotH, decades, x, y, x0: round1(x(fMin)), x1: round1(x(fMax)), yb: round1(y(lo)) };
 }
 

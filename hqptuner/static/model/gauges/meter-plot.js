@@ -1,9 +1,6 @@
-// Source meter plots: where the spectrum and the spectrogram put what they paint, free of the DOM. The spectrum's
-// points and axes, the Ranges a step wider and narrower, the level bars' dB scale, the spectrogram's colour indices and
-// apodizing strip, the time axis, and the colour ramps.
+// Source meter plots: where the spectrum and the spectrogram put their axes, free of the DOM. The spectrum's axes, the
+// Ranges a step wider and narrower, the level bars' dB scale, the frequency and time axes' ticks, and the colour ramps.
 
-const NO_DATA = -1; // spectrogram colour index for a pixel with no column under it
-const MAX_APOD = 3; // apodizing events one strip pixel tells apart
 const RAMP_SIZE = 256; // colour ramp entries
 const DB_STEPS = 6; // dB scale steps from full scale to the spectrum's range or the level bars' floor
 const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
@@ -16,25 +13,6 @@ const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at 
  * @property {number} range  dB
  * @property {number} w
  * @property {number} h
- */
-
-/**
- * A spectrogram's raster: pixel columns and rows, the history columns it spans, the offset of the shown channel's rows
- * in each column, and the dB span of its colour ramp.
- *
- * @typedef {object} SpectrogramView
- * @property {number} cols
- * @property {number} rows
- * @property {number} span
- * @property {number} off
- * @property {number} range
- */
-
-/**
- * The spectrogram's colour indices, one per pixel row by row (NO_DATA where no column lies under it), and the
- * apodizing strip's, one per pixel column.
- *
- * @typedef {{ colour: Int16Array, events: Uint8Array }} SpectrogramIndex
  */
 
 /**
@@ -54,18 +32,6 @@ const freqX = (f, plot) => (f / plot.nyq) * plot.w;
  * @returns {number}
  */
 const levelY = (db, plot) => Math.max(0, Math.min(plot.h, (-db / plot.range) * plot.h));
-
-/**
- * One [x, y] point per bin of a spectrum trace.
- *
- * @param {ArrayLike<number>} levels  dBFS per bin
- * @param {ArrayLike<number>} binHz
- * @param {SpectrumPlot} plot
- * @returns {[number, number][]}
- */
-export function spectrumPoints(levels, binHz, plot) {
-  return Array.from(levels, (v, i) => [freqX(binHz[i], plot), levelY(v, plot)]);
-}
 
 /**
  * The tick steps of a frequency axis, Hz, each after the axis top it takes over above, widest first.
@@ -149,63 +115,6 @@ export function freqTicks(nyq, at) {
     ticks: khzTicks(nyq).map((f) => ({ khz: f / 1000, at: at(f) })),
     nyq: { khz: +(nyq / 1000).toFixed(2), at: at(nyq) },
   };
-}
-
-/**
- * The held columns under pixel column `x`: those of its share of the span still in history.
- *
- * @template {{ db: ArrayLike<number>, apod: number }} C
- * @param {C[]} hist
- * @param {number} firstIdx  track column of hist[0]
- * @param {number} x
- * @param {SpectrogramView} view
- * @returns {C[]}
- */
-function heldUnder(hist, firstIdx, x, view) {
-  const total = firstIdx + hist.length;
-  const start = total - view.span;
-  const i0 = start + Math.floor((x * view.span) / view.cols);
-  const i1 = Math.max(i0 + 1, start + Math.floor(((x + 1) * view.span) / view.cols));
-  const held = [];
-  for (let i = Math.max(i0, firstIdx); i < i1 && i < total; i++) held.push(hist[i - firstIdx]);
-  return held;
-}
-
-/**
- * The ramp index of the loudest of `held` at one row: 0 at the range's floor and below, 255 at full scale.
- *
- * @param {{ db: ArrayLike<number> }[]} held
- * @param {number} row    index into each column's rows
- * @param {number} range  dB
- * @returns {number}
- */
-function colourIndex(held, row, range) {
-  let m = -300;
-  for (const c of held) if (c.db[row] > m) m = c.db[row];
-  return Math.round(Math.max(0, Math.min(1, (m + range) / range)) * (RAMP_SIZE - 1));
-}
-
-/**
- * The spectrogram's colour index at every pixel and the apodizing strip's at every pixel column (its events, capped
- * at three), the right edge on the newest column held.
- *
- * @param {{ db: ArrayLike<number>, apod: number }[]} hist
- * @param {number} firstIdx  track column of hist[0]
- * @param {SpectrogramView} view
- * @returns {SpectrogramIndex}
- */
-export function spectrogramIndex(hist, firstIdx, view) {
-  const colour = new Int16Array(view.cols * view.rows);
-  const events = new Uint8Array(view.cols);
-  for (let x = 0; x < view.cols; x++) {
-    const held = heldUnder(hist, firstIdx, x, view);
-    let ev = 0;
-    for (const c of held) ev += c.apod;
-    events[x] = Math.min(MAX_APOD, ev);
-    for (let y = 0; y < view.rows; y++)
-      colour[y * view.cols + x] = held.length ? colourIndex(held, view.off + y, view.range) : NO_DATA;
-  }
-  return { colour, events };
 }
 
 /**

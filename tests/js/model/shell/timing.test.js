@@ -1,5 +1,5 @@
-// Behavioral suite for hqptuner/static/model/shell/timing.js: a held button repeats on a fake clock, a mock check prints its
-// lines and then its verdict in order, and a revert fires once per arming with a re-arm cancelling the pending one.
+// Behavioral suite for hqptuner/static/model/shell/timing.js: a held button repeats on a fake clock, and a revert fires once
+// per arming with a re-arm cancelling the pending one.
 //
 // The clock is faked at the Clock seam each unit takes. Time moves only when a test says so, so nothing here waits on
 // the wall.
@@ -9,14 +9,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { holdRepeat, checkSequence, revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
+import { holdRepeat, revertAfter } from "../../../../hqptuner/static/model/shell/timing.js";
 import { fakeClock } from "../../support/clock.js";
 
 //: Hold delay and repeat rate for the hold tests, in the fake clock's ms.
 const DELAY = 100;
 const RATE = 10;
-//: Spacing between a check's printed lines.
-const TICK = 50;
 //: How long a revert waits.
 const MS = 1000;
 
@@ -62,38 +60,6 @@ test("test_releasing_before_the_delay_reports_the_repeat_never_began", () => {
 
 test("test_releasing_after_the_delay_reports_the_repeat_began", () => {
   assert.equal(held({ t: DELAY * 10, stopAt: DELAY }).started, true);
-});
-
-/**
- * The calls a check makes on `lines`, in order, once the clock has moved `t` (none: not moved at all).
- *
- * @param {string[]} lines
- * @param {number} [t]
- * @returns {string[]}
- */
-function checked(lines, t) {
-  const { clock, advance } = fakeClock();
-  /** @type {string[]} */
-  const log = [];
-  checkSequence(lines, { tick: TICK, onLine: (line) => log.push(line), onVerdict: () => log.push("verdict") }, clock);
-  if (t != null) advance(t);
-  return log;
-}
-
-test("test_a_check_prints_nothing_until_the_clock_moves", () => {
-  assert.equal(checked(["a", "b"]).length, 0);
-});
-
-test("test_a_check_prints_its_lines_in_order_then_its_verdict", () => {
-  assert.deepEqual(checked(["a", "b", "c"], TICK * 3), ["a", "b", "c", "verdict"]);
-});
-
-test("test_a_check_prints_one_line_per_tick", () => {
-  assert.deepEqual(checked(["a", "b", "c"], TICK), ["a", "b"]);
-});
-
-test("test_a_check_holds_its_verdict_until_a_tick_after_the_last_line", () => {
-  assert.equal(checked(["a", "b", "c"], TICK * 3 - 1).length, 3);
 });
 
 /**

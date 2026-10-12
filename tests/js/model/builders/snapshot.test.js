@@ -1,7 +1,7 @@
 // Behavioral suite for hqptuner/static/model/builders/snapshot.js: the decisions the Snapshot builder's rail and page make, each a
-// value in and a value out. How many lines a rail page holds from the heights measured at each size, which page turns
-// up after a save, which station folds are open and what each lists, which rail entries light with the edit, and each
-// row's value, live value and whether the two differ.
+// value in and a value out. How many lines a rail page holds from the heights measured at each size, which station
+// folds are open and what each lists, which rail entries light with the edit, and each row's value, live value and
+// whether the two differ.
 //
 // Record books, edits, engine states and measured heights are tables this file writes; no shipped data supplies an
 // input or an expected value.
@@ -16,7 +16,6 @@ import {
   isChain,
   valOf,
   railPer,
-  revealPage,
   railFolds,
   litEntry,
   snapRow,
@@ -64,25 +63,6 @@ const PER = [
 for (const row of PER) {
   test(`test_${row.name}`, () => {
     assert.equal(railPer(rail({ client: row.client, base: 100, line: 20 })), row.want);
-  });
-}
-
-// ── Page revealed after a save ─────────────────────────────────────────────
-
-/** @typedef {{ name: string, cur: Ref, per: number, want: number | null }} RevealRow */
-
-/** @type {RevealRow[]} */
-const REVEAL = [
-  { name: "a_snapshot_on_the_first_page_reveals_the_first", cur: ref("Den", "Charlie"), per: 4, want: 0 },
-  { name: "a_snapshot_past_the_first_page_reveals_its_own", cur: ref("Den", "Foxtrot"), per: 4, want: 1 },
-  { name: "the_first_snapshot_of_a_page_reveals_that_page", cur: ref("Den", "Echo"), per: 2, want: 2 },
-  { name: "a_name_the_station_does_not_hold_reveals_nothing", cur: ref("Den", "Golf"), per: 4, want: null },
-  { name: "the_new_entry_reveals_nothing", cur: ref("Den", NEW), per: 4, want: null },
-];
-
-for (const row of REVEAL) {
-  test(`test_${row.name}`, () => {
-    assert.equal(revealPage(BOOK, row.cur, row.per), row.want);
   });
 }
 

@@ -1,6 +1,6 @@
 // Behavioral suite for hqptuner/static/model/shell/alerts.js: where raised alerts land, free of the DOM. Which homes blink and
 // in what colour, which drawers and page sections pin which alert lines, which drawer rows light, which stages go dark,
-// and which header homes open a popover and what it shows.
+// and what a header home's popover shows.
 //
 // Every home table and alert list is one this file writes.
 //
@@ -9,7 +9,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { alertPlan, alertsAt, noteHomes, worseBlink } from "../../../../hqptuner/static/model/shell/alerts.js";
+import { alertPlan, alertsAt, worseBlink } from "../../../../hqptuner/static/model/shell/alerts.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
 
@@ -154,8 +154,4 @@ test("test_a_header_popover_shows_only_the_alerts_homed_on_it", () => {
 
 test("test_a_header_popover_skips_an_alert_with_no_home", () => {
   assert.equal(alertsAt([raised("nowhere")], HOMES, "#k").length, 0);
-});
-
-test("test_header_homes_without_a_settings_category_open_by_popover_once_each", () => {
-  assert.deepEqual(noteHomes(HOMES), ["#k"]);
 });

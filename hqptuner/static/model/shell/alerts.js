@@ -1,6 +1,6 @@
 // Where raised alerts land, free of the DOM: which homes blink and in what colour, which drawers and page sections pin
 // which alert lines, which lines the plate shows under its top bar, which drawer rows light, which stages go dark, and
-// which header homes open a popover.
+// which alerts a header popover shows.
 
 /** @typedef {'crit' | 'warn' | 'advice'} Sev */
 /** @typedef {'crit' | 'warn'} Blink */
@@ -123,12 +123,3 @@ export function alertPlan(list, homes) {
  * @returns {Alert[]}
  */
 export const alertsAt = (list, homes, sel) => list.filter((a) => homes[a.kind]?.el === sel);
-
-/**
- * The header homes that open their alerts in a popover: an element with no Settings category to carry the line, once
- * each, in table order.
- *
- * @param {Record<string, Home>} homes
- * @returns {string[]}
- */
-export const noteHomes = (homes) => [...new Set(Object.values(homes).flatMap((x) => (x.el && !x.set ? [x.el] : [])))];

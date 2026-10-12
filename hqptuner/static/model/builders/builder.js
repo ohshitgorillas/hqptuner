@@ -194,20 +194,6 @@ export function savedTo(book, cur, { name, to, rec, keep }) {
 }
 
 /**
- * A list of names after Save writes `name` from `cur` (NEW: not listed yet): a rename keeps its place and drops any
- * other entry of the new name, a new name joins the end.
- *
- * @param {string[]} names
- * @param {string} cur
- * @param {string} name
- * @returns {string[]}
- */
-export function namesAfterSave(names, cur, name) {
-  if (cur !== NEW && name !== cur) return renamedIn(names, cur, name);
-  return names.includes(name) ? [...names] : [...names, name];
-}
-
-/**
  * The book after the record `cur` is removed, and the record then edited: `land` when given, else the first left in
  * its station, else that station's New entry.
  *

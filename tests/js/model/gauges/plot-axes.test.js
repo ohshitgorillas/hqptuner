@@ -7,13 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  centredLevelY,
-  levelGrid,
-  plotGeometry,
-  pointAt,
-  tracePath,
-} from "../../../../hqptuner/static/model/gauges/plot-axes.js";
+import { levelGrid, plotGeometry, pointAt, tracePath } from "../../../../hqptuner/static/model/gauges/plot-axes.js";
 import { near } from "../../support/near.js";
 
 //: Tolerance for maps the float arithmetic may round in the last place.
@@ -21,8 +15,6 @@ const EPS = 1e-9;
 
 const BOX = { W: 332, H: 122, fMin: 20, fMax: 20000, lo: -10, hi: 30 };
 const GEO = plotGeometry(BOX);
-//: The same box on a ±12 dB scale drawn about its middle.
-const CENTRED = plotGeometry({ ...BOX, lo: -12, hi: 12 }, centredLevelY);
 
 //: The Loudness drawer's scale: −3 … +24 dB, majors every 6, minors every 3.
 const LOUD = { lo: -3, hi: 24, step: 6, minor: 3 };
@@ -65,10 +57,6 @@ test("test_every_decade_spans_the_same_width", () => {
 
 test("test_a_level_maps_linearly_between_the_bounds", () => {
   assert.ok(...near(GEO.y(10), 56, EPS));
-});
-
-test("test_a_centred_scale_puts_zero_at_mid_height", () => {
-  assert.ok(...near(CENTRED.y(0), 56, EPS));
 });
 
 // ── Level grid ───────────────────────────────────────────────────────────

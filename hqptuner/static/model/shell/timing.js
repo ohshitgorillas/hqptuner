@@ -1,4 +1,4 @@
-// DOM-free timing for the faceplate's components: a held button's repeat, a mock check's paced lines, a temporary state
+// DOM-free timing for the faceplate's components: a held button's repeat, a restartable quiet window, a temporary state
 // that reverts. Each takes the Clock it schedules on, so a test drives it with a fake.
 
 /** @typedef {import('../../lib/clock.js').Clock} Clock */
@@ -25,19 +25,6 @@ export function holdRepeat(step, clock, delay, rate) {
     clock.clearInterval(rep);
     return began;
   };
-}
-
-/**
- * Pace a mock check: `onLine` gets each of `lines` a `tick` apart, starting one turn of the clock from now, then
- * `onVerdict` runs a tick after the last line.
- *
- * @param {string[]} lines
- * @param {{ tick: number, onLine: (line: string) => void, onVerdict: () => void }} on  tick: ms between printed lines
- * @param {Clock} clock
- */
-export function checkSequence(lines, { tick, onLine, onVerdict }, clock) {
-  lines.forEach((line, i) => clock.setTimeout(() => onLine(line), i * tick));
-  clock.setTimeout(onVerdict, lines.length * tick);
 }
 
 /**

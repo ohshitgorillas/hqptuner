@@ -1,7 +1,6 @@
-// DOM-free decisions the Snapshot builder makes: how many lines a rail page holds from
-// the heights measured at each size, which page a save reveals, which station folds are open and what each lists, which
-// rail entries light with the edit, and each row's value, live value and whether the two differ. Each returns a value
-// and leaves its arguments as they were.
+// DOM-free decisions the Snapshot builder makes: how many lines a rail page holds from the heights measured at each
+// size, which station folds are open and what each lists, which rail entries light with the edit, and each row's value,
+// live value and whether the two differ. Each returns a value and leaves its arguments as they were.
 
 import { NEW, keyOf } from "./builder.js";
 import { paging } from "./pager.js";
@@ -100,20 +99,6 @@ export function railPer(measure, most = 40, least = 3) {
     if (!client || scroll <= client) return per;
   }
   return least;
-}
-
-/**
- * The page of its station's list that holds `cur`, or null for New or a name the station does not hold.
- *
- * @param {Record<string, Record<string, unknown>>} book
- * @param {Ref} cur
- * @param {number} per
- * @returns {number | null}
- */
-export function revealPage(book, cur, per) {
-  if (cur.name === NEW) return null;
-  const i = Object.keys(book[cur.st]).indexOf(cur.name);
-  return i >= 0 ? Math.floor(i / per) : null;
 }
 
 /**

@@ -26,7 +26,6 @@ import {
   heldAt,
   savePlan,
   savedTo,
-  namesAfterSave,
   removedFrom,
 } from "../../../../hqptuner/static/model/builders/builder.js";
 
@@ -326,26 +325,6 @@ test("test_a_saved_record_is_a_copy_of_the_edit", () => {
   const rec = { v: 7 };
   const out = savedTo(book(), den(NEW), { name: "Cosy", to: ["Shed"], rec, keep: false });
   assert.notEqual(out.book.Shed.Cosy, rec);
-});
-
-test("test_a_new_name_joins_the_end_of_the_list", () => {
-  assert.deepEqual(namesAfterSave(TREE, NEW, "Attic"), ["Den", "Loft", "Shed", "Attic"]);
-});
-
-test("test_a_new_record_over_a_listed_name_keeps_the_list", () => {
-  assert.deepEqual(namesAfterSave(TREE, NEW, "Loft"), TREE);
-});
-
-test("test_a_listed_rename_keeps_its_place", () => {
-  assert.deepEqual(namesAfterSave(TREE, "Loft", "Attic"), ["Den", "Attic", "Shed"]);
-});
-
-test("test_a_listed_rename_onto_another_drops_the_other", () => {
-  assert.deepEqual(namesAfterSave(TREE, "Loft", "Shed"), ["Den", "Shed"]);
-});
-
-test("test_saving_a_listed_name_as_itself_keeps_the_list", () => {
-  assert.deepEqual(namesAfterSave(TREE, "Loft", "Loft"), TREE);
 });
 
 // ── Remove ─────────────────────────────────────────────────────────────────

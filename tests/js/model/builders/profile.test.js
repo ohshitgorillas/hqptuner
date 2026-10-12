@@ -1,7 +1,6 @@
 // Behavioral suite for hqptuner/static/model/builders/profile.js: the decisions the Profile builder makes, each a value in and a
 // value out. Which steps a profile skips, the crossfeed preset and settings path its values land on, whether an edit
-// reads dirty, what the rail and the overview read for each part, when a step is laid out again, and what the
-// picker, the name box and Delete show.
+// reads dirty, what the rail and the overview read for each part, and what the picker, the name box and Delete show.
 //
 // Records, presets, defaults and step tables are tables this file writes; no shipped data supplies an input or an
 // expected value.
@@ -21,9 +20,6 @@ import {
   isDirty,
   summaryOf,
   holdSkipped,
-  shapeOf,
-  needsLayout,
-  paintView,
   pickerOf,
   renderView,
 } from "../../../../hqptuner/static/model/builders/profile.js";
@@ -31,7 +27,6 @@ import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.j
 
 /** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Vals} Vals */
 /** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Meta} Meta */
-/** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").Known} Known */
 /** @typedef {import("../../../../hqptuner/static/model/builders/profile.js").StepContext} StepContext */
 
 //: Steps whose skip rules echo what they read, so a test sees the context a step is handed.
@@ -91,17 +86,6 @@ const meta = (over = {}) => ({ name: "Rock", stations: ["den"], desc: "loud", li
 
 //: The saved record an edit compares against: two stations.
 const SAVED = { vals: vals(), meta: meta({ stations: ["den", "loft"] }) };
-
-//: The settings path both steps open on with presets.
-const PRESET = /** @type {Known} */ ({ crossfeed: "preset", loudness: "preset" });
-
-/**
- * The shape of the Crossfeed step for the default profile, `o` written over its parts.
- *
- * @param {{ at?: string, meta?: Meta, vals?: Vals, known?: Known, skip?: string }} o
- * @returns {string}
- */
-const shape = (o) => shapeOf({ at: "crossfeed", meta: meta(), vals: vals(), known: PRESET, skip: "", ...o });
 
 //: A record book: two stations, the first holding two profiles.
 const BOOK = { den: { Rock: {}, Jazz: {} }, loft: { [DEFAULT]: {} } };
@@ -311,74 +295,6 @@ test("test_skipped_crossfeed_still_engaged_does_not_read_skipped", () => {
 
 test("test_skipped_crossfeed_turned_off_reads_skipped", () => {
   assert.equal(holdSkipped("crossfeed", "speakers", vals()), true);
-});
-
-// ── shapeOf / needsLayout ────────────────────────────────────────────────
-
-test("test_shape_moves_with_the_page", () => {
-  assert.notEqual(shape({ at: "loudness" }), shape({}));
-});
-
-test("test_shape_moves_with_the_listening_answer", () => {
-  assert.notEqual(shape({ meta: meta({ listen: "headphones" }) }), shape({}));
-});
-
-test("test_shape_moves_with_the_crossfeed_mode", () => {
-  assert.notEqual(shape({ vals: vals({ xfmode: "bauer" }) }), shape({}));
-});
-
-test("test_shape_moves_with_the_crossfeed_path", () => {
-  assert.notEqual(shape({ known: { crossfeed: "values", loudness: "preset" } }), shape({}));
-});
-
-test("test_shape_moves_with_loudness_engaged", () => {
-  assert.notEqual(shape({ vals: vals({ ldon: "1" }) }), shape({}));
-});
-
-test("test_shape_moves_with_the_loudness_path", () => {
-  assert.notEqual(shape({ known: { crossfeed: "preset", loudness: "values" } }), shape({}));
-});
-
-test("test_shape_moves_with_the_skip", () => {
-  assert.notEqual(shape({ skip: "speakers" }), shape({}));
-});
-
-test("test_shape_holds_through_a_value_change", () => {
-  assert.equal(shape({ vals: vals({ dcen: "1", xsangle: "45" }) }), shape({}));
-});
-
-test("test_step_whose_shape_moved_is_laid_out_again", () => {
-  assert.equal(needsLayout("crossfeed", "a", "b"), true);
-});
-
-test("test_step_whose_shape_held_is_not_laid_out_again", () => {
-  assert.equal(needsLayout("crossfeed", "a", "a"), false);
-});
-
-test("test_overview_is_never_laid_out_again", () => {
-  assert.equal(needsLayout("overview", "a", "b"), false);
-});
-
-test("test_advanced_settings_are_never_laid_out_again", () => {
-  assert.equal(needsLayout("advanced", "a", "b"), false);
-});
-
-// ── paintView ────────────────────────────────────────────────────────────
-
-test("test_structural_control_shows_the_preset_the_values_land_on", () => {
-  assert.equal(paintView(vals({ xsangle: "45", xslambda: "0.5" }), PRESETS.structural).structural, "s2");
-});
-
-test("test_structural_control_shows_none_off_every_preset", () => {
-  assert.equal(paintView(vals({ xsangle: "45", xslambda: "0.7" }), PRESETS.structural).structural, "");
-});
-
-test("test_dac_model_is_live_with_correction_engaged", () => {
-  assert.equal(paintView(vals({ dcen: "1" }), PRESETS.structural).dacModel, true);
-});
-
-test("test_dac_model_is_not_live_with_correction_bypassed", () => {
-  assert.equal(paintView(vals({ dcen: "0" }), PRESETS.structural).dacModel, false);
 });
 
 // ── pickerOf ─────────────────────────────────────────────────────────────

@@ -1,18 +1,10 @@
 // Behavioral suite: what the facet bar reads off the narrowing state, free of the DOM (which facets show at a stage,
-// which chips read picked, which chips are dead, whether a set of facets is narrowing, the state keys a set of facets
-// owns, and each facet's state summary as data).
+// which chips are dead, the state keys a set of facets owns, and each facet's state summary as data).
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  chipPressed,
-  deadChip,
-  facetShown,
-  narrowing,
-  stateKeys,
-  summary,
-} from "../../../../hqptuner/static/model/shell/narrow-view.js";
+import { deadChip, facetShown, stateKeys, summary } from "../../../../hqptuner/static/model/shell/narrow-view.js";
 
 // ── Facet tables ──────────────────────────────────────────────────────────
 
@@ -215,20 +207,6 @@ test("test_facet_shown_shows_chips_at_the_nx_stage", () => {
   assert.equal(facetShown(MIXED, "nx"), true);
 });
 
-// ── chipPressed ──────────────────────────────────────────────────────────
-
-test("test_chip_pressed_reads_a_boolean_state_as_is", () => {
-  assert.equal(chipPressed({ sw: true }, "sw", "on"), true);
-});
-
-test("test_chip_pressed_is_true_for_a_value_in_the_pick_list", () => {
-  assert.equal(chipPressed({ mix: ["m1", "m2"] }, "mix", "m2"), true);
-});
-
-test("test_chip_pressed_is_false_for_a_value_outside_the_pick_list", () => {
-  assert.equal(chipPressed({ mix: ["m1"] }, "mix", "m3"), false);
-});
-
 // ── deadChip ─────────────────────────────────────────────────────────────
 
 test("test_dead_chip_is_true_for_an_unpicked_chip_counting_zero", () => {
@@ -245,24 +223,6 @@ test("test_dead_chip_is_false_for_a_picked_chip_counting_zero", () => {
 
 test("test_dead_chip_is_false_for_a_chip_leaving_one_list_filled", () => {
   assert.equal(deadChip(false, "0·4"), false);
-});
-
-// ── narrowing ────────────────────────────────────────────────────────────
-
-test("test_narrowing_is_false_when_every_key_holds_its_default", () => {
-  assert.equal(narrowing(["a", "b"], { a: 1, b: "x" }, { a: 1, b: "x" }), false);
-});
-
-test("test_narrowing_is_true_when_one_key_moved", () => {
-  assert.equal(narrowing(["a", "b"], { a: 1, b: "y" }, { a: 1, b: "x" }), true);
-});
-
-test("test_narrowing_compares_pick_lists_by_content", () => {
-  assert.equal(narrowing(["a"], { a: ["p"] }, { a: ["p"] }), false);
-});
-
-test("test_narrowing_ignores_a_moved_key_outside_the_set", () => {
-  assert.equal(narrowing(["a"], { a: 1, z: 2 }, { a: 1, z: 0 }), false);
 });
 
 // ── stateKeys ────────────────────────────────────────────────────────────
