@@ -14,7 +14,7 @@ The port-8088 HTTP fake is `fake_http`; the fixtures over both are in `conftest`
 """
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from types import MappingProxyType
 
 from defusedxml.ElementTree import fromstring as _fromstring
@@ -23,6 +23,14 @@ XML = '<?xml version="1.0" encoding="UTF-8"?>'
 
 #: Every command the fake was asked, in order: (name, attrs).
 CommandLog = list[tuple[str, dict[str, str]]]
+
+#: One-shot callables keyed by command name, shared across connections like the
+#: log: each runs when its command first arrives over a connection, while that
+#: command waits for its answer, so a test can land something on HQPTuner inside
+#: that window (``_on_backup`` on the 8088 fake is the same shape). The callable
+#: is the test's own and may move the State; a restart it makes severs the
+#: connection it arrived on, unanswered.
+CommandHooks = dict[str, Callable[[], None]]
 
 
 DEFAULTS = {
@@ -436,6 +444,7 @@ async def serve_shared(
     writer: asyncio.StreamWriter,
     state: dict[str, str],
     log: CommandLog | None = None,
+    hooks: CommandHooks | None = None,
 ) -> None:
     # A caller that passes `state` shares ONE dict across every connection, the
     # way a real daemon does — which is what lets a test move the fake mid-session
@@ -453,11 +462,21 @@ async def serve_shared(
         writer.close()
         return
     generation = state.get("_generation", "0")
+    arrived: set[str] = set()
     while True:
         data = await reader.read(4096)
         if not data or state.get("_generation", "0") != generation:
             break  # closed by the client, or severed by a restart since it connected
         body = data.split(b"?>", 1)[-1].strip().decode()
+        if hooks is not None:
+            name = _fromstring(body).tag
+            hook = None if name in arrived else hooks.pop(name, None)
+            arrived.add(name)
+            if hook is not None:
+                # off this loop: the callable may call HQPTuner, which may call back here
+                await asyncio.to_thread(hook)
+                if state.get("_generation", "0") != generation:
+                    break  # the callable restarted the daemon under this command
         answer = handle(body, state, log)
         if isinstance(answer, Close):
             break  # dropped: the socket goes away with nothing on it

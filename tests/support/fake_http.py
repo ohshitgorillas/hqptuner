@@ -166,12 +166,20 @@ def _speakers_render(st: dict[str, Any]) -> str:
 
 def _adopt_speakers(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     """POST /speakers — adopt the (complete) form. Checkbox contract as the real
-    daemon keeps it: `enabled` present means on, absent means off."""
+    daemon keeps it: `enabled` present means on, absent means off.
+
+    The apply also RELOADS THE ENGINE (protocol.md, `/speakers`). That side of
+    it lands on the 4321 daemon, which this fake cannot see: a test that wants
+    it hangs its own callable on ``_on_speakers`` and moves the control fake's
+    State from there, the way ``_on_refresh`` models the rescan."""
     fields = _parse_multipart_fields(content_type, raw)
     st["speakers_enabled"] = fields.get("enabled") == "1"
     for i, ch in enumerate(st["_speakers"]):
         ch["level"] = fields.get(f"level_{i}", ch["level"])
         ch["distance"] = fields.get(f"distance_{i}", ch["distance"])
+    reloaded = st.get("_on_speakers")
+    if reloaded is not None:
+        reloaded()
 
 
 def _matrix_pipeline_row(i: int, source: str, mixdown: str, process: str) -> str:

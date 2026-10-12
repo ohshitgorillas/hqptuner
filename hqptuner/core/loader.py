@@ -94,16 +94,40 @@ async def _handshake(mgr: "ConnectionManager", client: ControlClient) -> dict[st
     readings.volume_range = vrange
     readings.enums = enums
     readings.matrix_profiles = matrix_profiles
-    # Held against this connection's State: after a restart the engine is back on its
-    # config file, and the record is all that knows what it lost. What it still holds
-    # stays recorded, so a later restart can still report it.
-    reconciled = dropped.reconcile(readings.live.written, memory.engine_view(mgr))
-    readings.dropped_settings = reconciled.dropped
-    readings.live.reconnected(reconciled.kept)
+    _reconcile_live(mgr)
     readings.loaded_at = readings.connected_at = mgr.clock.now().timestamp()
     mgr.reachable = True
     mgr.unreachable_since = None
     return info
+
+
+def _reconcile_live(mgr: "ConnectionManager") -> None:
+    """Hold the confirmed-writes record against this connection's State.
+
+    After a restart the engine is back on its config file, and the record is all that
+    knows what it lost. What it still holds stays recorded, so a later restart can still
+    report it. After a restart HQPTuner asked for, what it lost was lost at HQPTuner's
+    own request: the record is let go with nothing listed, and an earlier report stands.
+    This connect is not counted yet, so it is tested as the one it will be counted as.
+    """
+    readings = mgr.readings
+    if readings.live.follows_own_restart(mgr.connects + 1, mgr.drops):
+        readings.live.restarted()
+        return
+    reconciled = dropped.reconcile(readings.live.written, memory.engine_view(mgr))
+    readings.dropped_settings = reconciled.dropped
+    readings.live.reconnected(reconciled.kept)
+
+
+def _settle_own_reload(mgr: "ConnectionManager") -> None:
+    """Settle HQPTuner's own reload the engine took without dropping this connection.
+
+    What the engine no longer holds was put back by that reload, at HQPTuner's own
+    request: it leaves the record unreported. What it still holds stays recorded.
+    """
+    live = mgr.readings.live
+    if live.own_reload_in_place(mgr.connects, mgr.clock.monotonic(), mgr.alarm_threshold):
+        live.reloaded(dropped.reconcile(live.written, memory.engine_view(mgr)).kept)
 
 
 def stamp_http_ok(mgr: "ConnectionManager") -> None:
@@ -180,6 +204,7 @@ async def poll(mgr: "ConnectionManager") -> None:
     if moved:
         log.info("engine moved (mode %s, state %s), re-enumerating", current.get("mode"), current.get("state"))
         readings.enums = await client.get_all_enumerations()
+    _settle_own_reload(mgr)
     readings.status, readings.status_metadata = await client.get_status()
     # The re-assert is a live-setter batch like any other: its State readback
     # verifies its own SetFilter only while no other batch's write lands first.

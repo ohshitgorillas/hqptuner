@@ -47,6 +47,29 @@ class Mark:
     drops: int
 
 
+def restart_landed(mark: Mark, connects: int, drops_at_connect: int) -> bool:
+    """Whether the connect counted at ``connects``, made with ``drops_at_connect`` drops seen, follows ``mark``.
+
+    It does when it completed after ``mark`` and after the manager had seen the daemon go
+    away since: the drop ``restarting`` takes itself does not count, so a connect landing
+    on the daemon before its restart does not qualify.
+    """
+    return connects > mark.connects and drops_at_connect > mark.drops
+
+
+async def own_restart(mgr: LaneManager, request: Callable[[], Awaitable[None]], mark: Mark | None) -> None:
+    """Send ``request``, which restarts or reloads the daemon at HQPTuner's own asking, and note it once accepted.
+
+    ``mark`` is ``mark_connect`` taken before the request. Once the daemon has accepted the
+    request, ``LiveMemory.restart_sent`` holds it for the connection after it, so what that
+    restart loses is not reported as dropped. A request that raises, refused or never
+    sent, leaves nothing noted. Every path that restarts or reloads the daemon goes out
+    through here.
+    """
+    await request()
+    mgr.readings.live.restart_sent(mark, mgr.clock.monotonic())
+
+
 async def restore(mgr: LaneManager, cfgfile: bytes, *, mark: Mark | None, scope: str = "system") -> None:
     """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
 
@@ -56,9 +79,13 @@ async def restore(mgr: LaneManager, cfgfile: bytes, *, mark: Mark | None, scope:
     handed to ``await_ready`` after: the drop follows the mark, not a fresh read
     of ``ready``, so a connect body that finishes during the POST is neither
     dropped from under the caller nor waited for by it. Those two decisions are
-    one decision, made once.
+    one decision.
+
+    The restart is HQPTuner's own whether or not there is a connection for it to
+    kill, so the restore goes out through ``own_restart`` with that same ``mark``,
+    ``None`` included.
     """
-    await mgr.require_http().restore(cfgfile, scope=scope)
+    await own_restart(mgr, lambda: mgr.require_http().restore(cfgfile, scope=scope), mark)
     if mark is not None:
         await mgr.restarting()
 
@@ -111,7 +138,7 @@ async def await_ready(mgr: LaneManager, mark: Mark | None) -> bool:
     if mark is None:
         return False
     end = mgr.clock.monotonic() + mgr.alarm_threshold
-    while not (mgr.connects > mark.connects and mgr.drops_at_connect > mark.drops and mgr.ready):
+    while not (restart_landed(mark, mgr.connects, mgr.drops_at_connect) and mgr.ready):
         remaining = end - mgr.clock.monotonic()
         if remaining <= 0:
             return False
@@ -133,7 +160,7 @@ async def resync_engine_state(mgr: LaneManager) -> None:
     on ``state = None`` overlays nothing, which stores the config as loaded. Stale answers are the
     one outcome this must never leave behind.
     """
-    mgr.readings.live.forget()
+    mgr.readings.live.forget_chains()
     mgr.readings.state = None
     client = mgr.control
     if client is None:

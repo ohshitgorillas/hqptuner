@@ -25,7 +25,7 @@ from typing import Any
 import apps
 import pytest
 from apps import settled
-from fake_control import CommandLog, serve, serve_shared
+from fake_control import CommandHooks, CommandLog, serve, serve_shared
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -254,20 +254,23 @@ def spawn_threaded_daemon(
     log: CommandLog | None = None,
     host: str = "127.0.0.1",
     bind_port: int = 0,
+    *,
+    hooks: CommandHooks | None = None,
 ) -> Iterator[int]:
     # `state` shares ONE dict across connections, as the `daemon` fixture does —
     # how a sync test moves a daemon the app has already connected to; `log`
     # likewise, so a sync test can watch the daemon's side of the wire.
     # `host`/`bind_port` put daemons at two loopback ADDRESSES on one port number,
     # which is what a test of which address the app dials needs; the defaults
-    # keep every existing caller on an ephemeral 127.0.0.1 port.
+    # keep every existing caller on an ephemeral 127.0.0.1 port. `hooks` is
+    # shared like `log`; it needs `state`, as only the shared server runs it.
     loop = asyncio.new_event_loop()
     thread = threading.Thread(target=loop.run_forever, daemon=True)
     thread.start()
     handler = (
         functools.partial(serve, overrides=overrides, log=log)
         if state is None
-        else functools.partial(serve_shared, state=state, log=log)
+        else functools.partial(serve_shared, state=state, log=log, hooks=hooks)
     )
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
     port: int = server.sockets[0].getsockname()[1]

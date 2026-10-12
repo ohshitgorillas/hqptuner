@@ -12,7 +12,7 @@ import httpx
 
 from hqptuner.core.readings import Readings
 from hqptuner.engine import devicecaps, logtail
-from hqptuner.lanes import rescan
+from hqptuner.lanes import rescan, settle
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -128,7 +128,7 @@ async def refresh_devices(mgr: "ConnectionManager") -> RescanReport:
     No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
     """
     snap = rescan.snapshot(mgr, autosave=mgr.presetops.store.autosave)
-    await mgr.require_http().refresh_devices()
+    await settle.own_restart(mgr, mgr.require_http().refresh_devices, settle.mark_connect(mgr))
     await mgr.refresh_http_forms()
     replayed = await rescan.replay(mgr, snap)
     return RescanReport(restored=replayed.restored, replay=replayed.outcome)
