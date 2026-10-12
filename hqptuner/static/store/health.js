@@ -5,27 +5,40 @@
 //
 // clips/apod are cumulative counters, so alerts work on per-track deltas
 // (baseline reset when track_serial changes). process_speed flutters at track
-// edges, so its alerts require SUSTAIN consecutive below-threshold polls before
-// firing (and clear instantly on recovery).
+// edges, so each of its alerts fires only once speed has stayed below its
+// threshold for SUSTAIN_MS on the clock (and clears instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
 import { engineStatus } from "./signals.js";
 import { filterFacets } from "./narrow/facets.js";
+import { PLATFORM } from "../lib/clock.js";
+import { quietWindow } from "../model/shell/timing.js";
+
+/** @typedef {import("../lib/clock.js").Clock} Clock */
+/** @typedef {ReturnType<typeof quietWindow>} Wait */
 
 const PLAYING = 2;
 // 1.05× is the danger floor for sustained DSP throughput (below it, transient
 // load spikes eat the margin); below 1.00× the engine is actively dropping.
 const SPEED_WARN = 1.05;
 const SPEED_CRIT = 1.0;
-const SUSTAIN = 3; // consecutive polls (~6 s at the 2 s cadence)
+// How long speed must stay below a threshold before that threshold's alert
+// fires. Status frames arrive only when something changes, so the wait runs on
+// a timer.
+const SUSTAIN_MS = 6000;
 // A handful of apodizing events per track is normal on ordinary material; the
 // alert is only worth the user's attention once they pile up.
 const APOD_MIN = 10;
 // Same idea for clipping: wait for a pile-up rather than the first event.
 const CLIP_MIN = 10;
 
-// per-track counter baselines + consecutive-poll streaks (internal state)
+// per-track counter baselines + which slow-speed waits have run out (internal state)
 const track = signal({ serial: null, clips0: 0, apod0: 0 });
-const streak = signal({ warn: 0, crit: 0 });
+const slow = signal({ warn: false, crit: false });
+
+// Per severity, whether the last frame qualified, so a wait starts only on the
+// frame that begins qualifying.
+/** @type {Record<Severity, boolean>} */
+const qualifying = { warn: false, crit: false };
 
 // Whether output_fill has been seen > 0 at least once this track. A buffer that
 // only ever holds at 0 does not apply to this output (SDM/DSD direct paths
@@ -57,8 +70,10 @@ let prevClips = 0;
  * @property {string} [output_fill]
  * @property {string} [active_filter]
  *
- * @typedef {{ warn: number, crit: number }} Streak
- *   Consecutive below-threshold polls, one count per severity.
+ * @typedef {"warn" | "crit"} Severity
+ *
+ * @typedef {Record<Severity, boolean>} Slow
+ *   Per severity, whether speed has held below that threshold for SUSTAIN_MS.
  *
  * @typedef {{ kind: string, sev: string, text: string }} Alert
  *   One alert-strip row. `kind` identifies which alert this is and `sev` how bad
@@ -70,22 +85,29 @@ const num = (/** @type {string | number | undefined} */ v) => {
   return Number.isFinite(n) ? n : null;
 };
 
-// Streak/baseline bookkeeping. Subscribes to engineStatus ONLY — internal
+// Slow-speed/baseline bookkeeping. Subscribes to engineStatus ONLY — internal
 // signals are peek()ed so the effect never re-triggers itself.
 //
-// Registration is idempotent, and has to be: the effects share one `streak`, so
-// each extra registration advances it again per poll and an alert fires after
-// ceil(SUSTAIN/n) polls instead of SUSTAIN — a second call silently cuts the
-// sustain threshold to 2 polls, a third to 1. app.js calls this once, but
-// nothing enforced that, and the dispose handle was dropped so the duplicate
-// could never be unregistered. Returns the disposer for a caller that wants it.
+// Registration is idempotent: the effects would share one set of baselines and
+// waits, so a second registration would judge every frame twice. Returns the
+// disposer for a caller that wants it; it stops the effect and cancels both
+// pending waits.
 /** @type {(() => void) | null} */
 let dispose = null;
 
-/** Register the streak/baseline effect once, and hand back its disposer. */
-export function initHealth() {
+/**
+ * Register the slow-speed/baseline effect once, and hand back its disposer.
+ *
+ * @param {Clock} [clock] the clock the slow-speed waits run on; a later call keeps the first registration's
+ */
+export function initHealth(clock = PLATFORM) {
   if (dispose) return dispose;
-  dispose = effect(() => {
+  /** @type {Record<Severity, Wait>} */
+  const waits = {
+    warn: quietWindow(SUSTAIN_MS, () => markSlow("warn", true), clock),
+    crit: quietWindow(SUSTAIN_MS, () => markSlow("crit", true), clock),
+  };
+  const stop = effect(() => {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rebaseline(st);
@@ -93,10 +115,15 @@ export function initHealth() {
     if (Number(st.state) === PLAYING && (num(st.output_fill) || 0) > 0 && !outputActive.peek()) {
       outputActive.value = true; // this output populates a buffer — latch for the track
     }
-    const s = streak.peek();
-    const next = nextStreak(st, s);
-    if (next.warn !== s.warn || next.crit !== s.crit) streak.value = next;
+    const below = belowThresholds(st);
+    waitOut("warn", below.warn, waits.warn);
+    waitOut("crit", below.crit, waits.crit);
   });
+  dispose = () => {
+    stop();
+    waits.warn.cancel();
+    waits.crit.cancel();
+  };
   return dispose;
 }
 
@@ -126,27 +153,51 @@ function flashClips(st) {
   prevClips = clips;
 }
 
-// One streak step: count up while the reading qualifies, drop to zero the moment
-// it doesn't — recovery is immediate, never decayed.
-const step = (/** @type {number} */ prev, /** @type {boolean} */ qualifies) => (qualifies ? prev + 1 : 0);
+// One severity's wait: start it on the first qualifying frame and let further
+// qualifying frames leave it running; the frame that stops qualifying cancels
+// it and clears the alert — recovery is immediate, never decayed.
+/**
+ * @param {Severity} sev
+ * @param {boolean} qualifies
+ * @param {Wait} wait
+ * @returns {void}
+ */
+function waitOut(sev, qualifies, wait) {
+  const was = qualifying[sev];
+  qualifying[sev] = qualifies;
+  if (qualifies) {
+    if (!was) wait.arm();
+    return;
+  }
+  wait.cancel();
+  if (slow.peek()[sev]) markSlow(sev, false);
+}
+
+/**
+ * @param {Severity} sev
+ * @param {boolean} on
+ * @returns {void}
+ */
+function markSlow(sev, on) {
+  slow.value = { ...slow.peek(), [sev]: on };
+}
 
 // A usable speed figure. 0 and negatives mean "no reading", not "infinitely
-// slow", so they reset the streak rather than tripping it.
+// slow", so they start the wait over rather than tripping it.
 const usableSpeed = (/** @type {number} */ sp) => sp !== null && sp > 0;
 
 /**
  * @param {StatusFrame} st
- * @param {Streak} s
- * @returns {Streak}
+ * @returns {Slow}
  */
-function nextStreak(st, s) {
+function belowThresholds(st) {
   const playing = Number(st.state) === PLAYING;
   // an unreadable speed is 0, which usableSpeed rejects exactly as the null did
   const sp = num(st.process_speed) ?? 0;
   const speedOk = playing && usableSpeed(sp);
   return {
-    warn: step(s.warn, speedOk && sp < SPEED_WARN),
-    crit: step(s.crit, speedOk && sp < SPEED_CRIT),
+    warn: speedOk && sp < SPEED_WARN,
+    crit: speedOk && sp < SPEED_CRIT,
   };
 }
 
@@ -175,19 +226,19 @@ export const trackCounters = computed(() => {
 const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 
 /**
- * @param {Streak} s
+ * @param {Slow} s
  * @param {number} sp
  * @returns {Alert | null}
  */
 function speedAlert(s, sp) {
-  if (s.crit >= SUSTAIN) {
+  if (s.crit) {
     return {
       kind: "dsp-speed",
       sev: "crit",
       text: `DSP at ${sp.toFixed(2)}× realtime — actively dropping out. ${SLOW_DSP_TAIL}`,
     };
   }
-  if (s.warn >= SUSTAIN)
+  if (s.warn)
     return {
       kind: "dsp-speed",
       sev: "warn",
@@ -223,7 +274,7 @@ function apodAlert(apod, filterName) {
 export const engineAlerts = computed(() => {
   const st = (engineStatus.value || {}).status;
   if (!st || Number(st.state) !== PLAYING) return [];
-  const s = streak.value;
+  const s = slow.value;
   const counters = trackCounters.value;
   return [
     speedAlert(s, num(st.process_speed) ?? 0),

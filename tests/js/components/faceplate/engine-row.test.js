@@ -21,11 +21,12 @@ import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {Record<string, string>} Frame */
 
-initHealth();
+initHealth(fakeClock().clock);
 initApodHistory();
 
 /** A Status frame while playing. @type {Frame} */

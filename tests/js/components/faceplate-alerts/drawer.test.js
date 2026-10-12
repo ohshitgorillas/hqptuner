@@ -19,11 +19,12 @@ import { engineStatus, health } from "../../../../hqptuner/static/store/signals.
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
-initHealth();
+initHealth(fakeClock().clock);
 
 /** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };

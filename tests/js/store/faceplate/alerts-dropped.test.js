@@ -21,8 +21,9 @@ import { health, engineStatus } from "../../../../hqptuner/static/store/signals.
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { reset, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
+import { fakeClock } from "../../support/clock.js";
 
-initHealth();
+initHealth(fakeClock().clock);
 
 /** The brand knob's header element id, as the credentials alert homes on it. */
 const KNOB = "conn";

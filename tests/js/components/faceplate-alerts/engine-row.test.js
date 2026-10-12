@@ -3,8 +3,9 @@
 //
 // The wire is the seam, as tests/js/components/faceplate/engine-row.test.js drives it: each case writes Status frames
 // into `engineStatus`, as the poll does, with the health store's baseline effect registered. Every case starts a track
-// of its own on a healthy frame, which zeroes the speed streak, then holds the speed it names for as many polls as the
-// health store takes to raise it, as tests/js/store/faceplate/alerts.test.js sustains it.
+// of its own on a healthy frame, which starts the slow-speed wait over, then holds the speed it names for as long as the
+// health store takes to raise it, as tests/js/store/faceplate/alerts.test.js sustains it. The health store runs on the
+// suite's fake clock, so that hold is a move of the clock, never time spent.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-alerts/engine-row.test.js
 
@@ -17,13 +18,16 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { EngineRow } from "../../../../hqptuner/static/components/faceplate/EngineRow.js";
 import { elements, attr, classes } from "../../support/markup.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {Record<string, string>} Frame */
 
-initHealth();
+const fake = fakeClock();
+initHealth(fake.clock);
 
-const SUSTAIN = 3;
+/** How long speed stays below a threshold before its alert fires, in ms on the clock. */
+const HOLD_MS = 6000;
 
 /** A Status frame while playing. @type {Frame} */
 const PLAYING = {
@@ -38,7 +42,8 @@ const PLAYING = {
 let track = 0;
 
 /**
- * The gauge after a track starts on a healthy frame and the poll then reads `frame` SUSTAIN times on the same track.
+ * The gauge after a track starts on a healthy frame and the poll then reads `frame` on the same track, held there for
+ * HOLD_MS.
  *
  * @param {Frame} frame  overrides on PLAYING
  * @returns {MarkupElement | undefined}
@@ -47,7 +52,8 @@ function gauge(frame) {
   track += 1;
   const serial = String(track);
   engineStatus.value = { status: { ...PLAYING, track_serial: serial } };
-  for (let i = 0; i < SUSTAIN; i += 1) engineStatus.value = { status: { ...PLAYING, ...frame, track_serial: serial } };
+  engineStatus.value = { status: { ...PLAYING, ...frame, track_serial: serial } };
+  fake.advance(HOLD_MS);
   return elements(render(html`<${EngineRow} />`)).find((e) => classes(e).includes("gauge"));
 }
 

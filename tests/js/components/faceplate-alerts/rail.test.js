@@ -27,11 +27,12 @@ import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { alertsNow } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, DSD512, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
 
-initHealth();
+initHealth(fakeClock().clock);
 
 /** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };

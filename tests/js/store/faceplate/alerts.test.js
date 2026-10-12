@@ -6,8 +6,9 @@
 // Driven at the wire: the /api/health reading, the /api/status frame (playing state, health counters, the metadata
 // child, the junk advisor's object) and the state, enumerations, config and metadata payloads the shaper fit reads,
 // through the exported signals and the shared shaper-fit scenario builder. Every simulated poll is a fresh object, and
-// each case starts on a fresh track with a healthy speed, which zeroes the health module's streak and counter baseline.
-// The sentences are owner copy and are nowhere in this file.
+// each case starts on a fresh track with a healthy speed, which starts the health module's slow-speed wait over and
+// rebaselines its counters. The health module runs on the suite's fake clock, so a slow speed is held for its wait by
+// moving that clock, never by spending time. The sentences are owner copy and are nowhere in this file.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/alerts.test.js
 
@@ -19,13 +20,16 @@ import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
 import { reset, DSD512, DSD1024, PCM_4X, PCM_8X } from "../../support/shaperfit-fixtures.js";
+import { fakeClock } from "../../support/clock.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
 
-initHealth();
+const fake = fakeClock();
+initHealth(fake.clock);
 
-const SUSTAIN = 3;
+/** How long speed stays below a threshold before its alert fires, in ms on the clock. */
+const HOLD_MS = 6000;
 
 /** The rail stage that runs the SDM modulator. */
 const MODULATOR_STAGE = "shaping";
@@ -76,7 +80,8 @@ async function quiet(scenario = {}) {
 
 /** @param {Record<string, string>} fields */
 const sustain = (fields) => {
-  for (let i = 0; i < SUSTAIN; i += 1) poll(fields);
+  poll(fields);
+  fake.advance(HOLD_MS);
 };
 
 const refuse = () => {

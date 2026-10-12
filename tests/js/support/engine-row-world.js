@@ -62,7 +62,8 @@ async function play() {
   const { initHealth } = await import("../../../hqptuner/static/store/health.js");
   const { initApodHistory } = await import("../../../hqptuner/static/store/apodhistory.js");
   const { elements, attr, classes } = await import("./markup.js");
-  initHealth();
+  const { fakeClock } = await import("./clock.js");
+  initHealth(fakeClock().clock);
   initApodHistory();
   /** @type {string[]} */
   const lamps = [];
