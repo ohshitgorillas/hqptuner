@@ -20,7 +20,7 @@ from hqptuner.lanes.live import lane, routing
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.presets import presetlane
 from hqptuner.presets.store.autopilot import AutopilotError
-from hqptuner.presets.store.presets import PresetStore
+from hqptuner.presets.store.presets import PresetStore, canonical_name
 
 router = APIRouter(prefix="/api")
 
@@ -95,6 +95,17 @@ def _save_target(body: ApplyBody | None, store: PresetStore) -> str | None:
         return store.save_name(body.save.name)
 
 
+def _switch_target(switch_to: str | None, store: PresetStore) -> str | None:
+    """Return the preset switch the apply runs first: a preset name, ``""`` for "(no preset)", or None for no switch.
+
+    Checked before anything is written, as the save target is: a name that is not a preset name, or one ``store`` does
+    not hold, refuses the request with the load's own code while the engine is still untouched.
+    """
+    if switch_to:
+        store.read(canonical_name(switch_to))
+    return switch_to
+
+
 async def _apply_staged(
     manager: ConnectionManager,
     live: dict[str, dict[str, str]],
@@ -128,7 +139,13 @@ async def apply(
     # nothing captured after this point can say what was applied
     staged_http, staged_live = dict(store.http), dict(store.live)
     save = _save_target(body, manager.presetops.store)
-    report = await _apply_staged(manager, store.live, store.http, switch_to, save)
+    switch_to = _switch_target(switch_to, manager.presetops.store)
+    try:
+        report = await _apply_staged(manager, store.live, store.http, switch_to, save)
+    except BaseException:
+        # every apply that reached the engine has its row; an abort records it not ok, then propagates
+        manager.audit.apply(staged_http, staged_live, switch_to, save, ok=False)
+        raise
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
