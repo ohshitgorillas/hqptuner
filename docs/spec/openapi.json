@@ -1626,6 +1626,11 @@
             "title": "Live",
             "type": "array"
           },
+          "reenumerated": {
+            "default": false,
+            "title": "Reenumerated",
+            "type": "boolean"
+          },
           "stored": {
             "additionalProperties": {
               "type": "string"

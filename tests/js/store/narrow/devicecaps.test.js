@@ -1,5 +1,5 @@
-// Behavioral suite for store/narrow/devicecaps.js — graying the rate menus and the
-// mode segment against what the SELECTED OUTPUT DEVICE can actually carry.
+// Behavioral suite for store/narrow/devicecaps.js — graying the rate menus
+// against what the SELECTED OUTPUT DEVICE can actually carry.
 //
 // The other half of the contract, correcting a setting that already SITS on
 // something the device cannot reach, is devicecaps-fallback.test.js. The
@@ -36,7 +36,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { DSD_RATES } from "../../../../hqptuner/static/store/schema/options.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
+import { grayRatesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
   ALSA_DEVICE,
   DSD64,
@@ -45,7 +45,6 @@ import {
   DSD512,
   DSD_TIERS,
   GRAYED,
-  MODE_OPTIONS,
   NET_DEVICE,
   OTHER_NET_DEVICE,
   PCM_16X,
@@ -175,50 +174,11 @@ test("test_a_dop_switch_staged_as_the_string_zero_counts_as_off", async () => {
   assert.deepEqual(marks(optionFor(out, DSD64)), GRAYED);
 });
 
-// --- the mode segment ---------------------------------------------------------
-
-test("test_the_sdm_mode_is_grayed_when_the_device_has_no_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), GRAYED);
-});
-
-test("test_the_pcm_mode_is_not_grayed_when_the_device_has_no_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "pcm")), UNTOUCHED);
-});
-
-test("test_the_auto_mode_is_not_grayed_when_the_device_has_no_dsd_path", async () => {
-  // In auto the engine picks the family per track and settles on PCM by
-  // itself, so nothing is unreachable and there is nothing to warn about.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "auto")), UNTOUCHED);
-});
-
-test("test_the_sdm_mode_is_not_grayed_when_dop_gives_the_device_a_dsd_path", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: true });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
-
-test("test_the_sdm_mode_is_not_grayed_when_the_device_announced_native_dsd", async () => {
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, [3072000]), netDop: false });
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
-
 // --- when the capability cannot speak for the control -------------------------
 
 test("test_with_no_capability_known_the_pcm_rate_menu_is_untouched", async () => {
   await reset({ deviceCaps: null });
   assert.equal(markedCount(grayRatesByDevice(PCM_OPTIONS, "pcm")), 0);
-});
-
-test("test_with_no_capability_known_the_mode_segment_is_untouched", async () => {
-  await reset({ deviceCaps: null });
-  assert.equal(markedCount(grayModesByDevice(MODE_OPTIONS)), 0);
 });
 
 test("test_with_no_capability_known_the_dsd_rate_menu_is_untouched", async () => {

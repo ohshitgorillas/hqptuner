@@ -49,6 +49,8 @@ class LiveApplyReport:
 
     live: list[LiveWriteResult] = dataclasses.field(default_factory=list)
     stored: dict[str, str] = dataclasses.field(default_factory=dict)
+    # true when this batch moved an enumeration the next write resolves against (``_REENUMERATES``)
+    reenumerated: bool = False
 
 
 class SplitPlan(NamedTuple):
@@ -184,6 +186,11 @@ async def _reread_state(mgr: LaneManager, client: ControlClient) -> None:
         mgr.readings.state = state
 
 
+def _reenumerates(edits: dict[str, dict[str, str]]) -> bool:
+    """Whether a live batch moves an enumeration the next write resolves against (``_REENUMERATES``)."""
+    return bool(_REENUMERATES & set(edits))
+
+
 async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
     """Re-read what a live batch just invalidated: the running state always, the enumerations when the batch moved one.
 
@@ -196,7 +203,7 @@ async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dic
     A refused State read is a complete reply that says nothing of the engine, so the last good reading stands.
     """
     await _reread_state(mgr, client)
-    if _REENUMERATES & set(edits):
+    if _reenumerates(edits):
         mgr.readings.enums = await client.get_all_enumerations()
 
 
@@ -268,7 +275,7 @@ async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
     _record_batch(mgr, stored, fields, report)
     if _applied(report, "mode"):
         report = report + await _after_mode(mgr, client)
-    return LiveApplyReport(report, _held_fields(stored))
+    return LiveApplyReport(report, _held_fields(stored), _reenumerates(edits))
 
 
 def mode_already_running(mgr: LaneManager, want: str) -> bool:
@@ -304,7 +311,11 @@ async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
             return await _apply_batch(mgr, fields)
         first = LiveApplyReport() if mode_already_running(mgr, mode) else await _apply_batch(mgr, {"mode": mode})
         second = await _apply_batch(mgr, rest)
-        return LiveApplyReport([*first.live, *second.live], {**first.stored, **second.stored})
+        return LiveApplyReport(
+            [*first.live, *second.live],
+            {**first.stored, **second.stored},
+            first.reenumerated or second.reenumerated,
+        )
 
 
 def _mode_apart(http_fields: dict[str, str]) -> str | None:

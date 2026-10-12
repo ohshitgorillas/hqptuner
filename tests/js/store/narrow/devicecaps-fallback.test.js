@@ -15,9 +15,9 @@
 // config field names — `defaults_samplerate` and `defaults_bitrate` (the LIMIT
 // slots; `samplerate` / `bitrate` are forced to 0 on every write) and `mode`.
 //
-// The first two cases pin the other direction of the same reactivity: graying
+// The first case pins the other direction of the same reactivity: graying
 // follows STAGED values, not applied ones, so the menus
-// move the moment the user ticks a box, with no apply and no change to the
+// move the moment the user stages an edit, with no apply and no change to the
 // config payload.
 //
 // The correction is an effect, so it is triggered by seeding
@@ -29,33 +29,18 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { edit } from "../../../../hqptuner/static/store/actions.js";
-import { grayRatesByDevice, grayModesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
+import { grayRatesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import {
-  MODE_OPTIONS,
   NET_DEVICE,
   OTHER_NET_DEVICE,
   PCM_OPTIONS,
   PCM_TO_192,
-  UNTOUCHED,
   caps,
   markedCount,
-  marks,
-  optionFor,
   reset,
 } from "../../support/devicecaps-harness.js";
 
 // --- graying reacts to staged values, not applied ones ------------------------
-
-test("test_staging_a_dop_edit_relights_the_sdm_mode_without_an_apply", async () => {
-  // The daemon's form says DoP is off and the device has no native DSD, so the
-  // SDM button starts grayed. Ticking the box has to relight it there and then
-  // — a store reading the applied form alone leaves the user staring at a dead
-  // button until apply.
-  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), netDop: false });
-  await edit("net_dop", "1");
-  const out = grayModesByDevice(MODE_OPTIONS);
-  assert.deepEqual(marks(optionFor(out, "sdm")), UNTOUCHED);
-});
 
 test("test_staging_a_device_change_grays_no_pcm_tier", async () => {
   // The capability describes the device the daemon has open, which is still

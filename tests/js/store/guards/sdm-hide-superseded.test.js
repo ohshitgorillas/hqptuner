@@ -80,7 +80,6 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "../../support/wire/wire.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
@@ -365,8 +364,6 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
     profiles: null,
   };
   matrixConfig.value = { fields: [], file_profiles: {}, live_profiles: [] };
-  liveErrors.value = {};
-  liveBusy.value = "";
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;

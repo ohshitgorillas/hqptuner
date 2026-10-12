@@ -204,25 +204,3 @@ effect(() => {
   correctRate(caps, "sdm");
   correctMode();
 });
-
-// --- asking about one saved value ---------------------------------------------
-// The menus above narrow a list they are handed. A saved live snapshot is not a
-// list: it carries an output mode, decided when it was saved, and the picker
-// needs to know whether the device can play it. Same question, asked one value
-// at a time — and the same answer to an unknown announcement, which is yes.
-
-// Gray the SDM button on a mode segment when the device cannot do DSD. Auto is
-// left alone: in auto the engine picks the family per track and will settle on
-// PCM by itself, so there is nothing unreachable to warn about.
-/**
- * Disable the SDM option when the selected device can reach no DSD rate, with the
- * reason on it. Auto and PCM are left alone.
- * @template {DeviceOption} T
- * @param {T[]} options
- * @returns {(T | (T & { disabled: boolean, reason: string }))[]}
- */
-export function grayModesByDevice(options) {
-  const reason = sdmReason();
-  if (!reason) return options;
-  return (options || []).map((o) => (o.value === "sdm" ? { ...o, disabled: true, reason } : o));
-}

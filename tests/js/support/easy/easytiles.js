@@ -32,7 +32,6 @@ import { writeSet } from "../../../../hqptuner/static/store/easy/easy.js";
 import { easyKnobs } from "../../../../hqptuner/static/store/easy/easyview.js";
 import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
 import { stagingWire, quiesce, ok } from "../wire/wire.js";
@@ -255,8 +254,6 @@ function common(keepKnobs, copy) {
   signals.previewConfig.value = null;
   signals.pendingPreset.value = null;
   signals.health.value = { reachable: true, info: {} };
-  liveErrors.value = {};
-  liveBusy.value = "";
   narrow.resetNarrowing();
 }
 

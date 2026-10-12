@@ -107,8 +107,8 @@ async function run(name, call, after) {
 }
 
 // Apply is the live lane's own batch: readback-verified by the backend, and
-// answered with the same per-setting report a hand-made write gets — so a 200
-// that carries a setting which did not verify is an error here too.
+// answered with the same per-setting report a hand-made write gets, so a 200
+// that carries a setting which did not verify is an error here.
 /**
  * Apply a saved preset's batch to the running engine, then re-mirror the fields it
  * carried and surface any setting that did not verify.

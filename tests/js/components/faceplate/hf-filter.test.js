@@ -18,7 +18,6 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { engineState, enums } from "../../../../hqptuner/static/store/signals.js";
-import { liveBusy, liveErrors } from "../../../../hqptuner/static/store/live/state.js";
 import { HfFilter, HfFilterPopover } from "../../../../hqptuner/static/components/faceplate/HfFilter.js";
 import { ok, quiesce } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
@@ -94,8 +93,6 @@ const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
 beforeEach(() => {
   env.fetch = tracked;
   running("1");
-  liveErrors.value = {};
-  liveBusy.value = "";
   posts = [];
 });
 

@@ -15,7 +15,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { remirrorLive } from "../../../../hqptuner/static/store/live/write.js";
 import { ok } from "../../support/wire/wire.js";
 
@@ -100,8 +99,6 @@ test("test_overlapping_remirrors_end_on_the_second_calls_state_when_the_first_an
   engineState.value = stateWith(SEEDED_FILTER);
   enums.value = ENUMS();
   config.value = { fields: [], file: {}, active: "", profiles: null };
-  liveErrors.value = {};
-  liveBusy.value = "";
   const w = overlapWire();
 
   const first = remirrorLive(WRITTEN());
@@ -141,8 +138,6 @@ async function overlapModeByVolume() {
   engineState.value = stateWith(SEEDED_FILTER);
   enums.value = ENUMS();
   config.value = { fields: [], file: {}, active: "", profiles: null };
-  liveErrors.value = {};
-  liveBusy.value = "";
   const w = overlapWire({ served: MODE_ENUMS() });
 
   const first = remirrorLive(MODE_WRITTEN());

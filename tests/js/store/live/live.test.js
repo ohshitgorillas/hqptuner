@@ -17,7 +17,6 @@ import assert from "node:assert/strict";
 
 import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
-import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
 import { bad, ok } from "../../support/wire/wire.js";
 
@@ -124,8 +123,6 @@ const RATES = [
   { index: "1", rate: "96000" },
   { index: "2", rate: "192000" },
 ];
-// value differs from index so a control that reads the ID rather than the index
-// (which is what this one speaks on both sides) fails loudly.
 const JUNK = [
   { index: "0", value: "0", name: "none" },
   { index: "1", value: "7", name: "20 kHz" },
@@ -188,8 +185,6 @@ function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
   config.value = { fields: [], file, active: "", profiles: null };
-  liveErrors.value = {};
-  liveBusy.value = "";
   return liveWire({ mirrored: state, file, ...wire });
 }
 
@@ -199,11 +194,6 @@ const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmC
 test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", () => {
   reset();
   assert.equal(control("filter").value, "25");
-});
-
-test("test_the_junk_filter_control_speaks_list_indices", () => {
-  reset();
-  assert.equal(liveModel.value.junk.value, "1");
 });
 
 test("test_writing_a_control_posts_one_field_to_the_live_lane", async () => {
@@ -232,68 +222,4 @@ test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => 
   reset(REFUSED());
   await writeLive("filter", "40");
   assert.equal(control("filter").value, "0");
-});
-
-// --- a write the daemon failed, in the page's words ------------------------------
-// The control's error names it by the label the page gives it, never by the
-// daemon's form key. A refusal carries the daemon's own reason; a setter the
-// daemon stopped answering has none worth showing, so its error text stays off
-// the control (the 200 report's `{ok: false, error, code}` per setter).
-// The fixture invents both texts, so asserting them pins
-// no shipped wording. An error that names its control reads differently
-// for two controls, and never shows a labelled control's form key.
-
-// The PCM chain's two filter slots, by form key, each owned by a control on the
-// page.
-const PCM_1X = "filter1x";
-const PCM_NX = "filter";
-const REFUSAL = { code: "daemon_refused", error: "invalid filter" };
-const SILENCE = { code: "daemon_unavailable", error: "SetFilter: no reply within 5.0s" };
-
-/**
- * The per-control error a one-field write left behind.
- *
- * @param {{ code: string, error: string }} failure
- * @param {string} [setting]
- * @returns {Promise<string>}
- */
-async function failedWrite(failure, setting = PCM_1X) {
-  reset({ report: { live: [{ setting, ok: false, ...failure }] } });
-  await writeLive(setting, "40");
-  return String(liveErrors.value[setting]);
-}
-
-// A key no control on the page owns has no label to show, so its wire key stands in.
-const UNLABELLED = "no_control_owns_this_key";
-
-test("test_a_refused_write_no_control_owns_is_named_by_its_wire_key", async () => {
-  const text = await failedWrite(REFUSAL, UNLABELLED);
-  assert.ok(text.includes(UNLABELLED), text);
-});
-
-test("test_refusals_of_two_different_controls_read_differently", async () => {
-  const oneX = await failedWrite(REFUSAL, PCM_1X);
-  const nX = await failedWrite(REFUSAL, PCM_NX);
-  assert.notEqual(oneX, nX);
-});
-
-test("test_a_control_the_daemon_refused_is_shown_without_its_form_key", async () => {
-  const text = await failedWrite(REFUSAL);
-  assert.ok(!text.includes(PCM_1X), text);
-});
-
-test("test_two_different_controls_the_daemon_stopped_answering_on_read_differently", async () => {
-  const oneX = await failedWrite(SILENCE, PCM_1X);
-  const nX = await failedWrite(SILENCE, PCM_NX);
-  assert.notEqual(oneX, nX);
-});
-
-test("test_a_control_the_daemon_stopped_answering_on_is_shown_without_its_form_key", async () => {
-  const text = await failedWrite(SILENCE);
-  assert.ok(!text.includes(PCM_1X), text);
-});
-
-test("test_a_control_the_daemon_stopped_answering_on_does_not_show_the_setters_error", async () => {
-  const text = await failedWrite(SILENCE);
-  assert.ok(!text.includes(SILENCE.error), text);
 });

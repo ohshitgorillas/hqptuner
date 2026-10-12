@@ -1,6 +1,5 @@
 // Shared harness for the store/narrow/devicecaps.js suites — devicecaps.test.js
-// (graying the rate menus and the mode segment against the selected device's
-// announced capability) and devicecaps-fallback.test.js (correcting a setting
+// (graying the rate menus against the selected device's announced capability) and devicecaps-fallback.test.js (correcting a setting
 // that already sits on something the device cannot reach).
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
@@ -38,10 +37,9 @@ import { stagingWire } from "./wire/wire.js";
  * @typedef {{ value: string | number, label?: string, disabled?: boolean, reason?: string }} MenuOption
  */
 
-// Both entries carry an option list in the catalog; `options` is optional on a
-// schema entry in general, which is what the assertions state past.
+// The entry carries an option list in the catalog; `options` is optional on a
+// schema entry in general, which is what the assertion states past.
 export const PCM_OPTIONS = /** @type {MenuOption[]} */ (schema.pcm_rate.options);
-export const MODE_OPTIONS = /** @type {MenuOption[]} */ (schema.output_mode.options);
 
 // Tier menu members, 48k side — the numbers the options carry, as strings.
 // Every tier has a 44.1k member and a 48k member and the option's value carries

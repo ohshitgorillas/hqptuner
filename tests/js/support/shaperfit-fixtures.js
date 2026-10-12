@@ -27,7 +27,6 @@
 
 import { config, enums, engineState, engineStatus, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { liveErrors, liveBusy } from "../../../hqptuner/static/store/live/state.js";
 import { staticWire } from "./wire/wire.js";
 import { PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS, JUNK, formField, FORM, LISTS } from "./chainenums.js";
 
@@ -181,7 +180,5 @@ export async function reset(scenario = {}) {
     active: "",
     profiles: null,
   };
-  liveErrors.value = {};
-  liveBusy.value = "";
   await discardAll();
 }
