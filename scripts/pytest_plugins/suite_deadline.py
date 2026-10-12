@@ -4,10 +4,11 @@
 ``scripts/gates/testing/check_suite_time.py`` rejects a run ``REJECT`` seconds or
 more slower than its bar, but it judges the junit report, so it only
 sees a run that ended; a hung suite never reaches it. This plugin holds the run
-to the same bar while it is still going: at session start it reads the same
-baseline, and a run still going at the bar has every thread's stack dumped to
-stderr and the process ended with exit status 1. With no baseline recorded there
-is no deadline.
+to the same bar while it is still going: at session start it reads the bar the
+gate would judge the run by, the branch's own or else the one it inherits from
+its nearest recorded branch, and a run still going at the bar has every
+thread's stack dumped to stderr and the process ended with exit status 1. With
+no bar recorded there is no deadline.
 
 Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
 ``test`` recipe and the ``pytest-offline`` pre-commit hook are the two command
@@ -58,7 +59,7 @@ def _load_gate() -> ModuleType:
 
 _GATE = _load_gate()
 REJECT: float = _GATE.REJECT
-baseline_path: Callable[[Path], Path] = _GATE.baseline_path
+bar_in_force: Callable[[Path], Path] = _GATE.bar_in_force
 read_baseline: Callable[[Path], float | None] = _GATE.read_baseline
 
 #: Set at session finish, so a run that ends in time disarms the watch.
@@ -110,13 +111,13 @@ def watch(
 
 
 def pytest_sessionstart(session: pytest.Session) -> None:
-    """Arm the watch against the gate's baseline for this branch; with none recorded, arm nothing.
+    """Arm the watch against the bar the gate judges this branch by; with none recorded, arm nothing.
 
     Capture is suspended at session start, so fd 2 is still the terminal; the
     watch dumps to a copy of it, which capture taking fd 2 over for each test
     leaves alone.
     """
-    seconds = deadline(baseline_path(session.config.rootpath))
+    seconds = deadline(bar_in_force(session.config.rootpath))
     if seconds is None:
         return
     stderr = os.fdopen(os.dup(2), "w")
