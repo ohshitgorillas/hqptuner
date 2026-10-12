@@ -32,7 +32,7 @@ import fake_discovery
 import pytest
 from apps import closed_port
 from conftest import spawn_threaded_daemon
-from virtual_deadline import VirtualDeadline
+from virtual_clock import VirtualClock
 
 from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
 
@@ -145,22 +145,6 @@ SAPPHIRE_DATAGRAM = b'<discover result="OK" name="Sapphire" version="Signalyst H
 WAIT = 1.0
 
 
-def virtual_time() -> tuple[Callable[[], float], Callable[[float], Awaitable[None]]]:
-    """A clock the search's own waits advance: a wait adds to the offset the
-    clock reads back, so the window closes after passes rather than seconds."""
-    offset = 0.0
-
-    def clock() -> float:
-        return offset
-
-    async def sleep(seconds: float) -> None:
-        nonlocal offset
-        offset += seconds
-        await asyncio.sleep(0)  # still yield: the replies arrive between passes
-
-    return clock, sleep
-
-
 @pytest.fixture
 def alias_control_port() -> Iterator[int]:
     """A control daemon listening at the address the alias names."""
@@ -191,9 +175,8 @@ async def test_the_host_alias_is_listed_only_where_no_datagram_was_answered(
     expected: list[str],
 ) -> None:
     target = f"{SEARCH_HOST}:{answering_port}" if datagram_answered else f"127.0.0.1:{closed_port()}"
-    clock, sleep = virtual_time()
     search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-    found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+    found = await discover(search, wait_seconds=WAIT, clock=VirtualClock())
     assert [daemon.address for daemon in found] == expected
 
 
@@ -202,9 +185,8 @@ async def search_addresses(alias_control_port: int, *, datagram_answered: bool) 
     loop the search itself runs on."""
     async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
         target = f"{SEARCH_HOST}:{answering}" if datagram_answered else f"127.0.0.1:{closed_port()}"
-        clock, sleep = virtual_time()
         search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+        found = await discover(search, wait_seconds=WAIT, clock=VirtualClock())
     return [daemon.address for daemon in found]
 
 
@@ -282,12 +264,11 @@ async def silent_search(control_port: int) -> list[str]:
     """The addresses one search lists when its datagram is answered from
     SEARCH_HOST and HQPlayer has fallen silent on the deadline the search is
     handed, paced on a clock of the test's own."""
-    deadline = VirtualDeadline()
-    deadline.fall_silent()
+    clock = VirtualClock()
+    clock.fall_silent()
     async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
-        clock, sleep = virtual_time()
         search = Search(target=f"{SEARCH_HOST}:{answering}", alias=ALIAS_HOST, control_port=control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep, deadline=deadline)
+        found = await discover(search, wait_seconds=WAIT, clock=clock)
     return [daemon.address for daemon in found]
 
 

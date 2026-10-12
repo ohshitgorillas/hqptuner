@@ -6,15 +6,14 @@ string names the major but never the operating system, so each address found is 
 control port for the rest.
 """
 
-import asyncio
 import contextlib
 import logging
 import socket
-import time
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, replace
 from xml.etree import ElementTree
 
+from hqptuner.clock import Clock
 from hqptuner.engine.control import ControlClient, Deadline
 from hqptuner.engine.controlerrors import ControlError
 
@@ -27,8 +26,8 @@ GROUP = "239.192.0.199"
 PORT = 4321
 
 #: How long the sweep leaves the socket alone between reads. The waiting is paid
-#: here, through the injectable ``sleep``, so a caller can pace the sweep without
-#: a real clock.
+#: here, through the injectable clock's ``sleep``, so a caller can pace the sweep
+#: without a real clock.
 POLL = 0.05
 
 #: The request datagram, byte for byte as protocol.md §2 gives it.
@@ -134,13 +133,13 @@ async def _describe(address: str, port: int, request_timeout: float, deadline: D
         await client.close()
 
 
-async def probe(address: str, control_port: int, request_timeout: float, *, deadline: Deadline = asyncio) -> Daemon:
+async def probe(address: str, control_port: int, request_timeout: float, *, clock: Clock | None = None) -> Daemon:
     """Answer the record for one address, raising ``OSError`` or ``ControlError`` where nothing answers there.
 
     The one path that names an address instead of waiting for a datagram. Whether "nothing there" is worth
     reporting is the caller's call, not this function's: a silent sweep decides differently from a one-shot dial.
     """
-    info = await _describe(address, control_port, request_timeout, deadline)
+    info = await _describe(address, control_port, request_timeout, clock or Clock())
     return Daemon(
         address=address,
         name=info.get("name", ""),
@@ -156,12 +155,7 @@ def _endpoint(target: str) -> tuple[str, int]:
     return (host, int(port)) if host else (target, PORT)
 
 
-async def _collect(
-    sock: socket.socket,
-    deadline: float,
-    clock: Callable[[], float],
-    sleep: Callable[[float], Awaitable[None]],
-) -> list[tuple[bytes, str]]:
+async def _collect(sock: socket.socket, deadline: float, clock: Clock) -> list[tuple[bytes, str]]:
     """Read datagrams off one socket until the deadline, each with the address it came from.
 
     There is no count to wait for: a daemon that is not there sends nothing, so the deadline is the only thing
@@ -169,11 +163,11 @@ async def _collect(
     before it ends is read the buffer, and a socket answering without pause still ends on time.
     """
     replies: list[tuple[bytes, str]] = []
-    while clock() < deadline:
+    while clock.monotonic() < deadline:
         try:
             data, addr = sock.recvfrom(65535)
         except BlockingIOError:
-            await sleep(POLL)
+            await clock.sleep(POLL)
             continue
         replies.append((data, addr[0]))
     return replies
@@ -193,9 +187,7 @@ async def discover(
     search: Search,
     wait_seconds: float = 3.0,
     *,
-    clock: Callable[[], float] = time.monotonic,
-    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-    deadline: Deadline = asyncio,
+    clock: Clock | None = None,
 ) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
@@ -208,15 +200,17 @@ async def discover(
     container's own host is one connection away. Only that case, because a daemon answering both would be
     listed twice, once by the address its datagram came from and once by the alias.
 
-    ``deadline`` is what every connect, send and read of the daemons it then asks waits under.
+    ``clock`` paces the sweep, and its ``wait_for`` is what every connect, send and read of the daemons it then
+    asks waits under.
     """
+    clock = clock or Clock()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
     try:
         # The socket's own call, not the loop's: uvloop does not provide ``sock_sendto``, and one datagram
         # on a fresh socket finds its send buffer empty, so there is nothing to wait for.
         sock.sendto(REQUEST, _endpoint(search.target))
-        replies = await _collect(sock, clock() + wait_seconds, clock, sleep)
+        replies = await _collect(sock, clock.monotonic() + wait_seconds, clock)
     finally:
         sock.close()
     found: list[Daemon] = []
@@ -227,10 +221,10 @@ async def discover(
             continue
     if not found:
         with contextlib.suppress(OSError, ControlError):
-            found.append(await probe(search.alias, search.control_port, search.request_timeout, deadline=deadline))
+            found.append(await probe(search.alias, search.control_port, search.request_timeout, clock=clock))
         return found
 
     async def describe(address: str) -> dict[str, str]:
-        return await _describe(address, search.control_port, search.request_timeout, deadline)
+        return await _describe(address, search.control_port, search.request_timeout, clock)
 
     return await enrich(dedupe(found), describe)

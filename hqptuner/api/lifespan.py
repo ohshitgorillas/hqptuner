@@ -42,9 +42,7 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
     if not host_is_unchosen(record):
         return
     try:
-        answered = await probe(
-            cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, deadline=manager.clock
-        )
+        answered = await probe(cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, clock=manager.clock)
     except (OSError, ControlError):
         return
     cfg.hqp_host = answered.address
