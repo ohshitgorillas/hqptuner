@@ -74,12 +74,12 @@ function DbScale({ cls, db }) {
 }
 
 /**
- * The frequency axis under the spectrum: kHz across from 0, the unit on the 0 tick, the top of the view on the right
- * edge, titled as the source Nyquist where it is one.
+ * The frequency axis under the spectrum: kHz across from 0, the unit on the 0 tick, the source Nyquist on the right
+ * edge.
  *
- * @param {{ freq: PageMeterView["freq"], edgeIsNyquist: boolean }} props
+ * @param {{ freq: PageMeterView["freq"] }} props
  */
-function FreqScale({ freq, edgeIsNyquist }) {
+function FreqScale({ freq }) {
   return html`
     <div class="xaxis" aria-hidden="true">
       ${freq.ticks.map(
@@ -88,7 +88,7 @@ function FreqScale({ freq, edgeIsNyquist }) {
             ${t.khz ? String(t.khz) : "0 kHz"}
           </span>`,
       )}
-      <span class="last" data-nyq style=${`left:${pct(freq.nyq.at)}`} title=${edgeIsNyquist ? "Source Nyquist" : undefined}>${`${freq.nyq.khz} kHz`}</span>
+      <span class="last" data-nyq style=${`left:${pct(freq.nyq.at)}`} title="Source Nyquist">${`${freq.nyq.khz} kHz`}</span>
     </div>
   `;
 }
@@ -156,7 +156,7 @@ function Spectrum({ view, plot, fx, sgl }) {
           ${rangeButtons.value && html`<${RangeControl} view=${view} />`}
         </div>
         <span></span>
-        <${FreqScale} freq=${view.freq} edgeIsNyquist=${view.edgeIsNyquist} />
+        <${FreqScale} freq=${view.freq} />
       </div>
     </div>
   `;

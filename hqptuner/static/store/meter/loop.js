@@ -8,9 +8,7 @@
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
 // registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
 // frames still queued to the spectrogram and empties the scene, so a restart never falls from the last reading; going
-// idle also hands the painters the empty scene, so the meters clear rather than hold the last reading. A change of
-// frequency span starts the spectrum afresh from the new view's columns, so neither the trace nor its ghost carries the
-// last view's frequencies.
+// idle also hands the painters the empty scene, so the meters clear rather than hold the last reading.
 
 import { batch, effect, signal } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
@@ -20,14 +18,12 @@ import {
   frameDt,
   pickBins,
   smoothColumns,
-  spanShare,
   stepLevel,
   stepSpectrum,
   traceColumns,
 } from "../../model/gauges/meter.js";
 import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
 import { engineStatus } from "../signals.js";
-import { freqSpan } from "../faceplate/view.js";
 import { meterChannel } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
@@ -68,11 +64,9 @@ let geo = null;
 let queue = [];
 /** @type {PaceState} */
 let paced = PACE_IDLE;
-/** The trace columns of the current target in the picked channel at the frequency span, kept until any changes. */
-/** @type {{ target: MeterFrame | null, pick: string, span: string, cols: Float32Array }} */
-let columns = { target: null, pick: "", span: "", cols: new Float32Array(0) };
-/** The frequency span the held spectrum was painted at: a step at another starts the spectrum afresh. */
-let heldSpan = "";
+/** The trace columns of the current target in the picked channel, kept until either changes. */
+/** @type {{ target: MeterFrame | null, pick: string, cols: Float32Array }} */
+let columns = { target: null, pick: "", cols: new Float32Array(0) };
 /** @type {(() => void) | null} */
 let stopper = null;
 
@@ -92,16 +86,15 @@ export function onMeterPaint(fn) {
 }
 
 /**
- * The trace columns for `t` in the picked channel, across frequency span `span`'s view.
+ * The trace columns for `t` in the picked channel.
  *
  * @param {MeterFrame} t
- * @param {string} span
  * @returns {Float32Array}
  */
-function traceOf(t, span) {
+function traceOf(t) {
   const pick = meterChannel.value;
-  if (columns.target !== t || columns.pick !== pick || columns.span !== span) {
-    columns = { target: t, pick, span, cols: traceColumns(pickBins(t, pick), TRACE_COLS, spanShare(span)) };
+  if (columns.target !== t || columns.pick !== pick) {
+    columns = { target: t, pick, cols: traceColumns(pickBins(t, pick), TRACE_COLS) };
   }
   return columns.cols;
 }
@@ -129,16 +122,16 @@ function handOut(ms) {
 }
 
 /**
- * The spectrum one step moves to from `held` toward the trace columns `raw`, smoothed across frequency: a rise shows at
- * once and a fall settles toward the reading; with no `held` of the same length the trace lands on the reading outright.
+ * The spectrum one step moves to from `held` toward `t`, smoothed across frequency: a rise shows at once and a fall
+ * settles toward the reading; with no `held` of the same length the trace lands on the reading outright.
  *
  * @param {SpectrumHold | null} held
- * @param {Float32Array} raw
+ * @param {MeterFrame} t
  * @param {{ now: number, dt: number }} at  ms, s
  * @returns {SpectrumHold}
  */
-function traceStep(held, raw, at) {
-  const cols = smoothColumns(raw);
+function traceStep(held, t, at) {
+  const cols = smoothColumns(traceOf(t));
   const was = held && held.disp.length === cols.length ? held : null;
   return stepSpectrum(was || emptySpectrum(cols.length), cols, at, !was);
 }
@@ -168,16 +161,12 @@ function advance(now, ms) {
   if (frames.length) target = foldFrames(frames);
   if (!target) return EMPTY;
   const prev = scene;
-  const span = freqSpan.value;
-  const held = span === heldSpan ? prev.spectrum : null;
-  heldSpan = span;
-  const raw = traceOf(target, span);
   const levels = target.channels.map((ch, i) => {
     const was = prev.levels[i];
     const t = { peak: ch.peak, rms: ch.rms };
     return was ? stepLevel(was, t, now, dt) : { peak: t.peak, rms: t.rms, hold: t.peak, holdAt: now };
   });
-  return { levels, spectrum: traceStep(held, raw, { now, dt }), raw };
+  return { levels, spectrum: traceStep(prev.spectrum, target, { now, dt }), raw: traceOf(target) };
 }
 
 /**

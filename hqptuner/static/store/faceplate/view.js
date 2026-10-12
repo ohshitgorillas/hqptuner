@@ -1,10 +1,9 @@
 // What the faceplate shows: the window it is fitted to, which body is on the plate, which stage's drawer is open, which
-// option list is open over the body, which popover is open, whether the connection panel is up and the frequency span
-// of the page's Source spectrum. One drawer, one list and one popover at a time. The gear and the builders swap the
-// whole body; the header, the engine row and the bottom bar stay.
+// option list is open over the body, which popover is open and whether the connection panel is up. One drawer, one list
+// and one popover at a time. The gear and the builders swap the whole body; the header, the engine row and the bottom
+// bar stay.
 
 import { signal } from "@preact/signals";
-import { FREQ_SPANS } from "../../model/gauges/meter.js";
 
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 
@@ -36,19 +35,6 @@ export const openList = signal(/** @type {ListRequest | null} */ (null));
 
 /** Whether the connection panel is up. */
 export const panelOpen = signal(false);
-
-/** The page's Source spectrum's frequency span, one of FREQ_SPANS; every page load opens at the whole band. */
-export const freqSpan = signal("full");
-
-/**
- * Set the page spectrum's frequency span. A value outside FREQ_SPANS is ignored.
- *
- * @param {string} v
- * @returns {void}
- */
-export function setFreqSpan(v) {
-  if (FREQ_SPANS.includes(v)) freqSpan.value = v;
-}
 
 /**
  * Swap the body: the one picked, or back to the chain when it already shows. The open drawer and popover close.
