@@ -119,7 +119,7 @@ function namedCause(p) {
   // `error` is optional on the report generally, so this reads it rather than
   // asserting it: a refusal that somehow arrived without its sentence falls
   // through to the generic paths, which is a worse caption but never an empty one.
-  if (p.code === "no_credentials" && p.error) return failure("persist-credentials", p.error);
+  if (p.code === "credentials_refused" && p.error) return failure("persist-credentials", p.error);
   return null;
 }
 

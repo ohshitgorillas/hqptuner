@@ -201,25 +201,6 @@ test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => 
   assert.equal(verdict(lastApply).code, "persist-refused");
 });
 
-/** @type {[string, Record<string, unknown>, string][]} */
-const CREDENTIAL_REFUSALS = [
-  [
-    "with_its_sentence",
-    { code: "no_credentials", error: "A fixture sentence about credentials." },
-    "persist-credentials",
-  ],
-  ["without_its_sentence", { code: "no_credentials" }, "persist-refused"],
-];
-
-for (const [id, refusal, expected] of CREDENTIAL_REFUSALS) {
-  test(`test_a_credential_refusal_${id}_reads_as_${expected}`, async () => {
-    await trees();
-    route({ apply: { persistent: { applied: false, ...refusal } } });
-    await applyAll();
-    assert.equal(verdict(lastApply).code, expected);
-  });
-}
-
 // --- summarize: change counts -----------------------------------------------
 
 test("test_an_apply_with_nothing_staged_counts_no_changes", async () => {

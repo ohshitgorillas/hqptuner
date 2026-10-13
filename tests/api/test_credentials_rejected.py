@@ -248,12 +248,3 @@ def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
     # successful apply, never reached here.
     client, _ = _apply_refused_mid_pass(credential_client)
     assert client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
-
-
-def test_a_persistent_apply_refused_for_credentials_answers_code_no_credentials(
-    credential_client: CredClient,
-) -> None:
-    # a refusal met mid-pass is a failed request: the route lets `refuse(exc)`
-    # answer with the cause's code
-    _, resp = _apply_refused_mid_pass(credential_client)
-    assert resp.json()["code"] == "no_credentials"

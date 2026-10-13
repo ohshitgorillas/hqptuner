@@ -86,7 +86,7 @@ class NoHttpClientError(HttpLaneDeclinedError):
 class CredentialsRefusedError(HttpLaneDeclinedError):
     """A credential the app holds was already recorded as refused by the daemon."""
 
-    code = "no_credentials"
+    code = "credentials_refused"
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""

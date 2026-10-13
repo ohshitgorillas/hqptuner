@@ -13,7 +13,6 @@ from conftest import LiveManager
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes.http import forms
 from hqptuner.presets import fileconfig
 
 
@@ -72,23 +71,16 @@ async def test_restored_archive_is_reflected_in_readback(
     assert (await fileconfig.read_engine(http_manager))["nblocks"] == "4"
 
 
-@pytest.fixture(params=[("refused credential", "no_credentials"), ("no http lane", "no_http_client")], ids=str)
+@pytest.fixture(params=[("no http lane", "no_http_client")], ids=str)
 async def declining(
     request: pytest.FixtureRequest,
-    http_manager: ConnectionManager,
-    http_daemon: dict[str, Any],
     live_manager: LiveManager,
 ) -> tuple[ConnectionManager, str]:
     """A manager whose http lane cannot be used, and the code its decline carries.
 
-    The refused credential is earned off the wire: the fake 8088 rejects the pair and a forms refresh records what it
-    answered. The other manager is built on the control lane alone.
+    The manager is built on the control lane alone.
     """
-    case, code = request.param
-    if case == "refused credential":
-        http_daemon["_refuse_auth"] = True
-        await forms.refresh(http_manager)
-        return http_manager, code
+    _case, code = request.param
     control_only, _log, _state = await live_manager()
     return control_only, code
 

@@ -80,7 +80,7 @@ Chain fields a staged apply does route live are recorded per chain (`lanes/live/
 
 ### 4.3 Two write paths share no staging state
 
-The stage drawers' rows stage into the shared `PendingStore` through `edit()` (`store/actions.js`), and a drawer's apply button flushes **everything** in it (`store/faceplate/drawer.js` `runApply`; the buffer is `core/pending.py`, its routes `api/routes/pending.py`, the apply route `api/routes/apply.py`). The live controls write one batch on the spot through `writeLive` (`store/live/write.js`): the page's chain pickers (`store/faceplate/page/conversion.js`), the engine row's HF filter menu (`store/faceplate/hf.js`), the Setting Switcher (`store/faceplate/bottom/switcher.js`), the Filter presets (`store/faceplate/page/presets.js`) and the rate pin (`store/live/pin.js`). That write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
+The stage drawers' rows stage into the shared `PendingStore` through `edit()` (`store/actions.js`), and a drawer's apply button flushes **everything** in it (`store/faceplate/drawer.js` `runApply`; the buffer is `core/pending.py`, its routes `api/routes/pending.py`, the apply route `api/routes/apply.py`). The live controls write one batch on the spot through `writeLive` (`store/live/write.js`): the page's chain pickers (`store/faceplate/page/conversion.js`), the engine row's HF filter menu (`store/faceplate/hf.js`), the Setting Switcher (`store/faceplate/bottom/switcher.js`) and the rate pin (`store/live/pin.js`). The Filter presets (`store/faceplate/page/presets.js`) make one live write per filter field that changes, up to four, in sequence, and skip a field already holding its filter (`store/easy/apply.js` `applyPreset`, each write through `store/easy/easylane.js` `write`). Every such write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
 
 ### 4.4 Mode rides alone, then the rest re-resolves
 
@@ -168,7 +168,7 @@ An entry flagged `sdm_two_stage` picks up the shared `sdm_two_stage_note` only o
 
 The control set is **not enumerated in prose**. Three checked artifacts own it:
 
-- `hqptuner/static/store/schema.js` over its group modules in `store/schema/`: every engine control (anything a lane writes), its lane, its widget, its `grayWhen` disclosure logic. The glue between the control surface and the two lanes. A drawer row names a catalog id. A drawer may also carry a declared local, a browser pref or a store switch and never a lane field, declared once in `store/schema/local.js` in the shape the catalog gives a row and not merged into the catalog. Drawer families are store data: `FAMILIES` in `store/faceplate/drawer.js` names the rail stages each family's members draw and the catalog keys they hold, a drawer declaring a family is staged while any of those keys is, and a test holds that list equal to the keys of the drawn member drawers, so family staging needs no drawer component loaded. The one lane-written row still declared in a drawer is the speakers form's `spken` (`components/faceplate/drawers/speakers-drawer.js`), pending a speakers lane kind in the catalog.
+- `hqptuner/static/store/schema.js` over its group modules in `store/schema/`: every engine control (anything a lane writes), its lane, its widget, its `grayWhen` disclosure logic. The glue between the control surface and the two lanes. A drawer row names a catalog id. A drawer may also carry a declared local, a browser pref or a store switch and never a lane field, declared once in `store/schema/local.js` in the shape the catalog gives a row and not merged into the catalog. Drawer families are store data: `FAMILIES` in `store/faceplate/drawer.js` names the rail stages each family's members draw and the catalog keys they hold, a drawer declaring a family is staged while any of those keys is, and a test holds that list equal to the keys of the drawn member drawers, so family staging needs no drawer component loaded.
 - `hqptuner/data/settings.json`: tooltip prose for every exposed control, plus a `_comment` block listing settings with upstream prose HQPTuner deliberately does not expose.
 - `docs/spec/settings-classification.md`: every control tagged live / http / file, with empirical evidence per field.
 
@@ -237,6 +237,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | code | status | meaning |
 |---|---|---|
 | `no_credentials` | 503 | app built without hqplayerd management credentials |
+| `credentials_refused` | 503 | a credential the app holds that hqplayerd refused |
 | `no_http_client` | 503 | app built without HTTP management credentials for the 8088 config lane |
 | `backup_failed` | 500 | the settings backup taken before a destructive restore could not be written |
 | `not_loaded` | 503 | first poll of the daemon has not landed yet |
@@ -276,11 +277,11 @@ The daemon sends metering frames in clumps, with gaps of up to a quarter second 
 
 ## 9. Background tasks
 
-**The advisor and auto-pilot are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the reader is never built, `presetlane.switch_autopilot` writes nothing, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders neither; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
+**The advisor and auto-pilot are withdrawn for rework**: `Config.advisor_enabled`, a build constant in `config.py`, is off, so the metering reader, built whenever `Config.metering_enabled` is on, runs without the advisor, auto-pilot never starts (`api/lifespan.py`), `presetlane.switch_autopilot` writes nothing, `/api/status` reports `advisor` false and auto-pilot off whatever its store holds, and the UI renders neither; every stored state stays where it is for the build that turns the constant back on. <!-- history-ok: owner ruling; the withdrawal is the reason the constant exists and reads off -->
 
 ### 9.1 Metering reader
 
-The backend reads the engine's metering stream (`engine/metering.py`, wire in `protocol.md` §7). The connection is held **only while the engine is playing**: the daemon streams unconditionally, so closing the socket is the only way to stop paying for frames nobody ingests. A pause mid-track keeps the aggregate; a broken stream discards it. `HQPTUNER_METERING_ENABLED=0` switches the reader off entirely. Stream absence means "no recommendation", never a user-facing error.
+The backend reads the engine's metering stream (`engine/metering.py`, wire in `protocol.md` §7). The connection is held **only while the engine is playing and something reads the stream**: the advisor, or a subscriber to the meter feed (`MeteringReader._wanted`). The daemon streams unconditionally, so closing the socket is the only way to stop paying for frames nobody ingests. A pause mid-track keeps the aggregate; a broken stream discards it. `HQPTUNER_METERING_ENABLED=0` switches the reader off entirely. Stream absence means "no recommendation", never a user-facing error.
 
 ### 9.2 Junk-filter advisor advises and never acts
 
