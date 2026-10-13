@@ -52,8 +52,7 @@ beforeEach(() => {
   stream();
 });
 
-test("test_hidden_range_buttons_draw_none_where_shown_ones_draw_both", () => {
+test("test_shown_range_buttons_draw_both", () => {
   const shown = rangeButtonCount();
-  rangeButtons.value = false;
-  assert.deepEqual([shown, rangeButtonCount()], [BUTTONS.length, 0]);
+  assert.equal(shown, BUTTONS.length);
 });

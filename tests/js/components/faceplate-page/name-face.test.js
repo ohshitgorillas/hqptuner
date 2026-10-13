@@ -54,9 +54,12 @@ test("test_a_named_family_draws_one_family_line", () => {
   assert.equal(familyLines(FAMILY).length, 1);
 });
 
-test("test_the_rate_badge_reads_the_tier_passed_in", () => {
-  const read = [LOW_TIER, HIGH_TIER].map((tier) => badges(drawn(tier)).map(text)[0]);
-  assert.deepEqual(read, [LOW_TIER, HIGH_TIER]);
+test("test_the_rate_badge_reads_a_low_tier_passed_in", () => {
+  assert.equal(badges(drawn(LOW_TIER)).map(text)[0], LOW_TIER);
+});
+
+test("test_the_rate_badge_reads_a_high_tier_passed_in", () => {
+  assert.equal(badges(drawn(HIGH_TIER)).map(text)[0], HIGH_TIER);
 });
 
 test("test_an_empty_tier_draws_no_rate_badge", () => {

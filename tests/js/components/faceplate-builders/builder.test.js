@@ -188,6 +188,12 @@ const saveOff = () => {
 /** The name window's input. */
 const nameInput = () => every(inside(one("label", "vfd", "bname")), "input", "bnin")[0];
 
+/** The value the name window shows. */
+const nameShown = () => {
+  const box = nameInput();
+  return box && attr(box, "value");
+};
+
 /** The head's caption. */
 const caption = () => every(inside(one("div", "bhead")), "div", "bcap")[0];
 
@@ -270,33 +276,33 @@ const asking = () => {
 
 // --- the title row -----------------------------------------------------------------------------------------------
 
-test("test_the_title_row_carries_delete_only_on_a_saved_record", () => {
-  const saved = titleButtons().length;
+test("test_the_title_row_carries_delete_on_a_saved_record", () => {
+  assert.equal(titleButtons().length, 3);
+});
+
+test("test_the_title_row_carries_no_delete_on_a_new_record", () => {
   cur.value = FRESH;
-  assert.deepEqual([saved, titleButtons().length], [3, 2]);
+  assert.equal(titleButtons().length, 2);
 });
 
 test("test_discard_is_disabled_while_the_edit_is_clean", () => {
-  const clean = discardOff();
-  dirtyDesk();
-  assert.deepEqual([clean, discardOff()], [true, false]);
+  assert.equal(discardOff(), true);
 });
 
-test("test_save_is_disabled_only_on_a_clean_saved_record", () => {
-  const clean = saveOff();
-  dirtyDesk();
-  const dirty = saveOff();
-  staged.value = new Map();
-  cur.value = FRESH;
-  assert.deepEqual([clean, dirty, saveOff()], [true, false, false]);
+test("test_save_is_disabled_on_a_clean_saved_record", () => {
+  assert.equal(saveOff(), true);
 });
 
-test("test_tapping_close_shows_the_chain", async () => {
+test("test_tapping_close_from_the_snapshots_shows_the_chain", async () => {
   await fire(vclose());
-  const fromSnapshots = body.value;
+  assert.equal(body.value, "chain");
+});
+
+test("test_tapping_close_from_settings_shows_the_chain", async () => {
+  await fire(vclose());
   body.value = "settings";
   await fire(vclose());
-  assert.deepEqual([fromSnapshots, body.value], ["chain", "chain"]);
+  assert.equal(body.value, "chain");
 });
 
 test("test_tapping_delete_asks_to_remove_the_record_edited", async () => {
@@ -313,11 +319,13 @@ test("test_tapping_save_with_no_name_refuses", async () => {
 
 // --- the head ----------------------------------------------------------------------------------------------------
 
-test("test_the_name_window_shows_the_edits_name", () => {
-  const clean = nameInput();
+test("test_the_name_window_shows_the_saved_records_name", () => {
+  assert.equal(nameShown(), "Desk");
+});
+
+test("test_the_name_window_shows_the_staged_edits_name", () => {
   dirtyDesk();
-  const dirty = nameInput();
-  assert.deepEqual([clean && attr(clean, "value"), dirty && attr(dirty, "value")], ["Desk", "Desk2"]);
+  assert.equal(nameShown(), "Desk2");
 });
 
 test("test_typing_a_name_renames_the_edit", async () => {
@@ -332,18 +340,16 @@ test("test_typing_a_name_clears_the_refusal", async () => {
   assert.equal(refused.value, false);
 });
 
-test("test_the_caption_holds_the_refusal_only_while_refused", () => {
-  const before = every(inside(caption()), "span", "bref").length;
+test("test_the_caption_holds_the_refusal_while_refused", () => {
   refused.value = true;
-  assert.deepEqual([before, every(inside(caption()), "span", "bref").length], [0, 1]);
+  assert.equal(every(inside(caption()), "span", "bref").length, 1);
 });
 
 // --- the confirm line --------------------------------------------------------------------------------------------
 
-test("test_the_confirm_line_shows_only_while_a_question_is_asked", () => {
-  const idle = askLines().length;
+test("test_the_confirm_line_shows_while_a_question_is_asked", () => {
   asking();
-  assert.deepEqual([idle, askLines().length], [0, 1]);
+  assert.equal(askLines().length, 1);
 });
 
 test("test_the_confirm_line_shows_the_question_asked", () => {

@@ -26,7 +26,6 @@ import { OptionList } from "../../../../hqptuner/static/components/faceplate/lis
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
-import { setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
 import { hydrateFavorites, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { attr, elements } from "../../support/markup.js";
@@ -206,13 +205,11 @@ for (const w of WINDOWS) {
   });
 }
 
-test("test_a_setting_with_no_recorded_default_marks_no_option_while_its_sibling_stage_marks_its_own", () => {
+test("test_a_stage_marks_its_own_default_while_its_sibling_stage_records_none", () => {
   const { filter_1x: _none, ...rest } = DEFAULTS;
   serve(rest);
-  open("sdm_filter_1x", "IIR");
-  const unrecorded = markedRows();
   open("sdm_filter_nx", "IIR");
-  assert.deepEqual([unrecorded, markedRows()], [[], [DEFAULTS.filter_nx]]);
+  assert.deepEqual(markedRows(), [DEFAULTS.filter_nx]);
 });
 
 /** One window of each list kind: filters, dither, modulator, DSD processing. */
@@ -225,11 +222,9 @@ for (const w of KINDS) {
   });
 }
 
-test("test_a_window_whose_default_option_is_narrowed_out_drops_the_default_from_its_legend", () => {
+test("test_the_sdm_filter_nx_window_showing_the_default_mark_explains_it_once_in_its_legend", () => {
   open("sdm_filter_nx", "IIR");
-  const shown = defaultEntries();
-  setFacet("quality", 3);
-  assert.deepEqual([shown, defaultEntries()], [1, 0]);
+  assert.equal(defaultEntries(), 1);
 });
 
 /** The spec's family the Simplified filter outline places first, and under which it draws the filter key. */

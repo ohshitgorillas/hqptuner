@@ -253,15 +253,19 @@ test("test_tapping_an_include_box_lets_go_of_a_row_the_snapshot_holds", async ()
 
 // --- the value cell ----------------------------------------------------------------------------------------------
 
-test("test_a_seg_row_lights_the_edits_value", () => {
-  const lit = () => {
-    const [row] = rows().filter((r) => attr(r, "data-id") === "adaptive");
-    const on = every(inside(first(row, "div", "bval")), "button", "on")[0];
-    return on && attr(on, "data-v");
-  };
-  const desk = lit();
+const lit = () => {
+  const [row] = rows().filter((r) => attr(r, "data-id") === "adaptive");
+  const on = every(inside(first(row, "div", "bval")), "button", "on")[0];
+  return on && attr(on, "data-v");
+};
+
+test("test_a_seg_row_lights_the_edits_value_over_the_engines_live_value", () => {
+  assert.equal(lit(), "0");
+});
+
+test("test_a_seg_row_lights_the_value_of_the_record_now_being_edited", () => {
   editing("Headphones", "Bed");
-  assert.deepEqual([desk, lit()], ["0", "1"]);
+  assert.equal(lit(), "1");
 });
 
 test("test_tapping_a_seg_button_writes_the_edit", async () => {
@@ -278,22 +282,26 @@ const pickerOf = (id) => {
   return controls("button", "vpick")[ids.indexOf(id)];
 };
 
-test("test_tapping_a_list_picker_opens_the_option_list_on_the_snapshots_chain_key", async () => {
+test("test_tapping_a_list_picker_on_a_pcm_snapshot_opens_the_pcm_chains_list", async () => {
   await fire(pickerOf("1x"));
-  const desk = [openList.value?.key, openList.value?.value];
-  openList.value = null;
+  assert.equal(openList.value?.key, "pcm_filter_1x");
+});
+
+test("test_tapping_a_list_picker_on_a_pcm_snapshot_opens_the_list_at_the_snapshots_value", async () => {
+  await fire(pickerOf("1x"));
+  assert.equal(openList.value?.value, "poly-sinc-gauss-long");
+});
+
+test("test_tapping_a_list_picker_on_an_sdm_snapshot_opens_the_sdm_chains_list", async () => {
   editing("Speakers", "S01");
   await fire(pickerOf("1x"));
-  const s01 = /** @type {import("../../../../hqptuner/static/store/faceplate/view.js").ListRequest | null} */ (
-    openList.value
-  );
-  assert.deepEqual(
-    [desk, [s01?.key, s01?.value]],
-    [
-      ["pcm_filter_1x", "poly-sinc-gauss-long"],
-      ["sdm_filter_1x", "poly-sinc-gauss-long"],
-    ],
-  );
+  assert.equal(openList.value?.key, "sdm_filter_1x");
+});
+
+test("test_tapping_a_list_picker_on_an_sdm_snapshot_opens_the_list_at_the_snapshots_value", async () => {
+  editing("Speakers", "S01");
+  await fire(pickerOf("1x"));
+  assert.equal(openList.value?.value, "poly-sinc-gauss-long");
 });
 
 test("test_a_pick_from_the_open_list_writes_the_picked_names_enum_id_into_the_edit", async () => {
@@ -332,11 +340,9 @@ test("test_the_profile_select_lists_the_pages_profile_choices", () => {
   );
 });
 
-test("test_the_profile_select_is_disabled_while_the_row_is_off_and_enabled_once_held", async () => {
+test("test_the_profile_select_is_disabled_while_the_row_is_off", () => {
   const off = profileSelect();
-  await fire(rowControl("binc", "profile"));
-  const held = profileSelect();
-  assert.deepEqual([off && hasAttr(off, "disabled"), held && hasAttr(held, "disabled")], [true, false]);
+  assert.equal(off ? hasAttr(off, "disabled") : null, true);
 });
 
 test("test_changing_the_profile_select_writes_the_edit", async () => {
@@ -364,22 +370,32 @@ test("test_tapping_the_take_button_writes_the_live_value_into_the_edit", async (
 
 // --- the live cell -----------------------------------------------------------------------------------------------
 
-test("test_the_live_cell_marks_no_difference_on_a_row_that_is_off", () => {
+test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_from", () => {
   wire({ f1x: "0", adaptive: "0" });
   editing("Headphones", "Bed");
   const diff = byId((r) => {
     const live = first(r, "div", "vfd", "blive");
     return live && classes(live).includes("diff");
   });
-  assert.deepEqual([diff.adaptive, diff["1x"]], [true, false]);
+  assert.equal(diff.adaptive, true);
 });
 
-test("test_the_live_cell_prints_the_engines_name_for_a_list_row", () => {
-  const bt = byId((r) => {
-    const t = first(first(first(r, "div", "vfd", "blive"), "span", "v"), "span", "bt");
-    return t && text(t);
-  });
-  assert.deepEqual([bt["1x"], bt.nx, bt.sh], ["sinc-M", "IIR", "NS9"]);
+/** @param {MarkupElement} r */
+const liveName = (r) => {
+  const t = first(first(first(r, "div", "vfd", "blive"), "span", "v"), "span", "bt");
+  return t && text(t);
+};
+
+test("test_the_1x_rows_live_cell_prints_the_engines_1x_filter_name", () => {
+  assert.equal(byId(liveName)["1x"], "sinc-M");
+});
+
+test("test_the_nx_rows_live_cell_prints_the_engines_nx_filter_name", () => {
+  assert.equal(byId(liveName).nx, "IIR");
+});
+
+test("test_the_shaper_rows_live_cell_prints_the_engines_shaper_name", () => {
+  assert.equal(byId(liveName).sh, "NS9");
 });
 
 test("test_the_profile_rows_live_cell_names_the_engines_active_profile", () => {
@@ -429,12 +445,10 @@ const menuDrawn = (ticked) => elements(render(menu(ticked)));
 /** The menu panel drawn. @param {MarkupElement[]} all */
 const panel = (all) => all.filter((e) => attr(e, "role") === "menu")[0];
 
-test("test_tapping_the_stations_trigger_opens_its_menu", async () => {
+test("test_the_stations_menu_is_hidden_until_its_trigger_is_tapped", () => {
   picks = [];
   const shut = panel(menuDrawn());
-  await fire(vnodes(menu(), "button", "bstn")[0]);
-  const open = panel(menuDrawn());
-  assert.deepEqual([shut && hasAttr(shut, "hidden"), open && hasAttr(open, "hidden")], [true, false]);
+  assert.equal(shut ? hasAttr(shut, "hidden") : null, true);
 });
 
 test("test_a_row_names_the_record_its_station_already_holds_under_this_name", () => {

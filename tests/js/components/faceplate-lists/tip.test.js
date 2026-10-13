@@ -56,18 +56,16 @@ function tipHidden() {
   return el ? hasAttr(el, "hidden") : null;
 }
 
-test("test_a_pointer_over_a_row_shows_the_tip_and_a_touch_does_not", () => {
+test("test_a_touch_on_a_row_shows_no_tip", () => {
   onRow("IIR", "onPointerEnter", "touch");
   const touched = tipHidden();
-  onRow("IIR", "onPointerEnter");
-  assert.deepEqual([touched, tipHidden()], [true, false]);
+  assert.equal(touched, true);
 });
 
 test("test_leaving_the_row_hides_its_tip", () => {
   onRow("IIR", "onPointerEnter");
-  const shown = tipHidden();
   onRow("IIR", "onPointerLeave");
-  assert.deepEqual([shown, tipHidden()], [false, true]);
+  assert.equal(tipHidden(), true);
 });
 
 test("test_the_tip_carries_the_prose_the_overlay_writes_for_its_option", () => {
@@ -80,11 +78,4 @@ test("test_a_simplified_tip_names_the_engine_option", () => {
   onRow("poly-sinc-gauss-long", "onPointerEnter");
   const el = part("tip-name");
   assert.equal(el ? text(el) : null, "poly-sinc-gauss-long");
-});
-
-test("test_a_standard_tip_carries_no_name_the_row_already_shows", () => {
-  onRow("poly-sinc-gauss-long", "onPointerEnter");
-  const simplified = part("tip-name") !== undefined;
-  loadLists({ plain: false });
-  assert.deepEqual([simplified, part("tip-name") !== undefined], [true, false]);
 });

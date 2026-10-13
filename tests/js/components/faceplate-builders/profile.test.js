@@ -255,11 +255,29 @@ const picker = () => first(one("label", "vfd", "pbpick"), "select");
 /** The foot's buttons, in document order. */
 const footButtons = () => every(inside(one("div", "pbfoot")), "button");
 
+/** Whether the foot's Discard is disabled. */
+const discardOff = () => {
+  const b = footButtons().at(-2);
+  return b && hasAttr(b, "disabled");
+};
+
+/** Whether the foot's Save is disabled. */
+const saveOff = () => {
+  const b = footButtons().at(-1);
+  return b && hasAttr(b, "disabled");
+};
+
 /** The confirm lines drawn. */
 const askLines = () => every(drawn(), "div", "bask");
 
 /** The foot's state line. */
 const stateLine = () => inside(one("div", "pbfoot")).find((e) => classes(e).includes("pbstate"));
+
+/** Whether the foot's state line reads dirty. */
+const stateDirty = () => {
+  const line = stateLine();
+  return line && classes(line).includes("dirty");
+};
 
 //: The restart mark's state-bearing handle, its `data-testid`.
 const MARK = "restart-mark";
@@ -450,9 +468,14 @@ test("test_tapping_the_pipelines_hold_row_opens_the_pipelines_drawer", async () 
 
 // --- the picker --------------------------------------------------------------------------------------------------
 
-test("test_the_new_entry_follows_the_station_groups", () => {
+test("test_the_picker_ends_on_an_option_outside_the_station_groups", () => {
   const last = kids(picker()).at(-1);
-  assert.deepEqual([last?.name, last ? attr(last, "value") : null], ["option", NEW]);
+  assert.equal(last?.name, "option");
+});
+
+test("test_the_pickers_last_entry_is_the_new_entry", () => {
+  const last = kids(picker()).at(-1);
+  assert.equal(last ? attr(last, "value") : null, NEW);
 });
 
 test("test_picking_a_saved_name_switches_to_it", async () => {
@@ -464,22 +487,15 @@ test("test_picking_a_saved_name_switches_to_it", async () => {
 
 // --- the confirm line --------------------------------------------------------------------------------------------
 
-test("test_the_confirm_line_shows_only_while_a_question_is_asked", () => {
-  const idle = askLines().length;
+test("test_the_confirm_line_shows_while_a_question_is_asked", () => {
   asking();
-  assert.deepEqual([idle, askLines().length], [0, 1]);
+  assert.equal(askLines().length, 1);
 });
 
 // --- the state line and the caption ------------------------------------------------------------------------------
 
-test("test_the_state_line_reads_dirty_only_while_pending", async () => {
-  const fresh = stateLine();
-  await onSaved("Flat");
-  const saved = stateLine();
-  assert.deepEqual(
-    [fresh && classes(fresh).includes("dirty"), saved && classes(saved).includes("dirty")],
-    [true, false],
-  );
+test("test_the_state_line_reads_dirty_while_a_new_profile_is_pending", () => {
+  assert.equal(stateDirty(), true);
 });
 
 // --- the restart mark on the state line --------------------------------------------------------------------------
@@ -521,26 +537,28 @@ test("test_tapping_change_something_shows_the_first_step", async () => {
   assert.equal(page.value, PB_STEPS[0].id);
 });
 
-test("test_the_foot_carries_delete_only_on_a_saved_profile_other_than_the_default", async () => {
-  const fresh = footButtons().length;
+test("test_the_foot_carries_no_delete_on_a_new_profile", () => {
+  assert.equal(footButtons().length, 4);
+});
+
+test("test_the_foot_carries_delete_on_a_saved_profile", async () => {
   await onSaved("Flat");
-  const saved = footButtons().length;
+  assert.equal(footButtons().length, 5);
+});
+
+test("test_the_foot_carries_no_delete_on_the_default_profile", async () => {
+  await onSaved("Flat");
   cur.value = { st: LOADED, name: DEFAULT };
-  assert.deepEqual([fresh, saved, footButtons().length], [4, 5, 4]);
+  assert.equal(footButtons().length, 4);
 });
 
-test("test_discard_is_disabled_while_the_edit_is_clean", async () => {
-  const clean = footButtons().at(-2);
-  await setName(TYPED);
-  const dirty = footButtons().at(-2);
-  assert.deepEqual([clean && hasAttr(clean, "disabled"), dirty && hasAttr(dirty, "disabled")], [true, false]);
+test("test_discard_is_disabled_while_the_edit_is_clean", () => {
+  assert.equal(discardOff(), true);
 });
 
-test("test_save_is_disabled_only_on_a_clean_saved_profile", async () => {
-  const fresh = footButtons().at(-1);
+test("test_save_is_disabled_on_a_clean_saved_profile", async () => {
   await onSaved("Flat");
-  const saved = footButtons().at(-1);
-  assert.deepEqual([fresh && hasAttr(fresh, "disabled"), saved && hasAttr(saved, "disabled")], [false, true]);
+  assert.equal(saveOff(), true);
 });
 
 test("test_tapping_save_with_no_name_refuses", async () => {

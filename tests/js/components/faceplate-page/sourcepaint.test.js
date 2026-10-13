@@ -428,9 +428,14 @@ for (const style of ["bars", "ridges", "aurora"]) {
   });
 }
 
-test("test_a_trace_paint_draws_the_ghost_where_it_sits_not_where_the_trace_sits", () => {
+test("test_a_trace_paint_draws_an_18_db_ghost_where_it_sits_not_where_the_trace_sits", () => {
   const root = styled(scene({ disp: columns(-72), ghost: columns(-72, { 100: -18, 300: -9 }) }), 90, "trace");
-  assert.deepEqual([yAt(root, "shold", 100), yAt(root, "shold", 300)], [34, 17]);
+  assert.equal(yAt(root, "shold", 100), 34);
+});
+
+test("test_a_trace_paint_draws_a_9_db_ghost_where_it_sits_not_where_the_trace_sits", () => {
+  const root = styled(scene({ disp: columns(-72), ghost: columns(-72, { 100: -18, 300: -9 }) }), 90, "trace");
+  assert.equal(yAt(root, "shold", 300), 17);
 });
 
 test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace", () => {

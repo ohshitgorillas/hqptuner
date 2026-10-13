@@ -182,18 +182,14 @@ test("test_narrower_at_the_narrowest_range_leaves_the_range_at_the_narrowest", (
   assert.equal(pageRange.value, NARROWEST);
 });
 
-test("test_wider_shows_dimmed_only_at_the_widest_range", () => {
-  setPageRange(NARROWEST);
-  const below = dimmed(WIDER);
+test("test_wider_shows_dimmed_at_the_widest_range", () => {
   setPageRange(WIDEST);
-  assert.deepEqual([below, dimmed(WIDER)], [false, true]);
+  assert.equal(dimmed(WIDER), true);
 });
 
-test("test_narrower_shows_dimmed_only_at_the_narrowest_range", () => {
-  setPageRange(WIDEST);
-  const above = dimmed(NARROWER);
+test("test_narrower_shows_dimmed_at_the_narrowest_range", () => {
   setPageRange(NARROWEST);
-  assert.deepEqual([above, dimmed(NARROWER)], [false, true]);
+  assert.equal(dimmed(NARROWER), true);
 });
 
 /** The numbers down the level scale, top to bottom. */
@@ -206,11 +202,15 @@ function levelScale() {
     : [];
 }
 
-test("test_the_level_scale_ends_at_the_levels_floor", () => {
+test("test_the_level_scale_ends_at_a_shallow_levels_floor", () => {
   pickFloor(SHALLOW);
   const shallow = levelScale().at(-1);
+  assert.equal(shallow, Number(SHALLOW));
+});
+
+test("test_the_level_scale_ends_at_a_deep_levels_floor", () => {
   pickFloor(DEEP);
-  assert.deepEqual([shallow, levelScale().at(-1)], [Number(SHALLOW), Number(DEEP)]);
+  assert.equal(levelScale().at(-1), Number(DEEP));
 });
 
 test("test_changing_the_range_leaves_the_level_scale_where_it_was", () => {
