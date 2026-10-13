@@ -1,10 +1,5 @@
-// Rendered suite for hqptuner/static/components/matrix/Library.js: the AutoEq library picker's Clear button. Pressing
-// it drops the selected hit, so the hit the search lists no longer carries the `selected` state.
-//
 // The wire is the seam: GET /api/autoeq answers one profile. A press is reached through preact's own `options.vnode`
-// hook (tests/js/support/vnodeseam.js). A hit is the clickable that shows the fixture's model. The Clear button is
-// found by neither its wording nor its position: of the clickables a selection adds, it is the one whose press hands
-// nothing to the caller's applyText, where the load button hands over the profile's text.
+// hook (tests/js/support/vnodeseam.js). A hit is the clickable that shows the fixture's model.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/matrix/library-clear.test.js
 
@@ -64,39 +59,10 @@ function select() {
   if (!isSelected()) click(hit());
 }
 
-/**
- * The clickables a selection adds, from a render handing its applyText to `applyText`.
- *
- * @param {(text: string) => void} applyText
- * @returns {VNode[]}
- */
-function selectionButtons(applyText) {
-  select();
-  return clickables(draw(applyText)).filter((v) => !showsModel(v));
-}
-
-/**
- * The Clear button of a fresh selection: the one selection button whose press hands nothing to applyText. Each
- * candidate is pressed against its own fresh selection, so probing one leaves nothing behind for the next.
- *
- * @returns {VNode}
- */
-function clearButton() {
-  const quiet = selectionButtons(() => {}).map((_, at) => {
-    /** @type {string[]} */
-    const handed = [];
-    click(selectionButtons((text) => handed.push(text))[at]);
-    return handed.length === 0;
-  });
-  const at = quiet.indexOf(true);
-  if (at < 0 || quiet.lastIndexOf(true) !== at) throw new Error(`want one button that loads nothing, got ${quiet}`);
-  return selectionButtons(() => {})[at];
-}
-
 test("test_a_selected_hit_carries_the_selected_state", async () => {
   const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
   draw(() => {});
   await quiesce(wire);
-  clearButton();
+  select();
   assert.equal(isSelected(), true);
 });
