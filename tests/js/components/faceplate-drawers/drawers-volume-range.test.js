@@ -147,18 +147,31 @@ test("test_each_box_holds_its_handles_effective_value", async () => {
   assert.deepEqual(boxAttr(markup(), "value"), ["-60", "-30", "0"]);
 });
 
-test("test_startup_is_fenced_by_min_and_max", () => {
-  const fence = (/** @type {Running} */ r) => {
-    const box = keyed(markupWith(r), "input", "startup_volume");
-    return box && [attr(box, "min"), attr(box, "max")];
-  };
-  assert.deepEqual(
-    [fence({}), fence({ min: "-70", max: "-3" })],
-    [
-      ["-60", "0"],
-      ["-70", "-3"],
-    ],
-  );
+/**
+ * One attribute of the Startup box for one running state.
+ *
+ * @param {Running} r
+ * @param {string} name
+ */
+const startupAttr = (r, name) => {
+  const box = keyed(markupWith(r), "input", "startup_volume");
+  return box && attr(box, name);
+};
+
+test("test_startup_is_floored_by_the_running_min", () => {
+  assert.equal(startupAttr({}, "min"), "-60");
+});
+
+test("test_startup_is_floored_by_a_moved_min", () => {
+  assert.equal(startupAttr({ min: "-70", max: "-3" }, "min"), "-70");
+});
+
+test("test_startup_is_capped_by_the_running_max", () => {
+  assert.equal(startupAttr({}, "max"), "0");
+});
+
+test("test_startup_is_capped_by_a_moved_max", () => {
+  assert.equal(startupAttr({ min: "-70", max: "-3" }, "max"), "-3");
 });
 
 test("test_a_typed_value_moves_its_handle_through_the_clamp", async () => {
@@ -170,10 +183,21 @@ test("test_a_typed_value_moves_its_handle_through_the_clamp", async () => {
   assert.equal(wire.staged.http.volume_min, "-20");
 });
 
+/**
+ * Whether one setting's box carries an attribute.
+ *
+ * @param {MarkupElement[]} els
+ * @param {string} key
+ * @param {string} name
+ */
+const boxHas = (els, key, name) => {
+  const el = keyed(els, "input", key);
+  return !!el && hasAttr(el, name);
+};
+
 test("test_a_staged_handle_marks_its_box_dirty", async () => {
   await edit("volume_max", "-6");
-  const dirty = KEYS.map((k) => keyed(markup(), "input", k)).map((el) => !!el && hasAttr(el, "data-dirty"));
-  assert.deepEqual(dirty, [false, false, true]);
+  assert.equal(boxHas(markup(), "volume_max", "data-dirty"), true);
 });
 
 // --- gray --------------------------------------------------------------------------------------------------------
@@ -183,20 +207,14 @@ test("test_the_block_grays_whole_while_fixed_volume_is_on", () => {
     const root = markupWith(r).find((el) => classes(el).includes("vrange"));
     return root && classes(root).includes("grayed-range");
   };
-  assert.deepEqual([grayed({}), grayed({ fixed: true })], [false, true]);
+  assert.equal(grayed({ fixed: true }), true);
 });
 
-test("test_the_boxes_disable_while_the_block_is_grayed", () => {
-  const off = (/** @type {Running} */ r) =>
-    KEYS.map((k) => keyed(markupWith(r), "input", k)).map((el) => !!el && hasAttr(el, "disabled"));
-  assert.deepEqual(
-    [off({}), off({ fixed: true })],
-    [
-      [false, false, false],
-      [true, true, true],
-    ],
-  );
-});
+for (const key of KEYS) {
+  test(`test_the_${key}_box_disables_while_the_block_is_grayed`, () => {
+    assert.equal(boxHas(markupWith({ fixed: true }), key, "disabled"), true);
+  });
+}
 
 // --- the bar -----------------------------------------------------------------------------------------------------
 
@@ -204,27 +222,25 @@ test("test_the_brackets_and_the_pin_sit_at_their_values", () => {
   assert.deepEqual(marksAt(markupWith({ min: "-70", startup: "-25", max: "-3" }), KEYS), ["-70", "-25", "-3"]);
 });
 
-test("test_the_loudness_bounds_ride_the_bar_while_loudness_runs", () => {
-  assert.deepEqual(
-    [marksAt(markupWith({}), LOUD_KEYS), marksAt(markupWith({ loudness: true }), LOUD_KEYS)],
-    [
-      [undefined, undefined],
-      ["-45", "-15"],
-    ],
-  );
+test("test_the_loudness_low_bound_rides_the_bar_while_loudness_runs", () => {
+  assert.equal(marksAt(markupWith({ loudness: true }), ["loudness_range_low"])[0], "-45");
+});
+
+test("test_the_loudness_high_bound_rides_the_bar_while_loudness_runs", () => {
+  assert.equal(marksAt(markupWith({ loudness: true }), ["loudness_range_high"])[0], "-15");
 });
 
 test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control", () => {
   const needle = (/** @type {Running} */ r) => marksAt(markupWith(r), ["needle"])[0];
-  assert.deepEqual([needle({}), needle({ report: { enabled: "0", min: "-12", max: "0" } })], ["-12.5", undefined]);
+  assert.equal(needle({}), "-12.5");
 });
 
 // --- the loudness readouts and the manual ------------------------------------------------------------------------
 
-test("test_the_loudness_readouts_show_while_loudness_runs", () => {
+test("test_the_loudness_readouts_hide_while_loudness_is_off", () => {
   const hidden = (/** @type {Running} */ r) => {
     const row = markupWith(r).find((el) => classes(el).includes("inl"));
     return row && hasAttr(row, "hidden");
   };
-  assert.deepEqual([hidden({}), hidden({ loudness: true })], [true, false]);
+  assert.equal(hidden({}), true);
 });

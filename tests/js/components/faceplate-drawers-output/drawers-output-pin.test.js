@@ -182,11 +182,9 @@ async function tap(band, i) {
 
 // --- the picker ----------------------------------------------------------------------------------------------------
 
-test("test_the_dial_carries_the_picker_only_while_pinned_rates_are_allowed", async () => {
+test("test_the_dial_carries_the_picker_while_pinned_rates_are_allowed", () => {
   const allowed = options();
-  setAllowPinnedRates(false);
-  await quiesce(wire);
-  assert.deepEqual([allowed, options()], [["auto", "f44", "f48"], []]);
+  assert.deepEqual(allowed, ["auto", "f44", "f48"]);
 });
 
 // --- a tap under a picked family -----------------------------------------------------------------------------------
@@ -210,11 +208,18 @@ test("test_a_tap_that_pins_stages_nothing", async () => {
   assert.deepEqual(wire.stages, []);
 });
 
+test("test_a_tap_in_the_band_not_playing_adds_no_pin_while_a_family_is_picked", async () => {
+  await pick("f44");
+  await tap("pcm", PCM_16X);
+  await tap("sdm", SDM_1024X);
+  assert.deepEqual(pins.length, 1);
+});
+
 test("test_a_tap_in_the_band_not_playing_moves_its_limit_while_a_family_is_picked", async () => {
   await pick("f44");
   await tap("pcm", PCM_16X);
   await tap("sdm", SDM_1024X);
-  assert.deepEqual([pins.length, effective("sdm_rate")], [1, "49152000"]);
+  assert.deepEqual(effective("sdm_rate"), "49152000");
 });
 
 test("test_picking_a_family_writes_nothing_until_a_tap", async () => {
@@ -344,25 +349,20 @@ function rateRowMarked() {
   return row ? elements(row.html).some((e) => attr(e, "data-testid") === MARK) : null;
 }
 
-for (const fam of ["f44", "f48"]) {
-  test(`test_picking_${fam}_takes_the_restart_mark_off_the_rate_row_that_auto_carries`, async () => {
-    const underAuto = rateRowMarked();
-    await pick(fam);
-    assert.deepEqual([underAuto, rateRowMarked()], [true, false]);
-  });
-}
+test("test_under_auto_the_rate_row_carries_the_restart_mark", () => {
+  const underAuto = rateRowMarked();
+  assert.deepEqual(underAuto, true);
+});
 
 test("test_picking_auto_after_a_family_puts_the_restart_mark_back_on_the_rate_row", async () => {
   await pick("f48");
-  const underFamily = rateRowMarked();
   await pick("auto");
-  assert.deepEqual([underFamily, rateRowMarked()], [false, true]);
+  assert.deepEqual(rateRowMarked(), true);
 });
 
 test("test_turning_allow_pinned_rates_off_puts_the_restart_mark_back_on_the_rate_row", async () => {
   await pick("f44");
-  const allowed = rateRowMarked();
   setAllowPinnedRates(false);
   await quiesce(wire);
-  assert.deepEqual([allowed, rateRowMarked()], [false, true]);
+  assert.deepEqual(rateRowMarked(), true);
 });

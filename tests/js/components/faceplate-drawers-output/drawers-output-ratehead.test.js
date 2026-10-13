@@ -91,6 +91,10 @@ function inDacBitsRow() {
 /** @param {MarkupElement[]} inside */
 const headers = (inside) => inside.filter((e) => e.name === "b").length;
 
-test("test_the_rate_dial_row_prints_one_header_as_the_dac_bits_row_does", () => {
-  assert.deepEqual([headers(inDacBitsRow()), headers(inDialRow())], [1, 1]);
+test("test_the_dac_bits_row_prints_one_header", () => {
+  assert.deepEqual(headers(inDacBitsRow()), 1);
+});
+
+test("test_the_rate_dial_row_prints_one_header", () => {
+  assert.deepEqual(headers(inDialRow()), 1);
 });

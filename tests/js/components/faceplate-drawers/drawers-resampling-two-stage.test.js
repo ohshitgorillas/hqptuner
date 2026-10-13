@@ -109,8 +109,12 @@ test("test_a_two_stage_filter_row_shows_one_more_see_more_trigger_than_its_singl
   assert.equal(triggersInSight(row()), single + 1);
 });
 
-test("test_a_two_stage_filter_row_reads_its_prose_then_the_notes_lead_then_the_see_more_trigger", () => {
-  assert.deepEqual(wordsAfter(row(), PROSE), [...wordsOf(NOTE_LEAD), TRIGGER]);
+test("test_a_two_stage_filter_row_reads_the_notes_lead_right_after_its_prose", () => {
+  assert.deepEqual(wordsAfter(row(), PROSE)?.slice(0, wordsOf(NOTE_LEAD).length), wordsOf(NOTE_LEAD));
+});
+
+test("test_a_two_stage_filter_row_reads_the_see_more_trigger_right_after_the_notes_lead", () => {
+  assert.equal(wordsAfter(row(), PROSE)?.[wordsOf(NOTE_LEAD).length], TRIGGER);
 });
 
 test("test_a_two_stage_filter_rows_popover_holds_the_two_stage_note_alone", () => {

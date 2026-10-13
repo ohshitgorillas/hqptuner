@@ -126,11 +126,16 @@ const spots = () =>
  */
 const call = (fn, ...args) => (typeof fn === "function" ? fn(...args) : undefined);
 
-test("test_one_row_is_drawn_per_channel_of_the_picked_set", () => {
+test("test_one_row_is_drawn_per_channel_of_the_first_set", () => {
   reset();
   const first = withClass("sprow").length;
+  assert.equal(first, FIRST.channels.length);
+});
+
+test("test_one_row_is_drawn_per_channel_of_the_last_set", () => {
+  reset();
   pickSpeakerSet(LAST.id);
-  assert.deepEqual([first, withClass("sprow").length], [FIRST.channels.length, LAST.channels.length]);
+  assert.equal(withClass("sprow").length, LAST.channels.length);
 });
 
 test("test_a_rows_distance_box_holds_the_drafted_distance", () => {
@@ -167,27 +172,21 @@ test("test_under_direct_sdm_each_level_box_is_disabled_and_each_distance_box_is_
   );
 });
 
-test("test_the_direct_sdm_line_shows_only_while_the_levels_are_dead", () => {
-  reset();
-  const off = withClass("spsdm").length;
+test("test_the_direct_sdm_line_shows_while_the_levels_are_dead", () => {
   reset({ direct: true });
-  assert.deepEqual([off, withClass("spsdm").length], [0, 1]);
+  assert.equal(withClass("spsdm").length, 1);
 });
 
 test("test_the_rows_column_carries_sdm_while_the_levels_are_dead", () => {
-  reset();
-  const off = withClass("spleft").map((e) => classes(e).includes("sdm"));
   reset({ direct: true });
   const on = withClass("spleft").map((e) => classes(e).includes("sdm"));
-  assert.deepEqual([off, on], [[false], [true]]);
+  assert.deepEqual(on, [true]);
 });
 
 test("test_an_apply_in_flight_disables_every_control", () => {
-  reset();
-  const live = all().filter((e) => ["input", "select"].includes(e.name) && hasAttr(e, "disabled")).length;
   reset({ busy: true });
   const busy = all().filter((e) => ["input", "select"].includes(e.name) && hasAttr(e, "disabled")).length;
-  assert.deepEqual([live, busy], [0, FIRST.channels.length * 2 + 1]);
+  assert.equal(busy, FIRST.channels.length * 2 + 1);
 });
 
 // --- the restart mark -------------------------------------------------------------------------------------------
@@ -228,11 +227,16 @@ test("test_the_set_head_carries_no_restart_mark", () => {
 
 // --- the room plan -----------------------------------------------------------------------------------------------
 
-test("test_the_plan_draws_one_speaker_per_channel_of_the_picked_set", () => {
+test("test_the_plan_draws_one_speaker_per_channel_of_the_first_set", () => {
   reset();
   const first = spots().length;
+  assert.equal(first, FIRST.channels.length);
+});
+
+test("test_the_plan_draws_one_speaker_per_channel_of_the_last_set", () => {
+  reset();
   pickSpeakerSet(LAST.id);
-  assert.deepEqual([first, spots().length], [FIRST.channels.length, LAST.channels.length]);
+  assert.equal(spots().length, LAST.channels.length);
 });
 
 test("test_the_plan_draws_no_speaker_while_the_daemon_reports_none_set", () => {

@@ -323,9 +323,14 @@ for (const [key, { tooltip, more }] of Object.entries(MARKED)) {
   });
 }
 
-test("test_a_more_prose_of_two_paragraphs_opens_as_two_paragraphs_in_the_see_more_popover", () => {
+test("test_the_first_paragraph_of_a_two_paragraph_more_prose_opens_as_the_see_more_popovers_first_paragraph", () => {
   holdBackTwoParagraphs();
-  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW), [FIRST_PARAGRAPH, SECOND_PARAGRAPH]);
+  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW)[0], FIRST_PARAGRAPH);
+});
+
+test("test_the_second_paragraph_of_a_two_paragraph_more_prose_opens_as_the_see_more_popovers_second_paragraph", () => {
+  holdBackTwoParagraphs();
+  assert.deepEqual(popoverParagraphs(TWO_PARAGRAPH_ROW)[1], SECOND_PARAGRAPH);
 });
 
 test("test_at_13_inches_the_second_paragraph_of_a_more_prose_shows_as_a_paragraph_of_its_own", () => {

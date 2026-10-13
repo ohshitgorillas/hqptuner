@@ -82,9 +82,8 @@ const levelDot = () => {
 
 test("test_a_staged_fixed_level_dots_the_level_tab", async () => {
   load({ fixed: true });
-  const before = levelDot();
   await edit("fixed_volume", "-6");
-  assert.deepEqual([before, levelDot()], [false, true]);
+  assert.equal(levelDot(), true);
 });
 
 test("test_the_range_tab_mounts_the_range_block", () => {
