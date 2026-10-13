@@ -71,6 +71,7 @@ pythonpath = [
     "scripts",
     "scripts/gates",
     "scripts/pytest_plugins",
+    "scripts/budget",
     "scripts/junkcal",
     "scripts/junkburst",
     "scripts/junkburst/features",
@@ -78,7 +79,7 @@ pythonpath = [
 ]
 markers = [
     "live: requires a reachable hqplayerd (deselect with '-m \"not live\"')",
-    "e2e: browser tests driving a real server (deselected by default)",
+    "e2e: browser tests driving a real server (select with '-m e2e', deselect with '-m \"not e2e\"')",
 ]
 
 [tool.mutmut]
@@ -288,7 +289,8 @@ ban-relative-imports = "all"
 python_version = "3.12"
 strict = true
 files = ["hqptuner", "tests", "scripts"]
-# Mirrors the pytest `pythonpath` above: the support modules and the budget
+# Equal to the pytest `pythonpath` above, root for root, held so by
+# scripts/gates/check_config_copies.py: the support modules and the budget
 # analyzers are imported by bare name, not by package path.
 mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/pytest_plugins", "scripts/budget", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
 

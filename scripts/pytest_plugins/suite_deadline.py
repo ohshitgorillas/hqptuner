@@ -11,8 +11,8 @@ thread's stack dumped to stderr and the process ended with exit status 1. With
 no bar recorded there is no deadline.
 
 Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
-``test`` recipe and the ``pytest-offline`` pre-commit hook are the two command
-lines that do so.
+``pytest-offline`` target is the one command line that does so, run by both
+``make test`` and the ``pytest-offline`` pre-commit hook.
 """
 
 from __future__ import annotations

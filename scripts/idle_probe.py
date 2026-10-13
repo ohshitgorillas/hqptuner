@@ -17,9 +17,9 @@ a deadline instead of returning on an event, and those seconds say nothing about
 what the test costs when it passes.
 
 Loaded by ``-p idle_probe`` with ``scripts`` and ``scripts/pytest_plugins`` on
-``PYTHONPATH``; the Makefile's ``test`` recipe and the ``pytest-offline``
-pre-commit hook are the two command lines that do so, and both run the whole
-offline suite.
+``PYTHONPATH``; the Makefile's ``pytest-offline`` target is the one command
+line that does so, and it runs the whole offline suite for both ``make test``
+and the ``pytest-offline`` pre-commit hook.
 """
 
 from __future__ import annotations

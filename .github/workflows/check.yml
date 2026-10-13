@@ -39,8 +39,9 @@ jobs:
           .venv/bin/pip install -e ".[dev]"
           npm ci
 
-      # The offline half of the suite only: `make check` selects -m "not live",
-      # and no hqplayerd exists here to serve the live-marked tests. The idle
+      # The offline suite only: `make check` deselects the live-marked and
+      # e2e-marked tests. No hqplayerd exists here to serve the live-marked
+      # ones, and the e2e job below runs the e2e-marked ones. The idle
       # gate counts every delay a shared runner adds, so it runs on the
       # development host only; the clock-wait gate judges real-clock waits here.
       - name: make check

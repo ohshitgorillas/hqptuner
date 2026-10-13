@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js test test-live test-e2e test-js check manual mutate trivia
+.PHONY: lint lint-js pytest-offline test test-live test-e2e test-js check manual mutate trivia
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -17,6 +17,7 @@ lint:
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
+	$(VENV)/python scripts/gates/check_config_copies.py
 	$(VENV)/python scripts/gates/testing/check_e2e_isolation.py
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
@@ -56,30 +57,43 @@ lint-js:
 	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
 
-# The run stamp records when the run started, and the second recipe line
-# refuses any report older than it or missing
+# The marker selection of each pytest suite, every marker name spelled once:
+# test-e2e runs the e2e tests alone, test-live runs everything else, and the
+# offline suite is that less the live-marked tests.
+E2E_MARKERS := e2e
+LIVE_MARKERS := not $(E2E_MARKERS)
+OFFLINE_MARKERS := not live and $(LIVE_MARKERS)
+
+# The offline suite, the one place its command is written. `test` runs it
+# before the gates that read its reports. The pytest-offline pre-commit hook
+# runs this target alone, since pre-commit runs each of those gates as a hook of
+# its own.
+pytest-offline:
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+
+# The run stamp records when the run started, and the first recipe line of
+# `test` refuses any report older than it or missing
 # (scripts/gates/testing/check_fresh_reports.py): a run that was aborted or
 # crashed leaves the previous run's reports behind, and the gates after it
 # would pass on those. The coverage floor is per file and lives in the gate on
-# the third line, not in --cov-fail-under, so a failing suite reports first.
-# The junit report carries the suite's wall time; the fourth line holds it to
+# the second line, not in --cov-fail-under, so a failing suite reports first.
+# The junit report carries the suite's wall time; the third line holds it to
 # a bar a green run never raises (scripts/gates/testing/check_suite_time.py),
 # one per branch; a branch with none is judged against the bar of the recorded
 # branch nearest it in history, and the bars of deleted branches are removed
 # on every run. The idle probe measures each test's wall time less its CPU time
 # less the time its thread waited for a CPU and writes a second report; the
-# fifth line fails any test whose reading rises more than 40 ms over its
+# fourth line fails any test whose reading rises more than 40 ms over its
 # previous one on the branch, or exceeds 40 ms with none, and records only the
 # readings that passed (scripts/gates/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
-# a reading the same on any machine, and the sixth line refuses any test with
+# a reading the same on any machine, and the fifth line refuses any test with
 # one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
-# still going at the fourth line's bar, so a hung suite fails instead of hanging.
+# still going at the third line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
-test:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+test: pytest-offline
 	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
@@ -87,10 +101,10 @@ test:
 	$(VENV)/python scripts/gates/check_clock_waits.py
 
 test-live:
-	$(VENV)/pytest -m "not e2e" -q
+	$(VENV)/pytest -m "$(LIVE_MARKERS)" -q
 
 test-e2e:
-	$(VENV)/pytest -m e2e --no-cov -q
+	$(VENV)/pytest -m $(E2E_MARKERS) --no-cov -q
 
 # --import installs tests/js/vendor-resolve.js, which reads the importmap out of
 # hqptuner/static/index.html and resolves the bare specifiers (preact, htm,

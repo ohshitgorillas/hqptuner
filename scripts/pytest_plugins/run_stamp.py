@@ -6,8 +6,8 @@ crashes or is killed has still stamped; ``scripts/gates/testing/check_fresh_repo
 then refuses every report older than it.
 
 Loaded by ``-p run_stamp`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
-``test`` recipe and the ``pytest-offline`` pre-commit hook are the two command
-lines that do so.
+``pytest-offline`` target is the one command line that does so, run by both
+``make test`` and the ``pytest-offline`` pre-commit hook.
 """
 
 from __future__ import annotations

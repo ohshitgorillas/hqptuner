@@ -90,7 +90,7 @@ make mutate                              # whole package, hours
 make mutate MUTATE='hqptuner.presets.store.presets.*'  # one module, minutes; glob, matched with fnmatch
 ```
 
-Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.
+Scope and pytest arguments live in `pyproject.toml` under `[tool.mutmut]`: `hqptuner/` minus `static/` (the frontend is JS), suite run as `-m "not live and not e2e"` so a mutation run never reaches the daemon. Working copies land in the gitignored `mutants/`. `mutmut browse` walks survivors interactively; `mutmut show <mutant>` prints one diff.
 
 Reading the result: a survivor is a question, not a defect. Three honest answers — the behavior is untested and wants a test; the mutated line has no observable effect and the mutant is equivalent, so nothing is owed; or the line is dead and should go. Chasing a score is how a suite fills with tests written to kill mutants rather than to state behavior, which is rule 1 violated with extra steps. Run it when a module's coverage is in doubt, not on a schedule.
 

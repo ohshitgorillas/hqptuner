@@ -17,7 +17,9 @@ plugin loads. The idle gate covers those on the development host.
 
 The plugin measures and writes; ``scripts/gates/check_clock_waits.py`` judges.
 Loaded by ``-p clock_probe`` with ``scripts`` on ``PYTHONPATH``, on the same
-two whole-suite command lines that load the idle probe.
+whole-suite command line that loads the idle probe: the Makefile's
+``pytest-offline`` target, which ``make test`` and the ``pytest-offline``
+pre-commit hook both run.
 """
 
 from __future__ import annotations

@@ -74,9 +74,12 @@ repos:
         files: ^tests/
       - id: pytest-offline
         name: pytest (offline suite)
-        # `env` because pre-commit splits the entry and execs it directly rather
-        # than through a shell, so a bare assignment would be read as a program.
-        entry: env PYTHONPATH=.:scripts:scripts/pytest_plugins .venv/bin/pytest -m "not live and not e2e" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+        # The Makefile target holds the command and its marker expression; the
+        # gates `make test` runs after it are the hooks below. `.` on PYTHONPATH
+        # puts the tree being committed ahead of the editable install. `env`
+        # because pre-commit splits the entry and execs it directly rather than
+        # through a shell, so a bare assignment would be read as a program.
+        entry: env PYTHONPATH=. make pytest-offline
         language: system
         pass_filenames: false
         always_run: true
@@ -206,13 +209,13 @@ repos:
       # Cross-cutting: a clone has two ends and either one can move, and the
       # threshold is a whole-tree percentage, so the gate reads the entire
       # source set from .jscpd.json rather than the staged filenames.
+      # It always runs because .jscpd.json names its paths and formats.
       - id: jscpd
         name: copy-paste duplication gate
         entry: npx jscpd
         language: system
         pass_filenames: false
-        files: ^(hqptuner|scripts|tests)/.*\.(py|js|css)$
-        exclude: ^hqptuner/static/vendor/
+        always_run: true
 
       # Cross-cutting: one control is spelled out in schema.js, presetconf.py and
       # settings.json, so the gate has to run when ANY of the three moves.
@@ -287,6 +290,15 @@ repos:
         language: system
         pass_filenames: false
         always_run: true
+
+      # Cross-cutting: a shared value and its copy live in different config
+      # files, so the gate reads them together and runs when any of them moves.
+      - id: config-copies
+        name: config copies held equal
+        entry: .venv/bin/python scripts/gates/check_config_copies.py
+        language: system
+        pass_filenames: false
+        files: ^(pyproject\.toml|Makefile|\.pre-commit-config\.yaml|eslint\.config\.js)$
 
       # Reads the config module and the e2e harness together, so it triggers on
       # either: a new path knob and a harness that forgot it are the same defect
