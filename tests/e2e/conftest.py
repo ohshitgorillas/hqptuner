@@ -80,7 +80,6 @@ Controls are addressed by machine identity: `data-testid` on the shell chrome,
 
 import http.client
 import json
-import os
 import urllib.parse
 import urllib.request
 from collections.abc import Iterator
@@ -90,6 +89,7 @@ import pytest
 
 pytest.importorskip("playwright.sync_api", reason="playwright is required for the browser e2e suite")
 
+from chromium import launch
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from e2e.support import stack as stack_support
@@ -107,10 +107,6 @@ __all__ = [
     "session_start",
     "stack",
 ]
-
-#: Chromium flags that give the headless shell a software WebGL2 context, so a
-#: test can compile and draw the app's shaders with no GPU on the host.
-CHROMIUM_ARGS = ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"]
 
 #: Ceiling on one reset call. Generous — the app is on loopback and answering
 #: already, so a reset that takes this long is a hang worth failing on.
@@ -264,13 +260,8 @@ def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], set[s
 @pytest.fixture(scope="module")
 def browser() -> Iterator[Browser]:
     """Headless chromium with software WebGL2, preferring the binary named by HQPTUNER_CHROMIUM."""
-    binary = os.environ.get("HQPTUNER_CHROMIUM")
     with sync_playwright() as pw:
-        launched = (
-            pw.chromium.launch(executable_path=binary, args=CHROMIUM_ARGS)
-            if binary
-            else pw.chromium.launch(args=CHROMIUM_ARGS)
-        )
+        launched = launch(pw)
         try:
             yield launched
         finally:

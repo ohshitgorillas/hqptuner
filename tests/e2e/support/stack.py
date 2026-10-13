@@ -22,7 +22,7 @@ import asyncio
 import functools
 import json
 import os
-import socket
+import re
 import subprocess
 import sys
 import threading
@@ -31,7 +31,7 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import IO, Any
 
 import fake_http
 import fake_metering
@@ -46,6 +46,13 @@ READY_TIMEOUT = 30.0
 
 #: How long a terminated app gets to exit before it is killed.
 TERMINATE_TIMEOUT = 5.0
+
+#: The line uvicorn logs once it is listening, carrying the port it bound (uvicorn/server.py,
+#: `_log_started_message`). It is logged at INFO, so the stack sets that level rather than inheriting one.
+SERVING_LINE = re.compile(rb"Uvicorn running on https?://\S+:(\d+)")
+
+#: The app's log level: the lowest that still logs `SERVING_LINE`.
+APP_LOG_LEVEL = "INFO"
 
 
 class NotifyingLog(list[tuple[str, dict[str, str]]]):
@@ -112,13 +119,56 @@ class Stack:
             return self.control_log.condition.wait_for(predicate, timeout=timeout)
 
 
-def _free_port() -> int:
-    """Bind an ephemeral port, read its number, hand back the hole."""
-    sock = socket.socket()
-    sock.bind(("127.0.0.1", 0))
-    port: int = sock.getsockname()[1]
-    sock.close()
-    return port
+class AppOutput:
+    """The app's combined output, copied line by line into its log file, with the port it reports listening on.
+
+    The app is handed listen port 0 and binds whatever port the kernel gives it, so the port is held by the
+    process that serves on it from the moment it is chosen. uvicorn names that port in the INFO line it logs
+    once it is listening, and that line is where the port is read from. A daemon thread blocks on the pipe and
+    wakes every `port` waiter when the line arrives or the output ends, so nothing here polls or sleeps.
+    """
+
+    def __init__(self, stream: IO[bytes], log_path: Path) -> None:
+        """Start copying `stream` into `log_path` until the app closes it."""
+        self._port: int | None = None
+        self._ended = False
+        self._condition = threading.Condition()
+        self._thread = threading.Thread(target=self._copy, args=(stream, log_path), daemon=True)
+        self._thread.start()
+
+    def _copy(self, stream: IO[bytes], log_path: Path) -> None:
+        with stream, log_path.open("wb") as sink:
+            for line in stream:
+                sink.write(line)
+                sink.flush()
+                serving = SERVING_LINE.search(line)
+                if serving is not None and self._port is None:
+                    self._settle(int(serving[1]))
+        self._settle(None)
+
+    def _settle(self, port: int | None) -> None:
+        with self._condition:
+            if port is None:
+                self._ended = True
+            else:
+                self._port = port
+            self._condition.notify_all()
+
+    def port(self, timeout: float) -> int | None:
+        """The port the app reports listening on, or None if its output ends or `timeout` passes first."""
+        with self._condition:
+            self._condition.wait_for(lambda: self._port is not None or self._ended, timeout=timeout)
+            return self._port
+
+    @property
+    def ended(self) -> bool:
+        """Whether the app has closed its output, which it does on exit."""
+        with self._condition:
+            return self._ended
+
+    def close(self) -> None:
+        """Wait, up to the terminate ceiling, for the copy to reach the end of an exited app's output."""
+        self._thread.join(timeout=TERMINATE_TIMEOUT)
 
 
 def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
@@ -143,8 +193,10 @@ def spawn_control(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     loop.close()
 
 
-def _app_env(listen_port: int, control_port: int, http_port: int, metering_port: int, tmp: Path) -> dict[str, str]:
-    """The app's whole configuration: the three fakes, a scratch state area, and fast polling.
+def _app_env(control_port: int, http_port: int, metering_port: int, tmp: Path) -> dict[str, str]:
+    """The app's whole configuration: the three fakes, a scratch state area, fast polling, and listen port 0.
+
+    Port 0 has the app bind a port of the kernel's choosing; `AppOutput` reads which one it was.
 
     Credentials are arbitrary — the HTTP fake authenticates nothing — but they
     must be non-empty, because the app only opens the 8088 lane when it has a
@@ -162,7 +214,8 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
     return {
         **os.environ,
         "HQPTUNER_LISTEN_HOST": "127.0.0.1",
-        "HQPTUNER_LISTEN_PORT": str(listen_port),
+        "HQPTUNER_LISTEN_PORT": "0",
+        "HQPTUNER_LOG_LEVEL": APP_LOG_LEVEL,
         "HQPTUNER_HQP_HOST": "127.0.0.1",
         "HQPTUNER_HQP_CONTROL_PORT": str(control_port),
         "HQPTUNER_HQP_HTTP_PORT": str(http_port),
@@ -280,16 +333,28 @@ def _wait_for_ready(
     raise RuntimeError(_startup_failure(f"{refusing} never answered within {READY_TIMEOUT:.0f}s", log_path))
 
 
-def _launch_app(env: dict[str, str], log_path: Path) -> "subprocess.Popen[bytes]":
-    """Start the app the way the container does, both streams captured to `log_path`."""
-    with log_path.open("wb") as sink:
-        return subprocess.Popen(
-            [sys.executable, "-m", "hqptuner"],
-            cwd=REPO_ROOT,
-            env=env,
-            stdout=sink,
-            stderr=subprocess.STDOUT,
-        )
+def launch_app(env: dict[str, str], log_path: Path) -> tuple["subprocess.Popen[bytes]", AppOutput]:
+    """Start the app the way the container does, both streams copied to `log_path` through the returned output."""
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "hqptuner"],
+        cwd=REPO_ROOT,
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+    )
+    if proc.stdout is None:
+        raise RuntimeError(_startup_failure("the app's output was not piped", log_path))
+    return proc, AppOutput(proc.stdout, log_path)
+
+
+def _listening_port(output: AppOutput, log_path: Path) -> int:
+    """The port the app bound, or a startup failure carrying its output if it reported none within the ceiling."""
+    port = output.port(READY_TIMEOUT)
+    if port is not None:
+        return port
+    if output.ended:
+        raise RuntimeError(_startup_failure("app output ended before it reported a listening port", log_path))
+    raise RuntimeError(_startup_failure(f"app reported no listening port within {READY_TIMEOUT:.0f}s", log_path))
 
 
 def _terminate(proc: "subprocess.Popen[bytes]") -> None:
@@ -316,15 +381,15 @@ def stack(tmp: Path) -> Iterator[Stack]:
     metering = fake_metering.Stream()
     meter = fake_metering.spawn_stream(metering)
     proc: subprocess.Popen[bytes] | None = None
+    output: AppOutput | None = None
     try:
         control_port = next(control)
         next(http)
         metering_port = next(meter)
-        listen_port = _free_port()
         log_path = tmp / "app.log"
-        env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
-        proc = _launch_app(env, log_path)
-        base_url = f"http://127.0.0.1:{listen_port}"
+        env = _app_env(control_port, int(http_state["_port"]), metering_port, tmp)
+        proc, output = launch_app(env, log_path)
+        base_url = f"http://127.0.0.1:{_listening_port(output, log_path)}"
         _wait_for_ready(base_url, proc, log_path, control_log, http_state)
         yield Stack(
             base_url=base_url,
@@ -336,6 +401,8 @@ def stack(tmp: Path) -> Iterator[Stack]:
     finally:
         if proc is not None:
             _terminate(proc)
+        if output is not None:
+            output.close()
         # `close()` would raise GeneratorExit at the yield and skip the teardown
         # that follows it; resuming normally is what runs it.
         next(control, None)

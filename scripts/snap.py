@@ -13,12 +13,11 @@ Measure prints one JSON object per matching element: bounding box plus any
   --full-page        capture full scrollable page
   --dark / --light   emulate prefers-color-scheme (default: dark)
   --wait SELECTOR    wait for selector before acting
-  --settle MS        extra settle delay after the fonts load (default 250)
   --eval JS          run JS in page context after load, print its JSON result
   --measure SELECTOR repeatable; dump geometry for every match
   --style PROP       repeatable; computed style properties to include in measure
   --console          collect console errors, uncaught page errors and failed
-                     requests seen from before load until after settle, into
+                     requests seen from before load until the JSON prints, into
                      the JSON under ``console``
   --text SELECTOR    repeatable; print the rendered text of every match as
                      numbered blocks after the JSON, with the element's title,
@@ -36,11 +35,11 @@ system chromium instead of an ms-playwright cache), else playwright's default.
 
 import argparse
 import json
-import os
 import sys
 from typing import Any
 
-from playwright.sync_api import Browser, ConsoleMessage, Error, Page, Playwright, Request, Response, sync_playwright
+from chromium import launch
+from playwright.sync_api import ConsoleMessage, Error, Page, Request, Response, sync_playwright
 
 MEASURE_JS = """
 ([sel, props]) => Array.from(document.querySelectorAll(sel)).map(el => {
@@ -114,7 +113,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     scheme.add_argument("--dark", dest="scheme", action="store_const", const="dark", default="dark")
     scheme.add_argument("--light", dest="scheme", action="store_const", const="light")
     ap.add_argument("--wait", metavar="SELECTOR")
-    ap.add_argument("--settle", type=int, default=250, metavar="MS")
     ap.add_argument("--eval", dest="eval_js", metavar="JS")
     ap.add_argument("--measure", action="append", default=[], metavar="SELECTOR")
     ap.add_argument("--style", action="append", default=[], metavar="PROP")
@@ -124,14 +122,6 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
     if not (args.out or args.measure or args.eval_js or args.console or args.text):
         ap.error("nothing to do: give an output path, --measure, --eval, --console, or --text")
     return args
-
-
-def launch(pw: Playwright) -> Browser:
-    """Launch chromium, preferring the binary named by ``HQPTUNER_CHROMIUM`` over playwright's default."""
-    binary = os.environ.get("HQPTUNER_CHROMIUM")
-    if binary:
-        return pw.chromium.launch(executable_path=binary)
-    return pw.chromium.launch()
 
 
 def attach_console(page: Page, sink: list[dict[str, Any]]) -> None:
@@ -182,7 +172,6 @@ def run(page: Page, args: argparse.Namespace) -> None:
         page.wait_for_selector(args.wait)
     page.evaluate(FONTS_JS)
     page.wait_for_function(FONTS_LOADED_JS, timeout=FONTS_TIMEOUT)
-    page.wait_for_timeout(args.settle)
     results: dict[str, Any] = {}
     if args.console:
         results["console"] = console

@@ -13,8 +13,9 @@ Policy notes:
 - The app under test is a stack of this module's own, never the session stack,
   since stopping it is the point. The wire fakes stay up across the restart,
   the way the engine stays up while HQPTuner restarts.
-- Waits are bounded: the exit is a process wait under a ceiling and the page's
-  feed is an awaited response under a ceiling.
+- Waits are bounded: the port the app bound is read from its output under a
+  ceiling, the exit is a process wait under a ceiling and the page's feed is an
+  awaited response under a ceiling.
 """
 
 import http.client
@@ -23,7 +24,6 @@ import os
 import signal
 import socket
 import subprocess
-import sys
 import tempfile
 import typing
 import urllib.parse
@@ -40,10 +40,6 @@ from playwright.sync_api import Page, Response
 
 from e2e.support import stack as stack_support
 from hqptuner.config import Config
-
-#: Repo root — tests/e2e/test_stop_and_restart.py, so three parents up. The app
-#: runs from here so that the checkout's `hqptuner` package is the one imported.
-REPO_ROOT = Path(__file__).resolve().parents[2]
 
 #: Ceiling on the app answering with daemon-derived state after a start, s.
 READY_TIMEOUT = 30.0
@@ -73,6 +69,7 @@ class App:
     """An app subprocess plus what it takes to start it again exactly as before."""
 
     proc: "subprocess.Popen[bytes]"
+    output: stack_support.AppOutput
     port: int
     base_url: str
     env: dict[str, str]
@@ -94,14 +91,6 @@ def clean_slate() -> None:
     """Nothing to reset: these tests never touch the session stack, so they do not start it either."""
 
 
-def _free_port() -> int:
-    """Bind an ephemeral loopback port, read its number, hand back the hole."""
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        port: int = sock.getsockname()[1]
-    return port
-
-
 def _state_paths(state: Path) -> dict[str, str]:
     """Every path the app writes, redirected under `state`, so nothing lands in the checkout's own `state/`."""
     hints = typing.get_type_hints(Config)
@@ -112,33 +101,27 @@ def _state_paths(state: Path) -> dict[str, str]:
     }
 
 
-def _app_env(listen_port: int, control_port: int, http_port: int, state: Path) -> dict[str, str]:
-    """The app's whole configuration: the fakes, a scratch state area, and fast polling.
+def _app_env(control_port: int, http_port: int, metering_port: int, state: Path) -> dict[str, str]:
+    """The app's whole configuration: the fakes, a scratch state area, fast polling, and listen port 0.
 
+    Port 0 has the first run bind a port of the kernel's choosing, read back from its output.
     Credentials are arbitrary, but non-empty: the app opens the 8088 lane only with a pair to open it with.
     """
     return {
         **os.environ,
         **_state_paths(state),
         "HQPTUNER_LISTEN_HOST": "127.0.0.1",
-        "HQPTUNER_LISTEN_PORT": str(listen_port),
+        "HQPTUNER_LISTEN_PORT": "0",
+        "HQPTUNER_LOG_LEVEL": stack_support.APP_LOG_LEVEL,
         "HQPTUNER_HQP_HOST": "127.0.0.1",
         "HQPTUNER_HQP_CONTROL_PORT": str(control_port),
         "HQPTUNER_HQP_HTTP_PORT": str(http_port),
-        "HQPTUNER_HQP_METERING_PORT": str(_free_port()),
+        "HQPTUNER_HQP_METERING_PORT": str(metering_port),
         "HQPTUNER_HQP_USERNAME": "hqplayer",
         "HQPTUNER_HQP_PASSWORD": "password",
         "HQPTUNER_POLL_INTERVAL": "0.1",
         "HQPTUNER_ALARM_THRESHOLD": "0.05",
     }
-
-
-def _launch(env: dict[str, str], log_path: Path) -> "subprocess.Popen[bytes]":
-    """Start the app the way the container does, both streams captured to `log_path`."""
-    with log_path.open("wb") as sink:
-        return subprocess.Popen(
-            [sys.executable, "-m", "hqptuner"], cwd=REPO_ROOT, env=env, stdout=sink, stderr=subprocess.STDOUT
-        )
 
 
 def _answers(port: int, path: str) -> bool:
@@ -165,43 +148,60 @@ def _ready(app: App) -> bool:
     return app.engine.wait_for_command(serving, timeout=READY_TIMEOUT)
 
 
-def _end(proc: "subprocess.Popen[bytes]") -> None:
-    """Terminate the app if it is still running and reap it, killing it if it outstays the stop ceiling."""
-    if proc.poll() is not None:
-        return
-    proc.terminate()
-    try:
-        proc.wait(timeout=STOP_TIMEOUT)
-    except subprocess.TimeoutExpired:
-        proc.kill()
-        proc.wait()
+def _end(proc: "subprocess.Popen[bytes]", output: stack_support.AppOutput) -> None:
+    """Terminate the app if it is still running and reap it, killing it if it outstays the stop ceiling.
+
+    Its output is then read to the end, so nothing is still writing the log when the state directory goes.
+    """
+    if proc.poll() is None:
+        proc.terminate()
+        try:
+            proc.wait(timeout=STOP_TIMEOUT)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait()
+    output.close()
 
 
 @pytest.fixture
 def app() -> Iterator[App]:
-    """The control and config fakes and one running app on them, its state in a directory removed at teardown."""
+    """The control and config fakes and one running app on them, its state in a directory removed at teardown.
+
+    The metering port is one nothing serves on, held by a bound socket that never listens for the fixture's life.
+    """
     control_state = dict(DEFAULTS)
     control_log = stack_support.NotifyingLog()
     control = stack_support.spawn_control(control_state, control_log)
     http_state = stack_support.NotifyingState(fake_http.state())
     http = fake_http.spawn(http_state)
     scratch = tempfile.TemporaryDirectory(prefix="hqptuner-restart-")
+    unserved = socket.socket()
+    launched: tuple[subprocess.Popen[bytes], stack_support.AppOutput] | None = None
     running: App | None = None
     try:
         control_port = next(control)
         next(http)
         state = Path(scratch.name)
-        listen_port = _free_port()
-        env = _app_env(listen_port, control_port, int(http_state["_port"]), state)
-        base_url = f"http://127.0.0.1:{listen_port}"
+        unserved.bind(("127.0.0.1", 0))
+        env = _app_env(control_port, int(http_state["_port"]), unserved.getsockname()[1], state)
+        launched = stack_support.launch_app(env, state / "app-1.log")
+        proc, output = launched
+        port = output.port(READY_TIMEOUT)
+        if port is None:
+            raise AppDidNotStartError(state / "app-1.log")
+        base_url = f"http://127.0.0.1:{port}"
         engine = stack_support.Stack(base_url, control_log, control_state, http_state, fake_metering.Stream())
-        running = App(_launch(env, state / "app-1.log"), listen_port, base_url, env, state, engine)
+        rerun_env = {**env, "HQPTUNER_LISTEN_PORT": str(port)}
+        running = App(proc, output, port, base_url, rerun_env, state, engine)
         if not _ready(running):
             raise AppDidNotStartError(state / "app-1.log")
         yield running
     finally:
         if running is not None:
-            _end(running.proc)
+            launched = (running.proc, running.output)
+        if launched is not None:
+            _end(*launched)
+        unserved.close()
         next(control, None)
         next(http, None)
         scratch.cleanup()
@@ -219,12 +219,16 @@ def _stop(app: App) -> int | None:
 def _restart(app: App) -> str | None:
     """Stop the app, start it again on the same port and state, and return why it did not come back, or None.
 
-    The new process replaces the old one on `app`, so teardown ends whichever is running.
+    The new process replaces the old one on `app`, so teardown ends whichever is running. The restart is handed
+    the port the first run bound, and is held to having bound that same port.
     """
     if _stop(app) is None:
         return f"first run still running {STOP_TIMEOUT:.0f}s after SIGTERM"
+    app.output.close()
     log_path = app.state / "app-2.log"
-    app.proc = _launch(app.env, log_path)
+    app.proc, app.output = stack_support.launch_app(app.env, log_path)
+    if app.output.port(READY_TIMEOUT) != app.port:
+        return f"restart did not listen on the first run's port {app.port}\n{log_path.read_text(errors='replace')}"
     if not _ready(app):
         return f"restart never came up within {READY_TIMEOUT:.0f}s\n{log_path.read_text(errors='replace')}"
     return None

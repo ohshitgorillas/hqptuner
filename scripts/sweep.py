@@ -49,19 +49,24 @@ Browser binary from ``HQPTUNER_CHROMIUM`` when set, as scripts/snap.py.
 
 import argparse
 import json
-import os
 import re
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from playwright.sync_api import Browser, Page, Playwright, sync_playwright
+from chromium import launch
+from playwright.sync_api import Browser, Page, Response, sync_playwright
 from sweepplots import PLOTS_JS, derive_plots
 from sweepslide import SETTLE_MS, PlotPass, attach_console, slider_pass
 
 DEFAULT_VIEWPORT = "1280x900"
 MODE_SEL = '[data-k="output_mode"] .segment button'
+# The endpoint a control's edit posts to; its response means the server's staged buffer holds the edit.
+STAGE_PATH = "/api/config/stage"
+# Ceiling, in ms, on a condition the sweep waits for, never a duration anything is expected to take.
+CONDITION_TIMEOUT = 10_000
 
 TABS_JS = """
 () => Array.from(document.querySelectorAll('.tab-nav button')).map(b => ({
@@ -222,14 +227,6 @@ def parse_viewport(value: str) -> tuple[int, int]:
     return int(match.group(1)), int(match.group(2))
 
 
-def launch(pw: Playwright) -> Browser:
-    """Launch chromium, preferring the binary named by ``HQPTUNER_CHROMIUM`` over playwright's default."""
-    binary = os.environ.get("HQPTUNER_CHROMIUM")
-    if binary:
-        return pw.chromium.launch(executable_path=binary)
-    return pw.chromium.launch()
-
-
 def keep_tabs(tabs: list[dict[str, Any]], wanted: list[str]) -> list[dict[str, Any]]:
     """Keep the tabs named by ``--tab``, by id or label, case-insensitively; no names keeps all."""
     if not wanted:
@@ -248,9 +245,10 @@ def slug(value: str) -> str:
 
 
 def select_tab(page: Page, tab_id: str) -> None:
-    """Click a tab by its id and let its body paint."""
-    page.click(f'.tab-nav button[data-testid="tab-{tab_id}"]')
-    page.wait_for_timeout(SETTLE_MS)
+    """Click a tab by its id and wait until the tab bar marks it active, in the render that draws its body."""
+    button = f'.tab-nav button[data-testid="tab-{tab_id}"]'
+    page.click(button)
+    page.wait_for_selector(f"{button}.active", timeout=CONDITION_TIMEOUT)
 
 
 def mode_options(page: Page) -> list[dict[str, Any]]:
@@ -260,11 +258,21 @@ def mode_options(page: Page) -> list[dict[str, Any]]:
     return options
 
 
+def is_stage(res: Response) -> bool:
+    """Whether a response answers a control's edit posted to the staged buffer."""
+    return res.request.method == "POST" and urlsplit(res.url).path == STAGE_PATH
+
+
 def select_mode(page: Page, value: str) -> None:
-    """Stage a hero MODE position by clicking its segment button, as a user would."""
+    """Click a hero MODE position, as a user would; a click that moves MODE waits for the server to stage it."""
     select_tab(page, "output")
-    page.click(f'{MODE_SEL}[data-v="{value}"]')
-    page.wait_for_timeout(SETTLE_MS)
+    button = f'{MODE_SEL}[data-v="{value}"]'
+    if "active" in (page.get_attribute(button, "class", timeout=CONDITION_TIMEOUT) or "").split():
+        page.click(button)
+    else:
+        with page.expect_response(is_stage, timeout=CONDITION_TIMEOUT):
+            page.click(button)
+    page.wait_for_selector(f"{button}.active", timeout=CONDITION_TIMEOUT)
 
 
 def read_pending(page: Page) -> dict[str, Any]:
@@ -349,7 +357,6 @@ def sweep(browser: Browser, args: argparse.Namespace) -> None:
     attach_console(page, run.console)
     page.goto(args.url, wait_until="networkidle")
     page.wait_for_selector(".tab-nav button")
-    page.wait_for_timeout(SETTLE_MS)
     run.tabs = keep_tabs(page.evaluate(TABS_JS), args.tab)
     accents: list[str] = page.evaluate(ACCENTS_JS)
     pending = read_pending(page)
