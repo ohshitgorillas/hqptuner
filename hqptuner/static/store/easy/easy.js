@@ -10,6 +10,8 @@
 // It lives in `hqptuner/data/easy-presets.json`, keyed by preset id and knob id,
 // so that owner-approved copy is edited in one place and never here.
 
+import { familyOf } from "../../model/family.js";
+
 /**
  * @typedef {object} Knob
  *   One tile's adjustment. Presets carry zero, one or two.
@@ -199,7 +201,7 @@ const FILTERS = {
  * @returns {string}
  */
 function chainName(value, chain) {
-  return typeof value === "string" ? value : value[chain === "sdm" ? "sdm" : "pcm"];
+  return typeof value === "string" ? value : value[familyOf(chain)];
 }
 
 /**
@@ -340,7 +342,7 @@ export function writeSet(presetId, outputMode, knobs = {}) {
  * @returns {string}
  */
 export function filterFor(presetId, outputMode, knobs = {}, nx = false) {
-  const chain = outputMode === "sdm" ? "sdm" : "pcm";
+  const chain = familyOf(outputMode);
   const keys = KEYS[chain];
   return writeSet(presetId, chain, knobs)[nx ? keys.nx : keys.x1] || "";
 }

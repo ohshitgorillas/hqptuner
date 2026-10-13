@@ -4,6 +4,7 @@
 
 import { NEW, keyOf, homeOf } from "../../../model/builders/builder.js";
 import { isChain, valOf } from "../../../model/builders/snapshot.js";
+import { familyOf } from "../../../model/family.js";
 import { schema } from "../../schema.js";
 import { MODES } from "../../schema/options.js";
 import { runningValue } from "../../resolve.js";
@@ -140,20 +141,12 @@ export const SNAP_COPY = {
 export const byChain = (v, ch) => (typeof v === "string" ? v : v[ch]);
 
 /**
- * The chain a wire value names; anything but SDM reads as PCM.
- *
- * @param {unknown} v
- * @returns {Chain}
- */
-const asChain = (v) => (v === "sdm" ? "sdm" : "pcm");
-
-/**
  * The chain a record's rows sit on: its Mode where it holds one, else the chain it was taken on.
  *
  * @param {SnapRecord} rec
  * @returns {Chain}
  */
-export const recordChain = (rec) => asChain(rec.fields.mode ?? rec.chain);
+export const recordChain = (rec) => familyOf(rec.fields.mode ?? rec.chain);
 
 /**
  * One chain's rows as enum IDs, read the way its chain's controls read them.

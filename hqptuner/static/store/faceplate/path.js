@@ -7,6 +7,7 @@ import { engineStatus, PAUSED, PLAYING, ready } from "../signals.js";
 import { runningValue } from "../resolve.js";
 import { loadedChain } from "../live/rates.js";
 import { truthy } from "../../lib/coerce.js";
+import { familyOf, isDsdRate } from "../../model/family.js";
 
 /**
  * @typedef {{ active_rate?: string }} Status  the Status-frame attribute read here
@@ -14,15 +15,13 @@ import { truthy } from "../../lib/coerce.js";
  * @typedef {"idle" | "pcm-pcm" | "pcm-sdm" | "dsd-pcm" | "sdm-sdm" | "direct"} Path
  */
 
-const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64), the lowest 1-bit bitstream rate
-
 // The metadata child's `sdm` flag is the direct answer, and the source rate is the independent check: a DSD bitstream
 // reports its bitstream rate, always at or above DSD64. Either alone suffices.
 /** Whether the source is a DSD bitstream, by its sdm flag or its rate. */
-export const sourceIsDsd = (/** @type {Metadata} */ md) => truthy(md.sdm) || Number(md.samplerate) >= DSD_FLOOR;
+export const sourceIsDsd = (/** @type {Metadata} */ md) => truthy(md.sdm) || isDsdRate(md.samplerate);
 
 /** Whether the output is an SDM bitstream, by its rate. */
-export const outputIsSdm = (/** @type {Status} */ st) => Number(st.active_rate) >= DSD_FLOOR;
+export const outputIsSdm = (/** @type {Status} */ st) => isDsdRate(st.active_rate);
 
 /**
  * The path playing now: `idle` with nothing playing, else source family to output family, with `sdm-sdm` a DSD
@@ -47,7 +46,7 @@ export function playbackPath() {
  */
 export function runningChain() {
   const path = playbackPath();
-  if (path === "idle") return loadedChain() === "sdm" ? "sdm" : "pcm";
+  if (path === "idle") return familyOf(loadedChain());
   return path === "pcm-pcm" || path === "dsd-pcm" ? "pcm" : "sdm";
 }
 

@@ -10,6 +10,7 @@
 
 import { engineState, engineStatus, enums, modeName } from "../signals.js";
 import { schema } from "../schema.js";
+import { modeOfName } from "../../model/family.js";
 
 /**
  * @typedef {import("../narrow/facets.js").EnumItem} EnumItem
@@ -81,16 +82,9 @@ export const CHAINS = {
   ],
 };
 
-// Mode is the one live field whose value is a name rather than a number. The
-// modes enumeration is device-dependent — it drops SDM on a device that cannot
-// do DSD — so the form value is matched from the item's NAME, exactly as
-// routing._mode_form_value does on the other side.
 /** The mode form value the engine's reported mode name matches, "" when it matches none. */
 export function modeValue() {
-  const name = modeName.value.toUpperCase();
-  if (name.startsWith("[SOURCE]")) return "auto";
-  if (name.startsWith("PCM")) return "pcm";
-  return name.startsWith("SDM") || name.startsWith("DSD") ? "sdm" : "";
+  return modeOfName(modeName.value);
 }
 
 // Which side of the 1x/Nx split the playing material falls on. The boundary is
