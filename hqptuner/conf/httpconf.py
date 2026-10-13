@@ -287,12 +287,11 @@ class HttpConfigClient:
         """
         await self._get("/config/refresh")
 
-    async def restore(self, cfgfile: bytes, scope: str) -> None:
+    async def restore(self, cfgfile: bytes, scope: str = "system") -> None:
         """Restore a full settings archive via multipart ``POST /restore``.
 
-        ``scope="system"`` targets ``/etc/hqplayer``; ``"user"`` targets
-        ``~/.hqplayer``. Only the one the daemon loads is the running config.
-        On a system-scoped daemon ``scope=system``
+        ``scope="system"`` targets the running config (``/etc/hqplayer``);
+        ``"user"`` targets ``~/.hqplayer``. ``scope=system``
         writes every archive member to disk (**additively** — a member omitted
         from the zip is not deleted) and the daemon self-restarts (~5.6 s), landing
         on the ``[default]`` config (``hqplayerd.xml``); it does **not** restore a

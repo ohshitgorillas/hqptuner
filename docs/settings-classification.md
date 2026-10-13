@@ -3,11 +3,11 @@
 Every architecture §7.1 control tagged with lane:
 
 - **live** — Control API (4321) setter exist; change take effect now, no daemon restart.
-- **http** — no live setter; setting persist by **restore lane**: HQPTuner fetch `/backup`, surgically edit field's element/attribute in running config XML (`presetconf.FIELD_MAP`), push archive with `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`, Digest auth). Daemon self-restart in **~5.6 s** (`lanes/http/restore.py`). Field names below are daemon's own `/config` form field names, used as read side and staging key; **write is restore, not form POST**.
+- **http** — no live setter; setting persist by **restore lane**: HQPTuner fetch `/backup`, surgically edit field's element/attribute in running config XML (`presetconf.FIELD_MAP`), push archive with `POST /restore` (`scope=system`, Digest auth). Daemon self-restart in **~5.6 s** (`lanes/http/restore.py`). Field names below still daemon's own `/config` form field names — read side and staging key — but **write not form POST**.
 
   > **No `POST /config` exist.** `/config` GET-only (`conf/httpconf.py`); only `POST /config/...` call is `/config/profile/delete` for removing preset mirror. Everything persistent ride restore lane — also why `volume_fixed` can carry `2`; form submit cannot express it. Real **form** POSTs exist only for three routes outside this table's scope: `POST /matrix`, `POST /matrix/{load,save,delete}`, `POST /speakers` (~3 s engine reload each).
 - **file (read)** — `/config` form carry field but render it with widget narrower than its XML domain, so form value lossy. Write still go through http lane; only **baseline read** come from config file (`manager.file_config`, exposed as `file` on `GET /api/config`). `volume_fixed` only such field today.
-- **file (restore)** — no `/config` form field **and** no live setter; setting live only in `<engine>` element of config XML (hardware acceleration). Applied by editing `/backup` archive's `<engine>` tag (surgical, byte-faithful) and pushing via `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`), which daemon re-read on self-restart (~5.6 s) that **preserve active preset** — no `systemctl`, plain Digest auth. See `protocol.md` §3.6.
+- **file (restore)** — no `/config` form field **and** no live setter; setting live only in `<engine>` element of config XML (hardware acceleration). Applied by editing `/backup` archive's `<engine>` tag (surgical, byte-faithful) and pushing via `POST /restore` (`scope=system`), which daemon re-read on self-restart (~5.6 s) that **preserve active preset** — no `systemctl`, plain Digest auth. See `protocol.md` §3.6.
 
 Empirical basis: hqplayerd 6.0.4 with the engine idle (`state=0`). Wire details in `protocol.md`.
 
@@ -113,8 +113,8 @@ Preset CRUD not 4321 Control API operation for HQPTuner — go through port-8088
 
 | Operation | Route | Field |
 |---|---|---|
-| Switch | `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`) onto `[default]` | preset's XML as working config, mirrored into `data/cfgs` |
-| Save (create/overwrite) | `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`) | running config as working config, mirrored into `data/cfgs` |
+| Switch | `POST /restore` (`scope=system`) onto `[default]` | preset's XML as working config, mirrored into `data/cfgs` |
+| Save (create/overwrite) | `POST /restore` (`scope=system`) | running config as working config, mirrored into `data/cfgs` |
 | Delete | `POST /config/profile/delete` | `profile=<name>` |
 | List / active | 4321 `ConfigurationList` / `ConfigurationGet` (unauth) or `GET /config` | — |
 

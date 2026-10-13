@@ -18,7 +18,7 @@ XML messages, unauthenticated. Carries the runtime-switchable settings (filters,
 
 ### 2.2 HTTP lane and the restore path (TCP 8088)
 
-Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`, the configuration the daemon loads, which nothing on the wire reveals), on which the daemon self-restarts in about 5.6 s.
+Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope=system`), on which the daemon self-restarts in about 5.6 s.
 
 **There is no `POST /config`.** `/config` is GET-only. The genuine form POSTs are `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (about 3 s engine reload each), plus `POST /config/profile/delete` for removing a preset mirror. Per-field lane assignments and the evidence base live in `docs/settings-classification.md`.
 

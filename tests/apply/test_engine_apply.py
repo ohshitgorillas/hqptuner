@@ -53,7 +53,7 @@ async def test_applied_cuda_device_id_is_reflected_in_readback(http_manager: Con
 
 
 async def test_restored_archive_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
-    await http_manager.require_http().restore(_archive_with_nblocks("4"), scope="system")
+    await http_manager.require_http().restore(_archive_with_nblocks("4"))
     assert (await fileconfig.read_engine(http_manager))["nblocks"] == "4"
 
 
