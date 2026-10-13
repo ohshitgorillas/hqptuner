@@ -8,7 +8,6 @@ import { NEW, keyOf, savePlan, savedTo, removedFrom } from "../../../model/build
 import { knownOf, isDirty as movedFrom } from "../../../model/builders/profile.js";
 import { PRESETS } from "../../../lib/binaural-setup.js";
 import { truthy } from "../../../lib/coerce.js";
-import { errText } from "../../../lib/errtext.js";
 import { api } from "../../../lib/api.js";
 import { schema } from "../../schema.js";
 import { canonPipelines, effective, effectivePipelines, isDirty as stagedDirty } from "../../resolve.js";
@@ -23,7 +22,7 @@ import {
   stageProfileDelete,
   stageProfileSave,
 } from "../../matrix/profiles.js";
-import { descriptionError, descriptionFor, descriptions } from "../../matrix/descriptions.js";
+import { descriptionError, descriptionFailed, descriptionFor, descriptions } from "../../matrix/descriptions.js";
 import { activeMode, structuralBlock, structuralParams } from "../../xfeed/mode.js";
 import { rowOptions } from "../drawer.js";
 import { home, stations } from "./snapshot.js";
@@ -258,8 +257,9 @@ async function write(name) {
   if (!(await applyAll().catch(() => null))) return;
   try {
     descriptions.value = (await api.saveDescription(name, desc)).profiles || {};
+    descriptionError.value = "";
   } catch (e) {
-    descriptionError.value = errText(e);
+    descriptionFailed(e);
   }
   stage(null);
   go(landed);

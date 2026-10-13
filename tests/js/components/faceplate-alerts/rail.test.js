@@ -1,9 +1,9 @@
 // Rendered suite for the alert homes on hqptuner/static/components/faceplate/Rail.js: a raised alert blinks its stage in
 // its colour, and the stages the alerts darken, the ones after Shaping under an SDM modulator below its rate floor, are
-// drawn dead. Which stages darken is the store's decision, owned by tests/js/store/faceplate/alerts.test.js; this suite
+// drawn dead. Which stages darken is the store's decision, owned by tests/js/store/faceplate-alerts/alerts.test.js; this suite
 // checks only that the rail draws that decision.
 //
-// The wire is the seam, as tests/js/store/faceplate/alerts.test.js drives it: the shared shaper-fit scenario builder
+// The wire is the seam, as tests/js/store/faceplate-alerts/alerts.test.js drives it: the shared shaper-fit scenario builder
 // states the /api/state, enumerations, config and metadata payloads, the /api/health reading goes into `health`, and
 // each /api/status poll is a fresh frame on the case's own track, the health store's baseline effect registered. The
 // rail's own signals are set as tests/js/components/faceplate/rail.test.js sets them.

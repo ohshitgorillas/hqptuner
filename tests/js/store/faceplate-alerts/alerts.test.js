@@ -10,12 +10,17 @@
 // rebaselines its counters. The health module runs on the suite's fake clock, so a slow speed is held for its wait by
 // moving that clock, never by spending time. The sentences are owner copy and are nowhere in this file.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/alerts.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-alerts/alerts.test.js
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { health, engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { health, engineStatus, lastApply } from "../../../../hqptuner/static/store/signals.js";
+import { liveWriteError } from "../../../../hqptuner/static/store/live/write.js";
+import { livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
+import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
+import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { narrowingError } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
@@ -74,6 +79,12 @@ function poll(fields = {}, extra = {}) {
 async function quiet(scenario = {}) {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X, ...scenario });
   health.value = { ...HEALTHY };
+  lastApply.value = null;
+  liveWriteError.value = "";
+  livePresetError.value = "";
+  descriptionError.value = "";
+  favoritesError.value = "";
+  narrowingError.value = "";
   serial += 1;
   poll();
 }

@@ -4,7 +4,7 @@
 // The wire is the seam, as tests/js/components/faceplate/engine-row.test.js drives it: each case writes Status frames
 // into `engineStatus`, as the poll does, with the health store's baseline effect registered. Every case starts a track
 // of its own on a healthy frame, which starts the slow-speed wait over, then holds the speed it names for as long as the
-// health store takes to raise it, as tests/js/store/faceplate/alerts.test.js sustains it. The health store runs on the
+// health store takes to raise it, as tests/js/store/faceplate-alerts/alerts.test.js sustains it. The health store runs on the
 // suite's fake clock, so that hold is a move of the clock, never time spent.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-alerts/engine-row.test.js

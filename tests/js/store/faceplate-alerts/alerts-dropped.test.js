@@ -3,7 +3,7 @@
 // the credentials alert in the knob's popover, and the alert comes down once the report lists nothing. Where it does
 // show, directly under the top bar, is pinned in tests/js/components/faceplate-alerts/plate-dropped.test.js.
 //
-// Driven at the wire as tests/js/store/faceplate/alerts.test.js drives it: the /api/health reading goes into `health`
+// Driven at the wire as tests/js/store/faceplate-alerts/alerts.test.js drives it: the /api/health reading goes into `health`
 // and the /api/status frame into `engineStatus`, every simulated poll a fresh object, each case starting on a fresh track
 // with a healthy speed and nothing else wrong. The new alert's kind is the implementation's to name, so no case names
 // it: the knob is read with the report listing settings and compared with the knob read with the report empty. The
@@ -12,7 +12,7 @@
 // Not reachable here: a timeout measured on a clock. The alerts store takes no clock seam, so this file pins the
 // alert's dependence on the report alone, and not on elapsed time.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/alerts-dropped.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-alerts/alerts-dropped.test.js
 
 import { test } from "node:test";
 import assert from "node:assert/strict";

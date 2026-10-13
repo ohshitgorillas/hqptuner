@@ -89,7 +89,7 @@ Current state only.
 
 ## Alerts
 - No strip. Each alert lives where it belongs and blinks there: red = crit, amber = warn or advice. Fixed colours, never the accent. The blink overlays the lamp's state (an unlit lamp blinks too). Reduced motion: steady.
-- The one exception is settings a daemon restart dropped (warn). Its line, one row per setting, shows directly under the header on every view, with no tap, until tapped; the tap clears the report. The brand knob shows connection status only and never carries it.
+- These lines show directly under the header on every view, with no tap. Settings a daemon restart dropped (warn): its line has one row per setting, stays until tapped, and the tap clears the report. Six failure lines, each warn: a failed apply, a failed live write, a failed snapshot, a failed profile description, a failed favorite, a failed narrowing. Each failure line clears when its area next succeeds or when tapped. The brand knob shows connection status only and never carries it.
 - v1's alerts and copy, verbatim, each where v1's would fire:
   - Credentials rejected (crit) → brand knob, blinking red (steady red stays Unreachable).
   - DSP speed (crit / warn) → engine-row speed figure.
@@ -104,7 +104,6 @@ Current state only.
 - **Tap a header home:** knob and speed figure open the alert in a popover; the gear's Settings rail category blinks and its drawer carries the line.
 - Several alerts on one home: the worst sets the blink.
 - No hideable stage hosts an alert.
-- Dropped: v1's failed preset pick/delete alert (nothing to act on).
 - Copy never points at a place by position (`below`, `top bar`) or by a v1 name (`status pill`, `System tab`); it names the v2 place.
 
 ## Source drawer

@@ -13,8 +13,7 @@ import {
   removedFrom,
 } from "../../../model/builders/builder.js";
 import { api } from "../../../lib/api.js";
-import { errText } from "../../../lib/errtext.js";
-import { refreshLivePresets, livePresetError } from "../../live/presets.js";
+import { refreshLivePresets, livePresetError, snapshotFailed } from "../../live/presets.js";
 
 /** @typedef {import("../../../model/builders/builder.js").Ref} Ref */
 /**
@@ -134,9 +133,10 @@ async function write({ book, name, to, fields, values }) {
     await api.saveLivePreset(name, fields, to, values);
     if (gone) await api.deleteLivePreset(from.name, from.st);
   } catch (e) {
-    livePresetError.value = errText(e);
+    snapshotFailed(e);
     return;
   }
+  livePresetError.value = "";
   await refreshLivePresets();
   staged.value = stashed(stashed(staged.value, keyOf(from), null), keyOf(landed), null);
   cur.value = landed;
@@ -177,9 +177,10 @@ export async function remove(o) {
   try {
     await api.deleteLivePreset(from.name, from.st);
   } catch (e) {
-    livePresetError.value = errText(e);
+    snapshotFailed(e);
     return;
   }
+  livePresetError.value = "";
   await refreshLivePresets();
   staged.value = stashed(staged.value, keyOf(from), null);
   cur.value = landed;

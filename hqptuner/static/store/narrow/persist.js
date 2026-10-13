@@ -10,7 +10,7 @@
 // of that store: it lives in favorites.js and stays session state.
 import { signal, effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { failText } from "../../lib/errtext.js";
 import { PLATFORM } from "../../lib/clock.js";
 import { sameJson } from "../../lib/samejson.js";
 import { quietWindow } from "../../model/shell/timing.js";
@@ -69,8 +69,11 @@ const QUIET_MS = 400;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 
-/** The last failed narrowing write, as the server's own sentence. */
+/** The last failed narrowing read or write's sentence, "" once one succeeds. */
 export const narrowingError = signal("");
+
+/** The sentence a failed narrowing call opens with. */
+const NARROWING_LEAD = "Narrow filters failed: ";
 
 /** The quiet window a facet move restarts; it writes the facets out when it closes. */
 let quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), PLATFORM);
@@ -133,8 +136,9 @@ export async function hydrateNarrowing() {
     } finally {
       applying = false;
     }
+    narrowingError.value = "";
   } catch (e) {
-    narrowingError.value = errText(e);
+    narrowingError.value = failText(NARROWING_LEAD, e);
   }
 }
 
@@ -157,7 +161,7 @@ export async function flushNarrowing() {
   } catch (e) {
     // Still owed: the next facet the user moves, or the next flush, retries it.
     for (const key of changedKeys(snap)) touched.add(key);
-    narrowingError.value = errText(e);
+    narrowingError.value = failText(NARROWING_LEAD, e);
   }
 }
 

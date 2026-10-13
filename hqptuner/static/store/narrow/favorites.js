@@ -27,7 +27,7 @@
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { getStored, removeStored } from "../../lib/browser/storage.js";
-import { errText } from "../../lib/errtext.js";
+import { failText } from "../../lib/errtext.js";
 
 // The pre-server store. Read exactly once, by the migration below, so stars set
 // before favorites moved to the server survive the move.
@@ -41,10 +41,13 @@ export const favoriteFilters = signal(new Set());
 // (store/narrow/match.js).
 export const favoriteModulators = signal(new Set());
 export const nFavOnly = signal(false);
-// The last failed write, as the server's own sentence. One error for the whole
-// feature, latest wins: there is one set, and a second toggle clears whatever
-// the first left behind.
+// The last failed read or write's sentence, "" once one succeeds. One error for
+// the whole feature, latest wins: there is one set, and a second toggle clears
+// whatever the first left behind.
 export const favoritesError = signal("");
+
+/** The sentence a failed favorites call opens with. */
+const FAVORITE_LEAD = "Favorite failed: ";
 
 /**
  * The names left in localStorage by a pre-server HQPTuner, empty when there are
@@ -91,6 +94,7 @@ export async function hydrateFavorites() {
     const stored = body.filters || [];
     favoriteFilters.value = new Set(stored);
     favoriteModulators.value = new Set(body.modulators || []);
+    favoritesError.value = "";
     const legacy = legacyNames();
     // No legacy key is the steady state — every load after the first — and it
     // must not write, or every page open would PUT the list back unchanged.
@@ -101,7 +105,7 @@ export async function hydrateFavorites() {
     favoriteFilters.value = new Set(saved.filters || []);
     dropLegacy();
   } catch (e) {
-    favoritesError.value = errText(e);
+    favoritesError.value = failText(FAVORITE_LEAD, e);
   }
 }
 
@@ -175,7 +179,7 @@ async function toggleIn(set, kind, name) {
   } catch (e) {
     set.value = before;
     syncFavOnly();
-    favoritesError.value = errText(e);
+    favoritesError.value = failText(FAVORITE_LEAD, e);
   }
 }
 

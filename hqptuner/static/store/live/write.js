@@ -16,12 +16,21 @@
 // No control here is ever refused because playback is running (CLAUDE.md): what
 // a live change costs mid-stream is the user's to spend, and the captions say so.
 
+import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
+import { failText } from "../../lib/errtext.js";
 import { engineState, enums } from "../signals.js";
 import { refreshConfig } from "../sync.js";
-import { liveUnsettled, RATE_MIRRORED } from "./state.js";
+import { liveUnsettled, RATE_MIRRORED, reportError } from "./state.js";
 
 /** @typedef {import("./state.js").LiveReport} LiveReport */
+
+/** The sentence a live write that threw opens with. */
+const LIVE_LEAD = "Live change failed: ";
+
+// The last live write's failure, "" once a write verifies: a write that threw, or
+// the settings its report says did not verify. Latest wins.
+export const liveWriteError = signal("");
 
 // Latest-wins across overlapping re-mirrors: State is whatever the most recent
 // read of it said, so only the newest call to start installs what it read.
@@ -91,10 +100,11 @@ export async function remirrorLive(fields, report) {
 }
 
 // Write one live control. Returns nothing on purpose: the outcome is the mirrors
-// the re-mirror installs, so no control has to hold a second copy of it.
+// the re-mirror installs and `liveWriteError`, so no control has to hold a second
+// copy of it.
 /**
  * Write one live control and re-mirror behind it, counting it on `liveUnsettled`
- * until the re-mirror is in.
+ * until the re-mirror is in, and leave its failure, or "", in `liveWriteError`.
  * @param {string} field
  * @param {string | number | boolean} value
  * @returns {Promise<void>}
@@ -103,8 +113,10 @@ export async function writeLive(field, value) {
   liveUnsettled.value += 1;
   try {
     const { report } = await api.live({ [field]: String(value) });
+    liveWriteError.value = reportError(report);
     await remirrorLive([field], report);
-  } catch {
+  } catch (e) {
+    liveWriteError.value = failText(LIVE_LEAD, e);
     // A refused batch (409) applied nothing, but a thrown error is not always a
     // refusal: the daemon can accept a setter and then die under it, which leaves
     // the mirrors describing a chain that is no longer loaded. Re-read rather than

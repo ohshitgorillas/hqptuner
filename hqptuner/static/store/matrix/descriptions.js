@@ -21,7 +21,7 @@
 // Module load stays node-safe: the hydrate is guarded on `fetch` existing.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { failText } from "../../lib/errtext.js";
 import { PLATFORM } from "../../lib/clock.js";
 import { quietWindow } from "../../model/shell/timing.js";
 
@@ -33,9 +33,21 @@ const QUIET_MS = 800;
 
 /** Every stored description, keyed by profile name. */
 export const descriptions = signal(/** @type {Record<string, Description>} */ ({}));
-// The last failed write, as the server's own sentence. One error for the
-// feature, latest wins — there is one editor on screen at a time.
+// The last failed read or write's sentence, "" once one succeeds. One error for
+// the feature, latest wins — there is one editor on screen at a time.
 export const descriptionError = signal("");
+
+/** The sentence a failed description call opens with. */
+const DESCRIPTION_LEAD = "Profile description failed: ";
+
+/**
+ * Put a failed description call's sentence in `descriptionError`.
+ * @param {unknown} e
+ * @returns {void}
+ */
+export function descriptionFailed(e) {
+  descriptionError.value = failText(DESCRIPTION_LEAD, e);
+}
 
 /** @type {Map<string, string>} name -> the newest text not yet sent */
 const queued = new Map();
@@ -62,8 +74,9 @@ export async function hydrateDescriptions() {
   try {
     const body = await api.descriptions();
     descriptions.value = body.profiles || {};
+    descriptionError.value = "";
   } catch (e) {
-    descriptionError.value = errText(e);
+    descriptionFailed(e);
   }
 }
 
@@ -106,7 +119,7 @@ export async function flushDescriptions() {
       // Only re-queue when nothing newer arrived while the write was in flight —
       // the newer text is the one the user means.
       if (!queued.has(name)) queued.set(name, text);
-      descriptionError.value = errText(e);
+      descriptionFailed(e);
     }
   }
 }

@@ -26,7 +26,11 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
-import { liveBook, livePresets } from "../../../../hqptuner/static/store/live/presets.js";
+import { liveBook, livePresets, livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
+import { liveWriteError } from "../../../../hqptuner/static/store/live/write.js";
+import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
+import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { narrowingError } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
@@ -82,6 +86,11 @@ beforeEach(async () => {
   liveBook.value = {};
   livePresets.value = null;
   lastApply.value = null;
+  liveWriteError.value = "";
+  livePresetError.value = "";
+  descriptionError.value = "";
+  favoritesError.value = "";
+  narrowingError.value = "";
   pendingPreset.value = null;
   await discardAll();
   health.value = { ...HEALTHY };

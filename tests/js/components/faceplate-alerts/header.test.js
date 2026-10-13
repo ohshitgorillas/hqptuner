@@ -2,7 +2,7 @@
 // knob and Roon at default idle time blinks the gear, each in its colour, and the knob's tap opens a popover of the
 // lines homed on it, one per alert, each carrying its severity.
 //
-// The wire is the seam, as tests/js/store/faceplate/alerts.test.js drives it: the /api/health reading goes into
+// The wire is the seam, as tests/js/store/faceplate-alerts/alerts.test.js drives it: the /api/health reading goes into
 // `health`, the /api/status frame with its metadata child into `engineStatus`. The rest of the header's state is set as
 // tests/js/components/faceplate/header.test.js sets it, with its fetch fake answering the staging reads. The tap is
 // fired through the renderer's vnode seam, since render-to-string fires no events. The lines' sentences are owner copy

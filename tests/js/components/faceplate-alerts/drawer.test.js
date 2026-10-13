@@ -1,7 +1,7 @@
 // Rendered suite for the alert lines on hqptuner/static/components/faceplate/drawer/Drawer.js: a drawer an alert is
 // homed on prints that alert's line under its head, ahead of its panels, in the alert's severity.
 //
-// The wire is the seam, as tests/js/store/faceplate/alerts.test.js drives it: the shared shaper-fit scenario builder
+// The wire is the seam, as tests/js/store/faceplate-alerts/alerts.test.js drives it: the shared shaper-fit scenario builder
 // states the /api/state, enumerations, config and metadata payloads, the /api/health reading goes into `health`, and
 // each /api/status poll is a fresh frame on the case's own track, the health store's baseline effect registered. The
 // drawers are schemas of one intro tab, named by the rail ids the alerts are homed on.

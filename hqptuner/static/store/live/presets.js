@@ -16,7 +16,7 @@
 // after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { errText } from "../../lib/errtext.js";
+import { failText } from "../../lib/errtext.js";
 import { activePreset } from "../resolve.js";
 import { reportError } from "./state.js";
 import { remirrorLive } from "./write.js";
@@ -41,6 +41,18 @@ export const livePresetError = signal("");
 // read off the wire until it is.
 export const bookWanted = signal(false);
 
+/** The sentence a failed snapshot call opens with. */
+const SNAPSHOT_LEAD = "Snapshot failed: ";
+
+/**
+ * Put a failed snapshot call's sentence in `livePresetError`.
+ * @param {unknown} e
+ * @returns {void}
+ */
+export function snapshotFailed(e) {
+  livePresetError.value = failText(SNAPSHOT_LEAD, e);
+}
+
 // Nothing here judges a preset against the chain the engine has loaded. A preset
 // carries its own output mode, so one taken on the other chain applies by
 // switching the engine to it (lanes/live/lane.apply_preset) — there is no
@@ -57,9 +69,10 @@ export async function refreshLivePresets() {
     livePresets.value = body.presets || [];
     liveBook.value = body.stations || {};
     livePresetStation.value = typeof body.station === "string" ? body.station : null;
+    livePresetError.value = "";
   } catch (e) {
     livePresets.value = [];
-    livePresetError.value = errText(e);
+    snapshotFailed(e);
   }
 }
 
@@ -100,7 +113,7 @@ async function run(name, call, after) {
     const result = await call();
     if (after) await after(result);
   } catch (e) {
-    livePresetError.value = errText(e);
+    snapshotFailed(e);
   } finally {
     livePresetsBusy.value = "";
   }
