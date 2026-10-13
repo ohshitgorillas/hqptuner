@@ -256,3 +256,72 @@ def test_an_exemption_does_not_excuse_a_gate_missing_from_the_makefile(tmp_path:
         "repos:\n  - repo: local\n    hooks:\n" + hook_block("check_slow.py"),
     )
     assert CHECK(root, {"check_slow.py": "too slow for a commit hook"}) == 1
+
+
+#: The one gate the routing cases lay down; each case moves where it is named.
+ROUTED = "check_routed.py"
+
+#: A pre-commit config whose only hook runs the routed gate through its entry.
+ROUTED_HOOKED = "repos:\n  - repo: local\n    hooks:\n" + hook_block(ROUTED)
+
+#: A check recipe line that runs no gate.
+IDLE_RECIPE = "\techo nothing\n"
+
+
+@pytest.mark.parametrize(
+    ("makefile", "code"),
+    [
+        ("check: lint gates\n" + IDLE_RECIPE + "lint:\n" + IDLE_RECIPE + "gates:\n" + make_line(ROUTED), 0),
+        ("check: lint\n" + IDLE_RECIPE + "lint: gates\n" + IDLE_RECIPE + "gates:\n" + make_line(ROUTED), 0),
+        ("check:\n" + IDLE_RECIPE + "release:\n" + make_line(ROUTED), 1),
+        ("check:\n" + IDLE_RECIPE + "ci: check\n" + make_line(ROUTED), 1),
+        (f"check: scripts/gates/{ROUTED}\n" + IDLE_RECIPE, 1),
+    ],
+    ids=[
+        "recipe of a prerequisite",
+        "recipe of a prerequisite's prerequisite",
+        "recipe of a target check does not reach",
+        "recipe of a target that reaches check",
+        "prerequisite list of check",
+    ],
+)
+def test_a_makefile_gate_is_wired_only_by_a_recipe_line_check_reaches(tmp_path: Path, makefile: str, code: int) -> None:
+    root = build_tree(tmp_path, [ROUTED], makefile, ROUTED_HOOKED)
+    assert CHECK(root, {}) == code
+
+
+#: The head of a one-hook pre-commit config; each case writes the rest of that hook.
+HOOK_HEAD = "repos:\n  - repo: local\n    hooks:\n      - id: routed\n"
+
+
+@pytest.mark.parametrize(
+    ("precommit", "code"),
+    [
+        (
+            HOOK_HEAD
+            + "        name: routed\n        entry: .venv/bin/python\n"
+            + f"        args: [scripts/gates/{ROUTED}]\n        language: system\n",
+            0,
+        ),
+        (
+            HOOK_HEAD
+            + "        name: routed\n        entry: .venv/bin/python\n"
+            + f"        args:\n          - scripts/gates/{ROUTED}\n        language: system\n",
+            0,
+        ),
+        (
+            HOOK_HEAD + f"        name: scripts/gates/{ROUTED}\n        entry: .venv/bin/python -V\n"
+            "        language: system\n",
+            1,
+        ),
+        (
+            HOOK_HEAD + "        name: routed\n        entry: .venv/bin/python -V\n"
+            f"        files: scripts/gates/{ROUTED}\n        language: system\n",
+            1,
+        ),
+    ],
+    ids=["args flow list", "args block list", "name only", "files only"],
+)
+def test_a_pre_commit_gate_is_wired_only_by_a_hooks_entry_or_args(tmp_path: Path, precommit: str, code: int) -> None:
+    root = build_tree(tmp_path, [ROUTED], "check:\n" + make_line(ROUTED), precommit)
+    assert CHECK(root, {}) == code
