@@ -5,7 +5,7 @@ state limit can admit; ``check`` reads the whole archive and returns the stores 
 ``save_backup`` and ``replace_stores`` write. Nothing is written until ``check`` has passed every store.
 
 An archive member is one of three things. A single-file store is imported under its own name. The preset store is
-``presets/<name>.xml`` for each preset and ``presets/store.json`` for its settings; its active pointer is never
+``presets/<name>.xml`` for each preset and ``presets/store.json`` for its layout stamp; its active pointer is never
 imported, since an import always leaves no preset active, and any other file in it refuses the archive. Every other
 member, the connection record, ``backups/`` and the logs included, is not imported. Each JSON store is checked by the
 store's own reader over a staged copy, so a store too new or unreadable for this build is refused here exactly as it
@@ -54,7 +54,7 @@ _CHUNK = 1024 * 1024
 _TOO_NEW_CODE = "store_too_new"
 
 #: Each store an import replaces, by its name in the archive, with the store's own reader of a copy at a path. The
-#: preset store's reader reads its ``store.json`` and answers the autosave flag it holds.
+#: preset store's reader lists the store, which reads its ``store.json``.
 _READERS: dict[str, Callable[[Path], object]] = {
     "live-presets.json": lambda path: LivePresetStore(path, stations=tuple).book(),
     "favorites.json": lambda path: FavoriteStore(path).read(),
@@ -62,7 +62,7 @@ _READERS: dict[str, Callable[[Path], object]] = {
     "descriptions.json": lambda path: DescriptionStore(path).read(),
     "matrixmodes.json": lambda path: MatrixModeStore(path).read(),
     "autopilot.json": lambda path: AutopilotStore(path).read(),
-    _PRESETS: lambda path: PresetStore(path).autosave,
+    _PRESETS: lambda path: PresetStore(path).names(),
 }
 
 #: What reading a damaged or unsupported zip can raise.
@@ -112,10 +112,9 @@ class Upload:
 
 @dataclass(frozen=True)
 class CarriedPresets:
-    """A checked archive's preset store: each preset's XML by name, and the autosave flag its ``store.json`` holds."""
+    """A checked archive's preset store: each preset's XML by name."""
 
     xml: dict[str, bytes]
-    autosave: bool
 
 
 @dataclass(frozen=True)
@@ -246,9 +245,9 @@ def _checked(members: _Members) -> Carried:
         meta = members.presets.get(STORE_FILE)
         if meta is not None:
             _replace_file(root / _PRESETS / STORE_FILE, meta)
-        autosave = bool(_read_staged(_PRESETS, root / _PRESETS))
+        _read_staged(_PRESETS, root / _PRESETS)
     xml = {_preset_name(inner): data for inner, data in members.presets.items() if inner != STORE_FILE}
-    return Carried(members.files, CarriedPresets(xml, autosave))
+    return Carried(members.files, CarriedPresets(xml))
 
 
 def check(upload: Upload, limit: int) -> Carried:
@@ -279,13 +278,12 @@ def save_backup(cfg: Config) -> None:
 
 
 def _replace_presets(store: PresetStore, carried: CarriedPresets) -> None:
-    """Make ``store`` hold exactly the presets ``carried`` holds, and its autosave flag, through the store itself."""
+    """Make ``store`` hold exactly the presets ``carried`` holds, through the store itself."""
     for name in store.names():
         if name not in carried.xml:
             store.delete(name)
     for name, xml in carried.xml.items():
         store.save(name, xml, trigger="import")
-    store.set_autosave(enabled=carried.autosave)
 
 
 def replace_stores(cfg: Config, carried: Carried, presets: PresetStore) -> list[str]:

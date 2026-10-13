@@ -24,9 +24,8 @@ export const RATE_MIRRORED = new Set(["mode"]);
  * @property {boolean} [reenumerated] the server re-read the engine's enumerations for this batch
  *
  * @typedef {object} LiveAnswer
- *   What a live write answers with: the report, and the auto-save fold beside it.
+ *   What a live write answers with: the report.
  * @property {LiveReport} report
- * @property {{ name: string }} [autosaved]
  */
 
 // A 200 still carries failures: the backend verifies each setter by State

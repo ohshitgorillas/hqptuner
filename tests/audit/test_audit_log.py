@@ -41,7 +41,6 @@ EMITTERS: dict[str, Callable[[AuditLog], None]] = {
     "preset.delete": lambda log: log.preset_delete("alpha", was_active=False),
     "preset.load": lambda log: log.preset_load("alpha", "bravo"),
     "active.set": lambda log: log.active_set("alpha", None),
-    "autosave.set": lambda log: log.autosave_set(enabled=True, previous=False),
     "restore.upload": lambda log: log.restore_upload("backup.zip", 1024, "abc123"),
     "live.write": lambda log: log.live_write("convolution.enabled", "1", "1", ok=True),
 }

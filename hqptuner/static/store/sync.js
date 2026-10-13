@@ -6,7 +6,6 @@
 import { api } from "../lib/api.js";
 import { sameJson } from "../lib/samejson.js";
 import {
-  lastApply,
   health,
   engineState,
   engineStatus,
@@ -91,20 +90,11 @@ export async function refreshHealth() {
  * Trigger a daemon output-device rescan, then re-pull the config forms so the
  * device dropdowns show a newly-present endpoint (an NAA powered back on).
  *
- * @returns {Promise<{ restored: Record<string, string>, warning?: string }>}
- *   The rescan report. `warning` is set when the rescan finished but the live
- *   settings it stopped the engine for could not be put back — the caller
- *   surfaces it, because a silent loss is the bug this reports on.
+ * @returns {Promise<void>}
  */
 export async function refreshDevices() {
-  const r = await api.refreshDevices();
+  await api.refreshDevices();
   await refreshConfig();
-  // Reported here rather than at the button, so every caller surfaces it: a
-  // rescan that lost the user's live settings must say so whoever asked for it.
-  // Left untouched when there is nothing to warn about — the line is still
-  // showing the last apply's result and the user may be reading it.
-  if (r && r.warning) lastApply.value = { ok: false, code: "rescan-warning", text: r.warning };
-  return r;
 }
 
 /** Re-pull the slow snapshots — enumerations, config, matrix and the pending buffer. */

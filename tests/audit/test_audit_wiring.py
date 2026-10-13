@@ -26,12 +26,15 @@ from fake_config_xml import cfg_xml
 from fake_http import state
 from fastapi.testclient import TestClient
 from fixtures_clients import CREDENTIAL, app
-from state_import import export, store_config, upload
+from state_import import PRESET_XML, export, store_config, upload
 
 from hqptuner.presets.store.presets import PresetStore
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
+
+#: The preset the archive source saves and deletes again, so its export carries an empty preset store.
+SOURCE_PRESET = "Source"
 
 
 # --- the app under test, with and without a debug log -------------------------
@@ -100,16 +103,20 @@ def save_preset(client: TestClient, name: str) -> None:
     client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
 
 
-def import_preset_store(client: TestClient, tmp_path: Path, *, autosave: bool) -> None:
-    """Import an archive whose preset store holds no preset and carries the given autosave flag."""
+def import_preset_store(client: TestClient, tmp_path: Path) -> None:
+    """Import an archive whose preset store holds no preset."""
     source = store_config(tmp_path / "source")
-    PresetStore(source.preset_dir).set_autosave(enabled=autosave)
+    # an export carries only a preset store something wrote, so the source
+    # writes one with a save and empties it again with the delete
+    store = PresetStore(source.preset_dir)
+    store.save(SOURCE_PRESET, PRESET_XML)
+    store.delete(SOURCE_PRESET)
     upload(client, export(source))
 
 
-def arm_autosave(client: TestClient, tmp_path: Path, name: str = "Kept") -> None:
-    """Turn autosave on by a state import, then save ``name``, the active preset the autosave folds into."""
-    import_preset_store(client, tmp_path, autosave=True)
+def import_preset_store_then_save(client: TestClient, tmp_path: Path, name: str = "Kept") -> None:
+    """Replace the preset store by a state import, then save ``name``."""
+    import_preset_store(client, tmp_path)
     save_preset(client, name)
 
 
@@ -227,15 +234,6 @@ def test_an_explicit_preset_save_records_the_save_trigger(audit_client: TestClie
     assert last(audit_log, "preset.write")["trigger"] == "save"
 
 
-def test_an_autosaved_apply_records_the_autosave_trigger(
-    audit_client: TestClient, audit_log: Path, tmp_path: Path
-) -> None:
-    arm_autosave(audit_client, tmp_path)
-    stage_title(audit_client)
-    audit_client.post("/api/config/apply")
-    assert last(audit_log, "preset.write")["trigger"] == "autosave"
-
-
 def test_a_profile_fanout_into_a_stored_preset_records_the_fanout_trigger(
     audit_client: TestClient, audit_log: Path, tmp_path: Path
 ) -> None:
@@ -262,7 +260,7 @@ def test_deleting_a_stored_preset_appends_a_preset_delete_record(
 ) -> None:
     # an import replaces the whole preset store, deleting each preset the archive does not carry
     save_preset(audit_client, "Doomed")
-    import_preset_store(audit_client, tmp_path, autosave=False)
+    import_preset_store(audit_client, tmp_path)
     assert "preset.delete" in events(audit_log)
 
 
@@ -276,13 +274,6 @@ def test_switching_the_active_preset_appends_an_active_set_record(audit_client: 
     save_preset(audit_client, "Kept")
     audit_client.post("/api/config/apply", json={"switch_to": "Kept"})
     assert "active.set" in events(audit_log)
-
-
-def test_turning_autosave_on_appends_an_autosave_set_record(
-    audit_client: TestClient, audit_log: Path, tmp_path: Path
-) -> None:
-    import_preset_store(audit_client, tmp_path, autosave=True)
-    assert "autosave.set" in events(audit_log)
 
 
 def test_uploading_a_settings_archive_appends_a_restore_upload_record(
@@ -301,8 +292,8 @@ def test_the_audit_log_never_carries_the_daemon_credential(
     audit_client: TestClient, audit_log: Path, tmp_path: Path
 ) -> None:
     # every write path this file covers, through one app, then the whole file
-    # armed first: its import replaces the preset store, which would drop the seeded preset
-    arm_autosave(audit_client, tmp_path)
+    # the import runs first: it replaces the preset store, which would drop the seeded preset
+    import_preset_store_then_save(audit_client, tmp_path)
     seed_preset(tmp_path)
     stage_title(audit_client)
     audit_client.post("/api/config/apply")

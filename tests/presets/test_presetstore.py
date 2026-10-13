@@ -234,17 +234,3 @@ def test_a_store_already_listed_refuses_once_a_newer_hqptuner_stamps_it(tmp_path
     (tmp_path / "presets" / "store.json").write_text(json.dumps({"schema": 99}))
     with pytest.raises(PresetSchemaError):
         store.names()
-
-
-# --- reads that follow the directory -----------------------------------------
-#
-# The store answers repeated reads without re-reading files nobody touched, so
-# each test below reads once, changes the backing file, and reads again.
-
-
-def test_autosave_reads_the_flag_set_since_the_last_read(tmp_path: Path) -> None:
-    store = store_at(tmp_path)
-    store.save("alpha", PAYLOAD)
-    _ = store.autosave
-    store.set_autosave(enabled=True)
-    assert store.autosave is True

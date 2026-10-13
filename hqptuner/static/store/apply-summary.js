@@ -68,10 +68,9 @@ import { engineStopped, liveFailureText, wireLabel } from "./ui/wirelabels.js";
  * @property {PersistentResult} [persistent]
  *
  * @typedef {object} ApplyAnswer
- *   What POST /api/config/apply answers with: the report, and the preset save or auto-save beside it.
+ *   What POST /api/config/apply answers with: the report, and the preset save beside it.
  * @property {ApplyReport} report
  * @property {SaveResult} [saved]
- * @property {SaveResult | null} [autosaved]
  */
 
 /**

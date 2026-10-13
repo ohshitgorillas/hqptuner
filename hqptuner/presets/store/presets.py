@@ -37,10 +37,9 @@ STORE_FILE = "store.json"
 
 
 class PresetStoreFile(TypedDict, total=False):
-    """The on-disk envelope of ``store.json``: the layout stamp beside the one per-store setting it carries."""
+    """The on-disk envelope of ``store.json``: the layout stamp."""
 
     schema: int
-    autosave: bool
 
 
 class ActiveFile(TypedDict, total=False):
@@ -57,9 +56,6 @@ def _clean(stored: object) -> PresetStoreFile:
     schema = stored.get("schema")
     if isinstance(schema, int):
         out["schema"] = schema
-    autosave = stored.get("autosave")
-    if isinstance(autosave, bool):
-        out["autosave"] = autosave
     return out
 
 
@@ -264,8 +260,8 @@ class PresetStore:
     def save(self, name: str, xml: bytes, *, trigger: str = "save") -> None:
         """Write (or overwrite) a preset. Creates the store directory if needed.
 
-        ``trigger`` names WHO wrote — an explicit save, auto-save, a profile
-        fan-out, the one-time migration. The records are otherwise identical, and
+        ``trigger`` names who wrote it: ``save``, ``fanout``, ``backfill``, ``import`` or ``migration``.
+        The records are otherwise identical, and
         "which of those wrote over my preset" is the first question an incident
         asks.
         """
@@ -294,25 +290,6 @@ class PresetStore:
         self._audit.preset_delete(name, was_active=was_active)
         if was_active:
             self.set_active(None)
-
-    @property
-    def autosave(self) -> bool:
-        """Whether every successful apply/live write is folded back into the active preset.
-
-        Lives in ``store.json`` — a per-store fact, not a
-        per-browser one. Adding this field is not a schema bump: an older
-        HQPTuner ignoring it merely doesn't auto-save.
-        """
-        return bool(self._meta.get().get("autosave"))
-
-    def set_autosave(self, *, enabled: bool) -> None:
-        """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
-        previous = self._meta.get().get("autosave", False)
-        self._ensure_dir()
-        with saving(PRESET_STORE.what, self._dir):
-            (self._dir / STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
-        self._meta.drop()
-        self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
     def active(self) -> str | None:

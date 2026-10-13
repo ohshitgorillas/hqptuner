@@ -11,8 +11,8 @@ back. The config file's fixed slot stays forced to auto
 is remembered for one purpose only, reporting it once a restart has dropped it
 (``lanes/live/dropped``); it is never re-asserted.
 
-Kept out of ``routing.LIVE_ONLY``, which ``snapshot.live_state`` reads, so neither
-a saved snapshot nor the post-rescan replay ever holds a pin.
+Kept out of ``routing.LIVE_ONLY``, which ``snapshot.live_state`` reads, so a saved
+snapshot never holds a pin.
 """
 
 from __future__ import annotations

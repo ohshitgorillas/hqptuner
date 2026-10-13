@@ -6,10 +6,8 @@ domain), no restore is posted, and the report's ``persistent`` lane is null.
 The moment a restart-required field shares the batch, the live routing
 stands down entirely: no setter is sent, one restore carries every staged value
 into the daemon's config file, and the file view serves them back. Live truth a
-pure-live apply created survives the file's staleness: an armed auto-save folds
-the applied dither into the active preset even after a later live mode switch,
-and a live mode round trip (PCM -> SDM -> PCM) ends with the engine back on the
-applied shaper index.
+pure-live apply created survives the file's staleness: a live mode round trip
+(PCM -> SDM -> PCM) ends with the engine back on the applied shaper index.
 
 An Apply & save rides those same restarts: a live-only batch saves without
 one, a restarting batch restarts once and brings the station up in
@@ -40,12 +38,10 @@ from fake_config_xml import elem_attr
 from fake_control import DEFAULTS, CommandLog, restart_into
 from fastapi.testclient import TestClient
 from narrow import FixtureError
-from state_import import export, source, upload
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets.store.presets import PresetStore
 
 
 @pytest.fixture
@@ -234,28 +230,6 @@ def test_the_shared_restore_carries_the_new_mode(client: TestClient, pcm_file_da
 # --- live truth outlives the stale config file --------------------------------
 
 
-def _arm_autosave(client: TestClient, tmp_path: Path) -> None:
-    """Import a state archive whose preset store carries auto-save on. The import
-    clears the active pointer, so it runs before the save meant to stay active."""
-    origin = source(tmp_path)
-    PresetStore(origin.preset_dir).set_autosave(enabled=True)
-    upload(client, export(origin))
-
-
-def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: TestClient, tmp_path: Path) -> None:
-    # the pure-live apply never touched the config file, so the file still says
-    # dither "0"; the later live write's auto-save fold must not let that stale
-    # value overwrite the dither the engine is actually running
-    _arm_autosave(client, tmp_path)
-    client.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Kept"}})
-    _apply_staged(client, {"dither": "5"})
-    client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
-    # the fold under test only runs on a landed write: a dead live route would
-    # leave the preset untouched and pass vacuously, so it must fail loudly here
-    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["mode"] == "2")
-    assert client.get("/api/preset/Kept").json()["config"]["dither"] == "5"
-
-
 def test_a_live_mode_round_trip_ends_on_the_applied_shaper_index(client: TestClient) -> None:
     # SetMode swaps the shaper enumeration wholesale, so
     # coming back to PCM must land the engine on the dither the user applied —
@@ -345,7 +319,7 @@ def test_the_restart_an_apply_and_save_makes_lists_the_station_as_saved(
     assert _listed_title(restarts[:1], STATION) == RESTARTING["title"]
 
 
-def test_with_autosave_off_hqplayerds_profile_list_catches_up_with_a_saved_station_at_the_next_restart(
+def test_hqplayerds_profile_list_catches_up_with_a_saved_station_at_the_next_restart(
     client: TestClient, pcm_file_daemon: dict[str, Any]
 ) -> None:
     # saved while the daemon refuses every restore, so only the next restart

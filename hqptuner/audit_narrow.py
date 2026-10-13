@@ -125,7 +125,7 @@ def _preset_fields(data: dict[str, Json]) -> AuditFields:
 
 
 def _switch_fields(data: dict[str, Json]) -> AuditFields:
-    """Narrow the ``autosave.set``/``autopilot.set``/``connection.set``/``autopilot.act``/``restore.upload`` fields."""
+    """Narrow the ``autopilot.set``/``connection.set``/``autopilot.act``/``restore.upload`` fields."""
     out: AuditFields = {}
     enabled = data.get("enabled")
     if is_bool(enabled):

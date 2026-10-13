@@ -203,7 +203,7 @@ class SpeakersApplyFailedError(ErrorBody):
 
 
 @router.post("/speakers")
-async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.WithAutosave[SpeakerApplyResult]:
+async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.Reported[SpeakerApplyResult]:
     """Apply speaker processing via the /speakers form lane (readme §1.9).
 
     Reloads the engine (~3 s), interrupting playback — never refused for it. The write is checkbox-safe and
@@ -215,7 +215,7 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.WithAutos
         raise refuse(InvalidInputError(error=exc)) from exc
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(SpeakersApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    return deps.Reported(result)
 
 
 def _limit_text(limit: int) -> str:

@@ -56,9 +56,9 @@ let refreshes = [];
 /**
  * Load the /config payload.
  *
- * @param {{ mode?: string, caps?: object | null, autosave?: boolean }} [over]
+ * @param {{ mode?: string, caps?: object | null }} [over]
  */
-function load({ mode = "pcm", caps = null, autosave = true } = {}) {
+function load({ mode = "pcm", caps = null } = {}) {
   config.value = {
     fields: [
       { name: "defaults_samplerate", type: "select", value: "192000" },
@@ -72,7 +72,6 @@ function load({ mode = "pcm", caps = null, autosave = true } = {}) {
     active: "",
     profiles: null,
     device_caps: caps,
-    autosave,
   };
 }
 
@@ -80,7 +79,7 @@ function load({ mode = "pcm", caps = null, autosave = true } = {}) {
 function routes(path, opts) {
   if (path !== "/api/config/refresh") return undefined;
   refreshes.push(String(opts.method));
-  return ok({ restored: {} });
+  return ok(null);
 }
 
 beforeEach(async () => {
@@ -229,18 +228,6 @@ test("test_the_rescan_button_asks_the_daemon_to_rescan", async () => {
   await fire(html`<${DevicePicker} k="net_device" />`, (p) => p["data-testid"] === "rescan", "onClick");
   assert.deepEqual(refreshes, ["POST"]);
 });
-
-const rescanCosts = () => picker().filter((e) => attr(e, "data-testid") === "rescan-cost").length;
-
-for (const { behavior, autosave, shown } of [
-  { behavior: "shows_while_auto_save_puts_live_settings_back", autosave: true, shown: 1 },
-  { behavior: "hides_without_auto_save", autosave: false, shown: 0 },
-]) {
-  test(`test_the_rescan_cost_${behavior}`, () => {
-    load({ autosave });
-    assert.equal(rescanCosts(), shown);
-  });
-}
 
 /** The restart mark's test id, shared by every surface that carries it. */
 const MARK = "restart-mark";

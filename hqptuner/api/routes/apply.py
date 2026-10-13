@@ -1,14 +1,14 @@
 """Apply surface — the staged-buffer apply and the live lane's immediate write path.
 
 ``/config/apply`` drains the pending buffer through the persistent lane; ``/config/live`` never stages and never
-restarts. Both fold a clean write into a preset when auto-save is armed.
+restarts.
 """
 
 import contextlib
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, pending_of, preset_refusals, with_autosave
+from hqptuner.api.deps import Mgr, Reported, SavedPreset, WithSaved, pending_of, preset_refusals
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import apply_succeeded
@@ -69,15 +69,14 @@ class UnknownLiveFieldsError(ErrorBody):
 
 async def _persist_after_apply(
     manager: ConnectionManager, save: str | None, report: ApplyReport
-) -> WithSaved[ApplyReport] | WithAutosave[ApplyReport]:
-    """Fold a clean apply into a preset.
+) -> WithSaved[ApplyReport] | Reported[ApplyReport]:
+    """Save a clean apply into the named preset the request asked for, or answer its report alone when it named none.
 
-    The target is the named preset the request asked for, or whatever auto-save is armed for when it asked for none.
     Only called when the apply itself succeeded, so the running config already carries the edits; a save that fails
     refuses the request with its own code.
     """
     if save is None:
-        return await with_autosave(report, manager)
+        return Reported(report)
     with preset_refusals():
         saved = await presetlane.save(manager, save)
     return WithSaved(report, SavedPreset.of(saved))
@@ -125,7 +124,7 @@ async def _apply_staged(
 @router.post("/config/apply")
 async def apply(
     request: Request, manager: Mgr, body: ApplyBody | None = None
-) -> WithSaved[ApplyReport] | WithAutosave[ApplyReport]:
+) -> WithSaved[ApplyReport] | Reported[ApplyReport]:
     """Write everything staged to the daemon, then persist and clear the buffer only if all of it took.
 
     400 when nothing is staged and no preset switch was asked for. A soft failure returns the report with the buffer
@@ -149,7 +148,7 @@ async def apply(
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
-        return WithAutosave(report, None)  # soft failure — keep staging so the user can retry
+        return Reported(report)  # soft failure — keep staging so the user can retry
     # cleared before the save: the edits are on the daemon now, so a save that fails leaves nothing to re-apply
     store.clear()
     return await _persist_after_apply(manager, save, report)
@@ -169,7 +168,7 @@ def _stand_autopilot_down(manager: ConnectionManager, fields: dict[str, str]) ->
 
 
 @router.post("/config/live", response_model_exclude_none=True)
-async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyReport]:
+async def config_live(body: LiveBody, manager: Mgr) -> Reported[LiveApplyReport]:
     """Apply live-lane config-form fields immediately, readback-verified.
 
     This is the whole write path of the controls that write on the spot. Never staged and never persistent, so it
@@ -196,4 +195,4 @@ async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyRep
         raise refuse(exc, exc.reasons) from exc
     except ControlError as exc:
         raise refuse(LiveFailedError(error=exc)) from exc
-    return await with_autosave(report, manager)
+    return Reported(report)

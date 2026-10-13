@@ -105,9 +105,8 @@ case "$CMD" in
     get /api/backup > "$DIR/$stamp/settings.zip" || die "GET /api/backup failed"
     form_of > "$DIR/$stamp/form.json" || die "GET /api/config failed"
     live_of > "$DIR/$stamp/live.json" || die "GET /api/state failed"
-    # HQPTuner's own stores, which no daemon backup carries: a run writing live
-    # fields folds them into the active preset when auto-save is on, and every
-    # other store has a write route of its own. A store that does not exist is a
+    # HQPTuner's own stores, which no daemon backup carries: every store has a
+    # write route of its own. A store that does not exist is a
     # legitimate empty install, recorded as absent rather than refused.
     mkdir -p "$DIR/$stamp/stores"
     man='{}'

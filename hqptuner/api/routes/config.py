@@ -22,7 +22,6 @@ from hqptuner.core import engineread
 from hqptuner.core.applyops import EngineApplyResult
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.devicecaps import DeviceCaps
-from hqptuner.lanes import rescan
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import archive, fileconfig, presetlane, presetops
 from hqptuner.presets.presetlane import PresetOption
@@ -47,7 +46,6 @@ class ConfigView:
     fields: list[FormField]
     profiles: PresetChoice
     active: str
-    autosave: bool
     file: dict[str, str]
     # What the selected output device announced it can carry, or null when
     # nothing is known about it. The rate menus gray against this; null grays
@@ -190,7 +188,6 @@ def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
         fields=form["fields"],
         profiles=PresetChoice(value=presets.value, options=presets.options),
         active=presets.active,
-        autosave=presets.autosave,
         file={**(manager.readings.file_config or {}), **overrides.live_overrides(manager)},
         device_caps=manager.readings.device_caps,
     )
@@ -214,25 +211,16 @@ async def preset(name: str, manager: HttpMgr) -> PresetPreview:
         raise refuse(ReadPresetFailedError(error=exc)) from exc
 
 
-@dataclass(frozen=True)
-class RescanAnswer:
-    """A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost."""
-
-    restored: dict[str, str]
-    warning: str | None = None
-
-
-@router.post("/config/refresh", response_model_exclude_none=True)
-async def config_refresh(manager: HttpMgr) -> RescanAnswer:
+@router.post("/config/refresh")
+async def config_refresh(manager: HttpMgr) -> None:
     """Re-scan output devices on the daemon and refetch the config forms.
 
     A device that was absent (a powered-off NAA endpoint) appears in the dropdown afterwards.
     """
     try:
-        report = await engineread.refresh_devices(manager)
+        await engineread.refresh_devices(manager)
     except (ControlError, httpx.HTTPError) as exc:
         raise refuse(DeviceRefreshFailedError(error=exc)) from exc
-    return RescanAnswer(report.restored, rescan.WARNINGS.get(report.replay))
 
 
 @router.get("/backup")
@@ -310,8 +298,8 @@ async def engine_get(manager: HttpMgr) -> EngineReading:
 
 
 @router.post("/engine")
-async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[EngineApplyResult]:
-    """Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.
+async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.Reported[EngineApplyResult]:
+    """Write hardware-acceleration attributes by editing the backup archive and restoring it.
 
     400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The
     restore restarts the daemon and interrupts playback — the user's call, never refused for it.
@@ -326,7 +314,7 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
         raise refuse(EngineControlFailedError(error=exc)) from exc
     except httpx.HTTPError as exc:
         raise refuse(EngineApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    return deps.Reported(result)
 
 
 @router.post("/restore")

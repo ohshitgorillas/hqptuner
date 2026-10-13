@@ -290,7 +290,7 @@ class AuditLog:
     def preset_write(self, name: str, trigger: str, size: int, digest: str, *, overwrote: bool) -> None:
         """Record a preset snapshot being written, naming the ``trigger`` that wrote it.
 
-        Several paths write presets — an explicit save, auto-save, a profile fan-out, the migration — and they
+        Several paths write presets — an explicit save, a profile fan-out, the migration — and they
         produce otherwise identical records, so the trigger is what answers "which of those overwrote mine". The
         snapshot itself is too large to keep, hence ``size`` and ``digest`` rather than the XML.
         """
@@ -322,14 +322,6 @@ class AuditLog:
         cleared rather than pointed somewhere new.
         """
         self._write("active.set", {"name": name, "previous": previous})
-
-    def autosave_set(self, *, enabled: bool, previous: bool) -> None:
-        """Record the auto-save setting being changed, keeping what it was.
-
-        While it is on, every successful apply silently overwrites the active preset, so when that overwriting
-        started is the fact that explains a run of unexplained ``preset.write`` records.
-        """
-        self._write("autosave.set", {"enabled": enabled, "previous": previous})
 
     def autopilot_set(self, source: str, *, enabled: bool, previous: bool) -> None:
         """Record auto-pilot's switch moving, naming the ``source`` that moved it.

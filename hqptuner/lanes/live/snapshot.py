@@ -6,9 +6,8 @@ applying a preset is the same batch the live controls would have sent. The displ
 name rides along because the enumerations are engine-built and can shift under a
 preset; the value is what applies, the name is only what the card shows.
 
-A snapshot holds the routable settings, the DIRECT flags and the matrix profile. The junk filter is
-read only by ``live_state``, the post-rescan replay's reader: it follows the
-material, so no saved snapshot holds it.
+A snapshot holds the routable settings, the DIRECT flags and the matrix profile. The junk filter
+follows the material, so no saved snapshot holds it.
 
 ``routing`` turns form fields into setter args; this module reads the result
 back out.

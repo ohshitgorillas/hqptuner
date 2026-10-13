@@ -73,8 +73,7 @@ def _active_preset_carrying(client: TestClient, preset_dir: Path, edits: dict[st
 
     Saving over REST stores the running config and makes it active; a second
     ``PresetStore`` on the app's own preset directory then edits that snapshot on
-    disk, which is how the store comes to disagree with the daemon (the shape
-    ``test_autosave._point_autosave_at`` uses, minus its flag)."""
+    disk, which is how the store comes to disagree with the daemon."""
     client.post("/api/config/apply", json={"switch_to": "", "save": {"name": name}})
     store = PresetStore(preset_dir)
     store.save(name, presetconf.apply_edits(store.read(name), edits))

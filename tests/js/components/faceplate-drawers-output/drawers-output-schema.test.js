@@ -60,7 +60,6 @@ function load(backend) {
     active: "",
     profiles: null,
     device_caps: null,
-    autosave: true,
   };
 }
 

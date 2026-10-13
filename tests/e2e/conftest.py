@@ -45,11 +45,10 @@ next test. Tests must not assume a pristine engine; assert on the transition
 they caused, not on absolute starting values.
 
 The exception is the server's own mutable state, which `clean_slate` puts back
-to where the session started before every test: the staged-edit buffer, the
-auto-save flag, and any preset a test saved. That state reaches the browser
-through fetches the app makes AFTER its first render, so a test that inherits it
-cannot ask "is anything staged" (or "is auto-save on") of a freshly loaded page
-without racing the answer — the leak surfaces as a helper timing out, not as an
+to where the session started before every test: the staged-edit buffer and any
+preset a test saved. That state reaches the browser through fetches the app
+makes AFTER its first render, so a test that inherits it cannot ask "is anything
+staged" of a freshly loaded page without racing the answer — the leak surfaces as a helper timing out, not as an
 assertion failing. Anything else server-side a new test learns to mutate belongs
 in that fixture too.
 
@@ -150,16 +149,16 @@ def _call(url: str, method: str, payload: dict[str, object] | None = None) -> ob
     return json.loads(body) if body else None
 
 
-def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
-    """The pieces of server state a test can leave behind: named presets, auto-save, and live snapshots.
+def _server_state(base_url: str) -> tuple[set[str], set[str]]:
+    """The pieces of server state a test can leave behind: named presets and live snapshots.
 
-    Config presets and auto-save read from `/api/config` because that is the
-    response the frontend itself grounds the preset picker and the auto-save
-    toggle in, so what this sees is what a page would load. Live snapshots are a
-    separate store with their own endpoint, `/api/livepresets`, so they are read
-    from there — a live snapshot a test saves never shows up under `/api/config`.
+    Config presets read from `/api/config` because that is the response the
+    frontend itself grounds the preset picker in, so what this sees is what a
+    page would load. Live snapshots are a separate store with their own
+    endpoint, `/api/livepresets`, so they are read from there — a live snapshot
+    a test saves never shows up under `/api/config`.
     """
-    empty: tuple[set[str], bool, set[str]] = (set(), False, set())
+    empty: tuple[set[str], set[str]] = (set(), set())
     config = _call(f"{base_url}/api/config", "GET")
     if not isinstance(config, dict):
         return empty
@@ -180,11 +179,11 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     # deletable, so it never belongs in the set that gets diffed for cleanup.
     presets = {str(option["value"]) for option in options if isinstance(option, dict) and option.get("value")}
     names = {str(record["name"]) for record in live if isinstance(record, dict)}
-    return presets, bool(data.get("autosave")), names
+    return presets, names
 
 
 @pytest.fixture(scope="session")
-def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]:
+def session_start(stack: stack_support.Stack) -> tuple[set[str], set[str]]:
     """What the server held before any test ran — the state `clean_slate` returns it to.
 
     Captured rather than assumed empty: the app imports the daemon's own presets
@@ -215,10 +214,10 @@ class _ResetRefusedError(RuntimeError):
 
 
 class _ResetIncompleteError(RuntimeError):
-    """The session-start state import left a preset or the auto-save flag as a test had it."""
+    """The session-start state import left a preset as a test had it."""
 
-    def __init__(self, *, presets: set[str], autosave: bool) -> None:
-        super().__init__(f"after the import the server still holds presets {sorted(presets)} and auto-save {autosave}")
+    def __init__(self, *, presets: set[str]) -> None:
+        super().__init__(f"after the import the server still holds presets {sorted(presets)}")
 
 
 def _import_state(base_url: str, archive: bytes) -> None:
@@ -236,27 +235,28 @@ def _import_state(base_url: str, archive: bytes) -> None:
 def session_archive(stack: stack_support.Stack) -> bytes:
     """The server's own stores as `GET /api/state-export` served them before any test ran.
 
-    Importing it back replaces the preset store, the auto-save flag with it, so
-    it is how `clean_slate` drops a preset a test saved and restores the flag.
+    Importing it back replaces the preset store, so it is how `clean_slate`
+    drops a preset a test saved. An export carries only a preset store the
+    server has written, so the "(no preset)" switch writes it first: the switch
+    adds no preset and sends the daemon no restore.
     """
+    _call(f"{stack.base_url}/api/config/apply", "POST", {"switch_to": ""})
     return _raw(stack.base_url, "GET", "/api/state-export")
 
 
 @pytest.fixture(autouse=True)
-def clean_slate(
-    stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]], session_archive: bytes
-) -> None:
+def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], set[str]], session_archive: bytes) -> None:
     """Put the server back to its session-start state, so no test inherits another's leavings."""
     base = stack.base_url
     # Also releases the filter uploads parked against those staged edits.
     _call(f"{base}/api/config/pending", "DELETE")
-    presets, autosave, live = _server_state(base)
-    started_with, autosave_at_start, live_at_start = session_start
-    if autosave != autosave_at_start or presets - started_with:
+    presets, live = _server_state(base)
+    started_with, live_at_start = session_start
+    if presets - started_with:
         _import_state(base, session_archive)
-        presets, autosave, live = _server_state(base)
-        if autosave != autosave_at_start or presets - started_with:
-            raise _ResetIncompleteError(presets=presets - started_with, autosave=autosave)
+        presets, live = _server_state(base)
+        if presets - started_with:
+            raise _ResetIncompleteError(presets=presets - started_with)
     for name in sorted(live - live_at_start):
         _call(f"{base}/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
 

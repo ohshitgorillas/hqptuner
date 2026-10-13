@@ -423,10 +423,6 @@
             "title": "Active",
             "type": "string"
           },
-          "autosave": {
-            "title": "Autosave",
-            "type": "boolean"
-          },
           "device_caps": {
             "anyOf": [
               {
@@ -455,7 +451,7 @@
             "$ref": "#/components/schemas/PresetChoice"
           }
         },
-        "required": ["fields", "profiles", "active", "autosave", "file", "device_caps"],
+        "required": ["fields", "profiles", "active", "file", "device_caps"],
         "title": "ConfigView",
         "type": "object"
       },
@@ -2286,30 +2282,48 @@
         "title": "ProfileSelect",
         "type": "object"
       },
-      "RescanAnswer": {
-        "description": "A device rescan as the page reads it: ``warning`` says, only when it happened, that live settings were lost.",
+      "Reported_ApplyReport_": {
+        "description": "A write's report, answered alone: no preset save followed it.",
         "properties": {
-          "restored": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Restored",
-            "type": "object"
-          },
-          "warning": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Warning"
+          "report": {
+            "$ref": "#/components/schemas/ApplyReport"
           }
         },
-        "required": ["restored"],
-        "title": "RescanAnswer",
+        "required": ["report"],
+        "title": "Reported",
+        "type": "object"
+      },
+      "Reported_EngineApplyResult_": {
+        "description": "A write's report, answered alone: no preset save followed it.",
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/EngineApplyResult"
+          }
+        },
+        "required": ["report"],
+        "title": "Reported",
+        "type": "object"
+      },
+      "Reported_LiveApplyReport_": {
+        "description": "A write's report, answered alone: no preset save followed it.",
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/LiveApplyReport"
+          }
+        },
+        "required": ["report"],
+        "title": "Reported",
+        "type": "object"
+      },
+      "Reported_SpeakerApplyResult_": {
+        "description": "A write's report, answered alone: no preset save followed it.",
+        "properties": {
+          "report": {
+            "$ref": "#/components/schemas/SpeakerApplyResult"
+          }
+        },
+        "required": ["report"],
+        "title": "Reported",
         "type": "object"
       },
       "RestoreAnswer": {
@@ -3216,90 +3230,6 @@
         "title": "VolumeReport",
         "type": "object"
       },
-      "WithAutosave_ApplyReport_": {
-        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
-        "properties": {
-          "autosaved": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SavedPreset"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "report": {
-            "$ref": "#/components/schemas/ApplyReport"
-          }
-        },
-        "required": ["report", "autosaved"],
-        "title": "WithAutosave",
-        "type": "object"
-      },
-      "WithAutosave_EngineApplyResult_": {
-        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
-        "properties": {
-          "autosaved": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SavedPreset"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "report": {
-            "$ref": "#/components/schemas/EngineApplyResult"
-          }
-        },
-        "required": ["report", "autosaved"],
-        "title": "WithAutosave",
-        "type": "object"
-      },
-      "WithAutosave_LiveApplyReport_": {
-        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
-        "properties": {
-          "autosaved": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SavedPreset"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "report": {
-            "$ref": "#/components/schemas/LiveApplyReport"
-          }
-        },
-        "required": ["report", "autosaved"],
-        "title": "WithAutosave",
-        "type": "object"
-      },
-      "WithAutosave_SpeakerApplyResult_": {
-        "description": "A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded.",
-        "properties": {
-          "autosaved": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/SavedPreset"
-              },
-              {
-                "type": "null"
-              }
-            ]
-          },
-          "report": {
-            "$ref": "#/components/schemas/SpeakerApplyResult"
-          }
-        },
-        "required": ["report", "autosaved"],
-        "title": "WithAutosave",
-        "type": "object"
-      },
       "WithSaved_ApplyReport_": {
         "description": "A write's report, and the named preset save that followed it.",
         "properties": {
@@ -3513,7 +3443,7 @@
                       "$ref": "#/components/schemas/WithSaved_ApplyReport_"
                     },
                     {
-                      "$ref": "#/components/schemas/WithAutosave_ApplyReport_"
+                      "$ref": "#/components/schemas/Reported_ApplyReport_"
                     }
                   ],
                   "title": "Response Apply Api Config Apply Post"
@@ -3555,7 +3485,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WithAutosave_LiveApplyReport_"
+                  "$ref": "#/components/schemas/Reported_LiveApplyReport_"
                 }
               }
             },
@@ -3619,9 +3549,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RescanAnswer"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"
@@ -3837,7 +3765,7 @@
         "summary": "Engine Get"
       },
       "post": {
-        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it, then auto-save.\n\n400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The\nrestore restarts the daemon and interrupts playback \u2014 the user's call, never refused for it.",
+        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it.\n\n400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The\nrestore restarts the daemon and interrupts playback \u2014 the user's call, never refused for it.",
         "operationId": "engine_apply_api_engine_post",
         "requestBody": {
           "content": {
@@ -3854,7 +3782,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WithAutosave_EngineApplyResult_"
+                  "$ref": "#/components/schemas/Reported_EngineApplyResult_"
                 }
               }
             },
@@ -4160,7 +4088,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WithAutosave_LiveApplyReport_"
+                  "$ref": "#/components/schemas/Reported_LiveApplyReport_"
                 }
               }
             },
@@ -4616,7 +4544,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WithAutosave_SpeakerApplyResult_"
+                  "$ref": "#/components/schemas/Reported_SpeakerApplyResult_"
                 }
               }
             },

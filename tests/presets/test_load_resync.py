@@ -8,10 +8,9 @@ describes a process that no longer exists. The contract asserted here: the
 manager's picture after a load is the picture of the engine that came back, or
 nothing at all, and never the one held before.
 
-The 4321 fake is moved from inside the 8088 fake's restore, the way
-``test_rescan_replay`` moves it from inside the rescan — so what the manager is
-holding afterwards is compared against the engine the daemon actually came back
-as, never against a value the test handed it.
+The 4321 fake changes state from inside the 8088 fake's restore, so what the manager
+is holding afterwards is compared against the engine the daemon actually came
+back as, never against a value the test handed it.
 
 The managers here run at the production poll pacing, so no background poll
 interleaves with the load: what the picture holds when the load returns is what

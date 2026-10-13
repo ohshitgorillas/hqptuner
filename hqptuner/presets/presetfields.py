@@ -50,23 +50,18 @@ def carried_live_fields(mgr: PresetManager) -> dict[str, str]:
     store win instead strands the config file, because the surface that would
     correct it grounds on live truth (``api/configapi.config``) and so reads a
     re-selection of the running value as clean and stages nothing.
-
-    Deliberately NOT gated on the auto-save flag: auto-save decides whether the
-    store is UPDATED, never whether it is honoured.
     """
     return {**_stored_live_fields(mgr), **overrides.live_overrides(mgr)}
 
 
 @dataclass(frozen=True)
 class _MirroredPreset:
-    """The preset a restore mirrors, and how the store takes that restore's own config for it.
+    """The preset a restore mirrors, and whether the store takes that restore's own config for it.
 
-    ``refolded``: the store is about to take it, from a save or an armed auto-save.
     ``saved``: it is a save's, which the store takes before the restore carries it.
     """
 
     name: str
-    refolded: bool
     saved: bool
 
 
@@ -74,26 +69,26 @@ def _mirrored_preset(mgr: PresetManager, saving: str | None) -> _MirroredPreset 
     """Return the preset whose ``data/cfgs`` member a restore carries, or None when it carries none.
 
     A restore that is part of a save carries the preset being saved. Otherwise it
-    carries the active preset once that has a store file, which auto-save, when
-    armed, is about to refold from the config this restore lands. Nothing is
+    carries the active preset once that has a store file. Nothing is
     active, or the active preset was never stored: None.
     """
     if saving:
-        return _MirroredPreset(canonical_name(saving), refolded=True, saved=True)
+        return _MirroredPreset(canonical_name(saving), saved=True)
     name = mgr.presetops.store.active
     if not name or not mgr.presetops.store.exists(name):
         return None
-    return _MirroredPreset(name, refolded=mgr.presetops.store.autosave, saved=False)
+    return _MirroredPreset(name, saved=False)
 
 
 def _refolded_config(mgr: PresetManager, mirrored: _MirroredPreset, intended_xml: bytes | None) -> bytes | None:
     """Return the config the store takes for ``mirrored`` from this restore, or None when it keeps what it has.
 
     ``intended_xml`` is the working config the restore lands; folded with the live
-    overrides it is exactly what a save or an auto-save stores after the restore.
-    None as well when there is no usable ``intended_xml`` (an engine-lane restore).
+    overrides it is exactly what a save stores after the restore.
+    None when ``mirrored`` is not a save's, and when there is no usable
+    ``intended_xml`` (an engine-lane restore).
     """
-    if not mirrored.refolded or intended_xml is None or xmledit.find_element(intended_xml, xmledit.ROOT) is None:
+    if not mirrored.saved or intended_xml is None or xmledit.find_element(intended_xml, xmledit.ROOT) is None:
         return None
     return presetconf.apply_edits(intended_xml, overrides.live_overrides(mgr))
 
@@ -114,21 +109,17 @@ def preset_mirror(
 ) -> dict[str, bytes]:
     """Return the ``data/cfgs`` member a restore carries, so hqplayerd's own profile list matches the store.
 
-    Neither a save nor an auto-save restores, so the mirror rides the restores that
-    happen anyway. ``saving`` names the preset this restore is being saved as: the
-    store takes the refolded config under that name first and the restore carries
-    the store file, so the daemon never lists a preset the store does not hold.
-    When the store keeps what it has, the store file itself is the mirror. Empty
-    when no preset is mirrored, or when there is neither a refolded config an
-    auto-save is about to store nor a store file.
+    A save does not restore, so the mirror rides the restores that
+    happen anyway. The mirror is always the store file, so the daemon never lists
+    a preset the store does not hold. ``saving`` names the preset this restore is
+    being saved as: the store takes the refolded config under that name first.
+    Empty when no preset is mirrored, or when the mirrored preset has no store file.
     """
     mirrored = _mirrored_preset(mgr, saving)
     if mirrored is None:
         return {}
     member = engineconf.snapshot_member_name(mirrored.name)
     refolded = _refolded_config(mgr, mirrored, intended_xml)
-    if refolded is not None and not mirrored.saved:
-        return {member: refolded}
     if refolded is not None:
         _store_first(mgr, mirrored.name, refolded)
     if not mgr.presetops.store.exists(mirrored.name):

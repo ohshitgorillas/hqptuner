@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 
-from hqptuner.api.deps import Mgr, WithAutosave, with_autosave
+from hqptuner.api.deps import Mgr, Reported
 from hqptuner.api.errors import ApiError, ControlFailedError, refuse
 from hqptuner.api.routes.matrix.matrix import MatrixSwitchRefusedError
 from hqptuner.core.manager import ConnectionManager
@@ -136,7 +136,7 @@ async def save_live_preset(name: str, manager: Mgr, body: SaveBody | None = None
 
 
 @router.post("/livepresets/{name:path}/apply", response_model_exclude_none=True)
-async def apply_live_preset(name: str, manager: Mgr, station: str | None = None) -> WithAutosave[LiveApplyReport]:
+async def apply_live_preset(name: str, manager: Mgr, station: str | None = None) -> Reported[LiveApplyReport]:
     """Apply a preset saved under ``station``, the loaded one when absent, readback-verified.
 
     Its output mode goes first and the rest follows against the enumerations that switch produced (``apply_preset``),
@@ -157,7 +157,7 @@ async def apply_live_preset(name: str, manager: Mgr, station: str | None = None)
         raise refuse(LivePresetApplyFailedError(error=exc.error)) from exc
     except ProfileSwitchFailedError as exc:
         raise refuse(MatrixSwitchRefusedError(error=exc.error)) from exc
-    return await with_autosave(report, manager)
+    return Reported(report)
 
 
 @router.delete("/livepresets/{name:path}")

@@ -5,13 +5,9 @@
 // The list is a plate popover (components/faceplate/Popover.js): its trigger toggles it, Escape and a click outside
 // close it, a tap on a device stages it and closes it. Every decision is the store's
 // (store/faceplate/drawers/output.js).
-//
-// The rescan's cost is said only while auto-save is on, since auto-save is what puts the live settings back after the
-// rescan stops the engine; with it off the sentence would be false.
 
 import { html } from "../../../../lib/dom.js";
 import { isDirty } from "../../../../store/resolve.js";
-import { autosave } from "../../../../store/actions.js";
 import { openPopover } from "../../../../store/faceplate/view.js";
 import { deviceView, pickDevice, rescanDevices, rescanning } from "../../../../store/faceplate/drawers/output.js";
 import { triggerProps } from "../../Popover.js";
@@ -24,7 +20,6 @@ const ARIA = { net_device: "Network Audio output device", alsa_device: "ALSA out
 
 const RESCAN = "⟳ Rescan devices";
 const RESCANNING = "Rescanning…";
-const RESCAN_COST = "Stops the engine. All live settings except matrix profiles survive.";
 
 /**
  * Stage a device and close the list.
@@ -57,7 +52,7 @@ const DeviceRow = ({ k, row }) => html`
   </button>
 `;
 
-/** The rescan button, and its cost while auto-save makes the cost true. */
+/** The rescan button. */
 function Rescan() {
   const busy = rescanning.value;
   return html`
@@ -65,7 +60,6 @@ function Rescan() {
       <button type="button" class="btn xs" data-testid="rescan" disabled=${busy} onClick=${rescanDevices}>
         ${busy ? RESCANNING : RESCAN}
       </button>
-      ${autosave.value ? html`<span class="cap" data-testid="rescan-cost">${RESCAN_COST}</span>` : null}
     </div>
   `;
 }

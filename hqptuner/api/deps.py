@@ -13,7 +13,7 @@ user action).
 """
 
 import contextlib
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -29,7 +29,6 @@ from hqptuner.core.connection import ConnectionStore
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.core.pending import PendingStore
 from hqptuner.metadata import StaticMetadata
-from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import PresetSaveResult
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
@@ -174,20 +173,10 @@ class SavedPreset:
 
 
 @dataclass(frozen=True)
-class WithAutosave[T]:
-    """A write's report, and the auto-save fold that followed it: None when auto-save was off or nothing was folded."""
+class Reported[T]:
+    """A write's report, answered alone: no preset save followed it."""
 
     report: T
-    autosaved: SavedPreset | None
-
-    @classmethod
-    def from_json(cls, body: Mapping[str, object]) -> "WithAutosave[object]":
-        """Read an answer back into its two halves: the report, and the fold."""
-        folded = body["autosaved"]
-        if not isinstance(folded, Mapping):
-            return WithAutosave(body["report"], None)
-        name = folded.get("name")
-        return WithAutosave(body["report"], SavedPreset(name=name if isinstance(name, str) else ""))
 
 
 @dataclass(frozen=True)
@@ -200,7 +189,7 @@ class WithSaved[T]:
 
 @contextlib.contextmanager
 def preset_refusals() -> Iterator[None]:
-    """Refuse a preset load, save or auto-save the daemon failed, with the code a load answers.
+    """Refuse a preset load or save the daemon failed, with the code a load answers.
 
     ``ControlError`` and ``PresetError`` carry their own codes to the registered handler; the two failures that do
     not are mapped here, so every preset write answers a daemon failure the same way.
@@ -211,16 +200,6 @@ def preset_refusals() -> Iterator[None]:
         raise refuse(DaemonReadFailedError(error=exc)) from exc
     except GroundingError as exc:
         raise refuse(InvalidInputError(error=exc)) from exc
-
-
-async def with_autosave[T](report: T, manager: ConnectionManager) -> WithAutosave[T]:
-    """Fold a clean write into the active preset when auto-save is armed, and carry the fold beside the report.
-
-    A fold that fails refuses the request with the save's own code, as a standalone save does.
-    """
-    with preset_refusals():
-        autosaved = await presetlane.autosave(manager)
-    return WithAutosave(report, None if autosaved is None else SavedPreset.of(autosaved))
 
 
 def ensure_form[F](form: F | None, error: str | None) -> F:

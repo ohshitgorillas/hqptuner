@@ -12,7 +12,7 @@ import httpx
 
 from hqptuner.core.readings import Readings
 from hqptuner.engine import devicecaps, logtail
-from hqptuner.lanes import rescan, settle
+from hqptuner.lanes import settle
 
 if TYPE_CHECKING:
     from hqptuner.core.manager import ConnectionManager
@@ -93,14 +93,6 @@ class LogTail:
     lines: list[str]
 
 
-@dataclass(frozen=True)
-class RescanReport:
-    """A device rescan's answer: what the replay put back, and how the replay came out."""
-
-    restored: dict[str, str]
-    replay: rescan.ReplayOutcome
-
-
 async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     """Return a static tail of the daemon's log for the Logging drawer's tail.
 
@@ -115,23 +107,18 @@ async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     return LogTail(path, enabled, logtail.tail_text(text, lines))
 
 
-async def refresh_devices(mgr: "ConnectionManager") -> RescanReport:
+async def refresh_devices(mgr: "ConnectionManager") -> None:
     """Trigger a daemon output-device re-scan, then refetch the /config and /matrix forms.
 
     The refetch makes the device dropdowns serve the new endpoint list (an NAA powered back on,
     a DAC replugged).
 
-    The rescan stops the engine, and the engine comes back on the config file —
-    which never learned a live-routed setting. With auto-save on, what it was
-    running is read first and put back afterwards (``lanes/rescan``): ``restored``
-    names what landed, and ``replay`` says whether the replay put everything back.
-    No idle gate: interrupting playback is the user's call to spend (CLAUDE.md).
+    The rescan stops the engine, and the engine comes back on the config file,
+    which never learned a live-routed setting; nothing puts those back.
+    No idle gate: interrupting playback is the user's call to spend.
     """
-    snap = rescan.snapshot(mgr, autosave=mgr.presetops.store.autosave)
     await settle.own_restart(mgr, mgr.require_http().refresh_devices, settle.mark_connect(mgr))
     await mgr.refresh_http_forms()
-    replayed = await rescan.replay(mgr, snap)
-    return RescanReport(restored=replayed.restored, replay=replayed.outcome)
 
 
 def current_mode_name(mgr: "ConnectionManager") -> str:

@@ -28,7 +28,7 @@ CommandLog = list[tuple[str, dict[str, str]]]
 #: One-shot callables keyed by command name, shared across connections like the
 #: log: each runs when its command first arrives over a connection, while that
 #: command waits for its answer, so a test can land something on HQPTuner inside
-#: that window (``_on_backup`` on the 8088 fake is the same shape). The callable
+#: that window. The callable
 #: is the test's own and may move the State; a restart it makes severs the
 #: connection it arrived on, unanswered.
 CommandHooks = dict[str, Callable[[], None]]

@@ -108,7 +108,6 @@ async function load(offered) {
     active: "",
     profiles: null,
     device_caps: null,
-    autosave: true,
   };
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };

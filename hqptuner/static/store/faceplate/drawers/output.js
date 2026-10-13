@@ -383,8 +383,7 @@ export async function pickDevice(key, value) {
 export const rescanning = signal(false);
 
 /**
- * Ask the daemon to rescan its output devices and re-pull the device lists; its warning, if any, reports through the
- * apply line (store/sync.js).
+ * Ask the daemon to rescan its output devices and re-pull the device lists.
  *
  * @returns {Promise<void>}
  */

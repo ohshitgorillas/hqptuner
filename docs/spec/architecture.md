@@ -76,7 +76,7 @@ So `ControlClient.request` closes its own connection on a read timeout, a socket
 
 Every control is classified live or restart-required (tagging: `docs/spec/settings-classification.md`), and the stage drawer's head reports the split before Apply: a staged restart edit dots its tab, or the title of a drawer of one part, and a tab showing a restart setting shows the apply group (`store/faceplate/drawer.js`). One restart-required field sends the whole staged batch down the restore lane (`lanes/live/routing.split_live`): the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
 
-Chain fields a staged apply does route live are recorded per chain (`lanes/live/lane.remember_routed`), the same record the live write path keeps (`lane.apply_now`), so auto-save and chain re-entry report and re-assert them while the chain is dormant.
+Chain fields a staged apply does route live are recorded per chain (`lanes/live/lane.remember_routed`), the same record the live write path keeps (`lane.apply_now`), so a preset save and chain re-entry report and re-assert them while the chain is dormant.
 
 ### 4.3 Two write paths share no staging state
 
@@ -142,7 +142,7 @@ In a frozen build the shipped `data/*.json` travels inside the bundle and is rea
 
 `GET /api/state-export` zips every store `Config.STORES` names, the connection record with its password blanked, and the logs (`presets/store/export.py`). `POST /api/state-import` takes that zip back (`presets/store/stateimport.py`). Each store the archive carries **replaces** this install's copy; a store it lacks is left alone. The connection record, `backups/` and the logs in an archive are never imported: the password was blanked, and the host and login that work are the ones already here. The whole archive is checked before anything is written, upload and unpacked stores each bounded by `HQPTUNER_STATE_MAX_BYTES`, and a refusal (`state_unreadable`, or `state_too_new` under §5.4's rule) changes nothing. The stores an import replaces are first saved, alone, to `backups/pre-import-state.zip`, so an import can be undone by importing that file and the backup never carries an earlier one.
 
-An import never contacts the daemon. Presets land in the store only, and the daemon's `data/cfgs` mirror catches up on its next restore. The active pointer is cleared, because autosave writes the running config into the active preset and would overwrite an imported preset the daemon is not running. An archive whose live snapshots use the flat layout reads under §5.3's rule.
+An import never contacts the daemon. Presets land in the store only, and the daemon's `data/cfgs` mirror catches up on its next restore. The active pointer is cleared. An archive whose live snapshots use the flat layout reads under §5.3's rule.
 
 ## 6. Static metadata
 
@@ -200,7 +200,7 @@ Flipping PCM ↔ SDM swaps the rate dial's running band and the page's Shaping s
 
 ### 7.9 Rate selection lives in the Output drawer
 
-**`SetRate` is sent only as a pin the user asks for.** It writes the FIXED rate slot (`samplerate`/`bitrate`), and an exact rate there overrides automatic base-rate selection, so 44.1k material can go out at a 48k base and the engine can refuse the filter. So the pin is opt-in: the live field `rate`, in Hz with `"0"` clearing it, goes out only while the Allow pinned rates preference is on (`store/live/pin.js`), as exactly the rate asked for, alone in its batch, and never in `[source]` mode (`lanes/live/rate`). It lasts until the next mode switch drops it on the engine: HQPTuner never re-asserts it, no snapshot or post-rescan replay holds it, and the config file's fixed slot stays forced to auto (`FORCED_CONFIG`). HQPTuner remembers a confirmed pin for one purpose only, to report it in `GET /api/health` `dropped_settings` once a restart has dropped it (`lanes/live/dropped`). The rate limits (`lanes/live/chain.RATE_LIMIT_FIELD`, always a tier's 48k member under forced `auto_family`) are config fields with no live route, so rate selection lives on the Output drawer's rate dial, where an apply is expected to restart the daemon. The loaded chain takes filter and shaper edits live (`active_chain`, resolved from `Status.active_rate`).
+**`SetRate` is sent only as a pin the user asks for.** It writes the FIXED rate slot (`samplerate`/`bitrate`), and an exact rate there overrides automatic base-rate selection, so 44.1k material can go out at a 48k base and the engine can refuse the filter. So the pin is opt-in: the live field `rate`, in Hz with `"0"` clearing it, goes out only while the Allow pinned rates preference is on (`store/live/pin.js`), as exactly the rate asked for, alone in its batch, and never in `[source]` mode (`lanes/live/rate`). It lasts until the next mode switch drops it on the engine: HQPTuner never re-asserts it, no snapshot holds it, and the config file's fixed slot stays forced to auto (`FORCED_CONFIG`). HQPTuner remembers a confirmed pin for one purpose only, to report it in `GET /api/health` `dropped_settings` once a restart has dropped it (`lanes/live/dropped`). The rate limits (`lanes/live/chain.RATE_LIMIT_FIELD`, always a tier's 48k member under forced `auto_family`) are config fields with no live route, so rate selection lives on the Output drawer's rate dial, where an apply is expected to restart the daemon. The loaded chain takes filter and shaper edits live (`active_chain`, resolved from `Status.active_rate`).
 
 ### 7.10 Rate-aware shaper graying and conflict alerts
 
@@ -266,7 +266,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 
 ### 8.2 Lane reports in a 200 body
 
-Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`). A standalone preset save that fails is a refusal like load and delete; the apply response carries the autosave outcome as data.
+Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`). A preset save that fails is a refusal like load and delete, the save an apply asks for included.
 
 ### 8.3 The meter feed streams only to an attached page
 

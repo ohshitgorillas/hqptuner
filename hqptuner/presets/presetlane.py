@@ -4,7 +4,7 @@ Presets live in a store HQPTuner owns (``store.presets``); the daemon
 is driven only through ``POST /restore`` onto ``[default]`` — never
 ``profile/load``/``profile/save``, which are unreliable (docs/spec/protocol.md
 §3.6). A load's restore carries the loaded preset's ``data/cfgs`` mirror; a save
-and an auto-save only store, and their mirror rides the next restore that happens
+only stores, and its mirror rides the next restore that happens
 anyway. ``profile/delete`` is the one profile route kept, for mirror removal
 (restore is additive and cannot delete a member).
 
@@ -43,7 +43,7 @@ log = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class PresetSaveResult:
-    """A save or auto-save that reached the store, under the name it was stored as."""
+    """A save that reached the store, under the name it was stored as."""
 
     name: str
 
@@ -58,12 +58,11 @@ class PresetOption:
 
 @dataclass(frozen=True)
 class PresetListing:
-    """The preset picker's contents: the selected name, every option, the active preset, and the auto-save flag."""
+    """The preset picker's contents: the selected name, every option, and the active preset."""
 
     value: str
     options: list[PresetOption]
     active: str
-    autosave: bool
 
 
 @dataclass(frozen=True)
@@ -88,14 +87,6 @@ class NoRunningConfigToSaveError(ControlError):
         super().__init__("HQPlayer's settings backup has no running configuration, so there is nothing to save.")
 
 
-class NoRunningConfigToAutosaveError(ControlError):
-    """``autosave`` found no running config in the backup archive to fold the current settings into."""
-
-    def __init__(self) -> None:
-        """Render the fixed wording; this template carries no interpolated fact."""
-        super().__init__("HQPlayer's settings backup has no running configuration, so the auto-save did not run.")
-
-
 def listing(mgr: PresetManager) -> PresetListing:
     """Preset list + active name for the API.
 
@@ -112,7 +103,7 @@ def listing(mgr: PresetManager) -> PresetListing:
     options = [PresetOption("", "(no preset)")]
     options += [PresetOption(n, n) for n in mgr.presetops.store.names()]
     active = mgr.presetops.store.active or ""
-    return PresetListing(value=active, options=options, active=active, autosave=mgr.presetops.store.autosave)
+    return PresetListing(value=active, options=options, active=active)
 
 
 async def read(mgr: PresetManager, name: str) -> dict[str, str]:
@@ -149,8 +140,7 @@ async def load(mgr: PresetManager, name: str) -> PresetActivation:
     mgr.audit.preset_load(name, previous)
     reconnected = await settle.await_ready(mgr, mark)
     # the restore restarted the daemon: every live reading we hold is the previous
-    # engine's, and an auto-save riding this load would fold those into the preset
-    # it just loaded (settle.resync_engine_state)
+    # engine's (settle.resync_engine_state)
     await settle.resync_engine_state(mgr)
     # what the daemon came back on. Null means resync could not reach the engine,
     # which is itself the answer to "what was it running after the restart".
@@ -189,20 +179,6 @@ def switch_autopilot(mgr: PresetManager, source: str, *, enabled: bool) -> None:
     else:
         mgr.presetops.autopilot.disable()
     mgr.audit.autopilot_set(source, enabled=enabled, previous=previous)
-
-
-def stamp_autopilot_on_active(mgr: PresetManager) -> None:
-    """Fold auto-pilot's current state into the active preset, when auto-save is armed to do that.
-
-    The switch writes only the top-level flag, and the per-preset copy was written by a save or an auto-save alone.
-    So flipping the switch and loading a preset restored the copy as it stood before the flip, switching auto-pilot
-    back off with nothing to reconcile the two. Gated on the same pair auto-save itself is gated on, because folding
-    a change into the active preset unasked is exactly what auto-save is the user's permission for.
-    """
-    name = mgr.presetops.store.active
-    if not name or not mgr.presetops.store.autosave:
-        return
-    _record_autopilot(mgr, name)
 
 
 def _restore_autopilot(mgr: PresetManager, name: str) -> None:
@@ -247,7 +223,7 @@ async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
 
     Called after a successful apply, so the running config already carries the user's edits.
 
-    Store only, like ``autosave``: the store write is the save, and it never
+    Store only: the store write is the save, and it never
     restores. hqplayerd's own profile list catches up through the mirror the
     restores that happen anyway carry (``presets/presetfields.preset_mirror``).
     An apply that restores has already stored this config under ``name`` before
@@ -271,40 +247,11 @@ async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     return PresetSaveResult(name)
 
 
-async def autosave(mgr: PresetManager) -> PresetSaveResult | None:
-    """Fold the current audible state back into the active preset's store file.
-
-    This is the auto-save checkbox's whole write path. Store only, never the daemon
-    mirror: the mirror costs a restore restart, so it catches up by riding the
-    next restore that happens anyway (``presets/presetfields.preset_mirror``).
-    Returns None when
-    auto-save is off or no preset is active, and when the active preset changed while the
-    daemon's backup was read, since the preset it read may have been replaced since. A
-    failed auto-save raises to the caller, the same failure a standalone ``save`` raises.
-    """
-    name = mgr.presetops.store.active
-    if not name or not mgr.presetops.store.autosave:
-        return None
-    backup = await mgr.require_http().backup()
-    working = engineconf.base_config_xml(backup, mgr.readings.active_config)
-    if not working:
-        raise NoRunningConfigToAutosaveError()
-    working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
-    with mgr.presetops.write_lock:
-        if mgr.presetops.store.active != name:
-            return None
-        mgr.presetops.store.save(name, working, trigger="autosave")
-        _record_autopilot(mgr, name)
-    return PresetSaveResult(name)
-
-
 def _record_autopilot(mgr: PresetManager, name: str) -> None:
     """Record auto-pilot's current state as the one preset ``name`` carries.
 
     The high-frequency filter's auto-pilot has no home in the XML — hqplayerd's config carries no junk-filter field at
-    all — so a preset's copy of it goes into HQPTuner's own store, keyed by the name just written. Both write paths run
-    it: a save and an auto-save fold the same audible state into the same preset, and one of them skipping this leaves
-    the flag frozen at whatever the other last wrote.
+    all — so a preset's copy of it goes into HQPTuner's own store, keyed by the name just written.
 
     Runs after the store commit and is best-effort: the preset already reached disk, and a store we cannot write is not
     worth failing a good save over.

@@ -1,12 +1,10 @@
 """`POST /api/state-import` refusing what it cannot take whole:
-a preset store carrying a file that is not a preset, a pre-import backup that
-cannot be written, and an autosave already in flight when the import lands.
+a preset store carrying a file that is not a preset, and a pre-import backup
+that cannot be written.
 
 The install and the archives are `state_import`'s: ``Den`` is the loaded
 station, and an archive is this build's own export or a hand-written zip. The
-http lane is the fake 8088 daemon; the control lane is a closed port, except
-for the autosave cases, which need a live write to land on the threaded fake
-4321 daemon so its autosave reads the 8088 daemon's backup.
+http lane is the fake 8088 daemon; the control lane is a closed port.
 """
 
 from collections.abc import Iterator
@@ -14,7 +12,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import wait_for_api
 from fastapi.testclient import TestClient
 from httpx import Response
 from state_import import (
@@ -23,14 +20,11 @@ from state_import import (
     PRESETS,
     SECOND_FAVORITE,
     archive_with_favorites,
-    export,
     favorites,
     install_app_config,
     installed_favorites,
     loaded_station,
     seed_install,
-    source,
-    store_config,
     upload,
     write,
     zip_of,
@@ -39,9 +33,6 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.presets.store.presets import PresetStore
-
-#: The install's loaded station as an archive carries it, unlike anything the fake daemon serves.
-ARCHIVE_DEN_XML = b'<hqplayerd><marker value="imported-den-6b2c"/></hqplayerd>'
 
 #: A preset name in mixed scripts, a Cyrillic letter ahead of Latin ones: a first save
 #: refuses it, but the store holds one already there, as an import copies it.
@@ -79,17 +70,6 @@ def answering_client(
     """`client` that hands back the app's answer to an unhandled error, as a browser sees it, rather than raising it."""
     cfg = install_app_config(http_daemon, install, closed_port, audit_log)
     with TestClient(create_app(cfg, VirtualClock()), raise_server_exceptions=False) as test_client:
-        yield test_client
-
-
-@pytest.fixture
-def dual_lane_client(
-    http_daemon: dict[str, Any], install: Path, threaded_daemon_port: int, audit_log: Path
-) -> Iterator[TestClient]:
-    """`client` with the control lane on the threaded fake 4321 daemon, so a live write lands and autosaves."""
-    cfg = install_app_config(http_daemon, install, threaded_daemon_port, audit_log)
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        wait_for_api(test_client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield test_client
 
 
@@ -162,45 +142,3 @@ def test_an_import_whose_pre_import_backup_cannot_be_written_leaves_the_loaded_s
     block_the_backup_dir(install)
     upload(answering_client, archive)
     assert loaded_station(answering_client) == "Den"
-
-
-# --- an import landing inside an autosave's wait on the daemon -----------------
-
-
-def arm_autosave_with_den_loaded(client: TestClient, tmp_path: Path) -> None:
-    """Turn autosave on by importing an archive whose preset store carries the flag
-    and ``Den``, then load ``Den`` again, since an import leaves no preset loaded."""
-    cfg = store_config(tmp_path / "armed")
-    presets = PresetStore(cfg.preset_dir)
-    presets.save("Den", PRESET_XML)
-    presets.set_autosave(enabled=True)
-    upload(client, export(cfg))
-    client.post("/api/config/apply", json={"switch_to": "Den"})
-
-
-def import_inside_the_autosave(client: TestClient, http_daemon: dict[str, Any], tmp_path: Path) -> list[int]:
-    """With autosave on and ``Den`` loaded, make a live write whose autosave reads the
-    daemon's backup; while that read waits, import an archive replacing ``Den``.
-    Returns the status of each import that ran: one, unless the autosave never read."""
-    cfg = source(tmp_path)
-    PresetStore(cfg.preset_dir).save("Den", ARCHIVE_DEN_XML)
-    archive = export(cfg)
-    statuses: list[int] = []
-    arm_autosave_with_den_loaded(client, tmp_path)
-    http_daemon["_on_backup"] = lambda: statuses.append(upload(client, archive).status_code)
-    client.post("/api/config/live", json={"fields": {"filter": "25"}})
-    return statuses
-
-
-def test_an_autosave_in_flight_does_not_overwrite_the_presets_an_import_landed(
-    dual_lane_client: TestClient, install: Path, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    import_inside_the_autosave(dual_lane_client, http_daemon, tmp_path)
-    assert PresetStore(install / "state" / PRESETS).read("Den") == ARCHIVE_DEN_XML
-
-
-def test_an_import_landing_while_an_autosave_is_in_flight_is_not_refused(
-    dual_lane_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    statuses = import_inside_the_autosave(dual_lane_client, http_daemon, tmp_path)
-    assert [status // 100 for status in statuses] == [2]

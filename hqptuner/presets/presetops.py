@@ -106,8 +106,8 @@ async def after_restore(
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
 
-    An empty fan-out unless the restore converged. It restarted the daemon, so every live reading
-    belongs to the process it replaced — and the auto-save that follows reads exactly those.
+    An empty fan-out unless the restore converged. A converged restore restarts the daemon, so every live reading
+    taken before it describes the process the restart replaced.
     The parked filter files it carried live on the daemon now.
     Backfill runs BEFORE the fan-out: it migrates profiles saved earlier, and the user's own
     save is the write that should land last on any preset both touch. A refused apply fans out
@@ -158,8 +158,7 @@ class PresetOps:
         # is a preset: the book learns the stations from this store, and a preset
         # delete is what takes a station's snapshots out.
         self.live_presets = LivePresetStore(cfg.live_preset_file, stations=self.store.names)
-        # Held across a state import's clear-and-write and an autosave's re-check-and-save, never across an await: the
-        # import runs on the threadpool, and an autosave must not land a preset the import has just replaced.
+        # Held across a state import's clear-and-write, never across an await: the import runs on the threadpool.
         self.write_lock = threading.Lock()
         self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
         # Whether this process has run the import of the daemon's own data/cfgs presets (presetlane.migrate_once).
@@ -305,8 +304,7 @@ class PresetOps:
         """Save the pre-import backup, then clear the active pointer and replace each store ``carried`` holds.
 
         Raises ``BackupBeforeImportFailedError`` when the backup cannot be written, before anything else is written.
-        The clear and the writes run under ``write_lock``, so an autosave already waiting on the daemon finds the
-        pointer cleared and saves nothing. Returns the names of the stores replaced, sorted.
+        The clear and the writes run under ``write_lock``. Returns the names of the stores replaced, sorted.
         """
         try:
             stateimport.save_backup(self._cfg)

@@ -268,13 +268,7 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
 
 
 def _backup_response(st: dict[str, Any]) -> bytes:
-    """The archive GET /backup/settings.zip serves right now.
-
-    ``_on_backup`` is a one-shot callable run first, while the reader waits on
-    the archive, so a test can land something on HQPTuner inside that window."""
-    arrived = st.pop("_on_backup", None)
-    if arrived is not None:
-        arrived()
+    """The archive GET /backup/settings.zip serves right now."""
     if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
         return b"not a zip archive"
     with _STATE:  # two concurrent reads must not both take the same queued archive

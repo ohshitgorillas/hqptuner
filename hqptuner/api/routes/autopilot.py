@@ -45,7 +45,4 @@ def set_autopilot(body: AutopilotBody, manager: Mgr) -> AutopilotReport:
     does next.
     """
     presetlane.switch_autopilot(manager, "switch", enabled=body.enabled)
-    # With auto-save armed, the active preset carries the switch too — otherwise loading that preset would
-    # restore the copy as it stood before this flip and undo it (presetlane.stamp_autopilot_on_active).
-    presetlane.stamp_autopilot_on_active(manager)
     return _reported(manager.presetops.autopilot)

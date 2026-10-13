@@ -3,8 +3,7 @@ version = 1
 
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
-"hqptuner/audit.py" = { lines = 408 }
-"hqptuner/lanes/live/lane.py" = { lines = 409 }
+"hqptuner/lanes/live/lane.py" = { lines = 406 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }

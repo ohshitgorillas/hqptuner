@@ -8,16 +8,7 @@ import { failText } from "../lib/errtext.js";
 import { truthy } from "../lib/coerce.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
-import {
-  config,
-  volume,
-  staged,
-  liveOverride,
-  previewConfig,
-  pendingPreset,
-  engineStatus,
-  lastApply,
-} from "./signals.js";
+import { volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus, lastApply } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { setSpeakersGate } from "./matrix/speakers.js";
@@ -315,9 +306,6 @@ async function commitApply(save) {
     restarts,
   );
 }
-
-// Auto-save: with this preset-store flag on, the backend folds every successful apply/live write into the active preset.
-export const autosave = computed(() => !!(config.value && config.value.autosave));
 
 // The high-frequency filter's auto-pilot: with this on, the backend engages and disengages the filter from the
 // metering advisor's verdict while a track plays. Read off /api/status rather than remembered here, because the

@@ -125,10 +125,7 @@ def remember_routed(mgr: LaneManager, report: list[LiveWriteResult], fields: dic
     """Record a staged apply's live-routed chain fields, the same bookkeeping ``apply_now`` does for LIVE's.
 
     The staged lane routes chain fields live too (``routing.split_live``), and a
-    value the record never learns is a value the next chain entry cannot re-assert
-    and the next auto-save on the other chain cannot report — it falls back to the
-    config file's stale copy instead (``overrides.live_overrides``), quietly
-    reverting the setting the user just applied.
+    value the record never learns is a value the next chain entry cannot re-assert.
     """
     chain = active_chain(mgr)
     if chain is not None:

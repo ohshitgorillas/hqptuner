@@ -152,7 +152,7 @@ async def resync_engine_state(mgr: LaneManager) -> None:
 
     ``state``, ``enums`` and ``live`` all describe a daemon process that is gone the moment a
     restore restarts it, and only the poll loop refreshes them — a second later. Anything reading
-    in between (``overrides.live_overrides``, and so every save and auto-save) reports the settings
+    in between (``overrides.live_overrides``, and so every save) reports the settings
     of the engine that was running BEFORE the restart and writes them into the preset that just
     replaced it.
 
