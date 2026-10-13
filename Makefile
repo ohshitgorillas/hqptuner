@@ -69,8 +69,8 @@ lint-js:
 # on every run. The idle probe measures each test's wall time less its CPU time
 # less the time its thread waited for a CPU and writes a second report; the
 # fifth line fails any test whose reading rises more than 40 ms over its
-# previous one on the branch, or exceeds 40 ms with none, and records every
-# reading (scripts/gates/check_idle.py).
+# previous one on the branch, or exceeds 40 ms with none, and records only the
+# readings that passed (scripts/gates/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the sixth line refuses any test with

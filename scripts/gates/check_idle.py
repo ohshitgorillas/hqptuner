@@ -5,8 +5,9 @@ Reads the report ``scripts/idle_probe.py`` writes and judges each test's idle
 against the reading the last green run on the same branch left for it. A test
 fails when its reading rises more than ``LIMIT`` over that previous reading,
 or, with no previous reading, when the reading itself exceeds ``LIMIT``. The
-run's readings then replace the record whether or not they passed, so a busy
-host can fail a good test once and the next run is judged against that reading.
+run's passing readings then replace their tests' records; a reading the gate
+refused is not recorded, so that test keeps its previous reading (a refused test
+with none stays absent) and is judged against it until the wait is gone.
 
 A node id the run did not report drops out of the record, because the plugin
 loads on two whole-suite command lines only, so an absent id is a renamed or
@@ -102,8 +103,19 @@ def refusals(previous: dict[str, float], measured: dict[str, float]) -> list[str
     return [line for line in lines if line is not None]
 
 
+def kept_readings(previous: dict[str, float], measured: dict[str, float]) -> dict[str, float]:
+    """Return the record after this run: passing readings, and a refused test's previous reading if it had one."""
+    kept: dict[str, float] = {}
+    for name, seconds in measured.items():
+        if refusal(name, seconds, previous.get(name)) is None:
+            kept[name] = seconds
+        elif name in previous:
+            kept[name] = previous[name]
+    return kept
+
+
 def check(report: Path, record: Path) -> int:
-    """Refuse a run in which a test's idle rose more than LIMIT, then record the run's readings."""
+    """Refuse a run in which a test's idle rose more than LIMIT, then record its passing readings."""
     if not report.is_file():
         print(f"{report}: no idle report; the suite must run with -p idle_probe before this gate")
         return 1
@@ -113,15 +125,16 @@ def check(report: Path, record: Path) -> int:
         return 1
 
     readings = {name: float(seconds) for name, seconds in measured["tests"].items()}
-    failed = refusals(read_record(record), readings)
-    write_record(record, readings)
+    previous = read_record(record)
+    failed = refusals(previous, readings)
+    write_record(record, kept_readings(previous, readings))
 
     for line in failed:
         print(line)
     if failed:
         print(
-            f"\n{len(failed)} test(s) waiting longer on a real clock. These readings are recorded,"
-            " so the next run is judged against them: a rerun clears a rise a busy host caused."
+            f"\n{len(failed)} test(s) waiting longer on a real clock. These readings are not"
+            " recorded, so each test is judged against its same previous reading until the wait is gone."
         )
         return 1
     return 0
