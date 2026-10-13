@@ -26,9 +26,8 @@ from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 
 #: Guards every read-modify-write of a served state dict. Handlers run on their
 #: own threads (see `_Server`), and the read lane mutates state too — the stale
-#: window counts down on `GET /backup/settings.zip` and a rescan rewrites the
-#: endpoint lists on `GET /config/refresh`, while the test thread is assigning
-#: the same keys and another handler may be rendering `/config` off them. One
+#: window counts down on `GET /backup/settings.zip`, while the test thread is
+#: assigning the same keys. One
 #: module-level lock rather than one per server: fakes are per-test and the
 #: sections are three dict operations long, so the contention is not worth the
 #: bookkeeping of threading a lock through every module-level helper.
@@ -69,18 +68,12 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
     consumes the 401 internally and re-sends, so 403 is the status that surfaces
     to a caller carrying bad credentials.
 
-    `_challenge_auth` is the same wire with the RIGHT password: the daemon still
-    answers an unauthenticated request with 401 and the challenge, and then
-    serves the digest the client builds from it. That is what every fresh
-    connection to the real 6.0.4 looks like; the default state skips the
-    challenge so cases that do not care about credentials pay nothing for it.
-
     A daemon that is down answers 503 first, on every path: a restart window is
     not a credential verdict, so `_down` and `_fail_paths` outrank `_refuse_auth`
     exactly as they do on the real thing."""
     if st.get("_down") or path in st.get("_fail_paths", ()):
         return None
-    if not authorization and (st.get("_refuse_auth") or st.get("_challenge_auth")):
+    if not authorization and st.get("_refuse_auth"):
         return 401, _DIGEST_CHALLENGE, _AUTH_BODY
     if authorization and st.get("_refuse_auth"):
         return 403, "", _AUTH_BODY
@@ -108,22 +101,12 @@ def _backup_zip(st: dict[str, Any]) -> bytes:
     return out.getvalue()
 
 
-def _empty_backup_zip() -> bytes:
-    """The archive hqplayerd 6.0.4 serves after a named profile/load until it is
-    restarted — a bare data/ with no base config."""
-    out = io.BytesIO()
-    with zipfile.ZipFile(out, "w") as z:
-        z.writestr("data/", b"")
-    return out.getvalue()
-
-
 def _http_render(st: dict[str, Any]) -> str:
     """GET /config form — the read side, rendered from state."""
     opts = "".join(
         f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
     )
-    with _STATE:  # a rescan on another handler thread may be rewriting the list
-        endpoints = tuple(st["_net_endpoints"])
+    endpoints = tuple(st["_net_endpoints"])
     # `_form_net_device` is the lag window: the config file already carries the
     # device a just-loaded preset picked, while this page still renders the one
     # the engine has open. Unset (the usual state) means both routes agree.
@@ -292,8 +275,6 @@ def _backup_response(st: dict[str, Any]) -> bytes:
         arrived()
     if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
         return b"not a zip archive"
-    if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
-        return _empty_backup_zip()
     # after a restore the daemon serves the pre-restart archive for a read or two
     # before catching up — the restart window verify must ride through
     with _STATE:  # read lane, but this one counts down: two concurrent reads
@@ -371,22 +352,15 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
 
 
 def _refresh_devices(st: dict[str, Any]) -> None:
-    """GET /config/refresh — re-scan output devices. Endpoints that were powered
-    off (staged in _hidden_endpoints) become bindable and join the offered set,
-    modeling a NAA that came back on since the last form read.
+    """GET /config/refresh — re-scan output devices.
 
-    The rescan also STOPS THE ENGINE (6.0.4, reported on Opal), so every
+    The rescan STOPS THE ENGINE (6.0.4, reported on Opal), so every
     live-only setting comes back at the config file's value. That side of it
     lands on the 4321 daemon, which this fake cannot see: a test that wants it
     hangs its own callable on ``_on_refresh`` and moves the control fake's State
     from there, the way a real rescan would."""
-    with _STATE:  # both lists are read-modify-written here, off a handler thread
-        endpoints = list(st["_net_endpoints"])
-        endpoints += [ep for ep in st.get("_hidden_endpoints", []) if ep not in endpoints]
-        st["_net_endpoints"] = endpoints  # a fresh list, so no renderer sees it grow
-        st["_hidden_endpoints"] = []
-    # outside the lock: the callable is the test's own, and it reaches for the
-    # 4321 fake rather than for anything served here
+    # the callable is the test's own, and it reaches for the 4321 fake rather
+    # than for anything served here
     engine_stops = st.get("_on_refresh")
     if engine_stops is not None:
         engine_stops()
@@ -426,11 +400,6 @@ def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
     """Answer the request with the daemon's authentication refusal if the state
     calls for one, reporting whether it did."""
     authorization = handler.headers.get("Authorization", "")
-    if authorization:
-        with _STATE:  # handlers run on their own threads
-            st.setdefault("_authorizations", []).append(
-                {"method": handler.command, "path": handler.path, "header": authorization}
-            )
     refusal = _auth_refusal(st, handler.path, authorization)
     if refusal is None:
         return False
@@ -511,13 +480,9 @@ class _Server(ThreadingHTTPServer):
     `block_on_close=False` keeps `server_close()` from joining one.
 
     Handlers now touch `st` concurrently, where before they were serialized, and
-    the test thread writes the same dict throughout. Neither lane is read-only:
-    `_stale` counts down inside a `GET /backup/settings.zip`, and
-    `GET /config/refresh` rewrites `_net_endpoints` and `_hidden_endpoints`
-    while `/config` may be rendering off them. Every read-modify-write of `st`
-    therefore runs under the module's `_STATE` lock, and the sections under it
-    publish whole replacement values rather than mutating a list in place, so a
-    reader that took the old list keeps a list nothing is appending to.
+    the test thread writes the same dict throughout. The read lane is not
+    read-only: `_stale` counts down inside a `GET /backup/settings.zip`. Every
+    read-modify-write of `st` therefore runs under the module's `_STATE` lock.
     """
 
     daemon_threads = True
@@ -637,8 +602,6 @@ def state(**extra: object) -> dict[str, Any]:
         # endpoints the daemon can bind; a net_device outside this set is refused
         # on restore (endpoint gone) — the unfixable-divergence case
         "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
-        # powered-off endpoints a /config/refresh rescan makes bindable
-        "_hidden_endpoints": [],
         "_saved": {},
         # the daemon's active named configuration; None is [default], which serves
         # the working config as hqplayerd.xml, and any restore lands back on it
@@ -721,14 +684,6 @@ def state(**extra: object) -> dict[str, Any]:
         # the healthy daemon: credentials are accepted and the count is
         # bookkeeping no existing test reads.
         "_refuse_auth": False,
-        # Challenge an unauthenticated request with the 401 and serve the digest
-        # that comes back, the way the real daemon greets a fresh connection
-        # carrying the right password. Off by default: the healthy daemon here
-        # asks nothing, so no existing case pays for a handshake.
-        "_challenge_auth": False,
-        # Every `Authorization` header that arrived, in order: method, path and
-        # the header verbatim, so a case can read the credentials a caller sent.
-        "_authorizations": [],
         "_requests": 0,
         # Running count of GET /backup/settings.zip arrivals, refused or served.
         "_backup_reads": 0,
