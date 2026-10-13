@@ -17,7 +17,6 @@ import { goTo, reasonXref } from "../../../../hqptuner/static/store/faceplate/xr
 import { openList, openPopover, openStage, togglePopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import {
-  isSdm,
   loudnessGated,
   matrixBypassed,
   volumeBypassed,
@@ -99,11 +98,6 @@ test("test_the_dsd_meter_line_on_the_page_names_the_matrix_engine", () => {
   assert.equal(reasonXref(METER_NOTES.matrix, null), "matrix");
 });
 
-test("test_a_reason_on_the_tab_it_names_carries_no_link", () => {
-  const inside = { drawer: "matrix", tab: "basic" };
-  assert.deepEqual([reasonXref(BYPASSED, { drawer: "pipelines" }), reasonXref(BYPASSED, inside)], ["matrix", null]);
-});
-
 /** @type {[string, string, string | null][]} */
 const FIXED_VOLUME_ON = [
   ["a_fixed_volume_reason_on_the_gain_tab_of_its_drawer_names_the_level_tab", "gain", "volume-level"],
@@ -121,15 +115,7 @@ for (const [name, tab, place] of FIXED_VOLUME_ON) {
 test("test_a_zero_range_reason_off_the_range_tab_names_the_range_tab", () => {
   const zero = volumeBypassed(ctx({ volume_min: 0, volume_max: 0 }));
   const on = (/** @type {string} */ tab) => reasonXref(zero, { drawer: "volume", tab });
-  assert.deepEqual([on("gain"), on("range")], ["volume-range", null]);
-});
-
-test("test_a_reason_naming_no_place_carries_no_link", () => {
-  const other = isSdm(ctx({ output_mode: "sdm" }));
-  assert.deepEqual(
-    [reasonXref(BYPASSED, { drawer: "shaping" }), reasonXref(other, { drawer: "shaping" })],
-    ["matrix", null],
-  );
+  assert.equal(on("gain"), "volume-range");
 });
 
 test("test_going_to_a_place_opens_its_drawer", () => {

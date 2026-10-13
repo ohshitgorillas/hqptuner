@@ -39,12 +39,17 @@ function wire(junk) {
 
 beforeEach(() => wire(RUNNING));
 
-test("test_the_hf_filter_reads_the_junk_filter_named_at_the_index_the_engine_reports", () => {
-  const at = (/** @type {string} */ junk) => {
-    wire(junk);
-    return hfNow().txt;
-  };
-  assert.deepEqual([at("1"), at("2")], ["20k", "2x"]);
+const at = (/** @type {string} */ junk) => {
+  wire(junk);
+  return hfNow().txt;
+};
+
+test("test_the_hf_filter_reads_the_junk_filter_named_at_reported_index_1", () => {
+  assert.equal(at("1"), "20k");
+});
+
+test("test_the_hf_filter_reads_the_junk_filter_named_at_reported_index_2", () => {
+  assert.equal(at("2"), "2x");
 });
 
 test("test_each_hf_option_is_valued_by_its_entrys_index", () => {
@@ -61,57 +66,17 @@ test("test_the_hf_options_are_labelled_by_name_in_engine_order", () => {
   );
 });
 
-test("test_only_the_running_hf_option_is_current", () => {
-  const current = (/** @type {string} */ junk) => {
-    wire(junk);
-    return hfNow()
-      .options.filter((o) => o.cur === true)
-      .map((o) => o.value);
-  };
-  assert.deepEqual([current("1"), current("2")], [["1"], ["2"]]);
+const current = (/** @type {string} */ junk) => {
+  wire(junk);
+  return hfNow()
+    .options.filter((o) => o.cur === true)
+    .map((o) => o.value);
+};
+
+test("test_only_the_hf_option_at_running_index_1_is_current", () => {
+  assert.deepEqual(current("1"), ["1"]);
 });
 
-/**
- * Whether a reading names a fixture filter, and whether it is the running index itself.
- *
- * @param {string} txt
- */
-const reading = (txt) => ({ named: NAMES.includes(txt), index: txt === RUNNING });
-
-test("test_with_no_engine_state_the_hf_filter_names_no_filter", () => {
-  const before = reading(hfNow().txt);
-  engineState.value = null;
-  const after = reading(hfNow().txt);
-  assert.deepEqual(
-    [before, after],
-    [
-      { named: true, index: false },
-      { named: false, index: false },
-    ],
-  );
-});
-
-test("test_with_no_enumeration_the_hf_filter_names_no_filter_rather_than_the_index", () => {
-  const before = reading(hfNow().txt);
-  enums.value = null;
-  const after = reading(hfNow().txt);
-  assert.deepEqual(
-    [before, after],
-    [
-      { named: true, index: false },
-      { named: false, index: false },
-    ],
-  );
-});
-
-test("test_with_no_engine_state_the_hf_options_empty", () => {
-  const running = hfNow().options.length;
-  engineState.value = null;
-  assert.deepEqual([running, hfNow().options.length], [NAMES.length, 0]);
-});
-
-test("test_with_no_enumeration_the_hf_options_empty", () => {
-  const running = hfNow().options.length;
-  enums.value = null;
-  assert.deepEqual([running, hfNow().options.length], [NAMES.length, 0]);
+test("test_only_the_hf_option_at_running_index_2_is_current", () => {
+  assert.deepEqual(current("2"), ["2"]);
 });

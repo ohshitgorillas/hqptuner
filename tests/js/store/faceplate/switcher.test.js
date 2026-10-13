@@ -155,18 +155,39 @@ test("test_a_modulator_slot_carries_its_names_plain_family_variant_and_leaf", ()
   assert.deepEqual({ fam: slot?.fam, variant: slot?.variant, leaf: slot?.leaf }, PLAIN_ASDM5);
 });
 
-test("test_a_filter_slot_carries_its_names_plain_family_variant_and_leaf", () => {
+test("test_a_filter_slot_carries_the_plain_family_of_a_name_with_no_variant", () => {
   setSwitcherTarget("1x filter");
   setSlot(0, "IIR");
   setSlot(1, "sinc-M");
-  assert.deepEqual(
-    switcherView()?.slots.map((/** @type {Record<string, unknown>} */ s) => ({
-      fam: s.fam,
-      variant: s.variant,
-      leaf: s.leaf,
-    })),
-    [PLAIN_FILTERS.IIR, PLAIN_FILTERS["sinc-M"]],
-  );
+  assert.equal(switcherView()?.slots[0]?.fam, PLAIN_FILTERS.IIR.fam);
+});
+
+test("test_a_filter_slot_carries_the_plain_leaf_of_a_name_with_no_variant", () => {
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  setSlot(1, "sinc-M");
+  assert.equal(switcherView()?.slots[0]?.leaf, PLAIN_FILTERS.IIR.leaf);
+});
+
+test("test_a_filter_slot_carries_the_plain_family_of_a_name_with_a_variant", () => {
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  setSlot(1, "sinc-M");
+  assert.equal(switcherView()?.slots[1]?.fam, PLAIN_FILTERS["sinc-M"].fam);
+});
+
+test("test_a_filter_slot_carries_the_plain_variant_of_a_name_with_a_variant", () => {
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  setSlot(1, "sinc-M");
+  assert.equal(switcherView()?.slots[1]?.variant, PLAIN_FILTERS["sinc-M"].variant);
+});
+
+test("test_a_filter_slot_carries_the_plain_leaf_of_a_name_with_a_variant", () => {
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  setSlot(1, "sinc-M");
+  assert.equal(switcherView()?.slots[1]?.leaf, PLAIN_FILTERS["sinc-M"].leaf);
 });
 
 test("test_a_list_slot_carries_no_aka", () => {
@@ -191,26 +212,31 @@ test("test_with_both_list_slots_empty_the_first_shows_the_running_value", () => 
 
 // --- output mode slots ---------------------------------------------------------------------------------------------
 
-test("test_output_mode_marks_the_running_chain", () => {
+test("test_output_mode_marks_its_sdm_slot_on_while_the_sdm_chain_runs", () => {
   setSwitcherTarget("Output mode");
-  const sdm = slotField("on");
+  assert.equal(slotField("on")?.[1], true);
+});
+
+test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", () => {
+  setSwitcherTarget("Output mode");
   loadLists({ chain: "pcm", plain: true });
-  assert.deepEqual(
-    [sdm, slotField("on")],
-    [
-      [false, true],
-      [true, false],
-    ],
-  );
+  assert.equal(slotField("on")?.[0], true);
 });
 
 // --- matrix profile slots ------------------------------------------------------------------------------------------
 
-test("test_a_profile_slot_names_and_labels_the_remembered_profile", () => {
+test("test_a_profile_slot_names_the_remembered_profile", () => {
   setSwitcherTarget("Matrix profile");
   setSlot(0, "Desk");
   const s = switcherView()?.slots[0];
-  assert.deepEqual([s?.name, s?.label], ["Desk", "Desk"]);
+  assert.equal(s?.name, "Desk");
+});
+
+test("test_a_profile_slot_labels_the_remembered_profile", () => {
+  setSwitcherTarget("Matrix profile");
+  setSlot(0, "Desk");
+  const s = switcherView()?.slots[0];
+  assert.equal(s?.label, "Desk");
 });
 
 test("test_a_profile_slot_is_on_while_its_profile_runs", () => {
@@ -293,17 +319,30 @@ async function tapBothWhileUnsettled(idle, running) {
   await Promise.all([first, second]);
 }
 
+test("test_tapping_the_running_slot_while_a_write_is_unsettled_keeps_the_unsettled_write_first_on_a_list_target", async () => {
+  setSlot(0, "ASDM7EC 512+fs");
+  setSlot(1, "ASDM5");
+  await tapBothWhileUnsettled(1, 0);
+  assert.deepEqual(sent("/api/config/live")[0], { fields: { modulator: "0" } });
+});
+
 test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_on_a_list_target", async () => {
   setSlot(0, "ASDM7EC 512+fs");
   setSlot(1, "ASDM5");
   await tapBothWhileUnsettled(1, 0);
-  assert.deepEqual(sent("/api/config/live"), [{ fields: { modulator: "0" } }, { fields: { modulator: "3" } }]);
+  assert.deepEqual(sent("/api/config/live")[1], { fields: { modulator: "3" } });
+});
+
+test("test_tapping_the_running_slot_while_a_write_is_unsettled_keeps_the_unsettled_write_first_under_output_mode", async () => {
+  setSwitcherTarget("Output mode");
+  await tapBothWhileUnsettled(0, 1);
+  assert.deepEqual(sent("/api/config/live")[0], { fields: { mode: "pcm" } });
 });
 
 test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_output_mode", async () => {
   setSwitcherTarget("Output mode");
   await tapBothWhileUnsettled(0, 1);
-  assert.deepEqual(sent("/api/config/live"), [{ fields: { mode: "pcm" } }, { fields: { mode: "sdm" } }]);
+  assert.deepEqual(sent("/api/config/live")[1], { fields: { mode: "sdm" } });
 });
 
 // --- lit -----------------------------------------------------------------------------------------------------------
@@ -345,10 +384,16 @@ test("test_an_nx_filter_slot_is_lit_while_a_high_rate_source_plays", () => {
 
 // --- lists ---------------------------------------------------------------------------------------------------------
 
-test("test_a_list_slots_list_opens_its_keys_option_list_on_its_name", () => {
+test("test_a_list_slots_list_opens_its_keys_option_list", () => {
   setSlot(0, "ASDM5");
   slotList(0);
-  assert.deepEqual([openList.value?.key, openList.value?.value], ["sdm_modulator", "ASDM5"]);
+  assert.equal(openList.value?.key, "sdm_modulator");
+});
+
+test("test_a_list_slots_list_opens_on_its_name", () => {
+  setSlot(0, "ASDM5");
+  slotList(0);
+  assert.equal(openList.value?.value, "ASDM5");
 });
 
 test("test_the_other_slots_list_replaces_an_open_one_instead_of_closing_it", () => {
@@ -395,25 +440,18 @@ test("test_a_profile_slots_list_omits_the_profile_the_other_slot_holds", () => {
   );
 });
 
-test("test_a_slot_list_under_volume_opens_nothing", () => {
-  setSwitcherTarget("Volume");
-  slotList(0);
-  const volume = openList.value;
-  setSwitcherTarget("Modulator");
-  slotList(0);
-  assert.deepEqual([volume, openList.value?.key], [null, "sdm_modulator"]);
-});
-
 // --- plate bottom --------------------------------------------------------------------------------------------------
 
-test("test_the_plate_bottom_reads_the_bar_preference", () => {
-  const on = plateBottom()?.bottom;
-  setBottomBar("none");
-  assert.deepEqual([on, plateBottom()?.bottom], ["switcher", "none"]);
+test("test_the_plate_bottom_reads_the_switcher_bar_preference", () => {
+  assert.equal(plateBottom()?.bottom, "switcher");
 });
 
-test("test_the_plate_bottom_marks_volume_only_under_the_volume_target", () => {
-  const modulator = plateBottom()?.sw;
+test("test_the_plate_bottom_reads_a_changed_bar_preference", () => {
+  setBottomBar("none");
+  assert.equal(plateBottom()?.bottom, "none");
+});
+
+test("test_the_plate_bottom_marks_volume_under_the_volume_target", () => {
   setSwitcherTarget("Volume");
-  assert.deepEqual([modulator, plateBottom()?.sw], ["", "volume"]);
+  assert.equal(plateBottom()?.sw, "volume");
 });

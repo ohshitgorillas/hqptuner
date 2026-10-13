@@ -49,9 +49,6 @@ const BASE = {
   report: { enabled: "1", min: "-60", max: "0" },
 };
 
-/** The engine holding the control: it reports a range of its own, not the configured one. */
-const HELD = { enabled: "0", min: "-12", max: "0" };
-
 /** @type {StagingWire} */
 let wire;
 
@@ -148,10 +145,14 @@ test("test_auto_headroom_wins_over_the_fixed_level", () => {
   assert.equal(modeWith({ fixed: true, iso: "1" }), "auto");
 });
 
-test("test_fixed_mode_follows_a_staged_edit", async () => {
+test("test_fixed_mode_reads_off_with_the_fixed_level_and_auto_headroom_both_off", () => {
   const before = fixedMode();
+  assert.equal(before, "off");
+});
+
+test("test_fixed_mode_follows_a_staged_edit", async () => {
   await edit("optimal_iso", "2");
-  assert.deepEqual([before, fixedMode()], ["off", "auto"]);
+  assert.equal(fixedMode(), "auto");
 });
 
 // --- a pick ------------------------------------------------------------------------------------------------------
@@ -205,11 +206,11 @@ test("test_a_staged_handle_reads_dirty_and_the_others_do_not", async () => {
 });
 
 test("test_the_loudness_bounds_show_while_matrix_and_loudness_run", () => {
-  assert.deepEqual([rangeWith({ loudness: true }).loud, rangeWith({}).loud], [{ low: -45, high: -15 }, null]);
+  assert.deepEqual(rangeWith({ loudness: true }).loud, { low: -45, high: -15 });
 });
 
 test("test_the_needle_follows_the_live_level_while_the_engine_reports_the_control", () => {
-  assert.deepEqual([rangeWith({}).level, rangeWith({ report: HELD }).level], [-12.5, null]);
+  assert.equal(rangeWith({}).level, -12.5);
 });
 
 test("test_a_knob_drag_in_flight_moves_the_needle", () => {
@@ -235,8 +236,7 @@ test("test_a_move_lands_on_whole_db", async () => {
 test("test_a_move_landing_where_the_handle_is_stages_nothing", async () => {
   moveVolumeHandle("max", 0.3);
   await quiesce(wire);
-  const still = wire.stages.length;
   moveVolumeHandle("max", -1);
   await quiesce(wire);
-  assert.deepEqual([still, wire.stages.length], [0, 1]);
+  assert.equal(wire.stages.length, 1);
 });

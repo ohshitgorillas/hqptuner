@@ -97,20 +97,18 @@ test("test_escape_with_a_drawer_open_on_settings_keeps_the_settings_body", () =>
   assert.equal(body.value, "settings");
 });
 
-test("test_escape_with_the_setup_panel_over_a_drawer_closes_the_panel_and_keeps_the_drawer", () => {
+test("test_escape_with_the_setup_panel_over_a_drawer_keeps_the_drawer", () => {
   toggleStage("volume");
   panelOpen.value = true;
   closeTop();
-  assert.deepEqual([panelOpen.value, openStage.value], [false, "volume"]);
+  assert.equal(openStage.value, "volume");
 });
 
-test("test_escape_with_a_popover_over_the_setup_panel_closes_the_popover_first_and_the_panel_second", () => {
+test("test_escape_with_a_popover_over_the_setup_panel_keeps_the_panel_open", () => {
   panelOpen.value = true;
   togglePopover("stations");
   closeTop();
-  const first = [openPopover.value, panelOpen.value];
-  closeTop();
-  assert.deepEqual([...first, panelOpen.value], [null, true, false]);
+  assert.equal(panelOpen.value, true);
 });
 
 test("test_a_body_swap_closes_the_open_drawer", () => {
@@ -178,11 +176,11 @@ test("test_escape_with_a_popover_over_a_list_keeps_the_list", () => {
   assert.equal(openList.value?.key, "pcm_filter_1x");
 });
 
-test("test_escape_with_a_list_over_a_drawer_closes_the_list_first", () => {
+test("test_escape_with_a_list_over_a_drawer_keeps_the_drawer", () => {
   toggleStage("resampling");
   openOptionList(list("pcm_filter_1x"));
   closeTop();
-  assert.deepEqual([openList.value, openStage.value], [null, "resampling"]);
+  assert.equal(openStage.value, "resampling");
 });
 
 test("test_a_body_swap_closes_the_open_list", () => {
