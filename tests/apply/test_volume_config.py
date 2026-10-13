@@ -1,10 +1,10 @@
 """The Volume tab's persistent settings, end to end through the write lane.
 
-Every field here was previously unreachable by the suite: the fake daemon's
-config XML carried no ``<fixed>`` element and no ``volume_max``/``volume_min``/
-``volume_adaptive``/``defaults@volume``, so a writer bug in any of them read as
-a fixture gap and shipped green. The fake now expresses them, and these are the
-behaviors that were going untested.
+The fake daemon re-reads none of these fields from an uploaded config unless the
+test writes its row into ``_adopts``, so each apply test here names the rows its
+read-back needs. The top-level ``<fixed>`` element is tested on hand-written XML
+through ``presetconf`` alone: whether that line is live or commented is not
+something an adoption row can state.
 
 ``adaptive_volume`` is the odd one: it is a LIVE setting (``SetAdaptiveVolume``),
 so it never touches the config file — and a preset saved off that file therefore
@@ -12,6 +12,8 @@ stored a value the user was not hearing. ``mgr.readings.state`` is assigned dire
 stand in for the poll loop that normally fills it; it is the manager's public
 snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 """
+
+from typing import Any
 
 import pytest
 
@@ -42,79 +44,35 @@ _NEVER_FIXED_XML = (
 )
 
 
-async def test_max_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
+#: The rows the fake daemon re-reads on restore for the fields applied here:
+#: state key to the element and attribute the daemon takes it from.
+MAX_VOLUME_ROW = {"volume_max": ("engine", "volume_max")}
+MIN_VOLUME_ROW = {"volume_min": ("engine", "volume_min")}
+STARTUP_VOLUME_ROW = {"defaults_volume": ("defaults", "volume")}
+
+
+async def test_max_volume_survives_an_apply(http_daemon: dict[str, Any], http_manager: ConnectionManager) -> None:
+    http_daemon["_adopts"] = MAX_VOLUME_ROW
     await http_manager.applyops.apply({}, {"volume_max": "-6"})
     assert (await fileconfig.load_file_config(http_manager))["volume_max"] == "-6"
 
 
-async def test_min_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
+async def test_min_volume_survives_an_apply(http_daemon: dict[str, Any], http_manager: ConnectionManager) -> None:
+    http_daemon["_adopts"] = MIN_VOLUME_ROW
     await http_manager.applyops.apply({}, {"volume_min": "-40"})
     assert (await fileconfig.load_file_config(http_manager))["volume_min"] == "-40"
 
 
-async def test_startup_volume_survives_an_apply(http_manager: ConnectionManager) -> None:
+async def test_startup_volume_survives_an_apply(http_daemon: dict[str, Any], http_manager: ConnectionManager) -> None:
+    http_daemon["_adopts"] = STARTUP_VOLUME_ROW
     await http_manager.applyops.apply({}, {"defaults_volume": "-12"})
     assert (await fileconfig.load_file_config(http_manager))["defaults_volume"] == "-12"
-
-
-async def test_enabling_fixed_volume_reads_back_as_enabled(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "1"
-
-
-async def test_enabling_fixed_volume_stores_the_level(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-6"
-
-
-async def test_disabling_fixed_volume_reads_back_as_disabled(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
 
 
 # --- fixed volume: presence is the flag, and the comment is the memory --------
 #
 # There is no enabled attribute. The top-level <fixed volume="…"/> line existing
-# IS "on", and 6.0.4 remembers the level while off by commenting that line out —
-# a live config on the dev host carries literally <!--<fixed volume="-3"/>-->.
-# HQPTuner deleted the line instead, so a level staged alongside a disable was
-# destroyed and the box fell back to the daemon form's own remembered number:
-# the user's value silently reverting. The apply reported success too, because
-# the dropped field is also the field read back to confirm it.
-
-
-async def test_disabling_fixed_volume_keeps_a_level_staged_with_it(http_manager: ConnectionManager) -> None:
-    # the core regression: level and untick in ONE apply
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-20"
-
-
-async def test_disabling_fixed_volume_with_a_level_still_reports_it_off(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
-
-
-async def test_a_level_staged_alone_switches_fixed_volume_on(http_manager: ConnectionManager) -> None:
-    # there is nowhere to park a level for a disabled feature, so setting one
-    # means turning it on — otherwise the edit is silently discarded
-    await http_manager.applyops.apply({}, {"fixed_volume": "-12"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "1"
-
-
-async def test_an_explicit_untick_beats_a_level_staged_beside_it(http_manager: ConnectionManager) -> None:
-    # "turn it off" must never be resurrected by the level traveling with it
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0", "fixed_volume": "-20"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume_enabled"] == "0"
-
-
-async def test_re_enabling_fixed_volume_restores_the_remembered_level(http_manager: ConnectionManager) -> None:
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1", "fixed_volume": "-6"})
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "0"})
-    await http_manager.applyops.apply({}, {"fixed_volume_enabled": "1"})
-    assert (await fileconfig.load_file_config(http_manager))["fixed_volume"] == "-6"
+# IS "on", and 6.0.4 remembers the level while off by commenting that line out.
 
 
 def test_toggling_fixed_volume_leaves_exactly_one_parked_line() -> None:
@@ -143,15 +101,24 @@ def test_a_live_fixed_element_reports_the_level_it_carries(volume: bytes, level:
     assert presetconf.read_config(xml).get("fixed_volume") == level
 
 
-async def test_a_volume_apply_reports_applied(http_manager: ConnectionManager) -> None:
+async def test_a_volume_apply_reports_applied(http_daemon: dict[str, Any], http_manager: ConnectionManager) -> None:
+    http_daemon["_adopts"] = MAX_VOLUME_ROW
     assert (
         await restore.apply(http_manager, {"volume_max": "-6"}, restore_hooks(http_manager))
     ).outcome is RestoreOutcome.APPLIED
 
 
+#: A startup volume the restarted daemon writes back on its own: the fixture
+#: daemon starts at -3 and the apply below never stages it.
+DAEMON_REWRITTEN_STARTUP_VOLUME = {"defaults_volume": "-40"}
+
+
 async def test_an_apply_with_a_daemon_rewrite_reports_applied(
-    clamping_manager: ConnectionManager,
+    http_daemon: dict[str, Any],
+    http_manager: ConnectionManager,
 ) -> None:
+    http_daemon["_adopts"] = MAX_VOLUME_ROW
+    http_daemon["_restart_state"] = DAEMON_REWRITTEN_STARTUP_VOLUME
     assert (
-        await restore.apply(clamping_manager, {"volume_max": "-6"}, restore_hooks(clamping_manager))
+        await restore.apply(http_manager, {"volume_max": "-6"}, restore_hooks(http_manager))
     ).outcome is RestoreOutcome.APPLIED

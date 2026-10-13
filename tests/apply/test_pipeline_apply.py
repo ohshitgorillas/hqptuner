@@ -7,6 +7,7 @@ rows verbatim (no interpretation), so only a writer that produces XML the real
 daemon would store round-trips."""
 
 import json
+from typing import Any
 
 from fastapi.testclient import TestClient
 
@@ -69,6 +70,13 @@ def test_invalid_gain_is_refused_before_any_write(http_client: TestClient) -> No
     assert resp.json()["code"] == "invalid_input"
 
 
-async def test_matrix_engine_field_reaches_the_running_config(http_manager: ConnectionManager) -> None:
+#: Restore row for the fake daemon: it re-reads ``<matrix engine>`` from an uploaded config.
+MATRIX_ENGINE_ADOPTED = {"matrix_engine": ("matrix", "engine")}
+
+
+async def test_matrix_engine_field_reaches_the_running_config(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_adopts"] = MATRIX_ENGINE_ADOPTED
     await http_manager.applyops.apply({}, {"matrix_engine": "0"})
     assert (await fileconfig.load_file_config(http_manager))["matrix_engine"] == "0"

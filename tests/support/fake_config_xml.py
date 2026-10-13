@@ -1,11 +1,14 @@
 """The config XML half of the fake hqplayerd: render and adopt.
 
-Split out of ``fake_http`` when that file passed the 500-line gate. The seam is
-real, not arbitrary: this module owns the *file* the daemon keeps (what GET
-/backup carries, what POST /restore adopts), while ``fake_http`` owns the HTTP
-surface around it. The schema here is authored against 6.0.4 INDEPENDENTLY of
-``presetconf``, so a wrong form->XML mapping in the writer surfaces as a failed
-readback rather than a self-confirming round-trip.
+This module owns the *file* the daemon keeps, while ``fake_http`` owns the HTTP
+surface around it. ``cfg_xml`` renders the whole file from state for GET
+/backup. ``adopt_cfg`` reads an uploaded one back on POST /restore by table: the
+base rows below plus the rows a test writes into ``st["_adopts"]`` and
+``st["_plugin_adopts"]``, and the live pipeline rows and saved profiles
+verbatim. An attribute no row names is rendered but never adopted. The schema
+is authored against 6.0.4 INDEPENDENTLY of ``presetconf``, so a wrong form->XML
+mapping in the writer surfaces as a failed readback rather than a
+self-confirming round-trip.
 """
 
 import re
@@ -51,8 +54,7 @@ def cfg_xml(st: dict[str, Any]) -> bytes:
         f'<title value="{st["title"]}"/>'
         # the live-routed set: output mode, both chains' filters and shapers.
         # 6.0.4 writes every one of them into the config file even though a live
-        # control-lane write never touches it, so they render from state and are
-        # adopted back on restore like any other attribute.
+        # control-lane write never touches it, so they render from state.
         f'<mode value="{st["mode"]}"/>'
         f'<pcm filter="{st["filter"]}" filter1x="{st["filter1x"]}" dither="{st["dither"]}" '
         f'samplerate="{st["samplerate"]}"/>'
@@ -122,28 +124,37 @@ def elem_attr(xml: bytes, tag: str, attr: str) -> str | None:
     return a.group(1).decode() if a else None
 
 
-def _adopt_net_device(st: dict[str, Any], xml: bytes) -> None:
-    """Adopt the uploaded net_device only when it is an endpoint the daemon can
-    bind; a device outside the offered set is refused (endpoint gone), which no
-    restart conjures back — the unfixable-divergence case."""
-    addr = elem_attr(xml, "network", "address")
-    dev = elem_attr(xml, "network", "device")
-    if addr is not None and dev is not None and f"{addr}/{dev}" in st["_net_endpoints"]:
-        st["net_device"] = f"{addr}/{dev}"
+#: Elements every uploaded hqplayerd.xml is adopted on: state key -> (element
+#: tag, attribute). A key fewer tests need is a row the test writes into
+#: ``st["_adopts"]`` instead, in the same shape.
+_ADOPTS: dict[str, tuple[str, str]] = {
+    "title": ("title", "value"),
+    "mode": ("mode", "value"),
+    "filter": ("pcm", "filter"),
+    "filter1x": ("pcm", "filter1x"),
+    "dither": ("pcm", "dither"),
+    "samplerate": ("pcm", "samplerate"),
+    "bitrate": ("sdm", "bitrate"),
+    "cuda": ("engine", "cuda"),
+    "auto_family": ("engine", "auto_family"),
+}
+
+#: Live plugin attributes every upload is adopted on: state key -> (``<plugin
+#: type>``, attribute), read by the daemon's own attribute names. A test writes
+#: further rows into ``st["_plugin_adopts"]``, in the same shape.
+_PLUGIN_ADOPTS: dict[str, tuple[str, str]] = {
+    "post_bauer_frequency": ("bauer", "frequency"),
+    "post_correction_enabled": ("correction", "enabled"),
+    "post_loudness_enabled": ("loudness", "enabled"),
+}
 
 
-def _adopt_matrix(st: dict[str, Any], xml: bytes) -> None:
-    """Adopt the uploaded ``<matrix enabled>`` — the carrier switch for the whole
-    post-process chain. Read independently of presetconf."""
-    enabled = elem_attr(xml, "matrix", "enabled")
-    if enabled is not None:
-        st["matrix_enabled"] = enabled == "1"
-    for key, attr in (("matrix_engine", "engine"), ("matrix_expand_hf", "expand_hf"), ("matrix_iir2fir", "iir2fir")):
-        v = elem_attr(xml, "matrix", attr)
-        if v is not None:
-            st[key] = v
-    _adopt_pipelines(st, xml)
-    _adopt_profiles(st, xml)
+def _adopt_value(st: dict[str, Any], key: str, value: str | None) -> None:
+    """The one adoption rule every row follows: an attribute the upload carries
+    replaces the key, as ``value == "1"`` where the key holds a bool and as the
+    string otherwise. An attribute the upload leaves out changes nothing."""
+    if value is not None:
+        st[key] = value == "1" if isinstance(st.get(key), bool) else value
 
 
 def _attrs(tag: bytes) -> dict[str, str]:
@@ -209,27 +220,10 @@ def _adopt_pipelines(st: dict[str, Any], xml: bytes) -> None:
         st["_pipelines"] = rows
 
 
-#: <plugin type> -> XML attribute -> fake state key. Read by the daemon's own
-#: attribute names (low_frequency, frequency, dac0, ...) independently of
-#: presetconf, so a wrong form->XML mapping in the writer surfaces here as a value
-#: that never lands. ``enabled`` is adopted as a bool, every other attr as a string.
-_PLUGIN_ATTRS: dict[bytes, dict[str, str]] = {
-    b"bauer": {"enabled": "post_bauer_enabled", "frequency": "post_bauer_frequency"},
-    b"loudness": {"enabled": "post_loudness_enabled", "low_frequency": "post_loudness_lowfreq"},
-    b"correction": {"enabled": "post_correction_enabled", "dac0": "post_correction_dac0"},
-}
-
-
-def _adopt_plugin_attrs(st: dict[str, Any], tag: bytes, attrs: dict[str, str]) -> None:
-    for attr, key in attrs.items():
-        v = re.search(rb"\b" + attr.encode() + rb'="([^"]*)"', tag)
-        if v is not None:
-            st[key] = v.group(1) == b"1" if attr == "enabled" else v.group(1).decode()
-
-
 def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
-    """Adopt the LIVE post_process plugin attrs from an uploaded config — the
-    daemon re-reading the <plugin> nodes of the matrix that is playing.
+    """Adopt the LIVE post_process plugin attrs the plugin rows name from an
+    uploaded config — the daemon re-reading the <plugin> nodes of the matrix
+    that is playing.
 
     Scoped to the ``<matrix>`` element's own body on purpose: a saved
     ``<matrix_profile>`` carries a ``<post_process>`` chain of its own, and a
@@ -239,97 +233,21 @@ def _adopt_plugins(st: dict[str, Any], xml: bytes) -> None:
     matrix = re.search(rb"<matrix\b[^>]*>(.*?)</matrix>", xml, re.DOTALL)
     if matrix is None:
         return
+    rows: dict[str, tuple[str, str]] = {**_PLUGIN_ADOPTS, **st.get("_plugin_adopts", {})}
     for m in re.finditer(rb"<plugin\b[^>]*?>", matrix.group(1)):
-        for ptype, attrs in _PLUGIN_ATTRS.items():
-            if b'type="' + ptype + b'"' in m.group(0):
-                _adopt_plugin_attrs(st, m.group(0), attrs)
-
-
-def _fixed_volume_of(m: re.Match[bytes] | None, default: str | None) -> str | None:
-    if m is None:
-        return None
-    level = re.search(rb'\bvolume="([^"]*)"', m.group(0))
-    return level.group(1).decode() if level else default
-
-
-def _adopt_fixed(st: dict[str, Any], xml: bytes) -> None:
-    """Adopt the top-level ``<fixed volume=…/>``: present = fixed volume on, at
-    that level; absent = off. A commented element is the daemon's own parked
-    memory and is not live, so it is adopted as the REMEMBERED level rather than
-    the running one — the daemon keeps that comment across a restore, and a fake
-    that dropped it would report the level as gone when it is only parked."""
-    tags = list(re.finditer(rb"<fixed\b[^>]*?/?>", xml))
-    live = next((m for m in tags if not _commented(xml, m.start())), None)
-    parked = next((m for m in tags if _commented(xml, m.start())), None)
-    st["fixed_level"] = _fixed_volume_of(live, "0")
-    st["fixed_parked"] = _fixed_volume_of(parked, None)
-
-
-def _commented(xml: bytes, pos: int) -> bool:
-    return xml.rfind(b"<!--", 0, pos) > xml.rfind(b"-->", 0, pos)
-
-
-def _clamp_startup_volume(st: dict[str, Any]) -> None:
-    """A daemon that rewrites a setting on its own, on ``_clamps`` state.
-
-    The startup volume has to sit inside the volume range, so a daemon may pull
-    it up to the minimum when it re-reads the config — writing back a value
-    nobody uploaded. Modeled because that is the shape of divergence an apply
-    must NOT be held to: the field is untouched by the apply, so demanding it
-    match would fail every apply on this machine forever."""
-    if not st.get("_clamps"):
-        return
-    if float(st["defaults_volume"]) < float(st["volume_min"]):
-        st["defaults_volume"] = st["volume_min"]
+        attrs = _attrs(m.group(0))
+        for key, (ptype, attr) in rows.items():
+            if attrs.get("type") == ptype:
+                _adopt_value(st, key, attrs.get(attr))
 
 
 def adopt_cfg(st: dict[str, Any], xml: bytes) -> None:
     """Update state from an uploaded working hqplayerd.xml — the daemon re-reading
-    its config on restore. Reads the schema independently of the writer."""
-
-    def take(key: str, tag: str, attr: str) -> None:
-        v = elem_attr(xml, tag, attr)
-        if v is not None:
-            st[key] = v
-
-    for key, tag, attr in (
-        ("backend", "output", "type"),
-        ("title", "title", "value"),
-        ("mode", "mode", "value"),
-        ("filter", "pcm", "filter"),
-        ("filter1x", "pcm", "filter1x"),
-        ("dither", "pcm", "dither"),
-        ("samplerate", "pcm", "samplerate"),
-        ("oversampling", "sdm", "oversampling"),
-        ("oversampling1x", "sdm", "oversampling1x"),
-        ("modulator", "sdm", "modulator"),
-        ("bitrate", "sdm", "bitrate"),
-        ("defaults_samplerate", "defaults", "samplerate"),
-        ("defaults_bitrate", "defaults", "bitrate"),
-        ("channels", "engine", "channels"),
-        ("cuda", "engine", "cuda"),
-        ("cuda_dev", "engine", "cuda_dev"),
-        ("cuda_cdev", "engine", "cuda_cdev"),
-        ("ecores", "engine", "ecores"),
-        ("multicore", "engine", "multicore"),
-        ("nblocks", "engine", "nblocks"),
-        ("volume_fixed", "engine", "volume_fixed"),
-        ("volume_max", "engine", "volume_max"),
-        ("volume_min", "engine", "volume_min"),
-        ("volume_adaptive", "engine", "volume_adaptive"),
-        ("defaults_volume", "defaults", "volume"),
-    ):
-        take(key, tag, attr)
-    _adopt_fixed(st, xml)
-    _clamp_startup_volume(st)
-    af = elem_attr(xml, "engine", "auto_family")
-    if af is not None:
-        st["auto_family"] = af == "1"
-    ipv6 = elem_attr(xml, "network", "ipv6")
-    if ipv6 is not None:
-        st["net_ipv6"] = ipv6 == "1"
-    interface = elem_attr(xml, "upnp", "interface")
-    st["upnp_interface"] = "" if interface is None else interface
-    _adopt_net_device(st, xml)
-    _adopt_matrix(st, xml)
+    its config on restore. Reads the schema independently of the writer, on the
+    base element rows with the test's ``st["_adopts"]`` rows on top."""
+    rows: dict[str, tuple[str, str]] = {**_ADOPTS, **st.get("_adopts", {})}
+    for key, (tag, attr) in rows.items():
+        _adopt_value(st, key, elem_attr(xml, tag, attr))
+    _adopt_pipelines(st, xml)
+    _adopt_profiles(st, xml)
     _adopt_plugins(st, xml)

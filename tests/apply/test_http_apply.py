@@ -57,10 +57,15 @@ async def test_staged_persistent_change_is_applied(
     assert (await _readback(http))["title"] == "Renamed"
 
 
+#: Restore row for the fake daemon: it re-reads ``<network ipv6>`` from an uploaded config.
+IPV6_ADOPTED = {"net_ipv6": ("network", "ipv6")}
+
+
 async def test_enabling_a_checkbox_is_applied(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
+    apply_via: tuple[ConnectionManager, HttpConfigClient], http_daemon: dict[str, Any]
 ) -> None:
     manager, http = apply_via
+    http_daemon["_adopts"] = IPV6_ADOPTED
     await manager.applyops.apply({}, {"net_ipv6": "1"})
     assert (await _readback(http))["net_ipv6"] is True
 
@@ -93,24 +98,30 @@ async def test_a_value_the_daemon_refuses_reports_not_applied(
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
+#: The restarted daemon's state when it accepts the restore and never comes back.
+NEVER_RETURNS = {"_down": True}
+
+
 async def test_a_daemon_that_never_returns_reports_not_applied(
-    dying_http_daemon: dict[str, Any],
-    http_manager_factory: ManagerFactory,
+    http_daemon: dict[str, Any],
+    http_manager: ConnectionManager,
 ) -> None:
     # the daemon accepts the restore then never comes back; the apply must report
     # not-applied so the caller keeps the staging, not a false success
-    manager = http_manager_factory(dying_http_daemon)
-    result = await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
+    http_daemon["_restart_state"] = NEVER_RETURNS
+    result = await restore.apply(http_manager, {"title": "Renamed"}, restore_hooks(http_manager))
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
 
 async def test_apply_verifies_through_the_post_restart_stale_window(
-    stale_http_daemon: dict[str, Any],
+    http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
 ) -> None:
     # the daemon serves the old form for a read after the POST; a single-GET
     # verify would false-negative here — the poll must ride through the stale read
-    manager = http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
+    manager = http_manager_factory(http_daemon, alarm_threshold=3.0)
+    pre_restart = await manager.require_http().backup()
+    http_daemon["_restart_state"] = {"_backups": [pre_restart]}
     result = await restore.apply(manager, {"title": "Renamed"}, restore_hooks(manager))
     assert result.outcome is RestoreOutcome.APPLIED
 
@@ -126,17 +137,29 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
     assert (await presetlane.read(manager, "Fresh"))["title"] == "Renamed"
 
 
+#: An endpoint the fake daemon offers but is not running on.
+OFFERED_DEVICE = "S30/hw:CARD=Other,DEV=0"
+
+
 @pytest.mark.parametrize(
-    ("device", "outcome"),
-    [("GHOST/hw:CARD=Gone,DEV=0", RestoreOutcome.UNAVAILABLE), ("S30/hw:CARD=Other,DEV=0", RestoreOutcome.APPLIED)],
+    ("device", "restarted", "outcome"),
+    [
+        ("GHOST/hw:CARD=Gone,DEV=0", {}, RestoreOutcome.UNAVAILABLE),
+        (OFFERED_DEVICE, {"net_device": OFFERED_DEVICE}, RestoreOutcome.APPLIED),
+    ],
     ids=["no longer offered", "offered, not running"],
 )
 async def test_a_net_device_converges_only_when_the_daemon_offers_it(
-    apply_via: tuple[ConnectionManager, HttpConfigClient], device: str, outcome: RestoreOutcome
+    apply_via: tuple[ConnectionManager, HttpConfigClient],
+    http_daemon: dict[str, Any],
+    device: str,
+    restarted: dict[str, str],
+    outcome: RestoreOutcome,
 ) -> None:
     """An endpoint missing from the daemon's bindable devices can never converge, so it reads unfixable rather than a
     false success; one on the list, though not the one running, is a real change that converges."""
     manager, _ = apply_via
+    http_daemon["_restart_state"] = restarted
     result = await restore.apply(manager, {"net_device": device}, restore_hooks(manager))
     assert result.outcome is outcome
 
@@ -150,13 +173,18 @@ async def test_a_net_device_the_daemon_no_longer_offers_names_it_unfixable(
     assert result.unfixable[presetconf.NET_DEVICE].want == "GHOST/hw:CARD=Gone,DEV=0"
 
 
+#: Restore row for the fake daemon: it re-reads the live loudness plugin's ``low_frequency``.
+LOUDNESS_LOWFREQ_ADOPTED = {"post_loudness_lowfreq": ("loudness", "low_frequency")}
+
+
 async def test_loudness_edit_persists_to_the_loudness_plugin(
-    apply_via: tuple[ConnectionManager, HttpConfigClient],
+    apply_via: tuple[ConnectionManager, HttpConfigClient], http_daemon: dict[str, Any]
 ) -> None:
     # a staged loudness bass-frequency change must ride the restore/XML lane into
     # <plugin type="loudness"> low_frequency — proving the post_loudness_lowfreq ->
     # low_frequency mapping, not just that some field moved
     manager, http = apply_via
+    http_daemon["_plugin_adopts"] = LOUDNESS_LOWFREQ_ADOPTED
     await manager.applyops.apply({}, {"post_loudness_enabled": "1", "post_loudness_lowfreq": "120"})
     matrix = {f["name"]: f["value"] for f in (await http.get_matrix())["fields"]}
     assert matrix["post_loudness_lowfreq"] == 120

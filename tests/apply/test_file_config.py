@@ -60,7 +60,15 @@ def test_a_commented_element_is_left_untouched_by_a_write() -> None:
     assert b'dac_bits="16"' in edited
 
 
-async def test_minus_6_db_headroom_survives_an_apply(http_manager: ConnectionManager) -> None:
+#: The row the fake daemon re-reads on restore for the headroom level: state key
+#: to the element and attribute the daemon takes it from.
+HEADROOM_ROW = {"volume_fixed": ("engine", "volume_fixed")}
+
+
+async def test_minus_6_db_headroom_survives_an_apply(
+    http_daemon: dict[str, Any], http_manager: ConnectionManager
+) -> None:
+    http_daemon["_adopts"] = HEADROOM_ROW
     await http_manager.applyops.apply({}, {"volume_fixed": "2"})
     assert (await fileconfig.load_file_config(http_manager))["volume_fixed"] == "2"
 

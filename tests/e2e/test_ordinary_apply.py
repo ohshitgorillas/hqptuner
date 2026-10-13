@@ -58,6 +58,9 @@ IPV6_KEY = "net_ipv6"
 #: The option value that turns IPv6 discovery on; the daemon's config carries it as a flag.
 IPV6_ON = "1"
 
+#: Restore row for the fake daemon: it re-reads ``<network ipv6>`` from an uploaded config.
+IPV6_ADOPTED = {IPV6_KEY: ("network", "ipv6")}
+
 #: An option that is the row's effective one: a lit segment button, or the current line of an option list.
 CURRENT = ':is(.on, [aria-current="true"])'
 
@@ -109,6 +112,7 @@ def _apply_ipv6(page: Page, stack: stack_support.Stack, target: str) -> bool:
     """Restore IPv6 discovery to the other side, apply `target` from its drawer; the flag the config then holds."""
     start = _other(target)
     want = target == IPV6_ON
+    stack.http_state["_adopts"] = IPV6_ADOPTED
     _post(f"{stack.base_url}/api/config/stage", {"http": {IPV6_KEY: start}})
     _post(f"{stack.base_url}/api/config/apply", {})
     drawer = _drawer(page, stack, OUTPUT_STAGE)

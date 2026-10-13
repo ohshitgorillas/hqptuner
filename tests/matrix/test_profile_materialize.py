@@ -138,8 +138,15 @@ def test_materializing_a_profile_installs_its_plugin_value_as_the_live_one() -> 
     assert live_state(matrixconf.materialize_profile(cfg(), "Night"))["post_bauer_frequency"] == "300"
 
 
+#: Restore row for the fake daemon: it re-reads the live loudness stage's
+#: ``low_frequency``, beyond the plugin attributes it reads unasked.
+LOUDNESS_LOWFREQ_ADOPTED = {"post_loudness_lowfreq": ("loudness", "low_frequency")}
+
+
 def test_materializing_a_profile_installs_its_second_plugins_value_too() -> None:
-    assert live_state(matrixconf.materialize_profile(cfg(), "Night"))["post_loudness_lowfreq"] == "120"
+    adopted = state(_plugin_adopts=LOUDNESS_LOWFREQ_ADOPTED)
+    adopt_cfg(adopted, matrixconf.materialize_profile(cfg(), "Night"))
+    assert adopted["post_loudness_lowfreq"] == "120"
 
 
 def test_an_apply_under_an_active_profile_installs_that_profiles_chain() -> None:

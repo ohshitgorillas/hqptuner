@@ -27,6 +27,11 @@ from hqptuner.presets.presetfields import restore_hooks
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
 ROW1 = {"source": "1", "gain": "-3", "gainunit": "dB", "mixdown": "1", "process": ""}
 
+#: Restore rows for the fake daemon: each re-reads one more attribute from an
+#: uploaded config, beyond the ones it reads unasked.
+MATRIX_ENGINE_ADOPTED = {"matrix_engine": ("matrix", "engine")}
+BAUER_SWITCH_ADOPTED = {"post_bauer_enabled": ("bauer", "enabled")}
+
 
 def save(name: str, *rows: dict[str, str]) -> dict[str, str]:
     """The staged save field: a name and the rows to store under it."""
@@ -89,6 +94,7 @@ async def test_save_leaves_the_live_pipelines_untouched(http_manager: Connection
 
 
 async def test_save_leaves_post_process_untouched(http_manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:
+    http_daemon["_plugin_adopts"] = BAUER_SWITCH_ADOPTED
     await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
     assert http_daemon["post_bauer_enabled"] is True
 
@@ -106,7 +112,10 @@ async def test_deleting_an_unknown_profile_still_applies(http_manager: Connectio
     ).outcome is RestoreOutcome.APPLIED
 
 
-async def test_a_profile_survives_an_unrelated_apply(http_manager: ConnectionManager) -> None:
+async def test_a_profile_survives_an_unrelated_apply(
+    http_manager: ConnectionManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_adopts"] = MATRIX_ENGINE_ADOPTED
     await http_manager.applyops.apply({}, save("Crossfeed EQ", ROW0))
     await http_manager.applyops.apply({}, {"matrix_engine": "0"})
     assert "Crossfeed EQ" in await saved_profiles(http_manager)

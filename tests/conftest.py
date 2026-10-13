@@ -329,12 +329,6 @@ def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, An
     return http_manager_factory(http_daemon)
 
 
-@pytest.fixture
-def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon: dict[str, Any]) -> ConnectionManager:
-    """A manager whose daemon rewrites a setting the user never staged."""
-    return http_manager_factory(clamping_http_daemon)
-
-
 # --- ports and guards for the REST app under test ---------------------------
 
 

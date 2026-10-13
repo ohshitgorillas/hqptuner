@@ -18,31 +18,50 @@ from hqptuner.core.manager import ConnectionManager
 #: inside ``<post_process>`` (readme §1.11.2), in the order they appear there.
 #: The switch is one attribute on one of three sibling tags, so a writer that
 #: locates the wrong sibling — or only ever the last one — reads correct against
-#: a single-plugin sweep.
-PLUGIN_SWITCHES = ["post_correction_enabled", "post_bauer_enabled", "post_loudness_enabled"]
+#: a single-plugin sweep. Each switch carries the restore rows the fake daemon
+#: needs to re-read it from an uploaded config, beyond the ones it reads unasked.
+PLUGIN_SWITCHES: dict[str, dict[str, tuple[str, str]]] = {
+    "post_correction_enabled": {},
+    "post_bauer_enabled": {"post_bauer_enabled": ("bauer", "enabled")},
+    "post_loudness_enabled": {},
+}
+
+#: Restore row for the fake daemon: it re-reads the ``<matrix enabled>`` switch.
+MATRIX_SWITCH_ADOPTED = {"matrix_enabled": ("matrix", "enabled")}
 
 
 # --- through a whole apply ------------------------------------------------------
 
 
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+@pytest.mark.parametrize(("plugin", "plugin_adopts"), list(PLUGIN_SWITCHES.items()), ids=list(PLUGIN_SWITCHES))
 @pytest.mark.parametrize("engaged", [False, True], ids=["bypassed", "engaged"])
 async def test_an_apply_that_enables_a_plugin_leaves_the_daemons_matrix_switch_as_it_was(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str, *, engaged: bool
+    http_manager: ConnectionManager,
+    http_daemon: dict[str, Any],
+    plugin: str,
+    plugin_adopts: dict[str, tuple[str, str]],
+    *,
+    engaged: bool,
 ) -> None:
     # the switch is not merely left at some fixed value, it is left where the
     # daemon had it. A lane that ignored the key entirely could satisfy only
     # one side of this.
+    http_daemon["_adopts"] = MATRIX_SWITCH_ADOPTED
+    http_daemon["_plugin_adopts"] = plugin_adopts
     http_daemon["matrix_enabled"] = engaged
     http_daemon[plugin] = False
     await http_manager.applyops.apply({}, {plugin: "1"})
     assert http_daemon["matrix_enabled"] is engaged
 
 
-@pytest.mark.parametrize("plugin", PLUGIN_SWITCHES)
+@pytest.mark.parametrize(("plugin", "plugin_adopts"), list(PLUGIN_SWITCHES.items()), ids=list(PLUGIN_SWITCHES))
 async def test_an_apply_that_enables_a_plugin_under_a_bypassed_matrix_lands_the_plugin(
-    http_manager: ConnectionManager, http_daemon: dict[str, Any], plugin: str
+    http_manager: ConnectionManager,
+    http_daemon: dict[str, Any],
+    plugin: str,
+    plugin_adopts: dict[str, tuple[str, str]],
 ) -> None:
+    http_daemon["_plugin_adopts"] = plugin_adopts
     http_daemon["matrix_enabled"] = False
     http_daemon[plugin] = False
     await http_manager.applyops.apply({}, {plugin: "1"})

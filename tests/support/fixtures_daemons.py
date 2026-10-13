@@ -142,25 +142,6 @@ def http_daemon() -> Iterator[dict[str, Any]]:
 
 
 @pytest.fixture
-def stale_http_daemon() -> Iterator[dict[str, Any]]:
-    # serves the pre-restart archive for one backup read before catching up
-    yield from fake_http.spawn(fake_http.state(_lag=1))
-
-
-@pytest.fixture
-def clamping_http_daemon() -> Iterator[dict[str, Any]]:
-    # rewrites the startup volume into the volume range on every restore, so a
-    # field no apply ever stages comes back different from what was uploaded
-    yield from fake_http.spawn(fake_http.state(_clamps=True, defaults_volume="-60", volume_min="-40"))
-
-
-@pytest.fixture
-def dying_http_daemon() -> Iterator[dict[str, Any]]:
-    # accepts the restore, then goes unreachable and never returns
-    yield from fake_http.spawn(fake_http.state(_die=True))
-
-
-@pytest.fixture
 def restore_refusing_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses every POST /restore: the daemon that is still restarting when a
     # write lands on it and never recovers inside the deadline

@@ -35,6 +35,24 @@ from hqptuner.presets.store.presets import PresetStore
 RUNNING_MODE = "sdm"
 RUNNING_VOLUME_MIN = "-60"
 
+#: Restore rows the fake daemon needs to re-read each form field from an
+#: uploaded config, beyond the ones it reads unasked: fake state key ->
+#: (element tag, attribute). A field with no row would read back as the
+#: running value whatever the restore carried.
+ADOPTED_BY_FIELD: dict[str, dict[str, tuple[str, str]]] = {
+    "mode": {},
+    "filter1x": {},
+    "filter": {},
+    "dither": {},
+    "oversampling1x": {"oversampling1x": ("sdm", "oversampling1x")},
+    "oversampling": {"oversampling": ("sdm", "oversampling")},
+    "modulator": {"modulator": ("sdm", "modulator")},
+    "adaptive_volume": {"volume_adaptive": ("engine", "volume_adaptive")},
+    "defaults_samplerate": {"defaults_samplerate": ("defaults", "samplerate")},
+    "defaults_bitrate": {"defaults_bitrate": ("defaults", "bitrate")},
+    "volume_min": {"volume_min": ("engine", "volume_min")},
+}
+
 #: Stored value per live-routed setting, each distinct from the running config's.
 STORED_LIVE_ROUTED = [
     ("filter1x", "5"),
@@ -82,8 +100,9 @@ def test_a_stored_output_mode_is_what_the_daemon_boots_on(http_client: TestClien
 
 @pytest.mark.parametrize(("field", "stored"), STORED_LIVE_ROUTED)
 def test_a_stored_live_routed_setting_is_what_the_daemon_boots_on(
-    http_client: TestClient, tmp_path: Path, field: str, stored: str
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path, field: str, stored: str
 ) -> None:
+    http_daemon["_adopts"] = ADOPTED_BY_FIELD[field]
     _active_preset_carrying(http_client, tmp_path / "presets", {field: stored})
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
@@ -105,8 +124,9 @@ STAGED_BEATS_STORED = [
 
 @pytest.mark.parametrize(("field", "stored", "staged"), STAGED_BEATS_STORED)
 def test_a_staged_edit_beats_the_stored_value_for_the_same_setting(
-    http_client: TestClient, tmp_path: Path, field: str, stored: str, staged: str
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path, *, field: str, stored: str, staged: str
 ) -> None:
+    http_daemon["_adopts"] = ADOPTED_BY_FIELD[field]
     _active_preset_carrying(http_client, tmp_path / "presets", {field: stored})
     http_client.post("/api/config/stage", json={"http": {field: staged}})
     http_client.post("/api/config/apply")
@@ -114,10 +134,11 @@ def test_a_staged_edit_beats_the_stored_value_for_the_same_setting(
 
 
 def test_a_stored_setting_outside_the_set_does_not_overwrite_the_running_one(
-    http_client: TestClient, tmp_path: Path
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     # applies are incremental against the RUNNING config, never a rebuild from
     # the preset: a rebuild would reset every field the user did not stage
+    http_daemon["_adopts"] = ADOPTED_BY_FIELD["volume_min"]
     _active_preset_carrying(http_client, tmp_path / "presets", {"volume_min": "-40"})
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     http_client.post("/api/config/apply")
@@ -161,6 +182,7 @@ def test_an_engine_apply_boots_the_daemon_on_the_stored_mode(
 def test_an_engine_apply_boots_the_daemon_on_the_stored_modulator(
     http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
+    http_daemon["_adopts"] = ADOPTED_BY_FIELD["modulator"]
     _active_preset_carrying(http_client, tmp_path / "presets", {"modulator": "3"})
     http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
     assert http_daemon["modulator"] == "3"
@@ -175,6 +197,7 @@ def test_an_engine_apply_boots_the_daemon_on_the_stored_modulator(
 def test_an_engine_apply_boots_the_daemon_on_the_stored_adaptive_volume(
     http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
+    http_daemon["_adopts"] = ADOPTED_BY_FIELD["adaptive_volume"]
     _active_preset_carrying(http_client, tmp_path / "presets", {"adaptive_volume": "1"})
     http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
     assert http_daemon["volume_adaptive"] == "1"
@@ -195,8 +218,15 @@ def test_an_engine_override_still_lands_beside_the_stored_engine_attribute(
 
 FOLDED = {"mode": "pcm", "modulator": "3", "filter": "25"}
 
+#: The restore rows ``FOLDED`` needs: the restore verify reads every folded
+#: field back, and modulator is the one the fake does not re-read unasked.
+FOLDED_ADOPTED = ADOPTED_BY_FIELD["modulator"]
 
-def test_an_apply_that_folds_stored_settings_still_reports_applied(http_client: TestClient, tmp_path: Path) -> None:
+
+def test_an_apply_that_folds_stored_settings_still_reports_applied(
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    http_daemon["_adopts"] = FOLDED_ADOPTED
     _active_preset_carrying(http_client, tmp_path / "presets", FOLDED)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     report = http_client.post("/api/config/apply").json()["report"]
@@ -204,13 +234,14 @@ def test_an_apply_that_folds_stored_settings_still_reports_applied(http_client: 
 
 
 def test_an_apply_that_folds_stored_settings_converges_on_its_first_pass(
-    http_client: TestClient, tmp_path: Path
+    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
     # the fold changes what is pushed, never what the apply intends: the lane
     # must not read its own folded values back as divergence and re-apply to
     # correct them. `attempts` is the pass count the persistent report carries;
     # a clean apply with nothing to fold converges at 1, and folding must not
     # cost a second pass.
+    http_daemon["_adopts"] = FOLDED_ADOPTED
     _active_preset_carrying(http_client, tmp_path / "presets", FOLDED)
     http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     report = http_client.post("/api/config/apply").json()["report"]

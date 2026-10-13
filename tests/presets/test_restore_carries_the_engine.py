@@ -36,6 +36,16 @@ from hqptuner.conf import presetconf
 from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
+#: Restore rows the 8088 fake needs to re-read the SDM chain from an uploaded
+#: config, beyond the ones it reads unasked: fake state key -> (element tag,
+#: attribute). Every case routes the engine onto SDM, so each restore carries that
+#: chain's filters and shaper, and its verify reads all three back.
+SDM_CHAIN_ADOPTED = {
+    "oversampling": ("sdm", "oversampling"),
+    "oversampling1x": ("sdm", "oversampling1x"),
+    "modulator": ("sdm", "modulator"),
+}
+
 
 @pytest.fixture
 def control_state() -> dict[str, str]:
@@ -55,7 +65,7 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     """The 8088 fake whose config file says PCM. An adopted restore self-restarts
     the daemon, modeled by moving the control
     fake's State onto the config just adopted, the way one real daemon would."""
-    server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
+    server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0", _adopts=SDM_CHAIN_ADOPTED))
     daemon = next(server)
     daemon["_on_restore"] = lambda: restart_into(control_state, daemon["mode"], daemon["dither"], daemon["modulator"])
     yield daemon

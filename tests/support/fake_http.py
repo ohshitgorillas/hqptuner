@@ -2,7 +2,8 @@
 
 Speaks the restore/XML write contract: GET /backup
 serves a real hqplayerd.xml the daemon would produce, POST /restore adopts the
-uploaded working config, and GET /config + /matrix render the current state.
+attributes of the uploaded working config that `fake_config_xml`'s adoption
+tables name, and GET /config + /matrix render the current state.
 The XML schema here is authored to match 6.0.4 INDEPENDENTLY of presetconf, so
 a wrong form->XML mapping in the writer surfaces as a failed readback — not a
 self-confirming round-trip. A change only lands if manager.apply produced a
@@ -12,6 +13,7 @@ restore archive the real daemon would accept.
 """
 
 import contextlib
+import copy
 import io
 import re
 import socket
@@ -25,9 +27,9 @@ from urllib.parse import parse_qs
 from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 
 #: Guards every read-modify-write of a served state dict. Handlers run on their
-#: own threads (see `_Server`), and the read lane mutates state too — the stale
-#: window counts down on `GET /backup/settings.zip`, while the test thread is
-#: assigning the same keys. One
+#: own threads (see `_Server`), and the read lane mutates state too — it counts
+#: arrivals and takes queued archives off `_backups` on
+#: `GET /backup/settings.zip`, while the test thread is assigning the same keys. One
 #: module-level lock rather than one per server: fakes are per-test and the
 #: sections are three dict operations long, so the contention is not worth the
 #: bookkeeping of threading a lock through every module-level helper.
@@ -275,13 +277,9 @@ def _backup_response(st: dict[str, Any]) -> bytes:
         arrived()
     if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
         return b"not a zip archive"
-    # after a restore the daemon serves the pre-restart archive for a read or two
-    # before catching up — the restart window verify must ride through
-    with _STATE:  # read lane, but this one counts down: two concurrent reads
-        stale = st.get("_stale", 0) > 0  # must not both take the same ticket
-        if stale:
-            st["_stale"] -= 1
-    return st["_pre_backup"] if stale else _backup_zip(st)
+    with _STATE:  # two concurrent reads must not both take the same queued archive
+        queued = st["_backups"].pop(0) if st.get("_backups") else None
+    return _backup_zip(st) if queued is None else queued
 
 
 def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
@@ -296,22 +294,11 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     st["_restore_bytes"] = zbytes
     archive = zipfile.ZipFile(io.BytesIO(zbytes))
     st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
-    if st.get("_active_profile") and "hqplayerd.xml" not in st["_restore_members"]:
-        # A named profile was active, so the uploaded working config is the root
-        # <Profile>.xml. The restart boots from hqplayerd.xml, the upload carried
-        # none, and the edit to <Profile>.xml is discarded: the config stays as it
-        # was, and the daemon comes back on [default].
-        st["_active_profile"] = None
-        return
     xml = archive.read("hqplayerd.xml")
     if elem_attr(xml, "title", "value") == "REJECT":
         return  # modeled value-level rejection: the daemon refuses, state unchanged
-    st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window
-    st["_active_profile"] = None  # the restart boots from hqplayerd.xml, on [default]
     adopt_cfg(st, xml)
-    st["_stale"] = st.get("_lag", 0)
-    if st.get("_die"):
-        st["_down"] = True
+    st.update(copy.deepcopy(st.get("_restart_state", {})))  # every restart comes up this way
     # An adopted restore SELF-RESTARTS the daemon,
     # and the restarted engine comes up running the restored file — so the
     # Control API's State reflects it afterwards. That side lands on the 4321
@@ -481,8 +468,8 @@ class _Server(ThreadingHTTPServer):
 
     Handlers now touch `st` concurrently, where before they were serialized, and
     the test thread writes the same dict throughout. The read lane is not
-    read-only: `_stale` counts down inside a `GET /backup/settings.zip`. Every
-    read-modify-write of `st` therefore runs under the module's `_STATE` lock.
+    read-only: a `GET /backup/settings.zip` takes the next archive off `_backups`.
+    Every read-modify-write of `st` therefore runs under the module's `_STATE` lock.
     """
 
     daemon_threads = True
@@ -575,7 +562,7 @@ def state(**extra: object) -> dict[str, Any]:
         # GET /about — the installed release string under the Version heading
         "release": "6.0.2",
         # the live-routed set as the config file carries it: a control-lane write
-        # never reaches these, so a restore is the only way they ever change
+        # never reaches these
         "mode": "sdm",
         "filter": "40",
         "filter1x": "47",
@@ -599,12 +586,11 @@ def state(**extra: object) -> dict[str, Any]:
         # another: the window after a preset load, before the form catches up.
         # None means the two routes agree, which is the ordinary case.
         "_form_net_device": None,
-        # endpoints the daemon can bind; a net_device outside this set is refused
-        # on restore (endpoint gone) — the unfixable-divergence case
+        # the endpoints GET /config offers as net_device options
         "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
         "_saved": {},
         # the daemon's active named configuration; None is [default], which serves
-        # the working config as hqplayerd.xml, and any restore lands back on it
+        # the working config as hqplayerd.xml
         "_active_profile": None,
         # speaker processing (readme §1.9): off, two flat channels
         "speakers_enabled": False,
@@ -671,7 +657,14 @@ def state(**extra: object) -> dict[str, Any]:
         "defaults_volume": "-3",
         # GET routes answered 503 instead of their page; tests move it mid-run
         "_fail_paths": [],
-        "_lag": 0,
+        # state the restarted daemon comes up in after an adopted restore, beyond the upload
+        "_restart_state": {},
+        # further elements a restore adopts: state key -> (element tag, attribute)
+        "_adopts": {},
+        # further live plugin attributes a restore adopts: state key -> (plugin type, attribute)
+        "_plugin_adopts": {},
+        # archives GET /backup/settings.zip serves one per read, ahead of the live one
+        "_backups": [],
         # POST /restore arrivals to refuse with 503 before adopting one, and the
         # running count of arrivals. Both default to the healthy daemon: nothing
         # is refused and the count is bookkeeping no existing test reads.
