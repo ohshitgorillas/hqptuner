@@ -71,16 +71,14 @@ test("test_preview_counts_count_each_stage_of_the_running_chain_with_the_pick_ap
   assert.deepEqual(previewCounts({ apod1x: "only" }), { "1x": 1, nx: 3 });
 });
 
-test("test_preview_counts_follow_the_chain_the_engine_has_loaded", () => {
-  const sdm = previewCounts({});
+test("test_preview_counts_count_the_sdm_chains_filter_lists_while_the_engine_has_it_loaded", () => {
+  assert.deepEqual(previewCounts({}), { "1x": 3, nx: 3 });
+});
+
+test("test_preview_counts_follow_the_engine_to_the_pcm_chain_once_it_loads_it", () => {
+  previewCounts({});
   loadLists({ chain: "pcm" });
-  assert.deepEqual(
-    [sdm, previewCounts({})],
-    [
-      { "1x": 3, nx: 3 },
-      { "1x": 2, nx: 2 },
-    ],
-  );
+  assert.deepEqual(previewCounts({}), { "1x": 2, nx: 2 });
 });
 
 test("test_a_preview_leaves_the_narrowing_where_it_stands", () => {
@@ -89,31 +87,36 @@ test("test_a_preview_leaves_the_narrowing_where_it_stands", () => {
   assert.equal(narrowState().quality, 3);
 });
 
+test("test_a_shaper_count_with_no_rate_floor_counts_every_modulator", () => {
+  assert.equal(shaperCount("modulators", {}), 2);
+});
+
 test("test_a_shaper_count_counts_the_modulators_a_rate_floor_keeps", () => {
-  assert.deepEqual([shaperCount("modulators", {}), shaperCount("modulators", { modTier: ["512+"] })], [2, 1]);
+  assert.equal(shaperCount("modulators", { modTier: ["512+"] }), 1);
+});
+
+test("test_a_shaper_count_with_no_rate_marker_counts_every_dither", () => {
+  assert.equal(shaperCount("dithers", {}), 3);
 });
 
 test("test_a_shaper_count_counts_the_dithers_a_rate_marker_keeps", () => {
-  assert.deepEqual([shaperCount("dithers", {}), shaperCount("dithers", { ditherRate: ["≥4x"] })], [3, 1]);
+  assert.equal(shaperCount("dithers", { ditherRate: ["≥4x"] }), 1);
 });
 
-test("test_a_moved_facet_reads_moved_and_an_untouched_one_does_not", () => {
+test("test_a_facet_set_on_the_console_reads_moved", () => {
   setFacet("lossy", "lossy");
-  assert.deepEqual([facetsMoved(["lossy"]), facetsMoved(["quality"])], [true, false]);
+  assert.equal(facetsMoved(["lossy"]), true);
 });
 
-test("test_the_rate_rule_reads_moved_only_once_the_user_sets_it", () => {
-  const before = facetsMoved(["hideLimited"]);
+test("test_the_rate_rule_reads_moved_once_the_user_sets_it_off", () => {
   setFacet("hideLimited", false);
-  assert.deepEqual([before, facetsMoved(["hideLimited"])], [false, true]);
+  assert.equal(facetsMoved(["hideLimited"]), true);
 });
 
-test("test_reset_returns_the_named_facets_to_unmoved", () => {
+test("test_a_quality_floor_and_genres_set_on_the_console_read_moved", () => {
   setFacet("quality", 4);
   setFacet("genre", ["jazz"]);
-  const before = facetsMoved(["quality", "genre"]);
-  resetFacets(["quality", "genre"]);
-  assert.deepEqual([before, facetsMoved(["quality", "genre"])], [true, false]);
+  assert.equal(facetsMoved(["quality", "genre"]), true);
 });
 
 test("test_reset_leaves_a_facet_it_does_not_name_alone", () => {

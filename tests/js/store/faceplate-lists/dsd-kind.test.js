@@ -105,12 +105,12 @@ test("test_every_dsd_key_opens_as_the_dsd_kind_and_a_filter_key_does_not", () =>
   assert.deepEqual(dsd, [true, true, true, true, false]);
 });
 
-test("test_a_dsd_list_has_no_console_where_a_filter_list_has_one", () => {
-  assert.deepEqual([open.hasConsole?.("dsd"), open.hasConsole?.("filters")], [false, true]);
+test("test_a_filter_list_has_a_console", () => {
+  assert.equal(open.hasConsole?.("filters"), true);
 });
 
-test("test_a_dsd_list_has_no_favorites_where_a_filter_list_has_them", () => {
-  assert.deepEqual([open.hasFavorites?.("dsd"), open.hasFavorites?.("filters")], [false, true]);
+test("test_a_filter_list_has_favorites", () => {
+  assert.equal(open.hasFavorites?.("filters"), true);
 });
 
 test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", () => {

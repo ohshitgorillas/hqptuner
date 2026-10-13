@@ -127,9 +127,14 @@ test("test_an_option_carries_the_prose_its_overlay_writes", () => {
   assert.equal(option("sdm_filter_1x", "sinc-M")?.d, SINC_PROSE);
 });
 
-test("test_a_lists_blurbs_are_its_plain_overlays_own", () => {
+test("test_a_lists_family_blurb_is_its_plain_overlays_own", () => {
   const b = listBlurbs("sdm_filter_1x");
-  assert.deepEqual([b.families["Fam A"], b.variants["Fam A|Var A"]], ["Blurb for Fam A", "Blurb for Var A"]);
+  assert.equal(b.families["Fam A"], "Blurb for Fam A");
+});
+
+test("test_a_lists_variant_blurb_is_its_plain_overlays_own", () => {
+  const b = listBlurbs("sdm_filter_1x");
+  assert.equal(b.variants["Fam A|Var A"], "Blurb for Var A");
 });
 
 test("test_a_quality_floor_narrows_out_the_filter_rated_below_it", () => {

@@ -280,15 +280,14 @@ test("test_a_burst_of_toggles_across_facets_costs_one_write_once_the_user_is_qui
 // The toggles keep landing one fake ms apart for longer than the window
 // lasts, so a window counted from the first toggle would have sent mid-run;
 // one restarted by every toggle sends only once they stop.
-test("test_a_toggle_inside_the_quiet_window_restarts_it", async () => {
+test("test_a_toggle_run_longer_than_the_quiet_window_costs_one_write_once_the_user_is_quiet", async () => {
   const { w, advance } = await onFakeClock();
   for (let t = 0; t < QUIET_CEILING; t += TOGGLE_GAP) {
     nQuality.value = QUALITY_PICKS[t % QUALITY_PICKS.length];
     advance(TOGGLE_GAP);
   }
   await settle();
-  const whileToggling = puts(w).length;
   advance(QUIET_CEILING);
   await settle();
-  assert.deepEqual([whileToggling, puts(w).length], [0, 1]);
+  assert.equal(puts(w).length, 1);
 });

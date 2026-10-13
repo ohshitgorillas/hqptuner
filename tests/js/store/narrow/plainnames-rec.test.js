@@ -71,6 +71,27 @@ async function decorated({ plain = true } = {}) {
   return plainnames.decorateOptions(OPTIONS, "noise_filter");
 }
 
+// Built fresh here rather than through the module-level OPTIONS, which earlier
+// cases already pushed through the pref-ON path: an implementation mutating its
+// input objects in place would otherwise deep-equal its own mutation.
+/**
+ * Seed the overlay with the pref OFF, then decorate a freshly built copy of the noise-filter options.
+ *
+ * @returns {Promise<Record<string, unknown>[]>}
+ */
+async function decoratedPrefOff() {
+  await reset({ meta: META_REC });
+  plainNames.value = false;
+  return plainnames.decorateOptions(
+    [
+      { value: "0", label: "standard" },
+      { value: "7", label: "sac" },
+      { value: "11", label: "wec2" },
+    ],
+    "noise_filter",
+  );
+}
+
 /**
  * One decorated option, found by the raw engine label it was built from.
  * Throws when the decoration dropped it, so a missing option fails loudly
@@ -92,25 +113,14 @@ test("test_a_rec_flagged_entry_decorates_its_option_with_rec_true", async () => 
   assert.equal(byLabel(await decorated(), "wec2").rec, true);
 });
 
-// Built fresh here rather than through the module-level OPTIONS, which earlier
-// cases already pushed through the pref-ON path: an implementation mutating its
-// input objects in place would otherwise deep-equal its own mutation.
-test("test_pref_off_returns_the_input_options_untouched", async () => {
-  await reset({ meta: META_REC });
-  plainNames.value = false;
-  assert.deepEqual(
-    plainnames.decorateOptions(
-      [
-        { value: "0", label: "standard" },
-        { value: "7", label: "sac" },
-        { value: "11", label: "wec2" },
-      ],
-      "noise_filter",
-    ),
-    [
-      { value: "0", label: "standard" },
-      { value: "7", label: "sac" },
-      { value: "11", label: "wec2" },
-    ],
-  );
+test("test_pref_off_returns_the_rec_flagged_standard_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "standard"), { value: "0", label: "standard" });
+});
+
+test("test_pref_off_returns_the_unflagged_sac_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "sac"), { value: "7", label: "sac" });
+});
+
+test("test_pref_off_returns_the_rec_flagged_wec2_option_untouched", async () => {
+  assert.deepEqual(byLabel(await decoratedPrefOff(), "wec2"), { value: "11", label: "wec2" });
 });

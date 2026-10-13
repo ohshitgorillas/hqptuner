@@ -74,11 +74,17 @@ test("test_a_pcm_tier_above_what_the_device_announced_is_grayed", async () => {
   assert.deepEqual(marks(optionFor(out, PCM_8X)), GRAYED);
 });
 
-test("test_every_pcm_tier_above_what_the_device_announced_is_grayed", async () => {
+test("test_the_pcm_tier_two_above_what_the_device_announced_is_grayed", async () => {
   // A store graying exactly one tier past the cap passes the case above.
   await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
   const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
-  assert.deepEqual(grayedAmong(out, [PCM_8X, PCM_16X, PCM_32X]), [PCM_8X, PCM_16X, PCM_32X]);
+  assert.deepEqual(grayedAmong(out, [PCM_16X]), [PCM_16X]);
+});
+
+test("test_the_pcm_tier_three_above_what_the_device_announced_is_grayed", async () => {
+  await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []) });
+  const out = grayRatesByDevice(PCM_OPTIONS, "pcm");
+  assert.deepEqual(grayedAmong(out, [PCM_32X]), [PCM_32X]);
 });
 
 // That a grayed rate row

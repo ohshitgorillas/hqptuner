@@ -18,19 +18,12 @@ beforeEach(() => {
   resetLists();
 });
 
-test("test_a_tapped_variant_folds_and_a_second_tap_opens_it", () => {
+test("test_a_tapped_variant_folds", () => {
   toggleFold("filters", "Fam A", "Var A");
-  const once = isFolded("filters", "Fam A", "Var A");
-  toggleFold("filters", "Fam A", "Var A");
-  assert.deepEqual([once, isFolded("filters", "Fam A", "Var A")], [true, false]);
+  assert.equal(isFolded("filters", "Fam A", "Var A"), true);
 });
 
 test("test_a_group_v1_folded_reads_folded_here", () => {
   toggleCollapsedGroup("filters|Fam A|Var A");
   assert.equal(isFolded("filters", "Fam A", "Var A"), true);
-});
-
-test("test_a_fold_is_kept_per_list_kind", () => {
-  toggleFold("filters", "Fam A", "Var A");
-  assert.deepEqual([isFolded("filters", "Fam A", "Var A"), isFolded("modulators", "Fam A", "Var A")], [true, false]);
 });

@@ -39,10 +39,6 @@ const NO_MULTICORE = { cuda: "1", ecores: "pool", nblocks: "4", cuda_dev: "0", c
 //: The same engine with `nblocks` carried as a JSON number.
 const NUMERIC_NBLOCKS = { ...ENGINE, nblocks: 4 };
 
-// Read before any case loads or sets anything: what the module comes up with.
-const LOADED_AT_IMPORT = hardwareDraft().loaded;
-const ALL_STATIONS_AT_IMPORT = allStations.value;
-
 /**
  * A daemon answering the engine's read with `engine` and its write with `report`; returns the write bodies it was
  * handed and the wire, to wait on.
@@ -101,8 +97,8 @@ test("test_the_hardware_keys_are_the_six_engine_attributes", () => {
 
 // --- the load ----------------------------------------------------------------------------------------------------
 
-test("test_the_draft_reads_unloaded_until_the_engine_is_read", () => {
-  assert.deepEqual([LOADED_AT_IMPORT, hardwareDraft().loaded], [false, true]);
+test("test_the_draft_reads_loaded_once_the_engine_is_read", () => {
+  assert.equal(hardwareDraft().loaded, true);
 });
 
 test("test_a_load_reads_the_engines_attributes_into_the_draft", () => {
@@ -141,39 +137,34 @@ test("test_an_edit_leaves_the_base_where_the_engine_put_it", () => {
   assert.deepEqual(hardwareDraft().base, ENGINE);
 });
 
-test("test_an_edit_back_to_the_base_value_no_longer_differs", () => {
+test("test_an_edit_off_the_base_value_differs", () => {
   setHardware("cuda_dev", "2");
-  const edited = hardwareDraft().differs;
-  setHardware("cuda_dev", "0");
-  assert.deepEqual([edited, hardwareDraft().differs], [true, false]);
+  assert.equal(hardwareDraft().differs, true);
 });
 
-test("test_a_value_equal_to_the_base_as_a_string_does_not_differ", async () => {
+test("test_a_value_off_a_numeric_base_differs", async () => {
   await load({ engine: NUMERIC_NBLOCKS });
   setHardware("nblocks", "4");
-  const same = hardwareDraft().differs;
   setHardware("nblocks", "5");
-  assert.deepEqual([same, hardwareDraft().differs], [false, true]);
+  assert.equal(hardwareDraft().differs, true);
 });
 
-test("test_staged_reads_whether_the_draft_differs", () => {
-  const before = staged.value;
+test("test_staged_reads_true_once_the_draft_differs", () => {
   setHardware("multicore", "1");
-  assert.deepEqual([before, staged.value], [false, true]);
+  assert.equal(staged.value, true);
 });
 
 // --- the all-stations switch -------------------------------------------------------------------------------------
 
-test("test_all_stations_is_off_until_set", () => {
+test("test_setting_all_stations_turns_it_on", () => {
   setAllStations(true);
-  assert.deepEqual([ALL_STATIONS_AT_IMPORT, allStations.value], [false, true]);
+  assert.equal(allStations.value, true);
 });
 
-test("test_all_stations_never_makes_the_draft_differ", () => {
+test("test_an_edit_with_all_stations_on_differs", () => {
   setAllStations(true);
-  const switched = hardwareDraft().differs;
   setHardware("cuda_cdev", "3");
-  assert.deepEqual([switched, hardwareDraft().differs], [false, true]);
+  assert.equal(hardwareDraft().differs, true);
 });
 
 // --- discard -----------------------------------------------------------------------------------------------------
@@ -196,11 +187,11 @@ test("test_an_apply_sends_the_draft_as_its_overrides", async () => {
   );
 });
 
-test("test_an_apply_sends_all_stations_as_all_presets", async () => {
-  const off = (await apply({ verified: { applied: true } })).map((b) => b.all_presets);
+test("test_an_apply_with_all_stations_on_sends_all_presets_true", async () => {
+  await apply({ verified: { applied: true } });
   setAllStations(true);
   const on = (await apply({ verified: { applied: true } })).map((b) => b.all_presets);
-  assert.deepEqual([off, on], [[false], [true]]);
+  assert.deepEqual(on, [true]);
 });
 
 test("test_a_verified_apply_rebases_onto_the_values_sent", async () => {

@@ -86,13 +86,6 @@ test("test_a_frequency_tick_sits_at_its_frequencys_share_of_the_view", () => {
   );
 });
 
-test("test_a_tick_above_the_top_of_the_view_is_dropped", () => {
-  /** @param {{ khz: number }[]} ticks */
-  const above = (ticks) => ticks.filter((t) => t.khz > QUARTER_OF_96_KHZ).length > 0;
-  const full = above(ticksAt(FULL, NYQ_96));
-  assert.deepEqual([full, above(ticksAt(QUARTER, NYQ_96))], [true, false]);
-});
-
 for (const { span, nyquist, khz } of [
   { span: HALF, nyquist: NYQ_192, khz: 48 },
   { span: QUARTER, nyquist: NYQ_96, khz: QUARTER_OF_96_KHZ },

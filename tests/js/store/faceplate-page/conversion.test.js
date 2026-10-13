@@ -300,7 +300,8 @@ test("test_picking_the_running_option_writes_nothing", async () => {
   assert.deepEqual(posts, []);
 });
 
-test("test_picking_the_running_option_while_a_pick_is_unsettled_writes_it", async () => {
+/** Pick another filter, then the running one while that pick is unsettled; the bodies the wire saw, in order. */
+async function pickBackWhileUnsettled() {
   /** @type {() => void} */
   let release = () => {};
   const posts = liveWire(
@@ -314,5 +315,15 @@ test("test_picking_the_running_option_while_a_pick_is_unsettled_writes_it", asyn
   await settle();
   release();
   await Promise.all([first, second]);
-  assert.deepEqual(posts, [{ fields: { filter1x: "102" } }, { fields: { filter1x: "101" } }]);
+  return posts;
+}
+
+test("test_an_unsettled_pick_writes_its_enum_id_live", async () => {
+  const posts = await pickBackWhileUnsettled();
+  assert.deepEqual(posts[0], { fields: { filter1x: "102" } });
+});
+
+test("test_picking_the_running_option_while_a_pick_is_unsettled_writes_it", async () => {
+  const posts = await pickBackWhileUnsettled();
+  assert.deepEqual(posts[1], { fields: { filter1x: "101" } });
 });

@@ -188,13 +188,19 @@ test("test_two_focus_values_in_or_keep_every_filter_carrying_either", () => {
   assert.deepEqual(labels(options), ["gauss-a", "gauss-c", "gauss-d"]);
 });
 
-test("test_adding_a_second_focus_value_in_or_never_shrinks_the_surviving_set", () => {
+test("test_one_focus_value_in_or_counts_only_the_filters_carrying_it", () => {
   const options = reset(FOCUS);
   nFocusMode.value = "or";
   nFocus.value = ["space"];
-  const one = narrowCount(options, STAGE, FIELD).n;
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 1);
+});
+
+test("test_adding_a_second_focus_value_in_or_widens_the_count_to_every_filter_carrying_either", () => {
+  const options = reset(FOCUS);
+  nFocusMode.value = "or";
+  nFocus.value = ["space"];
   nFocus.value = ["space", "transients"];
-  assert.deepEqual([one, narrowCount(options, STAGE, FIELD).n], [1, 3]);
+  assert.equal(narrowCount(options, STAGE, FIELD).n, 3);
 });
 
 test("test_two_genres_in_and_keep_only_the_filters_tagged_with_both", () => {
