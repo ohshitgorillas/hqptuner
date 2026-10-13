@@ -15,7 +15,9 @@ __pycache__/
 .suite-time*.json
 # per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/check_idle.py
 .idle-probe.json
-# the smallest idle each test has been measured at, the record that gate converges
+# each test's latest idle, one file per branch, the record that gate judges the next run against
+.idle-last*.json
+# an idle record no gate reads
 .idle-min.json
 # per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/check_clock_waits.py
 .clock-probe.json

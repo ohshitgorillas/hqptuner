@@ -3,28 +3,35 @@
 
 Wall time comes from ``time.perf_counter``; CPU time from ``time.process_time``
 plus the children this process reaped, so a test that shells out is credited
-with the work it caused. The difference is the idle: the seconds a test held
-the suite without spending a core on it.
+with the work it caused. The third clock is the time the thread running the test
+sat ready to run but waiting for a CPU, read by ``run_stamp.cpu_wait``. A test is
+charged as idle its wall time less its CPU time less that wait: the seconds it
+held the suite without spending a core on it, and without the host holding it
+off one.
 
 The plugin measures and writes; it judges nothing. ``scripts/gates/check_idle.py``
-reads the report it leaves and holds each test to a threshold. The report is
+reads the report it leaves and fails a test whose idle rises more than 40 ms over
+its previous reading on the branch, or exceeds 40 ms with none. The report is
 stamped with the session's exit status, because a failing test often waits out
 a deadline instead of returning on an event, and those seconds say nothing about
 what the test costs when it passes.
 
-Loaded by ``-p idle_probe`` with ``scripts`` on ``PYTHONPATH``; the Makefile's
-``test`` recipe and the ``pytest-offline`` pre-commit hook are the two command
-lines that do so, and both run the whole offline suite.
+Loaded by ``-p idle_probe`` with ``scripts`` and ``scripts/pytest_plugins`` on
+``PYTHONPATH``; the Makefile's ``test`` recipe and the ``pytest-offline``
+pre-commit hook are the two command lines that do so, and both run the whole
+offline suite.
 """
 
 from __future__ import annotations
 
 import json
 import resource
+import threading
 import time
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
 import pytest
+import run_stamp
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -47,15 +54,31 @@ def cpu_seconds() -> float:
     return time.process_time() + children.ru_utime + children.ru_stime
 
 
-def idle(wall_start: float, wall_end: float, cpu_start: float, cpu_end: float) -> float:
-    """Return the seconds between the two wall readings that no CPU was spent on.
+class Reading(NamedTuple):
+    """The three clocks at one instant, in seconds."""
+
+    wall: float
+    cpu: float
+    cpu_wait: float
+
+
+def read(thread: int) -> Reading:
+    """Return the three clocks now, the CPU-wait being that of ``thread``."""
+    return Reading(time.perf_counter(), cpu_seconds(), run_stamp.cpu_wait(thread))
+
+
+def idle(start: Reading, end: Reading) -> float:
+    """Return the seconds between two readings that no CPU was spent on or waited for.
 
     Rounded to microseconds, so a recorded number reads as the measurement
     rather than as its float residue, and clamped at zero: CPU is counted
     process-wide across threads, so a test driving a portal thread can be
     credited with more CPU than it held wall time.
     """
-    return max(0.0, round((wall_end - wall_start) - (cpu_end - cpu_start), 6))
+    wall = end.wall - start.wall
+    cpu = end.cpu - start.cpu
+    waited = end.cpu_wait - start.cpu_wait
+    return max(0.0, round(wall - cpu - waited, 6))
 
 
 def record(nodeid: str, seconds: float) -> None:
@@ -66,10 +89,10 @@ def record(nodeid: str, seconds: float) -> None:
 @pytest.hookimpl(hookwrapper=True)
 def pytest_runtest_protocol(item: pytest.Item) -> Generator[None, None, None]:
     """Time one test, setup and teardown included, and record its idle."""
-    wall_start = time.perf_counter()
-    cpu_start = cpu_seconds()
+    thread = threading.get_native_id()
+    start = read(thread)
     yield
-    record(item.nodeid, idle(wall_start, time.perf_counter(), cpu_start, cpu_seconds()))
+    record(item.nodeid, idle(start, read(thread)))
 
 
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:

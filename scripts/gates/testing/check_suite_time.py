@@ -34,10 +34,15 @@ from __future__ import annotations
 
 import json
 import re
+import runpy
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -62,36 +67,10 @@ _ATTR = re.compile(r'\b(\w+)="([^"]*)"')
 _COUNTS = re.compile(r"(\d+)\s+(\d+)")
 
 
-def main_checkout(root: Path) -> Path:
-    """Return the main checkout for ``root``, which is ``root`` itself unless it is a worktree.
-
-    A worktree's ``.git`` is a file naming its private git dir, and that dir's
-    ``commondir`` file names the shared one, whose parent is the main checkout.
-    """
-    dotgit = root / ".git"
-    if not dotgit.is_file():
-        return root
-    gitdir = own_gitdir(root)
-    common = gitdir / (gitdir / "commondir").read_text().strip()
-    return common.resolve().parent
-
-
-def own_gitdir(root: Path) -> Path:
-    """Return the git dir holding ``root``'s own ``HEAD``: ``.git`` itself, or the one a worktree's ``.git`` names."""
-    dotgit = root / ".git"
-    if not dotgit.is_file():
-        return dotgit
-    gitdir = Path(dotgit.read_text().split(":", 1)[1].strip())
-    return gitdir if gitdir.is_absolute() else root / gitdir
-
-
-def branch(root: Path) -> str | None:
-    """Return the branch checked out in ``root``, the commit a detached ``HEAD`` names, or None outside git."""
-    head = own_gitdir(root) / "HEAD"
-    if not head.is_file():
-        return None
-    text = head.read_text().strip()
-    return text.removeprefix("ref: refs/heads/")
+_CHECKOUT = runpy.run_path(str(ROOT / "scripts" / "git_checkout.py"))
+main_checkout: Callable[[Path], Path] = _CHECKOUT["main_checkout"]
+own_gitdir: Callable[[Path], Path] = _CHECKOUT["own_gitdir"]
+branch: Callable[[Path], str | None] = _CHECKOUT["branch"]
 
 
 def baseline_path(root: Path) -> Path:

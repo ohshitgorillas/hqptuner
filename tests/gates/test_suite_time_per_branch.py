@@ -23,7 +23,8 @@ points branches at them. A branch switch rewrites ``HEAD`` the way
 such, and the gate asks the git binary every history question.
 
 A copy of this checkout's gate script sits in every tree at the path
-``make test`` runs it from, and each run loads that copy afresh and calls its CLI
+``make test`` runs it from, beside a copy of ``scripts/git_checkout.py`` it
+loads, and each run loads that copy afresh and calls its CLI
 entry ``main([])``, so the gate judges the tree it lives in as ``make test``
 would. The junit report it reads is written where ``make test`` writes it.
 Observable contract is the sequence of exit codes; nothing here reads the
@@ -44,10 +45,13 @@ from pathlib import Path
 import pytest
 from narrow import FixtureError
 
-#: The gate under test, found relative to this file: it lives in ``scripts/``,
+#: The gate under test, relative to a tree's root: it lives in ``scripts/``,
 #: outside any package.
 GATE_REL = Path("scripts") / "gates" / "testing" / "check_suite_time.py"
-GATE_PATH = Path(__file__).resolve().parents[2] / GATE_REL
+#: The git-layout reader the gate loads by path from its own tree.
+CHECKOUT_REL = Path("scripts") / "git_checkout.py"
+#: This checkout, whose copies of both files each miniature tree receives.
+SOURCE_ROOT = Path(__file__).resolve().parents[2]
 
 #: Where ``make test`` has pytest write the junit report, relative to the tree
 #: it runs in (``--junitxml=.pytest-junit.xml`` in the Makefile).
@@ -129,12 +133,14 @@ def write_object(git_dir: Path, kind: bytes, body: bytes) -> str:
 
 
 def install_gate(tree: Path) -> None:
-    """Put a copy of this checkout's gate script in ``tree`` where ``make test`` runs it from."""
-    if not GATE_PATH.is_file():
-        raise FixtureError(reason=f"no gate script at {GATE_PATH}")
-    target = tree / GATE_REL
-    target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(GATE_PATH, target)
+    """Put a copy of this checkout's gate script, and the module it loads, in ``tree`` where ``make test`` runs it."""
+    for rel in (GATE_REL, CHECKOUT_REL):
+        source = SOURCE_ROOT / rel
+        if not source.is_file():
+            raise FixtureError(reason=f"no gate file at {source}")
+        target = tree / rel
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
 
 
 def main_checkout_on_dev(tmp_path: Path) -> Path:
