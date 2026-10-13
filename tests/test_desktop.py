@@ -512,17 +512,19 @@ def accepts(port: int) -> bool:
 
 
 @pytest.fixture
-def listening(closed_port: int) -> Iterator[desktop.Listening]:
-    """A ``Listening`` on a free loopback port, never run, its socket closed afterwards."""
-    built = desktop.Listening(FastAPI(), host=HOST, port=closed_port, log_level="info", timeout_graceful_shutdown=5)
+def listening() -> Iterator[desktop.Listening]:
+    """A ``Listening`` on a loopback port the OS chooses, never run, its socket closed afterwards.
+
+    The ``Listening`` binds port 0 itself, so the socket that serves on the port holds it from the moment it is
+    chosen and no other socket can take it first."""
+    built = desktop.Listening(FastAPI(), host=HOST, port=0, log_level="info", timeout_graceful_shutdown=5)
     yield built
     for sock in built.sockets:
         sock.close()
 
 
-@pytest.mark.usefixtures("listening")
-def test_a_listener_takes_connections_before_it_runs(closed_port: int) -> None:
-    assert accepts(closed_port) is True
+def test_a_listener_takes_connections_before_it_runs(listening: desktop.Listening) -> None:
+    assert accepts(listening.sockets[0].getsockname()[1]) is True
 
 
 def test_exit_asks_the_bound_server_to_stop(listening: desktop.Listening) -> None:

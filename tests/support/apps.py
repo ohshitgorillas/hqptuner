@@ -129,10 +129,21 @@ def live_app(
         yield client
 
 
+#: The sockets behind every port ``closed_port`` has handed out to the running test.
+_held: list[socket.socket] = []
+
+
 def closed_port() -> int:
-    """A port nothing listens on: bind one, read the number, hand back the hole."""
+    """A port nothing listens on: bound and never listened on, so a connect to it is refused and no other socket
+    can bind it, until ``release_closed_ports`` closes it at the end of the test."""
     sock = socket.socket()
+    _held.append(sock)
     sock.bind(("127.0.0.1", 0))
     port: int = sock.getsockname()[1]
-    sock.close()
     return port
+
+
+def release_closed_ports() -> None:
+    """Close every socket ``closed_port`` holds, so its port is free again."""
+    while _held:
+        _held.pop().close()

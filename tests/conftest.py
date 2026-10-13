@@ -332,6 +332,13 @@ def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, An
 # --- ports and guards for the REST app under test ---------------------------
 
 
+@pytest.fixture(autouse=True)
+def _closed_ports_released() -> Iterator[None]:
+    """Every port ``apps.closed_port`` held for a test is let go once that test and its fixtures are done."""
+    yield
+    apps.release_closed_ports()
+
+
 @pytest.fixture
 def closed_port() -> int:
     return apps.closed_port()
