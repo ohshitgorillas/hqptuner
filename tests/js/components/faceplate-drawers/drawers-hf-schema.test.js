@@ -10,10 +10,7 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { HF_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/hf.js";
 import {
   config,
@@ -27,12 +24,11 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
 /** @type {unknown[]} */
 let autopilotPosts = [];
@@ -68,7 +64,7 @@ beforeEach(async () => {
 });
 
 /** Every element of the drawer's markup, in document order. @returns {MarkupElement[]} */
-const markup = () => elements(render(html`<${Drawer} schema=${HF_DRAWER} />`)).sort((a, b) => a.start - b.start);
+const markup = () => drawerMarkup(HF_DRAWER);
 
 /** The elements inside the auto-pilot field. @returns {MarkupElement[]} */
 function inAutopilot() {
@@ -77,32 +73,11 @@ function inAutopilot() {
 }
 
 /**
- * The first vnode in a subtree whose props match `pred`.
- *
- * @param {unknown} node
- * @param {(props: Record<string, unknown>) => boolean} pred
- * @returns {VNode | undefined}
- */
-function findIn(node, pred) {
-  if (Array.isArray(node)) return node.map((n) => findIn(n, pred)).find(Boolean);
-  if (!node || typeof node !== "object") return undefined;
-  const v = /** @type {VNode} */ (node);
-  if (v.props && pred(v.props)) return v;
-  return findIn(v.props?.children, pred);
-}
-
-/**
  * Tap the auto-pilot field's option `value`.
  *
  * @param {string} value
  */
-async function tapAutopilot(value) {
-  const { seen } = renderTree(html`<${Drawer} schema=${HF_DRAWER} />`);
-  const field = seen.find((v) => v.props?.["data-field"] === "autopilot");
-  const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-}
+const tapAutopilot = (value) => tapFieldOption(HF_DRAWER, "autopilot", value);
 
 test("test_the_hf_filter_lists_every_engine_option_under_its_row", () => {
   const listed = markup()

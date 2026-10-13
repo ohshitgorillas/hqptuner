@@ -19,11 +19,12 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { askWarn, cancel, question } from "../../../../hqptuner/static/store/ask.js";
+import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { askWarn, question } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { applyMode, pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
@@ -71,14 +72,7 @@ beforeEach(async () => {
   applies = [];
   wire = stagingWire({ routes });
   loadConfig(STATION);
-  engineState.value = { adaptive: 0 };
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore();
   pickApplyMode("apply");
   showTab("vol", "range");
 });
@@ -150,6 +144,18 @@ const find = (schema, pred) => markup(schema).find(pred);
 function inRow(schema, key) {
   const row = find(schema, (e) => attr(e, "data-k") === key);
   return row ? elements(row.html) : [];
+}
+
+/**
+ * Whether the first element of VOL's row `key` matching `isOption` carries the `on` class, or null when none matches.
+ *
+ * @param {string} key
+ * @param {(e: MarkupElement) => boolean} isOption
+ * @returns {boolean | null}
+ */
+function litIn(key, isOption) {
+  const b = inRow(VOL, key).find(isOption);
+  return b ? classes(b).includes("on") : null;
 }
 
 /**
@@ -244,11 +250,10 @@ for (const { name, option, want } of [
   { name: "test_a_segment_row_leaves_its_other_option_unlit", option: "1", want: false },
 ]) {
   test(name, () => {
-    const on = (/** @type {string} */ v) => {
-      const b = inRow(VOL, "fixed_volume_enabled").find((e) => attr(e, "data-v") === v);
-      return b ? classes(b).includes("on") : null;
-    };
-    assert.equal(on(option), want);
+    assert.equal(
+      litIn("fixed_volume_enabled", (e) => attr(e, "data-v") === option),
+      want,
+    );
   });
 }
 
@@ -258,11 +263,10 @@ for (const { name, option, want } of [
 ]) {
   test(name, () => {
     showTab("vol", "misc");
-    const on = (/** @type {string} */ v) => {
-      const b = inRow(VOL, "quick_pause").find((e) => e.name === "button" && attr(e, "data-v") === v);
-      return b ? classes(b).includes("on") : null;
-    };
-    assert.equal(on(option), want);
+    assert.equal(
+      litIn("quick_pause", (e) => e.name === "button" && attr(e, "data-v") === option),
+      want,
+    );
   });
 }
 

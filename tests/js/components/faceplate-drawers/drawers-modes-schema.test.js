@@ -13,10 +13,7 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import {
   DSD_DRAWER,
   RESAMPLING_DRAWER,
@@ -35,12 +32,12 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { dottedTabs, drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
+import { filterFields } from "../../support/rendered/filter-fields.js";
 import { stagingWire } from "../../support/wire/wire.js";
-import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
 const FILTERS = [
@@ -56,10 +53,7 @@ const FILTERS = [
 function load({ pcm1x = "1", pcmnx = "1", sdm1x = "1", sdmnx = "1", bits = 0 } = {}) {
   config.value = {
     fields: [
-      { name: "filter1x", type: "select", value: pcm1x, options: FILTERS },
-      { name: "filter", type: "select", value: pcmnx, options: FILTERS },
-      { name: "oversampling1x", type: "select", value: sdm1x, options: FILTERS },
-      { name: "oversampling", type: "select", value: sdmnx, options: FILTERS },
+      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
       { name: "dsd_6db", type: "checkbox", value: false },
       { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
       { name: "backend", type: "select", value: "alsa" },
@@ -94,21 +88,13 @@ beforeEach(async () => {
 });
 
 /**
- * Every element of a drawer's markup, in document order.
- *
- * @param {DrawerSchema} schema
- * @returns {MarkupElement[]}
- */
-const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`)).sort((a, b) => a.start - b.start);
-
-/**
  * Each tab panel's items in order: a row's key, a field's id, or `head` for a section header.
  *
  * @param {DrawerSchema} schema
  * @returns {Record<string, (string | undefined)[]>}
  */
 function itemsByTab(schema) {
-  const panels = markup(schema).filter((e) => classes(e).includes("dpanel"));
+  const panels = drawerMarkup(schema).filter((e) => classes(e).includes("dpanel"));
   return Object.fromEntries(
     panels.map((p) => [
       attr(p, "data-tab"),
@@ -121,40 +107,14 @@ function itemsByTab(schema) {
 }
 
 /**
- * The ids of the tabs carrying a dirty dot.
- *
- * @param {DrawerSchema} schema
- * @returns {(string | undefined)[]}
- */
-const dottedTabs = (schema) =>
-  markup(schema)
-    .filter((e) => attr(e, "role") === "tab" && classes(e).includes("dirty"))
-    .map((e) => attr(e, "data-tab"));
-
-/**
  * The elements inside a field, found by its id.
  *
  * @param {string} id
  * @returns {MarkupElement[]}
  */
 function inField(id) {
-  const row = markup(SHAPING_DRAWER).find((e) => attr(e, "data-field") === id);
+  const row = drawerMarkup(SHAPING_DRAWER).find((e) => attr(e, "data-field") === id);
   return row ? elements(row.html) : [];
-}
-
-/**
- * The first vnode in a subtree whose props match `pred`.
- *
- * @param {unknown} node
- * @param {(props: Record<string, unknown>) => boolean} pred
- * @returns {VNode | undefined}
- */
-function findIn(node, pred) {
-  if (Array.isArray(node)) return node.map((n) => findIn(n, pred)).find(Boolean);
-  if (!node || typeof node !== "object") return undefined;
-  const v = /** @type {VNode} */ (node);
-  if (v.props && pred(v.props)) return v;
-  return findIn(v.props?.children, pred);
 }
 
 /**
@@ -163,13 +123,7 @@ function findIn(node, pred) {
  * @param {string} id
  * @param {string} value
  */
-async function tapField(id, value) {
-  const { seen } = renderTree(html`<${Drawer} schema=${SHAPING_DRAWER} />`);
-  const field = seen.find((v) => v.props?.["data-field"] === id);
-  const hit = findIn(field?.props.children, (p) => p["data-v"] === value);
-  const fn = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
-  if (fn) await fn();
-}
+const tapField = (id, value) => tapFieldOption(SHAPING_DRAWER, id, value);
 
 test("test_the_fft_length_row_shows_on_the_tab_whose_filter_is_fft_family", () => {
   load({ sdmnx: "2" });
@@ -198,7 +152,7 @@ for (const drawer of MODE_DRAWERS) {
 
 /** Whether the Shaping drawer reads idle, or null when it draws no aside. */
 const idle = () => {
-  const aside = markup(SHAPING_DRAWER).find((e) => e.name === "aside");
+  const aside = drawerMarkup(SHAPING_DRAWER).find((e) => e.name === "aside");
   return aside ? classes(aside).includes("idle") : null;
 };
 
@@ -235,7 +189,9 @@ test("test_the_dac_type_field_lights_the_type_held", () => {
 
 test("test_shapings_pcm_tab_notes_the_dac_bits_the_output_holds", () => {
   load({ bits: 24 });
-  const panel = markup(SHAPING_DRAWER).find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === "pcm");
+  const panel = drawerMarkup(SHAPING_DRAWER).find(
+    (e) => classes(e).includes("dpanel") && attr(e, "data-tab") === "pcm",
+  );
   const note = panel ? elements(panel.html).find((e) => classes(e).includes("mnote")) : undefined;
   assert.equal(note ? text(note).includes("24") : false, true);
 });

@@ -18,6 +18,7 @@ import { config, engineState, enums, metadata, pendingPreset } from "../../../..
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { filterFields } from "../../support/rendered/filter-fields.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes } from "../../support/markup.js";
 
@@ -59,10 +60,7 @@ const BARE = {
 function load({ pcm1x = PLAIN, pcmnx = PLAIN, sdm1x = PLAIN, sdmnx = PLAIN } = {}) {
   config.value = {
     fields: [
-      { name: "filter1x", type: "select", value: pcm1x, options: FILTERS },
-      { name: "filter", type: "select", value: pcmnx, options: FILTERS },
-      { name: "oversampling1x", type: "select", value: sdm1x, options: FILTERS },
-      { name: "oversampling", type: "select", value: sdmnx, options: FILTERS },
+      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
       { name: "fft_size", type: "select", value: "16384", options: FFT_LENGTHS },
     ],
     file: {},

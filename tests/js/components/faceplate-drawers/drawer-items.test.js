@@ -15,11 +15,10 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
-import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { cancel } from "../../../../hqptuner/static/store/ask.js";
-import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { config } from "../../../../hqptuner/static/store/signals.js";
+import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
@@ -42,14 +41,7 @@ function routes(path) {
 beforeEach(async () => {
   stagingWire({ routes });
   config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
-  engineState.value = { adaptive: 0 };
-  enums.value = null;
-  metadata.value = null;
-  pendingPreset.value = null;
-  openStage.value = null;
-  openPopover.value = null;
-  cancel();
-  await discardAll();
+  await resetDrawerStore();
   pickApplyMode("apply");
 });
 

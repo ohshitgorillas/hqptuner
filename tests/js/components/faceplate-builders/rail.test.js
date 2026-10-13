@@ -24,6 +24,7 @@ import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
+import { formField } from "../../support/chainenums.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -46,19 +47,6 @@ const PCM_SHAPERS = [
   { index: "0", value: "5", name: "NS9" },
   { index: "1", value: "6", name: "TPDF" },
 ];
-
-/**
- * One /config form field quoting a list in the enum-ID domain.
- *
- * @param {string} name
- * @param {string} value
- * @param {EnumItem[]} items
- */
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
 
 //: Speakers' ten snapshot names, in list order: past one page at either height, its last page short.
 const SPEAKER_NAMES = Array.from({ length: 10 }, (_, i) => `S${String(i + 1).padStart(2, "0")}`);

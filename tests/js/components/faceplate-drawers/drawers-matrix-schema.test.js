@@ -11,10 +11,7 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { CORRECTION_DRAWER, MATRIX_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/matrix.js";
 import {
   config,
@@ -28,6 +25,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
+import { dottedTabs, drawerMarkup } from "../../support/rendered/drawer-render.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
@@ -67,14 +65,6 @@ beforeEach(async () => {
 });
 
 /**
- * Every element of a drawer's markup, in document order.
- *
- * @param {DrawerSchema} schema
- * @returns {MarkupElement[]}
- */
-const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`)).sort((a, b) => a.start - b.start);
-
-/**
  * The elements inside a drawer's tab panel.
  *
  * @param {DrawerSchema} schema
@@ -82,20 +72,9 @@ const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`)
  * @returns {MarkupElement[]}
  */
 function inPanel(schema, tab) {
-  const panel = markup(schema).find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === tab);
+  const panel = drawerMarkup(schema).find((e) => classes(e).includes("dpanel") && attr(e, "data-tab") === tab);
   return panel ? elements(panel.html).sort((a, b) => a.start - b.start) : [];
 }
-
-/**
- * The ids of the tabs carrying a dirty dot.
- *
- * @param {DrawerSchema} schema
- * @returns {(string | undefined)[]}
- */
-const dottedTabs = (schema) =>
-  markup(schema)
-    .filter((e) => attr(e, "role") === "tab" && classes(e).includes("dirty"))
-    .map((e) => attr(e, "data-tab"));
 
 test("test_each_advanced_row_lists_every_option_under_it", () => {
   const listing = inPanel(MATRIX_DRAWER, "advanced")
@@ -124,7 +103,9 @@ test("test_a_staged_iir_to_fir_dots_the_advanced_tab", async () => {
 
 /** Whether the DAC correction drawer's title carries the dirty dot. */
 const dotted = () =>
-  markup(CORRECTION_DRAWER).some((e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"));
+  drawerMarkup(CORRECTION_DRAWER).some(
+    (e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"),
+  );
 
 test("test_a_staged_dac_model_dots_the_dac_correction_title", async () => {
   await edit("dac_correction_profile", "m1");
@@ -133,7 +114,7 @@ test("test_a_staged_dac_model_dots_the_dac_correction_title", async () => {
 
 /** Whether the Matrix engine drawer's discard is disabled, or null when it draws none. */
 const discardOff = () => {
-  const b = markup(MATRIX_DRAWER).find((e) => attr(e, "data-testid") === "discard");
+  const b = drawerMarkup(MATRIX_DRAWER).find((e) => attr(e, "data-testid") === "discard");
   return b ? hasAttr(b, "disabled") : null;
 };
 

@@ -30,6 +30,7 @@ import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
+import { filterFields } from "../../support/rendered/filter-fields.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, elements } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";
@@ -63,10 +64,7 @@ const tip = (key) => ({ label: `${key} fixture label`, tooltip: `Whole ${key} fi
 function load(pcm1x) {
   config.value = {
     fields: [
-      { name: "filter1x", type: "select", value: pcm1x, options: FILTERS },
-      { name: "filter", type: "select", value: SINGLE_STAGE, options: FILTERS },
-      { name: "oversampling1x", type: "select", value: SINGLE_STAGE, options: FILTERS },
-      { name: "oversampling", type: "select", value: SINGLE_STAGE, options: FILTERS },
+      ...filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS),
       { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
     ],
     file: {},

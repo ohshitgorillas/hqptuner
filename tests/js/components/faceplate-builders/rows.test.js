@@ -18,6 +18,8 @@ import { render } from "preact-render-to-string";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
+import { every, inside, first, vcls, fire } from "../../support/rendered/treewalk.js";
+import { formField } from "../../support/chainenums.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -56,19 +58,6 @@ const SDM_SHAPERS = [
   { index: "0", value: "3", name: "ASDM7EC 512+fs" },
   { index: "1", value: "4", name: "ASDM5" },
 ];
-
-/**
- * One /config form field quoting a list in the enum-ID domain.
- *
- * @param {string} name
- * @param {string} value
- * @param {EnumItem[]} items
- */
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
 
 /** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
 const overlays = () => ({
@@ -150,34 +139,6 @@ beforeEach(() => {
 /** Every element of one render of the rows. */
 const drawn = () => elements(render(html`<${SnapshotRows} />`));
 
-/**
- * Whether an element is a `name` carrying every class in `cls`.
- *
- * @param {MarkupElement} e
- * @param {string} name
- * @param {string[]} cls
- */
-const isA = (e, name, cls) => e.name === name && cls.every((c) => classes(e).includes(c));
-
-/**
- * Every element of a list that is a `name` with the classes in `cls`.
- *
- * @param {MarkupElement[]} all
- * @param {string} name
- * @param {...string} cls
- */
-const every = (all, name, ...cls) => all.filter((e) => isA(e, name, cls));
-
-/**
- * The elements inside `e`, `e` itself left out; none when `e` is missing.
- *
- * @param {MarkupElement | undefined} e
- */
-const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
-
-/** The first `name.cls…` inside `e`. @param {MarkupElement | undefined} e @param {string} name @param {...string} cls */
-const first = (e, name, ...cls) => every(inside(e), name, ...cls)[0];
-
 /** The rows drawn, column heads left out, in document order. @param {MarkupElement[]} [all] */
 const rows = (all = drawn()) => every(all, "div", "brow").filter((r) => attr(r, "data-id") !== undefined);
 
@@ -194,9 +155,6 @@ const rowIds = () => rows().map((r) => attr(r, "data-id"));
 const byId = (read) => Object.fromEntries(rows().map((r) => [String(attr(r, "data-id")), read(r)]));
 
 // --- taps --------------------------------------------------------------------------------------------------------
-
-/** A vnode's classes. @param {VNode} v */
-const vcls = (v) => String(propsOf(v).class ?? propsOf(v).className ?? "").split(/\s+/);
 
 /**
  * The vnodes of one render of `tree` that are a `name` carrying every class in `cls`, in document order.
@@ -218,17 +176,6 @@ const controls = (name, ...cls) => vnodes(html`<${SnapshotRows} />`, name, ...cl
  * @param {string} id
  */
 const rowControl = (cls, id) => controls("button", cls)[rowIds().indexOf(id)];
-
-/**
- * Fire one handler of a vnode, if it carries it.
- *
- * @param {VNode | undefined} v
- * @param {string} handler
- */
-async function fire(v, handler = "onClick", extra = {}) {
-  const fn = v ? propsOf(v)[handler] : undefined;
-  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
-}
 
 // --- the column heads --------------------------------------------------------------------------------------------
 

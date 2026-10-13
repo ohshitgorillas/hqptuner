@@ -19,15 +19,9 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBody } from "../../../../hqptuner/static/components/faceplate/drawers/VolumeRange.js";
-import {
-  config,
-  matrixConfig,
-  metadata,
-  volume,
-  volumeDrag,
-  volumeRange,
-} from "../../../../hqptuner/static/store/signals.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
+import { loadVolumeRange } from "../../support/rendered/volume-range.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
@@ -36,16 +30,7 @@ import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
-
-/**
- * @typedef {object} Running
- * @property {boolean} [fixed]     running fixed_volume_enabled
- * @property {string} [min]        running volume_min
- * @property {string} [startup]    running defaults_volume
- * @property {string} [max]        running volume_max
- * @property {boolean} [loudness]  running matrix engine and loudness both
- * @property {Record<string, string>} [report]  VolumeRange as the engine reports it
- */
+/** @typedef {import("../../support/rendered/volume-range.js").Running} Running */
 
 const SCHEMA = { id: "volume", title: "volume-title", aria: "volume", tabs: [] };
 const KEYS = ["volume_min", "startup_volume", "volume_max"];
@@ -62,45 +47,10 @@ const META = {
 /** @type {StagingWire} */
 let wire;
 
-/** @param {Running} r */
-function load(r = {}) {
-  const s = {
-    fixed: false,
-    min: "-60",
-    startup: "-20",
-    max: "0",
-    loudness: false,
-    report: { enabled: "1", min: "-60", max: "0" },
-    ...r,
-  };
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: s.fixed },
-      { name: "volume_fixed", value: false },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: s.min },
-      { name: "volume_max", value: s.max },
-      { name: "defaults_volume", value: s.startup },
-    ],
-    file: { volume_fixed: "0" },
-  };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: s.loudness },
-      { name: "post_loudness_enabled", value: s.loudness },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
-    ],
-  };
-  volume.value = "-12.5";
-  volumeDrag.value = null;
-  volumeRange.value = s.report;
-}
-
 beforeEach(async () => {
   wire = stagingWire();
   metadata.value = META;
-  load();
+  loadVolumeRange();
   await discardAll();
 });
 
@@ -112,7 +62,7 @@ const markup = () => elements(render(html`<${VolumeRangeBody} schema=${SCHEMA} /
  *
  * @param {Running} r
  */
-const markupWith = (r) => (load(r), markup());
+const markupWith = (r) => (loadVolumeRange(r), markup());
 
 /**
  * The element of `tag` carrying `data-k` = `key`.

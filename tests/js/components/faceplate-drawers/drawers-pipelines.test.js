@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { config, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { engineState } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
@@ -29,11 +29,12 @@ import { PipelinesOutput } from "../../../../hqptuner/static/components/faceplat
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements } from "../../support/markup.js";
+import { loadPipelines, plain } from "../../support/rendered/pipelines-fixture.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
-/** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} Row */
+/** @typedef {import("../../support/rendered/pipelines-fixture.js").Row} Row */
 
 /** @type {DrawerSchema} */
 const SCHEMA = {
@@ -48,9 +49,6 @@ const SCHEMA = {
   ],
 };
 
-/** A row from one input to one output with no processing. @param {number} src @param {number} mix @returns {Row} */
-const plain = (src, mix) => ({ gain: "0", gainunit: "dB", mixdown: String(mix), process: "", source: String(src) });
-
 /** @type {Row[]} */
 const STEREO = [
   { gain: "-3.5", gainunit: "dB", mixdown: "0", process: "iir:type=peak;f=1000;q=0.7;g=-3,delay:t=0.001", source: "0" },
@@ -59,21 +57,6 @@ const STEREO = [
 
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
-
-/**
- * Load a pipeline set as the config file's, with the matrix engine's switch.
- *
- * @param {Row[]} rows
- * @param {boolean} [engaged]
- */
-function load(rows, engaged = true) {
-  config.value = {
-    fields: [{ name: "channels", type: "number", value: 2 }],
-    file: { matrix_pipelines: JSON.stringify(rows) },
-    active: "",
-  };
-  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: engaged }], rows: [] };
-}
 
 /** The pipeline set the server's buffer holds, or null when none is staged. @returns {Row[] | null} */
 function stagedRows() {
@@ -85,7 +68,7 @@ beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
   openPopover.value = null;
-  load(STEREO);
+  loadPipelines(STEREO);
   await discardAll();
   showTab(SCHEMA.id, "overview");
 });
@@ -141,7 +124,7 @@ test("test_tapping_an_empty_pin_stages_a_pipeline_there", async () => {
 });
 
 test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () => {
-  load([plain(0, 0), plain(1, 0), plain(0, 0)]);
+  loadPipelines([plain(0, 0), plain(1, 0), plain(0, 0)]);
   showTab(SCHEMA.id, "out0");
   await fire(output(), (p) => p["data-v"] === "1");
   await fire(output(), (p) => p["data-v"] === "0");
@@ -153,7 +136,7 @@ test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () =>
 });
 
 test("test_a_gain_edit_on_the_picked_pipeline_stages_its_gain", async () => {
-  load([plain(0, 0), plain(1, 1)]);
+  loadPipelines([plain(0, 0), plain(1, 1)]);
   await pickLine(0, 0);
   await fire(output(), (p) => p["data-testid"] === "pl-gain", "onChange", { currentTarget: { value: "-4" } });
   assert.equal(stagedRows()?.[0].gain, "-4");

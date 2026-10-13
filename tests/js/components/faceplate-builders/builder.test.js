@@ -25,12 +25,11 @@ import { body, openStage, openList, openPopover } from "../../../../hqptuner/sta
 import { config, engineState, engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
-import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { elements, attr, hasAttr, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { propsOf } from "../../support/wheel.js";
+import { every, inside, kids, vcls, isV, descend, fire } from "../../support/rendered/treewalk.js";
+import { formField } from "../../support/chainenums.js";
 
-/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Edit} Edit */
 /** @typedef {{ index: string, value: string, name: string }} EnumItem */
 
@@ -44,19 +43,6 @@ const PCM_SHAPERS = [
   { index: "0", value: "5", name: "NS9" },
   { index: "1", value: "6", name: "TPDF" },
 ];
-
-/**
- * One /config form field quoting a list in the enum-ID domain.
- *
- * @param {string} name
- * @param {string} value
- * @param {EnumItem[]} items
- */
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
 
 /** A fresh book: Headphones holds Desk and Bed, Speakers one. */
 const book = () => ({
@@ -130,43 +116,6 @@ const tree = () => html`<${SnapshotBuilder} />`;
 /** Every element of one render of the builder. */
 const drawn = () => elements(render(tree()));
 
-/**
- * Whether an element is a `name` carrying every class in `cls`.
- *
- * @param {MarkupElement | undefined} e
- * @param {string} name
- * @param {string[]} cls
- */
-const isEl = (e, name, cls) => e !== undefined && e.name === name && cls.every((c) => classes(e).includes(c));
-
-/**
- * Every element of a list that is a `name` with the classes in `cls`.
- *
- * @param {MarkupElement[]} all
- * @param {string} name
- * @param {...string} cls
- */
-const every = (all, name, ...cls) => all.filter((e) => isEl(e, name, cls));
-
-/**
- * The elements inside `e`, `e` itself left out; none when `e` is missing.
- *
- * @param {MarkupElement | undefined} e
- */
-const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
-
-/**
- * The elements directly inside `e`.
- *
- * @param {MarkupElement | undefined} e
- */
-const kids = (e) => {
-  const all = inside(e);
-  return all.filter(
-    (k) => !all.some((o) => o !== k && o.start <= k.start && o.start + o.html.length >= k.start + k.html.length),
-  );
-};
-
 /** The first `name.cls…` of one render. @param {string} name @param {...string} cls */
 const one = (name, ...cls) => every(drawn(), name, ...cls)[0];
 
@@ -202,42 +151,6 @@ const askLines = () => every(drawn(), "div", "bask").filter((e) => attr(e, "role
 
 // --- vnodes ------------------------------------------------------------------------------------------------------
 
-/** A vnode's classes. @param {VNode | undefined} v */
-const vcls = (v) => (v ? String(propsOf(v).class ?? propsOf(v).className ?? "").split(/\s+/) : []);
-
-/**
- * Whether a vnode is a host `name` carrying every class in `cls`.
- *
- * @param {VNode | undefined} v
- * @param {string} name
- * @param {...string} cls
- */
-const isV = (v, name, ...cls) => v !== undefined && v.type === name && cls.every((c) => vcls(v).includes(c));
-
-/**
- * Whether a value is a vnode.
- *
- * @param {unknown} c
- * @returns {c is VNode}
- */
-const isVNode = (c) => typeof c === "object" && c !== null && "type" in c && "props" in c;
-
-/**
- * The vnodes directly under `v`, empty slots left out.
- *
- * @param {VNode | undefined} v
- * @returns {VNode[]}
- */
-const vkids = (v) => (v ? [propsOf(v).children].flat(Infinity).filter(isVNode) : []);
-
-/**
- * `v` and every vnode under it, in document order; a component's own output is not under it.
- *
- * @param {VNode | undefined} v
- * @returns {VNode[]}
- */
-const descend = (v) => (v ? [v, ...vkids(v).flatMap(descend)] : []);
-
 /** The first vnode of one render that is a host `name.cls…`. @param {string} name @param {...string} cls */
 const vone = (name, ...cls) => renderTree(tree()).seen.find((v) => isV(v, name, ...cls));
 
@@ -246,18 +159,6 @@ const vtitleButtons = () => descend(vone("div", "btitle")).filter((v) => isV(v, 
 
 /** The title row's close: its one button that is not a `btn`. */
 const vclose = () => descend(vone("div", "btitle")).filter((v) => v.type === "button" && !vcls(v).includes("btn"))[0];
-
-/**
- * Fire one handler of a vnode, if it carries it.
- *
- * @param {VNode | undefined} v
- * @param {string} [handler]
- * @param {Record<string, unknown>} [extra]  what the event carries beyond the no-op methods
- */
-async function fire(v, handler = "onClick", extra = {}) {
-  const fn = v ? propsOf(v)[handler] : undefined;
-  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
-}
 
 /** Type `value` into the name window. @param {string} value */
 const typeName = (value) => {

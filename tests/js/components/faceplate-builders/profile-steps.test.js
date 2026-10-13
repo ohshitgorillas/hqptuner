@@ -39,6 +39,7 @@ import { stagingWire, quiesce } from "../../support/wire/wire.js";
 import { elements, attr, hasAttr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
+import { isEl, every, inside, kids, isV, descend, fire as fireNow } from "../../support/rendered/treewalk.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -163,43 +164,6 @@ const advanced = () => html`<${AdvancedPage} />`;
 // --- markup ------------------------------------------------------------------------------------------------------
 
 /**
- * Whether an element is a `name` carrying every class in `cls`.
- *
- * @param {MarkupElement | undefined} e
- * @param {string} name
- * @param {string[]} cls
- */
-const isEl = (e, name, cls) => e !== undefined && e.name === name && cls.every((c) => classes(e).includes(c));
-
-/**
- * Every element of a list that is a `name` with the classes in `cls`.
- *
- * @param {MarkupElement[]} all
- * @param {string} name
- * @param {...string} cls
- */
-const every = (all, name, ...cls) => all.filter((e) => isEl(e, name, cls));
-
-/**
- * The elements inside `e`, `e` itself left out; none when `e` is missing.
- *
- * @param {MarkupElement | undefined} e
- */
-const inside = (e) => (e ? elements(e.html).slice(0, -1) : []);
-
-/**
- * The elements directly inside `e`.
- *
- * @param {MarkupElement | undefined} e
- */
-const kids = (e) => {
-  const all = inside(e);
-  return all.filter(
-    (k) => !all.some((o) => o !== k && o.start <= k.start && o.start + o.html.length >= k.start + k.html.length),
-  );
-};
-
-/**
  * What a reader sees inside an element, the renderer's entities decoded.
  *
  * @param {MarkupElement | undefined} e
@@ -282,42 +246,6 @@ const blocks = (all, name) => all.filter((e) => attr(e, "data-block") === name).
 
 // --- vnodes ------------------------------------------------------------------------------------------------------
 
-/** A vnode's classes. @param {VNode | undefined} v */
-const vcls = (v) => (v ? String(propsOf(v).class ?? propsOf(v).className ?? "").split(/\s+/) : []);
-
-/**
- * Whether a vnode is a host `name` carrying every class in `cls`.
- *
- * @param {VNode | undefined} v
- * @param {string} name
- * @param {...string} cls
- */
-const isV = (v, name, ...cls) => v !== undefined && v.type === name && cls.every((c) => vcls(v).includes(c));
-
-/**
- * Whether a value is a vnode.
- *
- * @param {unknown} c
- * @returns {c is VNode}
- */
-const isVNode = (c) => typeof c === "object" && c !== null && "type" in c && "props" in c;
-
-/**
- * The vnodes directly under `v`, empty slots left out.
- *
- * @param {VNode | undefined} v
- * @returns {VNode[]}
- */
-const vkids = (v) => (v ? [propsOf(v).children].flat(Infinity).filter(isVNode) : []);
-
-/**
- * `v` and every vnode under it, in document order; a component's own output is not under it.
- *
- * @param {VNode | undefined} v
- * @returns {VNode[]}
- */
-const descend = (v) => (v ? [v, ...vkids(v).flatMap(descend)] : []);
-
 /**
  * The first host vnode of one render carrying attribute `name` = `value`.
  *
@@ -336,8 +264,7 @@ const vby = (t, name, value) =>
  * @param {Record<string, unknown>} [extra]  what the event carries beyond the no-op methods
  */
 async function fire(v, handler = "onClick", extra = {}) {
-  const fn = v ? propsOf(v)[handler] : undefined;
-  if (typeof fn === "function") await fn({ preventDefault: () => {}, stopPropagation: () => {}, ...extra });
+  await fireNow(v, handler, extra);
   await quiesce(w);
 }
 

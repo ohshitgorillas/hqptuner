@@ -54,18 +54,27 @@ const form = (enabled) => ({
 });
 
 /**
+ * A staging wire answering the speakers POST as confirmed with the switch at `answered`, recording each body it was
+ * handed.
+ *
+ * @param {boolean} answered  the switch the confirmed report carries
+ */
+const speakersWire = (answered) =>
+  stagingWire({
+    routes: (path, opts, wire) => {
+      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
+      wire.posts.push(JSON.parse(String(opts.body)));
+      return ok({ report: { applied: true, speakers: form(answered) } });
+    },
+  });
+
+/**
  * A wire answering the speakers POST as confirmed; returns the bodies it was handed.
  *
  * @param {boolean} enabled  the daemon's switch
  */
 async function reset(enabled = true) {
-  const w = stagingWire({
-    routes: (path, opts, wire) => {
-      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
-      wire.posts.push(JSON.parse(String(opts.body)));
-      return ok({ report: { applied: true, speakers: form(enabled) } });
-    },
-  });
+  const w = speakersWire(enabled);
   speakers.value = form(enabled);
   speakersBusy.value = false;
   speakersError.value = "";
@@ -171,13 +180,7 @@ const ROW_DRAWER = {
  * as confirmed and recording each body it was handed.
  */
 async function resetForTheRow() {
-  const w = stagingWire({
-    routes: (path, opts, wire) => {
-      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
-      wire.posts.push(JSON.parse(String(opts.body)));
-      return ok({ report: { applied: true, speakers: form(true) } });
-    },
-  });
+  const w = speakersWire(true);
   speakers.value = form(false);
   speakersBusy.value = false;
   speakersError.value = "";

@@ -18,16 +18,10 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VolumeRangeBody } from "../../../../hqptuner/static/components/faceplate/drawers/VolumeRange.js";
-import {
-  config,
-  matrixConfig,
-  metadata,
-  volume,
-  volumeDrag,
-  volumeRange,
-} from "../../../../hqptuner/static/store/signals.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
+import { loadVolumeRange } from "../../support/rendered/volume-range.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, text } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";
@@ -70,28 +64,7 @@ beforeEach(async () => {
   stagingWire();
   viewport.value = DESIGN;
   metadata.value = META;
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: false },
-      { name: "volume_fixed", value: false },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-      { name: "defaults_volume", value: "-20" },
-    ],
-    file: { volume_fixed: "0" },
-  };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: false },
-      { name: "post_loudness_enabled", value: false },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
-    ],
-  };
-  volume.value = "-12.5";
-  volumeDrag.value = null;
-  volumeRange.value = { enabled: "1", min: "-60", max: "0" };
+  loadVolumeRange();
   await discardAll();
 });
 

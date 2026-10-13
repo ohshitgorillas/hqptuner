@@ -18,41 +18,23 @@ import {
   PIPELINES_BLOCKS,
   PIPELINES_DRAWER,
 } from "../../../../hqptuner/static/components/faceplate/drawers/pipelines-drawer.js";
-import { config, engineState, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { engineState } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements } from "../../support/markup.js";
-
-/** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} Row */
-
-/** A row from one input to one output with no processing. @param {number} src @param {number} mix @returns {Row} */
-const plain = (src, mix) => ({ gain: "0", gainunit: "dB", mixdown: String(mix), process: "", source: String(src) });
+import { loadPipelines, plain } from "../../support/rendered/pipelines-fixture.js";
 
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
-
-/**
- * Load a pipeline set as the config file's, the matrix engine engaged.
- *
- * @param {Row[]} rows
- */
-function load(rows) {
-  config.value = {
-    fields: [{ name: "channels", type: "number", value: 2 }],
-    file: { matrix_pipelines: JSON.stringify(rows) },
-    active: "",
-  };
-  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: true }], rows: [] };
-}
 
 beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
   openPopover.value = null;
   openStage.value = "pipelines";
-  load([plain(0, 0), plain(1, 1)]);
+  loadPipelines([plain(0, 0), plain(1, 1)]);
   await discardAll();
   showTab(PIPELINES_DRAWER.id, "overview");
 });
@@ -64,7 +46,7 @@ const tabs = () =>
   );
 
 test("test_the_tabs_follow_the_outputs_the_pipeline_set_feeds", () => {
-  load([plain(0, 0), plain(1, 3), plain(0, 3)]);
+  loadPipelines([plain(0, 0), plain(1, 3), plain(0, 3)]);
   assert.deepEqual(
     tabs().map((e) => attr(e, "data-tab")),
     ["overview", "out0", "out3"],
