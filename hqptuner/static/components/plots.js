@@ -38,8 +38,12 @@ const FREQ_LABELS = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000];
 // plot without eyeballing the gap between decades.
 const FREQ_GRID = FREQ_LABELS;
 
-/** An axis frequency label: hertz below 1 kHz, kilohertz from there, as `500` and `2k`. */
-const fmtHz = (/** @type {number} */ f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
+/**
+ * An axis frequency label: hertz below 1 kHz, kilohertz from there, as `500` and `2k`.
+ *
+ * @param {number} f
+ */
+export const hzLabel = (f) => (f >= 1000 ? `${f / 1000}k` : `${f}`);
 const xOf = (/** @type {number} */ f) => PADL + (Math.log(f / F0) / LOGSPAN) * (W - PADL - PADR);
 
 // Evenly-spaced hue per trace index: N traces => N hues 360/N apart, so any count
@@ -156,7 +160,7 @@ function PlotGrid({ dbLines, yOf, height, plotH, axes }) {
         )}
         ${FREQ_LABELS.map(
           (f) =>
-            html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${fmtHz(f)}</text>`,
+            html`<text class="plot-lbl" x=${xOf(f).toFixed(1)} y=${height - 6} text-anchor="middle">${hzLabel(f)}</text>`,
         )}
         <text class="plot-lbl" x=${PADL - 4} y="10" text-anchor="end">dB</text>
         <text class="plot-lbl" x=${(xOf(F1) + 14).toFixed(1)} y=${height - 6}>Hz</text>

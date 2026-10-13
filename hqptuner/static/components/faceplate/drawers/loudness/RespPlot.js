@@ -18,6 +18,7 @@ import {
   tracePath,
 } from "../../../../model/gauges/plot-axes.js";
 import { pointerIn, useBox } from "./parts.js";
+import { hzLabel } from "../../../plots.js";
 import { classNames } from "../../../../model/shell/format.js";
 
 /** @typedef {import("../../../../model/gauges/plot-axes.js").PlotGeometry} PlotGeometry */
@@ -38,8 +39,6 @@ import { classNames } from "../../../../model/shell/format.js";
 
 const F_MIN = 20;
 const F_MAX = 20000;
-/** @param {number} f */
-const hzLabel = (f) => (f >= 1000 ? `${f / 1000}k` : String(f));
 
 /**
  * The grid behind the traces: decade lines and the lines between them, the level grid, the 0 dB line.
