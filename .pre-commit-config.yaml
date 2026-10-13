@@ -207,12 +207,14 @@ repos:
         exclude: ^hqptuner/static/vendor/
 
       # Cross-cutting: a clone has two ends and either one can move, and the
-      # threshold is a whole-tree percentage, so the gate reads the entire
-      # source set from .jscpd.json rather than the staged filenames.
+      # threshold is a percentage of each format's whole tree, so the gate
+      # reads the entire source set from .jscpd.json rather than the staged
+      # filenames. The Makefile target holds the command: one run per format
+      # in .jscpd.json, each judged against the threshold alone.
       # It always runs because .jscpd.json names its paths and formats.
       - id: jscpd
         name: copy-paste duplication gate
-        entry: npx jscpd
+        entry: make -s jscpd
         language: system
         pass_filenames: false
         always_run: true

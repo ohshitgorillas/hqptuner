@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint lint-js pytest-offline test test-live test-e2e test-js check manual mutate trivia
+.PHONY: lint jscpd lint-js pytest-offline test test-live test-e2e test-js check manual mutate trivia
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -39,17 +39,25 @@ lint:
 # vendor/ is upstream and exempt from every gate.
 #
 # jscpd is the one gate here that is not frontend-only: it reads Python, JS and
-# CSS in a single pass. It lives in this target rather than `lint` because it is
-# an npx tool, and `lint` is the venv-only half that has to stay runnable with
-# no node_modules installed. Its whole configuration — paths, formats, vendor
-# exclusion, threshold — is in .jscpd.json, so the recipe is a bare invocation.
-lint-js:
+# CSS. It lives under this target rather than `lint` because it is an npx tool,
+# and `lint` is the venv-only half that has to stay runnable with no
+# node_modules installed. Its whole configuration (paths, formats, vendor
+# exclusion, threshold) is in .jscpd.json. The `jscpd` target runs it once per
+# format in that file's list, each run judged against the threshold alone, so a
+# format with little duplication cannot dilute one with a lot. Every run goes
+# ahead even after one fails, so each format's result is printed, and the
+# target fails when any run did. The jscpd pre-commit hook runs this target.
+JSCPD_FORMATS = $(shell node -p "require('./.jscpd.json').format.join(' ')")
+
+jscpd:
+	status=0; for format in $(JSCPD_FORMATS); do npx jscpd --format $$format || status=1; done; exit $$status
+
+lint-js: jscpd
 	npx eslint .
 	npx prettier --check "hqptuner/static/**/*.js" "tests/js/**/*.js" "eslint-rules/*.js" eslint.config.js jsconfig.json tsconfig.node.json knip.json .jscpd.json types/vendor.d.ts
 	npx tsc -p jsconfig.json
 	npx tsc -p tsconfig.node.json
 	npx knip
-	npx jscpd
 	$(VENV)/python scripts/gates/css/check_css_tokens.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_cards.py $$(git ls-files 'hqptuner/static/css/*.css')
 	$(VENV)/python scripts/gates/css/check_css_classes.py
