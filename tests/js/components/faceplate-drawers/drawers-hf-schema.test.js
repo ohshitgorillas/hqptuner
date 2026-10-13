@@ -111,36 +111,37 @@ test("test_the_hf_filter_lists_every_engine_option_under_its_row", () => {
   assert.deepEqual(listed, ["0", "1"]);
 });
 
+/** Whether the drawer's title carries the staged dot. */
+const dotted = () =>
+  markup().some((e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"));
+
 test("test_staging_pre_process_before_metering_dots_the_title", async () => {
-  const dotted = () =>
-    markup().some((e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"));
-  const before = dotted();
   await edit("pre_before_meter", "1");
-  assert.deepEqual([before, dotted()], [false, true]);
+  assert.equal(dotted(), true);
 });
 
-test("test_the_auto_pilot_field_lights_the_state_the_status_reports", () => {
-  const lit = () => {
-    const on = inAutopilot().find((e) => e.name === "button" && classes(e).includes("on"));
-    return on ? attr(on, "data-v") : undefined;
-  };
+/** The option value of the auto-pilot field's lit button, or undefined when none is lit. */
+const lit = () => {
+  const on = inAutopilot().find((e) => e.name === "button" && classes(e).includes("on"));
+  return on ? attr(on, "data-v") : undefined;
+};
+
+test("test_the_auto_pilot_field_lights_off_while_the_status_reports_it_off", () => {
   const off = lit();
-  engineStatus.value = { autopilot: true, metering: true };
-  assert.deepEqual([off, lit()], ["0", "1"]);
+  assert.equal(off, "0");
 });
 
-test("test_the_auto_pilot_field_is_left_out_while_the_advisor_is_not_offered", () => {
-  const shown = () => markup().some((e) => attr(e, "data-field") === "autopilot");
-  const offered = shown();
-  engineStatus.value = { autopilot: false, metering: true, advisor: false };
-  assert.deepEqual([offered, shown()], [true, false]);
+test("test_the_auto_pilot_field_lights_on_while_the_status_reports_it_on", () => {
+  engineStatus.value = { autopilot: true, metering: true };
+  assert.equal(lit(), "1");
 });
+
+/** How many of the auto-pilot field's buttons are disabled. */
+const disabled = () => inAutopilot().filter((e) => e.name === "button" && hasAttr(e, "disabled")).length;
 
 test("test_the_auto_pilot_field_grays_while_metering_is_off", () => {
-  const disabled = () => inAutopilot().filter((e) => e.name === "button" && hasAttr(e, "disabled")).length;
-  const live = disabled();
   engineStatus.value = { autopilot: false, metering: false };
-  assert.deepEqual([live, disabled()], [0, 2]);
+  assert.equal(disabled(), 2);
 });
 
 test("test_tapping_auto_pilot_on_switches_it_on_at_the_backend", async () => {

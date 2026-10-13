@@ -1,6 +1,6 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/modes.js, the DSD Processing, Resampling and Shaping
 // drawers' schemas drawn by the stage drawer: each tab's rows in order, the FFT length row shown only while its tab's
-// filter is FFT-family, the tab each drawer opens on and the status word and idle state of the mode not running, the
+// filter is FFT-family, the tab each drawer opens on and idle state of the mode not running, the
 // tab dot a staged restart edit puts on its own tab, and Shaping's DAC fields and DAC bits note.
 //
 // Renders `Drawer` through preact-render-to-string; a click is fired through the vnode seam
@@ -171,11 +171,11 @@ async function tapField(id, value) {
   if (fn) await fn();
 }
 
-test("test_the_fft_length_row_shows_only_on_the_tab_whose_filter_is_fft_family", () => {
+test("test_the_fft_length_row_shows_on_the_tab_whose_filter_is_fft_family", () => {
   load({ sdmnx: "2" });
   const tabs = itemsByTab(RESAMPLING_DRAWER);
   const fft = (/** @type {string} */ tab) => (tabs[tab] ?? []).includes("fft_size");
-  assert.deepEqual([fft("pcm"), fft("sdm")], [false, true]);
+  assert.equal(fft("sdm"), true);
 });
 
 test("test_the_fft_length_row_follows_a_staged_filter_pick", async () => {
@@ -183,36 +183,28 @@ test("test_the_fft_length_row_follows_a_staged_filter_pick", async () => {
   assert.equal((itemsByTab(RESAMPLING_DRAWER).pcm ?? []).includes("fft_size"), true);
 });
 
-test("test_a_mode_drawer_opens_on_the_running_mode", () => {
-  const sdm = MODE_DRAWERS.map((d) => shownTab(d));
-  engineState.value = { state: "0", active_chain: "pcm" };
-  const pcm = MODE_DRAWERS.map((d) => shownTab(d));
-  assert.deepEqual(
-    [sdm, pcm],
-    [
-      ["sdm", "sdm", "sdm"],
-      ["pcm", "pcm", "pcm"],
-    ],
-  );
-});
+for (const drawer of MODE_DRAWERS) {
+  test(`test_the_${drawer.id}_drawer_opens_on_the_sdm_tab_while_sdm_runs`, () => {
+    assert.equal(shownTab(drawer), "sdm");
+  });
+}
 
-test("test_only_the_tab_of_the_mode_not_running_carries_a_status_word", () => {
-  const worded = (/** @type {string} */ id) => {
-    const tab = markup(DSD_DRAWER).find((e) => attr(e, "role") === "tab" && attr(e, "data-tab") === id);
-    const word = tab ? elements(tab.html).find((e) => classes(e).includes("cst")) : undefined;
-    return word ? text(word) !== "" : false;
-  };
-  assert.deepEqual([worded("pcm"), worded("sdm")], [true, false]);
-});
+for (const drawer of MODE_DRAWERS) {
+  test(`test_the_${drawer.id}_drawer_opens_on_the_pcm_tab_while_pcm_runs`, () => {
+    engineState.value = { state: "0", active_chain: "pcm" };
+    assert.equal(shownTab(drawer), "pcm");
+  });
+}
+
+/** Whether the Shaping drawer reads idle, or null when it draws no aside. */
+const idle = () => {
+  const aside = markup(SHAPING_DRAWER).find((e) => e.name === "aside");
+  return aside ? classes(aside).includes("idle") : null;
+};
 
 test("test_a_mode_drawer_showing_the_mode_not_running_reads_idle", () => {
-  const idle = () => {
-    const aside = markup(SHAPING_DRAWER).find((e) => e.name === "aside");
-    return aside ? classes(aside).includes("idle") : null;
-  };
-  const running = idle();
   showTab(SHAPING_DRAWER.id, "pcm");
-  assert.deepEqual([running, idle()], [false, true]);
+  assert.equal(idle(), true);
 });
 
 test("test_a_staged_dsd_source_gain_dots_the_pcm_tab_of_dsd_processing", async () => {

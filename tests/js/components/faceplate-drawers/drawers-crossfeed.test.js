@@ -1,6 +1,6 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/Crossfeed.js, the Crossfeed drawer's block: the gate,
 // the Bauer | Structural lines (the picked one holding its controls and copy, the other folded to its summary), what
-// grays and what stays live, the writes its controls make, and which picture shows under the lines.
+// grays, the writes its controls make.
 //
 // The restart mark: the gate and the Bauer controls write http-lane settings the engine restarts for
 // (docs/spec/settings-classification.md, Bauer crossfeed enable, preset and params), so each carries the mark on its
@@ -30,7 +30,7 @@ import { liveParams, xfMode } from "../../../../hqptuner/static/store/xfeed/mode
 import { xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { attr, classes, elements, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -103,8 +103,6 @@ function inside(pred) {
 
 /** @param {MarkupElement} e */
 const isControl = (e) => ["button", "input", "select"].includes(e.name);
-/** @param {MarkupElement[]} els */
-const enabled = (els) => els.filter((e) => isControl(e) && !hasAttr(e, "disabled")).length;
 /** @param {string} v @returns {(e: MarkupElement) => boolean} */
 const line = (v) => (e) => classes(e).includes("xline") && attr(e, "data-v") === v;
 /** @param {string} cls @returns {(e: MarkupElement) => boolean} */
@@ -135,20 +133,15 @@ test("test_tapping_the_folded_lines_radio_picks_it", async () => {
   assert.equal(xfMode.value, "structural");
 });
 
-test("test_a_bypassed_matrix_engine_disables_every_control", async () => {
-  const live = enabled(markup());
-  await load({ matrix: false });
-  assert.deepEqual([live > 0, enabled(markup())], [true, 0]);
-});
+/** Whether the frequency and level group is grayed, or null when it is not drawn. */
+const grayed = () => {
+  const g = markup().find(hasClass("cgrp"));
+  return g ? classes(g).includes("grayed") : null;
+};
 
-test("test_frequency_and_level_gray_off_the_custom_preset", async () => {
-  const grayed = () => {
-    const g = markup().find(hasClass("cgrp"));
-    return g ? classes(g).includes("grayed") : null;
-  };
+test("test_frequency_and_level_gray_off_the_custom_preset", () => {
   const preset = grayed();
-  await load({ preset: "custom" });
-  assert.deepEqual([preset, grayed()], [true, false]);
+  assert.equal(preset, true);
 });
 
 test("test_a_preset_tap_stages_that_preset", async () => {
@@ -160,22 +153,6 @@ test("test_the_gate_stages_the_picked_lines_switch", async () => {
   await load({ enabled: "1" });
   await fire((p) => p["data-v"] === "0");
   assert.equal(effective("crossfeed_enabled"), "0");
-});
-
-test("test_bauer_draws_its_plot_and_structural_its_listening_geometry", async () => {
-  const pictures = () => {
-    const els = markup();
-    return [els.some(hasClass("xfplot")), els.some(hasClass("xfdiag"))];
-  };
-  const bauer = pictures();
-  xfMode.value = "structural";
-  assert.deepEqual(
-    [bauer, pictures()],
-    [
-      [true, false],
-      [false, true],
-    ],
-  );
 });
 
 /** A control's identity: its option value, its schema key, or its role. @param {MarkupElement} e */

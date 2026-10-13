@@ -111,13 +111,20 @@ test("test_a_side_tap_shows_that_side", async () => {
   assert.equal(loudnessSide.value, "high");
 });
 
-test("test_the_bounds_boxes_hold_the_staged_bounds", async () => {
+/** The value the bounds box for setting `k` holds, or undefined when no box is drawn for it. */
+const box = (/** @type {string} */ k) => {
+  const el = markup().find((e) => e.name === "input" && attr(e, "data-k") === k);
+  return el ? attr(el, "value") : undefined;
+};
+
+test("test_the_low_bound_box_holds_the_staged_low_bound", async () => {
   await edit("loudness_range_low", "-50");
-  const box = (/** @type {string} */ k) => {
-    const el = markup().find((e) => e.name === "input" && attr(e, "data-k") === k);
-    return el ? attr(el, "value") : undefined;
-  };
-  assert.deepEqual([box("loudness_range_low"), box("loudness_range_high")], ["-50", "-20"]);
+  assert.equal(box("loudness_range_low"), "-50");
+});
+
+test("test_staging_the_low_bound_leaves_the_high_box_on_the_high_bound", async () => {
+  await edit("loudness_range_low", "-50");
+  assert.equal(box("loudness_range_high"), "-20");
 });
 
 /** The restart mark's test handle, shared by every surface that carries it. */

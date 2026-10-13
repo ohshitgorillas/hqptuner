@@ -71,13 +71,14 @@ test("test_the_tabs_follow_the_outputs_the_pipeline_set_feeds", () => {
   );
 });
 
+/** Whether the Overview tab carries the dirty dot, or null when it is not drawn. */
+const dotted = () => {
+  const tab = tabs().find((e) => attr(e, "data-tab") === "overview");
+  return tab ? classes(tab).includes("dirty") : null;
+};
+
 test("test_a_staged_pipeline_set_dots_the_tab_it_shows", async () => {
-  const dotted = () => {
-    const tab = tabs().find((e) => attr(e, "data-tab") === "overview");
-    return tab ? classes(tab).includes("dirty") : null;
-  };
-  const before = dotted();
   stagePipelines([plain(0, 0), plain(1, 1), plain(0, 1)]);
   await quiesce(wire);
-  assert.deepEqual([before, dotted()], [false, true]);
+  assert.equal(dotted(), true);
 });

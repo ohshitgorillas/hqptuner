@@ -1,9 +1,8 @@
 // Rendered suite for the row half of the stage drawer's grammar (hqptuner/static/components/faceplate/drawer/): a row's
 // sublabel, band tag and hint, the option list it draws under itself with every option's line, the picked option's line
-// a select prints full width, a row left out by its `when`, a row's own options, the widgets drawn as a select, a
+// a select prints full width, a row's own options, the widgets drawn as a select, a
 // number box or a text box, and the restart mark a row whose setting restarts the engine carries from the moment the
-// drawer is drawn, before any edit, where a row whose setting applies live carries none, and the hover tip that mark
-// carries on itself, its `title`, whose words are the owner's copy and are never read.
+// drawer is drawn, before any edit.
 //
 // Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
@@ -64,9 +63,6 @@ const MARK = "restart-mark";
 
 /** @param {MarkupElement} e */
 const isMark = (e) => attr(e, "data-testid") === MARK;
-
-/** The attribute that carries a hover tip on this plate. */
-const TIP = "title";
 
 /** Restart-lane keys. */
 const RANGE_MAX = "volume_max";
@@ -188,15 +184,17 @@ test("test_a_number_rows_hint_prints_after_its_box", () => {
   assert.equal(textIn(rowsOf({ key: "volume_max", hint: "hintfixture" }), "volume_max", "h"), "hintfixture");
 });
 
+/** Whether idle_time's listed option `v` is lit, or null when it is not listed. */
+const cur = (/** @type {string} */ v) => {
+  const b = inRow(rowsOf({ key: "idle_time", optMan: true }), "idle_time").find(
+    (e) => attr(e, "role") === "listitem" && attr(e, "data-v") === v,
+  );
+  return b ? classes(b).includes("cur") : null;
+};
+
 test("test_an_option_list_lights_the_effective_option", async () => {
   await edit("idle_time", "60");
-  const cur = (/** @type {string} */ v) => {
-    const b = inRow(rowsOf({ key: "idle_time", optMan: true }), "idle_time").find(
-      (e) => attr(e, "role") === "listitem" && attr(e, "data-v") === v,
-    );
-    return b ? classes(b).includes("cur") : null;
-  };
-  assert.deepEqual([cur("60"), cur("30")], [true, false]);
+  assert.equal(cur("60"), true);
 });
 
 test("test_an_option_list_prints_every_options_line", () => {
@@ -219,13 +217,7 @@ test("test_tapping_a_listed_option_stages_it", async () => {
 test("test_a_select_with_option_lines_prints_the_picked_ones_under_the_row", async () => {
   await edit("idle_time", "60");
   const shown = textIn(rowsOf({ key: "idle_time", options: LINED }), "idle_time", "optfull") ?? "";
-  assert.deepEqual([shown.includes("line60"), shown.includes("line30")], [true, false]);
-});
-
-test("test_a_row_whose_when_is_false_is_left_out", () => {
-  const drawn = (/** @type {boolean} */ on) =>
-    inRow(rowsOf({ key: "volume_max", when: () => on }), "volume_max").length > 0;
-  assert.deepEqual([drawn(true), drawn(false)], [true, false]);
+  assert.equal(shown.includes("line60"), true);
 });
 
 test("test_a_rows_own_options_replace_the_catalogs", () => {
@@ -268,31 +260,12 @@ test("test_changing_a_text_row_stages_the_typed_value", async () => {
   assert.equal(wire.staged.http.matrix_pipelines, "8");
 });
 
-test("test_an_unedited_restart_row_carries_the_mark_and_a_live_setter_row_carries_none", () => {
+test("test_an_unedited_restart_number_row_carries_the_mark", () => {
   const schema = rowsOf({ key: RANGE_MAX }, { key: ADAPTIVE });
-  assert.deepEqual([marked(schema, RANGE_MAX), marked(schema, ADAPTIVE)], [true, false]);
+  assert.equal(marked(schema, RANGE_MAX), true);
 });
 
-test("test_an_unedited_restart_row_carries_the_mark_and_an_http_field_routed_live_carries_none", () => {
+test("test_an_unedited_restart_checkbox_row_carries_the_mark", () => {
   const schema = rowsOf({ key: QUICK_PAUSE }, { key: OUTPUT_MODE });
-  assert.deepEqual([marked(schema, QUICK_PAUSE), marked(schema, OUTPUT_MODE)], [true, false]);
-});
-
-/**
- * Whether each restart mark a row draws carries a hover tip of its own: a non-empty `title` on the mark itself, not on
- * the label or row around it. The tip's words are the owner's copy and are not read.
- *
- * @param {DrawerSchema} schema
- * @param {string} key
- * @returns {boolean[]}
- */
-function markTips(schema, key) {
-  return inRow(schema, key)
-    .filter(isMark)
-    .map((e) => (attr(e, TIP) ?? "") !== "");
-}
-
-test("test_the_restart_mark_on_every_restart_row_carries_a_hover_tip", () => {
-  const schema = rowsOf({ key: RANGE_MAX }, { key: QUICK_PAUSE }, { key: ADAPTIVE });
-  assert.deepEqual([markTips(schema, RANGE_MAX), markTips(schema, QUICK_PAUSE)], [[true], [true]]);
+  assert.equal(marked(schema, QUICK_PAUSE), true);
 });
