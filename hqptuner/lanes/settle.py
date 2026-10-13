@@ -47,7 +47,7 @@ class Mark:
     drops: int
 
 
-async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None, scope: str = "system") -> None:
+async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None) -> None:
     """POST a settings archive to ``/restore``, then start reconnecting the control lane it killed.
 
     Every restore the app submits goes through here, so every one of them reports
@@ -56,9 +56,10 @@ async def restore(mgr: ConnectionManager, cfgfile: bytes, *, mark: Mark | None, 
     handed to ``await_ready`` after: the drop follows the mark, not a fresh read
     of ``ready``, so a connect body that finishes during the POST is neither
     dropped from under the caller nor waited for by it. Those two decisions are
-    one decision, made once.
+    one decision, made once. The scope is the operator's ``hqp_scope``, the
+    configuration the daemon loads, for every caller alike.
     """
-    await mgr.require_http().restore(cfgfile, scope=scope)
+    await mgr.require_http().restore(cfgfile, scope=mgr.cfg.hqp_scope)
     if mark is not None:
         await mgr.restarting()
 

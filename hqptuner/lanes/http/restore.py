@@ -2,7 +2,7 @@
 
 The lane writes by **restore**, not by form POST: build an archive whose working
 ``hqplayerd.xml`` is the running config with the staged edits applied, push it to
-``POST /restore`` (scope=system), and let the daemon self-restart. That is the
+``POST /restore`` (scope per ``HQPTUNER_HQP_SCOPE``), and let the daemon self-restart. That is the
 only route that can express settings the daemon's own ``/config`` form renders
 lossily (``volume_fixed``'s 0/1/2 domain behind a bare checkbox).
 
@@ -325,7 +325,7 @@ async def _restore_once(
     mirror = presetfields.autosave_mirror(mgr, intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await settle.restore(mgr, restore_zip, mark=mark, scope="system")
+    await settle.restore(mgr, restore_zip, mark=mark)
     return presetconf.read_config(intended_xml)
 
 

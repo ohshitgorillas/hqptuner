@@ -5,7 +5,7 @@ Applies a staged change set to the live daemon:
 - **live lane** — Control API (4321) setters, each confirmed by a `State`
   readback (`result="OK"` is not proof of application, protocol.md §6);
 - **http lane** — NOT a form POST despite the name: the persistent lane edits
-  the running config XML and pushes it with `POST /restore` (`scope=system`),
+  the running config XML and pushes it with `POST /restore` (`scope` per `HQPTUNER_HQP_SCOPE`),
   on which the daemon self-restarts in ~5.6 s (`lanes/http/restore.py`,
   settings-classification.md). The connection manager's outage path handles
   the restart/resync. There is no `POST /config` route in this codebase.

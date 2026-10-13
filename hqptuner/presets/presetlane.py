@@ -155,7 +155,7 @@ async def load(mgr: ConnectionManager, name: str) -> PresetActivation:
     xml = presetiface.keep_interfaces(xml, engineconf.base_config_xml(backup, mgr.readings.active_config))
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
     mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, archive, mark=mark, scope="system")
+    await settle.restore(mgr, archive, mark=mark)
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
     await settle.await_ready(mgr, mark)
@@ -331,7 +331,7 @@ async def _mirror(mgr: ConnectionManager, name: str, working: bytes, backup: byt
     mark = settle.mark_connect(mgr)
 
     async def push() -> bool:
-        await settle.restore(mgr, archive, mark=mark, scope="system")
+        await settle.restore(mgr, archive, mark=mark)
         return True
 
     if await settle.poll_until(mgr, push, interval=RECONNECT_FAST):

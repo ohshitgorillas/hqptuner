@@ -328,6 +328,20 @@ def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
         restarted()
 
 
+def _form_field(content_type: str, raw: bytes, name: str) -> str | None:
+    """The text value of the multipart form field ``name``, or ``None`` when the
+    body carries no such field or is not multipart at all."""
+    if "boundary=" not in content_type:
+        return None
+    boundary = content_type.split("boundary=")[1].encode()
+    marker = f'name="{name}"'.encode()
+    for part in raw.split(b"--" + boundary):
+        head, sep, body = part.partition(b"\r\n\r\n")
+        if sep and marker in head:
+            return body.rsplit(b"\r\n", 1)[0].decode()
+    return None
+
+
 def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
     """POST /restore, returning the HTTP status the daemon answers with.
 
@@ -338,8 +352,15 @@ def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
     same arm that catches a live connection refusal.
 
     ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
-    can be tested for how many passes it makes (docs/testing.md rule 7)."""
+    can be tested for how many passes it makes (docs/testing.md rule 7).
+
+    ``_restore_scopes`` lists the ``scope`` form field of every arrival, refused
+    or not, in arrival order, ``None`` for an arrival that carried none: which
+    configuration, system or user, the caller aimed the write at
+    (docs/protocol.md §3.6)."""
+    scope = _form_field(content_type, raw, "scope")
     with _STATE:
+        st.setdefault("_restore_scopes", []).append(scope)
         st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
         refused = st.get("_restore_refusals", 0) > 0
         if refused:

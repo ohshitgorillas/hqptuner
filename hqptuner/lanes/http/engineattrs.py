@@ -113,7 +113,7 @@ async def apply(
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, modified, mark=mark, scope="system")
+    await settle.restore(mgr, modified, mark=mark)
     verified = await verify(mgr, overrides)
     # `verify` reads the 8088 lane back and cannot speak for the 4321 control connection,
     # which is still the dead one the restart left behind. After it rather than before,

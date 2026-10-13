@@ -18,6 +18,17 @@ def _env(name: str, default: str) -> str:
 # nobody chose: an install running on it has configured nothing.
 STOCK_CREDENTIAL = "password"
 
+# The two values POST /restore's `scope` field takes (readme §1, docs/protocol.md).
+HQP_SCOPES = ("system", "user")
+
+
+class HqpScopeRefusedError(ValueError):
+    """``HQPTUNER_HQP_SCOPE`` names neither of ``HQP_SCOPES``."""
+
+    def __init__(self, scope: str) -> None:
+        """Name the refused value beside the two the daemon takes."""
+        super().__init__(f"HQPTUNER_HQP_SCOPE must be system or user, not {scope!r}")
+
 
 def _store(name: str, *, frozen: bool | None = None) -> Path:
     """Default location of one store file: the user's data directory when frozen, the repo's ``state/`` otherwise.
@@ -191,6 +202,11 @@ class Config:
     # (on hqplayerd 6.0.4, data/impulse_0-0.wav maps to /var/lib/hqplayer/home/…).
     # Overridable for non-standard installs.
     hqp_home: str = field(default_factory=lambda: _env("HQP_HOME", "/var/lib/hqplayer/home"))
+    # Which configuration the daemon loads and every POST /restore writes:
+    # `system` (/etc/hqplayer) or `user` (~/.hqplayer, a daemon that loads
+    # ~/.hqplayer/hqplayerd.xml). Nothing on the wire says which one it loaded, so
+    # the operator names it; a write to the other one lands where it is never read.
+    hqp_scope: str = field(default_factory=lambda: _env("HQP_SCOPE", "system"))
     # Largest convolution filter upload accepted, in bytes (api/routes/matrix/matrix.py).
     # A million-tap float32 mono impulse is 4 MiB; the default leaves room for
     # 24 s at 352.8 kHz and keeps a LAN client from filling the backup volume
@@ -237,6 +253,8 @@ class Config:
                 setattr(self, attr, resolver(name, frozen=self.frozen))
         if self.data_dir == _UNSET_PATH:
             self.data_dir = bundled("data", bundle=self.bundle)
+        if self.hqp_scope not in HQP_SCOPES:
+            raise HqpScopeRefusedError(self.hqp_scope)
 
     @property
     def hqp_http_base_url(self) -> str:

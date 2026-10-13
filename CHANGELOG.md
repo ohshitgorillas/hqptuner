@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **HQPTuner now runs on user-scoped installations** such as the sonicTransporter using a new environment variable, `HQPTUNER_HQP_SCOPE`.
+
 ## [1.19.2] — 2026-10-10
 
 ### Changed
