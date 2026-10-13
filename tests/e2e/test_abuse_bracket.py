@@ -1,10 +1,14 @@
-"""The abuse bracket's promise about the engine's live matrix profile.
+"""The abuse bracket's promise about HQPTuner's own stores and the engine's live matrix profile.
 
 `scripts/abuse.sh open` brackets a hostile-input run and `close` ends it. A run
-is free to switch the engine's live matrix profile, and `close` has to put back
-the profile the daemon was on when `open` ran — unless the daemon no longer
-offers that profile, in which case `close` refuses rather than installing a name
-the engine cannot resolve.
+writes into every store HQPTuner owns, and `close` has to leave those stores as
+`open` found them, refusing and touching none of them when the snapshot manifest
+is gone.
+
+A run is also free to switch the engine's live matrix profile, and `close` has
+to put back the profile the daemon was on when `open` ran — unless the daemon no
+longer offers that profile, in which case `close` refuses rather than installing
+a name the engine cannot resolve.
 
 Policy notes:
 
@@ -13,11 +17,14 @@ Policy notes:
   reaches inside the script.
 - The script does its own bounded polling and the assertions read state it has
   already finished writing.
+- The stores are the ones `abuse.sh status` reports for the state root the
+  test points it at, never a list written out here.
 - The stack here is function-scoped, not the session one: what each case pins is
-  the profile the engine is on at the moment `open` runs, so it needs a daemon
-  nothing else has switched.
+  what the stores hold and the profile the engine is on at the moment `open`
+  runs, so it needs a server and a daemon nothing else has touched.
 """
 
+import hashlib
 import json
 import os
 import subprocess
@@ -27,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from narrow import FixtureError
 
 from e2e.support import stack as stack_support
 
@@ -51,6 +59,12 @@ ABSENT_PROFILE = "Profile The Engine Does Not Have"
 #: The exit status `abuse.sh` refuses with: distinct from a step that failed and
 #: from a crash, either of which exits otherwise.
 REFUSED = 3
+
+#: The prefix `abuse.sh status` puts before each store it resolved, one per line.
+STORE_LINE = "store: "
+
+#: What the run leaves in every store: a hostile value no store held at open.
+JUNK = b"junk the hostile run left behind"
 
 #: Ceiling on the app noticing a State the fake already reports. Bounded wait on a
 #: condition, not a duration anything is expected to take.
@@ -167,6 +181,94 @@ def app(state: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.
     for running in stack_support.stack(state):
         monkeypatch.setenv("HQPTUNER_ABUSE_API", running.base_url)
         yield running
+
+
+def _stores(state: Path) -> tuple[str, ...]:
+    """The stores `abuse.sh status` resolves for `state`, as paths relative to it."""
+    report = _abuse("status", state)
+    stores = tuple(line.removeprefix(STORE_LINE) for line in report.stdout.splitlines() if line.startswith(STORE_LINE))
+    if report.returncode != 0 or not stores:
+        raise FixtureError(reason=f"abuse.sh status resolved no stores:\n{report.stdout}\n{report.stderr}")
+    return stores
+
+
+def _digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _snapshot(state: Path, stores: tuple[str, ...]) -> dict[str, str]:
+    """Every file the stores hold right now, path relative to `state` to digest.
+
+    A store that does not exist contributes nothing, so "the file the run created
+    is gone again" and "the file the run changed is back" read as the same
+    comparison.
+    """
+    found: dict[str, str] = {}
+    for store in stores:
+        target = state / store
+        if target.is_dir():
+            found.update({str(p.relative_to(state)): _digest(p) for p in target.rglob("*") if p.is_file()})
+        elif target.is_file():
+            found[store] = _digest(target)
+    return found
+
+
+def _write_into_every_store(state: Path, stores: tuple[str, ...]) -> None:
+    """Leave junk in each store, as a hostile run would: a new file in a directory, new contents in a file."""
+    for store in stores:
+        target = state / store
+        if target.is_dir():
+            target = target / "junk"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(JUNK)
+
+
+def _seed_stores(app: stack_support.Stack) -> None:
+    """Give two stores content before `open`, so close has something to put back, not only to delete."""
+    _call(app, "PUT", "/api/livepresets/keep", {})
+    _call(app, "PUT", "/api/descriptions", {"name": "keep", "text": "kept"})
+
+
+def test_close_leaves_every_store_as_open_found_it(app: stack_support.Stack, state: Path) -> None:
+    """A run that writes into every store leaves none of it behind."""
+    stores = _stores(state)
+    _seed_stores(app)
+    before = _snapshot(state, stores)
+    _bracket("open", state)
+    _write_into_every_store(state, stores)
+    _bracket("close", state)
+    assert _snapshot(state, stores) == before
+
+
+def _close_without_manifest(
+    app: stack_support.Stack, state: Path
+) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
+    """Open the bracket, write into every store, lose the snapshot manifest, then close.
+
+    Answers the close and the stores as they stood just before it.
+    """
+    stores = _stores(state)
+    _seed_stores(app)
+    _bracket("open", state)
+    _write_into_every_store(state, stores)
+    for manifest in (state / "abuse").rglob("manifest.json"):
+        manifest.unlink()
+    left = _snapshot(state, stores)
+    return _abuse("close", state), left
+
+
+def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Stack, state: Path) -> None:
+    """Without the manifest the bracket cannot tell an empty store from a lost snapshot, so it refuses."""
+    closed, _left = _close_without_manifest(app, state)
+    assert closed.returncode == REFUSED
+
+
+def test_a_close_refused_for_a_lost_manifest_leaves_the_stores_as_it_found_them(
+    app: stack_support.Stack, state: Path
+) -> None:
+    """A refusal restores nothing: putting back a snapshot it cannot vouch for could empty a live store."""
+    _closed, left = _close_without_manifest(app, state)
+    assert _snapshot(state, _stores(state)) == left
 
 
 @pytest.mark.parametrize("baseline", ["Default", ""])
