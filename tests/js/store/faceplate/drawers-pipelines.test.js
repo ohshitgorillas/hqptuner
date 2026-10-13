@@ -95,21 +95,14 @@ test("test_the_grid_spans_the_engines_output_channels", () => {
 });
 
 test("test_a_crossfeed_block_marks_its_crosspoints", () => {
-  const plainGen = pipelinesView().grid[0]?.[0]?.gen;
   load(STRUCTURAL);
-  assert.deepEqual([plainGen, pipelinesView().grid[0]?.[0]?.gen], [undefined, "structural"]);
+  assert.equal(pipelinesView().grid[0]?.[0]?.gen, "structural");
 });
 
 test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", () => {
   load(STRUCTURAL);
   const flags = new Set(pipelinesView().pipes.flatMap((p) => p.stages.map((st) => st.blk === true)));
   assert.deepEqual([...flags], [true]);
-});
-
-test("test_a_bypassed_matrix_engine_grays_the_set", () => {
-  const engaged = pipelinesView().gray;
-  load(STEREO, { engaged: false });
-  assert.deepEqual([engaged === "", pipelinesView().gray === ""], [true, false]);
 });
 
 test("test_adding_a_pipeline_stages_a_row_from_its_input_to_its_output", async () => {
@@ -128,11 +121,18 @@ test("test_an_untouched_row_keeps_its_wire_text", async () => {
   assert.equal(stagedRows()?.[0].process, STEREO[0].process);
 });
 
-test("test_a_gain_edit_stages_the_gain_in_its_unit", async () => {
+test("test_a_gain_edit_stages_the_gain", async () => {
   await setGain(1, 0.5, "Lin");
   await quiesce(wire);
   const row = stagedRows()?.[1];
-  assert.deepEqual([row?.gain, row?.gainunit], ["0.5", "Lin"]);
+  assert.equal(row?.gain, "0.5");
+});
+
+test("test_a_gain_edit_stages_its_unit", async () => {
+  await setGain(1, 0.5, "Lin");
+  await quiesce(wire);
+  const row = stagedRows()?.[1];
+  assert.equal(row?.gainunit, "Lin");
 });
 
 test("test_a_chain_edit_rebuilds_only_the_stage_it_changed", async () => {

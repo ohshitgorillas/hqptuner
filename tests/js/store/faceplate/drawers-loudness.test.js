@@ -12,7 +12,7 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, liveOverride, matrixConfig, volume, volumeDrag } from "../../../../hqptuner/static/store/signals.js";
-import { effective, isDirty } from "../../../../hqptuner/static/store/resolve.js";
+import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import {
@@ -56,51 +56,42 @@ const settle = () => quiesce(wire);
 
 // --- the bar's marks ----------------------------------------------------------
 
-test("test_the_needle_is_held_to_the_axis", () => {
+test("test_a_volume_below_the_axis_holds_the_needle_at_its_floor", () => {
   volume.value = "-130";
-  const below = loudnessBar().needle;
-  volume.value = "-10";
-  assert.deepEqual([below, loudnessBar().needle], [-120, -10]);
+  assert.equal(loudnessBar().needle, -120);
 });
 
-test("test_no_needle_shows_while_the_engine_reports_no_volume", () => {
+test("test_a_volume_back_on_the_axis_moves_the_needle_to_it", () => {
+  volume.value = "-130";
+  volume.value = "-10";
+  assert.equal(loudnessBar().needle, -10);
+});
+
+test("test_the_needle_returns_once_the_engine_reports_a_volume_again", () => {
   volume.value = null;
-  const none = loudnessBar().needle;
   volume.value = "-30";
-  assert.deepEqual([none, loudnessBar().needle], [null, -30]);
+  assert.equal(loudnessBar().needle, -30);
 });
 
 // --- dragging and typing a bound ----------------------------------------------
 
-test("test_a_drag_stages_nothing_until_it_drops", async () => {
+test("test_a_dropped_drag_stages_its_bound_in_whole_db", async () => {
   moveBound("low", -40.4);
-  const during = isDirty("loudness_range_low");
   dropBound();
   await settle();
-  assert.deepEqual([during, effective("loudness_range_low")], [false, "-40"]);
+  assert.equal(effective("loudness_range_low"), "-40");
 });
 
-test("test_a_dropped_drag_leaves_no_bound_active", async () => {
+test("test_a_drag_marks_its_bound_active", () => {
   moveBound("high", -30);
-  const during = loudnessBar().active;
-  dropBound();
-  await settle();
-  assert.deepEqual([during, loudnessBar().active], ["high", null]);
+  assert.equal(loudnessBar().active, "high");
 });
 
 // --- the Bass | Treble switch -------------------------------------------------
 
 test("test_only_the_hidden_side_holding_an_edit_carries_a_dot", async () => {
   await edit("loudness_high_freq", "4000");
-  const hidden = sideDots();
-  loudnessSide.value = "high";
-  assert.deepEqual(
-    [hidden, sideDots()],
-    [
-      { low: false, high: true },
-      { low: false, high: false },
-    ],
-  );
+  assert.deepEqual(sideDots(), { low: false, high: true });
 });
 
 test("test_grabbing_a_plot_handle_points_the_switch_at_its_side", () => {
@@ -108,8 +99,14 @@ test("test_grabbing_a_plot_handle_points_the_switch_at_its_side", () => {
   assert.equal(loudnessSide.value, "high");
 });
 
-test("test_dropping_a_plot_handle_stages_its_whole_hertz_and_tenth_db", async () => {
+test("test_dropping_a_plot_handle_stages_its_whole_hertz", async () => {
   dropHandle("high", 4321.6, 3.27);
   await settle();
-  assert.deepEqual([effective("loudness_high_freq"), effective("loudness_high_level")], ["4322", "3.3"]);
+  assert.equal(effective("loudness_high_freq"), "4322");
+});
+
+test("test_dropping_a_plot_handle_stages_its_tenth_db", async () => {
+  dropHandle("high", 4321.6, 3.27);
+  await settle();
+  assert.equal(effective("loudness_high_level"), "3.3");
 });

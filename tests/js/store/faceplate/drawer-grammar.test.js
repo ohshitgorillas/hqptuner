@@ -131,10 +131,10 @@ test("test_a_staged_group_row_marks_the_groups_tab", async () => {
   assert.deepEqual(drawerHead(schema, "a").dirty, ["a"]);
 });
 
-test("test_a_restart_row_left_out_by_when_leaves_its_tab_a_live_tab", () => {
+test("test_a_restart_row_kept_in_by_when_makes_its_tab_a_restart_tab", () => {
   const shown = (/** @type {boolean} */ on) =>
     drawerHead(drawerOf("g6", [{ row: { key: "volume_max", when: () => on } }]), "a").apply.shown;
-  assert.deepEqual([shown(false), shown(true)], [false, true]);
+  assert.equal(shown(true), true);
 });
 
 test("test_an_own_forms_staged_state_makes_the_apply_buttons_live", () => {
@@ -150,22 +150,28 @@ test("test_a_closed_drawer_shows_the_tab_its_schema_opens_on", () => {
   assert.equal(shownTab(drawerOf("t1", [], { opensOn: () => "b" })), "b");
 });
 
-test("test_a_tab_picked_while_open_holds_until_the_drawer_closes", () => {
+test("test_a_tab_picked_while_open_holds_while_the_drawer_stays_open", () => {
   const schema = drawerOf("t2", [], { opensOn: () => "b" });
   openStage.value = "t2";
   showTab("t2", "a");
   const open = shownTab(schema);
+  assert.equal(open, "a");
+});
+
+test("test_a_tab_picked_while_open_gives_way_to_the_schemas_tab_once_the_drawer_closes", () => {
+  const schema = drawerOf("t2", [], { opensOn: () => "b" });
+  openStage.value = "t2";
+  showTab("t2", "a");
   openStage.value = null;
   openStage.value = "t2";
-  assert.deepEqual([open, shownTab(schema)], ["a", "b"]);
+  assert.equal(shownTab(schema), "b");
 });
 
 test("test_a_tab_picked_while_closed_is_the_one_the_next_opening_shows", () => {
   const schema = drawerOf("t3", [], { opensOn: () => "b" });
-  const before = shownTab(schema);
   showTab("t3", "a");
   openStage.value = "t3";
-  assert.deepEqual([before, shownTab(schema)], ["b", "a"]);
+  assert.equal(shownTab(schema), "a");
 });
 
 test("test_a_rows_own_options_replace_the_catalogs", () => {

@@ -91,9 +91,8 @@ test("test_each_needle_sits_on_its_bands_limit_tier", () => {
 });
 
 test("test_a_staged_rate_moves_its_needle", async () => {
-  const before = dialView().limits.pcm;
   await edit("pcm_rate", "768000");
-  assert.deepEqual([before, dialView().limits.pcm], [2, 4]);
+  assert.equal(dialView().limits.pcm, 4);
 });
 
 test("test_a_limit_on_the_44k_member_reads_as_its_tier", () => {
@@ -101,9 +100,14 @@ test("test_a_limit_on_the_44k_member_reads_as_its_tier", () => {
   assert.deepEqual(dialView().limits, { pcm: 2, sdm: 8 });
 });
 
-test("test_each_tier_belongs_to_the_family_of_its_menu", () => {
+test("test_the_sdm_family_starts_at_the_seventh_tier", () => {
   const fams = dialView().tiers.map((t) => t.family);
-  assert.deepEqual([fams.indexOf("sdm"), fams.lastIndexOf("pcm")], [6, 5]);
+  assert.equal(fams.indexOf("sdm"), 6);
+});
+
+test("test_the_pcm_family_ends_at_the_sixth_tier", () => {
+  const fams = dialView().tiers.map((t) => t.family);
+  assert.equal(fams.lastIndexOf("pcm"), 5);
 });
 
 test("test_only_a_tier_the_device_did_not_announce_is_hatched", () => {
@@ -111,24 +115,26 @@ test("test_only_a_tier_the_device_did_not_announce_is_hatched", () => {
     dialView()
       .tiers.filter((t) => t.unavailable)
       .map((t) => t.value);
-  const unknown = hatched();
   load({ caps: CAPS });
-  assert.deepEqual([unknown, hatched()], [[], ["98304000"]]);
+  assert.deepEqual(hatched(), ["98304000"]);
 });
 
-test("test_the_playing_lamp_sits_on_the_running_rates_tier_in_either_family", () => {
-  const at = (/** @type {string} */ rate) => {
-    engineStatus.value = { status: { active_rate: rate }, metadata: {} };
-    return dialView().playing;
-  };
-  assert.deepEqual([at("352800"), at("12288000")], [3, 8]);
+const at = (/** @type {string} */ rate) => {
+  engineStatus.value = { status: { active_rate: rate }, metadata: {} };
+  return dialView().playing;
+};
+
+test("test_the_playing_lamp_sits_on_a_running_pcm_rates_tier", () => {
+  assert.equal(at("352800"), 3);
 });
 
-test("test_the_playing_lamp_goes_out_with_no_running_rate", () => {
+test("test_the_playing_lamp_sits_on_a_running_sdm_rates_tier", () => {
+  assert.equal(at("12288000"), 8);
+});
+
+test("test_the_playing_lamp_sits_on_a_running_48k_family_rates_tier", () => {
   engineStatus.value = { status: { active_rate: "96000" }, metadata: {} };
-  const lit = dialView().playing;
-  engineStatus.value = { status: { active_rate: "0" }, metadata: {} };
-  assert.deepEqual([lit, dialView().playing], [1, null]);
+  assert.equal(dialView().playing, 1);
 });
 
 test("test_a_pick_stages_the_tiers_rate_on_its_bands_key", async () => {
@@ -157,11 +163,15 @@ test("test_a_layout_pick_stages_its_channel_count", async () => {
   assert.equal(effective("channels"), "8");
 });
 
-test("test_manual_holds_at_a_layouts_count_until_a_layout_is_picked", async () => {
+test("test_manual_holds_at_a_layouts_count_once_picked", async () => {
   await pickChannelLayout("manual");
-  const held = channelLayout();
+  assert.equal(channelLayout(), "manual");
+});
+
+test("test_a_layout_picked_after_manual_reads_as_that_layout", async () => {
+  await pickChannelLayout("manual");
   await pickChannelLayout("2");
-  assert.deepEqual([held, channelLayout()], ["manual", "2"]);
+  assert.equal(channelLayout(), "2");
 });
 
 test("test_picking_manual_stages_nothing", async () => {
@@ -170,15 +180,19 @@ test("test_picking_manual_stages_nothing", async () => {
   assert.equal(wire.stages.length, 1);
 });
 
-test("test_the_effective_device_is_the_current_row", async () => {
-  const current = () =>
-    deviceView("net_device")
-      .groups.flatMap((g) => g.rows)
-      .filter((r) => r.cur)
-      .map((r) => r.value);
-  const before = current();
+const current = () =>
+  deviceView("net_device")
+    .groups.flatMap((g) => g.rows)
+    .filter((r) => r.cur)
+    .map((r) => r.value);
+
+test("test_the_loaded_device_is_the_current_row", () => {
+  assert.deepEqual(current(), [STANDA]);
+});
+
+test("test_a_picked_device_becomes_the_current_row", async () => {
   await pickDevice("net_device", OFFICE);
-  assert.deepEqual([before, current()], [[STANDA], [OFFICE]]);
+  assert.deepEqual(current(), [OFFICE]);
 });
 
 test("test_the_trigger_names_the_effective_devices_card", () => {

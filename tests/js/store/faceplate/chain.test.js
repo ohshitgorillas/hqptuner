@@ -166,38 +166,59 @@ const NO_FILTER = { ...CONV, filter1x: "none", filterNx: "none" };
  */
 const rateLamp = (over) => railLamp(stage(over, "resampling"), false, "playing");
 
-/** @type {[string, Partial<Running>, Partial<Running>][]} */
-const RATE_LAMP = [
+/** @type {[string, Partial<Running>][]} */
+const RATE_LAMP_LIT = [
   [
-    "pcm_to_pcm_lights_the_rate_lamp_only_while_the_output_rate_differs_from_the_source_rate",
+    "pcm_to_pcm_lights_the_rate_lamp_while_the_output_rate_differs_from_the_source_rate",
     { metadata: CD_SOURCE, status: PCM_8X_OUT },
+  ],
+  [
+    "pcm_to_sdm_lights_the_rate_lamp_under_a_running_filter",
+    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT },
+  ],
+  [
+    "dsd_to_pcm_lights_the_rate_lamp_under_a_running_filter",
+    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT },
+  ],
+  [
+    "sdm_to_sdm_lights_the_rate_lamp_while_the_output_rate_differs_whatever_the_pcm_filter",
+    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+  ],
+];
+
+for (const [name, converting] of RATE_LAMP_LIT) {
+  test(`test_${name}`, () => {
+    assert.equal(rateLamp(converting), "on");
+  });
+}
+
+/** @type {[string, Partial<Running>][]} */
+const RATE_LAMP_UNLIT = [
+  [
+    "pcm_to_pcm_leaves_the_rate_lamp_unlit_while_the_output_rate_matches_the_source_rate",
     { metadata: CD_SOURCE, status: CD_OUT },
   ],
   [
     "pcm_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
-    { metadata: CD_SOURCE, status: PCM_8X_OUT },
     { metadata: CD_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
   ],
   [
     "pcm_to_sdm_leaves_the_rate_lamp_unlit_under_the_none_filter",
-    { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT },
     { path: "pcm-sdm", chain: "sdm", metadata: CD_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
   ],
   [
     "dsd_to_pcm_leaves_the_rate_lamp_unlit_under_the_none_filter",
-    { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT },
     { path: "dsd-pcm", metadata: DSD64_SOURCE, status: PCM_8X_OUT, conv: NO_FILTER },
   ],
   [
-    "sdm_to_sdm_lights_the_rate_lamp_only_while_the_output_rate_differs_whatever_the_pcm_filter",
-    { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD256_OUT, conv: NO_FILTER },
+    "sdm_to_sdm_leaves_the_rate_lamp_unlit_while_the_output_rate_matches_whatever_the_pcm_filter",
     { path: "sdm-sdm", chain: "sdm", metadata: DSD64_SOURCE, status: DSD64_OUT, conv: NO_FILTER },
   ],
 ];
 
-for (const [name, converting, still] of RATE_LAMP) {
+for (const [name, still] of RATE_LAMP_UNLIT) {
   test(`test_${name}`, () => {
-    assert.deepEqual([rateLamp(converting), rateLamp(still)], ["on", "off"]);
+    assert.equal(rateLamp(still), "off");
   });
 }
 
