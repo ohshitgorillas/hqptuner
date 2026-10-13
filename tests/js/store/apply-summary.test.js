@@ -201,6 +201,27 @@ test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => 
   assert.equal(verdict(lastApply).code, "persist-refused");
 });
 
+// The code a refused credential carries on the wire (architecture.md 8.1).
+const CREDENTIALS_REFUSED = "credentials_refused";
+
+/**
+ * The verdict code of an apply whose persistent lane declined with these fields.
+ *
+ * @param {Record<string, unknown>} refusal
+ */
+async function persistentRefusalCode(refusal) {
+  await trees();
+  route({ apply: { persistent: { applied: false, ...refusal } } });
+  await applyAll();
+  return verdict(lastApply).code;
+}
+
+test("test_a_credential_refusal_without_its_sentence_reads_as_a_plain_refusal", async () => {
+  const plain = await persistentRefusalCode({});
+  const credential = await persistentRefusalCode({ code: CREDENTIALS_REFUSED });
+  assert.equal(credential, plain);
+});
+
 // --- summarize: change counts -----------------------------------------------
 
 test("test_an_apply_with_nothing_staged_counts_no_changes", async () => {

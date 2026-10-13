@@ -248,3 +248,14 @@ def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
     # successful apply, never reached here.
     client, _ = _apply_refused_mid_pass(credential_client)
     assert client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
+
+
+#: The status architecture.md 8.1 gives the `credentials_refused` code.
+SERVICE_UNAVAILABLE = 503
+
+
+def test_a_persistent_apply_whose_fetch_meets_a_refused_credential_is_unavailable(
+    credential_client: CredClient,
+) -> None:
+    _, resp = _apply_refused_mid_pass(credential_client)
+    assert resp.status_code == SERVICE_UNAVAILABLE
