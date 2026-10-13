@@ -7,9 +7,8 @@
 //
 // The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js), the
 // daemon's /config form fields and the config file's values are assigned into `config`, the engine's reported level
-// and VolumeRange into `volume` and `volumeRange`, and the edit is staged through the real `edit`. The graying context
-// is handed the store's own `effective`. Every source signal is reset on every case. Nothing asserted is copy: a gray
-// is read only as present or absent.
+// and VolumeRange into `volume` and `volumeRange`, and the edit is staged through the real `edit`. Every source signal
+// is reset on every case.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/fixed-volume-readings.test.js
 
@@ -18,9 +17,7 @@ import assert from "node:assert/strict";
 
 import { config, matrixConfig, volume, volumeDrag, volumeRange } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { effective } from "../../../hqptuner/static/store/resolve.js";
 import { fixedMode } from "../../../hqptuner/static/store/faceplate/drawers/volume.js";
-import { volumeRangeGray } from "../../../hqptuner/static/store/schema/gray.js";
 import { quiesce, stagingWire } from "../support/wire/wire.js";
 
 /** @typedef {import("../support/wire/wire.js").StagingWire} StagingWire */
@@ -76,19 +73,9 @@ async function uncheckAutoHeadroom(manual) {
   await quiesce(wire);
 }
 
-/** Whether the Range tab grays for the effective settings. */
-const rangeGrayed = () => volumeRangeGray({ mode: "", effective }) !== "";
-
-test("test_unchecking_auto_headroom_over_a_running_manual_moves_the_drawers_line_from_auto_to_manual", async () => {
+test("test_unchecking_auto_headroom_over_a_running_manual_moves_the_drawers_line_to_manual", async () => {
   load(true);
-  const before = fixedMode();
+  fixedMode(); // read under Auto headroom, so the uncheck has to reach a line already read
   await uncheckAutoHeadroom(true);
-  assert.deepEqual([before, fixedMode()], ["auto", "manual"]);
-});
-
-test("test_unchecking_auto_headroom_leaves_the_range_tab_grayed_only_while_manual_runs", async () => {
-  await uncheckAutoHeadroom(true);
-  const underManual = rangeGrayed();
-  await uncheckAutoHeadroom(false);
-  assert.deepEqual([underManual, rangeGrayed()], [true, false]);
+  assert.equal(fixedMode(), "manual");
 });

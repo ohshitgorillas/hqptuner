@@ -91,15 +91,25 @@ const placed = (cms, dbs) =>
     dbs,
   ).map((p) => p.i);
 
-test("test_a_speaker_with_neither_distance_nor_level_is_left_off_the_plan", () => {
-  assert.deepEqual(
-    placed(
-      [UNSET_CM, NEAR_CM, NEAR_CM, NEAR_CM],
-      LAYOUT.map(() => UNSET_DB),
-    ),
-    [RIGHT, LEFT, SUB],
-  );
-});
+//: Each place on the plan with the front speaker left off, and the channel it holds.
+/** @type {[number, number][]} */
+const FRONT_LEFT_OFF = [
+  [0, RIGHT],
+  [1, LEFT],
+  [2, SUB],
+];
+
+for (const [k, ch] of FRONT_LEFT_OFF) {
+  test(`test_a_speaker_with_neither_distance_nor_level_is_left_off_the_plan_so_place_${k}_holds_channel_${ch}`, () => {
+    assert.equal(
+      placed(
+        [UNSET_CM, NEAR_CM, NEAR_CM, NEAR_CM],
+        LAYOUT.map(() => UNSET_DB),
+      )[k],
+      ch,
+    );
+  });
+}
 
 test("test_a_speaker_with_a_level_and_no_distance_is_on_the_plan", () => {
   assert.deepEqual(

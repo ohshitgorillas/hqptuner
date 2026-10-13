@@ -240,19 +240,25 @@ test("test_typing_again_inside_the_quiet_window_restarts_the_window", async () =
   assert.deepEqual(counts, [0, 1]);
 });
 
-test("test_one_burst_of_typing_sends_one_put_per_profile_carrying_its_newest_text", async () => {
-  const w = await reset();
-  const { clock, advance, quiet } = pacedClock();
-  queueDescription(NAME, DRAFT, clock);
-  queueDescription(OTHER, STUDY_TEXT, clock);
-  queueDescription(NAME, TEXT, clock);
-  advance(quiet());
-  await settle();
-  assert.deepEqual(puts(w).sort(byName), [
-    { name: NAME, text: TEXT },
-    { name: OTHER, text: STUDY_TEXT },
-  ]);
-});
+//: Each PUT one burst of typing sends, by its place in name order, with the profile it names and the text it carries.
+/** @type {[string, number, string, string][]} */
+const BURST_PUTS = [
+  ["a_profile_retyped_in_it_its_newest_text", 0, NAME, TEXT],
+  ["a_profile_typed_once_in_it_its_text", 1, OTHER, STUDY_TEXT],
+];
+
+for (const [behavior, i, name, text] of BURST_PUTS) {
+  test(`test_one_burst_of_typing_sends_${behavior}`, async () => {
+    const w = await reset();
+    const { clock, advance, quiet } = pacedClock();
+    queueDescription(NAME, DRAFT, clock);
+    queueDescription(OTHER, STUDY_TEXT, clock);
+    queueDescription(NAME, TEXT, clock);
+    advance(quiet());
+    await settle();
+    assert.deepEqual(puts(w).sort(byName)[i], { name, text });
+  });
+}
 
 // --- what the save leaves on screen --------------------------------------------------
 

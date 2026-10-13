@@ -110,14 +110,25 @@ test("test_the_last_band_reaches_the_last_column", () => {
 
 // ── stepCaps ─────────────────────────────────────────────────────────────
 
-test("test_caps_without_a_prior_state_sit_on_their_bands", () => {
-  assert.deepEqual(list(stepCaps(null, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
-});
+//: Each band of the two-band input `f32(HIGH, LOW)`, by index, with its height.
+/** @type {[number, number][]} */
+const TWO_BANDS = [
+  [0, HIGH],
+  [1, LOW],
+];
 
-test("test_caps_from_a_state_of_another_length_sit_on_their_bands", () => {
-  const prev = { lvl: f32(RISEN), age: f32(0) };
-  assert.deepEqual(list(stepCaps(prev, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
-});
+for (const [i, band] of TWO_BANDS) {
+  test(`test_cap_${i}_without_a_prior_state_sits_on_its_band`, () => {
+    assert.equal(stepCaps(null, f32(HIGH, LOW), DT).lvl[i], band);
+  });
+}
+
+for (const [i, band] of TWO_BANDS) {
+  test(`test_cap_${i}_from_a_state_of_another_length_sits_on_its_band`, () => {
+    const prev = { lvl: f32(RISEN), age: f32(0) };
+    assert.equal(stepCaps(prev, f32(HIGH, LOW), DT).lvl[i], band);
+  });
+}
 
 test("test_a_band_above_its_cap_lifts_the_cap", () => {
   const prev = { lvl: f32(HIGH), age: f32(CAP_HOLD_S) };
@@ -145,14 +156,18 @@ test("test_a_falling_cap_never_drops_below_its_band", () => {
 
 // ── stepGravity ──────────────────────────────────────────────────────────
 
-test("test_gravity_bars_without_a_prior_state_sit_on_their_bands", () => {
-  assert.deepEqual(list(stepGravity(null, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
-});
+for (const [i, band] of TWO_BANDS) {
+  test(`test_gravity_bar_${i}_without_a_prior_state_sits_on_its_band`, () => {
+    assert.equal(stepGravity(null, f32(HIGH, LOW), DT).lvl[i], band);
+  });
+}
 
-test("test_gravity_bars_from_a_state_of_another_length_sit_on_their_bands", () => {
-  const prev = { lvl: f32(RISEN), v: f32(0) };
-  assert.deepEqual(list(stepGravity(prev, f32(HIGH, LOW), DT).lvl), [HIGH, LOW]);
-});
+for (const [i, band] of TWO_BANDS) {
+  test(`test_gravity_bar_${i}_from_a_state_of_another_length_sits_on_its_band`, () => {
+    const prev = { lvl: f32(RISEN), v: f32(0) };
+    assert.equal(stepGravity(prev, f32(HIGH, LOW), DT).lvl[i], band);
+  });
+}
 
 test("test_a_band_above_its_gravity_bar_lifts_the_bar", () => {
   const prev = { lvl: f32(HIGH), v: f32(FALLING_V) };

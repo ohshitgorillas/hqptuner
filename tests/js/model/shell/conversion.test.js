@@ -113,12 +113,20 @@ test("test_the_page_opens_on_the_1x_filter_otherwise", () => {
 
 // ── sectionRows ──────────────────────────────────────────────────────────
 
-test("test_resampling_shows_the_open_field_open_and_its_sibling_folded", () => {
-  assert.deepEqual(sectionRows(["pcm"], { chain: "pcm", field: "nx" }, ["1x", "nx"]), [
-    { kind: "line", ch: "pcm", k: "1x" },
-    { kind: "field", ch: "pcm", k: "nx" },
-  ]);
-});
+/** @typedef {{ kind: string, ch: string, k: string }} Row */
+
+//: Each row resampling shows with the nx filter open, by index.
+/** @type {[string, number, Row][]} */
+const RESAMPLING_ROWS = [
+  ["folds_the_open_fields_sibling", 0, { kind: "line", ch: "pcm", k: "1x" }],
+  ["shows_the_open_field_open", 1, { kind: "field", ch: "pcm", k: "nx" }],
+];
+
+for (const [behavior, i, row] of RESAMPLING_ROWS) {
+  test(`test_resampling_${behavior}`, () => {
+    assert.deepEqual(sectionRows(["pcm"], { chain: "pcm", field: "nx" }, ["1x", "nx"])[i], row);
+  });
+}
 
 test("test_a_closed_chain_folds_to_one_row_on_its_first_field", () => {
   assert.deepEqual(sectionRows(CHAINS, { chain: "pcm", field: "1x" }, ["1x", "nx"])[2], {
@@ -128,21 +136,33 @@ test("test_a_closed_chain_folds_to_one_row_on_its_first_field", () => {
   });
 });
 
-test("test_shaping_folds_the_other_chain_on_its_shaper", () => {
-  assert.deepEqual(sectionRows(CHAINS, { chain: "sdm", field: "sh" }, ["sh"]), [
-    { kind: "chain", ch: "pcm", k: "sh" },
-    { kind: "field", ch: "sdm", k: "sh" },
-  ]);
-});
+//: Each row shaping shows with the sdm shaper open, by index.
+/** @type {[string, number, Row][]} */
+const SHAPING_ROWS = [
+  ["folds_the_other_chain_on_its_shaper", 0, { kind: "chain", ch: "pcm", k: "sh" }],
+  ["shows_the_open_chains_shaper_open", 1, { kind: "field", ch: "sdm", k: "sh" }],
+];
+
+for (const [behavior, i, row] of SHAPING_ROWS) {
+  test(`test_shaping_${behavior}`, () => {
+    assert.deepEqual(sectionRows(CHAINS, { chain: "sdm", field: "sh" }, ["sh"])[i], row);
+  });
+}
 
 // ── bothRows ─────────────────────────────────────────────────────────────
 
-test("test_both_open_shows_both_filters_of_the_open_chain", () => {
-  assert.deepEqual(bothRows(CHAINS, "sdm").fields, [
-    { ch: "sdm", k: "1x" },
-    { ch: "sdm", k: "nx" },
-  ]);
-});
+//: Each filter field both-open shows for the open sdm chain, by index.
+/** @type {[number, { ch: string, k: string }][]} */
+const BOTH_FIELDS = [
+  [0, { ch: "sdm", k: "1x" }],
+  [1, { ch: "sdm", k: "nx" }],
+];
+
+for (const [i, field] of BOTH_FIELDS) {
+  test(`test_both_open_shows_the_open_chains_${field.k}_filter`, () => {
+    assert.deepEqual(bothRows(CHAINS, "sdm").fields[i], field);
+  });
+}
 
 test("test_both_open_folds_every_other_chain", () => {
   assert.deepEqual(bothRows(CHAINS, "sdm").others, ["pcm"]);

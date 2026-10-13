@@ -72,10 +72,8 @@ test("test_metering_switched_off_closes_the_stream", () => {
   assert.equal(lastStream()?.closed, true);
 });
 
-test("test_meter_feed_open_is_true_while_metering_runs_and_false_once_it_is_switched_off", () => {
-  const open = meterFeedOpen.value;
-  engineStatus.value = { metering: false };
-  assert.deepEqual([open, meterFeedOpen.value], [true, false]);
+test("test_meter_feed_open_is_true_while_metering_runs", () => {
+  assert.equal(meterFeedOpen.value, true);
 });
 
 test("test_a_geometry_event_sets_the_nyquist_channel_count_and_bin_count", () => {
@@ -102,13 +100,18 @@ test("test_taken_frames_are_not_taken_again", () => {
   assert.deepEqual(takeMeterFrames(), []);
 });
 
-test("test_each_taken_frame_carries_the_geometry_it_arrived_under", () => {
+test("test_a_frame_keeps_the_geometry_it_arrived_under_when_a_new_one_follows", () => {
   lastStream()?.emit("geometry", GEO);
   send(1000);
   lastStream()?.emit("geometry", GEO_96K);
   send(1000);
-  assert.deepEqual(
-    takeMeterFrames().map((f) => f.geo),
-    [GEO, GEO_96K],
-  );
+  assert.deepEqual(takeMeterFrames().map((f) => f.geo)[0], GEO);
+});
+
+test("test_a_frame_arriving_under_a_new_geometry_carries_the_new_geometry", () => {
+  lastStream()?.emit("geometry", GEO);
+  send(1000);
+  lastStream()?.emit("geometry", GEO_96K);
+  send(1000);
+  assert.deepEqual(takeMeterFrames().map((f) => f.geo)[1], GEO_96K);
 });

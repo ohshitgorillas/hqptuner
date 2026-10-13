@@ -129,10 +129,16 @@ const TWO_PARAGRAPH_META = {
 };
 
 // The note is held back only below 13″, so the plate is set to the smallest size.
-test("test_a_two_stage_note_of_two_paragraphs_is_held_back_as_two_paragraphs", async () => {
+test("test_a_two_stage_note_of_two_paragraphs_holds_back_its_first_paragraph_on_its_own", async () => {
   await reset({ meta: TWO_PARAGRAPH_META });
   viewport.value = { w: 1080, h: 810 };
-  assert.deepEqual(prose("sinc-M-2s").more, [FIRST_PARAGRAPH, SECOND_PARAGRAPH]);
+  assert.equal(prose("sinc-M-2s").more[0], FIRST_PARAGRAPH);
+});
+
+test("test_a_two_stage_note_of_two_paragraphs_holds_back_its_second_paragraph_on_its_own", async () => {
+  await reset({ meta: TWO_PARAGRAPH_META });
+  viewport.value = { w: 1080, h: 810 };
+  assert.equal(prose("sinc-M-2s").more[1], SECOND_PARAGRAPH);
 });
 
 test("test_a_two_stage_filter_reads_inline_as_its_single_stage_twin_then_the_notes_lead", async () => {

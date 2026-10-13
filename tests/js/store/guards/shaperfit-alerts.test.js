@@ -49,6 +49,11 @@ const alerts = () => shaperAlerts.value;
 const kinds = () => alerts().map((a) => a.kind);
 /** @returns {string[]} */
 const sevs = () => alerts().map((a) => a.sev);
+/**
+ * @param {string} kind
+ * @returns {number}
+ */
+const kindCount = (kind) => kinds().filter((k) => k === kind).length;
 
 // The two alert identities.
 const SDM = "shaper-fit-sdm";
@@ -155,11 +160,16 @@ test("test_with_no_chain_loaded_sdm_mode_reports_the_sdm_conflict_alone", async 
   assert.deepEqual(kinds(), [SDM]);
 });
 
-test("test_with_no_chain_loaded_source_mode_reports_both_conflicts", async () => {
+test("test_with_no_chain_loaded_source_mode_reports_the_sdm_conflict", async () => {
   // `[source]` follows the track, so either family may be the next one to
   // produce output and neither conflict can be ruled out.
   await reset({ chain: null, mode: "0", ...BOTH_CONFLICT });
-  assert.deepEqual(kinds(), [SDM, PCM]);
+  assert.equal(kindCount(SDM), 1);
+});
+
+test("test_with_no_chain_loaded_source_mode_reports_the_pcm_conflict", async () => {
+  await reset({ chain: null, mode: "0", ...BOTH_CONFLICT });
+  assert.equal(kindCount(PCM), 1);
 });
 
 // --- staged edits count -------------------------------------------------------

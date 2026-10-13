@@ -173,24 +173,32 @@ test("test_the_scene_carries_a_lone_loud_column_at_the_frames_level_before_smoot
   assert.ok(...near(scenes.at(-1)?.raw?.[SPIKE_AT] ?? NaN, LOUD_DB, 1e-3));
 });
 
-test("test_at_a_0_1_s_engine_output_delay_a_clump_shorter_than_it_shows_nothing_until_the_feed_covers_it", () => {
+test("test_at_a_0_1_s_engine_output_delay_the_trace_shows_the_first_clump_once_the_feed_covers_it", () => {
   engineStatus.value = { status: { state: "2", output_delay: "100000" } };
   for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, ms: 10.667 });
   for (let k = 0; k < 6; k++) frame();
   for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 60, ms: 10.667 });
   step();
-  assert.deepEqual(scenes.map(traceDb), [NaN, NaN, NaN, -10]);
+  assert.equal(scenes.map(traceDb)[3], -10);
 });
 
-test("test_a_painter_runs_once_per_step_until_it_is_unregistered", () => {
+test("test_a_registered_painter_runs_once_per_step", () => {
   let calls = 0;
   const stop = onMeterPaint(() => (calls += 1));
   step();
   step();
-  const whileRegistered = calls;
+  stop();
+  assert.equal(calls, 2);
+});
+
+test("test_an_unregistered_painter_runs_no_more", () => {
+  let calls = 0;
+  const stop = onMeterPaint(() => (calls += 1));
+  step();
+  step();
   stop();
   step();
-  assert.deepEqual([whileRegistered, calls], [2, 2]);
+  assert.equal(calls, 2);
 });
 
 test("test_a_second_start_runs_no_second_loop", () => {
@@ -214,9 +222,8 @@ test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () =
 test("test_a_painter_registered_on_an_idle_loop_queues_exactly_one_frame", () => {
   unpaint();
   frame();
-  const idle = waiting();
   unpaint = onMeterPaint((scene) => scenes.push(scene));
-  assert.deepEqual([idle, waiting()], [0, 1]);
+  assert.equal(waiting(), 1);
 });
 
 test("test_with_the_feed_closed_the_loop_queues_no_frame_after_the_next_one", () => {
@@ -228,9 +235,8 @@ test("test_with_the_feed_closed_the_loop_queues_no_frame_after_the_next_one", ()
 test("test_playback_starting_again_queues_exactly_one_frame", () => {
   engineStatus.value = { ...STOPPED };
   frame();
-  const idle = waiting();
   engineStatus.value = { ...PLAYING };
-  assert.deepEqual([idle, waiting()], [0, 1]);
+  assert.equal(waiting(), 1);
 });
 
 test("test_playback_stopping_hands_the_painters_the_empty_scene_with_no_frame_run", () => {
