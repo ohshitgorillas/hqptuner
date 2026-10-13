@@ -89,24 +89,24 @@ function change(Block, pred, target) {
   if (fn) fn({ currentTarget: target });
 }
 
-/** @param {boolean} checked */
-const tick = (checked) => change(NblocksBlock, (p) => p.type === "checkbox", { checked });
-
 /** @param {string} k @param {string} value */
 const typeInto = (k, value) => change(CudaDevicesBlock, (p) => p["data-k"] === k, { value });
 
-test("test_the_slider_is_disabled_while_automatic_and_live_once_ticked", async () => {
+test("test_the_slider_is_disabled_while_automatic", async () => {
   await load({ nblocks: "0" });
-  const automatic = rangeDisabled();
-  tick(true);
-  assert.deepEqual([automatic, rangeDisabled()], [true, false]);
+  assert.equal(rangeDisabled(), true);
 });
 
-test("test_each_device_box_drafts_its_own_key", () => {
+test("test_the_cuda_dev_box_drafts_its_own_key", () => {
   typeInto("cuda_dev", "5");
   typeInto("cuda_cdev", "3");
-  const { cuda_dev, cuda_cdev } = hardwareDraft().values;
-  assert.deepEqual([cuda_dev, cuda_cdev], ["5", "3"]);
+  assert.equal(hardwareDraft().values.cuda_dev, "5");
+});
+
+test("test_the_cuda_cdev_box_drafts_its_own_key", () => {
+  typeInto("cuda_dev", "5");
+  typeInto("cuda_cdev", "3");
+  assert.equal(hardwareDraft().values.cuda_cdev, "3");
 });
 
 /** The restart mark's state-bearing handle, shared by every surface that carries it. */

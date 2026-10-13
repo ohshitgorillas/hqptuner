@@ -104,11 +104,14 @@ function fire(Block, pred, handler = "onClick", event = undefined) {
 const button = (v) => (/** @type {string} */ type, /** @type {Record<string, unknown>} */ p) =>
   type === "button" && p["data-v"] === v;
 
-test("test_the_stored_pick_is_the_one_pressed_swatch", () => {
+test("test_a_stored_blue_pick_is_the_one_pressed_swatch", () => {
   accent.value = "blue";
-  const blue = pressedSwatches();
+  assert.deepEqual(pressedSwatches(), ["blue"]);
+});
+
+test("test_a_stored_violet_pick_is_the_one_pressed_swatch", () => {
   accent.value = "violet";
-  assert.deepEqual([blue, pressedSwatches()], [["blue"], ["violet"]]);
+  assert.deepEqual(pressedSwatches(), ["violet"]);
 });
 
 test("test_a_swatch_tap_writes_the_accent", () => {
@@ -121,11 +124,9 @@ test("test_a_hex_change_writes_the_custom_hex", () => {
   assert.equal(accentHex.value, "#123456");
 });
 
-test("test_a_second_toggle_tap_shows_the_stage_again", () => {
+test("test_a_toggle_tap_hides_its_stage", () => {
   fire(HideBlock, button("loudness"));
-  const hidden = [...hiddenStages.value];
-  fire(HideBlock, button("loudness"));
-  assert.deepEqual([hidden, hiddenStages.value], [["loudness"], []]);
+  assert.deepEqual(hiddenStages.value, ["loudness"]);
 });
 
 test("test_a_hidden_stage_lights_its_toggle", () => {

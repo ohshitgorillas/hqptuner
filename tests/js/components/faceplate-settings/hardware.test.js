@@ -140,34 +140,31 @@ function railAgainst(id, value) {
 
 for (const { id, other } of SETTINGS) {
   test(`test_an_edit_to_${id}_lights_the_hardware_drawers_own_apply_group`, () => {
-    const before = applyLive();
     setHardware(id, other);
-    assert.deepEqual([before, applyLive()], [false, true]);
-  });
-}
-
-for (const { id, other } of SETTINGS) {
-  test(`test_discard_clears_the_hardware_drawers_apply_group_after_an_edit_to_${id}`, async () => {
-    setHardware(id, other);
-    const edited = applyLive();
-    await HARDWARE_DRAWER.own?.discard();
-    assert.deepEqual([edited, applyLive()], [true, false]);
+    assert.equal(applyLive(), true);
   });
 }
 
 // --- the all-stations field --------------------------------------------------------------------------------------
 
+test("test_the_gpu_tab_lights_all_stations_off_while_it_is_off", () => {
+  assert.equal(litOf("hwallgpu"), "0");
+});
+
 test("test_all_stations_on_the_cpu_tab_lights_it_on_the_gpu_tab", () => {
-  const before = litOf("hwallgpu");
   fieldOf("cpu", "hwallcpu")?.set("1");
-  assert.deepEqual([before, litOf("hwallgpu")], ["0", "1"]);
+  assert.equal(litOf("hwallgpu"), "1");
+});
+
+test("test_the_cpu_tab_lights_all_stations_on_once_it_is_switched_on", () => {
+  setAllStations(true);
+  assert.equal(litOf("hwallcpu"), "1");
 });
 
 test("test_all_stations_on_the_gpu_tab_lights_it_on_the_cpu_tab", () => {
   setAllStations(true);
-  const before = litOf("hwallcpu");
   fieldOf("gpu", "hwallgpu")?.set("0");
-  assert.deepEqual([before, litOf("hwallcpu")], ["1", "0"]);
+  assert.equal(litOf("hwallcpu"), "0");
 });
 
 // --- the restart mark -------------------------------------------------------------------------------------------

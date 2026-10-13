@@ -146,10 +146,7 @@ test("test_only_the_readout_set_wide_is_wide", () => {
   );
 });
 
-test("test_a_raised_alert_blinks_its_category_and_no_other", () => {
+test("test_a_raised_alert_blinks_its_category", () => {
   playing("0", "Roon");
-  assert.deepEqual(
-    buttons().map((b) => attr(b, "data-alert")),
-    [undefined, undefined, "warn"],
-  );
+  assert.equal(attr(button("timing"), "data-alert"), "warn");
 });

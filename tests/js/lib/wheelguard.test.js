@@ -176,11 +176,18 @@ test("test_a_focused_box_keeps_its_typed_text_across_a_render_bringing_a_new_val
   const box = { value: "" };
   env.document = { activeElement: null };
   paint(5, box);
-  const shown = box.value;
   env.document = { activeElement: box };
   box.value = "-1";
   paint(7, box);
-  assert.deepEqual([shown, box.value], ["5", "-1"]);
+  assert.equal(box.value, "-1");
+});
+
+test("test_an_unfocused_box_shows_the_value_of_its_first_render", () => {
+  /** @type {Box} */
+  const box = { value: "" };
+  env.document = { activeElement: null };
+  paint(5, box);
+  assert.equal(box.value, "5");
 });
 
 test("test_an_unfocused_box_shows_the_new_value_after_a_render", () => {

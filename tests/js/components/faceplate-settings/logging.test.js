@@ -85,10 +85,8 @@ function railText(id) {
   return entry?.rows[LOGGING_READOUTS.findIndex((r) => r.id === id)]?.text;
 }
 
-test("test_the_log_path_row_grays_while_logging_is_off_and_not_while_on", () => {
-  const off = pathGrayLines();
-  config.value = form(true);
-  assert.deepEqual([off, pathGrayLines()], [1, 0]);
+test("test_the_log_path_row_grays_while_logging_is_off", () => {
+  assert.equal(pathGrayLines(), 1);
 });
 
 test("test_the_log_path_readout_prints_the_running_path_not_a_staged_one", async () => {

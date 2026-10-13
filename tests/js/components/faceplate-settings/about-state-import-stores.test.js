@@ -188,10 +188,25 @@ await quiesce(W);
 const putsTo = (/** @type {string} */ path) =>
   CALLS.filter((c) => c.path === path && c.method === "PUT").map((c) => JSON.parse(String(c.body)));
 
-test("test_a_star_toggled_after_an_import_writes_the_imported_favorites_and_not_the_ones_before_it", async () => {
-  await toggleFavorite(STARRED_AFTER);
-  await quiesce(W);
-  assert.deepEqual([...(putsTo("/api/favorites").at(-1)?.filters || [])].sort(), [IMPORTED_FAVORITE, STARRED_AFTER]);
+/** @type {Promise<string[]> | undefined} */
+let starred;
+
+/** The sorted filters of the favorites PUT a star toggled after the import writes; the star is toggled on the first call only. */
+const filtersAfterStar = () =>
+  (starred ??= toggleFavorite(STARRED_AFTER)
+    .then(() => quiesce(W))
+    .then(() => [...(putsTo("/api/favorites").at(-1)?.filters || [])].sort()));
+
+test("test_a_star_toggled_after_an_import_writes_the_imported_favorite_first_in_the_sorted_filters", async () => {
+  assert.equal((await filtersAfterStar())[0], IMPORTED_FAVORITE);
+});
+
+test("test_a_star_toggled_after_an_import_writes_the_starred_filter_second_in_the_sorted_filters", async () => {
+  assert.equal((await filtersAfterStar())[1], STARRED_AFTER);
+});
+
+test("test_a_star_toggled_after_an_import_writes_nothing_beside_the_imported_favorite_and_the_star", async () => {
+  assert.equal((await filtersAfterStar()).length, 2);
 });
 
 test("test_a_profile_description_after_an_import_is_the_imported_one", () => {

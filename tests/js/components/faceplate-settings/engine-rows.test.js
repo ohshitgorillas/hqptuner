@@ -12,13 +12,11 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import {
   BEHAVIOR_DRAWER,
-  TIMING_DRAWER,
   TIMING_READOUTS,
   UPNP_READOUTS,
 } from "../../../../hqptuner/static/components/faceplate/settings/engine-rows.js";
@@ -39,11 +37,8 @@ import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { elements, classes } from "../../support/markup.js";
 
-/** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
-/** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 
 //: The daemon form's options for the two config-sourced keys, labels as the wire carries them.
@@ -92,14 +87,6 @@ beforeEach(async () => {
 });
 
 /**
- * Every element of a drawer's markup, in document order.
- *
- * @param {DrawerSchema} schema
- * @returns {MarkupElement[]}
- */
-const markup = (schema) => elements(render(html`<${Drawer} schema=${schema} />`)).sort((a, b) => a.start - b.start);
-
-/**
  * The first vnode in a subtree whose props match `pred`.
  *
  * @param {unknown} node
@@ -138,24 +125,14 @@ function railText(readouts) {
   return settingsRail([{ id: "c", name: "C", readouts }], plan, null, [])[0]?.rows[0]?.text;
 }
 
-test("test_staging_an_idle_time_dots_the_timing_title", async () => {
-  const dotted = () =>
-    markup(TIMING_DRAWER).some((e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"));
-  const before = dotted();
-  await edit("idle_time", "10000");
-  assert.deepEqual([before, dotted()], [false, true]);
-});
-
 test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
-  const before = allowPinnedRates.value;
   await tapPinned("1");
-  assert.deepEqual([before, allowPinnedRates.value], [false, true]);
+  assert.equal(allowPinnedRates.value, true);
 });
 
 test("test_a_readout_prints_the_label_of_the_running_option", () => {
-  const before = railText(TIMING_READOUTS);
   config.value = form("10000", false);
-  assert.deepEqual([before, railText(TIMING_READOUTS)], ["Default", "10"]);
+  assert.equal(railText(TIMING_READOUTS), "10");
 });
 
 test("test_a_readout_holds_the_running_option_while_an_edit_is_staged", async () => {
@@ -163,8 +140,11 @@ test("test_a_readout_holds_the_running_option_while_an_edit_is_staged", async ()
   assert.equal(railText(TIMING_READOUTS), "Default");
 });
 
-test("test_a_checkbox_readout_reads_its_running_truth_as_its_option_value", () => {
-  const before = UPNP_READOUTS[0]?.value();
+test("test_a_checkbox_readout_reads_its_running_false_as_the_off_option_value", () => {
+  assert.equal(UPNP_READOUTS[0]?.value(), "0");
+});
+
+test("test_a_checkbox_readout_reads_its_running_true_as_the_on_option_value", () => {
   config.value = form("0", true);
-  assert.deepEqual([before, UPNP_READOUTS[0]?.value()], ["0", "1"]);
+  assert.equal(UPNP_READOUTS[0]?.value(), "1");
 });

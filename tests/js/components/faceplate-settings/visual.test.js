@@ -235,11 +235,14 @@ test("test_the_visual_drawer_draws_one_field_offering_the_four_display_formats",
   assert.equal(fieldsOffering(render(html`<${Drawer} schema=${VISUAL_DRAWER} />`), FORMATS).length, 1);
 });
 
-test("test_the_display_row_lights_the_display_format_currently_chosen", () => {
+test("test_the_display_row_lights_compact_when_compact_is_chosen", () => {
   choose(COMPACT);
-  const compact = litFormat();
+  assert.equal(litFormat(), COMPACT);
+});
+
+test("test_the_display_row_lights_normal_when_normal_is_chosen", () => {
   choose(NORMAL);
-  assert.deepEqual([compact, litFormat()], [COMPACT, NORMAL]);
+  assert.equal(litFormat(), NORMAL);
 });
 
 test("test_tapping_a_display_format_chooses_it", async () => {
@@ -252,12 +255,16 @@ test("test_the_display_row_carries_one_explanatory_paragraph", () => {
   assert.equal(inField(displayRow()).filter((e) => e.name === "p" && text(e) !== "").length, 1);
 });
 
-test("test_the_display_readout_prints_the_display_format_its_field_lights", () => {
+test("test_the_display_readout_prints_the_compact_label_its_field_lights", () => {
   const id = displayRow();
   const readout = () => railRow(id)?.text ?? "(no readout)";
   choose(COMPACT);
-  const compact = [readout(), litLabel(id)];
+  assert.equal(readout(), litLabel(id));
+});
+
+test("test_the_display_readout_prints_the_expanded_label_its_field_lights", () => {
+  const id = displayRow();
+  const readout = () => railRow(id)?.text ?? "(no readout)";
   choose(EXPANDED);
-  const expanded = [readout(), litLabel(id)];
-  assert.deepEqual([compact[0], expanded[0]], [compact[1], expanded[1]]);
+  assert.equal(readout(), litLabel(id));
 });

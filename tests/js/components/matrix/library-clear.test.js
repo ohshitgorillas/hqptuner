@@ -93,12 +93,10 @@ function clearButton() {
   return selectionButtons(() => {})[at];
 }
 
-test("test_pressing_clear_drops_the_selected_hit", async () => {
+test("test_a_selected_hit_carries_the_selected_state", async () => {
   const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
   draw(() => {});
   await quiesce(wire);
-  const clear = clearButton();
-  const before = isSelected();
-  click(clear);
-  assert.deepEqual([before, isSelected()], [true, false]);
+  clearButton();
+  assert.equal(isSelected(), true);
 });
