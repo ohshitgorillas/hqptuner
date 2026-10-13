@@ -18,17 +18,16 @@ import { signal, computed, effect } from "@preact/signals";
 import { activePreset } from "../resolve.js";
 import { pendingPreset } from "../signals.js";
 import { api } from "../../lib/api.js";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 
 // The key is `hqptuner.dspMode`: it is a persisted localStorage key under which each install files the
 // user's speakers/headphones choice, so a rename would orphan that value and drop the user to the default.
 const KEY = "hqptuner.dspMode";
 
 function load() {
-  try {
-    return localStorage.getItem(KEY) === "speakers" ? "speakers" : "headphones";
-  } catch {
-    return "headphones"; // storage disabled — the session still switches
-  }
+  const stored = getStored(KEY);
+  if (!stored.ok) return "headphones";
+  return stored.value === "speakers" ? "speakers" : "headphones";
 }
 
 export const matrixMode = signal(load());
@@ -74,11 +73,8 @@ effect(() => {
  * @returns {void}
  */
 function rememberLast(mode) {
-  try {
-    localStorage.setItem(KEY, mode);
-  } catch {
-    /* storage disabled — in-memory value drives the session */
-  }
+  // storage disabled — in-memory value drives the session
+  setStored(KEY, mode);
 }
 
 // Read the map once, at load. Guarded on `fetch` because this module is imported

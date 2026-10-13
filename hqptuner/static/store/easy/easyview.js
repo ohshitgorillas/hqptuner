@@ -13,31 +13,22 @@
 // no localStorage), so every read and write is guarded and a dead store simply
 // leaves the in-memory signal driving the session.
 import { signal } from "@preact/signals";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 
 const K_KNOBS = "hqptuner.easyKnobs";
 
 /**
- * @param {string} key
- * @returns {string | null}
+ * The stored record as parsed JSON, null where none can be read.
+ *
+ * @returns {unknown}
  */
-function read(key) {
+function storedKnobs() {
+  const stored = getStored(K_KNOBS);
+  if (!stored.ok) return null; // storage disabled — the default stands for this session
   try {
-    return localStorage.getItem(key);
+    return JSON.parse(stored.value || "");
   } catch {
-    return null; // storage disabled — the default stands for this session
-  }
-}
-
-/**
- * @param {string} key
- * @param {string} value
- * @returns {void}
- */
-function write(key, value) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* storage disabled — the in-memory value drives the session */
+    return null; // nothing stored, or not JSON — every tile starts at its defaults
   }
 }
 
@@ -59,12 +50,7 @@ function write(key, value) {
 function readKnobs() {
   /** @type {Record<string, Record<string, string>>} */
   const out = {};
-  let raw;
-  try {
-    raw = JSON.parse(read(K_KNOBS) || "");
-  } catch {
-    return out; // nothing stored, or not JSON — every tile starts at its defaults
-  }
+  const raw = storedKnobs();
   if (raw === null || typeof raw !== "object") return out;
   for (const [presetId, positions] of Object.entries(raw)) {
     if (positions === null || typeof positions !== "object") continue;
@@ -88,7 +74,8 @@ export const easyKnobs = signal(readKnobs());
  */
 export function rememberKnobs(presetId, knobs) {
   easyKnobs.value = { ...easyKnobs.value, [presetId]: { ...knobs } };
-  write(K_KNOBS, JSON.stringify(easyKnobs.value));
+  // storage disabled — the in-memory value drives the session
+  setStored(K_KNOBS, JSON.stringify(easyKnobs.value));
 }
 
 /**

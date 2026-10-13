@@ -3,6 +3,7 @@
 // Module load stays node-safe (the SSR harness imports the component graph with
 // no localStorage): the storage read is guarded.
 import { signal } from "@preact/signals";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 import { DISPLAY_FORMATS } from "../../model/shell/plate.js";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
@@ -38,13 +39,22 @@ export function warnStorage(verb) {
  * @returns {boolean}
  */
 export function loadBool(key, dflt) {
-  try {
-    const v = localStorage.getItem(key);
-    return v == null ? dflt : v === "1";
-  } catch {
+  const stored = getStored(key);
+  if (!stored.ok) {
     warnStorage("read");
     return dflt;
   }
+  return stored.value == null ? dflt : stored.value === "1";
+}
+
+/** Store a string, warning where the store refuses it.
+ * @param {string} key
+ * @param {string} value
+ * @returns {void}
+ */
+function store(key, value) {
+  // storage disabled (private mode) — keep the in-memory value
+  if (!setStored(key, value)) warnStorage("written");
 }
 
 /** Store a boolean as "1" or "0".
@@ -53,12 +63,7 @@ export function loadBool(key, dflt) {
  * @returns {void}
  */
 function persist(key, on) {
-  try {
-    localStorage.setItem(key, on ? "1" : "0");
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+  store(key, on ? "1" : "0");
 }
 
 // The "Option style" switch: Simplified re-renders the six chain dropdowns
@@ -93,14 +98,14 @@ const APOD_LIGHT_MODES = ["off", "all", "uncorrected"];
  * @returns {string}
  */
 function loadApodLight(key) {
-  try {
-    const v = localStorage.getItem(key);
-    if (v === "1") return "all";
-    return v != null && APOD_LIGHT_MODES.includes(v) ? v : "off";
-  } catch {
+  const stored = getStored(key);
+  if (!stored.ok) {
     warnStorage("read");
     return "off";
   }
+  const v = stored.value;
+  if (v === "1") return "all";
+  return v != null && APOD_LIGHT_MODES.includes(v) ? v : "off";
 }
 
 export const apodLight = signal(loadApodLight(K_APOD_LIGHT));
@@ -115,12 +120,7 @@ export const apodLight = signal(loadApodLight(K_APOD_LIGHT));
 export function setApodLight(mode) {
   if (!APOD_LIGHT_MODES.includes(mode)) return;
   apodLight.value = mode;
-  try {
-    localStorage.setItem(K_APOD_LIGHT, mode);
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+  store(K_APOD_LIGHT, mode);
 }
 
 // Time window of the Source drawer's apodizing-events density strip: how
@@ -137,13 +137,13 @@ export const APOD_WINDOWS = ["30", "60", "120", "300"];
  * @returns {string}
  */
 function loadEnum(key, allowed, dflt) {
-  try {
-    const v = localStorage.getItem(key);
-    return v != null && allowed.includes(v) ? v : dflt;
-  } catch {
+  const stored = getStored(key);
+  if (!stored.ok) {
     warnStorage("read");
     return dflt;
   }
+  const v = stored.value;
+  return v != null && allowed.includes(v) ? v : dflt;
 }
 
 /**
@@ -162,12 +162,7 @@ export function enumPref(key, allowed, dflt) {
   const set = (value) => {
     if (!allowed.includes(value)) return;
     sig.value = value;
-    try {
-      localStorage.setItem(key, value);
-    } catch {
-      // storage disabled (private mode) — keep the in-memory value
-      warnStorage("written");
-    }
+    store(key, value);
   };
   return [sig, set];
 }
@@ -206,16 +201,14 @@ const K_DD_COLLAPSED = "hqptuner.collapsedGroups";
  * @returns {string[]}
  */
 function loadStrings(key) {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(key);
-  } catch {
+  const stored = getStored(key);
+  if (!stored.ok) {
     warnStorage("read");
     return [];
   }
-  if (raw == null) return [];
+  if (stored.value == null) return [];
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(stored.value);
     if (!Array.isArray(parsed)) return [];
     return parsed.filter((/** @type {unknown} */ k) => typeof k === "string");
   } catch {
@@ -246,11 +239,7 @@ export function toggleCollapsedGroup(key) {
   if (next[key]) delete next[key];
   else next[key] = true;
   collapsedGroups.value = next;
-  try {
-    localStorage.setItem(K_DD_COLLAPSED, JSON.stringify(Object.keys(next)));
-  } catch {
-    warnStorage("written");
-  }
+  store(K_DD_COLLAPSED, JSON.stringify(Object.keys(next)));
 }
 
 // The faceplate's browser-held preferences: HQPTuner's own choices, applied at
@@ -319,12 +308,7 @@ export function setStageHidden(stage, hidden) {
   if (!HIDEABLE_STAGES.includes(stage)) return;
   const rest = hiddenStages.value.filter((s) => s !== stage);
   hiddenStages.value = hideable(hidden ? [...rest, stage] : rest);
-  try {
-    localStorage.setItem(K_HIDDEN, JSON.stringify(hiddenStages.value));
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+  store(K_HIDDEN, JSON.stringify(hiddenStages.value));
 }
 
 export const allowPinnedRates = signal(loadBool(K_PINNED, false));

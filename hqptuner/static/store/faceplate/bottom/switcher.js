@@ -3,6 +3,7 @@
 // list.
 
 import { signal } from "@preact/signals";
+import { getStored, setStored } from "../../../lib/browser/storage.js";
 import { schema } from "../../schema.js";
 import { bottomBar, enumPref, warnStorage } from "../../ui/prefs.js";
 import { chainControlOf } from "../../live/chains.js";
@@ -75,13 +76,12 @@ export const switcherTarget = target;
  * @returns {Record<string, unknown>}
  */
 function loadSlots() {
-  let raw = null;
-  try {
-    raw = localStorage.getItem(K_SLOTS);
-  } catch {
+  const stored = getStored(K_SLOTS);
+  if (!stored.ok) {
     warnStorage("read");
     return {};
   }
+  const raw = stored.value;
   try {
     const parsed = raw == null ? null : JSON.parse(raw);
     return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
@@ -118,12 +118,8 @@ function remember(t, i, name, from = remembered(t)) {
   const pair = [...from];
   pair[i] = name;
   slots.value = { ...slots.value, [t]: pair };
-  try {
-    localStorage.setItem(K_SLOTS, JSON.stringify(slots.value));
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+  // storage disabled (private mode) — keep the in-memory value
+  if (!setStored(K_SLOTS, JSON.stringify(slots.value))) warnStorage("written");
 }
 
 /**

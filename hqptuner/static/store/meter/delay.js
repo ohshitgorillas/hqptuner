@@ -3,6 +3,7 @@
 // user's offset, held in localStorage like every UI pref, moves the meters from there, and together they never put the
 // meters ahead of the feed.
 import { computed, signal } from "@preact/signals";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 import { clamp } from "../../lib/coerce.js";
 import { engineStatus } from "../signals.js";
 import { warnStorage } from "../ui/prefs.js";
@@ -25,12 +26,12 @@ function offsetOf(text) {
 
 /** @returns {number} */
 function loadOffset() {
-  try {
-    return offsetOf(localStorage.getItem(K_SPECTRUM_OFFSET)) ?? 0;
-  } catch {
+  const stored = getStored(K_SPECTRUM_OFFSET);
+  if (!stored.ok) {
     warnStorage("read");
     return 0;
   }
+  return offsetOf(stored.value) ?? 0;
 }
 
 export const spectrumOffset = signal(loadOffset());
@@ -44,12 +45,8 @@ export function setSpectrumOffset(text) {
   const v = offsetOf(text);
   if (v == null) return;
   spectrumOffset.value = v;
-  try {
-    localStorage.setItem(K_SPECTRUM_OFFSET, String(v));
-  } catch {
-    // storage disabled (private mode) — keep the in-memory value
-    warnStorage("written");
-  }
+  // storage disabled (private mode) — keep the in-memory value
+  if (!setStored(K_SPECTRUM_OFFSET, String(v))) warnStorage("written");
 }
 
 /** The output delay the engine reports, in seconds, or null where it reports none, no number, or zero. */

@@ -8,6 +8,7 @@
 // with no `localStorage`/`document`): the storage read is guarded, and the
 // document is only touched inside functions the browser entry point calls.
 import { signal } from "@preact/signals";
+import { getStored, removeStored, setStored } from "../../lib/browser/storage.js";
 
 const KEY = "hqptuner.accent";
 const KEY_HEX = "hqptuner.accentHex";
@@ -27,29 +28,23 @@ export const ACCENT_HEX = {
 const HEX_RE = /^#[0-9a-fA-F]{6}$/;
 
 function load() {
-  try {
-    const v = localStorage.getItem(KEY) || "";
-    return ACCENTS.includes(v) ? v : DEFAULT;
-  } catch {
-    return DEFAULT;
-  }
+  const stored = getStored(KEY);
+  if (!stored.ok) return DEFAULT;
+  const v = stored.value || "";
+  return ACCENTS.includes(v) ? v : DEFAULT;
 }
 
 function loadHex() {
-  try {
-    const v = localStorage.getItem(KEY_HEX);
-    return HEX_RE.test(v || "") ? v : "";
-  } catch {
-    return "";
-  }
+  const stored = getStored(KEY_HEX);
+  if (!stored.ok) return "";
+  const v = stored.value;
+  return HEX_RE.test(v || "") ? v : "";
 }
 
 function loadDyslexic() {
-  try {
-    return localStorage.getItem(KEY_DYSLEXIC) === "1";
-  } catch {
-    return false;
-  }
+  const stored = getStored(KEY_DYSLEXIC);
+  if (!stored.ok) return false;
+  return stored.value === "1";
 }
 
 export const accent = signal(load());
@@ -67,12 +62,8 @@ export function applyAccent(name) {
   const v = ACCENTS.includes(name) ? name : DEFAULT;
   accent.value = v;
   accentHex.value = "";
-  try {
-    localStorage.setItem(KEY, v);
-    localStorage.removeItem(KEY_HEX);
-  } catch {
-    /* storage disabled (private mode) — keep the in-memory value */
-  }
+  // storage disabled (private mode) — keep the in-memory value
+  if (setStored(KEY, v)) removeStored(KEY_HEX);
 }
 
 // Persist a custom hex, which overrides the preset swatch.
@@ -86,11 +77,8 @@ export function applyAccentHex(hex) {
   const v = (hex || "").trim().startsWith("#") ? hex.trim() : `#${(hex || "").trim()}`;
   if (!HEX_RE.test(v)) return;
   accentHex.value = v;
-  try {
-    localStorage.setItem(KEY_HEX, v);
-  } catch {
-    /* storage disabled — keep the in-memory value */
-  }
+  // storage disabled — keep the in-memory value
+  setStored(KEY_HEX, v);
 }
 
 // The dyslexic font is one attribute on the root and a CSS rule keyed off it;
@@ -114,9 +102,6 @@ function stampDyslexic(on) {
 export function applyDyslexic(on) {
   dyslexic.value = !!on;
   stampDyslexic(dyslexic.value);
-  try {
-    localStorage.setItem(KEY_DYSLEXIC, dyslexic.value ? "1" : "0");
-  } catch {
-    /* storage disabled (private mode) — keep the in-memory value */
-  }
+  // storage disabled (private mode) — keep the in-memory value
+  setStored(KEY_DYSLEXIC, dyslexic.value ? "1" : "0");
 }

@@ -26,6 +26,7 @@
 // neither throws nor leaves a rejected promise behind.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
+import { getStored, removeStored } from "../../lib/browser/storage.js";
 import { errText } from "../../lib/errtext.js";
 
 // The pre-server store. Read exactly once, by the migration below, so stars set
@@ -51,8 +52,10 @@ export const favoritesError = signal("");
  * @returns {string[]}
  */
 function legacyNames() {
+  const stored = getStored(LEGACY_KEY);
+  if (!stored.ok) return [];
   try {
-    const v = JSON.parse(localStorage.getItem(LEGACY_KEY) || "[]");
+    const v = JSON.parse(stored.value || "[]");
     return Array.isArray(v) ? v.filter((n) => typeof n === "string" && n) : [];
   } catch {
     return [];
@@ -61,13 +64,10 @@ function legacyNames() {
 
 /** @returns {void} */
 function dropLegacy() {
-  try {
-    localStorage.removeItem(LEGACY_KEY);
-  } catch {
-    // A store we cannot clear is one the next hydrate migrates again. Harmless:
-    // the union of a set with itself is that set, so the re-run writes back what
-    // the server already holds.
-  }
+  // A store we cannot clear is one the next hydrate migrates again. Harmless:
+  // the union of a set with itself is that set, so the re-run writes back what
+  // the server already holds.
+  removeStored(LEGACY_KEY);
 }
 
 /**

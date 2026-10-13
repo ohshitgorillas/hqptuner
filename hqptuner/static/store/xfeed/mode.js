@@ -34,6 +34,7 @@ import { compileRows } from "../../vendor/eqlab/core/binaural/compile.js";
 import { SPEAKER_ANGLE, HEAD_RADIUS } from "../../vendor/eqlab/core/binaural/geometry.js";
 import { recognizeRows } from "../../vendor/eqlab/core/binaural/recognize.js";
 import { blockConflicts, pairInfo, REFUSAL } from "../../lib/binaural-setup.js";
+import { getStored, setStored } from "../../lib/browser/storage.js";
 import { effective } from "../resolve.js";
 import { stagePipelines, edit } from "../actions.js";
 import { xfeedBlock, removeBlock as removeCompBlock } from "./block.js";
@@ -51,10 +52,10 @@ const KEY = "hqptuner.structuralCrossfeed";
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 
 function load() {
+  const stored = getStored(KEY);
+  if (!stored.ok || !stored.value) return { ...DEFAULTS };
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return { ...DEFAULTS };
-    const v = JSON.parse(raw);
+    const v = JSON.parse(stored.value);
     return {
       lambda: Number.isFinite(v.lambda) ? v.lambda : DEFAULTS.lambda,
       angle: Number.isFinite(v.angle) ? v.angle : DEFAULTS.angle,
@@ -69,11 +70,8 @@ function load() {
 const remembered = signal(load());
 
 function persist() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify(remembered.value));
-  } catch {
-    /* storage disabled — in-memory values still drive the session */
-  }
+  // A refused write is dropped: `remembered` is what the session reads.
+  setStored(KEY, JSON.stringify(remembered.value));
 }
 
 /**
@@ -186,12 +184,10 @@ export function stageStructural(rows, params) {
 const MODE_KEY = "hqptuner.crossfeedMode";
 
 function loadSelected() {
-  try {
-    const v = localStorage.getItem(MODE_KEY);
-    return v === "structural" || v === "bauer" ? v : null;
-  } catch {
-    return null; // storage disabled — the session still switches
-  }
+  const stored = getStored(MODE_KEY);
+  if (!stored.ok) return null; // an unreadable store is no choice: the rows decide
+  const v = stored.value;
+  return v === "structural" || v === "bauer" ? v : null;
 }
 
 export const xfMode = signal(loadSelected());
@@ -241,11 +237,8 @@ function disableBauer(rows) {
 export function setXfMode(next, rows) {
   const m = next === "structural" ? "structural" : "bauer";
   xfMode.value = m;
-  try {
-    localStorage.setItem(MODE_KEY, m);
-  } catch {
-    /* storage disabled — in-memory value drives the session */
-  }
+  // storage disabled — in-memory value drives the session
+  setStored(MODE_KEY, m);
   if (m === "bauer") {
     const rec = structuralBlock(rows);
     if (rec) removeStructural(rows, rec);
