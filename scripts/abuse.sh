@@ -6,6 +6,11 @@
 #   scripts/abuse.sh close
 #   scripts/abuse.sh status
 #
+# status prints the resolved state root and store list, then whether a run is
+# open. The state root is HQPTUNER_ABUSE_STATE, from the environment or else
+# from the host's hqpcreds; the stores are HQPTuner's own paths under /state
+# that the Dockerfile ENV block names, read from it on every run.
+#
 # An abuser agent types garbage into the UI. Whatever it stages lands in the
 # server's buffer, and the next human Apply writes all of it to the daemon,
 # which is how twelve stale fields once took hqplayerd off 4321. So a run is
@@ -14,9 +19,9 @@
 #   open    refuse unless the daemon is idle (State state "0") and the staged
 #           buffer is empty; save GET /api/backup as the baseline beside a
 #           snapshot of the config form and of the live State, the running
-#           matrix profile included; copy HQPTuner's seven own stores beside
-#           those, with a manifest saying which existed and what each held;
-#           record the newest audit seq; write state/abuse/current.
+#           matrix profile included; copy HQPTuner's own stores beside those,
+#           with a manifest saying which existed and what each held; record
+#           the newest audit seq; write abuse/current under the state root.
 #   close   DELETE /api/config/pending; read the audit records the run added;
 #           if an apply, a live write or a preset store write landed, POST
 #           /api/restore with the baseline (the daemon reloads on it) and poll
@@ -25,7 +30,7 @@
 #           by POST /api/volume when a live write moved it; put the matrix
 #           profile back by POST /api/matrix/profile when the run switched it,
 #           refusing instead when the daemon no longer has the recorded one;
-#           then put the seven stores back from the manifest, last, because the
+#           then put the stores back from the manifest, last, because the
 #           baseline upload writes one of them. Print the run's records either
 #           way. current is removed only on success, so a failed close can be
 #           re-run.
@@ -40,15 +45,35 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."   # repo root
 API=${HQPTUNER_ABUSE_API:-http://127.0.0.1:8090}
-# Where HQPTuner keeps everything it writes — the bind mount's host side.
-STATE=${HQPTUNER_ABUSE_STATE:-state}
-DIR=$STATE/abuse
-CURRENT=$DIR/current
-# HQPTuner's own stores, the seven user-owned paths Dockerfile's ENV block names.
-# state/backups holds the rolling pre-apply zip HQPTuner writes for itself, and
-# the two .jsonl files are append-only records close itself reads — neither is a
-# store a run can damage, and rewinding a log would erase what the run did.
-STORES="presets live-presets.json favorites.json descriptions.json narrowing.json matrixmodes.json autopilot.json"
+# The stores the Dockerfile names, one per line: every HQPTUNER_* value in its
+# ENV instructions, backslash continuations included, that names something
+# inside /state, as its path relative to /state. Three are left out by name.
+# HQPTUNER_BACKUP_DIR holds the pre-apply safety copies, and putting it back
+# would discard the copies the run's own steps took, close's restore among
+# them. HQPTUNER_DEBUG_LOG and HQPTUNER_JUNKCAL_DIR are never stores, wherever
+# they are named: restoring either would erase what the run recorded.
+stores_in() {
+  sed -n -e '/^[[:space:]]*[Ee][Nn][Vv][[:space:]]/{' -e ':a' -e '/\\$/{N;ba' -e '}' -e p -e '}' "$1" \
+    | tr -s ' \t\n\\' '\n' \
+    | sed -n -e 's/^\(HQPTUNER_[A-Z0-9_]*=\)"\(.*\)"$/\1\2/' -e 's|//*|/|g' -e 's|/$||' \
+        -e '/^HQPTUNER_\(BACKUP_DIR\|DEBUG_LOG\|JUNKCAL_DIR\)=/d' \
+        -e '/=\/state\/\(.*\/\)\?\.\.\?\(\/\|$\)/d' \
+        -e 's|^HQPTUNER_[A-Z0-9_]*=/state/\(..*\)$|\1|p'
+}
+# Sets STATE (where HQPTuner keeps everything it writes) and STORES (its own
+# stores, space separated). STATE is HQPTUNER_ABUSE_STATE from the environment,
+# else the line of that name in the gitignored hqpcreds at the repo root, read
+# for that one line and never sourced, since it carries credentials. With
+# neither, every command refuses: no directory inside the repo stands in for
+# it, because that is not where the hand-back container keeps its state.
+resolve() {
+  STATE=${HQPTUNER_ABUSE_STATE:-}
+  if [ -z "$STATE" ] && [ -f hqpcreds ]; then
+    STATE=$(sed -n 's/^HQPTUNER_ABUSE_STATE=//p' hqpcreds | tail -n 1)
+  fi
+  [ -n "$STATE" ] || refuse "no state root: set HQPTUNER_ABUSE_STATE in the environment or as a line in hqpcreds"
+  STORES=$(stores_in Dockerfile | paste -sd ' ' -) || die "could not read the store list from Dockerfile"
+}
 # Upload retries and readback polls, 2 s apart: two minutes each, well past the
 # half minute a reload takes.
 TRIES=60
@@ -60,6 +85,9 @@ get()  { curl -sf "$API$1"; }
 
 [ $# -eq 1 ] || usage
 CMD=$1
+resolve
+DIR=$STATE/abuse
+CURRENT=$DIR/current
 
 state_of()   { get /api/state | jq -r '.data.state'; }
 pending_of() { get /api/config/pending | jq -c '{http, live}'; }
@@ -113,6 +141,7 @@ case "$CMD" in
     kept=0; missing=0
     for s in $STORES; do
       if [ -e "$STATE/$s" ]; then
+        mkdir -p "$(dirname "$DIR/$stamp/stores/$s")"
         cp -a "$STATE/$s" "$DIR/$stamp/stores/$s" || die "snapshot of $STATE/$s failed"
         d=$(digest_of "$STATE/$s") || die "digest of $STATE/$s failed"
         man=$(echo "$man" | jq -c --arg s "$s" --argjson d "$d" '.[$s] = {present: true, files: $d}')
@@ -248,17 +277,18 @@ case "$CMD" in
       if [ "$now" = "$want" ]; then
         echo "  $s: unchanged"
       elif [ "$want" = "null" ]; then
-        rm -rf "$STATE/$s"
+        rm -rf "${STATE:?}/$s"
         echo "  $s: deleted (absent at open)"
       else
         # Build beside the store and swap it in: an interrupted close leaves
         # either the old store or the new one, never half of either. Wholesale,
         # which is what takes out the files the run added.
-        rm -rf "$STATE/$s.abuse-new" "$STATE/$s.abuse-old"
+        rm -rf "${STATE:?}/$s.abuse-new" "${STATE:?}/$s.abuse-old"
+        mkdir -p "$(dirname "$STATE/$s")"
         cp -a "$DIR/$stamp/stores/$s" "$STATE/$s.abuse-new" || die "restore of $STATE/$s failed"
         [ ! -e "$STATE/$s" ] || mv "$STATE/$s" "$STATE/$s.abuse-old"
         mv "$STATE/$s.abuse-new" "$STATE/$s"
-        rm -rf "$STATE/$s.abuse-old"
+        rm -rf "${STATE:?}/$s.abuse-old"
         echo "  $s: restored"
       fi
       back=$(digest_of "$STATE/$s")
@@ -270,6 +300,8 @@ case "$CMD" in
     rm -f "$CURRENT"
     ;;
   status)
+    echo "root: $STATE"
+    for s in $STORES; do echo "store: $s"; done
     if [ -e "$CURRENT" ]; then echo "open: $(cat "$CURRENT")"; else echo "no run open"; fi
     ;;
   *) usage ;;

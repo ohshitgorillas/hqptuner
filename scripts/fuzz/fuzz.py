@@ -29,6 +29,7 @@ Refuses to run at all unless a bracket is open.
 
 import argparse
 import json
+import subprocess
 import sys
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -41,7 +42,6 @@ from fuzzgen import RACE_CATEGORY, Attack, generate
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "spec" / "openapi.json"
-CURRENT = ROOT / "state" / "abuse" / "current"
 
 DEFAULT_CAP = 12
 IN_FLIGHT = 8
@@ -56,9 +56,43 @@ STATUS = "/api/status"
 AUTOPILOT = "/api/autopilot"
 STORE_PATHS = ["/api/favorites", "/api/narrowing", "/api/descriptions", "/api/matrixmodes"]
 NO_BRACKET = (
-    f"{CURRENT.relative_to(ROOT)} is not there: no abuse bracket is open.\n"
+    "No abuse bracket is open under the state root `scripts/abuse.sh status` prints.\n"
     "The caller opens one with `scripts/abuse.sh open` and closes it after."
 )
+
+
+#: How long `scripts/abuse.sh status` may take: it reads local files and no network.
+STATUS_TIMEOUT = 10.0
+#: The prefix of the line on which `scripts/abuse.sh status` prints the state root.
+ROOT_LINE = "root: "
+
+
+def state_root(repo: Path) -> Path | None:
+    """Return the state root `scripts/abuse.sh status` in `repo` prints, or None when it resolves none."""
+    done = subprocess.run(
+        ["./scripts/abuse.sh", "status"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=STATUS_TIMEOUT,
+        check=False,
+    )
+    if done.returncode != 0:
+        return None
+    roots = [line.removeprefix(ROOT_LINE) for line in done.stdout.splitlines() if line.startswith(ROOT_LINE)]
+    return Path(roots[0]) if roots else None
+
+
+def open_bracket(repo: Path) -> Path | None:
+    """Return the open bracket's `abuse/current` file, or None when no bracket is open.
+
+    The state root is the one `scripts/abuse.sh` in `repo` resolves.
+    """
+    root = state_root(repo)
+    if root is None:
+        return None
+    current = root / "abuse" / "current"
+    return current if current.is_file() else None
 
 
 @dataclass
@@ -384,7 +418,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     """Refuse without an open bracket, generate the attacks, then either record them or send them."""
     args = parse_args(argv)
-    if not args.dry_run and not CURRENT.is_file():
+    if not args.dry_run and open_bracket(ROOT) is None:
         print(NO_BRACKET, file=sys.stderr)
         return 1
     spec = json.loads(SPEC.read_text(encoding="utf-8"))

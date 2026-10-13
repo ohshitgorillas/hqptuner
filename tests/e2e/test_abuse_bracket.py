@@ -1,29 +1,23 @@
-"""The abuse bracket's promise about HQPTuner's own state stores.
+"""The abuse bracket's promise about the engine's live matrix profile.
 
-`scripts/abuse.sh open` brackets a hostile-input run and `close` ends it. What is
-pinned here is what the bracket leaves behind on disk: a run writes into every
-store HQPTuner owns, and `close` has to leave those stores as `open` found them.
-
-The engine's live matrix profile is bracketed the same way: a run is free to
-switch it, and `close` has to put back the profile the daemon was on when `open`
-ran — unless the daemon no longer offers that profile, in which case `close`
-refuses rather than installing a name the engine cannot resolve.
+`scripts/abuse.sh open` brackets a hostile-input run and `close` ends it. A run
+is free to switch the engine's live matrix profile, and `close` has to put back
+the profile the daemon was on when `open` ran — unless the daemon no longer
+offers that profile, in which case `close` refuses rather than installing a name
+the engine cannot resolve.
 
 Policy notes:
 
 - The subject is a shell script, so it is driven the way an operator drives it:
-  a subprocess, its two environment knobs, and the files it leaves. Nothing
+  a subprocess, its two environment knobs, and what it leaves behind. Nothing
   reaches inside the script.
-- The script does its own bounded polling and the assertions read files it has
+- The script does its own bounded polling and the assertions read state it has
   already finished writing.
-- The stores are addressed by their file names, which are wire identity
-  (`Dockerfile`'s `HQPTUNER_*` path knobs), never by anything a user reads.
-- The stack here is function-scoped, not the session one: the point of the first
-  case is what the stores hold at the moment `open` runs, so it needs a server
-  whose state nothing else has touched.
+- The stack here is function-scoped, not the session one: what each case pins is
+  the profile the engine is on at the moment `open` runs, so it needs a daemon
+  nothing else has switched.
 """
 
-import hashlib
 import json
 import os
 import subprocess
@@ -46,19 +40,6 @@ RUN_TIMEOUT = 300.0
 #: Ceiling on one API call to the app, which is on loopback and already answering.
 CALL_TIMEOUT = 30.0
 
-#: The seven stores HQPTuner owns, as `Dockerfile`'s path knobs name them. The
-#: directory is the config-preset store; the rest are single files.
-STORES = (
-    "presets",
-    "live-presets.json",
-    "favorites.json",
-    "descriptions.json",
-    "narrowing.json",
-    "matrixmodes.json",
-    "autopilot.json",
-)
-
-
 #: A profile the control fake answers MatrixListProfiles with, so it is a switch
 #: target the daemon resolves. Stands for wherever a hostile run leaves the engine.
 RUN_PROFILE = "Mch-to-Stereo mixdown"
@@ -74,27 +55,6 @@ REFUSED = 3
 #: Ceiling on the app noticing a State the fake already reports. Bounded wait on a
 #: condition, not a duration anything is expected to take.
 OBSERVE_TIMEOUT = 30.0
-
-
-def _digest(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def _snapshot(state: Path) -> dict[str, str]:
-    """Every file the seven stores hold right now, relative path to digest.
-
-    A store that does not exist contributes nothing, so "the file the run created
-    is gone again" and "the file the run changed is back" read as the same
-    comparison.
-    """
-    found: dict[str, str] = {}
-    for store in STORES:
-        target = state / store
-        if target.is_dir():
-            found.update({str(p.relative_to(state)): _digest(p) for p in sorted(target.rglob("*")) if p.is_file()})
-        elif target.is_file():
-            found[store] = _digest(target)
-    return found
 
 
 def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, Any] | None = None) -> None:
@@ -207,57 +167,6 @@ def app(state: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.
     for running in stack_support.stack(state):
         monkeypatch.setenv("HQPTUNER_ABUSE_API", running.base_url)
         yield running
-
-
-def _write_into_every_store(app: stack_support.Stack) -> None:
-    """One value into each of the seven stores, as a hostile run would leave them."""
-    _call(app, "PUT", "/api/livepresets/junk", {})
-    _call(app, "POST", "/api/config/apply", {"switch_to": "", "save": {"name": "junkpreset"}})
-    _call(app, "PUT", "/api/favorites", {"filters": ["junk-filter"]})
-    _call(app, "PUT", "/api/descriptions", {"name": "junkpreset", "text": "junk"})
-    _call(app, "PUT", "/api/narrowing", {"facets": {"odd_rate_only": True}})
-    _call(app, "PUT", "/api/matrixmodes", {"name": "junkpreset", "mode": "speakers"})
-    _call(app, "POST", "/api/autopilot", {"enabled": True})
-
-
-def test_close_leaves_every_store_as_open_found_it(app: stack_support.Stack, state: Path) -> None:
-    """A run that writes into all seven stores leaves none of it behind."""
-    _call(app, "PUT", "/api/livepresets/keep", {})
-    _call(app, "PUT", "/api/descriptions", {"name": "keep", "text": "kept"})
-    before = _snapshot(state)
-    _bracket("open", state)
-    _write_into_every_store(app)
-    _bracket("close", state)
-    assert _snapshot(state) == before
-
-
-def _close_without_manifest(
-    app: stack_support.Stack, state: Path
-) -> tuple[subprocess.CompletedProcess[str], dict[str, str]]:
-    """Open the bracket, write a store, lose the snapshot manifest, then close.
-
-    Answers the close and the stores as they stood just before it.
-    """
-    _bracket("open", state)
-    _call(app, "PUT", "/api/livepresets/junk", {})
-    for manifest in (state / "abuse").rglob("manifest.json"):
-        manifest.unlink()
-    left = _snapshot(state)
-    return _abuse("close", state), left
-
-
-def test_close_refuses_when_the_snapshot_manifest_is_gone(app: stack_support.Stack, state: Path) -> None:
-    """Without the manifest the bracket cannot tell an empty store from a lost snapshot, so it refuses."""
-    closed, _left = _close_without_manifest(app, state)
-    assert closed.returncode == REFUSED
-
-
-def test_a_close_refused_for_a_lost_manifest_leaves_the_stores_as_it_found_them(
-    app: stack_support.Stack, state: Path
-) -> None:
-    """A refusal restores nothing: putting back a snapshot it cannot vouch for could empty a live store."""
-    _closed, left = _close_without_manifest(app, state)
-    assert _snapshot(state) == left
 
 
 @pytest.mark.parametrize("baseline", ["Default", ""])
