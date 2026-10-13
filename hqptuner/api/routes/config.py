@@ -6,7 +6,7 @@ touch only HQPTuner's own files and log, so take ``Cfg`` and answer without cred
 
 import hashlib
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Annotated
+from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, File, Request, Response, UploadFile
@@ -28,9 +28,6 @@ from hqptuner.presets import archive, fileconfig, presetlane, presetops
 from hqptuner.presets.presetlane import PresetOption
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.export import state_archive
-
-if TYPE_CHECKING:
-    from hqptuner.presets.store.descriptions import DescriptionStore
 
 router = APIRouter(prefix="/api")
 
@@ -246,7 +243,7 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     what the user has here, not the daemon's half of it; every daemon member is copied byte-for-byte, so the archive
     still restores anywhere. A store with nothing in it adds no member.
     """
-    store: DescriptionStore = request.app.state.descriptions
+    store = deps.descriptions_of(request)
     try:
         data = await archive.backup(manager, store)
     except (ControlError, httpx.HTTPError) as exc:
@@ -343,7 +340,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     """
     data = await cfgfile.read()
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
-    store: DescriptionStore = request.app.state.descriptions
+    store = deps.descriptions_of(request)
     try:
         pushed = await archive.restore(manager, store, data)
     except UnreadableArchiveError as exc:

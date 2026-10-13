@@ -160,7 +160,7 @@ def enumerations(request: Request, manager: Mgr) -> deps.Snapshot[MergedEnums]:
 
     The running engine owns the names, IDs, and ordering; the merge only annotates them. 503 until they have loaded.
     """
-    return merged_enumerations(manager, request.app.state.static)
+    return merged_enumerations(manager, deps.static_of(request))
 
 
 def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> deps.Snapshot[MergedEnums]:
@@ -179,8 +179,7 @@ def metadata(request: Request) -> StaticDb:
 
     Loaded once at startup and never daemon-dependent, so this answers the same whether or not hqplayerd is up.
     """
-    static: StaticMetadata = request.app.state.static
-    return static.raw
+    return deps.static_of(request).raw
 
 
 class DaemonHasNoLogError(ErrorBody):

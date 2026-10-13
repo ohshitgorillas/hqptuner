@@ -8,8 +8,8 @@ is a set and a partial answer would leave it guessing.
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
+from hqptuner.api.deps import favorites_of
 from hqptuner.api.errors import ErrorBody, refuse
-from hqptuner.presets.store.favorites import FavoriteStore
 
 router = APIRouter(prefix="/api")
 
@@ -37,11 +37,6 @@ class FavoritesBody(BaseModel):
     modulators: list[str] | None = None
 
 
-def _store(request: Request) -> FavoriteStore:
-    store: FavoriteStore = request.app.state.favorites
-    return store
-
-
 @router.get("/favorites")
 def favorites(request: Request) -> dict[str, list[str]]:
     """Every starred filter and modulator name, each sorted.
@@ -49,7 +44,7 @@ def favorites(request: Request) -> dict[str, list[str]]:
     409 when the store on disk is stamped newer than this HQPTuner reads — an empty list would be a lie about a file
     that is there and full.
     """
-    store = _store(request)
+    store = favorites_of(request)
     return {"filters": store.read(), "modulators": store.read_modulators()}
 
 
@@ -62,7 +57,7 @@ def save_favorites(body: FavoritesBody, request: Request) -> dict[str, list[str]
     so the answer reports it as it already stood; a body naming neither kind is not a write at all and is refused
     rather than answered with a silent no-op.
     """
-    store = _store(request)
+    store = favorites_of(request)
     if body.filters is None and body.modulators is None:
         raise refuse(FavoritesFieldsUnknownError())
     if body.filters is not None:

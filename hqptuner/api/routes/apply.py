@@ -8,10 +8,10 @@ import contextlib
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, preset_refusals, with_autosave
+from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, pending_of, preset_refusals, with_autosave
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import ApplyBody, LiveBody
-from hqptuner.api.routes.pending import apply_succeeded, pending_store
+from hqptuner.api.routes.pending import apply_succeeded
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
@@ -131,7 +131,7 @@ async def apply(
     400 when nothing is staged and no preset switch was asked for. A soft failure returns the report with the buffer
     intact so the user can retry; the persistent lane restarts the daemon and interrupts playback, never gated on.
     """
-    store = pending_store(request)
+    store = pending_of(request)
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
         raise refuse(NothingStagedError())

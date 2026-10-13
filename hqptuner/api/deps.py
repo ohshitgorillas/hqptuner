@@ -21,12 +21,20 @@ import httpx
 from fastapi import Depends, Request
 
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, InvalidInputError, NotLoadedError, refuse
+from hqptuner.audit import AuditLog
 from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.config import Config
+from hqptuner.core.connection import ConnectionStore
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
+from hqptuner.metadata import StaticMetadata
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetlane import PresetSaveResult
+from hqptuner.presets.store.descriptions import DescriptionStore
+from hqptuner.presets.store.favorites import FavoriteStore
+from hqptuner.presets.store.matrixmode import MatrixModeStore
+from hqptuner.presets.store.narrowing import NarrowingStore
 
 
 class NoCredentialsConfiguredError(ErrorBody):
@@ -59,6 +67,54 @@ def config_of(request: Request) -> Config:
     """Return the app's own ``Config``, the one it was built from — never a fresh default."""
     cfg: Config = request.app.state.config
     return cfg
+
+
+def static_of(request: Request) -> StaticMetadata:
+    """Return the app's static ``data/*.json`` metadata, loaded once at startup."""
+    static: StaticMetadata = request.app.state.static
+    return static
+
+
+def pending_of(request: Request) -> PendingStore:
+    """Return the app's staged-changes buffer."""
+    store: PendingStore = request.app.state.pending
+    return store
+
+
+def audit_of(request: Request) -> AuditLog:
+    """Return the app's audit log."""
+    log: AuditLog = request.app.state.audit
+    return log
+
+
+def connections_of(request: Request) -> ConnectionStore:
+    """Return the app's saved-connection store."""
+    store: ConnectionStore = request.app.state.connections
+    return store
+
+
+def favorites_of(request: Request) -> FavoriteStore:
+    """Return the app's favorites store, the stars on filter and modulator names."""
+    store: FavoriteStore = request.app.state.favorites
+    return store
+
+
+def descriptions_of(request: Request) -> DescriptionStore:
+    """Return the app's matrix-profile description store."""
+    store: DescriptionStore = request.app.state.descriptions
+    return store
+
+
+def narrowing_of(request: Request) -> NarrowingStore:
+    """Return the app's narrow-bar facet store."""
+    store: NarrowingStore = request.app.state.narrowing
+    return store
+
+
+def matrix_modes_of(request: Request) -> MatrixModeStore:
+    """Return the app's per-preset Matrix-tab mode store."""
+    store: MatrixModeStore = request.app.state.matrix_modes
+    return store
 
 
 def require_credentials(request: Request) -> None:

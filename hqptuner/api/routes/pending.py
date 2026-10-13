@@ -5,27 +5,15 @@ A self-contained feature surface mounted alongside ``app``.
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, audit_of, pending_of
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import StageBody
-from hqptuner.audit import AuditLog
 from hqptuner.core.applyops import ApplyReport
-from hqptuner.core.pending import PendingSnapshot, PendingStore
+from hqptuner.core.pending import PendingSnapshot
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.writer import LiveWriteFailed, stageable_live_settings
 
 router = APIRouter(prefix="/api")
-
-
-def pending_store(request: Request) -> PendingStore:
-    """Return the app's staged-changes buffer."""
-    store: PendingStore = request.app.state.pending
-    return store
-
-
-def _audit(request: Request) -> AuditLog:
-    log: AuditLog = request.app.state.audit
-    return log
 
 
 def apply_succeeded(report: ApplyReport) -> bool:
@@ -60,21 +48,21 @@ def stage(body: StageBody, request: Request) -> PendingSnapshot:
     unknown = set(body.live) - set(stageable_live_settings())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
-    store = pending_store(request)
+    store = pending_of(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
     store.stage(body.live, body.http)
     store.drop(body.drop.live, body.drop.http)
     # what THIS request carried, not the accumulated buffer: the buffer is a sum
     # of requests and the log has to be able to attribute a field to one of them
-    _audit(request).stage(body.http, body.live, body.drop.model_dump())
+    audit_of(request).stage(body.http, body.live, body.drop.model_dump())
     return store.snapshot()
 
 
 @router.get("/config/pending")
 def pending(request: Request) -> PendingSnapshot:
     """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
-    return pending_store(request).snapshot()
+    return pending_of(request).snapshot()
 
 
 @router.delete("/config/pending")
@@ -83,12 +71,12 @@ def discard(request: Request, manager: Mgr) -> PendingSnapshot:
 
     Touches the daemon not at all — the discarded edits were never written to it.
     """
-    store = pending_store(request)
+    store = pending_of(request)
     # snapshot before the clear: the discard's whole effect is to destroy this,
     # so the record is the only surviving copy of what was thrown away
     lost_http, lost_live = dict(store.http), dict(store.live)
     store.clear()
-    _audit(request).discard(lost_http, lost_live)
+    audit_of(request).discard(lost_http, lost_live)
     # parked filter uploads belong to the staged process strings just discarded
     manager.presetops.clear_parked_filters()
     return store.snapshot()

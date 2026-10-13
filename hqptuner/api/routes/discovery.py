@@ -7,7 +7,7 @@ the user has, and that is the product and platform fields, not the address.
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, config_of
 from hqptuner.engine.discovery import Daemon, Search, discover
 
 router = APIRouter(prefix="/api")
@@ -18,7 +18,7 @@ async def discover_daemons(request: Request, manager: Mgr) -> list[Daemon]:
     """Answer with every hqplayerd that answers discovery on this network, each with what it says it is."""
     # Target, wait and control port all come off the app's own Config, so an
     # install pointed at one host searches that host rather than the group.
-    cfg = request.app.state.config
+    cfg = config_of(request)
     search = Search(
         target=cfg.discovery_target,
         alias=cfg.container_host_alias,
