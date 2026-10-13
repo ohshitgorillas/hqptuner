@@ -26,7 +26,7 @@ import {
   traceColumns,
 } from "../../model/gauges/meter.js";
 import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
-import { engineStatus } from "../signals.js";
+import { engineStatus, PLAYING } from "../signals.js";
 import { freqSpan } from "../faceplate/view.js";
 import { meterChannel } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
@@ -34,7 +34,6 @@ import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./
 
 /** Spectrum columns the trace carries across the plot. */
 const TRACE_COLS = 600;
-const PLAYING = 2;
 /** The time between two steps, ms, and how early an animation frame may land and still step. */
 export const STEP_MS = 1000 / 30;
 const SLACK_MS = 4;

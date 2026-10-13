@@ -54,13 +54,13 @@ const select = (name, value, labels) => ({
  * @param {{ junk?: string, filterNx?: string, shaper?: string }} [o]
  */
 function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx, shaper };
+  engineState.value = { active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx, shaper };
   enums.value = {
     junk_filters: ["none", "20k", "2x"].map(item),
     filters: ["poly-sinc-short", "poly-sinc-long", "sinc-Mx"].map(item),
     shapers: ["TPDF", "NS9", "LNS15"].map(item),
   };
-  engineStatus.value = { status: { active_rate: "352800" }, metadata: { samplerate: "96000", bits: "24" } };
+  engineStatus.value = { status: { state: "2", active_rate: "352800" }, metadata: { samplerate: "96000", bits: "24" } };
   config.value = {
     fields: [{ name: "direct_sdm", value: true }, select("noise_filter", "v1", ["standard", "low", "high"])],
   };

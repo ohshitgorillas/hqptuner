@@ -3,7 +3,7 @@
 // disjoint sets of controls (manual §4.4, §4.5, §4.6), and Direct SDM takes a DSD source to an SDM output with no
 // processing at all.
 
-import { engineState, engineStatus, ready } from "../signals.js";
+import { engineStatus, PAUSED, PLAYING, ready } from "../signals.js";
 import { runningValue } from "../resolve.js";
 import { loadedChain } from "../live/rates.js";
 import { truthy } from "../../lib/coerce.js";
@@ -14,8 +14,6 @@ import { truthy } from "../../lib/coerce.js";
  * @typedef {"idle" | "pcm-pcm" | "pcm-sdm" | "dsd-pcm" | "sdm-sdm" | "direct"} Path
  */
 
-const PAUSED = 1;
-const PLAYING = 2; // State: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 const DSD_FLOOR = 2822400; // DSD64 (44.1k × 64), the lowest 1-bit bitstream rate
 
 // The metadata child's `sdm` flag is the direct answer, and the source rate is the independent check: a DSD bitstream
@@ -33,8 +31,8 @@ export const outputIsSdm = (/** @type {Status} */ st) => Number(st.active_rate) 
  * @returns {Path}
  */
 export function playbackPath() {
-  if (Number((engineState.value || {}).state) !== PLAYING) return "idle";
   const s = engineStatus.value || {};
+  if (Number((s.status || {}).state) !== PLAYING) return "idle";
   const sdmOut = outputIsSdm(s.status || {});
   if (!sourceIsDsd(s.metadata || {})) return sdmOut ? "pcm-sdm" : "pcm-pcm";
   if (!sdmOut) return "dsd-pcm";
@@ -62,7 +60,7 @@ export function runningChain() {
  */
 export function transportNow() {
   if (!ready.value) return "off";
-  const state = Number((engineState.value || {}).state);
+  const state = Number(((engineStatus.value || {}).status || {}).state);
   if (state === PLAYING) return "playing";
   return state === PAUSED ? "paused" : "off";
 }

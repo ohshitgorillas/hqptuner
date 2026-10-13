@@ -1,5 +1,7 @@
 // Behavioral suite for hqptuner/static/store/faceplate/path.js: the path the playing source takes through the engine,
-// read off what the engine reports and what the daemon is running, never off a staged edit.
+// read off what the engine reports and what the daemon is running, never off a staged edit. Whether the engine is
+// playing is read off the Status report alone, so the playback path and the rail's transport lamps follow the meters,
+// and stay lit through an apply that clears the State report, even while the State report still says otherwise.
 //
 // The wire is the seam: each case writes /api/state into `engineState`, the Status frame and its metadata child into
 // `engineStatus`, the daemon's /config form fields into `config`, and the backend's readiness into `health`.
@@ -24,9 +26,13 @@ const DSD64 = "2822400";
 const DSD256 = "11289600";
 const PCM_8X = "352800";
 
+const STOPPED = "0";
+const PAUSED = "1";
+const PLAYING = "2";
+
 /**
  * @typedef {object} Playing
- * @property {string} [state]      /api/state `state`: "2" is playing
+ * @property {string} [state]      Status `state`: "2" is playing
  * @property {string} [source]     the source's sample rate, Hz
  * @property {string} [output]     the output's rate, Hz
  * @property {boolean} [direct]    Direct SDM as the daemon runs it
@@ -40,8 +46,8 @@ const PCM_8X = "352800";
  * @param {Playing} p
  */
 function play({ state = "2", source = CD, output = PCM_8X, direct = false, chain = "", edited = {} }) {
-  engineState.value = { state, active_chain: chain };
-  engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
+  engineState.value = { active_chain: chain };
+  engineStatus.value = { status: { state, active_rate: output }, metadata: { samplerate: source } };
   config.value = { fields: [{ name: "direct_sdm", value: direct }] };
   staged.value = { live: {}, http: {} };
   liveOverride.value = edited;
@@ -101,3 +107,43 @@ for (const [name, isReady, state, now] of TRANSPORTS) {
     assert.equal(transportNow(), now);
   });
 }
+
+/**
+ * Write the two engine reports: `status` is the Status report's playing field, `state` the State report's, or `null`
+ * for a State report cleared by an apply. A CD source plays out at DSD256 over the loaded PCM chain.
+ *
+ * @param {{ status: string, state: string | null }} r
+ */
+function report({ status, state }) {
+  engineState.value = state === null ? null : { state, active_chain: "pcm" };
+  engineStatus.value = { status: { state: status, active_rate: DSD256 }, metadata: { samplerate: CD } };
+  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  staged.value = { live: {}, http: {} };
+  liveOverride.value = {};
+  health.value = { ready: true };
+}
+
+test("test_the_path_lights_when_status_reports_playing_while_state_still_reads_stopped", () => {
+  report({ status: PLAYING, state: STOPPED });
+  assert.equal(playbackPath(), "pcm-sdm");
+});
+
+test("test_the_path_goes_idle_when_status_reports_stopped_while_state_still_reads_playing", () => {
+  report({ status: STOPPED, state: PLAYING });
+  assert.equal(playbackPath(), "idle");
+});
+
+test("test_the_path_stays_lit_through_an_apply_that_clears_the_state_report", () => {
+  report({ status: PLAYING, state: null });
+  assert.equal(playbackPath(), "pcm-sdm");
+});
+
+test("test_the_transport_reads_playing_when_status_reports_playing_while_state_still_reads_stopped", () => {
+  report({ status: PLAYING, state: STOPPED });
+  assert.equal(transportNow(), "playing");
+});
+
+test("test_the_transport_reads_paused_when_status_reports_paused_while_state_still_reads_playing", () => {
+  report({ status: PAUSED, state: PLAYING });
+  assert.equal(transportNow(), "paused");
+});

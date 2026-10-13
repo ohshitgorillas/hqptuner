@@ -244,8 +244,7 @@ const CD = "44100";
 const DSD256 = "11289600";
 
 test("test_only_the_running_slot_is_marked_on", () => {
-  engineState.value = { ...engineState.value, state: "2" };
-  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: CD } };
+  engineStatus.value = { status: { state: "2", active_rate: DSD256 }, metadata: { samplerate: CD } };
   assert.deepEqual(
     slots().map((s) => classes(s).includes("on")),
     [true, false],
@@ -256,8 +255,7 @@ test("test_only_the_running_slot_is_marked_on", () => {
 const RUNNING_NX = "poly-sinc-gauss-long";
 
 test("test_an_unlit_running_slot_has_no_on_class", () => {
-  engineState.value = { ...engineState.value, state: "2" };
-  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: CD } };
+  engineStatus.value = { status: { state: "2", active_rate: DSD256 }, metadata: { samplerate: CD } };
   setSwitcherTarget("Nx filter");
   setSlot(0, RUNNING_NX);
   const [slot] = slots();

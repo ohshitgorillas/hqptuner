@@ -321,8 +321,7 @@ const RUNNING_NX = "poly-sinc-gauss-long";
  * @param {string} source  the source's sample rate, Hz
  */
 function play(source) {
-  engineState.value = { ...engineState.value, state: "2" };
-  engineStatus.value = { status: { active_rate: DSD256 }, metadata: { samplerate: source } };
+  engineStatus.value = { status: { state: "2", active_rate: DSD256 }, metadata: { samplerate: source } };
 }
 
 /** The first slot's on and lit, under the Nx filter target with the running Nx filter in it. */

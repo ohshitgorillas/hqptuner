@@ -13,11 +13,10 @@ import { freqTicks, timeTicks } from "../../../model/gauges/meter-plot.js";
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
-import { engineStatus } from "../../signals.js";
+import { engineStatus, PLAYING } from "../../signals.js";
 import { apodWindow, meterChannel, meterRange } from "../../ui/prefs.js";
 import { sourceIsDsd } from "../path.js";
 
-const PLAYING = 2;
 const CD_NYQUIST = 22050; // the axis top while the feed has sent no geometry
 const STEREO = 2;
 const MS_PER_S = 1000; // the time axis counts in milliseconds

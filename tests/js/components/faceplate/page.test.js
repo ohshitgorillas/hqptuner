@@ -74,9 +74,9 @@ function run({
   win = { w: 1080, h: 810 },
 }) {
   viewport.value = win;
-  engineState.value = { state: "2", mode: "1", active_chain: "pcm", rate: "0" };
+  engineState.value = { mode: "1", active_chain: "pcm", rate: "0" };
   enums.value = { rates: RATES };
-  engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
+  engineStatus.value = { status: { state: "2", active_rate: output }, metadata: { samplerate: source } };
   config.value = { fields: [{ name: "direct_sdm", value: direct }] };
   matrixConfig.value = { fields: [{ name: "enabled", value: matrix }] };
   staged.value = { live: {}, http: {} };

@@ -74,9 +74,9 @@ const structuralBlock = () =>
  * @param {{ rows?: PipelineRow[], bauer?: boolean }} [o]
  */
 function wire({ rows = passthrough(STEREO), bauer = false } = {}) {
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: "0", filter1x: "0", filterNx: "0", shaper: "0" };
+  engineState.value = { active_chain: "pcm", filter_junk: "0", filter1x: "0", filterNx: "0", shaper: "0" };
   enums.value = { junk_filters: [], filters: [], shapers: [] };
-  engineStatus.value = { status: { active_rate: "352800" }, metadata: { samplerate: "44100", bits: "16" } };
+  engineStatus.value = { status: { state: "2", active_rate: "352800" }, metadata: { samplerate: "44100", bits: "16" } };
   config.value = { fields: [{ name: "direct_sdm", value: false }] };
   matrixConfig.value = {
     fields: [

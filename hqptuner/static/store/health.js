@@ -8,7 +8,7 @@
 // edges, so each of its alerts fires only once speed has stayed below its
 // threshold for SUSTAIN_MS on the clock (and clears instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
-import { engineStatus } from "./signals.js";
+import { engineStatus, PLAYING } from "./signals.js";
 import { filterFacets } from "./narrow/facets.js";
 import { PLATFORM } from "../lib/clock.js";
 import { num } from "../lib/coerce.js";
@@ -17,7 +17,6 @@ import { quietWindow } from "../model/shell/timing.js";
 /** @typedef {import("../lib/clock.js").Clock} Clock */
 /** @typedef {ReturnType<typeof quietWindow>} Wait */
 
-const PLAYING = 2;
 // 1.05× is the danger floor for sustained DSP throughput (below it, transient
 // load spikes eat the margin); below 1.00× the engine is actively dropping.
 const SPEED_WARN = 1.05;

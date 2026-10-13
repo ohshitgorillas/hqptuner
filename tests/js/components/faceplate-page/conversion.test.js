@@ -60,9 +60,12 @@ const item = (name, i) => ({ index: String(i), value: String(200 + i), name });
  * @param {{ rate?: string, playing?: boolean }} [r]
  */
 function play({ rate = "48000", playing = true } = {}) {
-  engineState.value = { state: playing ? "2" : "0", active_chain: "pcm", filter1x: "0", filterNx: "1", shaper: "0" };
+  engineState.value = { active_chain: "pcm", filter1x: "0", filterNx: "1", shaper: "0" };
   enums.value = { filters: ["minphaseFIR", "sinc-L"].map(item), shapers: ["RPDF", "NS1"].map(item) };
-  engineStatus.value = { status: { active_rate: "384000" }, metadata: { samplerate: rate } };
+  engineStatus.value = {
+    status: { state: playing ? "2" : "0", active_rate: "384000" },
+    metadata: { samplerate: rate },
+  };
   config.value = { fields: [{ name: "direct_sdm", value: false }] };
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};

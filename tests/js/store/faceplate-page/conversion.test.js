@@ -105,9 +105,12 @@ function wire({
   fnx = "2",
   shaper = "1",
 } = {}) {
-  engineState.value = { state: playing ? "2" : "0", active_chain: chain, filter1x: f1x, filterNx: fnx, shaper };
+  engineState.value = { active_chain: chain, filter1x: f1x, filterNx: fnx, shaper };
   enums.value = { filters: FILTERS.map(item), shapers: SHAPERS.map(item) };
-  engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
+  engineStatus.value = {
+    status: { state: playing ? "2" : "0", active_rate: output },
+    metadata: { samplerate: source },
+  };
   config.value = { fields: [{ name: "direct_sdm", value: false }] };
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};

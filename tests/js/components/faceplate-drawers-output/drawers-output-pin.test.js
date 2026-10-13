@@ -116,8 +116,8 @@ function run({ state = "2", chain = "pcm", output = "352800", pin = 0, list = PC
   const rates = ratesList(list);
   enums.value = { rates };
   const index = rates.find((r) => r.rate === String(pin))?.index ?? "0";
-  engineState.value = { state, mode: "1", active_chain: chain, rate: index };
-  engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: "44100" } };
+  engineState.value = { mode: "1", active_chain: chain, rate: index };
+  engineStatus.value = { status: { state, active_rate: output }, metadata: { samplerate: "44100" } };
 }
 
 /** Close the Output drawer and open it again. */

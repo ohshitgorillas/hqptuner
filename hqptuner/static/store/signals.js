@@ -17,6 +17,9 @@
 
 import { signal, computed } from "@preact/signals";
 
+export const PAUSED = 1;
+export const PLAYING = 2; // Status state: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
+
 // --- source signals ---
 export const health = signal(null); // {reachable, ready, connected, info}
 export const engineState = signal(null); // /api/state data (live indices)

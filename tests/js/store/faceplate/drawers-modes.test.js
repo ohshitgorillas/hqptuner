@@ -44,8 +44,8 @@ function load(backend, alsa, net) {
  * @param {{ state?: string, source?: string, output?: string, chain?: string }} p
  */
 function run({ state = "0", source = CD, output = PCM_8X, chain = "" }) {
-  engineState.value = { state, active_chain: chain };
-  engineStatus.value = { status: { active_rate: output }, metadata: { samplerate: source } };
+  engineState.value = { active_chain: chain };
+  engineStatus.value = { status: { state, active_rate: output }, metadata: { samplerate: source } };
 }
 
 beforeEach(async () => {

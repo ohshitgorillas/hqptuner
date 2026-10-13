@@ -15,12 +15,11 @@
 import { signal, effect } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import { decodeBins } from "../../model/gauges/meter.js";
-import { engineStatus } from "../signals.js";
+import { engineStatus, PLAYING } from "../signals.js";
 import { metering } from "../actions.js";
 import { addSpectrumFrame } from "./spectrogram.js";
 
 const FEED = "/api/meter/feed";
-const PLAYING = 2;
 const QUIET_MS = 2000;
 // Frame time the queue holds for a loop that has not drained it, ms: the longest
 // delay the loop paces at, and a second past it.

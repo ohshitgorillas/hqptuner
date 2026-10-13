@@ -4,6 +4,8 @@
 // buffer the daemon reports as -1 (it does not apply on this path), and for an output buffer that has not been seen to
 // fill this track (store/health.js).
 
+import { PLAYING } from "../signals.js";
+
 /** @typedef {import("../health.js").StatusFrame} StatusFrame */
 
 /**
@@ -23,8 +25,6 @@
  * @property {Count} clips
  * @property {Count} apod
  */
-
-const PLAYING = 2; // Status state: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 
 /**
  * The engine row's readings for a Status frame.

@@ -28,9 +28,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { num } from "../lib/coerce.js";
-import { engineStatus } from "./signals.js";
-
-const PLAYING = 2;
+import { engineStatus, PLAYING } from "./signals.js";
 
 // At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
 // go: the strip is a monitor, not a record, and an unbounded array on a track

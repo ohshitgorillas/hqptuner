@@ -115,9 +115,9 @@ beforeEach(async () => {
     },
   });
   health.value = { ready: true };
-  engineState.value = { state: "2", active_chain: "pcm", filter_junk: "0" };
+  engineState.value = { active_chain: "pcm", filter_junk: "0" };
   enums.value = { junk_filters: [{ index: "0", name: "none" }] };
-  engineStatus.value = { status: { active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
+  engineStatus.value = { status: { state: "2", active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
   config.value = {
     fields: [
       { name: "volume_max", type: "number", value: -3 },
