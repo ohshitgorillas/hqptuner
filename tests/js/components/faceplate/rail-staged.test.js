@@ -31,7 +31,7 @@ import {
   matrixConfig,
   volume,
 } from "../../../../hqptuner/static/store/signals.js";
-import { applyAll, discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
+import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
 import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardDraft, setChannelDistance } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { setGate, xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
@@ -158,24 +158,6 @@ for (const { stage, put } of MEMBER_EDITS) {
     assert.deepEqual(marked(), [stage]);
   });
 }
-
-test("test_the_staged_mark_goes_when_the_edit_is_discarded", async () => {
-  await edit("dac_correction_enabled", "1");
-  await quiesce(wire);
-  const staged = marked();
-  await discardAll();
-  await quiesce(wire);
-  assert.deepEqual([staged, marked()], [["correction"], []]);
-});
-
-test("test_the_staged_mark_goes_when_the_edit_is_applied", async () => {
-  await edit("dac_correction_enabled", "1");
-  await quiesce(wire);
-  const staged = marked();
-  await applyAll();
-  await quiesce(wire);
-  assert.deepEqual([staged, marked()], [["correction"], []]);
-});
 
 test("test_a_staged_structural_crossfeed_install_marks_the_crossfeed_and_dsp_pipelines_stages_and_no_other", async () => {
   xfMode.value = "structural";

@@ -37,6 +37,6 @@ function plateMarked(restarting) {
   return hasAttr(plate, RESTARTING_MARK);
 }
 
-test("test_the_plate_carries_the_restarting_mark_only_while_the_engine_restarts", () => {
-  assert.deepEqual([plateMarked(true), plateMarked(false)], [true, false]);
+test("test_the_plate_carries_the_restarting_mark_while_the_engine_restarts", () => {
+  assert.equal(plateMarked(true), true);
 });

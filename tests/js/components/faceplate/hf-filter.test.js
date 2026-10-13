@@ -115,12 +115,18 @@ const readoutValue = () => {
 /** The popover's rows: every element carrying `aria-checked`. */
 const rows = () => elements(render(html`<${HfFilterPopover} />`)).filter((e) => hasAttr(e, "aria-checked"));
 
-test("test_the_readout_value_is_the_running_filters_name", () => {
-  const at = (/** @type {string} */ junk) => {
-    running(junk);
-    return readoutValue();
-  };
-  assert.deepEqual([at("1"), at("2")], ["20k", "2x"]);
+/** The readout's value while the junk filter at index `junk` runs. @param {string} junk */
+const at = (junk) => {
+  running(junk);
+  return readoutValue();
+};
+
+test("test_the_readout_value_is_the_running_filters_name_at_index_1", () => {
+  assert.equal(at("1"), "20k");
+});
+
+test("test_the_readout_value_is_the_running_filters_name_at_index_2", () => {
+  assert.equal(at("2"), "2x");
 });
 
 test("test_the_popover_draws_one_row_per_option_in_engine_order", () => {
@@ -130,14 +136,20 @@ test("test_the_popover_draws_one_row_per_option_in_engine_order", () => {
   );
 });
 
-test("test_only_the_running_options_row_is_checked", () => {
-  const checked = (/** @type {string} */ junk) => {
-    running(junk);
-    return rows()
-      .filter((r) => attr(r, "aria-checked") === "true")
-      .map((r) => text(r).trim());
-  };
-  assert.deepEqual([checked("1"), checked("2")], [["20k"], ["2x"]]);
+/** The names on the popover's checked rows while the junk filter at index `junk` runs. @param {string} junk */
+const checked = (junk) => {
+  running(junk);
+  return rows()
+    .filter((r) => attr(r, "aria-checked") === "true")
+    .map((r) => text(r).trim());
+};
+
+test("test_only_the_running_options_row_is_checked_at_index_1", () => {
+  assert.deepEqual(checked("1"), ["20k"]);
+});
+
+test("test_only_the_running_options_row_is_checked_at_index_2", () => {
+  assert.deepEqual(checked("2"), ["2x"]);
 });
 
 test("test_picking_a_row_sends_that_rows_index_live_as_the_junk_filter", async () => {

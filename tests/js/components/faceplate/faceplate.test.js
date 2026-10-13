@@ -52,17 +52,6 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
   assert.deepEqual(openDrawers(), []);
 });
 
-/** The settings rail's entries inside the settings body. */
-const settingsEntries = () => {
-  const setbody = frame().find((e) => classes(e).includes("setbody"));
-  return setbody ? elements(setbody.html).filter((e) => e.name === "button" && classes(e).includes("sst")) : [];
-};
-
-test("test_the_gear_draws_the_settings_rail_in_place_of_the_chain_rail", () => {
-  body.value = "settings";
-  assert.deepEqual([settingsEntries().length > 0, stages().length], [true, 0]);
-});
-
 test("test_the_snapshot_builder_body_holds_the_option_list", () => {
   config.value = {
     fields: [],

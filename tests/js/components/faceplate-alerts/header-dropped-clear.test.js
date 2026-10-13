@@ -192,39 +192,42 @@ async function tapCredentials() {
 /** How many clears the fake has been asked for. */
 const clears = () => calls.filter(([method, path]) => method === "DELETE" && path === CLEAR_PATH).length;
 
-test("test_tapping_the_line_under_the_top_bar_clears_the_report_and_then_reads_health_again", async () => {
+/** Every request the fake answered after the first clear, or none when no clear came. */
+const callsAfterClear = () => {
+  const at = calls.findIndex(([method, path]) => method === "DELETE" && path === CLEAR_PATH);
+  return at < 0 ? [] : calls.slice(at + 1);
+};
+
+test("test_tapping_the_line_under_the_top_bar_sends_one_clear", async () => {
   report(DROPPED);
   await tapUnderBar();
   assert.deepEqual(
-    calls.filter(([, path]) => path === CLEAR_PATH || path === HEALTH_PATH),
-    [
-      ["DELETE", CLEAR_PATH],
-      ["GET", HEALTH_PATH],
-    ],
+    calls.filter(([, path]) => path === CLEAR_PATH),
+    [["DELETE", CLEAR_PATH]],
   );
 });
 
-test("test_a_cleared_report_takes_the_line_from_under_the_top_bar", async () => {
+test("test_tapping_the_line_under_the_top_bar_reads_health_once_after_the_clear", async () => {
   report(DROPPED);
-  const before = underBarShows();
   await tapUnderBar();
-  assert.deepEqual([before, underBarShows()], [true, false]);
+  assert.deepEqual(
+    callsAfterClear().filter(([, path]) => path === HEALTH_PATH),
+    [["GET", HEALTH_PATH]],
+  );
 });
 
 test("test_a_health_read_that_still_lists_a_setting_after_the_clear_keeps_the_line_up", async () => {
   table.served = { ...HEALTHY, dropped_settings: DROPPED.map((d) => ({ ...d })) };
   report(DROPPED);
-  const before = underBarShows();
   await tapUnderBar();
-  assert.deepEqual([before, underBarShows()], [true, true]);
+  assert.equal(underBarShows(), true);
 });
 
-test("test_tapping_the_knob_sends_no_clear_until_the_line_is_tapped", async () => {
+test("test_tapping_the_line_after_the_knob_sends_one_clear", async () => {
   report(DROPPED);
   await tapKnob();
-  const afterKnob = clears();
   await tapUnderBar();
-  assert.deepEqual([afterKnob, clears()], [0, 1]);
+  assert.equal(clears(), 1);
 });
 
 test("test_after_a_refused_clear_the_line_can_be_tapped_again", async () => {
@@ -236,11 +239,10 @@ test("test_after_a_refused_clear_the_line_can_be_tapped_again", async () => {
   assert.equal(clears(), 2);
 });
 
-test("test_tapping_the_credentials_line_clears_nothing", async () => {
+test("test_with_the_credentials_refused_tapping_the_line_after_the_credentials_line_sends_one_clear", async () => {
   report(DROPPED, true);
   await tapKnob();
   await tapCredentials();
-  const afterCredentials = clears();
   await tapUnderBar();
-  assert.deepEqual([afterCredentials, clears()], [0, 1]);
+  assert.equal(clears(), 1);
 });

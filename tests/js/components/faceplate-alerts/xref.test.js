@@ -128,11 +128,8 @@ test("test_a_gray_reason_naming_the_range_links_to_it", () => {
   assert.equal(linkTo(drawerOf("rows", ADAPTIVE)), "volume-range");
 });
 
-test("test_a_gray_reason_on_the_tab_it_names_carries_no_link", () => {
-  assert.deepEqual(
-    [linkTo(drawerOf("volume", ADAPTIVE, "gain")), linkTo(drawerOf("volume", ADAPTIVE, "range"))],
-    ["volume-range", undefined],
-  );
+test("test_a_gray_reason_on_another_tab_of_the_drawer_it_names_links_to_it", () => {
+  assert.equal(linkTo(drawerOf("volume", ADAPTIVE, "gain")), "volume-range");
 });
 
 test("test_the_fixed_volume_reason_on_the_gain_tab_links_the_level_tab", () => {

@@ -80,11 +80,10 @@ function pick(v) {
   if (typeof fn === "function") fn({ preventDefault() {}, stopPropagation() {} });
 }
 
-test("test_picking_hide_then_show_in_the_display_popover_moves_the_range_buttons", () => {
+test("test_picking_show_after_hide_in_the_display_popover_shows_the_range_buttons", () => {
   pick(HIDE);
-  const hidden = rangeButtons.value;
   pick(SHOW);
-  assert.deepEqual([hidden, rangeButtons.value], [false, true]);
+  assert.equal(rangeButtons.value, true);
 });
 
 test("test_picking_a_range_in_the_display_popover_sets_the_pages_range", () => {

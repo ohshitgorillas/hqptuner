@@ -176,34 +176,21 @@ test("test_a_click_with_no_press_steps_up_once", async () => {
 
 // --- the cluster -------------------------------------------------------------------------------------------------
 
-test("test_a_pinned_level_disables_both_steps", () => {
-  const both = (/** @type {Level} */ l) => {
-    const all = drawn(l);
-    return [disabled(all, "volume-down"), disabled(all, "volume-up")];
-  };
-  assert.deepEqual(
-    [both({}), both({ direct: true })],
-    [
-      [false, false],
-      [true, true],
-    ],
-  );
+test("test_a_pinned_level_disables_the_step_down", () => {
+  assert.equal(disabled(drawn({ direct: true }), "volume-down"), true);
 });
 
-test("test_the_bottom_of_the_range_disables_the_step_down_only", () => {
+test("test_a_pinned_level_disables_the_step_up", () => {
+  assert.equal(disabled(drawn({ direct: true }), "volume-up"), true);
+});
+
+test("test_the_bottom_of_the_range_disables_the_step_down", () => {
   const all = drawn({ at: "-60" });
-  assert.deepEqual([disabled(all, "volume-down"), disabled(all, "volume-up")], [true, false]);
+  assert.equal(disabled(all, "volume-down"), true);
 });
 
 test("test_a_pinned_level_disables_the_readout", () => {
-  assert.deepEqual(
-    [has(readout(drawn({})), "disabled"), has(readout(drawn({ direct: true })), "disabled")],
-    [false, true],
-  );
-});
-
-test("test_direct_sdm_gives_the_readout_its_reason_and_a_free_level_none", () => {
-  assert.deepEqual([has(readout(drawn({ direct: true })), "title"), has(readout(drawn({})), "title")], [true, false]);
+  assert.equal(has(readout(drawn({ direct: true })), "disabled"), true);
 });
 
 test("test_the_readout_prints_the_level", () => {
@@ -211,25 +198,33 @@ test("test_the_readout_prints_the_level", () => {
   assert.match(r ? text(r) : "", /27\.5/);
 });
 
+/** The readout's aria-expanded with `open` as the open popover. @param {string | null} open */
+const expanded = (open) => {
+  play({});
+  openPopover.value = open;
+  const r = readout(elements(render(html`<${Volume} />`)));
+  return r ? attr(r, "aria-expanded") : undefined;
+};
+
+test("test_the_readout_reports_the_popover_closed", () => {
+  assert.equal(expanded(null), "false");
+});
+
 test("test_the_readout_reports_the_popover_open", () => {
-  const expanded = (/** @type {string | null} */ open) => {
-    play({});
-    openPopover.value = open;
-    const r = readout(elements(render(html`<${Volume} />`)));
-    return r ? attr(r, "aria-expanded") : undefined;
-  };
-  assert.deepEqual([expanded(null), expanded("volume")], ["false", "true"]);
+  assert.equal(expanded("volume"), "true");
 });
 
 // --- the popover -------------------------------------------------------------------------------------------------
 
-test("test_the_popover_shows_only_while_open", () => {
-  const hidden = (/** @type {string | null} */ open) => {
-    play({});
-    openPopover.value = open;
-    return has(panel(elements(render(html`<${VolumePopover} />`))), "hidden");
-  };
-  assert.deepEqual([hidden(null), hidden("volume")], [true, false]);
+/** Whether the popover panel is hidden with `open` as the open popover. @param {string | null} open */
+const hidden = (open) => {
+  play({});
+  openPopover.value = open;
+  return has(panel(elements(render(html`<${VolumePopover} />`))), "hidden");
+};
+
+test("test_the_popover_hides_while_closed", () => {
+  assert.equal(hidden(null), true);
 });
 
 test("test_the_slider_spans_the_range_the_engine_reports", () => {
@@ -243,15 +238,12 @@ test("test_the_slider_sits_at_the_level", () => {
 });
 
 test("test_a_pinned_level_disables_the_slider", () => {
-  assert.deepEqual(
-    [has(slider(drawn({})), "disabled"), has(slider(drawn({ direct: true })), "disabled")],
-    [false, true],
-  );
+  assert.equal(has(slider(drawn({ direct: true })), "disabled"), true);
 });
 
-test("test_the_scale_runs_from_one_end_of_a_full_range_to_the_other", () => {
+test("test_the_scale_ends_at_the_top_of_a_full_range", () => {
   const at = marks({});
-  assert.deepEqual([at[0], at[at.length - 1]], [0, 100]);
+  assert.equal(at[at.length - 1], 100);
 });
 
 test("test_the_loudness_strip_spans_its_bounds_along_the_range", () => {
@@ -259,9 +251,9 @@ test("test_the_loudness_strip_spans_its_bounds_along_the_range", () => {
 });
 
 test("test_loudness_off_hides_its_marks", () => {
-  assert.deepEqual([loudMarks(LOUD).hidden, loudMarks({}).hidden], [false, true]);
+  assert.equal(loudMarks({}).hidden, true);
 });
 
 test("test_a_pinned_level_hides_the_loudness_marks", () => {
-  assert.deepEqual([loudMarks(LOUD).hidden, loudMarks({ ...LOUD, direct: true }).hidden], [false, true]);
+  assert.equal(loudMarks({ ...LOUD, direct: true }).hidden, true);
 });

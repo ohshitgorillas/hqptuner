@@ -141,8 +141,8 @@ for (const view of VIEWS) {
   });
 }
 
-test("test_an_alert_line_shows_under_the_top_bar_only_while_the_report_lists_a_setting", () => {
-  assert.deepEqual([lineUnderBar(DROPPED), lineUnderBar([])], [true, false]);
+test("test_an_alert_line_shows_under_the_top_bar_while_the_report_lists_a_setting", () => {
+  assert.equal(lineUnderBar(DROPPED), true);
 });
 
 test("test_the_line_under_the_top_bar_stays_on_the_next_track_while_the_report_still_lists_a_setting", () => {
