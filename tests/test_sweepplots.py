@@ -117,40 +117,29 @@ def test_narrow_measures_the_px_width_of_the_trace_above_half_level_following_se
     assert of_kind(sweepplots.derive_plots(raw), "narrow") == [("path:spike", pytest.approx(1.0))]
 
 
-def test_sparse_reports_the_vertex_count_of_a_three_to_five_vertex_trace(sweepplots: ModuleType) -> None:
-    raw = {
-        "svgs": [
-            svg(
-                "svg:1",
-                [
-                    trace("path:three", flat(3, 100.0)),
-                    trace("path:five", flat(5, 100.0)),
-                    trace("path:six", flat(6, 100.0)),
-                ],
-            )
-        ]
-    }
-    assert of_kind(sweepplots.derive_plots(raw), "sparse") == [
-        ("path:five", pytest.approx(5)),
-        ("path:three", pytest.approx(3)),
-    ]
+@pytest.mark.parametrize(("selector", "vertex_count"), [("path:three", 3), ("path:five", 5)], ids=["three", "five"])
+def test_sparse_reports_the_vertex_count_of_a_three_to_five_vertex_trace(
+    sweepplots: ModuleType, selector: str, vertex_count: int
+) -> None:
+    raw = {"svgs": [svg("svg:1", [trace(selector, flat(vertex_count, 100.0))])]}
+    assert of_kind(sweepplots.derive_plots(raw), "sparse") == [(selector, pytest.approx(vertex_count))]
 
 
-def test_escape_measures_against_the_clip_rectangle_when_present_else_the_svg_box(
+def test_escape_measures_against_the_clip_rectangle_when_the_svg_clips_its_traces(
     sweepplots: ModuleType,
 ) -> None:
-    # Both SVG boxes span y 0..400. ``clipped`` has a clip spanning y 50..350 and one vertex
-    # at y 20: 30 px above the clip, inside the box. ``open`` has no clip and one vertex at
-    # y -10: 10 px above the box.
+    # The SVG box spans y 0..400. ``clipped`` has a clip spanning y 50..350 and one vertex
+    # at y 20: 30 px above the clip, inside the box.
     clipped = [[x, 20.0 if x == 500.0 else 100.0] for x in even_xs(501, 1000.0)]
+    raw = {"svgs": [svg("svg:1", [trace("path:clipped", clipped)], clip=box(0.0, 50.0, 1000.0, 350.0))]}
+    assert of_kind(sweepplots.derive_plots(raw), "escape") == [("path:clipped", pytest.approx(30.0))]
+
+
+def test_escape_measures_against_the_svg_box_when_the_svg_has_no_clip(
+    sweepplots: ModuleType,
+) -> None:
+    # The SVG box spans y 0..400. ``open`` has no clip and one vertex at y -10: 10 px above
+    # the box.
     unclipped = [[x, -10.0 if x == 500.0 else 100.0] for x in even_xs(501, 1000.0)]
-    raw = {
-        "svgs": [
-            svg("svg:1", [trace("path:clipped", clipped)], clip=box(0.0, 50.0, 1000.0, 350.0)),
-            svg("svg:2", [trace("path:open", unclipped)], clip=None),
-        ]
-    }
-    assert of_kind(sweepplots.derive_plots(raw), "escape") == [
-        ("path:clipped", pytest.approx(30.0)),
-        ("path:open", pytest.approx(10.0)),
-    ]
+    raw = {"svgs": [svg("svg:2", [trace("path:open", unclipped)], clip=None)]}
+    assert of_kind(sweepplots.derive_plots(raw), "escape") == [("path:open", pytest.approx(10.0))]

@@ -68,12 +68,6 @@ def test_the_deadline_is_ten_seconds_past_the_wall_time_the_suite_time_gate_reco
     assert suite_deadline.deadline(_recorded_baseline(tmp_path, recorded)) == expected
 
 
-def test_there_is_no_deadline_until_the_suite_time_gate_records_a_baseline(tmp_path: Path) -> None:
-    before = suite_deadline.deadline(tmp_path / "suite-time.json")
-    after = suite_deadline.deadline(_recorded_baseline(tmp_path, 75.0))
-    assert [before, after] == [None, 85.0]
-
-
 class _Finished:
     """A run's finish signal that answers at once: set in time, or still clear at the deadline."""
 

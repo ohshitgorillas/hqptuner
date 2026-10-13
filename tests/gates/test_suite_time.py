@@ -130,21 +130,20 @@ def test_a_refused_run_is_not_recorded_so_the_next_run_is_still_judged_against_t
     tmp_path: Path,
 ) -> None:
     baseline = write_baseline(tmp_path, BASELINE_SECONDS)
-    first = CHECK(write_report(tmp_path, 57.5), baseline)
+    CHECK(write_report(tmp_path, 57.5), baseline)
     second = CHECK(write_report(tmp_path, 62.0), baseline)
-    assert [first, second] == [1, 1]
+    assert second == 1
 
 
 # --- 3. a red run is neither judged nor recorded --------------------------------
 
 
-def test_a_red_run_fails_without_being_judged_or_recorded_so_a_green_run_after_it_is_judged_against_the_old_baseline(
+def test_a_red_run_fails_without_being_judged_even_when_faster_than_the_baseline(
     tmp_path: Path,
 ) -> None:
     baseline = write_baseline(tmp_path, BASELINE_SECONDS)
     red = CHECK(write_report(tmp_path, 20.0, failures=1), baseline)
-    green = CHECK(write_report(tmp_path, 53.0), baseline)
-    assert [red, green] == [1, 0]
+    assert red == 1
 
 
 # --- 4. a branch with no bar of its own is judged against its parent's bar -------

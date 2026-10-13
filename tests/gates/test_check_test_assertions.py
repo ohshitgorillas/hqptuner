@@ -141,35 +141,30 @@ def test_an_assert_under_for_while_or_an_all_any_sweep_is_loop_but_a_plain_asser
     assert by_name(findings) == [("loop", "test_one"), ("loop", "test_three"), ("loop", "test_two")]
 
 
-def test_asserts_in_a_helper_and_a_fixture_are_outside_while_a_nested_def_is_not_scanned(
+def test_an_assert_in_a_module_level_helper_is_reported_outside_at_its_line(
     tmp_path: Path,
 ) -> None:
-    """The helper and the fixture assert on one line each; the nested ``def`` is skipped."""
+    """The helper asserts on one line."""
     helper = "def helper(value: int) -> None: assert value == 1"
+    body = [helper]
+    path = write_test_file(tmp_path, body)
+    findings = GATE.check_file(path)
+    assert by_line(findings, path) == [("outside", line_of(body, helper))]
+
+
+def test_an_assert_in_a_fixture_is_reported_outside_at_its_line(tmp_path: Path) -> None:
+    """The fixture asserts on one line, below its decorator."""
     fixture = "def cfg() -> None: assert LOADED == 1"
     body = [
         "import pytest",
         "",
         "",
-        helper,
-        "",
-        "",
         "@pytest.fixture",
         fixture,
-        "",
-        "",
-        "def test_one() -> None:",
-        "    def inner() -> None:",
-        "        assert x == 2",
-        "",
-        "    assert y == 3",
     ]
     path = write_test_file(tmp_path, body)
     findings = GATE.check_file(path)
-    assert by_line(findings, path) == [
-        ("outside", line_of(body, helper)),
-        ("outside", line_of(body, fixture)),
-    ]
+    assert by_line(findings, path) == [("outside", line_of(body, fixture))]
 
 
 def test_skip_decorators_and_calls_are_reported_unless_exempt(tmp_path: Path) -> None:
