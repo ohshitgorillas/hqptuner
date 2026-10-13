@@ -166,7 +166,7 @@ function familiesToJudge() {
 }
 
 /**
- * Rate/shaper conflicts as alert-strip rows, empty when the settings are consistent.
+ * Rate/shaper conflicts as alert lines (components/faceplate/AlertLines.js), empty when the settings are consistent.
  * SDM first — it is the one that stops output.
  */
 export const shaperAlerts = computed(() => familiesToJudge().map(conflict).filter(Boolean));

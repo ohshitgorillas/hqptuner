@@ -196,7 +196,7 @@ const joinProse = (/** @type {(string | undefined)[]} */ ...parts) => parts.filt
 // filter. `sdm_two_stage_note` describes what the engine does with this filter
 // when it feeds the SDM chain, so it is keyed by the CHAIN the control sits on:
 // the same filter is offered in both chains at once (the PCM out and SDM out
-// tabs, store/schema.js), and the sentence is only true of the SDM pair. It reads as
+// tabs, components/faceplate/drawers/modes.js), and the sentence is only true of the SDM pair. It reads as
 // part of the filter's own description and so sits directly after it.
 /**
  * @typedef {{ base: string, note: string }} ProseParts  a description's own prose and the two-stage note after it,

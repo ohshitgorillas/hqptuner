@@ -64,7 +64,7 @@ test("test_the_knob_setter_writes_nothing_to_the_retired_easy_grid_key", () => {
 // under the preset's id alone, there being no grid to key it by. What USES the
 // record is the tile: a tile that is not lit shows what was recorded for it
 // instead of its knobs' defaults, and that half is
-// tests/js/components/easytiles-knobs.test.js's. These cases are about the
+// tests/js/store/faceplate-page/presets.test.js's. These cases are about the
 // record itself: what a preset nothing was written for reads back as, that each
 // preset keys it separately, and that it is still there next visit.
 //

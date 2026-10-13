@@ -80,7 +80,7 @@ function trio() {
 
 /**
  * The live level the needle rides at, held to the axis; null unless the engine reports the control (VolumeRange
- * enabled as 1 / "1" / true and nothing else, Playback.js knobRange) and a level, a drag in flight winning.
+ * enabled as 1 / "1" / true and nothing else) and a level, a drag in flight winning.
  *
  * @returns {number | null}
  */

@@ -1,5 +1,5 @@
-/* Snapshot builder (header button): swaps the chain body for #bbody, as the gear does for Settings. Same grid as the chain
-   body (rail | hairline | page). components/snapshot-builder.js. */
+/* Snapshot builder (header button): swaps the chain body for the [data-body="snapshots"] body, as the gear does for Settings. Same grid as the chain
+   body (rail | hairline | page). builders/SnapshotBuilder.js. */
 
 /* Header button while the builder is up: lit like the gear while Settings is up. */
 .btn.hb[aria-pressed="true"]{color:var(--acc);border-color:var(--acc-dim);background:var(--acc-lo);box-shadow:var(--raised-shadow),0 0 var(--sp-4) color-mix(in srgb,var(--acc) 35%,transparent)}
@@ -89,7 +89,7 @@ button.vfd.bstn{width:var(--tree-w);height:var(--vbrd-h);padding:var(--sp-2) var
 .blive.diff{color:var(--ink);border-color:var(--acc-dim)}
 .bidle{flex-shrink:0;font-family:var(--f-body);font-size:var(--fs-3);color:var(--ink-2)}
 
-/* ── Profile builder (Matrix engine section's button): swaps the chain body for #pbody. components/profile-builder.js.
+/* ── Profile builder (Matrix engine section's button): swaps the chain body for the [data-body="profile"] body. builders/ProfileBuilder.js.
    A guided walk: rail = the steps in the chain rail's grammar; page = the overview or one step, every
    setting in the drawers' row grammar with the manual's own copy; Back / Next. */
 /* Rail: Overview, then the steps, stacked from the top at the chain's rhythm; no lamps or wire (it isn't the chain).

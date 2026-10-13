@@ -1,12 +1,11 @@
 // Installation-side surface of the structural crossfeed block: the settings it
 // cannot coexist with, what it carries in from the rows it replaces, and the
 // named control points offered for it.
-// binaural.js holds the maths, this file the install surface,
+// vendor/eqlab/core/binaural/ holds the maths, this file the install surface,
 // and callers import from whichever they need.
 //
-// Like binaural.js, this module imports NOTHING but units.js, which itself
-// imports nothing — that is what lets the binaural tests run under plain node
-// with no shim.
+// This module imports NOTHING but units.js, which itself imports nothing; that
+// is what lets the binaural tests run under plain node with no shim.
 
 // --- invariants --------------------------------------------------------------
 // Two settings elsewhere in the app are incompatible with this block, and both
@@ -25,9 +24,9 @@
 // which is exactly why T_g falls out of eq. (3) rather than being added on top.
 // The conversion applies to parametric EQs, so `delay` stages are untouched.
 //
-// This reports; it does not mutate. The caller stages the fixes so they appear in
-// the pending bar like any other change — the app never silently rewrites config
-// the user can see, and a conflict arriving via a preset load (whose snapshot
+// This reports; it does not mutate. The caller (store/xfeed/mode.js) stages the
+// fixes so they show as staged like any other change: the app never silently
+// rewrites config the user can see, and a conflict arriving via a preset load (whose snapshot
 // carries post_bauer_enabled) has to be visible for the same reason.
 
 import { ampToDb } from "./units.js";

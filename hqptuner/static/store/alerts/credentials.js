@@ -1,4 +1,5 @@
-// Rejected management credentials — one fixed-copy alert-strip row.
+// Rejected management credentials: one fixed-copy alert line
+// (components/faceplate/AlertLines.js).
 //
 // The 4321 handshake that decides `reachable` is unauthenticated, so a health
 // poll can report a connected daemon while every 8088 configuration read is

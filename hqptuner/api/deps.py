@@ -1,10 +1,9 @@
-"""Shared dependencies and response shapes for the /api routers.
+"""Shared dependencies and response shapes for the /api routers in ``hqptuner/api/routes``.
 
-``app`` and ``matrixapi`` are one REST surface split by the file-length gate, so
-they had grown two verbatim copies of the same three helpers and twelve copies
-of the credentials guard. A guard that must be remembered on every new route is
-a guard that eventually is not: as FastAPI dependencies it rides the signature
-instead — ``def matrix(mgr: HttpMgr)`` cannot forget to check.
+A guard that must be remembered on every new route is a guard that eventually
+is not. As a FastAPI dependency the credentials guard rides the signature
+instead, so ``def matrix(manager: HttpMgr)`` in ``routes/matrix/matrix.py``
+cannot forget to check.
 
 No route idle-gates. A write that reloads or restarts the engine interrupts
 playback, and that is the user's call to make — HQPTuner does not decide on

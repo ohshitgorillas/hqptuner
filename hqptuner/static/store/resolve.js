@@ -364,7 +364,7 @@ export function cleanStagedKeys() {
   return { live, http: Object.keys(st.http).filter((field) => clean(httpKeys(field))) };
 }
 
-// --- derived: the pending-changes bar ---
+// --- derived: the staged count and its live/restart split (store/actions.js) ---
 const dirtyKeys = computed(() => Object.keys(schema).filter(isDirty));
 export const stagedCount = computed(() => dirtyKeys.value.length);
 export const split = computed(() => {

@@ -182,7 +182,7 @@ test("test_a_block_built_on_in_3_returns_its_pair_on_in_3", async () => {
 const DEFAULTS = { lambda: 1, angle: SPEAKER_ANGLE, headRadius: HEAD_RADIUS };
 
 // The other half: the gate is clean because crossfeed is engaged either way, not
-// because nothing was staged. The row edit is real and the pending bar counts it.
+// because nothing was staged. The row edit is real and store/resolve.js counts it as staged.
 test("test_retuning_an_installed_block_stages_a_row_change", async () => {
   await reset({ rows: structural(), selected: "structural" });
   stageStructural(live(), { ...DEFAULTS, angle: 45 });

@@ -4,8 +4,8 @@
 // Graying an option the user cannot click is only half the job: the setting may
 // already SIT on one, carried in from a preset, from a previous device, or from
 // unticking DoP on a device whose only DSD path was DoP. The store corrects it
-// as an ordinary STAGED edit — visible in the pending bar, discardable, and
-// never a display-only substitution, because the editor has to show what would
+// as an ordinary STAGED edit: its drawer marks it (store/faceplate/drawer.js),
+// Discard drops it, and it is never a display-only substitution, because the editor has to show what would
 // actually apply. So every case here reads the correction off the same pending
 // buffer an `edit()` writes to, and every staged value is a string.
 //
@@ -69,8 +69,8 @@ test("test_an_sdm_rate_the_device_cannot_reach_falls_back_to_its_highest_announc
 });
 
 test("test_a_pcm_rate_the_device_can_reach_is_left_alone", async () => {
-  // Otherwise the correction fires on every load and the pending bar is never
-  // empty.
+  // Otherwise the correction fires on every load and the staged set
+  // (store/signals.js `staged`) is never empty.
   const w = await reset({ deviceCaps: caps(NET_DEVICE, PCM_TO_192, []), mode: "pcm", pcmRate: "96000" });
   assert.deepEqual(w.staged.http, {});
 });

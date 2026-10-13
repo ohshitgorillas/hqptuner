@@ -1,6 +1,6 @@
-"""Pydantic request bodies for the main API surface (``app``/``pendingapi``).
+"""Pydantic request bodies for the apply, config, pending and volume routers in ``hqptuner/api/routes``.
 
-Sibling surfaces (``livepresetapi``, ``matrixapi``) keep their own bodies.
+The other routers in that package declare their bodies in their own modules.
 """
 
 from pydantic import BaseModel

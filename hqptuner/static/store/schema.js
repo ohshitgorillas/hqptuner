@@ -36,9 +36,7 @@
 // exposed here (friendly rate always assumes auto-family follow).
 //
 // The entries live in store/schema/ by group; the graying predicates are in
-// store/schema/gray.js and the option lists in store/schema/options.js. Key
-// order here is the display order (store/ui/tabmap.js), so the parts spread in
-// tab order.
+// store/schema/gray.js and the option lists in store/schema/options.js.
 
 import { dsp } from "./schema/dsp.js";
 import { hardware } from "./schema/hardware.js";

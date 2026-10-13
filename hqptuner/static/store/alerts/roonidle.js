@@ -1,4 +1,5 @@
-// Roon idle-time warning — one fixed-copy alert-strip row.
+// Roon idle-time warning: one fixed-copy alert line
+// (components/faceplate/AlertLines.js).
 //
 // Roon (song == "Roon" in the Status metadata, the only wire marker it leaves)
 // stops and restarts the whole playback engine between tracks whenever the

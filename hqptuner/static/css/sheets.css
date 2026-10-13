@@ -1,5 +1,5 @@
-/* Bottom sheets (lib/sheet.js): rise from the plate's bottom edge over the bottom bar and the body (rail + page). The
-   header and engine row stay in view. Option lists (components/option-list.js), narrowing built into the head.
+/* Bottom sheets: rise from the plate's bottom edge over the bottom bar and the body (rail + page). The
+   header and engine row stay in view. Option lists (lists/OptionList.js), narrowing built into the head.
    No scroll anywhere: each list's families sit in custom-placed columns. */
 .sheet{position:absolute;left:var(--sp-4);right:var(--sp-4);z-index:6;border-radius:0 0 var(--r-3) var(--r-3);display:flex;flex-direction:column;
   background:linear-gradient(0deg,var(--panel-hi),var(--panel-lo));border-top:var(--hair) solid var(--line-2);box-shadow:0 calc(var(--hair)*-1) 0 var(--highlight-lo),0 calc(var(--sp-8)*-1) var(--sp-10) var(--shade-soft);
@@ -21,7 +21,7 @@
 .osheet .band{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--acc);border:var(--hair) solid var(--acc-dim);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-eng);align-self:center}
 .ocount{font-family:var(--f-mono);font-size:var(--fs-3);color:var(--acc);white-space:nowrap;line-height:var(--lh-text)}
 
-/* Columns: custom placement (option-list.js PLACE). Each column is as wide as its widest row (names never wrap; blurbs
+/* Columns: custom placement (lists/Columns.js PLACE). Each column is as wide as its widest row (names never wrap; blurbs
    wrap at that width, never widen it); the slack goes between columns. */
 .ocols{position:absolute;inset:var(--sp-3) var(--sp-8) 0 var(--sp-8);display:flex;justify-content:space-between;gap:0 var(--sp-7);align-items:flex-start}
 .ocol{flex:0 0 auto;width:max-content;display:flex;flex-direction:column}
@@ -107,13 +107,13 @@
 .nhint p{margin:0;font-size:var(--fs-3);line-height:1.45;color:var(--ink-2)}
 .nhint strong{color:var(--ink);font-weight:var(--fw-semi)}
 
-/* Picker (components/vselect.js): the chain lists' select, a button in the select's VFD skin that opens the list sheet. */
+/* Picker (builders/SnapshotRows.js): the chain lists' select, a button in the select's VFD skin that opens the list sheet. */
 button.vfd.vpick{appearance:none;-webkit-appearance:none;display:block;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-5);padding:0 var(--sp-10) 0 var(--sp-6);cursor:pointer;width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 50%,calc(100% - var(--sp-6)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
 button.vfd.vpick.dim{color:var(--ink-2)}
 .pop.notepop{z-index:8}   /* a note opened from a sheet (legend) sits over it */
 
-/* The apodizing mark inside the facet bar and the Apodizing facet's segments (lib/apod.js). */
+/* The apodizing mark inside the facet bar and the Apodizing facet's segments (NameFace.js AMark). */
 .fbtn .fv2{display:inline-flex;align-items:center;gap:var(--sp-1)}
 .amk{display:inline-flex;align-items:center;gap:var(--sp-1);height:var(--apod-mark-touch)}
 .amk .amark{width:var(--apod-mark-touch);height:var(--apod-mark-touch)}
@@ -127,7 +127,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .fbtn .fv2{gap:var(--sp-2)}
 .osheet .ttl{margin-right:var(--sp-5)}
 
-/* Hover tip beside a list row (option-list.js): engine name (while Simplified hides it), the option's
+/* Hover tip beside a list row (lists/Tip.js): engine name (while Simplified hides it), the option's
    manual prose, then facet rows in the narrowing bar's words, then chips. A popover sheet, above the list sheet. */
 .otip{position:absolute;z-index:9;width:max-content;max-width:var(--vpop-w);box-sizing:border-box;padding:var(--sp-5) var(--sp-6);background:var(--pop);border:var(--hair) solid var(--line-2);border-radius:var(--r-3);box-shadow:var(--pop-shadow);display:grid;gap:var(--sp-4);pointer-events:none}
 .otip .tn{font-family:var(--f-mono);font-size:var(--fs-3);font-weight:var(--fw-semi);color:var(--ink);line-height:var(--lh-text)}
@@ -147,7 +147,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .olegend .lq{font-size:var(--fs-1)}
 .olegend .lf{font-size:var(--fs-3)}
 
-/* Option style Standard (option-list.js flat()): one flat list in engine order, down fixed-width columns left to right; a
+/* Option style Standard (model/shell/option-list.js flatColumns()): one flat list in engine order, down fixed-width columns left to right; a
    narrowed list reflows into fewer columns. The freed height goes to the rows (--fold-h: bigger touch targets). The marks' key
    sits along the sheet's foot. */
 .osheet[data-style="standard"] .ocols{display:grid;grid-template-columns:repeat(var(--std-cols),var(--std-cw));grid-auto-flow:column;justify-content:start;align-items:start;gap:0 var(--col-gap)}
@@ -165,8 +165,8 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .osheet[data-style="standard"][data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
 .osheet:not(.opanel)[data-style="standard"] .olegend{position:absolute;left:0;right:0;bottom:var(--sp-6);margin:0}
 
-/* Panel (option-list.js PANEL: modulators, dithers): the list parked at its picker, sized to its content, instead of a sheet
-   over the body. A popover's frame; the sheet's head, rows and narrowing. Rows --fold-h (touch). park() sets left / top. */
+/* Panel (store/faceplate/lists/open.js isPanel: modulators, dithers): the list parked at its picker, sized to its content, instead of a sheet
+   over the body. A popover's frame; the sheet's head, rows and narrowing. Rows --fold-h (touch). lists/OptionList.js place() sets left / top. */
 .sheet.opanel{right:auto;width:max-content;max-width:calc(var(--plate-w) - 2 * var(--sp-6));border:var(--hair) solid var(--line-2);border-radius:var(--r-3);background:var(--pop);box-shadow:var(--pop-shadow);clip-path:none;transition:opacity var(--fade)}
 .sheet.opanel[data-closed]{opacity:0;clip-path:none}
 .opanel .shead{gap:var(--sp-6);padding:0 var(--sp-7)}

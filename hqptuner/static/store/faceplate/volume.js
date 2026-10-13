@@ -51,7 +51,7 @@ export function volumeGrid() {
  */
 function heldRange() {
   const vr = volumeRange.value || {};
-  // VolumeRange reports the flag as 1 / "1" / true and nothing else (Playback.js knobRange)
+  // VolumeRange reports the flag as 1 / "1" / true and nothing else
   if (vr.enabled === "1" || vr.enabled === 1 || vr.enabled === true) return null;
   const [min, max] = ["volume_min", "volume_max"].map((k) => wireNum(runningValue(k), NaN));
   return Number.isNaN(min) || Number.isNaN(max) ? null : { min, max };
@@ -59,7 +59,7 @@ function heldRange() {
 
 /**
  * The pins the running config holds the level with. Auto headroom (Optimal ISO) supersedes the manual level
- * (store/schema/gray.js), a collapsed running range pins it at 0 dB below both (Playback.js disabledReason), and
+ * (store/schema/gray.js), a collapsed running range pins it at 0 dB below both, and
  * Direct SDM pins it at −3 dBFS over all three with the reason its gray predicate gives.
  *
  * @returns {Pins}

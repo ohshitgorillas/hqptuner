@@ -1,4 +1,4 @@
-// Thin REST wrappers over the Phase 2/3 backend. Read endpoints that serve a
+// Thin REST wrappers over the backend. Read endpoints that serve a
 // daemon snapshot wrap it as {data}; health/metadata/pending
 // return their payload directly. Callers unwrap via `.data` where noted.
 

@@ -157,7 +157,7 @@ class ApplyOps:
         voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
         return VolumeReport(readback)
 
-    # --- write path (Phase 3) -----------------------------------------
+    # --- write path ---------------------------------------------------
 
     async def apply(
         self,

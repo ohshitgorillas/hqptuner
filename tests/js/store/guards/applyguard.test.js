@@ -367,8 +367,8 @@ test("test_applying_a_previewed_direct_sdm_with_optimal_iso_already_at_minus_thr
 // --- who owns the question ---------------------------------------------------
 
 // `owner` names the surface the question renders on. An apply-time question
-// belongs to the pending bar — the control the user pressed Apply on — not to
-// the field that happens to be dangerous, which lives on another card.
+// renders under the open drawer's head, where the Apply the user pressed lives
+// (store/faceplate/drawer.js), not at the field that happens to be dangerous.
 test("test_an_apply_time_question_is_owned_by_pending", async () => {
   const w = await fixture({ preset: DIRECT_SDM_PRESET });
   await preview(w, DIRECT_SDM_PRESET);

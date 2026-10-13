@@ -76,8 +76,9 @@ let prevClips = 0;
  *   Per severity, whether speed has held below that threshold for SUSTAIN_MS.
  *
  * @typedef {{ kind: string, sev: string, text: string }} Alert
- *   One alert-strip row. `kind` identifies which alert this is and `sev` how bad
- *   it is; `text` is the wording, which nothing but the reader depends on.
+ *   One engine-health alert, placed on the faceplate by store/faceplate/alerts.js.
+ *   `kind` identifies which alert this is and `sev` how bad it is; `text` is the
+ *   wording, which nothing but the reader depends on.
  */
 
 // Slow-speed/baseline bookkeeping. Subscribes to engineStatus ONLY — internal

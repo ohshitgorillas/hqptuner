@@ -7,7 +7,8 @@
 // whether a block is installed without importing from components/.
 //
 // Bauer preset internals are not surfaced by the daemon (probe finding), so
-// preset -> (fc, feed) comes from the vendored bs2b constants in lib/xfeed.js.
+// preset -> (fc, feed) comes from the vendored bs2b constants in
+// vendor/eqlab/core/xfeed.js.
 import { effective } from "../resolve.js";
 import { stagePipelines, edit } from "../actions.js";
 import { BAUER_PRESETS, msRecognize } from "../../vendor/eqlab/core/xfeed.js";

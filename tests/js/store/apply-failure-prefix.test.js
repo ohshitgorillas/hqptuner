@@ -1,5 +1,5 @@
 // Behavioral suite for how the store's apply lane words a failed request in its
-// verdict (`lastApply`, the pending bar's status line).
+// verdict (`lastApply`, the warning line store/alerts/failures.js raises).
 //
 // A failure from HQPTuner's own side carries no backend sentence, HQPTuner not
 // reachable at all or a failed response with no usable detail, and is reported

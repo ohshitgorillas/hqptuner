@@ -1,10 +1,10 @@
-// Speaker processing (hqplayerd readme §1.9) — per-channel level (dBFS) and
+// Speaker processing (hqplayerd readme §1.9): per-channel level (dBFS) and
 // distance (cm), read from and written to the daemon's /speakers form.
 //
 // This does NOT ride the config staging buffer. The write is its own form POST
 // that reloads the engine (~3 s), interrupting playback, exactly like a
-// matrix profile Load — so the card holds its own edits and applies them
-// directly, rather than pretending to be part of the pending-changes bar.
+// matrix profile Load, so store/faceplate/drawers/speakers.js holds the edits
+// and the Speakers drawer's apply group runs this form's POST.
 import { signal } from "@preact/signals";
 
 import { api } from "../../lib/api.js";
@@ -36,8 +36,8 @@ export const gateDiffers = () => gateDraft.value !== null && gateDraft.value !==
 
 /**
  * @typedef {{ level?: string, distance?: string }} ChannelEdit
- *   One channel's pending edit. Both fields are strings — the card writes what
- *   the input holds (speakers/Card.js editCh), and a field the user cleared is
+ *   One channel's pending edit. Both fields are strings: the drawer writes what
+ *   the input holds (store/faceplate/drawers/speakers.js draftField), and a field the user cleared is
  *   DELETED rather than set empty, so "absent" means "leave the daemon's value".
  */
 

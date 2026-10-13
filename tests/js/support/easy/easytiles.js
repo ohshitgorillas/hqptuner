@@ -2,11 +2,12 @@
 // enumeration the two lanes are driven with, the wire both lanes are watched
 // over, and the click seam
 // a cell is pressed by. The cases themselves are
-// tests/js/components/easytiles.test.js.
+// tests/js/store/faceplate-page/presets.test.js and
+// tests/js/components/faceplate-page/presets.test.js.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 //
-// It is imported DYNAMICALLY by that suite, after its `useStorage()` call, and
+// It is imported DYNAMICALLY by those suites, after each one's `useStorage()` call, and
 // must stay that way — `store/easy/easyview.js` reads localStorage at import, so a
 // static import here would load it before the fake storage is installed.
 //

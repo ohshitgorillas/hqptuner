@@ -94,7 +94,7 @@
    Tuner band scale. Tiers are octaves, so evenly spaced; each shows its 44.1k and 48k member.
    Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
    Hatched = device announced it cannot carry that tier; greyed, never blocked.
-   Layers (rate-dial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
+   Layers (components/faceplate/drawers/output/RateDial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
 .dial{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
 /* The drawing's box: the glass's full width at its own aspect (set inline from the viewBox), so the glass is as tall as
    the drawing and a wider drawer scales the whole printing up. Each band is its own slider: a transparent region over
@@ -237,7 +237,7 @@
 .vrloud .fh{gap:var(--sp-8)}
 .xref{align-self:flex-start;font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-5);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--acc);text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-2);line-height:var(--lh-eng)}
 .xref[aria-disabled="true"]{cursor:not-allowed}
-/* Inline in a line of copy (gray reason, note, meter state; lib/xref.js): the line's own height, upright. */
+/* Inline in a line of copy (gray reason, note, meter state; Xref.js): the line's own height, upright. */
 :is(.gr,.spsdm,.mnone p,.mnote,.dintro) .xref{font-size:var(--fs-cl);font-style:normal;line-height:inherit;white-space:nowrap;text-underline-offset:var(--sp-1)}
 .grayed-range .vrwell,.grayed-range .vrboxes{opacity:var(--op-1)}
 .grayed-range .vrbar{cursor:not-allowed}
@@ -278,8 +278,8 @@ button.aline:hover{background:var(--hover)}
 .pop.alnote{width:var(--notepop-w);gap:var(--sp-4)}
 .pop.alnote .aline{line-height:1.45}
 
-/* Stage drawers with output-mode tabs (mode-drawer.js): PCM out | SDM out; the mode that isn't running carries `idle`
-   inside its tab, small, as the idle chain's head did. */
+/* Stage drawers with output-mode tabs (components/faceplate/drawers/modes.js): PCM out | SDM out; the mode that isn't
+   running carries `idle` inside its tab, small. */
 .mtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}
 .mtabs button .cst{font-size:var(--fs-2);letter-spacing:var(--ls-2);color:var(--ink-2);border:var(--hair) solid var(--line-2);border-radius:var(--r-1);padding:0 var(--sp-2);line-height:var(--lh-tag)}
 .mnote{margin:var(--sp-3) 0 0;padding:var(--sp-4) 0 0;border-top:var(--hair) solid var(--row-rule);font-size:var(--fs-4);color:var(--ink-2);line-height:var(--lh-text)}
@@ -288,7 +288,7 @@ button.aline:hover{background:var(--hover)}
 .msec .t{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-6);letter-spacing:var(--ls-title);text-transform:uppercase;color:var(--ink);white-space:nowrap;line-height:var(--lh-eng)}
 .msec .ln{flex-grow:1;border-top:var(--hair) solid var(--line-2)}
 
-/* The generic drawer's grammar (Phase 3): the picked option's line under a plain row, a tab's status word, the idle
+/* The generic drawer's grammar: the picked option's line under a plain row, a tab's status word, the idle
    mode drawer, the text box, and the Range block's wrapper. */
 .drow .optfull{grid-column:1/-1;margin-top:var(--sp-2)}
 .dtabs button{display:inline-flex;align-items:center;gap:var(--sp-4)}

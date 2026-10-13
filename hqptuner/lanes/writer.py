@@ -1,4 +1,4 @@
-"""Write-path orchestration (Phase 3).
+"""Write-path orchestration.
 
 Applies a staged change set to the live daemon:
 
