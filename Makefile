@@ -82,10 +82,11 @@ pytest-offline:
 # one per branch; a branch with none is judged against the bar of the recorded
 # branch nearest it in history, and the bars of deleted branches are removed
 # on every run. The idle probe measures each test's wall time less its CPU time
-# less the time its thread waited for a CPU and writes a second report; the
-# fourth line fails any test whose reading rises more than 40 ms over its
-# previous one on the branch, or exceeds 40 ms with none, and records only the
-# readings that passed (scripts/gates/check_idle.py).
+# less the time every thread of the process waited for a CPU, sampled at the
+# test's start, either side of its call and at its end, and writes a second
+# report; the fourth line fails any test whose reading rises more than 40 ms
+# over its previous one on the branch, or exceeds 40 ms with none, and records
+# only the readings that passed (scripts/gates/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the fifth line refuses any test with

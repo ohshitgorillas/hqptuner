@@ -3,12 +3,13 @@
 ``scripts/idle_probe.py`` is a pytest plugin loaded with ``-p idle_probe``. It
 reads three clocks at the start and at the end of each test: wall time, the CPU
 time of the process plus its reaped children (``cpu_seconds``), and the time
-the thread running the test has sat ready to run but waiting for a CPU (the
-second field of its schedstat, read by ``run_stamp.cpu_wait``). ``Reading(wall, cpu, cpu_wait)`` holds one such reading
-in seconds, and ``idle(start, end) -> float`` is the test's idle between two of
-them: the wall time that passed, less the CPU time the test ran, less the time
-it waited for a CPU. On a busy host that wait is the host's delay, not the
-test's, so it is never charged as idle.
+every thread of the process has sat ready to run but waiting for a CPU (the
+second field of each thread's schedstat, summed by ``WaitClock``).
+``Reading(wall, cpu, cpu_wait)`` holds one such reading in seconds, and
+``idle(start, end) -> float`` is the test's idle between two of them: the wall
+time that passed, less the CPU time the test ran, less the time its threads
+waited for a CPU. On a busy host that wait is the host's delay, not the test's,
+so it is never charged as idle.
 
 These cases hand in readings from a table, so nothing reads a real clock. Every
 reading is a sum of powers of two, so each expected idle is exact in floating
