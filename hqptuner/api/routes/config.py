@@ -98,7 +98,7 @@ class DeviceRefreshFailedError(ErrorBody):
         super().__init__(f"Refreshing the device list failed: {error}")
 
 
-class BackupFailedError(ErrorBody):
+class BackupReadFailedError(ErrorBody):
     """A settings-archive backup failed on the wire, naming the underlying error."""
 
     code = "daemon_write_failed"
@@ -247,7 +247,7 @@ async def backup(manager: HttpMgr, request: Request) -> Response:
     try:
         data = await archive.backup(manager, store)
     except (ControlError, httpx.HTTPError) as exc:
-        raise refuse(BackupFailedError(error=exc)) from exc
+        raise refuse(BackupReadFailedError(error=exc)) from exc
     return Response(
         content=data,
         media_type="application/zip",
