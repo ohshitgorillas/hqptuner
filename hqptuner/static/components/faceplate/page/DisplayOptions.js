@@ -1,7 +1,7 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
 // style and colors, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the
 // spectrum's frequency span, each a row of options writing its preference at once, and the spectrum delay, a box
-// taking the delay in seconds, written as the user leaves it. Parked under its button.
+// taking the delay in seconds, written as the user leaves it. Parked to the left of its button.
 
 import { html, TypedInput } from "../../../lib/dom.js";
 import { FREQ_SPANS } from "../../../model/gauges/meter.js";
@@ -75,12 +75,13 @@ const setShown = (v) => setRangeButtons(v === "1");
 /** @typedef {import("../../../model/shell/place.js").Side} Side */
 /** @typedef {import("../../../model/shell/place.js").Place} Place */
 
-// Under the button, its left edge level with the button's, kept 22 px off both plate edges and 14 px off its foot.
+// Left of the button, its top level with the button's, kept 22 px off both plate edges; raised when it would come within
+// 14 px of the plate's foot.
 /** @type {{ side: Side, foot: number, at: Place }} */
-const HOW = { side: 22, foot: 14, at: { x: "start", y: "below", gap: 8 } };
+const HOW = { side: 22, foot: 14, at: { x: "before", y: "top", gap: 8 } };
 
 /** @param {HTMLElement} panel */
-function parkUnder(panel) {
+function parkBeside(panel) {
   const at = parkAt(panel, HOW);
   if (!at) return;
   panel.style.left = `${Math.round(at.left)}px`;
@@ -132,7 +133,7 @@ function Delay() {
 /** The Display popover. */
 export function DisplayOptions() {
   return html`
-    <${Popover} id=${DISPLAY} cls="dpop" role="dialog" label=${LABEL} park=${parkUnder}>
+    <${Popover} id=${DISPLAY} cls="dpop" role="dialog" label=${LABEL} park=${parkBeside}>
       <${Field} label="Spectrum style" man="Change the spectrum's visual style." opts=${SPECTRA} value=${spectrumStyle.value} set=${setSpectrumStyle} />
       <${Field} label="Colors" man="Change the spectrum's colors." opts=${SUITES} value=${spectrumColors.value} set=${setSpectrumColors} />
       <${Field} label="Levels floor" man="Change how far down the meter range goes." unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />

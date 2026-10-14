@@ -185,13 +185,6 @@ const TOPS = [
     want: 138,
   },
   {
-    name: "a_below_panel_past_the_foot_comes_back_inside",
-    anchor: { left: 0, top: 500, width: 40, height: 30 },
-    panel: { w: 300, h: 300 },
-    at: BELOW,
-    want: 486,
-  },
-  {
     name: "a_flip_panel_with_room_drops_under_the_anchor",
     anchor: { left: 0, top: 100, width: 40, height: 30 },
     panel: { w: 300, h: 300 },
@@ -276,5 +269,35 @@ const TALL_FLIPS = [
 for (const row of TALL_FLIPS) {
   test(`test_${row.name}`, () => {
     assert.ok(placed(row).top >= row.want);
+  });
+}
+
+/**
+ * Below panels with no room under their button; `want` is the button's top edge on the plate, which the panel's foot may not pass.
+ *
+ * @type {Row[]}
+ */
+const UNCOVERED = [
+  {
+    name: "a_below_panel_without_room_below_opens_above_its_button",
+    anchor: { left: 0, top: 500, width: 40, height: 30 },
+    panel: { w: 300, h: 300 },
+    at: BELOW,
+    want: 500,
+  },
+  {
+    name: "a_scaled_below_panel_without_room_below_opens_above_its_button",
+    anchor: { left: 0, top: 250, width: 20, height: 15 },
+    panel: { w: 300, h: 300 },
+    at: BELOW,
+    scale: 0.5,
+    want: 500,
+  },
+];
+
+for (const row of UNCOVERED) {
+  test(`test_${row.name}`, () => {
+    const foot = placed(row).top + row.panel.h;
+    assert.ok(foot <= row.want, `panel foot ${foot} covers the button top ${row.want}`);
   });
 }

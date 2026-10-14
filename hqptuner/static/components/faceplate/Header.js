@@ -41,7 +41,8 @@ const MIN_WIDTH = 330;
 export const noteId = (el) => `alerts-${el}`;
 
 /**
- * Park an alert popover 8 px under its home, kept off the plate's sides and foot. The home is any element carrying the
+ * Park an alert popover 8 px under its home, kept off the plate's sides, or 8 px above it when under would reach the
+ * plate's foot, held at the plate's top when it fits neither way. The home is any element carrying the
  * popover's id, the gauge being no button.
  *
  * @param {HTMLElement} panel

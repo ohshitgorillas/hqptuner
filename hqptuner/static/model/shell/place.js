@@ -25,9 +25,9 @@ import { clamp } from "../../lib/coerce.js";
 /**
  * Where the panel goes against its anchor.
  * x: 'start' shares the anchor's left edge; 'before' ends `gap` px short of it (the panel sits to its left).
- * y: 'top' shares the anchor's top edge; 'below' drops `gap` px under it; 'flip' drops under it, or opens `gap` px above
- * it when below would cross the foot, then is held between the plate's top edge and the foot. A flip panel taller than
- * that room keeps its top edge at the plate's top.
+ * y: 'top' shares the anchor's top edge; 'below' and 'flip' drop `gap` px under it, or open `gap` px above it when below
+ * would cross the foot, then are held between the plate's top edge and the foot. A panel that fits neither under nor
+ * above its anchor keeps its top edge at the plate's top, and may then cover the anchor.
  *
  * @typedef {object} Place
  * @property {'start' | 'before'} x
@@ -67,7 +67,6 @@ export function clampToPlate({ anchor, panel, plate, scale, side, foot, at, orig
   const floor = plate.h - room(foot);
   if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) - origin.y };
   const below = y + anchor.height / scale + at.gap;
-  if (at.y === "below") return { left, top: Math.min(below, floor - panel.h) - origin.y };
   const flipped = below + panel.h > floor ? y - panel.h - at.gap : below;
   return { left, top: clamp(flipped, PLATE_TOP, floor - panel.h) - origin.y };
 }
