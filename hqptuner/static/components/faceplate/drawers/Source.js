@@ -36,7 +36,7 @@ function Plot({ view }) {
         role="img"
         aria-label="Apodizing events over time"
       ></canvas>
-      <${FreqAxis} freq=${view.freq} />
+      <${FreqAxis} freq=${view.freq} edgeIsNyquist=${view.edgeIsNyquist} />
       <canvas
         ref=${spec}
         class="spec"

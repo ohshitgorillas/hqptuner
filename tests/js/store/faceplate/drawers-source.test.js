@@ -1,20 +1,25 @@
 // Store suite for hqptuner/static/store/faceplate/drawers/source.js: what the Source drawer's meter shows over the meter
 // feed. Which of the meter or a no-stream line shows (metering off, nothing playing, the feed silent while it plays,
 // a silent DSD source with the matrix off), the linear frequency axis ending at the source Nyquist, the channel
-// switch's choices and pick, the time window both charts share and its axis, and the apodizing strip's events per pixel
-// column, laid back from the right edge the caller hands in.
+// switch's choices and pick, the time window both charts share and its axis, the apodizing strip's events per pixel
+// column, laid back from the right edge the caller hands in, and the spectrogram's own frequency span: at a half or a
+// quarter of the band its axis tops out at that share of the source Nyquist, whatever span the page's spectrum is set
+// to.
 //
 // The stream reaches the store at the wire: meter feed events through the EventSource fake
 // (tests/js/support/eventsource.js), playback through fresh /api/status objects, the apodizing history through the poll
 // seam (tests/js/support/apodpolls.js). The feed's clock is the one openMeterFeed() is handed, so silence is a clock
-// step, never a wait. Prefs are written through their own setters over a fake storage.
+// step, never a wait. Prefs are written through their own setters over a fake storage. The spectrogram's span is set
+// through the store's setter, reached through the module namespace so a store without one leaves the span where it was.
+// The spans are the store's own identifiers, the same three the page spectrum's span uses.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-source.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { sourceMeter, stripEvents } from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
+import * as sourceStore from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
+import { setFreqSpan } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
@@ -28,11 +33,25 @@ import { useStorage } from "../../support/storage.js";
 import { setPollStep } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
 
+const { sourceMeter, stripEvents } = sourceStore;
+
 const QUIET_MS = 2000; // the feed's silence threshold, store/meter/feed.js
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST_RANGE = ""] = METER_RANGES;
 const LAST_RANGE = METER_RANGES.at(-1) ?? "";
+
+// The spans, as the store holds them: the whole band, its lower half, its lower quarter.
+const FULL = "full";
+const HALF = "half";
+const QUARTER = "quarter";
+
+/**
+ * Set the spectrogram's span through the store's setter.
+ *
+ * @param {string} span
+ */
+const setSpan = (span) => sourceStore.setSpectrogramSpan?.(span);
 
 let feed = fakeClock();
 
@@ -60,6 +79,8 @@ beforeEach(() => {
   setMeterChannel("sum");
   setMeterRange(FIRST_RANGE);
   setPollStep(1);
+  setSpan(FULL);
+  setFreqSpan(FULL);
   stream();
 });
 
@@ -118,6 +139,26 @@ test("test_the_frequency_axis_is_linear", () => {
   stream({ geometry: geo(48000, 2) });
   const at = sourceMeter().freq.ticks.find((t) => t.khz === 20)?.at;
   assert.equal(at === undefined ? NaN : +at.toFixed(4), 0.5833);
+});
+
+// --- the spectrogram's span ---------------------------------------------------------------------------------------
+
+//: A 192 kHz source's Nyquist, in Hz.
+const NYQ_192 = 96000;
+//: The top of the half view of that source, in kHz.
+const HALF_OF_192_KHZ = 48;
+
+test("test_at_the_half_span_the_spectrogram_axis_tops_out_at_48_khz_for_a_96_khz_nyquist", () => {
+  stream({ geometry: geo(NYQ_192, 2) });
+  setSpan(HALF);
+  assert.equal(sourceMeter().freq.nyq.khz, HALF_OF_192_KHZ);
+});
+
+test("test_the_page_spectrums_span_leaves_the_spectrogram_axis_at_its_own_span", () => {
+  stream({ geometry: geo(NYQ_192, 2) });
+  setSpan(HALF);
+  setFreqSpan(QUARTER);
+  assert.equal(sourceMeter().freq.nyq.khz, HALF_OF_192_KHZ);
 });
 
 // --- channel -------------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 // The Source meter's two canvases, painted outside preact's render, each by a signals effect of its own. The
 // spectrogram scrolls: a slice closing moves the painted pixels left by the columns its playback covers and paints only
-// those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of channel, range, window or the
-// source's geometry repaints it whole. The apodizing strip repaints whole when its events, the window or its right
+// those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of channel, range, window,
+// frequency span or the source's geometry repaints it whole. The apodizing strip repaints whole when its events, the window or its right
 // edge change, and its edge moves on with every slice the spectrogram closes (store/meter/spectrogram.js stripEnd), so
 // the two scroll together. Neither is painted while the Source drawer is closed, nor subscribed to what it paints, and
 // reopening the drawer repaints the spectrogram whole. Colours come from the stylesheet's tokens, read once on mount:
@@ -64,18 +64,18 @@ function put(data, p, c) {
 
 /**
  * Paint the spectrogram from pixel column `from` to the right edge: the visible slices on the linear axis to the
- * source Nyquist, glass where none lies.
+ * view's top, glass where none lies.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {Colours} colours
- * @param {{ span: number, range: number, nyquist: number, cells: Cell[] }} view
+ * @param {{ span: number, range: number, top: number, cells: Cell[] }} view
  * @param {number} from
  */
 function paintSpectrogram(canvas, colours, view, from) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
-  const { span, range, nyquist, cells } = view;
-  const { width, height, data } = rasterize(colours.ramp, { cells, span, range, top: nyquist }, from);
+  const { span, range, top, cells } = view;
+  const { width, height, data } = rasterize(colours.ramp, { cells, span, range, top }, from);
   for (let p = 0; p < width * height; p++) if (data[p * 4 + 3] === 0) put(data, p, colours.glass);
   const img = ctx.createImageData(width, height);
   img.data.set(data);
@@ -131,7 +131,7 @@ export function useMeterPaint(spec, strip) {
       const view = sourceMeter();
       const cells = spectrogramCells.value;
       const end = spectrogramEnd.value;
-      const key = [view.span, view.range, view.nyquist, view.channel].join(" ");
+      const key = [view.span, view.range, view.top, view.channel].join(" ");
       const plan = scrollPlan(painted, { key, end, span: view.span });
       painted = { key, end, carry: plan.carry };
       if (plan.full) {

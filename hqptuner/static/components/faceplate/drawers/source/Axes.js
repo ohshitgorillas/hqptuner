@@ -1,4 +1,4 @@
-// The Source meter's axis labels: the frequency gutter beside the spectrogram, kHz up from 0 to the source Nyquist,
+// The Source meter's axis labels: the frequency gutter beside the spectrogram, kHz up from 0 to the top of the view,
 // and the time axis under it. Each label sits at its fraction along the edge; the end labels are marked so the
 // stylesheet keeps them inside their track.
 
@@ -15,12 +15,12 @@ import { classNames, minusText } from "../../../../model/shell/format.js";
 const pct = (f) => `${(f * 100).toFixed(2)}%`;
 
 /**
- * The frequency gutter: a label per tick in kHz, the unit on the 0 tick at the bottom, the source Nyquist on the top
- * edge.
+ * The frequency gutter: a label per tick in kHz, the unit on the 0 tick at the bottom, the top of the view on the top
+ * edge, titled the source Nyquist when it is one.
  *
- * @param {{ freq: SourceMeterView["freq"] }} props
+ * @param {{ freq: SourceMeterView["freq"], edgeIsNyquist: boolean }} props
  */
-export function FreqAxis({ freq }) {
+export function FreqAxis({ freq, edgeIsNyquist }) {
   return html`
     <div class="gut gy" aria-hidden="true">
       ${freq.ticks.map(
@@ -29,7 +29,7 @@ export function FreqAxis({ freq }) {
             ${t.khz ? String(t.khz) : "0 kHz"}
           </span>`,
       )}
-      <span class="first" data-nyq style=${`top:${pct(freq.nyq.at)}`} title="Source Nyquist">${String(freq.nyq.khz)}</span>
+      <span class="first" data-nyq style=${`top:${pct(freq.nyq.at)}`} title=${edgeIsNyquist ? "Source Nyquist" : undefined}>${String(freq.nyq.khz)}</span>
     </div>
   `;
 }

@@ -1,5 +1,6 @@
 // The Source drawer's meter, store half: what the block shows over the meter feed (store/meter/feed.js). Whether the meter or a no-stream
-// line shows and which line, the linear frequency axis up to the source Nyquist, the channel switch's choices and the
+// line shows and which line, the linear frequency axis up to the source Nyquist or the share of it the frequency span
+// picked keeps in view, the channel switch's choices and the
 // channel drawn, the colour span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
 //
@@ -7,8 +8,10 @@
 // newest slice it holds, the strip on that slice's track position (store/meter/spectrogram.js stripEnd), which runs
 // past the newest apodizing bin into playback no Status has observed yet, drawn blank.
 
+import { signal } from "@preact/signals";
 import { clamp, truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
+import { FREQ_SPANS, spanShare } from "../../../model/gauges/meter.js";
 import { freqTicks, timeTicks } from "../../../model/gauges/meter-plot.js";
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
@@ -30,6 +33,19 @@ export const METER_NOTES = {
   matrix: "Engage the matrix engine to see DSD metering.",
 };
 
+/** The spectrogram's frequency span, one of FREQ_SPANS; every page load opens at the whole band. */
+export const spectrogramSpan = signal("full");
+
+/**
+ * Set the spectrogram's frequency span. A value outside FREQ_SPANS is ignored.
+ *
+ * @param {string} v
+ * @returns {void}
+ */
+export function setSpectrogramSpan(v) {
+  if (FREQ_SPANS.includes(v)) spectrogramSpan.value = v;
+}
+
 /**
  * Which the block shows: `live` the meter; else the line for metering off, nothing playing, a feed gone quiet while
  * it plays, or a quiet DSD source with the matrix off.
@@ -42,7 +58,10 @@ export const METER_NOTES = {
  *
  * @typedef {object} SourceMeterView
  * @property {MeterState} state
- * @property {number} nyquist  Hz, the frequency axis's top
+ * @property {number} nyquist  Hz, the source Nyquist
+ * @property {number} top  Hz, the frequency axis's top, the share of the Nyquist the span picked keeps in view
+ * @property {boolean} edgeIsNyquist  whether the top is the source Nyquist, as it is at the whole band
+ * @property {string} freqSpan  the frequency span picked, one of FREQ_SPANS
  * @property {ReturnType<typeof freqTicks>} freq  tick fractions down from the top edge
  * @property {number} span  ms, the window both charts span
  * @property {ReturnType<typeof timeTicks>} time  tick fractions across the window
@@ -84,10 +103,15 @@ export function sourceMeter() {
   const channels = channelChoices(geo ? geo.channels : STEREO);
   const window = apodWindow.value;
   const span = windowSpan(window);
+  const share = spanShare(spectrogramSpan.value);
+  const top = nyquist * share;
   return {
     state: stateOf(),
     nyquist,
-    freq: freqTicks(nyquist, (f) => 1 - f / nyquist),
+    top,
+    edgeIsNyquist: share === 1,
+    freqSpan: spectrogramSpan.value,
+    freq: freqTicks(top, (f) => 1 - f / top),
     span,
     time: timeTicks(span, MS_PER_S),
     range: Number(meterRange.value),

@@ -4,12 +4,14 @@
 // columns and the seam column before them; a close too short to move a column paints nothing; a change of range
 // repaints the full width; and a spectrogram close repaints the apodizing strip, whose right edge moves on with the
 // spectrogram's. While the Source drawer is closed neither canvas is painted, and reopening it paints the
-// spectrogram's full width once.
+// spectrogram's full width once. A change of the spectrogram's span repaints the full width, and at a half span a source
+// whose content all sits above three quarters of its band paints the newest column one flat colour, since none of that
+// content is in view.
 //
 // The hook is mounted through preact's own client render on a container with no children, since server rendering
 // runs no effects; the render compares its container against the document tests/js/support/domseam.js installs. Effects after paint are run through preact's `options.requestAnimationFrame` seam, which the test
 // flushes by hand once the render returns, so no frame timer runs. The canvases are fakes whose 2D context records
-// each `putImageData` (its x and the image's width) and each `drawImage` (whether it draws the canvas onto itself,
+// each `putImageData` (its x and the image's width, and the image itself) and each `drawImage` (whether it draws the canvas onto itself,
 // and how far it moves the pixels). Frames arrive at the wire, through the EventSource fake and `openMeterFeed`, on a
 // clock that never moves, and each is handed to the history as the meter loop hands its frames out. The apodizing
 // history and the spectrogram's clearing rule are registered once for the file; a case that needs a bin under the
@@ -17,7 +19,10 @@
 //
 // The window is 60 s unless a case says otherwise, so one of the spectrogram's columns is 50 ms of frame time; at
 // 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colours are paint.js's fallbacks; no case
-// reads a pixel's colour.
+// reads which colour a pixel takes, only whether two pixels take the same one. The span is set through the store's
+// setter, reached through the module namespace so a store without one leaves the span where it was; the spans are the
+// store's own identifiers. A case that needs only its own frames in the history clears it with a track change through
+// the poll seam.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-source-paint.test.js
 
@@ -44,13 +49,18 @@ import {
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
-import { poll } from "../../support/apodpolls.js";
+import { newTrack, poll } from "../../support/apodpolls.js";
+import * as sourceStore from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 
 /** @typedef {{ x: number, width: number }} Put */
 /** @typedef {{ self: boolean, offset: number }} Draw */
-/** @typedef {{ width: number, height: number, puts: Put[], draws: Draw[], getContext: () => unknown }} FakeCanvas */
+/** @typedef {{ width: number, height: number, data: Uint8ClampedArray }} Image */
+/**
+ * @typedef {{ width: number, height: number, puts: Put[], images: Image[], draws: Draw[], getContext: () => unknown }}
+ *   FakeCanvas
+ */
 
 const STRIP_WIDTH = 600;
 const BINS = "AQAGADwAWAI=";
@@ -76,12 +86,15 @@ env.getComputedStyle = () => ({ getPropertyValue: () => "" });
  */
 function fakeCanvas(width, height) {
   /** @type {FakeCanvas} */
-  const canvas = { width, height, puts: [], draws: [], getContext: () => ctx };
+  const canvas = { width, height, puts: [], images: [], draws: [], getContext: () => ctx };
   const ctx = {
     /** @param {number} w @param {number} hh */
     createImageData: (w, hh) => ({ width: w, height: hh, data: new Uint8ClampedArray(w * hh * 4) }),
-    /** @param {{ width: number }} img @param {number} x */
-    putImageData: (img, x) => canvas.puts.push({ x, width: img.width }),
+    /** @param {Image} img @param {number} x */
+    putImageData: (img, x) => {
+      canvas.puts.push({ x, width: img.width });
+      canvas.images.push(img);
+    },
     /** @param {unknown} src @param {number[]} args */
     drawImage: (src, ...args) =>
       canvas.draws.push({ self: src === canvas, offset: args.length === 8 ? args[4] - args[0] : args[0] }),
@@ -148,8 +161,20 @@ function mounted() {
   return { spec, strip };
 }
 
+// The spans, as the store holds them: the whole band and its lower half.
+const FULL = "full";
+const HALF = "half";
+
+/**
+ * Set the spectrogram's span through the store's setter.
+ *
+ * @param {string} span
+ */
+const setSpan = (span) => sourceStore.setSpectrogramSpan?.(span);
+
 beforeEach(() => {
   openStage.value = "source";
+  setSpan(FULL);
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");
@@ -254,4 +279,56 @@ test("test_reopening_the_drawer_after_closes_puts_one_full_width_image", () => {
   frame(100);
   openStage.value = "source";
   assert.deepEqual(spec.puts[1], { x: 0, width: SPEC_SIZE.width });
+});
+
+test("test_a_change_of_the_spectrograms_span_repaints_the_full_width", () => {
+  const { spec } = mounted();
+  setSpan(HALF);
+  assert.deepEqual(spec.puts[1], { x: 0, width: SPEC_SIZE.width });
+});
+
+// --- what a span shows ---------------------------------------------------------------------------------------------
+
+//: Eight bins over the band, the top two loud and the rest quiet: every bin at or below 5/7 of the Nyquist is quiet.
+const HIGH_ONLY_BINS = 8;
+const LOUD_FROM_BIN = 6;
+//: A loud and a quiet bin's bytes: dB = -byte * 0.5, so -10 and -60 dBFS.
+const LOUD_BYTE = 20;
+const QUIET_BYTE = 120;
+
+/** One feed frame's bins, quiet below LOUD_FROM_BIN and loud from it, two bytes a bin with the low one first. */
+const highOnly = () =>
+  btoa(
+    String.fromCharCode(
+      ...Array.from({ length: HIGH_ONLY_BINS }, (_, k) => [k >= LOUD_FROM_BIN ? LOUD_BYTE : QUIET_BYTE, 0]).flat(),
+    ),
+  );
+
+/**
+ * How many distinct colours the pixels down column `x` of `img` take.
+ *
+ * @param {Image} img
+ * @param {number} x
+ */
+function coloursDown(img, x) {
+  const seen = new Set();
+  for (let y = 0; y < img.height; y++) {
+    const at = (y * img.width + x) * 4;
+    seen.add(Array.from(img.data.subarray(at, at + 4)).join(","));
+  }
+  return seen.size;
+}
+
+test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_colour", () => {
+  lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: HIGH_ONLY_BINS });
+  newTrack();
+  poll();
+  for (const ms of [200, 200]) {
+    lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: highOnly() }], ms });
+    toSpectrogram(takeMeterFrames());
+  }
+  setSpan(HALF);
+  const { spec } = mounted();
+  const [first] = spec.images;
+  assert.equal(first ? coloursDown(first, first.width - 2) : NaN, 1);
 });
