@@ -7,12 +7,12 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { effectiveStyle } from "../../../model/gauges/spectrumfx.js";
+import { effectiveStyle, suiteColor, suiteLineStops } from "../../../model/gauges/spectrumfx.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
-import { rangeButtons, setPageRange, spectrumStyle } from "../../../store/ui/prefs.js";
+import { rangeButtons, setPageRange, spectrumColors, spectrumStyle } from "../../../store/ui/prefs.js";
 import { rgb } from "../tokencolours.js";
 import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
@@ -30,6 +30,7 @@ import { fitCanvas, fxPainter } from "./spectrumfx.js";
 const STEREO = 2;
 const METER_RGB = [233, 166, 60]; // --meter, where an aurora stop is not a hex colour
 const CHANNEL_MAX = 255;
+const LEVEL_INK = "slevel"; // the id of the trace's gradient coloured by level
 
 /**
  * A fraction of an axis as a CSS percentage.
@@ -129,6 +130,29 @@ function RangeControl({ view }) {
 }
 
 /**
+ * The trace's filled area, held peaks and line. Under Classic the stylesheet colours them; under any other suite the
+ * area and line are coloured by level through a gradient up the plot, and the held peaks take the suite's top colour.
+ *
+ * @param {{ suite: string }} props
+ */
+function TraceInk({ suite }) {
+  const stops = suiteLineStops(suite);
+  if (!stops.length) {
+    return html`<path class="sarea" /><path class="shold" /><path class="strace" />`;
+  }
+  return html`
+    <defs>
+      <linearGradient id=${LEVEL_INK} gradientUnits="userSpaceOnUse" x1="0" y1=${SH} x2="0" y2="0">
+        ${stops.map(([at, colour]) => html`<stop offset=${at} stop-color=${colour} />`)}
+      </linearGradient>
+    </defs>
+    <path class="sarea" style=${`fill:url(#${LEVEL_INK})`} />
+    <path class="shold" style=${`stroke:${suiteColor(suite, 1)}`} />
+    <path class="strace" style=${`stroke:url(#${LEVEL_INK})`} />
+  `;
+}
+
+/**
  * The spectrum: its title at 13″, the dB scale beside a glass well holding the grid, the filled trace and the held
  * peaks under the effects canvas and the shader canvas the picked style draws on, the Range control in its corner while
  * the Range buttons are shown, the frequency axis under it.
@@ -147,9 +171,7 @@ function Spectrum({ view, plot, fx, sgl }) {
               ${view.db.slice(1, -1).map((t) => html`<line class="gdb" x1="0" x2=${SW} y1=${t.at * SH} y2=${t.at * SH} />`)}
               ${view.freq.ticks.slice(1).map((t) => html`<line x1=${t.at * SW} x2=${t.at * SW} y1="0" y2=${SH} />`)}
             </g>
-            <path class="sarea" />
-            <path class="shold" />
-            <path class="strace" />
+            <${TraceInk} suite=${spectrumColors.value} />
           </svg>
           <canvas class="sfx" ref=${fx}></canvas>
           <canvas class="sgl" ref=${sgl}></canvas>
@@ -325,9 +347,10 @@ function useSourcePaint(root, range, painters) {
     return onMeterPaint((scene) => {
       const aurora = painters.current?.aurora ?? null;
       const style = effectiveStyle(spectrumStyle.value, aurora !== null);
+      const suite = spectrumColors.value;
       if (root.current) paintSourcePage(root.current, scene, range.current, style);
-      painters.current?.fx.paint(scene.spectrum, range.current, style);
-      if (style === "aurora") aurora?.paint(scene.raw, range.current);
+      painters.current?.fx.paint(scene.spectrum, range.current, style, suite);
+      if (style === "aurora") aurora?.paint(scene.raw, range.current, suite);
       else if (last === "aurora") aurora?.clear();
       last = style;
     });

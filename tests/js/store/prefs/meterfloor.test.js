@@ -14,14 +14,14 @@
 // The floor's surface is read off the module namespace with optional access, so a module without it fails these cases
 // on their assertions.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meterfloor.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/meterfloor.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
-const MODULE = "../../../hqptuner/static/store/ui/prefs.js";
+const MODULE = "../../../../hqptuner/static/store/ui/prefs.js";
 const KEY = "hqptuner.meterFloor";
 
 // Two floors the owner offers, neither of them the one a fresh browser starts on, and a stored value from outside the
@@ -39,7 +39,7 @@ const storage = useStorage();
 storage.setItem(KEY, DEEP);
 
 /** @type {FloorSurface} */
-const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
+const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 storage.setItem(KEY, OUTSIDE);
 /** @type {FloorSurface} */

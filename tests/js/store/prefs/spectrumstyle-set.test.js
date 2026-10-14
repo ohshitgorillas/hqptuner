@@ -5,16 +5,16 @@
 // is installed at file scope and the case writes through the public setter
 // only. What a stored style loads as is the -pref-unset and -pref-junk files'.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/spectrumstyle-set.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/spectrumstyle-set.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
 const storage = useStorage();
 
-const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
+const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 const KEY = "hqptuner.spectrumStyle";
 const RIDGES = "ridges";

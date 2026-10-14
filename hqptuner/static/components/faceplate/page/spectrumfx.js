@@ -3,12 +3,15 @@
 // one bar per band with peak caps over a floor-to-full-scale gradient; ridges stack their rows up the plot, each newer
 // row lower and in front; fade strokes the live trace over a blurred halo of where it has been, held between paints as
 // an image so each paint dims it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum,
-// starts the next style's state afresh.
+// starts the next style's state afresh. Under a colour suite other than Classic each bar takes the suite's colour at
+// its height, the ridge lines and the fade trace are coloured by level, and the caps take the suite's top colour; the
+// fade halo takes the suite's halo colour, Classic's included.
 
 import {
   BANDS,
   HALO_FRESH,
   RIDGE_ROWS,
+  SUITE_HALOS,
   bandsOf,
   fractionsOf,
   haloStrength,
@@ -16,6 +19,8 @@ import {
   stepCaps,
   stepHalo,
   stepRidges,
+  suiteColor,
+  suiteLineStops,
 } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { rgb } from "../tokencolours.js";
@@ -32,7 +37,7 @@ import { rgb } from "../tokencolours.js";
  * @property {string} lo     bar gradient at the floor
  * @property {string} mid    bar gradient half way up
  * @property {string} hi     bar gradient at full scale
- * @property {string} meter  peak caps, the front ridge line, and the fade trace and its halo
+ * @property {string} meter  peak caps, the front ridge line, and the fade trace
  * @property {string} [dim]  the back ridge line, the rows between stepping from `meter` to it; `meter` when not given
  * @property {string} glass  the fill under each ridge, hiding the rows behind it
  */
@@ -48,8 +53,8 @@ import { rgb } from "../tokencolours.js";
  */
 
 /**
- * What one style's paint draws from: the context, the canvas size, the plot fractions per column and the style's
- * state.
+ * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state
+ * and the colour suite picked.
  *
  * @typedef {object} Frame
  * @property {CanvasRenderingContext2D} ctx
@@ -57,6 +62,7 @@ import { rgb } from "../tokencolours.js";
  * @property {FxColours} colours
  * @property {Float32Array} fracs
  * @property {FxState} state
+ * @property {string} suite
  */
 
 /** The time between two meter paints, s: the loop paints at most once a step. */
@@ -93,36 +99,62 @@ export function fitCanvas(box, ratio) {
 
 /**
  * Fill one rect per band across the canvas, the band's level a fraction of its height: a bar down to the floor, or a
- * cap `thick` pixels deep under the level.
+ * cap `thick` pixels deep under the level. Where `ink` is given, each band fills in the colour it gives the band's
+ * level.
  *
  * @param {Frame} f
  * @param {Float32Array} lvls  plot fractions
  * @param {number | null} thick  pixels
+ * @param {((lvl: number) => string) | null} ink
  */
-function fillBands(f, lvls, thick) {
+function fillBands(f, lvls, thick, ink) {
   const { width: w, height: h } = f.canvas;
   const bw = w / lvls.length;
-  lvls.forEach((lvl, b) => f.ctx.fillRect(b * bw, h - lvl * h, bw * (1 - BAR_GAP), thick ?? lvl * h));
+  lvls.forEach((lvl, b) => {
+    if (ink) f.ctx.fillStyle = ink(lvl);
+    f.ctx.fillRect(b * bw, h - lvl * h, bw * (1 - BAR_GAP), thick ?? lvl * h);
+  });
 }
 
 /**
- * Bars: the bands over a gradient from the floor to full scale, each with its peak cap.
+ * A vertical gradient from `y0` to `y1` through `stops`, each its offset and colour.
+ *
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {number} y0
+ * @param {number} y1
+ * @param {[number, string][]} stops
+ * @returns {CanvasGradient}
+ */
+function vertical(ctx, y0, y1, stops) {
+  const grad = ctx.createLinearGradient(0, y0, 0, y1);
+  for (const [at, colour] of stops) grad.addColorStop(at, colour);
+  return grad;
+}
+
+/**
+ * Bars: the bands, each with its peak cap; under Classic over a gradient from the floor to full scale, under any other
+ * suite each in the suite's colour at its height, the caps in its top colour.
  *
  * @param {Frame} f
  */
 function bars(f) {
-  const { ctx, canvas, colours, state } = f;
+  const { ctx, canvas, colours, state, suite } = f;
   const bands = bandsOf(f.fracs, BANDS);
   state.caps = stepCaps(state.caps, bands, DT);
-  const grad = ctx.createLinearGradient(0, canvas.height, 0, 0);
-  grad.addColorStop(0, colours.lo);
-  grad.addColorStop(0.5, colours.mid);
-  grad.addColorStop(1, colours.hi);
+  const top = suiteColor(suite, 1);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = grad;
-  fillBands(f, bands, null);
-  ctx.fillStyle = colours.meter;
-  fillBands(f, state.caps.lvl, CAP_PX);
+  if (top) {
+    fillBands(f, bands, null, (lvl) => suiteColor(suite, lvl));
+  } else {
+    ctx.fillStyle = vertical(ctx, canvas.height, 0, [
+      [0, colours.lo],
+      [0.5, colours.mid],
+      [1, colours.hi],
+    ]);
+    fillBands(f, bands, null, null);
+  }
+  ctx.fillStyle = top || colours.meter;
+  fillBands(f, state.caps.lvl, CAP_PX, null);
 }
 
 /**
@@ -145,6 +177,7 @@ function ridgeInk(colours, k) {
  * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide, its
  * stroke dimmer the older it is. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past
  * the top, so the stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
+ * Under a suite other than Classic each line is coloured by level instead.
  *
  * @param {Frame} f
  */
@@ -154,13 +187,14 @@ function ridges(f) {
   state.ridges = stepRidges(state.ridges, f.fracs);
   const rows = state.ridges.rows;
   const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
+  const stops = suiteLineStops(f.suite);
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = colours.glass;
   ctx.lineWidth = RIDGE_LINE;
   for (let k = rows.length - 1; k >= 0; k--) {
     const row = rows[k];
     const base = h - RIDGE_LINE - k * step;
-    ctx.strokeStyle = ridgeInk(colours, k);
+    ctx.strokeStyle = stops.length ? vertical(ctx, base, base - h * RIDGE_AMP, stops) : ridgeInk(colours, k);
     ctx.beginPath();
     ctx.moveTo(0, base);
     for (let c = 0; c < row.length; c++) ctx.lineTo(((c + 0.5) / row.length) * w, base - row[c] * h * RIDGE_AMP);
@@ -206,7 +240,8 @@ function mergeHalo(fresh, held, keep) {
 /**
  * Fade: a blurred halo of the trace at the halo's starting strength, merged over the last paint's halo dimmed by the
  * share stepHalo gives, then the live trace stroked crisp on top. The halo is read back before the trace is stroked,
- * so the trace never lingers in it. A halo image the canvas has been resized out from under starts afresh.
+ * so the trace never lingers in it. A halo image the canvas has been resized out from under starts afresh. The halo
+ * takes the suite's halo colour; the trace is `colours.meter` under Classic and coloured by level under any other suite.
  *
  * @param {Frame} f
  */
@@ -215,9 +250,10 @@ function fade(f) {
   const { width: w, height: h } = canvas;
   const px = globalThis.devicePixelRatio || 1;
   const held = state.glow?.width === w && state.glow.height === h ? state.glow : null;
+  const stops = suiteLineStops(f.suite);
   state.halo = stepHalo(held ? state.halo : HALO_FRESH, DT);
   ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = colours.meter;
+  ctx.strokeStyle = SUITE_HALOS[f.suite] ?? SUITE_HALOS.classic;
   ctx.lineJoin = "round";
   ctx.save();
   ctx.globalAlpha = haloStrength(0);
@@ -232,6 +268,7 @@ function fade(f) {
     ctx.putImageData(glow, 0, 0);
   }
   state.glow = glow;
+  ctx.strokeStyle = stops.length ? vertical(ctx, h, 0, stops) : colours.meter;
   ctx.lineWidth = TRACE_LINE * px;
   tracePath(f);
   ctx.stroke();
@@ -244,8 +281,8 @@ const STYLES = { bars, ridges, fade };
 const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null });
 
 /**
- * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style`, `clear` empties the
- * canvas.
+ * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in colour suite `suite`,
+ * Classic where none is given; `clear` empties the canvas.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {FxColours} colours
@@ -258,8 +295,9 @@ export function fxPainter(canvas, colours) {
    * @param {SpectrumHold | null} spectrum
    * @param {number} range  dB
    * @param {string} style
+   * @param {string} [suite]
    */
-  const paint = (spectrum, range, style) => {
+  const paint = (spectrum, range, style, suite = "classic") => {
     const ctx = canvas.getContext("2d", CTX_OPTS);
     if (!ctx) return;
     if (!spectrum) {
@@ -273,7 +311,7 @@ export function fxPainter(canvas, colours) {
       state = fresh();
     }
     const draw = STYLES[style];
-    if (draw) draw({ ctx, canvas, colours, fracs: fractionsOf(spectrum.disp, range), state });
+    if (draw) draw({ ctx, canvas, colours, fracs: fractionsOf(spectrum.disp, range), state, suite });
     else clear();
   };
   return { paint, clear };

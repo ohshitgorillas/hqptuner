@@ -8,6 +8,10 @@
 // every `create*` hands back a fresh object. Only the upload and the drawing calls are read back, so how the painter sets up its program, its
 // quad or its colour is never asserted.
 //
+// A colour suite reaches a paint as its third argument, the suite's identifier as the store holds it. Whether a suite
+// changes what aurora draws is read by comparing every call a paint makes under it, uploads included, against the
+// same paint under Classic, so no one colour is asserted.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/aurora-paint.test.js
 
 import test from "node:test";
@@ -87,7 +91,7 @@ function fakeCanvas(gl = true, made = MADE) {
  * The calls recorded while `act` runs on a painter built on a fresh fake canvas, the painter's setup forgotten. With no
  * painter built, nothing is recorded.
  *
- * @param {(fx: { paint: (levels: ArrayLike<number> | null, r: number) => void, clear: () => void }) => void} act
+ * @param {(fx: { paint: (levels: ArrayLike<number> | null, r: number, suite?: string) => void, clear: () => void }) => void} act
  * @returns {Call[]}
  */
 function during(act) {
@@ -147,4 +151,25 @@ test("test_a_paint_with_no_spectrum_only_clears", () => {
 
 test("test_clear_only_clears_once", () => {
   assert.deepEqual(draws(during((fx) => fx.clear())), ["clear"]);
+});
+
+// ── colour suites ────────────────────────────────────────────────────────
+
+//: Classic, and one suite that is not, as the store holds them.
+const CLASSIC = "classic";
+const INFERNO = "inferno";
+//: The meter loop's column count.
+const COLS = 600;
+//: Half way down a 60 dB plot.
+const MID_DB = -RANGE / 2;
+
+/**
+ * Every call one paint of a spectrum with every column half way down makes under colour suite `suite`.
+ *
+ * @param {string} suite
+ */
+const paintedUnder = (suite) => during((fx) => fx.paint(new Float32Array(COLS).fill(MID_DB), RANGE, suite));
+
+test("test_a_non_classic_suite_changes_what_an_aurora_paint_draws", () => {
+  assert.notDeepEqual(paintedUnder(INFERNO), paintedUnder(CLASSIC));
 });

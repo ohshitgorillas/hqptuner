@@ -24,14 +24,14 @@
 // The values seeded and set are the preferences' own identifiers, the values
 // the faceplate's controls carry, never the labels drawn beside them.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-faceplate.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/prefs-faceplate.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
-const MODULE = "../../../hqptuner/static/store/ui/prefs.js";
+const MODULE = "../../../../hqptuner/static/store/ui/prefs.js";
 
 // One row per choice-of-one preference: its signal's export name, its storage
 // key, a value from the set that is not the one a fresh browser starts on, a
@@ -54,7 +54,7 @@ for (const c of CHOICES) storage.setItem(c.key, c.pick);
 storage.setItem(K_PINNED, "1");
 
 // Written literally, so the import graph reaches the module from this suite.
-const faceplate = await import("../../../hqptuner/static/store/ui/prefs.js");
+const faceplate = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 // Each row's signal, setter and offered set, by the row's `pref`.
 /** @type {Record<string, { sig: { value: string }, set: (value: string) => void, offered: string[] }>} */

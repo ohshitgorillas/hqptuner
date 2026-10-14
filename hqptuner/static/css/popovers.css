@@ -79,6 +79,7 @@ button.srow:hover,.prow button.pn:hover{background:var(--hover)}
 .dfield .cl{display:flex;align-items:baseline;gap:var(--sp-2);font-size:var(--fs-cl);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 .dfield .seg button{height:var(--ctl-h-sm);font-size:var(--fs-4);padding:0 var(--sp-5);white-space:nowrap}
 .dfield input.vfd{height:var(--ctl-h-sm);font-size:var(--fs-4)}
+.dfield .man{margin:0}
 
 /* ── Narrow filters: facet controls (the sheet itself is sheets.css) ──
    Every facet value is a toggle chip (pressed = narrowing, amber like the header tags it feeds).

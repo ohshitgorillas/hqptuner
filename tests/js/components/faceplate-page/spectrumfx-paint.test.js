@@ -14,6 +14,11 @@
 // read back (`DRAWS`), so how the painter sets up a path or a colour is never asserted. The canvas is 480 by 170, a
 // width unlike the 600 columns the spectrum carries.
 //
+// A colour suite reaches a paint as its fourth argument, the suite's identifier as the store holds it. Whether a suite
+// changes what a style draws is read by comparing what a paint draws under it against what the same paint draws under
+// Classic: each drawing call is kept with the fill and stroke in force when it was made, and a gradient keeps its
+// stops, so two paints compare by their colours without any one colour being asserted.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/spectrumfx-paint.test.js
 
 import test from "node:test";
@@ -23,7 +28,8 @@ import { fitCanvas, fxPainter } from "../../../../hqptuner/static/components/fac
 import { BANDS, RIDGE_EVERY } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
-/** @typedef {{ width: number, height: number, calls: Call[], getContext: (kind: string) => unknown }} FakeCanvas */
+/** @typedef {{ name: string, args: unknown[], fill: unknown, stroke: unknown }} Ink */
+/** @typedef {{ width: number, height: number, calls: Call[], inks: Ink[], getContext: (kind: string) => unknown }} FakeCanvas */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").SpectrumHold} SpectrumHold */
 
 //: The canvas, in device pixels.
@@ -67,14 +73,33 @@ const COLOURS = {
  */
 const image = (w, hh) => ({ width: w, height: hh, data: new Uint8ClampedArray(w * hh * 4) });
 
+/** A gradient that keeps the stops added to it, so two gradients compare by their colours. */
+class Gradient {
+  constructor() {
+    /** @type {[number, string][]} */
+    this.stops = [];
+  }
+
+  /**
+   * @param {number} at
+   * @param {string} colour
+   */
+  addColorStop(at, colour) {
+    this.stops.push([at, colour]);
+  }
+}
+
+const gradient = () => new Gradient();
+
 /**
- * A W by H canvas whose 2D context records each method called on it.
+ * A W by H canvas whose 2D context records each method called on it, and with each drawing call the fill and stroke
+ * in force when it was made.
  *
  * @returns {FakeCanvas}
  */
 function fakeCanvas() {
   /** @type {FakeCanvas} */
-  const canvas = { width: W, height: H, calls: [], getContext: () => ctx };
+  const canvas = { width: W, height: H, calls: [], inks: [], getContext: () => ctx };
   /** @type {Record<string | symbol, unknown>} */
   const props = { canvas };
   /** @type {Record<string, (...args: any[]) => unknown>} */
@@ -87,8 +112,8 @@ function fakeCanvas() {
       /** @type {number} */ w,
       /** @type {number} */ hh,
     ) => image(w, hh),
-    createLinearGradient: () => ({ addColorStop: () => undefined }),
-    createRadialGradient: () => ({ addColorStop: () => undefined }),
+    createLinearGradient: gradient,
+    createRadialGradient: gradient,
     measureText: () => ({ width: 0 }),
   };
   const ctx = new Proxy(
@@ -98,6 +123,9 @@ function fakeCanvas() {
         if (key in props) return props[key];
         return (/** @type {unknown[]} */ ...args) => {
           canvas.calls.push({ name: String(key), args });
+          if (DRAWS.has(String(key))) {
+            canvas.inks.push({ name: String(key), args, fill: props.fillStyle, stroke: props.strokeStyle });
+          }
           const make = made[String(key)];
           return make ? make(...args) : undefined;
         };
@@ -125,7 +153,7 @@ function hold(db) {
 /**
  * A painter on a fresh fake canvas.
  *
- * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string) => void, clear: () => void } }}
+ * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string, suite?: string) => void, clear: () => void } }}
  */
 function painter() {
   const canvas = fakeCanvas();
@@ -260,3 +288,34 @@ test("test_a_fade_paint_after_one_with_no_spectrum_starts_without_the_old_halo",
   ]);
   assert.notDeepEqual(blanked, lastOf(KEPT_FADE));
 });
+
+// ── colour suites ────────────────────────────────────────────────────────
+
+//: Classic, and one suite that is not, as the store holds them.
+const CLASSIC = "classic";
+const INFERNO = "inferno";
+//: Paints enough for a ridge row and a lingering halo to be on the canvas.
+const PAINTS = RIDGE_EVERY + 1;
+
+/**
+ * What the last of PAINTS paints of `style` under colour suite `suite` draws, with the fill and stroke of each drawing
+ * call; the trace runs from `LOW_DB` at the low end to `MID_DB` above it, so louder and quieter parts are both drawn.
+ *
+ * @param {string} style
+ * @param {string} suite
+ * @returns {Ink[]}
+ */
+function inked(style, suite) {
+  const { canvas, fx } = painter();
+  const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
+  for (let k = 1; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, suite);
+  canvas.inks = [];
+  fx.paint({ disp, ghost: disp }, RANGE, style, suite);
+  return canvas.inks;
+}
+
+for (const style of ["bars", "ridges", "fade"]) {
+  test(`test_a_non_classic_suite_changes_what_a_${style}_paint_draws`, () => {
+    assert.notDeepEqual(inked(style, INFERNO), inked(style, CLASSIC));
+  });
+}

@@ -2,7 +2,7 @@
 // Expanded, Normal or Compact, lays the plate out at that format whatever the window, scaled down to fit when the
 // window is smaller and never up; Auto lays it out at the format the window picks. Which format a window picks is the
 // fit's (tests/js/model/shell/plate.test.js); how the choice is held and stored is the prefs suite's
-// (tests/js/store/prefs-display-format.test.js).
+// (tests/js/store/prefs/prefs-display-format.test.js).
 //
 // The choice is made through the prefs module's setter over a fake storage, read off the module namespace with
 // optional access so a prefs module without one fails these cases on their assertions. The values chosen are the

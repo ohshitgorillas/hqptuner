@@ -4,14 +4,14 @@
 // The module reads its keys once, when it is first imported, so the fake storage is installed at file scope, and only
 // then is the module pulled in. The storage key is named because it is the contract a persisted preference makes with
 // the browser; the stored values are the "1" / "0" every boolean preference persists as (loadBool,
-// tests/js/store/prefs-loadbool.test.js).
+// tests/js/store/prefs/prefs-loadbool.test.js).
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-rangebuttons.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/prefs-rangebuttons.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
 const KEY = "hqptuner.rangeButtons";
 
@@ -21,7 +21,7 @@ const HIDDEN = "0";
 
 const storage = useStorage();
 
-const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
+const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 
 test("test_setting_the_range_buttons_hidden_stores_the_hidden_choice", () => {
   storage.removeItem(KEY);

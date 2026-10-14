@@ -7,7 +7,7 @@
 // The environment is the seam (tests/js/store/prefs.test.js): a working fake
 // localStorage is installed BEFORE prefs.js is imported, so the setter writes
 // through it. What a stored choice loads as is loadBool's
-// (tests/js/store/prefs-loadbool.test.js). Nothing of HQPTuner's is stubbed.
+// (tests/js/store/prefs/prefs-loadbool.test.js). Nothing of HQPTuner's is stubbed.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/narrow/plainnames-pref.test.js
 

@@ -1,7 +1,7 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
-// style, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the spectrum's
-// frequency span, each a row of options writing its preference at once, and the spectrum delay, a box taking the delay
-// in seconds, written as the user leaves it. Parked under its button.
+// style and colors, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the
+// spectrum's frequency span, each a row of options writing its preference at once, and the spectrum delay, a box
+// taking the delay in seconds, written as the user leaves it. Parked under its button.
 
 import { html, TypedInput } from "../../../lib/dom.js";
 import { FREQ_SPANS } from "../../../model/gauges/meter.js";
@@ -14,7 +14,9 @@ import {
   setMeterFloor,
   setPageRange,
   setRangeButtons,
+  setSpectrumColors,
   setSpectrumStyle,
+  spectrumColors,
   spectrumStyle,
 } from "../../../store/ui/prefs.js";
 import { freqSpan, setFreqSpan } from "../../../store/faceplate/view.js";
@@ -37,6 +39,17 @@ const SPECTRA = [
   { v: "ridges", label: "Ridges" },
   { v: "aurora", label: "Aurora" },
   { v: "fade", label: "Fade" },
+];
+
+/** @type {Opt[]} */
+const SUITES = [
+  { v: "classic", label: "Classic" },
+  { v: "amber", label: "Amber" },
+  { v: "inferno", label: "Inferno" },
+  { v: "viridis", label: "Viridis" },
+  { v: "borealis", label: "Borealis" },
+  { v: "signal", label: "Signal" },
+  { v: "mono", label: "Mono" },
 ];
 
 /** @type {Opt[]} */
@@ -76,20 +89,25 @@ function parkUnder(panel) {
 }
 
 /**
- * One field: its label (and unit) over its options, the one in force lit; another writes it.
+ * One field: its label (and unit) over its options, the one in force lit, and a line saying what it does; another
+ * writes it.
  *
- * @param {{ label: string, unit?: string, opts: Opt[], value: string, set: (v: string) => void, testid?: string }} props
+ * @param {{ label: string, unit?: string, man: string, opts: Opt[], value: string, set: (v: string) => void, testid?: string }} props
  */
-function Field({ label, unit, opts, value, set, testid }) {
+function Field({ label, unit, man, opts, value, set, testid }) {
   return html`
     <div class="dfield" data-testid=${testid}>
       <span class="cl">${label}${unit && html` <span class="u">${unit}</span>`}</span>
       <${Seg} aria=${unit ? `${label}, ${unit}` : label} cls="view" value=${value} options=${opts} onChange=${set} />
+      <p class="man">${man}</p>
     </div>
   `;
 }
 
-/** The spectrum delay: its label over the delay in seconds, typed; what the box holds is written as the user leaves it. */
+/**
+ * The spectrum delay: its label over the delay in seconds, typed, and a line saying what it does; what the box holds
+ * is written as the user leaves it.
+ */
 function Delay() {
   return html`
     <div class="dfield" data-field="vdelay">
@@ -107,6 +125,7 @@ function Delay() {
         />
         <span class="u">s</span>
       </div>
+      <p class="man">Adjust the spectrum's response to your own ears.</p>
     </div>
   `;
 }
@@ -115,17 +134,19 @@ function Delay() {
 export function DisplayOptions() {
   return html`
     <${Popover} id=${DISPLAY} cls="dpop" role="dialog" label=${LABEL} park=${parkUnder}>
-      <${Field} label="Spectrum style" opts=${SPECTRA} value=${spectrumStyle.value} set=${setSpectrumStyle} />
-      <${Field} label="Levels floor" unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />
+      <${Field} label="Spectrum style" man="Change the spectrum's visual style." opts=${SPECTRA} value=${spectrumStyle.value} set=${setSpectrumStyle} />
+      <${Field} label="Colors" man="Change the spectrum's colors." opts=${SUITES} value=${spectrumColors.value} set=${setSpectrumColors} />
+      <${Field} label="Levels floor" man="Change how far down the meter range goes." unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />
       <${Field}
         label="Range buttons"
+        man="Show buttons on the spectrum to adjust the level range."
         opts=${SHOW_HIDE}
         value=${rangeButtons.value ? "1" : "0"}
         set=${setShown}
         testid="display-range-buttons"
       />
-      <${Field} label="Range" unit="dB" opts=${RANGES} value=${pageRange.value} set=${setPageRange} testid="display-range" />
-      <${Field} label="Frequency span" opts=${SPANS} value=${freqSpan.value} set=${setFreqSpan} />
+      <${Field} label="Range" unit="dB" man="Change how far down the spectrum's level range goes." opts=${RANGES} value=${pageRange.value} set=${setPageRange} testid="display-range" />
+      <${Field} label="Frequency span" man="Show a limited range of the spectrum's frequency." opts=${SPANS} value=${freqSpan.value} set=${setFreqSpan} />
       <${Delay} />
     <//>
   `;

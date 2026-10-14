@@ -3,9 +3,11 @@
 // their own, ridge rows stack on a cadence and dim toward the back, the Fade halo fades where the trace has been and
 // says how much of the canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a
 // fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs
-// alone, so a painter draws what it gets back and a test drives it from a table.
+// alone, so a painter draws what it gets back and a test drives it from a table. A colour suite gives the colour a
+// part of the spectrum is drawn in by its height, and the Fade halo its colour.
 
 import { clamp } from "../../lib/coerce.js";
+import { rampFrom } from "../../lib/spectroraster.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
@@ -197,4 +199,140 @@ export function stepHalo(prev, dt) {
  */
 export function effectiveStyle(style, gl) {
   return style === "aurora" && !gl ? "trace" : style;
+}
+
+/**
+ * The colour suites the page spectrum can draw in, each its colours as `#rrggbb`, the floor first and full scale last.
+ * Classic has none: under it each style keeps its own colours.
+ *
+ * @type {Readonly<Record<string, readonly string[]>>}
+ */
+export const SPECTRUM_SUITES = Object.freeze({
+  amber: ["#2a2215", "#6e5124", "#e9a63c", "#ffd48a"],
+  inferno: ["#08090b", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"],
+  viridis: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
+  borealis: ["#0a2a2e", "#0e6b45", "#2bdc7a", "#8ef0b0", "#7a5cff", "#e04f8a"],
+  signal: ["#29ce10", "#d6b521", "#ef3110"],
+  mono: ["#1a1c20", "#5a5e66", "#b8bcc4", "#ffffff"],
+});
+
+/**
+ * The Fade halo's colour under each suite, Classic included, as `#rrggbb`.
+ *
+ * @type {Readonly<Record<string, string>>}
+ */
+export const SUITE_HALOS = Object.freeze({
+  classic: "#420a68",
+  amber: "#1f3b4d",
+  inferno: "#420a68",
+  viridis: "#414487",
+  borealis: "#0e6b45",
+  signal: "#0e6b45",
+  mono: "#5a5e66",
+});
+
+const LEVEL_STOPS = 9; // stops a gradient coloured by level carries, floor to full scale
+const CHANNEL_MAX = 255;
+
+/** @typedef {[number, number, number]} Triple */
+
+/** @type {Map<string, Triple[]>} each suite's ramp, 0 to 255 per channel, built on first use */
+const ramps = new Map();
+
+/**
+ * `suite`'s colours, or null under Classic or a name that is no suite.
+ *
+ * @param {string} suite
+ * @returns {readonly string[] | null}
+ */
+const stopsOf = (suite) => (Object.hasOwn(SPECTRUM_SUITES, suite) ? SPECTRUM_SUITES[suite] : null);
+
+/**
+ * `suite`'s ramp, floor first, or null under Classic.
+ *
+ * @param {string} suite
+ * @returns {Triple[] | null}
+ */
+function rampOf(suite) {
+  const stops = stopsOf(suite);
+  if (!stops) return null;
+  let ramp = ramps.get(suite);
+  if (!ramp) {
+    ramp = rampFrom([...stops]);
+    ramps.set(suite, ramp);
+  }
+  return ramp;
+}
+
+/**
+ * The colour of `ramp` at plot fraction `at`.
+ *
+ * @param {Triple[]} ramp
+ * @param {number} at
+ * @returns {Triple}
+ */
+const rampAt = (ramp, at) => ramp[Math.round(clamp(at, 0, 1) * (ramp.length - 1))];
+
+/** @param {number} c 0 to 255 */
+const hexByte = (c) => c.toString(16).padStart(2, "0");
+
+/**
+ * The colour a part of the spectrum at plot fraction `at` is drawn in under `suite`, blended between the suite's
+ * colours: its first on the floor, its last at full scale. Empty under Classic or a suite with no colours.
+ *
+ * @param {string} suite
+ * @param {number} at  0 on the floor, 1 at full scale
+ * @returns {string}  `#rrggbb`, or empty
+ */
+export function suiteColor(suite, at) {
+  const ramp = rampOf(suite);
+  if (!ramp) return "";
+  const [r, g, b] = rampAt(ramp, at);
+  return `#${hexByte(r)}${hexByte(g)}${hexByte(b)}`;
+}
+
+/**
+ * The colour a line style draws level `at` in under `suite`: the suite from its second colour on the floor to its
+ * last at full scale, so a line never takes the floor colour it would vanish into. Empty under Classic.
+ *
+ * @param {string} suite
+ * @param {number} at  0 on the floor, 1 at full scale
+ * @returns {string}  `#rrggbb`, or empty
+ */
+function suiteLineColor(suite, at) {
+  const stops = stopsOf(suite);
+  if (!stops) return "";
+  const from = 1 / (stops.length - 1);
+  return suiteColor(suite, from + clamp(at, 0, 1) * (1 - from));
+}
+
+/**
+ * The stops of a line style's gradient coloured by level under `suite`, LEVEL_STOPS of them from the floor (0) to full
+ * scale (1), each its offset and its colour as suiteLineColor gives it. None under Classic.
+ *
+ * @param {string} suite
+ * @returns {[number, string][]}
+ */
+export function suiteLineStops(suite) {
+  if (!stopsOf(suite)) return [];
+  return Array.from({ length: LEVEL_STOPS }, (_, i) => {
+    const at = i / (LEVEL_STOPS - 1);
+    return /** @type {[number, string]} */ ([at, suiteLineColor(suite, at)]);
+  });
+}
+
+/**
+ * Aurora's ramp under `suite`: `count` colours spread evenly from the suite's floor to its full scale, one RGB triple
+ * each in one flat list, each channel 0 to 1. Empty under Classic, where aurora keeps its own ramp.
+ *
+ * @param {string} suite
+ * @param {number} count
+ * @returns {number[]}
+ */
+export function suiteRamp(suite, count) {
+  const ramp = rampOf(suite);
+  if (!ramp) return [];
+  return Array.from({ length: count }, (_, i) => rampAt(ramp, i / Math.max(1, count - 1))).flatMap((c) =>
+    c.map((v) => v / CHANNEL_MAX),
+  );
 }

@@ -3,7 +3,7 @@
 // by policy, or a full quota (tests/js/store/live/livecollapse-prefs-broken.test.js
 // is the pattern). The contract: an unusable storage costs the user nothing —
 // the module loads without throwing, and the pref still moves in memory. What
-// it loads as is loadBool's (tests/js/store/prefs-loadbool.test.js).
+// it loads as is loadBool's (tests/js/store/prefs/prefs-loadbool.test.js).
 //
 // The throwing fake is installed at file scope, before prefs.js is imported,
 // so the module's load-time read is the one that meets it. Nothing of

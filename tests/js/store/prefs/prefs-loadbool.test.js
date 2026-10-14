@@ -5,13 +5,13 @@
 // The environment is the seam: a fake localStorage is installed per case and removed after it. Nothing of HQPTuner's
 // is stubbed.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-loadbool.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/prefs-loadbool.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage, useThrowingStorage, dropStorage } from "../support/storage.js";
-import { loadBool } from "../../../hqptuner/static/store/ui/prefs.js";
+import { useStorage, useThrowingStorage, dropStorage } from "../../support/storage.js";
+import { loadBool } from "../../../../hqptuner/static/store/ui/prefs.js";
 
 const KEY = "test.loadBool";
 

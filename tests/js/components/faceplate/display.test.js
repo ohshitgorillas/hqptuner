@@ -6,7 +6,8 @@
 // The panel is found as the `div` carrying the popover's id in `data-pop`, wherever in the frame it is drawn; its
 // options by their values in `data-v`, the preferences' own identifiers. A pick is fired through the vnode seam
 // (tests/js/support/vnodeseam.js), since server rendering fires no events. The Levels floor is read off the prefs
-// module's namespace with optional access, so a store without one fails the floor cases on their assertions.
+// module's namespace with optional access, so a store without one fails the floor cases on their assertions; the
+// spectrum's colour suite is read the same way.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/display.test.js
 
@@ -44,11 +45,23 @@ const DEEP = "-90";
  */
 const floorStore = uiPrefs;
 
+// Two colour suites, as the store holds them: Classic, and one other so a pick of it shows.
+const CLASSIC = "classic";
+const INFERNO = "inferno";
+
+/**
+ * The spectrum's Colors surface on the prefs module.
+ *
+ * @type {{ setSpectrumStyle(v: string): void, spectrumColors?: { value: string }, setSpectrumColors?(v: string): void }}
+ */
+const colorsStore = uiPrefs;
+
 beforeEach(() => {
   useStorage();
   body.value = "chain";
   openStage.value = null;
   setSpectrumStyle(TRACE);
+  colorsStore.setSpectrumColors?.(CLASSIC);
   floorStore.setMeterFloor?.(SHALLOW);
   openPopover.value = DISPLAY;
 });
@@ -73,6 +86,11 @@ test("test_picking_a_spectrum_style_in_the_display_popover_sets_it", () => {
 test("test_picking_fade_in_the_display_popover_sets_it", () => {
   pick(FADE);
   assert.equal(spectrumStyle.value, FADE);
+});
+
+test("test_picking_a_colors_suite_in_the_display_popover_sets_it", () => {
+  pick(INFERNO);
+  assert.equal(colorsStore.spectrumColors?.value, INFERNO);
 });
 
 test("test_picking_a_levels_floor_in_the_display_popover_sets_it", () => {

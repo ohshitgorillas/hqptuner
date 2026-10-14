@@ -1,9 +1,17 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
 // spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
 // gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as columns rising from the plot's floor to
-// their level, each coloured base to crown through the painter's ramp, over a transparent clear.
+// their level, each coloured base to crown through the painter's ramp, or the picked colour suite's where it is not
+// Classic, over a transparent clear.
 
-import { AURORA_GRAVITY, BANDS, bandsOf, fractionsOf, stepGravity } from "../../../model/gauges/spectrumfx.js";
+import {
+  AURORA_GRAVITY,
+  BANDS,
+  bandsOf,
+  fractionsOf,
+  stepGravity,
+  suiteRamp,
+} from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";
 
@@ -17,6 +25,7 @@ const QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]); // the whole clip s
 const QUAD_SIZE = 2; // components per QUAD vertex
 const QUAD_VERTICES = QUAD.length / QUAD_SIZE;
 const RGB = 3; // components per ramp stop
+const CLASSIC = "classic"; // the colour suite under which aurora draws in its own ramp
 
 /**
  * A compiled shader of `type` from `source`, or null when it fails to compile.
@@ -94,8 +103,8 @@ function quad(gl) {
 
 /**
  * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
- * one meter scene's spectrum column levels at `range` dB as northern lights coloured base to crown through `ramp`,
- * `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall and the columns' sway afresh.
+ * one meter scene's spectrum column levels at `range` dB as northern lights coloured base to crown through `ramp`
+ * under Classic and through the colour suite's own ramp under any other, `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall and the columns' sway afresh.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {ArrayLike<number>} ramp  colour stops, base to crown, one RGB triple each in one flat list, each 0 to 1
@@ -110,8 +119,11 @@ export function auroraPainter(canvas, ramp) {
   const time = gl.getUniformLocation(program, "time");
   gl.useProgram(program);
   gl.uniform1i(gl.getUniformLocation(program, "bars_count"), BANDS);
-  gl.uniform3fv(gl.getUniformLocation(program, "ramp"), Float32Array.from(ramp).subarray(0, stops * RGB));
+  const rampAt = gl.getUniformLocation(program, "ramp");
+  const own = Float32Array.from(ramp).subarray(0, stops * RGB);
+  gl.uniform3fv(rampAt, own);
   gl.clearColor(0, 0, 0, 0);
+  let inked = CLASSIC; // the colour suite the ramp uploaded last is drawn from
   /** @type {GravityState | null} */
   let gravity = null;
   let elapsed = 0; // s, DT for every paint that drew since the last clear
@@ -124,8 +136,9 @@ export function auroraPainter(canvas, ramp) {
   /**
    * @param {ArrayLike<number> | null} levels  dBFS, one per column
    * @param {number} range  dB
+   * @param {string} [suite]  the colour suite, Classic where none is given
    */
-  const paint = (levels, range) => {
+  const paint = (levels, range, suite = CLASSIC) => {
     const prev = gravity;
     const was = elapsed;
     clear();
@@ -133,6 +146,11 @@ export function auroraPainter(canvas, ramp) {
     gravity = stepGravity(prev, bandsOf(fractionsOf(levels, range), BANDS), DT, AURORA_GRAVITY);
     elapsed = was + DT;
     gl.useProgram(program);
+    if (suite !== inked) {
+      inked = suite;
+      const theirs = suiteRamp(suite, stops);
+      gl.uniform3fv(rampAt, theirs.length ? Float32Array.from(theirs) : own);
+    }
     gl.bindVertexArray(vao);
     gl.uniform1fv(bars, gravity.lvl);
     gl.uniform1f(time, elapsed);

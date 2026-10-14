@@ -3,8 +3,9 @@
 // halo only ever dims where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
 // Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
 //
-// The halo's strength is read off the module namespace with optional access, so a module without it fails the halo
-// cases on their assertions.
+// The halo's strength and the colour suites are read off the module namespace with optional access, so a module
+// without them fails the halo and suite cases on their assertions. Under a colour suite, a louder part of the spectrum
+// is drawn in a colour from higher up the suite than a quieter part.
 //
 // Run: node --test tests/js/model/gauges/spectrumfx.test.js
 
@@ -300,3 +301,40 @@ test("test_a_halo_dimmed_frame_by_frame_glows_as_its_age_says", () => {
   const law = halo.haloStrength?.(DIMMED_FRAMES * FRAME) ?? Number.NaN;
   assert.ok(Math.abs(glow - law) < EPS, `glow ${glow} after ${DIMMED_FRAMES} frames is not the law's ${law}`);
 });
+
+// ── colour suites ────────────────────────────────────────────────────────
+
+//: The non-Classic colour suites the owner offers, as the store holds them.
+const SUITES = ["amber", "inferno", "viridis", "borealis", "signal", "mono"];
+//: The plot's floor and its full scale, as fractions of the plot.
+const QUIET = 0;
+const LOUD = 1;
+
+/**
+ * The colour suites' surface on the gauges module: each non-Classic suite's colours as six-digit hex, floor first,
+ * and the colour a part of the spectrum at a plot fraction is drawn in under a suite.
+ *
+ * @type {{ BANDS: number, SPECTRUM_SUITES?: Record<string, readonly string[]>, suiteColor?: (suite: string, at: number) => string }}
+ */
+const suites = gauges;
+
+/**
+ * How far up `suite` the colour a part of the spectrum at plot fraction `at` is drawn in sits: its place among the
+ * suite's colours, floor first, or -1 where it is none of them.
+ *
+ * @param {string} suite
+ * @param {number} at
+ */
+function placeIn(suite, at) {
+  const colours = (suites.SPECTRUM_SUITES?.[suite] ?? []).map((c) => c.toLowerCase());
+  return colours.indexOf((suites.suiteColor?.(suite, at) ?? "").toLowerCase());
+}
+
+for (const suite of SUITES) {
+  test(`test_under_${suite}_a_louder_part_is_drawn_from_higher_up_the_suite_than_a_quieter_part`, () => {
+    assert.ok(
+      placeIn(suite, LOUD) > placeIn(suite, QUIET),
+      `${suite}: loud ${placeIn(suite, LOUD)}, quiet ${placeIn(suite, QUIET)}`,
+    );
+  });
+}

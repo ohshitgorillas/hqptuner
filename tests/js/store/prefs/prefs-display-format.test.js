@@ -12,14 +12,14 @@
 // The storage key is named here because it is the contract a persisted preference makes with the browser: a rename
 // drops every user's saved choice. The values are the format ids.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs-display-format.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/prefs/prefs-display-format.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../support/storage.js";
+import { useStorage } from "../../support/storage.js";
 
-const MODULE = "../../../hqptuner/static/store/ui/prefs.js";
+const MODULE = "../../../../hqptuner/static/store/ui/prefs.js";
 const KEY = "hqptuner.displayFormat";
 
 const FORMATS = ["auto", "expanded", "normal", "compact"];
@@ -36,7 +36,7 @@ storage.setItem(KEY, PICK);
 
 // Written literally, so the import graph reaches the module from this suite.
 /** @type {DisplayFormatPrefs} */
-const prefs = await import("../../../hqptuner/static/store/ui/prefs.js");
+const prefs = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const AT_LOAD = prefs.displayFormat?.value;
 
 storage.setItem(KEY, OUTSIDE);

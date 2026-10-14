@@ -9,7 +9,9 @@
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.
 // The Range control's readout and buttons are found by `data-testid`; every string asserted is a wire value or a
 // number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
-// read off the module namespace with optional access so a store without one fails the floor cases on their assertions.
+// read off the module namespace with optional access so a store without one fails the floor cases on their assertions;
+// the spectrum's colour suite is picked the same way, and whether a suite changes what the trace draws is read by
+// comparing the spectrum's markup under it against its markup under Classic.
 //
 // Not reachable here: the trace's path geometry against the plot's own box, which the store's points carry and the
 // stylesheet stretches; a browser run closes it.
@@ -56,6 +58,17 @@ const NARROWER = "range-narrower";
 // Two Levels floors the owner offers, as the store holds them, in dBFS.
 const SHALLOW = "-48";
 const DEEP = "-90";
+
+//: Classic, and one suite that is not, as the store holds them.
+const CLASSIC = "classic";
+const INFERNO = "inferno";
+
+/**
+ * The spectrum's Colors surface on the prefs module.
+ *
+ * @type {{ setSpectrumStyle(v: string): void, setSpectrumColors?(v: string): void }}
+ */
+const colorsStore = uiPrefs;
 
 /** @type {{ setMeterFloor?(v: string): void }} */
 const floorStore = uiPrefs;
@@ -131,6 +144,7 @@ beforeEach(() => {
   setPageRange(FIRST);
   pickFloor(SHALLOW);
   setSpectrumStyle("trace");
+  colorsStore.setSpectrumColors?.(CLASSIC);
   viewport.value = FULL;
   stream();
 });
@@ -238,4 +252,22 @@ test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => 
   setSpectrumStyle(RIDGES);
   const grid = withClass("sgrid1")[0];
   assert.equal(grid ? attr(grid, "data-style") : undefined, RIDGES);
+});
+
+// ── colour suites ────────────────────────────────────────────────────────
+
+/**
+ * The spectrum's markup under the Trace style and colour suite `suite`.
+ *
+ * @param {string} suite
+ */
+function traceUnder(suite) {
+  colorsStore.setSpectrumColors?.(suite);
+  const svg = draw().find((e) => e.name === "svg" && classes(e).includes("spectrum"));
+  return svg?.html;
+}
+
+test("test_a_non_classic_suite_changes_what_the_trace_draws", () => {
+  const classic = traceUnder(CLASSIC);
+  assert.notEqual(traceUnder(INFERNO), classic);
 });
