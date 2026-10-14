@@ -4,8 +4,8 @@
 // strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
 // it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum, starts the next style's
 // state afresh. Each bar takes the colour suite's colour at its height, or under a suite with a fixed bar gradient is
-// drawn over that gradient; the ridge lines and the fade trace are coloured by level, the caps take the suite's top
-// colour, and the fade halo the suite's halo colour. Accent draws in the accent in force at each paint.
+// drawn over that gradient; the ridge lines, the fade trace and its halo are coloured by level, and the caps take the
+// suite's top colour. Accent draws in the accent in force at each paint.
 
 import {
   ACCENT,
@@ -14,13 +14,12 @@ import {
   RIDGE_ROWS,
   bandsOf,
   fractionsOf,
-  haloStrength,
   stepCaps,
   stepHalo,
   stepRidges,
   suiteBarStops,
   suiteColor,
-  suiteHalo,
+  suiteHaloStops,
   suiteLineStops,
 } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
@@ -214,10 +213,10 @@ function mergeHalo(fresh, held, keep) {
 }
 
 /**
- * Fade: a blurred halo of the trace at the halo's starting strength, merged over the last paint's halo dimmed by the
- * share stepHalo gives, then the live trace stroked crisp on top. The halo is read back before the trace is stroked,
- * so the trace never lingers in it. A halo image the canvas has been resized out from under starts afresh. The halo
- * takes the suite's halo colour, and the trace is coloured by level.
+ * Fade: a blurred halo of the trace, merged over the last paint's halo dimmed by the share stepHalo gives, then the
+ * live trace stroked crisp on top. The halo is read back before the trace is stroked, so the trace never lingers in it.
+ * A halo image the canvas has been resized out from under starts afresh. Trace and halo are coloured by level alike,
+ * the halo at its starting strength in each colour.
  *
  * @param {Frame} f
  */
@@ -229,10 +228,9 @@ function fade(f) {
   const stops = suiteLineStops(f.suite, f.accent);
   state.halo = stepHalo(held ? state.halo : HALO_FRESH, DT);
   ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = suiteHalo(f.suite, f.accent);
+  ctx.strokeStyle = vertical(ctx, h, 0, suiteHaloStops(f.suite, f.accent));
   ctx.lineJoin = "round";
   ctx.save();
-  ctx.globalAlpha = haloStrength(0);
   ctx.lineWidth = HALO_LINE * px;
   ctx.filter = `blur(${HALO_BLUR * px}px)`;
   tracePath(f);

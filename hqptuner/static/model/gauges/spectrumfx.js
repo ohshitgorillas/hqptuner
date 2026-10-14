@@ -4,7 +4,8 @@
 // canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot, 0
 // on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone, so a painter draws what
 // it gets back and a test drives it from a table. A colour suite gives the colour a part of the spectrum is drawn in by
-// its height, the Fade halo its colour, and the bars the one gradient they are drawn over where the suite has one.
+// its height, the Fade halo its colours and their starting strengths, and the bars the one gradient they are drawn
+// over where the suite has one.
 
 import { clamp } from "../../lib/coerce.js";
 import { rampFrom, rgb } from "../../lib/spectroraster.js";
@@ -18,7 +19,8 @@ const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
 export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
 export const RIDGE_ROWS = 12; // ridge rows kept, newest first
 export const RIDGE_EVERY = 6; // steps between ridge rows
-const HALO_START = 0.5; // the halo's glow where the trace has just been, share of the trace's strength
+const HALO_START = 0.5; // the halo's glow where a white trace has just been, share of the trace's strength
+const HALO_START_DARK = 1; // the halo's glow where a black trace has just been, share of the trace's strength
 const HALO_TAU_S = 2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
 
 /**
@@ -155,8 +157,9 @@ export function stepRidges(prev, row) {
 }
 
 /**
- * The halo's glow at a spot the trace left `age` seconds ago, as a share of the trace's strength: HALO_START where the
- * trace has just been, falling continuously by e every HALO_TAU_S.
+ * The halo's glow at a spot a white trace left `age` seconds ago, as a share of the trace's strength: HALO_START where
+ * the trace has just been, falling continuously by e every HALO_TAU_S. A halo in a darker colour starts stronger and
+ * falls by the same share.
  *
  * @param {number} age  s
  * @returns {number}
@@ -352,15 +355,46 @@ export function suiteBarStops(suite, accent) {
   return stops.map((colour, i) => /** @type {[number, string]} */ ([i / Math.max(1, stops.length - 1), colour]));
 }
 
+/** @param {number} c  sRGB channel, 0 to 1 @returns {number} the channel's linear light */
+const toLinear = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+
 /**
- * The Fade halo's colour under `suite`: the suite's second colour.
+ * How light `channels` look: CIE lightness from the colour's relative luminance, 0 for black and 1 for white.
+ *
+ * @param {number[]} channels  RGB, 0 to 255 each
+ * @returns {number}
+ */
+function lightness(channels) {
+  const [r, g, b] = channels.map((c) => toLinear(c / CHANNEL_MAX));
+  const y = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  return clamp(y > 0.008856 ? 1.16 * Math.cbrt(y) - 0.16 : 9.033 * y, 0, 1);
+}
+
+/**
+ * The Fade halo's starting strength in a colour `channels`, as a share of the trace's: HALO_START in white, rising
+ * evenly with how dark the colour looks to HALO_START_DARK in black, so a dark halo shows as plainly as a light one.
+ *
+ * @param {number[]} channels  RGB, 0 to 255 each
+ * @returns {number}
+ */
+function haloStart(channels) {
+  return HALO_START + (HALO_START_DARK - HALO_START) * (1 - lightness(channels));
+}
+
+/**
+ * The stops of the Fade halo's gradient coloured by level under `suite`: the trace's own stops as suiteLineStops gives
+ * them, each colour at the halo's starting strength in that colour.
  *
  * @param {string} suite
  * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
- * @returns {string}  `#rrggbb`
+ * @returns {[number, string][]}  each stop's offset and its colour as `rgba(r, g, b, a)`
  */
-export function suiteHalo(suite, accent) {
-  return stopsOf(suite, accent)[1];
+export function suiteHaloStops(suite, accent) {
+  return suiteLineStops(suite, accent).map(([at, colour]) => {
+    const channels = rgb(colour, BLACK);
+    const alpha = haloStart(channels).toFixed(3);
+    return /** @type {[number, string]} */ ([at, `rgba(${channels.join(", ")}, ${alpha})`]);
+  });
 }
 
 /**
