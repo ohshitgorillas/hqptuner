@@ -11,7 +11,9 @@
 // number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
 // read off the module namespace with optional access so a store without one fails the floor cases on their assertions;
 // the spectrum's colour suite is picked the same way, and whether a suite changes what the trace draws is read by
-// comparing the spectrum's markup under it against its markup under Classic.
+// comparing the spectrum's markup under it against its markup under Mono. Under the Accent palette the trace draws
+// in shades of the accent in force, read from the theme store's signals, and a change of accent reaches the next
+// render: the trace's markup after a change differs from its markup with no change.
 //
 // Not reachable here: the trace's path geometry against the plot's own box, which the store's points carry and the
 // stylesheet stretches; a browser run closes it.
@@ -34,6 +36,7 @@ import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -59,8 +62,8 @@ const NARROWER = "range-narrower";
 const SHALLOW = "-48";
 const DEEP = "-90";
 
-//: Classic, and one suite that is not, as the store holds them.
-const CLASSIC = "classic";
+//: Two suites the owner offers, as the store holds them.
+const MONO = "mono";
 const INFERNO = "inferno";
 
 /**
@@ -144,7 +147,7 @@ beforeEach(() => {
   setPageRange(FIRST);
   pickFloor(SHALLOW);
   setSpectrumStyle("trace");
-  colorsStore.setSpectrumColors?.(CLASSIC);
+  colorsStore.setSpectrumColors?.(MONO);
   viewport.value = FULL;
   stream();
 });
@@ -267,7 +270,35 @@ function traceUnder(suite) {
   return svg?.html;
 }
 
-test("test_a_non_classic_suite_changes_what_the_trace_draws", () => {
-  const classic = traceUnder(CLASSIC);
-  assert.notEqual(traceUnder(INFERNO), classic);
+test("test_a_change_of_suite_changes_what_the_trace_draws", () => {
+  const mono = traceUnder(MONO);
+  assert.notEqual(traceUnder(INFERNO), mono);
+});
+
+// ── the Accent palette ───────────────────────────────────────────────────
+
+//: The palette that draws in the user's accent, as the store holds it.
+const ACCENT = "accent";
+//: Two custom accents, unlike each other.
+const FIRST_HEX = "#4f9dde";
+const SECOND_HEX = "#c03a9b";
+//: An accent preset, as the theme store holds it, under the custom hexes.
+const PRESET = "violet";
+
+/**
+ * The spectrum's markup under the Trace style and Accent, rendered once with the custom accent FIRST_HEX and again
+ * after the accent becomes `then`: the second render's.
+ *
+ * @param {string} then
+ */
+function traceAfterChange(then) {
+  accent.value = PRESET;
+  accentHex.value = FIRST_HEX;
+  traceUnder(ACCENT);
+  accentHex.value = then;
+  return traceUnder(ACCENT);
+}
+
+test("test_under_accent_the_trace_follows_a_change_of_accent", () => {
+  assert.notEqual(traceAfterChange(SECOND_HEX), traceAfterChange(FIRST_HEX));
 });

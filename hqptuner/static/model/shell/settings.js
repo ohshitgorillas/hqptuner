@@ -21,6 +21,18 @@ import { optionOf } from "./options.js";
 const DYSLEXIC_FAMILY = "'Atkinson Hyperlegible',system-ui,sans-serif";
 
 /**
+ * The accent tokens derived from the pick, each the share of the pick, %, mixed in sRGB with the colour it is mixed
+ * into.
+ *
+ * @type {Readonly<Record<string, readonly [number, string]>>}
+ */
+export const ACCENT_SHADES = Object.freeze({
+  "--acc-dim": [47, "#000"],
+  "--acc-lo": [16, "#0b0a08"],
+  "--acc-rim": [55, "#fff"], // the lit rim / peak hold, pale of the accent
+});
+
+/**
  * A pick's color: the named accent's own, else the value itself (a color already).
  *
  * @param {string} v
@@ -96,15 +108,12 @@ export function effectOf(id, v, accents, hideable) {
   if (id === "pinallow") return { kind: "pinallow", on: v === "1" };
   if (id === "vacc") {
     const hex = accentHex(v, accents);
-    return {
-      kind: "accent",
-      tokens: {
-        "--acc": hex,
-        "--acc-dim": `color-mix(in srgb, ${hex} 47%, #000)`,
-        "--acc-lo": `color-mix(in srgb, ${hex} 16%, #0b0a08)`,
-        "--acc-rim": `color-mix(in srgb, ${hex} 55%, #fff)`, // the lit rim / peak hold, pale of the accent
-      },
-    };
+    /** @type {Record<string, string>} */
+    const tokens = { "--acc": hex };
+    for (const [name, [share, into]] of Object.entries(ACCENT_SHADES)) {
+      tokens[name] = `color-mix(in srgb, ${hex} ${share}%, ${into})`;
+    }
+    return { kind: "accent", tokens };
   }
   if (id === "vfill") return { kind: "fill", value: v };
   if (id === "vbottom") return { kind: "bottom", value: v };

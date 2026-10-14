@@ -1,29 +1,30 @@
 // The page spectrum's effects canvas, laid over the SVG trace: each meter paint draws the picked spectrum style from
 // the per-frame steps in model/gauges/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars draw
-// one bar per band with peak caps over a floor-to-full-scale gradient; ridges stack their rows up the plot, each newer
-// row lower and in front; fade strokes the live trace over a blurred halo of where it has been, held between paints as
-// an image so each paint dims it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum,
-// starts the next style's state afresh. Under a colour suite other than Classic each bar takes the suite's colour at
-// its height, the ridge lines and the fade trace are coloured by level, and the caps take the suite's top colour; the
-// fade halo takes the suite's halo colour, Classic's included.
+// one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
+// strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
+// it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum, starts the next style's
+// state afresh. Each bar takes the colour suite's colour at its height, or under a suite with a fixed bar gradient is
+// drawn over that gradient; the ridge lines and the fade trace are coloured by level, the caps take the suite's top
+// colour, and the fade halo the suite's halo colour. Accent draws in the accent in force at each paint.
 
 import {
+  ACCENT,
   BANDS,
   HALO_FRESH,
   RIDGE_ROWS,
-  SUITE_HALOS,
   bandsOf,
   fractionsOf,
   haloStrength,
-  ridgeShade,
   stepCaps,
   stepHalo,
   stepRidges,
+  suiteBarStops,
   suiteColor,
+  suiteHalo,
   suiteLineStops,
 } from "../../../model/gauges/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
-import { rgb } from "../tokencolours.js";
+import { accentInForce } from "../../../store/ui/theme.js";
 
 /** @typedef {import("../../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../../model/gauges/spectrumfx.js").CapState} CapState */
@@ -31,14 +32,9 @@ import { rgb } from "../tokencolours.js";
 /** @typedef {import("../../../model/gauges/spectrumfx.js").RidgeState} RidgeState */
 
 /**
- * The CSS colours a painter draws with.
+ * The CSS colours a painter draws with besides the colour suite's.
  *
  * @typedef {object} FxColours
- * @property {string} lo     bar gradient at the floor
- * @property {string} mid    bar gradient half way up
- * @property {string} hi     bar gradient at full scale
- * @property {string} meter  peak caps, the front ridge line, and the fade trace
- * @property {string} [dim]  the back ridge line, the rows between stepping from `meter` to it; `meter` when not given
  * @property {string} glass  the fill under each ridge, hiding the rows behind it
  */
 
@@ -53,8 +49,8 @@ import { rgb } from "../tokencolours.js";
  */
 
 /**
- * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state
- * and the colour suite picked.
+ * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state,
+ * the colour suite picked and the accent in force.
  *
  * @typedef {object} Frame
  * @property {CanvasRenderingContext2D} ctx
@@ -63,6 +59,7 @@ import { rgb } from "../tokencolours.js";
  * @property {Float32Array} fracs
  * @property {FxState} state
  * @property {string} suite
+ * @property {string} accent  `#rrggbb`
  */
 
 /** The time between two meter paints, s: the loop paints at most once a step. */
@@ -132,52 +129,31 @@ function vertical(ctx, y0, y1, stops) {
 }
 
 /**
- * Bars: the bands, each with its peak cap; under Classic over a gradient from the floor to full scale, under any other
- * suite each in the suite's colour at its height, the caps in its top colour.
+ * Bars: the bands, each with its peak cap; each in the suite's colour at its height, or all over the suite's fixed bar
+ * gradient from the floor to full scale where it has one, the caps in the suite's top colour.
  *
  * @param {Frame} f
  */
 function bars(f) {
-  const { ctx, canvas, colours, state, suite } = f;
+  const { ctx, canvas, state, suite, accent } = f;
   const bands = bandsOf(f.fracs, BANDS);
   state.caps = stepCaps(state.caps, bands, DT);
-  const top = suiteColor(suite, 1);
+  const fixed = suiteBarStops(suite, accent);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (top) {
-    fillBands(f, bands, null, (lvl) => suiteColor(suite, lvl));
-  } else {
-    ctx.fillStyle = vertical(ctx, canvas.height, 0, [
-      [0, colours.lo],
-      [0.5, colours.mid],
-      [1, colours.hi],
-    ]);
+  if (fixed.length) {
+    ctx.fillStyle = vertical(ctx, canvas.height, 0, fixed);
     fillBands(f, bands, null, null);
+  } else {
+    fillBands(f, bands, null, (lvl) => suiteColor(suite, lvl, accent));
   }
-  ctx.fillStyle = top || colours.meter;
+  ctx.fillStyle = suiteColor(suite, 1, accent);
   fillBands(f, state.caps.lvl, CAP_PX, null);
 }
 
 /**
- * The stroke of ridge row `k`: `colours.meter` moved toward `colours.dim` by the row's ridgeShade. Where either is not
- * a hex colour, the row strokes in `colours.meter`.
- *
- * @param {FxColours} colours
- * @param {number} k
- * @returns {string}
- */
-function ridgeInk(colours, k) {
-  const front = rgb(colours.meter, []);
-  if (front.length !== 3) return colours.meter;
-  const back = rgb(colours.dim ?? "", front);
-  const s = ridgeShade(k, RIDGE_ROWS);
-  return `rgb(${front.map((c, i) => Math.round(c + (back[i] - c) * s)).join(", ")})`;
-}
-
-/**
- * Ridges: oldest first, highest up; each row a line over its baseline, filled down to it so the rows behind hide, its
- * stroke dimmer the older it is. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past
- * the top, so the stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
- * Under a suite other than Classic each line is coloured by level instead.
+ * Ridges: oldest first, highest up; each row a line coloured by level over its baseline, filled down to it so the rows
+ * behind hide. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past the top, so the
+ * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
  *
  * @param {Frame} f
  */
@@ -187,14 +163,14 @@ function ridges(f) {
   state.ridges = stepRidges(state.ridges, f.fracs);
   const rows = state.ridges.rows;
   const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
-  const stops = suiteLineStops(f.suite);
+  const stops = suiteLineStops(f.suite, f.accent);
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = colours.glass;
   ctx.lineWidth = RIDGE_LINE;
   for (let k = rows.length - 1; k >= 0; k--) {
     const row = rows[k];
     const base = h - RIDGE_LINE - k * step;
-    ctx.strokeStyle = stops.length ? vertical(ctx, base, base - h * RIDGE_AMP, stops) : ridgeInk(colours, k);
+    ctx.strokeStyle = vertical(ctx, base, base - h * RIDGE_AMP, stops);
     ctx.beginPath();
     ctx.moveTo(0, base);
     for (let c = 0; c < row.length; c++) ctx.lineTo(((c + 0.5) / row.length) * w, base - row[c] * h * RIDGE_AMP);
@@ -241,19 +217,19 @@ function mergeHalo(fresh, held, keep) {
  * Fade: a blurred halo of the trace at the halo's starting strength, merged over the last paint's halo dimmed by the
  * share stepHalo gives, then the live trace stroked crisp on top. The halo is read back before the trace is stroked,
  * so the trace never lingers in it. A halo image the canvas has been resized out from under starts afresh. The halo
- * takes the suite's halo colour; the trace is `colours.meter` under Classic and coloured by level under any other suite.
+ * takes the suite's halo colour, and the trace is coloured by level.
  *
  * @param {Frame} f
  */
 function fade(f) {
-  const { ctx, canvas, colours, state } = f;
+  const { ctx, canvas, state } = f;
   const { width: w, height: h } = canvas;
   const px = globalThis.devicePixelRatio || 1;
   const held = state.glow?.width === w && state.glow.height === h ? state.glow : null;
-  const stops = suiteLineStops(f.suite);
+  const stops = suiteLineStops(f.suite, f.accent);
   state.halo = stepHalo(held ? state.halo : HALO_FRESH, DT);
   ctx.clearRect(0, 0, w, h);
-  ctx.strokeStyle = SUITE_HALOS[f.suite] ?? SUITE_HALOS.classic;
+  ctx.strokeStyle = suiteHalo(f.suite, f.accent);
   ctx.lineJoin = "round";
   ctx.save();
   ctx.globalAlpha = haloStrength(0);
@@ -268,7 +244,7 @@ function fade(f) {
     ctx.putImageData(glow, 0, 0);
   }
   state.glow = glow;
-  ctx.strokeStyle = stops.length ? vertical(ctx, h, 0, stops) : colours.meter;
+  ctx.strokeStyle = vertical(ctx, h, 0, stops);
   ctx.lineWidth = TRACE_LINE * px;
   tracePath(f);
   ctx.stroke();
@@ -282,7 +258,7 @@ const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null })
 
 /**
  * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in colour suite `suite`,
- * Classic where none is given; `clear` empties the canvas.
+ * Accent where none is given, in the accent in force when it paints; `clear` empties the canvas.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {FxColours} colours
@@ -297,7 +273,7 @@ export function fxPainter(canvas, colours) {
    * @param {string} style
    * @param {string} [suite]
    */
-  const paint = (spectrum, range, style, suite = "classic") => {
+  const paint = (spectrum, range, style, suite = ACCENT) => {
     const ctx = canvas.getContext("2d", CTX_OPTS);
     if (!ctx) return;
     if (!spectrum) {
@@ -311,7 +287,8 @@ export function fxPainter(canvas, colours) {
       state = fresh();
     }
     const draw = STYLES[style];
-    if (draw) draw({ ctx, canvas, colours, fracs: fractionsOf(spectrum.disp, range), state, suite });
+    const accent = accentInForce();
+    if (draw) draw({ ctx, canvas, colours, fracs: fractionsOf(spectrum.disp, range), state, suite, accent });
     else clear();
   };
   return { paint, clear };

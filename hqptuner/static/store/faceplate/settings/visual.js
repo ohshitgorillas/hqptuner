@@ -4,7 +4,7 @@
 import { effect } from "@preact/signals";
 
 import { effectOf } from "../../../model/shell/settings.js";
-import { ACCENT_HEX, accent, accentHex, dyslexic } from "../../ui/theme.js";
+import { ACCENT_HEX, accent, accentHex, accentPick, dyslexic } from "../../ui/theme.js";
 
 /**
  * @typedef {{ v: string, label: string, hex: string }} Accent
@@ -24,16 +24,14 @@ export const ACCENTS = [
 export const ACCENT_OPTIONS = ACCENTS.map(({ v, label }) => ({ value: v, label }));
 
 /**
- * The four accent tokens for a swatch name and an optional custom hex: the custom hex when set, else the named
- * swatch's, else amber's.
+ * The four accent tokens for a swatch name and an optional custom hex, derived from the accent they pick.
  *
  * @param {string} name
  * @param {string} hex
  * @returns {Record<string, string>}
  */
 export function accentTokens(name, hex) {
-  const pick = hex || (ACCENTS.find((a) => a.v === name)?.hex ?? ACCENT_HEX.amber);
-  const fx = /** @type {{ tokens: Record<string, string> }} */ (effectOf("vacc", pick, ACCENTS, []));
+  const fx = /** @type {{ tokens: Record<string, string> }} */ (effectOf("vacc", accentPick(name, hex), ACCENTS, []));
   return fx.tokens;
 }
 

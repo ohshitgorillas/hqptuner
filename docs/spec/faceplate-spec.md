@@ -11,8 +11,8 @@ Current state only.
 - Aesthetic: tuner / integrated-amp faceplate, dark only.
 
 ## Visual rules
-- Accent is the user's pick (amber default). It marks only what you set (VFD values, a setting seg's fill, plot traces/handles of settings, dirty dots) and where you are (left-hand selection bar, open stage, view/tab picks as ink with an accent foot, focus, links). Never measurements, semantics, drawings, button faces or read-only readouts.
-- Fixed colours that never follow the accent: instrument amber (`--meter*`: Source meter, spectrogram), `--warn`, `--busy`, lamps `--ok` / `--bad`.
+- Accent is the user's pick (amber default). It marks only what you set (VFD values, a setting seg's fill, plot traces/handles of settings, dirty dots) and where you are (left-hand selection bar, open stage, view/tab picks as ink with an accent foot, focus, links). Never measurements, semantics, drawings, button faces or read-only readouts, except the spectrum under the Accent palette, which draws in the accent's shades.
+- Fixed colours that never follow the accent: instrument amber (`--meter*`: Source level bars and peak readout), the spectrogram ramp (`--spec-0..5`), `--warn`, `--busy`, lamps `--ok` / `--bad`.
 - Engine row: speed figure and buffers take the gauge's zones, red | amber | green. Speed seams are the gauge's arcs (0.87×, 1×). Buffer seams 25% / 50% are placeholders.
 - Text is never darker than ink-2. ink-3/4 and accent-dim are for strokes and dead states only.
 - Hatch only for what can't or doesn't run (unavailable rate tiers, idle chain head).

@@ -16,8 +16,13 @@
 //
 // A colour suite reaches a paint as its fourth argument, the suite's identifier as the store holds it. Whether a suite
 // changes what a style draws is read by comparing what a paint draws under it against what the same paint draws under
-// Classic: each drawing call is kept with the fill and stroke in force when it was made, and a gradient keeps its
+// Mono: each drawing call is kept with the fill and stroke in force when it was made, and a gradient keeps its
 // stops, so two paints compare by their colours without any one colour being asserted.
+//
+// Under the Accent palette a paint draws in shades of the accent in force, read from the theme store's signals; which
+// shades is the painter's. Whether a change of accent reaches the next paint is read by comparing two painters with
+// one history, every paint the same, except that the accent changes before the last paint of one of them. A fade
+// paint's live trace is its last call, and its halo every call with that last call's own stroke taken out.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/spectrumfx-paint.test.js
 
@@ -26,9 +31,10 @@ import assert from "node:assert/strict";
 
 import { fitCanvas, fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
 import { BANDS, RIDGE_EVERY } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
-/** @typedef {{ name: string, args: unknown[], fill: unknown, stroke: unknown }} Ink */
+/** @typedef {{ name: string, args: unknown[], fill: unknown, stroke: unknown, shadow?: unknown, blur?: unknown }} Ink */
 /** @typedef {{ width: number, height: number, calls: Call[], inks: Ink[], getContext: (kind: string) => unknown }} FakeCanvas */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").SpectrumHold} SpectrumHold */
 
@@ -124,7 +130,14 @@ function fakeCanvas() {
         return (/** @type {unknown[]} */ ...args) => {
           canvas.calls.push({ name: String(key), args });
           if (DRAWS.has(String(key))) {
-            canvas.inks.push({ name: String(key), args, fill: props.fillStyle, stroke: props.strokeStyle });
+            canvas.inks.push({
+              name: String(key),
+              args,
+              fill: props.fillStyle,
+              stroke: props.strokeStyle,
+              shadow: props.shadowColor,
+              blur: props.shadowBlur,
+            });
           }
           const make = made[String(key)];
           return make ? make(...args) : undefined;
@@ -291,8 +304,8 @@ test("test_a_fade_paint_after_one_with_no_spectrum_starts_without_the_old_halo",
 
 // ── colour suites ────────────────────────────────────────────────────────
 
-//: Classic, and one suite that is not, as the store holds them.
-const CLASSIC = "classic";
+//: Two suites the owner offers, as the store holds them.
+const MONO = "mono";
 const INFERNO = "inferno";
 //: Paints enough for a ridge row and a lingering halo to be on the canvas.
 const PAINTS = RIDGE_EVERY + 1;
@@ -315,7 +328,59 @@ function inked(style, suite) {
 }
 
 for (const style of ["bars", "ridges", "fade"]) {
-  test(`test_a_non_classic_suite_changes_what_a_${style}_paint_draws`, () => {
-    assert.notDeepEqual(inked(style, INFERNO), inked(style, CLASSIC));
+  test(`test_a_change_of_suite_changes_what_a_${style}_paint_draws`, () => {
+    assert.notDeepEqual(inked(style, INFERNO), inked(style, MONO));
   });
 }
+
+// ── the Accent palette ───────────────────────────────────────────────────
+
+//: The palette that draws in the user's accent, as the store holds it.
+const ACCENT = "accent";
+//: Two custom accents, unlike each other and unlike every colour the painter is built with.
+const FIRST_HEX = "#4f9dde";
+const SECOND_HEX = "#c03a9b";
+//: An accent preset, as the theme store holds it.
+const PRESET = "violet";
+
+/**
+ * What the last paint of `style` under Accent draws: PAINTS paints under the custom accent FIRST_HEX, then the accent
+ * becomes `then` and the same painter paints once more.
+ *
+ * @param {string} style
+ * @param {string} [then]
+ * @returns {Ink[]}
+ */
+function afterAccentChange(style, then = SECOND_HEX) {
+  accent.value = PRESET;
+  accentHex.value = FIRST_HEX;
+  const { canvas, fx } = painter();
+  const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
+  for (let k = 0; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, ACCENT);
+  accentHex.value = then;
+  canvas.inks = [];
+  fx.paint({ disp, ghost: disp }, RANGE, style, ACCENT);
+  return canvas.inks;
+}
+
+/**
+ * The halo of a fade paint: every drawing call it makes, with the last call's own stroke, the live trace's, taken out.
+ *
+ * @param {Ink[]} inks
+ * @returns {Ink[]}
+ */
+const haloOf = (inks) => inks.map((ink, i) => (i === inks.length - 1 ? { ...ink, stroke: undefined } : ink));
+
+for (const style of ["bars", "ridges"]) {
+  test(`test_under_accent_a_${style}_paint_follows_a_change_of_accent`, () => {
+    assert.notDeepEqual(afterAccentChange(style, SECOND_HEX), afterAccentChange(style, FIRST_HEX));
+  });
+}
+
+test("test_under_accent_the_fade_live_trace_follows_a_change_of_accent", () => {
+  assert.notDeepEqual(afterAccentChange("fade", SECOND_HEX).at(-1), afterAccentChange("fade", FIRST_HEX).at(-1));
+});
+
+test("test_under_accent_the_fade_halo_follows_a_change_of_accent", () => {
+  assert.notDeepEqual(haloOf(afterAccentChange("fade", SECOND_HEX)), haloOf(afterAccentChange("fade", FIRST_HEX)));
+});

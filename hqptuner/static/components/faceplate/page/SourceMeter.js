@@ -13,7 +13,7 @@ import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
 import { onMeterPaint } from "../../../store/meter/loop.js";
 import { rangeButtons, setPageRange, spectrumColors, spectrumStyle } from "../../../store/ui/prefs.js";
-import { rgb } from "../tokencolours.js";
+import { accentInForce } from "../../../store/ui/theme.js";
 import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
 import { SH, SW, paintSourcePage } from "./sourcepaint.js";
@@ -28,8 +28,6 @@ import { fitCanvas, fxPainter } from "./spectrumfx.js";
 /** @typedef {{ current: HTMLElement | null }} BoxRef */
 
 const STEREO = 2;
-const METER_RGB = [233, 166, 60]; // --meter, where an aurora stop is not a hex colour
-const CHANNEL_MAX = 255;
 const LEVEL_INK = "slevel"; // the id of the trace's gradient coloured by level
 
 /**
@@ -130,16 +128,14 @@ function RangeControl({ view }) {
 }
 
 /**
- * The trace's filled area, held peaks and line. Under Classic the stylesheet colours them; under any other suite the
- * area and line are coloured by level through a gradient up the plot, and the held peaks take the suite's top colour.
+ * The trace's filled area, held peaks and line: the area and line coloured by level through a gradient up the plot,
+ * the held peaks in the colour suite's top colour, Accent's in the accent in force.
  *
  * @param {{ suite: string }} props
  */
 function TraceInk({ suite }) {
-  const stops = suiteLineStops(suite);
-  if (!stops.length) {
-    return html`<path class="sarea" /><path class="shold" /><path class="strace" />`;
-  }
+  const accent = accentInForce();
+  const stops = suiteLineStops(suite, accent);
   return html`
     <defs>
       <linearGradient id=${LEVEL_INK} gradientUnits="userSpaceOnUse" x1="0" y1=${SH} x2="0" y2="0">
@@ -147,7 +143,7 @@ function TraceInk({ suite }) {
       </linearGradient>
     </defs>
     <path class="sarea" style=${`fill:url(#${LEVEL_INK})`} />
-    <path class="shold" style=${`stroke:${suiteColor(suite, 1)}`} />
+    <path class="shold" style=${`stroke:${suiteColor(suite, 1, accent)}`} />
     <path class="strace" style=${`stroke:url(#${LEVEL_INK})`} />
   `;
 }
@@ -242,43 +238,7 @@ function Levels({ view }) {
  */
 function fxColours(el) {
   const cs = getComputedStyle(el);
-  return {
-    lo: cs.getPropertyValue("--vis-lo").trim(),
-    mid: cs.getPropertyValue("--vis-mid").trim(),
-    hi: cs.getPropertyValue("--vis-hi").trim(),
-    meter: cs.getPropertyValue("--meter").trim(),
-    dim: cs.getPropertyValue("--meter-dim").trim(),
-    glass: cs.getPropertyValue("--glass").trim(),
-  };
-}
-
-/**
- * A colour token's value as RGB, each 0 to 1, or `fallback` scaled the same way when it is not a hex colour.
- *
- * @param {string} value
- * @param {number[]} fallback  RGB, each 0 to 255
- * @returns {number[]}
- */
-const unitRgb = (value, fallback) => rgb(value, fallback).map((c) => c / CHANNEL_MAX);
-
-/**
- * The aurora style's colour ramp, base to crown, read from the --aurora-* stops in force on `el`: one RGB triple
- * per stop in one flat list, each channel 0 to 1, a stop that is not a hex colour standing in as --meter's amber.
- *
- * @param {Element} el
- * @returns {number[]}
- */
-function auroraRamp(el) {
-  const cs = getComputedStyle(el);
-  const stops = [
-    cs.getPropertyValue("--aurora-0"),
-    cs.getPropertyValue("--aurora-1"),
-    cs.getPropertyValue("--aurora-2"),
-    cs.getPropertyValue("--aurora-3"),
-    cs.getPropertyValue("--aurora-4"),
-    cs.getPropertyValue("--aurora-5"),
-  ];
-  return stops.flatMap((v) => unitRgb(v, METER_RGB));
+  return { glass: cs.getPropertyValue("--glass").trim() };
 }
 
 /**
@@ -313,7 +273,7 @@ function useFxPainter(plot, fx, sgl, live) {
     const colours = fxColours(canvas);
     painters.current = {
       fx: fxPainter(canvas, colours),
-      aurora: auroraPainter(glCanvas, auroraRamp(canvas)),
+      aurora: auroraPainter(glCanvas),
     };
     const ro = new ResizeObserver((entries) => {
       const rect = entries[0]?.contentRect;

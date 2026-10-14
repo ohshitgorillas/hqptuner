@@ -43,12 +43,11 @@ const SPECTRA = [
 
 /** @type {Opt[]} */
 const SUITES = [
-  { v: "classic", label: "Classic" },
-  { v: "amber", label: "Amber" },
+  { v: "accent", label: "Accent" },
+  { v: "retro", label: "Retro" },
   { v: "inferno", label: "Inferno" },
   { v: "viridis", label: "Viridis" },
   { v: "borealis", label: "Borealis" },
-  { v: "signal", label: "Signal" },
   { v: "mono", label: "Mono" },
 ];
 

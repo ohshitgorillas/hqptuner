@@ -1,7 +1,8 @@
-// The spectrogram's pixels, apart from any canvas: a colour ramp blended in
-// oklab between hex stops, and the raster a view paints with it. Time across,
-// newest at the right; frequency up, linear from 0 Hz to the view's top; level
-// as a step on the ramp, from the range's floor to full scale.
+// The spectrogram's pixels, apart from any canvas: hex colours read as RGB, a
+// colour ramp blended in oklab between hex stops, and the raster a view paints
+// with it. Time across, newest at the right; frequency up, linear from 0 Hz to
+// the view's top; level as a step on the ramp, from the range's floor to full
+// scale.
 //
 // A slice is a column of rows from 0 Hz to the Nyquist it was measured at, one
 // byte a row at ROW_STEP_DB below full scale (store/meter/spectrogram.js). A
@@ -47,19 +48,30 @@ function fromOklab([L, a, b]) {
   const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3;
   const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3;
   const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3;
-  const rgb = [
+  const linear = [
     4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
     -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
     -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
   ];
-  return /** @type {Triple} */ (rgb.map((c) => Math.round(255 * clamp(toSrgb(c), 0, 1))));
+  return /** @type {Triple} */ (linear.map((c) => Math.round(255 * clamp(toSrgb(c), 0, 1))));
 }
 
-/** @param {string} hex `#rrggbb` @returns {Triple} 0..1 sRGB */
-function parseHex(hex) {
-  const n = parseInt(hex.trim().slice(1), 16) || 0;
-  return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+/**
+ * A colour's value as [r, g, b], 0 to 255 each, or `fallback` when it is not a `#rgb` or `#rrggbb` hex colour.
+ *
+ * @param {string} value
+ * @param {number[]} fallback
+ * @returns {number[]}
+ */
+export function rgb(value, fallback) {
+  const m = value.trim().replace("#", "");
+  if (!/^[0-9a-f]{3}([0-9a-f]{3})?$/i.test(m)) return fallback;
+  const full = m.length === 3 ? [...m].map((c) => c + c).join("") : m;
+  return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
 }
+
+/** @param {string} hex `#rrggbb` @returns {Triple} 0..1 sRGB, black where `hex` is no hex colour */
+const unitRgb = (hex) => /** @type {Triple} */ (rgb(hex, [0, 0, 0]).map((c) => c / 255));
 
 /**
  * The ramp as a lookup table, floor first: STEPS colors blended in oklab
@@ -69,7 +81,7 @@ function parseHex(hex) {
  * @returns {Triple[]} 0..255 sRGB
  */
 export function rampFrom(hexStops) {
-  const stops = hexStops.map((hex) => toOklab(parseHex(hex)));
+  const stops = hexStops.map((hex) => toOklab(unitRgb(hex)));
   return Array.from({ length: STEPS }, (_, i) => {
     const pos = (i / (STEPS - 1)) * (stops.length - 1);
     const seg = Math.min(stops.length - 2, Math.floor(pos));

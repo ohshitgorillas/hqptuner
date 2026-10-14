@@ -304,17 +304,19 @@ test("test_a_halo_dimmed_frame_by_frame_glows_as_its_age_says", () => {
 
 // ── colour suites ────────────────────────────────────────────────────────
 
-//: The non-Classic colour suites the owner offers, as the store holds them.
-const SUITES = ["amber", "inferno", "viridis", "borealis", "signal", "mono"];
+//: The fixed colour suites the owner offers, as the store holds them; Accent takes its colours from the user's accent.
+const SUITES = ["inferno", "viridis", "borealis", "mono", "retro"];
 //: The plot's floor and its full scale, as fractions of the plot.
 const QUIET = 0;
 const LOUD = 1;
+//: An accent in force, which the fixed suites ignore.
+const ACCENT_HEX = "#4f9dde";
 
 /**
- * The colour suites' surface on the gauges module: each non-Classic suite's colours as six-digit hex, floor first,
- * and the colour a part of the spectrum at a plot fraction is drawn in under a suite.
+ * The colour suites' surface on the gauges module: each fixed suite's colours as six-digit hex, floor first,
+ * and the colour a part of the spectrum at a plot fraction is drawn in under a suite with an accent in force.
  *
- * @type {{ BANDS: number, SPECTRUM_SUITES?: Record<string, readonly string[]>, suiteColor?: (suite: string, at: number) => string }}
+ * @type {{ BANDS: number, SPECTRUM_SUITES?: Record<string, readonly string[]>, suiteColor?: (suite: string, at: number, accent: string) => string }}
  */
 const suites = gauges;
 
@@ -327,7 +329,7 @@ const suites = gauges;
  */
 function placeIn(suite, at) {
   const colours = (suites.SPECTRUM_SUITES?.[suite] ?? []).map((c) => c.toLowerCase());
-  return colours.indexOf((suites.suiteColor?.(suite, at) ?? "").toLowerCase());
+  return colours.indexOf((suites.suiteColor?.(suite, at, ACCENT_HEX) ?? "").toLowerCase());
 }
 
 for (const suite of SUITES) {

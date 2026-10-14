@@ -45,8 +45,8 @@ const DEEP = "-90";
  */
 const floorStore = uiPrefs;
 
-// Two colour suites, as the store holds them: Classic, and one other so a pick of it shows.
-const CLASSIC = "classic";
+// Two colour suites, as the store holds them: the one each case starts from, and another so a pick of it shows.
+const MONO = "mono";
 const INFERNO = "inferno";
 
 /**
@@ -61,7 +61,7 @@ beforeEach(() => {
   body.value = "chain";
   openStage.value = null;
   setSpectrumStyle(TRACE);
-  colorsStore.setSpectrumColors?.(CLASSIC);
+  colorsStore.setSpectrumColors?.(MONO);
   floorStore.setMeterFloor?.(SHALLOW);
   openPopover.value = DISPLAY;
 });

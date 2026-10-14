@@ -9,13 +9,13 @@
 
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
-import { H, W, rasterize, scrollPlan } from "../../../../lib/spectroraster.js";
+import { H, W, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp } from "../../../../model/gauges/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";
 import { spectrogramCells, spectrogramEnd, stripEnd } from "../../../../store/meter/spectrogram.js";
-import { rgb, specRamp } from "../../tokencolours.js";
+import { specRamp } from "../../tokencolours.js";
 
 /** @typedef {[number, number, number]} Triple */
 /** @typedef {import("../../../../lib/spectroraster.js").Cell} Cell */

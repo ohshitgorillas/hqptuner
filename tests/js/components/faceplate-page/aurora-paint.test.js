@@ -10,7 +10,11 @@
 //
 // A colour suite reaches a paint as its third argument, the suite's identifier as the store holds it. Whether a suite
 // changes what aurora draws is read by comparing every call a paint makes under it, uploads included, against the
-// same paint under Classic, so no one colour is asserted.
+// same paint under Mono, so no one colour is asserted.
+//
+// Under the Accent palette aurora draws in the accent in force, read from the theme store's signals. Whether a change
+// of accent reaches the next paint is read by comparing two painters with one history, every paint the same, except
+// that the accent changes before the last paint of one of them.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/aurora-paint.test.js
 
@@ -18,6 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/page/aurora.js";
+import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
 /** @typedef {{ width: number, height: number, calls: Call[], getContext: (kind: string) => unknown }} FakeCanvas */
@@ -27,8 +32,6 @@ const W = 480;
 const H = 170;
 //: A 60 dB plot.
 const RANGE = 60;
-//: The colour a painter is built with.
-const COLOUR = [0.2, 0.6, 0.4];
 //: The calls that put pixels on the canvas or take them off.
 const DRAWS = new Set(["clear", "drawArrays", "drawElements"]);
 
@@ -96,7 +99,7 @@ function fakeCanvas(gl = true, made = MADE) {
  */
 function during(act) {
   const canvas = fakeCanvas();
-  const fx = auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), COLOUR);
+  const fx = auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)));
   canvas.calls = [];
   if (fx) act(fx);
   return canvas.calls;
@@ -113,7 +116,7 @@ const draws = (calls) => calls.filter((c) => DRAWS.has(c.name)).map((c) => c.nam
 
 test("test_a_canvas_without_a_webgl2_context_gets_no_painter", () => {
   const canvas = fakeCanvas(false);
-  assert.equal(auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), COLOUR), null);
+  assert.equal(auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas))), null);
 });
 
 /**
@@ -127,7 +130,7 @@ function painterOn(made) {
   const realWarn = console.warn;
   console.warn = () => {};
   try {
-    return auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), COLOUR);
+    return auroraPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)));
   } finally {
     console.warn = realWarn;
   }
@@ -155,8 +158,8 @@ test("test_clear_only_clears_once", () => {
 
 // ── colour suites ────────────────────────────────────────────────────────
 
-//: Classic, and one suite that is not, as the store holds them.
-const CLASSIC = "classic";
+//: Two suites the owner offers, as the store holds them.
+const MONO = "mono";
 const INFERNO = "inferno";
 //: The meter loop's column count.
 const COLS = 600;
@@ -170,6 +173,37 @@ const MID_DB = -RANGE / 2;
  */
 const paintedUnder = (suite) => during((fx) => fx.paint(new Float32Array(COLS).fill(MID_DB), RANGE, suite));
 
-test("test_a_non_classic_suite_changes_what_an_aurora_paint_draws", () => {
-  assert.notDeepEqual(paintedUnder(INFERNO), paintedUnder(CLASSIC));
+test("test_a_change_of_suite_changes_what_an_aurora_paint_draws", () => {
+  assert.notDeepEqual(paintedUnder(INFERNO), paintedUnder(MONO));
+});
+
+// ── the Accent palette ───────────────────────────────────────────────────
+
+//: The palette that draws in the user's accent, as the store holds it.
+const ACCENT = "accent";
+//: Two custom accents, unlike each other.
+const FIRST_HEX = "#4f9dde";
+const SECOND_HEX = "#c03a9b";
+//: An accent preset, as the theme store holds it, under the custom hexes.
+const PRESET = "violet";
+
+/**
+ * Every call two paints of one painter under Accent make, the accent being the custom FIRST_HEX for the first paint
+ * and `then` for the second.
+ *
+ * @param {string} then
+ */
+function twoPaintsWith(then) {
+  accent.value = PRESET;
+  accentHex.value = FIRST_HEX;
+  const levels = new Float32Array(COLS).fill(MID_DB);
+  return during((fx) => {
+    fx.paint(levels, RANGE, ACCENT);
+    accentHex.value = then;
+    fx.paint(levels, RANGE, ACCENT);
+  });
+}
+
+test("test_under_accent_an_aurora_paint_follows_a_change_of_accent", () => {
+  assert.notDeepEqual(twoPaintsWith(SECOND_HEX), twoPaintsWith(FIRST_HEX));
 });

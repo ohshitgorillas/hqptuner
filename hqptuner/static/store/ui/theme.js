@@ -51,6 +51,21 @@ export const accent = signal(load());
 export const accentHex = signal(loadHex()); // "" = follow the preset swatch
 export const dyslexic = signal(loadDyslexic()); // true = Atkinson Hyperlegible for --font-ui
 
+/**
+ * The accent a swatch name and an optional custom hex pick: the custom hex when set, else the named swatch's, else the
+ * default swatch's.
+ * @param {string} name
+ * @param {string} hex
+ * @returns {string}
+ */
+export const accentPick = (name, hex) => hex || ACCENT_HEX[Object.hasOwn(ACCENT_HEX, name) ? name : DEFAULT];
+
+/**
+ * The accent in force, as the theme store's swatch and custom hex pick it.
+ * @returns {string}
+ */
+export const accentInForce = () => accentPick(accent.value, accentHex.value);
+
 // Persist a preset swatch and drop any custom-hex override; the faceplate
 // theme restyles the page from the two signals.
 /**

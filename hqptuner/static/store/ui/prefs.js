@@ -4,7 +4,7 @@
 // no localStorage): the storage read is guarded.
 import { signal } from "@preact/signals";
 import { getStored, setStored } from "../../lib/browser/storage.js";
-import { SPECTRUM_SUITES } from "../../model/gauges/spectrumfx.js";
+import { ACCENT, SPECTRUM_PALETTES } from "../../model/gauges/spectrumfx.js";
 import { DISPLAY_FORMATS } from "../../model/shell/plate.js";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
@@ -175,9 +175,8 @@ export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS,
 const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
-// The colour suite the spectrum is drawn in. An unset or junk value reads as Classic.
-const SPECTRUM_COLORS = ["classic", ...Object.keys(SPECTRUM_SUITES)];
-export const [spectrumColors, setSpectrumColors] = enumPref(K_SPECTRUM_COLORS, SPECTRUM_COLORS, "classic");
+// The colour suite the spectrum is drawn in. An unset or junk value reads as Accent.
+export const [spectrumColors, setSpectrumColors] = enumPref(K_SPECTRUM_COLORS, [...SPECTRUM_PALETTES], ACCENT);
 
 // The Levels floor, dBFS: where the page's Source level bars and their dB scale
 // end, apart from the page's Range.

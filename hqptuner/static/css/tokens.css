@@ -42,9 +42,9 @@
   --ink-dead:#262a2f;      /* unlit legend lettering */
 
   /* Accent (amber by default): marks what is set (a value in a VFD window, the chosen segment) and where
-     the user is (the left-hand selection bar, the open stage, a view's foot). Never a measurement, a
-     semantic state or a button's resting face. The user can swap it, so nothing that must stay amber
-     reads it. */
+     the user is (the left-hand selection bar, the open stage, a view's foot). Never a semantic state or a
+     button's resting face, and never a measurement except the spectrum under its Accent colours, which
+     the user picks. The user can swap it, so nothing that must stay amber reads it. */
   --acc:#e9a63c; --acc-dim:#6e5124; --acc-lo:#2a2215;
   --on-acc:#0b0a08;        /* ink on an accent fill */
   --acc-rim:#ffd48a;       /* pale of the accent: peak hold, lit parens and handles */
@@ -324,11 +324,9 @@
   --needle:.14s ease-out;              /* rate dial needle */
   --lamp-decay:.5s;                    /* a counter lamp's flash fading out */
 
-  /* Instrument amber: measurements (the Source meter's spectrum and levels) stay the faceplate's amber whatever the
-     accent, like the spectrogram ramp. */
+  /* Instrument amber: the Source meter's level bars stay the faceplate's amber whatever the accent, like the
+     spectrogram ramp. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
-  /* Visualizer bars, floor to full scale: green → yellow → red (Winamp's default skin), whatever the accent. */
-  --vis-lo:#29ce10; --vis-mid:#d6b521; --vis-hi:#ef3110;
 
   /* Narrowing console and facet windows (the narrow-filters sheet). */
   --shade-soft:#0008;          /* cast shadow under a raised part */
@@ -342,9 +340,6 @@
 
   /* Spectrogram ramp, floor to full scale: glass → indigo → magenta-red → orange-red → orange → pale yellow, after matplotlib's Inferno. OKLab lightness rises at every stop, so loudness still reads as brightness. */
   --spec-0:#08090b; --spec-1:#420a68; --spec-2:#932667; --spec-3:#dd513a; --spec-4:#fca50a; --spec-5:#fcffa4;
-
-  /* Aurora spectrum ramp, floor to full scale: dark teal → deep green → aurora green → pale green → violet → pink-red, the northern lights' own colours, whatever the accent. */
-  --aurora-0:#0a2a2e; --aurora-1:#0e6b45; --aurora-2:#2bdc7a; --aurora-3:#8ef0b0; --aurora-4:#7a5cff; --aurora-5:#e04f8a;
 }
 
 /* The dyslexic switch swaps the body face only; engraved legends and readouts keep theirs. */

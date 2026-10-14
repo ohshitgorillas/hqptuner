@@ -1,13 +1,14 @@
 // Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
 // fractions and bands; bars carry falling peak caps, gravity bars fall under acceleration, aurora bands fall under
-// their own, ridge rows stack on a cadence and dim toward the back, the Fade halo fades where the trace has been and
-// says how much of the canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a
-// fraction of the plot, 0 on the floor and 1 at full scale; every step returns a new state and leaves its inputs
-// alone, so a painter draws what it gets back and a test drives it from a table. A colour suite gives the colour a
-// part of the spectrum is drawn in by its height, and the Fade halo its colour.
+// their own, ridge rows stack on a cadence, the Fade halo fades where the trace has been and says how much of the
+// canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot, 0
+// on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone, so a painter draws what
+// it gets back and a test drives it from a table. A colour suite gives the colour a part of the spectrum is drawn in by
+// its height, the Fade halo its colour, and the bars the one gradient they are drawn over where the suite has one.
 
 import { clamp } from "../../lib/coerce.js";
-import { rampFrom } from "../../lib/spectroraster.js";
+import { rampFrom, rgb } from "../../lib/spectroraster.js";
+import { ACCENT_SHADES } from "../shell/settings.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
@@ -154,18 +155,6 @@ export function stepRidges(prev, row) {
 }
 
 /**
- * How far ridge row `k` of `n`, newest first, has dimmed from the front row's stroke toward the back row's: none at the
- * front, all of it at row `n - 1`, in even steps between. A stack of one row has no back.
- *
- * @param {number} k
- * @param {number} n
- * @returns {number}  0 to 1
- */
-export function ridgeShade(k, n) {
-  return n > 1 ? clamp(k / (n - 1), 0, 1) : 0;
-}
-
-/**
  * The halo's glow at a spot the trace left `age` seconds ago, as a share of the trace's strength: HALO_START where the
  * trace has just been, falling continuously by e every HALO_TAU_S.
  *
@@ -201,64 +190,97 @@ export function effectiveStyle(style, gl) {
   return style === "aurora" && !gl ? "trace" : style;
 }
 
+/** The colour suite drawn in the four shades of the accent in force. */
+export const ACCENT = "accent";
+
 /**
- * The colour suites the page spectrum can draw in, each its colours as `#rrggbb`, the floor first and full scale last.
- * Classic has none: under it each style keeps its own colours.
+ * The colour suites the page spectrum can draw in besides Accent, each its colours as `#rrggbb`, the floor first and
+ * full scale last.
  *
  * @type {Readonly<Record<string, readonly string[]>>}
  */
 export const SPECTRUM_SUITES = Object.freeze({
-  amber: ["#2a2215", "#6e5124", "#e9a63c", "#ffd48a"],
+  retro: ["#29ce10", "#d6b521", "#ef3110"],
   inferno: ["#08090b", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"],
   viridis: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
   borealis: ["#0a2a2e", "#0e6b45", "#2bdc7a", "#8ef0b0", "#7a5cff", "#e04f8a"],
-  signal: ["#29ce10", "#d6b521", "#ef3110"],
   mono: ["#1a1c20", "#5a5e66", "#b8bcc4", "#ffffff"],
 });
 
-/**
- * The Fade halo's colour under each suite, Classic included, as `#rrggbb`.
- *
- * @type {Readonly<Record<string, string>>}
- */
-export const SUITE_HALOS = Object.freeze({
-  classic: "#420a68",
-  amber: "#1f3b4d",
-  inferno: "#420a68",
-  viridis: "#414487",
-  borealis: "#0e6b45",
-  signal: "#0e6b45",
-  mono: "#5a5e66",
-});
+/** Every colour suite the page spectrum can draw in, Accent first. */
+export const SPECTRUM_PALETTES = Object.freeze([ACCENT, ...Object.keys(SPECTRUM_SUITES)]);
+
+/** The suites under which the bars are drawn over one gradient fixed across the canvas, floor to full scale. */
+const FIXED_BARS = new Set(["retro"]);
 
 const LEVEL_STOPS = 9; // stops a gradient coloured by level carries, floor to full scale
 const CHANNEL_MAX = 255;
+const PERCENT = 100;
 
 /** @typedef {[number, number, number]} Triple */
 
-/** @type {Map<string, Triple[]>} each suite's ramp, 0 to 255 per channel, built on first use */
+/** @type {Map<string, Triple[]>} each fixed suite's ramp, 0 to 255 per channel, built on first use */
 const ramps = new Map();
+/** The Accent ramp built last, and the accent it was built from. */
+let accentRamp = { accent: "", ramp: /** @type {Triple[]} */ ([]) };
+
+/** @param {number} c 0 to 255 */
+const hexByte = (c) => c.toString(16).padStart(2, "0");
+
+const BLACK = [0, 0, 0]; // what a colour that is not hex reads as
+
+/** @param {number[]} channels  RGB, 0 to 255 each */
+const hexOf = (channels) => `#${channels.map((c) => hexByte(c)).join("")}`;
 
 /**
- * `suite`'s colours, or null under Classic or a name that is no suite.
+ * The accent token `name` derived from `pick`, as the stylesheet mixes it.
  *
- * @param {string} suite
- * @returns {readonly string[] | null}
+ * @param {number[]} pick  RGB, 0 to 255 per channel
+ * @param {string} name
+ * @returns {string}  `#rrggbb`
  */
-const stopsOf = (suite) => (Object.hasOwn(SPECTRUM_SUITES, suite) ? SPECTRUM_SUITES[suite] : null);
+function shadeOf(pick, name) {
+  const [share, into] = ACCENT_SHADES[name];
+  const base = rgb(into, BLACK);
+  return hexOf(pick.map((c, i) => Math.round((c * share + base[i] * (PERCENT - share)) / PERCENT)));
+}
 
 /**
- * `suite`'s ramp, floor first, or null under Classic.
+ * The Accent suite's colours for the accent `accent`: its low, dim, own and rim shades, floor to full scale.
+ *
+ * @param {string} accent  `#rrggbb`
+ * @returns {string[]}
+ */
+function accentShades(accent) {
+  const pick = rgb(accent, BLACK);
+  return [shadeOf(pick, "--acc-lo"), shadeOf(pick, "--acc-dim"), hexOf(pick), shadeOf(pick, "--acc-rim")];
+}
+
+/**
+ * `suite`'s colours, the accent's shades under Accent or a name that is no suite.
  *
  * @param {string} suite
- * @returns {Triple[] | null}
+ * @param {string} accent  the accent in force, `#rrggbb`
+ * @returns {readonly string[]}
  */
-function rampOf(suite) {
-  const stops = stopsOf(suite);
-  if (!stops) return null;
+const stopsOf = (suite, accent) =>
+  Object.hasOwn(SPECTRUM_SUITES, suite) ? SPECTRUM_SUITES[suite] : accentShades(accent);
+
+/**
+ * `suite`'s ramp, floor first.
+ *
+ * @param {string} suite
+ * @param {string} accent  the accent in force, `#rrggbb`
+ * @returns {Triple[]}
+ */
+function rampOf(suite, accent) {
+  if (!Object.hasOwn(SPECTRUM_SUITES, suite)) {
+    if (accentRamp.accent !== accent) accentRamp = { accent, ramp: rampFrom(accentShades(accent)) };
+    return accentRamp.ramp;
+  }
   let ramp = ramps.get(suite);
   if (!ramp) {
-    ramp = rampFrom([...stops]);
+    ramp = rampFrom([...SPECTRUM_SUITES[suite]]);
     ramps.set(suite, ramp);
   }
   return ramp;
@@ -273,65 +295,85 @@ function rampOf(suite) {
  */
 const rampAt = (ramp, at) => ramp[Math.round(clamp(at, 0, 1) * (ramp.length - 1))];
 
-/** @param {number} c 0 to 255 */
-const hexByte = (c) => c.toString(16).padStart(2, "0");
-
 /**
  * The colour a part of the spectrum at plot fraction `at` is drawn in under `suite`, blended between the suite's
- * colours: its first on the floor, its last at full scale. Empty under Classic or a suite with no colours.
+ * colours: its first on the floor, its last at full scale.
  *
  * @param {string} suite
  * @param {number} at  0 on the floor, 1 at full scale
- * @returns {string}  `#rrggbb`, or empty
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
+ * @returns {string}  `#rrggbb`
  */
-export function suiteColor(suite, at) {
-  const ramp = rampOf(suite);
-  if (!ramp) return "";
-  const [r, g, b] = rampAt(ramp, at);
-  return `#${hexByte(r)}${hexByte(g)}${hexByte(b)}`;
+export function suiteColor(suite, at, accent) {
+  return hexOf(rampAt(rampOf(suite, accent), at));
 }
 
 /**
  * The colour a line style draws level `at` in under `suite`: the suite from its second colour on the floor to its
- * last at full scale, so a line never takes the floor colour it would vanish into. Empty under Classic.
+ * last at full scale, so a line never takes the floor colour it would vanish into.
  *
  * @param {string} suite
  * @param {number} at  0 on the floor, 1 at full scale
- * @returns {string}  `#rrggbb`, or empty
+ * @param {string} accent  the accent in force, `#rrggbb`
+ * @returns {string}  `#rrggbb`
  */
-function suiteLineColor(suite, at) {
-  const stops = stopsOf(suite);
-  if (!stops) return "";
-  const from = 1 / (stops.length - 1);
-  return suiteColor(suite, from + clamp(at, 0, 1) * (1 - from));
+function suiteLineColor(suite, at, accent) {
+  const from = 1 / (stopsOf(suite, accent).length - 1);
+  return suiteColor(suite, from + clamp(at, 0, 1) * (1 - from), accent);
 }
 
 /**
  * The stops of a line style's gradient coloured by level under `suite`, LEVEL_STOPS of them from the floor (0) to full
- * scale (1), each its offset and its colour as suiteLineColor gives it. None under Classic.
+ * scale (1), each its offset and its colour as suiteLineColor gives it.
  *
  * @param {string} suite
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
  * @returns {[number, string][]}
  */
-export function suiteLineStops(suite) {
-  if (!stopsOf(suite)) return [];
+export function suiteLineStops(suite, accent) {
   return Array.from({ length: LEVEL_STOPS }, (_, i) => {
     const at = i / (LEVEL_STOPS - 1);
-    return /** @type {[number, string]} */ ([at, suiteLineColor(suite, at)]);
+    return /** @type {[number, string]} */ ([at, suiteLineColor(suite, at, accent)]);
   });
 }
 
 /**
+ * The stops of the one gradient the bars are drawn over under `suite`, fixed across the canvas: the suite's colours
+ * spread evenly from the floor (0) to full scale (1). None under a suite whose bars each take the colour at their own
+ * height.
+ *
+ * @param {string} suite
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
+ * @returns {[number, string][]}
+ */
+export function suiteBarStops(suite, accent) {
+  if (!FIXED_BARS.has(suite)) return [];
+  const stops = stopsOf(suite, accent);
+  return stops.map((colour, i) => /** @type {[number, string]} */ ([i / Math.max(1, stops.length - 1), colour]));
+}
+
+/**
+ * The Fade halo's colour under `suite`: the suite's second colour.
+ *
+ * @param {string} suite
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
+ * @returns {string}  `#rrggbb`
+ */
+export function suiteHalo(suite, accent) {
+  return stopsOf(suite, accent)[1];
+}
+
+/**
  * Aurora's ramp under `suite`: `count` colours spread evenly from the suite's floor to its full scale, one RGB triple
- * each in one flat list, each channel 0 to 1. Empty under Classic, where aurora keeps its own ramp.
+ * each in one flat list, each channel 0 to 1.
  *
  * @param {string} suite
  * @param {number} count
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
  * @returns {number[]}
  */
-export function suiteRamp(suite, count) {
-  const ramp = rampOf(suite);
-  if (!ramp) return [];
+export function suiteRamp(suite, count, accent) {
+  const ramp = rampOf(suite, accent);
   return Array.from({ length: count }, (_, i) => rampAt(ramp, i / Math.max(1, count - 1))).flatMap((c) =>
     c.map((v) => v / CHANNEL_MAX),
   );
