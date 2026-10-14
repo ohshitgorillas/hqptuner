@@ -14,7 +14,8 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Output rate pinning** is now possible through the "Allow Rate Pinning" setting.
 - **State upload** restores HQPTuner's stations, snapshots, and settings from a state file, including one saved by v1.
 - **Three adjustable interface sizes** betweewn Compact (iPad Mini), Normal (~11" tablets), and Expanded (~13" tablets) in Settings > Visual Settings. "Auto" detects screen size.
-- **Adjust the main page spectrum's visualizer** using the Display button on the main page. Several distinct visualizer styles are available, including Trace, Fade, Ridges, and Aurora. Also adjusts the frequency and volume range.
+- **Adjust the main page spectrum's visualizer** using the Display button on the main page. Several distinct visualizer styles are available, including Trace, Fade, Ridges, and Aurora.
+- **Adjust the visualizer's range and frequency axes** using the Display button. Show the full frequency range, 1/2, or 1/4; range is adjustable from 120 - 300 dBFS in 60 dB steps.
 
 ### Changed
 
