@@ -4,6 +4,7 @@
 
 import { clamp } from "../../lib/coerce.js";
 import { dbToPower, powerToDb } from "../../lib/units.js";
+import { suiteColor } from "./spectrumfx.js";
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
 const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
@@ -261,4 +262,24 @@ export function smoothColumns(cols) {
  */
 export function fraction(db, floor) {
   return clamp((db - floor) / -floor, 0, 1);
+}
+
+/**
+ * The colours the Source level meter draws a reading in under the spectrum's palette `palette`: each bar and the held
+ * peak in the colour the spectrum draws at that part's own level, and the peak readout in its bar's colour. Under
+ * Accent those are the accent's shades.
+ *
+ * @param {string} palette  a spectrum palette, as the store holds it
+ * @param {{ peak: number, rms: number, hold: number }} reading  bar fractions, 0 on the floor and 1 at full scale
+ * @param {string} accent  the accent in force, `#rrggbb`
+ * @returns {{ peak: string, rms: string, hold: string, readout: string }}  `#rrggbb`
+ */
+export function meterColors(palette, { peak, rms, hold }, accent) {
+  const peakColor = suiteColor(palette, peak, accent);
+  return {
+    peak: peakColor,
+    rms: suiteColor(palette, rms, accent),
+    hold: suiteColor(palette, hold, accent),
+    readout: peakColor,
+  };
 }

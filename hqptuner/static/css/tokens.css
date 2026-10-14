@@ -324,9 +324,12 @@
   --needle:.14s ease-out;              /* rate dial needle */
   --lamp-decay:.5s;                    /* a counter lamp's flash fading out */
 
-  /* Instrument amber: the Source meter's level bars stay the faceplate's amber whatever the accent, like the
-     spectrogram ramp. */
+  /* Instrument amber: the Source meter's level bars and peak readout where the paint has written no colour of the
+     Display palette onto them. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
+  /* How far a level mark's shades sit from the colour the paint writes: the dark fill and the dim edge mixed toward
+     the glass, the hold's bright core toward the ink, near the amber set's own spacing. */
+  --lv-lo-mix:16%; --lv-dim-mix:46%; --lv-hi-mix:40%;
 
   /* Narrowing console and facet windows (the narrow-filters sheet). */
   --shade-soft:#0008;          /* cast shadow under a raised part */

@@ -57,16 +57,19 @@
 .lvb{display:flex;flex-direction:column;align-items:center;gap:var(--sp-2)}
 .lvb .trough{position:relative;flex-grow:1;width:var(--lv-bar);background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:inset 0 var(--hair) var(--sp-1) var(--shade);overflow:hidden}
 .lvb .trough i{position:absolute;bottom:0;display:block}
-.lvb .pk{left:0;right:0;background:var(--meter-lo);border-top:var(--hair) solid var(--meter-dim)}
-.lvb .rm{left:var(--sp-2);right:var(--sp-2);background:linear-gradient(0deg,var(--meter-dim),var(--meter))}
-.lvb .hd{left:0;right:0;height:var(--stroke);margin-bottom:calc(-1 * var(--hair));background:var(--meter-hi);box-shadow:0 0 var(--sp-2) var(--meter)}
+/* A mark's shades come from the `--lv-ink` the paint writes on it; unwritten, each shade is invalid and its use falls
+   back to the instrument amber. */
+.lvb .trough i{--lv-lo:color-mix(in srgb,var(--lv-ink) var(--lv-lo-mix),var(--glass));--lv-dim:color-mix(in srgb,var(--lv-ink) var(--lv-dim-mix),var(--glass));--lv-hi:color-mix(in srgb,var(--lv-ink),var(--ink) var(--lv-hi-mix))}
+.lvb .pk{left:0;right:0;background:var(--lv-lo,var(--meter-lo));border-top:var(--hair) solid var(--lv-dim,var(--meter-dim))}
+.lvb .rm{left:var(--sp-2);right:var(--sp-2);background:linear-gradient(0deg,var(--lv-dim,var(--meter-dim)),var(--lv-ink,var(--meter)))}
+.lvb .hd{left:0;right:0;height:var(--stroke);margin-bottom:calc(-1 * var(--hair));background:var(--lv-hi,var(--meter-hi));box-shadow:0 0 var(--sp-2) var(--lv-ink,var(--meter))}
 .lvn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);color:var(--ink-2);line-height:var(--axis-h)}
 .lvtab{align-self:end;display:grid;grid-template-columns:var(--lvtab-l) 1fr 1fr;align-items:baseline;gap:var(--sp-3) 0;padding:0 0 var(--sp-9) var(--sp-6)}
 .lvtab .u{text-align:right;padding-right:var(--sp-3)}
 .lvh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);text-align:center;line-height:var(--lh-eng)}
 .lvh.l{text-align:right;padding-right:var(--sp-3)}
 .npk,.nrm{font-family:var(--f-mono);font-size:var(--fs-4);text-align:center;white-space:nowrap;line-height:var(--lh-text)}
-.npk{color:var(--meter)}
+.npk{color:var(--lv-ink,var(--meter))}
 .nrm{color:var(--ink)}
 
 /* Spectrogram grid: gutter | plot. Row 1 apodizing strip, row 2 spectrogram (kHz, linear), row 3 time axis. */

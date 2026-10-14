@@ -30,6 +30,7 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
 import { attr, elements, text } from "../../support/markup.js";
+import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").LevelReading} LevelReading */
@@ -442,4 +443,133 @@ test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace
   setSpectrumStyle("aurora");
   const grid = styled(busy(), 90, "trace").querySelector(".sgrid1");
   assert.equal(grid?.getAttribute("data-style"), "trace");
+});
+
+// --- the meter's colours -------------------------------------------------------------------------------------------
+
+//: Two palettes that colour the meter by level, unlike each other, as the store holds them.
+const INFERNO = "inferno";
+const VIRIDIS = "viridis";
+//: The palette that draws in the user's accent, as the store holds it.
+const ACCENT = "accent";
+//: Two custom accents, unlike each other.
+const FIRST_HEX = "#4f9dde";
+const SECOND_HEX = "#c03a9b";
+//: An accent preset, as the theme store holds it, under the custom hexes.
+const PRESET = "violet";
+
+//: One bar's reading, its RMS, peak and hold at three different levels, in dBFS.
+const PEAK_DB = -21;
+const RMS_DB = -33;
+const HOLD_DB = -12;
+
+/** @type {{ setSpectrumColors?(v: string): void }} */
+const colorsStore = uiPrefs;
+
+/**
+ * The inline style an element carries as written, as one string with its properties in name order.
+ *
+ * @param {Elem} el
+ */
+const inlineOf = (el) =>
+  Object.entries(el.style)
+    .filter(([, v]) => typeof v === "string")
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}:${v}`)
+    .join(";");
+
+/**
+ * What `el` is drawn in as the paint left it: its own inline style and that of each ancestor up to and including
+ * `top`, so a colour written on the element or on a container it inherits from is read alike; empty where `el` is
+ * missing.
+ *
+ * @param {Elem | null | undefined} el
+ * @param {Elem | null | undefined} top
+ */
+function inkOf(el, top) {
+  /** @type {string[]} */
+  const out = [];
+  for (let at = el; at; at = at === top ? null : at.parent) out.push(inlineOf(at));
+  return out.join("|");
+}
+
+/**
+ * The section painted with one bar at PEAK_DB, RMS_DB and HOLD_DB under palette `palette`, picked in the store and
+ * handed to the paint after the spectrum style.
+ *
+ * @param {string} palette
+ */
+function paintedUnder(palette) {
+  pickFloor(FLOOR_60);
+  colorsStore.setSpectrumColors?.(palette);
+  const root = section();
+  const sc = scene({ levels: [{ peak: PEAK_DB, rms: RMS_DB, hold: HOLD_DB }, {}] });
+  const paint = /** @type {(...a: unknown[]) => void} */ (paintSourcePage);
+  paint(root, sc, WIDE_RANGE, "trace", palette);
+  return root;
+}
+
+/**
+ * What the first bar's mark `cls` is drawn in under `palette`.
+ *
+ * @param {string} palette
+ * @param {string} cls
+ */
+function markInk(palette, cls) {
+  const bar = paintedUnder(palette).querySelector(".lvb");
+  return inkOf(bar?.querySelector(`.${cls}`), bar);
+}
+
+/**
+ * What the readings table's numeric peak for the first bar is drawn in under `palette`: the cell reading PEAK_DB or
+ * HOLD_DB, the first one in the table.
+ *
+ * @param {string} palette
+ */
+function readoutInk(palette) {
+  const table = paintedUnder(palette).querySelector(".lvtab");
+  const cell = table
+    ?.descendants()
+    .find((e) => e.children.length === 0 && [PEAK_DB, HOLD_DB].includes(parseFloat(e.textContent.replace("−", "-"))));
+  return inkOf(cell, table);
+}
+
+//: The bar's marks, by class: the peak bar, the RMS bar and the held-peak mark.
+const MARKS = { peak: "pk", rms: "rm", hold: "hd" };
+
+for (const [part, cls] of Object.entries(MARKS)) {
+  test(`test_picking_another_palette_changes_the_colour_the_${part}_is_drawn_in`, () => {
+    assert.notEqual(markInk(VIRIDIS, cls), markInk(INFERNO, cls));
+  });
+}
+
+test("test_picking_another_palette_changes_the_colour_the_peak_readout_is_drawn_in", () => {
+  assert.notEqual(readoutInk(VIRIDIS), readoutInk(INFERNO));
+});
+
+/**
+ * What `read` reads off the section painted under Accent with the custom accent `hex` in force.
+ *
+ * @param {string} hex
+ * @param {(palette: string) => string} read
+ */
+function underAccent(hex, read) {
+  accent.value = PRESET;
+  accentHex.value = hex;
+  return read(ACCENT);
+}
+
+for (const [part, cls] of Object.entries(MARKS)) {
+  test(`test_under_accent_picking_another_accent_changes_the_colour_the_${part}_is_drawn_in`, () => {
+    const first = underAccent(FIRST_HEX, (p) => markInk(p, cls));
+    assert.notEqual(
+      underAccent(SECOND_HEX, (p) => markInk(p, cls)),
+      first,
+    );
+  });
+}
+
+test("test_under_accent_picking_another_accent_changes_the_colour_the_peak_readout_is_drawn_in", () => {
+  const first = underAccent(FIRST_HEX, readoutInk);
+  assert.notEqual(underAccent(SECOND_HEX, readoutInk), first);
 });

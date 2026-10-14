@@ -30,8 +30,8 @@ The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate
 ### Accent and fixed colors
 
 - **The accent is the user's pick, amber by default:** `--acc`, `--acc-dim`, `--acc-lo`, with `--acc-rim` and the glows derived from it. A glow names `--acc-glow`, `--acc-glow-hi` or `--acc-halo`, never a hex.
-- **The accent marks what you set and where you are:** a value in a VFD window, a setting segment's fill, the traces and handles of a setting's plot, dirty dots; the left-hand selection bar, the open stage, a view or tab pick's foot, focus, links. Never a measurement, a semantic state, a drawing, a button's resting face or a read-only readout, except the spectrum under the Accent palette, which draws in the accent's shades.
-- **Fixed colors never follow the accent:** instrument amber `--meter*` for the Source level bars and peak readout, the spectrogram ramp `--spec-0..5`, `--warn`, `--busy`, and the lamps `--ok` and `--bad`. Anything that must stay amber uses these, not `--acc`.
+- **The accent marks what you set and where you are:** a value in a VFD window, a setting segment's fill, the traces and handles of a setting's plot, dirty dots; the left-hand selection bar, the open stage, a view or tab pick's foot, focus, links. Never a measurement, a semantic state, a drawing, a button's resting face or a read-only readout, except the spectrum and the Source level bars and peak readout under the Accent palette, which draw in the accent's shades.
+- **Fixed colors never follow the accent:** the spectrogram ramp `--spec-0..5`, `--warn`, `--busy`, and the lamps `--ok` and `--bad`. Anything that must stay amber uses these, not `--acc`. The Source level bars and peak readout follow the Display palette, as the spectrum does, in the accent's shades under Accent; instrument amber `--meter*` is their fallback where no palette colour is painted.
 - **No new green lamps.** Running state is shown with lettering.
 - **Selection bars are left-hand everywhere.**
 - **No raw color outside `tokens.css` (gated).** A shade used once still gets a name there.
