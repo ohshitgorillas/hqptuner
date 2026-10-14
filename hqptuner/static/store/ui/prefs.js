@@ -188,7 +188,7 @@ export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS,
 // set the page's Source meter Range (pageRange, below) chooses from.
 const METER_CHANNELS = ["sum", "0", "1", "2", "3", "4", "5", "6", "7"];
 export const [meterChannel, setMeterChannel] = enumPref(K_METER_CHANNEL, METER_CHANNELS, "sum");
-export const METER_RANGES = ["120", "180", "240", "300"];
+export const METER_RANGES = ["120", "150", "180", "240", "300"];
 export const [meterRange, setMeterRange] = enumPref(K_METER_RANGE, METER_RANGES, "120");
 
 // Collapsed dropdown groups (Simplified option style). One JSON list of
@@ -261,7 +261,7 @@ export function toggleCollapsedGroup(key) {
 //   hiddenStages     — the stages hidden from the chain rail, a subset of
 //                      HIDEABLE_STAGES, held in that order.
 //   allowPinnedRates — the opt-in for pinning an output rate; off by default.
-//   rangeButtons     — whether the spectrum draws its −/+ Range buttons; shown
+//   rangeButtons     — whether the spectrum draws its −/+ Range buttons; hidden
 //                      by default. Hidden, the Display popover still sets the
 //                      Range.
 //   displayFormat    — the format the plate is laid out at, one of
@@ -329,7 +329,7 @@ export function setAllowPinnedRates(on) {
   persist(K_PINNED, allowPinnedRates.value);
 }
 
-export const rangeButtons = signal(loadBool(K_RANGE_BUTTONS, true));
+export const rangeButtons = signal(loadBool(K_RANGE_BUTTONS, false));
 
 /**
  * Show or hide the spectrum's Range buttons and persist the choice.

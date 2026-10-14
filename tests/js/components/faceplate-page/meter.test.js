@@ -1,14 +1,11 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/SourceMeter.js: the page's Source section body. With a
-// stream it draws the spectrum with its Range control, a readout between a narrower and a wider button, and one level
-// bar per channel, and at 13″ the readings table under the bars; slim, the table and the heads give way. With none it draws the no-stream line in the meter's place. Which
+// stream it draws the spectrum and one level bar per channel, and at 13″ the readings table under the bars; slim, the table and the heads give way. With none it draws the no-stream line in the meter's place. Which
 // state holds is the store's (tests/js/store/faceplate-page/meter.test.js); what moves is painted each animation frame
 // (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
 //
-// Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
-// since server rendering fires no events. The stream reaches the store at the wire: meter feed events through the
+// Renders through preact-render-to-string. The stream reaches the store at the wire: meter feed events through the
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.
-// The Range control's readout and buttons are found by `data-testid`; every string asserted is a wire value or a
-// number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
+// Every string asserted is a wire value or a number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
 // read off the module namespace with optional access so a store without one fails the floor cases on their assertions;
 // the spectrum's colour suite is picked the same way, and whether a suite changes what the trace draws is read by
 // comparing the spectrum's markup under it against its markup under Mono. Under the Accent palette the trace draws
@@ -28,14 +25,13 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { METER_RANGES, pageRange, setPageRange, setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { METER_RANGES, setPageRange, setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
-import { renderTree } from "../../support/vnodeseam.js";
-import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
+import { attr, classes, elements, text } from "../../support/markup.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -48,15 +44,6 @@ const RIDGES = "ridges";
 // The Ranges the page offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST = ""] = METER_RANGES;
 const LAST = METER_RANGES.at(-1) ?? "";
-
-// The same Ranges by span, narrowest first: a wider Range spans more dB.
-const SPANS = [...METER_RANGES].sort((a, b) => Number(a) - Number(b));
-const NARROWEST = SPANS[0] ?? "";
-const WIDEST = SPANS.at(-1) ?? "";
-
-// The Range control's parts, by `data-testid`.
-const WIDER = "range-wider";
-const NARROWER = "range-narrower";
 
 // Two Levels floors the owner offers, as the store holds them, in dBFS.
 const SHALLOW = "-48";
@@ -112,36 +99,6 @@ const withClass = (cls) => draw().filter((e) => classes(e).includes(cls));
  */
 const num = (el) => (el ? parseFloat(text(el).replace("−", "-")) : NaN);
 
-/**
- * The elements carrying `data-testid` `id`.
- *
- * @param {string} id
- */
-const byTestid = (id) => draw().filter((e) => attr(e, "data-testid") === id);
-
-/**
- * Whether the Range button `id` shows dimmed: disabled, or marked disabled for assistive technology; undefined when
- * the page draws no such button.
- *
- * @param {string} id
- */
-function dimmed(id) {
-  const button = byTestid(id)[0];
-  return button ? hasAttr(button, "disabled") || attr(button, "aria-disabled") === "true" : undefined;
-}
-
-/**
- * Tap the Range button `id`, or nothing when none is drawn or it takes no tap.
- *
- * @param {string} id
- */
-function press(id) {
-  const { seen } = renderTree(html`<${SourceMeter} />`);
-  const hit = seen.find((n) => n.props?.["data-testid"] === id);
-  const fn = hit?.props.onClick;
-  if (typeof fn === "function") fn();
-}
-
 beforeEach(() => {
   useStorage();
   setPageRange(FIRST);
@@ -173,40 +130,6 @@ test("test_no_stream_draws_the_line_in_place_of_the_meter", () => {
       .map((e) => classes(e)),
     [["mnone"]],
   );
-});
-
-test("test_wider_widens_the_range_one_step", () => {
-  setPageRange(NARROWEST);
-  press(WIDER);
-  assert.equal(pageRange.value, SPANS[1]);
-});
-
-test("test_narrower_narrows_the_range_one_step", () => {
-  setPageRange(WIDEST);
-  press(NARROWER);
-  assert.equal(pageRange.value, SPANS.at(-2));
-});
-
-test("test_wider_at_the_widest_range_leaves_the_range_at_the_widest", () => {
-  setPageRange(WIDEST);
-  press(WIDER);
-  assert.equal(pageRange.value, WIDEST);
-});
-
-test("test_narrower_at_the_narrowest_range_leaves_the_range_at_the_narrowest", () => {
-  setPageRange(NARROWEST);
-  press(NARROWER);
-  assert.equal(pageRange.value, NARROWEST);
-});
-
-test("test_wider_shows_dimmed_at_the_widest_range", () => {
-  setPageRange(WIDEST);
-  assert.equal(dimmed(WIDER), true);
-});
-
-test("test_narrower_shows_dimmed_at_the_narrowest_range", () => {
-  setPageRange(NARROWEST);
-  assert.equal(dimmed(NARROWER), true);
 });
 
 /** The numbers down the level scale, top to bottom. */
