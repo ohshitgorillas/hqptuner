@@ -1,8 +1,9 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
 // style, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the spectrum's
-// frequency span, each a row of options writing its preference at once. Parked under its button.
+// frequency span, each a row of options writing its preference at once, and the spectrum delay, a box taking the delay
+// in seconds, written as the user leaves it. Parked under its button.
 
-import { html } from "../../../lib/dom.js";
+import { html, TypedInput } from "../../../lib/dom.js";
 import { FREQ_SPANS } from "../../../model/gauges/meter.js";
 import {
   METER_FLOORS,
@@ -17,10 +18,12 @@ import {
   spectrumStyle,
 } from "../../../store/ui/prefs.js";
 import { freqSpan, setFreqSpan } from "../../../store/faceplate/view.js";
+import { setSpectrumOffset, spectrumOffset } from "../../../store/meter/delay.js";
 import { Seg } from "../drawers/pipelines/parts.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
 
 /** @typedef {import("../drawers/pipelines/parts.js").SegOption} Opt */
+/** @typedef {{ target: { value: string } }} ChangeEv */
 
 /** The popover's id, as its button names it. */
 const DISPLAY = "display";
@@ -86,6 +89,28 @@ function Field({ label, unit, opts, value, set, testid }) {
   `;
 }
 
+/** The spectrum delay: its label over the delay in seconds, typed; what the box holds is written as the user leaves it. */
+function Delay() {
+  return html`
+    <div class="dfield" data-field="vdelay">
+      <span class="cl">Spectrum delay</span>
+      <div class="num">
+        <${TypedInput}
+          type="number"
+          class="vfd"
+          min="-5"
+          max="5"
+          step="0.01"
+          aria-label="Spectrum delay, seconds"
+          value=${spectrumOffset.value}
+          onChange=${(/** @type {ChangeEv} */ e) => setSpectrumOffset(e.target.value)}
+        />
+        <span class="u">s</span>
+      </div>
+    </div>
+  `;
+}
+
 /** The Display popover. */
 export function DisplayOptions() {
   return html`
@@ -101,6 +126,7 @@ export function DisplayOptions() {
       />
       <${Field} label="Range" unit="dB" opts=${RANGES} value=${pageRange.value} set=${setPageRange} testid="display-range" />
       <${Field} label="Frequency span" opts=${SPANS} value=${freqSpan.value} set=${setFreqSpan} />
+      <${Delay} />
     <//>
   `;
 }
