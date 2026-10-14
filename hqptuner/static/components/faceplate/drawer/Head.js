@@ -1,8 +1,8 @@
-// A stage drawer's head: its title (a drawer of one part) or its tab strip, then the apply group, then close. A tab
-// prints its status word after its label. A staged restart-lane edit puts a dot on its tab, or on the title of a drawer
-// of one part. The apply group is Discard and a split button: the body runs the apply mode in force, Apply or Apply &
-// save; its ▾ key opens a menu that only switches which, one choice for every drawer. A drawer with its own form runs
-// that form's apply and discard instead, whatever the mode.
+// A stage drawer's head: its title, then its tab strip in a drawer of several parts, then the apply group, then close.
+// A tab prints its status word after its label. A staged restart-lane edit puts a dot on its tab, or on the title of a
+// drawer of one part. The apply group is Discard and a split button: the body runs the apply mode in force, Apply or
+// Apply & save; its ▾ key opens a menu that only switches which, one choice for every drawer. A drawer with its own form
+// runs that form's apply and discard instead, whatever the mode.
 
 import { html } from "../../../lib/dom.js";
 import { toggleStage } from "../../../store/faceplate/view.js";
@@ -121,14 +121,10 @@ function applyGroup(schema, { shown, live }) {
  * @param {{ schema: DrawerSchema, shown: string, head: DrawerHead }} props
  */
 export function Head({ schema, shown, head }) {
-  const single = schema.tabs.length === 1;
   return html`
     <div class="dhead">
-      ${
-        single
-          ? html`<span class=${head.titleDot ? "t dirty" : "t"}>${schema.title}</span>`
-          : tabStrip(schema, shown, head.dirty)
-      }
+      <span class=${head.titleDot ? "t dirty" : "t"}>${schema.title}</span>
+      ${schema.tabs.length > 1 ? tabStrip(schema, shown, head.dirty) : null}
       <span class="grow"></span>
       ${applyGroup(schema, head.apply)}
       <button
