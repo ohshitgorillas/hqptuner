@@ -222,7 +222,7 @@ Rate tiers and the SDM mode gray against what the selected output device announc
 
 Facets AND-combine with each other across both the 1x and Nx lists. **Within** genre and focus the user picks how their own values combine, with an AND/OR switch closing each popover (genre defaults to OR, focus to AND). Phase and length are multi-select too but carry no such switch and always union: a filter holds exactly one phase and exactly one length, so an AND across two picks is empty by construction.
 
-A mode set while its facet is unpicked narrows nothing and does not count as narrowing engaged. Genre's `any` tag outranks the mode: the manual marks such a filter as suiting every genre, so it survives either way; focus has no such tag. An empty result shows an explicit "no filters match — widen criteria" state, never a stale selection. Persistence: §5.5.
+A mode set while its facet is unpicked narrows nothing and does not count as narrowing engaged. Genre's `any` tag outranks the mode: the manual marks such a filter as suiting every genre, so it survives either way; focus has no such tag. Narrowing hides the running selection like any other option it excludes. An empty result, in a filter list or a modulator list, shows an explicit "Nothing matches. Try different narrowing criteria." state, never a stale selection. Persistence: §5.5.
 
 ### 7.13 Crossfeed gate is mode-aware; the view selector never installs processing
 

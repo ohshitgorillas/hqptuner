@@ -4,7 +4,7 @@
 // engine name: its facets (store/narrow/facets.js), its plain-names family, variant and leaf in Simplified, a
 // modulator's rate floor tier and generation, its manual prose, and whether it is the factory default the key's
 // settings.json entry records (store/prose.js describe()). Narrowing is store/narrow/match.js's matching over the
-// narrowing state; the value running in the field is never hidden.
+// narrowing state, which hides whatever it excludes, the value running in the field among them.
 
 import { schema } from "../../schema.js";
 import { metadata } from "../../signals.js";
@@ -116,25 +116,24 @@ export function listBlurbs(key) {
 }
 
 /**
- * The options narrowing keeps at a stage, the value running in the field always among them unless it is the one
- * omitted. A DSD list has no narrowing and keeps every option.
+ * The options narrowing keeps at a stage. The value running in the field gets no exemption: narrowing hides it like any
+ * other option it excludes. A DSD list has no narrowing and keeps every option.
  *
  * @param {string} key
  * @param {"1x" | "nx"} stage
- * @param {string} keep
- * @param {string} [omit]  an option dropped whatever narrowing and the running value say
+ * @param {string} [omit]  an option dropped whatever narrowing says
  * @returns {Opt[]}
  */
-export function narrowedOptions(key, stage, keep, omit = "") {
+export function narrowedOptions(key, stage, omit = "") {
   const kind = kindOf(key);
   const opts = listOptions(key).filter((o) => omit === "" || o.v !== omit);
   if (kind === "dsd") return opts;
   if (kind === "filters") {
     const kept = new Set(narrowOptions(rawOptions(key), stage, key).map((o) => o.label));
-    return opts.filter((o) => o.v === keep || kept.has(o.v));
+    return opts.filter((o) => kept.has(o.v));
   }
   const st = { fav: nFavOnly.value, modTier: modTier.value, ditherRate: ditherRate.value };
-  return opts.filter((o) => o.v === keep || shaperKeeps(o, kind, st));
+  return opts.filter((o) => shaperKeeps(o, kind, st));
 }
 
 /**

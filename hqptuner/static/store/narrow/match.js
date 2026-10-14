@@ -104,7 +104,7 @@ export function rateLimited(name, fam) {
 
 // Filter a filter-field option list by the active facets. Options whose name
 // carries no facet data pass through — narrowing hides only what it can
-// positively exclude. `current` is never hidden. The apodizing check reads the
+// positively exclude. The apodizing check reads the
 // dropdown's STAGE switch (1x or Nx): on "only", full-apodizing filters pass;
 // ½-apodizing ones pass only on "half".
 // Each entry reads "facet not engaged, or the filter passes it", so an unset

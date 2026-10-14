@@ -23,7 +23,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { config } from "../../../../hqptuner/static/store/signals.js";
+import { config, enums } from "../../../../hqptuner/static/store/signals.js";
 import { hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
@@ -243,4 +243,30 @@ test("test_a_dsd_processing_panel_draws_no_close_button", () => {
 test("test_a_filter_sheet_draws_its_close_button", () => {
   open("pcm_filter_1x", "poly-sinc-gauss-long");
   assert.deepEqual(closeButtons(), [CLOSE_TESTID]);
+});
+
+/** The test id of the explicit state a list narrowed to nothing draws. */
+const EMPTY_TESTID = "list-empty";
+
+/** How many explicit empty states the list draws. */
+const emptyStates = () => markup().filter((e) => attr(e, "data-testid") === EMPTY_TESTID).length;
+
+test("test_a_filter_list_narrowed_to_nothing_draws_its_empty_state", () => {
+  setFacet("quality", 5);
+  open("sdm_filter_1x", "");
+  assert.equal(emptyStates(), 1);
+});
+
+test("test_a_modulator_list_narrowed_to_nothing_draws_its_empty_state", () => {
+  enums.value = { ...enums.value, shapers: [{ index: "0", value: "3", name: "ASDM7EC 512+fs" }] };
+  setFacet("modTier", ["1024+"]);
+  open("sdm_modulator", "");
+  assert.equal(emptyStates(), 1);
+});
+
+test("test_a_list_opened_on_a_running_value_the_narrowing_excludes_draws_no_row_for_it", () => {
+  const RUNNING = "sinc-M";
+  setFacet("quality", 3);
+  open("sdm_filter_1x", RUNNING);
+  assert.deepEqual([...rows()].sort(), ["IIR", "poly-sinc-gauss-long"]);
 });

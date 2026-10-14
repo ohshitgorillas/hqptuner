@@ -1,7 +1,7 @@
 // Behavioral suite for hqptuner/static/store/faceplate/lists/options.js and open.js, the option lists' store half: the
 // options a chain catalog key lists (the loaded chain's enumeration, the dormant chain's /config form), each joined to
-// its facets, plain-names breakdown, rate floor, generation and manual prose; the options narrowing keeps, the running
-// value never hidden; the stars a list's heart writes; the form a key's list opens as; and the pick that closes it.
+// its facets, plain-names breakdown, rate floor, generation and manual prose; the options narrowing keeps; the stars
+// a list's heart writes; the form a key's list opens as; and the pick that closes it.
 //
 // The wire is the seam: enumerations into `enums`, State into `engineState`, the /config form into `config`, the
 // overlays into `metadata` (tests/js/support/listsfixture.js), stars through the favorites fake. Every name and
@@ -139,23 +139,18 @@ test("test_a_lists_variant_blurb_is_its_plain_overlays_own", () => {
 
 test("test_a_quality_floor_narrows_out_the_filter_rated_below_it", () => {
   setFacet("quality", 3);
-  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", "IIR")), ["poly-sinc-gauss-long", "IIR"]);
+  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x")), ["poly-sinc-gauss-long", "IIR"]);
 });
 
-test("test_the_running_value_survives_a_facet_that_narrows_it_out", () => {
-  setFacet("quality", 3);
-  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", "sinc-M")), ["poly-sinc-gauss-long", "sinc-M", "IIR"]);
-});
-
-test("test_an_omitted_option_stays_out_even_when_it_is_the_running_value", () => {
+test("test_an_omitted_option_stays_out_of_the_narrowed_list", () => {
   const OMITTED = "IIR";
   const expected = names(listOptions("sdm_filter_1x")).filter((v) => v !== OMITTED);
-  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", OMITTED, OMITTED)), expected);
+  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", OMITTED)), expected);
 });
 
 test("test_an_apodizing_facet_narrows_only_the_stage_it_names", () => {
   setFacet("apod1x", "only");
-  const sizes = ["1x", "nx"].map((s) => narrowedOptions("sdm_filter_1x", /** @type {"1x" | "nx"} */ (s), "").length);
+  const sizes = ["1x", "nx"].map((s) => narrowedOptions("sdm_filter_1x", /** @type {"1x" | "nx"} */ (s)).length);
   assert.deepEqual(sizes, [1, 3]);
 });
 
@@ -163,24 +158,24 @@ test("test_favorites_only_keeps_the_filters_the_server_stars", async () => {
   favoritesWire({ filters: ["sinc-M"] });
   await hydrateFavorites();
   setFacet("fav", true);
-  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x", "")), ["sinc-M"]);
+  assert.deepEqual(names(narrowedOptions("sdm_filter_1x", "1x")), ["sinc-M"]);
 });
 
 test("test_favorites_only_keeps_the_modulators_the_server_stars", async () => {
   favoritesWire({ modulators: ["ASDM5"] });
   await hydrateFavorites();
   setFacet("fav", true);
-  assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x", "")), ["ASDM5"]);
+  assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x")), ["ASDM5"]);
 });
 
 test("test_a_rate_floor_facet_keeps_the_modulators_of_that_tier", () => {
   setFacet("modTier", ["512+"]);
-  assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x", "")), ["ASDM7EC 512+fs"]);
+  assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x")), ["ASDM7EC 512+fs"]);
 });
 
 test("test_a_rate_marker_facet_keeps_the_dithers_whose_plain_leaf_carries_it", () => {
   setFacet("ditherRate", ["≥4x"]);
-  assert.deepEqual(names(narrowedOptions("pcm_dither", "1x", "")), ["NS9"]);
+  assert.deepEqual(names(narrowedOptions("pcm_dither", "1x")), ["NS9"]);
 });
 
 test("test_a_modulators_heart_writes_the_modulator_star_set", async () => {

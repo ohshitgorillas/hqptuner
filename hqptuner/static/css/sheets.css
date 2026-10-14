@@ -183,6 +183,8 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .ocols:has(>.olegend){flex-wrap:wrap;align-content:flex-start}
 .ocols>.olegend{flex:1 0 100%;contain:inline-size}
 .osheet.opanel[data-style="standard"] .olegend{grid-row:2;grid-column:1/-1}   /* the row under the flat columns, across them */
+/* Narrowed to nothing: a line of owner copy where the rows would draw, across the columns in either style. */
+.oempty{grid-column:1/-1;margin:0;font-family:var(--f-body);font-size:var(--fs-5);line-height:var(--lh-text);color:var(--ink-2)}
 /* Compact: the modulators' three columns close up a step (panel padding, column gaps, row and variant indents) so the
    panel fits inside the plate's width. */
 .plate[data-size="compact"] .osheet.opanel[data-kind="modulators"] .ocols{padding-left:var(--sp-5);padding-right:var(--sp-5);gap:0 var(--sp-6)}
