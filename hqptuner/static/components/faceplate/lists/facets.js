@@ -214,18 +214,18 @@ const FILTER_FACETS = [
   FAVORITES,
 ];
 
-/** The modulator list's console: the rate floor its rows' badge names, then Favorites (one switch, both kinds). */
+/** The modulator list's console: the rate cap its rows' badge names, then Favorites (one switch, both kinds). */
 /** @type {BarFacet[]} */
 const MODULATOR_FACETS = [
   {
     id: "modTier",
     kind: "chips",
     key: "modTier",
-    label: "Minimum rate",
+    label: "Maximum rate",
     options: [
-      { v: "256+", label: "256+" },
-      { v: "512+", label: "512+" },
-      { v: "1024+", label: "1024+" },
+      { v: "128", label: "≤128" },
+      { v: "256+", label: "≤256" },
+      { v: "512+", label: "≤512" },
     ],
   },
   FAVORITES,
@@ -237,12 +237,11 @@ const DITHER_FACETS = [
     id: "ditherRate",
     kind: "chips",
     key: "ditherRate",
-    label: "Minimum rate",
+    label: "Maximum rate",
     options: [
-      { v: "≥2x", label: "≥2x" },
-      { v: "≥4x", label: "≥4x" },
-      { v: "≥8x", label: "≥8x" },
-      { v: "≥16x", label: "≥16x" },
+      { v: "≥2x", label: "≤2x" },
+      { v: "≥4x", label: "≤4x" },
+      { v: "≥8x", label: "≤8x" },
     ],
   },
 ];

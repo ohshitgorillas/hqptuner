@@ -175,7 +175,7 @@ Current state only.
 
 ## Option lists + narrowing
 - Filter pickers open a bottom sheet over the bottom bar and body. Picking closes it.
-- Modulator and dither pickers open a panel parked at the picker (left edges aligned; below it, else above, else as low as the plate allows), sized to its list. Same head (title, count, facet windows: Minimum rate; modulators also Favorites, shared with filters), rows and hover tip. Rows 25px. A pick, an outside tap, the picker again, × or Escape closes it; facet popovers open over it without closing it.
+- Modulator and dither pickers open a panel parked at the picker (left edges aligned; below it, else above, else as low as the plate allows), sized to its list. Same head (title, count, facet windows: Maximum rate; modulators also Favorites, shared with filters), rows and hover tip. Rows 25px. A pick, an outside tap, the picker again, × or Escape closes it; facet popovers open over it without closing it.
   - Modulators show every family at once (Hybrid over Fixed, then Adaptive's two variant columns): about 1106 px wide at Compact, near the sheet's width. Under review against family tabs.
   - Dithers: one column, families stacked, about 340×470.
 - **Layout (Simplified):** v1's Simplified outline with blurbs in place, placed per list kind by hand rather than packed by rule.

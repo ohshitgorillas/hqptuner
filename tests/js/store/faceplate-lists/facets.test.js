@@ -21,6 +21,7 @@ import {
   setFacet,
   shaperCount,
 } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { narrowingWire, puts } from "../../support/wire/narrowingwire.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 
@@ -91,16 +92,28 @@ test("test_a_shaper_count_with_no_rate_floor_counts_every_modulator", () => {
   assert.equal(shaperCount("modulators", {}), 2);
 });
 
-test("test_a_shaper_count_counts_the_modulators_a_rate_floor_keeps", () => {
-  assert.equal(shaperCount("modulators", { modTier: ["512+"] }), 1);
+test("test_a_shaper_count_counts_the_modulators_a_rate_cap_keeps", () => {
+  const MOD_128 = "ASDM5";
+  const RATE_128 = 5120000;
+  const CAP_128 = "128";
+  const KEPT_UNDER_128 = 1;
+  const meta = metadata.value;
+  metadata.value = {
+    ...meta,
+    shapers: {
+      ...meta.shapers,
+      sdm_modulators: { ...meta.shapers.sdm_modulators, [MOD_128]: { min_rate_hz: RATE_128, generation: 2 } },
+    },
+  };
+  assert.equal(shaperCount("modulators", { modTier: [CAP_128] }), KEPT_UNDER_128);
 });
 
 test("test_a_shaper_count_with_no_rate_marker_counts_every_dither", () => {
   assert.equal(shaperCount("dithers", {}), 3);
 });
 
-test("test_a_shaper_count_counts_the_dithers_a_rate_marker_keeps", () => {
-  assert.equal(shaperCount("dithers", { ditherRate: ["≥4x"] }), 1);
+test("test_a_shaper_count_counts_the_dithers_a_rate_cap_keeps", () => {
+  assert.equal(shaperCount("dithers", { ditherRate: ["≥2x"] }), 2);
 });
 
 test("test_a_facet_set_on_the_console_reads_moved", () => {

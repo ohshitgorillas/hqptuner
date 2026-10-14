@@ -1,14 +1,15 @@
-// Behavioral suite for the shaper lists' Minimum rate chips (hqptuner/static/store/faceplate/lists/options.js): a chip
-// is a floor, not an exact tier. On the modulator list a picked floor keeps every modulator whose rate floor is at or
-// above it; on the dither list a picked floor keeps every dither whose rate marker is at or above it; with several
-// chips picked, the lowest pick decides.
+// Behavioral suite for the shaper lists' rate chips (hqptuner/static/store/faceplate/lists/options.js): a chip is a
+// cap, the highest rate the DAC handles. On the modulator list a picked cap keeps every modulator whose rate floor is
+// at or below it, and a modulator with no rate floor survives any pick; on the dither list a picked cap keeps every
+// dither whose rate marker is at or below it, and a dither with no marker survives any pick; with several chips
+// picked, the highest pick decides.
 //
 // The wire is the seam (tests/js/support/listsfixture.js), widened here to three tiered modulators on the loaded SDM
 // chain's <GetShapers/> enumeration, each with the rate floor its overlay records, and to one more dither on the
 // dormant PCM chain's /config form whose plain leaf carries a higher rate marker. Every name asserted is the
 // fixture's own.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-lists/rate-floor.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-lists/rate-cap.test.js
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
@@ -26,7 +27,6 @@ const MOD_1024 = "ASDM7EC 1024+fs";
 
 const TIER_256 = "256+";
 const TIER_512 = "512+";
-const TIER_1024 = "1024+";
 
 /** The engine names of the tiered modulators, with the rate floor each one's overlay records. */
 const TIERED = [
@@ -100,20 +100,54 @@ const kept = (key) =>
     .map((o) => o.v)
     .sort();
 
-test("test_a_modulator_rate_floor_keeps_the_modulators_above_it_as_well_as_at_it", () => {
+const MOD_ANY_RATE = "ASDM5";
+const DITHER_UNMARKED = "TPDF";
+const MARKER_2X = "≥2x";
+
+/** The tiered modulators plus one whose overlay records no rate floor. */
+function serveTieredAndUnflooredModulators() {
+  serveTieredModulators();
+  enums.value = {
+    ...enums.value,
+    shapers: [...enums.value.shapers, { index: "3", value: "0", name: MOD_ANY_RATE }],
+  };
+}
+
+/** The dithers a list keeps among the two that carry a rate marker, sorted. */
+const keptMarkedDithers = () => kept("pcm_dither").filter((v) => v === DITHER_4X || v === DITHER_16X);
+
+test("test_a_modulator_rate_cap_keeps_the_modulators_at_or_below_it_and_drops_those_above", () => {
   serveTieredModulators();
   setFacet("modTier", [TIER_512]);
-  assert.deepEqual(kept("sdm_modulator"), [MOD_1024, MOD_512].sort());
+  assert.deepEqual(kept("sdm_modulator"), [MOD_256, MOD_512].sort());
 });
 
-test("test_the_lowest_of_several_picked_modulator_rate_floors_decides", () => {
+test("test_a_modulator_with_no_rate_floor_survives_a_rate_cap", () => {
+  serveTieredAndUnflooredModulators();
+  setFacet("modTier", [TIER_256]);
+  assert.equal(kept("sdm_modulator").includes(MOD_ANY_RATE), true);
+});
+
+test("test_the_highest_of_several_picked_modulator_rate_caps_decides", () => {
   serveTieredModulators();
-  setFacet("modTier", [TIER_1024, TIER_256]);
-  assert.deepEqual(kept("sdm_modulator"), [MOD_1024, MOD_256, MOD_512].sort());
+  setFacet("modTier", [TIER_256, TIER_512]);
+  assert.deepEqual(kept("sdm_modulator"), [MOD_256, MOD_512].sort());
 });
 
-test("test_a_dither_rate_floor_keeps_the_dithers_above_it_as_well_as_at_it", () => {
+test("test_a_dither_rate_cap_keeps_the_marked_dithers_at_or_below_it_and_drops_those_above", () => {
   serveHigherDither();
   setFacet("ditherRate", [MARKER_4X]);
-  assert.deepEqual(kept("pcm_dither"), [DITHER_16X, DITHER_4X].sort());
+  assert.deepEqual(keptMarkedDithers(), [DITHER_4X]);
+});
+
+test("test_a_dither_with_no_rate_marker_survives_a_rate_cap", () => {
+  serveHigherDither();
+  setFacet("ditherRate", [MARKER_4X]);
+  assert.equal(kept("pcm_dither").includes(DITHER_UNMARKED), true);
+});
+
+test("test_the_highest_of_several_picked_dither_rate_caps_decides", () => {
+  serveHigherDither();
+  setFacet("ditherRate", [MARKER_2X, MARKER_4X]);
+  assert.deepEqual(keptMarkedDithers(), [DITHER_4X]);
 });

@@ -24,6 +24,7 @@ import { OptionList } from "../../../../hqptuner/static/components/faceplate/lis
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { narrowState, setFacet } from "../../../../hqptuner/static/store/faceplate/lists/facets.js";
+import { metadata } from "../../../../hqptuner/static/store/signals.js";
 import { narrowingWire } from "../../support/wire/narrowingwire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
@@ -163,7 +164,19 @@ test("test_a_rate_rule_checkbox_writes_its_rule", () => {
   assert.equal(narrowState().downsafe, true);
 });
 
-test("test_a_modulator_rate_floor_chip_counts_the_modulators_it_keeps", () => {
+test("test_a_modulator_rate_cap_chip_counts_the_modulators_it_keeps", () => {
+  const MOD_128 = "ASDM5";
+  const RATE_128 = 5120000;
+  const CAP_128 = "128";
+  const KEPT_UNDER_128 = "1";
+  const meta = metadata.value;
+  metadata.value = {
+    ...meta,
+    shapers: {
+      ...meta.shapers,
+      sdm_modulators: { ...meta.shapers.sdm_modulators, [MOD_128]: { min_rate_hz: RATE_128, generation: 2 } },
+    },
+  };
   open("sdm_modulator");
-  assert.equal(countOf("modTier", "512+"), "1");
+  assert.equal(countOf("modTier", CAP_128), KEPT_UNDER_128);
 });

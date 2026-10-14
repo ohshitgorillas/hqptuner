@@ -259,7 +259,7 @@ test("test_a_filter_list_narrowed_to_nothing_draws_its_empty_state", () => {
 
 test("test_a_modulator_list_narrowed_to_nothing_draws_its_empty_state", () => {
   enums.value = { ...enums.value, shapers: [{ index: "0", value: "3", name: "ASDM7EC 512+fs" }] };
-  setFacet("modTier", ["1024+"]);
+  setFacet("modTier", ["256+"]);
   open("sdm_modulator", "");
   assert.equal(emptyStates(), 1);
 });

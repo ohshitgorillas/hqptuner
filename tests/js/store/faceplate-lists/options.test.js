@@ -168,16 +168,6 @@ test("test_favorites_only_keeps_the_modulators_the_server_stars", async () => {
   assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x")), ["ASDM5"]);
 });
 
-test("test_a_rate_floor_facet_keeps_the_modulators_of_that_tier", () => {
-  setFacet("modTier", ["512+"]);
-  assert.deepEqual(names(narrowedOptions("sdm_modulator", "1x")), ["ASDM7EC 512+fs"]);
-});
-
-test("test_a_rate_marker_facet_keeps_the_dithers_whose_plain_leaf_carries_it", () => {
-  setFacet("ditherRate", ["≥4x"]);
-  assert.deepEqual(names(narrowedOptions("pcm_dither", "1x")), ["NS9"]);
-});
-
 test("test_a_modulators_heart_writes_the_modulator_star_set", async () => {
   const w = favoritesWire();
   await toggleListFavorite("sdm_modulator", "ASDM5");

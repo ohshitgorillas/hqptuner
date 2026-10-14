@@ -1,7 +1,7 @@
 // The shaper lists' own narrowing: modulators by the DSD rate floor their row badge names, dithers by
-// the rate marker their plain-names leaf carries (`Ninth order, ≥4x`). Each facet is a floor: an option at or above
-// the lowest pick survives, one with no rate drops out, and no pick means any. Favorites-only narrows the modulators
-// on their own star set (store/narrow/favorites.js).
+// the rate marker their plain-names leaf carries (`Ninth order, ≥4x`). Each facet is a cap: an option whose rate is at
+// or below the highest pick survives, one with no rate survives any pick, and no pick means any. Favorites-only narrows
+// the modulators on their own star set (store/narrow/favorites.js).
 
 import { signal } from "@preact/signals";
 import { plainEntry } from "../../plainnames.js";
@@ -34,13 +34,16 @@ const ditherMark = (name) => (plainEntry("dithers", name)?.leaf.match(RATE_MARK)
 const rateOf = (text) => Number(text.match(/\d+/)?.[0] ?? NaN);
 
 /**
- * Whether a rate text clears the lowest of the picked floors; any rate clears an empty pick, and no rate clears a pick.
+ * Whether a rate text fits under the highest of the picked caps; anything fits an empty pick, and a text naming no rate fits every pick.
  *
  * @param {string[]} picks
  * @param {string} text
  * @returns {boolean}
  */
-const clearsFloor = (picks, text) => picks.length === 0 || rateOf(text) >= Math.min(...picks.map(rateOf));
+const fitsCap = (picks, text) => {
+  const rate = rateOf(text);
+  return picks.length === 0 || Number.isNaN(rate) || rate <= Math.max(...picks.map(rateOf));
+};
 
 /**
  * Whether a shaper survives its list's facets. A modulator list narrows against its own stars only while it has any.
@@ -54,7 +57,7 @@ export function shaperKeeps(o, kind, st) {
   if (kind === "modulators") {
     const stars = favoriteModulators.value;
     if (st.fav && stars.size > 0 && !stars.has(o.v)) return false;
-    return clearsFloor(st.modTier, o.tier ?? "");
+    return fitsCap(st.modTier, o.tier ?? "");
   }
-  return kind !== "dithers" || clearsFloor(st.ditherRate, ditherMark(o.v));
+  return kind !== "dithers" || fitsCap(st.ditherRate, ditherMark(o.v));
 }
