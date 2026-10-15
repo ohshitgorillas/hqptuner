@@ -5,8 +5,7 @@ is driven only through ``POST /restore`` onto ``[default]`` — never
 ``profile/load``/``profile/save``, which are unreliable (docs/spec/protocol.md
 §3.6). A load's restore carries the loaded preset's ``data/cfgs`` mirror; a save
 only stores, and its mirror rides the next restore that happens
-anyway. ``profile/delete`` is the one profile route kept, for mirror removal
-(restore is additive and cannot delete a member).
+anyway.
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
@@ -17,12 +16,9 @@ lanes are handed by their callers.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-
-import httpx
 
 from hqptuner import voltrace
 from hqptuner.conf import engineconf, presetconf, presetiface, presetzip
@@ -31,8 +27,6 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.live import overrides
 from hqptuner.presets import fileconfig
 from hqptuner.presets.store.autopilot import AutopilotError
-from hqptuner.presets.store.live import LivePresetSchemaError
-from hqptuner.presets.store.matrixmode import MatrixModeSchemaError
 from hqptuner.presets.store.presets import canonical_name
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -68,13 +62,6 @@ class PresetListing:
 @dataclass(frozen=True)
 class PresetActivation:
     """A preset load, unload or switch: the preset now active ("" for the unnamed default)."""
-
-    name: str
-
-
-@dataclass(frozen=True)
-class PresetDeleted:
-    """A preset removed from the store, under the trimmed name it was stored as."""
 
     name: str
 
@@ -260,29 +247,6 @@ def _record_autopilot(mgr: PresetManager, name: str) -> None:
         mgr.presetops.autopilot.set_for_preset(name, enabled=mgr.presetops.autopilot.enabled)
     except AutopilotError as exc:
         log.warning("auto-pilot state not recorded for preset %r: %s", name, exc)
-
-
-async def delete(mgr: PresetManager, name: str) -> PresetDeleted:
-    """Delete a preset from the store and remove its daemon mirror via ``profile/delete``.
-
-    Restore is additive and cannot remove a member.
-
-    Takes the preset's Matrix-tab mode and its station's live snapshots with it, after the store delete has
-    succeeded: an entry keyed to a preset that is gone is read by nothing, and the next preset saved under the same
-    name would otherwise inherit it.
-    """
-    name = canonical_name(name)  # the mirror was written under the trimmed name
-    mgr.presetops.store.delete(name)
-    # A store stamped by a newer HQPTuner must not stop a preset delete: one orphaned entry is cheaper than
-    # that. A corrupt store is a different matter: it refuses rather than reading empty, and that refusal
-    # propagates here too.
-    with contextlib.suppress(MatrixModeSchemaError):
-        mgr.presetops.matrix_modes.forget(name)
-    with contextlib.suppress(LivePresetSchemaError):
-        mgr.presetops.live_presets.forget(name)
-    with contextlib.suppress(httpx.HTTPError, ControlError):
-        await mgr.require_http().post_profile("delete", profile=name)
-    return PresetDeleted(name)
 
 
 def _migration_owed(mgr: PresetManager) -> bool:

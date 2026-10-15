@@ -55,9 +55,6 @@ def _clean(stored: object) -> AutopilotFile:
     out: AutopilotFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     enabled = stored.get("enabled")
     if isinstance(enabled, bool):
         out["enabled"] = enabled

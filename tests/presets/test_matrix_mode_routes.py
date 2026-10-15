@@ -22,19 +22,16 @@ contract a DIFFERENT HQPTuner version reads, so the case about a foreign file
 hand-writes one.
 """
 
-import functools
 import json
 from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 
 import pytest
-from apps import NotAVirtualAppError, app_manager
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.presets import presetlane
 from hqptuner.presets.store.presets import PresetStore
 
 #: A stamp no released HQPTuner can claim to understand.
@@ -167,14 +164,6 @@ TOO_NEW_PRESET_STORE = {"schema": 99}
 GHOST = "Ghost"
 
 
-def delete_preset(client: TestClient, name: str) -> None:
-    """Delete preset ``name`` through the preset lane, on the app's own event loop; no route deletes one."""
-    portal = client.portal
-    if portal is None:
-        raise NotAVirtualAppError
-    portal.call(functools.partial(presetlane.delete, app_manager(client), name))
-
-
 def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real_one(
     joined_api: Callable[..., TestClient],
 ) -> None:
@@ -182,16 +171,6 @@ def test_a_put_for_a_name_no_preset_carries_leaves_the_map_holding_only_the_real
     client.put(PATH, json={"name": NAME, "mode": "speakers"})
     client.put(PATH, json={"name": GHOST, "mode": "speakers"})
     assert client.get(PATH).json()["presets"] == {NAME: "speakers"}
-
-
-def test_deleting_a_preset_drops_its_mode_and_leaves_the_other_presets_mode(
-    joined_api: Callable[..., TestClient],
-) -> None:
-    client = joined_api([NAME, OTHER])
-    client.put(PATH, json={"name": NAME, "mode": "speakers"})
-    client.put(PATH, json={"name": OTHER, "mode": "headphones"})
-    delete_preset(client, NAME)
-    assert client.get(PATH).json()["presets"] == {OTHER: "headphones"}
 
 
 def test_a_put_against_a_preset_store_stamped_by_a_newer_hqptuner_answers_409(

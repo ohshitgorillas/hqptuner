@@ -4,16 +4,29 @@ FastAPI's `detail`, so a client can branch on the cause without parsing prose.
 Written blind from the spec block, against the fakes alone: the app is built the
 way `live_api` builds it (control lane on the threaded fake daemon, no hqplayerd
 credentials, a live-snapshot store that is a real file under tmp_path).
+
+An auto-pilot store stamped by a newer HQPTuner is refused by code: the
+auto-pilot route answers ``store_too_new``, and a state import carrying such a
+store answers ``state_too_new``. The route cases run the app on both fakes,
+control on the threaded 4321 daemon and config on the 8088 one, with every
+store under ``tmp_path``.
 """
 
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
+from apps import wait_for_api
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
+from state_import import install_app_config, seed_install, upload, zip_of
+from virtual_clock import VirtualClock
+
+from hqptuner.api.factory import create_app
+from hqptuner.config import Config
 
 #: A live-snapshot store stamped by a newer HQPTuner than this build understands.
 FUTURE_STORE = {"schema": 99, "presets": {}}
@@ -92,9 +105,9 @@ def _send(client: TestClient, method: str, path: str) -> Response:
     return resp
 
 
-#: What `_code` reads off an answer whose body carries no `code`. No case
-#: expects it: a refusal from the wrong layer fails the assertion instead of
-#: erroring out of it.
+#: What `_code` reads off an answer whose body carries no `code`. A case
+#: expecting a refusal fails the assertion on a refusal from the wrong layer
+#: instead of erroring out of it.
 NO_CODE = ""
 
 
@@ -162,3 +175,60 @@ def test_a_wrong_method_on_a_real_api_path_carries_code_method_not_allowed(api_c
 
 def test_a_wrong_method_on_a_real_api_path_is_a_client_error(api_client: TestClient) -> None:
     assert _wrong_method(api_client).status_code // 100 == 4
+
+
+#: A schema stamp no build of HQPTuner has written.
+TOO_NEW = 9999
+
+#: An auto-pilot store this build reads, and one stamped newer, each with the code an answer to it carries.
+STORES = [
+    pytest.param({"enabled": False}, NO_CODE, id="readable"),
+    pytest.param({"schema": TOO_NEW, "enabled": False}, "store_too_new", id="too-new"),
+]
+
+
+def _client(http_daemon: dict[str, Any], control_port: int, tmp_path: Path, store: dict[str, object]) -> TestClient:
+    (tmp_path / "autopilot.json").write_text(json.dumps(store))
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=control_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        alarm_threshold=1.0,
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        live_preset_file=tmp_path / "live-presets.json",
+        autopilot_file=tmp_path / "autopilot.json",
+        advisor_enabled=True,
+        hqp_home="/x/home",
+        debug_log=tmp_path / "audit.jsonl",
+    )
+    return TestClient(create_app(cfg, VirtualClock()))
+
+
+@pytest.fixture
+def stamped_client(
+    request: pytest.FixtureRequest, http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
+) -> Iterator[TestClient]:
+    """The app over an auto-pilot store holding ``request.param``."""
+    with _client(http_daemon, threaded_daemon_port, tmp_path, request.param) as client:
+        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        yield client
+
+
+@pytest.mark.parametrize(("stamped_client", "code"), STORES, indirect=["stamped_client"])
+def test_the_auto_pilot_switch_refuses_a_store_stamped_newer_than_this_build(
+    stamped_client: TestClient, code: str
+) -> None:
+    assert _code(stamped_client.post("/api/autopilot", json={"enabled": True})) == code
+
+
+def test_a_state_import_carrying_an_auto_pilot_store_stamped_newer_is_refused_as_too_new(
+    http_daemon: dict[str, Any], closed_port: int, tmp_path: Path
+) -> None:
+    install = seed_install(tmp_path / "install")
+    cfg = install_app_config(http_daemon, install, closed_port, tmp_path / "audit.jsonl")
+    archive = zip_of({"autopilot.json": json.dumps({"schema": TOO_NEW, "enabled": False}).encode()})
+    with TestClient(create_app(cfg, VirtualClock())) as client:
+        assert _code(upload(client, archive)) == "state_too_new"

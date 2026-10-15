@@ -9,8 +9,15 @@ build's own export (`state_archive`) over a second set of stores under
 ``tmp_path / "source"``, and a hand-written zip for a file v1 wrote or a file
 that cannot be imported. The http lane is the fake 8088 daemon and the control
 lane a closed port, so any daemon contact fails.
+
+Valid archives in the shapes a user's tools give them are imported whole: one
+past one MiB, one that lands exactly on the state limit with no zip comment to
+pad it, and one carrying the directory entries an OS zip tool writes. Each such
+case sets its state limit on the app's `Config`, so a size is stated against the
+limit the case chose rather than the default.
 """
 
+import contextlib
 import hashlib
 import io
 import json
@@ -557,3 +564,84 @@ def test_an_archive_past_the_state_limit_leaves_the_pre_import_backup_as_the_las
     upload(capped_client, sized(STATE_LIMIT + 1))
     saved = zip_json_member(install / "backups" / PRE_IMPORT_BACKUP, "favorites.json")
     assert saved == json.loads(favorites(INSTALL_FAVORITE))
+
+
+# --- valid archives in the shapes a user's tools give them ----------------------
+
+MIB = 1024 * 1024
+
+#: A state limit well past the archive `past_one_mib` builds.
+ROOMY_LIMIT = 4 * MIB
+
+#: A state limit small enough that an archive landing on it is a few KiB.
+SMALL_LIMIT = 4096
+
+#: The bytes `past_one_mib`'s archive carries in a non-store member, so its upload is past one MiB.
+PAST_ONE_MIB = MIB + MIB // 2
+
+#: A member every export carries that no import reads: the place an archive's bulk sits.
+BACKUP_MEMBER = "backups/pre-apply-settings.zip"
+
+#: The preset an archive with directory entries carries.
+CARRIED_PRESET = "Office"
+
+
+@pytest.fixture
+def limited_client(
+    http_daemon: dict[str, Any], install: Path, closed_port: int, tmp_path: Path
+) -> Iterator[Callable[[int], TestClient]]:
+    """Build the app over the install with the state limit set to the given number of bytes."""
+    with contextlib.ExitStack() as stack:
+
+        def build(limit: int) -> TestClient:
+            cfg = install_app_config(http_daemon, install, closed_port, tmp_path / "audit.jsonl")
+            cfg.state_max_bytes = limit
+            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
+
+        yield build
+
+
+def stored_archive(padding: int) -> bytes:
+    """An uncompressed archive carrying SECOND_FAVORITE and ``padding`` bytes in the backup member, with no comment."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_STORED) as archive:
+        archive.writestr("favorites.json", favorites(SECOND_FAVORITE))
+        archive.writestr(BACKUP_MEMBER, b"\0" * padding)
+    return buffer.getvalue()
+
+
+def landing_on(size: int) -> bytes:
+    """`stored_archive` padded so the upload is exactly ``size`` bytes."""
+    return stored_archive(size - len(stored_archive(0)))
+
+
+def with_directory_entries() -> bytes:
+    """An archive as an OS zip tool writes one: each directory as its own entry ahead of the files inside it."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        archive.mkdir("backups")
+        archive.writestr(BACKUP_MEMBER, b"backup")
+        archive.mkdir(PRESETS)
+        archive.writestr(f"{PRESETS}/{CARRIED_PRESET}.xml", PRESET_XML)
+    return buffer.getvalue()
+
+
+def test_an_archive_past_one_mib_and_under_the_state_limit_is_imported(
+    limited_client: Callable[[int], TestClient], install: Path
+) -> None:
+    upload(limited_client(ROOMY_LIMIT), stored_archive(PAST_ONE_MIB))
+    assert installed_favorites(install) == [SECOND_FAVORITE]
+
+
+def test_an_archive_exactly_at_the_state_limit_with_no_zip_comment_is_imported(
+    limited_client: Callable[[int], TestClient], install: Path
+) -> None:
+    upload(limited_client(SMALL_LIMIT), landing_on(SMALL_LIMIT))
+    assert installed_favorites(install) == [SECOND_FAVORITE]
+
+
+def test_an_archive_carrying_directory_entries_is_imported(
+    limited_client: Callable[[int], TestClient], install: Path
+) -> None:
+    upload(limited_client(ROOMY_LIMIT), with_directory_entries())
+    assert PresetStore(install / "state" / PRESETS).names() == [CARRIED_PRESET]

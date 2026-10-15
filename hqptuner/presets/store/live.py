@@ -96,9 +96,8 @@ LiveShelf = dict[str, LiveRecordFile]
 
 
 class LiveFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the book, or beside the flat preset map."""
+    """The on-disk envelope as read: the book, or the flat preset map."""
 
-    schema: int
     stations: dict[str, LiveShelf]
     presets: LiveShelf
 
@@ -148,8 +147,6 @@ def _clean(stored: object) -> LiveFile:
         return out
     schema = stored.get("schema")
     stamp = schema if isinstance(schema, int) else None
-    if stamp is not None:
-        out["schema"] = stamp
     stations = stored.get("stations")
     if isinstance(stations, dict):
         out["stations"] = {
@@ -359,12 +356,4 @@ class LivePresetStore:
         if key not in shelf:
             raise SnapshotNotFoundError(name=name)
         del shelf[key]
-        self._write(book)
-
-    def forget(self, station: str) -> None:
-        """Drop every preset ``station`` holds, as its config preset goes. A station holding none writes nothing."""
-        book = self._book()
-        if station not in book:
-            return
-        del book[station]
         self._write(book)

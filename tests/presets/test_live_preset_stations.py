@@ -71,19 +71,6 @@ def test_deleting_a_record_from_one_station_leaves_it_under_another(
     assert store.all(station) == expected
 
 
-@pytest.mark.parametrize(
-    ("station", "expected"),
-    [pytest.param("Den", {}, id="forgotten"), pytest.param("Office", {"alpha": RECORD}, id="kept")],
-)
-def test_forgetting_a_station_drops_its_records_and_no_other(
-    tmp_path: Path, station: str, expected: dict[str, LiveRecord]
-) -> None:
-    store = store_at(tmp_path)
-    store.save("alpha", RECORD, ["Den", "Office"])
-    store.forget("Den")
-    assert store.all(station) == expected
-
-
 def test_the_book_lists_the_default_station_then_every_station_the_preset_store_names(tmp_path: Path) -> None:
     store = store_at(tmp_path)
     store.save("alpha", RECORD, ["Office"])

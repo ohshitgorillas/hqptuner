@@ -93,9 +93,12 @@ source_paths = ["hqptuner"]
 do_not_mutate = ["hqptuner/static/*"]
 # Same suite the gate runs: offline and deterministic. A mutation run must never
 # reach the production daemon, so the live marker is deselected here too.
-# tests/gates exercises scripts/, which the mutants/ copy does not carry, and
-# never touches hqptuner/; collecting it there only errors the stats pass.
+# tests/gates exercises scripts/ and never touches hqptuner/; collecting it
+# there only slows every mutant.
 pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests/gates"]
+# The pytest pythonpath above names scripts/ directories, and conftests import
+# from them at collection, so the mutants/ copy needs them too.
+also_copy = ["scripts"]
 
 [tool.triviajudge]
 # Scope for the markdown, comment and archaeology gates. It matches the

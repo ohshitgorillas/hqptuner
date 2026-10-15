@@ -222,9 +222,12 @@ def test_each_presets_profiles_are_backfilled_from_that_presets_own_chain(
     assert profile_plugin(http_manager.presetops.store.read(preset), "Stock", "bauer")["frequency"] == frequency
 
 
-def test_a_backfilled_preset_reports_ok(http_manager: ConnectionManager) -> None:
-    http_manager.presetops.store.save("Office", preset_xml("850"))
-    assert http_manager.presetops.backfill_profiles()["Office"] == "ok"
+def test_a_stored_presets_chainless_profile_gains_the_live_chains_second_stage(
+    http_manager: ConnectionManager,
+) -> None:
+    http_manager.presetops.store.save("Office", snapshot({"Stock": CHAINLESS}))
+    http_manager.presetops.backfill_profiles()
+    assert profile_plugin(http_manager.presetops.store.read("Office"), "Stock", "correction")["dac0"] == "live.wav"
 
 
 def test_a_preset_whose_live_matrix_has_no_chain_keeps_its_bytes(http_manager: ConnectionManager) -> None:
@@ -234,12 +237,14 @@ def test_a_preset_whose_live_matrix_has_no_chain_keeps_its_bytes(http_manager: C
     assert http_manager.presetops.store.read("Attic") == seeded
 
 
-def test_a_preset_whose_live_matrix_has_no_chain_is_absent_from_the_report(
-    http_manager: ConnectionManager,
-) -> None:
-    # the report carries a key only for a preset that was written or that failed
-    http_manager.presetops.store.save("Attic", snapshot({"Stock": CHAINLESS}, live_chain=""))
-    assert "Attic" not in http_manager.presetops.backfill_profiles()
+#: Stored preset bytes that hold no config at all, so no matrix to backfill from.
+NOT_A_CONFIG = b"not a config"
+
+
+def test_a_preset_that_holds_no_config_keeps_its_bytes(http_manager: ConnectionManager) -> None:
+    http_manager.presetops.store.save("Attic", NOT_A_CONFIG)
+    http_manager.presetops.backfill_profiles()
+    assert http_manager.presetops.store.read("Attic") == NOT_A_CONFIG
 
 
 def test_a_preset_whose_profiles_all_carry_chains_keeps_its_bytes(http_manager: ConnectionManager) -> None:
@@ -247,10 +252,3 @@ def test_a_preset_whose_profiles_all_carry_chains_keeps_its_bytes(http_manager: 
     http_manager.presetops.store.save("Den", seeded)
     http_manager.presetops.backfill_profiles()
     assert http_manager.presetops.store.read("Den") == seeded
-
-
-def test_a_preset_whose_profiles_all_carry_chains_is_absent_from_the_report(
-    http_manager: ConnectionManager,
-) -> None:
-    http_manager.presetops.store.save("Den", snapshot({"Day": CHAINED}))
-    assert "Den" not in http_manager.presetops.backfill_profiles()

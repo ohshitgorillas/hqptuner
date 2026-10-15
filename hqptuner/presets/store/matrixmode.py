@@ -44,9 +44,8 @@ _MAX_PRESETS = 256
 
 
 class MatrixModeFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the preset-name-to-mode map."""
+    """The on-disk envelope as read: the preset-name-to-mode map."""
 
-    schema: int
     presets: dict[str, str]
 
 
@@ -111,7 +110,7 @@ def validate_mode(mode: object) -> str:
 
 
 def _clean(stored: object) -> MatrixModeFile:
-    """Return a read document's envelope, keeping the stamp when it is an int and only the storable preset entries.
+    """Return a read document's envelope, keeping only the storable preset entries.
 
     A file another version wrote, or one a client corrupted, loses the entries that make no sense rather than the whole
     store — an unreadable entry costs that preset its recorded mode, which reads as "never chosen".
@@ -119,9 +118,6 @@ def _clean(stored: object) -> MatrixModeFile:
     out: MatrixModeFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     presets = stored.get("presets")
     if isinstance(presets, dict):
         out["presets"] = {
@@ -166,24 +162,6 @@ class MatrixModeStore:
         with saving(MATRIX_MODE_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
-
-    def forget(self, name: str) -> bool:
-        """Drop ``name``'s stored mode, answering whether there was one to drop.
-
-        What a preset delete calls, so it complains about nothing: a name with no entry here, and a name this store
-        would refuse to write, are both simply not present. Writes only when something changed, so a delete on an
-        install that never chose a mode leaves no file behind.
-
-        Raises ``MatrixModeSchemaError`` when the store is stamped newer than this HQPTuner, and ``StoreCorruptError``
-        when it cannot be read at all: both are the caller's decision, not this method's, about whether losing a
-        preset must wait on a store beside it that this HQPTuner cannot open.
-        """
-        presets = self._read_file().get("presets", {})
-        if name not in presets:
-            return False
-        del presets[name]
-        self._save(presets)
-        return True
 
     def write(self, name: str, mode: str) -> dict[str, str]:
         """Store ``mode`` against preset ``name`` and return the whole map.
