@@ -67,7 +67,7 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {RidgeState | null} ridges
  * @property {HaloState} halo
  * @property {ImageData | null} glow
- * @property {Uint8Array | null} heat
+ * @property {Uint16Array | null} heat
  * @property {number} owed  steps, as stepsDue carries them
  * @property {FireInk | null} ink
  * @property {FireSheet | null} sheet
@@ -336,7 +336,7 @@ function fire(f) {
   const source = fireSource(f.fracs, size);
   const due = stepsDue(state.owed, f.dt);
   state.owed = due.owed;
-  if (state.heat?.length !== size.cols * size.rows) state.heat = new Uint8Array(size.cols * size.rows);
+  if (state.heat?.length !== size.cols * size.rows) state.heat = new Uint16Array(size.cols * size.rows);
   for (let k = 0; k < due.steps; k++) state.heat = stepFire(state.heat, source, size, Math.random);
   const ink = fireInk(state, f.suite, f.accent, size.max);
   const sheet = fireSheet(state, size.cols, size.rows);
