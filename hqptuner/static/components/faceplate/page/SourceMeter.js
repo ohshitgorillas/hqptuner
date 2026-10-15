@@ -7,7 +7,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { effectiveStyle, suiteColor, suiteLineStops } from "../../../model/gauges/spectrumfx.js";
+import { effectiveStyle, traceStops } from "../../../model/gauges/spectrumfx.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
@@ -128,14 +128,13 @@ function RangeControl({ view }) {
 }
 
 /**
- * The trace's filled area, held peaks and line: the area and line coloured by level through a gradient up the plot,
- * the held peaks in the colour suite's top colour, Accent's in the accent in force.
+ * The trace's filled area, held peaks and line, all drawn through one gradient up the plot: coloured by level under a
+ * colour suite, solid in the accent in force under Accent.
  *
  * @param {{ suite: string }} props
  */
 function TraceInk({ suite }) {
-  const accent = accentInForce();
-  const stops = suiteLineStops(suite, accent);
+  const stops = traceStops(suite, accentInForce());
   return html`
     <defs>
       <linearGradient id=${LEVEL_INK} gradientUnits="userSpaceOnUse" x1="0" y1=${SH} x2="0" y2="0">
@@ -143,7 +142,7 @@ function TraceInk({ suite }) {
       </linearGradient>
     </defs>
     <path class="sarea" style=${`fill:url(#${LEVEL_INK})`} />
-    <path class="shold" style=${`stroke:${suiteColor(suite, 1, accent)}`} />
+    <path class="shold" style=${`stroke:url(#${LEVEL_INK})`} />
     <path class="strace" style=${`stroke:url(#${LEVEL_INK})`} />
   `;
 }

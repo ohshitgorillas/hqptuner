@@ -341,6 +341,22 @@ export function suiteLineStops(suite, accent) {
 }
 
 /**
+ * The stops of the Trace style's gradient under `suite`: solid in the accent in force under Accent, coloured by level
+ * as suiteLineStops gives them under every other suite.
+ *
+ * @param {string} suite
+ * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
+ * @returns {[number, string][]}
+ */
+export function traceStops(suite, accent) {
+  if (Object.hasOwn(SPECTRUM_SUITES, suite)) return suiteLineStops(suite, accent);
+  return [
+    [0, accent],
+    [1, accent],
+  ];
+}
+
+/**
  * The stops of the one gradient the bars are drawn over under `suite`, fixed across the canvas: the suite's colours
  * spread evenly from the floor (0) to full scale (1). None under a suite whose bars each take the colour at their own
  * height.
