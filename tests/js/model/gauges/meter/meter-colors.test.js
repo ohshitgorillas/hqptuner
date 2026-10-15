@@ -1,8 +1,7 @@
 // Behavioral suite for the Source level meter's colors on the meter model (hqptuner/static/model/gauges/meter/meter.js):
-// the peak bar, the RMS bar, the held-peak mark and the numeric peak readout take their colors from the palette picked
-// for the spectrum. Under a palette that colors the spectrum by level (Retro and the gradients), each bar and the mark
-// draw in the color the spectrum draws at their own level; under Accent they follow the accent in force; and picking
-// another palette changes the readout's color.
+// the peak bar, the RMS bar and the held-peak mark take their colors from the palette picked for the spectrum. Under a
+// palette that colors the spectrum by level (Retro and the gradients), each bar and the mark draw in the color the
+// spectrum draws at their own level; under Accent they follow the accent in force.
 //
 // A reading is given as fractions of the bar, 0 on the floor and 1 at full scale, and the spectrum's color at a level
 // is read from its own suite surface (hqptuner/static/model/gauges/meter/spectrumfx.js). Both surfaces are read off their
@@ -17,7 +16,7 @@ import * as meterModel from "../../../../../hqptuner/static/model/gauges/meter/m
 import * as spectrumModel from "../../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 
 /** @typedef {{ peak: number, rms: number, hold: number }} BarReading */
-/** @typedef {{ peak: string, rms: string, hold: string, readout: string }} MeterPaint */
+/** @typedef {{ peak: string, rms: string, hold: string }} MeterPaint */
 
 /**
  * The meter's color surface: the colors a reading draws in under a palette with an accent in force.
@@ -41,9 +40,8 @@ const BLUE = "#4f9dde";
 const GREEN = "#5fd068";
 //: The palettes that color the spectrum by level, as the store holds them.
 const BY_LEVEL = ["retro", "inferno", "viridis", "borealis", "mono"];
-//: A gradient palette, and a second one unlike it.
+//: A gradient palette.
 const INFERNO = "inferno";
-const VIRIDIS = "viridis";
 //: The palette that draws in the accent's shades, as the store holds it.
 const ACCENT = "accent";
 //: The meter's parts that draw at a level of their own.
@@ -51,7 +49,7 @@ const ACCENT = "accent";
 const PARTS = ["rms", "hold"];
 //: Every part the meter draws.
 /** @type {(keyof MeterPaint)[]} */
-const ALL_PARTS = ["peak", "rms", "hold", "readout"];
+const ALL_PARTS = ["peak", "rms", "hold"];
 
 /**
  * The color the meter draws `part` of `READING` in, lower-cased; a meter without the surface reads as "none".
@@ -89,7 +87,3 @@ for (const part of ALL_PARTS) {
     assert.notEqual(meterColor(ACCENT, part, GREEN), meterColor(ACCENT, part, BLUE));
   });
 }
-
-test("test_picking_another_gradient_palette_changes_the_peak_readout_color", () => {
-  assert.notEqual(meterColor(VIRIDIS, "readout", BLUE), meterColor(INFERNO, "readout", BLUE));
-});

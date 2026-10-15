@@ -266,20 +266,17 @@ export function fraction(db, floor) {
 
 /**
  * The colors the Source level meter draws a reading in under the spectrum's palette `palette`: each bar and the held
- * peak in the color the spectrum draws at that part's own level, and the peak readout in its bar's color. Under
- * Accent those are the accent's shades.
+ * peak in the color the spectrum draws at that part's own level. Under Accent those are the accent's shades.
  *
  * @param {string} palette  a spectrum palette, as the store holds it
  * @param {{ peak: number, rms: number, hold: number }} reading  bar fractions, 0 on the floor and 1 at full scale
  * @param {string} accent  the accent in force, `#rrggbb`
- * @returns {{ peak: string, rms: string, hold: string, readout: string }}  `#rrggbb`
+ * @returns {{ peak: string, rms: string, hold: string }}  `#rrggbb`
  */
 export function meterColors(palette, { peak, rms, hold }, accent) {
-  const peakColor = suiteColor(palette, peak, accent);
   return {
-    peak: peakColor,
+    peak: suiteColor(palette, peak, accent),
     rms: suiteColor(palette, rms, accent),
     hold: suiteColor(palette, hold, accent),
-    readout: peakColor,
   };
 }
