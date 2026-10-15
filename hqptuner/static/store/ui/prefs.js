@@ -174,7 +174,7 @@ export function enumPref(key, allowed, dflt) {
 export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS, "60");
 
 // How the spectrum is drawn. An unset or junk value reads as the trace.
-const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade"];
+const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade", "fire"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
 // The color suite the spectrum is drawn in. An unset or junk value reads as Accent.

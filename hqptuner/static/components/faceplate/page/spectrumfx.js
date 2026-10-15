@@ -2,7 +2,8 @@
 // the per-frame steps in model/gauges/meter/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars draw
 // one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
 // strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
-// it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum, starts the next style's
+// it and merges in the trace's fresh glow; flames draw their heat grid as pixels scaled over the whole canvas, heat 0
+// clear. A change of style, or a paint with no spectrum, starts the next style's
 // state afresh. Each bar takes the color suite's color at its height, or under a suite with a fixed bar gradient is
 // drawn over that gradient; the ridge lines, the fade trace and its halo are colored by level, and the caps take the
 // suite's top color. Accent draws in the accent in force at each paint.
@@ -22,6 +23,7 @@ import {
   suiteHaloStops,
   suiteLineStops,
 } from "../../../model/gauges/meter/spectrumfx.js";
+import { fireColors, fireSize, fireSource, stepFire } from "../../../model/gauges/meter/fire.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
@@ -38,13 +40,35 @@ import { accentInForce } from "../../../store/ui/theme.js";
  */
 
 /**
- * Each style's state between paints: the fade halo's step and the halo image the last fade paint left.
+ * The flames' color table and the suite, accent and top heat it was built for.
+ *
+ * @typedef {object} FireInk
+ * @property {string} key
+ * @property {Uint32Array} words  one RGBA word per heat, over the bytes fireColors gives
+ */
+
+/**
+ * The small canvas the flames' heat grid is put on, one pixel a cell, and the image put on it.
+ *
+ * @typedef {object} FireSheet
+ * @property {OffscreenCanvas} canvas
+ * @property {OffscreenCanvasRenderingContext2D} ctx
+ * @property {ImageData} img
+ * @property {Uint32Array} cells  the image's pixels, one word a cell
+ */
+
+/**
+ * Each style's state between paints: the fade halo's step and the halo image the last fade paint left; the flames'
+ * heat grid, color table and sheet.
  *
  * @typedef {object} FxState
  * @property {CapState | null} caps
  * @property {RidgeState | null} ridges
  * @property {HaloState} halo
  * @property {ImageData | null} glow
+ * @property {Uint8Array | null} heat
+ * @property {FireInk | null} ink
+ * @property {FireSheet | null} sheet
  */
 
 /**
@@ -248,11 +272,77 @@ function fade(f) {
   ctx.stroke();
 }
 
+/**
+ * The flames' color table for `suite`, `accent` and top heat `max`: the one held, unless it was built for others.
+ *
+ * @param {FxState} state
+ * @param {string} suite
+ * @param {string} accent
+ * @param {number} max
+ * @returns {Uint32Array}  one RGBA word per heat
+ */
+function fireInk(state, suite, accent, max) {
+  const key = `${suite} ${accent} ${max}`;
+  if (state.ink?.key !== key) state.ink = { key, words: words(fireColors(suite, accent, max)) };
+  return state.ink.words;
+}
+
+/**
+ * A view of `bytes` four to a word, so a store moves one RGBA pixel whole.
+ *
+ * @param {Uint8ClampedArray} bytes
+ * @returns {Uint32Array}
+ */
+function words(bytes) {
+  return new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.length / 4);
+}
+
+/**
+ * A sheet `cols` by `rows` pixels: the one held, unless it is another size. Null where no canvas can be made.
+ *
+ * @param {FxState} state
+ * @param {number} cols
+ * @param {number} rows
+ * @returns {FireSheet | null}
+ */
+function fireSheet(state, cols, rows) {
+  const held = state.sheet;
+  if (held?.img.width === cols && held.img.height === rows) return held;
+  const canvas = new OffscreenCanvas(cols, rows);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return (state.sheet = null);
+  const img = ctx.createImageData(cols, rows);
+  state.sheet = { canvas, ctx, img, cells: words(img.data) };
+  return state.sheet;
+}
+
+/**
+ * Flames: the heat grid one step on from the last paint's, its bottom row lit by the bands, each cell in the color
+ * fireColors gives its heat, put on a sheet a pixel a cell and scaled over the whole canvas.
+ *
+ * @param {Frame} f
+ */
+function fire(f) {
+  const { ctx, canvas, state } = f;
+  const { width: w, height: h } = canvas;
+  const size = fireSize(w, h);
+  state.heat = stepFire(state.heat, fireSource(f.fracs, size), size, Math.random);
+  const ink = fireInk(state, f.suite, f.accent, size.max);
+  const sheet = fireSheet(state, size.cols, size.rows);
+  ctx.clearRect(0, 0, w, h);
+  if (!sheet) return;
+  const { heat } = state;
+  const { cells } = sheet;
+  for (let i = 0; i < heat.length; i++) cells[i] = ink[heat[i]];
+  sheet.ctx.putImageData(sheet.img, 0, 0);
+  ctx.drawImage(sheet.canvas, 0, 0, w, h);
+}
+
 /** @type {Record<string, (f: Frame) => void>} */
-const STYLES = { bars, ridges, fade };
+const STYLES = { bars, ridges, fade, fire };
 
 /** @returns {FxState} */
-const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null });
+const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null, heat: null, ink: null, sheet: null });
 
 /**
  * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in color suite `suite`,

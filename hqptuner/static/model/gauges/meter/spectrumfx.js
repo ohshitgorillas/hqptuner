@@ -217,7 +217,7 @@ export const SPECTRUM_PALETTES = Object.freeze([ACCENT, ...Object.keys(SPECTRUM_
 const FIXED_BARS = new Set(["retro"]);
 
 const LEVEL_STOPS = 9; // stops a gradient colored by level carries, floor to full scale
-const CHANNEL_MAX = 255;
+export const CHANNEL_MAX = 255;
 const PERCENT = 100;
 
 /** @typedef {[number, number, number]} Triple */
@@ -276,7 +276,7 @@ const stopsOf = (suite, accent) =>
  * @param {string} accent  the accent in force, `#rrggbb`
  * @returns {Triple[]}
  */
-function rampOf(suite, accent) {
+export function rampOf(suite, accent) {
   if (!Object.hasOwn(SPECTRUM_SUITES, suite)) {
     if (accentRamp.accent !== accent) accentRamp = { accent, ramp: rampFrom(accentShades(accent)) };
     return accentRamp.ramp;
@@ -296,7 +296,7 @@ function rampOf(suite, accent) {
  * @param {number} at
  * @returns {Triple}
  */
-const rampAt = (ramp, at) => ramp[Math.round(clamp(at, 0, 1) * (ramp.length - 1))];
+export const rampAt = (ramp, at) => ramp[Math.round(clamp(at, 0, 1) * (ramp.length - 1))];
 
 /**
  * The color a part of the spectrum at plot fraction `at` is drawn in under `suite`, blended between the suite's

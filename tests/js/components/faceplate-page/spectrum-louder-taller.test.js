@@ -2,18 +2,26 @@
 // draws taller than a quieter one. The styles are the options the Display popover renders, read by their values in
 // `data-v`, that the spectrum style setter takes; a style the page comes to offer is covered without this file changing.
 //
-// One paint is made through paintSourceScene, the page Source meter's own paint, the first of its session, under the
-// Accent suite, with the section root, an effects canvas painter and a shader canvas painter all present, so the page
-// has WebGL2 and decides itself which surface each style is drawn on. How tall a paint draws is the highest point any
-// surface is given, as a share of the plot: an SVG path's points, the 2D context's rects and path points, the first row
-// holding ink of the pixels the 2D context is handed, put directly or drawn from an image or another canvas, and the
-// per-band levels the shader is handed, which are plot fractions already. Calls that take pixels off a canvas are not
-// read. Every spectrum column sits at one level, both levels inside the plot.
+// Each case paints one steady spectrum through paintSourceScene, the page Source meter's own paint, frame after frame
+// as the meter loop does, each paint told the style the one before it drew, under the Accent suite, with the section
+// root, an effects canvas painter and a shader canvas painter all present, so the page has WebGL2 and decides itself
+// which surface each style is drawn on. A style may rise over several paints, so a case makes as many as the canvas has
+// pixel rows. `Math.random` hands back a fixed table during the paints, so a style that draws at random draws the same
+// every run.
+//
+// How tall the spectrum stands is the highest point any surface holds after the last paint, as a share of the plot: an
+// SVG path's points as last written, the 2D context's rects and path points, the first row holding ink of the pixels
+// the 2D context is handed, put directly or drawn from an image or another canvas, and the per-band levels the shader
+// was last handed, which are plot fractions already. A point is read where it is given, above the plot's top included.
+// Calls that take pixels off a canvas are not read. Every spectrum column sits at one level, both levels inside the
+// plot.
 //
 // The canvases are one fake whose context records each method called on it by name and arguments, hands back what a
-// small table names, keeps property writes, and reads names in capitals as numbers; a canvas a painter builds itself,
-// through `OffscreenCanvas` or `document.createElement`, is the same fake. Images keep their pixels. The section root
-// hands back one recording element per selector and no level bars or VU needles.
+// small table names, keeps property writes, and reads names in capitals as numbers. It holds only the calls from the
+// latest one that sets every pixel of the canvas on, so what it holds is what the canvas shows. A canvas a painter
+// builds itself, through `OffscreenCanvas` or `document.createElement`, is the same fake. Images keep their pixels. The
+// section root hands each selector an element of its own, keeping the attributes last set on it, and holds no level
+// bars or VU needles.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/spectrum-louder-taller.test.js
 
@@ -49,6 +57,10 @@ const RANGE = 60;
 const QUIET_DB = -45;
 //: Three quarters of the way up a 60 dB plot.
 const LOUD_DB = -15;
+//: Paints per case, one per pixel row of the canvas: a style rising a pixel a paint or faster has reached its height.
+const FRAMES = H;
+//: What `Math.random` hands back during the paints, in turn: 97 fractions spread evenly over [0, 1), shuffled.
+const RANDOM = Array.from({ length: 97 }, (_, i) => ((i * 37) % 97) / 97);
 
 /**
  * An image of `w` by `h` pixels.
@@ -79,7 +91,31 @@ const TABLE = {
 };
 
 /**
- * A `width` by `height` canvas, W by H unless given, whose every context records the methods called on it.
+ * Whether a rect `w` by `h` at `x`, `y` takes in all of a `width` by `height` canvas.
+ *
+ * @param {number[]} rect  x, y, w, h
+ * @param {{ width: number, height: number }} canvas
+ */
+const spans = ([x, y, w, h], { width, height }) => x <= 0 && y <= 0 && x + w >= width && y + h >= height;
+
+/**
+ * Whether a call sets every pixel of a canvas: a `clearRect` over all of it, a `putImageData` of a whole image over all
+ * of it, or a WebGL `clear`.
+ *
+ * @param {string} name
+ * @param {any[]} a
+ * @param {{ width: number, height: number }} canvas
+ */
+function covers(name, a, canvas) {
+  if (name === "clear") return true;
+  if (name === "clearRect") return spans(a, canvas);
+  if (name !== "putImageData" || a.length > 3) return false;
+  return spans([a[1], a[2], a[0].width, a[0].height], canvas);
+}
+
+/**
+ * A `width` by `height` canvas, W by H unless given, whose every context records the methods called on it from the
+ * latest call that covers all of it, as `covers` reads one, on.
  *
  * @param {number} [width]
  * @param {number} [height]
@@ -98,6 +134,7 @@ function recordingCanvas(width = W, height = H) {
       const name = String(key);
       if (/^[A-Z0-9_]+$/.test(name)) return name.length;
       return (/** @type {any[]} */ ...args) => {
+        if (covers(name, args, canvas)) calls.length = 0;
         calls.push({ name, args });
         return table[name]?.(...args);
       };
@@ -132,18 +169,24 @@ if (env.document) {
 }
 
 /**
- * A section root whose every selector finds one element recording the attributes set on it, and which holds no level
- * bars and no VU needles.
+ * A section root whose every selector finds an element of its own keeping the attributes last set on it, and which
+ * holds no level bars and no VU needles. `writes` is every element's attributes as they stand.
  *
- * @returns {{ writes: [string, string][], querySelector: () => object, querySelectorAll: () => never[] }}
+ * @returns {{ writes: () => [string, string][], querySelector: (sel: string) => object, querySelectorAll: () => never[] }}
  */
 function recordingRoot() {
-  /** @type {[string, string][]} */
-  const writes = [];
-  const el = {
-    setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => writes.push([name, String(value)]),
+  /** @type {Map<string, Map<string, string>>} */
+  const found = new Map();
+  /** @param {string} sel */
+  const querySelector = (sel) => {
+    const attrs = found.get(sel) ?? new Map();
+    found.set(sel, attrs);
+    return {
+      setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => attrs.set(name, String(value)),
+    };
   };
-  return { writes, querySelector: () => el, querySelectorAll: () => [] };
+  const writes = () => [...found.values()].flatMap((attrs) => [...attrs]);
+  return { writes, querySelector, querySelectorAll: () => [] };
 }
 
 /** Where each 2D drawing call puts points, as their y in canvas pixels down from the top. */
@@ -278,8 +321,24 @@ function shaderTop(calls) {
 }
 
 /**
- * How tall one paint of a spectrum with every column at `db` draws under `style`, as a share of the plot, on whichever
- * surface draws it.
+ * Run `act` with `Math.random` handing back RANDOM in turn from its start, and put `Math.random` back after.
+ *
+ * @param {() => void} act
+ */
+function withRandomTable(act) {
+  const own = Math.random;
+  let at = 0;
+  Math.random = () => RANDOM[at++ % RANDOM.length];
+  try {
+    act();
+  } finally {
+    Math.random = own;
+  }
+}
+
+/**
+ * How tall a spectrum with every column at `db` stands under `style` after FRAMES paints, as a share of the plot, on
+ * whichever surface draws it.
  *
  * @param {string} style
  * @param {number} db
@@ -292,13 +351,14 @@ function drawnTop(style, db) {
   const glCanvas = recordingCanvas();
   const fx = fxPainter(/** @type {any} */ (fxCanvas), { glass: "#000" });
   const aurora = auroraPainter(/** @type {any} */ (glCanvas));
-  paintSourceScene(
-    /** @type {any} */ (root),
-    scene,
-    { fx, aurora },
-    { range: RANGE, picked: style, suite: ACCENT, last: "" },
-  );
-  return Math.max(svgTop(root.writes), canvasTop(fxCanvas), shaderTop(glCanvas.calls));
+  withRandomTable(() => {
+    let last = "";
+    for (let i = 0; i < FRAMES; i++) {
+      const look = { range: RANGE, picked: style, suite: ACCENT, last };
+      last = paintSourceScene(/** @type {any} */ (root), scene, { fx, aurora }, look);
+    }
+  });
+  return Math.max(svgTop(root.writes()), canvasTop(fxCanvas), shaderTop(glCanvas.calls));
 }
 
 /**

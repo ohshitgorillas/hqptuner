@@ -46,6 +46,7 @@ const SPECTRA = [
   { v: "ridges", label: "Ridges" },
   { v: "aurora", label: "Aurora" },
   { v: "fade", label: "Fade" },
+  { v: "fire", label: "Flames" },
 ];
 
 /** @type {Opt[]} */
