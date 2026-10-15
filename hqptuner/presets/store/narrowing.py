@@ -65,9 +65,8 @@ _MODES = frozenset({"and", "or"})
 
 
 class NarrowingFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the facet map, whose own shape is ``Facets.to_json()``."""
+    """The on-disk envelope as read: the facet map, whose own shape is ``Facets.to_json()``."""
 
-    schema: int
     facets: FacetInput
 
 
@@ -79,9 +78,6 @@ def _clean(stored: object) -> NarrowingFile:
     out: NarrowingFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     facets = stored.get("facets")
     if isinstance(facets, dict):
         out["facets"] = facet_input(facets)

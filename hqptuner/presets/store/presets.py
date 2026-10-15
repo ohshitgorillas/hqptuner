@@ -36,27 +36,10 @@ ACTIVE_FILE = "active.json"
 STORE_FILE = "store.json"
 
 
-class PresetStoreFile(TypedDict, total=False):
-    """The on-disk envelope of ``store.json``: the layout stamp."""
-
-    schema: int
-
-
 class ActiveFile(TypedDict, total=False):
     """The on-disk envelope of ``active.json``: the active preset's name, or ``None`` when nothing is loaded."""
 
     active: str | None
-
-
-def _clean(stored: object) -> PresetStoreFile:
-    """Return a read ``store.json``'s envelope, keeping each member only when it has its ``PresetStoreFile`` type."""
-    out: PresetStoreFile = {}
-    if not isinstance(stored, dict):
-        return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
-    return out
 
 
 def _clean_active(stored: object) -> ActiveFile:
@@ -166,14 +149,14 @@ class PresetStore:
     def _path(self, name: str) -> Path:
         return self._dir / f"{canonical_name(name)}.xml"
 
-    def _read_meta(self) -> PresetStoreFile:
-        """Return ``store.json``'s envelope, validated by ``_clean``, empty when absent.
+    def _read_meta(self) -> None:
+        """Read ``store.json`` for its stamp check alone; an absent file passes.
 
         Raises ``PresetError`` when the store is stamped newer than this HQPTuner
         understands, and ``StoreCorruptError`` when the file cannot be read as a
         JSON object at all — every path that touches the store reads it through
         ``_meta``, so both refuse uniformly instead of half-working. ``_meta`` holds
-        the envelope while ``store.json`` is unchanged and never holds a read that raised.
+        a passed check while ``store.json`` is unchanged and never holds a read that raised.
         """
 
         def _too_new(stamp: int) -> PresetSchemaError:
@@ -181,8 +164,7 @@ class PresetStore:
 
         path = self._dir / STORE_FILE
         with reading(PRESET_STORE.what, path):
-            data = read_stamped(path, store="preset", schema=_SCHEMA, too_new=_too_new)
-        return _clean(data)
+            read_stamped(path, store="preset", schema=_SCHEMA, too_new=_too_new)
 
     def _read_pointer(self) -> ActiveFile:
         """Return ``active.json``'s envelope, raising ``StoreCorruptError`` when it is not a JSON object."""
@@ -193,8 +175,7 @@ class PresetStore:
 
     def _list_names(self) -> list[str]:
         """Glob the directory for the stored preset names, sorted."""
-        with reading(PRESET_STORE.what, self._dir):
-            return sorted((p.stem for p in self._dir.glob("*.xml")), key=names.sort_key)
+        return sorted((p.stem for p in self._dir.glob("*.xml")), key=names.sort_key)
 
     def signature(self, name: str) -> signed.Signature:
         """Return preset ``name``'s file signature, ``(st_mtime_ns, st_size)``, or ``None`` when it is not stored.

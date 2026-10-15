@@ -47,9 +47,8 @@ _MAX_NAME_LEN = 64
 
 
 class FavoritesFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the two independent name lists."""
+    """The on-disk envelope as read: the two independent name lists."""
 
-    schema: int
     filters: list[str]
     modulators: list[str]
 
@@ -103,16 +102,13 @@ class FavoriteNameTooLongError(FavoriteError):
 
 
 def _clean(stored: object) -> FavoritesFile:
-    """Return a read document's envelope, keeping the stamp when it is an int and the strings of each name list.
+    """Return a read document's envelope, keeping the strings of each name list.
 
     A list member that is not a string is dropped here; empty names and duplicates are ``_read_kind``'s to drop.
     """
     out: FavoritesFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     filters = stored.get("filters")
     if isinstance(filters, list):
         out["filters"] = [name for name in filters if isinstance(name, str)]

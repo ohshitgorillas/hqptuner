@@ -56,9 +56,8 @@ class DescriptionEntry(TypedDict):
 
 
 class DescriptionsFile(TypedDict, total=False):
-    """The on-disk envelope: a schema stamp beside the profile-name-to-entry map."""
+    """The on-disk envelope as read: the profile-name-to-entry map."""
 
-    schema: int
     profiles: dict[str, DescriptionEntry]
 
 
@@ -207,7 +206,7 @@ def _clean_entry(name: object, entry: object) -> DescriptionEntry | None:
 
 
 def _clean(stored: object) -> DescriptionsFile:
-    """Return a read document's envelope, keeping the stamp when it is an int and only the storable profile entries.
+    """Return a read document's envelope, keeping only the storable profile entries.
 
     A file another version wrote, or one a client corrupted, loses the entries that make no sense rather than the
     whole store.
@@ -215,9 +214,6 @@ def _clean(stored: object) -> DescriptionsFile:
     out: DescriptionsFile = {}
     if not isinstance(stored, dict):
         return out
-    schema = stored.get("schema")
-    if isinstance(schema, int):
-        out["schema"] = schema
     profiles = stored.get("profiles")
     if not isinstance(profiles, dict):
         return out

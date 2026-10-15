@@ -153,10 +153,9 @@ class FilterPark:
             raise ParkAtCapacityError()
         target = self._dir / name
         serial = 1
-        with reading(_WHAT, self._dir):
-            while target.exists():
-                target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
-                serial += 1
+        while target.exists():
+            target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
+            serial += 1
         with saving(_WHAT, self._dir):
             self._dir.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)

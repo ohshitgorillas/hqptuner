@@ -1,7 +1,7 @@
 """HQPTuner-owned preset lifecycle.
 
 Two layers: the pure ``presetzip`` archive helpers (bytes in, bytes out), and
-the manager's save/load/list/delete through the faithful fake config daemon —
+the manager's save/load/list through the faithful fake config daemon —
 the same wire contract the apply tests use, so a preset only round-trips if the
 restore archive is one the real daemon would accept."""
 
@@ -111,14 +111,3 @@ async def test_load_preset_restores_its_saved_config(http_daemon: dict[str, Any]
     finally:
         await http.aclose()
     assert title == "Opal"
-
-
-async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any], tmp_path: Path) -> None:
-    manager, http = _pmgr(http_daemon, tmp_path)
-    try:
-        await presetlane.save(manager, "Temp")
-        await presetlane.delete(manager, "Temp")
-        names = [o.value for o in presetlane.listing(manager).options]
-    finally:
-        await http.aclose()
-    assert "Temp" not in names

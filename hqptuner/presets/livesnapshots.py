@@ -56,11 +56,11 @@ class ValuesUnknownError(HQPTunerError):
 
 
 class EngineStepFailedError(HQPTunerError):
-    """A Control API error that stopped one step of an apply, under its own text and code, kept on ``error``."""
+    """A Control API error that stopped one step of an apply, under its own text, kept on ``error``."""
 
     def __init__(self, error: ControlError) -> None:
-        """Carry ``error``'s own text and code unchanged."""
-        super().__init__(str(error), code=error.code)
+        """Carry ``error``'s own text unchanged."""
+        super().__init__(str(error))
         self.error = error
 
 
