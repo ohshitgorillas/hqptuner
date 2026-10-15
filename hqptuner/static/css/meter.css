@@ -11,11 +11,15 @@
 .mhead{display:flex;align-items:center;gap:var(--sp-7);min-height:var(--mhead-h)}
 .mt{font-weight:var(--fw-semi);font-size:var(--fs-5);color:var(--ink);white-space:nowrap}
 .mctl{display:flex;align-items:center;gap:var(--sp-3)}
+.mt+.mctl{margin-left:auto}   /* a head's switches sit at its right end */
 .mctl .eng{font-size:var(--fs-3);color:var(--ink-2)}
 .u{font-family:var(--f-mono);font-size:var(--fs-u);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
 .mctl .u{margin-right:var(--sp-1)}
 .mblk .seg button{height:var(--ctl-h-view);font-size:var(--fs-3);padding:0 var(--sp-4);letter-spacing:var(--ls-1);white-space:nowrap}
 .mblk .seg.lc button{text-transform:none;font-size:var(--fs-4);letter-spacing:0}
+/* Compact: the Source drawer's head is too narrow for its four switches, so each label closes on its switch. */
+.plate[data-size="compact"] #drawer-source .mctl{gap:var(--sp-1)}
+.plate[data-size="compact"] #drawer-source .mctl .u{margin-right:0}
 
 /* Shared axis type: tick labels in mono, legible ink. .first/.last keep end labels inside their track. */
 .gut,.xaxis{position:relative}

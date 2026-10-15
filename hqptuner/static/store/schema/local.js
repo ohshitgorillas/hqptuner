@@ -53,7 +53,7 @@ const PIN_RATES_NOTE =
 /** The Visual settings' paragraphs. */
 const VISUAL_MAN = {
   format:
-    "The format the plate is laid out at. Auto picks the largest of the three that fits the screen: Expanded suits 13-inch tablets, Normal 11-inch, and Compact an iPad Mini and other small tablets.",
+    'The layout of the app. Compact is designed for the iPad Mini, Normal for 11" tablets, and Expanded for 13" tablets. Auto stretches to fit the window up to a maximum.',
   optStyle:
     "This feature reduces the mental load required to parse the signal chain options by stating each selection's properties in plain English. Items are categorized into families, optionally into variants, and listed by their distinguishing properties.",
   apod: 'The Apodizing light flashes to indicate apodizing events. Brighter flashes indicate higher event density. When "Uncorrected", half-corrected events (e.g., from a half-apodizing filter) occur at half-brightness.',

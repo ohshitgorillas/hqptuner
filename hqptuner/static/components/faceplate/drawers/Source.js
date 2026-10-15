@@ -65,7 +65,6 @@ export function SourceMeter({ here }) {
     <div class="mblk" data-meter=${view.state}>
       <div class="mhead">
         <b class="mt">Spectrogram</b>
-        <span class="grow"></span>
         <${SpectrogramControls} view=${view} />
       </div>
       <${Plot} view=${view} />
