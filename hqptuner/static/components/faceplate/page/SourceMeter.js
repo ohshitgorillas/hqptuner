@@ -8,7 +8,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { effectiveStyle, traceStops } from "../../../model/gauges/meter/spectrumfx.js";
+import { traceStops } from "../../../model/gauges/meter/spectrumfx.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
@@ -17,15 +17,13 @@ import { rangeButtons, setPageRange, spectrumColors, spectrumStyle } from "../..
 import { accentInForce } from "../../../store/ui/theme.js";
 import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
-import { SH, SW, paintSourcePage } from "./sourcepaint.js";
+import { SH, SW, paintSourceScene } from "./sourcepaint.js";
 import { fitCanvas, fxPainter } from "./spectrumfx.js";
 import { VuPair } from "./VuMeter.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
 /** @typedef {import("./spectrumfx.js").FxColors} FxColors */
-/** @typedef {ReturnType<typeof fxPainter>} FxPainter */
-/** @typedef {ReturnType<typeof auroraPainter>} AuroraPainter */
-/** @typedef {{ fx: FxPainter, aurora: AuroraPainter }} Painters */
+/** @typedef {import("./sourcepaint.js").Painters} Painters */
 /** @typedef {{ current: HTMLCanvasElement | null }} CanvasRef */
 /** @typedef {{ current: HTMLElement | null }} BoxRef */
 
@@ -294,10 +292,8 @@ function useFxPainter(plot, fx, sgl, live) {
 }
 
 /**
- * Paint the meter loop's scenes into the section under `root` and onto the effects and shader canvases while they are
- * mounted, at the Range in `range` and the style the page draws for the picked one; aurora draws from the scene's
- * columns before the trace's smoothing and easing, every other style from the trace. The shader canvas is emptied once,
- * on the frame the drawn style leaves aurora.
+ * Paint the meter loop's scenes (paintSourceScene) into the section under `root` and onto the effects and shader
+ * canvases while they are mounted, at the Range in `range` and the spectrum style and color suite picked.
  *
  * @param {BoxRef} root
  * @param {{ current: number }} range
@@ -307,14 +303,12 @@ function useSourcePaint(root, range, painters) {
   useEffect(() => {
     let last = "";
     return onMeterPaint((scene) => {
-      const aurora = painters.current?.aurora ?? null;
-      const style = effectiveStyle(spectrumStyle.value, aurora !== null);
-      const suite = spectrumColors.value;
-      if (root.current) paintSourcePage(root.current, scene, range.current, style);
-      painters.current?.fx.paint(scene.spectrum, range.current, style, suite);
-      if (style === "aurora") aurora?.paint(scene.raw, range.current, suite);
-      else if (last === "aurora") aurora?.clear();
-      last = style;
+      last = paintSourceScene(root.current, scene, painters.current, {
+        range: range.current,
+        picked: spectrumStyle.value,
+        suite: spectrumColors.value,
+        last,
+      });
     });
   }, []);
 }

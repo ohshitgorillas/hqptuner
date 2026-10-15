@@ -2,8 +2,8 @@
 // (store/meter/loop.js) hands its scene here, and the trace, the level bars and the VU needles are
 // written straight into the elements SourceMeter rendered. Nothing re-renders while the meter runs.
 
-import { clamp } from "../../../lib/coerce.js";
 import { fraction, meterColors } from "../../../model/gauges/meter/meter.js";
+import { effectiveStyle, fractionsOf } from "../../../model/gauges/meter/spectrumfx.js";
 import { levelsFloor } from "../../../store/faceplate/page/meter.js";
 import { spectrumColors } from "../../../store/ui/prefs.js";
 import { accentInForce } from "../../../store/ui/theme.js";
@@ -12,6 +12,16 @@ import { paintVu } from "./VuMeter.js";
 /** @typedef {import("../../../store/meter/loop.js").MeterScene} MeterScene */
 /** @typedef {{ peak: number, rms: number, hold: number }} BarFractions */
 /** @typedef {{ peak: string, rms: string, hold: string }} MeterInks */
+/** @typedef {ReturnType<typeof import("./spectrumfx.js").fxPainter>} FxPainter */
+/** @typedef {ReturnType<typeof import("./aurora.js").auroraPainter>} AuroraPainter */
+/** @typedef {{ fx: FxPainter, aurora: AuroraPainter }} Painters */
+
+/**
+ * What one scene is painted at: the page's Range in dB, the spectrum style picked, the spectrum's color suite, and the
+ * style the previous paint drew, empty before the first.
+ *
+ * @typedef {{ range: number, picked: string, suite: string, last: string }} SceneLook
+ */
 
 /** The spectrum's viewBox; the stylesheet stretches it over the plot. */
 export const SW = 600;
@@ -33,10 +43,11 @@ const pct = (f) => `${(f * 100).toFixed(2)}%`;
  * @returns {string}
  */
 function pathOf(levels, range) {
-  const n = levels.length;
+  const fracs = fractionsOf(levels, range);
+  const n = fracs.length;
   let d = "";
   for (let c = 0; c < n; c++) {
-    const y = clamp((-levels[c] / range) * SH, 0, SH);
+    const y = (1 - fracs[c]) * SH;
     d += `${c ? " L" : "M"}${(((c + 0.5) / n) * SW).toFixed(1)},${y.toFixed(1)}`;
   }
   return d;
@@ -144,4 +155,26 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   const looks = scene.levels.map((lv) => barLook(lv, floor, palette, accent));
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => paintBar(bar, looks[i] ?? NO_BAR));
   paintVu(root, scene.vu);
+}
+
+/**
+ * Paint one scene the way the page's Source meter paints it: into the section under `root` where there is one, and
+ * onto the effects and shader canvases through `painters` where they are mounted, at the look's Range in the style the
+ * page draws for the picked one. Aurora draws from the scene's columns before the trace's smoothing and easing, every
+ * other style from the trace. The shader canvas is emptied once, on the paint whose drawn style leaves aurora.
+ *
+ * @param {Element | null} root
+ * @param {MeterScene} scene
+ * @param {Painters | null} painters
+ * @param {SceneLook} look
+ * @returns {string} the style this paint drew
+ */
+export function paintSourceScene(root, scene, painters, { range, picked, suite, last }) {
+  const aurora = painters?.aurora ?? null;
+  const style = effectiveStyle(picked, aurora !== null);
+  if (root) paintSourcePage(root, scene, range, style);
+  painters?.fx.paint(scene.spectrum, range, style, suite);
+  if (style === "aurora") aurora?.paint(scene.raw, range, suite);
+  else if (last === "aurora") aurora?.clear();
+  return style;
 }
