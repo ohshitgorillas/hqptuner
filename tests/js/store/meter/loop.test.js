@@ -32,6 +32,8 @@ import { near } from "../../support/near.js";
 
 const FRAME_MS = 16.7;
 const STEP_MS = 1000 / 30;
+//: A step 80 ms after the last, late but under the 0.1 s a step's ballistics run for at most.
+const LATE_MS = 80;
 const BINS = 8;
 const PLAYING = { status: { state: "2" } };
 const STOPPED = { status: { state: "0" } };
@@ -189,6 +191,16 @@ test("test_a_registered_painter_runs_once_per_step", () => {
   step();
   stop();
   assert.equal(calls, 2);
+});
+
+test("test_each_painter_is_handed_the_seconds_since_the_step_before", () => {
+  /** @type {number[]} */
+  const handed = [];
+  const stop = onMeterPaint((_scene, dt) => handed.push(Math.round(dt * 1e6)));
+  frame(STEP_MS);
+  frame(LATE_MS);
+  stop();
+  assert.deepEqual(handed, [Math.round(STEP_MS * 1e3), LATE_MS * 1e3]);
 });
 
 test("test_an_unregistered_painter_runs_no_more", () => {

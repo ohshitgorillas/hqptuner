@@ -166,7 +166,7 @@ function hold(db) {
 /**
  * A painter on a fresh fake canvas.
  *
- * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string, suite?: string) => void, clear: () => void } }}
+ * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string, look?: { suite?: string }) => void, clear: () => void } }}
  */
 function painter() {
   const canvas = fakeCanvas();
@@ -321,9 +321,9 @@ const PAINTS = RIDGE_EVERY + 1;
 function inked(style, suite) {
   const { canvas, fx } = painter();
   const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
-  for (let k = 1; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, suite);
+  for (let k = 1; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite });
   canvas.inks = [];
-  fx.paint({ disp, ghost: disp }, RANGE, style, suite);
+  fx.paint({ disp, ghost: disp }, RANGE, style, { suite });
   return canvas.inks;
 }
 
@@ -356,10 +356,10 @@ function afterAccentChange(style, then = SECOND_HEX) {
   accentHex.value = FIRST_HEX;
   const { canvas, fx } = painter();
   const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
-  for (let k = 0; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, ACCENT);
+  for (let k = 0; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT });
   accentHex.value = then;
   canvas.inks = [];
-  fx.paint({ disp, ghost: disp }, RANGE, style, ACCENT);
+  fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT });
   return canvas.inks;
 }
 

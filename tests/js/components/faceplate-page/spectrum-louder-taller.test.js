@@ -59,6 +59,8 @@ const QUIET_DB = -45;
 const LOUD_DB = -15;
 //: Paints per case, one per pixel row of the canvas: a style rising a pixel a paint or faster has reached its height.
 const FRAMES = H;
+//: The seconds between two paints: one meter loop step.
+const STEP_S = 1 / 30;
 //: What `Math.random` hands back during the paints, in turn: 97 fractions spread evenly over [0, 1), shuffled.
 const RANDOM = Array.from({ length: 97 }, (_, i) => ((i * 37) % 97) / 97);
 
@@ -354,7 +356,7 @@ function drawnTop(style, db) {
   withRandomTable(() => {
     let last = "";
     for (let i = 0; i < FRAMES; i++) {
-      const look = { range: RANGE, picked: style, suite: ACCENT, last };
+      const look = { range: RANGE, picked: style, suite: ACCENT, last, dt: STEP_S };
       last = paintSourceScene(/** @type {any} */ (root), scene, { fx, aurora }, look);
     }
   });

@@ -293,7 +293,8 @@ function useFxPainter(plot, fx, sgl, live) {
 
 /**
  * Paint the meter loop's scenes (paintSourceScene) into the section under `root` and onto the effects and shader
- * canvases while they are mounted, at the Range in `range` and the spectrum style and color suite picked.
+ * canvases while they are mounted, at the Range in `range` and the spectrum style and color suite picked, each paint
+ * on the seconds the loop's step ran for.
  *
  * @param {BoxRef} root
  * @param {{ current: number }} range
@@ -302,12 +303,13 @@ function useFxPainter(plot, fx, sgl, live) {
 function useSourcePaint(root, range, painters) {
   useEffect(() => {
     let last = "";
-    return onMeterPaint((scene) => {
+    return onMeterPaint((scene, dt) => {
       last = paintSourceScene(root.current, scene, painters.current, {
         range: range.current,
         picked: spectrumStyle.value,
         suite: spectrumColors.value,
         last,
+        dt,
       });
     });
   }, []);

@@ -4,7 +4,8 @@
 // folds the frames handed out, steps the level bars and the VU needles toward them on the real time elapsed, the
 // needles against the VU reference preference (model/gauges/meter/vu.js), steps the spectrum toward
 // that reading smoothed across frequency, rising at once and settling as it falls, keeps the reading's columns as they
-// came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
+// came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter with
+// the same real time elapsed, so a painter that animates steps on it too.
 //
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
 // registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
@@ -52,7 +53,12 @@ const SLACK_MS = 4;
  *
  * @typedef {{ levels: LevelReading[], vu: number[], spectrum: SpectrumHold | null, raw: Float32Array | null }} MeterScene
  */
-/** @typedef {(scene: MeterScene) => void} Painter */
+/**
+ * A painter, handed each step's scene and the seconds the step ran its ballistics for, as frameDt clamps them; the
+ * empty scene the loop hands on going idle runs for none.
+ *
+ * @typedef {(scene: MeterScene, dt: number) => void} Painter
+ */
 
 /** @type {MeterScene} */
 const EMPTY = { levels: [], vu: [], spectrum: null, raw: null };
@@ -82,7 +88,8 @@ let heldSpan = "";
 let stopper = null;
 
 /**
- * Register a painter, called with the scene once per animation frame; hand back its unregister function.
+ * Register a painter, called with the scene and the seconds since the last step once per step; hand back its unregister
+ * function.
  *
  * @param {Painter} fn
  * @returns {() => void}
@@ -211,9 +218,10 @@ export function startMeterLoop(clock = PLATFORM) {
     requested = false;
     if (!live) return;
     if (now - prev >= STEP_MS - SLACK_MS) {
+      const dt = frameDt(prev, now);
       scene = advance(now, now - prev);
       prev = now;
-      painters.forEach((fn) => fn(scene));
+      painters.forEach((fn) => fn(scene, dt));
     }
     request();
   }
@@ -223,7 +231,7 @@ export function startMeterLoop(clock = PLATFORM) {
     live = on;
     if (!on) {
       idle();
-      painters.forEach((fn) => fn(EMPTY));
+      painters.forEach((fn) => fn(EMPTY, 0));
       return;
     }
     prev = clock.now();

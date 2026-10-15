@@ -3,9 +3,9 @@
 // one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
 // strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
 // it and merges in the trace's fresh glow; flames draw their heat grid as pixels scaled over the whole canvas, heat 0
-// clear. A change of style, or a paint with no spectrum, starts the next style's
-// state afresh. Each bar takes the color suite's color at its height, or under a suite with a fixed bar gradient is
-// drawn over that gradient; the ridge lines, the fade trace and its halo are colored by level, and the caps take the
+// clear. Caps, ridges, halo and flames move on the seconds each paint is told passed since the last, not per paint. A
+// change of style, or a paint with no spectrum, starts the next style's state afresh. Each bar takes the color suite's
+// color at its height, or under a suite with a fixed bar gradient is drawn over that gradient; the ridge lines, the fade trace and its halo are colored by level, and the caps take the
 // suite's top color. Accent draws in the accent in force at each paint.
 
 import {
@@ -24,6 +24,7 @@ import {
   suiteLineStops,
 } from "../../../model/gauges/meter/spectrumfx.js";
 import { fireColors, fireSize, fireSource, stepFire } from "../../../model/gauges/meter/fire.js";
+import { stepsDue } from "../../../model/gauges/meter/steps.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
@@ -58,8 +59,8 @@ import { accentInForce } from "../../../store/ui/theme.js";
  */
 
 /**
- * Each style's state between paints: the fade halo's step and the halo image the last fade paint left; the flames'
- * heat grid, color table and sheet.
+ * Each style's state between paints: the fade halo's step and the halo image the last fade paint left; the part step
+ * the last ridges or flames paint left owed; the flames' heat grid, color table and sheet.
  *
  * @typedef {object} FxState
  * @property {CapState | null} caps
@@ -67,13 +68,14 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {HaloState} halo
  * @property {ImageData | null} glow
  * @property {Uint8Array | null} heat
+ * @property {number} owed  steps, as stepsDue carries them
  * @property {FireInk | null} ink
  * @property {FireSheet | null} sheet
  */
 
 /**
  * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state,
- * the color suite picked and the accent in force.
+ * the color suite picked, the accent in force and the seconds since the last paint.
  *
  * @typedef {object} Frame
  * @property {CanvasRenderingContext2D} ctx
@@ -83,9 +85,10 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {FxState} state
  * @property {string} suite
  * @property {string} accent  `#rrggbb`
+ * @property {number} dt  s
  */
 
-/** The time between two meter paints, s: the loop paints at most once a step. */
+/** The seconds a paint told none runs for: one meter loop step. */
 const DT = STEP_MS / 1000;
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
 const CAP_PX = 2; // a peak cap's height, canvas pixels
@@ -160,7 +163,7 @@ function vertical(ctx, y0, y1, stops) {
 function bars(f) {
   const { ctx, canvas, state, suite, accent } = f;
   const bands = bandsOf(f.fracs, BANDS);
-  state.caps = stepCaps(state.caps, bands, DT);
+  state.caps = stepCaps(state.caps, bands, f.dt);
   const fixed = suiteBarStops(suite, accent);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   if (fixed.length) {
@@ -176,14 +179,17 @@ function bars(f) {
 /**
  * Ridges: oldest first, highest up; each row a line colored by level over its baseline, filled down to it so the rows
  * behind hide. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past the top, so the
- * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
+ * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge. The rows step on
+ * as many steps as stepsDue gives the time since the last paint, the first paint at least one.
  *
  * @param {Frame} f
  */
 function ridges(f) {
   const { ctx, canvas, colors, state } = f;
   const { width: w, height: h } = canvas;
-  state.ridges = stepRidges(state.ridges, f.fracs);
+  const due = stepsDue(state.owed, f.dt);
+  state.owed = due.owed;
+  for (let k = 0; k < due.steps || !state.ridges; k++) state.ridges = stepRidges(state.ridges, f.fracs);
   const rows = state.ridges.rows;
   const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
   const stops = suiteLineStops(f.suite, f.accent);
@@ -250,7 +256,7 @@ function fade(f) {
   const px = globalThis.devicePixelRatio || 1;
   const held = state.glow?.width === w && state.glow.height === h ? state.glow : null;
   const stops = suiteLineStops(f.suite, f.accent);
-  state.halo = stepHalo(held ? state.halo : HALO_FRESH, DT);
+  state.halo = stepHalo(held ? state.halo : HALO_FRESH, f.dt);
   ctx.clearRect(0, 0, w, h);
   ctx.strokeStyle = vertical(ctx, h, 0, suiteHaloStops(f.suite, f.accent));
   ctx.lineJoin = "round";
@@ -317,8 +323,9 @@ function fireSheet(state, cols, rows) {
 }
 
 /**
- * Flames: the heat grid one step on from the last paint's, its bottom row lit by the bands, each cell in the color
- * fireColors gives its heat, put on a sheet a pixel a cell and scaled over the whole canvas.
+ * Flames: the heat grid as many steps on from the last paint's as stepsDue gives the time since it, or from a cold
+ * grid where the last is another size, its bottom row lit by the bands, each cell in the color fireColors gives its
+ * heat, put on a sheet a pixel a cell and scaled over the whole canvas.
  *
  * @param {Frame} f
  */
@@ -326,7 +333,11 @@ function fire(f) {
   const { ctx, canvas, state } = f;
   const { width: w, height: h } = canvas;
   const size = fireSize(w, h);
-  state.heat = stepFire(state.heat, fireSource(f.fracs, size), size, Math.random);
+  const source = fireSource(f.fracs, size);
+  const due = stepsDue(state.owed, f.dt);
+  state.owed = due.owed;
+  if (state.heat?.length !== size.cols * size.rows) state.heat = new Uint8Array(size.cols * size.rows);
+  for (let k = 0; k < due.steps; k++) state.heat = stepFire(state.heat, source, size, Math.random);
   const ink = fireInk(state, f.suite, f.accent, size.max);
   const sheet = fireSheet(state, size.cols, size.rows);
   ctx.clearRect(0, 0, w, h);
@@ -342,11 +353,21 @@ function fire(f) {
 const STYLES = { bars, ridges, fade, fire };
 
 /** @returns {FxState} */
-const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null, heat: null, ink: null, sheet: null });
+const fresh = () => ({
+  caps: null,
+  ridges: null,
+  halo: HALO_FRESH,
+  glow: null,
+  heat: null,
+  owed: 0,
+  ink: null,
+  sheet: null,
+});
 
 /**
  * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in color suite `suite`,
- * Accent where none is given, in the accent in force when it paints; `clear` empties the canvas.
+ * Accent where none is given, in the accent in force when it paints, `dt` seconds after the last paint; `clear` empties
+ * the canvas.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {FxColors} colors
@@ -359,9 +380,10 @@ export function fxPainter(canvas, colors) {
    * @param {SpectrumHold | null} spectrum
    * @param {number} range  dB
    * @param {string} style
-   * @param {string} [suite]
+   * @param {{ suite?: string, dt?: number }} [look]  the color suite, and the seconds since the last paint, one meter
+   *   loop step where none is given
    */
-  const paint = (spectrum, range, style, suite = ACCENT) => {
+  const paint = (spectrum, range, style, { suite = ACCENT, dt = DT } = {}) => {
     const ctx = canvas.getContext("2d", CTX_OPTS);
     if (!ctx) return;
     if (!spectrum) {
@@ -376,7 +398,7 @@ export function fxPainter(canvas, colors) {
     }
     const draw = STYLES[style];
     const accent = accentInForce();
-    if (draw) draw({ ctx, canvas, colors, fracs: fractionsOf(spectrum.disp, range), state, suite, accent });
+    if (draw) draw({ ctx, canvas, colors, fracs: fractionsOf(spectrum.disp, range), state, suite, accent, dt });
     else clear();
   };
   return { paint, clear };

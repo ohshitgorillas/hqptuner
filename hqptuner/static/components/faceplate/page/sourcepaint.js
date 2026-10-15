@@ -17,10 +17,10 @@ import { paintVu } from "./VuMeter.js";
 /** @typedef {{ fx: FxPainter, aurora: AuroraPainter }} Painters */
 
 /**
- * What one scene is painted at: the page's Range in dB, the spectrum style picked, the spectrum's color suite, and the
- * style the previous paint drew, empty before the first.
+ * What one scene is painted at: the page's Range in dB, the spectrum style picked, the spectrum's color suite, the
+ * style the previous paint drew, empty before the first, and the seconds since the previous paint.
  *
- * @typedef {{ range: number, picked: string, suite: string, last: string }} SceneLook
+ * @typedef {{ range: number, picked: string, suite: string, last: string, dt: number }} SceneLook
  */
 
 /** The spectrum's viewBox; the stylesheet stretches it over the plot. */
@@ -169,11 +169,11 @@ export function paintSourcePage(root, scene, range, style = "trace") {
  * @param {SceneLook} look
  * @returns {string} the style this paint drew
  */
-export function paintSourceScene(root, scene, painters, { range, picked, suite, last }) {
+export function paintSourceScene(root, scene, painters, { range, picked, suite, last, dt }) {
   const aurora = painters?.aurora ?? null;
   const style = effectiveStyle(picked, aurora !== null);
   if (root) paintSourcePage(root, scene, range, style);
-  painters?.fx.paint(scene.spectrum, range, style, suite);
+  painters?.fx.paint(scene.spectrum, range, style, { suite, dt });
   if (style === "aurora") aurora?.paint(scene.raw, range, suite);
   else if (last === "aurora") aurora?.clear();
   return style;
