@@ -9,10 +9,15 @@ import { plate, viewport } from "../../store/faceplate/plate.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
 import { engineRestarting } from "../../store/enginewrite.js";
 
-/** Read the window's inner size into the store, where it differs from the size the store holds. */
+/**
+ * Read the window's size into the store, where it differs from the size the store holds. The size is the stage's own
+ * box, the space the page lays out in, since a standalone launch on iPad can report a shorter `innerHeight` to scripts.
+ * The stage spans the window, never the plate, so a page scrolled to a plate larger than the window reads the window.
+ */
 function measure() {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
+  const stage = document.getElementById("stage");
+  const w = stage?.clientWidth || window.innerWidth;
+  const h = stage?.clientHeight || window.innerHeight;
   if (w !== viewport.value.w || h !== viewport.value.h) viewport.value = { w, h };
 }
 
@@ -38,9 +43,13 @@ function listen() {
   const vv = window.visualViewport;
   REMEASURE.forEach((type) => window.addEventListener(type, measure));
   vv?.addEventListener("resize", measure);
+  const stage = document.getElementById("stage");
+  const ro = stage && typeof ResizeObserver === "function" ? new ResizeObserver(measure) : undefined;
+  if (stage) ro?.observe(stage);
   document.addEventListener("keydown", onKey);
   document.addEventListener("click", onClick);
   return () => {
+    ro?.disconnect();
     REMEASURE.forEach((type) => window.removeEventListener(type, measure));
     vv?.removeEventListener("resize", measure);
     document.removeEventListener("keydown", onKey);
