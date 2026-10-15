@@ -30,13 +30,13 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { fitCanvas, fxPainter } from "../../../../hqptuner/static/components/faceplate/page/spectrumfx.js";
-import { BANDS, RIDGE_EVERY } from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import { BANDS, RIDGE_EVERY } from "../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
 /** @typedef {{ name: string, args: unknown[], fill: unknown, stroke: unknown, shadow?: unknown, blur?: unknown }} Ink */
 /** @typedef {{ width: number, height: number, calls: Call[], inks: Ink[], getContext: (kind: string) => unknown }} FakeCanvas */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").SpectrumHold} SpectrumHold */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
 
 //: The canvas, in device pixels.
 const W = 480;

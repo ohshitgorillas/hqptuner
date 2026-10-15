@@ -4,7 +4,7 @@
 // whole body; the header, the engine row and the bottom bar stay.
 
 import { signal } from "@preact/signals";
-import { FREQ_SPANS } from "../../model/gauges/meter.js";
+import { FREQ_SPANS } from "../../model/gauges/meter/meter.js";
 
 /** @typedef {"chain" | "settings" | "snapshots" | "station" | "profile"} Body */
 

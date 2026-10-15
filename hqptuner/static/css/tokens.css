@@ -216,7 +216,7 @@
   --levels-gap-slim:28px;  /* the same, slim page meter */
   --lv-bar:24px;           /* a level bar's trough */
   --lv-bar-slim:18px;      /* a level bar's trough, slim page meter */
-  --lvtab-l:44px;          /* a short label's column: the readout table's, the loudness range boxes', the pipeline pager's page label, least */
+  --lvtab-l:44px;          /* a short label's column: the loudness range boxes', the pipeline pager's page label, least */
   --mnone-min:200px;       /* the no-meter well in the drawer, least height */
   --psrc-min:148px;        /* the slim page Source section, least height */
   /* Settings */

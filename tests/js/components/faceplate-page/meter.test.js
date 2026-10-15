@@ -1,5 +1,5 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/SourceMeter.js: the page's Source section body. With a
-// stream it draws the spectrum and one level bar per channel, and at 13″ the readings table under the bars; slim, the table and the heads give way. With none it draws the no-stream line in the meter's place. Which
+// stream it draws the spectrum and one level bar per channel; slim, the heads give way. With none it draws the no-stream line in the meter's place. Which
 // state holds is the store's (tests/js/store/faceplate-page/meter.test.js); what moves is painted each animation frame
 // (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
 //
@@ -37,7 +37,6 @@ import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const FULL = { w: 1366, h: 1024 };
-const SLIM = { w: 1080, h: 810 };
 //: A spectrum style other than the trace, so the grid's data-style shows the pick.
 const RIDGES = "ridges";
 
@@ -163,15 +162,6 @@ test("test_changing_the_range_leaves_the_level_scale_where_it_was", () => {
 test("test_a_bar_before_its_first_reading_hides_its_hold_mark", () => {
   const marks = withClass("hd").map((e) => /visibility:\s*hidden/.test(attr(e, "style") || ""));
   assert.deepEqual(marks, [true, true]);
-});
-
-test("test_a_13_inch_plate_draws_the_readings_table", () => {
-  assert.equal(withClass("lvtab").length, 1);
-});
-
-test("test_a_slim_plate_draws_no_readings_table", () => {
-  viewport.value = SLIM;
-  assert.equal(withClass("lvtab").length, 0);
 });
 
 test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => {

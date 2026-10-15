@@ -2,8 +2,8 @@
 // time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
 // it gets back and a test drives it from a table.
 
-import { clamp } from "../../lib/coerce.js";
-import { dbToPower, powerToDb } from "../../lib/units.js";
+import { clamp } from "../../../lib/coerce.js";
+import { dbToPower, powerToDb } from "../../../lib/units.js";
 import { suiteColor } from "./spectrumfx.js";
 
 const FLOOR_DB = -300; // a spectrum bin with nothing shown yet

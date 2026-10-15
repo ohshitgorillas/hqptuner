@@ -10,7 +10,7 @@
 
 import { clamp } from "../../lib/coerce.js";
 
-/** @typedef {import("./meter.js").MeterFrame} MeterFrame */
+/** @typedef {import("./meter/meter.js").MeterFrame} MeterFrame */
 /**
  * @typedef {object} PaceState
  * @property {boolean} primed  whether frames are being handed out; false until the queue first holds the delay

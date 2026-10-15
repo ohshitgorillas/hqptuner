@@ -4,7 +4,7 @@
 // no localStorage): the storage read is guarded.
 import { signal } from "@preact/signals";
 import { getStored, setStored } from "../../lib/browser/storage.js";
-import { ACCENT, SPECTRUM_PALETTES } from "../../model/gauges/spectrumfx.js";
+import { ACCENT, SPECTRUM_PALETTES } from "../../model/gauges/meter/spectrumfx.js";
 import { DISPLAY_FORMATS } from "../../model/shell/plate.js";
 
 const K_SPECTRUM_STYLE = "hqptuner.spectrumStyle";
@@ -13,6 +13,8 @@ const K_SIMPLE = "hqptuner.plainNames";
 const K_APOD_WINDOW = "hqptuner.apodWindow";
 const K_APOD_LIGHT = "hqptuner.apodLight";
 const K_METER_FLOOR = "hqptuner.meterFloor";
+const K_METERS = "hqptuner.meters";
+const K_VU_REFERENCE = "hqptuner.vuReference";
 const K_METER_CHANNEL = "hqptuner.meterChannel";
 const K_METER_RANGE = "hqptuner.meterRange";
 
@@ -182,6 +184,14 @@ export const [spectrumColors, setSpectrumColors] = enumPref(K_SPECTRUM_COLORS, [
 // end, apart from the page's Range.
 export const METER_FLOORS = ["-48", "-60", "-90"];
 export const [meterFloor, setMeterFloor] = enumPref(K_METER_FLOOR, METER_FLOORS, "-60");
+
+// Which meter the Source levels column shows in Compact and Normal: the level bars or the VU meters.
+const METERS = ["levels", "vu"];
+export const [meters, setMeters] = enumPref(K_METERS, METERS, "levels");
+
+// The VU reference, dBFS: the level the Source VU meters put 0 VU at.
+export const VU_REFERENCES = ["-14", "-18", "-20"];
+export const [vuReference, setVuReference] = enumPref(K_VU_REFERENCE, VU_REFERENCES, "-18");
 
 // The Source drawer's spectrogram: which channel it draws ("sum" or a channel index) and
 // how many dB below full scale its color ramp reaches. METER_RANGES is also the

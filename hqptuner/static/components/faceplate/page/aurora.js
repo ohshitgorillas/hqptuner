@@ -1,6 +1,6 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
 // spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
-// gravity, the per-frame steps in model/gauges/spectrumfx.js, and draws them as columns rising from the plot's floor to
+// gravity, the per-frame steps in model/gauges/meter/spectrumfx.js, and draws them as columns rising from the plot's floor to
 // their level, each coloured base to crown through the picked colour suite's ramp, over a transparent clear. Accent
 // draws in the accent in force at each paint.
 
@@ -12,12 +12,12 @@ import {
   fractionsOf,
   stepGravity,
   suiteRamp,
-} from "../../../model/gauges/spectrumfx.js";
+} from "../../../model/gauges/meter/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";
 
-/** @typedef {import("../../../model/gauges/spectrumfx.js").GravityState} GravityState */
+/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").GravityState} GravityState */
 
 /** The time between two meter paints, s: the loop paints at most once a step. */
 const DT = STEP_MS / 1000;

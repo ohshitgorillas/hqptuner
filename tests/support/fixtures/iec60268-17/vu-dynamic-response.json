@@ -1,0 +1,11 @@
+{
+  "source": "IEC 60268-17:1990, Sound system equipment, Part 17: Standard volume indicators, dynamic response and scale",
+  "referenceDeflectionPercent": 100,
+  "responseDeflectionPercent": 99,
+  "responseTimeMs": 300,
+  "responseTimeTolerancePercent": 10,
+  "overshootMinPercent": 1.0,
+  "overshootMaxPercent": 1.5,
+  "scaleMinVu": -20,
+  "scaleMaxVu": 3
+}

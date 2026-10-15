@@ -2,7 +2,7 @@
 // force on an element.
 
 import { rgb } from "../../lib/spectroraster.js";
-import { rampLut } from "../../model/gauges/meter-plot.js";
+import { rampLut } from "../../model/gauges/meter/meter-plot.js";
 
 /**
  * The spectrogram ramp's lookup table from the --spec-* stops in `cs`, a stop that is not a hex colour standing in

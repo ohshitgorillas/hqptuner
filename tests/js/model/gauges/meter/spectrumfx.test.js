@@ -1,4 +1,4 @@
-// Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/spectrumfx.js):
+// Behavioral suite for the page spectrum's per-frame style decisions (hqptuner/static/model/gauges/meter/spectrumfx.js):
 // dBFS to plot fractions, columns to bands, falling peak caps, gravity bars and ridge rows, that the Fade style's
 // halo only ever dims where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
 // Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
@@ -7,12 +7,12 @@
 // without them fails the halo and suite cases on their assertions. Under a colour suite, a louder part of the spectrum
 // is drawn in a colour from higher up the suite than a quieter part.
 //
-// Run: node --test tests/js/model/gauges/spectrumfx.test.js
+// Run: node --test tests/js/model/gauges/meter/spectrumfx.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import * as gauges from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import * as gauges from "../../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 import {
   BANDS,
   CAP_HOLD_S,
@@ -24,7 +24,7 @@ import {
   stepCaps,
   stepGravity,
   stepRidges,
-} from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+} from "../../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 
 //: A 60 dB plot.
 const RANGE = 60;

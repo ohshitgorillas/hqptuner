@@ -10,7 +10,7 @@
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { H, W, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
-import { apodRamp } from "../../../../model/gauges/meter-plot.js";
+import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";

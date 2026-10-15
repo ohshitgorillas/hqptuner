@@ -46,9 +46,9 @@
 .sgrid1[data-style="ridges"] :is(.sgridl .gdb,.gy span){visibility:hidden}
 
 /* Levels: vertical bars, 0 dBFS at top. Peak = dim fill, RMS = bright inner bar, hold = pale tick.
-   Scale column | L | R, same columns as the readout table under it. The levels stand a spectrum plot and an axis row
-   tall; a bar's column is its trough and a margin. */
-.lvwrap{display:grid;grid-template-columns:var(--lv-scale-w) calc(var(--lv-bar) + var(--sp-5)) calc(var(--lv-bar) + var(--sp-5)) minmax(0,1fr);gap:0 var(--sp-2);height:calc(var(--spectrum-h) + var(--axis-h))}
+   Scale column | L | R. The levels stand a spectrum plot and an axis row tall; a bar's column is its trough and a
+   margin. */
+.lvwrap{display:grid;grid-template-columns:var(--lv-scale-w) calc(var(--lv-bar) + var(--sp-5)) calc(var(--lv-bar) + var(--sp-5));gap:0 var(--sp-2);height:calc(var(--spectrum-h) + var(--axis-h))}
 /* The scale stops above the L / R row and its gap. */
 .lvs{position:relative;height:calc(100% - var(--axis-h) - var(--sp-2))}
 .lvs span{position:absolute;right:var(--sp-3);transform:translateY(-50%);font-family:var(--f-mono);font-size:var(--fs-1);color:var(--ink-2);white-space:nowrap;line-height:var(--lh-text)}
@@ -64,13 +64,6 @@
 .lvb .rm{left:var(--sp-2);right:var(--sp-2);background:linear-gradient(0deg,var(--lv-dim,var(--meter-dim)),var(--lv-ink,var(--meter)))}
 .lvb .hd{left:0;right:0;height:var(--stroke);margin-bottom:calc(-1 * var(--hair));background:var(--lv-hi,var(--meter-hi));box-shadow:0 0 var(--sp-2) var(--lv-ink,var(--meter))}
 .lvn{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-4);letter-spacing:var(--ls-1);color:var(--ink-2);line-height:var(--axis-h)}
-.lvtab{align-self:end;display:grid;grid-template-columns:var(--lvtab-l) 1fr 1fr;align-items:baseline;gap:var(--sp-3) 0;padding:0 0 var(--sp-9) var(--sp-6)}
-.lvtab .u{text-align:right;padding-right:var(--sp-3)}
-.lvh{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-2);letter-spacing:var(--ls-2);text-transform:uppercase;color:var(--ink-2);text-align:center;line-height:var(--lh-eng)}
-.lvh.l{text-align:right;padding-right:var(--sp-3)}
-.npk,.nrm{font-family:var(--f-mono);font-size:var(--fs-4);text-align:center;white-space:nowrap;line-height:var(--lh-text)}
-.npk{color:var(--lv-ink,var(--meter))}
-.nrm{color:var(--ink)}
 
 /* Spectrogram grid: gutter | plot. Row 1 apodizing strip, row 2 spectrogram (kHz, linear), row 3 time axis. */
 .sgrid2{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:var(--gutter-w) minmax(0,1fr);grid-template-rows:var(--strip-h) minmax(0,1fr) var(--axis-h);gap:var(--sp-2) var(--sp-4)}
@@ -87,14 +80,14 @@
 .pmeter>.mblk.mtop{flex:1 1 0;min-height:0;padding:0;border:0;grid-template-rows:minmax(0,1fr)}
 .pmeter .sside,.pmeter .lside{min-height:0}
 .pmeter .sgrid1{flex:1 1 0;min-height:0;grid-template-rows:minmax(0,1fr) var(--axis-h)}
-.pmeter .lvwrap{flex:1 1 0;height:auto;min-height:0}
+.pmeter .lvwrap{flex:1 1 0;height:auto;min-height:0;grid-template-rows:minmax(0,1fr)}
 .pmeter>.mnone{min-height:0;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well)}
-/* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads and no
-   readout table; every other axis label drops so the short scales stay legible.
+/* Slim (10.2″ / 11″, the room left there): the spectrum strip and the two bars, no heads; every other axis label
+   drops so the short scales stay legible.
    Floor: head 34 + gap 8 + plot 120 + axis 18 = 180px. Below ~120px of plot a 120 dB span is a smear, not a reading; the
    floor makes the page overrun instead, and the overflow rule recovers it from the option copy. */
 .sec.psrc.slim{min-height:var(--psrc-min);gap:var(--sp-4)}
-.slim .pmeter .mhead,.slim .pmeter .lvtab{display:none}
+.slim .pmeter .mhead{display:none}
 .slim .pmeter>.mblk.mtop{grid-template-columns:minmax(0,1fr) auto;gap:0 var(--levels-gap-slim)}
 .slim .pmeter .lvwrap{grid-template-columns:var(--lv-scale-w) calc(var(--lv-bar-slim) + var(--sp-4)) calc(var(--lv-bar-slim) + var(--sp-4))}
 .slim .pmeter .lvb .trough{width:var(--lv-bar-slim)}
@@ -102,6 +95,46 @@
 .slim .pmeter>.mtop{container:pmslim/size}
 @container pmslim (max-height:100px){.pmeter :is(.gy,.lvs) span:not(.first):not(.last){display:none}}
 .slim .pmeter>.mnone p{font-size:var(--fs-4)}
+
+/* At 13″ the level bars lie across a strip at the levels column's top, reading left to right with their scale under
+   them: laid out standing, a column per bar and the scale's after them, then turned a quarter turn clockwise, their
+   lettering turned back upright. The strip is as tall as the standing layout is wide, for the `--lv-n` bars the
+   markup writes on it, and the standing layout as tall as the strip is wide. Every other scale label drops, as on the
+   slim scales, so the labels lying across the column's width stay clear of each other. */
+.lvstrip{flex:none;position:relative;height:calc(var(--lv-n) * (var(--lv-bar-slim) + var(--sp-2)) + var(--axis-h));container-type:size}
+.pmeter .lvstrip>.lvwrap{position:absolute;top:0;left:0;width:100cqh;height:100cqw;grid-template-columns:repeat(var(--lv-n),var(--lv-bar-slim)) var(--axis-h);transform-origin:0 0;transform:translateX(100cqw) rotate(90deg)}
+.lvstrip .lvs{grid-row:1;grid-column:-2/-1}
+.lvstrip .lvb .trough{width:var(--lv-bar-slim)}
+.lvstrip .lvn{transform:rotate(-90deg)}
+.lvstrip .lvs span{right:auto;left:0;transform-origin:0 0;transform:rotate(-90deg) translateX(-50%)}
+.lvstrip .lvs span.first{transform:rotate(-90deg) translateX(-100%)}
+.lvstrip .lvs span.last{transform:rotate(-90deg)}
+.lvstrip .lvs span:nth-child(even):not(.last){display:none}
+
+/* Page Source VU pair: one needle face per channel, stacked, each face's drawing taking the shape of its box. At 13″
+   the pair fills the levels column under the strip, its foot on the plot's foot. Slim it is a square as tall as the
+   levels column (the size container's height) and the levels column takes its width. Faces sit on glass with the
+   scale and needle in the Display palette: the scale in the palette's shades through its gradient, the needle solid
+   in the accent under Accent and the instrument amber under the other suites. */
+.vupair{display:flex;flex-direction:column;flex:1 1 0;min-height:0;margin-bottom:calc(var(--axis-h) + var(--sp-2))}
+.slim .pmeter .vupair{flex:none;margin-bottom:0;width:100cqh;height:100cqh}
+.vu{position:relative;flex:1 1 0;min-height:0;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well);overflow:hidden}
+.vu+.vu{border-top:0}
+.vu svg{display:block;width:100%;height:100%}
+.vu svg :is(path,line){fill:none;stroke-linecap:round;vector-effect:non-scaling-stroke}
+.vusc{stroke-width:1.5}
+.vured{stroke:var(--bad);stroke-width:2.5}
+/* The lettering lies over the face at fixed sizes: each tick label set off outward from its place just past its tick
+   along the direction the face writes on it (--ux, --uy), `VU` in the lower right corner and the channel letter in
+   the lower left, below the arc's ends where the needle never reaches. */
+.vul,.vum{position:absolute;color:var(--ink-2);white-space:nowrap;pointer-events:none}
+.vul{transform:translate(calc((var(--ux) - 1) * 50%),calc((var(--uy) - 1) * 50%));font-family:var(--f-mono);font-size:var(--fs-1);line-height:var(--lh-text)}
+.vul.red{color:var(--bad)}
+.vum{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-1);line-height:var(--lh-eng)}
+.vum.mark{right:var(--sp-3);bottom:var(--sp-1)}
+.vum.ch{left:var(--sp-3);bottom:var(--sp-1)}
+.vun{stroke:var(--meter);stroke-width:1.5}
+.vupair[data-palette="accent"] .vun{stroke:var(--acc)}
 
 /* Page meter's Range control: two bare round ± keys (.round.vbtn) in the spectrum's top-right corner, over the
    canvases. Each draws at --ctl-h-sm and takes taps over an invisible --tap square centred on it, which reaches the

@@ -26,7 +26,7 @@
 // importmap has none — such an entry raises rather than resolving wrongly.
 //
 // USAGE
-//   node --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js
+//   node --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
 // or equivalently `make test-js`. NODE_OPTIONS is not required: `node --test`
 // forwards the parent's execArgv to the per-file child processes, so --import
 // takes effect inside each test file too.

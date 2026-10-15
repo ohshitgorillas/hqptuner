@@ -11,8 +11,8 @@
 import { signal } from "@preact/signals";
 import { clamp, truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
-import { FREQ_SPANS, spanShare } from "../../../model/gauges/meter.js";
-import { freqTicks, timeTicks } from "../../../model/gauges/meter-plot.js";
+import { FREQ_SPANS, spanShare } from "../../../model/gauges/meter/meter.js";
+import { freqTicks, timeTicks } from "../../../model/gauges/meter/meter-plot.js";
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
@@ -23,7 +23,7 @@ import { sourceIsDsd } from "../path.js";
 const CD_NYQUIST = 22050; // the axis top while the feed has sent no geometry
 const STEREO = 2;
 const MS_PER_S = 1000; // the time axis counts in milliseconds
-const MAX_EVENTS = 3; // the strip's hottest colour, model/gauges/meter-plot.js apodRamp
+const MAX_EVENTS = 3; // the strip's hottest colour, model/gauges/meter/meter-plot.js apodRamp
 
 /** The no-stream lines, by state, the drawer's and the page's. @type {Record<string, string>} */
 export const METER_NOTES = {

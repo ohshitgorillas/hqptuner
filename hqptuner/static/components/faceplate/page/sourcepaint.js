@@ -1,17 +1,17 @@
 // The page Source section's moving parts, painted outside preact's render: once per animation frame the meter loop
-// (store/meter/loop.js) hands its scene here, and the trace, the level bars and the readings table are
+// (store/meter/loop.js) hands its scene here, and the trace, the level bars and the VU needles are
 // written straight into the elements SourceMeter rendered. Nothing re-renders while the meter runs.
 
 import { clamp } from "../../../lib/coerce.js";
-import { fraction, meterColors } from "../../../model/gauges/meter.js";
-import { minusText } from "../../../model/shell/format.js";
+import { fraction, meterColors } from "../../../model/gauges/meter/meter.js";
 import { levelsFloor } from "../../../store/faceplate/page/meter.js";
 import { spectrumColors } from "../../../store/ui/prefs.js";
 import { accentInForce } from "../../../store/ui/theme.js";
+import { paintVu } from "./VuMeter.js";
 
 /** @typedef {import("../../../store/meter/loop.js").MeterScene} MeterScene */
 /** @typedef {{ peak: number, rms: number, hold: number }} BarFractions */
-/** @typedef {{ peak: string, rms: string, hold: string, readout: string }} MeterInks */
+/** @typedef {{ peak: string, rms: string, hold: string }} MeterInks */
 
 /** The spectrum's viewBox; the stylesheet stretches it over the plot. */
 export const SW = 600;
@@ -59,7 +59,7 @@ function setOn(root, sel, name, value) {
 const TRACED = new Set(["trace"]);
 
 /**
- * Write the colour a level mark or readout is drawn in onto `el` as its `--lv-ink`, which the stylesheet shades the
+ * Write the colour a level mark is drawn in onto `el` as its `--lv-ink`, which the stylesheet shades the
  * mark from; an empty colour clears it, leaving the stylesheet's instrument amber.
  *
  * @param {Element | null} el
@@ -75,10 +75,10 @@ function inkOn(el, colour) {
  * @typedef {{ at: BarFractions, inks: MeterInks, shown: boolean }} BarLook
  */
 
-/** A bar the scene has no reading for: empty, its hold hidden, its marks and readout in the stylesheet's amber. */
+/** A bar the scene has no reading for: empty, its hold hidden, its marks in the stylesheet's amber. */
 const NO_BAR = /** @type {BarLook} */ ({
   at: { peak: 0, rms: 0, hold: 0 },
-  inks: { peak: "", rms: "", hold: "", readout: "" },
+  inks: { peak: "", rms: "", hold: "" },
   shown: false,
 });
 
@@ -86,7 +86,7 @@ const NO_BAR = /** @type {BarLook} */ ({
  * How one reading is painted on a bar running up from `floor`: its marks at their bar fractions, in the colours the
  * meter model picks for those levels under `palette` and `accent`.
  *
- * @param {import("../../../model/gauges/meter.js").LevelReading | undefined} lv
+ * @param {import("../../../model/gauges/meter/meter.js").LevelReading | undefined} lv
  * @param {number} floor  dBFS
  * @param {string} palette
  * @param {string} accent
@@ -121,10 +121,10 @@ function paintBar(bar, { at, inks, shown }) {
 
 /**
  * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
- * effects or shader canvas instead, the level bars up from the Levels floor, and the bars and the peak readout in the
- * colours the meter model picks for their levels under the spectrum's palette and the accent in force. `style` is
- * written to the grid's `data-style` on every paint, so the stylesheet follows the style actually drawn rather than
- * the one picked.
+ * effects or shader canvas instead, the level bars up from the Levels floor, and the bars in the
+ * colours the meter model picks for their levels under the spectrum's palette and the accent in force, and the VU
+ * needles to their readings. `style` is written to the grid's `data-style` on every paint, so the stylesheet follows
+ * the style actually drawn rather than the one picked.
  *
  * @param {Element} root
  * @param {MeterScene} scene
@@ -143,15 +143,5 @@ export function paintSourcePage(root, scene, range, style = "trace") {
   const accent = accentInForce();
   const looks = scene.levels.map((lv) => barLook(lv, floor, palette, accent));
   Array.from(root.querySelectorAll(".lvb")).forEach((bar, i) => paintBar(bar, looks[i] ?? NO_BAR));
-  const npk = Array.from(root.querySelectorAll(".npk"));
-  const nrm = Array.from(root.querySelectorAll(".nrm"));
-  npk.forEach((cell, i) => {
-    const lv = scene.levels[i];
-    cell.textContent = lv ? minusText(lv.hold.toFixed(1)) : "";
-    inkOn(cell, (looks[i] ?? NO_BAR).inks.readout);
-  });
-  nrm.forEach((cell, i) => {
-    const lv = scene.levels[i];
-    cell.textContent = lv ? minusText(lv.rms.toFixed(1)) : "";
-  });
+  paintVu(root, scene.vu);
 }

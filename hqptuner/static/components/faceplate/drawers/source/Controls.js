@@ -2,7 +2,7 @@
 // it reads and writes its pick straight back; none stages and none marks the tab.
 
 import { html } from "../../../../lib/dom.js";
-import { FREQ_SPANS } from "../../../../model/gauges/meter.js";
+import { FREQ_SPANS } from "../../../../model/gauges/meter/meter.js";
 import { setSpectrogramSpan } from "../../../../store/faceplate/drawers/source.js";
 import {
   APOD_WINDOWS,

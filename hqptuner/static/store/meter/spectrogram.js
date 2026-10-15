@@ -20,7 +20,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { clamp } from "../../lib/coerce.js";
 import { dbToPower, powerToDb } from "../../lib/units.js";
-import { pickBins, traceColumns } from "../../model/gauges/meter.js";
+import { pickBins, traceColumns } from "../../model/gauges/meter/meter.js";
 import { alignStrip, stripEdge } from "../../model/gauges/stripedge.js";
 import { apodBins } from "../apodhistory.js";
 import { apodWindow, meterChannel } from "../ui/prefs.js";
@@ -38,7 +38,7 @@ const MS_PER_S = 1000;
 
 /** @typedef {import("./feed.js").Geometry} Geometry */
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
-/** @typedef {import("../../model/gauges/meter.js").MeterFrame} MeterFrame */
+/** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
  * @typedef {{ ms: number, nyquist: number, channels: Uint8Array[], sum: Uint8Array }} Slice
  *   One slice: the frame time it covers, the Nyquist it was measured at, and

@@ -1,5 +1,5 @@
 // The page spectrum's effects canvas, laid over the SVG trace: each meter paint draws the picked spectrum style from
-// the per-frame steps in model/gauges/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars draw
+// the per-frame steps in model/gauges/meter/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars draw
 // one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
 // strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
 // it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum, starts the next style's
@@ -21,14 +21,14 @@ import {
   suiteColor,
   suiteHaloStops,
   suiteLineStops,
-} from "../../../model/gauges/spectrumfx.js";
+} from "../../../model/gauges/meter/spectrumfx.js";
 import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
-/** @typedef {import("../../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
-/** @typedef {import("../../../model/gauges/spectrumfx.js").CapState} CapState */
-/** @typedef {import("../../../model/gauges/spectrumfx.js").HaloState} HaloState */
-/** @typedef {import("../../../model/gauges/spectrumfx.js").RidgeState} RidgeState */
+/** @typedef {import("../../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
+/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").CapState} CapState */
+/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").HaloState} HaloState */
+/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").RidgeState} RidgeState */
 
 /**
  * The CSS colours a painter draws with besides the colour suite's.

@@ -1,13 +1,14 @@
 // The page's Source section body: the spectrum with the Range control in its corner, and one level bar per channel,
-// stretched to the section's height; at 13″ each half carries its title and the bars their readings table, slim
-// neither. Where there is no stream to draw, the line saying why sits in an empty glass well in the meter's place. The
-// Range is a view, not a setting: it writes the page's own preference and nothing stages. What it renders holds still
-// (store/faceplate/page/meter.js); the trace, the bars and the readings are painted into it each animation frame
+// stretched to the section's height; at 13″ each half carries its title, slim neither. At 13″ the bars lie across a
+// strip at the levels column's top with the VU pair (VuMeter.js) under it; slim the VU pair stands in their place under
+// the VU pick. Where there is no stream to draw, the line saying why sits in an empty glass well in the meter's place.
+// The Range is a view, not a setting: it writes the page's own preference and nothing stages. What it renders holds
+// still (store/faceplate/page/meter.js); the trace, the bars and the needles are painted into it each animation frame
 // (sourcepaint.js), and the picked spectrum style onto the canvases over the trace (spectrumfx.js, aurora.js).
 
 import { useEffect, useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { effectiveStyle, traceStops } from "../../../model/gauges/spectrumfx.js";
+import { effectiveStyle, traceStops } from "../../../model/gauges/meter/spectrumfx.js";
 import { classNames, minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
 import { pageMeter } from "../../../store/faceplate/page/meter.js";
@@ -18,6 +19,7 @@ import { withXref } from "../Xref.js";
 import { auroraPainter } from "./aurora.js";
 import { SH, SW, paintSourcePage } from "./sourcepaint.js";
 import { fitCanvas, fxPainter } from "./spectrumfx.js";
+import { VuPair } from "./VuMeter.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
 /** @typedef {import("./spectrumfx.js").FxColours} FxColours */
@@ -45,7 +47,7 @@ const pct = (f) => `${(f * 100).toFixed(2)}%`;
 const dbText = (db) => (db === 0 ? "0 dBFS" : minusText(db));
 
 /**
- * A channel's name on its bar and in the readings table: L and R on a stereo source, numbered otherwise.
+ * A channel's name on its bar and its VU face: L and R on a stereo source, numbered otherwise.
  *
  * @param {number} i
  * @param {number} count
@@ -198,7 +200,7 @@ function Bar({ name }) {
 }
 
 /**
- * The levels: their title at 13″, the dB scale, one bar per channel and, at 13″, the readings table.
+ * The levels column: at 13″ its title; the level bars and the VU pair under them, each where the view shows it.
  *
  * @param {{ view: PageMeterView }} props
  */
@@ -208,25 +210,26 @@ function Levels({ view }) {
   return html`
     <div class="lside">
       ${!view.slim && html`<div class="mhead"><b class="mt">Levels</b></div>`}
-      <div class="lvwrap">
-        <${DbScale} cls="lvs" db=${view.levels} />
-        ${names.map((name) => html`<${Bar} name=${name} />`)}
-        ${
-          !view.slim &&
-          html`
-          <div class="lvtab">
-            <span class="u">dBFS</span>
-            ${names.map((name) => html`<span class="lvh">${name}</span>`)}
-            <span class="lvh l">Peak</span>
-            ${names.map(() => html`<span class="npk"></span>`)}
-            <span class="lvh l">RMS</span>
-            ${names.map(() => html`<span class="nrm"></span>`)}
-          </div>
-        `
-        }
-      </div>
+      ${view.shown.levels && html`<${Bars} view=${view} names=${names} />`}
+      ${view.shown.vu && html`<${VuPair} names=${names} />`}
     </div>
   `;
+}
+
+/**
+ * The level bars: the dB scale and one bar per channel, standing slim and at 13″ in a strip the stylesheet lays them
+ * across, its height written for the number of bars.
+ *
+ * @param {{ view: PageMeterView, names: string[] }} props
+ */
+function Bars({ view, names }) {
+  const bars = html`
+    <div class="lvwrap">
+      <${DbScale} cls="lvs" db=${view.levels} />
+      ${names.map((name) => html`<${Bar} name=${name} />`)}
+    </div>
+  `;
+  return view.slim ? bars : html`<div class="lvstrip" style=${`--lv-n:${names.length}`}>${bars}</div>`;
 }
 
 /**

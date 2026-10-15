@@ -13,7 +13,7 @@
 // the module namespace so a store without them leaves a pick unread.
 //
 // Not reachable here: the two canvases' pixels, which a mount effect paints and server rendering never runs, and the
-// colours read from the stylesheet's tokens. The painting rules are the model's (model/gauges/meter-plot.js,
+// colours read from the stylesheet's tokens. The painting rules are the model's (model/gauges/meter/meter-plot.js,
 // lib/spectroraster.js) and tested there; a browser run closes the wiring.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawers-source.test.js

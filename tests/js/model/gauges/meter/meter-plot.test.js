@@ -4,7 +4,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { apodRamp, freqTicks, rampLut, timeTicks } from "../../../../hqptuner/static/model/gauges/meter-plot.js";
+import {
+  apodRamp,
+  freqTicks,
+  rampLut,
+  timeTicks,
+} from "../../../../../hqptuner/static/model/gauges/meter/meter-plot.js";
 
 // ── Spectrum plot ────────────────────────────────────────────────────────
 

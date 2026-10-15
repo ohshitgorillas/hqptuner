@@ -14,7 +14,7 @@
 // through its monotonic `now`, since it measures an interval and nothing else.
 import { signal, effect } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
-import { decodeBins } from "../../model/gauges/meter.js";
+import { decodeBins } from "../../model/gauges/meter/meter.js";
 import { engineStatus, PLAYING } from "../signals.js";
 import { metering } from "../actions.js";
 import { addSpectrumFrame } from "./spectrogram.js";
@@ -27,7 +27,7 @@ const MAX_PENDING_MS = 6000;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 /** @typedef {{ nyquist: number, channels: number, bins: number }} Geometry */
-/** @typedef {import("../../model/gauges/meter.js").MeterFrame} MeterFrame */
+/** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {{ channels: Array<{ peak: number, rms: number, bins: string }>, ms: number }} WireFrame */
 
 export const meterGeometry = signal(/** @type {Geometry | null} */ (null));

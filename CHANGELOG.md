@@ -18,6 +18,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **Adjust the spectrum's and spectrogram's frequency range.** Show the full frequency range, 1/2, or 1/4. Useful for things like fake hi-res that otherwise leave dead space.
 - **Adjust the range of the spectrum, spectrogram, and meters** in steps between 120 - 300 dBFS.
 - **Narrow dither and modulators by maximum rate.**
+- **Switch between level meters and VUs** in Compact and Normal views. Expanded always sees both.
 
 ### Changed
 

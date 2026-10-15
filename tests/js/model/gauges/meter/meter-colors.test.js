@@ -1,20 +1,20 @@
-// Behavioral suite for the Source level meter's colours on the meter model (hqptuner/static/model/gauges/meter.js):
+// Behavioral suite for the Source level meter's colours on the meter model (hqptuner/static/model/gauges/meter/meter.js):
 // the peak bar, the RMS bar, the held-peak mark and the numeric peak readout take their colours from the palette picked
 // for the spectrum. Under a palette that colours the spectrum by level (Retro and the gradients), each bar and the mark
 // draw in the colour the spectrum draws at their own level; under Accent they follow the accent in force; and picking
 // another palette changes the readout's colour.
 //
 // A reading is given as fractions of the bar, 0 on the floor and 1 at full scale, and the spectrum's colour at a level
-// is read from its own suite surface (hqptuner/static/model/gauges/spectrumfx.js). Both surfaces are read off their
+// is read from its own suite surface (hqptuner/static/model/gauges/meter/spectrumfx.js). Both surfaces are read off their
 // module namespaces with optional access, so a module without them fails these cases on their assertions.
 //
-// Run: node --test tests/js/model/gauges/meter-colors.test.js
+// Run: node --test tests/js/model/gauges/meter/meter-colors.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import * as meterModel from "../../../../hqptuner/static/model/gauges/meter.js";
-import * as spectrumModel from "../../../../hqptuner/static/model/gauges/spectrumfx.js";
+import * as meterModel from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
+import * as spectrumModel from "../../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 
 /** @typedef {{ peak: number, rms: number, hold: number }} BarReading */
 /** @typedef {{ peak: string, rms: string, hold: string, readout: string }} MeterPaint */

@@ -1,7 +1,7 @@
 // Source meter plots: where the spectrum and the spectrogram put their axes, free of the DOM. The spectrum's axes, the
 // Ranges a step wider and narrower, the level bars' dB scale, the frequency and time axes' ticks, and the colour ramps.
 
-import { clamp } from "../../lib/coerce.js";
+import { clamp } from "../../../lib/coerce.js";
 
 const RAMP_SIZE = 256; // colour ramp entries
 const DB_STEPS = 6; // dB scale steps from full scale to the spectrum's range or the level bars' floor

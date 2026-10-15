@@ -1,11 +1,11 @@
-// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter.js): decoding the feed's bin bytes, folding
+// Behavioral suite for the meter model (hqptuner/static/model/gauges/meter/meter.js): decoding the feed's bin bytes, folding
 // feed frames, picking a channel's bins, spreading bins across trace columns, where a level sits on a bar, how the shown
 // spectrum and its ghost rise and fall, and the level ballistics and hold.
 //
 // Time is a table: every frame a test runs is a row holding its `now` (ms) and, where the step takes one, its `dt` (s).
 // Nothing here reads a clock or waits on one.
 //
-// Run: node --test tests/js/model/gauges/meter.test.js
+// Run: node --test tests/js/model/gauges/meter/meter.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -19,8 +19,8 @@ import {
   stepLevel,
   stepSpectrum,
   traceColumns,
-} from "../../../../hqptuner/static/model/gauges/meter.js";
-import { near } from "../../support/near.js";
+} from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
+import { near } from "../../../support/near.js";
 
 //: Tolerance for sums the float arithmetic may round in the last place.
 const EPS = 1e-9;

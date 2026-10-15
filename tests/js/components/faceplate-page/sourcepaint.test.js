@@ -1,16 +1,14 @@
 // Painter suite for hqptuner/static/components/faceplate/page/sourcepaint.js: what one paint writes into the page's
 // Source section. Given a meter scene and the page's Range, the spectrum's trace and its filled area, and its ghost as
-// the held-peaks path under the Trace style only; given the Levels floor, each level bar's peak, RMS and hold; and the
-// readings table's held peak and RMS.
+// the held-peaks path under the Trace style only; given the Levels floor, each level bar's peak, RMS and hold.
 //
-// The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″, so the
-// readings table is drawn. The painter needs a live element to write into, and node has none: the rendered markup is
+// The section is the one SourceMeter renders (through preact-render-to-string) over a live stereo stream at 13″. The painter needs a live element to write into, and node has none: the rendered markup is
 // scanned with tests/js/support/markup.js and stood up as a small element tree carrying the surface a painter writes
 // through (`querySelector`, `querySelectorAll`, attributes, `style`, `textContent`). The scene is built by hand, so no
 // clock and no loop run here.
 //
 // The plot's viewBox is 600 by 170: a path's points are read back as numbers, x across from 0 Hz, y down from full
-// scale. Bar fills are read back as the percentage in their inline style, readings as numbers with their minus sign.
+// scale. Bar fills are read back as the percentage in their inline style.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/sourcepaint.test.js
 
@@ -33,7 +31,7 @@ import { attr, elements, text } from "../../support/markup.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../../../hqptuner/static/model/gauges/meter.js").LevelReading} LevelReading */
+/** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").LevelReading} LevelReading */
 
 const COLS = 600; // the trace's columns, store/meter/loop.js TRACE_COLS
 const PLOT_H = 170;
@@ -236,7 +234,7 @@ function columns(floor, at = {}) {
 function scene({ levels = [{}, {}], disp = columns(-200), ghost = disp } = {}) {
   const spectrum = { disp, ghost };
   const full = levels.map((lv) => ({ peak: -200, rms: -200, hold: -200, holdAt: 0, ...lv }));
-  return { levels: full, spectrum, raw: null };
+  return { levels: full, vu: [], spectrum, raw: null };
 }
 
 /**
@@ -520,20 +518,6 @@ function markInk(palette, cls) {
   return inkOf(bar?.querySelector(`.${cls}`), bar);
 }
 
-/**
- * What the readings table's numeric peak for the first bar is drawn in under `palette`: the cell reading PEAK_DB or
- * HOLD_DB, the first one in the table.
- *
- * @param {string} palette
- */
-function readoutInk(palette) {
-  const table = paintedUnder(palette).querySelector(".lvtab");
-  const cell = table
-    ?.descendants()
-    .find((e) => e.children.length === 0 && [PEAK_DB, HOLD_DB].includes(parseFloat(e.textContent.replace("−", "-"))));
-  return inkOf(cell, table);
-}
-
 //: The bar's marks, by class: the peak bar, the RMS bar and the held-peak mark.
 const MARKS = { peak: "pk", rms: "rm", hold: "hd" };
 
@@ -542,10 +526,6 @@ for (const [part, cls] of Object.entries(MARKS)) {
     assert.notEqual(markInk(VIRIDIS, cls), markInk(INFERNO, cls));
   });
 }
-
-test("test_picking_another_palette_changes_the_colour_the_peak_readout_is_drawn_in", () => {
-  assert.notEqual(readoutInk(VIRIDIS), readoutInk(INFERNO));
-});
 
 /**
  * What `read` reads off the section painted under Accent with the custom accent `hex` in force.
@@ -568,8 +548,3 @@ for (const [part, cls] of Object.entries(MARKS)) {
     );
   });
 }
-
-test("test_under_accent_picking_another_accent_changes_the_colour_the_peak_readout_is_drawn_in", () => {
-  const first = underAccent(FIRST_HEX, readoutInk);
-  assert.notEqual(underAccent(SECOND_HEX, readoutInk), first);
-});

@@ -7,9 +7,9 @@
 // its height, the Fade halo its colours and their starting strengths, and the bars the one gradient they are drawn
 // over where the suite has one.
 
-import { clamp } from "../../lib/coerce.js";
-import { rampFrom, rgb } from "../../lib/spectroraster.js";
-import { ACCENT_SHADES } from "../shell/settings.js";
+import { clamp } from "../../../lib/coerce.js";
+import { rampFrom, rgb } from "../../../lib/spectroraster.js";
+import { ACCENT_SHADES } from "../../shell/settings.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot

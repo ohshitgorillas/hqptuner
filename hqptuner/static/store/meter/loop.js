@@ -1,7 +1,8 @@
 // The meters' animation loop: thirty times a second it takes the feed frames that arrived since its last step
 // (store/meter/feed.js) into its own queue and paces them out on their frame time, the engine's reported output delay
 // plus the user's offset behind the feed (model/gauges/pace.js), since the daemon sends them in clumps. Each step
-// folds the frames handed out, steps the level bars toward them on the real time elapsed, steps the spectrum toward
+// folds the frames handed out, steps the level bars and the VU needles toward them on the real time elapsed, the
+// needles against the VU reference preference (model/gauges/meter/vu.js), steps the spectrum toward
 // that reading smoothed across frequency, rising at once and settling as it falls, keeps the reading's columns as they
 // came beside it, adds the frames to the spectrogram's history, and hands the scene to every registered painter.
 //
@@ -24,11 +25,12 @@ import {
   stepLevel,
   stepSpectrum,
   traceColumns,
-} from "../../model/gauges/meter.js";
+} from "../../model/gauges/meter/meter.js";
 import { PACE_IDLE, pace } from "../../model/gauges/pace.js";
+import { restVu, stepVu } from "../../model/gauges/meter/vu.js";
 import { engineStatus, PLAYING } from "../signals.js";
 import { freqSpan } from "../faceplate/view.js";
-import { meterChannel } from "../ui/prefs.js";
+import { meterChannel, vuReference } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
 
@@ -39,20 +41,21 @@ export const STEP_MS = 1000 / 30;
 const SLACK_MS = 4;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
-/** @typedef {import("../../model/gauges/meter.js").MeterFrame} MeterFrame */
-/** @typedef {import("../../model/gauges/meter.js").LevelReading} LevelReading */
-/** @typedef {import("../../model/gauges/meter.js").SpectrumHold} SpectrumHold */
+/** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
+/** @typedef {import("../../model/gauges/meter/meter.js").LevelReading} LevelReading */
+/** @typedef {import("../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
 /** @typedef {import("../../model/gauges/pace.js").PaceState} PaceState */
+/** @typedef {import("../../model/gauges/meter/vu.js").VuState} VuState */
 /**
- * One step's scene: the level bars, the smoothed trace as shown, and the held target's trace columns before that
- * smoothing and its fall, dBFS.
+ * One step's scene: the level bars, the VU readings per channel, the smoothed trace as shown, and the held target's
+ * trace columns before that smoothing and its fall, dBFS.
  *
- * @typedef {{ levels: LevelReading[], spectrum: SpectrumHold | null, raw: Float32Array | null }} MeterScene
+ * @typedef {{ levels: LevelReading[], vu: number[], spectrum: SpectrumHold | null, raw: Float32Array | null }} MeterScene
  */
 /** @typedef {(scene: MeterScene) => void} Painter */
 
 /** @type {MeterScene} */
-const EMPTY = { levels: [], spectrum: null, raw: null };
+const EMPTY = { levels: [], vu: [], spectrum: null, raw: null };
 
 /** @type {Set<Painter>} */
 const painters = new Set();
@@ -61,6 +64,9 @@ const painterCount = signal(0);
 let scene = EMPTY;
 /** @type {MeterFrame | null} */
 let target = null;
+/** The VU needles behind the scene's readings: at rest until the first step after the loop starts. */
+/** @type {VuState} */
+let needles = restVu(0);
 /** @type {object | null} */
 let geo = null;
 /** @type {MeterFrame[]} */
@@ -142,10 +148,11 @@ function traceStep(held, raw, at) {
   return stepSpectrum(was || emptySpectrum(cols.length), cols, at, !was);
 }
 
-/** Send the queued frames to the spectrogram and empty the scene and its target. */
+/** Send the queued frames to the spectrogram and empty the scene, its target and its VU needles. */
 function idle() {
   target = null;
   scene = EMPTY;
+  needles = restVu(0);
   drain();
 }
 
@@ -176,7 +183,10 @@ function advance(now, ms) {
     const t = { peak: ch.peak, rms: ch.rms };
     return was ? stepLevel(was, t, now, dt) : { peak: t.peak, rms: t.rms, hold: t.peak, holdAt: now };
   });
-  return { levels, spectrum: traceStep(held, raw, { now, dt }), raw };
+  const rms = target.channels.map((ch) => ch.rms);
+  const was = needles.needles.length === rms.length ? needles : restVu(rms.length);
+  needles = stepVu(was, rms, dt, Number(vuReference.value));
+  return { levels, vu: needles.vu, spectrum: traceStep(held, raw, { now, dt }), raw };
 }
 
 /**

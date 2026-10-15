@@ -1,25 +1,32 @@
 // The Display popover on the Source header, and the button that opens it: how the page's meter draws, the spectrum's
-// style and colors, the level bars' floor, whether the spectrum shows its Range buttons, the page's Range and the
-// spectrum's frequency span, each a row of options writing its preference at once, and the spectrum delay, a box
-// taking the delay in seconds, written as the user leaves it. Parked to the left of its button.
+// style and colors, which meter shows, the level bars' floor and the VU reference, whether the spectrum shows its Range
+// buttons, the page's Range and the spectrum's frequency span, each a row of options writing its preference at once,
+// and the spectrum delay, a box taking the delay in seconds, written as the user leaves it. Parked to the left of its
+// button.
 
 import { html, TypedInput } from "../../../lib/dom.js";
-import { FREQ_SPANS } from "../../../model/gauges/meter.js";
+import { FREQ_SPANS } from "../../../model/gauges/meter/meter.js";
 import {
   METER_FLOORS,
   METER_RANGES,
+  VU_REFERENCES,
   meterFloor,
+  meters,
   pageRange,
   rangeButtons,
   setMeterFloor,
+  setMeters,
   setPageRange,
   setRangeButtons,
   setSpectrumColors,
   setSpectrumStyle,
+  setVuReference,
   spectrumColors,
   spectrumStyle,
+  vuReference,
 } from "../../../store/ui/prefs.js";
 import { freqSpan, setFreqSpan } from "../../../store/faceplate/view.js";
+import { sourceMeters } from "../../../store/faceplate/page/meter.js";
 import { setSpectrumOffset, spectrumOffset } from "../../../store/meter/delay.js";
 import { Seg } from "../drawers/pipelines/parts.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";
@@ -53,6 +60,15 @@ const SUITES = [
 
 /** @type {Opt[]} */
 const FLOORS = METER_FLOORS.map((v) => ({ v, label: v }));
+
+/** @type {Opt[]} */
+const METERS = [
+  { v: "levels", label: "Levels" },
+  { v: "vu", label: "VU" },
+];
+
+/** @type {Opt[]} */
+const VU_REFS = VU_REFERENCES.map((v) => ({ v, label: v }));
 
 /** @type {Opt[]} */
 const SHOW_HIDE = [
@@ -130,13 +146,34 @@ function Delay() {
   `;
 }
 
+const Floor = () => html`
+  <${Field} label="Levels floor" man="Change how far down the meter range goes." unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />
+`;
+
+const VuReference = () => html`
+  <${Field} label="VU reference" man="Change the RMS level that reads 0 VU." unit="dBFS" opts=${VU_REFS} value=${vuReference.value} set=${setVuReference} />
+`;
+
+/**
+ * The meter rows: the Meters pick where the Source meter offers one, then the row of each meter it shows, the Levels
+ * floor before the VU reference.
+ */
+function MeterFields() {
+  const shown = sourceMeters();
+  return html`
+    ${shown.pick && html`<${Field} label="Meters" man="Show level bars or VU meters beside the spectrum." opts=${METERS} value=${meters.value} set=${setMeters} />`}
+    ${shown.levels && html`<${Floor} />`}
+    ${shown.vu && html`<${VuReference} />`}
+  `;
+}
+
 /** The Display popover. */
 export function DisplayOptions() {
   return html`
     <${Popover} id=${DISPLAY} cls="dpop" role="dialog" label=${LABEL} park=${parkBeside}>
       <${Field} label="Spectrum style" man="Change the spectrum's visual style." opts=${SPECTRA} value=${spectrumStyle.value} set=${setSpectrumStyle} />
       <${Field} label="Colors" man="Change the spectrum's colors." opts=${SUITES} value=${spectrumColors.value} set=${setSpectrumColors} />
-      <${Field} label="Levels floor" man="Change how far down the meter range goes." unit="dBFS" opts=${FLOORS} value=${meterFloor.value} set=${setMeterFloor} />
+      <${MeterFields} />
       <${Field}
         label="Range buttons"
         man="Show buttons on the spectrum to adjust the level range."
