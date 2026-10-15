@@ -294,3 +294,42 @@ def test_all_lists_presets_with_embedded_numbers_in_numeric_order(tmp_path: Path
     store.save("DSD64", RECORD, [""])
     store.save("DSD256", RECORD, [""])
     assert list(store.all("")) == ["DSD64", "DSD256", "DSD1024"]
+
+
+# A snapshot is saved through the store, so the file carries this build's own
+# stamp and layout, then a second entry whose value is not a JSON object is put
+# beside it on the same station, the way a hand edit or a foreign writer might.
+# That entry is dropped, and the rest of the book still reads.
+
+KEPT = "alpha"
+BROKEN = "bravo"
+DEFAULT_STATION = ""
+
+#: Every JSON value that is not an object.
+NON_OBJECTS = [
+    pytest.param(5, id="number"),
+    pytest.param("pcm", id="string"),
+    pytest.param([RECORD.chain], id="list"),
+    pytest.param(None, id="null"),
+    pytest.param(True, id="bool"),
+]
+
+
+def store_with_broken_entry(tmp_path: Path, value: object) -> LivePresetStore:
+    """A store holding ``KEPT`` as saved and ``BROKEN`` beside it carrying ``value``."""
+    path = tmp_path / "live-presets.json"
+    LivePresetStore(path, stations=list).save(KEPT, RECORD, [DEFAULT_STATION])
+    document = json.loads(path.read_text())
+    document["stations"][DEFAULT_STATION][BROKEN] = value
+    path.write_text(json.dumps(document))
+    return LivePresetStore(path, stations=list)
+
+
+@pytest.mark.parametrize("value", NON_OBJECTS)
+def test_a_snapshot_beside_an_entry_that_is_not_an_object_still_reads(tmp_path: Path, value: object) -> None:
+    assert store_with_broken_entry(tmp_path, value).read(DEFAULT_STATION, KEPT) == RECORD
+
+
+@pytest.mark.parametrize("value", NON_OBJECTS)
+def test_an_entry_that_is_not_an_object_is_not_listed(tmp_path: Path, value: object) -> None:
+    assert list(store_with_broken_entry(tmp_path, value).all(DEFAULT_STATION)) == [KEPT]
