@@ -1,6 +1,6 @@
 // The app's one "ask the user something" affordance — the replacement for the
 // native prompt()/confirm() dialogs, which are unstyleable against the rest of
-// the app, not gracefully cancellable, and blocked outright in some embedded
+// the app, not gracefully cancelable, and blocked outright in some embedded
 // browsers.
 //
 // A question is a promise: askName / askConfirm resolve when the UI calls
@@ -10,15 +10,15 @@
 // instead of floating over the page. One question is open at a time.
 import { signal } from "@preact/signals";
 
-// The open question — { owner, kind, message, cancelled, refused } — or null.
+// The open question — { owner, kind, message, canceled, refused } — or null.
 /**
  * @typedef {object} Question
- *   The one open question. `cancelled` is what "no answer" resolves to for this
+ *   The one open question. `canceled` is what "no answer" resolves to for this
  *   kind: null for a name or a choice set, false for a confirm.
  * @property {string} owner component that asked — where the question renders
  * @property {string} kind name | confirm | choices | warn
  * @property {string} message
- * @property {string | boolean | null} cancelled
+ * @property {string | boolean | null} canceled
  * @property {boolean} refused a blank name was submitted and not committed
  * @property {ChoiceOption[]} [options] choices only
  * @property {boolean} [named] choices only — the panel also asks for a name
@@ -49,14 +49,14 @@ function close(value) {
  * @param {string} owner
  * @param {string} kind
  * @param {string} message
- * @param {string | boolean | null} cancelled
+ * @param {string | boolean | null} canceled
  * @returns {Promise<unknown>}
  */
-function open(owner, kind, message, cancelled) {
+function open(owner, kind, message, canceled) {
   cancel(); // a second question supersedes the first rather than stranding it
   return new Promise((resolve) => {
     settle = resolve;
-    question.value = { owner, kind, message, cancelled, refused: false };
+    question.value = { owner, kind, message, canceled, refused: false };
   });
 }
 
@@ -122,5 +122,5 @@ export function answer(value) {
 /** Withdraw the open question, resolving whatever "no answer" means for its kind. */
 export function cancel() {
   const q = question.value;
-  if (q) close(q.cancelled);
+  if (q) close(q.canceled);
 }

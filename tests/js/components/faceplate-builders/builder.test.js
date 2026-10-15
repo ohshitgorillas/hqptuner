@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/builders/SnapshotBuilder.js: the body of rail, hairline and
 // page; the page's title row with Delete only on a saved record, Discard and Save following the state, and the close
 // going back to the chain; the head's name window, stations menu and caption; the confirm line only while a question is
-// asked, its first button answering and its second cancelling; the rows closing the page; Delete asking and Save with
+// asked, its first button answering and its second canceling; the rows closing the page; Delete asking and Save with
 // no name refusing.
 //
 // Driven at the wire, as tests/js/components/faceplate-builders/rail.test.js is: the engine on `engineState` and

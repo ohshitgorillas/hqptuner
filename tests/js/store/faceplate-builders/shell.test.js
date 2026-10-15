@@ -8,7 +8,7 @@
 // own.
 //
 // Not pinned, since the null stub already satisfies each: Save with no name and Save with no station ticked write
-// nothing, an overwrite writes nothing until confirmed, and cancelling a question does not run it.
+// nothing, an overwrite writes nothing until confirmed, and canceling a question does not run it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-builders/shell.test.js
 
@@ -195,7 +195,7 @@ test("test_confirming_puts_the_question_on_the_line", () => {
   assert.equal(ask.value?.text, "sure?");
 });
 
-test("test_cancelling_the_question_clears_it", () => {
+test("test_canceling_the_question_clears_it", () => {
   ask.value = counted().q;
   cancelAsk();
   assert.equal(ask.value, null);

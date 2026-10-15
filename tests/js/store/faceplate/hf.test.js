@@ -59,7 +59,7 @@ test("test_each_hf_option_is_valued_by_its_entrys_index", () => {
   );
 });
 
-test("test_the_hf_options_are_labelled_by_name_in_engine_order", () => {
+test("test_the_hf_options_are_labeled_by_name_in_engine_order", () => {
   assert.deepEqual(
     hfNow().options.map((o) => o.label),
     NAMES,

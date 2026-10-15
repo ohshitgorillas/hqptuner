@@ -101,7 +101,7 @@ def timed_sleep(original: Callable[[float], None], recorder: Recorder) -> Callab
 
 
 def timed_call_at[R](original: Callable[..., R], recorder: Recorder) -> Callable[..., R]:
-    """Wrap ``BaseEventLoop.call_at``: a timer counts its delay when it fires, nothing when cancelled."""
+    """Wrap ``BaseEventLoop.call_at``: a timer counts its delay when it fires, nothing when canceled."""
 
     def call_at(
         loop: Clocked, when: float, callback: Callable[..., object], *args: object, context: Context | None = None

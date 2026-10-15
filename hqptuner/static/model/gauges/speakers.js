@@ -59,7 +59,7 @@ export const placeSpeakers = (channels, layout, distances, levels) =>
     });
 
 /**
- * Half the side of the square box, centred on the listener, that fits the head and every speaker with its labels.
+ * Half the side of the square box, centered on the listener, that fits the head and every speaker with its labels.
  *
  * @param {readonly Spot[]} spots
  * @returns {number}

@@ -231,7 +231,7 @@ async def _run() -> int:
                 verdict_ee += d_ee < d_cook
 
         print(
-            f"\nDiscriminating chains favouring cookbook Q: {verdict_cook}/{len(DISCRIMINATING)}"
+            f"\nDiscriminating chains favoring cookbook Q: {verdict_cook}/{len(DISCRIMINATING)}"
             f"   classic EE Q: {verdict_ee}/{len(DISCRIMINATING)}"
         )
 

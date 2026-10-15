@@ -227,7 +227,7 @@ def mine(directory: Path) -> tuple[list[JsonDict], list[str]]:
 # ---- reporting --------------------------------------------------------------
 
 
-def summarise(records: list[JsonDict], warnings: list[str]) -> None:
+def summarize(records: list[JsonDict], warnings: list[str]) -> None:
     """Print the trip tables — counts per leash, reply labels, catch rates, class histograms, mismatches."""
     print(f"trips: {len(records)}   (transcripts: {TRANSCRIPT_DIR})")
     leashes = Counter(r["leash"] for r in records)
@@ -456,11 +456,11 @@ def main(argv: list[str]) -> int:
         label_ambiguous(records)
 
     write_jsonl(OUT_PATH, records)
-    summarise(records, warnings)
+    summarize(records, warnings)
 
     periods, sidechain = profiler.profile(args.transcripts)
     write_jsonl(profiler.OUT_PATH, periods)
-    profiler.summarise(periods, sidechain)
+    profiler.summarize(periods, sidechain)
 
     print(f"\nwrote {OUT_PATH}\nwrote {profiler.OUT_PATH}")
     return 0

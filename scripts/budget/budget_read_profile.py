@@ -258,7 +258,7 @@ def _grounding(records: list[JsonDict]) -> None:
         print(f"  {read:<12}{row}")
 
 
-def summarise(records: list[JsonDict], sidechain: int) -> None:
+def summarize(records: list[JsonDict], sidechain: int) -> None:
     """Print the read-behavior report — read-byte distribution, re-reads, delegation, web, grounding grid."""
     _distribution(records)
     _rereads(records)

@@ -222,7 +222,7 @@ test("test_the_bin_at_nyquist_belongs_to_the_last_column", () => {
   assert.equal(traceColumns([-30, -40, -50, -60, -5], 2)[1], -5);
 });
 
-test("test_a_column_holding_no_bin_takes_the_bin_nearest_its_centre", () => {
+test("test_a_column_holding_no_bin_takes_the_bin_nearest_its_center", () => {
   assert.deepEqual(Array.from(traceColumns([-10, -20, -30], 5)), [-10, -20, -20, -20, -30]);
 });
 

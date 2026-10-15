@@ -68,7 +68,7 @@ const CORNERS = Object.fromEntries(
 );
 
 /**
- * A head circumference in cm from a radius in metres.
+ * A head circumference in cm from a radius in meters.
  *
  * @param {number} radius
  */

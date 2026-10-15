@@ -30,7 +30,7 @@ import { route, trees } from "../support/threetrees.js";
 // (docs/spec/matrix-spec.md, wire truth), the log switch and the fixed level by
 // their /config form fields (docs/spec/settings-classification.md).
 /** @type {[string, string][]} */
-const UNLABELLED_CONTROLS = [
+const UNLABELED_CONTROLS = [
   ["crossfeed_enabled", "post_bauer_enabled"],
   ["dac_correction_enabled", "post_correction_enabled"],
   ["loudness_enabled", "post_loudness_enabled"],
@@ -48,7 +48,7 @@ const GATE_NAMES = {
   matrix_enabled: "Fixture Routing Grid",
   log_enabled: "Fixture Diary Switch",
 };
-const GATE_WIRE_KEYS = Object.fromEntries(UNLABELLED_CONTROLS);
+const GATE_WIRE_KEYS = Object.fromEntries(UNLABELED_CONTROLS);
 
 // The fixed-volume level's wire key and the name its own catalog entry gives
 // it, and the gate it shares a row with, whose entry rides along as it does on
@@ -93,7 +93,7 @@ async function unconverged(diff) {
   return String(lastApply.value.text);
 }
 
-for (const [control, wireKey] of UNLABELLED_CONTROLS) {
+for (const [control, wireKey] of UNLABELED_CONTROLS) {
   test(`test_an_unconverged_${control}_is_shown_without_its_wire_key`, async () => {
     const text = await unconverged({ [wireKey]: {} });
     assert.ok(!text.includes(wireKey), text);

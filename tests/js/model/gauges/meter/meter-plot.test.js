@@ -43,7 +43,7 @@ test("test_a_tick_clear_of_the_right_edge_stays", () => {
 
 // ── Color ramp ──────────────────────────────────────────────────────────
 
-//: Three stops, grey steps of 100.
+//: Three stops, gray steps of 100.
 const STOPS = [
   [0, 0, 0],
   [100, 100, 100],
@@ -88,7 +88,7 @@ test("test_the_ramp_blends_each_channel_on_its_own", () => {
   );
 });
 
-//: Glass and the bad color, a grey step of 100 apart.
+//: Glass and the bad color, a gray step of 100 apart.
 const GLASS = [0, 0, 0];
 const BAD = [100, 100, 100];
 

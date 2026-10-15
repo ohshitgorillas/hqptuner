@@ -37,7 +37,7 @@ const FLOOR_SEEDED = "-90";
 const FLOOR_PICKED = "-48";
 
 /**
- * The Meters surface on the prefs module, with the neighbours it must leave alone.
+ * The Meters surface on the prefs module, with the neighbors it must leave alone.
  *
  * @typedef {{
  *   meters?: { value: string },

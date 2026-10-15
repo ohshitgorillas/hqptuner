@@ -12,7 +12,7 @@ conclusion is not sound and this probe exists to replace it. Two flaws:
 The manual makes the difference load-bearing (`docs/official/manual/04-04-pcm.txt`
 lines 15-17): "When default output mode is set to `[source]` ... this is only a
 default and upper limit for output rate, specific rate is selected by the
-playback engine during playback time". A daemon that honours the request as a cap
+playback engine during playback time". A daemon that honors the request as a cap
 in `[source]` while reporting the request slot as `"0"` produces exactly the
 reading that probe got.
 

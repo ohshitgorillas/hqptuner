@@ -8,7 +8,7 @@ import { restartMarkIf } from "../../drawer/controls.js";
 /** @typedef {import("../../../../lib/dom.js").ControlEvent} ControlEvent */
 
 /**
- * A labelled slider beside its number box, its label carrying the restart mark when what it writes restarts the engine.
+ * A labeled slider beside its number box, its label carrying the restart mark when what it writes restarts the engine.
  *
  * @param {{ label: string, sub?: string, restarts?: boolean, min: number, max: number, step: number, unit: string, dp: number,
  *   value: number, disabled: boolean, onDrag: (v: number) => void, onCommit: (v: number) => void }} props

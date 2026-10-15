@@ -36,7 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent.parent
 STATIC = ROOT / "hqptuner" / "static"
 PRAGMA = "dead-exempt:"
 
-#: an exemption is honoured only when a reason follows the colon, the same
+#: an exemption is honored only when a reason follows the colon, the same
 #: contract check_css_tokens.py enforces: without the lookahead the comment's
 #: own `*/` reads as a reason and a blank exemption buys silence.
 EXEMPT = re.compile(re.escape(PRAGMA) + r"\s*(?!\*/)\S")

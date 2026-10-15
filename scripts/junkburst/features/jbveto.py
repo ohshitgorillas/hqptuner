@@ -10,7 +10,7 @@ from jbmask import DECILES, MASK_SWEEP_ALBUM_LEVEL, MASK_SWEEP_CANDIDATE, SWEEP_
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 #: Ratio lines the real veto forces to read real, at or above each line.
 REAL_VETO_LEVELS = (-8.0, -10.0, -12.0, -15.0, -18.0)
@@ -107,7 +107,7 @@ def real_veto(
     return deciles, albums, sweep
 
 
-def real_veto_section(run: LabelledRun) -> list[str]:
+def real_veto_section(run: LabeledRun) -> list[str]:
     """Return the report's real veto section: the ratio deciles, the per-album table, then the veto sweep."""
     cand = MASK_SWEEP_CANDIDATE
     intro = (

@@ -252,8 +252,8 @@ def main() -> None:
         writes.extend(written(rows, items))
 
     wrong = [item for item in every if item.label is not None and item.want != item.label]
-    labelled = sum(1 for item in every if item.label is not None)
-    print(f"corpus: ticks={len(every)} labelled={labelled} wrong={len(wrong)} writes={len(writes)}")
+    labeled = sum(1 for item in every if item.label is not None)
+    print(f"corpus: ticks={len(every)} labeled={labeled} wrong={len(wrong)} writes={len(writes)}")
     print()
     histogram("wrong ticks", wrong)
     histogram("writes", writes)

@@ -1,5 +1,5 @@
 // Rendered suite for hqptuner/static/components/faceplate/drawers/Source.js: the Source drawer's meter block. With a
-// stream it draws the apodizing strip over the spectrogram, its frequency axis labelled to the source Nyquist, and the
+// stream it draws the apodizing strip over the spectrogram, its frequency axis labeled to the source Nyquist, and the
 // Range, Channel and Window switches lit at the prefs and writing them, and the spectrogram's Span switch lit at the
 // span in force and setting it; with none it draws the no-stream line in the
 // meter's place. Which state holds, the axes and the strip's events are the store's

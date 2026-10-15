@@ -10,7 +10,7 @@ carries either command's name, so the name can only reach the report from the re
 The daemons here are raw sockets, since the shared fake answers only well-formed frames. Each one closes the
 connection once it has said all it will say, so every read the client makes ends on data or on the close, and the
 client waits on a `VirtualDeadline` that is never silenced, so no real timer runs. A client that stopped
-recognising either answer reads the close and fails at once rather than waiting out a timeout.
+recognizing either answer reads the close and fails at once rather than waiting out a timeout.
 """
 
 import asyncio

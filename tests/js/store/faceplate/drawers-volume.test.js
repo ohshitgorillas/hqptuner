@@ -221,7 +221,7 @@ test("test_a_knob_drag_in_flight_moves_the_needle", () => {
 
 // --- a handle move -----------------------------------------------------------------------------------------------
 
-test("test_a_handle_moved_past_its_neighbour_stops_against_it", async () => {
+test("test_a_handle_moved_past_its_neighbor_stops_against_it", async () => {
   assert.equal((await moved("min", -10)).volume_min, "-20");
 });
 

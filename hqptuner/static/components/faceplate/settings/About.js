@@ -1,4 +1,4 @@
-// The settings page under the drawers. About HQPlayer: the engine identity as a row of labelled VFD windows across the
+// The settings page under the drawers. About HQPlayer: the engine identity as a row of labeled VFD windows across the
 // full width, then the backup download and restore upload beside their line. About HQPTuner: the version line and the
 // state download and upload, then the prose.
 

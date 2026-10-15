@@ -24,7 +24,7 @@ from jbmirror import MIRROR_VETO_LEVEL, veto_loao_any
 
 if TYPE_CHECKING:
     from jbcurves import Grid
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 #: The three edge candidates, in the order every table below carries them.
 EDGE_CANDIDATES = ("P", "G90", "S")
@@ -209,7 +209,7 @@ def edge_grades(
 
 
 def edge_tables(
-    run: LabelledRun,
+    run: LabeledRun,
 ) -> tuple[dict[str, dict[str, dict[str, Any]]], dict[str, dict[str, Any]], list[dict[str, Any]]]:
     """Return the edge section's three parts, every one read over the blocks the album line keeps.
 
@@ -244,7 +244,7 @@ def _intro() -> str:
     )
 
 
-def _decile_rows(run: LabelledRun) -> list[str]:
+def _decile_rows(run: LabeledRun) -> list[str]:
     """One row per candidate and label: its blocks, then p0 to p100 over them."""
     out = []
     for cand in EDGE_CANDIDATES:
@@ -255,7 +255,7 @@ def _decile_rows(run: LabelledRun) -> list[str]:
     return out
 
 
-def _album_rows(run: LabelledRun) -> list[str]:
+def _album_rows(run: LabeledRun) -> list[str]:
     """One row per album: its label, its kept blocks, and the median of all three candidates."""
     out = []
     for name, entry in sorted(run.edge_albums.items()):
@@ -264,7 +264,7 @@ def _album_rows(run: LabelledRun) -> list[str]:
     return out
 
 
-def edge_section(run: LabelledRun) -> list[str]:
+def edge_section(run: LabeledRun) -> list[str]:
     """Return the report's edge section: the three candidates' deciles, their per-album medians, then the grades."""
     other = MASK_SWEEP_CANDIDATE
     grade_intro = (

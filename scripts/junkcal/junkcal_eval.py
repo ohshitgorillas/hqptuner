@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Score a junk-filter classifier against the labelled junkcal fixture corpus.
+"""Score a junk-filter classifier against the labeled junkcal fixture corpus.
 
 Every kept row under ``tests/support/fixtures/junkcal/`` is handed to a classifier on its own
 and the returned filter name is compared with the filter that row's own statistics in

@@ -2,7 +2,7 @@
 // choice that never stages), then one row per listed channel with its level (dBFS) and distance (cm) boxes. Right:
 // the top-down room plan, the listener facing up the page and each listed speaker the model places (one with a
 // distance or level entered) at its layout angle, toed in, at a radius set by its own distance, its level riding as a
-// label; the box fits the placed speakers, centred on the listener. While Direct SDM runs the level boxes are dead and
+// label; the box fits the placed speakers, centered on the listener. While Direct SDM runs the level boxes are dead and
 // a line says why; distances stay live. Edits are held by store/faceplate/drawers/speakers.js, which decides
 // everything drawn here.
 
@@ -131,7 +131,7 @@ function speakerGlyph(p) {
 }
 
 /**
- * The room plan: the listener at the centre and each speaker the model places at its drafted distance, its tag and
+ * The room plan: the listener at the center and each speaker the model places at its drafted distance, its tag and
  * level under it, the box fitted to them.
  *
  * @param {DraftChannel[]} listed

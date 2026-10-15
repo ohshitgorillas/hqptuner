@@ -41,7 +41,7 @@ High-frequency (ray-tracing) limit, Woodworth & Schlosberg, eq. (2):
 
 `a` = head radius, `c` = speed of sound. Paper's constants: **a = 8.75 cm** (average adult), **c ≈ 343 m/s**, giving **a/c = 255.1 µs**.
 
-**On c, since HQPlayer names different one.** Manual's `delay` plugin defaults `v` to 343.956 m/s, tempting to match. Don't: `v` exists to convert `d=<metres>` into delay, and this design emits `t=<seconds>`, so `v` never consulted. Paper's 343 is what `a`, `α_min` and `θ_min` were fitted against on KEMAR data, and those constants travel together — mixing different c into them is false precision, not more precision. Gap quantified, not waved away: 0.28 % of c is **0.7 µs** of ITD, under 22.7 µs sample floor at 44.1 kHz (§5), and dominated ~37× by head-radius spread across adults (~7.5–9.5 cm, ±26 µs). Precision here bought by exposing `a`, which §6.2 does, not by refining c.
+**On c, since HQPlayer names different one.** Manual's `delay` plugin defaults `v` to 343.956 m/s. `v` converts `d=<meters>` into delay, and this design emits `t=<seconds>`, so `v` is never consulted. c stays at paper's 343, because `a`, `α_min` and `θ_min` go together with that c, and mixing different c into them is false precision. Gap is 0.28 % of c, which is **0.7 µs** of ITD, under 22.7 µs sample floor at 44.1 kHz (§5), and dominated ~37× by head-radius spread across adults (~7.5–9.5 cm, ±26 µs). Precision comes from exposing `a`, which §6.2 does.
 
 At low frequency delay is larger — Kuhn's result, quoted in paper as "approximately 50 % greater than the value predicted by (2) as µ → 0", where µ = ωa/c is normalized frequency and **µ = 1 corresponds to about 624 Hz**.
 

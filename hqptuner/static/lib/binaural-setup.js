@@ -78,7 +78,7 @@ export function blockConflicts(effective) {
 // The install is all-or-nothing, and this is the half that decides. A starting
 // point the block cannot carry is REFUSED, not carried in partially: the
 // alternative — installing an EQ-less block over rows that had EQ on them —
-// destroys settings the user already had, which is not honouring their action
+// destroys settings the user already had, which is not honoring their action
 // but doing something they never asked for. Refusing costs them a click;
 // installing over the top costs them their tuning.
 //

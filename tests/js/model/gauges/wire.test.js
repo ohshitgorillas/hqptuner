@@ -41,14 +41,14 @@ const lamp = (left, top) => ({ box: { left, top, width: 8, height: 8 }, level: 0
 /** @type {DotRow[]} */
 const DOTS = [
   {
-    name: "a_dot_sits_at_the_lamp_centre_across_the_rail_plus_half_a_pixel",
+    name: "a_dot_sits_at_the_lamp_center_across_the_rail_plus_half_a_pixel",
     lamp: lamp(110, 60),
     scale: 1,
     axis: "x",
     want: 14.5,
   },
   {
-    name: "a_dot_sits_at_the_lamp_centre_down_the_rail_plus_half_a_pixel",
+    name: "a_dot_sits_at_the_lamp_center_down_the_rail_plus_half_a_pixel",
     lamp: lamp(110, 60),
     scale: 1,
     axis: "y",
@@ -56,8 +56,8 @@ const DOTS = [
   },
   { name: "a_dot_across_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "x", want: 28.5 },
   { name: "a_dot_down_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "y", want: 68.5 },
-  { name: "a_lamp_centre_short_of_the_half_pixel_rounds_down", lamp: lamp(110.3, 60), scale: 1, axis: "x", want: 14.5 },
-  { name: "a_lamp_centre_past_the_half_pixel_rounds_up", lamp: lamp(110.6, 60), scale: 1, axis: "x", want: 15.5 },
+  { name: "a_lamp_center_short_of_the_half_pixel_rounds_down", lamp: lamp(110.3, 60), scale: 1, axis: "x", want: 14.5 },
+  { name: "a_lamp_center_past_the_half_pixel_rounds_up", lamp: lamp(110.6, 60), scale: 1, axis: "x", want: 15.5 },
 ];
 
 for (const row of DOTS) {

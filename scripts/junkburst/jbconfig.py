@@ -107,7 +107,7 @@ CANDIDATE_G_GUARD_HZ = 300.0
 CANDIDATE_G_BAND_HZ = 1_500.0
 
 #: A block is quiet when the 90th percentile of its 15-18 kHz reference band sits under this level in the metering's
-#: own dB. The value is the 10th percentile of that level over every labelled 1 s block of the corpus, so the quiet
+#: own dB. The value is the 10th percentile of that level over every labeled 1 s block of the corpus, so the quiet
 #: half is the corpus's own quietest tenth. The quiet and loud halves are thresholded separately, because a candidate
 #: reading a band that quiet is reading something different from the same band on a loud block.
 QUIET_MAX_LEVEL_DB = -104.9820
@@ -124,7 +124,7 @@ TRACKS_TSV = SRC / "tracks.tsv"
 LABELS_TSV = SRC / "labels.tsv"
 BY_TRACK = "BY_TRACK"
 
-#: The two groups every labelled table is split into, transition bursts scored in their own.
+#: The two groups every labeled table is split into, transition bursts scored in their own.
 GROUPS = ("steady", "transition")
 
 #: The mask reading walks the same two image folds as candidates F and G. Above each fold it reads the band from

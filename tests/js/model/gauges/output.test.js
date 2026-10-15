@@ -85,7 +85,7 @@ test("test_dial_tiers_sit_evenly_from_the_first_tier_to_the_mirrored_far_edge", 
   assert.deepEqual(SCALE.xs, DIAL_XS);
 });
 
-test("test_dial_pitch_is_the_distance_between_neighbouring_tiers", () => {
+test("test_dial_pitch_is_the_distance_between_neighboring_tiers", () => {
   assert.equal(SCALE.dx, 25);
 });
 

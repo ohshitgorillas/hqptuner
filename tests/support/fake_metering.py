@@ -22,7 +22,7 @@ The server runs in its own thread over real TCP, like `conftest`'s
 
 A caller that hands in an ``Accepted`` reads how many connections the fake
 took. The count is final once the fake is torn down: teardown wakes the
-server thread with a connection of its own, which the thread recognises by
+server thread with a connection of its own, which the thread recognizes by
 its address and does not count, and the thread drains every connection
 queued ahead of it before it ends.
 """

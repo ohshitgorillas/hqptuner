@@ -48,7 +48,7 @@ ALLOW_PINNED_RATES_JS = f"""
 try {{ window.localStorage.setItem("{PINNED_RATES_KEY}", "{ON}"); }} catch (e) {{}}
 """
 
-#: Resolves once every finite animation on the page has finished or been cancelled.
+#: Resolves once every finite animation on the page has finished or been canceled.
 SETTLE_JS = """
 async () => {
   const finite = document

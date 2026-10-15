@@ -50,7 +50,7 @@ README_CAP = 200
 HEADING_LINE = re.compile(r"^(\d+(?:\.\d+)*)\.?\s+(.+?)\s*$")
 ELEMENT_TITLE = re.compile(r'^(Element|Sub-element)\s+"(.+)"$')
 ALLCAPS_TITLE = re.compile(r"^[A-Z][A-Z0-9 _/,()\-]*$")
-# "1.0 Provisioning": a single capitalised word, which the prose lines that start with a number are not.
+# "1.0 Provisioning": a single capitalized word, which the prose lines that start with a number are not.
 WORD_TITLE = re.compile(r"^[A-Z][a-z]+$")
 
 OTHER_LICENSES_MARKER = re.compile(r"^4\.\s+OTHER LICENSES\s*$")

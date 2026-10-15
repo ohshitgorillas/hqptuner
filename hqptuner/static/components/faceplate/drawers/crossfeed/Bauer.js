@@ -34,7 +34,7 @@ const meta = (key) => {
 };
 
 /**
- * Frequency or Level: a labelled number box, staged on change.
+ * Frequency or Level: a labeled number box, staged on change.
  *
  * @param {{ k: string, disabled: boolean }} props
  */

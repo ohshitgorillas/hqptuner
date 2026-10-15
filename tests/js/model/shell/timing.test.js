@@ -1,5 +1,5 @@
 // Behavioral suite for hqptuner/static/model/shell/timing.js: a held button repeats on a fake clock, and a revert fires once
-// per arming with a re-arm cancelling the pending one.
+// per arming with a re-arm canceling the pending one.
 //
 // The clock is faked at the Clock seam each unit takes. Time moves only when a test says so, so nothing here waits on
 // the wall.

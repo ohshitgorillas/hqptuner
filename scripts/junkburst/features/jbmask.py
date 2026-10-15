@@ -13,7 +13,7 @@ from jbconfig import MASK_SWEEP_WINDOWS
 from jbloao import loao_candidate, loao_wrong
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 #: The three numbers one block's mask reading carries, in the order the rows hold them.
 MASK_READINGS = ("above-fold level", "ratio", "correlation")
@@ -237,7 +237,7 @@ def _sweep_window_section(window: float, rows: list[dict[str, Any]], albums: dic
     ]
 
 
-def mask_sweep_section(run: LabelledRun) -> list[str]:
+def mask_sweep_section(run: LabeledRun) -> list[str]:
     """Return the report's mask sweep section: each of ``MASK_SWEEP_WINDOWS`` with its own sweep and per-album table."""
     cand = MASK_SWEEP_CANDIDATE
     intro = (

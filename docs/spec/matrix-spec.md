@@ -62,7 +62,7 @@ The vendored AutoEq library and a `.txt` file both parse into ParametricEQ stage
 
 ### Response plot
 
-The response plot is always present; with nothing toggled it draws its axes and says how to plot a pipeline. It overlays magnitude (solid, dB, auto-fit to ±36) and phase (dashed, ±180° on a second axis) for each toggled row, on a log frequency axis from 20 Hz to 20 kHz, one hue per row. It is computed client-side, and a convolution stage uses a client-side FFT of its uploaded impulse, since the daemon renders no plot (`docs/spec/protocol.md` "`/matrix/plot` as a numeric oracle"). It updates live while a stage field changes. An AutoEq preview draws as a dashed accent trace labelled "preview", for A/B against the plotted rows.
+The response plot is always present; with nothing toggled it draws its axes and says how to plot a pipeline. It overlays magnitude (solid, dB, auto-fit to ±36) and phase (dashed, ±180° on a second axis) for each toggled row, on a log frequency axis from 20 Hz to 20 kHz, one hue per row. It is computed client-side, and a convolution stage uses a client-side FFT of its uploaded impulse, since the daemon renders no plot (`docs/spec/protocol.md` "`/matrix/plot` as a numeric oracle"). It updates live while a stage field changes. An AutoEq preview draws as a dashed accent trace labeled "preview", for A/B against the plotted rows.
 
 ### Filter upload
 

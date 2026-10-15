@@ -144,7 +144,7 @@
   --chev:5px;              /* each half of a select's ▾ */
   --lamp-d:10px;           /* round lamp */
   --lamp-d-rail:9px;       /* rail stage lamp */
-  --lamp-d-big:15px;       /* bezelled engine-row lamp */
+  --lamp-d-big:15px;       /* bezeled engine-row lamp */
   --lamp-d-sm:7px;         /* a device's lamp in the device list */
   --lamp-well:inset 0 1px 2px var(--shade);   /* an unlit lamp's sunken face */
   --dot:5px;               /* the dirty dot on a staged edit */
@@ -166,7 +166,7 @@
   --meter-h:8px;           /* buffer bar */
   --meter-v-w:34px;        /* buffer meter value */
   --volrd-w:104px;         /* engine-row readouts: the HF filter and the volume */
-  --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout; the height of a builder's labelled VFD window */
+  --vbrd-w:112px; --vbrd-h:48px;   /* volume bar readout; the height of a builder's labeled VFD window */
   --range-h:28px;          /* volume slider: the bar's and the popover's */
   --range-h-sm:24px;       /* a slider beside a number box: crossfeed */
   --num-w:92px;            /* number input */
@@ -286,7 +286,7 @@
   --pbchain-w:196px;       /* the profile overview's chain column */
   --pbeq-min:96px;         /* the profile builder's EQ step: the pair it holds and their plot, least height */
   --include:22px;          /* the snapshot builder's include box, and its column */
-  --vfd-line:22px;         /* the value line inside a labelled VFD window: the snapshot builder's name, the profile pick */
+  --vfd-line:22px;         /* the value line inside a labeled VFD window: the snapshot builder's name, the profile pick */
   --bname-w:220px;         /* the snapshot builder's name window */
   --bpager-h:34px;         /* the open station's pager row in the snapshot builder's rail */
   --bset-w:150px;          /* a builder row's setting-name column: the snapshot builder's rows, the profile overview's holdings */

@@ -1,4 +1,4 @@
-"""Everything the owner-labelled run puts on stdout, so a run that cannot write its report still reports."""
+"""Everything the owner-labeled run puts on stdout, so a run that cannot write its report still reports."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from jbthresholds import LABEL_CANDIDATES, best_guard, calls_fake
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from jbrun import LabelledRun
+    from jbrun import LabeledRun
 
 #: The albums whose every headline-window block is printed, and the test on the normalized album each is picked by.
 TARGET_ALBUMS: dict[str, Callable[[str], bool]] = {
@@ -27,7 +27,7 @@ TARGET_ALBUMS: dict[str, Callable[[str], bool]] = {
 FAMILY_CANDIDATES = ("A", "AW", "AM", "AMT", "advisor")
 
 
-def print_family_totals(run: LabelledRun) -> None:
+def print_family_totals(run: LabeledRun) -> None:
     """Per-family wrong-side totals at the headline window, steady blocks only."""
     family_of_stamp = {
         s: family_of(run.owner[s] or "", run.tracks.get(s, {}).get("album", "").strip()) for s in run.stamps
@@ -78,7 +78,7 @@ def _print_burst_blocks(stamp: str) -> None:
         print(f"{stamp} {b_index:3d} {f1:>8s} {f2:>6s} {ce:>6s} {wce:>7s} {fa:>7s} {wfa:>7s}")
 
 
-def print_target_blocks(run: LabelledRun) -> None:
+def print_target_blocks(run: LabeledRun) -> None:
     """Every headline-window block of the albums under closest reading, burst by burst."""
     album_field = {s: run.tracks.get(s, {}).get("album", "").strip() for s in run.stamps}
     for name, match in TARGET_ALBUMS.items():
@@ -89,16 +89,16 @@ def print_target_blocks(run: LabelledRun) -> None:
             _print_burst_blocks(stamp)
 
 
-def _print_headline_json(run: LabelledRun) -> None:
+def _print_headline_json(run: LabeledRun) -> None:
     """Print the headline counts and every candidate's headline threshold, as one JSON document."""
     head = run.scored["steady"][HEADLINE_WINDOW]
     print(
         json.dumps(
             {
                 "report": str(REPORT),
-                "bursts_labelled": len(run.graded),
+                "bursts_labeled": len(run.graded),
                 "bursts_duplicate": len(run.duplicates),
-                "bursts_unlabelled": len(run.unlabelled),
+                "bursts_unlabeled": len(run.unlabeled),
                 "fake_bursts": sum(1 for s in run.graded if run.owner[s] == "FAKE"),
                 "real_bursts": sum(1 for s in run.graded if run.owner[s] == "REAL"),
                 "transition_bursts": sum(1 for s in run.graded if run.group_of[s] == "transition"),
@@ -119,7 +119,7 @@ def _print_headline_json(run: LabelledRun) -> None:
     )
 
 
-def _print_guard_sweep(run: LabelledRun) -> None:
+def _print_guard_sweep(run: LabeledRun) -> None:
     """Every guard row of E2 and E3, then the guard each one is best at."""
     for group in GROUPS:
         for cand in ("E2", "E3"):
@@ -137,7 +137,7 @@ def _print_guard_sweep(run: LabelledRun) -> None:
             )
 
 
-def _print_quiet_split(run: LabelledRun) -> None:
+def _print_quiet_split(run: LabeledRun) -> None:
     """Every row of the quiet/loud split, then the two per-album tables read off it."""
     for split in SPLITS:
         for cand in QUIET_CANDIDATES:
@@ -158,7 +158,7 @@ def _print_quiet_split(run: LabelledRun) -> None:
         print(f"a_missed={name!r} no_reading={entry['no_reading']} below_cut={entry['below_cut']}")
 
 
-def _print_loao(run: LabelledRun) -> None:
+def _print_loao(run: LabeledRun) -> None:
     """Every candidate's leave-one-album-out totals beside its in-sample row, then the same inside each split."""
     head = run.scored["steady"][HEADLINE_WINDOW]
     for cand in LABEL_CANDIDATES:
@@ -180,7 +180,7 @@ def _print_loao(run: LabelledRun) -> None:
             )
 
 
-def print_summary(run: LabelledRun) -> None:
+def print_summary(run: LabeledRun) -> None:
     """Print the headline JSON, a line per group, window and candidate, the per-album counts, then the guard sweep."""
     _print_headline_json(run)
     for group in GROUPS:

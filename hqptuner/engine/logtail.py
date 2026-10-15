@@ -73,7 +73,7 @@ class _Held:
 
 
 def _settled(task: "asyncio.Task[str]") -> None:
-    """Retrieve a finished fetch's outcome, so one whose every caller was cancelled fails quietly."""
+    """Retrieve a finished fetch's outcome, so one whose every caller was canceled fails quietly."""
     if not task.cancelled():
         task.exception()
 
@@ -110,7 +110,7 @@ class LogReader:
             task = asyncio.ensure_future(self._fetch(host, port))
             task.add_done_callback(_settled)
             self._inflight = (url, task)
-        # Shielded: one caller cancelled (a browser tab closing) must not cancel the fetch the others wait on.
+        # Shielded: one caller canceled (a browser tab closing) must not cancel the fetch the others wait on.
         return await asyncio.shield(self._inflight[1])
 
     async def _fetch(self, host: str, port: int) -> str:

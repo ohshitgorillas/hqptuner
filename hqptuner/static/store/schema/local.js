@@ -70,13 +70,13 @@ const OFF_ON = [
 ];
 
 /**
- * A row's options from the values its preference accepts, in that order, each labelled from `labels`.
+ * A row's options from the values its preference accepts, in that order, each labeled from `labels`.
  *
  * @param {string[]} values
  * @param {Record<string, string>} labels
  * @returns {FieldOption[]}
  */
-const labelled = (values, labels) => values.map((value) => ({ value, label: labels[value] }));
+const labeled = (values, labels) => values.map((value) => ({ value, label: labels[value] }));
 
 /** @param {boolean} on */
 const bit = (on) => (on ? "1" : "0");
@@ -118,7 +118,7 @@ const DACTYPE = {
     "Also when a suitable noise-shaper, such as LNS15, NS9 or NS5 is used in combination with high output rates, linearity errors inherent to all R2R DACs can be corrected. This will lower distortion of especially low level signals and reduce zero-crossing distortions.",
     "R-2R collapses the Additive family in the dither list.",
   ],
-  options: labelled(DAC_TYPES, { other: "Other", r2r: "R-2R" }),
+  options: labeled(DAC_TYPES, { other: "Other", r2r: "R-2R" }),
   value: () => dacType.value,
   set: setDacType,
 };
@@ -131,7 +131,7 @@ const DACCHIP = {
     "For ESS Sabre based DACs, fifth order modulators are recommended. For most other DACs, seventh order modulators are optimal.",
     "ESS Sabre collapses the seventh order variants in the modulator list.",
   ],
-  options: labelled(DAC_CHIPS, { other: "Other", ess: "ESS Sabre" }),
+  options: labeled(DAC_CHIPS, { other: "Other", ess: "ESS Sabre" }),
   value: () => dacChip.value,
   set: setDacChip,
 };
@@ -202,7 +202,7 @@ const VFORMAT = {
   id: "vformat",
   label: "Display",
   man: [VISUAL_MAN.format],
-  options: labelled(DISPLAY_FORMATS, { auto: "Auto", expanded: "Expanded", normal: "Normal", compact: "Compact" }),
+  options: labeled(DISPLAY_FORMATS, { auto: "Auto", expanded: "Expanded", normal: "Normal", compact: "Compact" }),
   value: () => displayFormat.value,
   set: setDisplayFormat,
 };
@@ -248,7 +248,7 @@ const VFILL = {
   id: "vfill",
   label: "Top of page",
   man: [VISUAL_MAN.fill],
-  options: labelled(TOP_OF_PAGE, { auto: "Auto", profile: "Matrix profile", spectrum: "Spectrum" }),
+  options: labeled(TOP_OF_PAGE, { auto: "Auto", profile: "Matrix profile", spectrum: "Spectrum" }),
   value: () => topOfPage.value,
   set: setTopOfPage,
 };
@@ -258,7 +258,7 @@ const VBOTTOM = {
   id: "vbottom",
   label: "Bottom bar",
   man: [VISUAL_MAN.bottom],
-  options: labelled(BOTTOM_BARS, { switcher: "Setting Switcher", none: "None" }),
+  options: labeled(BOTTOM_BARS, { switcher: "Setting Switcher", none: "None" }),
   value: () => bottomBar.value,
   set: setBottomBar,
 };

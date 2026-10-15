@@ -128,7 +128,7 @@ def test_a_grade_whose_ceiling_is_not_ruffs_limit_is_refused(tmp_path: Path, gra
     assert CHECK(root) != PASSED
 
 
-def test_the_grade_whose_ceiling_is_ruffs_limit_passes_where_its_neighbour_is_refused(tmp_path: Path) -> None:
+def test_the_grade_whose_ceiling_is_ruffs_limit_passes_where_its_neighbor_is_refused(tmp_path: Path) -> None:
     matched = build_tree(tmp_path / "matched", LIMIT_AT_C_CEILING, "C", "C")
     mismatched = build_tree(tmp_path / "mismatched", LIMIT_AT_C_CEILING, "B", "B")
     assert CHECK(matched) < CHECK(mismatched)

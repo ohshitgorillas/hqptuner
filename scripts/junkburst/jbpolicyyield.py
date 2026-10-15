@@ -19,7 +19,7 @@ from jbpolicy import (
 )
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 
 class NoMeddleBurstEngagedError(ValueError):
@@ -61,7 +61,7 @@ def _fixed_yield_calls(blocks: PolicyBlocks, yield_at: float) -> dict[int, bool]
 
 
 def policy_yield_grade(
-    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabelledRun
+    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabeledRun
 ) -> list[dict[str, Any]]:
     """One graded row per ``POLICY_G90_YIELD_LEVELS`` line, in the same shape ``policy_rule_row`` returns."""
     out = []
@@ -164,7 +164,7 @@ class _RunRuleCorpus(NamedTuple):
     junk: dict[int, bool]
     kept: set[int]
     bursts: dict[str, list[int]]
-    run: LabelledRun
+    run: LabeledRun
 
 
 def _run_rule_tally(corpus: _RunRuleCorpus, max_gap: int, hold: int | None) -> dict[str, Any]:
@@ -194,7 +194,7 @@ def _run_rule_tally(corpus: _RunRuleCorpus, max_gap: int, hold: int | None) -> d
 
 
 def policy_run_rule_grade(
-    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabelledRun
+    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabeledRun
 ) -> list[dict[str, Any]]:
     """One graded row per gap/hold combination the run rule sweeps, at the working G90-at-11-dB, 14 dB yield line."""
     corpus = _RunRuleCorpus(_fixed_yield_calls(blocks, POLICY_RUN_RULE_YIELD_AT), kept, bursts, run)
@@ -234,7 +234,7 @@ def _run_rule_diff_row(blocks: PolicyBlocks, stamp: str, block_list: list[int]) 
 
 
 def policy_run_rule_diff_rows(
-    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabelledRun
+    blocks: PolicyBlocks, bursts: dict[str, list[int]], kept: set[int], run: LabeledRun
 ) -> list[dict[str, Any]]:
     """Fake bursts whose run rule verdict differs between gap 1 and gap 3, plus the burst named outright."""
     junk = _fixed_yield_calls(blocks, POLICY_RUN_RULE_YIELD_AT)
@@ -254,7 +254,7 @@ def policy_run_rule_diff_rows(
     return out
 
 
-def policy_run_rule_diff_table(run: LabelledRun) -> list[str]:
+def policy_run_rule_diff_table(run: LabeledRun) -> list[str]:
     """Return the diff table: fake bursts whose run rule verdict flips between gap 1 and gap 3, plus one named."""
     intro = (
         "Gap counts index distance between the two confirming kept blocks, not the number of blocks lying between "
@@ -283,7 +283,7 @@ def policy_run_rule_diff_table(run: LabelledRun) -> list[str]:
     ]
 
 
-def policy_run_rule_table(run: LabelledRun) -> list[str]:
+def policy_run_rule_table(run: LabeledRun) -> list[str]:
     """Return the run rule's grade table: one row per gap/hold combination at the working yield line."""
     intro = (
         f"The run rule at G90 at {POLICY_G90_FIXED_CUT:g} dB, the {MIRROR_VETO_LEVEL:g} dB ratio veto yielding at "
@@ -309,7 +309,7 @@ def policy_run_rule_table(run: LabelledRun) -> list[str]:
     ]
 
 
-def policy_yield_augment(run: LabelledRun) -> None:
+def policy_yield_augment(run: LabeledRun) -> None:
     """Grow ``run.policy_grade`` with the yield rule rows, the run rule sweep, and their block-level table rows."""
     blocks, bursts, kept, mask_rows, g90_rows, keep = policy_grade_context(run)
     run.policy_grade["rules"] += policy_yield_grade(blocks, bursts, kept, run)
@@ -318,7 +318,7 @@ def policy_yield_augment(run: LabelledRun) -> None:
     run.policy_grade["yield_blocks"] = policy_yield_block_rows(mask_rows, g90_rows, keep, run.policy_grade["rules"])
 
 
-def policy_yield_block_table(run: LabelledRun) -> list[str]:
+def policy_yield_block_table(run: LabeledRun) -> list[str]:
     """Return the yield rule's block-level table: kept or dropped, loud-frame step, ratio, verdict at S = 13 dB."""
     blocks = run.policy_grade["yield_blocks"]
     intro = (

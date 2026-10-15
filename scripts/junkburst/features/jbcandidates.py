@@ -303,7 +303,7 @@ class MaskReading:
 
 
 def _per_hz_level(frames: np.ndarray, grid: Grid, lo_hz: float, hi_hz: float) -> np.ndarray | None:
-    """Per frame: one band's summed-channel power normalised to per-Hz, in dB, or ``None`` when it is off the grid."""
+    """Per frame: one band's summed-channel power normalized to per-Hz, in dB, or ``None`` when it is off the grid."""
     span = band_bins(grid, lo_hz, hi_hz)
     level = band_level_db(frames, grid, lo_hz, hi_hz)
     if span is None or level is None:

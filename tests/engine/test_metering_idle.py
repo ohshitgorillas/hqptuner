@@ -1,5 +1,5 @@
 """The metering reader's config switch: whether the 4322 side channel is
-dialled at all.
+dialed at all.
 
 The config cases build a `Config` under a patched environment."""
 

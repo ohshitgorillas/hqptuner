@@ -162,7 +162,7 @@ const FILTERS = {
   },
   purist: { "": "poly-sinc-gauss-halfband" },
   // The lossy rows put one name on both fields, unlike their lossless
-  // neighbours. The family has no separate base-rate member for the 1x field:
+  // neighbors. The family has no separate base-rate member for the 1x field:
   // these are hi-res filters whose own recommendation starts at 4x, and lossy
   // material is what they are for whatever rate it arrives at.
   "damage-control": {

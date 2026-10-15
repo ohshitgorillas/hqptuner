@@ -162,7 +162,7 @@ class Capture:
 
 
 async def run(mgr: ConnectionManager, dest: Path) -> None:
-    """Capture once per tick until the task is cancelled, which is how the lifespan stops it.
+    """Capture once per tick until the task is canceled, which is how the lifespan stops it.
 
     The wait is the manager clock's background wait.
     """

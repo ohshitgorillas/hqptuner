@@ -101,7 +101,7 @@ let savedLane = null;
 let closeOnSuccess = false;
 
 /**
- * Open the panel, seed it from what HQPTuner is dialling now, and sweep for
+ * Open the panel, seed it from what HQPTuner is dialing now, and sweep for
  * daemons.
  *
  * The seed is awaited before the sweep: both write the host field, and the
@@ -241,7 +241,7 @@ export async function detectHosts() {
   await runDiscovery();
 }
 
-/** Seed the panel from what HQPTuner is dialling now. */
+/** Seed the panel from what HQPTuner is dialing now. */
 async function loadConnection() {
   hostTouched.value = false;
   verdict.value = null;

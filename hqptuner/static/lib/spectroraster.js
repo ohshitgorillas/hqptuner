@@ -92,7 +92,7 @@ export function rampFrom(hexStops) {
 }
 
 /**
- * The frequency at the centre of each pixel row, top row first.
+ * The frequency at the center of each pixel row, top row first.
  *
  * @param {number} top
  * @returns {number[]}
@@ -102,7 +102,7 @@ const rowFreqs = (top) => Array.from({ length: H }, (_, y) => (top * (H - 0.5 - 
 /**
  * Each pixel row's position among a slice's rows, fractional so a pixel between
  * two rows blends them, or -1 above the slice's Nyquist. Row r of `rows` spans
- * [r, r + 1) of `rows` parts of the Nyquist, so its centre sits at r + 0.5.
+ * [r, r + 1) of `rows` parts of the Nyquist, so its center sits at r + 0.5.
  *
  * @param {number} nyquist
  * @param {number} rows
@@ -178,8 +178,8 @@ function levelAt(levels, pos) {
 }
 
 /**
- * The slice a pixel column blends toward: the neighbour on the side of the
- * slice's centre the pixel falls, and how far toward it, from 0 at the centre
+ * The slice a pixel column blends toward: the neighbor on the side of the
+ * slice's center the pixel falls, and how far toward it, from 0 at the center
  * to 0.5 at the shared edge. No blend across an empty interval or a change of
  * band layout.
  *
@@ -188,7 +188,7 @@ function levelAt(levels, pos) {
  * @param {number} t
  * @returns {{ other: Span | null, w: number }}
  */
-function neighbour(slices, i, t) {
+function neighbor(slices, i, t) {
   const s = slices[i];
   const mid = (s.start + s.end) / 2;
   const other = t < mid ? slices[i - 1] : slices[i + 1];
@@ -218,7 +218,7 @@ export function rasterize(ramp, { cells, span, range, top }, from = 0) {
     const t = ((x + 0.5) / W) * span;
     while (i < slices.length - 1 && t >= slices[i].end) i++;
     const s = slices[i];
-    if (s && t >= s.start) paintColumn({ data, width }, x - from, { s, ...neighbour(slices, i, t) }, color);
+    if (s && t >= s.start) paintColumn({ data, width }, x - from, { s, ...neighbor(slices, i, t) }, color);
   }
   return { width, height: H, data };
 }
@@ -256,7 +256,7 @@ const rampIndex = (db, range) => Math.round(clamp((db + range) / range, 0, 1) * 
 
 /**
  * Paint one pixel column x of an image from a slice blended toward its
- * neighbour.
+ * neighbor.
  *
  * @param {{ data: Uint8ClampedArray, width: number }} img
  * @param {number} x

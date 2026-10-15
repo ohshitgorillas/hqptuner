@@ -135,7 +135,7 @@ The matrix page is a second form on the 8088 server and follows the `/config` pa
 | Pipeline rows ×N | table | `source_i`, `gain_i`, `gainunit_i` (dB/Lin), `mixdown_i`, `process_i`, `plot_i`, `filter_i` (file, wav/txt, multiple) | `<pipeline channel source gain mixdown process/>` inside `<matrix>` |
 | Plot | submit | `formaction=/matrix/plot` | magnitude and phase response per checked row (manual §7) |
 
-The row count follows `channels`. Source and mixdown selects span wire values 0–127, labelled 1–128. A `matrix_profile` element carries a full 16-row set whatever the active channel count. The daemon emits malformed HTML in the gainunit options (`value="dB""`, a stray quote), so a parser has to tolerate it.
+The row count follows `channels`. Source and mixdown selects span wire values 0–127, labeled 1–128. A `matrix_profile` element carries a full 16-row set whatever the active channel count. The daemon emits malformed HTML in the gainunit options (`value="dB""`, a stray quote), so a parser has to tolerate it.
 
 **Gain unit encoding.** The XML `gain` attribute stores linear gain with an `L` prefix (`gain="L0.5"`, `gain="L-1"`); a bare number is dB. Both forms round-trip through the form and the XML, and negative linear gain (polarity inversion, mid/side) works.
 

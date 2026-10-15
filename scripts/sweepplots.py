@@ -14,7 +14,7 @@ and the first per corner state.
 Findings (``kind``, ``selector``, ``value``):
 
 - ``few-points``   vertices per px of drawn width under 0.5, on 3+ vertices
-- ``long-segment`` a segment over 4 px whose neighbour turns more than 15 degrees
+- ``long-segment`` a segment over 4 px whose neighbor turns more than 15 degrees
 - ``hash``         direction reversals of dy inside the densest 100 px stretch
                    of the trace, over 30
 - ``narrow``       px width of the drawn line where it stands more than halfway
@@ -259,7 +259,7 @@ def _trace_findings(trace: dict[str, Any], svg_rendering: str, bounds: dict[str,
 
 
 def _long_segment(segs: list[tuple[float, float, float]]) -> float:
-    """Return the longest segment over the cap whose neighbour turns past the angle, else 0."""
+    """Return the longest segment over the cap whose neighbor turns past the angle, else 0."""
     worst = 0.0
     for i, seg in enumerate(segs):
         if seg[2] <= LONG_SEGMENT_PX:

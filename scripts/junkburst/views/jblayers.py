@@ -1,4 +1,4 @@
-"""Four layer readings per steady labelled burst at every image fold, collapsed per fold family and graded per family.
+"""Four layer readings per steady labeled burst at every image fold, collapsed per fold family and graded per family.
 
 Every reading is taken on the burst's summed dB frames, at each of 22.05, 24, 44.1 and 48 kHz that lies on the burst's
 grid and below its container's Nyquist:
@@ -19,8 +19,8 @@ over its bursts per reading.
 Each 1x track also takes a layered verdict, the first layer that fires deciding it: layer 1 calls fake when its
 ``mirror_frame`` max reaches a cut M, layer 2 calls real when its ``above_ratio`` max reaches a cut R, layer 3 calls
 fake when any of its bursts engages under the running rule of ``jbrunning.py`` at a 0.5 s warm-up and an 8 dB/kHz named
-cut, at any step cut and unnamed cut that rule sweeps, and a track no layer decides is called real. M is swept over
-0.1, 0.2, 0.3 and 0.4, and R over -20, -15, -10 and -5 dB.
+cut, at any step cut and unnamed cut that rule sweeps, and a track no layer decides is called real. M takes each of
+``MIRROR_CUTS`` and R each of ``RATIO_CUTS_DB``.
 """
 
 from __future__ import annotations
@@ -252,7 +252,7 @@ def track_rows(per_burst: list[tuple[str, str, dict[str, float]]], family: str) 
 
 
 def score_corpus() -> dict[str, list[TrackRow]]:
-    """Read every steady labelled burst once and return each family's per-track rows."""
+    """Read every steady labeled burst once and return each family's per-track rows."""
     bursts = steady_bursts()
     tracks = load_tracks()
     per_family: dict[str, list[tuple[str, str, dict[str, float]]]] = {family: [] for family in FAMILIES}
@@ -434,7 +434,7 @@ def verdict_lines(sweep: list[SweepRow]) -> list[str]:
 
 def write_report(families: dict[str, list[TrackRow]], sweep: list[SweepRow]) -> None:
     """Write every family's per-track table, nearest-the-line lists and cut table, then the layered verdict."""
-    lines = ["# Layer readings per fold family over the labelled corpus", "", f"Produced by `{RUN_CMD}`.", ""]
+    lines = ["# Layer readings per fold family over the labeled corpus", "", f"Produced by `{RUN_CMD}`.", ""]
     for family, rows in families.items():
         folds = " and ".join(f"{f / 1_000.0:g}" for f in FAMILIES[family])
         names = FAMILY_READINGS[family]

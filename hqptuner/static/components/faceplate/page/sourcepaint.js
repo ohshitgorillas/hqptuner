@@ -25,7 +25,7 @@ export const SH = 170;
 const pct = (f) => `${(f * 100).toFixed(2)}%`;
 
 /**
- * A level array as a path across the viewBox: one point at each column's centre, down from full scale to `range`
+ * A level array as a path across the viewBox: one point at each column's center, down from full scale to `range`
  * below it, clamped to the plot.
  *
  * @param {ArrayLike<number>} levels  dBFS

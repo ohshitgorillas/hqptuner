@@ -55,7 +55,7 @@ pre.logtail{flex:1 1 0;min-height:var(--logtail-min);margin:var(--sp-1) 0 var(--
 /* Slider control (Blocks per cycle): `Set manually` box; grayed while automatic. */
 .slctl{display:flex;flex-direction:column;gap:var(--sp-3);min-width:0}
 
-/* About HQPlayer: identity as labelled VFD windows across the full width (Rate / Volume window grammar). */
+/* About HQPlayer: identity as labeled VFD windows across the full width (Rate / Volume window grammar). */
 .two.pairs > .span{grid-column:1/-1}
 .idrow{display:grid;grid-template-columns:max-content repeat(4,minmax(0,1fr));gap:var(--sp-6)}   /* product never clips */
 .idrow .vfd{height:var(--idrow-h);padding:var(--sp-3) var(--sp-6)}

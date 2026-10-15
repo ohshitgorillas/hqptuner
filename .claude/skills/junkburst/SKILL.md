@@ -20,7 +20,7 @@ A table that grades one of the contested albums on the other side names that bas
 | Capture | `scripts/junkcal/junkcal_burst.py`, 5 s bursts 120 s apart while hi-res plays |
 | Printer, read-only | `scripts/junkcal/junkburst_print.py` |
 | Engine | `hqptuner/engine/blockstats.py`, `junkrun.py`, `junkadvisor.py`, `junkcurve.py`; stream reader `metering.py` |
-| Scratch, untracked | `~/dev/hqptuner/.junkburst*`: labelled reports, renders under `.junkburst-spectra-all/<artist> - <album>/`, the blind batch under `.junkburst-eyes/` |
+| Scratch, untracked | `~/dev/hqptuner/.junkburst*`: labeled reports, renders under `.junkburst-spectra-all/<artist> - <album>/`, the blind batch under `.junkburst-eyes/` |
 | Feature flag | `ADVISOR_ENABLED` in `hqptuner/config.py` |
 
 The scratch tree sits at the root of the older checkout, not this one; both `.gitignore`s carry `/.junkburst*`.
@@ -38,7 +38,7 @@ Every grade, script and plan obeys these. Each is argued in the section named.
 - The corner is set by the music, not by the spur: the lowest setting whose roll-off start sits clear above the track's content ceiling (section 1). A spur does not veto 20k.
 - A setting's name is not where it cuts. Roll-off starts read by eye on HQPlayer's meter: 20k about 22 kHz, 30k about 35, 40k about 42, 50k about 60 (section 1).
 - A rising floor is not by itself a 50k signature (sections 1 and 5).
-- No block decides 20k: the wall is read per frame and the engage is a per-track latch. A plan, script or grade that puts a block between the frame and the latch is a defect (section 2). A frame is one metering transform hop as the wire carries it, 1025 bins, about 94 a second at the source rate; a block is the 1 s of frames `blockstats.py` closes into one record. The window grid under grading conventions is the burst-level grading window of the block candidates, not a licence to put one under the 20k verdict.
+- No block decides 20k: the wall is read per frame and the engage is a per-track latch. A plan, script or grade that puts a block between the frame and the latch is a defect (section 2). A frame is one metering transform hop as the wire carries it, 1025 bins, about 94 a second at the source rate; a block is the 1 s of frames `blockstats.py` closes into one record. The window grid under grading conventions is the burst-level grading window of the block candidates, not a license to put one under the 20k verdict.
 - The grade unit for 20k is the track, with time from the first walled frame to the engage as the second column. A quiet burst on a fake album is not a miss (section 2).
 - The cost of a wrong call is one-sided: never call real content junk; a missed upsample is a missed benefit. Scores weight accordingly (section 1).
 - A spectrum rule is never the answer key. Grading a detector against a rule on the same spectrum measures two definitions, not the detector (section 2).
@@ -78,4 +78,4 @@ A rule ships as a numpy mirror of the scoring package's arithmetic in `blockstat
 
 ## Blind eyes check
 
-`.junkburst-eyes/build.py` cuts a stratified batch of hashed renders with `map.tsv` and per-reader manifests; `readings/agent-N.tsv` carry `hash wall_khz above_wall spans streaks confidence`; `detector.py` and `agreement.md` join readings to labels and detector output. Readers are `spectrogram-reader` dispatches, one image each, with the path alone; twelve images go to two neighbouring readers for drift. Presence is readable by eye; faint against dense is not, and no rule is built on it.
+`.junkburst-eyes/build.py` cuts a stratified batch of hashed renders with `map.tsv` and per-reader manifests; `readings/agent-N.tsv` carry `hash wall_khz above_wall spans streaks confidence`; `detector.py` and `agreement.md` join readings to labels and detector output. Readers are `spectrogram-reader` dispatches, one image each, with the path alone; twelve images go to two neighboring readers for drift. Presence is readable by eye; faint against dense is not, and no rule is built on it.

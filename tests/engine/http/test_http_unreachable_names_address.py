@@ -1,7 +1,7 @@
 """What the 8088 web-interface lane reports when it cannot reach HQPlayer at all.
 
 The client is pointed at a loopback port nothing listens on, so every connection is refused at once by the kernel:
-a real refusal on a real socket, with nothing dialled beyond this host and no clock run.
+a real refusal on a real socket, with nothing dialed beyond this host and no clock run.
 
 What is asserted is what the test put there: the host and port the configuration client was built with.
 """

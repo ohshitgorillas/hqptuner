@@ -3,7 +3,7 @@
 Current state only.
 
 ## Constraints
-- Cohesion through the signal chain. No cards, no parts-bin reorganisation.
+- Cohesion through the signal chain. No cards, no parts-bin reorganization.
 - Never invent copy: manual, owner copy or engine enums only, verbatim; manual paragraphs in full.
 - No impulse plots. No transport features.
 - Target tablet landscape, in CSS px, three formats: Expanded 1366×1024 (13": iPad Air 13"), Normal 1180×820 (11": iPad / iPad Air 11") and Compact 1133×744 (iPad Mini, the smallest). The window picks the largest format that renders at a scale of 0.95 or above, scaled down to fit and never up; when none does, Compact, scaled down. The Display row in Settings' Visual settings (Auto | Expanded | Normal | Compact) overrides the pick. The plate is laid out at the picked format and reflows into it (rail stages flex, the `.fill` section takes the spare height, drawers and bodies widen). Everything fits without scrolling at every format, checked with the real fonts. Phone not required.
@@ -83,7 +83,7 @@ Current state only.
   - **Matrix profile** (the page section; the rail stage stays Matrix engine): profile select + Profile builder, the description box (user text, ink-2), response plot. In Auto it folds to its header line (above); in Spectrum it's gone.
   - **Resampling** and **Shaping:** one section each, as on the rail (one stage, one drawer, one section; reverses the 2026-10-03 merge, the Source spectrum gives back the header line). Resampling's header carries Filter presets; its body is the 1x / Nx filter, no narrowing tags (narrowing shows only in the filter list). Shaping: modulator or dither.
   - **Chain picker** (1x / Nx filter, modulator, dither): opens its list (sheet or panel). Under Option style Simplified the glass reads family › variant at reading size, then the plain name (accent); under Standard it reads the engine name alone (accent). No marks, counts, step buttons or sibling strip.
-  - **No mode control on the page.** Output mode is the station's. Two homes, one live state: the Output drawer's Format tab (Output mode, PCM | SDM (DSD), manual §4.2 in full) and the Setting Switcher's Output mode target (slots spelled out, centred: `Pulse Code Modulation (PCM)` | `Sigma Delta Modulation (SDM)` / `aka DIRECT STREAM DIGITAL (DSD)`). Auto ([source]) is not offered anywhere (manual §4.2: it "usually leads to sub-optimal result"; owner's call, pending the community poll); a daemon left in Auto elsewhere just shows where its output lands.
+  - **No mode control on the page.** Output mode is the station's. Two homes, one live state: the Output drawer's Format tab (Output mode, PCM | SDM (DSD), manual §4.2 in full) and the Setting Switcher's Output mode target (slots spelled out, centered: `Pulse Code Modulation (PCM)` | `Sigma Delta Modulation (SDM)` / `aka DIRECT STREAM DIGITAL (DSD)`). Auto ([source]) is not offered anywhere (manual §4.2: it "usually leads to sub-optimal result"; owner's call, pending the community poll); a daemon left in Auto elsewhere just shows where its output lands.
 - Volume has no section; its control is in the engine row. Output has none: the rail shows the format, the Output drawer sets it, and the output rate pin lives on the drawer's rate dial. HF filter has none when off.
 - Resampling and Shaping show the running chain only.
 

@@ -56,7 +56,7 @@ from hqptuner.api.factory import create_app
 from hqptuner.presets.store.live import LivePresetStore
 from hqptuner.presets.store.presets import PresetStore
 
-#: Every store name an answer can name, so a name is recognised whatever its spelling.
+#: Every store name an answer can name, so a name is recognized whatever its spelling.
 STORE_NAMES = {name for _, name in FILE_STORES} | {PRESETS}
 
 #: The station loaded in the install an archive is exported from, a name the install does not hold.
@@ -242,7 +242,7 @@ def audit_values(audit_log: Path, digest: str) -> set[object]:
     return set()
 
 
-# --- each recognised store replaces this install's copy -----------------------
+# --- each recognized store replaces this install's copy -----------------------
 
 
 def test_an_imported_favorites_store_replaces_the_installs_favorites(
@@ -492,7 +492,7 @@ def test_a_store_stamped_newer_than_this_build_is_refused_as_too_new(
     [
         pytest.param(b"this upload is not a zip archive", id="not-a-zip"),
         pytest.param(zip_of({}), id="empty-zip"),
-        pytest.param(zip_of({"hqptuner.log": b"a log line\n", "notes.txt": b"notes"}), id="no-recognised-store"),
+        pytest.param(zip_of({"hqptuner.log": b"a log line\n", "notes.txt": b"notes"}), id="no-recognized-store"),
         *[
             pytest.param(zip_of({"favorites.json": favorites(ARCHIVE_FAVORITE), **defect}), id=name)
             for name, defect in UNREADABLE_DEFECTS.items()

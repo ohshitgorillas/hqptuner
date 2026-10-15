@@ -31,7 +31,7 @@ const AXIS = { min: -120, max: 0 };
 const WIDE = { min: -120, max: 12 };
 const X = barX(W, AXIS, PADX);
 
-//: Four ticks: two labelled, one strong and labelled, one bare.
+//: Four ticks: two labeled, one strong and labeled, one bare.
 const MARKS = tickMarks([-30, -20, -3, 0], new Set([-30, -3, 0]), [0]);
 
 //: A loudness range and a volume range to press against; the pin row lies above y = 28.
@@ -90,11 +90,11 @@ test("test_tick_marks_keep_the_ticks_in_order", () => {
   );
 });
 
-test("test_a_labelled_tick_is_longer_than_a_bare_one", () => {
+test("test_a_labeled_tick_is_longer_than_a_bare_one", () => {
   assert.ok(MARKS[0].len > MARKS[1].len);
 });
 
-test("test_a_strong_tick_is_longer_than_a_labelled_one", () => {
+test("test_a_strong_tick_is_longer_than_a_labeled_one", () => {
   assert.ok(MARKS[3].len > MARKS[2].len);
 });
 
@@ -108,7 +108,7 @@ test("test_the_maximum_label_ends_at_its_tick", () => {
   assert.equal(labelAnchor(12, WIDE), "end");
 });
 
-test("test_an_inner_label_centres_on_its_tick", () => {
+test("test_an_inner_label_centers_on_its_tick", () => {
   assert.equal(labelAnchor(0, WIDE), "middle");
 });
 

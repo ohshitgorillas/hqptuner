@@ -206,7 +206,7 @@ export function spanShare(span) {
 /**
  * Bins laid onto `cols` columns from 0 Hz to `share` of Nyquist, bin `k` of `n` at `k/((n-1)·share)` of the way: each
  * column the loudest bin in its span, so a tone keeps its level however many bins share a column, and a column no bin
- * falls in takes the bin nearest its centre. A bin above the top of that view falls in no column.
+ * falls in takes the bin nearest its center. A bin above the top of that view falls in no column.
  *
  * @param {ArrayLike<number>} bins  dBFS
  * @param {number} cols
@@ -228,8 +228,8 @@ export function traceColumns(bins, cols, share = 1) {
 }
 
 /**
- * Columns smoothed across frequency: each the power average of itself and SMOOTH_COLS neighbours either side, weighted
- * 3-2-1 outward, over the neighbours that exist.
+ * Columns smoothed across frequency: each the power average of itself and SMOOTH_COLS neighbors either side, weighted
+ * 3-2-1 outward, over the neighbors that exist.
  *
  * @param {ArrayLike<number>} cols  dBFS
  * @returns {Float32Array}

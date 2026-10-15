@@ -19,7 +19,7 @@ from narrow import FixtureError
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/css/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "css" / "check_css_dirty.py"
+GATE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "gates" / "css" / "check_css_dirty.py"
 
 
 def _load_gate_module() -> ModuleType:
@@ -62,7 +62,7 @@ def test_an_unmarked_producer_is_reported_with_its_path_line_and_class() -> None
     ],
 )
 def test_a_compound_selector_pairing_the_class_with_data_dirty_marks_that_producer_only(css: str) -> None:
-    """The marked producer drops out and its unmarked neighbour stays."""
+    """The marked producer drops out and its unmarked neighbor stays."""
     result = GATE.unmarked({SOURCE: f"{DROW}\n{DCELL}"}, css)
     assert [cls for _, _, cls in result] == ["dcell"]
 
@@ -103,7 +103,7 @@ def test_a_producer_keys_on_the_first_token_of_its_class_attribute() -> None:
     assert [cls for _, _, cls in GATE.unmarked({SOURCE: source}, NO_CSS)] == ["drow"]
 
 
-def test_the_class_comes_from_the_tag_carrying_data_dirty_not_a_neighbour_on_its_line() -> None:
+def test_the_class_comes_from_the_tag_carrying_data_dirty_not_a_neighbor_on_its_line() -> None:
     """A plain tag earlier on the same line lends the producer nothing."""
     source = f'<span class="label"></span>{DROW}'
     assert [cls for _, _, cls in GATE.unmarked({SOURCE: source}, NO_CSS)] == ["drow"]

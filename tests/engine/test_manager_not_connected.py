@@ -11,7 +11,7 @@ from hqptuner.core import loader
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
 
-#: Where the manager is configured to look for HQPlayer; nothing is ever dialled.
+#: Where the manager is configured to look for HQPlayer; nothing is ever dialed.
 HOST = "192.0.2.7"
 PORT = 4999
 

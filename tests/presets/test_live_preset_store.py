@@ -277,7 +277,7 @@ def test_a_refused_save_leaves_the_newer_file_untouched(tmp_path: Path) -> None:
     assert path.read_text() == before
 
 
-# --- gaps: deleting beside a neighbour, listing order, deep lazy creation ----
+# --- gaps: deleting beside a neighbor, listing order, deep lazy creation ----
 
 
 def test_deleting_one_preset_leaves_the_other_readable(tmp_path: Path) -> None:

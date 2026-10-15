@@ -36,7 +36,7 @@ const SCHEMA = { id: "volume", title: "volume-title", aria: "volume", tabs: [] }
 const KEYS = ["volume_min", "startup_volume", "volume_max"];
 const LOUD_KEYS = ["loudness_range_low", "loudness_range_high"];
 
-/** Each setting's metadata: a label and a paragraph the suite can recognise. */
+/** Each setting's metadata: a label and a paragraph the suite can recognize. */
 const META = {
   settings: {
     volume: Object.fromEntries(KEYS.map((k) => [k, { label: `${k}-label`, tooltip: `${k}-paragraph` }])),

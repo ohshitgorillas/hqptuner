@@ -3,7 +3,7 @@
 `symptom`
 
 - A user running the published image cannot point HQPTuner at an hqplayerd on another machine from the Connection panel.
-- The panel opens, detects, accepts a host and credentials and reports a saved record; the app goes on dialling the address and credentials it was started with.
+- The panel opens, detects, accepts a host and credentials and reports a saved record; the app goes on dialing the address and credentials it was started with.
 - Nothing surfaces the override: health reads connected and the pill goes green against the old target.
 
 `rule`

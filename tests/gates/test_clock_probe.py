@@ -49,7 +49,7 @@ def _timer(recorder: clock_probe.Recorder, *, fires: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    ("fires", "expected"), [(True, {NODE: {"loop timer": ASKED}}), (False, {})], ids=["fired", "cancelled"]
+    ("fires", "expected"), [(True, {NODE: {"loop timer": ASKED}}), (False, {})], ids=["fired", "canceled"]
 )
 def test_a_loop_timer_counts_its_delay_only_when_it_fires(*, fires: bool, expected: Recorded) -> None:
     assert _recorded(lambda recorder: _timer(recorder, fires=fires)) == expected

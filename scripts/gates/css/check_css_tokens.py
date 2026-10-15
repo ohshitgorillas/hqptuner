@@ -29,7 +29,7 @@ from pathlib import Path
 DEFINITION_SITE = "tokens.css"
 PRAGMA = "token-exempt:"
 
-#: an exemption is honoured only when a reason follows the colon, the same
+#: an exemption is honored only when a reason follows the colon, the same
 #: contract check_css_cards.py enforces. The lookahead is what makes it real:
 #: without it the comment's own `*/` reads as a reason, and
 #: `/* token-exempt: */` — the form of an exemption nobody could justify —

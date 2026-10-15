@@ -80,7 +80,7 @@ test("test_fractional_steps_land_on_tenths", () => {
   );
 });
 
-test("test_zero_is_not_labelled_when_outside_the_scale", () => {
+test("test_zero_is_not_labeled_when_outside_the_scale", () => {
   assert.deepEqual(levelGrid({ lo: 2, hi: 30, step: 8 }, 100, 12).labels, [8, 16, 24]);
 });
 

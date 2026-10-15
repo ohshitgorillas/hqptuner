@@ -37,7 +37,7 @@ function stream() {
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
   openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: 2, centres: [1000, 2000] });
+  lastStream()?.emit("geometry", { nyquist: 22050, channels: 2, centers: [1000, 2000] });
 }
 
 /** How many −/+ Range buttons the section draws. */

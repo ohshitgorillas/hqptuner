@@ -1,4 +1,4 @@
-"""The record one owner-labelled run produces, handed whole to the printers and to the report writer."""
+"""The record one owner-labeled run produces, handed whole to the printers and to the report writer."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ GuardSweep = dict[str, dict[str, list[dict[str, Any]]]]
 
 
 @dataclass
-class LabelledRun:
+class LabeledRun:
     """Every input, value and verdict of one ``report --labels`` run."""
 
     tracks: dict[str, dict[str, str]] = field(default_factory=dict)
@@ -47,7 +47,7 @@ class LabelledRun:
     #: owner's ``labels.tsv`` album row reads ``BY_TRACK``. Leave-one-album-out grading stays on ``album_of``.
     row_key_of: dict[str, str] = field(default_factory=dict)
     graded: list[str] = field(default_factory=list)
-    unlabelled: list[str] = field(default_factory=list)
+    unlabeled: list[str] = field(default_factory=list)
     duplicates: list[dict[str, str]] = field(default_factory=list)
     rows: Rows = field(default_factory=dict)
     parts: Parts = field(default_factory=dict)

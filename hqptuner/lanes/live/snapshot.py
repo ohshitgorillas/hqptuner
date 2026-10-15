@@ -139,7 +139,7 @@ def read_field(field: str, state: dict[str, str], enums: dict[str, EnumItems], c
 
 
 def _shown(reading: Reading) -> dict[str, str]:
-    """Return a reading as the ``{value, name}`` a snapshot holds, the value labelling itself where it has no name."""
+    """Return a reading as the ``{value, name}`` a snapshot holds, the value labeling itself where it has no name."""
     return {"value": reading.value, "name": reading.name or reading.value}
 
 

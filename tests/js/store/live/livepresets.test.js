@@ -188,7 +188,7 @@ test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
 // `{ok: false, error, code}` per setter). The fixture
 // invents both texts, so asserting them pins no shipped wording.
 // An error that names
-// its setting reads differently for two settings, and never shows a labelled
+// its setting reads differently for two settings, and never shows a labeled
 // setting's form key.
 
 // The PCM chain's two filter slots, by form key, each owned by a control on the
@@ -228,11 +228,11 @@ test("test_a_preset_setting_the_daemon_refused_is_shown_without_its_form_key", a
 });
 
 // Keys no control on the page owns have no label to show, so each wire key stands in.
-const UNLABELLED = "no_control_owns_this_key";
+const UNLABELED = "no_control_owns_this_key";
 
 test("test_a_refused_preset_setting_no_control_owns_is_named_by_its_wire_key", async () => {
-  const text = await failedApply([refusedSetter(UNLABELLED)]);
-  assert.ok(text.includes(UNLABELLED), text);
+  const text = await failedApply([refusedSetter(UNLABELED)]);
+  assert.ok(text.includes(UNLABELED), text);
 });
 
 test("test_a_preset_setting_the_daemon_stopped_answering_on_is_shown_without_its_form_key", async () => {

@@ -28,7 +28,7 @@ PLATE_FILL = re.compile(r"^background(?:-color)?\s*:\s*var\(\s*--plate")
 ANY_RADIUS = re.compile(r"^border-radius\s*:\s*(?!0\s*$)")
 #: the one faceplate selector allowed to round the plate's fill
 PLATE_CLASS = re.compile(r"\.plate(?![\w-])")
-#: an exemption is honoured only when a reason follows the colon. The lookahead
+#: an exemption is honored only when a reason follows the colon. The lookahead
 #: is what makes that real: without it the comment's own `*/` reads as a reason,
 #: and `/* card-frame-exempt: */` — the exact form of an exemption nobody could
 #: justify — buys silence.

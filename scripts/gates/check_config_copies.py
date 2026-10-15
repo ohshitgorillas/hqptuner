@@ -34,7 +34,7 @@ ESLINT_COMPLEXITY = re.compile(r'\bcomplexity:\s*\[\s*"error",\s*(?P<limit>\d+)'
 #: Xenon's per-block grade flag in either spelling, grade captured.
 XENON_GRADE = re.compile(r"\bxenon\b.*?(?:--max-absolute|-b)(?:=|\s+)(?P<grade>\w+)")
 
-#: A Makefile variable assignment in any flavour, name and value captured.
+#: A Makefile variable assignment in any flavor, name and value captured.
 MAKE_ASSIGNMENT = re.compile(r"^(?P<name>[A-Za-z_]\w*)\s*(?P<op>::?=|\?=|\+=|=)\s*(?P<value>.*)$")
 
 #: A Makefile reference: an escaped ``$$``, or ``$(NAME)`` / ``${NAME}``.

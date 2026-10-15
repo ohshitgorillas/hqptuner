@@ -108,7 +108,7 @@ export function volumeRangeNow() {
 }
 
 /**
- * Move a handle to `v` dBFS: it lands on whole dB, inside its own bound and never past its neighbours
+ * Move a handle to `v` dBFS: it lands on whole dB, inside its own bound and never past its neighbors
  * (model/gauges/range-axis.js clampVolume on lib/volume.js AXIS), and stages unless it lands where it already is.
  *
  * @param {VolumeKey} k

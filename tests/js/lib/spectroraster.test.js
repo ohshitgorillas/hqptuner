@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { W, rampFrom, rasterize, scrollPlan } from "../../../hqptuner/static/lib/spectroraster.js";
 
 // Floor a dark blue, top a warm yellow: apart from each other and from black,
-// with a steep last segment so a neighbouring step reads as a different color.
+// with a steep last segment so a neighboring step reads as a different color.
 const RAMP = rampFrom(["#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#f5d142"]);
 
 // A ramp whose red channel is its own step, so a pixel names the step it took.
@@ -73,12 +73,12 @@ const stepsAcross = (raster, xs, y) => xs.map((x) => step(raster, x, y));
 const stepsDown = (raster, x, ys) => ys.map((y) => step(raster, x, y));
 
 /**
- * The RGB channels of the raster's centre pixel.
+ * The RGB channels of the raster's center pixel.
  *
  * @param {{ width: number, height: number, data: Uint8ClampedArray }} raster
  * @returns {number[]}
  */
-function centreRgb({ width, height, data }) {
+function centerRgb({ width, height, data }) {
   const at = (Math.floor(height / 2) * width + Math.floor(width / 2)) * 4;
   return Array.from(data.subarray(at, at + 3));
 }
@@ -90,7 +90,7 @@ test("test_a_band_at_full_scale_paints_the_ramps_top_color", () => {
     range: 120,
     top: NYQUIST,
   });
-  assert.deepEqual(centreRgb(raster), RAMP[RAMP.length - 1]);
+  assert.deepEqual(centerRgb(raster), RAMP[RAMP.length - 1]);
 });
 
 // Bytes 25, 100 and 105 are -30, -120 and -126 dBFS: three quarters up a
@@ -146,14 +146,14 @@ test("test_a_cells_slot_is_divided_evenly_among_its_slices", () => {
   assert.deepEqual(stepsAcross(raster, [149, 449, 749, 1049], 240), [255, 205, 155, 105]);
 });
 
-// Two slices of two seconds each: a column blends toward the neighbour on its
-// side of the slice's centre, nearly halfway at the shared edge.
-test("test_a_column_blends_toward_the_neighbouring_slice", () => {
+// Two slices of two seconds each: a column blends toward the neighbor on its
+// side of the slice's center, nearly halfway at the shared edge.
+test("test_a_column_blends_toward_the_neighboring_slice", () => {
   const raster = rasterize(STEPS, view([{ ms: SPAN, nyquist: NYQUIST, slices: [flat(0), flat(240)] }]));
   assert.deepEqual(stepsAcross(raster, [299, 449, 599, 900], 240), [255, 195, 135, 15]);
 });
 
-test("test_slices_of_neighbouring_cells_with_one_nyquist_blend_across_their_seam", () => {
+test("test_slices_of_neighboring_cells_with_one_nyquist_blend_across_their_seam", () => {
   const cells = [
     { ms: SPAN / 2, nyquist: NYQUIST, slices: [flat(0)] },
     { ms: SPAN / 2, nyquist: NYQUIST, slices: [flat(240)] },
@@ -161,7 +161,7 @@ test("test_slices_of_neighbouring_cells_with_one_nyquist_blend_across_their_seam
   assert.equal(step(rasterize(STEPS, view(cells)), 599, 240), 135);
 });
 
-test("test_an_interval_with_no_frame_stays_unpainted_and_its_neighbours_do_not_blend_across_it", () => {
+test("test_an_interval_with_no_frame_stays_unpainted_and_its_neighbors_do_not_blend_across_it", () => {
   const cells = [
     { ms: 1000, nyquist: NYQUIST, slices: [flat(0)] },
     { ms: 1000, nyquist: NYQUIST, slices: [] },
@@ -203,7 +203,7 @@ const BANDED = view([
   { ms: 3000, nyquist: NYQUIST, slices: [0, 1, 2, 3, 4].map((k) => slice((r) => (r + 40 * k) % 256)) },
 ]);
 
-// Column 700 lies left of its slice's centre, so it blends toward a slice that
+// Column 700 lies left of its slice's center, so it blends toward a slice that
 // ends before it.
 for (const from of [1, 700, W - 1]) {
   test(`test_a_raster_from_column_${from}_is_the_full_rasters_columns_from_there_to_the_right_edge`, () => {
@@ -239,7 +239,7 @@ function countedCells(read) {
   });
 }
 
-// Column 1170 lies left of the newest slice's centre, so it blends toward the
+// Column 1170 lies left of the newest slice's center, so it blends toward the
 // slice before it.
 test("test_a_raster_from_the_newest_cells_first_column_is_the_full_rasters_columns_from_there", () => {
   const cells = view(countedCells(new Set()));

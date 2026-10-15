@@ -41,7 +41,7 @@ const FLOOR_SEEDED = "-90";
 const FLOOR_PICKED = "-48";
 
 /**
- * The VU reference surface on the prefs module, with the neighbours it must leave alone.
+ * The VU reference surface on the prefs module, with the neighbors it must leave alone.
  *
  * @typedef {{
  *   vuReference?: { value: string },

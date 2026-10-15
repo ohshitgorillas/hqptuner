@@ -10,7 +10,7 @@ from jbpolicy import POLICY_G90_FIXED_CUT, policy_rule_row
 from jbthresholds import best_threshold, calls_fake
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun, MaskRow
+    from jbrun import LabeledRun, MaskRow
 
 #: The loud-frame step a block must clear on its own to engage under a qualifier rule, in dB.
 QUALIFIER_CUT = POLICY_G90_FIXED_CUT
@@ -124,7 +124,7 @@ def flip_qualifier_rows(
     blocks: list[tuple[MaskRow, tuple[str, float, str], tuple[str, float, str]]],
     bursts: dict[str, list[int]],
     kept: set[int],
-    run: LabelledRun,
+    run: LabeledRun,
 ) -> list[dict[str, Any]]:
     """Ten policy rows: the flip qualifier rule at each of ``FLIP_QUALIFIER_FLOORS`` times ``FLIP_CUTS``.
 
@@ -148,7 +148,7 @@ def _flip_sweep_intro() -> str:
     )
 
 
-def flip_sweep_section(run: LabelledRun) -> list[str]:
+def flip_sweep_section(run: LabeledRun) -> list[str]:
     """Return the flip sweep: one row per ``FLIP_CUTS`` cut plus the leave-one-album-out row, then per-cut tables."""
     head = "| cut (dB per kHz) | wrong | fake called real | real called fake |"
     rows = [

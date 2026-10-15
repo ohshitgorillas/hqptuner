@@ -227,7 +227,7 @@ def test_a_search_on_uvloop_lists_what_the_standard_loop_lists(
 
 class TimerLedgerLoop(asyncio.SelectorEventLoop):
     """The standard event loop, keeping the delay of every real-clock timer that
-    ran out on it. A timer cancelled before its time is not a wait on the clock
+    ran out on it. A timer canceled before its time is not a wait on the clock
     and is not kept."""
 
     def __init__(self, ran_out: list[float]) -> None:

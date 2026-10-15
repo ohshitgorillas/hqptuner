@@ -1,7 +1,7 @@
 /* Faceplate primitives: lamps, legends, VFD glass, segments, buttons, tags, text blocks.
    Every region stylesheet builds on these; none of them know about layout. */
 
-/* Lamps: round indicator. .on = green, .bad = red. .big = bezelled engine-row lamp. */
+/* Lamps: round indicator. .on = green, .bad = red. .big = bezeled engine-row lamp. */
 .lamp{width:var(--lamp-d);height:var(--lamp-d);border-radius:var(--r-round);background:var(--lamp-off);border:var(--hair) solid var(--lamp-rim);box-shadow:var(--lamp-well);flex-shrink:0}
 .lamp.on{background:var(--ok);box-shadow:0 0 var(--sp-3) var(--ok),inset 0 0 var(--sp-1) var(--glint)}
 .lamp.bad{background:var(--bad);box-shadow:0 0 var(--sp-3) var(--bad),inset 0 0 var(--sp-1) var(--glint)}

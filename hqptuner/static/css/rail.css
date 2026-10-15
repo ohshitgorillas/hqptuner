@@ -15,7 +15,7 @@
    the mark's room free at its end, so the mark never moves a lamp or a wrap and stays inside the stage. */
 .crail > .st > .n{padding-right:calc(var(--dot) + 2 * var(--sp-3))}
 .st .n > .stg{align-self:flex-start;flex-shrink:0;margin-right:calc(-1 * (var(--dot) + 2 * var(--sp-3)))}
-/* A name that wraps (the DSD conversion stage): the lamp sits centred on its first line. */
+/* A name that wraps (the DSD conversion stage): the lamp sits centered on its first line. */
 .st.wrap .lamp{align-self:start;margin-top:calc((var(--st-name) * var(--lh-eng) - var(--lamp-d-rail)) / 2)}
 .st.sub{--st-name:var(--fs-4);padding:0 0 0 var(--sp-8)}
 .plate[data-size="expanded"] .crail > .st{--st-name:var(--fs-6);--st-value:var(--fs-3)}
@@ -28,7 +28,7 @@
 
 /* Stage whose drawer is open: amber name + a selection bar on the LEFT edge, outside the wire, in the plate margin
    (selection bars are left-hand everywhere, like the drawers' option rows; a right-edge bar touching
-   the drawer read as a reflection of them). The bar is centred in the plate's side padding. */
+   the drawer read as a reflection of them). The bar is centered in the plate's side padding. */
 .st.open .n{color:var(--acc)}
 .st.open::after{content:"";position:absolute;left:calc(var(--sp-9) / -2 - var(--stroke) / 2);top:var(--sp-2);bottom:var(--sp-2);width:var(--stroke);background:var(--acc);box-shadow:0 0 var(--sp-3) var(--acc-glow-hi)}
 /* Two adjacent stages open on one drawer (Resampling + Shaping): their bars join into one, bracketing both. */
@@ -37,7 +37,7 @@
 .st.open:is(:has(+ .st.open),:has(+ .st[hidden] + .st.open),:has(+ .st[hidden] + .st[hidden] + .st.open))::after{bottom:0}
 :is(.st.open + .st.open,.st.open + .st[hidden] + .st.open,.st.open + .st[hidden] + .st[hidden] + .st.open)::after{top:0}
 
-/* Stage dots: a touch smaller than header/engine lamps, centred on the wire column. */
+/* Stage dots: a touch smaller than header/engine lamps, centered on the wire column. */
 .rail .lamp{width:var(--lamp-d-rail);height:var(--lamp-d-rail);justify-self:center}
 .rail .lamp.on{box-shadow:0 0 var(--sp-2) var(--ok),inset 0 0 var(--hair) var(--glint)}
 .rail .lamp.pause{background:var(--warn);box-shadow:0 0 var(--sp-2) var(--warn),inset 0 0 var(--hair) var(--glint)}   /* paused: Source alone, solid amber */

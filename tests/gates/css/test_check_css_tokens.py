@@ -19,7 +19,7 @@ from narrow import FixtureError
 
 #: The gate script under test, found relative to this file rather than through
 #: an import: it lives in ``scripts/gates/css/``, outside any package.
-GATE_PATH = Path(__file__).resolve().parents[2] / "scripts" / "gates" / "css" / "check_css_tokens.py"
+GATE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "gates" / "css" / "check_css_tokens.py"
 
 
 def _load_gate_module() -> ModuleType:

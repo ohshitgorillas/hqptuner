@@ -93,7 +93,7 @@
 /* ── Rate dial ───────────────────────────────────────────────────────────
    Tuner band scale. Tiers are octaves, so evenly spaced; each shows its 44.1k and 48k member.
    Amber needle = limit (drag snaps, tap a tier, arrow keys). Green lamp = rate playing now.
-   Hatched = device announced it cannot carry that tier; greyed, never blocked.
+   Hatched = device announced it cannot carry that tier; grayed, never blocked.
    Layers (components/faceplate/drawers/output/RateDial.js): hatch, rule + minor ticks, needle, tier printing, playing lamp. */
 .dial{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);cursor:pointer;touch-action:none;overflow:hidden}
 /* The drawing's box: the glass's full width at its own aspect (set inline from the viewBox), so the glass is as tall as
@@ -112,7 +112,7 @@
 .dial svg{display:block}
 /* A glass halo clears the needle and the hatch round the frequency lines and the unavailable note. Only unspaced text
    takes one: an engine may paint letter-spaced text glyph by glyph, stroke then fill, so each glyph's halo would cover
-   its neighbour. The band titles and tier names are letter-spaced, so each sits on a glass knockout instead
+   its neighbor. The band titles and tier names are letter-spaced, so each sits on a glass knockout instead
    (KnockedText.js), painted over every mark beneath it. */
 .dial .freq,.dial .note{paint-order:stroke;stroke:var(--glass);stroke-width:var(--sp-2);stroke-linejoin:round}
 .dial .knock{fill:var(--glass)}

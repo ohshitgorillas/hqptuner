@@ -7,9 +7,9 @@
 //   the flag is per-entry data, never a default. With the pref OFF (Standard)
 //   the return value is the input array untouched, so nothing carries a flag.
 //
-//   schema: the `noise_filter` row is labelled "Noise filter" and joins the
-//   `noise_filter` plain-names section; the `pcm_conversion` row is labelled
-//   "Decimation filter", sublabelled "SDM → PCM conversion", and joins the
+//   schema: the `noise_filter` row is labeled "Noise filter" and joins the
+//   `noise_filter` plain-names section; the `pcm_conversion` row is labeled
+//   "Decimation filter", sublabeled "SDM → PCM conversion", and joins the
 //   `pcm_conversion` plain-names section. The labels are pinned because they
 //   are the spec's own wording for these two rows.
 //

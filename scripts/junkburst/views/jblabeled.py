@@ -44,8 +44,8 @@ from jbconfig import (
 from jbcurves import Grid, content_curves, frame_content, musical_frames, readings, readings_walkup, walk_curves
 from jbderived import load_burst, musical_groups, summed_db
 from jbedge import EDGE_CANDIDATES, block_edge_values, edge_tables
-from jblabelledprint import print_family_totals, print_summary, print_target_blocks
-from jblabelledreport import write_labelled_report
+from jblabeledprint import print_family_totals, print_summary, print_target_blocks
+from jblabeledreport import write_labeled_report
 from jblabels import collapse_overlaps, load_labels, load_tracks, owner_label, primary_artist
 from jbloao import loao_table
 from jbmask import MASK_SWEEP_CANDIDATE, mask_sweep, mask_tables
@@ -53,7 +53,7 @@ from jbmirror import mirror_tables
 from jbpolicy import loud_frame_sweep, policy_grade
 from jbpolicyyield import policy_yield_augment
 from jbquiet import QUIET_CANDIDATES, SPLITS, a_missed_albums, quiet_album_totals, split_keep, split_tables
-from jbrun import AmtCache, Edge, GStep, LabelledRun, Mask, Mirror, Parts, Quiet, Rows, Scored
+from jbrun import AmtCache, Edge, GStep, LabeledRun, Mask, Mirror, Parts, Quiet, Rows, Scored
 from jbthresholds import BASE_LABEL_CANDIDATES, LABEL_CANDIDATES, PartRow, best_threshold, calls_fake, sweep_guard
 from jbtilt import TILT_READINGS, block_tilt_values, tilt_augment
 from jbveto import real_veto
@@ -290,18 +290,18 @@ def _album_totals(rows: Rows, scored: Scored, album_of: dict[str, str]) -> dict[
     return albums
 
 
-def _load_run() -> LabelledRun:
+def _load_run() -> LabeledRun:
     """Resolve every burst's owner label, drop duplicate arrivals, and note each burst's group and album."""
     tracks = load_tracks()
     by_album, by_track = load_labels()
     stamps = sorted(p.stem for p in DER.glob("*.npy"))
     print(f"derived bursts={len(stamps)}", flush=True)
     owner = {stamp: owner_label(stamp, tracks, by_album, by_track) for stamp in stamps}
-    unlabelled = sorted(s for s in stamps if owner[s] is None)
-    labelled = [s for s in stamps if owner[s] is not None]
-    graded, duplicates = collapse_overlaps(labelled)
+    unlabeled = sorted(s for s in stamps if owner[s] is None)
+    labeled = [s for s in stamps if owner[s] is not None]
+    graded, duplicates = collapse_overlaps(labeled)
     print(
-        f"labelled={len(labelled)} duplicates={len(duplicates)} graded={len(graded)} unlabelled={len(unlabelled)}",
+        f"labeled={len(labeled)} duplicates={len(duplicates)} graded={len(graded)} unlabeled={len(unlabeled)}",
         flush=True,
     )
     # An empty album field keys on the artist too; a BY_TRACK album rows once per track in row_key_of instead.
@@ -315,7 +315,7 @@ def _load_run() -> LabelledRun:
         album_of[s] = album or f"{artist} (no album)"
         key = (primary_artist(artist), album)
         row_key_of[s] = f"{album_of[s]} — {track}" if by_album.get(key) == BY_TRACK else album_of[s]
-    return LabelledRun(
+    return LabeledRun(
         tracks=tracks,
         stamps=stamps,
         owner=owner,
@@ -323,12 +323,12 @@ def _load_run() -> LabelledRun:
         album_of=album_of,
         row_key_of=row_key_of,
         graded=graded,
-        unlabelled=unlabelled,
+        unlabeled=unlabeled,
         duplicates=duplicates,
     )
 
 
-def report_labelled() -> None:
+def report_labeled() -> None:
     """Grade every block against the owner's label instead of the spectrum rule, and write the report."""
     run = _load_run()
     acc = _score_all(run.graded, run.owner, run.group_of)
@@ -377,4 +377,4 @@ def report_labelled() -> None:
         run.row_key_of,
     )
     print_summary(run)
-    write_labelled_report(run)  # written last, so a run that cannot write it still leaves every number on stdout
+    write_labeled_report(run)  # written last, so a run that cannot write it still leaves every number on stdout

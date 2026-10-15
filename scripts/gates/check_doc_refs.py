@@ -16,7 +16,7 @@ it names instead of with its position::
 This gate enforces that form, in both directions:
 
 1. **A quoted citation must resolve.** ``<doc>.md "Some heading"`` fails unless
-   that file has a Markdown heading matching it. Matching normalises away
+   that file has a Markdown heading matching it. Matching normalizes away
    backticks, emphasis and case, and a citation may give a unique prefix of the
    heading rather than all of it — so a long heading can be cited by its
    distinctive first clause. An ambiguous prefix fails: it would resolve to a
@@ -71,7 +71,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 PRAGMA = "doc-ref-exempt:"
 #: design docs whose ``§N`` citations must name a numbered heading
 NUMBERED = frozenset({"architecture"})
-#: the section number that opens a numbered heading, normalised
+#: the section number that opens a numbered heading, normalized
 HEADING_NUMBER = re.compile(r"^(\d+(?:\.\d+)*)\.?\s")
 
 #: a Markdown ATX heading, any level
@@ -89,18 +89,18 @@ DECORATION = re.compile(r"[`*_]+")
 QUOTED = re.compile(r"(?<!\")\b([\w-]+)\.md[`\s]+[\"“]([^\"”\n]+)[\"”]")
 
 
-def normalise(text: str) -> str:
+def normalize(text: str) -> str:
     """Fold a heading (or a citation of one) to its comparable form."""
     return " ".join(DECORATION.sub("", text).split()).casefold()
 
 
 def headings(path: Path) -> list[str]:
-    """Every heading in a Markdown file, normalised, in document order."""
+    """Every heading in a Markdown file, normalized, in document order."""
     found = []
     for line in path.read_text(encoding="utf-8").splitlines():
         match = HEADING.match(line)
         if match:
-            found.append(normalise(match.group(1)))
+            found.append(normalize(match.group(1)))
     return found
 
 
@@ -184,7 +184,7 @@ def exempt(lines: list[str], index: int) -> bool:
 
 def resolve(cited: str, available: list[str]) -> str | None:
     """Why this citation fails, or None when it resolves to one heading."""
-    want = normalise(cited)
+    want = normalize(cited)
     if want in available:
         return None
     hits = [h for h in available if h.startswith(want) or HEADING_NUMBER.sub("", h).startswith(want)]

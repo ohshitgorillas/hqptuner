@@ -1,7 +1,7 @@
 // The stage dock under the strip. One shape for every stage, read top to bottom under its chip (the chip names the
 // stage, so no title):
 //   row 1  what it is   (stage kind, band stepper, filter type, unit) ··· a locked stage's owner at the right end
-//   row 2  its values   (labelled boxes with their units, in wire order)
+//   row 2  its values   (labeled boxes with their units, in wire order)
 //   copy   what they mean, full width under the controls it explains
 // Hidden without a picked pipeline, or while its strip is in Raw. A crossfeed block's stage is read-only. The editors
 // for each kind are editors.js's; which chip and band it docks on, and whether it is locked, is

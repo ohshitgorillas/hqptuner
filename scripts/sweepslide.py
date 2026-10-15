@@ -6,7 +6,7 @@ and per tab crops every SVG and canvas, then steps every visible enabled range
 slider across its whole range by keyboard, writing a frame per step and the
 adjacent-frame deltas ``scripts/sweepplots.py`` derives, then captures every
 combination of the tab's sliders at their minimum and maximum (its corners).
-Keyboard is the only path the app honours for a slider that no pointer holds;
+Keyboard is the only path the app honors for a slider that no pointer holds;
 a synthetic value write is reverted.
 
 Outputs per tab: ``OUTDIR/<tab>-<n>-crop.png`` per plot; per slider

@@ -51,7 +51,7 @@ function stream() {
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
   openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: CHANNELS, centres: [1000, 2000] });
+  lastStream()?.emit("geometry", { nyquist: 22050, channels: CHANNELS, centers: [1000, 2000] });
 }
 
 const draw = () => elements(render(html`<${SourceMeter} />`));

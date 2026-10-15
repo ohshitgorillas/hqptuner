@@ -112,7 +112,7 @@ def test_an_uploaded_filter_is_listed_in_the_drawer_by_its_file_name(page: Page,
 def test_a_refused_filter_upload_adds_nothing_to_the_listed_files(page: Page, stack: stack_support.Stack) -> None:
     """Beside a filter already listed, a file the app refuses leaves the list exactly as it was."""
     panel = _overview(page, stack)
-    _upload(page, panel, _stored("e2e-room-centre.wav"))
+    _upload(page, panel, _stored("e2e-room-center.wav"))
     listed_before = _listed(panel)
     _upload(page, panel, _refused("e2e-not-a-wave.wav"))
     assert _listed(panel) == listed_before

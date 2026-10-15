@@ -140,7 +140,7 @@ const CX = 200,
   R = 112;
 
 /**
- * The view point at `deg` (0 straight ahead, positive to the right) and radius `rr` from the head's centre.
+ * The view point at `deg` (0 straight ahead, positive to the right) and radius `rr` from the head's center.
  *
  * @param {number} deg
  * @param {number} rr
@@ -170,8 +170,8 @@ function farPath(P, ear, r, sweep) {
 
 /**
  * The listening geometry of the top-down view at speaker angle `angle` (°) and head circumference `circ` (cm): the
- * head's centre and the cm radius it models (`a`), the drawn head radius `r` (the 6.5–10.5 cm band mapped onto
- * 15–25), the ears, the speakers toed in at ±angle, the centre axis, the ±30° reference ticks, the angle arc and its
+ * head's center and the cm radius it models (`a`), the drawn head radius `r` (the 6.5–10.5 cm band mapped onto
+ * 15–25), the ears, the speakers toed in at ±angle, the center axis, the ±30° reference ticks, the angle arc and its
  * label, and the two far paths (left speaker to right ear, then right speaker to left ear).
  *
  * @param {number} angle

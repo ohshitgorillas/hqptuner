@@ -369,7 +369,7 @@ def first_short(pieces: list[dict[str, Any]]) -> int:
 
 
 def apply_min_rows(pieces: list[dict[str, Any]], recs: list[Score], total: int) -> None:
-    """Give a short album rows from a neighbour that can spare them, else merge it into one."""
+    """Give a short album rows from a neighbor that can spare them, else merge it into one."""
     relines(pieces, recs, total)
     i = first_short(pieces)
     while i >= 0 and len(pieces) > 1:
@@ -594,7 +594,7 @@ def do_emit(inbox: Path, scores_path: Path, out_dir: Path, only: str | None = No
     """Cut, class and write the whole corpus, replacing whatever the fixture directory held.
 
     ``only`` names one capture stamp: the fixture directory is kept, that capture's albums are
-    added to the labels already there, and no album built before is re-emitted or relabelled.
+    added to the labels already there, and no album built before is re-emitted or relabeled.
     """
     by_stamp = load_scores(scores_path)
     out_dir.mkdir(parents=True, exist_ok=True)

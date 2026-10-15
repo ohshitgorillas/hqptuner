@@ -7,7 +7,7 @@ import { clamp } from "../../lib/coerce.js";
 /**
  * @typedef {object} DialScale
  * @property {number} x0    x of the first tier
- * @property {number} dx    distance between neighbouring tiers
+ * @property {number} dx    distance between neighboring tiers
  * @property {number[]} xs  x of each tier, in tier order
  */
 

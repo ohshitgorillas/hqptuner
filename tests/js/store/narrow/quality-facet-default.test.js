@@ -219,14 +219,14 @@ for (const setting of ["only", "half"]) {
   });
 }
 
-// Favourites-only is not a description of the filter but a membership choice
+// Favorites-only is not a description of the filter but a membership choice
 // the user made, so the escape hatch does not reach it. Another filter is
-// starred so the case is "not among the favourites", never "there are no
-// favourites at all", and quality is opened to "any" so favourites-only is the
+// starred so the case is "not among the favorites", never "there are no
+// favorites at all", and quality is opened to "any" so favorites-only is the
 // only facet that can drop the row — otherwise the 1/5 rating would drop it
 // under an implementation with no exemption at all, which is what this case
 // exists to catch.
-test("test_the_pass_through_is_not_offered_when_favourites_only_is_on_and_it_is_not_starred", () => {
+test("test_the_pass_through_is_not_offered_when_favorites_only_is_on_and_it_is_not_starred", () => {
   const options = seed(PASSTHROUGH);
   nQuality.value = 0;
   favoriteFilters.value = new Set(["gauss-five"]);

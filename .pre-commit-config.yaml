@@ -261,6 +261,12 @@ repos:
         types_or: [python, javascript, markdown]
         exclude: ^hqptuner/static/vendor/
 
+      - id: spelling
+        name: American spelling gate
+        entry: .venv/bin/python scripts/gates/check_spelling.py
+        language: system
+        types: [text]
+
       - id: archaeology
         name: decision-archaeology gate
         entry: .venv/bin/triviajudge-archaeology

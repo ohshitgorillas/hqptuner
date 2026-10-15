@@ -368,7 +368,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ### Fixed
 
-- **The Phase narrowing facet now classifies every filter the manual characterises, not just names carrying a phase token.** Token-less families such as poly-sinc-ext2, gauss and sinc count as linear phase per the manual, minphaseFIR as minimum, and minringFIR-lp is no longer misfiled under minimum phase.
+- **The Phase narrowing facet now classifies every filter the manual characterizes, not just names carrying a phase token.** Token-less families such as poly-sinc-ext2, gauss and sinc count as linear phase per the manual, minphaseFIR as minimum, and minringFIR-lp is no longer misfiled under minimum phase.
 
 ## [1.6.0] — 2026-08-14
 
@@ -540,7 +540,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **DAC bits and 48kHz DSD rates are no longer grayed out in the other output mode.** Both stayed editable settings you could only reach in one mode, so setting them up before switching meant staging the mode change, editing, then unstaging it again. They now stay editable in both modes and simply say which mode they apply to, in a note beside the control where every other note sits.
 
-- **The tab names are a size larger.** The row is the page's top-level navigation and was set at the same size as an emphasised control.
+- **The tab names are a size larger.** The row is the page's top-level navigation and was set at the same size as an emphasized control.
 
 - **The header no longer prints the playback state.** "Playing" / "Stopped" beside the daemon name duplicated what the signal path's chips already show.
 

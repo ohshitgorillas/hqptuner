@@ -180,7 +180,7 @@ function ridges(f) {
 }
 
 /**
- * Start a path through the plot fractions across the canvas, a point at each column's centre.
+ * Start a path through the plot fractions across the canvas, a point at each column's center.
  *
  * @param {Frame} f
  */

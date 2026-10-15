@@ -152,7 +152,7 @@ test("test_a_speaker_with_a_level_and_no_distance_sits_nearer_than_one_at_the_ne
 
 // --- distance ----------------------------------------------------------------------------------------------------
 
-test("test_a_speaker_at_the_smallest_distances_sits_nearer_than_one_a_centimetre_farther", () => {
+test("test_a_speaker_at_the_smallest_distances_sits_nearer_than_one_a_centimeter_farther", () => {
   assert.ok(radius(FRONT, NEAREST_CM) < radius(FRONT, NEXT_NEAREST_CM));
 });
 

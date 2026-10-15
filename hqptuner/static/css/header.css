@@ -57,7 +57,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .counter .cnt{text-align:right}
 
 /* The HF filter and the volume: the engine row's two controls. A hairline sets each apart from what stands before it;
-   the volume ends flush with the page's right edge. Each readout = labelled VFD window (same pattern as Output's Rate);
+   the volume ends flush with the page's right edge. Each readout = labeled VFD window (same pattern as Output's Rate);
    tapping it opens its popover, the HF filter's menu or the volume's slider. */
 .volc,.hfc{display:flex;align-items:center;padding-left:var(--sp-7);border-left:var(--hair) solid var(--line);height:var(--ctl-h)}
 .volc{gap:var(--sp-3)}

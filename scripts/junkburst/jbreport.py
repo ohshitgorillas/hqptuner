@@ -43,17 +43,17 @@ class SpectrumSweep:
 
 
 def _burst_label_section(track_rows: list[dict[str, Any]], burst_count: int) -> list[str]:
-    """Write the burst-label table and the two paragraphs stating how a burst is labelled and read."""
+    """Write the burst-label table and the two paragraphs stating how a burst is labeled and read."""
     cliff_tracks = sum(1 for r in track_rows if r["label"] == "cliff")
     full_tracks = sum(1 for r in track_rows if r["label"] == "full")
     scope = (
-        f"{burst_count} bursts unpacked frame by frame under `derived/`. Every block is labelled and scored on its "
+        f"{burst_count} bursts unpacked frame by frame under `derived/`. Every block is labeled and scored on its "
         f"own frames; the burst label below is for orientation only."
     )
     rule = (
         f"A burst is cliff when no frame in it carries content above 24 kHz clearing that frame's floor by 11 dB, in "
-        f"an 88.2 kHz or higher container, and full when frames do. Each burst is labelled on its own frames alone. "
-        f"{cliff_tracks} cliff, {full_tracks} full, {len(track_rows) - cliff_tracks - full_tracks} unlabelled for "
+        f"an 88.2 kHz or higher container, and full when frames do. Each burst is labeled on its own frames alone. "
+        f"{cliff_tracks} cliff, {full_tracks} full, {len(track_rows) - cliff_tracks - full_tracks} unlabeled for "
         f"container rate."
     )
     width = (
@@ -88,7 +88,7 @@ def _burst_label_section(track_rows: list[dict[str, Any]], burst_count: int) -> 
 def _candidate_sections(scored: dict[float, dict[str, CandidateScore]]) -> list[str]:
     """One section per window and candidate: the two sides' spread, the gap and the wrong-side count."""
     intro = (
-        f"Every block is labelled on its own frames: full when one musical frame in the block carries content above "
+        f"Every block is labeled on its own frames: full when one musical frame in the block carries content above "
         f"{LABEL_HZ / 1000:g} kHz clearing that frame's floor by {CONTRAST_DB:g} dB, cliff when none does. The burst "
         f"label in the table above is carried nowhere past that table. The cliff window runs "
         f"{CLIFF_WINDOW_HZ[0] / 1000:g} to {CLIFF_WINDOW_HZ[1] / 1000:g} kHz and the fall reference band "

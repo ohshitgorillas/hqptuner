@@ -1,4 +1,4 @@
-"""Threshold picking for the owner-labelled run, and the candidate register the tables are titled from."""
+"""Threshold picking for the owner-labeled run, and the candidate register the tables are titled from."""
 
 from __future__ import annotations
 
@@ -79,7 +79,7 @@ LABEL_CAND_TITLE = {
         + "; a fold or control outside the burst's grid drops out, and GC carries no reading when every control does"
     ),
     "H": (
-        f"H — G's signed step at a fold, minus the mean of the same two-band difference centred "
+        f"H — G's signed step at a fold, minus the mean of the same two-band difference centered "
         f"{CANDIDATE_H_OFFSET_HZ / 1000:g} kHz below the fold and {CANDIDATE_H_OFFSET_HZ / 1000:g} kHz above it; H "
         f"the larger absolute value over the folds at "
         + " and ".join(f"{hz / 1000:g} kHz" for hz in CANDIDATE_G_FOLDS_HZ)

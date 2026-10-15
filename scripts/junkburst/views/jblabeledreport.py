@@ -1,4 +1,4 @@
-"""The markdown report for the owner-labelled run, one function per section."""
+"""The markdown report for the owner-labeled run, one function per section."""
 
 from __future__ import annotations
 
@@ -27,9 +27,9 @@ from jbtilt import tilt_section
 from jbveto import real_veto_section
 
 if TYPE_CHECKING:
-    from jbrun import LabelledRun
+    from jbrun import LabeledRun
 
-_LABELLED_HEAD = (
+_LABELED_HEAD = (
     "| window | candidate | threshold | fake side | wrong-side blocks | fake called real | real called fake | "
     "blocks | fake blocks | real blocks |"
 )
@@ -39,9 +39,9 @@ _GUARD_HEAD = (
 )
 
 
-def _labelled_table(scored_group: dict[float, dict[str, dict[str, Any]]]) -> list[str]:
+def _labeled_table(scored_group: dict[float, dict[str, dict[str, Any]]]) -> list[str]:
     """One row per window and candidate: its threshold, which side reads fake, and its wrong-side split."""
-    lines = [_LABELLED_HEAD, "| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
+    lines = [_LABELED_HEAD, "| --- | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |"]
     for window in WINDOWS:
         for cand in LABEL_CANDIDATES:
             s = scored_group[window][cand]
@@ -67,7 +67,7 @@ def _guard_rows(sweep_rows: list[dict[str, Any]]) -> list[str]:
     return out
 
 
-def _guard_section(run: LabelledRun) -> list[str]:
+def _guard_section(run: LabeledRun) -> list[str]:
     """One table per candidate: its NaN guard swept, the threshold re-picked at every guard value."""
     intro = (
         "Each row re-reads the candidate with that guard value and picks the threshold again over the values the "
@@ -93,16 +93,16 @@ def _guard_section(run: LabelledRun) -> list[str]:
     return lines
 
 
-def _preamble(run: LabelledRun) -> list[str]:
+def _preamble(run: LabeledRun) -> list[str]:
     """State what is scored, how a burst takes its label, and what every threshold means."""
     fake = sum(1 for s in run.graded if run.owner[s] == "FAKE")
     real = len(run.graded) - fake
     scope = (
-        f"{len(run.graded)} bursts are scored, {fake} FAKE and {real} REAL; {len(run.unlabelled)} carry no label and "
+        f"{len(run.graded)} bursts are scored, {fake} FAKE and {real} REAL; {len(run.unlabeled)} carry no label and "
         f"are left out of every table below, and {len(run.duplicates)} more are dropped as duplicate arrivals. Every "
         f"burst takes the label `labels.tsv` gives its artist and album from `tracks.tsv`, with a `{BY_TRACK}` album "
         f"resolved once more by the burst's track title; a burst absent from `tracks.tsv`, or whose row reaches no "
-        f"label, is unlabelled."
+        f"label, is unlabeled."
     )
     rule = (
         "Each candidate's threshold is the value that puts the fewest blocks on the wrong side, swept over that "
@@ -121,7 +121,7 @@ def _preamble(run: LabelledRun) -> list[str]:
     ]
 
 
-def _group_sections(run: LabelledRun) -> list[str]:
+def _group_sections(run: LabeledRun) -> list[str]:
     """Write the steady table and the transition table, each with the count of bursts behind it."""
     steady = sum(1 for s in run.graded if run.group_of[s] == "steady")
     transition = (
@@ -132,16 +132,16 @@ def _group_sections(run: LabelledRun) -> list[str]:
         "",
         f"{steady} bursts whose `tracks.tsv` row does not mark a transition.",
         "",
-        *_labelled_table(run.scored["steady"]),
+        *_labeled_table(run.scored["steady"]),
         "## Transition bursts",
         "",
         transition,
         "",
-        *_labelled_table(run.scored["transition"]),
+        *_labeled_table(run.scored["transition"]),
     ]
 
 
-def _album_section(run: LabelledRun) -> list[str]:
+def _album_section(run: LabeledRun) -> list[str]:
     """Per-album wrong-side blocks, each candidate at its own threshold."""
     lines = [
         f"## Per-album wrong-side blocks at {HEADLINE_WINDOW:g} s",
@@ -161,7 +161,7 @@ def _album_section(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
-def _split_section(run: LabelledRun) -> list[str]:
+def _split_section(run: LabeledRun) -> list[str]:
     """Write A, G and GC at the headline window over all steady blocks, over the quiet ones, and over the loud ones."""
     intro = (
         f"Steady blocks only. A block is quiet when the 90th percentile of its 15{EN_DASH}18 kHz reference band sits "
@@ -192,7 +192,7 @@ def _split_section(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
-def _loao_section(run: LabelledRun) -> list[str]:
+def _loao_section(run: LabeledRun) -> list[str]:
     """Every candidate's leave-one-album-out totals beside its in-sample row, over the steady headline blocks."""
     head = run.scored["steady"][HEADLINE_WINDOW]
     intro = (
@@ -220,7 +220,7 @@ def _loao_section(run: LabelledRun) -> list[str]:
     return [*lines, "", *_loao_album_rows(run)]
 
 
-def _loao_album_rows(run: LabelledRun) -> list[str]:
+def _loao_album_rows(run: LabeledRun) -> list[str]:
     """Per album, G's and H's wrong-side blocks in sample and held out, for every album either puts one wrong."""
     lines = [
         f"### Per-album wrong blocks for G and H at {HEADLINE_WINDOW:g} s",
@@ -245,7 +245,7 @@ def _loao_album_rows(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
-def _quiet_album_section(run: LabelledRun) -> list[str]:
+def _quiet_album_section(run: LabeledRun) -> list[str]:
     """Per album over the quiet steady blocks: how many, how many G puts wrong, and G's median value there."""
     lines = [
         f"## Per-album G on quiet blocks at {HEADLINE_WINDOW:g} s",
@@ -262,7 +262,7 @@ def _quiet_album_section(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
-def _a_missed_section(run: LabelledRun) -> list[str]:
+def _a_missed_section(run: LabeledRun) -> list[str]:
     """Per album: the FAKE blocks A calls real, split into blocks with no reading and blocks with one below the cut."""
     thr = run.scored["steady"][HEADLINE_WINDOW]["A"]
     side = (
@@ -291,7 +291,7 @@ def _mask_cell(reading: str, value: float) -> str:
     return f"{value:.3f}" if reading == "correlation" else f"{value:.2f}"
 
 
-def _mask_decile_rows(run: LabelledRun) -> list[str]:
+def _mask_decile_rows(run: LabeledRun) -> list[str]:
     """One row per reading and split: how many blocks carry it, and p0 to p100 of it over them."""
     out = []
     for reading in MASK_READINGS:
@@ -302,7 +302,7 @@ def _mask_decile_rows(run: LabelledRun) -> list[str]:
     return out
 
 
-def _mask_album_rows(run: LabelledRun) -> list[str]:
+def _mask_album_rows(run: LabeledRun) -> list[str]:
     """One row per album: its label, its steady headline blocks, and the median of all three readings."""
     out = []
     for name in sorted(run.mask_albums):
@@ -312,11 +312,11 @@ def _mask_album_rows(run: LabelledRun) -> list[str]:
     return out
 
 
-def _mask_section(run: LabelledRun) -> list[str]:
+def _mask_section(run: LabeledRun) -> list[str]:
     """Write the mask reading over the steady headline blocks: its deciles by split, then its per-album medians."""
     folds = " and ".join(f"{hz / 1000:g} kHz" for hz in MASK_FOLDS_HZ)
     intro = (
-        f"Steady blocks only. Each frame's summed-channel power is normalised to per-Hz, and the block's above-fold "
+        f"Steady blocks only. Each frame's summed-channel power is normalized to per-Hz, and the block's above-fold "
         f"level is the median across its frames of the mean level in dB from {MASK_ABOVE_HZ[0]:g} Hz above the fold "
         f"to {MASK_ABOVE_HZ[1] / 1000:g} kHz above it. The music level is the same over "
         f"{CANDIDATE_E_REF_HZ[0] / 1000:g}{EN_DASH}{CANDIDATE_E_REF_HZ[1] / 1000:g} kHz, the ratio is the above-fold "
@@ -345,7 +345,7 @@ def _mask_section(run: LabelledRun) -> list[str]:
     return [*lines, ""]
 
 
-def _tail_sections(run: LabelledRun) -> list[str]:
+def _tail_sections(run: LabeledRun) -> list[str]:
     """List the duplicate arrivals dropped, and the bursts nothing labels."""
     dupes = (
         f"{len(run.duplicates)} bursts whose 5 s span of arrival time overlaps a burst already kept, so the same "
@@ -362,15 +362,15 @@ def _tail_sections(run: LabelledRun) -> list[str]:
         "",
         "## Bursts with no label",
         "",
-        f"{len(run.unlabelled)} bursts, counted and left out of the scoring above.",
+        f"{len(run.unlabeled)} bursts, counted and left out of the scoring above.",
         "",
-        *[f"- {stamp}" for stamp in run.unlabelled],
+        *[f"- {stamp}" for stamp in run.unlabeled],
         "",
     ]
 
 
-def write_labelled_report(run: LabelledRun) -> None:
-    """Write every section of the owner-labelled report to ``REPORT``."""
+def write_labeled_report(run: LabeledRun) -> None:
+    """Write every section of the owner-labeled report to ``REPORT``."""
     lines = (
         _preamble(run)
         + _guard_section(run)

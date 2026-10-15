@@ -128,7 +128,7 @@ test("test_an_unconverged_apply_names_the_fields_that_diverged", async () => {
 
 // The user knows a setting by the label the page gives it, not by the daemon's
 // config key: a sentence that names its field reads differently for two fields,
-// and a labelled field is never shown by its wire key.
+// and a labeled field is never shown by its wire key.
 
 /** @param {Record<string, unknown>} diff */
 async function unconverged(diff) {
@@ -155,7 +155,7 @@ test("test_unconverged_applies_on_two_different_fields_read_differently", async 
 const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 // Keys no control on the page owns: with no label to show, each stands for itself.
-const UNLABELLED = "no_control_owns_this_key";
+const UNLABELED = "no_control_owns_this_key";
 // The reason a refused SetFilter carries (protocol.md, simple-command replies).
 const DAEMON_REASON = "invalid filter";
 const STALL = "no reply";
@@ -374,7 +374,7 @@ test("test_a_missing_output_device_with_no_name_never_shows_the_word_null", asyn
 // Beyond "unconverged", the persistent lane's verdict names its reason and the
 // settings in its diff, each by the label of the control that edits it. A key no
 // control edits is shown as its words, underscores turned to spaces. Reasons and
-// unlabelled keys are the fixture's own.
+// unlabeled keys are the fixture's own.
 
 const OTHER_REASON = "timeout";
 
@@ -392,7 +392,7 @@ async function persistFailure(reason, diff) {
   return String(verdict(lastApply).text);
 }
 
-test("test_a_persistent_failure_never_shows_an_unlabelled_setting_as_its_raw_key", async () => {
-  const text = await persistFailure(OTHER_REASON, { [UNLABELLED]: {} });
-  assert.ok(!text.includes(UNLABELLED), text);
+test("test_a_persistent_failure_never_shows_an_unlabeled_setting_as_its_raw_key", async () => {
+  const text = await persistFailure(OTHER_REASON, { [UNLABELED]: {} });
+  assert.ok(!text.includes(UNLABELED), text);
 });

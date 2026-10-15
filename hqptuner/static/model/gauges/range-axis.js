@@ -70,20 +70,20 @@ export function ticksEvery(from, to, step) {
  * weight, the longer the tick.
  *
  * @param {number[]} ticks
- * @param {{ has(d: number): boolean }} labelled
+ * @param {{ has(d: number): boolean }} labeled
  * @param {number[]} strong
  * @returns {TickMark[]}
  */
-export function tickMarks(ticks, labelled, strong) {
+export function tickMarks(ticks, labeled, strong) {
   return ticks.map((d) => {
     /** @type {TickMark['weight']} */
-    const weight = strong.includes(d) ? "strong" : labelled.has(d) ? "major" : "minor";
+    const weight = strong.includes(d) ? "strong" : labeled.has(d) ? "major" : "minor";
     return { d, weight, len: TICK_LEN[weight] };
   });
 }
 
 /**
- * An axis label's text-anchor: the end labels sit inside the bar, the rest centre on their tick.
+ * An axis label's text-anchor: the end labels sit inside the bar, the rest center on their tick.
  *
  * @param {number} d
  * @param {Axis} axis

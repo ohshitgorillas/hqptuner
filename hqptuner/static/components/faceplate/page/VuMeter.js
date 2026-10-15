@@ -15,19 +15,19 @@ import { accentInForce } from "../../../store/ui/theme.js";
 
 const VW = 160; // a face's viewBox, wide; its height follows the face's box
 const VH_HALF_SQUARE = VW / 2; // the viewBox's height on a 2:1 face, half of a square pair
-const PX = VW / 2; // the needle's pivot, centred
+const PX = VW / 2; // the needle's pivot, centered
 const DROP = 9; // and this far below the face's lower edge on a 2:1 face or a taller one
 const HEAD = 18; // the room over the dial's top for its labels
 const LABEL = 71; // a tick label's inner edge, just past its tick, on a 2:1 face; the radii below scale with it
 const SCALE = 65 / LABEL; // the scale arc's radius
-const MAJOR = 70 / LABEL; // a labelled tick's outer end
-const MINOR = 68 / LABEL; // an unlabelled tick's outer end
+const MAJOR = 70 / LABEL; // a labeled tick's outer end
+const MINOR = 68 / LABEL; // an unlabeled tick's outer end
 const NEEDLE = 67 / LABEL; // the needle's tip, just past the arc
 const MAX_HALF = 53; // half the arc's sweep at most, degrees: its ends clear the lettering in the lower corners
 const REACH = LABEL * Math.sin((MAX_HALF * Math.PI) / 180); // the end labels' places, across from the pivot
 const RED_VU = 0; // the red zone runs from here to the top
 const TICKS = [-20, -10, -7, -5, -3, -2, -1, 0, 1, 2, 3];
-const LABELLED = new Set([-20, -7, -3, 0, 3]); // the ticks whose labels clear each other on the smallest face
+const LABELED = new Set([-20, -7, -3, 0, 3]); // the ticks whose labels clear each other on the smallest face
 
 /**
  * A face's dial in its viewBox: the viewBox's height, the pivot's height, half the arc's sweep in degrees, and the
@@ -128,13 +128,13 @@ function labelPlace(dial, vu) {
 const needleAt = (vu, half) => `rotate(${f1(turn(vu, half))})`;
 
 /**
- * One tick on `dial`: from the arc out to its labelled or unlabelled length.
+ * One tick on `dial`: from the arc out to its labeled or unlabeled length.
  *
  * @param {{ dial: Dial, vu: number }} props
  */
 function Tick({ dial, vu }) {
   const [x0, y0] = at(dial, vu, dial.label * SCALE);
-  const [x1, y1] = at(dial, vu, dial.label * (LABELLED.has(vu) ? MAJOR : MINOR));
+  const [x1, y1] = at(dial, vu, dial.label * (LABELED.has(vu) ? MAJOR : MINOR));
   return html`<line x1=${f1(x0)} y1=${f1(y0)} x2=${f1(x1)} y2=${f1(y1)} />`;
 }
 
@@ -201,7 +201,7 @@ function Face({ name, stops }) {
           />
         </g>
       </svg>
-      ${TICKS.filter((vu) => LABELLED.has(vu)).map(
+      ${TICKS.filter((vu) => LABELED.has(vu)).map(
         (vu) =>
           html`<span class=${vu > RED_VU ? "vul red" : "vul"} style=${labelPlace(dial, vu)} aria-hidden="true">
             ${tickText(vu)}

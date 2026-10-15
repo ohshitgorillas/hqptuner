@@ -70,7 +70,7 @@
 .rowl{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-1);letter-spacing:0;text-transform:uppercase;color:var(--ink-2);text-align:right;line-height:var(--strip-h)}
 .spec,.apodstrip{display:block;width:100%;height:100%;border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-sizing:border-box;box-shadow:var(--well)}
 
-/* No meter (nothing plays, or a DSD source with the matrix bypassed): a line of owner copy, centred in the drawer. */
+/* No meter (nothing plays, or a DSD source with the matrix bypassed): a line of owner copy, centered in the drawer. */
 .mnone{flex:1 1 auto;display:flex;align-items:center;justify-content:center;min-height:var(--mnone-min)}
 .mnone p{margin:0;font-size:var(--fs-5);color:var(--ink-2)}
 
@@ -137,8 +137,8 @@
 .vupair[data-palette="accent"] .vun{stroke:var(--acc)}
 
 /* Page meter's Range control: two bare round ± keys (.round.vbtn) in the spectrum's top-right corner, over the
-   canvases. Each draws at --ctl-h-sm and takes taps over an invisible --tap square centred on it, which reaches the
-   plot's corner and meets its neighbour's at the gap's middle; one at its end stop reads dead (popovers.css). */
+   canvases. Each draws at --ctl-h-sm and takes taps over an invisible --tap square centered on it, which reaches the
+   plot's corner and meets its neighbor's at the gap's middle; one at its end stop reads dead (popovers.css). */
 .mzoom{position:absolute;top:calc((var(--tap) - var(--ctl-h-sm)) / 2);right:calc((var(--tap) - var(--ctl-h-sm)) / 2);display:flex;gap:calc(var(--tap) - var(--ctl-h-sm))}
 .mzoom .round{position:relative;width:var(--ctl-h-sm);height:var(--ctl-h-sm);font-size:var(--fs-glyph-sm)}
 .mzoom .round::before{content:"";position:absolute;inset:calc((var(--ctl-h-sm) - var(--tap)) / 2 - var(--hair))}   /* from the padding edge, inside the key's border */
