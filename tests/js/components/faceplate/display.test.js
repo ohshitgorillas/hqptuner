@@ -7,7 +7,7 @@
 // options by their values in `data-v`, the preferences' own identifiers. A pick is fired through the vnode seam
 // (tests/js/support/vnodeseam.js), since server rendering fires no events. The Levels floor is read off the prefs
 // module's namespace with optional access, so a store without one fails the floor cases on their assertions; the
-// spectrum's colour suite is read the same way.
+// spectrum's color suite is read the same way.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/display.test.js
 
@@ -45,7 +45,7 @@ const DEEP = "-90";
  */
 const floorStore = uiPrefs;
 
-// Two colour suites, as the store holds them: the one each case starts from, and another so a pick of it shows.
+// Two color suites, as the store holds them: the one each case starts from, and another so a pick of it shows.
 const MONO = "mono";
 const INFERNO = "inferno";
 

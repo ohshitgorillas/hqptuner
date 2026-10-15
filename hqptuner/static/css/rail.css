@@ -1,5 +1,5 @@
 /* Signal-chain rail. Every stage always shown; an off stage is its name under an unlit lamp, no value (no graying),
-   still tappable. Drawers open only from here. Colour rule: names neutral, values amber (readout).
+   and tappable like any other. Drawers open only from here. Color rule: names neutral, values amber (readout).
    Spacing: stages share the rail's height (flex-grow), so the chain fills it and can never push into the Setting Switcher,
    whatever the fonts measure. No rail note. Minimum padding is small (--sp-1; none on children; --sp-1 name → value) so the
    longest chain (a DSD path adds its conversion stage, often on two lines) still fits; spare height is spread by flex.
@@ -51,7 +51,7 @@
 
 
 
-/* Alerts: the stage's lamp blinks over its state, red = crit, amber = warn / advice. Fixed colours, never the
+/* Alerts: the stage's lamp blinks over its state, red = crit, amber = warn / advice. Fixed colors, never the
    accent. Reduced motion: steady. Keyframes shared with the header homes (header.css). */
 .rail .st[data-alert="crit"] .lamp{animation:al-crit var(--blink)}
 .rail .st[data-alert="warn"] .lamp{animation:al-warn var(--blink)}

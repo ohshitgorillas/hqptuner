@@ -1,5 +1,5 @@
 // Behavioral suite for hqptuner/static/model/shell/alerts.js: where raised alerts land, free of the DOM. Which homes blink and
-// in what colour, which drawers and page sections pin which alert lines, which drawer rows light, which stages go dark,
+// in what color, which drawers and page sections pin which alert lines, which drawer rows light, which stages go dark,
 // and what a header home's popover shows.
 //
 // Every home table and alert list is one this file writes.

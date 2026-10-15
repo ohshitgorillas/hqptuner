@@ -22,7 +22,7 @@ import { fitCanvas, fxPainter } from "./spectrumfx.js";
 import { VuPair } from "./VuMeter.js";
 
 /** @typedef {import("../../../store/faceplate/page/meter.js").PageMeterView} PageMeterView */
-/** @typedef {import("./spectrumfx.js").FxColours} FxColours */
+/** @typedef {import("./spectrumfx.js").FxColors} FxColors */
 /** @typedef {ReturnType<typeof fxPainter>} FxPainter */
 /** @typedef {ReturnType<typeof auroraPainter>} AuroraPainter */
 /** @typedef {{ fx: FxPainter, aurora: AuroraPainter }} Painters */
@@ -30,7 +30,7 @@ import { VuPair } from "./VuMeter.js";
 /** @typedef {{ current: HTMLElement | null }} BoxRef */
 
 const STEREO = 2;
-const LEVEL_INK = "slevel"; // the id of the trace's gradient coloured by level
+const LEVEL_INK = "slevel"; // the id of the trace's gradient colored by level
 
 /**
  * A fraction of an axis as a CSS percentage.
@@ -130,8 +130,8 @@ function RangeControl({ view }) {
 }
 
 /**
- * The trace's filled area, held peaks and line, all drawn through one gradient up the plot: coloured by level under a
- * colour suite, solid in the accent in force under Accent.
+ * The trace's filled area, held peaks and line, all drawn through one gradient up the plot: colored by level under a
+ * color suite, solid in the accent in force under Accent.
  *
  * @param {{ suite: string }} props
  */
@@ -140,7 +140,7 @@ function TraceInk({ suite }) {
   return html`
     <defs>
       <linearGradient id=${LEVEL_INK} gradientUnits="userSpaceOnUse" x1="0" y1=${SH} x2="0" y2="0">
-        ${stops.map(([at, colour]) => html`<stop offset=${at} stop-color=${colour} />`)}
+        ${stops.map(([at, color]) => html`<stop offset=${at} stop-color=${color} />`)}
       </linearGradient>
     </defs>
     <path class="sarea" style=${`fill:url(#${LEVEL_INK})`} />
@@ -233,12 +233,12 @@ function Bars({ view, names }) {
 }
 
 /**
- * The colours the effects canvas paints with, read from the tokens in force on `el`.
+ * The colors the effects canvas paints with, read from the tokens in force on `el`.
  *
  * @param {Element} el
- * @returns {FxColours}
+ * @returns {FxColors}
  */
-function fxColours(el) {
+function fxColors(el) {
   const cs = getComputedStyle(el);
   return { glass: cs.getPropertyValue("--glass").trim() };
 }
@@ -272,9 +272,9 @@ function useFxPainter(plot, fx, sgl, live) {
     const canvas = fx.current;
     const glCanvas = sgl.current;
     if (!box || !canvas || !glCanvas) return undefined;
-    const colours = fxColours(canvas);
+    const colors = fxColors(canvas);
     painters.current = {
-      fx: fxPainter(canvas, colours),
+      fx: fxPainter(canvas, colors),
       aurora: auroraPainter(glCanvas),
     };
     const ro = new ResizeObserver((entries) => {

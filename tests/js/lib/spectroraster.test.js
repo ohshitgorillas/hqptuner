@@ -1,4 +1,4 @@
-// Behavioral suite for lib/spectroraster.js, the spectrogram's colour ramp and
+// Behavioral suite for lib/spectroraster.js, the spectrogram's color ramp and
 // pixel raster.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/spectroraster.test.js
@@ -10,7 +10,7 @@ import { createHash } from "node:crypto";
 import { W, rampFrom, rasterize, scrollPlan } from "../../../hqptuner/static/lib/spectroraster.js";
 
 // Floor a dark blue, top a warm yellow: apart from each other and from black,
-// with a steep last segment so a neighbouring step reads as a different colour.
+// with a steep last segment so a neighbouring step reads as a different color.
 const RAMP = rampFrom(["#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#1a2a6c", "#f5d142"]);
 
 // A ramp whose red channel is its own step, so a pixel names the step it took.
@@ -83,7 +83,7 @@ function centreRgb({ width, height, data }) {
   return Array.from(data.subarray(at, at + 3));
 }
 
-test("test_a_band_at_full_scale_paints_the_ramps_top_colour", () => {
+test("test_a_band_at_full_scale_paints_the_ramps_top_color", () => {
   const raster = rasterize(RAMP, {
     cells: [{ ms: SPAN, nyquist: NYQUIST, slices: [flat(0)] }],
     span: SPAN,

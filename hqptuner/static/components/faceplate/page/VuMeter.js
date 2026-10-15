@@ -160,7 +160,7 @@ function useFaceHeight(ref) {
 }
 
 /**
- * One face: the scale coloured through a gradient across it, the red zone, the labels, `VU` and the channel letter,
+ * One face: the scale colored through a gradient across it, the red zone, the labels, `VU` and the channel letter,
  * and the needle at rest, drawn to the shape of the face's box.
  *
  * @param {{ name: string, stops: [number, string][] }} props
@@ -178,7 +178,7 @@ function Face({ name, stops }) {
       <svg viewBox=${`0 0 ${VW} ${dial.vh}`} preserveAspectRatio="none" role="img" aria-label=${`VU ${name}`}>
         <defs>
           <linearGradient id=${ink} gradientUnits="userSpaceOnUse" x1=${f1(left)} y1="0" x2=${f1(right)} y2="0">
-            ${stops.map(([off, colour]) => html`<stop offset=${off} stop-color=${colour} />`)}
+            ${stops.map(([off, color]) => html`<stop offset=${off} stop-color=${color} />`)}
           </linearGradient>
         </defs>
         <g class="vusc" stroke=${`url(#${ink})`}>

@@ -11,13 +11,13 @@
 //
 // The canvas is a fake whose 2D context records every method called on it by name and arguments; every property write
 // is kept and read back, and `createImageData` hands back a plain image of the asked size. Only the drawing calls are
-// read back (`DRAWS`), so how the painter sets up a path or a colour is never asserted. The canvas is 480 by 170, a
+// read back (`DRAWS`), so how the painter sets up a path or a color is never asserted. The canvas is 480 by 170, a
 // width unlike the 600 columns the spectrum carries.
 //
-// A colour suite reaches a paint as its fourth argument, the suite's identifier as the store holds it. Whether a suite
+// A color suite reaches a paint as its fourth argument, the suite's identifier as the store holds it. Whether a suite
 // changes what a style draws is read by comparing what a paint draws under it against what the same paint draws under
 // Mono: each drawing call is kept with the fill and stroke in force when it was made, and a gradient keeps its
-// stops, so two paints compare by their colours without any one colour being asserted.
+// stops, so two paints compare by their colors without any one color being asserted.
 //
 // Under the Accent palette a paint draws in shades of the accent in force, read from the theme store's signals; which
 // shades is the painter's. Whether a change of accent reaches the next paint is read by comparing two painters with
@@ -62,8 +62,8 @@ const DRAWS = new Set([
   "strokeText",
 ]);
 
-/** The colours a painter is built with: five CSS colours. */
-const COLOURS = {
+/** The colors a painter is built with: five CSS colors. */
+const COLORS = {
   lo: "#2a8",
   mid: "#cc4",
   hi: "#d43",
@@ -79,7 +79,7 @@ const COLOURS = {
  */
 const image = (w, hh) => ({ width: w, height: hh, data: new Uint8ClampedArray(w * hh * 4) });
 
-/** A gradient that keeps the stops added to it, so two gradients compare by their colours. */
+/** A gradient that keeps the stops added to it, so two gradients compare by their colors. */
 class Gradient {
   constructor() {
     /** @type {[number, string][]} */
@@ -88,10 +88,10 @@ class Gradient {
 
   /**
    * @param {number} at
-   * @param {string} colour
+   * @param {string} color
    */
-  addColorStop(at, colour) {
-    this.stops.push([at, colour]);
+  addColorStop(at, color) {
+    this.stops.push([at, color]);
   }
 }
 
@@ -170,7 +170,7 @@ function hold(db) {
  */
 function painter() {
   const canvas = fakeCanvas();
-  const fx = fxPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), COLOURS);
+  const fx = fxPainter(/** @type {HTMLCanvasElement} */ (/** @type {unknown} */ (canvas)), COLORS);
   return { canvas, fx };
 }
 
@@ -302,7 +302,7 @@ test("test_a_fade_paint_after_one_with_no_spectrum_starts_without_the_old_halo",
   assert.notDeepEqual(blanked, lastOf(KEPT_FADE));
 });
 
-// ── colour suites ────────────────────────────────────────────────────────
+// ── color suites ────────────────────────────────────────────────────────
 
 //: Two suites the owner offers, as the store holds them.
 const MONO = "mono";
@@ -311,7 +311,7 @@ const INFERNO = "inferno";
 const PAINTS = RIDGE_EVERY + 1;
 
 /**
- * What the last of PAINTS paints of `style` under colour suite `suite` draws, with the fill and stroke of each drawing
+ * What the last of PAINTS paints of `style` under color suite `suite` draws, with the fill and stroke of each drawing
  * call; the trace runs from `LOW_DB` at the low end to `MID_DB` above it, so louder and quieter parts are both drawn.
  *
  * @param {string} style
@@ -337,7 +337,7 @@ for (const style of ["bars", "ridges", "fade"]) {
 
 //: The palette that draws in the user's accent, as the store holds it.
 const ACCENT = "accent";
-//: Two custom accents, unlike each other and unlike every colour the painter is built with.
+//: Two custom accents, unlike each other and unlike every color the painter is built with.
 const FIRST_HEX = "#4f9dde";
 const SECOND_HEX = "#c03a9b";
 //: An accent preset, as the theme store holds it.

@@ -21,7 +21,7 @@ import { optionOf } from "./options.js";
 const DYSLEXIC_FAMILY = "'Atkinson Hyperlegible',system-ui,sans-serif";
 
 /**
- * The accent tokens derived from the pick, each the share of the pick, %, mixed in sRGB with the colour it is mixed
+ * The accent tokens derived from the pick, each the share of the pick, %, mixed in sRGB with the color it is mixed
  * into.
  *
  * @type {Readonly<Record<string, readonly [number, string]>>}

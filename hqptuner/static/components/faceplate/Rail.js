@@ -1,7 +1,7 @@
 // The signal-chain rail: one button per stage of what runs (store/faceplate/chain.js), and the silkscreen wire through
 // their lamps. A tap opens the stage's drawer, or closes it when it is the open one. A bypassed stage's lamp reads unlit
 // and the wire drops its tap, as for an off stage; a hidden stage leaves the chain and the wire. A raised alert blinks
-// its stage's lamp in the alert's colour, and a stage the alerts darken (no output past an SDM modulator below its
+// its stage's lamp in the alert's color, and a stage the alerts darken (no output past an SDM modulator below its
 // floor) reads unlit and drops its tap as a bypassed one does. The lamps follow the transport: paused, the Source lamp
 // alone reads paused, in amber; stopped or unreachable, every lamp is unlit. A stage whose lamp reads unlit prints no
 // value. A stage whose name runs past one line puts its lamp on the first, measured with the wire and again once the

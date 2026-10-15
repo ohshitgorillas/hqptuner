@@ -1,5 +1,5 @@
 // Behavioral suite for the meter plots: where each plot puts what it paints (the spectrum axis, the time axis, the
-// colour ramp).
+// color ramp).
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -41,7 +41,7 @@ test("test_a_tick_clear_of_the_right_edge_stays", () => {
   );
 });
 
-// ── Colour ramp ──────────────────────────────────────────────────────────
+// ── Color ramp ──────────────────────────────────────────────────────────
 
 //: Three stops, grey steps of 100.
 const STOPS = [
@@ -50,11 +50,11 @@ const STOPS = [
   [200, 200, 200],
 ];
 
-test("test_the_ramp_starts_on_the_first_colour", () => {
+test("test_the_ramp_starts_on_the_first_color", () => {
   assert.deepEqual(Array.from(rampLut(STOPS).subarray(0, 3)), [0, 0, 0]);
 });
 
-test("test_the_ramp_ends_on_the_last_colour", () => {
+test("test_the_ramp_ends_on_the_last_color", () => {
   assert.deepEqual(Array.from(rampLut(STOPS).subarray(765, 768)), [200, 200, 200]);
 });
 
@@ -88,7 +88,7 @@ test("test_the_ramp_blends_each_channel_on_its_own", () => {
   );
 });
 
-//: Glass and the bad colour, a grey step of 100 apart.
+//: Glass and the bad color, a grey step of 100 apart.
 const GLASS = [0, 0, 0];
 const BAD = [100, 100, 100];
 

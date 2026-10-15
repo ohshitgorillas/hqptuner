@@ -443,9 +443,9 @@ test("test_a_trace_paint_on_a_section_rendered_under_aurora_marks_the_grid_trace
   assert.equal(grid?.getAttribute("data-style"), "trace");
 });
 
-// --- the meter's colours -------------------------------------------------------------------------------------------
+// --- the meter's colors -------------------------------------------------------------------------------------------
 
-//: Two palettes that colour the meter by level, unlike each other, as the store holds them.
+//: Two palettes that color the meter by level, unlike each other, as the store holds them.
 const INFERNO = "inferno";
 const VIRIDIS = "viridis";
 //: The palette that draws in the user's accent, as the store holds it.
@@ -478,7 +478,7 @@ const inlineOf = (el) =>
 
 /**
  * What `el` is drawn in as the paint left it: its own inline style and that of each ancestor up to and including
- * `top`, so a colour written on the element or on a container it inherits from is read alike; empty where `el` is
+ * `top`, so a color written on the element or on a container it inherits from is read alike; empty where `el` is
  * missing.
  *
  * @param {Elem | null | undefined} el
@@ -522,7 +522,7 @@ function markInk(palette, cls) {
 const MARKS = { peak: "pk", rms: "rm", hold: "hd" };
 
 for (const [part, cls] of Object.entries(MARKS)) {
-  test(`test_picking_another_palette_changes_the_colour_the_${part}_is_drawn_in`, () => {
+  test(`test_picking_another_palette_changes_the_color_the_${part}_is_drawn_in`, () => {
     assert.notEqual(markInk(VIRIDIS, cls), markInk(INFERNO, cls));
   });
 }
@@ -540,7 +540,7 @@ function underAccent(hex, read) {
 }
 
 for (const [part, cls] of Object.entries(MARKS)) {
-  test(`test_under_accent_picking_another_accent_changes_the_colour_the_${part}_is_drawn_in`, () => {
+  test(`test_under_accent_picking_another_accent_changes_the_color_the_${part}_is_drawn_in`, () => {
     const first = underAccent(FIRST_HEX, (p) => markInk(p, cls));
     assert.notEqual(
       underAccent(SECOND_HEX, (p) => markInk(p, cls)),

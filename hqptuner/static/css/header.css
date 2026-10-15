@@ -4,7 +4,7 @@
 .ver{font-size:var(--fs-3);color:var(--ink-2);margin-left:calc(-1 * var(--sp-3));align-self:flex-end;padding-bottom:var(--sp-3)}
 /* Brand knob = connection lamp: a knob glyph (ring + pointer) on a raised round face, its ring the
    light. ok: green ring, pointer at 45°; busy (applying): amber ring, pointer sweeping; lost (unreachable): red ring,
-   pointer turned down to off. Semantic colours (lamps), never the accent. Tap → connection settings. */
+   pointer turned down to off. Semantic colors (lamps), never the accent. Tap → connection settings. */
 .conn{width:var(--ctl-h-hdr);height:var(--ctl-h-hdr);flex-shrink:0;padding:0;border-radius:var(--r-round);border:var(--hair) solid var(--line-2);background:var(--raised);box-shadow:var(--raised-shadow);cursor:pointer;display:grid;place-items:center;margin-right:var(--sp-1)}
 .conn svg{width:var(--knob-glyph);height:var(--knob-glyph);overflow:visible}
 .conn .ring{fill:var(--glass);stroke:var(--lamp-off);stroke-width:2.5}
@@ -37,7 +37,7 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 .gauge .hub{fill:var(--ink)}
 .readout{display:flex;flex-direction:column}
 .gauge .val{font-size:var(--fs-gauge);line-height:1;color:var(--ink-2)}
-/* Zones: the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colours,
+/* Zones: the speed figure and each buffer read the gauge's own arcs: red | amber | green. Semantic colors,
    never the accent; no zone (nothing playing) = neutral ink. */
 [data-zone="bad"]{--z:var(--bad)} [data-zone="warn"]{--z:var(--warn)} [data-zone="ok"]{--z:var(--ok)}
 .gauge .val[data-zone]:not([data-zone=""]){color:var(--z)}   /* gauge 62×34 (smaller) */

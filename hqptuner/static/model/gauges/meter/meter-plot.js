@@ -1,9 +1,9 @@
 // Source meter plots: where the spectrum and the spectrogram put their axes, free of the DOM. The spectrum's axes, the
-// Ranges a step wider and narrower, the level bars' dB scale, the frequency and time axes' ticks, and the colour ramps.
+// Ranges a step wider and narrower, the level bars' dB scale, the frequency and time axes' ticks, and the color ramps.
 
 import { clamp } from "../../../lib/coerce.js";
 
-const RAMP_SIZE = 256; // colour ramp entries
+const RAMP_SIZE = 256; // color ramp entries
 const DB_STEPS = 6; // dB scale steps from full scale to the spectrum's range or the level bars' floor
 const TIME_STEPS_S = [5, 10, 15, 30, 60, 120, 300]; // time-axis tick steps, at most five per span
 
@@ -142,7 +142,7 @@ export function timeTicks(span, colsPerSec) {
 }
 
 /**
- * The spectrogram's colour ramp: 256 RGB entries blending evenly across the stops, first stop at 0, last at 255.
+ * The spectrogram's color ramp: 256 RGB entries blending evenly across the stops, first stop at 0, last at 255.
  *
  * @param {number[][]} stops  [r, g, b], at least two
  * @returns {Uint8ClampedArray}
@@ -159,7 +159,7 @@ export function rampLut(stops) {
 }
 
 /**
- * The apodizing strip's colours for 0 to 3 events: the glass, then 63%, 81% and 99% of the way to the bad colour.
+ * The apodizing strip's colors for 0 to 3 events: the glass, then 63%, 81% and 99% of the way to the bad color.
  *
  * @param {number[]} glass  [r, g, b]
  * @param {number[]} bad    [r, g, b]

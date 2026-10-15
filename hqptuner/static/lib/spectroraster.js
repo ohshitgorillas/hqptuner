@@ -1,5 +1,5 @@
-// The spectrogram's pixels, apart from any canvas: hex colours read as RGB, a
-// colour ramp blended in oklab between hex stops, and the raster a view paints
+// The spectrogram's pixels, apart from any canvas: hex colors read as RGB, a
+// color ramp blended in oklab between hex stops, and the raster a view paints
 // with it. Time across, newest at the right; frequency up, linear from 0 Hz to
 // the view's top; level as a step on the ramp, from the range's floor to full
 // scale.
@@ -57,7 +57,7 @@ function fromOklab([L, a, b]) {
 }
 
 /**
- * A colour's value as [r, g, b], 0 to 255 each, or `fallback` when it is not a `#rgb` or `#rrggbb` hex colour.
+ * A color's value as [r, g, b], 0 to 255 each, or `fallback` when it is not a `#rgb` or `#rrggbb` hex color.
  *
  * @param {string} value
  * @param {number[]} fallback
@@ -70,7 +70,7 @@ export function rgb(value, fallback) {
   return [0, 2, 4].map((i) => parseInt(full.slice(i, i + 2), 16));
 }
 
-/** @param {string} hex `#rrggbb` @returns {Triple} 0..1 sRGB, black where `hex` is no hex colour */
+/** @param {string} hex `#rrggbb` @returns {Triple} 0..1 sRGB, black where `hex` is no hex color */
 const unitRgb = (hex) => /** @type {Triple} */ (rgb(hex, [0, 0, 0]).map((c) => c / 255));
 
 /**

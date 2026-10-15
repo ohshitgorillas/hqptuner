@@ -1,5 +1,5 @@
 // Rendered suite for the alert homes on hqptuner/static/components/faceplate/Header.js: refused credentials blink the
-// knob and Roon at default idle time blinks the gear, each in its colour, and the knob's tap opens a popover of the
+// knob and Roon at default idle time blinks the gear, each in its color, and the knob's tap opens a popover of the
 // lines homed on it, one per alert, each carrying its severity.
 //
 // The wire is the seam, as tests/js/store/faceplate-alerts/alerts.test.js drives it: the /api/health reading goes into

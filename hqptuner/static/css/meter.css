@@ -30,8 +30,8 @@
 .xaxis span.first{transform:none}
 .xaxis span.last{transform:translateX(-100%)}
 
-/* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold ghost. The trace's colours are the
-   picked colour suite's, set inline. */
+/* Spectrum: SVG in a glass well, dB grid + kHz grid, filled trace, peak-hold ghost. The trace's colors are the
+   picked color suite's, set inline. */
 .sgrid1{display:grid;grid-template-columns:var(--spectrum-gutter-w) minmax(0,1fr);grid-template-rows:var(--spectrum-h) var(--axis-h);gap:var(--sp-2) var(--sp-4)}
 .splot{position:relative;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-1);box-shadow:var(--well);overflow:hidden}
 .spectrum{display:block;width:100%;height:100%;touch-action:none;cursor:crosshair}

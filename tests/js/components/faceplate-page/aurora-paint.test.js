@@ -6,11 +6,11 @@
 // The canvas is a fake whose WebGL2 context records every method called on it by name and arguments. Names in capitals
 // are the context's constants and read as numbers; the shader and program checks pass unless a test fails one, and
 // every `create*` hands back a fresh object. Only the upload and the drawing calls are read back, so how the painter sets up its program, its
-// quad or its colour is never asserted.
+// quad or its color is never asserted.
 //
-// A colour suite reaches a paint as its third argument, the suite's identifier as the store holds it. Whether a suite
+// A color suite reaches a paint as its third argument, the suite's identifier as the store holds it. Whether a suite
 // changes what aurora draws is read by comparing every call a paint makes under it, uploads included, against the
-// same paint under Mono, so no one colour is asserted.
+// same paint under Mono, so no one color is asserted.
 //
 // Under the Accent palette aurora draws in the accent in force, read from the theme store's signals. Whether a change
 // of accent reaches the next paint is read by comparing two painters with one history, every paint the same, except
@@ -156,7 +156,7 @@ test("test_clear_only_clears_once", () => {
   assert.deepEqual(draws(during((fx) => fx.clear())), ["clear"]);
 });
 
-// ── colour suites ────────────────────────────────────────────────────────
+// ── color suites ────────────────────────────────────────────────────────
 
 //: Two suites the owner offers, as the store holds them.
 const MONO = "mono";
@@ -167,7 +167,7 @@ const COLS = 600;
 const MID_DB = -RANGE / 2;
 
 /**
- * Every call one paint of a spectrum with every column half way down makes under colour suite `suite`.
+ * Every call one paint of a spectrum with every column half way down makes under color suite `suite`.
  *
  * @param {string} suite
  */

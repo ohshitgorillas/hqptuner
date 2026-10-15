@@ -1,7 +1,7 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
 // spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
 // gravity, the per-frame steps in model/gauges/meter/spectrumfx.js, and draws them as columns rising from the plot's floor to
-// their level, each coloured base to crown through the picked colour suite's ramp, over a transparent clear. Accent
+// their level, each colored base to crown through the picked color suite's ramp, over a transparent clear. Accent
 // draws in the accent in force at each paint.
 
 import {
@@ -26,7 +26,7 @@ const POSITION = 0; // the vertex shader's position attribute location
 const QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]); // the whole clip space as a triangle strip, x then y
 const QUAD_SIZE = 2; // components per QUAD vertex
 const QUAD_VERTICES = QUAD.length / QUAD_SIZE;
-const STOPS = 6; // colours in the ramp the shader blends, base to crown
+const STOPS = 6; // colors in the ramp the shader blends, base to crown
 
 /**
  * A compiled shader of `type` from `source`, or null when it fails to compile.
@@ -68,7 +68,7 @@ function build(gl, vert, frag) {
 }
 
 /**
- * The northern lights program for a ramp of `stops` colours, or null when either shader fails to compile or the
+ * The northern lights program for a ramp of `stops` colors, or null when either shader fails to compile or the
  * program fails to link.
  *
  * @param {WebGL2RenderingContext} gl
@@ -104,7 +104,7 @@ function quad(gl) {
 
 /**
  * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
- * one meter scene's spectrum column levels at `range` dB as northern lights coloured base to crown through the colour
+ * one meter scene's spectrum column levels at `range` dB as northern lights colored base to crown through the color
  * suite's ramp, `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall and the columns'
  * sway afresh.
  *
@@ -121,7 +121,7 @@ export function auroraPainter(canvas) {
   gl.uniform1i(gl.getUniformLocation(program, "bars_count"), BANDS);
   const rampAt = gl.getUniformLocation(program, "ramp");
   gl.clearColor(0, 0, 0, 0);
-  let inked = ""; // the colour suite and accent the uploaded ramp is drawn from; empty while no ramp is uploaded
+  let inked = ""; // the color suite and accent the uploaded ramp is drawn from; empty while no ramp is uploaded
   /** @type {GravityState | null} */
   let gravity = null;
   let elapsed = 0; // s, DT for every paint that drew since the last clear
@@ -134,7 +134,7 @@ export function auroraPainter(canvas) {
   /**
    * @param {ArrayLike<number> | null} levels  dBFS, one per column
    * @param {number} range  dB
-   * @param {string} [suite]  the colour suite, Accent where none is given
+   * @param {string} [suite]  the color suite, Accent where none is given
    */
   const paint = (levels, range, suite = ACCENT) => {
     const prev = gravity;

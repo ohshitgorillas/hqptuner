@@ -12,7 +12,7 @@ Current state only.
 
 ## Visual rules
 - Accent is the user's pick (amber default). It marks only what you set (VFD values, a setting seg's fill, plot traces/handles of settings, dirty dots) and where you are (left-hand selection bar, open stage, view/tab picks as ink with an accent foot, focus, links). Never measurements, semantics, drawings, button faces or read-only readouts, except the spectrum and the Source level bars and peak readout under the Accent palette, which draw in the accent's shades.
-- Fixed colours that never follow the accent: the spectrogram ramp (`--spec-0..5`), `--warn`, `--busy`, lamps `--ok` / `--bad`. The Source level bars and peak readout follow the Display palette, as the spectrum does, in the accent's shades under Accent; instrument amber (`--meter*`) is their fallback where no palette colour is painted.
+- Fixed colors that never follow the accent: the spectrogram ramp (`--spec-0..5`), `--warn`, `--busy`, lamps `--ok` / `--bad`. The Source level bars and peak readout follow the Display palette, as the spectrum does, in the accent's shades under Accent; instrument amber (`--meter*`) is their fallback where no palette color is painted.
 - Engine row: speed figure and buffers take the gauge's zones, red | amber | green. Speed seams are the gauge's arcs (0.87×, 1×). Buffer seams 25% / 50% are placeholders.
 - Text is never darker than ink-2. ink-3/4 and accent-dim are for strokes and dead states only.
 - Hatch only for what can't or doesn't run (unavailable rate tiers, idle chain head).
@@ -21,7 +21,7 @@ Current state only.
 - Every control, axis and readout labels its unit; units keep their own case.
 - Switches put the default first; gates read BYPASS | ENGAGE; plain settings Off | On.
 - Line heights are pinned via `--lh-eng` / `--lh-text`; never `normal`.
-- Sizes and colours come from tokens (`tokens.css`); no hand-rolled one-offs.
+- Sizes and colors come from tokens (`tokens.css`); no hand-rolled one-offs.
 
 ## Naming
 - **Station** = whole hqplayerd config; recalling one restarts.
@@ -88,7 +88,7 @@ Current state only.
 - Resampling and Shaping show the running chain only.
 
 ## Alerts
-- No strip. Each alert lives where it belongs and blinks there: red = crit, amber = warn or advice. Fixed colours, never the accent. The blink overlays the lamp's state (an unlit lamp blinks too). Reduced motion: steady.
+- No strip. Each alert lives where it belongs and blinks there: red = crit, amber = warn or advice. Fixed colors, never the accent. The blink overlays the lamp's state (an unlit lamp blinks too). Reduced motion: steady.
 - These lines show directly under the header on every view, with no tap. Settings a daemon restart dropped (warn): its line has one row per setting, stays until tapped, and the tap clears the report. Six failure lines, each warn: a failed apply, a failed live write, a failed snapshot, a failed profile description, a failed favorite, a failed narrowing. Each failure line clears when its area next succeeds or when tapped. The brand knob shows connection status only and never carries it.
 - v1's alerts and copy, verbatim, each where v1's would fire:
   - Credentials rejected (crit) → brand knob, blinking red (steady red stays Unreachable).
@@ -99,7 +99,7 @@ Current state only.
   - PCM ditherer below its rate floor (warn) → Shaping lamp + the page's Shaping header.
   - Roon at default idle time (warn) → gear, and Settings → Timing.
   - Junk / HF filter advice (advice) → HF filter lamp. Nx PCM content only: the HF filter can't be engaged at 1x rates.
-- **Tap a stage:** its drawer opens with the alert line pinned under the head (glyph, v1's sentence). The row that fixes it reads in the alert's colour with the glyph before its label.
+- **Tap a stage:** its drawer opens with the alert line pinned under the head (glyph, v1's sentence). The row that fixes it reads in the alert's color with the glyph before its label.
 - **Running chain's filter / modulator / ditherer:** the page holds those fields and the drawer drops them, so the alert line (glyph, v1's sentence) sits in that page section's header beside the title, never in the drawer.
 - **Tap a header home:** knob and speed figure open the alert in a popover; the gear's Settings rail category blinks and its drawer carries the line.
 - Several alerts on one home: the worst sets the blink.
@@ -108,7 +108,7 @@ Current state only.
 
 ## Source drawer
 - A meter only (the engine's meter stream taps the source side). No settings, no tabs.
-- **Spectrogram** only: it fills the drawer. Apodizing strip on the same time axis; Range (dB, colour span), Channel and Window controls (All = track start to now). Spectrum and levels live on the page's Source section, not here.
+- **Spectrogram** only: it fills the drawer. Apodizing strip on the same time axis; Range (dB, color span), Channel and Window controls (All = track start to now). Spectrum and levels live on the page's Source section, not here.
 - Frequency axes are linear only, the source Nyquist as the last label (no red edge). No CLIP legend.
 - No-stream states use v1 copy.
 
@@ -207,7 +207,7 @@ Current state only.
 - **Behavior** (live):
   - Allow pinned rates (owner copy). Shows the rate dial's pin picker.
 - **Visual settings** (live), tabs Display | Layout.
-  - Display: descriptions, option style, apodizing indicator, dyslexic font, accent colour.
+  - Display: descriptions, option style, apodizing indicator, dyslexic font, accent color.
   - Layout: top of page (Auto | Matrix profile | Spectrum; label and copy DRAFT), bottom bar (Setting Switcher | None; copy DRAFT, the owner's line named the old Volume option), hide stages from the chain (DSD Processing, Speakers, Crossfeed, Loudness, DAC correction; the row stacks its copy under the toggles).
 
 ## Snapshot builder

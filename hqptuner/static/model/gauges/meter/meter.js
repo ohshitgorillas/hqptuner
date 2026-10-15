@@ -265,8 +265,8 @@ export function fraction(db, floor) {
 }
 
 /**
- * The colours the Source level meter draws a reading in under the spectrum's palette `palette`: each bar and the held
- * peak in the colour the spectrum draws at that part's own level, and the peak readout in its bar's colour. Under
+ * The colors the Source level meter draws a reading in under the spectrum's palette `palette`: each bar and the held
+ * peak in the color the spectrum draws at that part's own level, and the peak readout in its bar's color. Under
  * Accent those are the accent's shades.
  *
  * @param {string} palette  a spectrum palette, as the store holds it

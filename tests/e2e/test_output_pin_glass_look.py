@@ -11,14 +11,14 @@ Each test opens the drawer with pinned rates allowed and picks a family. One
 reads a value's rendered look under Auto and again after the pick; the other
 reads the tier's two values after the pick and compares them with each other.
 A look is only ever compared with another observed look, never with a literal
-colour.
+color.
 
 Policy notes:
 
 - Browser lane: the rendered suite already pins the markup; what a stylesheet
   does with it, including a rule keyed on an ancestor of the value, exists only
   once a browser computes the style.
-- The look of a value is its computed paint (fill, stroke, colour, weight,
+- The look of a value is its computed paint (fill, stroke, color, weight,
   decoration, visibility) plus the opacity and filters it inherits from every
   element between it and the dial. Nothing here names a class or a token.
 - Controls and values are found by wire identity: the rail stage (`data-stage`),
@@ -30,7 +30,7 @@ Policy notes:
   time, so the needle's tier follows the fixture.
 - Picking a family writes nothing, so the pick leaves the session's daemon as it
   found it.
-- Locators wait on conditions, and every finite animation (a colour transition
+- Locators wait on conditions, and every finite animation (a color transition
   included) is awaited to its end before a look is read.
 """
 

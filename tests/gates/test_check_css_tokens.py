@@ -67,7 +67,7 @@ def sheet(tmp_path: Path, directory: str, css: str) -> Path:
         (".a {\n  font-size: var(--fs-3);\n  padding: var(--sp-1) var(--sp-3);\n  border-radius: var(--r-1);\n}\n", 0),
     ],
 )
-def test_a_faceplate_stylesheet_is_held_to_colour_line_height_family_and_motion_tokens(
+def test_a_faceplate_stylesheet_is_held_to_color_line_height_family_and_motion_tokens(
     tmp_path: Path, css: str, complaints: int
 ) -> None:
     """Each declaration off a faceplate rule is one complaint, wherever it sits on its line."""

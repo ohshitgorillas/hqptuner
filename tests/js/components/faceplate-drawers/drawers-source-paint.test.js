@@ -5,7 +5,7 @@
 // repaints the full width; and a spectrogram close repaints the apodizing strip, whose right edge moves on with the
 // spectrogram's. While the Source drawer is closed neither canvas is painted, and reopening it paints the
 // spectrogram's full width once. A change of the spectrogram's span repaints the full width, and at a half span a source
-// whose content all sits above three quarters of its band paints the newest column one flat colour, since none of that
+// whose content all sits above three quarters of its band paints the newest column one flat color, since none of that
 // content is in view.
 //
 // The hook is mounted through preact's own client render on a container with no children, since server rendering
@@ -18,8 +18,8 @@
 // strip polls for one through the poll seam (tests/js/support/apodpolls.js).
 //
 // The window is 60 s unless a case says otherwise, so one of the spectrogram's columns is 50 ms of frame time; at
-// 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colours are paint.js's fallbacks; no case
-// reads which colour a pixel takes, only whether two pixels take the same one. The span is set through the store's
+// 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colors are paint.js's fallbacks; no case
+// reads which color a pixel takes, only whether two pixels take the same one. The span is set through the store's
 // setter, reached through the module namespace so a store without one leaves the span where it was; the spans are the
 // store's own identifiers. A case that needs only its own frames in the history clears it with a track change through
 // the poll seam.
@@ -305,12 +305,12 @@ const highOnly = () =>
   );
 
 /**
- * How many distinct colours the pixels down column `x` of `img` take.
+ * How many distinct colors the pixels down column `x` of `img` take.
  *
  * @param {Image} img
  * @param {number} x
  */
-function coloursDown(img, x) {
+function colorsDown(img, x) {
   const seen = new Set();
   for (let y = 0; y < img.height; y++) {
     const at = (y * img.width + x) * 4;
@@ -319,7 +319,7 @@ function coloursDown(img, x) {
   return seen.size;
 }
 
-test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_colour", () => {
+test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", () => {
   lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: HIGH_ONLY_BINS });
   newTrack();
   poll();
@@ -330,5 +330,5 @@ test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_
   setSpan(HALF);
   const { spec } = mounted();
   const [first] = spec.images;
-  assert.equal(first ? coloursDown(first, first.width - 2) : NaN, 1);
+  assert.equal(first ? colorsDown(first, first.width - 2) : NaN, 1);
 });

@@ -79,7 +79,7 @@ details.fold summary .band{flex-shrink:0}
 /* The body steps in under the summary's name: past the ▸ column and its gap. */
 details.fold .in{padding:var(--sp-2) 0 0 calc(var(--fold-mark) + var(--sp-5));display:flex;flex-direction:column;gap:var(--sp-3)}
 
-/* Alert glyph on a page section's title: the stage's alert, in its colour; the text is the title tooltip. */
+/* Alert glyph on a page section's title: the stage's alert, in its color; the text is the title tooltip. */
 /* Section alert: the line(s) beside the title, in the header's spare width; the hairline keeps its minimum. */
 .sh .salert{flex:0 1 auto;min-width:0;display:flex;flex-direction:column;gap:var(--sp-1)}
 /* Matrix engine folded to its header line (the spectrum has the top of the page): the profile picker

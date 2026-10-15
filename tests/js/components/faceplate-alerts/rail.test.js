@@ -1,5 +1,5 @@
 // Rendered suite for the alert homes on hqptuner/static/components/faceplate/Rail.js: a raised alert blinks its stage in
-// its colour, and the stages the alerts darken, the ones after Shaping under an SDM modulator below its rate floor, are
+// its color, and the stages the alerts darken, the ones after Shaping under an SDM modulator below its rate floor, are
 // drawn dead. Which stages darken is the store's decision, owned by tests/js/store/faceplate-alerts/alerts.test.js; this suite
 // checks only that the rail draws that decision.
 //

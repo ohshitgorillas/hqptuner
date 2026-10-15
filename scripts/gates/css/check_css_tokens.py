@@ -44,7 +44,7 @@ DECL = re.compile(r"(--)?([a-zA-Z][\w-]*)\s*:\s*(.+)", re.DOTALL)
 
 #: (line the declaration starts on, custom property?, property, value)
 Declaration = tuple[int, bool, str, str]
-COLOUR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
+COLOR = re.compile(r"#[0-9a-fA-F]{3,8}\b|\brgba?\(|\bhsla?\(")
 #: a px, rem or em length; the lookbehind keeps a digit inside a name or a
 #: longer number from starting a match of its own
 LENGTH = re.compile(r"(?<![\w.-])-?(\d*\.?\d+)(?:px|rem|em)\b", re.IGNORECASE)
@@ -70,7 +70,7 @@ def literal_size(prop: str, value: str) -> bool:
 
 def faceplate_complaint(prop: str, value: str) -> str:
     """Return a complaint about one faceplate declaration, or '' if it is clean."""
-    if COLOUR.search(value):
+    if COLOR.search(value):
         return f"{prop}: {value} — use a color token from {DEFINITION_SITE}"
     if literal_size(prop, value):
         return f"{prop}: {value} — name a size, space, weight or opacity token from {DEFINITION_SITE}"

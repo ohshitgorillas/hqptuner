@@ -1,7 +1,7 @@
 // The Source drawer's meter, store half: what the block shows over the meter feed (store/meter/feed.js). Whether the meter or a no-stream
 // line shows and which line, the linear frequency axis up to the source Nyquist or the share of it the frequency span
 // picked keeps in view, the channel switch's choices and the
-// channel drawn, the colour span, and the time window the apodizing strip and the spectrogram share with its axis.
+// channel drawn, the color span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
 //
 // The window is one span for both charts, the chosen seconds. Both end on the same playback: the spectrogram on the
@@ -23,7 +23,7 @@ import { sourceIsDsd } from "../path.js";
 const CD_NYQUIST = 22050; // the axis top while the feed has sent no geometry
 const STEREO = 2;
 const MS_PER_S = 1000; // the time axis counts in milliseconds
-const MAX_EVENTS = 3; // the strip's hottest colour, model/gauges/meter/meter-plot.js apodRamp
+const MAX_EVENTS = 3; // the strip's hottest color, model/gauges/meter/meter-plot.js apodRamp
 
 /** The no-stream lines, by state, the drawer's and the page's. @type {Record<string, string>} */
 export const METER_NOTES = {
@@ -65,7 +65,7 @@ export function setSpectrogramSpan(v) {
  * @property {ReturnType<typeof freqTicks>} freq  tick fractions down from the top edge
  * @property {number} span  ms, the window both charts span
  * @property {ReturnType<typeof timeTicks>} time  tick fractions across the window
- * @property {number} range  dB, the colour span
+ * @property {number} range  dB, the color span
  * @property {string} channel  the channel drawn, `sum` or an index
  * @property {string[]} channels  the channel switch's choices, the sum first
  * @property {string} window  the window picked, seconds

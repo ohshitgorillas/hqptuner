@@ -1,4 +1,4 @@
-// Behavioral suite for the page spectrum's Colors preference in store/ui/prefs.js: the colour suite the page spectrum
+// Behavioral suite for the page spectrum's Colors preference in store/ui/prefs.js: the color suite the page spectrum
 // draws in, a browser-held preference saved the way the Spectrum style is.
 //
 // On the way in, the suite the browser holds is the suite the page comes up with, and a stored value the app does not

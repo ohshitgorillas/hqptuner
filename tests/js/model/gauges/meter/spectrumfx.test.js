@@ -3,9 +3,9 @@
 // halo only ever dims where the trace has been, and the style a page draws when the picked one needs WebGL2 it lacks.
 // Every height is a fraction of the plot, 0 on the floor and 1 at full scale.
 //
-// The halo's strength and the colour suites are read off the module namespace with optional access, so a module
-// without them fails the halo and suite cases on their assertions. Under a colour suite, a louder part of the spectrum
-// is drawn in a colour from higher up the suite than a quieter part.
+// The halo's strength and the color suites are read off the module namespace with optional access, so a module
+// without them fails the halo and suite cases on their assertions. Under a color suite, a louder part of the spectrum
+// is drawn in a color from higher up the suite than a quieter part.
 //
 // Run: node --test tests/js/model/gauges/meter/spectrumfx.test.js
 
@@ -302,9 +302,9 @@ test("test_a_halo_dimmed_frame_by_frame_glows_as_its_age_says", () => {
   assert.ok(Math.abs(glow - law) < EPS, `glow ${glow} after ${DIMMED_FRAMES} frames is not the law's ${law}`);
 });
 
-// ── colour suites ────────────────────────────────────────────────────────
+// ── color suites ────────────────────────────────────────────────────────
 
-//: The fixed colour suites the owner offers, as the store holds them; Accent takes its colours from the user's accent.
+//: The fixed color suites the owner offers, as the store holds them; Accent takes its colors from the user's accent.
 const SUITES = ["inferno", "viridis", "borealis", "mono", "retro"];
 //: The plot's floor and its full scale, as fractions of the plot.
 const QUIET = 0;
@@ -313,23 +313,23 @@ const LOUD = 1;
 const ACCENT_HEX = "#4f9dde";
 
 /**
- * The colour suites' surface on the gauges module: each fixed suite's colours as six-digit hex, floor first,
- * and the colour a part of the spectrum at a plot fraction is drawn in under a suite with an accent in force.
+ * The color suites' surface on the gauges module: each fixed suite's colors as six-digit hex, floor first,
+ * and the color a part of the spectrum at a plot fraction is drawn in under a suite with an accent in force.
  *
  * @type {{ BANDS: number, SPECTRUM_SUITES?: Record<string, readonly string[]>, suiteColor?: (suite: string, at: number, accent: string) => string }}
  */
 const suites = gauges;
 
 /**
- * How far up `suite` the colour a part of the spectrum at plot fraction `at` is drawn in sits: its place among the
- * suite's colours, floor first, or -1 where it is none of them.
+ * How far up `suite` the color a part of the spectrum at plot fraction `at` is drawn in sits: its place among the
+ * suite's colors, floor first, or -1 where it is none of them.
  *
  * @param {string} suite
  * @param {number} at
  */
 function placeIn(suite, at) {
-  const colours = (suites.SPECTRUM_SUITES?.[suite] ?? []).map((c) => c.toLowerCase());
-  return colours.indexOf((suites.suiteColor?.(suite, at, ACCENT_HEX) ?? "").toLowerCase());
+  const colors = (suites.SPECTRUM_SUITES?.[suite] ?? []).map((c) => c.toLowerCase());
+  return colors.indexOf((suites.suiteColor?.(suite, at, ACCENT_HEX) ?? "").toLowerCase());
 }
 
 for (const suite of SUITES) {

@@ -177,7 +177,7 @@ export const [apodWindow, setApodWindow] = enumPref(K_APOD_WINDOW, APOD_WINDOWS,
 const SPECTRUM_STYLES = ["trace", "bars", "ridges", "aurora", "fade"];
 export const [spectrumStyle, setSpectrumStyle] = enumPref(K_SPECTRUM_STYLE, SPECTRUM_STYLES, "trace");
 
-// The colour suite the spectrum is drawn in. An unset or junk value reads as Accent.
+// The color suite the spectrum is drawn in. An unset or junk value reads as Accent.
 export const [spectrumColors, setSpectrumColors] = enumPref(K_SPECTRUM_COLORS, [...SPECTRUM_PALETTES], ACCENT);
 
 // The Levels floor, dBFS: where the page's Source level bars and their dB scale

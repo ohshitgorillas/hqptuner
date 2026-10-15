@@ -3,9 +3,9 @@
 // one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
 // strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
 // it and merges in the trace's fresh glow. A change of style, or a paint with no spectrum, starts the next style's
-// state afresh. Each bar takes the colour suite's colour at its height, or under a suite with a fixed bar gradient is
-// drawn over that gradient; the ridge lines, the fade trace and its halo are coloured by level, and the caps take the
-// suite's top colour. Accent draws in the accent in force at each paint.
+// state afresh. Each bar takes the color suite's color at its height, or under a suite with a fixed bar gradient is
+// drawn over that gradient; the ridge lines, the fade trace and its halo are colored by level, and the caps take the
+// suite's top color. Accent draws in the accent in force at each paint.
 
 import {
   ACCENT,
@@ -31,9 +31,9 @@ import { accentInForce } from "../../../store/ui/theme.js";
 /** @typedef {import("../../../model/gauges/meter/spectrumfx.js").RidgeState} RidgeState */
 
 /**
- * The CSS colours a painter draws with besides the colour suite's.
+ * The CSS colors a painter draws with besides the color suite's.
  *
- * @typedef {object} FxColours
+ * @typedef {object} FxColors
  * @property {string} glass  the fill under each ridge, hiding the rows behind it
  */
 
@@ -49,12 +49,12 @@ import { accentInForce } from "../../../store/ui/theme.js";
 
 /**
  * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state,
- * the colour suite picked and the accent in force.
+ * the color suite picked and the accent in force.
  *
  * @typedef {object} Frame
  * @property {CanvasRenderingContext2D} ctx
  * @property {HTMLCanvasElement} canvas
- * @property {FxColours} colours
+ * @property {FxColors} colors
  * @property {Float32Array} fracs
  * @property {FxState} state
  * @property {string} suite
@@ -95,7 +95,7 @@ export function fitCanvas(box, ratio) {
 
 /**
  * Fill one rect per band across the canvas, the band's level a fraction of its height: a bar down to the floor, or a
- * cap `thick` pixels deep under the level. Where `ink` is given, each band fills in the colour it gives the band's
+ * cap `thick` pixels deep under the level. Where `ink` is given, each band fills in the color it gives the band's
  * level.
  *
  * @param {Frame} f
@@ -113,7 +113,7 @@ function fillBands(f, lvls, thick, ink) {
 }
 
 /**
- * A vertical gradient from `y0` to `y1` through `stops`, each its offset and colour.
+ * A vertical gradient from `y0` to `y1` through `stops`, each its offset and color.
  *
  * @param {CanvasRenderingContext2D} ctx
  * @param {number} y0
@@ -123,13 +123,13 @@ function fillBands(f, lvls, thick, ink) {
  */
 function vertical(ctx, y0, y1, stops) {
   const grad = ctx.createLinearGradient(0, y0, 0, y1);
-  for (const [at, colour] of stops) grad.addColorStop(at, colour);
+  for (const [at, color] of stops) grad.addColorStop(at, color);
   return grad;
 }
 
 /**
- * Bars: the bands, each with its peak cap; each in the suite's colour at its height, or all over the suite's fixed bar
- * gradient from the floor to full scale where it has one, the caps in the suite's top colour.
+ * Bars: the bands, each with its peak cap; each in the suite's color at its height, or all over the suite's fixed bar
+ * gradient from the floor to full scale where it has one, the caps in the suite's top color.
  *
  * @param {Frame} f
  */
@@ -150,21 +150,21 @@ function bars(f) {
 }
 
 /**
- * Ridges: oldest first, highest up; each row a line coloured by level over its baseline, filled down to it so the rows
+ * Ridges: oldest first, highest up; each row a line colored by level over its baseline, filled down to it so the rows
  * behind hide. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past the top, so the
  * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
  *
  * @param {Frame} f
  */
 function ridges(f) {
-  const { ctx, canvas, colours, state } = f;
+  const { ctx, canvas, colors, state } = f;
   const { width: w, height: h } = canvas;
   state.ridges = stepRidges(state.ridges, f.fracs);
   const rows = state.ridges.rows;
   const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
   const stops = suiteLineStops(f.suite, f.accent);
   ctx.clearRect(0, 0, w, h);
-  ctx.fillStyle = colours.glass;
+  ctx.fillStyle = colors.glass;
   ctx.lineWidth = RIDGE_LINE;
   for (let k = rows.length - 1; k >= 0; k--) {
     const row = rows[k];
@@ -215,8 +215,8 @@ function mergeHalo(fresh, held, keep) {
 /**
  * Fade: a blurred halo of the trace, merged over the last paint's halo dimmed by the share stepHalo gives, then the
  * live trace stroked crisp on top. The halo is read back before the trace is stroked, so the trace never lingers in it.
- * A halo image the canvas has been resized out from under starts afresh. Trace and halo are coloured by level alike,
- * the halo at its starting strength in each colour.
+ * A halo image the canvas has been resized out from under starts afresh. Trace and halo are colored by level alike,
+ * the halo at its starting strength in each color.
  *
  * @param {Frame} f
  */
@@ -255,13 +255,13 @@ const STYLES = { bars, ridges, fade };
 const fresh = () => ({ caps: null, ridges: null, halo: HALO_FRESH, glow: null });
 
 /**
- * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in colour suite `suite`,
+ * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in color suite `suite`,
  * Accent where none is given, in the accent in force when it paints; `clear` empties the canvas.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {FxColours} colours
+ * @param {FxColors} colors
  */
-export function fxPainter(canvas, colours) {
+export function fxPainter(canvas, colors) {
   let shown = "";
   let state = fresh();
   const clear = () => canvas.getContext("2d", CTX_OPTS)?.clearRect(0, 0, canvas.width, canvas.height);
@@ -286,7 +286,7 @@ export function fxPainter(canvas, colours) {
     }
     const draw = STYLES[style];
     const accent = accentInForce();
-    if (draw) draw({ ctx, canvas, colours, fracs: fractionsOf(spectrum.disp, range), state, suite, accent });
+    if (draw) draw({ ctx, canvas, colors, fracs: fractionsOf(spectrum.disp, range), state, suite, accent });
     else clear();
   };
   return { paint, clear };

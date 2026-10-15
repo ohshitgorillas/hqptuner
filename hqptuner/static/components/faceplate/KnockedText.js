@@ -1,6 +1,6 @@
 // An SVG label with a knockout under it: a patch of its background, sized from the label's measured box, painted after
 // every mark beneath the label and before the label itself. No mark is drawn across the letters, whatever order an
-// engine paints a text's glyphs in, so a letter-spaced label needs no halo. The knockout's class carries its colour, so
+// engine paints a text's glyphs in, so a letter-spaced label needs no halo. The knockout's class carries its color, so
 // it suits a flat background.
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";

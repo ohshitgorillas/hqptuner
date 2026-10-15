@@ -1,5 +1,5 @@
 // Rendered suite for the alert home on hqptuner/static/components/faceplate/EngineRow.js: a sustained slow engine blinks
-// the speed gauge in its colour, and the gauge takes taps like a button only while an alert is homed on it.
+// the speed gauge in its color, and the gauge takes taps like a button only while an alert is homed on it.
 //
 // The wire is the seam, as tests/js/components/faceplate/engine-row.test.js drives it: each case writes Status frames
 // into `engineStatus`, as the poll does, with the health store's baseline effect registered. Every case starts a track

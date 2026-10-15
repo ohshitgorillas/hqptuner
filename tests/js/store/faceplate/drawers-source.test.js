@@ -182,7 +182,7 @@ test("test_a_picked_channel_the_source_lacks_falls_back_to_the_sum", () => {
 
 // --- range and window ----------------------------------------------------------------------------------------------
 
-test("test_the_colour_span_is_the_picked_range", () => {
+test("test_the_color_span_is_the_picked_range", () => {
   setMeterRange(LAST_RANGE);
   assert.equal(sourceMeter().range, Number(LAST_RANGE));
 });

@@ -1,6 +1,6 @@
 // Rendered suite for hqptuner/static/components/faceplate/settings/SettingsRail.js: one button per Settings category in
 // the order given, the open class following the open drawer, a tap opening its drawer, each readout row's label and
-// text, a swatch row's swatch and its colour, a wide row, and the blink a raised alert puts on its category.
+// text, a swatch row's swatch and its color, a wide row, and the blink a raised alert puts on its category.
 //
 // The seam is the categories and controls the test writes, the open drawer in `openStage`, and the wire for the alert:
 // a Roon track playing at the default idle time, stated through `config` and a fresh `engineStatus` frame as

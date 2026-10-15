@@ -7,7 +7,7 @@
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.
 // Every string asserted is a wire value or a number derived from one, minus signs read back as numbers. The Levels floor is picked through the store's setter,
 // read off the module namespace with optional access so a store without one fails the floor cases on their assertions;
-// the spectrum's colour suite is picked the same way, and whether a suite changes what the trace draws is read by
+// the spectrum's color suite is picked the same way, and whether a suite changes what the trace draws is read by
 // comparing the spectrum's markup under it against its markup under Mono. Under the Accent palette the trace draws
 // in shades of the accent in force, read from the theme store's signals, and a change of accent reaches the next
 // render: the trace's markup after a change differs from its markup with no change.
@@ -170,10 +170,10 @@ test("test_the_spectrum_grid_carries_the_ridges_style_when_it_is_picked", () => 
   assert.equal(grid ? attr(grid, "data-style") : undefined, RIDGES);
 });
 
-// ── colour suites ────────────────────────────────────────────────────────
+// ── color suites ────────────────────────────────────────────────────────
 
 /**
- * The spectrum's markup under the Trace style and colour suite `suite`.
+ * The spectrum's markup under the Trace style and color suite `suite`.
  *
  * @param {string} suite
  */

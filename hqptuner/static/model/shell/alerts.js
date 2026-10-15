@@ -1,4 +1,4 @@
-// Where raised alerts land, free of the DOM: which homes blink and in what colour, which drawers and page sections pin
+// Where raised alerts land, free of the DOM: which homes blink and in what color, which drawers and page sections pin
 // which alert lines, which lines the plate shows under its top bar, which drawer rows light, which stages go dark, and
 // which alerts a header popover shows.
 
@@ -29,7 +29,7 @@
 /** @typedef {{ label: string, chain: Alert['chain'], sev: Sev }} LitRow */
 /**
  * @typedef {object} AlertPlan
- * @property {{ stage: Map<string, Blink>, el: Map<string, Blink>, set: Map<string, Blink> }} blinks  each blinking home's colour
+ * @property {{ stage: Map<string, Blink>, el: Map<string, Blink>, set: Map<string, Blink> }} blinks  each blinking home's color
  * @property {Map<string, { alerts: Alert[], rows: LitRow[] }>} drawers  each drawer's pinned lines and lit rows
  * @property {Map<string, Alert[]>} sections  each page section's pinned lines
  * @property {Alert[]} plate  the lines the plate shows under its top bar, in raised order

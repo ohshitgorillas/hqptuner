@@ -59,18 +59,18 @@ function setOn(root, sel, name, value) {
 const TRACED = new Set(["trace"]);
 
 /**
- * Write the colour a level mark is drawn in onto `el` as its `--lv-ink`, which the stylesheet shades the
- * mark from; an empty colour clears it, leaving the stylesheet's instrument amber.
+ * Write the color a level mark is drawn in onto `el` as its `--lv-ink`, which the stylesheet shades the
+ * mark from; an empty color clears it, leaving the stylesheet's instrument amber.
  *
  * @param {Element | null} el
- * @param {string} colour
+ * @param {string} color
  */
-function inkOn(el, colour) {
-  /** @type {HTMLElement | null} */ (el)?.style.setProperty("--lv-ink", colour);
+function inkOn(el, color) {
+  /** @type {HTMLElement | null} */ (el)?.style.setProperty("--lv-ink", color);
 }
 
 /**
- * One level bar as painted: its marks at bar fractions, their colours, and whether the scene has a reading for it.
+ * One level bar as painted: its marks at bar fractions, their colors, and whether the scene has a reading for it.
  *
  * @typedef {{ at: BarFractions, inks: MeterInks, shown: boolean }} BarLook
  */
@@ -83,7 +83,7 @@ const NO_BAR = /** @type {BarLook} */ ({
 });
 
 /**
- * How one reading is painted on a bar running up from `floor`: its marks at their bar fractions, in the colours the
+ * How one reading is painted on a bar running up from `floor`: its marks at their bar fractions, in the colors the
  * meter model picks for those levels under `palette` and `accent`.
  *
  * @param {import("../../../model/gauges/meter/meter.js").LevelReading | undefined} lv
@@ -99,7 +99,7 @@ function barLook(lv, floor, palette, accent) {
 }
 
 /**
- * Size and colour one level bar's peak, RMS and hold marks as `look` has them.
+ * Size and color one level bar's peak, RMS and hold marks as `look` has them.
  *
  * @param {Element} bar
  * @param {BarLook} look
@@ -122,7 +122,7 @@ function paintBar(bar, { at, inks, shown }) {
 /**
  * Write one scene into the section rendered under `root`, the spectrum's SVG paths blank where `style` draws on the
  * effects or shader canvas instead, the level bars up from the Levels floor, and the bars in the
- * colours the meter model picks for their levels under the spectrum's palette and the accent in force, and the VU
+ * colors the meter model picks for their levels under the spectrum's palette and the accent in force, and the VU
  * needles to their readings. `style` is written to the grid's `data-style` on every paint, so the stylesheet follows
  * the style actually drawn rather than the one picked.
  *

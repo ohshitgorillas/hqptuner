@@ -43,7 +43,7 @@
 
   /* Accent (amber by default): marks what is set (a value in a VFD window, the chosen segment) and where
      the user is (the left-hand selection bar, the open stage, a view's foot). Never a semantic state or a
-     button's resting face, and never a measurement except the spectrum under its Accent colours, which
+     button's resting face, and never a measurement except the spectrum under its Accent colors, which
      the user picks. The user can swap it, so nothing that must stay amber reads it. */
   --acc:#e9a63c; --acc-dim:#6e5124; --acc-lo:#2a2215;
   --on-acc:#0b0a08;        /* ink on an accent fill */
@@ -306,7 +306,7 @@
   --shade:#000;                /* bezels round glass, inset and cast shadows, engraving */
   --shade-deep:#000c;          /* cast shadow under the plate */
   --glint:#fff;                /* hot point inside a lit lamp */
-  --glint-lo:#fff4;            /* top-edge light on a colour swatch */
+  --glint-lo:#fff4;            /* top-edge light on a color swatch */
   --highlight-lo:#4a4f5833;    /* --highlight at 20%: the edge of a drawer or sheet */
   --lamp-rim:#0a0c0f;          /* lamp bezel */
   --plate-face:linear-gradient(180deg,#23262b,#1b1d21 40%,#1e2126);   /* the plate */
@@ -324,10 +324,10 @@
   --needle:.14s ease-out;              /* rate dial needle */
   --lamp-decay:.5s;                    /* a counter lamp's flash fading out */
 
-  /* Instrument amber: the Source meter's level bars and peak readout where the paint has written no colour of the
+  /* Instrument amber: the Source meter's level bars and peak readout where the paint has written no color of the
      Display palette onto them. */
   --meter:#e9a63c; --meter-dim:#6e5124; --meter-lo:#2a2215; --meter-hi:#ffd48a;
-  /* How far a level mark's shades sit from the colour the paint writes: the dark fill and the dim edge mixed toward
+  /* How far a level mark's shades sit from the color the paint writes: the dark fill and the dim edge mixed toward
      the glass, the hold's bright core toward the ink, near the amber set's own spacing. */
   --lv-lo-mix:16%; --lv-dim-mix:46%; --lv-hi-mix:40%;
 

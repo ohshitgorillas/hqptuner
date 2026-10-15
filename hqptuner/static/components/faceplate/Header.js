@@ -2,7 +2,7 @@
 // the two builders and the gear. The builders and the gear swap the plate's body and read pressed while it shows.
 // In the tree a station's name loads that station, and a snapshot of the loaded station applies to the running engine;
 // another station's snapshots wait for it to be loaded. An alert homed on the knob or the gear blinks it in the alert's
-// colour. The knob's tap opens the connection panel, with a popover of the alert lines homed there over it when any are.
+// color. The knob's tap opens the connection panel, with a popover of the alert lines homed there over it when any are.
 
 import { html } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";

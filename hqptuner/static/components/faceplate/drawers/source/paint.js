@@ -4,7 +4,7 @@
 // frequency span or the source's geometry repaints it whole. The apodizing strip repaints whole when its events, the window or its right
 // edge change, and its edge moves on with every slice the spectrogram closes (store/meter/spectrogram.js stripEnd), so
 // the two scroll together. Neither is painted while the Source drawer is closed, nor subscribed to what it paints, and
-// reopening the drawer repaints the spectrogram whole. Colours come from the stylesheet's tokens, read once on mount:
+// reopening the drawer repaints the spectrogram whole. Colors come from the stylesheet's tokens, read once on mount:
 // the spectrogram's --spec-* ramp, the glass where no slice lies, and the strip's events from the glass toward --bad.
 
 import { useEffect } from "preact/hooks";
@@ -15,11 +15,11 @@ import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";
 import { spectrogramCells, spectrogramEnd, stripEnd } from "../../../../store/meter/spectrogram.js";
-import { specRamp } from "../../tokencolours.js";
+import { specRamp } from "../../tokencolors.js";
 
 /** @typedef {[number, number, number]} Triple */
 /** @typedef {import("../../../../lib/spectroraster.js").Cell} Cell */
-/** @typedef {{ ramp: Triple[], glass: number[], strip: number[][] }} Colours */
+/** @typedef {{ ramp: Triple[], glass: number[], strip: number[][] }} Colors */
 /** @typedef {{ current: HTMLCanvasElement | null }} CanvasRef */
 
 /** The spectrogram canvas's pixel size; CSS stretches it over the plot. */
@@ -31,12 +31,12 @@ const OPAQUE = 255;
 const STAGE = "source";
 
 /**
- * The colours both canvases paint with, read from the tokens in force on `el`.
+ * The colors both canvases paint with, read from the tokens in force on `el`.
  *
  * @param {Element} el
- * @returns {Colours}
+ * @returns {Colors}
  */
-function readColours(el) {
+function readColors(el) {
   const cs = getComputedStyle(el);
   const lut = specRamp(cs);
   const glass = rgb(cs.getPropertyValue("--glass"), [8, 9, 11]);
@@ -49,7 +49,7 @@ function readColours(el) {
 }
 
 /**
- * Write one RGB colour, opaque, at pixel `p`.
+ * Write one RGB color, opaque, at pixel `p`.
  *
  * @param {Uint8ClampedArray} data
  * @param {number} p
@@ -67,16 +67,16 @@ function put(data, p, c) {
  * view's top, glass where none lies.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {Colours} colours
+ * @param {Colors} colors
  * @param {{ span: number, range: number, top: number, cells: Cell[] }} view
  * @param {number} from
  */
-function paintSpectrogram(canvas, colours, view, from) {
+function paintSpectrogram(canvas, colors, view, from) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const { span, range, top, cells } = view;
-  const { width, height, data } = rasterize(colours.ramp, { cells, span, range, top }, from);
-  for (let p = 0; p < width * height; p++) if (data[p * 4 + 3] === 0) put(data, p, colours.glass);
+  const { width, height, data } = rasterize(colors.ramp, { cells, span, range, top }, from);
+  for (let p = 0; p < width * height; p++) if (data[p * 4 + 3] === 0) put(data, p, colors.glass);
   const img = ctx.createImageData(width, height);
   img.data.set(data);
   ctx.putImageData(img, from, 0);
@@ -94,18 +94,18 @@ function scrollLeft(canvas, shift) {
 }
 
 /**
- * Paint the apodizing strip: one colour per pixel column, by the events under it.
+ * Paint the apodizing strip: one color per pixel column, by the events under it.
  *
  * @param {HTMLCanvasElement} canvas
- * @param {Colours} colours
+ * @param {Colors} colors
  * @param {{ span: number, end: number }} at  ms, the window and the track position its right edge shows
  */
-function paintStrip(canvas, colours, at) {
+function paintStrip(canvas, colors, at) {
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
   const events = stripEvents(apodBins.value, at.span, canvas.width, at.end);
   const img = ctx.createImageData(canvas.width, 1);
-  events.forEach((n, x) => put(img.data, x, colours.strip[n]));
+  events.forEach((n, x) => put(img.data, x, colors.strip[n]));
   ctx.putImageData(img, 0, 0);
 }
 
@@ -120,7 +120,7 @@ export function useMeterPaint(spec, strip) {
     const s = spec.current;
     const a = strip.current;
     if (!s || !a) return undefined;
-    const colours = readColours(s);
+    const colors = readColors(s);
     /** @type {{ key: string, end: number, carry: number } | null} */
     let painted = null;
     const spectrogram = effect(() => {
@@ -135,14 +135,14 @@ export function useMeterPaint(spec, strip) {
       const plan = scrollPlan(painted, { key, end, span: view.span });
       painted = { key, end, carry: plan.carry };
       if (plan.full) {
-        paintSpectrogram(s, colours, { ...view, cells }, 0);
+        paintSpectrogram(s, colors, { ...view, cells }, 0);
       } else if (plan.shift) {
         scrollLeft(s, plan.shift);
-        paintSpectrogram(s, colours, { ...view, cells }, plan.from);
+        paintSpectrogram(s, colors, { ...view, cells }, plan.from);
       }
     });
     const stripe = effect(() => {
-      if (openStage.value === STAGE) paintStrip(a, colours, { span: sourceMeter().span, end: stripEnd.value ?? 0 });
+      if (openStage.value === STAGE) paintStrip(a, colors, { span: sourceMeter().span, end: stripEnd.value ?? 0 });
     });
     return () => {
       spectrogram();

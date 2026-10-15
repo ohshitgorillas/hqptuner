@@ -1,4 +1,4 @@
-// Alert lines: one line per alert in the order given, each led by its severity's glyph and coloured by its severity. A
+// Alert lines: one line per alert in the order given, each led by its severity's glyph and colored by its severity. A
 // line that lists settings carries one row per setting under its sentence, reading `Label: value`. A line whose alert
 // carries an action is a button.
 

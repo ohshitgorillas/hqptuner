@@ -6,7 +6,7 @@
 // from it; its lamp flashes on a frame that counted and fades, and stays dark while there is no total. The HF filter
 // reads the playback filter that runs and opens a menu of the engine's playback filters, a pick written live. Its menu
 // and the volume's slider popover render beside the row, so that each is a child of the plate as every popover is. An
-// alert homed on the gauge blinks it in the alert's colour, and while one is up the gauge takes a tap or Enter like a
+// alert homed on the gauge blinks it in the alert's color, and while one is up the gauge takes a tap or Enter like a
 // button, opening the alert lines; its popover renders beside the row too.
 
 import { html } from "../../lib/dom.js";

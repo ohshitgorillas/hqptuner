@@ -1,6 +1,6 @@
 // The Settings rail: one button per category, its engraved name over its readouts, each a label and the value as its
 // control prints it, an accent's swatch before its name. A tap opens the category's drawer, or closes it when it is the
-// open one. A raised alert homed on a category blinks it in the alert's colour.
+// open one. A raised alert homed on a category blinks it in the alert's color.
 
 import { html } from "../../../lib/dom.js";
 import { settingsRail } from "../../../store/faceplate/settings/rail.js";
