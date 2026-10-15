@@ -30,21 +30,19 @@ const STAGED = "Staged changes";
  * Mark each stage whose name runs past one line, so its lamp sits on the first, then draw the wire.
  *
  * @param {HTMLElement} rail
- * @param {number} scale  the plate's scale
  */
-function layout(rail, scale) {
+function layout(rail) {
   for (const n of rail.querySelectorAll(".st > .n"))
     n.parentElement?.classList.toggle("wrap", /** @type {HTMLElement} */ (n).offsetHeight > ONE_LINE);
-  drawWire(rail, scale);
+  drawWire(rail);
 }
 
 /**
  * Size the wire's svg to the rail and draw its path through the visible stages' lamps, measured in rail layout px.
  *
  * @param {HTMLElement} rail
- * @param {number} scale  the plate's scale
  */
-function drawWire(rail, scale) {
+function drawWire(rail) {
   const lamps = [...rail.querySelectorAll(".st:not([hidden]) > .lamp")].map((l) => {
     const st = /** @type {HTMLElement} */ (l.parentElement);
     return {
@@ -55,7 +53,7 @@ function drawWire(rail, scale) {
   });
   const svg = rail.querySelector(".wire");
   if (!lamps.length || !svg) return;
-  const dots = lampDots({ rail: rail.getBoundingClientRect(), lamps, scale });
+  const dots = lampDots({ rail: rail.getBoundingClientRect(), lamps });
   svg.setAttribute("width", String(rail.offsetWidth));
   svg.setAttribute("height", String(rail.offsetHeight));
   svg.firstElementChild?.setAttribute("d", wirePath(dots, "trunk"));
@@ -124,11 +122,11 @@ export function Rail() {
   const staged = markedStages.value;
   const drawn = JSON.stringify([stages, open, [...plan.blinks.stage], plan.dark, staged, transport]);
   useEffect(() => {
-    if (ref.current) layout(ref.current, fit.scale);
+    if (ref.current) layout(ref.current);
   }, [drawn, fit]);
   useEffect(() => {
     document.fonts?.ready.then(() => {
-      if (ref.current) layout(ref.current, plate.value.scale);
+      if (ref.current) layout(ref.current);
     });
   }, []);
   return html`

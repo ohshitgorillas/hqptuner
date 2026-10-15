@@ -135,15 +135,13 @@ export function rateStage(play, rates, conv) {
 }
 
 /**
- * How far the page's lowest child runs past the page's bottom, in layout px. The plate is scaled in a window smaller
- * than its format (screen px = layout px × scale), so screen rects are divided by the scale before the padding (layout
- * px) is added.
+ * How far the page's lowest child runs past the page's bottom, in layout px, its bottom padding included.
  *
- * @param {{ bottoms: number[], pageBottom: number, scale: number, padding: number }} m  measured in screen px
+ * @param {{ bottoms: number[], pageBottom: number, padding: number }} m  measured in layout px
  * @returns {number}
  */
 export function overrunOf(m) {
-  return (Math.max(...m.bottoms) - m.pageBottom) / m.scale + m.padding;
+  return Math.max(...m.bottoms) - m.pageBottom + m.padding;
 }
 
 /**

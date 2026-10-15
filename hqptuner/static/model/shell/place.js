@@ -5,7 +5,7 @@
 import { clamp } from "../../lib/coerce.js";
 
 /**
- * An anchor's box in screen px, measured from the plate's top-left corner (the scale has not been divided out).
+ * An anchor's box in layout px, measured from the plate's top-left corner.
  *
  * @typedef {object} Rect
  * @property {number} left
@@ -55,18 +55,18 @@ export const ON_PLATE = { x: 0, y: 0 };
  * The margins and the clamp are the plate's whatever box the panel sits in. A panel wider than the room between the
  * side margins keeps its left edge at the left margin.
  *
- * @param {{anchor: Rect, panel: Size, plate: Size, scale: number, side: Side, foot: Margin, at: Place, origin?: Origin}} o
+ * @param {{anchor: Rect, panel: Size, plate: Size, side: Side, foot: Margin, at: Place, origin?: Origin}} o
  * @returns {{left: number, top: number}}
  */
-export function clampToPlate({ anchor, panel, plate, scale, side, foot, at, origin = ON_PLATE }) {
+export function clampToPlate({ anchor, panel, plate, side, foot, at, origin = ON_PLATE }) {
   const [l, r] = Array.isArray(side) ? side : [side, side];
-  const x = anchor.left / scale,
-    y = anchor.top / scale;
+  const x = anchor.left,
+    y = anchor.top;
   const x0 = at.x === "before" ? x - panel.w - at.gap : x;
   const left = clamp(x0, room(l), plate.w - room(r) - panel.w) - origin.x;
   const floor = plate.h - room(foot);
   if (at.y === "top") return { left, top: Math.min(y, floor - panel.h) - origin.y };
-  const below = y + anchor.height / scale + at.gap;
+  const below = y + anchor.height + at.gap;
   const flipped = below + panel.h > floor ? y - panel.h - at.gap : below;
   return { left, top: clamp(flipped, PLATE_TOP, floor - panel.h) - origin.y };
 }

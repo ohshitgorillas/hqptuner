@@ -8,9 +8,10 @@ The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate
 
 ### Plate
 
-- **Three formats, tablet landscape in CSS px:** Expanded 1366×1024, Normal 1180×820 and Compact 1133×744 (the smallest). The window picks the largest format that renders at a scale of 0.95 or above, else Compact; the user's Display choice overrides it. `--plate-w` and `--plate-h` carry the picked format.
-- **The plate is laid out at the picked size and reflows into it:** rail stages flex, the one `.fill` section takes the spare height, drawers and bodies widen. It renders 1:1 and scales down only below its size, never up.
-- **Everything fits without scrolling at every size**, checked with the real fonts.
+- **Three formats, tablet landscape in CSS px:** Expanded 1366×1024, Normal 1180×820 and Compact 1133×744 (the smallest). A format sets the plate's layout. The user's Display choice pins one format at its exact size.
+- **Auto stretches the plate to the window**, each direction on its own, from Compact's size up to Expanded's. The layout is Compact's until the window is at least Normal's size, Normal's from there, and Expanded's from 916 tall at Normal's width or wider, where Expanded's spectrum is as tall as Normal's. `--plate-w` and `--plate-h` carry the plate's size.
+- **The plate is laid out at its size and reflows into it:** rail stages flex, the one `.fill` section takes the spare height, drawers and bodies widen. It renders 1:1 and never scales. In a window smaller than the plate the page scrolls; in a larger one the plate sits centered.
+- **Nothing inside the plate scrolls at any size**, in the real fonts.
 
 ### One surface, no cards
 
@@ -68,4 +69,4 @@ The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate
 
 ### Hand-back
 
-Every faceplate change is checked at 1133×744, 1180×820 and 1366×1024, with the real fonts: nothing scrolls, clips or overlaps at any of the three.
+Every faceplate change is checked at 1133×744, 1180×820, 1180×916 and 1366×1024, with the real fonts: nothing inside the plate scrolls, clips or overlaps at any of the four.

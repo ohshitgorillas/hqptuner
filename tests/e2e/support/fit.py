@@ -1,8 +1,9 @@
 """Measuring how much of a surface's content lies past the box it is seen through, at each plate format.
 
 The browser tests that hold a surface to "fits without scrolling" share this:
-the three plate formats, the boxes the owner lets scroll, a bounded settle, the
-plate laid out with the engine's data in, and `hiddenPast`, the measure itself.
+the three plate formats and the sizes Auto stretches the plate to between them,
+the boxes the owner lets scroll, a bounded settle, the plate laid out under
+Auto with the engine's data in, and `hiddenPast`, the measure itself.
 
 - The boxes a surface is seen through are the surface, every box inside it that
   scrolls or clips, every ancestor of it that scrolls or clips, and the page.
@@ -40,6 +41,22 @@ FORMATS = {
     "normal": ViewportSize(width=1180, height=820),
     "compact": ViewportSize(width=1133, height=744),
 }
+
+#: Sizes Auto stretches the plate to between the formats, either side of each layout switch:
+#: Compact's layout at its tallest and at its widest, Normal's at its tallest, Expanded's at its narrowest.
+AUTO_SIZES = {
+    "auto-compact-tallest": ViewportSize(width=1179, height=1024),
+    "auto-compact-widest": ViewportSize(width=1366, height=819),
+    "auto-normal-tallest": ViewportSize(width=1180, height=915),
+    "auto-expanded-narrowest": ViewportSize(width=1180, height=916),
+}
+
+#: Every size a fit test lays the plate out at: the three formats and the Auto sizes between them.
+SIZES = {**FORMATS, **AUTO_SIZES}
+
+#: Where the browser holds the Display choice, and the choice that stretches the plate to the window.
+DISPLAY_KEY = "hqptuner.displayFormat"
+AUTO = "auto"
 
 #: The two boxes the owner lets scroll: a matrix profile's description and the engine log tail.
 EXEMPT = 'textarea[data-testid="profile-description"], pre[data-testid="log-tail"]'
@@ -256,8 +273,9 @@ const hiddenPast = (root, skip, around, rounding) => {
 
 
 def load_plate(page: Page, stack: stack_support.Stack, size: ViewportSize) -> None:
-    """Lay the plate out for a window of `size` and wait until the engine's data is in."""
+    """Lay the plate out under Auto for a window of `size` and wait until the engine's data is in."""
     page.set_viewport_size(size)
+    page.add_init_script(f'try {{ window.localStorage.setItem("{DISPLAY_KEY}", "{AUTO}"); }} catch (e) {{}}')
     page.goto(f"{stack.base_url}/")
     page.locator(f'button[data-stage="{OUTPUT_STAGE}"]').click(timeout=SETTLE_TIMEOUT)
     drawer = page.locator(f"#drawer-{OUTPUT_STAGE}")

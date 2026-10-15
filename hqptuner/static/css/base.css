@@ -1,15 +1,15 @@
 /* Page frame, plate, and type utilities. */
 html,body{height:100%}
 [hidden]{display:none!important}
-body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:var(--fs-4);overflow:hidden;line-height:var(--lh-text)}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--f-body);font-size:var(--fs-4);line-height:var(--lh-text)}
 /* Native controls take the plate's pinned line height, never the UA's `normal` (tokens.css --lh-*). */
 button,input,select,textarea{line-height:inherit}
 
-/* #stage centers the plate; model/shell/plate.js scales it down to fit (never up). No padding: in a window exactly its format's size it renders 1:1. */
-#stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+/* #stage centers the plate where the window is larger; where smaller, `safe` pins its top and left edges to the page start and the page scrolls to the rest. No padding: in a window exactly its format's size the page does not scroll. */
+#stage{position:absolute;inset:0;display:flex;align-items:safe center;justify-content:safe center}
 .plate{position:relative;width:var(--plate-w);height:var(--plate-h);flex-shrink:0;box-sizing:border-box;padding:calc(var(--sp-7) + env(safe-area-inset-top)) var(--sp-9) 0;display:flex;flex-direction:column;
   background:var(--plate-face);border:var(--hair) solid var(--edge);border-radius:var(--r-plate);
-  box-shadow:var(--plate-shadow);transform-origin:center;font-variant-numeric:tabular-nums;transition:opacity var(--fade)}
+  box-shadow:var(--plate-shadow);font-variant-numeric:tabular-nums;transition:opacity var(--fade)}
 /* The engine is down for a restart: the plate dims and every control stays live. */
 .plate[data-restarting]{opacity:var(--op-2)}
 .rule{height:var(--hair);background:var(--line);flex-shrink:0}

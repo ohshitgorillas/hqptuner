@@ -2,14 +2,15 @@
 
 No surface a tap opens develops a scroll bar and none cuts content off past its
 box, at each of the three plate formats the design system names (Expanded
-1366x1024, Normal 1180x820, Compact 1133x744): a popover, a menu, a list, a
+1366x1024, Normal 1180x820, Compact 1133x744) and at the sizes Auto stretches
+the plate to between them (`fit.AUTO_SIZES`): a popover, a menu, a list, a
 sheet, a dialog or a `see more` note, wherever its trigger sits, on the plate,
 in any drawer tab, or in any view the header opens. The page laid out with the
 matrix profile at its top fits the same way. Two boxes are the user's own and
 may scroll: a matrix profile's description and the engine log tail.
 
-Each case lays the plate out for a window exactly the size of one format, so
-the window picks that format at a scale of 1, then walks one host: the plate
+Each case lays the plate out under Auto for a window exactly the size it
+measures, so the plate fills the window at a scale of 1, then walks one host: the plate
 and its drawers, the page with the matrix profile at its top, or one of the
 header's views. In each place the host shows it taps every trigger on show,
 measures each surface that tap opened (`e2e.support.fit`), walks the triggers
@@ -377,10 +378,10 @@ def _hidden_by_surface(page: Page, stack: stack_support.Stack, size: ViewportSiz
     return walk.done()
 
 
-@pytest.mark.parametrize("plate", sorted(fit.FORMATS))
+@pytest.mark.parametrize("plate", sorted(fit.SIZES))
 @pytest.mark.parametrize("host", HOSTS)
 def test_no_opened_surface_or_profile_view_scrolls_or_cuts_off_content(
     page: Page, stack: stack_support.Stack, host: str, plate: str
 ) -> None:
     """In this host at this format, no surface a tap opens, and not the matrix profile view, hides content."""
-    assert _hidden_by_surface(page, stack, fit.FORMATS[plate], host) == {}
+    assert _hidden_by_surface(page, stack, fit.SIZES[plate], host) == {}

@@ -1,7 +1,8 @@
-// The plate's format and scale, free of the DOM. The faceplate is laid out at one of three tablet landscape formats in
-// CSS px and reflows into it; it scales down to fit the window and never up. The display-format choice names the
-// format, or leaves it to the window: Auto gives the window the largest format that still renders at a scale of 0.95 or
-// above, and Compact when none does.
+// The plate's layout and size, free of the DOM. The faceplate is laid out at one of three tablet landscape formats in
+// CSS px and is never scaled. The display-format choice names the format, which the plate then takes at its exact size
+// in any window, or leaves it to the window: under Auto the plate stretches to the window, each direction on its own,
+// from Compact's size up to Expanded's, and takes Compact's layout until the window is at least Normal's size, Normal's
+// from there, and Expanded's from 916 tall at Normal's width or wider.
 
 /**
  * One tablet landscape format in CSS px. `both`: the Expanded format, tall enough to open both Resampling filters and
@@ -17,9 +18,10 @@
  */
 
 /**
- * The format the plate is laid out at, and the scale that fits it to the window.
+ * The layout the plate takes, and its size in CSS px: the format's own size for a chosen format, the window's size
+ * held between Compact's and Expanded's under Auto.
  *
- * @typedef {PlateFormat & { scale: number }} PlateFit
+ * @typedef {PlateFormat} PlateFit
  */
 
 /** The three formats, smallest first: Compact, Normal and Expanded. @type {PlateFormat[]} */
@@ -32,43 +34,50 @@ const FORMATS = [
 /** The Compact format, the smallest. */
 export const COMPACT = FORMATS[0];
 
-/** The lowest scale at which Auto still gives the window a format. */
-const AUTO_FLOOR = 0.95;
+const [, NORMAL, EXPANDED] = FORMATS;
+
+/** The window height, CSS px, from which Auto takes Expanded's layout in a window at least Normal's width. */
+const EXPANDED_FROM_H = 916;
 
 /** The display-format choices: Auto, then each format's id, largest first. */
 export const DISPLAY_FORMATS = ["auto", ...FORMATS.map((f) => f.id).reverse()];
 
 /**
- * The scale that fits `format` to the window, never above 1.
- *
- * @param {{ w: number, h: number }} win
- * @param {PlateFormat} format
- * @returns {number}
- */
-function fitScale(win, format) {
-  return Math.min(win.w / format.w, win.h / format.h, 1);
-}
-
-/**
- * Auto's format for a window: the largest whose scale-to-fit is 0.95 or above, else Compact.
+ * Auto's layout for a window: Compact's below Normal's size in either direction, Expanded's from 916 tall at Normal's
+ * width or wider, and Normal's between.
  *
  * @param {{ w: number, h: number }} win
  * @returns {PlateFormat}
  */
 function autoFormat(win) {
-  const held = FORMATS.filter((f) => fitScale(win, f) >= AUTO_FLOOR);
-  return held[held.length - 1] ?? FORMATS[0];
+  if (win.w < NORMAL.w) return COMPACT;
+  if (win.h >= EXPANDED_FROM_H) return EXPANDED;
+  return win.h < NORMAL.h ? COMPACT : NORMAL;
 }
 
 /**
- * The plate for a window and a display-format choice: the chosen format, or Auto's pick where the choice is `auto`,
- * scaled down to fit and never up.
+ * `v` held between `lo` and `hi`.
+ *
+ * @param {number} v
+ * @param {number} lo
+ * @param {number} hi
+ */
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
+
+/**
+ * The plate for a window and a display-format choice: the chosen format at its own size, or under `auto` Auto's layout
+ * at the window's size, each direction held between Compact's and Expanded's.
  *
  * @param {{ w: number, h: number }} win  the window's inner size, CSS px
  * @param {string} [choice]  one of DISPLAY_FORMATS; `auto` where omitted
  * @returns {PlateFit}
  */
 export function plateFit(win, choice = "auto") {
-  const format = FORMATS.find((f) => f.id === choice) ?? autoFormat(win);
-  return { ...format, scale: fitScale(win, format) };
+  const chosen = FORMATS.find((f) => f.id === choice);
+  if (chosen) return { ...chosen };
+  return {
+    ...autoFormat(win),
+    w: clamp(win.w, COMPACT.w, EXPANDED.w),
+    h: clamp(win.h, COMPACT.h, EXPANDED.h),
+  };
 }

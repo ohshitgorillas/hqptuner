@@ -2,14 +2,15 @@
 
 No drawer develops a scroll bar and none cuts content off past its box, on any
 of its tabs, at each of the three plate formats the design system names
-(Expanded 1366x1024, Normal 1180x820, Compact 1133x744), in every state a user
+(Expanded 1366x1024, Normal 1180x820, Compact 1133x744) and at the sizes Auto
+stretches the plate to between them (`fit.AUTO_SIZES`), in every state a user
 can put it in: as it opens, and with each pick it offers that changes what it
 shows (a line, a mode, an option) applied, one pick at a time. Two boxes are
 the user's own and may scroll: a matrix profile's description and the engine
 log tail.
 
-Each case lays the plate out for a window exactly the size of one format, so
-the window picks that format at a scale of 1, then walks the rail: it opens
+Each case lays the plate out under Auto for a window exactly the size it
+measures, so the plate fills the window at a scale of 1, then walks the rail: it opens
 each stage's drawer in turn, shows each of that drawer's tabs, and measures
 how much content lies beyond the box it is seen through (`e2e.support.fit`).
 On each tab it then takes every pick on show in turn: applies it, measures the
@@ -272,7 +273,7 @@ def _hidden_by_tab(page: Page, stack: stack_support.Stack, size: ViewportSize) -
     return found
 
 
-@pytest.mark.parametrize("plate", sorted(fit.FORMATS))
+@pytest.mark.parametrize("plate", sorted(fit.SIZES))
 def test_no_drawer_tab_scrolls_or_cuts_off_content(page: Page, stack: stack_support.Stack, plate: str) -> None:
     """At this format, no tab of any drawer the rail opens hides content, as it opens or with any one pick applied."""
-    assert _hidden_by_tab(page, stack, fit.FORMATS[plate]) == {}
+    assert _hidden_by_tab(page, stack, fit.SIZES[plate]) == {}

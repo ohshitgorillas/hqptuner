@@ -1,5 +1,5 @@
-// The plate: the faceplate's one surface, laid out at the format store/faceplate/plate.js picks and scaled down to
-// fit a smaller window. It owns the listeners every part of the frame shares: the window's size, Escape, and the click
+// The plate: the faceplate's one surface, laid out at the format store/faceplate/plate.js picks and at the size it
+// gives, never scaled. It owns the listeners every part of the frame shares: the window's size, Escape, and the click
 // that closes a popover from outside.
 
 import { useEffect } from "preact/hooks";
@@ -49,7 +49,7 @@ function listen() {
 }
 
 /**
- * The plate at the window's size and scale, around the frame's rows.
+ * The plate at its layout and size for the window, around the frame's rows.
  *
  * @param {{ children?: unknown }} props
  */
@@ -57,7 +57,7 @@ export function Plate({ children }) {
   useEffect(listen, []);
   const p = plate.value;
   const b = plateBottom();
-  const style = `--plate-w:${p.w}px;--plate-h:${p.h}px;transform:scale(${p.scale})`;
+  const style = `--plate-w:${p.w}px;--plate-h:${p.h}px`;
   const restarting = engineRestarting.value ? "" : undefined;
   return html`
     <div id="stage">

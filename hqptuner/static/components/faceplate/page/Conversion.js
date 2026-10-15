@@ -63,7 +63,6 @@ function pageOverrun(page) {
   return overrunOf({
     bottoms: kids.map((c) => c.getBoundingClientRect().bottom),
     pageBottom: page.getBoundingClientRect().bottom,
-    scale: plate.value.scale,
     padding: parseFloat(getComputedStyle(page).paddingBottom),
   });
 }

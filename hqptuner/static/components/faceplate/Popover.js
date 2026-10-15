@@ -6,7 +6,6 @@ import { useLayoutEffect, useRef } from "preact/hooks";
 import { html } from "../../lib/dom.js";
 import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
 import { body, openPopover, togglePopover } from "../../store/faceplate/view.js";
-import { plate } from "../../store/faceplate/plate.js";
 
 /** @typedef {import("../../model/shell/place.js").Side} Side */
 /** @typedef {import("../../model/shell/place.js").Margin} Margin */
@@ -44,8 +43,7 @@ export const triggerProps = (id, haspopup) => ({
 export function onFace(el, face) {
   const r = el.getBoundingClientRect(),
     p = face.getBoundingClientRect();
-  const s = plate.value.scale;
-  return { x: (r.left - p.left) / s - face.clientLeft, y: (r.top - p.top) / s - face.clientTop };
+  return { x: r.left - p.left - face.clientLeft, y: r.top - p.top - face.clientTop };
 }
 
 /**
@@ -96,14 +94,12 @@ export function useBodyResize(ref, fn) {
 export function parkAgainst(panel, home, how) {
   const face = panel.closest(".plate");
   if (!face) return null;
-  const s = plate.value.scale;
   const r = home.getBoundingClientRect();
   const o = onFace(home, face);
   return clampToPlate({
-    anchor: { left: o.x * s, top: o.y * s, width: r.width, height: r.height },
+    anchor: { left: o.x, top: o.y, width: r.width, height: r.height },
     panel: { w: panel.offsetWidth, h: panel.offsetHeight },
     plate: { w: face.clientWidth, h: face.clientHeight },
-    scale: s,
     origin: originOf(panel, face),
     ...how,
   });

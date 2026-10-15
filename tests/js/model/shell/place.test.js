@@ -1,8 +1,8 @@
 // Behavioral suite for hqptuner/static/model/shell/place.js: where a plate-level popover lands against its anchor, and how the
 // plate's side and foot margins pull it back inside.
 //
-// The plate is one the test writes: 1000 × 800 layout px, 20 px side margins, a 14 px foot. Anchors are screen px from
-// the plate's corner, so at scale 0.5 every anchor number doubles on the plate.
+// The plate is one the test writes: 1000 × 800 layout px, 20 px side margins, a 14 px foot. Anchors are layout px from
+// the plate's corner.
 //
 // Run: node --test tests/js/model/shell/place.test.js
 
@@ -30,7 +30,6 @@ const FOOT = 14;
  * @property {Size} panel
  * @property {Place} at
  * @property {number} want
- * @property {number} [scale]
  * @property {Side} [side]
  * @property {Margin} [foot]
  * @property {{x: number, y: number}} [origin]
@@ -42,7 +41,6 @@ const placed = (row) =>
     anchor: row.anchor,
     panel: row.panel,
     plate: PLATE,
-    scale: row.scale ?? 1,
     side: row.side === undefined ? SIDE : row.side,
     foot: row.foot === undefined ? FOOT : row.foot,
     at: row.at,
@@ -121,14 +119,6 @@ const LEFTS = [
     at: START,
     side: null,
     want: 900,
-  },
-  {
-    name: "the_anchor_left_edge_is_divided_by_the_scale",
-    anchor: { left: 100, top: 0, width: 40, height: 20 },
-    panel: { w: 300, h: 100 },
-    at: START,
-    scale: 0.5,
-    want: 200,
   },
   {
     name: "a_panel_in_a_nested_box_is_placed_from_that_box_left_edge",
@@ -214,14 +204,6 @@ const TOPS = [
     want: 738,
   },
   {
-    name: "the_anchor_top_and_height_are_divided_by_the_scale",
-    anchor: { left: 0, top: 100, width: 40, height: 20 },
-    panel: { w: 300, h: 300 },
-    at: BELOW,
-    scale: 0.5,
-    want: 248,
-  },
-  {
     name: "a_panel_in_a_nested_box_is_placed_from_that_box_top_edge",
     anchor: { left: 0, top: 300, width: 40, height: 30 },
     panel: { w: 300, h: 300 },
@@ -283,14 +265,6 @@ const UNCOVERED = [
     anchor: { left: 0, top: 500, width: 40, height: 30 },
     panel: { w: 300, h: 300 },
     at: BELOW,
-    want: 500,
-  },
-  {
-    name: "a_scaled_below_panel_without_room_below_opens_above_its_button",
-    anchor: { left: 0, top: 250, width: 20, height: 15 },
-    panel: { w: 300, h: 300 },
-    at: BELOW,
-    scale: 0.5,
     want: 500,
   },
 ];

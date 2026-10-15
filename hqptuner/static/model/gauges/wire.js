@@ -34,13 +34,13 @@ const CHAMFER = 5;
 /**
  * The dots of the rail's lamps, in rail layout px from the rail's corner.
  *
- * @param {{rail: Box, lamps: Lamp[], scale: number}} o
+ * @param {{rail: Box, lamps: Lamp[]}} o
  * @returns {Dot[]}
  */
-export function lampDots({ rail, lamps, scale }) {
+export function lampDots({ rail, lamps }) {
   return lamps.map(({ box, level, on }) => ({
-    x: Math.round((box.left + box.width / 2 - rail.left) / scale) + 0.5,
-    y: Math.round((box.top + box.height / 2 - rail.top) / scale) + 0.5,
+    x: Math.round(box.left + box.width / 2 - rail.left) + 0.5,
+    y: Math.round(box.top + box.height / 2 - rail.top) + 0.5,
     level,
     on,
   }));

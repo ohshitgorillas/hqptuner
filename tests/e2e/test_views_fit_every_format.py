@@ -5,11 +5,12 @@ swap the plate's whole body for a view of their own. No part of such a view
 develops a scroll bar and none cuts content off past its box, on any entry of
 the view's rail or any tab that entry opens, at each of the three plate formats
 the design system names (Expanded 1366x1024, Normal 1180x820, Compact
-1133x744). Two boxes are the user's own and may scroll: a matrix profile's
+1133x744) and at the sizes Auto stretches the plate to between them
+(`fit.AUTO_SIZES`). Two boxes are the user's own and may scroll: a matrix profile's
 description and the engine log tail.
 
-Each case lays the plate out for a window exactly the size of one format, so the
-window picks that format at a scale of 1, taps one header button, and walks the
+Each case lays the plate out under Auto for a window exactly the size it
+measures, so the plate fills the window at a scale of 1, taps one header button, and walks the
 view's rail: it taps each entry the rail shows in turn, shows each tab that
 entry opens, and measures how much content lies beyond the box it is seen
 through (`e2e.support.fit`).
@@ -185,10 +186,10 @@ def _hidden_by_entry(page: Page, stack: stack_support.Stack, size: ViewportSize,
     return {where: lines for where, lines in found.items() if lines}
 
 
-@pytest.mark.parametrize("plate", sorted(fit.FORMATS))
+@pytest.mark.parametrize("plate", sorted(fit.SIZES))
 @pytest.mark.parametrize("view", VIEWS)
 def test_no_view_entry_or_tab_scrolls_or_cuts_off_content(
     page: Page, stack: stack_support.Stack, view: str, plate: str
 ) -> None:
     """In this view at this format, no rail entry or tab hides content."""
-    assert _hidden_by_entry(page, stack, fit.FORMATS[plate], view) == {}
+    assert _hidden_by_entry(page, stack, fit.SIZES[plate], view) == {}

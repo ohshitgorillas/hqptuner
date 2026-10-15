@@ -19,7 +19,6 @@ import {
   ticksEvery,
 } from "../../../../model/gauges/range-axis.js";
 import { signed } from "../../../../model/shell/format.js";
-import { plate } from "../../../../store/faceplate/plate.js";
 import { moveVolumeHandle, RANGE_KEYS } from "../../../../store/faceplate/drawers/volume.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/volume.js").VolumeKey} VolumeKey */
@@ -161,8 +160,7 @@ export function RangeBar({ view }) {
   /** The press's place on the bar in plate px. @param {PressEv} e */
   const place = (e) => {
     const r = e.currentTarget.getBoundingClientRect();
-    const s = plate.value.scale;
-    return { v: barValueAt(W, AXIS, PADX, (e.clientX - r.left) / s), y: (e.clientY - r.top) / s };
+    return { v: barValueAt(W, AXIS, PADX, e.clientX - r.left), y: e.clientY - r.top };
   };
   const onPointerDown = (/** @type {PressEv} */ e) => {
     if (view.gray) return;

@@ -28,12 +28,11 @@ const RAIL = { left: 100, top: 50, width: 200, height: 400 };
 const lamp = (left, top) => ({ box: { left, top, width: 8, height: 8 }, level: 0, on: true });
 
 /**
- * One lamp, the scale it was measured at, and where its dot lands.
+ * One lamp and where its dot lands.
  *
  * @typedef {object} DotRow
  * @property {string} name
  * @property {Lamp} lamp
- * @property {number} scale
  * @property {'x' | 'y'} axis
  * @property {number} want
  */
@@ -43,37 +42,33 @@ const DOTS = [
   {
     name: "a_dot_sits_at_the_lamp_center_across_the_rail_plus_half_a_pixel",
     lamp: lamp(110, 60),
-    scale: 1,
     axis: "x",
     want: 14.5,
   },
   {
     name: "a_dot_sits_at_the_lamp_center_down_the_rail_plus_half_a_pixel",
     lamp: lamp(110, 60),
-    scale: 1,
     axis: "y",
     want: 14.5,
   },
-  { name: "a_dot_across_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "x", want: 28.5 },
-  { name: "a_dot_down_the_rail_is_divided_by_the_scale", lamp: lamp(110, 80), scale: 0.5, axis: "y", want: 68.5 },
-  { name: "a_lamp_center_short_of_the_half_pixel_rounds_down", lamp: lamp(110.3, 60), scale: 1, axis: "x", want: 14.5 },
-  { name: "a_lamp_center_past_the_half_pixel_rounds_up", lamp: lamp(110.6, 60), scale: 1, axis: "x", want: 15.5 },
+  { name: "a_lamp_center_short_of_the_half_pixel_rounds_down", lamp: lamp(110.3, 60), axis: "x", want: 14.5 },
+  { name: "a_lamp_center_past_the_half_pixel_rounds_up", lamp: lamp(110.6, 60), axis: "x", want: 15.5 },
 ];
 
 for (const row of DOTS) {
   test(`test_${row.name}`, () => {
-    assert.equal(lampDots({ rail: RAIL, lamps: [row.lamp], scale: row.scale })[0][row.axis], row.want);
+    assert.equal(lampDots({ rail: RAIL, lamps: [row.lamp] })[0][row.axis], row.want);
   });
 }
 
 test("test_a_dot_keeps_its_lamp_level", () => {
   const lamps = [{ box: { left: 110, top: 60, width: 8, height: 8 }, level: 2, on: true }];
-  assert.equal(lampDots({ rail: RAIL, lamps, scale: 1 })[0].level, 2);
+  assert.equal(lampDots({ rail: RAIL, lamps })[0].level, 2);
 });
 
 test("test_a_dot_keeps_its_lamp_unlit", () => {
   const lamps = [{ box: { left: 110, top: 60, width: 8, height: 8 }, level: 0, on: false }];
-  assert.equal(lampDots({ rail: RAIL, lamps, scale: 1 })[0].on, false);
+  assert.equal(lampDots({ rail: RAIL, lamps })[0].on, false);
 });
 
 // --- wire path ---------------------------------------------------------------------------------------------------

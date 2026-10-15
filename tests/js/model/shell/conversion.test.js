@@ -48,8 +48,8 @@ const FLUSH = [
   { height: 100, left: 100 },
 ];
 
-//: Measured page: children's bottoms, the page's bottom, the plate scale and its bottom padding.
-const PAGE = { bottoms: [300, 420, 380], pageBottom: 400, scale: 1, padding: 12 };
+//: Measured page: children's bottoms, the page's bottom and its bottom padding.
+const PAGE = { bottoms: [300, 420, 380], pageBottom: 400, padding: 12 };
 
 // ── fieldRuns ────────────────────────────────────────────────────────────
 
@@ -172,10 +172,6 @@ test("test_both_open_folds_every_other_chain", () => {
 
 test("test_the_overrun_is_the_lowest_child_past_the_bottom_plus_padding", () => {
   assert.equal(overrunOf(PAGE), 32);
-});
-
-test("test_the_overrun_is_in_layout_px_on_a_scaled_plate", () => {
-  assert.equal(overrunOf({ ...PAGE, scale: 0.5 }), 52);
 });
 
 test("test_half_a_pixel_is_no_overrun", () => {
