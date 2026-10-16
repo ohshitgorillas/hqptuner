@@ -14,7 +14,8 @@ import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
 import { openStage } from "../../../../store/faceplate/view.js";
-import { spectrogramCells, spectrogramEnd, stripEnd } from "../../../../store/meter/spectrogram.js";
+import { playhead } from "../../../../store/meter/playhead.js";
+import { spectrogramCells, stripEnd } from "../../../../store/meter/spectrogram.js";
 import { specRamp } from "../../tokencolors.js";
 
 /** @typedef {[number, number, number]} Triple */
@@ -130,7 +131,7 @@ export function useMeterPaint(spec, strip) {
       }
       const view = sourceMeter();
       const cells = spectrogramCells.value;
-      const end = spectrogramEnd.value;
+      const end = playhead.value ?? 0;
       const key = [view.span, view.range, view.top, view.channel].join(" ");
       const plan = scrollPlan(painted, { key, end, span: view.span });
       painted = { key, end, carry: plan.carry };

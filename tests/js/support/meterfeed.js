@@ -191,3 +191,94 @@ export function follow(channels, n) {
   ends.set(stream, at + n);
   stream.emit("frame", { channels, at, n });
 }
+
+/**
+ * One frame's stamp as the feed store hands it over on each MeterFrame: `at` where it starts and `ms` how long it
+ * lasts, both playback, ms.
+ *
+ * @typedef {{ at: number, ms: number }} MsStamp
+ */
+
+/**
+ * Twenty-four frames from 5 s of playback on, each starting where the one before it ended: 20 and 17.5 ms long in turn
+ * for twelve, then 23 and 21.25 ms long in turn from the thirteenth, which starts at CONTIGUOUS_MS_CHANGE.
+ *
+ * @type {MsStamp[]}
+ */
+export const CONTIGUOUS_MS = [
+  { at: 5000, ms: 20 },
+  { at: 5020, ms: 17.5 },
+  { at: 5037.5, ms: 20 },
+  { at: 5057.5, ms: 17.5 },
+  { at: 5075, ms: 20 },
+  { at: 5095, ms: 17.5 },
+  { at: 5112.5, ms: 20 },
+  { at: 5132.5, ms: 17.5 },
+  { at: 5150, ms: 20 },
+  { at: 5170, ms: 17.5 },
+  { at: 5187.5, ms: 20 },
+  { at: 5207.5, ms: 17.5 },
+  { at: 5225, ms: 23 },
+  { at: 5248, ms: 21.25 },
+  { at: 5269.25, ms: 23 },
+  { at: 5292.25, ms: 21.25 },
+  { at: 5313.5, ms: 23 },
+  { at: 5336.5, ms: 21.25 },
+  { at: 5357.75, ms: 23 },
+  { at: 5380.75, ms: 21.25 },
+  { at: 5402, ms: 23 },
+  { at: 5425, ms: 21.25 },
+  { at: 5446.25, ms: 23 },
+  { at: 5469.25, ms: 21.25 },
+];
+
+/** Where CONTIGUOUS_MS's thirteenth frame starts, the first of its 23 and 21.25 ms ones: playback, ms. */
+export const CONTIGUOUS_MS_CHANGE = 5225;
+
+/** Where CONTIGUOUS_MS's last frame ends: playback, ms. */
+export const CONTIGUOUS_MS_END = 5490.5;
+
+/**
+ * Twelve frames from 9 s of playback on, well after CONTIGUOUS_MS ends, each starting where the one before it ended:
+ * 21.25 and 18.75 ms long in turn for six, then 23 and 17.5 ms long in turn.
+ *
+ * @type {MsStamp[]}
+ */
+export const LATER_MS = [
+  { at: 9000, ms: 21.25 },
+  { at: 9021.25, ms: 18.75 },
+  { at: 9040, ms: 21.25 },
+  { at: 9061.25, ms: 18.75 },
+  { at: 9080, ms: 21.25 },
+  { at: 9101.25, ms: 18.75 },
+  { at: 9120, ms: 23 },
+  { at: 9143, ms: 17.5 },
+  { at: 9160.5, ms: 23 },
+  { at: 9183.5, ms: 17.5 },
+  { at: 9201, ms: 23 },
+  { at: 9224, ms: 17.5 },
+];
+
+/** Where LATER_MS's last frame ends: playback, ms. */
+export const LATER_MS_END = 9241.5;
+
+/**
+ * Twelve frames from 1 s of playback on, well before CONTIGUOUS_MS starts, each starting where the one before it ended:
+ * 21.25 and 18.75 ms long in turn for six, then 23 and 17.5 ms long in turn.
+ *
+ * @type {MsStamp[]}
+ */
+export const EARLIER_MS = [
+  { at: 1000, ms: 21.25 },
+  { at: 1021.25, ms: 18.75 },
+  { at: 1040, ms: 21.25 },
+  { at: 1061.25, ms: 18.75 },
+  { at: 1080, ms: 21.25 },
+  { at: 1101.25, ms: 18.75 },
+  { at: 1120, ms: 23 },
+  { at: 1143, ms: 17.5 },
+  { at: 1160.5, ms: 23 },
+  { at: 1183.5, ms: 17.5 },
+  { at: 1201, ms: 23 },
+  { at: 1224, ms: 17.5 },
+];

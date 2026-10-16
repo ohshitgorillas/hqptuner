@@ -13,9 +13,10 @@
 import { clamp } from "./coerce.js";
 
 /**
- * @typedef {{ ms: number, slices: Uint8Array[], nyquist: number }} Cell
- *   One visible column in one channel; `slices` is empty where the interval
- *   carried no frame.
+ * @typedef {{ at?: number, ms: number, slices: Uint8Array[], nyquist: number }} Cell
+ *   One visible column in one channel, starting at `at` and lasting `ms`, both
+ *   playback, ms; the spectrogram store always sets `at`. `slices` is empty
+ *   where the interval carried no frame.
  */
 /** @typedef {[number, number, number]} Triple */
 

@@ -106,12 +106,13 @@ function decode(wire) {
 }
 
 /**
- * Hand each of `frames` to the spectrogram's history, oldest first, under the geometry it arrived with.
+ * Hand each of `frames` to the spectrogram's history whole, oldest first: its stamps, its break mark and the geometry
+ * it arrived with go with it.
  *
  * @param {MeterFrame[]} frames
  */
 export function toSpectrogram(frames) {
-  frames.forEach((f) => addSpectrumFrame(f.geo ?? null, f.channels, f.ms));
+  frames.forEach((f) => addSpectrumFrame(f));
 }
 
 /**

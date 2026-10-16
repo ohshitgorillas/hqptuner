@@ -9,8 +9,9 @@
 // frames exactly 1/30 s apart instead. The loop starts once for the whole file on that clock. Each case runs at no
 // offset and no reported output delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and
 // runs one frame a whole step long, so the reset lands on a step before the case sends anything. The spectrogram is
-// read through spectrogramEnd, the frame time its fine slices have closed on. The loop requests animation frames only
-// while a painter is registered and the feed is open, so the fake clock also says how many frame callbacks it holds.
+// read through spectrogramCells once the loop is idle, with the playhead, which the idle loop leaves null, written
+// past every frame the case sent. The loop requests animation frames only while a painter is registered and the feed
+// is open, so the fake clock also says how many frame callbacks it holds.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/loop.test.js
 
@@ -19,7 +20,8 @@ import assert from "node:assert/strict";
 
 import { onMeterPaint, startMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { spectrogramEnd } from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import { spectrogramCells } from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
@@ -49,10 +51,16 @@ const SPIKE_AT = TRACE_COLS / 2;
 const LOUD_BYTE = 20;
 const LOUD_DB = -10;
 const QUIET_BYTE = 120;
-//: Feed event lengths, samples at RATE_96K: 16.667, 10.667 and 25 ms.
+//: Feed event lengths, samples at RATE_96K: 16.667 and 10.667 ms.
 const SIXTIETH_N = 1600;
 const SHORT_N = 1024;
-const LONG_N = 2400;
+//: Feed event lengths inside the measured range, samples at RATE_96K, taken in turn: 17.5 and 23 ms.
+const IN_RANGE_N = [1680, 2208];
+//: Events sent first, all quiet, and then, all loud, in the cases that follow frames into the spectrogram.
+const BEFORE_STEP = 6;
+const AFTER_STEP = 12;
+//: A playhead past the end of every frame those cases send, and inside one window of the first: playback, ms.
+const PAST_THE_FEED_MS = 1000;
 
 /**
  * A clock that moves only on `frame`: each call is one animation frame, `ms` after the last; `waiting` is the number of
@@ -122,6 +130,37 @@ function send({ peak, rms, byte, n = SIXTIETH_N }) {
  * @param {MeterScene} scene
  */
 const traceDb = (scene) => Math.round(scene.spectrum?.disp[0] ?? NaN);
+
+/**
+ * Send `count` events at `byte`, each contiguous with the one before it, its length taken in turn from IN_RANGE_N.
+ *
+ * @param {number} count
+ * @param {number} byte
+ */
+function sendRun(count, byte) {
+  for (let k = 0; k < count; k++) send({ peak: -10, rms: -20, byte, n: IN_RANGE_N[k % IN_RANGE_N.length] });
+}
+
+/**
+ * The first row of each cell the spectrogram draws with the playhead past every frame sent, oldest first.
+ *
+ * @returns {number[]}
+ */
+function drawnPastTheFeed() {
+  playhead.value = PAST_THE_FEED_MS;
+  return spectrogramCells.value.map((/** @type {{ slices: ArrayLike<number>[] }} */ c) => c.slices[0]?.[0] ?? NaN);
+}
+
+/**
+ * [ok, message] for one assert.ok: whether the newest cell's row is louder, a smaller byte, than the oldest's.
+ *
+ * @param {number[]} firstRows
+ * @returns {[boolean, string]}
+ */
+const newestLouder = (firstRows) => [
+  (firstRows.at(-1) ?? NaN) < (firstRows[0] ?? NaN),
+  `expected the newest cell louder than the oldest, got rows ${firstRows.join(", ")}`,
+];
 
 /** @type {MeterScene[]} */
 let scenes = [];
@@ -224,16 +263,14 @@ test("test_a_second_start_runs_no_second_loop", () => {
   assert.equal(scenes.length, 1);
 });
 
-test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () => {
+test("test_the_frames_the_loop_holds_when_playback_stops_reach_the_spectrogram", () => {
   setApodWindow("300");
   setSpectrumOffset(0.1);
-  const start = spectrogramEnd.value;
-  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
+  sendRun(BEFORE_STEP, QUIET_BYTE);
   step();
-  for (let k = 0; k < 2; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
+  sendRun(AFTER_STEP, LOUD_BYTE);
   engineStatus.value = { ...STOPPED };
-  step();
-  assert.ok(...near(spectrogramEnd.value - start, 200, 1e-9));
+  assert.ok(...newestLouder(drawnPastTheFeed()));
 });
 
 test("test_a_painter_registered_on_an_idle_loop_queues_exactly_one_frame", () => {
@@ -264,10 +301,11 @@ test("test_playback_stopping_hands_the_painters_the_empty_scene_with_no_frame_ru
 });
 
 test("test_the_frames_the_loop_holds_when_its_last_painter_unregisters_reach_the_spectrogram", () => {
+  setApodWindow("300");
   setSpectrumOffset(0.1);
-  const start = spectrogramEnd.value;
-  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
+  sendRun(BEFORE_STEP, QUIET_BYTE);
+  sendRun(AFTER_STEP, LOUD_BYTE);
   step();
   unpaint();
-  assert.ok(...near(spectrogramEnd.value - start, 150, 1e-9));
+  assert.ok(...newestLouder(drawnPastTheFeed()));
 });
