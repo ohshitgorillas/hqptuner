@@ -2,10 +2,10 @@
 // fractions and bands; bars carry falling peak caps, gravity bars fall under acceleration, aurora bands fall under
 // their own, ridge rows stack on a cadence, the Fade halo fades where the trace has been and says how much of the
 // canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot, 0
-// on the floor and 1 at full scale; every step returns a new state and leaves its inputs alone, so a painter draws what
-// it gets back and a test drives it from a table. A color suite gives the color a part of the spectrum is drawn in by
-// its height, the Fade halo its colors and their starting strengths, and the bars the one gradient they are drawn
-// over where the suite has one.
+// on the floor and 1 at full scale. A painter draws the state a step gets back and a test drives it from a table; the
+// caps, gravity and halo steps return a new state and leave their inputs alone, while a ridge step, like fractions and
+// bands handed a buffer, writes into buffers it is given, allocating nothing. A color suite gives the color a part of
+// the spectrum is drawn in by its height, the Fade halo its colors and strengths, the bars their gradient if any.
 
 import { clamp } from "../../../lib/coerce.js";
 import { rampFrom, rgb } from "../../../lib/spectroraster.js";
@@ -41,16 +41,27 @@ const HALO_TAU_S = 2; // the halo's time constant: its glow falls to 1/e of what
  */
 
 /**
- * Ridge rows, newest first, and the steps taken since the first.
+ * Ridge rows, newest first, the steps taken since the first, and the ring the rows live in. States a step returns come
+ * in twins sharing one ring: a step writes the twin of the state it is handed and returns it, so the state handed in,
+ * rows and all, holds until the step after.
  *
  * @typedef {object} RidgeState
  * @property {Float32Array[]} rows  plot fractions per column
  * @property {number} tick          steps taken, the first counting one
+ * @property {RidgeRing} [ring]     the row buffers, shared with the twin; none on a state no step returned
  */
 
 /**
- * The Fade halo on the canvas: whether a paint has drawn one there yet, and the share of the canvas to dim before
- * this frame's strokes.
+ * The RIDGE_ROWS + 1 row buffers twin ridge states share, the twins, and the buffer each twin's newest row is in.
+ *
+ * @typedef {object} RidgeRing
+ * @property {Float32Array[]} bufs
+ * @property {[RidgeState, RidgeState]} twins
+ * @property {[number, number]} heads
+ */
+
+/**
+ * The Fade halo on the canvas: whether a paint has drawn one yet, and the share of the canvas to dim before this frame.
  *
  * @typedef {object} HaloState
  * @property {boolean} drawn  whether the canvas holds a halo to dim
@@ -65,32 +76,44 @@ export const HALO_FRESH = Object.freeze({ drawn: false, dim: 0 });
  *
  * @param {ArrayLike<number>} disp  dBFS
  * @param {number} range  dB
+ * @param {Float32Array} [out]  written in place where as long as `disp`, a new array taking its place otherwise
  * @returns {Float32Array}
  */
-export function fractionsOf(disp, range) {
-  const out = new Float32Array(disp.length);
-  for (let i = 0; i < disp.length; i++) out[i] = fraction(disp[i], -range);
-  return out;
+export function fractionsOf(disp, range, out) {
+  const fracs = out?.length === disp.length ? out : new Float32Array(disp.length);
+  for (let i = 0; i < disp.length; i++) fracs[i] = fraction(disp[i], -range);
+  return fracs;
 }
 
 /**
- * Columns grouped into `n` bands, each the largest fraction in its span. Band `b` runs from column `floor(b·len/n)` up
- * to, not including, `floor((b+1)·len/n)`, so the last band ends on the last column.
+ * Band `b` of `n` across the columns: the largest fraction from column `floor(b·len/n)` up to, not including,
+ * `floor((b+1)·len/n)`, so the last band ends on the last column.
+ *
+ * @param {ArrayLike<number>} fracs  plot fractions
+ * @param {number} b
+ * @param {number} n
+ * @returns {number}
+ */
+export function bandTop(fracs, b, n) {
+  const len = fracs.length;
+  const end = Math.floor(((b + 1) * len) / n);
+  let top = 0;
+  for (let c = Math.floor((b * len) / n); c < end; c++) top = Math.max(top, fracs[c]);
+  return top;
+}
+
+/**
+ * Columns grouped into `n` bands, each as bandTop gives it.
  *
  * @param {ArrayLike<number>} fracs  plot fractions
  * @param {number} n
+ * @param {Float32Array} [out]  written in place where it holds `n`, a new array taking its place otherwise
  * @returns {Float32Array}
  */
-export function bandsOf(fracs, n) {
-  const out = new Float32Array(n);
-  const len = fracs.length;
-  for (let b = 0; b < n; b++) {
-    const end = Math.floor(((b + 1) * len) / n);
-    let top = 0;
-    for (let c = Math.floor((b * len) / n); c < end; c++) top = Math.max(top, fracs[c]);
-    out[b] = top;
-  }
-  return out;
+export function bandsOf(fracs, n, out) {
+  const bands = out?.length === n ? out : new Float32Array(n);
+  for (let b = 0; b < n; b++) bands[b] = bandTop(fracs, b, n);
+  return bands;
 }
 
 /**
@@ -140,26 +163,64 @@ export function stepGravity(prev, bands, dt, gravity = GRAVITY) {
   return next;
 }
 
+const RIDGE_RING = RIDGE_ROWS + 1; // row buffers twin ridge states share: the rows kept and one to write
+
+/**
+ * A ring of buffers `width` wide whose second twin holds copies of `prev`'s newest RIDGE_ROWS rows at its tick, if any.
+ *
+ * @param {RidgeState | null} prev
+ * @param {number} width  columns
+ * @returns {RidgeRing}
+ */
+function ridgeRing(prev, width) {
+  const rows = (prev?.rows ?? []).slice(0, RIDGE_ROWS);
+  const n = rows.length;
+  const bufs = Array.from({ length: RIDGE_RING }, (_, i) =>
+    i < n ? Float32Array.from(rows[n - 1 - i]) : new Float32Array(width),
+  );
+  /** @type {RidgeRing} */
+  const ring = {
+    bufs,
+    twins: [
+      { rows: [], tick: 0 },
+      { rows: bufs.slice(0, n).reverse(), tick: prev?.tick ?? 0 },
+    ],
+    heads: [0, (n - 1 + RIDGE_RING) % RIDGE_RING],
+  };
+  for (const twin of ring.twins) twin.ring = ring;
+  return ring;
+}
+
 /**
  * Ridge rows after a step handing in `row`: without a `prev` the rows hold a copy of `row` and the tick is one;
  * otherwise the tick advances, and when the prior tick is a multiple of RIDGE_EVERY a copy of `row` goes first and the
- * oldest rows past RIDGE_ROWS drop off.
+ * oldest rows past RIDGE_ROWS drop off. The step writes `prev`'s twin and returns it, copying `row` into the one ring
+ * buffer no row of `prev` holds, so it leaves `prev` alone and allocates nothing. Only a ring built for a `prev` no
+ * step returned, or for none, or a row of another width than the buffer it lands in, allocates.
  *
  * @param {RidgeState | null} prev
  * @param {ArrayLike<number>} row  plot fractions
  * @returns {RidgeState}
  */
 export function stepRidges(prev, row) {
-  if (!prev) return { rows: [Float32Array.from(row)], tick: 1 };
-  const tick = prev.tick + 1;
-  if (prev.tick % RIDGE_EVERY !== 0) return { rows: prev.rows, tick };
-  return { rows: [Float32Array.from(row), ...prev.rows].slice(0, RIDGE_ROWS), tick };
+  const ring = prev?.ring ?? ridgeRing(prev, row.length);
+  const at = ring.twins[0] === prev ? 0 : 1;
+  const from = ring.twins[at];
+  const next = ring.twins[1 - at];
+  const push = from.tick % RIDGE_EVERY === 0;
+  const head = push ? (ring.heads[at] + 1) % RIDGE_RING : ring.heads[at];
+  if (push && ring.bufs[head].length !== row.length) ring.bufs[head] = new Float32Array(row.length);
+  if (push) ring.bufs[head].set(row);
+  ring.heads[1 - at] = head;
+  next.tick = from.tick + 1;
+  next.rows.length = Math.min(from.rows.length + Number(push), RIDGE_ROWS);
+  for (let k = 0; k < next.rows.length; k++) next.rows[k] = ring.bufs[(head - k + RIDGE_RING) % RIDGE_RING];
+  return next;
 }
 
 /**
  * The halo's glow at a spot a white trace left `age` seconds ago, as a share of the trace's strength: HALO_START where
- * the trace has just been, falling continuously by e every HALO_TAU_S. A halo in a darker color starts stronger and
- * falls by the same share.
+ * the trace has just been, falling continuously by e every HALO_TAU_S. A darker halo starts stronger, falls alike.
  *
  * @param {number} age  s
  * @returns {number}
@@ -182,8 +243,7 @@ export function stepHalo(prev, dt) {
 }
 
 /**
- * The style a page draws for the picked `style`: the trace in place of aurora where there is no WebGL2 to draw it
- * with, the pick itself otherwise.
+ * The style a page draws for the picked `style`: the trace in place of aurora without WebGL2, else the pick itself.
  *
  * @param {string} style
  * @param {boolean} gl  whether the page has WebGL2
@@ -197,8 +257,7 @@ export function effectiveStyle(style, gl) {
 export const ACCENT = "accent";
 
 /**
- * The color suites the page spectrum can draw in besides Accent, each its colors as `#rrggbb`, the floor first and
- * full scale last.
+ * The color suites the page spectrum can draw in besides Accent, each its colors as `#rrggbb`, floor first, full last.
  *
  * @type {Readonly<Record<string, readonly string[]>>}
  */
@@ -326,8 +385,7 @@ function suiteLineColor(suite, at, accent) {
 }
 
 /**
- * The stops of a line style's gradient colored by level under `suite`, LEVEL_STOPS of them from the floor (0) to full
- * scale (1), each its offset and its color as suiteLineColor gives it.
+ * A line style's gradient stops under `suite`: LEVEL_STOPS from floor (0) to full scale (1), colored by suiteLineColor.
  *
  * @param {string} suite
  * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
@@ -341,8 +399,7 @@ export function suiteLineStops(suite, accent) {
 }
 
 /**
- * The stops of the Trace style's gradient under `suite`: solid in the accent in force under Accent, colored by level
- * as suiteLineStops gives them under every other suite.
+ * The Trace style's gradient stops under `suite`: solid in the accent under Accent, else as suiteLineStops gives them.
  *
  * @param {string} suite
  * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
@@ -358,8 +415,7 @@ export function traceStops(suite, accent) {
 
 /**
  * The stops of the one gradient the bars are drawn over under `suite`, fixed across the canvas: the suite's colors
- * spread evenly from the floor (0) to full scale (1). None under a suite whose bars each take the color at their own
- * height.
+ * spread evenly from floor (0) to full scale (1). None under a suite whose bars each take the color at their height.
  *
  * @param {string} suite
  * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
@@ -398,8 +454,7 @@ function haloStart(channels) {
 }
 
 /**
- * The stops of the Fade halo's gradient colored by level under `suite`: the trace's own stops as suiteLineStops gives
- * them, each color at the halo's starting strength in that color.
+ * The Fade halo's gradient stops under `suite`: suiteLineStops', each at the halo's starting strength in its color.
  *
  * @param {string} suite
  * @param {string} accent  the accent in force, `#rrggbb`, which Accent draws in
@@ -414,8 +469,7 @@ export function suiteHaloStops(suite, accent) {
 }
 
 /**
- * Aurora's ramp under `suite`: `count` colors spread evenly from the suite's floor to its full scale, one RGB triple
- * each in one flat list, each channel 0 to 1.
+ * Aurora's ramp under `suite`: `count` colors evenly from floor to full scale, one flat RGB list, channels 0 to 1.
  *
  * @param {string} suite
  * @param {number} count

@@ -2,12 +2,13 @@
 // spectrum, whose bottom row is lit afresh each pass with random heat up to its band's height and whose every other cell
 // takes the average of the three cells in the row below it and the cell two rows below, cooled a little. Heat spreads up
 // and sideways as it climbs and fades as it goes, so the flames flicker in place, blend from band to band, and a louder
-// band's flames burn hotter and reach higher. Every step returns a new grid and leaves its inputs alone; the random
-// draws come from the caller, so a painter draws what it gets back and a test drives it from a table. A color table
+// band's flames burn hotter and reach higher. A step burns the grid it is handed in place and returns it, so a step
+// allocates nothing once the grid is built; the random draws come from the caller, so a painter draws what it gets back
+// and a test drives it from a table. A color table
 // turns each heat into the RGBA a cell is drawn in, from the color suite in force.
 
 import { clamp } from "../../../lib/coerce.js";
-import { CHANNEL_MAX, bandsOf, rampAt, rampOf } from "./spectrumfx.js";
+import { CHANNEL_MAX, bandTop, rampAt, rampOf } from "./spectrumfx.js";
 
 const CELL_PX = 2; // a cell's side on a canvas small enough for it, canvas pixels
 const CELLS = 90000; // cells a grid holds at most when cells grow past CELL_PX to keep within it
@@ -52,38 +53,43 @@ export function fireSize(width, height) {
 }
 
 /**
- * `values` stretched over `n` columns, `n` above their count: each column the value at its middle, read along the
- * straight line between the two values either side of it.
+ * Column `x` of `values` stretched over `n` columns, `n` above their count: the value at the column's middle, read
+ * along the straight line between the two values either side of it; 0 where there are no values.
  *
  * @param {ArrayLike<number>} values
+ * @param {number} x
  * @param {number} n
- * @returns {Float32Array}
+ * @returns {number}
  */
-function stretch(values, n) {
-  const out = new Float32Array(n);
+function stretchAt(values, x, n) {
   const last = values.length - 1;
-  if (last < 0) return out;
-  for (let x = 0; x < n; x++) {
-    const at = clamp(((x + 0.5) * values.length) / n - 0.5, 0, last);
-    const i = Math.floor(at);
-    const j = Math.min(i + 1, last);
-    out[x] = values[i] + (values[j] - values[i]) * (at - i);
-  }
-  return out;
+  if (last < 0) return 0;
+  const at = clamp(((x + 0.5) * values.length) / n - 0.5, 0, last);
+  const i = Math.floor(at);
+  const j = Math.min(i + 1, last);
+  return values[i] + (values[j] - values[i]) * (at - i);
 }
 
 /**
- * The bottom row's top heat per column: the plot fractions grouped into the grid's columns as bandsOf groups them,
+ * The bottom row's top heat per column: the plot fractions grouped into the grid's columns as bandTop groups them,
  * each column the largest in its span, or stretched over the columns where the grid has more columns than there are
- * fractions, and each column's height held as a share of the grid's top heat, rounded. A silent column holds none.
+ * fractions, each level held at single precision, and each column's height held as a share of the grid's top heat,
+ * rounded. A silent column holds none. Written into `out` where it holds `size.cols`, into a new array otherwise.
  *
  * @param {ArrayLike<number>} fracs  plot fractions
  * @param {FireSize} size
+ * @param {Uint16Array} [out]  reused where it fits
  * @returns {Uint16Array}
  */
-export function fireSource(fracs, size) {
-  const levels = size.cols <= fracs.length ? bandsOf(fracs, size.cols) : stretch(fracs, size.cols);
-  return Uint16Array.from(levels, (v) => Math.round(clamp(v, 0, 1) * size.max));
+export function fireSource(fracs, size, out) {
+  const n = size.cols;
+  const source = out?.length === n ? out : new Uint16Array(n);
+  const group = n <= fracs.length;
+  for (let x = 0; x < n; x++) {
+    const level = Math.fround(group ? bandTop(fracs, x, n) : stretchAt(fracs, x, n));
+    source[x] = Math.round(clamp(level, 0, 1) * size.max);
+  }
+  return source;
 }
 
 /**
@@ -126,11 +132,11 @@ function burnRow(heat, y, { cols, rows }) {
  * The heat grid after a step handing in `source`, row by row from the top, `size.cols` cells a row. Each of the step's
  * `size.passes` passes lights the bottom row with random heat up to `source`, then burns every row above it from the
  * top down, so each row reads the rows below as the last pass left them: the average of the three cells in the row
- * below and the cell two rows below, cooled by COOL. Without a `prev` of the grid's size the step starts from a cold
- * grid, so flames rise from the floor. `rand` hands back a number from 0 up to, not including, 1, as `Math.random`
- * does.
+ * below and the cell two rows below, cooled by COOL. A `prev` of the grid's size is burnt in place and handed back,
+ * so the step allocates nothing; without one the step starts from a new cold grid, so flames rise from the floor.
+ * `rand` hands back a number from 0 up to, not including, 1, as `Math.random` does.
  *
- * @param {ArrayLike<number> | null} prev
+ * @param {Uint16Array | null} prev  written in place where it is of the grid's size
  * @param {ArrayLike<number>} source  top heat per column, as fireSource gives it
  * @param {FireSize} size
  * @param {() => number} rand
@@ -138,7 +144,7 @@ function burnRow(heat, y, { cols, rows }) {
  */
 export function stepFire(prev, source, size, rand) {
   const n = size.cols * size.rows;
-  const heat = prev && prev.length === n ? Uint16Array.from(prev) : new Uint16Array(n);
+  const heat = prev && prev.length === n ? prev : new Uint16Array(n);
   for (let p = 0; p < size.passes; p++) {
     light(heat, source, size, rand);
     for (let y = 0; y < size.rows - 1; y++) burnRow(heat, y, size);
