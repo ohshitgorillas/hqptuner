@@ -24,6 +24,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { RATE_96K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
 
@@ -38,6 +39,8 @@ const IEC = JSON.parse(
 const RESPONSE_VU = 20 * Math.log10(IEC.responseDeflectionPercent / IEC.referenceDeflectionPercent);
 
 const STEP_MS = 1000 / 30;
+//: One feed frame's length, samples at RATE_96K: 1/30 s.
+const STEP_N = 3200;
 const BINS = 8;
 const PLAYING = { status: { state: "2" } };
 //: Steps enough for a needle within the standard to settle: 4 s at 30 steps a second.
@@ -100,7 +103,7 @@ const QUIET_BINS = btoa(String.fromCharCode(...new Array(BINS).fill([120, 0]).fl
 function stream(channels) {
   useEventSource();
   openMeterFeed(clock);
-  lastStream()?.emit("geometry", { nyquist: 48000, channels, bins: BINS });
+  lastStream()?.emit("geometry", geometry(RATE_96K, channels, BINS));
   frame();
 }
 
@@ -114,7 +117,7 @@ function stream(channels) {
 function hold(rms, steps) {
   for (let k = 0; k < steps; k++) {
     const channels = rms.map((r) => ({ peak: r + 6, rms: r, bins: QUIET_BINS }));
-    lastStream()?.emit("frame", { channels, ms: STEP_MS });
+    follow(channels, STEP_N);
     frame();
   }
 }

@@ -22,6 +22,7 @@ import { openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { RATE_96K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
 import { fakeClock } from "../../support/clock.js";
@@ -35,8 +36,8 @@ const SETTLE_MS = 2 * STEP_MS;
 const BINS = 8;
 //: The offset the meters run behind the feed, s.
 const OFFSET_S = 0.1;
-//: Each feed frame's frame time, ms: four of them hold the 0.1 s delay.
-const FRAME_MS = 25;
+//: Each feed frame's length, samples at RATE_96K: 25 ms, four of them holding the 0.1 s delay.
+const FRAME_N = 2400;
 //: The quiet frames' bin byte and peak, and the loud frame's: bin dB = -byte * 0.5.
 const QUIET_BYTE = 120;
 const QUIET_PEAK = -50;
@@ -59,7 +60,7 @@ function burst() {
   for (const loud of [false, true, false, false]) {
     const byte = loud ? LOUD_BYTE : QUIET_BYTE;
     const peak = loud ? LOUD_PEAK : QUIET_PEAK;
-    lastStream()?.emit("frame", { channels: [{ peak, rms: peak - 6, bins: bins(byte) }], ms: FRAME_MS });
+    follow([{ peak, rms: peak - 6, bins: bins(byte) }], FRAME_N);
   }
 }
 
@@ -96,7 +97,7 @@ beforeEach(() => {
   engineStatus.value = { status: { state: "2" } };
   useEventSource();
   openMeterFeed(clock);
-  lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: BINS });
+  lastStream()?.emit("geometry", geometry(RATE_96K, 1, BINS));
   unpaint = onMeterPaint((scene) => scenes.push(scene));
   advance(SETTLE_MS);
   scenes = [];

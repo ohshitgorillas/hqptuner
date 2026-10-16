@@ -47,6 +47,7 @@ import {
   setMeterRange,
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
@@ -63,7 +64,10 @@ import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectro
  */
 
 const STRIP_WIDTH = 600;
-const BINS = "AQAGADwAWAI=";
+//: Feed frame lengths, samples at RATE_44K: 200, 100 and 50 ms.
+const N_200_MS = 8820;
+const N_100_MS = 4410;
+const N_50_MS = 2205;
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST_RANGE = ""] = METER_RANGES;
@@ -140,12 +144,12 @@ function mount(spec, strip) {
 }
 
 /**
- * Send one feed frame covering `ms` of frame time.
+ * Send one feed frame `n` samples long, contiguous with the one before it.
  *
- * @param {number} ms
+ * @param {number} n
  */
-function frame(ms) {
-  lastStream()?.emit("frame", { channels: [{ peak: -3.1, rms: -9.4, bins: BINS }], ms });
+function frame(n) {
+  follow([{ peak: -3.1, rms: -9.4, bins: MONO_BINS }], n);
   toSpectrogram(takeMeterFrames());
 }
 
@@ -183,7 +187,7 @@ beforeEach(() => {
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
   openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: 4 });
+  lastStream()?.emit("geometry", geometry(RATE_44K));
 });
 
 afterEach(() => {
@@ -198,36 +202,36 @@ test("test_the_first_paint_puts_a_full_width_image_at_the_left_edge", () => {
 
 test("test_a_close_moving_the_window_by_four_columns_shifts_the_canvas_left_by_four", () => {
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(spec.draws[0], { self: true, offset: -4 });
 });
 
 test("test_a_close_moving_the_window_by_two_columns_shifts_the_canvas_left_by_two", () => {
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(spec.draws[1], { self: true, offset: -2 });
 });
 
 test("test_a_close_moving_the_window_by_four_columns_puts_only_those_columns_and_the_seam_before_them", () => {
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(spec.puts[1], { x: SPEC_SIZE.width - 5, width: 5 });
 });
 
 test("test_a_close_moving_the_window_by_two_columns_puts_only_those_columns_and_the_seam_before_them", () => {
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(spec.puts[2], { x: SPEC_SIZE.width - 3, width: 3 });
 });
 
 test("test_closes_too_short_to_move_a_column_put_nothing_after_the_first_paint", () => {
   setApodWindow("300");
   const { spec } = mounted();
-  [50, 50, 50, 50].forEach(frame);
+  [N_50_MS, N_50_MS, N_50_MS, N_50_MS].forEach(frame);
   assert.deepEqual(spec.puts, [{ x: 0, width: SPEC_SIZE.width }]);
 });
 
@@ -241,8 +245,8 @@ test("test_the_first_paint_puts_the_strip_at_full_width", () => {
   poll();
   poll();
   const { strip } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(strip.puts[0], { x: 0, width: STRIP_WIDTH });
 });
 
@@ -250,8 +254,8 @@ test("test_a_spectrogram_close_repaints_the_strip", () => {
   poll();
   poll();
   const { strip } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(strip.puts[1], { x: 0, width: STRIP_WIDTH });
 });
 
@@ -259,24 +263,24 @@ test("test_a_second_spectrogram_close_repaints_the_strip_again", () => {
   poll();
   poll();
   const { strip } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(strip.puts[2], { x: 0, width: STRIP_WIDTH });
 });
 
 test("test_closes_that_would_move_whole_columns_put_nothing_while_the_drawer_is_closed", () => {
   openStage.value = null;
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(spec.puts, []);
 });
 
 test("test_reopening_the_drawer_after_closes_puts_one_full_width_image", () => {
   const { spec } = mounted();
   openStage.value = null;
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   openStage.value = "source";
   assert.deepEqual(spec.puts[1], { x: 0, width: SPEC_SIZE.width });
 });
@@ -320,11 +324,11 @@ function colorsDown(img, x) {
 }
 
 test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", () => {
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: HIGH_ONLY_BINS });
+  lastStream()?.emit("geometry", geometry(RATE_44K, 1, HIGH_ONLY_BINS));
   newTrack();
   poll();
-  for (const ms of [200, 200]) {
-    lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: highOnly() }], ms });
+  for (const n of [N_200_MS, N_200_MS]) {
+    follow([{ peak: -10, rms: -20, bins: highOnly() }], n);
     toSpectrogram(takeMeterFrames());
   }
   setSpan(HALF);

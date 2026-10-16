@@ -24,6 +24,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { RATE_96K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
 
@@ -48,6 +49,10 @@ const SPIKE_AT = TRACE_COLS / 2;
 const LOUD_BYTE = 20;
 const LOUD_DB = -10;
 const QUIET_BYTE = 120;
+//: Feed event lengths, samples at RATE_96K: 16.667, 10.667 and 25 ms.
+const SIXTIETH_N = 1600;
+const SHORT_N = 1024;
+const LONG_N = 2400;
 
 /**
  * A clock that moves only on `frame`: each call is one animation frame, `ms` after the last; `waiting` is the number of
@@ -103,12 +108,12 @@ const spike = ({ n, at, loud, quiet }) =>
   btoa(String.fromCharCode(...Array.from({ length: n }, (_, k) => [k === at ? loud : quiet, 0]).flat()));
 
 /**
- * Send one single-channel feed frame covering `ms` of frame time.
+ * Send one single-channel feed frame `n` samples long, contiguous with the one before it.
  *
- * @param {{ peak: number, rms: number, byte: number, ms?: number }} reading
+ * @param {{ peak: number, rms: number, byte: number, n?: number }} reading
  */
-function send({ peak, rms, byte, ms = 16.667 }) {
-  lastStream()?.emit("frame", { channels: [{ peak, rms, bins: bins(byte) }], ms });
+function send({ peak, rms, byte, n = SIXTIETH_N }) {
+  follow([{ peak, rms, bins: bins(byte) }], n);
 }
 
 /**
@@ -132,7 +137,7 @@ beforeEach(() => {
   engineStatus.value = { ...PLAYING };
   useEventSource();
   openMeterFeed(clock);
-  lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: BINS });
+  lastStream()?.emit("geometry", geometry(RATE_96K, 1, BINS));
   frame(STEP_MS);
   scenes = [];
   unpaint = onMeterPaint((scene) => scenes.push(scene));
@@ -148,9 +153,9 @@ test("test_six_animation_frames_16_7_ms_apart_run_the_painters_3_times", () => {
 });
 
 test("test_three_feed_frames_handed_out_at_one_step_show_their_loudest_peak", () => {
-  send({ peak: -20, rms: -30, byte: 60, ms: 10.667 });
-  send({ peak: -15, rms: -30, byte: 60, ms: 10.667 });
-  send({ peak: -6, rms: -30, byte: 60, ms: 10.667 });
+  send({ peak: -20, rms: -30, byte: 60, n: SHORT_N });
+  send({ peak: -15, rms: -30, byte: 60, n: SHORT_N });
+  send({ peak: -6, rms: -30, byte: 60, n: SHORT_N });
   step();
   assert.equal(scenes.at(-1)?.levels[0]?.peak, -6);
 });
@@ -167,19 +172,19 @@ test("test_the_first_reading_after_playback_restarts_lands_outright", () => {
 });
 
 test("test_the_scene_carries_a_lone_loud_column_at_the_frames_level_before_smoothing", () => {
-  lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: EDGE_BINS });
+  lastStream()?.emit("geometry", geometry(RATE_96K, 1, EDGE_BINS));
   frame(STEP_MS);
   const loud = spike({ n: EDGE_BINS, at: SPIKE_AT, loud: LOUD_BYTE, quiet: QUIET_BYTE });
-  lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: loud }], ms: 16.667 });
+  follow([{ peak: -10, rms: -20, bins: loud }], SIXTIETH_N);
   step();
   assert.ok(...near(scenes.at(-1)?.raw?.[SPIKE_AT] ?? NaN, LOUD_DB, 1e-3));
 });
 
 test("test_at_a_0_1_s_engine_output_delay_the_trace_shows_the_first_clump_once_the_feed_covers_it", () => {
   engineStatus.value = { status: { state: "2", output_delay: "100000" } };
-  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, ms: 10.667 });
+  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 20, n: SHORT_N });
   for (let k = 0; k < 6; k++) frame();
-  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 60, ms: 10.667 });
+  for (let k = 0; k < 5; k++) send({ peak: -10, rms: -20, byte: 60, n: SHORT_N });
   step();
   assert.equal(scenes.map(traceDb)[3], -10);
 });
@@ -223,9 +228,9 @@ test("test_every_frame_reaches_the_spectrogram_exactly_once_across_a_stop", () =
   setApodWindow("300");
   setSpectrumOffset(0.1);
   const start = spectrogramEnd.value;
-  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
+  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
   step();
-  for (let k = 0; k < 2; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
+  for (let k = 0; k < 2; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
   engineStatus.value = { ...STOPPED };
   step();
   assert.ok(...near(spectrogramEnd.value - start, 200, 1e-9));
@@ -261,7 +266,7 @@ test("test_playback_stopping_hands_the_painters_the_empty_scene_with_no_frame_ru
 test("test_the_frames_the_loop_holds_when_its_last_painter_unregisters_reach_the_spectrogram", () => {
   setSpectrumOffset(0.1);
   const start = spectrogramEnd.value;
-  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, ms: 25 });
+  for (let k = 0; k < 6; k++) send({ peak: -10, rms: -20, byte: 20, n: LONG_N });
   step();
   unpaint();
   assert.ok(...near(spectrogramEnd.value - start, 150, 1e-9));

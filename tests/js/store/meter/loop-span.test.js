@@ -22,6 +22,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setFreqSpan } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { RATE_96K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
 
@@ -30,7 +31,9 @@ import { near } from "../../support/near.js";
 
 const FRAME_MS = 16.7;
 const STEP_MS = 1000 / 30;
-const NYQUIST = 48000;
+//: The metering rate, a 48 kHz Nyquist, and one feed event's length at it, samples: 16.667 ms.
+const RATE = RATE_96K;
+const SIXTIETH_N = 1600;
 //: The trace's column count.
 const TRACE_COLS = 600;
 //: The trace column in the middle of the width.
@@ -98,9 +101,9 @@ const spike = (n, at) =>
  */
 function columns({ span, bins, at }) {
   setFreqSpan(span);
-  lastStream()?.emit("geometry", { nyquist: NYQUIST, channels: 1, bins });
+  lastStream()?.emit("geometry", geometry(RATE, 1, bins));
   frame(STEP_MS);
-  lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: spike(bins, at) }], ms: 16.667 });
+  follow([{ peak: -10, rms: -20, bins: spike(bins, at) }], SIXTIETH_N);
   frame();
   frame();
   return Array.from(scenes.at(-1)?.raw ?? []);
@@ -152,8 +155,8 @@ const SETTLE_STEPS = 30;
 /** Send one step's worth of feed frames, loud at HIGH_BIN, and run the step. */
 function stepLoudHigh() {
   const loud = spike(CHANGE_BINS, HIGH_BIN);
-  lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: loud }], ms: 16.667 });
-  lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: loud }], ms: 16.667 });
+  follow([{ peak: -10, rms: -20, bins: loud }], SIXTIETH_N);
+  follow([{ peak: -10, rms: -20, bins: loud }], SIXTIETH_N);
   frame();
   frame();
 }
@@ -165,7 +168,7 @@ function stepLoudHigh() {
  * @returns {{ disp: number[], ghost: number[] }}
  */
 function firstSceneAfterHalving() {
-  lastStream()?.emit("geometry", { nyquist: NYQUIST, channels: 1, bins: CHANGE_BINS });
+  lastStream()?.emit("geometry", geometry(RATE, 1, CHANGE_BINS));
   frame(STEP_MS);
   for (let k = 0; k < SETTLE_STEPS; k++) stepLoudHigh();
   setFreqSpan(HALF);

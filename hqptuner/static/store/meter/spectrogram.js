@@ -36,7 +36,7 @@ const ROW_STEP_DB = 1.2;
 const ROW_MAX = 250;
 const MS_PER_S = 1000;
 
-/** @typedef {import("./feed.js").Geometry} Geometry */
+/** @typedef {import("../../model/gauges/meter/meter.js").FrameGeometry} Geometry */
 /** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
