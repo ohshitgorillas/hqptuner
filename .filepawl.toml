@@ -4,7 +4,7 @@ version = 1
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
 "hqptuner/lanes/live/lane.py" = { lines = 406 }
-"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 405 }
+"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 402 }
 "hqptuner/static/model/gauges/meter/spectrumfx.js" = { lines = 430, reason = "Trace style gradient stops sit beside suiteLineStops" }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/fuzz/fuzz.py" = { lines = 433 }

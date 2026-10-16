@@ -25,7 +25,6 @@ import {
 } from "../../../model/gauges/meter/spectrumfx.js";
 import { fireColors, fireSize, fireSource, stepFire } from "../../../model/gauges/meter/fire.js";
 import { stepsDue } from "../../../model/gauges/meter/steps.js";
-import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
 /** @typedef {import("../../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
@@ -88,8 +87,6 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {number} dt  s
  */
 
-/** The seconds a paint told none runs for: one meter loop step. */
-const DT = STEP_MS / 1000;
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
 const CAP_PX = 2; // a peak cap's height, canvas pixels
 const RIDGE_OVER = 0.5; // share of a row step the back ridge row's baseline sits above the plot's top
@@ -380,10 +377,10 @@ export function fxPainter(canvas, colors) {
    * @param {SpectrumHold | null} spectrum
    * @param {number} range  dB
    * @param {string} style
-   * @param {{ suite?: string, dt?: number }} [look]  the color suite, and the seconds since the last paint, one meter
-   *   loop step where none is given
+   * @param {{ suite?: string, dt: number }} look  the color suite, Accent where none is given, and the seconds since
+   *   the last paint
    */
-  const paint = (spectrum, range, style, { suite = ACCENT, dt = DT } = {}) => {
+  const paint = (spectrum, range, style, { suite = ACCENT, dt }) => {
     const ctx = canvas.getContext("2d", CTX_OPTS);
     if (!ctx) return;
     if (!spectrum) {

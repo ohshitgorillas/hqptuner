@@ -95,8 +95,8 @@ export function bandsOf(fracs, n) {
 
 /**
  * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; a cap holds for
- * CAP_HOLD_S after its band last reached it, then falls by CAP_GRAVITY times its time past the hold times the step,
- * never below its band. Without a `prev` of the same length every cap sits on its band.
+ * CAP_HOLD_S after its band last reached it, then falls from rest under CAP_GRAVITY over the time past the hold, never
+ * below its band, however time is cut into steps. Without a `prev` of the same length every cap sits on its band.
  *
  * @param {CapState | null} prev
  * @param {ArrayLike<number>} bands  plot fractions
@@ -110,17 +110,17 @@ export function stepCaps(prev, bands, dt) {
   for (let i = 0; i < n; i++) {
     if (bands[i] >= prev.lvl[i]) continue;
     next.age[i] = prev.age[i] + dt;
-    const over = next.age[i] - CAP_HOLD_S;
-    const lvl = over > 0 ? prev.lvl[i] - CAP_GRAVITY * over * dt : prev.lvl[i];
-    next.lvl[i] = Math.max(bands[i], lvl);
+    const over = Math.max(0, next.age[i] - CAP_HOLD_S);
+    const was = Math.max(0, prev.age[i] - CAP_HOLD_S);
+    next.lvl[i] = Math.max(bands[i], prev.lvl[i] - (CAP_GRAVITY / 2) * (over * over - was * was));
   }
   return next;
 }
 
 /**
  * Gravity bars after a step of `dt` seconds: a band at or above its bar lifts it and stops its fall; otherwise the bar
- * gains `gravity` times the step in speed and drops by its new speed times the step, never below its band. Without a
- * `prev` of the same length every bar sits on its band at rest.
+ * falls under `gravity` exactly over the step, never below its band, however a stretch of time is cut into steps.
+ * Without a `prev` of the same length every bar sits on its band at rest.
  *
  * @param {GravityState | null} prev
  * @param {ArrayLike<number>} bands  plot fractions
@@ -135,7 +135,7 @@ export function stepGravity(prev, bands, dt, gravity = GRAVITY) {
   for (let i = 0; i < n; i++) {
     if (bands[i] >= prev.lvl[i]) continue;
     next.v[i] = prev.v[i] + gravity * dt;
-    next.lvl[i] = Math.max(bands[i], prev.lvl[i] - next.v[i] * dt);
+    next.lvl[i] = Math.max(bands[i], prev.lvl[i] - (prev.v[i] + (gravity * dt) / 2) * dt);
   }
   return next;
 }
