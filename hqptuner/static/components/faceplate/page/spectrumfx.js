@@ -25,7 +25,6 @@ import {
 } from "../../../model/gauges/meter/spectrumfx.js";
 import { fireColors, fireSize, fireSource, stepFire } from "../../../model/gauges/meter/fire.js";
 import { stepsDue } from "../../../model/gauges/meter/steps.js";
-import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
 /** @typedef {import("../../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
@@ -68,6 +67,8 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {HaloState} halo
  * @property {ImageData | null} glow
  * @property {Uint16Array | null} heat
+ * @property {Float32Array | undefined} bands  the bands the bars last drew, reused by the next paint
+ * @property {Uint16Array | undefined} source  the flames' source row the last paint lit, reused by the next paint
  * @property {number} owed  steps, as stepsDue carries them
  * @property {FireInk | null} ink
  * @property {FireSheet | null} sheet
@@ -88,8 +89,6 @@ import { accentInForce } from "../../../store/ui/theme.js";
  * @property {number} dt  s
  */
 
-/** The seconds a paint told none runs for: one meter loop step. */
-const DT = STEP_MS / 1000;
 const BAR_GAP = 0.25; // share of a band's width left clear beside its bar
 const CAP_PX = 2; // a peak cap's height, canvas pixels
 const RIDGE_OVER = 0.5; // share of a row step the back ridge row's baseline sits above the plot's top
@@ -162,7 +161,7 @@ function vertical(ctx, y0, y1, stops) {
  */
 function bars(f) {
   const { ctx, canvas, state, suite, accent } = f;
-  const bands = bandsOf(f.fracs, BANDS);
+  const bands = (state.bands = bandsOf(f.fracs, BANDS, state.bands));
   state.caps = stepCaps(state.caps, bands, f.dt);
   const fixed = suiteBarStops(suite, accent);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -333,7 +332,7 @@ function fire(f) {
   const { ctx, canvas, state } = f;
   const { width: w, height: h } = canvas;
   const size = fireSize(w, h);
-  const source = fireSource(f.fracs, size);
+  const source = (state.source = fireSource(f.fracs, size, state.source));
   const due = stepsDue(state.owed, f.dt);
   state.owed = due.owed;
   if (state.heat?.length !== size.cols * size.rows) state.heat = new Uint16Array(size.cols * size.rows);
@@ -359,6 +358,8 @@ const fresh = () => ({
   halo: HALO_FRESH,
   glow: null,
   heat: null,
+  bands: undefined,
+  source: undefined,
   owed: 0,
   ink: null,
   sheet: null,
@@ -375,15 +376,17 @@ const fresh = () => ({
 export function fxPainter(canvas, colors) {
   let shown = "";
   let state = fresh();
+  /** @type {Float32Array | undefined} */
+  let fracs; // the plot fractions of the last paint, written over by the next
   const clear = () => canvas.getContext("2d", CTX_OPTS)?.clearRect(0, 0, canvas.width, canvas.height);
   /**
    * @param {SpectrumHold | null} spectrum
    * @param {number} range  dB
    * @param {string} style
-   * @param {{ suite?: string, dt?: number }} [look]  the color suite, and the seconds since the last paint, one meter
-   *   loop step where none is given
+   * @param {{ suite?: string, dt: number }} look  the color suite, Accent where none is given, and the seconds since
+   *   the last paint
    */
-  const paint = (spectrum, range, style, { suite = ACCENT, dt = DT } = {}) => {
+  const paint = (spectrum, range, style, { suite = ACCENT, dt }) => {
     const ctx = canvas.getContext("2d", CTX_OPTS);
     if (!ctx) return;
     if (!spectrum) {
@@ -398,7 +401,8 @@ export function fxPainter(canvas, colors) {
     }
     const draw = STYLES[style];
     const accent = accentInForce();
-    if (draw) draw({ ctx, canvas, colors, fracs: fractionsOf(spectrum.disp, range), state, suite, accent, dt });
+    fracs = fractionsOf(spectrum.disp, range, fracs);
+    if (draw) draw({ ctx, canvas, colors, fracs, state, suite, accent, dt });
     else clear();
   };
   return { paint, clear };

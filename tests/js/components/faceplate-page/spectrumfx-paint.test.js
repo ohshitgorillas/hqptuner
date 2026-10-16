@@ -45,6 +45,8 @@ const H = 170;
 const COLS = 600;
 //: A 60 dB plot.
 const RANGE = 60;
+//: The time each paint is told it paints for, s: one meter loop step, as the loop hands it.
+const STEP_S = 1 / 30;
 //: Half way down a 60 dB plot.
 const MID_DB = -RANGE / 2;
 //: Three quarters of the way down a 60 dB plot, where the trace moves to from `MID_DB`.
@@ -166,7 +168,7 @@ function hold(db) {
 /**
  * A painter on a fresh fake canvas.
  *
- * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string, look?: { suite?: string }) => void, clear: () => void } }}
+ * @returns {{ canvas: FakeCanvas, fx: { paint: (s: SpectrumHold | null, r: number, style: string, look: { suite?: string, dt: number }) => void, clear: () => void } }}
  */
 function painter() {
   const canvas = fakeCanvas();
@@ -184,9 +186,9 @@ function painter() {
  */
 function lastPaint(style, times = 1, spectrum = hold(MID_DB)) {
   const { canvas, fx } = painter();
-  for (let k = 1; k < times; k += 1) fx.paint(spectrum, RANGE, style);
+  for (let k = 1; k < times; k += 1) fx.paint(spectrum, RANGE, style, { dt: STEP_S });
   canvas.calls = [];
-  fx.paint(spectrum, RANGE, style);
+  fx.paint(spectrum, RANGE, style, { dt: STEP_S });
   return canvas.calls.filter((c) => DRAWS.has(c.name));
 }
 
@@ -256,10 +258,10 @@ test("test_a_ridges_paint_after_ridge_every_more_strokes_two_ridges", () => {
 
 test("test_ridges_picked_again_after_another_style_start_over_at_one_ridge", () => {
   const { canvas, fx } = painter();
-  for (let k = 0; k < RIDGE_EVERY + 1; k += 1) fx.paint(hold(MID_DB), RANGE, "ridges");
-  fx.paint(hold(MID_DB), RANGE, "bars");
+  for (let k = 0; k < RIDGE_EVERY + 1; k += 1) fx.paint(hold(MID_DB), RANGE, "ridges", { dt: STEP_S });
+  fx.paint(hold(MID_DB), RANGE, "bars", { dt: STEP_S });
   canvas.calls = [];
-  fx.paint(hold(MID_DB), RANGE, "ridges");
+  fx.paint(hold(MID_DB), RANGE, "ridges", { dt: STEP_S });
   assert.equal(count(canvas.calls, "stroke"), 1);
 });
 
@@ -275,7 +277,7 @@ function lastOf(steps) {
   const { canvas, fx } = painter();
   for (const [spectrum, style] of steps) {
     canvas.calls = [];
-    fx.paint(spectrum, RANGE, style);
+    fx.paint(spectrum, RANGE, style, { dt: STEP_S });
   }
   return canvas.calls.filter((c) => DRAWS.has(c.name));
 }
@@ -321,9 +323,9 @@ const PAINTS = RIDGE_EVERY + 1;
 function inked(style, suite) {
   const { canvas, fx } = painter();
   const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
-  for (let k = 1; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite });
+  for (let k = 1; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite, dt: STEP_S });
   canvas.inks = [];
-  fx.paint({ disp, ghost: disp }, RANGE, style, { suite });
+  fx.paint({ disp, ghost: disp }, RANGE, style, { suite, dt: STEP_S });
   return canvas.inks;
 }
 
@@ -356,10 +358,10 @@ function afterAccentChange(style, then = SECOND_HEX) {
   accentHex.value = FIRST_HEX;
   const { canvas, fx } = painter();
   const disp = new Float32Array(COLS).fill(LOW_DB).fill(MID_DB, COLS / 2);
-  for (let k = 0; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT });
+  for (let k = 0; k < PAINTS; k += 1) fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT, dt: STEP_S });
   accentHex.value = then;
   canvas.inks = [];
-  fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT });
+  fx.paint({ disp, ghost: disp }, RANGE, style, { suite: ACCENT, dt: STEP_S });
   return canvas.inks;
 }
 
