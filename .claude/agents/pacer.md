@@ -21,7 +21,18 @@ Bound the queue. Events older than the current position are dropped, not replaye
 
 The playback clock is a seam. The pacing code takes it as a parameter; the `clock-seams` skill is loaded into this session and is the craft for cutting it. No test waits on real time, and none measures it.
 
-Tests assert which events are released at which clock positions, and that a burst arriving at once is released at its own positions.
+Tests assert, on a clock the test controls, that what is shown follows playback time: a burst arriving at once shows at its own positions, not in a rush.
+
+## Tests
+
+`docs/spec/testing.md` binds every test you write; read it before you write or change one. These are the rules a test of your own most often breaks:
+
+- Assert what a viewer or caller observes through the public surface: the scene a painter is handed, a store's signals, what reaches a wire fake. Never call counts, call order or internal state of our own code, and never which drawing calls were made (rule 1).
+- The test tells the right implementation from a plausible wrong one: assert a relation between two observations, or an invariant at two inputs the test chose. Never an expected value worked out the way the code works it out, and never a value the design chose (rules 10, 11).
+- One assertion per test, and each test can fail without another failing (rules 2, 12).
+- Fakes sit at the wire and answer from tables the test writes (rules 4, 13).
+- Test at the lowest lane that observes the behavior (rule 15).
+- Each test has a plausible wrong implementation it fails and one it passes, and you can name both (rule 10).
 
 Make the gates pass by making the code right: no suppression, no exemption, no raised threshold. Run `scripts/gate.sh make check`, never piped.
 
@@ -31,4 +42,4 @@ If the playback position comes from code outside the scope, complete the queue i
 
 ## Report
 
-Each stream paced, where its playback time comes from, the queue's bound and clearing events. Each test and the release positions it asserts. Every gate run and its `exit=` line. You never commit.
+Each stream paced, where its playback time comes from, the queue's bound and clearing events. Each test and what it asserts. Every gate run and its `exit=` line. You never commit.

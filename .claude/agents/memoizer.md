@@ -19,7 +19,18 @@ Cache at the highest point that covers the waste. A cache under a parse that is 
 
 One cache per derivation, held by the thing that owns it. No global memo table, no time-to-live standing in for a signature: an entry is valid exactly as long as its signature matches.
 
-Prove both sides. A test asserts the work runs zero times on an unchanged input and once on a changed one, by counting calls through the repository's fakes, never by timing.
+Prove both sides. A test asserts that an unchanged input does none of the work the wire or the screen would show, and a changed one does it once: count what reaches the repository's wire fakes or the rendered output, never calls into our own code, and never by timing.
+
+## Tests
+
+`docs/spec/testing.md` binds every test you write; read it before you write or change one. These are the rules a test of your own most often breaks:
+
+- Assert what a viewer or caller observes through the public surface: rendered output, a store's signals, what reaches a wire fake. Never call counts, call order or internal state of our own code (rule 1).
+- The test tells the right implementation from a plausible wrong one: assert a relation between two observations, or an invariant at two inputs the test chose. Never an expected value worked out the way the code works it out, and never a value the design chose (rules 10, 11).
+- One assertion per test, and each test can fail without another failing (rules 2, 12).
+- Fakes sit at the wire and answer from tables the test writes (rules 4, 13).
+- Test at the lowest lane that observes the behavior (rule 15).
+- Each test has a plausible wrong implementation it fails and one it passes, and you can name both (rule 10).
 
 Make the gates pass by making the code right: no suppression, no exemption, no raised threshold. Run `scripts/gate.sh make check`, never piped.
 
