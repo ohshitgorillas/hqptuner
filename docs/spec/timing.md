@@ -52,12 +52,12 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 |---|---|---|
 | Daemon metering stream, `:4322` | Frames and `xform_time` | hqplayerd |
 | Metering reader | Reading frames off the socket | `engine/metering.py` |
-| Meter feed | The stride, and the `at`/`ms` stamp on every event | `engine/meterfeed.py` |
+| Meter feed | The stride, and the `at`/`n` stamp, in samples, on every event | `engine/meterfeed.py` |
 | Feed route | Transport over SSE, nothing else | `api/routes/meter.py` |
 | Feed store | Decoding, queueing, detecting a break in samples, converting the stamp to ms | `store/meter/feed.js` |
 | Playback model | What a paint shows, and where the playhead stands | `static/model/gauges/` |
 | Meter loop | The one animation loop; applies the playback decision; hands the scene and `dt` to painters | `store/meter/loop.js` |
-| Spectrogram history | Slices placed by their frames' stamps; the edge taken from the playhead | `store/meter/spectrogram.js` |
+| Spectrogram history | Slices placed by their events' stamps; the edge taken from the playhead | `store/meter/spectrogram.js` |
 | Apodizing strip | Bins stamped with playback time on arrival; the edge taken from the playhead | `store/apodhistory.js`, `store/faceplate/drawers/source.js` |
 | Painters | Drawing what they are handed | `components/faceplate/` |
 
@@ -99,7 +99,7 @@ These are measurements, not assumptions. Code reads the wire rather than relying
 A position recovered by summing, and the same position from stamps:
 
 ```js
-// Rejected: a second clock. Loses time whenever a frame reaches one total and not the other.
+// Rejected: a second clock. Loses time whenever an event reaches one total and not the other.
 h.end += h.frameMs;
 
 // Holds: the slice ends where its last event's playback ends.
@@ -116,7 +116,7 @@ const paint = (spectrum, range, style, { dt = DT } = {}) => {};
 const paint = (spectrum, range, style, { dt }) => {};
 ```
 
-An assumed frame length, and the wire's:
+An assumed event length, and the wire's:
 
 ```js
 // Rejected: true at one metering rate.
