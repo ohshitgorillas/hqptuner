@@ -12,6 +12,15 @@
 // window of W seconds shows the playback of the W seconds before the strip's
 // right edge, and each bin the part of its playback that falls inside them.
 //
+// The daemon's position is on its own time base, so a bin does not carry it as
+// a time (docs/spec/timing.md, "The two clocks"). Each bin is stamped once, when
+// it is recorded, with where its playback ends in playback ms: the meter feed's
+// edge (store/meter/feed.js feedEdge) less the effective delay the meters run
+// behind the feed (store/meter/delay.js). With no edge, no feed open or none
+// queued yet, the bin is still recorded, for the lamps read its rate, and
+// carries no stamp. The position is still read, to tell a new track and an
+// unmoved frame.
+//
 // Visibility is stateful, not a threshold on the current reading: the strip
 // appears on the first event of a track and stays up for as long as playback
 // continues, so a burst in an opening section does not vanish from the strip the
@@ -29,6 +38,10 @@ import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { num } from "../lib/coerce.js";
 import { engineStatus, PLAYING } from "./signals.js";
+import { effectiveDelay } from "./meter/delay.js";
+import { feedEdge } from "./meter/feed.js";
+
+const MS_PER_S = 1000;
 
 // At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
 // go: the strip is a monitor, not a record, and an unbounded array on a track
@@ -36,10 +49,11 @@ import { engineStatus, PLAYING } from "./signals.js";
 const MAX_BINS = 3600;
 
 /**
- * @typedef {{ ms: number, n: number, at: number }} Bin
- *   One frame's worth of history: `ms` the playback observed since the frame
- *   before it, `n` the apodizing events counted in that interval, `at` the
- *   track position in ms where the interval ended.
+ * @typedef {{ ms: number, n: number, at: number | null }} Bin
+ *   One frame's worth of history: `ms` the playback in ms observed since the
+ *   frame before it, `n` the apodizing events counted in that interval, `at`
+ *   where the interval ends, playback ms, stamped when the bin was recorded;
+ *   null where the feed had no edge then.
  *
  * @typedef {object} TrackState
  * @property {string | undefined | null} serial
@@ -47,7 +61,8 @@ const MAX_BINS = 3600;
  * @property {number | null} apodPrev
  *   Last observed cumulative counter, or null before the baseline poll.
  * @property {string | undefined} posPrev
- *   Playback position as the previous recorded frame reported it, verbatim.
+ *   The daemon's track position, s, as the previous recorded frame reported
+ *   it, verbatim.
  * @property {boolean} sawEvent
  *   Whether this track has produced any event at all.
  */
@@ -157,6 +172,16 @@ function rollTrack(st) {
   bins.value = [];
 }
 
+/**
+ * The stamp a bin recorded now carries: the feed's edge less the effective delay.
+ *
+ * @returns {number | null}  playback, ms; null while the feed has no edge
+ */
+function stampNow() {
+  const edge = feedEdge();
+  return edge === null ? null : edge - effectiveDelay.peek() * MS_PER_S;
+}
+
 // One poll's step. The first poll of a track only takes the baseline: the
 // counter's absolute value carries the whole session's events, so a bin built
 // against no previous reading would put every event since the daemon started
@@ -184,7 +209,7 @@ function accumulate(st) {
   const ms = playedMs(num(t.posPrev, null), pos);
   if (ms <= 0 || pos === null) return;
   const n = Math.max(0, apod - t.apodPrev);
-  const next = bins.peek().concat([{ ms, n, at: pos * 1000 }]);
+  const next = bins.peek().concat([{ ms, n, at: stampNow() }]);
   bins.value = next.length > MAX_BINS ? next.slice(next.length - MAX_BINS) : next;
   seq.value = seq.peek() + 1;
   track.value = { ...t, apodPrev: apod, posPrev: st.position, sawEvent: t.sawEvent || n > 0 };

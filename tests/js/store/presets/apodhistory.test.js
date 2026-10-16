@@ -59,7 +59,13 @@ const STEP_MS = 1000;
 
 initApodHistory();
 
-/** @typedef {{ ms: number, n: number }} Bin */
+/**
+ * One bin: `ms` the playback it observed, ms; `n` the events it counted; `at` its stamp, playback, ms, or null where
+ * it arrived with no feed edge. No feed is open in this file, so every bin here carries a null stamp, and its stamp is
+ * pinned in tests/js/store/meter/apodstrip.test.js.
+ *
+ * @typedef {{ ms: number, n: number, at: number | null }} Bin
+ */
 
 /** @param {Bin[]} bins */
 const counts = (bins) => bins.map((b) => b.n);

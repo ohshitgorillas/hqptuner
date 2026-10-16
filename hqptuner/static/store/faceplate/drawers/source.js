@@ -4,9 +4,9 @@
 // channel drawn, the color span, and the time window the apodizing strip and the spectrogram share with its axis.
 // Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
 //
-// The window is one span for both charts, the chosen seconds. Both end on the same playback: the spectrogram on the
-// newest slice it holds, the strip on that slice's track position (store/meter/spectrogram.js stripEnd), which runs
-// past the newest apodizing bin into playback no Status has observed yet, drawn blank.
+// The window is one span for both charts, the chosen seconds. Both end on the one playhead, in playback ms
+// (store/meter/spectrogram.js stripEnd), which runs past the newest apodizing bin into playback no Status has observed
+// yet, drawn blank.
 
 import { signal } from "@preact/signals";
 import { clamp, truthy } from "../../../lib/coerce.js";
@@ -125,37 +125,41 @@ export function sourceMeter() {
  * Add each bin's events to the pixel columns its playback falls under, spread evenly across that playback.
  *
  * @param {Float64Array} acc  events per column
- * @param {{ ms: number, n: number, at: number }} b
- * @param {number} left  ms, the window's left edge in track position
- * @param {number} w  ms per column
+ * @param {{ ms: number, n: number, at: number | null }} b  `ms` the playback ms it observed, `at` the playback ms it
+ *   ends on, null where it has no stamp; a bin with no stamp, or ending by the left edge, adds nothing
+ * @param {number} left  playback, ms: the window's left edge
+ * @param {number} w  playback ms per column
  */
 function spread(acc, b, left, w) {
-  const start = b.at - b.ms;
+  const at = b.at;
+  if (at === null || at <= left) return;
+  const start = at - b.ms;
   const x0 = Math.max(0, Math.floor((start - left) / w));
-  const x1 = Math.min(acc.length, Math.ceil((b.at - left) / w));
+  const x1 = Math.min(acc.length, Math.ceil((at - left) / w));
   for (let x = x0; x < x1; x++) {
     const lo = Math.max(start, left + x * w);
-    const hi = Math.min(b.at, left + (x + 1) * w);
+    const hi = Math.min(at, left + (x + 1) * w);
     if (hi > lo) acc[x] += (b.n * (hi - lo)) / b.ms;
   }
 }
 
 /**
- * The apodizing strip's level at each of `cols` pixel columns across a window of `span` ms ending on track position
+ * The apodizing strip's level at each of `cols` pixel columns across a window of `span` playback ms ending on playback
  * `end`: 0 where no event fell or no bin has observed the playback yet, else the events under the column rounded, at
- * least 1 and at most the strip's hottest.
+ * least 1 and at most the strip's hottest. A bin with no stamp draws nothing.
  *
- * @param {{ ms: number, n: number, at: number }[]} bins  oldest first, `at` the track position in ms each ends on
- * @param {number} span  ms
+ * @param {{ ms: number, n: number, at: number | null }[]} bins  oldest first, `ms` the playback ms each observed, `at`
+ *   the playback ms each ends on, null where it has no stamp
+ * @param {number} span  playback, ms
  * @param {number} cols
- * @param {number} end  ms, the track position the right edge shows
+ * @param {number} end  playback, ms: where the right edge stands
  * @returns {Uint8Array}
  */
 export function stripEvents(bins, span, cols, end) {
   const acc = new Float64Array(cols);
   if (span > 0) {
     const left = end - span;
-    for (const b of bins) if (b.ms > 0 && b.n > 0 && b.at > left) spread(acc, b, left, span / cols);
+    for (const b of bins) if (b.ms > 0 && b.n > 0) spread(acc, b, left, span / cols);
   }
   return Uint8Array.from(acc, (ev) => (ev > 0 ? clamp(Math.round(ev), 1, MAX_EVENTS) : 0));
 }

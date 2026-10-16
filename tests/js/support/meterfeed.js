@@ -282,3 +282,25 @@ export const EARLIER_MS = [
   { at: 1201, ms: 23 },
   { at: 1224, ms: 17.5 },
 ];
+
+/** 48 kHz, PCM at 48k. */
+export const RATE_48K = 48000;
+
+/**
+ * Four events at 48 kHz from 5 s of playback on, each starting where the one before it ended: 20, 17.5, 22.5 and 23 ms
+ * long. The last ends at sample 243984, STAMPED_48K_END_MS.
+ *
+ * @type {Stamp[]}
+ */
+export const STAMPED_48K = [
+  { at: 240000, n: 960 },
+  { at: 240960, n: 840 },
+  { at: 241800, n: 1080 },
+  { at: 242880, n: 1104 },
+];
+
+/** Where STAMPED_48K's last event ends: playback, ms. */
+export const STAMPED_48K_END_MS = 5083;
+
+/** Where STAMPED_48K's second event ends: playback, ms. */
+export const STAMPED_48K_SECOND_END_MS = 5037.5;

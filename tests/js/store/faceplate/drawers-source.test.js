@@ -2,7 +2,8 @@
 // feed. Which of the meter or a no-stream line shows (metering off, nothing playing, the feed silent while it plays,
 // a silent DSD source with the matrix off), the linear frequency axis ending at the source Nyquist, the channel
 // switch's choices and pick, the time window both charts share and its axis, the apodizing strip's events per pixel
-// column, laid back from the right edge the caller hands in, and the spectrogram's own frequency span: at a half or a
+// column, each bin laid at its own stamp back from the right edge the caller hands in, both playback, ms, and a bin
+// with no stamp drawing nothing, and the spectrogram's own frequency span: at a half or a
 // quarter of the band its axis tops out at that share of the source Nyquist, whatever span the page's spectrum is set
 // to.
 //
@@ -204,8 +205,32 @@ test("test_a_window_past_two_minutes_reads_its_axis_in_minutes", () => {
 
 // --- the apodizing strip -------------------------------------------------------------------------------------------
 
-/** @param {number} ms @param {number} n @param {number} at */
+/**
+ * One bin of the apodizing history.
+ *
+ * @param {number} ms  the playback it observed, ms
+ * @param {number} n  the events it counted
+ * @param {number | null} at  its stamp, where its playback ends: playback, ms; null where it arrived with no feed edge
+ */
 const bin = (ms, n, at) => ({ ms, n, at });
+
+/**
+ * The strip's events per column, as plain numbers.
+ *
+ * @param {Array<{ ms: number, n: number, at: number | null }>} bins
+ * @param {number} span  playback, ms
+ * @param {number} cols
+ * @param {number} end  playback, ms
+ */
+const columns = (bins, span, cols, end) => Array.from(stripEvents(bins, span, cols, end));
+
+//: A bin with no stamp, as wide as STAMPED and counting more, inside the window were its missing stamp read as 0 ms.
+const UNSTAMPED = bin(1000, 4, null);
+const STAMPED = bin(1000, 2, 1000);
+
+test("test_a_bin_with_no_stamp_adds_nothing_to_the_strip", () => {
+  assert.deepEqual(columns([UNSTAMPED, STAMPED], 2000, 2, 1000), columns([STAMPED], 2000, 2, 1000));
+});
 
 test("test_a_bins_events_land_under_the_playback_it_observed", () => {
   const bins = [bin(1000, 0, 1000), bin(1000, 2, 2000)];

@@ -17,7 +17,9 @@
 // `geometry` event, even when its `at` follows on: the sample count runs on
 // across a geometry change, so a count at one rate is not a time at another.
 // It then converts both to ms at the rate, once, so every queued frame carries
-// `at` and `ms` in playback ms.
+// `at` and `ms` in playback ms. The end of the last frame queued since the feed
+// opened is the feed's edge (feedEdge), the playback stamp data arriving on
+// another time base takes at the moment it arrives.
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
@@ -31,6 +33,7 @@ import { metering } from "../actions.js";
 import { addSpectrumFrame } from "./spectrogram.js";
 
 const FEED = "/api/meter/feed";
+// Wall time, ms, the open feed may send nothing while the engine plays before it counts as silent.
 const QUIET_MS = 2000;
 // Playback the queue holds for a loop that has not drained it, ms: the longest
 // delay the loop paces at, and a second past it.
@@ -67,6 +70,7 @@ let source = null;
 let unwatch = null;
 /** @type {Clock} */
 let clock = PLATFORM;
+/** Wall time, ms on `clock`: when the feed opened, playback started or the last frame came, whichever is latest. */
 let since = 0;
 /** @type {MeterFrame[]} */
 let pending = [];
@@ -78,6 +82,12 @@ let pending = [];
 let prev = null;
 /** Whether a `geometry` event has arrived since the last frame: the next frame begins a break. */
 let regeometried = false;
+/**
+ * Playback, ms: where the last frame the open feed queued ends, kept after the loop takes it; null until one is queued.
+ *
+ * @type {number | null}
+ */
+let edge = null;
 
 const playing = () => Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
 
@@ -140,6 +150,7 @@ export function openMeterFeed(next = PLATFORM) {
   pending = [];
   prev = null;
   regeometried = false;
+  edge = null;
   const es = new EventSource(FEED);
   es.addEventListener("geometry", (e) => {
     meterGeometry.value = JSON.parse(e.data);
@@ -147,7 +158,9 @@ export function openMeterFeed(next = PLATFORM) {
   });
   es.addEventListener("frame", (e) => {
     since = clock.now();
-    pending.push(decode(JSON.parse(e.data)));
+    const frame = decode(JSON.parse(e.data));
+    edge = (frame.at ?? NaN) + frame.ms;
+    pending.push(frame);
     trim();
   });
   source = es;
@@ -167,7 +180,18 @@ export function closeMeterFeed() {
   source = null;
   if (unwatch) unwatch();
   unwatch = null;
+  edge = null;
   meterFeedOpen.value = false;
+}
+
+/**
+ * The feed's edge: where the last frame the open feed queued since it opened ends, whether or not the loop has taken
+ * it; null while no feed is open or the open one has queued no frame.
+ *
+ * @returns {number | null}  playback, ms
+ */
+export function feedEdge() {
+  return edge;
 }
 
 /**
