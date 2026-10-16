@@ -279,22 +279,6 @@ async def test_a_frame_item_holds_an_rms_between_the_frames_it_covers(
     assert b_rms < float(channel["rms"]) < a_rms
 
 
-# --- line 5: a frame item states the frame time it covers -------------------
-
-
-#: Nyquist, then the frame time one item covers: whole frames of 1024 samples.
-COVERS = [
-    pytest.param(NYQUIST_44K, 1024 / 44100 * 1000, id="44.1 kHz, one frame"),
-    pytest.param(NYQUIST_192K, 4 * 1024 / 192000 * 1000, id="192 kHz, four frames"),
-]
-
-
-@pytest.mark.parametrize(("bandwidth", "ms"), COVERS)
-async def test_a_frame_item_states_the_frame_time_of_the_frames_it_covers(bandwidth: float, ms: float) -> None:
-    items = await _items([], then=_mono(LEVELS, bandwidth))
-    assert _first_frame(items).get("ms") == pytest.approx(ms, abs=1e-3)
-
-
 # --- line 6: a channel change restarts the stride ---------------------------
 
 
@@ -383,3 +367,156 @@ async def test_a_rate_change_sends_the_new_geometry_before_a_frame_of_only_the_n
     quiet = _metered(after, levels=(AFTER_PEAK, AFTER_PEAK, -40.0, -40.0))
     items = await _after_change(loud, quiet)
     assert items == [("geometry", after), ("frame", AFTER_PEAK)]
+
+
+# --- line 8: every frame item is stamped in whole samples -------------------
+
+
+#: What a stamp reads as where a `frame` item carries no `at` or no `n`.
+MISSING = -1
+
+#: The frame events each run of one geometry queues before the feed moves on.
+RUN = 4
+
+#: Frames of one geometry, each a hop of ``bins - 1`` samples at its metering rate.
+FAST_1025 = (RATE_176K, 1025)
+FAST_513 = (RATE_176K, 513)
+SLOW_1025 = (RATE_44K, 1025)
+PCM_1025 = (RATE_48K, 1025)
+PCM_513 = (RATE_48K, 513)
+
+#: Geometries before, then after, a change of event length mid-feed.
+LENGTH_CHANGES = [
+    pytest.param(FAST_1025, SLOW_1025, id="176.4 kHz to 44.1 kHz"),
+    pytest.param(SLOW_1025, PCM_1025, id="44.1 kHz to 48 kHz"),
+    pytest.param(PCM_1025, FAST_513, id="48 kHz to 176.4 kHz at 513 bins"),
+    pytest.param(FAST_1025, PCM_513, id="176.4 kHz to 48 kHz at 513 bins"),
+]
+
+#: Frames of a 176.4 kHz stride fed after its last event and before a change:
+#: fewer than the three a stride of at least 17.3 ms holds at that rate.
+PARTIALS = [pytest.param(1, id="one frame dropped"), pytest.param(2, id="two frames dropped")]
+
+
+@dataclass(frozen=True)
+class Stamp:
+    """One `frame` item's stamp, and the samples the feed had been given when it was queued."""
+
+    at: int
+    n: int
+    fed: int
+
+
+@dataclass(frozen=True)
+class Run:
+    """Feed frames of one geometry: until ``events`` more frame items are queued, or ``frames`` frames where given."""
+
+    geometry: tuple[int, int]
+    events: int = RUN
+    frames: int | None = None
+
+
+def _geometry_frame(geometry: tuple[int, int]) -> Frame:
+    rate, bins = geometry
+    return _metered(rate, bins)
+
+
+def _stamp(data: dict[str, Any], fed: int) -> Stamp:
+    return Stamp(at=int(data.get("at", MISSING)), n=int(data.get("n", MISSING)), fed=fed)
+
+
+async def _stamps(runs: list[Run]) -> list[Stamp]:
+    """Feed ``runs`` in order to one fresh feed with one subscriber drained after every frame;
+    the stamp of every `frame` item queued, oldest first."""
+    feed = MeterFeed()
+    queue = await _resolved(feed.subscribe())
+    fed = 0
+    stamps: list[Stamp] = []
+    for run in runs:
+        header, body = _geometry_frame(run.geometry)
+        target = len(stamps) + run.events
+        for _ in range(run.frames if run.frames is not None else MAX_ADDS):
+            feed.add(header, reduce_frame(body, int(header[1]), int(header[2])))
+            fed += int(header[2]) - 1
+            stamps.extend(_stamp(dict(data), fed) for event, data in await _drain(queue) if event == "frame")
+            if run.frames is None and len(stamps) >= target:
+                break
+    return stamps
+
+
+def _starts(stamps: list[Stamp]) -> list[int]:
+    return [stamp.at for stamp in stamps]
+
+
+def _ends(stamps: list[Stamp]) -> list[int]:
+    return [stamp.at + stamp.n for stamp in stamps]
+
+
+def _breaks(stamps: list[Stamp]) -> int:
+    """How many items start anywhere but where the item before them ended."""
+    return sum(1 for start, end in zip(_starts(stamps)[1:], _ends(stamps)[:-1], strict=True) if start != end)
+
+
+@pytest.mark.parametrize(("before", "after"), LENGTH_CHANGES)
+async def test_each_frame_item_starts_where_the_one_before_it_ended_across_a_change_of_length(
+    before: tuple[int, int], after: tuple[int, int]
+) -> None:
+    stamps = await _stamps([Run(before), Run(after)])
+    assert _starts(stamps)[1:] == _ends(stamps)[:-1]
+
+
+@pytest.mark.parametrize(("before", "after"), LENGTH_CHANGES)
+async def test_each_frame_item_ends_at_the_samples_the_feed_has_been_given_since_its_reset(
+    before: tuple[int, int], after: tuple[int, int]
+) -> None:
+    stamps = await _stamps([Run(before), Run(after)])
+    assert _ends(stamps) == [stamp.fed for stamp in stamps]
+
+
+def _gap_at_change(stamps: list[Stamp]) -> int | None:
+    """Samples between the end of the last item before a change and the start of the first one after it."""
+    if len(stamps) <= RUN:
+        return None
+    return stamps[RUN].at - (stamps[RUN - 1].at + stamps[RUN - 1].n)
+
+
+@pytest.mark.parametrize("after", [SLOW_1025, PCM_513], ids=["to 44.1 kHz", "to 48 kHz at 513 bins"])
+@pytest.mark.parametrize("dropped", PARTIALS)
+async def test_the_first_frame_item_after_a_change_starts_past_the_partial_stride_it_dropped(
+    dropped: int, after: tuple[int, int]
+) -> None:
+    stamps = await _stamps([Run(FAST_1025), Run(FAST_1025, frames=dropped), Run(after)])
+    hop = FAST_1025[1] - 1
+    assert _gap_at_change(stamps) == dropped * hop
+
+
+async def _overflowed(geometry: tuple[int, int]) -> list[Stamp]:
+    """One subscriber drained once at its first frame item, then left full while ``MAX_ADDS`` frames
+    queue behind it, then drained; every frame item it read, oldest first."""
+    feed = MeterFeed()
+    queue = await _resolved(feed.subscribe())
+    header, body = _geometry_frame(geometry)
+    stamps: list[Stamp] = []
+    for _ in range(MAX_ADDS):
+        feed.add(header, reduce_frame(body, int(header[1]), int(header[2])))
+        stamps.extend(_stamp(dict(data), 0) for event, data in await _drain(queue) if event == "frame")
+        if stamps:
+            break
+    for _ in range(MAX_ADDS):
+        feed.add(header, reduce_frame(body, int(header[1]), int(header[2])))
+    stamps.extend(_stamp(dict(data), 0) for event, data in await _drain(queue) if event == "frame")
+    return stamps
+
+
+@pytest.mark.parametrize("geometry", [SLOW_1025, FAST_513], ids=["44.1 kHz", "176.4 kHz at 513 bins"])
+async def test_a_subscriber_whose_full_queue_dropped_items_reads_one_break_where_they_were(
+    geometry: tuple[int, int],
+) -> None:
+    stamps = await _overflowed(geometry)
+    assert _breaks(stamps) == 1
+
+
+@pytest.mark.parametrize("geometry", [SLOW_1025, FAST_513], ids=["44.1 kHz", "176.4 kHz at 513 bins"])
+async def test_a_frame_item_carries_no_milliseconds(geometry: tuple[int, int]) -> None:
+    items = await _items([], then=_geometry_frame(geometry))
+    assert "ms" not in _first_frame(items)

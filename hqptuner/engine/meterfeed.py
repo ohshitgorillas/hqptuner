@@ -6,9 +6,14 @@ it back under: the stride. Across a stride the peak is max-held and the rms and 
 folding loses nothing a meter shows. Each bin travels as two bytes, low byte first, ``BIN_STEP_DB`` per step below full
 scale.
 
-A ``geometry`` event, carrying what a page needs to lay the bars out (and the metering rate in whole hertz the frames
-arrive at), always goes ahead of the first ``frame`` it
-describes. A geometry change mid-stride drops the partial stride rather than mixing two geometries in one event.
+A ``geometry`` event, carrying what a page needs to lay the bars out and the metering rate in whole hertz, always goes
+ahead of the first ``frame`` it describes. A geometry change mid-stride drops the partial stride rather than mixing two
+geometries in one event.
+
+Each ``frame`` is stamped in whole samples at that metering rate: ``at``, the sample its stride starts at, counted from
+the feed's reset over every frame folded, and ``n``, the samples the stride covers. A frame's ``at`` is the previous
+frame's ``at + n`` unless something came between them: a partial stride a geometry change dropped, or an event a full
+queue dropped.
 
 Each event is written out as its server-sent event text once, as it is sent, and every subscriber's queue carries
 that same text: N open pages cost one serialization a frame, not N.
@@ -47,10 +52,11 @@ class GeometryData(TypedDict):
 
 
 class FrameData(TypedDict):
-    """A ``frame`` event's payload: one finished stride, per channel, and the frame time it covers in milliseconds."""
+    """A ``frame`` event's payload: one finished stride per channel, its first sample ``at`` and its length ``n``."""
 
     channels: list[ChannelLevels]
-    ms: float
+    at: int
+    n: int
 
 
 #: The two shapes ``MeterFeed`` ever queues, told apart by ``Event.name`` ("geometry" or "frame").
@@ -103,7 +109,7 @@ class Geometry:
 
 
 def metering_rate(bins: int, xform_time: float) -> int:
-    """Return the source rate in whole hertz a header implies: a hop of ``bins - 1`` samples per ``xform_time``."""
+    """Return the metering rate in whole hertz a header implies: a hop of ``bins - 1`` samples per ``xform_time``."""
     return round((bins - 1) / xform_time)
 
 
@@ -144,13 +150,13 @@ def _bin_bytes(power: npt.NDArray[np.float64]) -> str:
     return base64.b64encode(np.clip(steps, 0, BIN_MAX).astype("<u2").tobytes()).decode("ascii")
 
 
-def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], ms: float) -> Event:
-    """Return a finished stride as a ``frame`` event: peak and rms in dB, bins as bytes, and its frame time in ms."""
+def _frame_event(peak: npt.NDArray[np.float64], mean: npt.NDArray[np.float64], at: int, n: int) -> Event:
+    """Return a finished stride as a ``frame`` event: peak and rms in dB, bins as bytes, and its sample stamp."""
     channels: list[ChannelLevels] = [
         {"peak": round(float(peak[ch]), 1), "rms": _db(mean[ch, :1])[0], "bins": _bin_bytes(mean[ch, 1:])}
         for ch in range(len(peak))
     ]
-    data: FrameData = {"channels": channels, "ms": round(ms, 3)}
+    data: FrameData = {"channels": channels, "at": at, "n": n}
     return Event("frame", data)
 
 
@@ -165,6 +171,8 @@ class MeterFeed:
         self._count = 0
         self._peak: npt.NDArray[np.float64] | None = None
         self._power: npt.NDArray[np.float64] | None = None
+        self._fed = 0
+        self._start = 0
 
     def subscribe(self) -> "asyncio.Queue[str]":
         """Attach a subscriber; its queue of event texts receives the held geometry at once, where there is one."""
@@ -187,8 +195,9 @@ class MeterFeed:
             self._restart()
 
     def reset(self) -> None:
-        """Forget the geometry and the partial stride; the next frame's geometry goes out ahead of its stride."""
+        """Forget the geometry, the partial stride and the sample count; the next frame's geometry goes out first."""
         self._geo = None
+        self._fed = 0
         self._restart()
 
     def add(self, header: tuple[float, ...], levels: npt.NDArray[np.float64]) -> None:
@@ -207,8 +216,9 @@ class MeterFeed:
             peak, power = np.maximum(self._peak, peak), self._power + power
         self._peak, self._power = peak, power
         self._count += 1
+        self._fed += bins - 1
         if self._count >= stride(bins, xform_time):
-            self._send(_frame_event(peak, power / self._count, self._count * xform_time * 1000))
+            self._send(_frame_event(peak, power / self._count, self._start, self._fed - self._start))
             self._restart()
 
     def _send(self, event: Event) -> None:
@@ -220,6 +230,7 @@ class MeterFeed:
             queue.put_nowait(text)
 
     def _restart(self) -> None:
+        self._start = self._fed
         self._count = 0
         self._peak = None
         self._power = None

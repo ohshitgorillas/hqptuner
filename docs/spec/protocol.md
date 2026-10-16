@@ -400,6 +400,13 @@ A separate binary TCP stream on **port 4321 + 1 = 4322**. There is no control-ch
 
 Consumed at runtime by `hqptuner/engine/metering.py` (the junk-filter advisor's reader), which decodes each frame once through `hqptuner/engine/meterfeed.py` for the advisor and, while a METER page is attached, for the meters; `scripts/probes/probe_metering_stream.py` captures and decodes it standalone.
 
+The meters read that feed from `GET /api/meter/feed` as server-sent events, each an `event:` line naming it and a `data:` line of compact JSON. Two events are sent:
+
+- `geometry`, sent ahead of the first `frame` it describes and again on every change: `nyquist` (float, Hz, the header's `bandwidth`), `channels` (int), `bins` (int, the header's `xformLength`), `rate` (int, Hz, the metering rate `(xformLength − 1) / transformTime` rounded to whole hertz). The metering rate is set by the daemon from the playback path, not the source rate.
+- `frame`, one finished stride: `channels` (a list, one entry per channel: `peak` float dBFS max-held over the stride, `rms` float dBFS power-averaged over the stride, `bins` a base64 string of two bytes a bin, low byte first, each a count of 0.5 dB steps below full scale), `at` (int, samples at the geometry's `rate`, the sample the stride starts at, counted from the feed's reset) and `n` (int, samples at that rate, the samples the stride covers).
+
+A consumer tests every `frame` in whole samples: one whose `at` is not the previous `frame`'s `at + n` is a break. A `frame` dropped from a full subscriber queue and a partial stride dropped at a geometry change each show up as one. Frames that arrive while no page is attached are not counted, so a reconnect carries no gap in its stamps and is a break by being a new connection.
+
 Because the daemon offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and the advisor is on or a METER page is attached, and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
 
 ## 8. Out of scope
