@@ -134,16 +134,52 @@ export function decodeBins(text) {
 }
 
 /**
- * The power average of several dB arrays of one length, element by element.
+ * The power average of several dB arrays of one length, element by element, each row weighted by `weights`, equally
+ * when absent.
  *
  * @param {ArrayLike<number>[]} rows
+ * @param {number[]} [weights]  one per row
  * @returns {Float32Array}
  */
-function powerMean(rows) {
+function powerMean(rows, weights) {
   const n = rows[0].length;
   const acc = new Float64Array(n);
-  for (const row of rows) for (let k = 0; k < n; k++) acc[k] += dbToPower(row[k]);
-  return Float32Array.from(acc, (p) => powerToDb(p / rows.length));
+  let total = 0;
+  rows.forEach((row, r) => {
+    const w = weights ? weights[r] : 1;
+    total += w;
+    for (let k = 0; k < n; k++) acc[k] += w * dbToPower(row[k]);
+  });
+  return Float32Array.from(acc, (p) => powerToDb(p / total));
+}
+
+/**
+ * Frames of one layout folded into one covering `ms`: per channel the loudest peak, and the RMS and each bin
+ * power-averaged, each frame weighted by `weights`, equally when absent.
+ *
+ * @param {MeterFrame[]} frames  at least one, all of one layout
+ * @param {number[] | undefined} weights  one per frame
+ * @param {number} ms
+ * @returns {MeterFrame}
+ */
+function foldWeighted(frames, weights, ms) {
+  return {
+    channels: frames[0].channels.map((_, c) => {
+      const chs = frames.map((f) => f.channels[c]);
+      return {
+        peak: Math.max(...chs.map((ch) => ch.peak)),
+        rms: powerMean(
+          chs.map((ch) => [ch.rms]),
+          weights,
+        )[0],
+        bins: powerMean(
+          chs.map((ch) => ch.bins),
+          weights,
+        ),
+      };
+    }),
+    ms,
+  };
 }
 
 /**
@@ -155,18 +191,28 @@ function powerMean(rows) {
  */
 export function foldFrames(frames) {
   if (frames.length === 1) return frames[0];
-  const first = frames[0];
-  return {
-    channels: first.channels.map((_, c) => {
-      const chs = frames.map((f) => f.channels[c]);
-      return {
-        peak: Math.max(...chs.map((ch) => ch.peak)),
-        rms: powerMean(chs.map((ch) => [ch.rms]))[0],
-        bins: powerMean(chs.map((ch) => ch.bins)),
-      };
-    }),
-    ms: frames.reduce((sum, f) => sum + f.ms, 0),
-  };
+  return foldWeighted(
+    frames,
+    undefined,
+    frames.reduce((sum, f) => sum + f.ms, 0),
+  );
+}
+
+/**
+ * The playback one move of the playhead crossed, folded into one frame: per channel the loudest peak of every frame it
+ * touched, and the RMS and each bin power-averaged, each frame weighted by the ms of it crossed; the frame time is the
+ * ms crossed.
+ *
+ * @param {{ frame: MeterFrame, ms: number }[]} pieces  at least one, oldest first, all of one layout
+ * @returns {MeterFrame}
+ */
+export function foldCrossed(pieces) {
+  const weights = pieces.map((p) => p.ms);
+  return foldWeighted(
+    pieces.map((p) => p.frame),
+    weights,
+    weights.reduce((sum, ms) => sum + ms, 0),
+  );
 }
 
 /**
