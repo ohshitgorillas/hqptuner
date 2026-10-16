@@ -5,8 +5,10 @@
 // history and starts a fresh slice (rule 3). A track change clears the
 // apodizing history (store/apodhistory.js), and the slices with it.
 //
-// The cells drawn are the slices inside the window whose right edge is the one
-// playhead (store/meter/playhead.js, rule 4); nothing is drawn while it is null.
+// The range drawn is the slices inside the window whose right edge is the one
+// playhead (store/meter/playhead.js, rule 4), found by sliceRange
+// (model/gauges/slicerange.js); nothing is drawn while it is null. The raster
+// picks the channel and places each slice by its stamp against that edge.
 // The apodizing strip's right edge is that same playhead, and has none while it
 // is null.
 //
@@ -20,8 +22,9 @@ import { windowSpan } from "../../lib/apodscale.js";
 import { clamp } from "../../lib/coerce.js";
 import { dbToPower, powerToDb } from "../../lib/units.js";
 import { pickBins, traceColumns } from "../../model/gauges/meter/meter.js";
+import { sliceRange } from "../../model/gauges/slicerange.js";
 import { apodBins } from "../apodhistory.js";
-import { apodWindow, meterChannel } from "../ui/prefs.js";
+import { apodWindow } from "../ui/prefs.js";
 import { playhead } from "./playhead.js";
 
 // The shortest slice, playback ms, as fine as the 30 s window's pixel columns,
@@ -34,7 +37,6 @@ const ROW_STEP_DB = 1.2;
 const ROW_MAX = 250;
 
 /** @typedef {import("../../model/gauges/meter/meter.js").FrameGeometry} Geometry */
-/** @typedef {import("../../lib/spectroraster.js").Cell} Cell */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
  * One slice: where it starts and how long it lasts, the Nyquist it was measured at, and its rows per channel and
@@ -167,43 +169,26 @@ export function initSpectrogram() {
   return registered;
 }
 
-/**
- * One slice's rows in the picked channel: the sum, or that channel's rows,
- * falling back to the sum where the slice has no such channel.
- *
- * @param {Slice} slice
- * @param {string} pick
- */
-function levelsOf(slice, pick) {
-  return pick === "sum" ? slice.sum : slice.channels[Number(pick)] || slice.sum;
-}
-
-/**
- * The cells the spectrogram draws, oldest first, in the picked channel: the slices that end by `edge` and start no
- * earlier than `span` before it.
- *
- * @param {Slice[]} all  oldest first
- * @param {number} span  playback, ms: the window's width
- * @param {string} pick
- * @param {number} edge  playback, ms: the window's right edge
- * @returns {Cell[]}
- */
-export function visibleCells(all, span, pick, edge) {
-  let hi = all.length;
-  while (hi > 0 && all[hi - 1].at + all[hi - 1].ms > edge) hi--;
-  let lo = hi;
-  while (lo > 0 && all[lo - 1].at >= edge - span) lo--;
-  return all.slice(lo, hi).map((s) => ({ at: s.at, ms: s.ms, nyquist: s.nyquist, slices: [levelsOf(s, pick)] }));
-}
-
 const span = computed(() => windowSpan(apodWindow.value));
 
-/** The cells the spectrogram draws across the strip's window ending at the playhead; none while it is null. */
-export const spectrogramCells = computed(() => {
+/**
+ * The part of the history the spectrogram draws: `slices[lo..hi)`, the slices inside the strip's window whose right
+ * edge, `edge`, is the playhead (playback, ms). None, and no edge, while the playhead is null. `slices` is the history
+ * itself, read in place, never copied.
+ *
+ * @typedef {{ slices: Slice[], lo: number, hi: number, edge: number | null }} SpectrogramRange
+ */
+
+/** @returns {SpectrogramRange} */
+function drawnRange() {
   version.value;
   const edge = playhead.value;
-  return edge === null ? [] : visibleCells(slices, span.value, meterChannel.value, edge);
-});
+  if (edge === null) return { slices, lo: 0, hi: 0, edge: null };
+  return { slices, ...sliceRange(slices, span.value, edge), edge };
+}
+
+/** The part of the history the spectrogram draws, read again when the history, the playhead or the window moves. */
+export const spectrogramRange = computed(drawnRange);
 
 /** Playback, ms: the apodizing strip's right edge, the playhead; null while the playhead is null. */
 export const stripEnd = computed(() => playhead.value);

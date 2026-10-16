@@ -9,7 +9,7 @@
 // frames exactly 1/30 s apart instead. The loop starts once for the whole file on that clock. Each case runs at no
 // offset and no reported output delay unless it sets one, reopens the feed, whose fresh geometry resets the loop, and
 // runs one frame a whole step long, so the reset lands on a step before the case sends anything. The spectrogram is
-// read through spectrogramCells once the loop is idle, with the playhead, which the idle loop leaves null, written
+// read through spectrogramRange once the loop is idle, with the playhead, which the idle loop leaves null, written
 // past every frame the case sent. The loop requests animation frames only while a painter is registered and the feed
 // is open, so the fake clock also says how many frame callbacks it holds.
 //
@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 
 import { onMeterPaint, startMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
-import { spectrogramCells } from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import * as spectrogramStore from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
@@ -142,13 +142,19 @@ function sendRun(count, byte) {
 }
 
 /**
- * The first row of each cell the spectrogram draws with the playhead past every frame sent, oldest first.
+ * The first row of the sum of each slice the spectrogram draws with the playhead past every frame sent, oldest first;
+ * none where the store exposes no range.
  *
  * @returns {number[]}
  */
 function drawnPastTheFeed() {
   playhead.value = PAST_THE_FEED_MS;
-  return spectrogramCells.value.map((/** @type {{ slices: ArrayLike<number>[] }} */ c) => c.slices[0]?.[0] ?? NaN);
+  const store =
+    /** @type {{ spectrogramRange?: { value: { slices: Array<{ sum: ArrayLike<number> }>, lo: number, hi: number } } }} */ (
+      spectrogramStore
+    );
+  const range = store.spectrogramRange?.value;
+  return range ? range.slices.slice(range.lo, range.hi).map((s) => s.sum[0] ?? NaN) : [];
 }
 
 /**

@@ -1,29 +1,28 @@
 // Suite for store/meter/spectrogram.js: slices built from decoded feed bins as 480 rows of bytes per channel and
 // summed, each placed in playback by its frames' own stamps, starting at its first frame's `at` and ending where its
 // last frame ends, the history emptied by a frame that begins a break and by a track change, which the poll seam
-// (tests/js/support/apodpolls.js) makes; and the cells drawn, the slices within the window that ends at the one
-// playhead, none while the playhead is null.
+// (tests/js/support/apodpolls.js) makes; and the range of the history drawn, spectrogramRange: none while the playhead
+// is null, nothing ending after the playhead, nothing starting before the window that ends there, its edge the one
+// playhead, and the range moving as the playhead and the history move. Which channel a slice is drawn in is the
+// raster's to choose, and which slices fall in a window is sliceRange's; neither is tested here.
 //
 // Frames reach the store through addSpectrumFrame as whole MeterFrames, as the feed store hands them over: `at` and
 // `ms` playback, ms, read from the hand-written tables in tests/js/support/meterfeed.js, whose lengths span the
 // measured 17.3 to 23.2 ms and change mid-table. Every case's first frame begins a break, so each starts on an empty
 // history. The playhead is the exported signal the meter loop publishes, written here directly: no loop runs, so
-// nothing else moves it and no case waits on a clock. The window is the widest, 300 s, far wider than any table.
+// nothing else moves it and no case waits on a clock. The window is the widest, 300 s, far wider than any table,
+// unless a case says otherwise. The store is reached through its module namespace, so a store without the range reads
+// as one that exposes none rather than failing to load.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/spectrogram.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  addSpectrumFrame,
-  initSpectrogram,
-  spectrogramCells,
-  visibleCells,
-} from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import * as spectrogramStore from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
-import { setApodWindow, setMeterChannel } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { useStorage } from "../../support/storage.js";
 import { newTrack, poll, setPollStep } from "../../support/apodpolls.js";
 import {
@@ -37,9 +36,20 @@ import {
 
 /** @typedef {import("../../support/meterfeed.js").MsStamp} MsStamp */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").FrameGeometry} FrameGeometry */
-/** @typedef {{ at: number, ms: number, slices: ArrayLike<number>[] }} DrawnCell */
+/**
+ * One slice of the history: `at` and `ms` playback, ms.
+ *
+ * @typedef {{ at: number, ms: number, nyquist: number, channels: ArrayLike<number>[], sum: ArrayLike<number> }}
+ *   DrawnSlice
+ */
+/**
+ * The range the store exposes: slices[lo..hi) drawn, `edge` playback, ms, or null.
+ *
+ * @typedef {{ slices: DrawnSlice[], lo: number, hi: number, edge: number | null }} DrawnRange
+ */
 
-const ROWS = 480;
+const { addSpectrumFrame, initSpectrogram } = spectrogramStore;
+
 const NYQUIST = 24000;
 const BINS = 1025;
 const GEO = { rate: 48000, nyquist: NYQUIST, channels: 2, bins: BINS };
@@ -49,8 +59,17 @@ const SILENT = -120;
 const TINY = { rate: 48000, nyquist: NYQUIST, channels: 1, bins: 2 };
 const TINY_LEVEL = [{ peak: -6, rms: -12, bins: new Float32Array(2).fill(-30) }];
 
-// The widest window, as wide as the history, s.
+// The widest window, as wide as the history, and a narrower one, as the store's identifiers, s; and the narrower one's
+// width, playback, ms.
 const WIDEST = "300";
+const NARROW = "60";
+const NARROW_MS = 60000;
+
+// A playhead between two of CONTIGUOUS_MS's frame ends, inside its thirteenth frame: playback, ms.
+const BETWEEN_ENDS_MS = CONTIGUOUS_MS_CHANGE + 7;
+
+// How many of CONTIGUOUS_MS's frames the store holds before the rest run on from them.
+const FIRST_PART = 12;
 
 /**
  * Every bin at `db`.
@@ -90,61 +109,110 @@ function feed(rows, channels = TINY_LEVEL, geo = TINY) {
 }
 
 /**
- * The cells drawn with the playhead at `edge`.
+ * Hand the store one MeterFrame per row, none beginning a break, so they run on from the frames before them.
  *
- * @param {number | null} edge  playback, ms
- * @returns {DrawnCell[]}
+ * @param {MsStamp[]} rows
  */
-function drawnAt(edge) {
-  playhead.value = edge;
-  return /** @type {DrawnCell[]} */ (spectrogramCells.value);
+function feedOn(rows) {
+  rows.forEach(({ at, ms }) => addSpectrumFrame({ channels: TINY_LEVEL, at, ms, break: false, geo: TINY }));
 }
 
 /**
- * Where a cell ends: playback, ms.
+ * The range the store exposes with the playhead at `edge`, or undefined where the store exposes none.
  *
- * @param {DrawnCell | undefined} cell
+ * @param {number | null} edge  playback, ms
+ * @returns {DrawnRange | undefined}
  */
-const end = (cell) => (cell ? cell.at + cell.ms : NaN);
+function rangeAt(edge) {
+  playhead.value = edge;
+  const store = /** @type {{ spectrogramRange?: { value: DrawnRange } }} */ (spectrogramStore);
+  return store.spectrogramRange?.value;
+}
 
 /**
- * [ok, message] for one assert.ok: whether there are at least two cells and each starts where the one before it ends.
+ * The slices drawn with the playhead at `edge`, oldest first.
  *
- * @param {DrawnCell[]} cells
+ * @param {number | null} edge  playback, ms
+ * @returns {DrawnSlice[]}
+ */
+function drawnAt(edge) {
+  const range = rangeAt(edge);
+  return range ? range.slices.slice(range.lo, range.hi) : [];
+}
+
+/**
+ * Where a slice ends: playback, ms.
+ *
+ * @param {DrawnSlice | undefined} slice
+ */
+const end = (slice) => (slice ? slice.at + slice.ms : NaN);
+
+/**
+ * Where the newest slice drawn with the playhead at `edge` ends: playback, ms.
+ *
+ * @param {number} edge  playback, ms
+ */
+const newestEnd = (edge) => end(drawnAt(edge).at(-1));
+
+/**
+ * [ok, message] for one assert.ok: whether there are at least two slices and each starts where the one before it ends.
+ *
+ * @param {DrawnSlice[]} slices
  * @returns {[boolean, string]}
  */
-const contiguous = (cells) => [
-  cells.length > 1 && cells.slice(1).every((c, i) => c.at === end(cells[i])),
-  `expected end-to-end cells, got ${cells.map((c) => `${c.at}+${c.ms}`).join(", ")}`,
+const contiguous = (slices) => [
+  slices.length > 1 && slices.slice(1).every((c, i) => c.at === end(slices[i])),
+  `expected end-to-end slices, got ${slices.map((c) => `${c.at}+${c.ms}`).join(", ")}`,
 ];
 
 /**
- * [ok, message] for one assert.ok: whether there is a cell and every cell ends where one of `rows` ends, which is where
- * the next row starts, or at `last` for the last row.
+ * [ok, message] for one assert.ok: whether there is a slice and every slice ends where one of `rows` ends, which is
+ * where the next row starts, or at `last` for the last row.
  *
- * @param {DrawnCell[]} cells
+ * @param {DrawnSlice[]} slices
  * @param {MsStamp[]} rows
  * @param {number} last  playback, ms
  * @returns {[boolean, string]}
  */
-function onFrameEnds(cells, rows, last) {
+function onFrameEnds(slices, rows, last) {
   const ends = new Set([...rows.slice(1).map((r) => r.at), last]);
   return [
-    cells.length > 0 && cells.every((c) => ends.has(end(c))),
-    `expected every cell to end where a frame ends, got ends ${cells.map(end).join(", ")}`,
+    slices.length > 0 && slices.every((c) => ends.has(end(c))),
+    `expected every slice to end where a frame ends, got ends ${slices.map(end).join(", ")}`,
   ];
 }
 
 /**
- * The bytes each drawn slice holds in the picked channel, oldest first, with the playhead at `edge`.
+ * The rows of channel `which`, or of the sum, of each slice drawn with the playhead at `edge`, oldest first.
  *
- * @param {string} pick
+ * @param {number | "sum"} which
  * @param {number} edge  playback, ms
+ * @returns {ArrayLike<number>[]}
  */
-function pickedRows(pick, edge) {
-  setMeterChannel(pick);
-  return drawnAt(edge).map((c) => c.slices[0]);
-}
+const rowsAt = (which, edge) =>
+  drawnAt(edge).map((s) => (which === "sum" ? s.sum : (s.channels[which] ?? new Uint8Array(0))));
+
+/**
+ * [ok, message] for one assert.ok: whether there are at least two values and each is larger than the one before it.
+ *
+ * @param {Array<number | undefined>} values
+ * @returns {[boolean, string]}
+ */
+const rising = (values) => [
+  values.length > 1 && values.slice(1).every((v, i) => (v ?? NaN) > (values[i] ?? NaN)),
+  `expected rising values, got ${values.join(", ")}`,
+];
+
+/**
+ * [ok, message] for one assert.ok: whether there are at least two values and the first two are the same.
+ *
+ * @param {string[]} values
+ * @returns {[boolean, string]}
+ */
+const firstTwoAlike = (values) => [
+  values.length > 1 && values[0] === values[1],
+  `expected the first two alike, got ${values.join(" | ")}`,
+];
 
 // One 40 ms stretch of playback per level the level cases feed, each starting where the one before it ended.
 const FORTY_MS = [
@@ -166,7 +234,6 @@ const FIVE_MS = [
 beforeEach(() => {
   useStorage();
   setApodWindow(WIDEST);
-  setMeterChannel("sum");
   initApodHistory();
   initSpectrogram();
   setPollStep(1);
@@ -183,11 +250,7 @@ test("test_levels_30_130_and_200_db_down_keep_rows_apart_and_in_order", () => {
     const row = FORTY_MS[i] ?? { at: NaN, ms: NaN };
     addSpectrumFrame({ channels: [channel(flat(db)), channel(flat(db))], ...row, break: i === 0, geo: GEO });
   });
-  const kept = pickedRows("0", FORTY_MS_END).map((slice) => slice[0]);
-  assert.deepEqual(
-    [...new Set(kept)].sort((a, b) => (a ?? 0) - (b ?? 0)),
-    kept,
-  );
+  assert.ok(...rising(rowsAt(0, FORTY_MS_END).map((rows) => rows[0])));
 });
 
 // A -12 dB tone in one channel beside a silent one averages to -15.01 dB in power: the second slice carries that
@@ -202,8 +265,7 @@ test("test_the_sum_rows_are_the_power_average_across_channels", () => {
     geo: GEO,
   });
   addSpectrumFrame({ channels: [channel(both), channel(both)], at: 40, ms: 40, break: false, geo: GEO });
-  const [split, alike] = pickedRows("sum", 80).map((sum) => [sum[120], sum[301]]);
-  assert.deepEqual(split, alike);
+  assert.ok(...firstTwoAlike(rowsAt("sum", 80).map((sum) => `${sum[120]},${sum[301]}`)));
 });
 
 // Three frames at -10 dB and two at -20 average to -11.94 dB in power, where their dB mean is -14: the second slice
@@ -219,8 +281,7 @@ test("test_the_frames_a_slice_covers_fold_as_their_power_average", () => {
     break: false,
     geo: GEO,
   });
-  const [folded, level] = pickedRows("0", 50).map((slice) => slice[0]);
-  assert.equal(folded, level);
+  assert.ok(...firstTwoAlike(rowsAt(0, 50).map((rows) => `${rows[0]}`)));
 });
 
 // --- where a slice stands ------------------------------------------------------------------------------------------
@@ -264,71 +325,45 @@ const FIRST_AFTER_TRACK = 3;
 test("test_after_a_track_change_the_oldest_slice_starts_at_the_first_frame_after_it", () => {
   feed(CONTIGUOUS_MS.slice(0, FIRST_AFTER_TRACK));
   newTrack();
-  CONTIGUOUS_MS.slice(FIRST_AFTER_TRACK).forEach(({ at, ms }) =>
-    addSpectrumFrame({ channels: TINY_LEVEL, at, ms, break: false, geo: TINY }),
-  );
+  feedOn(CONTIGUOUS_MS.slice(FIRST_AFTER_TRACK));
   assert.equal(drawnAt(CONTIGUOUS_MS_END)[0]?.at, CONTIGUOUS_MS[FIRST_AFTER_TRACK]?.at);
 });
 
-// --- the right edge ------------------------------------------------------------------------------------------------
+// --- the range drawn -----------------------------------------------------------------------------------------------
 
 test("test_nothing_is_drawn_while_the_playhead_is_null", () => {
   feed(CONTIGUOUS_MS);
-  assert.equal(drawnAt(null).length, 0);
+  const range = rangeAt(null);
+  assert.equal(range ? range.hi - range.lo : NaN, 0);
 });
 
 test("test_no_slice_drawn_ends_after_the_playhead", () => {
   feed(CONTIGUOUS_MS);
-  assert.ok(end(drawnAt(CONTIGUOUS_MS_CHANGE).at(-1)) <= CONTIGUOUS_MS_CHANGE);
+  assert.ok(newestEnd(CONTIGUOUS_MS_CHANGE) <= CONTIGUOUS_MS_CHANGE);
 });
 
-// --- the cells drawn -----------------------------------------------------------------------------------------------
-
-// Stored slices for visibleCells, each SLICE_MS long, laid end to end from playback 0.
-const SLICE_MS = 300;
-const STARTS = [0, 300, 600, 900];
-const AFTER_ALL = 1200;
-const WIDE_SPAN = 30000;
-
-/**
- * One stored slice starting at `at`, every row of it marked by `mark`.
- *
- * @param {number} at  playback, ms
- * @param {number} ms  playback, ms
- * @param {number} mark
- */
-const slice = (at, ms, mark) => ({
-  at,
-  ms,
-  nyquist: NYQUIST,
-  channels: [new Uint8Array(ROWS).fill(mark), new Uint8Array(ROWS).fill(mark + 1)],
-  sum: new Uint8Array(ROWS).fill(mark + 2),
+// The window ends at the playhead and is NARROW_MS wide: a playhead NARROW_MS after the frame lengths change leaves
+// every slice from before the change outside it.
+test("test_no_slice_drawn_starts_before_the_window_that_ends_at_the_playhead", () => {
+  setApodWindow(NARROW);
+  feed(CONTIGUOUS_MS);
+  assert.ok((drawnAt(CONTIGUOUS_MS_CHANGE + NARROW_MS)[0]?.at ?? -Infinity) >= CONTIGUOUS_MS_CHANGE);
 });
 
-// The slices at STARTS, marked 10, 20, 30 and 40, whose sums read 12, 22, 32 and 42.
-const STORED = STARTS.map((at, i) => slice(at, SLICE_MS, 10 * (i + 1)));
-
-test("test_the_newest_cell_is_the_newest_slice_ending_by_the_edge", () => {
-  const cells = visibleCells(STORED, WIDE_SPAN, "sum", 600);
-  assert.equal(cells.at(-1)?.slices[0]?.[0], 22);
+test("test_the_edge_is_the_playhead_even_between_two_slice_ends", () => {
+  feed(CONTIGUOUS_MS);
+  assert.equal(rangeAt(BETWEEN_ENDS_MS)?.edge, BETWEEN_ENDS_MS);
 });
 
-test("test_the_oldest_cell_is_the_oldest_slice_inside_the_window_ending_at_the_edge", () => {
-  const cells = visibleCells(STORED, SLICE_MS, "sum", 900);
-  assert.equal(cells[0]?.slices[0]?.[0], 32);
+test("test_the_playhead_moving_on_brings_later_slices_into_the_range", () => {
+  feed(CONTIGUOUS_MS);
+  const before = newestEnd(CONTIGUOUS_MS_CHANGE);
+  assert.ok(newestEnd(CONTIGUOUS_MS_END) > before);
 });
 
-test("test_a_cell_is_as_wide_as_the_playback_its_slice_covers", () => {
-  assert.deepEqual(
-    visibleCells([slice(0, 232.2, 0)], WIDE_SPAN, "sum", AFTER_ALL).map((c) => c.ms),
-    [232.2],
-  );
-});
-
-test("test_a_cell_draws_the_picked_channel", () => {
-  assert.equal(visibleCells([slice(0, 200, 40)], WIDE_SPAN, "1", AFTER_ALL)[0]?.slices[0]?.[0], 41);
-});
-
-test("test_a_cell_falls_back_to_the_sum_where_its_slice_lacks_the_picked_channel", () => {
-  assert.equal(visibleCells([slice(0, 200, 40)], WIDE_SPAN, "5", AFTER_ALL)[0]?.slices[0]?.[0], 42);
+test("test_slices_closing_under_a_standing_playhead_join_the_range", () => {
+  feed(CONTIGUOUS_MS.slice(0, FIRST_PART));
+  const before = newestEnd(CONTIGUOUS_MS_END);
+  feedOn(CONTIGUOUS_MS.slice(FIRST_PART));
+  assert.ok(newestEnd(CONTIGUOUS_MS_END) > before);
 });

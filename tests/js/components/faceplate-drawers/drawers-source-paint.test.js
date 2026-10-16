@@ -2,9 +2,9 @@
 // meter's two canvases are painted with as the history grows and the playhead moves. The first paint covers the
 // spectrogram's full width; a move of the playhead moves the canvas's pixels left as far for the playback it covers
 // however that move is split, and paints only the columns it uncovered and the seam column before them; a slice
-// closing while the playhead stands still scrolls nothing; a close too short to move a column paints nothing; a change
-// of range repaints the full width; and the apodizing strip repaints when the playhead moves and never when a slice
-// closes. While the Source drawer is closed neither canvas is painted, and reopening it paints the
+// closing while the playhead stands still scrolls nothing; a change of range repaints the full width; and the apodizing
+// strip repaints when the playhead moves and never when a slice closes. While the Source drawer is closed neither
+// canvas is painted however far the playhead moves, and reopening it paints the
 // spectrogram's full width once. A change of the spectrogram's span repaints the full width, and at a half span a source
 // whose content all sits above three quarters of its band paints the newest column one flat color, since none of that
 // content is in view.
@@ -68,10 +68,9 @@ import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
  */
 
 const STRIP_WIDTH = 600;
-//: Feed frame lengths, samples at RATE_44K: 200, 100 and 50 ms.
+//: Feed frame lengths, samples at RATE_44K: 200 and 100 ms.
 const N_200_MS = 8820;
 const N_100_MS = 4410;
-const N_50_MS = 2205;
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST_RANGE = ""] = METER_RANGES;
@@ -252,13 +251,6 @@ test("test_a_playhead_move_puts_only_the_columns_its_scroll_uncovered_and_the_se
   assert.deepEqual(spec.puts[1], { x: SPEC_SIZE.width - uncovered - SEAM, width: uncovered + SEAM });
 });
 
-test("test_closes_too_short_to_move_a_column_put_nothing_after_the_first_paint", () => {
-  setApodWindow("300");
-  const { spec } = mounted();
-  [N_50_MS, N_50_MS, N_50_MS, N_50_MS].forEach(frame);
-  assert.deepEqual(spec.puts, [{ x: 0, width: SPEC_SIZE.width }]);
-});
-
 test("test_a_change_of_range_repaints_the_full_width", () => {
   const { spec } = mounted();
   setMeterRange(LAST_RANGE);
@@ -293,11 +285,15 @@ test("test_a_slice_closing_while_the_playhead_stands_still_leaves_the_strip_as_p
   assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
 });
 
-test("test_closes_that_would_move_whole_columns_put_nothing_while_the_drawer_is_closed", () => {
+//: A move of the playhead four of the 60 s window's columns long: playback ms.
+const WHOLE_COLUMNS_MS = 200;
+
+test("test_playhead_moves_that_would_scroll_whole_columns_put_nothing_while_the_drawer_is_closed", (t) => {
   openStage.value = null;
+  standAt(t, STANDING_MS);
   const { spec } = mounted();
-  frame(N_200_MS);
-  frame(N_100_MS);
+  playhead.value = STANDING_MS + WHOLE_COLUMNS_MS;
+  playhead.value = STANDING_MS + 2 * WHOLE_COLUMNS_MS;
   assert.deepEqual(spec.puts, []);
 });
 
@@ -348,7 +344,11 @@ function colorsDown(img, x) {
   return seen.size;
 }
 
-test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", () => {
+//: Where the first of that case's two 200 ms frames ends, playback ms, the stream's first frame starting at 0: with the
+//: playhead there the newest columns hold that frame's slice, which the second frame has closed.
+const FIRST_HIGH_ONLY_END_MS = 200;
+
+test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", (t) => {
   lastStream()?.emit("geometry", geometry(RATE_44K, 1, HIGH_ONLY_BINS));
   newTrack();
   poll();
@@ -357,6 +357,7 @@ test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_
     toSpectrogram(takeMeterFrames());
   }
   setSpan(HALF);
+  standAt(t, FIRST_HIGH_ONLY_END_MS);
   const { spec } = mounted();
   const [first] = spec.images;
   assert.equal(first ? colorsDown(first, first.width - 2) : NaN, 1);
