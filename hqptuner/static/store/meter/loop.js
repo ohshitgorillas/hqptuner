@@ -1,20 +1,19 @@
-// The meters' animation loop: thirty times a second it lays the feed frames that arrived since its last step
-// (store/meter/feed.js) on its own timeline of playback time (model/gauges/timeline.js) and moves its playhead along it,
-// the engine's reported output delay plus the user's offset behind the feed (model/gauges/pace.js), since the daemon
-// sends them in clumps. Each step folds the playback the playhead crossed since the step before, each frame weighted by
-// how much of it was crossed, so every step shows the same span of playback; steps the level bars and the VU needles
-// toward that reading on the real time elapsed, the needles against the VU reference preference
-// (model/gauges/meter/vu.js); steps the spectrum toward it smoothed across frequency, rising at once and settling as it
-// falls; keeps the reading's columns as they came beside it; adds each frame the playhead passes or skips to the
-// spectrogram's history once; and hands the scene to every registered painter with the same real time elapsed, so a
-// painter that animates steps on it too.
+// The meters' animation loop: thirty times a second it queues the feed frames that arrived since its last step
+// (store/meter/feed.js) and applies the one pacing decision (model/gauges/playhead.js) to the queue, with the wall time
+// since the last step and the engine's reported output delay plus the user's offset; it decides nothing about time
+// itself. It publishes where the playhead stands (store/meter/playhead.js). Each step folds the pieces of playback the
+// decision crossed, each frame weighted by how much of it was crossed; steps the level bars and the VU needles toward
+// that reading on the real time elapsed, the needles against the VU reference preference (model/gauges/meter/vu.js);
+// steps the spectrum toward it smoothed across frequency, rising at once and settling as it falls; keeps the reading's
+// columns as they came beside it; adds each frame the playhead leaves behind to the spectrogram's history once; and hands
+// the scene to every registered painter with the same real time elapsed, so a painter that animates steps on it too.
 //
 // The loop runs on the Clock it is started with (lib/clock.js), and requests animation frames only while a painter is
 // registered, the feed is open and the engine plays. The loop going idle, or the feed's geometry changing, sends the
-// frames still queued to the spectrogram and empties the scene, so a restart never falls from the last reading; going
-// idle also hands the painters the empty scene, so the meters clear rather than hold the last reading. A change of
-// frequency span starts the spectrum afresh from the new view's columns, so neither the trace nor its ghost carries the
-// last view's frequencies.
+// frames still queued to the spectrogram, empties the scene and starts the playhead again, so a restart never falls from
+// the last reading; the playhead reads null until it next stands anywhere. Going idle also hands the painters the empty
+// scene, so the meters clear rather than hold the last reading. A change of frequency span starts the spectrum afresh
+// from the new view's columns, so neither the trace nor its ghost carries the last view's frequencies.
 
 import { batch, effect, signal } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
@@ -29,14 +28,14 @@ import {
   stepSpectrum,
   traceColumns,
 } from "../../model/gauges/meter/meter.js";
-import { PLAYHEAD_IDLE, movePlayhead } from "../../model/gauges/pace.js";
-import { TIMELINE_EMPTY, ahead, cross, extend } from "../../model/gauges/timeline.js";
+import { PLAYHEAD_START, pacePaint } from "../../model/gauges/playhead.js";
 import { restVu, stepVu } from "../../model/gauges/meter/vu.js";
 import { engineStatus, PLAYING } from "../signals.js";
 import { freqSpan } from "../faceplate/view.js";
 import { meterChannel, vuReference } from "../ui/prefs.js";
 import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./feed.js";
+import { playhead } from "./playhead.js";
 
 /** Spectrum columns the trace carries across the plot. */
 const TRACE_COLS = 600;
@@ -48,8 +47,7 @@ const SLACK_MS = 4;
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {import("../../model/gauges/meter/meter.js").LevelReading} LevelReading */
 /** @typedef {import("../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
-/** @typedef {import("../../model/gauges/pace.js").PlayheadState} PlayheadState */
-/** @typedef {import("../../model/gauges/timeline.js").Timeline} Timeline */
+/** @typedef {import("../../model/gauges/playhead.js").PlayheadState} PlayheadState */
 /** @typedef {import("../../model/gauges/meter/vu.js").VuState} VuState */
 /**
  * One step's scene: the level bars, the VU readings per channel, the smoothed trace as shown, and the held target's
@@ -79,10 +77,11 @@ let target = null;
 let needles = restVu(0);
 /** @type {object | null} */
 let geo = null;
-/** @type {Timeline} */
-let timeline = TIMELINE_EMPTY;
+/** The feed frames the playhead has not yet left behind, oldest first. */
+/** @type {MeterFrame[]} */
+let queue = [];
 /** @type {PlayheadState} */
-let playhead = PLAYHEAD_IDLE;
+let head = PLAYHEAD_START;
 /** The trace columns of the current target in the picked channel at the frequency span, kept until any changes. */
 /** @type {{ target: MeterFrame | null, pick: string, span: string, cols: Float32Array }} */
 let columns = { target: null, pick: "", span: "", cols: new Float32Array(0) };
@@ -122,31 +121,31 @@ function traceOf(t, span) {
   return columns.cols;
 }
 
-/** Send the frames on the timeline to the spectrogram and start the playhead again. */
+/** Send the queued frames to the spectrogram and start the playhead again, standing nowhere. */
 function drain() {
-  if (timeline.frames.length) toSpectrogram(timeline.frames);
-  timeline = TIMELINE_EMPTY;
-  playhead = PLAYHEAD_IDLE;
+  if (queue.length) toSpectrogram(queue);
+  queue = [];
+  head = PLAYHEAD_START;
+  playhead.value = null;
 }
 
 /**
- * The playback `ms` of real time moves the playhead across, the effective delay behind the feed, folded by the time
- * crossed of each frame; null when it crosses none. Every frame leaving the timeline reaches the spectrogram, the
- * skipped ones first.
+ * Apply one paint's pacing decision, `ms` of wall time after the last paint: queue the newly arrived frames, hand the
+ * frames the playhead left behind to the spectrogram, oldest first, publish where it stands, and fold the playback it
+ * crossed; null when it crossed none.
  *
- * @param {number} ms
+ * @param {number} ms  wall, ms
  * @returns {MeterFrame | null}
  */
-function crossed(ms) {
-  const line = extend(timeline, takeMeterFrames());
-  const move = movePlayhead(playhead, ahead(line), { dt: ms, delay: effectiveDelay.peek() * 1000 });
-  const skipped = cross(line, move.skip);
-  const shown = cross(skipped.timeline, move.cross);
-  playhead = move.state;
-  timeline = shown.timeline;
-  batch(() => toSpectrogram(skipped.passed.concat(shown.passed)));
-  if (!shown.pieces.length) return null;
-  return foldCrossed(shown.pieces);
+function paced(ms) {
+  for (const f of takeMeterFrames()) queue.push(f);
+  const decision = pacePaint(queue, head, { dt: ms, delay: effectiveDelay.peek() * 1000 });
+  head = decision.state;
+  batch(() => {
+    if (decision.left) toSpectrogram(queue.splice(0, decision.left));
+    playhead.value = head.at;
+  });
+  return decision.pieces.length ? foldCrossed(decision.pieces) : null;
 }
 
 /**
@@ -185,7 +184,7 @@ function advance(now, { ms, dt }) {
     geo = g;
     idle();
   }
-  target = crossed(ms) ?? target;
+  target = paced(ms) ?? target;
   if (!target) return EMPTY;
   const prev = scene;
   const span = freqSpan.value;
