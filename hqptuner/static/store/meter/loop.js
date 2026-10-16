@@ -1,4 +1,4 @@
-// The meter loop (docs/spec/timing.md, rule 8): the browser's one requestAnimationFrame, taken from the Clock
+// The meter loop: the browser's one requestAnimationFrame, taken from the Clock
 // initMeterLoop() is handed. It runs while the meter feed is open (store/meter/feed.js) and stops when it closes.
 //
 // Each paint moves the frames the feed queued since the last paint onto the loop's own queue, handing each to the
@@ -14,7 +14,7 @@
 // thing, the time since the last paint, kept for the painters as `dt`. A paint takes one decision whatever its
 // lateness, and drops consumed frames in place, so its work and its allocations do not grow with how late it is.
 //
-// The painters' side (rules 6, 7 and 9): before the consumed frames leave the queue, the paint folds the frames its
+// The painters' side: before the consumed frames leave the queue, the paint folds the frames its
 // decision shows, `[first, last)`, into the one scene the loop fills in place (MeterScene), then hands every painter
 // subscribed through onMeterPaint that scene and `dt`, the wall time since the last paint in seconds, uncapped. A
 // painter draws what it is handed and decides nothing about time.

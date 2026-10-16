@@ -2,8 +2,8 @@
 // Bass | Treble switch with the shown side's four rows, the dot a hidden side's staged edit puts on the switch, what
 // grays while loudness cannot act, the writes its controls make, the bounds boxes and the plot's applied figure.
 //
-// The restart mark: every loudness setting is a /matrix form field the engine reloads for
-// (docs/spec/settings-classification.md), so each band row on the shown side carries the mark on its head, the bounds
+// The restart mark: every loudness setting is a /matrix form field the engine reloads for,
+// so each band row on the shown side carries the mark on its head, the bounds
 // block carries one on its shared header with its boxes bare, and nothing else the block draws carries one, the
 // playback readout included. The mark is found by its test handle, its `data-testid`, and placed by markup position:
 // a head is the run of markup from the end of the control before it to the end of its own control, so no copy and no

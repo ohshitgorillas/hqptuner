@@ -2,9 +2,9 @@
 
 Derived from the official `hqp-control` 6.0.1 source (signalyst.eu, `hqp-control-601-src.zip`), MIT-licensed, © 2011–2026 Jussi Laako. File revision: `$Id: 13554 2026-03-02$`, Qt client classes `clControlInterface` / `clControlApplication`. Empirical results from a live hqplayerd 6.0.4 are folded in.
 
-This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. The normative rules that follow from it — enumeration volatility, the index/ID domain split, live-vs-file divergence — are stated once in `docs/spec/architecture.md` §3.1 and are not repeated here. Per-field lane assignments live in `docs/spec/settings-classification.md`.
+This document is the **wire truth** for the commands HQPTuner needs: settings, status, enumerations, volume, configuration, and daemon identity. Per-field lane assignments live in `docs/spec/settings-classification.md`.
 
-## 1. Transport and framing
+## Transport and framing
 
 - **Connection:** single TCP connection to port **4321** (default). The client sets `SO_KEEPALIVE`, `TCP_KEEPCNT=3`, `TCP_KEEPINTVL=10`, and IP TOS 32.
 - **Requests:** each request is a complete XML document written to the socket, prefixed with the standard declaration:
@@ -19,9 +19,9 @@ This document is the **wire truth** for the commands HQPTuner needs: settings, s
 - **Attribute escaping quirk:** string attribute values (names, metadata) can arrive entity-escaped a second time; the reference client manually replaces `&lt; &gt; &amp; &quot; &apos;` *after* XML parsing. Conversely, hqpexporter has observed *unescaped* `&` in metadata attributes breaking strict parsers. Be lenient in both directions.
 - **Binary interludes:** a `LibraryPicture` response with `size > 0` is followed by exactly `size` bytes of raw image data, *not* XML. Out of scope for HQPTuner, but a client must never assume the stream is XML-only if it issues that command.
 - **Startup delay:** port 4321 accepts and answers `GetInfo` 9.3 s after `systemctl restart hqplayerd` — connections are refused until then, and there is no accept-then-hang window: TCP accept and first response are simultaneous. Reconnect logic must tolerate a ~10 s refused-connection window after any daemon restart.
-- **Settings persistence:** settings changed via the Control API live in memory only. hqplayerd does **not** write them to `hqplayerd.xml` — not while running and not at shutdown. A restart reverts all Control API changes to whatever `hqplayerd.xml` contains. A full service restart (`systemctl restart`) also resets the **active configuration** to `[default]` (the unnamed base = `hqplayerd.xml`) — the active-profile name is not persisted; only a `POST /config/profile/load` sets it (§3.6).
+- **Settings persistence:** settings changed via the Control API live in memory only. hqplayerd does **not** write them to `hqplayerd.xml` — not while running and not at shutdown. A restart reverts all Control API changes to whatever `hqplayerd.xml` contains. A full service restart (`systemctl restart`) also resets the **active configuration** to `[default]` (the unnamed base = `hqplayerd.xml`) — the active-profile name is not persisted; only a `POST /config/profile/load` sets it (see "HTTP configuration routes (port 8088)" below).
 
-## 2. Discovery (UDP)
+## Discovery (UDP)
 
 Optional. Request is an XML document sent as a UDP datagram to multicast `239.192.0.199` (IPv4) and `ff08::c7` (IPv6), port 4321:
 
@@ -37,13 +37,13 @@ Each daemon replies with a datagram like:
 
 Sender address of the reply datagram is the daemon host.
 
-## 3. Authentication — 4321 SessionAuthentication (not used by HQPTuner)
+## Authentication — 4321 SessionAuthentication (not used by HQPTuner)
 
 The `hqp-control` source carries a `SessionAuthentication` handshake (ECDH secp256r1 key exchange, HKDF-derived session key, ChaCha20Poly1305 payloads) gating `ConfigurationLoad`, `LibraryLoad`, and the `secure_uri` playlist variants. Every command in this document works **unauthenticated** without it.
 
-**HQPTuner never performs this handshake**, for two reasons. The daemon rejects self-generated client signing keys — on 6.0.4 a freshly generated P-256 key returns `<SessionAuthentication result="Error">no info</SessionAuthentication>`, and no key derivable from the published source or the on-disk auth data is accepted; the key lives only in the closed Desktop Client. And it is unnecessary: everything HQPTuner needs, including preset switching, is reachable through the port-8088 HTTP interface with ordinary Digest auth (§3.5). Consult the `hqp-control` source directly if the Desktop path ever matters.
+**HQPTuner never performs this handshake**, for two reasons. The daemon rejects self-generated client signing keys — a freshly generated P-256 key returns `<SessionAuthentication result="Error">no info</SessionAuthentication>`, and no key derivable from the published source or the on-disk auth data is accepted; the key lives only in the closed Desktop Client. And it is unnecessary: everything HQPTuner needs, including preset switching, is reachable through the port-8088 HTTP interface with ordinary Digest auth. Consult the `hqp-control` source directly if the Desktop path ever matters.
 
-## 3.5. Authentication — HTTP configuration interface (port 8088) — HQPTuner's mechanism
+## Authentication — HTTP configuration interface (port 8088) — HQPTuner's mechanism
 
 hqplayerd's built-in web server (default **port 8088**, the same one the stock configuration UI is served from) gates its configuration routes with **standard HTTP Digest authentication** — this is the auth surface HQPTuner uses.
 
@@ -51,11 +51,9 @@ hqplayerd's built-in web server (default **port 8088**, the same one the stock c
 - **Credentials:** the management username/password provisioned by `hqplayerd -u <user> <pass>` (per-user) or `-s` (system), or via the `/auth` web page.
 - **Stored digest = HTTP Digest HA1.** `hqplayerd-auth.xml` stores exactly the Digest HA1 for this realm: the `legacy` attribute = `MD5("<user>:com.signalyst.hqplayer.embedded:<pass>")`, and `digest` = `SHA-256(` same string `)`. No hidden salt. There is no reason for HQPTuner to read this file; the daemon validates Digest itself.
 
-HQPTuner's use of these credentials is described in `docs/spec/architecture.md` §2.4.
+## HTTP configuration routes (port 8088)
 
-## 3.6. HTTP configuration routes (port 8088)
-
-All routes are on the 8088 web server. Root `/` and the transport controls `/control?action=play|pause|stop|next|previous` are open (no auth); everything below requires Digest auth (§3.5). Field names below are the HTML form field names observed on a live 6.0.4 daemon.
+All routes are on the 8088 web server. Root `/` and the transport controls `/control?action=play|pause|stop|next|previous` are open (no auth); everything below requires Digest auth. Field names below are the daemon's HTML form field names.
 
 | Route | Method | Purpose | Fields |
 |---|---|---|---|
@@ -67,15 +65,15 @@ All routes are on the 8088 web server. Root `/` and the transport controls `/con
 | `/config/profile/delete` | POST | Delete the selected configuration | `profile=<name>` |
 | `/backup/settings.zip` | GET | Full settings archive (zip): base `hqplayerd.xml` + every preset snapshot under `data/cfgs/` + library. **⚠ Returns empty after a named `profile/load` — see the daemon-bug note below** | — |
 | `/restore` | POST | Restore a settings archive; **multipart/form-data**, self-restarts the daemon | `scope` (`system`/`user`), `cfgfile` (zip or xml), `libfile` (xml) |
-| `/matrix`, `/matrix/{load,save,delete,plot}` | POST | Matrix form lane (§3.7) | — |
+| `/matrix`, `/matrix/{load,save,delete,plot}` | POST | Matrix form lane (see "Matrix routes (port 8088)" below) | — |
 | `/speakers` | POST | Speaker processing form (~3 s engine reload) | — |
 | `/input`, `/library`, `/convolution`, `/log`, `/about`, `/auth`, `/key` | GET | Other stock UI pages | — |
 
-> **HQPTuner's persistent writes ride `POST /restore`, not `POST /config`.** The `/config` form cannot express every owned setting (`volume_fixed`'s third state, the `<engine>` hardware attributes), and its submission contract is hostile. HQPTuner fetches `/backup`, surgically edits the config XML, and pushes the archive. The `/config` contract below is documented because the daemon's own UI uses it and because a partial POST is a live footgun, not because HQPTuner calls it.
-
 Observed `POST /config` field names (representative, not exhaustive — the live page is the authoritative source of the persistent-settings surface and its constraints): `title`, `backend` (`alsa`/`network`/`combo`), `mode` (`auto`/`pcm`/`sdm`), `volume_fixed`, `fixed_volume_enabled`, `fixed_volume`, `volume_max`, `volume_min`, `defaults_volume`, `gain_comp` (step 0.1), `adaptive_volume`, `playlist_album_gain`, `channels`, `fft_size` (128–16384), `idle_time` (**milliseconds**: 0=default, 10000=10 s, … 60000), `pipelines` (2–128), `net_anydsd` (= 48k DSD checkbox), `net_ipv6`.
 
-**`POST /config` submission contract (6.0.4).** The Apply button is *nameless* (`<input formaction="/config" type="submit" value="Apply"/>`), so the browser sends no submit field — the route alone signals Apply. The form must be submitted **complete**: a partial POST (a subset of fields) is silently rejected — the daemon answers HTTP **200** with `Failed!` in the body and writes nothing. **Checkboxes** submit `name=1` (their `value` attribute) when checked and are **omitted** when unchecked; sending the HTML default `name=on` makes the daemon reject the whole form. Because a rejection is still HTTP 200, success cannot be inferred from the POST — it must be confirmed by reading `/config` back, and that readback must **poll**: right after the POST the daemon keeps serving the pre-restart form for a moment, then drops (~0.3 s) and returns (~3 s) serving the new config, so a single readback can catch the stale form and false-negative.
+**`POST /config` submission contract.** The Apply button is *nameless* (`<input formaction="/config" type="submit" value="Apply"/>`), so the browser sends no submit field — the route alone signals Apply. The form must be submitted **complete**: a partial POST (a subset of fields) is silently rejected — the daemon answers HTTP **200** with `Failed!` in the body and writes nothing.
+
+**Checkboxes** submit `name=1` (their `value` attribute) when checked and are **omitted** when unchecked; sending the HTML default `name=on` makes the daemon reject the whole form. Because a rejection is still HTTP 200, success cannot be inferred from the POST — it must be confirmed by reading `/config` back, and that readback must **poll**: right after the POST the daemon keeps serving the pre-restart form for a moment, then drops (~0.3 s) and returns (~3 s) serving the new config, so a single readback can catch the stale form and false-negative.
 
 **`/config/profile/load` restarts the daemon** (6.0.4): the POST returns HTTP 200 immediately, 4321 refuses connections ~0.3 s later, and answers `GetInfo` again ~3.4 s later. This is a lighter internal config-reload restart than a full `systemctl restart` (~9.3 s), but it is a restart — the Control API connection drops and must reconnect. After the load, `ConfigurationGet`/`ConfigurationList` report the loaded profile as `active`.
 
@@ -85,13 +83,15 @@ The daemon keeps a **working config** plus saved **snapshots** (`data/cfgs/<name
 
 - **`POST /config/profile/load`** copies a snapshot into the working config **from memory** — it does **not** re-read the snapshot file from disk. A disk edit followed by `load` has no effect. Only a full daemon restart re-reads disk. **Side effect (daemon bug):** a named `load` leaves `/backup/settings.zip` empty until a service restart — see the bug note below.
 - **`POST /config`** writes the working file and **preserves** the active preset — it does *not* reset to `[default]`. Only a full `systemctl restart` drops the active label to `[default]`.
-- **`POST /restore`** is HQPTuner's write path, for form-absent settings and for backup restore. Multipart form: `scope` (radio; `system` = the running config under `/etc/hqplayer`, `user` = `~/.hqplayer`), `cfgfile` (a `/backup` zip **or** a single config xml), optional `libfile`. **`scope=system`** writes the archive to disk and the daemon **self-restarts (~5.6 s** — lighter than `systemctl restart`'s 9.3 s, heavier than `profile/load`'s 3.4 s**), re-reading from disk. It lands the daemon on `[default]`:** the running config after a restore is `hqplayerd.xml`, and an edit to a root-renamed `<Profile>.xml` working member in the uploaded archive is **discarded**. `scope=user` does not affect the running config. The 200 response body is the HTML restore page — success is confirmed by a `/backup` readback, never by the POST.
+- **`POST /restore`** is HQPTuner's write path, for form-absent settings and for backup restore. Multipart form: `scope` (radio; `system` = the running config under `/etc/hqplayer`, `user` = `~/.hqplayer`), `cfgfile` (a `/backup` zip **or** a single config xml), optional `libfile`.
+
+  **`scope=system`** writes the archive to disk and the daemon **self-restarts (~5.6 s** — lighter than `systemctl restart`'s 9.3 s, heavier than `profile/load`'s 3.4 s**), re-reading from disk. It lands the daemon on `[default]`:** the running config after a restore is `hqplayerd.xml`, and an edit to a root-renamed `<Profile>.xml` working member in the uploaded archive is **discarded**. `scope=user` does not affect the running config. The 200 response body is the HTML restore page — success is confirmed by a `/backup` readback, never by the POST.
 - **Restore scope.** On a system-scoped daemon a restore with no `scope` field is accepted (200) and lands exactly as `scope=system`. The daemon logs the scope each restore used, `Web system configuration` or `Web user configuration`, then reloads its configuration in place (`Reloading configuration...`) with no process restart or startup banner. No read surface reports which scope the daemon loaded: not the web pages, the control API, the log or the `/backup` archive, and the `/restore` page's System radio is a static default. The readme names both config locations and no precedence between them; a write to `/etc/hqplayer` does not reach a daemon that loads `~/.hqplayer/hqplayerd.xml`.
 - **Restore writes members additively.** A `data/cfgs/<name>.xml` in the uploaded zip is written to disk and appears in the daemon's native profile list; a member *omitted* from the zip is **not** removed (restore merges, it does not replace). A snapshot can be created or updated via restore but not deleted — deletion needs `profile/delete`, which works cleanly.
 
-> **The working-config archive member is renamed by the active profile.** In a `/backup/settings.zip` the working config is the archive **root-level** XML. It is named `hqplayerd.xml` **only when `[default]` (unnamed) is active**; a **named** active profile renames it to `<Profile>.xml` at the root (`Speakers` active → root `Speakers.xml`, byte-identical to `data/cfgs/Speakers.xml`, **no `hqplayerd.xml` at all**). This is distinct from the empty-backup bug below — the archive is complete, just the root member is renamed. Any code that reads or rewrites "the working config" must resolve the member as *hqplayerd.xml-or-the-sole-root-XML-or-the-one-matching-the-active-profile-label* (`engineconf.running_config_name`), never assume the literal `hqplayerd.xml`. The label is the **daemon's** active profile (`ConfigurationGet`, kept as `ConnectionManager.active_config`), not HQPTuner's preset store. Without it an archive carrying several root-level XMLs resolves to nothing, which is indistinguishable from the empty-backup bug and is **not** cleared by a restart.
-
-HQPTuner's engine-attribute write path (`hqptuner/conf/engineconf.py`, `manager.apply_engine`) is therefore: fetch `/backup`, surgically edit the `<engine>` tag (byte-faithful) in the base config plus the active (or all) snapshot, `POST /restore` `scope=system`, verify by reading the `<engine>` tag back from a fresh `/backup`.
+> **The working-config archive member is renamed by the active profile.** In a `/backup/settings.zip` the working config is the archive **root-level** XML. It is named `hqplayerd.xml` **only when `[default]` (unnamed) is active**; a **named** active profile renames it to `<Profile>.xml` at the root (`Speakers` active → root `Speakers.xml`, byte-identical to `data/cfgs/Speakers.xml`, **no `hqplayerd.xml` at all**). This is distinct from the empty-backup bug below — the archive is complete, just the root member is renamed.
+>
+> A reader of "the working config" resolves the member as *hqplayerd.xml-or-the-sole-root-XML-or-the-one-matching-the-active-profile-label*, never the literal `hqplayerd.xml`. The label is the **daemon's** active profile (`ConfigurationGet`), not HQPTuner's preset store. Without it an archive carrying several root-level XMLs resolves to nothing, which is indistinguishable from the empty-backup bug and is **not** cleared by a restart.
 
 ### DAEMON BUG — `profile/load` empties `/backup/settings.zip` (6.0.4)
 
@@ -109,17 +109,13 @@ Isolation matrix — one action from a clean service restart, against a healthy 
 
 So it is **not** a restart side effect (`/config` and `/restore` both restart and stay healthy) — it is specific to loading a *named* profile. Scope is `settings.zip` **only**: `GET /backup/library.xml` still returns 200 afterward. Not a path redirection either: the archive is genuinely empty, not pointed elsewhere — files present in a healthy archive, in the home data dir and in a preset's own subdir alike, are absent from the broken one. Nothing is logged; config, playback and presets are unaffected.
 
-### Preset system — HQPTuner-owned (6.0.4)
-
-hqplayerd's named-profile subsystem is unreliable enough that HQPTuner does **not** use `profile/load` or `profile/save` for its preset feature. The disqualifying findings:
+### Named-profile writes are unreliable (6.0.4)
 
 - **`profile/save` to an existing profile is a silent no-op.** The `/config` profile form carries a `profile` select (existing profiles) *and* a `profile_name` text box (save-as-new). A `save` whose `profile_name` already exists neither errors nor updates `data/cfgs/<name>.xml` — HTTP 200, snapshot unchanged. So "Apply & Save" never persists to a named preset: the edit lands in the working config (live), the snapshot keeps its old value, and the next load reverts it.
 - **`POST /restore scope=system` lands the daemon on `[default]`** and discards an edit to a root-renamed working member (see the configuration model above). Restore is the one reliable write primitive, but it is `[default]`-centric.
 - **A named `profile/load` empties `/backup`** (bug note above).
 
-HQPTuner's model is described in `docs/spec/architecture.md` §5.1; the daemon's `data/cfgs` is kept mirrored so its native web UI stays populated, but is never HQPTuner's load/save path.
-
-## 3.7. Matrix routes (port 8088)
+## Matrix routes (port 8088)
 
 The matrix page is a second form on the 8088 server and follows the `/config` pattern: one `POST` form, `enctype="multipart/form-data"` (its file inputs force it), and a nameless Apply submit, so the route alone signals Apply. Field names are from a live 6.0.4 daemon; the XML each one lands in is readme §1.11.
 
@@ -219,7 +215,7 @@ plot magnitude range: <axis_lo>,<axis_hi>    # the rounded dB axis
 
 A concurrent Apply from the stock `/matrix` page submits its complete form and silently reverts a pipeline edit another client just applied. Simultaneous writers are unsupported by the daemon itself.
 
-## 4. Response conventions
+## Response conventions
 
 - **Simple commands** (setters, transport actions): the daemon echoes the command element with a `result` attribute — `"OK"` or `"Error"`. On error, the element text carries a reason message. On 6.0.4:
 
@@ -241,15 +237,15 @@ A concurrent Apply from the stock `/matrix` page submits its complete form and s
   </GetFilters>
   ```
 
-- **Item field semantics:** `index` is the list position (display order); `value` is the numeric enumeration ID; `name` is the human label. `Set*` commands and `State` responses use the **list index**, NOT the enum ID: `<SetFilter value="6"/>` selects poly-sinc-lp (index 6; enum ID 6 is poly-sinc-lp-2s), `<SetShaping value="5"/>` selects ASDM5EC (index 5; enum ID 5 is ASDM5). The enum ID (`value` attr) appears in the enumeration lists and in `hqplayerd.xml`, which stores e.g. `filter="40"` = poly-sinc-gauss-long's enum ID. An XML-lane implementation must translate ID↔index via the live enumeration lists; the two domains must never be mixed (`architecture.md` §3.2).
+- **Item field semantics:** `index` is the list position (display order); `value` is the numeric enumeration ID; `name` is the human label. `Set*` commands and `State` responses use the **list index**, NOT the enum ID: `<SetFilter value="6"/>` selects poly-sinc-lp (index 6; enum ID 6 is poly-sinc-lp-2s), `<SetShaping value="5"/>` selects ASDM5EC (index 5; enum ID 5 is ASDM5). The enum ID (`value` attr) appears in the enumeration lists and in `hqplayerd.xml`, which stores e.g. `filter="40"` = poly-sinc-gauss-long's enum ID. An XML-lane implementation must translate ID↔index via the live enumeration lists; the two domains must never be mixed.
 
-## 5. Command index
+## Command index
 
-Covered in §6: `GetInfo`, `GetLicense`, `State`, `Status`, `SetMode`/`GetModes`, `SetFilter`/`GetFilters`, `SetShaping`/`GetShapers`, `SetRate`/`GetRates`, `SetJunkFilter`/`GetJunkFilters`, `SetConvolution`, `SetAdaptiveVolume`, `Volume`/`VolumeUp`/`VolumeDown`/`VolumeMute`/`VolumeRange`, `ConfigurationList`/`ConfigurationGet`/`ConfigurationLoad`, `GetInputs`, `GetTransport`, `Reset`.
+Covered below: `GetInfo`, `GetLicense`, `State`, `Status`, `SetMode`/`GetModes`, `SetFilter`/`GetFilters`, `SetShaping`/`GetShapers`, `SetRate`/`GetRates`, `SetJunkFilter`/`GetJunkFilters`, `SetConvolution`, `SetAdaptiveVolume`, `Volume`/`VolumeUp`/`VolumeDown`/`VolumeMute`/`VolumeRange`, `ConfigurationList`/`ConfigurationGet`/`ConfigurationLoad`, `GetInputs`, `GetTransport`, `Reset`.
 
-Also covered in §6: `MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile`. Everything else the daemon speaks is playback, library and playlist surface — out of HQPTuner's scope (§8).
+Also covered below: `MatrixListProfiles`, `MatrixGetProfile`, `MatrixSetProfile`. Everything else the daemon speaks is playback, library and playlist surface — out of HQPTuner's scope (see "Out of scope" below).
 
-## 6. Commands
+## Commands
 
 ### GetInfo
 
@@ -261,7 +257,7 @@ Request: `<GetInfo/>` Response attributes: `name` (friendly name), `product`, `v
 
 (`version` is the major version; `engine` carries the full **engine** version string, which Signalyst numbers separately from the release — a 6.0.2 install reports `engine="6.0.4"`. Attribute set on hqplayerd 5.x unverified.)
 
-**Installed release number:** no Control API command carries it. UDP discovery (§2) answers `version="Signalyst HQPlayer Embedded 6"` — major only (probe: `scripts/probes/probe_discover_version.py`). The sole wire source is the 8088 web interface's `GET /about` page, not credential-gated, which prints the release under a `Version` heading: `<h3>Version</h3>` followed by the bare number (`6.0.2`) on its own line. `engine/release.py` reads it there.
+**Installed release number:** no Control API command carries it. UDP discovery (see "Discovery (UDP)" above) answers `version="Signalyst HQPlayer Embedded 6"` — major only (probe: `scripts/probes/probe_discover_version.py`). The sole wire source is the 8088 web interface's `GET /about` page, not credential-gated, which prints the release under a `Version` heading: `<h3>Version</h3>` followed by the bare number (`6.0.2`) on its own line.
 
 ### GetLicense
 
@@ -269,7 +265,7 @@ Request: `<GetLicense/>` Response attributes: `valid` (0/1), `name` (licensee), 
 
 ### State
 
-Request: `<State/>` The single-shot settings snapshot — HQPTuner's primary readback command. All settings attributes report **list indices** into the corresponding enumeration lists (§4), not enum IDs. Response attributes (all on the `State` element):
+Request: `<State/>` The single-shot settings snapshot — HQPTuner's primary readback command. All settings attributes report **list indices** into the corresponding enumeration lists (see "Response conventions" above), not enum IDs. Response attributes (all on the `State` element):
 
 | Attribute | Type | Meaning |
 |---|---|---|
@@ -294,7 +290,9 @@ Request: `<State/>` The single-shot settings snapshot — HQPTuner's primary rea
 
 ### Status
 
-Request: `<Status subscribe="0"/>` — one-shot. `subscribe="1"` puts the connection into push mode: the daemon sends `Status` documents without further requests. On a **stopped/idle** daemon: an initial burst of ~2 frames on subscribe, then silence — no periodic push, and a settings change made on another connection does **not** trigger a push. During **active playback**: steady push at ~1–2 Hz, each a fixed ~1 KB `Status` document carrying the full attribute set plus the `metadata` child. Push cadence is playback-tied. **HQPTuner polls one-shot `State`/`Status`** rather than relying on subscribe — polling is mode-independent and gives the same heartbeat. If subscribe is ever used, note the parser must match the closing `</Status>` (not the first self-closing `/>`, which is the `metadata` element).
+Request: `<Status subscribe="0"/>` — one-shot. `subscribe="1"` puts the connection into push mode: the daemon sends `Status` documents without further requests. On a **stopped/idle** daemon: an initial burst of ~2 frames on subscribe, then silence — no periodic push, and a settings change made on another connection does **not** trigger a push. During **active playback**: steady push at ~1–2 Hz, each a fixed ~1 KB `Status` document carrying the full attribute set plus the `metadata` child. Push cadence is playback-tied.
+
+**HQPTuner polls one-shot `State`/`Status`** rather than relying on subscribe — polling is mode-independent and gives the same heartbeat. If subscribe is ever used, note the parser must match the closing `</Status>` (not the first self-closing `/>`, which is the `metadata` element).
 
 Response attributes (superset):
 
@@ -323,7 +321,7 @@ Mode switching is **live**. While stopped it takes effect immediately, resets `r
   <SetFilter value="12" value1x="30"/>
   ```
 
-  Both numbers are **list indices** (§4). The reference client writes `value1x` only when the 1x argument is ≥ 0.
+  Both numbers are **list indices** (see "Response conventions" above). The reference client writes `value1x` only when the 1x argument is ≥ 0.
 - `<GetFilters/>` → `<FiltersItem index name value arg description/>`*. `arg` is a flags bitfield: bit 0 (`0x00000001`) = apodizing. `description` is the engine's own description string, carrying quality/focus/ratio facets (e.g. `"5/5 timbre ⥣ Any"`) — merge with static metadata by `name`.
 
 `GetFilters` returns the list for the **current mode** (SDM mode → 77 filters, PCM mode → 67 filters including a leading "none" entry; indices shift between modes, so re-enumerate on mode switch).
@@ -337,8 +335,13 @@ Mode switching is **live**. While stopped it takes effect immediately, resets `r
 
 - `<GetRates/>` → `<RatesItem index="i" rate="352800"/>`* — actual rates in Hz; index 0 is `rate="0"` = auto (source-based). Mode-dependent (SDM mode → DSD rates 2.8–24.6 MHz, PCM mode → 44100–768000 Hz).
 - `<SetRate value="N"/>` — N is the **`RatesItem` index** (`value="7"` in SDM mode activates 22579200 Hz, index 7; takes effect immediately even while stopped). Sending the **Hz value instead is accepted and silently ignored** (`scripts/probes/rate/probe_rate_hz.py`): in PCM mode both `value="96000"` (a rate the list carries, index 4) and `value="12288000"` (DSD256, no index in the PCM list) return `result="OK"` with `State.rate` unmoved at `"0"` — so `result="OK"` is no proof here either, and there is no wire form that pins a rate the running mode does not enumerate.
-- **No rate is settable in `[source]` mode** (`scripts/probes/rate/probe_rate_playing.py`, `scripts/probes/rate/probe_rate_source_effect.py`, both mid-playback): with `mode="0"` and the running `GetRates` list carrying 705600 at index 9, `SetRate value="9"` returns `result="OK"` and leaves `State.rate` at `"0"`; `SetMode PCM` then makes the identical index take (`State.rate="9"`) without stopping the transport. So **playback is not what blocks it — `[source]` is**. The output says the same as the slot: holding the mode at `[source]`, two requests for rates **below** what is playing (352800 then 176400, against a 44.1k source running at 1411200) each leave `State.rate` at `"0"` **and** `Status.active_rate` unmoved after a full second to settle. `result="OK"` both times.
-- **What governs the rate in `[source]` is the config limit, and no wire command reaches it.** `SetRate` writes the exact-rate slot (`samplerate`/`bitrate`): with `auto_family="1"` and both fixed slots at `0`, pinning index 8 = 24576000 under a 44100 Hz source holds the output at 24576000 and the engine refuses the filter, "Requested filter not possible with this rate combination 44100/24576000"; `SetRate value="0"` gives 22579200 with nothing else changed — so a pin overrides automatic base-rate selection, and HQPTuner sends one only as the opt-in pin the user asks for (architecture §7.9). The limit is `defaults_samplerate`/`defaults_bitrate` (settings-classification.md §Rate slots), and in `[source]` — where the engine selects per stream, manual §4.4 — the limit is the only slot with any effect. The command inventory above carries no setter for it, so changing the rate in auto means a config write and the `/restore` restart that comes with it. Entering `[source]` on a 44.1k source with the limit at 1536000 settles on 1411200, the highest the 44.1 family offers under that limit — auto picks the top of what the limit and the device allow, not a fixed multiplier.
+- **No rate is settable in `[source]` mode** (`scripts/probes/rate/probe_rate_playing.py`, `scripts/probes/rate/probe_rate_source_effect.py`, both mid-playback): with `mode="0"` and the running `GetRates` list carrying 705600 at index 9, `SetRate value="9"` returns `result="OK"` and leaves `State.rate` at `"0"`; `SetMode PCM` then makes the identical index take (`State.rate="9"`) without stopping the transport. So **playback is not what blocks it — `[source]` is**.
+
+  The output says the same as the slot: holding the mode at `[source]`, two requests for rates **below** what is playing (352800 then 176400, against a 44.1k source running at 1411200) each leave `State.rate` at `"0"` **and** `Status.active_rate` unmoved after a full second to settle. `result="OK"` both times.
+- **Two rate slots per family, and they differ** (`scripts/probes/rate/probe_rate_slots.py`). The daemon's own `/config` form labels them apart: `defaults_samplerate` / `defaults_bitrate` = "Rate limit" (no Auto entry), `samplerate` / `bitrate` = "Sample rate" / "Bit rate" (Auto = `0`). Against a 44.1 kHz source with the limit at DSD512: request unset → 22579200 (the limit caps, following the source's base family); request `12288000` → 12288000 (exact, the 44.1k source out at a 48k base); request `49152000` → 49152000 (exact, overriding the limit). So the limit is a family-following cap, and the request is an exact rate ignoring both.
+- **What governs the rate in `[source]` is the config limit, and no wire command reaches it.** `SetRate` writes the exact-rate slot (`samplerate`/`bitrate`): with `auto_family="1"` and both fixed slots at `0`, pinning index 8 = 24576000 under a 44100 Hz source holds the output at 24576000 and the engine refuses the filter, "Requested filter not possible with this rate combination 44100/24576000"; `SetRate value="0"` gives 22579200 with nothing else changed — so a pin overrides automatic base-rate selection, and HQPTuner sends one only as the opt-in pin the user asks for.
+
+  The limit is `defaults_samplerate`/`defaults_bitrate`, and in `[source]` — where the engine selects per stream, manual §4.4 — the limit is the only slot with any effect. The command inventory above carries no setter for it, so changing the rate in auto means a config write and the `/restore` restart that comes with it. Entering `[source]` on a 44.1k source with the limit at 1536000 settles on 1411200, the highest the 44.1 family offers under that limit — auto picks the top of what the limit and the device allow, not a fixed multiplier.
 - **The pin is single, and `SetMode` clears it** (`scripts/probes/rate/probe_mode_rate_pin.py`): pin index 1 (2822400 Hz) in SDM; `SetMode` PCM → `State.rate="0"`; pin index 1 (44100 Hz) there; `SetMode` back to SDM → `State.rate="0"`, the SDM pin gone. The daemon's two form fields (`samplerate`, `bitrate`) do not imply two live slots — the engine keeps one and drops it on every mode switch, so `State.rate` answers only for the family currently running and only until the next `SetMode`.
 
 ### SetJunkFilter / GetJunkFilters
@@ -369,7 +372,7 @@ Caveat: a setter can return `result="OK"` without the setting actually applying.
 
 - `<ConfigurationList/>` → container with `active="name"` attribute and `<ConfigurationItem name="..."/>` per profile.
 - `<ConfigurationGet/>` → `<ConfigurationGet value="activename"/>`.
-- `<ConfigurationLoad value="..." nonce="..."/>` — switches profile; the value is the ChaCha20Poly1305-encrypted profile name and **requires an authenticated session** (§3), so it is unavailable to HQPTuner. The HTTP route `/config/profile/load` (§3.6) does the same job under Digest auth.
+- `<ConfigurationLoad value="..." nonce="..."/>` — switches profile; the value is the ChaCha20Poly1305-encrypted profile name and **requires an authenticated session** (see "Authentication — 4321 SessionAuthentication (not used by HQPTuner)" above), so it is unavailable to HQPTuner. The HTTP route `/config/profile/load` (see "HTTP configuration routes (port 8088)" above) does the same job under Digest auth.
 
 ### Matrix profile commands
 
@@ -391,29 +394,22 @@ Caveat: a setter can return `result="OK"` without the setting actually applying.
 
 `<Reset/>` — engine reset. Exact scope (playback engine vs settings) unverified; the CLI treats it as fire-and-forget.
 
-## 7. Metering side channel
+## Metering side channel
 
-A separate binary TCP stream on **port 4321 + 1 = 4322**. There is no control-channel enable command: the daemon accepts a bare connection and logs `Metering started`, and whether frames follow depends on the source. A PCM source streams on bare accept (`scripts/probes/probe_metering_stream.py`, against a 44.1k PCM source). **A DSD source streams only while the matrix pipeline is engaged**; with the matrix off the connection is accepted and metering logged as started, and nothing is sent, to that client or to any other holding the port. Neither `pre_before_meter` nor the output mode moves it. A metered DSD source is decimated by 64 to its base rate, so DSD64 reports `bandwidth` 22050 over the usual 1025 bins and ~43 frames/s, the same geometry a 44.1k PCM source gives. HQPlayer Desktop's own meter display shows the same decimation, reading to 21 kHz on a DSD64 source and to 85 kHz on a DSD256 one. One frame per transform hop (~43/s at 44.1k; hop = `xformLength − 1` samples). Layout (little-endian):
+A separate binary TCP stream on **port 4321 + 1 = 4322**. There is no control-channel enable command: the daemon accepts a bare connection and logs `Metering started`, and whether frames follow depends on the source. A PCM source streams on bare accept (`scripts/probes/probe_metering_stream.py`, against a 44.1k PCM source). **A DSD source streams only while the matrix pipeline is engaged**; with the matrix off the connection is accepted and metering logged as started, and nothing is sent, to that client or to any other holding the port. Neither `pre_before_meter` nor the output mode moves it.
+
+A metered DSD source is decimated by 64 to its base rate, so DSD64 reports `bandwidth` 22050 over the usual 1025 bins and ~43 frames/s, the same geometry a 44.1k PCM source gives. HQPlayer Desktop's own meter display shows the same decimation, reading to 21 kHz on a DSD64 source and to 85 kHz on a DSD256 one.
+
+One frame per transform hop (~43/s at 44.1k; hop = `xformLength − 1` samples). Layout (little-endian):
 
 - Header, 32 bytes: `u32 version` (1), `u32 channels`, `u32 xformLength` (spectrum bins, N/2+1; observed 1025 → N=2048), `i32 transformBits` (the source's sample format, signed: 1 on a DSD source, 16 on 16-bit PCM, -64 on 64-bit float), `f32 bandwidth` (Nyquist, Hz), `f32 transformTime` (s, = hop/rate), `f32 gain` (observed 2.0), `u32 reserved` (0).
 - Per channel: `f32 peakMax, peak, rms, rmsMax` (dBFS), then `2 × xformLength` f32 transform values as **two consecutive halves** (reals then imaginaries, *not* interleaved pairs) — magnitude of bin `k` is `hypot(a[k], b[k])`, linear amplitude, bin `k` → `k · bandwidth / (xformLength − 1)` Hz.
 
-Consumed at runtime by `hqptuner/engine/metering.py` (the junk-filter advisor's reader), which decodes each frame once through `hqptuner/engine/meterfeed.py` for the advisor and, while a METER page is attached, for the meters; `scripts/probes/probe_metering_stream.py` captures and decodes it standalone.
-
-The meters read that feed from `GET /api/meter/feed` as server-sent events, each an `event:` line naming it and a `data:` line of compact JSON. Two events are sent:
-
-- `geometry`, sent ahead of the first `frame` it describes and again on every change: `nyquist` (float, Hz, the header's `bandwidth`), `channels` (int), `bins` (int, the header's `xformLength`), `rate` (int, Hz, the metering rate `(xformLength − 1) / transformTime` rounded to whole hertz). The metering rate is set by the daemon from the playback path, not the source rate.
-- `frame`, one finished stride: `channels` (a list, one entry per channel: `peak` float dBFS max-held over the stride, `rms` float dBFS power-averaged over the stride, `bins` a base64 string of two bytes a bin, low byte first, each a count of 0.5 dB steps below full scale), `at` (int, samples at the geometry's `rate`, the sample the stride starts at, counted from the feed's reset) and `n` (int, samples at that rate, the samples the stride covers).
-
-A consumer tests every `frame` in whole samples: one whose `at` is not the previous `frame`'s `at + n` is a break. A `frame` dropped from a full subscriber queue and a partial stride dropped at a geometry change each show up as one. Frames that arrive while no page is attached are not counted, so a reconnect carries no gap in its stamps and is a break by being a new connection.
-
-Because the daemon offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and the advisor is on or a METER page is attached, and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
-
-## 8. Out of scope
+## Out of scope
 
 HQPTuner is a configurator, so the daemon's playback surface is not implemented: transport (`Play`, `Pause`, `Stop`, `Previous`, `Next`, `Backward`, `Forward`, `Seek`, `SelectTrack`, `PlayNextURI`, `LoadRemovable`), the `Playlist*` family, the `Library*` family, and `SetRepeat` / `SetRandom` / `SetDisplay` / `GetDisplay` / `SetTransport*`. Command spellings are in the `hqp-control` source.
 
-## 9. Open questions
+## Open questions
 
 Unverified against a live daemon.
 

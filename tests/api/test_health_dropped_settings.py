@@ -1,8 +1,7 @@
 """``GET /api/health`` reports the live settings a daemon restart dropped.
 
 hqplayerd keeps a setting changed over the control API in memory only, so a
-restart brings it back up on its config file (protocol §1, settings
-persistence). A setting HQPTuner wrote live and the engine confirmed, then found
+restart brings it back up on its config file. A setting HQPTuner wrote live and the engine confirmed, then found
 at a different value on the connection made after hqplayerd restarted on its
 own, is listed under ``dropped_settings`` as the config-form field, the value
 HQPTuner wrote, and the engine's own name for that value. A connection that

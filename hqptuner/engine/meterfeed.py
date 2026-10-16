@@ -126,7 +126,7 @@ def stride(bins: int, xform_time: float) -> int:
 def reduce_frame(body: bytes, channels: int, bins: int) -> npt.NDArray[np.float64]:
     """One frame's per-channel linear levels: column 0 the peak in dB, column 1 the rms power, then each bin's power.
 
-    The transform block is two consecutive halves, reals then imaginaries (protocol.md §7).
+    The transform block is two consecutive halves, reals then imaginaries.
     """
     block = np.frombuffer(body, dtype="<f4", count=channels * (LEVELS + 2 * bins)).reshape(channels, LEVELS + 2 * bins)
     re = block[:, LEVELS : LEVELS + bins].astype(np.float64)

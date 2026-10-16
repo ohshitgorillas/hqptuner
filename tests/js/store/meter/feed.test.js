@@ -2,7 +2,7 @@
 // and closed while it is off, meterFeedOpen saying which. A `geometry` event sets meterGeometry; each `frame` event's
 // base64 bins come back from takeMeterFrames() in dBFS, once, carrying the geometry they arrived under.
 //
-// Playback time (docs/spec/timing.md): every queued frame carries `at`, where it starts in playback, and `ms`, how long
+// Playback time: every queued frame carries `at`, where it starts in playback, and `ms`, how long
 // it lasts, both in ms, read from its event's `at` and `n` samples at the geometry's rate, and `break`, whether its
 // event begins a break: its `at` is not the previous event's `at + n`, tested in whole samples, or it is the first
 // frame after a `geometry` event or the first on a newly opened feed, since the server's `at` keeps counting across a

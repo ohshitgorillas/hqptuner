@@ -1,4 +1,4 @@
-// The one playhead (docs/spec/timing.md, rule 4): where the meters stand in playback, as the meter loop
+// The one playhead: where the meters stand in playback, as the meter loop
 // (store/meter/loop.js) moves it each paint. Every view of playback reads this signal and keeps no position of its own.
 import { signal } from "@preact/signals";
 

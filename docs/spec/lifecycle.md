@@ -79,6 +79,9 @@ A refusal of the management credentials is not a transition. The configuration l
 9. **Decisions are pure; the loop executes.** A transition is a pure function of the phase and a wire fact (testing rule 17). The connect body and the heartbeat feed facts to it and apply its answer. Neither sets a phase directly.
 10. **The settings side takes a transition, not the lifecycle's internals.** `docs/spec/settings-truth.md` is handed three named outcomes: own restart landed, own restart settled in place, foreign departure. It reads no counter and no flag. It supplies one fact back: whether a write's readback confirmed on a standing connection, which is what settles a request in place.
 11. **Lifecycle tests assert invariants.** Every lifecycle test runs on a virtual clock against a fake daemon driven from a table of wire events (testing rules 7, 11 and 13). It asserts a property the design promises: a wait never releases on the instance a restart is about to kill, Ready never precedes the configuration lane's answer, a foreign departure is never read as own. Tables in a test span the measured range below, and include a daemon that answers on 4321 for a moment after accepting a restart.
+12. **A request that fails after its bytes went out drops the connection.** The daemon answers every command it accepts, unknown ones included, so a reply given up on is a reply still to come, and left on an open socket it becomes the answer the *next* command reads. So the control client closes its own connection on a read timeout, a socket error or a frame that will not parse, and the poll loop reconnects.
+
+    A `result="Error"` reply keeps the connection: that reply is complete and correctly paired. At the batch level, fields behind a stalled setter in one live apply report `daemon_unavailable` instead of being written over a suspect connection, while fields behind a *refused* one still apply.
 
 ## The lifecycle pipeline
 

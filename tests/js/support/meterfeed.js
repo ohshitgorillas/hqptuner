@@ -5,7 +5,7 @@
 //
 // Every table is written out by hand, row by row: no table works out a stamp. Each table's rows are named for what
 // the run of stamps is (contiguous, a gap, an overlap), and their lengths span 17.3 to 23.2 ms and change mid-table, the
-// measured range of a feed event (docs/spec/timing.md, Measured facts). For the suites whose claim is not about the
+// measured range of a feed event. For the suites whose claim is not about the
 // stamps, `follow` sends each event contiguous with the one sent before it on the same stream, the one place here that
 // works out a stamp.
 //

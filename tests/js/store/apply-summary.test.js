@@ -156,7 +156,7 @@ const PCM_1X = "filter1x";
 const PCM_NX = "filter";
 // Keys no control on the page owns: with no label to show, each stands for itself.
 const UNLABELED = "no_control_owns_this_key";
-// The reason a refused SetFilter carries (protocol.md, simple-command replies).
+// The reason a refused SetFilter carries.
 const DAEMON_REASON = "invalid filter";
 const STALL = "no reply";
 
@@ -201,7 +201,7 @@ test("test_a_persistent_refusal_with_no_reason_is_still_a_refusal", async () => 
   assert.equal(verdict(lastApply).code, "persist-refused");
 });
 
-// The code a refused credential carries on the wire (architecture.md 8.1).
+// The code a refused credential carries on the wire.
 const CREDENTIALS_REFUSED = "credentials_refused";
 
 /**

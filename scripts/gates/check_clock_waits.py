@@ -44,7 +44,10 @@ def check(report: Path) -> int:
         kinds = ", ".join(f"{kind} {seconds * 1000:.0f} ms" for kind, seconds in sorted(tests[name].items()))
         print(f"{name}: real-clock timeout ran out ({kinds})")
     if names:
-        print(f"\n{len(names)} test(s) waiting on a real clock (docs/spec/testing.md rule 7).")
+        print(
+            f"\n{len(names)} test(s) waiting on a real clock. No test waits on wall clock:"
+            " a wait is tested for how many passes it makes and what it concludes, never how long it takes."
+        )
         return 1
     return 0
 

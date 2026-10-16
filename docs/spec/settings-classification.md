@@ -1,17 +1,17 @@
 # Settings classification — live vs restart
 
-Every architecture §7.1 control tagged with lane:
+Every control is tagged with a lane:
 
-- **live** — Control API (4321) setter exist; change take effect now, no daemon restart.
-- **http** — no live setter; setting persist by **restore lane**: HQPTuner fetch `/backup`, surgically edit field's element/attribute in running config XML (`presetconf.FIELD_MAP`), push archive with `POST /restore` (`scope=system`, Digest auth). Daemon self-restart in **~5.6 s** (`lanes/http/restore.py`). Field names below still daemon's own `/config` form field names — read side and staging key — but **write not form POST**.
+- **live** — a Control API (4321) setter exists; the change takes effect now, with no daemon restart.
+- **http** — there is no live setter; the setting persists by the **restore lane**: HQPTuner fetches `/backup`, surgically edits the field's element/attribute in the running config XML (`presetconf.FIELD_MAP`), and pushes the archive with `POST /restore` (`scope=system`, Digest auth). The daemon restarts itself in **~5.6 s** (`lanes/http/restore.py`). The field names below are still the daemon's own `/config` form field names — the read side and the staging key — but **the write is not a form POST**.
 
-  > **No `POST /config` exist.** `/config` GET-only (`conf/httpconf.py`); only `POST /config/...` call is `/config/profile/delete` for removing preset mirror. Everything persistent ride restore lane — also why `volume_fixed` can carry `2`; form submit cannot express it. Real **form** POSTs exist only for three routes outside this table's scope: `POST /matrix`, `POST /matrix/{load,save,delete}`, `POST /speakers` (~3 s engine reload each).
-- **file (read)** — `/config` form carry field but render it with widget narrower than its XML domain, so form value lossy. Write still go through http lane; only **baseline read** come from config file (`manager.file_config`, exposed as `file` on `GET /api/config`). `volume_fixed` only such field today.
-- **file (restore)** — no `/config` form field **and** no live setter; setting live only in `<engine>` element of config XML (hardware acceleration). Applied by editing `/backup` archive's `<engine>` tag (surgical, byte-faithful) and pushing via `POST /restore` (`scope=system`), which daemon re-read on self-restart (~5.6 s) that **preserve active preset** — no `systemctl`, plain Digest auth. See `protocol.md` §3.6.
+  > **`POST /config` exists; HQPTuner never calls it.** HQPTuner uses `/config` GET-only (`conf/httpconf.py`); the only `POST /config/...` call is `/config/profile/delete`, for removing a preset mirror. Everything persistent rides the restore lane — that is also why `volume_fixed` can carry `2`, which a form submit cannot express. Real **form** POSTs exist only for three routes outside this table's scope: `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (~3 s engine reload each).
+- **file (read)** — the `/config` form carries the field but renders it with a widget narrower than its XML domain, so the form value is lossy. The write still goes through the http lane; only the **baseline read** comes from the config file (`manager.file_config`, exposed as `file` on `GET /api/config`). `volume_fixed` is the only such field today.
+- **file (restore)** — there is no `/config` form field **and** no live setter; the setting lives only in the `<engine>` element of the config XML (hardware acceleration). It is applied by editing the `<engine>` tag of the `/backup` archive (surgical, byte-faithful) and pushing the archive via `POST /restore` (`scope=system`); the daemon re-reads it on a self-restart (~5.6 s) that **lands on `[default]`** — no `systemctl`, plain Digest auth. See `docs/spec/protocol.md` "HTTP configuration routes (port 8088)".
 
-Empirical basis: hqplayerd 6.0.4 with the engine idle (`state=0`). Wire details in `protocol.md`.
+Wire details are in `protocol.md`.
 
-Rules this table assume — no shutdown persistence, live-vs-file divergence, list-index/enum-ID split, `result="OK"` not proof — stated once in `architecture.md` §3.1, wire evidence in `protocol.md` §1/§4.
+The rules this table assumes — no shutdown persistence, live-vs-file divergence, the list-index/enum-ID split, `result="OK"` not being proof — have wire evidence in `docs/spec/protocol.md` "Transport and framing" and "Response conventions".
 
 ## Output
 
@@ -33,19 +33,21 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 | Quick pause | http | field `quick_pause` (checkbox) → `<engine quick_pause>` |
 | Short buffer | http | field `short_buffer` (select 0/1/2 = Normal/Short/Minimum) → `<engine short_buffer>` |
 
-**Windows daemon local backends.** A Windows hqplayerd has ASIO and WASAPI where a Linux one has ALSA. Each carries the six ALSA-section fields under its own prefix: `asio_device` / `asio_offset` / `asio_bits` / `asio_period` / `asio_dop` / `asio_anydsd`, and the same six as `wasapi_*`. HQPTuner writes them to an `<asio>` or `<wasapi>` element under `<engine>` with the `<alsa>` attribute names. Basis: field names and default config in the 6.0.2 Windows installer (`hqplayerd.exe`, `hqplayerd.xml`); the `<wasapi>` element, the `any_dsd` attribute on both and the `backend` values are not yet confirmed against a running Windows daemon. HQPTuner shows a local backend's section when the daemon's form carries its device field, and offers the backends the form's `backend` select lists.
+**Windows daemon local backends.** A Windows hqplayerd has ASIO and WASAPI where a Linux one has ALSA. Each carries the six ALSA-section fields under its own prefix: `asio_device` / `asio_offset` / `asio_bits` / `asio_period` / `asio_dop` / `asio_anydsd`, and the same six as `wasapi_*`. HQPTuner writes them to an `<asio>` or `<wasapi>` element under `<engine>` with the `<alsa>` attribute names.
 
-**Transport params per-backend, not mode-gated.** Embedded `/config` form scope device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), independent values — architecture §7.1/§7.7 "DAC bits grays in SDM / DoP grays in PCM" annotations describe *desktop* app, not this form. HQPTuner surface these in collapsible ALSA / Network sections keyed on `backend` (Combo show both), not via mode-graying.
+Basis: field names and default config in the 6.0.2 Windows installer (`hqplayerd.exe`, `hqplayerd.xml`); the `<wasapi>` element, the `any_dsd` attribute on both and the `backend` values are not yet confirmed against a running Windows daemon. HQPTuner shows a local backend's section when the daemon's form carries its device field, and offers the backends the form's `backend` select lists.
 
-**Two rate slots per family, and they differ (`scripts/probes/rate/probe_rate_slots.py`).** Daemon's own `/config` form label them apart: `defaults_samplerate` / `defaults_bitrate` = "Rate limit" (no Auto entry), `samplerate` / `bitrate` = "Sample rate" / "Bit rate" (Auto = `0`, and the slot `SetRate` writes). Against 44.1 kHz source with limit at DSD512 — request unset → 22579200 (limit caps, follow source base family); request `12288000` → 12288000 (exact, 44.1k source out at 48k base); request `49152000` → 49152000 (exact, override limit). So limit = family-following cap, request = exact rate ignoring both.
+**Transport params per-backend, not mode-gated.** Embedded `/config` form scope device / DAC bits / DoP / 48k-DSD / buffer per backend (`alsa_*` vs `net_*`), independent values — "DAC bits grays in SDM / DoP grays in PCM" annotations describe *desktop* app, not this form. HQPTuner surface these in collapsible ALSA / Network sections keyed on `backend` (Combo show both), not via mode-graying.
 
 **Rate per-family and friendly.** HQPTuner rate menus write the **limit** only, as fixed friendly menus (`1x…32x` / `DSD64…DSD2048`) mapped to **48k-base member of each tier**. No Auto entry: limit slot has none, and naming the tier reach same outcome.
 
 **Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` merged into every `/restore` payload (`FORCED_CONFIG`, `lanes/http/restore.py`). Not exposed in UI, enforced on write only. Request slot pinned to `0` is **binding, not cosmetic**: config write have no source to take base family from, so writing it would send 44.1k material out at 48k base and override user's own `alsa_anydsd` / `net_anydsd` decision.
 
-**LIVE pin the request slot, exactly as asked, opt-in.** `SetRate` is the only live rate setter. LIVE field `rate` carry the rate in Hz, `"0"` clearing the pin; `lanes/live/rate` join it to the `RatesItem` index of the running list, and refuse a rate that list lack, any rate in `[source]` (engine ignore it there), and `rate` beside any other field (mode and filter both swap the rate list). No family member chosen for the user and no source rerouted to the other base: the pin is the exact Hz tapped. Store send it only while Allow pinned rates is on (`store/live/pin.js`, preference in `store/ui/prefs.js`), and turning that preference off clear a standing pin. Pending buffer refuse `rate` (`writer.stageable_live_settings`), so a staged raw index cannot skip the join. Pin never reach `overrides.live_overrides`: it sit in the fixed slot, not the limit, so Output tab Rate box never show it and Save never persist it.
+**LIVE pin the request slot, exactly as asked, opt-in.** `SetRate` is the only live rate setter. LIVE field `rate` carry the rate in Hz, `"0"` clearing the pin; `lanes/live/rate` join it to the `RatesItem` index of the running list, and refuse a rate that list lack, any rate in `[source]` (engine ignore it there), and `rate` beside any other field (mode and filter both swap the rate list). No family member chosen for the user and no source rerouted to the other base: the pin is the exact Hz tapped.
 
-**One pin, and `SetMode` clear it.** Request slot is NOT per family in the engine — daemon hold one, mode switch drop it: pin DSD64 in SDM, switch to PCM (`State.rate` = 0), switch back (`State.rate` = 0 still). So `State` answer only for family engine currently run, and only until next mode switch. HQPTuner keep no memory of the pin: `lanes/live/lane` record nothing for it, so a mode switch clear it on the engine and nothing put it back, and `store/live/pin.js` read it off `State` joined to the running rates list rather than hold it. No saved snapshot hold it (`snapshot.live_state` never read it). Config file's fixed slot stay forced to `0` (`FORCED_CONFIG`), so a daemon restart drop it too.
+Store send it only while Allow pinned rates is on (`store/live/pin.js`, preference in `store/ui/prefs.js`), and turning that preference off clear a standing pin. Pending buffer refuse `rate` (`writer.stageable_live_settings`), so a staged raw index cannot skip the join. Pin never reach `overrides.live_overrides`: it sit in the fixed slot, not the limit, so Output tab Rate box never show it and Save never persist it.
+
+**HQPTuner keep no memory of the pin.** `lanes/live/lane` record nothing for it, so once a mode switch clear it on the engine (`docs/spec/protocol.md` "SetRate / GetRates") nothing put it back, and `store/live/pin.js` read it off `State` joined to the running rates list rather than hold it. No saved snapshot hold it (`snapshot.live_state` never read it). Config file's fixed slot stay forced to `0` (`FORCED_CONFIG`), so a daemon restart drop it too.
 
 ## DSP
 
@@ -81,8 +83,6 @@ Rules this table assume — no shutdown persistence, live-vs-file divergence, li
 
 HQPTuner therefore expose it as three-way control (Off · −3 dB · −6 dB) rather than tri-state checkbox HQPlayer Desktop use.
 
-**Live playback volume.** Beyond persistent volume config above, running engine's current volume real-time control on own lane: `Volume` (4321) write immediately, `VolumeRange` report live bounds + `enabled` flag, `State.volume` current level. HQPTuner expose this as `GET/POST /api/volume` — dedicated immediate-write path, never staged, never restarting. Usable only when `VolumeRange enabled=1` (volume control active — not fixed volume, and active stream); UI gray slider otherwise.
-
 ## System
 
 | Control | Lane | Evidence / notes |
@@ -98,28 +98,11 @@ HQPTuner therefore expose it as three-way control (Off · −3 dB · −6 dB) ra
 | Enable log / log path | http | fields `log_enabled` (checkbox) / `log_file` (text), verified |
 | Live log tail | n/a | file/journal stream, not daemon setting |
 
-`<engine>` settings above reachable only by editing config XML in `/backup` archive and pushing with `POST /restore` — daemon's configuration model and behavior of each write route in `protocol.md` §3.6.
+`<engine>` settings above reachable only by editing config XML in `/backup` archive and pushing with `POST /restore` — daemon's configuration model and behavior of each write route in `docs/spec/protocol.md` "HTTP configuration routes (port 8088)".
 
-## Additional live controls on the wire (not in architecture §7.1)
+## Additional live controls on the wire
 
 | Command | Status | Notes |
 |---|---|---|
 | `SetJunkFilter` | live, verified | index domain; index 1 = 20k set both `filter_junk` and `filter_20k` state flags |
-| `SetConvolution` | out of scope | setter exist but standalone convolution-engine access is `architecture.md` §1 non-goal — dropped per user decision |
-
-## Preset switching (HTTP lane)
-
-Preset CRUD not 4321 Control API operation for HQPTuner — go through port-8088 HTTP interface under Digest auth (see `protocol.md` §3.6):
-
-| Operation | Route | Field |
-|---|---|---|
-| Switch | `POST /restore` (`scope=system`) onto `[default]` | preset's XML as working config, mirrored into `data/cfgs` |
-| Save (create/overwrite) | none: store write only | running config into the store; its `data/cfgs` mirror rides the next `POST /restore` that happens anyway |
-| Delete | `POST /config/profile/delete` | `profile=<name>` |
-| List / active | 4321 `ConfigurationList` / `ConfigurationGet` (unauth) or `GET /config` | — |
-
-4321 `ConfigurationLoad` crypto path (auth-gated by `SessionAuthentication`) **not used** — daemon reject self-generated client keys, but HTTP route do same job with ordinary Digest auth.
-
-## Open items
-
-- Whether live setters behave differently during active playback (all spikes ran with engine stopped).
+| `SetConvolution` | out of scope | setter exists, but standalone convolution-engine access is redundant with the matrix engine's capabilities |

@@ -1,8 +1,6 @@
 # Matrix pipeline editing — design of record
 
-The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/spec/protocol.md` §3.7 and §6; crossfeed compensation is `docs/spec/crossfeed-compensation.md`; layout is `docs/spec/faceplate-spec.md`.
-
-**Headings are the citation contract.** Code cites this file by heading text, and `scripts/gates/check_doc_refs.py` fails the build when a cited heading vanishes. Reword a heading and update its citers in the same commit.
+The behavior HQPTuner owes on the matrix: profiles, pipelines, EQ import and the response plot. The daemon's matrix wire, its probe findings and the `Matrix*` commands are `docs/spec/protocol.md` "Matrix routes (port 8088)" and "Commands"; crossfeed compensation is `docs/spec/crossfeed-compensation.md`; layout is `docs/spec/faceplate.md`.
 
 ## Spec
 
@@ -20,7 +18,9 @@ The speakers/headphones switch is a view selector, and it **binds to the preset,
 
 A profile carries **Load**, **Save as new**, **Save** and **Delete**.
 
-**Load rides 4321 `MatrixSetProfile` (live, no reload) and stages nothing.** A profile is the whole matrix context, `<post_process>` included (readme §1.11.2), so the switch already installs the rows and the plugin chain in the running engine; staging them too would pend a config write whose only effect at apply is an engine restart that changes nothing. A Load therefore lasts until the daemon restarts, which is HQPlayer's own semantics, and persisting the matrix is Save's job. The one profile with no live half is one the daemon never read (saved this session, not yet applied): staging is its only lane, and it stages the profile's rows and its `post_*` values both. The lane tag beside the picker says which half a Load gets: `live — no reload` for a profile the daemon read at startup, `stages — applies at next apply` for one saved but not applied.
+**Load rides 4321 `MatrixSetProfile` (live, no reload) and stages nothing.** A profile is the whole matrix context, `<post_process>` included (readme §1.11.2), so the switch already installs the rows and the plugin chain in the running engine; staging them too would pend a config write whose only effect at apply is an engine restart that changes nothing. A Load therefore lasts until the daemon restarts, which is HQPlayer's own semantics, and persisting the matrix is Save's job.
+
+The one profile with no live half is one the daemon never read (saved this session, not yet applied): staging is its only lane, and it stages the profile's rows and its `post_*` values both. The lane tag beside the picker says which half a Load gets: `live — no reload` for a profile the daemon read at startup, `stages — applies at next apply` for one saved but not applied.
 
 Load and Switch are **one button**: they differ only in whether the choice persists, and a button that deliberately does not persist is not worth its own control.
 
@@ -32,11 +32,15 @@ Load and Switch are **one button**: they differ only in whether the choice persi
 
 **A profile without a chain gets the running chain at apply.** Switching to a chain-less profile installs an empty chain (`docs/spec/protocol.md` "Matrix profile commands"), so every stored profile with no `<post_process>` is filled from the live `<matrix>` when a config is applied: the applied config from its own matrix, stored presets from theirs. A profile that already carries a chain is never overwritten; that chain is the user's saved choice.
 
+**Matrix edits belong to the active matrix profile.** Post-process chain and pipeline rows are a property of a matrix context, not of the config. An apply never moves the listener off the profile they were on.
+
 ### Profile descriptions
 
-A profile name is a filename-shaped thing and the conditions a filter set was measured under are not, so a profile carries a user-written description beside it: room, mic, target, date. **It is not in the config XML and cannot be**: `<matrix_profile>` carries exactly one attribute, `name` (readme §1.12), and the daemon re-serializes profiles from its own model at startup, so an attribute of ours would not survive. HQPTuner stores it in one JSON file beside the favorites (`HQPTUNER_DESCRIPTION_FILE`), keyed by profile **name**, the stable join key of architecture §3.1 and the same rule favorites follow for filter names.
+A profile name is a filename-shaped thing and the conditions a filter set was measured under are not, so a profile carries a user-written description beside it: room, mic, target, date. **It is not in the config XML and cannot be**: `<matrix_profile>` carries exactly one attribute, `name` (readme §1.12), and the daemon re-serializes profiles from its own model at startup, so an attribute of ours would not survive. HQPTuner stores it in one JSON file beside the favorites (`HQPTUNER_DESCRIPTION_FILE`), keyed by profile **name**, the stable join key and the same rule favorites follow for filter names.
 
-**The description binds to the profile in focus: the Save-as name when there is one, and the picker's selection otherwise.** The moment a description exists in the user's head is the moment they are naming the profile, so the box has to be reachable then; a save moves the picker onto the new name as the name field clears, which keeps the text on screen standing for the same profile. `[Default]` takes none: it has no name to key one by, so the box is present, disabled, and says which of the two to do first. Writes are queued and drain on a pause, on blur and on unmount; a box that unmounts flushes on the way out, because blur alone loses the paragraph. **The box is a draft, never bound to stored text**, since the config poll refreshes every two seconds and would otherwise rewrite it mid-sentence. A failed write keeps the text queued rather than reverting the box: what the user typed is the thing being protected.
+**The description binds to the profile in focus: the Save-as name when there is one, and the picker's selection otherwise.** The moment a description exists in the user's head is the moment they are naming the profile, so the box has to be reachable then; a save moves the picker onto the new name as the name field clears, which keeps the text on screen standing for the same profile. `[Default]` takes none: it has no name to key one by, so the box is present, disabled, and says which of the two to do first.
+
+Writes are queued and drain on a pause, on blur and on unmount; a box that unmounts flushes on the way out, because blur alone loses the paragraph. **The box is a draft, never bound to stored text**, since the config poll refreshes every two seconds and would otherwise rewrite it mid-sentence. A failed write keeps the text queued rather than reverting the box: what the user typed is the thing being protected.
 
 **Descriptions ride the backup archive** as one member, "hqptuner/descriptions.json" (`DESCRIPTIONS_MEMBER` in `hqptuner/conf/presetzip.py`). `GET /api/backup` adds it, and `POST /api/restore` takes it out and merges it before the archive reaches hqplayerd, so the daemon never sees a member it did not write. A name in both takes the archive's, a restore being the thing that should win. This is the only lane that carries descriptions between installs.
 
@@ -50,7 +54,7 @@ Each pipeline is one row: source channel, its ordered stages, its gain, and its 
 
 Selecting a stage opens an inline editor for it, never a modal. It has plugin-specific fields for all 11 IIR types (the raw biquad's `b0`..`a2` included), `delay` (`s`/`t`/`d`/`v`), `riaa`, and convolution (a file upload per stage, with the filename shown and a warning when the sample rate departs from the 352.8 kHz recommendation). The generated raw spec string shows live, and a toggle flips the whole row between the stage view and the editable raw comma-string. The two stay synced: stages regenerate on blur, and a parse error shows inline without destroying the string. Specs are emitted case-sensitively, per manual §7.
 
-**Round-trip contract (binding):** every example string in the stock manual round-trips string → stages → string **byte-identical**, and invalid raw input never crashes the row or silently drops stages; an unparseable chain is kept verbatim and flagged inline.
+**Round-trip contract (binding):** every example string in the stock manual parses into stages and emits back **byte-identical**, losing nothing either way, and invalid raw input never crashes the row or silently drops stages; an unparseable chain is kept verbatim and flagged inline.
 
 ### AutoEq / REW import
 
@@ -58,7 +62,9 @@ The vendored AutoEq library and a `.txt` file both parse into ParametricEQ stage
 
 **Mirroring is per lane (binding).** The mirror checkbox governs only the lanes beside it, the `.txt` load and a row's **Import EQ**, and defaults on for headphones and off for speakers, each mode holding its own value. The library lane always mirrors, a headphone profile having no one-ear form. Each lane reports in its own place, so a lane never writes into a surface the click did not come from.
 
-**The vendored library** is built by `scripts/build_autoeq_db.py` from a blob-filtered sparse checkout of `ParametricEQ.txt` only (~35 MB, not multi-GB) from jaakkopasanen/AutoEq, **pinned by sha in the blob's meta**. The pin is **current master, not a release tag**: upstream's last release, v4.0.0, is from 2023 and its results have moved since, and pinning master means the database only ever holds what upstream ships now. The rebuild is deterministic (sorted entries, zeroed gzip mtime). `GET /api/autoeq` serves it pre-gzipped with `Content-Encoding`. Upstream's MIT license is vendored beside it and linked from the picker's credit line. Search ranks token matches at the start, then at a word boundary, then mid-word, prefers oratory1990 on ties, always shows the source rather than merging, and caps at 40 hits with a visible "…N more". Applying a library profile routes its verbatim text through the same import path as a pasted one, so the two lanes are identical by construction.
+**The vendored library** is built by `scripts/build_autoeq_db.py` from a blob-filtered sparse checkout of `ParametricEQ.txt` only (~35 MB, not multi-GB) from jaakkopasanen/AutoEq, **pinned by sha in the blob's meta**. The pin is **current master, not a release tag**: upstream's last release, v4.0.0, is from 2023 and its results have moved since, and pinning master means the database only ever holds what upstream ships now. The rebuild is deterministic (sorted entries, zeroed gzip mtime).
+
+`GET /api/autoeq` serves it pre-gzipped with `Content-Encoding`. Upstream's MIT license is vendored beside it and linked from the picker's credit line. Search ranks token matches at the start, then at a word boundary, then mid-word, prefers oratory1990 on ties, always shows the source rather than merging, and caps at 40 hits with a visible "…N more". Applying a library profile routes its verbatim text through the same import path as a pasted one, so the two lanes are identical by construction.
 
 ### Response plot
 

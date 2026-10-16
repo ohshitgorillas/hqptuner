@@ -13,7 +13,7 @@
 // and `n`, the samples it covers. The store tests each event against the one
 // before it in samples, before any conversion: an event whose `at` is not the
 // previous `at + n` begins a break, and so does the first event of a newly
-// opened feed (docs/spec/timing.md, rule 3). So does the first event after any
+// opened feed. So does the first event after any
 // `geometry` event, even when its `at` follows on: the sample count runs on
 // across a geometry change, so a count at one rate is not a time at another.
 // It then converts both to ms at the rate, once, so every queued frame carries

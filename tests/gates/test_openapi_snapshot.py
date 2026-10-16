@@ -1,7 +1,7 @@
 """The gate that pins the REST surface to a committed OpenAPI snapshot.
 
 ``scripts/gates/check_openapi.py`` renders the live app's OpenAPI document as
-stable JSON text and compares it with ``docs/spec/openapi.json``. A route added,
+stable JSON text and compares it with the committed snapshot. A route added,
 removed, or reshaped without regenerating the snapshot is what the gate is for,
 so the observable contract is four things a caller can see: the text ``render``
 produces, the diff lines ``compare`` hands back, the int ``check`` returns

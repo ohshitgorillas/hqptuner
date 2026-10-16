@@ -6,7 +6,7 @@
 //
 // The whole drawer, drawn by the generic drawer from the Output schema with nothing staged: the restart mark on the rows
 // it draws its own way rather than as plain rows. The output device row, the Channels row and the rate dial row each
-// edit a setting that restarts the engine (an http field in docs/spec/settings-classification.md: the per-backend
+// edit a setting that restarts the engine (an http field: the per-backend
 // output device, `channels`, the rate limits), so each carries the mark from the moment the drawer is drawn, before
 // any edit. The Output mode row is the live reference in the same drawer: `SetMode` applies it at once, so it carries
 // none, and a drawer that marked every row fails on it. The mark is found by its `data-testid`, so no copy is

@@ -7,13 +7,13 @@
 // A slice is a column of rows from 0 Hz to the Nyquist it was measured at, one
 // byte a row at ROW_STEP_DB below full scale (store/meter/spectrogram.js). Each
 // stands where its own stamp says, against the window's right edge, the
-// playhead (docs/spec/timing.md, rules 1 and 4). A pixel blends the two nearest
+// playhead. A pixel blends the two nearest
 // rows in frequency and the two nearest slices in time, so the field reads as
 // continuous rather than as a grid of rows and slices. Playback no slice covers
 // is left unpainted, and no column blends across it.
 //
 // A paint reads the history by index and allocates nothing whose size grows
-// with it (rule 9): the slices it draws are found by binary search, and walked
+// with it: the slices it draws are found by binary search, and walked
 // once from left to right.
 
 import { clamp } from "./coerce.js";

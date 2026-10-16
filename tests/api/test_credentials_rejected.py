@@ -250,7 +250,7 @@ def test_a_persistent_apply_refused_for_credentials_keeps_the_staged_edit(
     assert client.get("/api/config/pending").json()["http"]["title"] == "Renamed"
 
 
-#: The status architecture.md 8.1 gives the `credentials_refused` code.
+#: The status the API gives the `credentials_refused` code.
 SERVICE_UNAVAILABLE = 503
 
 

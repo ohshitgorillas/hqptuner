@@ -1,4 +1,4 @@
-"""hqplayerd metering side-channel reader (TCP 4322, protocol.md §7).
+"""hqplayerd metering side-channel reader (TCP 4322).
 
 A background task that keeps a spectral aggregate for the junk-filter advisor (``junkadvisor.py``). The daemon streams
 frames unconditionally on bare accept, one per transform hop; the metering tap runs at the *source* rate, so the

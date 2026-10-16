@@ -2,7 +2,7 @@
 // generic drawer: its Level, Gain and Range tabs, the Fixed volume choice lighting the line the staged store picks, a
 // staged edit to a line's detail key dotting the Level tab, the Range tab mounting the range block, and where the restart
 // mark sits: on the Fixed volume choice's header with its lines bare, and on the range block's header with its boxes
-// bare (docs/spec/faceplate-spec.md, Drawers (all), Lanes). What the block draws is pinned in
+// bare. What the block draws is pinned in
 // tests/js/components/faceplate-drawers/drawers-volume-range.test.js, the line picked and a pick's staging in
 // tests/js/store/faceplate/drawers-volume.test.js.
 //

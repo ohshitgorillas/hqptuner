@@ -4,11 +4,11 @@ The faceplate rules bind every stylesheet under `hqptuner/static/css/`. All visu
 
 ## The faceplate
 
-The target is `docs/spec/faceplate-spec.md`. A tuner or integrated-amp faceplate, dark only.
+The target is `docs/spec/faceplate.md`. A tuner or integrated-amp faceplate, dark only.
 
 ### Plate
 
-- **Three formats, tablet landscape in CSS px:** Expanded 1366×1024, Normal 1180×820 and Compact 1133×744 (the smallest). A format sets the plate's layout. The user's Display choice pins one format at its exact size.
+- **Three formats, tablet landscape in CSS px:** Expanded 1366×1024 (13": iPad Air 13"), Normal 1180×820 (11": iPad / iPad Air 11") and Compact 1133×744 (iPad Mini, the smallest). A format sets the plate's layout. The user's Display choice pins one format at its exact size. Phone not required.
 - **Auto stretches the plate to the window**, each direction on its own, from Compact's size up to Expanded's. The layout is Compact's until the window is at least Normal's size, Normal's from there, and Expanded's from 916 tall at Normal's width or wider, where Expanded's spectrum is as tall as Normal's. `--plate-w` and `--plate-h` carry the plate's size.
 - **The plate is laid out at its size and reflows into it:** rail stages flex, the one `.fill` section takes the spare height, drawers and bodies widen. It renders 1:1 and never scales. In a window smaller than the plate the page scrolls; in a larger one the plate sits centered.
 - **Nothing inside the plate scrolls at any size**, in the real fonts.

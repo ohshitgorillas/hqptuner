@@ -1,6 +1,6 @@
 // Rendered suite for the Output drawer's DSD row on the Format tab, drawn by the generic drawer from the Output schema
 // (hqptuner/static/components/faceplate/drawers/output.js): a backend's two DSD settings, DoP and DSD rates (the
-// per-backend `*_dop` and `*_anydsd` checkboxes of docs/spec/settings-classification.md), share one row under a single
+// per-backend `*_dop` and `*_anydsd` checkboxes), share one row under a single
 // label. Staging either setting marks that shared row dirty, and picking an option on either control stages that
 // setting alone.
 //

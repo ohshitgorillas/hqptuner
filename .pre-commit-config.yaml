@@ -259,14 +259,24 @@ repos:
         pass_filenames: false
         always_run: true
 
-      # Cross-cutting: a citation names a doc heading, so the gate has to run
-      # when either the citing source or the cited doc moves.
+      # A backticked path in a design doc names a file in the tree, and code
+      # under hqptuner/, tests/ and scripts/ never names a design doc.
       - id: doc-refs
         name: doc citation gate
         entry: .venv/bin/python scripts/gates/check_doc_refs.py
         language: system
-        types_or: [python, javascript, markdown]
+        types_or: [python, javascript, shell, json, css, html, text, markdown]
+        files: \.(py|js|sh|json|css|html|txt|webmanifest|md)$
         exclude: ^hqptuner/static/vendor/
+
+      # Design-doc lines stay under the limit, and docs/README.md indexes
+      # every doc under docs/ with a subject.
+      - id: docs
+        name: docs index and line-length gate
+        entry: .venv/bin/python scripts/gates/check_docs.py .
+        language: system
+        pass_filenames: false
+        files: ^docs/
 
       - id: spelling
         name: American spelling gate

@@ -108,7 +108,7 @@ async def _verified(client: ControlClient, reply: Reply, expected: dict[str, str
 async def _apply_filter(client: ControlClient, params: dict[str, str]) -> CommandError | None:
     nx = params["value"]
     x1 = params.get("value1x")
-    # value alone sets both 1x and Nx; value1x splits them (protocol.md §6)
+    # value alone sets both 1x and Nx; value1x splits them
     reply = await client.send_filter(nx, x1)
     return await _verified(client, reply, {"filterNx": nx, "filter1x": x1 if x1 is not None else nx})
 

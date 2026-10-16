@@ -1,6 +1,6 @@
 """The import of the daemon's own presets runs once per process, not once per connect.
 
-Architecture §5.2: on first connect the daemon's ``data/cfgs/*.xml`` are imported
+On first connect the daemon's ``data/cfgs/*.xml`` are imported
 into the preset store. A later connect, after the control lane was severed and
 came back, finds the daemon holding a profile it gained in between (saved from
 hqplayerd's own web UI) and leaves it out of the store. Observed over the preset

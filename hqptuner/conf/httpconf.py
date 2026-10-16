@@ -61,8 +61,8 @@ def serialize_matrix_form(html: str) -> tuple[dict[str, str], list[str]]:
     """Complete, browser-faithful serialization of the /matrix form.
 
     Checked checkboxes only (submitting their ``value`` attr — the daemon
-    persists a stray ``on`` verbatim into its XML and wedges engine init,
-    protocol.md "Matrix form lane"), the selected option per select, text/number
+    persists a stray ``on`` verbatim into its XML and wedges engine init),
+    the selected option per select, text/number
     values as-is. Returns ``(fields, file_input_names)`` — the daemon silently
     ignores any partial POST, so every write must carry the whole thing.
     """
@@ -291,7 +291,7 @@ class HttpConfigClient:
         await self._post("/speakers", data=fields)
 
     async def post_profile(self, action: str, **fields: str) -> None:
-        """Preset CRUD: action in load/save/delete (protocol.md §3.6).
+        """Preset CRUD: action in load/save/delete.
 
         `load` also restarts the daemon.
         """
@@ -319,7 +319,7 @@ class HttpConfigClient:
         writes every archive member to disk (**additively** — a member omitted
         from the zip is not deleted) and the daemon self-restarts (~5.6 s), landing
         on the ``[default]`` config (``hqplayerd.xml``); it does **not** restore a
-        named active profile (docs/spec/protocol.md §3.6). The connection manager's
+        named active profile. The connection manager's
         outage path handles the restart/resync. ``cfgfile`` is a ``/backup``
         settings.zip (or config xml).
         """

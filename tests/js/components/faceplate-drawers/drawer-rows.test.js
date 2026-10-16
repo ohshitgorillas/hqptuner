@@ -7,8 +7,8 @@
 // Renders through preact-render-to-string; a handler is fired through the vnode seam (tests/js/support/vnodeseam.js)
 // and the store is driven at the wire by the staging fake. Rows are found by their schema key (`data-k`), options by
 // their value (`data-v`), the restart mark by its `data-testid`; every string asserted is one the
-// test put on the wire or into the schema. The restart mark's keys are catalog keys chosen for their lane
-// (docs/spec/settings-classification.md): volume_max and quick_pause are http fields the engine restarts for,
+// test put on the wire or into the schema. The restart mark's keys are catalog keys chosen for their lane:
+// volume_max and quick_pause are http fields the engine restarts for,
 // adaptive_volume has a live setter, and output_mode is an http field the write path routes live through SetMode.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-drawers/drawer-rows.test.js

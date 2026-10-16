@@ -2,9 +2,9 @@
 // the loop hands each painter subscribed through onMeterPaint the scene the paint shows and `dt`, the wall time since
 // the paint before it, in seconds.
 //
-// `dt` (docs/spec/timing.md, rule 7) is the loop's true interval: each paint's is the wall time since the paint before
+// `dt` is the loop's true interval: each paint's is the wall time since the paint before
 // it however long that was, and the first paint after the feed opens is handed none of the time it was closed. The
-// scene (rules 5 and 6, docs/spec/architecture.md §8.3) folds the frames the paint shows and no other: a frame the
+// scene folds the frames the paint shows and no other: a frame the
 // delay still holds back stays out until a paint reaches it, the frames are folded alike whatever order they arrived
 // in, a paint that shows no frame hands the scene as it stood, and a paint at a break starts from nothing heard and
 // says it restarted. While the feed is closed no painter is called, and a painter that subscribes or unsubscribes

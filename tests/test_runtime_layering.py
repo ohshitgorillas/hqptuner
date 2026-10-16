@@ -1,6 +1,6 @@
 """The layer order holds at runtime, not just at import time.
 
-``api > core > presets > lanes > engine > conf`` (architecture §11.1) is gated by
+``api > core > presets > lanes > engine > conf`` is gated by
 ``lint-imports``, which sees imports only. A lower layer can still reach upward
 without importing anything: handed the manager, it reads ``manager.<attr>`` and
 gets an object built in a layer above it. That read is the inversion the import

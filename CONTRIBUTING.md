@@ -53,6 +53,14 @@ What it cannot check is tone, and that is where entries actually go wrong. Three
 - **State the change; do not sell it.** "its settings moved to where they belong" is a verdict on your own work. "its settings moved" is the change.
 - **One entry per change, not one per commit.** Three commits fixing one bug are one entry.
 
+## Code structure
+
+**The import order, `api > core > presets > lanes > engine > conf`, holds at runtime too.** A layer below core that is handed the manager types it as a protocol declared in its own layer, which the manager satisfies structurally, and that protocol exposes nothing built above the layer: a lane never reads the preset store off the manager, and what it owes the store is handed down by its caller.
+
+**`core/manager.py` is the composition root.** It holds construction, the lifecycle flags, the supervisor loop, the clock seams and the client accessors, and nothing that fills a reading on demand. Connect and poll steps go to `core/loader.py`, post-restart resyncs and waits to `lanes/settle.py`, backup-archive readers to `presets/fileconfig.py`, engine readers to `core/engineread.py`, and anything a lane can own to that lane. An addition to the manager names which of those it could not live in and why.
+
+`unified-hifi-control` (PolyForm Noncommercial) and `hqpwv` (GPL-3) are **not** to be opened or copied.
+
 ## Splits
 
 No gate can see the thing that actually matters in a split, which is whether any caller changed. A split that moved a method and left a one-line forwarder in its place has changed nothing for anyone, and the only reliable tell is the caller-side count. State it before you start: how many call sites move, and in which files. A split that claims to move three of a class's jobs and touches five call sites is not a split.

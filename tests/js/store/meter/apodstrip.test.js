@@ -1,4 +1,4 @@
-// Store suite for the apodizing strip on playback time (docs/spec/timing.md, the "Apodizing strip" row): a bin of the
+// Store suite for the apodizing strip on playback time: a bin of the
 // apodizing history (hqptuner/static/store/apodhistory.js) arriving with no feed edge, no feed open or none queued yet,
 // carries no stamp. The strip's right edge, stripEnd (hqptuner/static/store/meter/spectrogram.js), is the one playhead
 // and nothing else. What a stamped bin carries is pinned in tests/js/store/meter/apodstamp.test.js.

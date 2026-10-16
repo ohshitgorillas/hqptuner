@@ -2,8 +2,8 @@
 // the Bauer | Structural lines (the picked one holding its controls and copy, the other folded to its summary), what
 // grays, the writes its controls make.
 //
-// The restart mark: the gate and the Bauer controls write http-lane settings the engine restarts for
-// (docs/spec/settings-classification.md, Bauer crossfeed enable, preset and params), so each carries the mark on its
+// The restart mark: the gate and the Bauer controls write http-lane settings the engine restarts for,
+// so each carries the mark on its
 // own head; the Bauer | Structural lines are a view choice and carry none. The mark is found by its test handle, its
 // `data-testid`, and a head is told apart by which controls the smallest element holding it and the control encloses.
 //

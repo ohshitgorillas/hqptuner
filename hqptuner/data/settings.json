@@ -1,5 +1,5 @@
 {
-  "_comment": "Tooltip text for every control HQPTuner exposes (architecture §4). Keys are stable HQPTuner control ids grouped by tab. 'source' cites where the prose comes from: manual §x (hqplayer6desktop-manual.pdf), readme §x (hqplayerd-readme.txt), or hqptuner (our own text for UI-native controls with no upstream prose).",
+  "_comment": "Tooltip text for every control HQPTuner exposes. Keys are stable HQPTuner control ids grouped by tab. 'source' cites where the prose comes from: manual §x (hqplayer6desktop-manual.pdf), readme §x (hqplayerd-readme.txt), or hqptuner (our own text for UI-native controls with no upstream prose).",
   "output": {
     "output_mode": {
       "label": "Output mode",
@@ -199,12 +199,12 @@
     "matrix_profile_save": {
       "label": "Save matrix profile",
       "tooltip": "Stores the matrix you are looking at, staged edits included, as a named profile in HQPlayer's configuration. Saving onto a name that already exists replaces it. HQPlayer's own save registers the profile in memory only and drops it when the daemon restarts, so HQPTuner writes the profile element into the configuration itself.",
-      "source": "readme §1.12, docs/spec/protocol.md §3.7"
+      "source": "readme §1.12"
     },
     "matrix_profile_delete": {
       "label": "Delete matrix profile",
       "tooltip": "Removes a saved profile from HQPlayer's configuration for good, rather than until the next daemon start. Deleting does not disturb the running matrix.",
-      "source": "readme §1.12, docs/spec/protocol.md §3.7"
+      "source": "readme §1.12"
     },
     "matrix_iir2fir": {
       "label": "IIR to FIR",
@@ -463,7 +463,7 @@
     "backup_restore": {
       "label": "Backup / restore config",
       "tooltip": "Download a backup of the daemon's configuration, or restore one — served by hqplayerd's own /backup and /restore routes.",
-      "source": "hqptuner (routes: protocol.md §3.6)"
+      "source": "hqptuner"
     },
     "license_info": {
       "label": "Trial / license / version",
@@ -497,7 +497,7 @@
     }
   },
   "_unexposed_candidates": {
-    "_comment": "Settings with upstream prose that HQPTuner does not currently expose (architecture §4). Kept for cheap future addition.",
+    "_comment": "Settings with upstream prose that HQPTuner does not currently expose. Kept for cheap future addition.",
     "volume_hw": {
       "tooltip": "Use hardware volume control (ALSA mixer) together with built-in digital volume control. Scaler for software/hardware volume when using hardware volume control retains processing headroom for output samples; recommended value is 0.75.",
       "source": "readme §1.3 (volume_hw, volume_scaler)"

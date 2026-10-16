@@ -108,7 +108,7 @@ also_copy = ["scripts"]
 # from its own module constant. copy-before-after.md is a record of
 # owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
 # not product: no gate reads it.
-md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate-spec.md"]
+md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
@@ -305,9 +305,9 @@ ignore_missing_imports = true
 # and nothing above. Siblings on one line are independent: they may not import
 # each other either.
 #
-# `presets` is not a layer the architecture doc names. The graph puts it between
-# core and lanes: core drives it (core/manager.py, core/applyops.py) and it
-# drives the lanes (presets/presetlane.py reaching overrides and settle).
+# The graph puts `presets` between core and lanes: core drives it
+# (core/manager.py, core/applyops.py) and it drives the lanes
+# (presets/presetlane.py reaching overrides and settle).
 #
 # `exclude_type_checking_imports` is false: an `if TYPE_CHECKING:` import is held
 # to the same layers as a runtime one. A layer below core that is handed the

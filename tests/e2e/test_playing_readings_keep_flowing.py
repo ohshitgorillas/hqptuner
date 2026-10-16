@@ -52,7 +52,7 @@ FOLLOW_TIMEOUT_MS = 5000.0
 #: Ceiling on the page loading and opening its meter feed, ms.
 LOAD_TIMEOUT_MS = 15000.0
 
-#: Metering frame layout (protocol.md section 7).
+#: Metering frame layout.
 HEADER = struct.Struct("<4I3fI")
 VERSION = 1
 METER_CHANNELS = 2

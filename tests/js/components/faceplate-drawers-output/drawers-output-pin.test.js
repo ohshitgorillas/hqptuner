@@ -5,7 +5,7 @@
 // The restart mark on the rate dial row, read from the whole drawer drawn from the Output schema: under a picked family
 // a tap on the running band pins live with no engine restart, so while Allow pinned rates is on and the picker reads
 // the 44.1k or the 48k family the row carries no restart mark; under Auto, or with Allow pinned rates off, a tap moves
-// a band's limit, a config field the engine restarts for, and the row carries it (docs/spec/faceplate-spec.md). The
+// a band's limit, a config field the engine restarts for, and the row carries it. The
 // mark is found by its `data-testid`, the rate row as the smallest drawer row enclosing the dial.
 //
 // Renders through preact-render-to-string. The picker's options are found by their wire identifier (`data-pin`:

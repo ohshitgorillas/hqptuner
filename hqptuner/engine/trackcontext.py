@@ -95,8 +95,8 @@ def is_playing(status: Mapping[str, str]) -> bool:
 def _junk_filter_name(state: dict[str, str], enums: dict[str, list[dict[str, str]]] | None) -> str | None:
     """``State.filter_junk`` joined against the running enumeration.
 
-    Read off State, whose attribute table lists it unconditionally; Status's is documented as a superset
-    (`protocol.md` §6). A frame that does not carry it would read as nothing engaged, which is the one answer that
+    Read off State, whose attribute table lists it unconditionally; Status's is documented as a superset.
+    A frame that does not carry it would read as nothing engaged, which is the one answer that
     must not be guessed: it decides whether the advisor's note goes quiet and what auto-pilot falls back to.
     """
     idx = state.get("filter_junk")

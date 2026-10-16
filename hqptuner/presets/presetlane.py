@@ -2,9 +2,8 @@
 
 Presets live in a store HQPTuner owns (``store.presets``); the daemon
 is driven only through ``POST /restore`` onto ``[default]`` — never
-``profile/load``/``profile/save``, which are unreliable (docs/spec/protocol.md
-§3.6). A load's restore carries the loaded preset's ``data/cfgs`` mirror; a save
-only stores, and its mirror rides the next restore that happens
+``profile/load``/``profile/save``, which are unreliable. A load's restore
+carries the loaded preset's ``data/cfgs`` mirror; a save only stores, and its mirror rides the next restore that happens
 anyway.
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its

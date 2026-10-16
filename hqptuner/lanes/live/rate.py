@@ -2,7 +2,7 @@
 
 ``SetRate`` takes a ``RatesItem`` index of the running mode's list, index 0 being
 auto, so ``"0"`` clears the pin. ``[source]`` mode ignores it, the engine holds one
-pin, and ``SetMode`` drops it (protocol.md §SetRate). It writes the FIXED slot,
+pin, and ``SetMode`` drops it. It writes the FIXED slot,
 which overrides automatic base-rate selection, so the pin is exactly the rate the
 user asked for, sent only while the Allow pinned rates preference is on
 (``store/live/pin.js``). A mode switch clears it on the engine and nothing puts it

@@ -1,6 +1,5 @@
-// Behavioral suite for the meter model's bin math (hqptuner/static/model/gauges/meter/meter.js), written from
-// docs/spec/protocol.md (the feed's `frame` event), docs/spec/architecture.md §8.3 (the stride fold) and
-// docs/spec/faceplate-spec.md (the Source section's frequency span and range). The model is time-free: nothing here
+// Behavioral suite for the meter model's bin math (hqptuner/static/model/gauges/meter/meter.js): the feed's `frame`
+// event, the stride fold and the Source section's frequency span and range. The model is time-free: nothing here
 // hands it a dt, a clock or a wall time, and every case runs on values the test writes.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/model/gauges/meter/meter-math.test.js

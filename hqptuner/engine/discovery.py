@@ -19,7 +19,7 @@ from hqptuner.engine.controlerrors import ControlError
 
 log = logging.getLogger(__name__)
 
-#: Documented IPv4 discovery group and port (protocol.md §2). The IPv6 group
+#: Documented IPv4 discovery group and port. The IPv6 group
 #: ff08::c7 is documented beside it and is not sent on here; a daemon answering
 #: only there is absent from the list rather than an error.
 GROUP = "239.192.0.199"
@@ -30,7 +30,7 @@ PORT = 4321
 #: without a real clock.
 POLL = 0.05
 
-#: The request datagram, byte for byte as protocol.md §2 gives it.
+#: The request datagram, byte for byte.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
 
@@ -103,7 +103,7 @@ async def enrich(
     """Fill product and platform from each daemon's own report, leaving them unset where that exchange fails.
 
     A failure here does not unanswer discovery: port 4321 refuses connections for about ten seconds after a
-    daemon restart (protocol.md §1), so a daemon can answer the datagram and refuse the socket in the same
+    daemon restart, so a daemon can answer the datagram and refuse the socket in the same
     breath. The record stays, with the two fields it could not learn left empty.
     """
     filled: list[Daemon] = []

@@ -1,7 +1,7 @@
 """The live settings a daemon restart dropped.
 
 hqplayerd keeps a setting changed over its control API in memory only, so a
-restart brings it back up on its config file (protocol §1). HQPTuner keeps a
+restart brings it back up on its config file. HQPTuner keeps a
 record of every live setting the engine confirmed by readback; held against the
 State and enumerations a new connection reads, the record says which of them the
 engine no longer holds.

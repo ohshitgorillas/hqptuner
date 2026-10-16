@@ -1,5 +1,5 @@
-"""Four routes nothing calls are gone, and each is refused the way the error-code
-table in `docs/spec/architecture.md` section 8.1 defines.
+"""Four routes nothing calls are gone, and each is refused with the API's own
+error code for a missing route or a wrong method.
 
 `POST /api/profile/{action}` and `POST /api/autosave` were the only routes at
 their paths, so once gone no route is at that path: `route_unknown`.

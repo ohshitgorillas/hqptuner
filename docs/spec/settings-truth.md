@@ -18,7 +18,7 @@ Each word below means one thing in this document, in code and in review.
 | **Generation** | The lifecycle policy's ordering token, a count of proven departures. Every reading is stamped with the generation it was read in. |
 | **Outcome** | One of the lifecycle policy's three: own restart landed, own restart settled in place, foreign departure. A foreign departure may be an idle close; the readings say whether the Engine changed. |
 | **Source** | Which of Engine, File, Record or Staged a value was read from. |
-| **Domain** | What a value's digits mean: list index, enum ID, Hz, flag, text. Architecture §3.2 owns the split. |
+| **Domain** | What a value's digits mean: list index, enum ID, Hz, flag, text. |
 
 ## The two stores and no third
 
@@ -29,7 +29,7 @@ The daemon has two stores and no third.
 | **Engine** | What the daemon is running now | `State`, `Status`, `GetModes`, `GetFilters`, `GetShapers`, `GetRates`, `GetJunkFilters`, `VolumeRange` on 4321 | `Set*`, `Volume`, `MatrixSetProfile` on 4321 | Until Down or the next outcome (lifecycle rule 6) |
 | **File** | What the daemon will run after its next restart | `/backup` archive, `/config` form on 8088 | `POST /restore`, `POST /matrix`, `POST /speakers` on 8088 | Until the next write |
 
-The Engine never writes the File, and the File reaches the Engine only through a restart (architecture §3.6). They differ in normal use, and the difference is information: it is read from both and shown, never averaged, overlaid or reconciled into a value that neither store holds.
+The Engine never writes the File, and the File reaches the Engine only through a restart. They differ in normal use, and the difference is information: it is read from both and shown, never averaged, overlaid or reconciled into a value that neither store holds.
 
 Every other copy of a setting in the program is a view of one store, or a Record. A view names the store it was read from and dies with that store's lifetime: a view of the Engine dies at the connection's Down and at every outcome, a view of the File dies at the next write to the File. A copy that outlives its store, or that holds values from two stores under one name, is a third store, and is a defect.
 
@@ -71,9 +71,15 @@ Three questions about a field have one answer each, and one pure function each:
 4. **Divergence is surfaced, never merged.** No read path returns a document in which some fields are the Engine's and some the File's under one source. Where the Engine and the File disagree on a field, both values reach the user, each with its source. The realized config is the one composite, it is a write payload, and it is never served as a reading.
 5. **A view is bound to one store's lifetime.** A copy of Engine values dies at Down and at every outcome the lifecycle policy names, settled in place included: a reload the connection survived still replaced the Engine. The next reading starts from nothing, not from the copy. A copy of File values dies at the next write to the File. A view that lives across the break it was bound to is a third store.
 6. **A break carries nothing on its own.** A restart and a chain switch each end what the Engine held. A value present after the break is either the Engine's own answer, read back, or a value the table says is carried and names the carrier of. The program never replays a remembered value into the Engine after a break to make it look as if the break had not happened; where a user wants a chain back, a live snapshot is the mechanism, and it is theirs to invoke.
-7. **A write is verified against its own store.** `result="OK"` and HTTP 200 are not proof (architecture §3.7). A live write is confirmed by `State` readback from the Engine; a restore by `/backup` readback from the File after the restart settles; a form write by the form after the reload settles. A write is never confirmed by reading the other store, and never by reading a view. The verify step reports to the lifecycle policy whether its readback confirmed on a standing connection (lifecycle rule 10); that is the one fact this side hands back.
+7. **A write is verified against its own store.** `result="OK"` and HTTP 200 are not proof. A live write is confirmed by `State` readback from the Engine; a restore by `/backup` readback from the File after the restart settles; a form write by the form after the reload settles. A write is never confirmed by reading the other store, and never by reading a view. The verify step reports to the lifecycle policy whether its readback confirmed on a standing connection (lifecycle rule 10); that is the one fact this side hands back.
 8. **The drop report is a comparison of two readings, not a memory.** What the Engine ran before a restart and does not run after it is computed once, at the first verified reading after an outcome, from that reading against the last verified reading before it. That earlier reading is held, stamped with its generation, until the report is made and not after. Its input is two stamped readings, and it replays nothing. After a foreign departure that was an idle close the two readings are equal and the report is empty.
 9. **Tests assert invariants on a disagreeing wire.** A test of this code runs on a fake daemon that speaks the wire (testing rule 4) from tables (rule 13) in which the Engine and the File disagree on at least one field. It asserts a property the rules promise: a reading names its source, a composite is served by no read route, a view is empty after an outcome until the next reading, a restore payload carries the Engine's value for a chain field and not for a pinned rate. It never asserts a worked example of which value wins (rules 10 and 11).
+10. **Enumerations are mode-relative; never pre-capture.** Re-run the enumeration queries on every mode switch rather than filtering a cached list; never flip modes to pre-capture the other one. Mode index 0 (`[source]`) keeps the current lists.
+11. **Live vs restart split is all-or-nothing per batch.** One restart-required field sends the whole staged batch down the restore lane: the restart happens anyway, and a value applied live never reaches the config file the restart boots from, so a split batch would revert its own live half.
+12. **Two write paths share no staging state.** The stage drawers' rows stage into the shared pending store, and a drawer's apply button flushes **everything** in it. The live controls write one batch on the spot, through `POST /api/config/live`. Every such write is readback-verified and touches neither the pending store nor the 8088 lane, so it can never restart the daemon. The rule binds in both directions: a live control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
+13. **Mode rides alone, then the rest re-resolves.** `SetMode` swaps the enumerations the remaining indices were resolved against, so routing refuses a batch carrying mode and chain fields together. Applying mode alone, re-enumerating, then resolving the rest against the post-switch lists is legal, and is what a preset apply does; a live apply runs the same sequence after any verified mode write. The refusal is about one batch, never about what the engine can be told.
+
+    **A live mode write always goes through that re-enumerating path, whatever else is staged with it.** A mode routed as an ordinary edit leaves the enumeration cache holding the departed mode's lists. Because it also refreshes the manager's state, it consumes the mode transition the poll watches to re-enumerate on its own, so the next apply resolves a filter's enum ID against the wrong list and the engine takes a different filter than the one named.
 
 ## The write paths
 
@@ -85,7 +91,7 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | Archive and form parsers | Reading `/backup` and `/config`; stamping each value File | `presets/fileconfig.py`, `conf/` |
 | Readings | Holding the current stamped readings of each store, and nothing composed from them | `core/readings.py` |
 | Pending buffer | Holding Staged edits; deciding which staged value the stores already hold | `core/pending.py` |
-| Routing | Splitting one apply into its live batch and its restart batch (architecture §4.2) | `lanes/live/routing.py` |
+| Routing | Splitting one apply into its live batch and its restart batch | `lanes/live/routing.py` |
 | Live lane | Writing one live batch, mode first, and verifying each field by `State` readback | `lanes/live/lane.py` |
 | Realized config | Composing the one write payload a restore or a save takes | `presets/realized.py` |
 | Restore lane | Writing a realized config by `POST /restore`, forcing the fixed rate slots, keeping the host interfaces | `lanes/http/restore.py` |
@@ -97,18 +103,22 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | API | Serving each field's stamped Engine, File and Staged values and its lane; serving no composite | `api/routes/config.py` |
 | Client store | Showing the value the lane names; marking divergence; deciding nothing | `static/store/` |
 
+**HQPTuner's persistent writes ride `POST /restore`, not `POST /config`.** The `/config` form cannot express every owned setting (`volume_fixed`'s third state, the `<engine>` hardware attributes), and its submission contract is hostile. HQPTuner fetches `/backup`, surgically edits the config XML, and pushes the archive. The `/config` contract in `docs/spec/protocol.md` "HTTP configuration routes (port 8088)" is documented because the daemon's own UI uses it and because a partial POST is a live footgun, not because HQPTuner calls it.
+
+HQPTuner's engine-attribute write path is: fetch `/backup`, surgically edit the `<engine>` tag (byte-faithful) in the base config plus the active (or all) snapshot, `POST /restore` `scope=system`, verify by reading the `<engine>` tag back from a fresh `/backup`.
+
 ## Measured facts
 
 These are measurements, not assumptions. Code reads the wire rather than relying on them; tests use them as table rows.
 
 | Fact | Value | Measured by |
 |---|---|---|
-| Control API changes never reach the File | A restart reverts every `Set*` to what `hqplayerd.xml` holds | `docs/spec/protocol.md` §1, settings persistence |
-| `POST /restore` restarts the daemon | Self-restart, about 5.6 s; the daemon lands on `[default]`; success is confirmed by `/backup` readback, never by the 200 | `docs/spec/protocol.md` §3.6 |
-| `POST /config` is not HQPTuner's write path | The form must be complete; a rejection is HTTP 200 with `Failed!`; the readback must poll | `docs/spec/protocol.md` §3.6 |
+| Control API changes never reach the File | A restart reverts every `Set*` to what `hqplayerd.xml` holds | `docs/spec/protocol.md` "Transport and framing", settings persistence |
+| `POST /restore` restarts the daemon | Self-restart, about 5.6 s; the daemon lands on `[default]`; success is confirmed by `/backup` readback, never by the 200 | `docs/spec/protocol.md` "HTTP configuration routes (port 8088)" |
+| `POST /config` is not HQPTuner's write path | The form must be complete; a rejection is HTTP 200 with `Failed!`; the readback must poll | `docs/spec/protocol.md` "HTTP configuration routes (port 8088)" |
 | The `/config` form is lossy | `volume_fixed` has domain 0, 1, 2 and renders as a checkbox, so the form cannot report `2` | `docs/spec/settings-classification.md`, Optimal ISO |
-| `Set*` and `State` speak list index; the File speaks enum ID | `SetFilter value="6"` is index 6; `filter="40"` in the File is an enum ID | `docs/spec/protocol.md` §4 |
-| Enumerations are chain-relative | The engine returns the current chain's lists only; they differ wholesale between chains | `docs/spec/protocol.md`, SetMode; architecture §3.3 |
+| `Set*` and `State` speak list index; the File speaks enum ID | `SetFilter value="6"` is index 6; `filter="40"` in the File is an enum ID | `docs/spec/protocol.md` "Response conventions" |
+| Enumerations are chain-relative | The engine returns the current chain's lists only; they differ wholesale between chains | `docs/spec/protocol.md`, SetMode |
 | `SetMode` clears the rate pin | The engine keeps one pin and drops it on every mode switch | `docs/spec/protocol.md`, SetRate, `scripts/probes/rate/probe_mode_rate_pin.py` |
 | A matrix profile switch is memory-only | `MatrixSetProfile` leaves the File untouched and reverts on restart; an unknown name answers `result="OK"` | `docs/spec/protocol.md`, Matrix profile commands |
 | A `/matrix/save` profile is lost at the next restart | No shutdown flush; profiles register at process start only | `docs/spec/protocol.md`, matrix profile persistence |

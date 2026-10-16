@@ -1,10 +1,10 @@
 // Rendered suite for the description the Output drawer's Backend row gives: it describes each backend the connected
 // daemon offers, once each, and no backend that daemon does not offer. The backends a daemon offers are the options of
-// its form's `backend` select (docs/spec/settings-classification.md, Windows daemon local backends): a Linux daemon
+// its form's `backend` select: a Linux daemon
 // lists ALSA, Network and Combo, a Windows one ASIO and WASAPI in place of ALSA.
 //
 // Each backend's description is its line in the Backend entry's option glossary, the `options` map of the settings
-// metadata keyed by the option's form value (docs/spec/openapi.json, SettingEntry). The fixture glossary holds a line
+// metadata keyed by the option's form value (SettingEntry). The fixture glossary holds a line
 // for all five backends, so a row that described every backend it knows of, rather than the ones the daemon offers,
 // prints the other platform's lines here. Both daemons are read, since each offers a backend the other does not.
 //

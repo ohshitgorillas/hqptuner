@@ -153,7 +153,7 @@ def _adopt_speakers(st: dict[str, Any], content_type: str, raw: bytes) -> None:
     """POST /speakers — adopt the (complete) form. Checkbox contract as the real
     daemon keeps it: `enabled` present means on, absent means off.
 
-    The apply also RELOADS THE ENGINE (protocol.md, `/speakers`). That side of
+    The apply also RELOADS THE ENGINE. That side of
     it lands on the 4321 daemon, which this fake cannot see: a test that wants
     it hangs its own callable on ``_on_speakers`` and moves the control fake's
     State from there, the way ``_on_refresh`` models the rescan."""
@@ -364,9 +364,8 @@ def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
 
 # No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
 # matrix only through /restore now: profile save/delete are staged
-# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
-# (protocol.md "Saved matrix profiles do not persist"). Modeling routes nothing calls
-# would be scaffolding for a lane that is deliberately gone.
+# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile.
+# Modeling routes nothing calls would be scaffolding for a lane that is deliberately gone.
 
 
 def _save_profile(st: dict[str, Any], raw: bytes) -> None:

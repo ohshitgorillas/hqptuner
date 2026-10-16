@@ -26,7 +26,7 @@ import { stagingWire } from "../../support/wire/wire.js";
 import { elements, text } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";
 
-/** The plate at the design size, 10.2″ (docs/spec/faceplate-spec.md). */
+/** The plate at the design size, 10.2″. */
 const DESIGN = { w: 1080, h: 810 };
 
 const SCHEMA = { id: "volume", title: "volume-title", aria: "volume", tabs: [] };

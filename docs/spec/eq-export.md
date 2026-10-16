@@ -2,7 +2,7 @@
 
 Reference for **Export EQ** feature — inverse of AutoEq/REW **import** lane (`hqptuner/static/vendor/eqlab/core/eqimport.js`). Serializer: `hqptuner/static/vendor/eqlab/core/eqexport.js` (`rowToRewText` per-row, `pipelinesToRewText` whole-set). Two buttons in DSP pipelines drawer: master **Export AutoEq / REW .txt…** on drawer's Overview beside Import EQ (whole pipeline set → `hqptuner-matrix-eq.txt`) and per-pipeline **Export EQ** on each output tab (picked pipeline → `hqptuner-pipeline-N.txt`). The target formats and the mapping are below.
 
-## 1. What we export *from*
+## What we export *from*
 
 Two internal EQ representations. Only first is parametric-EQ export source.
 
@@ -21,13 +21,13 @@ Pipeline row's EQ lives in comma-separated `process` string of `<pipeline>` elem
 | `lp1` / `hp1` | `f` | — (first-order) | — |
 | `biquad` | `b0 b1 b2 a0 a1 a2` | — (raw coeffs) | — |
 
-Units: `f` Hz, `q` RBJ Q (dimensionless — grounded, `protocol.md` §3.7), `bw` octaves, `s` shelf slope, `g` dB. **All arg values verbatim decimal strings** — export preserves source precision by construction. Row `gain` (dB) is natural `Preamp:`.
+Units: `f` Hz, `q` RBJ Q (dimensionless — grounded, `docs/spec/protocol.md` "Matrix routes (port 8088)"), `bw` octaves, `s` shelf slope, `g` dB. **All arg values verbatim decimal strings** — export preserves source precision by construction. Row `gain` (dB) is natural `Preamp:`.
 
 ### Loudness plugin (NOT a general PEQ source)
 
 DSP-tab loudness plugin is fixed 2-band shelf/peak on output bus (`low_type`/`high_type` ∈ `lshelf`/`hshelf`/`peak`/`peakq`, freq/level/steepness). Out of scope for PEQ file export — different model, only two bands, `peakq` has no pipeline equivalent. Export operates on pipeline `iir` stages only.
 
-## 2. The canonical format — REW / Equalizer APO / AutoEq text
+## The canonical format — REW / Equalizer APO / AutoEq text
 
 Audiophile EQ world has **one lingua franca**: REW "Export filter settings as text" line, byte-compatible with Equalizer APO config syntax. AutoEq, oratory1990, squig.link, REW, EQ APO all speak it. Exactly what our importer already parses.
 
@@ -45,7 +45,7 @@ Filter 3: ON HSC Fc 10000 Hz Gain -2.0 dB Q 0.70
 
 Type tokens (superset; AutoEq in practice emits only `PK`/`LSC`/`HSC`): `PK` (peaking, Q), `PEQ` (peaking, `BW Oct` instead of Q — EQ APO), `LS`/`LSC` (low shelf; `LSC` = Q-controlled), `HS`/`HSC` (high shelf), `LS 6dB`/`12dB` fixed-slope shelves, `LP`/`LPQ`, `HP`/`HPQ`, `BP`, `NO`, `AP`.
 
-## 3. Export type map (iir → REW token) + fidelity
+## Export type map (iir → REW token) + fidelity
 
 Inverse of `eqimport.js` `TYPE_MAP`. Round-trip fidelity against text format:
 
@@ -67,9 +67,9 @@ Non-EQ pipeline stages (`delay`, `riaa`, `conv`) not EQ → excluded, reported (
 **Shape-param handling.** Source stages may carry `q`, `bw`, or `s`:
 - `q` present → emit `Q <q>` verbatim (lossless, common case — importer writes `q`).
 - `bw` only → either emit EQ-APO `PEQ … BW Oct <bw>` (lossless, EQ-APO-only reader) or convert `bw → Q` for portable `PK` line (lossy at write). Recommend: portable `PK` with converted Q, note conversion.
-- `s` only (shelf) → convert `s → Q`; note it. (CamillaDSP export can carry `slope` natively — see §5.)
+- `s` only (shelf) → convert `s → Q`; note it. (CamillaDSP export can carry `slope` natively — see "Recommended save-to formats (ranked)" below.)
 
-## 4. Format survey (what's out there)
+## Format survey (what's out there)
 
 | Format | Ext | Round-trips w/ HQPlayer PEQ | Verdict |
 |---|---|---|---|
@@ -84,9 +84,9 @@ Non-EQ pipeline stages (`delay`, `riaa`, `conv`) not EQ → excluded, reported (
 
 Shelf `6dB`/`12dB` fixed-slope, and `LP/HP/BP/NO/AP` beyond peaking+shelves, are partial/lossy against HQPlayer's peaking+shelf model in *import* direction; on *export* HQPlayer already only holds representable set, so asymmetry not our problem here.
 
-## 5. Recommended save-to formats (ranked)
+## Recommended save-to formats (ranked)
 
-1. **REW / Equalizer APO text (`.txt`) — ship first, on its own.** Universal, human-readable, 1:1 inverse of importer, maps cleanly onto every pipeline `iir` type that matters. This single format covers oratory1990, AutoEq, squig.link, REW, EQ APO, Peace, EasyEffects, JRiver, miniDSP tooling, Wiim, PipeWire. One serializer, one round-trip test (export→`parseEqText`→byte-stable stages). This is the feature; everything below optional polish.
+1. **REW / Equalizer APO text (`.txt`) — ship first, on its own.** Universal, human-readable, 1:1 inverse of importer, maps cleanly onto every pipeline `iir` type that matters. This single format covers oratory1990, AutoEq, squig.link, REW, EQ APO, Peace, EasyEffects, JRiver, miniDSP tooling, Wiim, PipeWire. One serializer, lossless against the importer: the text it emits parses back through `parseEqText` to the same stages. This is the feature; everything below optional polish.
 
 2. **CamillaDSP YAML (`.yml`) — secondary.** Clean biquad round-trip, and DIY-DAC/Linux CamillaDSP community overlaps heavily with HQPlayer users. Carries `slope`/`bandwidth` natively, so it's *lossless* home for shelf-`s` and `bw` stages the text format must convert. Emit filters + a `pipeline` block with a `Gain` filter for preamp.
 

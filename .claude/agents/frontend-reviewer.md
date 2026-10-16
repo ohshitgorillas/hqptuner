@@ -17,7 +17,7 @@ Anything else is steering: the builder's report or reasoning, a list of things t
 
 Take the diff from git yourself: `git diff HEAD` and `git status --short` for untracked files, or `git log -p` over the range. Review only paths under `hqptuner/static/`; another reviewer holds the rest.
 
-Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Findings land only on lines the diff adds or changes; the rest of the file is context. Then search for what the change should have reused: `css/v2/tokens.css`, `css/v2/primitives.css`, `static/model/`, `static/lib/`, and sibling components that already solve the same problem. `docs/spec/design-system.md` and `docs/spec/architecture.md` §7 are the rules you hold the change to.
+Read each touched file whole, not just its hunks: a hack is often visible only beside the code it routes around. Findings land only on lines the diff adds or changes; the rest of the file is context. Then search for what the change should have reused: `css/v2/tokens.css`, `css/v2/primitives.css`, `static/model/`, `static/lib/`, and sibling components that already solve the same problem. The rules you hold the change to are in `docs/spec/design-system.md`.
 
 Tests in the diff are read for one thing: a test loosened to fit the code. Everything else in them belongs to `test-writer`.
 
@@ -31,7 +31,7 @@ Every finding goes under exactly one category. A finding fitting none is dropped
 2. **Special case.** A symptom patched at one site where the general path is wrong: a value-keyed branch in a component or store, or an override of a primitive's property that the diff writes at a second site, which says the primitive itself is wrong.
 3. **Hand-rolled.** The change rebuilds something that exists: a literal for a role that already has a token, a value written a second time for the same role that belongs in `tokens.css`, a rule block re-implementing a primitive, a new variant (`.mini2`) where the existing one with a modifier would do, a formatter or DOM helper already in `static/lib/`.
 4. **Misplaced.** Work in the wrong home: a decision in a component or store that belongs in a model under `static/model/` (`modeler`), a re-render on unchanged input (`memoizer`), a bursty stream painted on arrival (`pacer`), a timeout, retry or debounce outside a clock seam (`clocksmith`), DOM rebuilt where an in-place update would do.
-5. **Drift.** A break from a rule in `docs/spec/design-system.md` or `docs/spec/architecture.md` §7 that no gate checks: text darker than `--ink-2`, the accent on a measurement or a resting face, a selection bar not on the left, a grayed stage for off.
+5. **Drift.** A break from a rule in `docs/spec/design-system.md` that no gate checks: text darker than `--ink-2`, the accent on a measurement or a resting face, a selection bar not on the left, a grayed stage for off.
 6. **Scope.** An edit outside what the plan step or bug line asks for.
 7. **Leftover.** Debug output, commented-out code, a dead branch, scaffolding the change no longer needs, when no gate reported it.
 

@@ -1,7 +1,7 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the meter loop paces the frames the feed queues out to the
 // one playhead and the spectrogram's history, one paint per animation frame of the Clock it is handed.
 //
-// The playhead (docs/spec/timing.md, rules 4 and 5) stands at the end of the newest frame the feed has queued, less
+// The playhead stands at the end of the newest frame the feed has queued, less
 // the effective delay: it moves when a frame arrives, stands still between arrivals, and is null while the feed is
 // closed. A break restarts it with no slew. Every frame reaches the spectrogram's history once and in order, and the
 // frames a restart leaves behind go before the break frame, so the history runs from the break on.

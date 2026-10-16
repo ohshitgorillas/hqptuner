@@ -1,6 +1,6 @@
 // Suite for the rate stage's drawer title in hqptuner/static/components/faceplate/drawers/index.js: the drawer a rail
 // stage opens is titled by the name the rail gives that stage, and the stage with id `resampling` takes one of two names
-// depending on what plays (docs/spec/faceplate-spec.md, Rail). Both names are copy, so they are never written here: the
+// depending on what plays. Both names are copy, so they are never written here: the
 // drawer's title is compared only against the stage's name as the store's rail reports it, over a picture for each name.
 //
 // The rail is decided from plain running pictures by railStages in hqptuner/static/store/faceplate/chain.js, the same

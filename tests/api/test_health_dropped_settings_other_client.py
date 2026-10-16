@@ -59,7 +59,7 @@ OWN_WRITE = JUNK_FILTER_WRITE
 #: The setter that write sends.
 OWN_SETTER = "SetJunkFilter"
 
-#: The enumeration queries (architecture 3.1) a heartbeat that has seen the
+#: The enumeration queries a heartbeat that has seen the
 #: engine change makes again, and the first of them, on whose arrival HQPTuner's
 #: own write is sent.
 LIST_READS = ("GetModes", "GetFilters", "GetShapers", "GetRates", "GetJunkFilters")

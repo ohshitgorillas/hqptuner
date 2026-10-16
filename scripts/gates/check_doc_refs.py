@@ -1,64 +1,18 @@
 #!/usr/bin/env python3
-"""Gate: a citation into a design doc names a heading that still exists.
+"""Gate: design-doc paths name real files, and code never points at the design docs.
 
-Code comments across ``hqptuner/`` and ``tests/`` point at the design docs for
-the reasoning behind a piece of behavior. A *positional* citation —
-``matrix-spec §8 step 3``, ``probe round 5``, ``protocol.md §9`` — is silently
-invalidated by any edit above it, and nothing else checks. The prose becomes load-bearing — sections
-survive only to be pointed at.
-
-The fix is to cite the target's **heading text**, which moves with the content
-it names instead of with its position::
-
-    # ... the daemon keeps saved profiles in memory only
-    # (docs/spec/protocol.md "Saved matrix profiles do not persist")
-
-This gate enforces that form, in both directions:
-
-1. **A quoted citation must resolve.** ``<doc>.md "Some heading"`` fails unless
-   that file has a Markdown heading matching it. Matching normalizes away
-   backticks, emphasis and case, and a citation may give a unique prefix of the
-   heading rather than all of it — so a long heading can be cited by its
-   distinctive first clause. An ambiguous prefix fails: it would resolve to a
-   different section the moment a sibling heading is added.
-
-2. **A ``round N`` / ``step N`` citation is rejected outright**, even while it
-   still resolves, because it is the failure waiting to happen. Those labels
-   number a delivery phase or a probe session — positions in a narrative that
-   nothing maintains.
-
-3. **A ``§N`` citation of a doc in ``NUMBERED`` must resolve.** Those docs
-   number their headings (``## 4. Writing``, ``### 4.2 Live vs restart``), and
-   ``architecture §4.2`` fails unless a heading carries that number.
-
-4. **A backticked path in a design doc must name something in the tree.** A
+1. **A backticked path in a design doc must name something in the tree.** A
    file under ``docs/spec/`` that cites `` `scripts/gate.sh` `` fails once
    that path is gone. Only paths under ``hqptuner/``, ``scripts/``, ``docs/``
    and ``tests/`` are checked, resolved against the repo root; ``main`` always
    scans ``docs/spec/*.md`` beside the files it is handed.
 
-**A citation must sit on one line.** Matching is per-line, so a citation
-wrapped across two lines matches nothing and is silently unverified. Where a heading is
-too long to wrap, cite a *unique prefix* of it rather than breaking the line:
-``matrix-spec.md "Probe findings — saved"`` resolves as well as the full text.
-
-Explicit ``{#slug}`` anchors are not an option: GitHub's Markdown renderer does
-not support them and prints the braces into the page.
-
-**HQPlayer's own documentation is out of scope and must never be flagged.**
-This codebase cites ``manual §7.2``, ``readme §1.11`` and ``§11.8`` constantly,
-and those section numbers are the vendor's, not ours — we cannot rename them
-and they do not rot when our docs move. Matching ``§`` case-insensitively
-against every ``*.md`` stem in the repo reads ``readme §1.9`` as a citation of
-this project's ``README.md`` — false positives on the vendor's own manual.
-Match a repo doc name, never a bare ``§``.
-
-A citation inside a doc that points at *itself* by bare section number (``see
-§3.6 below``) is also out of scope — same-file navigation is not a
-cross-reference and breaks visibly when it breaks.
-
-Escape hatch: ``doc-ref-exempt: <reason>`` on the offending line or the one
-above it, same contract as the token and class gates — the reason is required.
+2. **Code never refers to a design doc.** A file under ``hqptuner/``,
+   ``tests/`` or ``scripts/`` that names a file under ``docs/spec/``, by its
+   path or by the bare name of a design doc, fails with the file, the line and
+   the reference. Markdown files and anything under ``.claude/`` are not code.
+   This script and its test define the rule, so they alone may carry such
+   strings.
 """
 
 from __future__ import annotations
@@ -68,104 +22,57 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-PRAGMA = "doc-ref-exempt:"
-#: design docs whose ``§N`` citations must name a numbered heading
-NUMBERED = frozenset({"architecture"})
-#: the section number that opens a numbered heading, normalized
-HEADING_NUMBER = re.compile(r"^(\d+(?:\.\d+)*)\.?\s")
+SPEC = ROOT / "docs" / "spec"
 
-#: a Markdown ATX heading, any level
-HEADING = re.compile(r"^#{1,6}\s+(.*?)\s*#*$")
-#: inline markup that carries no meaning for a heading's identity
-DECORATION = re.compile(r"[`*_]+")
-#: `"..."` or `“...”` — the quoted heading in a citation. A backtick may sit
-#: between the two: `docs/spec/matrix-spec.md` "Heading" is the normal Markdown form.
-#:
-#: The name must NOT open with a double quote, or every Python string literal
-#: naming a doc reads as a citation of it and the code right after it reads as
-#: the heading — `(OUT / "INDEX.md").write_text(` was reported as citing a
-#: heading called `).write_text(`. A real citation delimits the name with a
-#: backtick or nothing at all; only a string literal wraps it in quotes.
-QUOTED = re.compile(r"(?<!\")\b([\w-]+)\.md[`\s]+[\"“]([^\"”\n]+)[\"”]")
+#: the bare file names of the design docs code may not name
+DESIGN_DOCS = frozenset(path.name for path in SPEC.rglob("*.md"))
 
+#: the trees whose files are code for the reference check
+CODE_ROOTS = frozenset({"hqptuner", "tests", "scripts"})
 
-def normalize(text: str) -> str:
-    """Fold a heading (or a citation of one) to its comparable form."""
-    return " ".join(DECORATION.sub("", text).split()).casefold()
-
-
-def headings(path: Path) -> list[str]:
-    """Every heading in a Markdown file, normalized, in document order."""
-    found = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        match = HEADING.match(line)
-        if match:
-            found.append(normalize(match.group(1)))
-    return found
-
-
-def doc_set() -> dict[str, list[str]]:
-    """Headings of every design doc, keyed by stem and by ``stem.md``.
-
-    Only ``docs/`` is indexed. The citation contract is for design docs; the
-    narrative files at the repo root (README, CHANGELOG, CONTRIBUTING) are not
-    cited by heading and including them caused two distinct false positives —
-    prose that merely quotes a sentence after a filename, and the collision
-    between our ``README.md`` and HQPlayer's own ``readme``.
-    """
-    docs: dict[str, list[str]] = {}
-    for path in sorted((ROOT / "docs").rglob("*.md")):
-        found = headings(path)
-        docs[path.stem] = found
-        docs[path.name] = found
-    return docs
-
-
-def ordinal_re(stems: list[str]) -> re.Pattern[str]:
-    """Match a positional citation: a repo doc name with a round/step near it.
-
-    The gap between the two tolerates the punctuation a citation picks up in
-    prose (a closing backtick or quote) and up to two intervening words
-    (``matrix-spec.md probe round 3``). Allowing only
-    whitespace and a comma reads straight past both forms.
-    """
-    names = "|".join(re.escape(s) for s in sorted(stems, key=len, reverse=True))
-    gap = r"[`\"'\s,)(]*(?:\w+[\s,]+){0,2}"
-    return re.compile(rf"\b({names})(?:\.md)?{gap}\b(?:round|step)s?\s+\d+")
-
-
-#: a ``§N`` citation of a numbered doc; the gap takes the closing backtick of
-#: `` `docs/spec/architecture.md` §2``
-SECTION = re.compile(
-    rf"\b({'|'.join(re.escape(s) for s in sorted(NUMBERED, key=len, reverse=True))})(?:\.md)?`?\s*§\s*(\d+(?:\.\d+)*)"
-)
-
+#: the files that define the reference rule and so must spell it out
+RULE_FILES = frozenset({Path(__file__).resolve(), ROOT / "tests" / "gates" / "test_check_doc_refs.py"})
 
 #: a backticked repo path under one of the roots a design doc cites into; a
 #: token with whitespace is a command, and one with a scheme or a dotted symbol
 #: never starts with a bare root followed by a slash
 CITED_PATH = re.compile(r"`((?:hqptuner|scripts|docs|tests)/[^`\s]*)`")
 
+#: the design-doc names as one alternation, longest first
+BARE_NAMES = "|".join(re.escape(name) for name in sorted(DESIGN_DOCS, key=len, reverse=True))
 
-def design_doc(path: Path) -> bool:
-    """Report whether this file sits under a ``docs/spec/`` directory."""
-    parts = path.parts
+#: a design doc named by its path, or by its bare file name
+REFERENCE = re.compile(rf"docs/spec/(?:[\w.-]+/)*[\w.-]+\.md(?![\w-])|(?<![\w.-])(?:{BARE_NAMES})(?![\w-])")
+
+
+def tree_parts(path: Path) -> tuple[str, ...]:
+    """Split the path into parts, repo-relative when it sits in the repo."""
+    resolved = path.resolve()
+    if resolved.is_relative_to(ROOT):
+        return resolved.relative_to(ROOT).parts
+    return resolved.parts
+
+
+def design_doc(parts: tuple[str, ...]) -> bool:
+    """Report whether these parts sit under a ``docs/spec/`` directory."""
     return any(parts[i : i + 2] == ("docs", "spec") for i in range(len(parts) - 1))
+
+
+def code_file(path: Path) -> bool:
+    """Report whether this file is code the reference check covers."""
+    parts = tree_parts(path)
+    return (
+        path.suffix != ".md"
+        and ".claude" not in parts
+        and not design_doc(parts)
+        and not CODE_ROOTS.isdisjoint(parts[:-1])
+        and path.resolve() not in RULE_FILES
+    )
 
 
 def missing_paths(line: str) -> list[str]:
     """Each backticked path on this line that names nothing in the repo tree."""
     return [cited for cited in CITED_PATH.findall(line) if not (ROOT / cited).exists()]
-
-
-def unresolved_sections(line: str, docs: dict[str, list[str]]) -> list[str]:
-    """Each ``§N`` citation on this line naming no numbered heading in its doc."""
-    missing = []
-    for stem, number in SECTION.findall(line):
-        numbers = {m.group(1) for m in map(HEADING_NUMBER.match, docs.get(stem, [])) if m}
-        if number not in numbers:
-            missing.append(f"{stem} §{number}")
-    return missing
 
 
 def relabel(path: Path) -> str:
@@ -176,77 +83,46 @@ def relabel(path: Path) -> str:
     return str(path)
 
 
-def exempt(lines: list[str], index: int) -> bool:
-    """Report whether this line, or the one above it, carries the pragma."""
-    window = lines[max(0, index - 1) : index + 1]
-    return any(PRAGMA in line for line in window)
-
-
-def resolve(cited: str, available: list[str]) -> str | None:
-    """Why this citation fails, or None when it resolves to one heading."""
-    want = normalize(cited)
-    if want in available:
-        return None
-    hits = [h for h in available if h.startswith(want) or HEADING_NUMBER.sub("", h).startswith(want)]
-    if len(hits) == 1:
-        return None
-    if not hits:
-        return "no such heading"
-    return f"ambiguous — matches {len(hits)} headings"
-
-
-def check(path: Path, docs: dict[str, list[str]]) -> list[str]:
-    """Every citation problem in one file."""
-    problems = []
+def check(path: Path) -> list[str]:
+    """Every problem in one file."""
+    label = relabel(path)
+    problems: list[str] = []
     lines: list[str] = []
     read_ok = True
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError) as exc:
-        problems.append(f"{relabel(path)}: unreadable: {exc}")
+        problems.append(f"{label}: unreadable: {exc}")
         read_ok = False
     if not read_ok:
         return problems
-    stems = [k for k in docs if not k.endswith(".md")]
-    ordinal = ordinal_re(stems)
-    label = relabel(path)
-    cites_paths = design_doc(path.resolve())
-    for index, line in enumerate(lines, start=1):
-        if exempt(lines, index - 1):
-            continue
-        if cites_paths:
+    if design_doc(tree_parts(path)):
+        for index, line in enumerate(lines, start=1):
             problems.extend(f"{label}:{index}: `{cited}` — no such path" for cited in missing_paths(line))
-        for match in ordinal.finditer(line):
-            cite = match.group(0).strip()
-            problems.append(f"{label}:{index}: ordinal citation '{cite}' — rot risk")
-        problems.extend(f"{label}:{index}: {cite} — no such section" for cite in unresolved_sections(line, docs))
-        for name, cited in QUOTED.findall(line):
-            available = docs.get(f"{name}.md")
-            if available is None:
-                continue
-            why = resolve(cited, available)
-            if why:
-                problems.append(f'{label}:{index}: {name}.md "{cited}" — {why}')
+    if code_file(path):
+        for index, line in enumerate(lines, start=1):
+            problems.extend(
+                f"{label}:{index}: {match.group(0)} — code refers to a design doc" for match in REFERENCE.finditer(line)
+            )
     return problems
 
 
 def main(argv: list[str]) -> int:
-    """Refuse an unresolved quoted or §N doc citation, and any positional round/step citation."""
-    docs = doc_set()
-    if not docs:
-        print("check_doc_refs: no docs found", file=sys.stderr)
+    """Refuse a design-doc path that names no file, and any reference from code to a design doc."""
+    if not DESIGN_DOCS:
+        print("check_doc_refs: no design docs found", file=sys.stderr)
         return 1
-    problems = []
+    problems: list[str] = []
     seen: set[Path] = set()
-    for path in [Path(arg) for arg in argv] + sorted((ROOT / "docs" / "spec").glob("*.md")):
+    for path in [Path(arg) for arg in argv] + sorted(SPEC.glob("*.md")):
         resolved = path.resolve()
-        if path.is_file() and resolved != Path(__file__).resolve() and resolved not in seen:
+        if path.is_file() and resolved not in seen:
             seen.add(resolved)
-            problems.extend(check(path, docs))
+            problems.extend(check(path))
     for problem in problems:
         print(problem, file=sys.stderr)
     if problems:
-        print(f"\n{len(problems)} broken doc citation(s)", file=sys.stderr)
+        print(f"\n{len(problems)} doc reference problem(s)", file=sys.stderr)
         return 1
     return 0
 

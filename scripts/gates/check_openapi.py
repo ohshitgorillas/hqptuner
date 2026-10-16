@@ -7,7 +7,7 @@ because each of them is asking about the Python and none of them is asking what
 the browser is handed. The break surfaces later, in the frontend, as a fetch
 that returns the wrong shape.
 
-So the surface is committed as a file. ``docs/spec/openapi.json`` is the app's own
+So the surface is committed as a file. ``SNAPSHOT`` is the app's own
 OpenAPI document, normalized to sorted-key JSON so a diff is readable, and this
 gate rebuilds it and compares. A deliberate change to the API is one command and
 one reviewable file in the diff; an accidental one is a red gate.

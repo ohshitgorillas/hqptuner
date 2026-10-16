@@ -1,12 +1,12 @@
 // The spectrogram's history: a run of slices, each the power average of the
-// feed frames it covers, placed in playback by those frames' own stamps
-// (docs/spec/timing.md, rule 1): a slice starts at its first frame's `at` and
-// ends where its last frame ends. A frame that begins a break empties the
-// history and starts a fresh slice (rule 3). A track change clears the
+// feed frames it covers, placed in playback by those frames' own stamps: a
+// slice starts at its first frame's `at` and ends where its last frame ends. A
+// frame that begins a break empties the history and starts a fresh slice. A
+// track change clears the
 // apodizing history (store/apodhistory.js), and the slices with it.
 //
 // The range drawn is the slices inside the window whose right edge is the one
-// playhead (store/meter/playhead.js, rule 4), found by sliceRange
+// playhead (store/meter/playhead.js), found by sliceRange
 // (model/gauges/slicerange.js); nothing is drawn while it is null. The raster
 // picks the channel and places each slice by its stamp against that edge.
 // The apodizing strip's right edge is that same playhead, and has none while it

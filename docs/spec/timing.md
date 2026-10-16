@@ -61,6 +61,8 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | Apodizing strip | Bins stamped with playback time on arrival; the edge taken from the playhead | `store/apodhistory.js`, `store/faceplate/drawers/source.js` |
 | Painters | Drawing what they are handed | `components/faceplate/` |
 
+Because the daemon offers no way to ask for less, the socket is the only throttle a consumer has: at ~43 frames/s of `channels × (16 + 8 × xformLength)` bytes, an idle connection costs megabytes a second for frames nobody uses. The reader therefore holds the connection only while `State` reports playing (state 2) and the advisor is on or a METER page is attached, and closes it otherwise — invisible on loopback, but the difference between constant load and none once the traffic crosses a Docker bridge.
+
 ## Measured facts
 
 These are measurements, not assumptions. Code reads the wire rather than relying on them; tests use their range.

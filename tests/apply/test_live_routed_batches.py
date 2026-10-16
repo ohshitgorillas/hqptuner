@@ -282,7 +282,7 @@ def _record_restarts(daemon: dict[str, Any]) -> list[bytes]:
 def _listed_title(restarts: list[bytes], name: str) -> str | None:
     """The title of hqplayerd's own copy of ``name`` once ``restarts`` have
     landed, or None while its profile list lacks it. A restore writes its
-    ``data/cfgs`` members additively (protocol.md, POST /restore), so the
+    ``data/cfgs`` members additively, so the
     latest archive carrying the member is the copy listed."""
     member = f"data/cfgs/{name}.xml"
     title = None

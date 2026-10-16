@@ -278,7 +278,7 @@ def summarize(records: list[JsonDict], sidechain: int) -> None:
 
 def _synthetic() -> list[JsonDict]:
     """Preamble row, then three periods: read+grep, re-read+edit, empty."""
-    target = str(ROOT / "docs" / "architecture.md")
+    target = str(ROOT / "docs" / "research" / "crossfeed-math.md")
     return [
         {"uuid": "pre", "cwd": str(ROOT), "message": {"role": "assistant", "content": []}},
         fake_human("first"),
@@ -311,9 +311,12 @@ def self_checks(check: Callable[..., bool]) -> list[bool]:
         )
     )
     ok.append(check("empty trailing period still emits a record", condition=rec[2]["free_read_calls"] == 0))
-    paths = read_paths("Bash", {"command": "sed -n '1,5p' docs/spec/protocol.md"}, str(ROOT))
+    paths = read_paths("Bash", {"command": "sed -n '1,5p' docs/research/crossfeed-math.md"}, str(ROOT))
     ok.append(
-        check("bash operand resolved against the row cwd", condition=paths == [str(ROOT / "docs" / "protocol.md")])
+        check(
+            "bash operand resolved against the row cwd",
+            condition=paths == [str(ROOT / "docs" / "research" / "crossfeed-math.md")],
+        )
     )
     ok.append(
         check(

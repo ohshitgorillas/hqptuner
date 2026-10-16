@@ -1,4 +1,4 @@
-// The one pacing decision a paint makes (docs/spec/timing.md, rule 5): which playback the paint shows, and where the
+// The one pacing decision a paint makes: which playback the paint shows, and where the
 // playhead stands. The daemon sends metering frames in clumps; the playhead takes its place from their stamps, so a
 // clump that arrives at once is shown at its own positions over the paints that reach them.
 //
@@ -8,7 +8,7 @@
 // shows nothing and consumes nothing. A frame leaves the queue once a paint has shown all of it; a frame the playhead
 // stands inside stays queued, and the next paint shows the rest of it.
 //
-// A break (rule 3) restarts: when the queue holds a frame marked `break` that no paint has started in, the paint shows
+// A break restarts: when the queue holds a frame marked `break` that no paint has started in, the paint shows
 // from that frame's `at` whatever the last paint ended at, says so in `restart`, and consumes every frame before it,
 // which belong to playback the music has left. A break frame at the front of the queue that the caller marks `started`
 // was queued when the last paint decided, so that paint restarted at it or carried on in it, and it does not restart

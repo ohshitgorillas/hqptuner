@@ -2,11 +2,10 @@
 //
 // Three values. The user's spectrum offset is the text typed in the Display popover's Delay box, in seconds, kept in
 // the browser under `hqptuner.spectrumOffset` and 0 where nothing is stored; `setSpectrumOffset` takes the box's text
-// and `spectrumOffset` holds it. The engine's delay is the daemon's `output_delay` on the Status poll
-// (docs/spec/protocol.md, Status), microseconds on the wire and seconds in the store; it is a view of an Engine reading
-// (docs/spec/settings-truth.md rule 5), so it holds no copy of its own and is nothing the moment the reading it was
-// taken from is gone, absent from the reading, or the reading itself absent. The effective delay, `effectiveDelay`, is
-// the engine delay (nothing counting as 0) plus the offset, never below zero.
+// and `spectrumOffset` holds it. The engine's delay is the daemon's `output_delay` on the Status poll, microseconds
+// on the wire and seconds in the store; it is a view of an Engine reading, so it holds no copy of its own and is
+// nothing the moment the reading it was taken from is gone, absent from the reading, or the reading itself absent.
+// The effective delay, `effectiveDelay`, is the engine delay (nothing counting as 0) plus the offset, never below zero.
 //
 // What the box does with text outside -5 to 5 or text that is not a number is not settled by the spec or by the box's
 // own min, max and step, and nothing here asserts it. Whether a zero `output_delay` reads as no engine delay or as an

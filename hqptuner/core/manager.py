@@ -3,7 +3,7 @@
 Rules:
 - "reachable" means a successful GetInfo handshake, not a mere TCP accept
 - State/Status polling doubles as heartbeat (and keeps traffic under the
-  daemon's ~156 s idle-drop window, protocol.md §1)
+  daemon's ~156 s idle-drop window)
 - unreachable beyond the alarm threshold (default 15 s, so a routine daemon
   restart raises no alarm) is surfaced as `alarm`
 - poll aggressively during the initial outage window, then back off

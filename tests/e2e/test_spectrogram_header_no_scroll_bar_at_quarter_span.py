@@ -48,7 +48,7 @@ COMPACT = "compact"
 PLAYING = "2"
 METADATA = '<metadata samplerate="44100" bits="16" channels="2"/>'
 
-#: Metering frame layout (protocol.md section 7), for a stereo 44.1 kHz source.
+#: Metering frame layout, for a stereo 44.1 kHz source.
 HEADER = struct.Struct("<4I3fI")
 VERSION = 1
 METER_CHANNELS = 2

@@ -1,6 +1,6 @@
 # HQPTuner v2 implementation roadmap
 
-The target is `docs/spec/faceplate-spec.md`. Where the spec and a v1 document or v1 code disagree, the spec wins and the v1 side changes.
+The target is `docs/spec/faceplate.md`. Where the spec and a v1 document or v1 code disagree, the spec wins and the v1 side changes.
 
 ## Strategy
 
@@ -86,7 +86,7 @@ The Overview and its five steps, on the existing matrix profile, AutoEq and desc
 ## Phase 11: cutover
 
 - The v2 entry becomes the only entry. The v1 components, CSS, LIVE and METER modes and their tests are deleted.
-- `docs/spec/architecture.md` is to be rewritten where it describes the v1 shell: §4.2, §4.3, §5.3, §6.2, §7 and §9. `README.md` and the bug-report directions in `CONTRIBUTING.md` follow.
+- `README.md` and the bug-report directions in `CONTRIBUTING.md` are to be rewritten where they describe the v1 shell.
 - Changelog and release 2.0.0.
 
 ## Owner inputs

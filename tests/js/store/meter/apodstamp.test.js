@@ -1,6 +1,6 @@
-// Store suite for the playback stamp an apodizing bin carries (docs/spec/timing.md, "The two clocks" and the "Apodizing
-// strip" row; docs/spec/architecture.md §8.3): a bin of the apodizing history (hqptuner/static/store/apodhistory.js) is
-// converted to playback time once, where it arrives, by taking the feed's edge at that moment, the end of the newest
+// Store suite for the playback stamp an apodizing bin carries: a bin of the apodizing history
+// (hqptuner/static/store/apodhistory.js) is converted to playback time once, where it arrives, by taking the feed's
+// edge at that moment, the end of the newest
 // frame the feed store has queued. The spectrum delay, the user's offset or the engine's output delay, plays no part in
 // the stamp: the strip's edge is the one playhead, which already sits the delay behind the feed's edge. A bin arriving
 // with no feed edge is pinned in tests/js/store/meter/apodstrip.test.js.

@@ -1,6 +1,6 @@
 """HQPlayer Control API (TCP 4321) client.
 
-Wire behavior per docs/spec/protocol.md §1/§4: each request is a complete XML
+Wire behavior: each request is a complete XML
 document; responses are XML documents with newline as a flush hint, so the
 receiver accumulates and parses until a document is valid. Lenient in both
 directions: bare '&' in attribute values is re-escaped before parsing
@@ -62,7 +62,7 @@ class Reply:
 
     @property
     def ok(self) -> bool:
-        """Whether the daemon accepted it: result="OK", or absent (SetAdaptiveVolume quirk, protocol.md §6)."""
+        """Whether the daemon accepted it: result="OK", or absent, as SetAdaptiveVolume replies with no result."""
         return self.result is None or self.result == "OK"
 
     def refusal(self) -> CommandRefusedError | None:
@@ -185,7 +185,7 @@ class ControlClient:
                     return await self._recv_document(command)
                 except (TimeoutError, OSError, ControlError):
                     # The daemon answers every command it accepts, unknown ones
-                    # included (protocol.md §4), so a reply given up on is a reply
+                    # included, so a reply given up on is a reply
                     # still to come. Left on an open socket it becomes the answer
                     # the NEXT command reads: `set_command` checks the root's
                     # `result` and not which element it is, so a stale OK passes
@@ -276,7 +276,7 @@ class ControlClient:
         """`<MatrixSetProfile value="..."/>` — live matrix-profile switch (empty = the unnamed [Default]).
 
         Unauthenticated, zero reload, playback uninterrupted; memory-only, reverts on daemon
-        restart (docs/spec/protocol.md "Matrix profile commands").
+        restart.
         """
         await self.set_command("MatrixSetProfile", value=name)
 

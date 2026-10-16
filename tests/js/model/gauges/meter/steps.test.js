@@ -3,7 +3,7 @@
 // gravity, the ridge rows and the Fade halo, each moved only by the paint intervals a test hands it, and the pace a
 // stepped style takes whole steps by.
 //
-// Every step joins the same invariants (docs/spec/timing.md rule 11): a stretch of time moves a state as far whether it
+// Every step joins the same invariants: a stretch of time moves a state as far whether it
 // arrives as one paint or as many; a fresh state after a break carries nothing of the music before it; a quiet input
 // held long enough is where every state settles. The two holding steps also hold: a paint after their input drops still
 // shows where it was.

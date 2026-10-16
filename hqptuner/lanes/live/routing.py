@@ -131,8 +131,8 @@ def _resolve(mgr: LaneManager, field: str, value: str, chain: str | None) -> str
 def _complete_filter_pair(pair: dict[str, str], state: dict[str, str]) -> bool:
     """Fill the unstaged half of a SetFilter edit from the current State.
 
-    ``SetFilter value="N"`` alone sets BOTH the 1x and Nx filters (protocol.md
-    §6), so a one-sided edit that omits its sibling silently clobbers it. Both
+    ``SetFilter value="N"`` alone sets BOTH the 1x and Nx filters, so a
+    one-sided edit that omits its sibling silently clobbers it. Both
     args must therefore be explicit. Returns False when State cannot supply the
     missing side (older engines report neither ``filter1x`` nor ``filterNx``), in
     which case the edit belongs on the restore lane instead.

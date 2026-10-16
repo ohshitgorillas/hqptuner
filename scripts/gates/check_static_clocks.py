@@ -7,7 +7,7 @@ under ``hqptuner/static/``, one problem per name, opening with
 ``<path>:<line>:`` and naming what it found. ``lib/clock.js`` holds the one
 platform clock and ``vendor/`` is third-party; both are spared. Anything that
 waits, repeats, animates or reads the time takes a Clock instead, so a test
-drives it with a fake and never waits on wall time (``docs/spec/timing.md``).
+drives it with a fake and never waits on wall time.
 
 A name is bare when code names it, called or not: ``const t = setTimeout;``
 hands out the platform clock as surely as a call does. A name read off an
@@ -209,7 +209,8 @@ def main(argv: list[str]) -> int:
         print(problem, file=sys.stderr)
     if problems:
         print(
-            f"\n{len(problems)} bare clock(s) under hqptuner/static/; docs/spec/timing.md is the rule",
+            f"\n{len(problems)} bare clock(s) under hqptuner/static/; anything that waits, repeats, animates"
+            " or reads the time takes a Clock, and only lib/clock.js reaches the platform's own",
             file=sys.stderr,
         )
         return 1
