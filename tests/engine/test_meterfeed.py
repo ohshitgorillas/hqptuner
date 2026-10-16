@@ -314,3 +314,72 @@ async def test_a_channel_change_sends_the_new_geometry_before_a_frame_of_only_th
     mono = _mono((peak, peak, -40.0, -40.0), NYQUIST_192K)
     items = await _items([stereo], then=mono)
     assert _events(items) == [("geometry", 2), ("geometry", 1), ("frame", peak)]
+
+
+# --- line 7: the geometry event names the metering rate ---------------------
+
+
+#: Metering rates the daemon has been measured at, each a whole number of Hz.
+RATE_44K = 44100
+RATE_48K = 48000
+RATE_176K = 176400
+
+#: Nyquist held fixed while the rate moves, so the rate is read off the frame
+#: header's hop and transform time rather than off its bandwidth.
+FIXED_NYQUIST = NYQUIST_44K
+
+#: (peakMax, peak, rms, rmsMax) of the frames before a rate change: louder than every frame after it.
+BEFORE_CHANGE = (-1.0, -1.0, -20.0, -20.0)
+
+#: Peak of the frames after a rate change.
+AFTER_PEAK = -20.0
+
+
+def _metered(rate: int, bins: int = BINS, levels: tuple[float, float, float, float] = LEVELS) -> Frame:
+    """One mono frame at ``rate``: a hop of ``bins - 1`` samples, measured by its transform time."""
+    transform_time = (bins - 1) / rate
+    packed = struct.pack(HEADER, VERSION, 1, bins, TRANSFORM_BITS, FIXED_NYQUIST, transform_time, GAIN, RESERVED)
+    header = struct.unpack(HEADER, packed)
+    body = _channel(Channel(levels=levels), FIXED_NYQUIST, bins)
+    return header, body
+
+
+@pytest.mark.parametrize("bins", [1025, 513], ids=["1025 bins", "513 bins"])
+@pytest.mark.parametrize("rate", [RATE_44K, RATE_48K, RATE_176K], ids=["44.1 kHz", "48 kHz", "176.4 kHz"])
+async def test_the_geometry_event_names_the_metering_rate_of_the_frames(rate: int, bins: int) -> None:
+    items = await _items([_metered(rate, bins)])
+    assert _first_geometry(items).get("rate") == rate
+
+
+async def _after_change(before: Frame, after: Frame) -> list[Item]:
+    """Feed one frame ``before`` to a fresh feed, then ``after`` until a `frame` item follows it;
+    the items queued after the first frame, as (event, rate) for a geometry and (event, peak) for a frame."""
+    feed = MeterFeed()
+    queue = await _resolved(feed.subscribe())
+    feed.add(before[0], reduce_frame(before[1], int(before[0][1]), int(before[0][2])))
+    await _drain(queue)
+    items: list[Item] = []
+    for header, body in itertools.repeat(after, MAX_ADDS):
+        feed.add(header, reduce_frame(body, int(header[1]), int(header[2])))
+        items.extend(await _drain(queue))
+        if any(event == "frame" for event, _ in items):
+            break
+    return [(event, data.get("rate") if event == "geometry" else data["channels"][0]["peak"]) for event, data in items]
+
+
+#: Metering rate before, then after, a change mid-feed; event lengths across the measured range.
+CHANGES = [
+    pytest.param(RATE_176K, RATE_44K, id="176.4 kHz to 44.1 kHz"),
+    pytest.param(RATE_44K, RATE_48K, id="44.1 kHz to 48 kHz"),
+    pytest.param(RATE_48K, RATE_176K, id="48 kHz to 176.4 kHz"),
+]
+
+
+@pytest.mark.parametrize(("before", "after"), CHANGES)
+async def test_a_rate_change_sends_the_new_geometry_before_a_frame_of_only_the_new_rate(
+    before: int, after: int
+) -> None:
+    loud = _metered(before, levels=BEFORE_CHANGE)
+    quiet = _metered(after, levels=(AFTER_PEAK, AFTER_PEAK, -40.0, -40.0))
+    items = await _after_change(loud, quiet)
+    assert items == [("geometry", after), ("frame", AFTER_PEAK)]

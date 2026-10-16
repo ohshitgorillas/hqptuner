@@ -6,7 +6,8 @@ it back under: the stride. Across a stride the peak is max-held and the rms and 
 folding loses nothing a meter shows. Each bin travels as two bytes, low byte first, ``BIN_STEP_DB`` per step below full
 scale.
 
-A ``geometry`` event, carrying what a page needs to lay the bars out, always goes ahead of the first ``frame`` it
+A ``geometry`` event, carrying what a page needs to lay the bars out (and the metering rate in whole hertz the frames
+arrive at), always goes ahead of the first ``frame`` it
 describes. A geometry change mid-stride drops the partial stride rather than mixing two geometries in one event.
 
 Each event is written out as its server-sent event text once, as it is sent, and every subscriber's queue carries
@@ -42,6 +43,7 @@ class GeometryData(TypedDict):
     nyquist: float
     channels: int
     bins: int
+    rate: int
 
 
 class FrameData(TypedDict):
@@ -82,27 +84,37 @@ FEED_FLOOR_DB = -300.0
 
 @dataclass(frozen=True)
 class Geometry:
-    """One frame layout: its channel count, bin count and Nyquist."""
+    """One frame layout: its channel count, bin count, Nyquist and metering rate in whole hertz."""
 
     channels: int
     bins: int
     bandwidth: float
+    rate: int
 
     def event(self) -> Event:
         """Return the ``geometry`` event a page lays its bars and axes out from."""
-        data: GeometryData = {"nyquist": self.bandwidth, "channels": self.channels, "bins": self.bins}
+        data: GeometryData = {
+            "nyquist": self.bandwidth,
+            "channels": self.channels,
+            "bins": self.bins,
+            "rate": self.rate,
+        }
         return Event("geometry", data)
+
+
+def metering_rate(bins: int, xform_time: float) -> int:
+    """Return the source rate in whole hertz a header implies: a hop of ``bins - 1`` samples per ``xform_time``."""
+    return round((bins - 1) / xform_time)
 
 
 def stride(bins: int, xform_time: float) -> int:
     """Whole frames per event: one up to ``REFRESH_HZ`` frames a second, else the fewest that keep events under it.
 
-    Counted from the source rate the header implies (a hop of ``bins - 1`` samples per ``xform_time``), rounded to
-    whole hertz, so the ``f32`` frame time cannot tip a boundary either way.
+    Counted from the ``metering_rate`` the header implies, in whole hertz, so the ``f32`` frame time cannot tip a
+    boundary either way.
     """
     hop = bins - 1
-    rate = round(hop / xform_time)
-    return max(1, -(-rate // (REFRESH_HZ * hop)))
+    return max(1, -(-metering_rate(bins, xform_time) // (REFRESH_HZ * hop)))
 
 
 def reduce_frame(body: bytes, channels: int, bins: int) -> npt.NDArray[np.float64]:
@@ -183,10 +195,11 @@ class MeterFeed:
         """Fold one frame, as ``reduce_frame`` reduced it, into the stride; send a ``frame`` event once that is full."""
         if not self._subscribers:
             return
-        channels, bins, bandwidth = int(header[1]), int(header[2]), float(header[4])
+        channels, bins, bandwidth, xform_time = int(header[1]), int(header[2]), float(header[4]), float(header[5])
+        layout = Geometry(channels, bins, bandwidth, metering_rate(bins, xform_time))
         geo = self._geo
-        if geo is None or (geo.channels, geo.bins, geo.bandwidth) != (channels, bins, bandwidth):
-            geo = self._geo = Geometry(channels, bins, bandwidth)
+        if geo != layout:
+            geo = self._geo = layout
             self._restart()
             self._send(geo.event())
         peak, power = levels[:, 0], levels[:, 1:]
@@ -194,7 +207,6 @@ class MeterFeed:
             peak, power = np.maximum(self._peak, peak), self._power + power
         self._peak, self._power = peak, power
         self._count += 1
-        xform_time = float(header[5])
         if self._count >= stride(bins, xform_time):
             self._send(_frame_event(peak, power / self._count, self._count * xform_time * 1000))
             self._restart()
