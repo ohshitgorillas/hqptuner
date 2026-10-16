@@ -8,23 +8,23 @@
 /**
  * The density one recorded bin observed.
  *
- * @param {{ ms: number, n: number }} bin
+ * @param {{ ms: number, n: number }} bin  `ms` the playback ms it observed, `n` the events counted in it
  * @returns {number} events per second
  */
 export const rateOf = (bin) => (bin.ms > 0 ? (bin.n * 1000) / bin.ms : 0);
 
 /**
- * The time axis's width in milliseconds, shared by the apodizing strip and the
+ * The time axis's width in playback ms, shared by the apodizing strip and the
  * spectrogram: the chosen duration.
  *
- * @param {string} window  s
- * @returns {number}
+ * @param {string} window  playback, s
+ * @returns {number}  playback, ms
  */
 export const windowSpan = (window) => Number(window) * 1000;
 
 /**
  * @typedef {{ x: number, rate: number }} GridColumn
- *   One grid cell: its left edge in milliseconds from the strip's left edge,
+ *   One grid cell: its left edge in playback ms from the strip's left edge,
  *   and its events per second.
  */
 
@@ -34,9 +34,9 @@ export const windowSpan = (window) => Number(window) * 1000;
 /**
  * The milliseconds of playback between two positions.
  *
- * @param {number | null} prev the daemon's position in seconds
- * @param {number | null} next
- * @returns {number} 0 where no playback was observed
+ * @param {number | null} prev the daemon's track position, s
+ * @param {number | null} next the daemon's track position, s
+ * @returns {number} playback, ms; 0 where no playback was observed
  */
 export function playedMs(prev, next) {
   if (prev === null || next === null) return 0;

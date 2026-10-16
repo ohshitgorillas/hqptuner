@@ -111,10 +111,16 @@ export function frameDt(prev, now) {
 
 /**
  * One feed frame, or several folded into one: per channel its peak and RMS in dBFS and its transform bins in dBFS,
- * DC first, the frame time it covers, and the feed geometry it arrived under.
+ * DC first, the playback it covers, and the feed geometry it arrived under. A frame off the feed also carries where
+ * that playback starts and whether its event begins a break (docs/spec/timing.md, rule 3).
  *
  * @typedef {{ nyquist: number, channels: number, bins: number }} FrameGeometry
- * @typedef {{ channels: { peak: number, rms: number, bins: Float32Array }[], ms: number, geo?: FrameGeometry | null }} MeterFrame
+ * @typedef {object} MeterFrame
+ * @property {{ peak: number, rms: number, bins: Float32Array }[]} channels
+ * @property {number} ms  playback, ms: how long the frame lasts
+ * @property {number} [at]  playback, ms: where the frame starts, counted from the feed's reset
+ * @property {boolean} [break]  whether the frame's event begins a break
+ * @property {FrameGeometry | null} [geo]
  */
 
 /**

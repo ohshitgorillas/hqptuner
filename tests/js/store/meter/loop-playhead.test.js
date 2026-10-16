@@ -1,16 +1,14 @@
-// Store suite for the playback span each step of hqptuner/static/store/meter/loop.js shows: the loop's playhead moves
-// through the queued feed frames on playback time, and each step shows the audio the playhead crossed since the step
-// before, every frame weighted by how much of it was crossed, so a feed frame that straddles two steps counts in both
-// for its share of each and a burst arriving at once is shown at its own positions rather than a whole frame a step.
-// A peak in any frame a step touches still shows on that step.
+// Store suite for the playhead hqptuner/static/store/meter/loop.js publishes on hqptuner/static/store/meter/playhead.js:
+// where the meters stand in playback, ms, null while the loop is idle. The daemon sends feed events in bursts; the
+// playhead moves on the wall time between paints, so a burst arriving at once is shown at its own positions rather than
+// in a rush. Within a run it never steps backward, and a break in the feed's stamps starts it again where the break
+// does.
 //
-// Feed frames arrive through openMeterFeed() on the EventSource fake (tests/js/support/eventsource.js), as the payloads
-// /api/meter/feed sends; animation frames through the fake Clock of tests/js/support/clock.js, which runs one every
-// 16 ms, so the loop steps every 32 ms. Every case runs at a 0.1 s offset and no reported output delay, and sends one
-// burst of four 25 ms feed frames at once, exactly the delay deep, so the first
-// step after it starts the playhead at the burst's first frame and the rate trim has nothing to trim on that step.
-// The burst is quiet but for its second frame. A step's shown audio is read off the scene's trace columns before
-// smoothing, one flat level across the band for frames whose bins are flat.
+// Feed events arrive through openMeterFeed() on the EventSource fake (tests/js/support/eventsource.js), as the payloads
+// /api/meter/feed sends, in bursts of five; animation frames through the fake Clock of tests/js/support/clock.js, which
+// runs one every 16 ms, so the loop paints on every second one. Every case runs at a 0.1 s offset and no reported output
+// delay. Event lengths are taken in turn from LENGTHS_N, so they span the measured range and change from one event to
+// the next. The playhead is read by a painter on every paint, after the loop has moved it.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/loop-playhead.test.js
 
@@ -18,72 +16,87 @@ import test, { afterEach, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { onMeterPaint, startMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
+import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { BEFORE_A_GEOMETRY_44K, MONO_BINS, RATE_44K, follow, geometry, play } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { near } from "../../support/near.js";
 import { fakeClock } from "../../support/clock.js";
 
-/** @typedef {import("../../../../hqptuner/static/store/meter/loop.js").MeterScene} MeterScene */
-
-//: One step: the fake clock runs an animation frame every 16 ms, and the loop steps on every second one.
-const STEP_MS = 32;
-//: Long enough after a painter registers for the loop to have stepped on the fresh geometry.
-const SETTLE_MS = 2 * STEP_MS;
-const BINS = 8;
+//: One paint: the fake clock runs an animation frame every 16 ms, and the loop paints on every second one.
+const PAINT_MS = 32;
+//: Long enough after a painter registers for the loop to have painted on the fresh geometry.
+const SETTLE_MS = 2 * PAINT_MS;
 //: The offset the meters run behind the feed, s.
 const OFFSET_S = 0.1;
-//: Each feed frame's frame time, ms: four of them hold the 0.1 s delay.
-const FRAME_MS = 25;
-//: The quiet frames' bin byte and peak, and the loud frame's: bin dB = -byte * 0.5.
-const QUIET_BYTE = 120;
-const QUIET_PEAK = -50;
-const LOUD_BYTE = 20;
-const LOUD_PEAK = -6;
-//: Tolerance on a shown level, dB.
-const DB_EPS = 0.01;
+//: Event lengths, samples at RATE_44K, taken in turn: 22.7, 17.3, 19.3 and 23.1 ms.
+const LENGTHS_N = [1000, 765, 850, 1020];
+//: Events in one burst, as the daemon sends them.
+const BURST = 5;
+//: Paints in each of the two windows the equal-motion case compares.
+const WINDOW_PAINTS = 5;
+//: How far the playhead's advance over one window may differ from its advance over another of the same wall time, as a
+//: share of it: room for a slow clock trim, far less than one event a window.
+const SAME_SHARE = 0.05;
 
 const { clock, advance } = fakeClock();
 
-/**
- * Every bin of one channel at step `byte`, two bytes a bin with the low one first.
- *
- * @param {number} byte
- */
-const bins = (byte) => btoa(String.fromCharCode(...new Array(BINS).fill([byte, 0]).flat()));
+const PLAYING = { status: { state: "2" } };
+const STOPPED = { status: { state: "0" } };
 
-/** Send the burst at once: four 25 ms feed frames, quiet but for the second. */
-function burst() {
-  for (const loud of [false, true, false, false]) {
-    const byte = loud ? LOUD_BYTE : QUIET_BYTE;
-    const peak = loud ? LOUD_PEAK : QUIET_PEAK;
-    lastStream()?.emit("frame", { channels: [{ peak, rms: peak - 6, bins: bins(byte) }], ms: FRAME_MS });
+/** How many events `burst` has sent this case: the next one's length is LENGTHS_N's at this count. */
+let sent = 0;
+
+/**
+ * Send `bursts` bursts of BURST events at once, each contiguous with the one before it.
+ *
+ * @param {number} bursts
+ */
+function burst(bursts) {
+  for (let k = 0; k < bursts * BURST; k++) {
+    follow([{ peak: -10, rms: -16, bins: MONO_BINS }], LENGTHS_N[sent % LENGTHS_N.length] ?? NaN);
+    sent += 1;
   }
 }
 
 /**
- * The scenes `n` steps after the burst paint.
+ * Run `paints` paints and return the playhead each one left, oldest first.
  *
- * @param {number} n
- * @returns {MeterScene[]}
+ * @param {number} paints
+ * @returns {Array<number | null>}
  */
-function afterBurst(n) {
-  burst();
-  advance(n * STEP_MS);
-  return scenes.slice(-n);
+function run(paints) {
+  const from = seen.length;
+  advance(paints * PAINT_MS);
+  return seen.slice(from);
 }
 
 /**
- * The flat level a scene's trace columns show before smoothing, dBFS.
+ * How far the playhead moved across `paints` paints, playback ms, from where the last paint before them left it.
  *
- * @param {MeterScene | undefined} scene
+ * @param {number} paints
  */
-const shown = (scene) => scene?.raw?.[0] ?? NaN;
+function moved(paints) {
+  const was = seen.at(-1) ?? NaN;
+  return (run(paints).at(-1) ?? NaN) - was;
+}
 
-/** @type {MeterScene[]} */
-let scenes = [];
+/**
+ * [ok, message] for one assert.ok: whether every reading is a number at or after the one before it.
+ *
+ * @param {Array<number | null>} readings
+ * @returns {[boolean, string]}
+ */
+const forward = (readings) => [
+  readings.every((v, i) => typeof v === "number" && (i === 0 || v >= (readings[i - 1] ?? Infinity))),
+  `expected a playhead that only moves forward, got ${readings.join(", ")}`,
+];
+
+/** @type {Array<number | null>} */
+let seen = [];
 let unpaint = () => {};
 
 before(() => {
@@ -93,31 +106,50 @@ before(() => {
 beforeEach(() => {
   useStorage();
   setSpectrumOffset(OFFSET_S);
-  engineStatus.value = { status: { state: "2" } };
+  engineStatus.value = { ...PLAYING };
   useEventSource();
   openMeterFeed(clock);
-  lastStream()?.emit("geometry", { nyquist: 48000, channels: 1, bins: BINS });
-  unpaint = onMeterPaint((scene) => scenes.push(scene));
+  lastStream()?.emit("geometry", geometry(RATE_44K));
+  sent = 0;
+  unpaint = onMeterPaint(() => seen.push(playhead.value));
   advance(SETTLE_MS);
-  scenes = [];
+  seen = [];
 });
 
 afterEach(() => {
   unpaint();
 });
 
-// The first step crosses the first quiet frame whole and the first 7 ms of the loud one: 7/32 of the loud frame's power,
-// -10 dB, beside 25/32 of -60 dB, is -16.60 dB.
-test("test_the_first_step_after_a_burst_shows_the_part_of_a_loud_frame_it_crossed", () => {
-  assert.ok(...near(shown(afterBurst(1)[0]), -16.6, DB_EPS));
+test("test_a_burst_arriving_mid_window_moves_the_playhead_no_further_than_a_window_without_one", () => {
+  burst(4);
+  run(1);
+  const quiet = moved(WINDOW_PAINTS);
+  burst(1);
+  const bursting = moved(WINDOW_PAINTS);
+  assert.ok(...near(bursting / quiet, 1, SAME_SHARE));
 });
 
-// The second step crosses the loud frame's last 18 ms and the next 14 ms of the quiet frame after it, the trim taking
-// a hair off the step: 18/32 of the loud frame's power, -12.50 dB.
-test("test_the_next_step_shows_the_rest_of_the_loud_frame_it_crossed_beside_the_quiet_one_after_it", () => {
-  assert.ok(...near(shown(afterBurst(2)[1]), -12.498, DB_EPS));
+test("test_the_playhead_never_steps_backward_through_bursts_and_an_underrun", () => {
+  burst(2);
+  const readings = run(3);
+  for (let k = 0; k < 6; k++) {
+    burst(1);
+    readings.push(...run(4));
+  }
+  assert.ok(...forward(readings));
 });
 
-test("test_a_step_that_crosses_only_part_of_a_loud_frame_shows_its_peak", () => {
-  assert.equal(afterBurst(1)[0]?.levels[0]?.peak, LOUD_PEAK);
+test("test_a_break_back_to_an_earlier_position_takes_the_playhead_back", () => {
+  burst(3);
+  const earlier = run(4).at(-1) ?? NaN;
+  play(BEFORE_A_GEOMETRY_44K);
+  const after = run(1).at(-1) ?? NaN;
+  assert.ok(after < earlier, `expected the playhead back from ${earlier}, got ${after}`);
+});
+
+test("test_the_playhead_reads_a_position_while_playing_and_null_once_playback_stops", () => {
+  burst(3);
+  const playing = run(4).at(-1);
+  engineStatus.value = { ...STOPPED };
+  assert.deepEqual([typeof playing, playhead.value], ["number", null]);
 });

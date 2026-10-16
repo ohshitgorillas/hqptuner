@@ -14,7 +14,7 @@ import { filterFacets } from "../narrow/facets.js";
 // brighter. A zero reading stays dark.
 const FLOOR = 0.6;
 
-// The newest bin's reading. An empty history is dark rather than absent: the
+// The newest bin's reading: its events over the playback ms it observed. An empty history is dark rather than absent: the
 // preference is on, so the lamp is on the panel, unlit, which is the state that
 // tells a reader it works and is quiet.
 const peak = computed(() => {

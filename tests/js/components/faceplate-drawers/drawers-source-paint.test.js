@@ -1,9 +1,10 @@
 // Mounted suite for useMeterPaint in hqptuner/static/components/faceplate/drawers/source/paint.js: what the Source
-// meter's two canvases are painted with as the history grows. The first paint covers the spectrogram's full width; a
-// close that moves the window by whole columns moves the canvas's pixels left by that many and paints only the new
-// columns and the seam column before them; a close too short to move a column paints nothing; a change of range
-// repaints the full width; and a spectrogram close repaints the apodizing strip, whose right edge moves on with the
-// spectrogram's. While the Source drawer is closed neither canvas is painted, and reopening it paints the
+// meter's two canvases are painted with as the history grows and the playhead moves. The first paint covers the
+// spectrogram's full width; a move of the playhead moves the canvas's pixels left as far for the playback it covers
+// however that move is split, and paints only the columns it uncovered and the seam column before them; a slice
+// closing while the playhead stands still scrolls nothing; a change of range repaints the full width; and the apodizing
+// strip repaints when the playhead moves and never when a slice closes. While the Source drawer is closed neither
+// canvas is painted however far the playhead moves, and reopening it paints the
 // spectrogram's full width once. A change of the spectrogram's span repaints the full width, and at a half span a source
 // whose content all sits above three quarters of its band paints the newest column one flat color, since none of that
 // content is in view.
@@ -15,7 +16,9 @@
 // and how far it moves the pixels). Frames arrive at the wire, through the EventSource fake and `openMeterFeed`, on a
 // clock that never moves, and each is handed to the history as the meter loop hands its frames out. The apodizing
 // history and the spectrogram's clearing rule are registered once for the file; a case that needs a bin under the
-// strip polls for one through the poll seam (tests/js/support/apodpolls.js).
+// strip polls for one through the poll seam (tests/js/support/apodpolls.js). The playhead is the exported signal the
+// meter loop publishes, written directly by the cases that stand or move it: no loop runs, so nothing else moves it,
+// and each such case sets it back to null when it ends.
 //
 // The window is 60 s unless a case says otherwise, so one of the spectrogram's columns is 50 ms of frame time; at
 // 300 s a column is 250 ms. `getComputedStyle` answers no token, so the colors are paint.js's fallbacks; no case
@@ -47,12 +50,14 @@ import {
   setMeterRange,
 } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
+import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
 import * as sourceStore from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
+import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 
 /** @typedef {{ x: number, width: number }} Put */
 /** @typedef {{ self: boolean, offset: number }} Draw */
@@ -63,7 +68,9 @@ import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectro
  */
 
 const STRIP_WIDTH = 600;
-const BINS = "AQAGADwAWAI=";
+//: Feed frame lengths, samples at RATE_44K: 200 and 100 ms.
+const N_200_MS = 8820;
+const N_100_MS = 4410;
 
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST_RANGE = ""] = METER_RANGES;
@@ -140,12 +147,12 @@ function mount(spec, strip) {
 }
 
 /**
- * Send one feed frame covering `ms` of frame time.
+ * Send one feed frame `n` samples long, contiguous with the one before it.
  *
- * @param {number} ms
+ * @param {number} n
  */
-function frame(ms) {
-  lastStream()?.emit("frame", { channels: [{ peak: -3.1, rms: -9.4, bins: BINS }], ms });
+function frame(n) {
+  follow([{ peak: -3.1, rms: -9.4, bins: MONO_BINS }], n);
   toSpectrogram(takeMeterFrames());
 }
 
@@ -183,7 +190,7 @@ beforeEach(() => {
   useEventSource();
   engineStatus.value = { status: { state: "2" }, metering: true, metadata: { samplerate: "44100" } };
   openMeterFeed(fakeClock().clock);
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: 4 });
+  lastStream()?.emit("geometry", geometry(RATE_44K));
 });
 
 afterEach(() => {
@@ -196,39 +203,52 @@ test("test_the_first_paint_puts_a_full_width_image_at_the_left_edge", () => {
   assert.deepEqual(spec.puts, [{ x: 0, width: SPEC_SIZE.width }]);
 });
 
-test("test_a_close_moving_the_window_by_four_columns_shifts_the_canvas_left_by_four", () => {
+//: Where the playhead stands when a case mounts, playback ms: past the frames the cases send, so their slices are in
+//: the 60 s window ending there.
+const STANDING_MS = 1000;
+//: One move of the playhead, playback ms: not a whole number of the 60 s window's columns, so a move leaves a part
+//: column over.
+const MOVE_MS = 175;
+//: The column a scroll repaints before the ones it uncovered.
+const SEAM = 1;
+
+/**
+ * Stand the playhead at `ms` for the rest of case `t`, and set it back to null when the case ends.
+ *
+ * @param {{ after: (fn: () => void) => void }} t
+ * @param {number} ms  playback, ms
+ */
+function standAt(t, ms) {
+  t.after(() => {
+    playhead.value = null;
+  });
+  playhead.value = ms;
+}
+
+test("test_two_playhead_moves_scroll_the_canvas_as_far_as_one_move_over_the_same_playback", (t) => {
+  standAt(t, STANDING_MS);
   const { spec } = mounted();
-  frame(200);
-  frame(100);
-  assert.deepEqual(spec.draws[0], { self: true, offset: -4 });
+  playhead.value = STANDING_MS + MOVE_MS;
+  playhead.value = STANDING_MS + 2 * MOVE_MS;
+  playhead.value = STANDING_MS + 4 * MOVE_MS;
+  const [first, second, both] = spec.draws.map((d) => d.offset);
+  assert.equal((first ?? NaN) + (second ?? NaN), both);
 });
 
-test("test_a_close_moving_the_window_by_two_columns_shifts_the_canvas_left_by_two", () => {
+test("test_a_slice_closing_while_the_playhead_stands_still_does_not_scroll_the_canvas", (t) => {
+  standAt(t, STANDING_MS);
   const { spec } = mounted();
-  frame(200);
-  frame(100);
-  assert.deepEqual(spec.draws[1], { self: true, offset: -2 });
+  frame(N_200_MS);
+  frame(N_100_MS);
+  assert.deepEqual(spec.draws, []);
 });
 
-test("test_a_close_moving_the_window_by_four_columns_puts_only_those_columns_and_the_seam_before_them", () => {
+test("test_a_playhead_move_puts_only_the_columns_its_scroll_uncovered_and_the_seam_before_them", (t) => {
+  standAt(t, STANDING_MS);
   const { spec } = mounted();
-  frame(200);
-  frame(100);
-  assert.deepEqual(spec.puts[1], { x: SPEC_SIZE.width - 5, width: 5 });
-});
-
-test("test_a_close_moving_the_window_by_two_columns_puts_only_those_columns_and_the_seam_before_them", () => {
-  const { spec } = mounted();
-  frame(200);
-  frame(100);
-  assert.deepEqual(spec.puts[2], { x: SPEC_SIZE.width - 3, width: 3 });
-});
-
-test("test_closes_too_short_to_move_a_column_put_nothing_after_the_first_paint", () => {
-  setApodWindow("300");
-  const { spec } = mounted();
-  [50, 50, 50, 50].forEach(frame);
-  assert.deepEqual(spec.puts, [{ x: 0, width: SPEC_SIZE.width }]);
+  playhead.value = STANDING_MS + MOVE_MS;
+  const uncovered = -(spec.draws[0]?.offset ?? NaN);
+  assert.deepEqual(spec.puts[1], { x: SPEC_SIZE.width - uncovered - SEAM, width: uncovered + SEAM });
 });
 
 test("test_a_change_of_range_repaints_the_full_width", () => {
@@ -241,42 +261,47 @@ test("test_the_first_paint_puts_the_strip_at_full_width", () => {
   poll();
   poll();
   const { strip } = mounted();
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   assert.deepEqual(strip.puts[0], { x: 0, width: STRIP_WIDTH });
 });
 
-test("test_a_spectrogram_close_repaints_the_strip", () => {
+test("test_a_playhead_move_repaints_the_strip", (t) => {
   poll();
   poll();
+  standAt(t, STANDING_MS);
   const { strip } = mounted();
-  frame(200);
-  frame(100);
+  playhead.value = STANDING_MS + MOVE_MS;
   assert.deepEqual(strip.puts[1], { x: 0, width: STRIP_WIDTH });
 });
 
-test("test_a_second_spectrogram_close_repaints_the_strip_again", () => {
+test("test_a_slice_closing_while_the_playhead_stands_still_leaves_the_strip_as_painted", (t) => {
   poll();
   poll();
+  standAt(t, STANDING_MS);
   const { strip } = mounted();
-  frame(200);
-  frame(100);
-  assert.deepEqual(strip.puts[2], { x: 0, width: STRIP_WIDTH });
+  frame(N_200_MS);
+  frame(N_100_MS);
+  assert.deepEqual(strip.puts, [{ x: 0, width: STRIP_WIDTH }]);
 });
 
-test("test_closes_that_would_move_whole_columns_put_nothing_while_the_drawer_is_closed", () => {
+//: A move of the playhead four of the 60 s window's columns long: playback ms.
+const WHOLE_COLUMNS_MS = 200;
+
+test("test_playhead_moves_that_would_scroll_whole_columns_put_nothing_while_the_drawer_is_closed", (t) => {
   openStage.value = null;
+  standAt(t, STANDING_MS);
   const { spec } = mounted();
-  frame(200);
-  frame(100);
+  playhead.value = STANDING_MS + WHOLE_COLUMNS_MS;
+  playhead.value = STANDING_MS + 2 * WHOLE_COLUMNS_MS;
   assert.deepEqual(spec.puts, []);
 });
 
 test("test_reopening_the_drawer_after_closes_puts_one_full_width_image", () => {
   const { spec } = mounted();
   openStage.value = null;
-  frame(200);
-  frame(100);
+  frame(N_200_MS);
+  frame(N_100_MS);
   openStage.value = "source";
   assert.deepEqual(spec.puts[1], { x: 0, width: SPEC_SIZE.width });
 });
@@ -319,15 +344,20 @@ function colorsDown(img, x) {
   return seen.size;
 }
 
-test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", () => {
-  lastStream()?.emit("geometry", { nyquist: 22050, channels: 1, bins: HIGH_ONLY_BINS });
+//: Where the first of that case's two 200 ms frames ends, playback ms, the stream's first frame starting at 0: with the
+//: playhead there the newest columns hold that frame's slice, which the second frame has closed.
+const FIRST_HIGH_ONLY_END_MS = 200;
+
+test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_newest_column_one_flat_color", (t) => {
+  lastStream()?.emit("geometry", geometry(RATE_44K, 1, HIGH_ONLY_BINS));
   newTrack();
   poll();
-  for (const ms of [200, 200]) {
-    lastStream()?.emit("frame", { channels: [{ peak: -10, rms: -20, bins: highOnly() }], ms });
+  for (const n of [N_200_MS, N_200_MS]) {
+    follow([{ peak: -10, rms: -20, bins: highOnly() }], n);
     toSpectrogram(takeMeterFrames());
   }
   setSpan(HALF);
+  standAt(t, FIRST_HIGH_ONLY_END_MS);
   const { spec } = mounted();
   const [first] = spec.images;
   assert.equal(first ? colorsDown(first, first.width - 2) : NaN, 1);

@@ -5,17 +5,35 @@
 // scale.
 //
 // A slice is a column of rows from 0 Hz to the Nyquist it was measured at, one
-// byte a row at ROW_STEP_DB below full scale (store/meter/spectrogram.js). A
-// pixel blends the two nearest rows in frequency and the two nearest slices in
-// time, so the field reads as continuous rather than as a grid of rows and
-// slices. An interval with no feed frame is left unpainted.
+// byte a row at ROW_STEP_DB below full scale (store/meter/spectrogram.js). Each
+// stands where its own stamp says, against the window's right edge, the
+// playhead (docs/spec/timing.md, rules 1 and 4). A pixel blends the two nearest
+// rows in frequency and the two nearest slices in time, so the field reads as
+// continuous rather than as a grid of rows and slices. Playback no slice covers
+// is left unpainted, and no column blends across it.
+//
+// A paint reads the history by index and allocates nothing whose size grows
+// with it (rule 9): the slices it draws are found by binary search, and walked
+// once from left to right.
 
 import { clamp } from "./coerce.js";
 
 /**
- * @typedef {{ ms: number, slices: Uint8Array[], nyquist: number }} Cell
- *   One visible column in one channel; `slices` is empty where the interval
- *   carried no frame.
+ * @typedef {{ at: number, ms: number, nyquist: number, channels: Uint8Array[], sum: Uint8Array }} Cell
+ *   One slice of the history: it starts at `at` and lasts `ms`, both playback,
+ *   ms, measured at `nyquist` Hz, with its rows per channel and summed across
+ *   channels.
+ */
+/**
+ * @typedef {object} RasterView
+ * @property {ArrayLike<Cell>} slices  oldest first; `slices[lo..hi)` are drawn
+ * @property {number} lo
+ * @property {number} hi
+ * @property {string} pick  "sum", or a channel's index; a slice without that channel draws its sum
+ * @property {number} edge  playback, ms: the window's right edge
+ * @property {number} span  playback, ms: the window's width
+ * @property {number} range  dB from the floor to full scale
+ * @property {number} top  Hz: the frequency at the top of the view
  */
 /** @typedef {[number, number, number]} Triple */
 
@@ -116,53 +134,65 @@ function rowTable(nyquist, rows, freqs) {
 }
 
 /**
- * @typedef {{ start: number, end: number, levels: Uint8Array | null, rows: Float32Array | null }} Span
- *   One slice laid on the time axis, in milliseconds from the window's left
- *   edge; `levels` is null across an interval that carried no frame.
+ * @typedef {object} Reader
+ *   What one raster call reads the drawn slices with: the view, the pixel rows'
+ *   frequencies, and the row tables built so far, one per Nyquist and row
+ *   count, so slices measured alike share one and blend across their seams.
+ * @property {RasterView} view
+ * @property {number[]} freqs
+ * @property {{ nyquist: number, rows: number, table: Float32Array }[]} tables
  */
 
 /**
- * The visible slices laid out along the window, oldest first: each column
- * right-aligned to its bin's slot, its slot divided evenly among its slices.
- * Only the cells that reach past `after` ms are laid out, and the one before
- * them, whose last slice the first of them blends toward.
+ * One slice's rows in the picked channel: the sum, or that channel's rows,
+ * falling back to the sum where the slice has no such channel.
  *
- * @param {Cell[]} cells
- * @param {number} span
- * @param {number[]} freqs
- * @param {number} after
- * @returns {Span[]}
+ * @param {Cell} slice
+ * @param {string} pick
+ * @returns {Uint8Array}
  */
-function layoutSlices(cells, span, freqs, after) {
-  /** @type {Span[]} */
-  const out = [];
-  // One row table per Nyquist and row count, so slices measured alike share it
-  // and blend across the columns' seams.
-  /** @type {Map<string, Float32Array>} */
-  const tables = new Map();
-  let at = span - cells.reduce((sum, c) => sum + c.ms, 0);
-  const starts = cells.map((cell) => {
-    const start = at;
-    at += cell.ms;
-    return start;
-  });
-  const reach = cells.findIndex((cell, k) => starts[k] + cell.ms > after);
-  const first = reach < 0 ? cells.length : Math.max(0, reach - 1);
-  cells.slice(first).forEach((cell, k) => {
-    const start = starts[first + k];
-    if (!cell.slices.length) {
-      out.push({ start, end: start + cell.ms, levels: null, rows: null });
-      return;
-    }
-    const n = cell.slices[0].length;
-    const key = `${cell.nyquist}:${n}`;
-    const rows = tables.get(key) || rowTable(cell.nyquist, n, freqs);
-    tables.set(key, rows);
-    const w = cell.ms / cell.slices.length;
-    cell.slices.forEach((levels, j) => out.push({ start: start + j * w, end: start + (j + 1) * w, levels, rows }));
-  });
-  return out;
+const levelsOf = (slice, pick) => (pick === "sum" ? slice.sum : slice.channels[Number(pick)] || slice.sum);
+
+/**
+ * The row table for a slice measured at `nyquist` with `rows` rows, built the
+ * first time a raster call meets that layout.
+ *
+ * @param {Reader} reader
+ * @param {number} nyquist
+ * @param {number} rows
+ * @returns {Float32Array}
+ */
+function tableFor({ freqs, tables }, nyquist, rows) {
+  for (const t of tables) if (t.nyquist === nyquist && t.rows === rows) return t.table;
+  const table = rowTable(nyquist, rows, freqs);
+  tables.push({ nyquist, rows, table });
+  return table;
 }
+
+/** Where a slice ends, playback, ms. @param {Cell} s */
+const endOf = (s) => s.at + s.ms;
+
+/**
+ * The first index in `[lo, hi)` whose slice ends after `t`, or `hi` when none
+ * does. Slices lie end to end in stamp order, so their ends rise with index.
+ *
+ * @param {RasterView} view
+ * @param {number} t  playback, ms
+ */
+function firstEndingAfter({ slices, lo, hi }, t) {
+  let a = lo;
+  let b = hi;
+  while (a < b) {
+    const mid = (a + b) >>> 1;
+    if (endOf(/** @type {Cell} */ (slices[mid])) > t) b = mid;
+    else a = mid + 1;
+  }
+  return a;
+}
+
+// How far apart two stamps may lie and still meet, playback, ms: the rounding
+// of a stamp converted from samples, far below a pixel column.
+const SEAM_MS = 1e-3;
 
 /**
  * A slice's level in dBFS at a fractional row, blended between the two nearest
@@ -178,49 +208,90 @@ function levelAt(levels, pos) {
 }
 
 /**
- * The slice a pixel column blends toward: the neighbor on the side of the
- * slice's center the pixel falls, and how far toward it, from 0 at the center
- * to 0.5 at the shared edge. No blend across an empty interval or a change of
- * band layout.
- *
- * @param {Span[]} slices
- * @param {number} i
- * @param {number} t
- * @returns {{ other: Span | null, w: number }}
+ * @typedef {object} Blend
+ *   One pixel column's slice: its rows in the picked channel and its row table,
+ *   and the neighbor's rows it blends toward, `w` of the way, or null.
+ * @property {Uint8Array} levels
+ * @property {Float32Array} rows
+ * @property {Uint8Array | null} toward
+ * @property {number} w
  */
-function neighbor(slices, i, t) {
-  const s = slices[i];
-  const mid = (s.start + s.end) / 2;
-  const other = t < mid ? slices[i - 1] : slices[i + 1];
-  if (!other || !other.levels || other.rows !== s.rows) return { other: null, w: 0 };
-  const omid = (other.start + other.end) / 2;
-  return { other, w: (t - mid) / (omid - mid) };
+
+/**
+ * Set `blend` to slice `i` at playback `t` and the slice it blends toward: the
+ * neighbor on the side of the slice's center `t` falls, and how far toward it,
+ * from 0 at the center to 0.5 at the shared edge. No blend toward a slice not
+ * drawn or not yet reached by the edge, across playback no slice covers, or
+ * across a change of band layout.
+ *
+ * @param {Reader} reader
+ * @param {number} i
+ * @param {number} t  playback, ms
+ * @param {Blend} blend
+ */
+function blendAt(reader, i, t, blend) {
+  const { slices, lo, hi, pick, edge } = reader.view;
+  const s = /** @type {Cell} */ (slices[i]);
+  blend.levels = levelsOf(s, pick);
+  blend.rows = tableFor(reader, s.nyquist, blend.levels.length);
+  blend.toward = null;
+  const mid = s.at + s.ms / 2;
+  const j = t < mid ? i - 1 : i + 1;
+  const o = j >= lo && j < hi ? /** @type {Cell} */ (slices[j]) : null;
+  if (!o || o.at >= edge || Math.abs(j < i ? s.at - endOf(o) : o.at - endOf(s)) > SEAM_MS) return;
+  const toward = levelsOf(o, pick);
+  if (tableFor(reader, o.nyquist, toward.length) !== blend.rows) return;
+  blend.toward = toward;
+  blend.w = (t - mid) / (o.at + o.ms / 2 - mid);
 }
 
 /**
  * The spectrogram's pixels for one view from pixel column `from` to the right
  * edge, RGBA row by row from the top; a pixel no slice covers stays transparent
- * black. Column x of the result is column `from + x` of the whole view.
+ * black. Column x of the result is column `from + x` of the whole view, whose
+ * left edge is playback `edge - span`.
  *
  * @param {Triple[]} ramp floor first, as `rampFrom` returns it
- * @param {{ cells: Cell[], span: number, range: number, top: number }} view
+ * @param {RasterView} view
  * @param {number} [from]
  * @returns {{ width: number, height: number, data: Uint8ClampedArray }}
  */
-export function rasterize(ramp, { cells, span, range, top }, from = 0) {
+export function rasterize(ramp, view, from = 0) {
+  const { slices, hi, edge, span, range, top } = view;
   const width = W - from;
   const data = new Uint8ClampedArray(width * H * 4);
-  const slices = layoutSlices(cells, span, rowFreqs(top), ((from + 0.5) / W) * span);
+  /** @type {Reader} */
+  const reader = { view, freqs: rowFreqs(top), tables: [] };
+  /** @type {Blend} */
+  const blend = { levels: new Uint8Array(0), rows: new Float32Array(0), toward: null, w: 0 };
   /** @param {number} db */
   const color = (db) => ramp[rampIndex(db, range)];
-  let i = 0;
-  for (let x = from; x < W; x++) {
-    const t = ((x + 0.5) / W) * span;
-    while (i < slices.length - 1 && t >= slices[i].end) i++;
-    const s = slices[i];
-    if (s && t >= s.start) paintColumn({ data, width }, x - from, { s, ...neighbor(slices, i, t) }, color);
+  /** @param {number} x @returns {number} playback, ms, at the center of pixel column x */
+  const timeAt = (x) => edge - span + ((x + 0.5) * span) / W;
+  let i = firstEndingAfter(view, timeAt(from));
+  for (let x = from; x < W && i < hi; x++) {
+    const t = timeAt(x);
+    i = nextEndingAfter(view, i, t);
+    if (i < hi && t >= /** @type {Cell} */ (slices[i]).at) {
+      blendAt(reader, i, t, blend);
+      paintColumn({ data, width }, x - from, blend, color);
+    }
   }
   return { width, height: H, data };
+}
+
+/**
+ * The first index from `i` on, below `hi`, whose slice ends after `t`, or `hi`
+ * when none does.
+ *
+ * @param {RasterView} view
+ * @param {number} i
+ * @param {number} t  playback, ms
+ */
+function nextEndingAfter({ slices, hi }, i, t) {
+  let k = i;
+  while (k < hi && endOf(/** @type {Cell} */ (slices[k])) <= t) k++;
+  return k;
 }
 
 /**
@@ -234,18 +305,19 @@ export function rasterize(ramp, { cells, span, range, top }, from = 0) {
 const FULL = { full: true, shift: 0, from: 0, carry: 0 };
 
 /**
- * What a view painted at `prev` needs to show `next`: the whole raster again
- * when anything but the history's end moved (the key names it), or when the
- * history cleared or moved a whole width; else the columns the new playback
- * pushes in from the right, and the seam column before them.
+ * What a view painted with its right edge at `prev` needs to show `next`: the
+ * whole raster again when anything but the edge changed (the key names it),
+ * when the edge went backwards, or when it moved a whole width; else the
+ * columns the edge's movement pushes in from the right, and the seam column
+ * before them.
  *
- * @param {{ key: string, end: number, carry: number } | null} prev  end, ms
- * @param {{ key: string, end: number, span: number }} next  end and span, ms
+ * @param {{ key: string, edge: number, carry: number } | null} prev  edge, playback, ms
+ * @param {{ key: string, edge: number, span: number }} next  edge and span, playback, ms
  * @returns {ScrollPlan}
  */
 export function scrollPlan(prev, next) {
-  if (!prev || prev.key !== next.key || next.end < prev.end) return FULL;
-  const px = ((next.end - prev.end) * W) / next.span + prev.carry;
+  if (!prev || prev.key !== next.key || next.edge < prev.edge) return FULL;
+  const px = ((next.edge - prev.edge) * W) / next.span + prev.carry;
   const shift = Math.floor(px);
   if (shift >= W) return FULL;
   return { full: false, shift, from: Math.max(0, W - shift - 1), carry: px - shift };
@@ -260,13 +332,10 @@ const rampIndex = (db, range) => Math.round(clamp((db + range) / range, 0, 1) * 
  *
  * @param {{ data: Uint8ClampedArray, width: number }} img
  * @param {number} x
- * @param {{ s: Span, other: Span | null, w: number }} blend
+ * @param {Blend} blend
  * @param {(db: number) => Triple} color
  */
-function paintColumn({ data, width }, x, { s, other, w }, color) {
-  const { levels, rows } = s;
-  if (!levels || !rows) return;
-  const toward = other ? other.levels : null;
+function paintColumn({ data, width }, x, { levels, rows, toward, w }, color) {
   for (let y = 0; y < H; y++) {
     const pos = rows[y];
     if (pos < 0) continue;
