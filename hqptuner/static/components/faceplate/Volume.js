@@ -7,8 +7,7 @@
 
 import { useEffect, useRef } from "preact/hooks";
 import { html, userEdit, wheelGuard } from "../../lib/dom.js";
-import { PLATFORM } from "../../lib/clock.js";
-import { holdRepeat } from "../../model/shell/timing.js";
+import { PLATFORM, holdRepeat } from "../../lib/clock.js";
 import { percentOf } from "../../model/gauges/output.js";
 import { dbText } from "../../model/gauges/volume.js";
 import { minus } from "../../model/shell/format.js";

@@ -22,8 +22,7 @@
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { failText } from "../../lib/errtext.js";
-import { PLATFORM } from "../../lib/clock.js";
-import { quietWindow } from "../../model/shell/timing.js";
+import { PLATFORM, quietWindow } from "../../lib/clock.js";
 
 // How long the typist has to pause before the queue drains on its own.
 const QUIET_MS = 800;

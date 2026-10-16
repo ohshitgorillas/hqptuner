@@ -15,8 +15,7 @@ import { runningValue } from "../resolve.js";
 import { setVolume } from "../actions.js";
 import { directSdm, fixedVolumeMode, isoLevel } from "../schema/gray.js";
 import { truthy, wireNum } from "../../lib/coerce.js";
-import { PLATFORM } from "../../lib/clock.js";
-import { revertAfter } from "../../model/shell/timing.js";
+import { PLATFORM, revertAfter } from "../../lib/clock.js";
 import { dbText, directPin, fixedPin, loudSpan, volumeView } from "../../model/gauges/volume.js";
 
 /** @typedef {import("../../model/gauges/volume.js").Grid} Grid */

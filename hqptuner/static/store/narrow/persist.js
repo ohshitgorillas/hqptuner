@@ -11,9 +11,8 @@
 import { signal, effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { failText } from "../../lib/errtext.js";
-import { PLATFORM } from "../../lib/clock.js";
+import { PLATFORM, quietWindow } from "../../lib/clock.js";
 import { sameJson } from "../../lib/samejson.js";
-import { quietWindow } from "../../model/shell/timing.js";
 import {
   nGenre,
   nQuality,

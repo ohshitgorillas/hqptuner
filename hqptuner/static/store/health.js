@@ -10,9 +10,8 @@
 import { signal, computed, effect } from "@preact/signals";
 import { engineStatus, PLAYING } from "./signals.js";
 import { filterFacets } from "./narrow/facets.js";
-import { PLATFORM } from "../lib/clock.js";
+import { PLATFORM, quietWindow } from "../lib/clock.js";
 import { num } from "../lib/coerce.js";
-import { quietWindow } from "../model/shell/timing.js";
 
 /** @typedef {import("../lib/clock.js").Clock} Clock */
 /** @typedef {ReturnType<typeof quietWindow>} Wait */
