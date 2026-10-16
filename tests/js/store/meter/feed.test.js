@@ -4,8 +4,10 @@
 //
 // Playback time (docs/spec/timing.md): every queued frame carries `at`, where it starts in playback, and `ms`, how long
 // it lasts, both in ms, read from its event's `at` and `n` samples at the geometry's rate, and `break`, whether its
-// event begins a break: its `at` is not the previous event's `at + n`, tested in whole samples. The queue's depth, for
-// its cap, is the playback between its first and last frames' stamps.
+// event begins a break: its `at` is not the previous event's `at + n`, tested in whole samples, or it is the first
+// frame after a `geometry` event or the first on a newly opened feed, since the server's `at` keeps counting across a
+// change of rate and counts nothing while no page is attached. The queue's depth, for its cap, is the playback between
+// its first and last frames' stamps.
 //
 // Metering and playback reach the store at the wire, through fresh /api/status objects on engineStatus, written by the
 // poll seam (tests/js/support/apodpolls.js); the feed is the EventSource fake (tests/js/support/eventsource.js), and the
@@ -38,8 +40,11 @@ import { fakeClock } from "../../support/clock.js";
 import { near } from "../../support/near.js";
 import {
   AN_HOUR_ON_44K,
+  BEFORE_A_GEOMETRY_44K,
   CONTIGUOUS_44K,
   DROPPED_44K,
+  FOLLOWING_ON_176K,
+  FOLLOWING_ON_44K,
   ONE_SAMPLE_GAP_176K,
   ONE_SAMPLE_OVERLAP_176K,
   ONE_SECOND_APART_176K,
@@ -213,6 +218,41 @@ test("test_the_frame_after_a_geometry_change_that_dropped_a_partial_stride_begin
   lastStream()?.emit("geometry", geometry(RATE_44K, 2));
   play(DROPPED_44K.slice(DROPPED_ROW), 2);
   assert.equal(take()[DROPPED_ROW]?.break, true);
+});
+
+test("test_the_first_frame_after_a_change_of_metering_rate_begins_a_break_even_when_its_at_follows_on", () => {
+  lastStream()?.emit("geometry", GEO);
+  play(BEFORE_A_GEOMETRY_44K);
+  lastStream()?.emit("geometry", GEO_176K);
+  play(FOLLOWING_ON_176K);
+  assert.equal(take()[BEFORE_A_GEOMETRY_44K.length]?.break, true);
+});
+
+test("test_the_first_frame_after_a_geometry_event_at_the_same_rate_begins_a_break_even_when_its_at_follows_on", () => {
+  lastStream()?.emit("geometry", GEO);
+  play(BEFORE_A_GEOMETRY_44K);
+  lastStream()?.emit("geometry", GEO);
+  play(FOLLOWING_ON_44K);
+  assert.equal(take()[BEFORE_A_GEOMETRY_44K.length]?.break, true);
+});
+
+test("test_no_frame_after_the_first_under_a_new_geometry_begins_a_break", () => {
+  lastStream()?.emit("geometry", GEO);
+  play(BEFORE_A_GEOMETRY_44K);
+  lastStream()?.emit("geometry", GEO_176K);
+  play(FOLLOWING_ON_176K);
+  assert.deepEqual(
+    take()
+      .slice(BEFORE_A_GEOMETRY_44K.length + 1)
+      .map((f) => f.break),
+    FOLLOWING_ON_176K.slice(1).map(() => false),
+  );
+});
+
+test("test_the_first_frame_on_a_new_feed_begins_a_break_even_when_its_at_follows_on_from_the_last_feed", () => {
+  feed(GEO, BEFORE_A_GEOMETRY_44K);
+  reconnect();
+  assert.equal(feed(GEO, FOLLOWING_ON_44K)[0]?.break, true);
 });
 
 test("test_an_event_starting_one_sample_late_begins_a_break", () => {

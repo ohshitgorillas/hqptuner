@@ -13,8 +13,11 @@
 // and `n`, the samples it covers. The store tests each event against the one
 // before it in samples, before any conversion: an event whose `at` is not the
 // previous `at + n` begins a break, and so does the first event of a newly
-// opened feed (docs/spec/timing.md, rule 3). It then converts both to ms at the
-// rate, once, so every queued frame carries `at` and `ms` in playback ms.
+// opened feed (docs/spec/timing.md, rule 3). So does the first event after any
+// `geometry` event, even when its `at` follows on: the sample count runs on
+// across a geometry change, so a count at one rate is not a time at another.
+// It then converts both to ms at the rate, once, so every queued frame carries
+// `at` and `ms` in playback ms.
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
@@ -73,19 +76,24 @@ let pending = [];
  * @type {{ at: number, n: number } | null}
  */
 let prev = null;
+/** Whether a `geometry` event has arrived since the last frame: the next frame begins a break. */
+let regeometried = false;
 
 const playing = () => Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
 
 /**
  * A wire frame with its bins decoded to dBFS and its stamp converted to playback ms at the geometry's rate, marked as
- * beginning a break when its `at` is not where the event before it ended, compared in whole samples.
+ * beginning a break when its `at` is not where the event before it ended, compared in whole samples, or when it is the
+ * first after a `geometry` event: the sample count runs on across a geometry change, so a count at one rate is not a
+ * time at another.
  *
  * @param {WireFrame} wire
  * @returns {MeterFrame}
  */
 function decode(wire) {
   const geo = meterGeometry.peek();
-  const brk = prev === null || wire.at !== prev.at + prev.n;
+  const brk = regeometried || prev === null || wire.at !== prev.at + prev.n;
+  regeometried = false;
   prev = { at: wire.at, n: wire.n };
   const msPerSample = geo ? MS_PER_S / geo.rate : NaN;
   return {
@@ -130,9 +138,11 @@ export function openMeterFeed(next = PLATFORM) {
   meterGeometry.value = null;
   pending = [];
   prev = null;
+  regeometried = false;
   const es = new EventSource(FEED);
   es.addEventListener("geometry", (e) => {
     meterGeometry.value = JSON.parse(e.data);
+    regeometried = true;
   });
   es.addEventListener("frame", (e) => {
     since = clock.now();

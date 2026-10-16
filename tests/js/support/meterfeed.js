@@ -111,6 +111,42 @@ export const AN_HOUR_ON_44K = [
   { at: 158760000, n: 765 },
 ];
 
+/**
+ * Three events at 44.1 kHz, each starting where the one before it ended: 22.7, 17.3 and 19.3 ms long. The last ends at
+ * sample 2615, where FOLLOWING_ON_44K and FOLLOWING_ON_176K start.
+ *
+ * @type {Stamp[]}
+ */
+export const BEFORE_A_GEOMETRY_44K = [
+  { at: 0, n: 1000 },
+  { at: 1000, n: 765 },
+  { at: 1765, n: 850 },
+];
+
+/**
+ * Three events at 44.1 kHz, the first starting at sample 2615, where BEFORE_A_GEOMETRY_44K ended, and each after it
+ * where the one before it ended: 23.1, 17.3 and 22.7 ms long.
+ *
+ * @type {Stamp[]}
+ */
+export const FOLLOWING_ON_44K = [
+  { at: 2615, n: 1020 },
+  { at: 3635, n: 765 },
+  { at: 4400, n: 1000 },
+];
+
+/**
+ * Three events at 176.4 kHz, the first starting at sample 2615, where BEFORE_A_GEOMETRY_44K ended, and each after it
+ * where the one before it ended: 17.4, 23.1 and 20.4 ms long.
+ *
+ * @type {Stamp[]}
+ */
+export const FOLLOWING_ON_176K = [
+  { at: 2615, n: 3072 },
+  { at: 5687, n: 4080 },
+  { at: 9767, n: 3600 },
+];
+
 /** 96 kHz, a 48 kHz Nyquist. */
 export const RATE_96K = 96000;
 
