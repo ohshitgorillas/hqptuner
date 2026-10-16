@@ -228,6 +228,13 @@ repos:
         pass_filenames: false
         files: ^(hqptuner/static/store/schema\.js|hqptuner/static/store/schema/.*|hqptuner/conf/presetconf\.py|hqptuner/data/settings\.json)$
 
+      - id: static-clocks
+        name: no bare clock under hqptuner/static/
+        entry: .venv/bin/python scripts/gates/check_static_clocks.py
+        language: system
+        files: ^hqptuner/static/.*\.js$
+        exclude: ^hqptuner/static/vendor/
+
       # The shipped metadata is read by the application alone: the offline suite
       # runs on fixtures, so a data file that stops loading or stops covering the
       # engine snapshot fails here or in a running container.

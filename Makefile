@@ -65,6 +65,7 @@ lint-js: jscpd
 	$(VENV)/python scripts/gates/css/check_css_dead.py
 	$(VENV)/python scripts/gates/css/check_css_dirty.py
 	$(VENV)/python scripts/gates/check_control_catalog.py
+	$(VENV)/python scripts/gates/check_static_clocks.py $$(git ls-files 'hqptuner/static/*.js')
 
 # The marker selection of each pytest suite, every marker name spelled once:
 # test-e2e runs the e2e tests alone, test-live runs everything else, and the
