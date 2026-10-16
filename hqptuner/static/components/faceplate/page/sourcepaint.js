@@ -34,6 +34,9 @@ export const SH = 170;
  */
 const pct = (f) => `${(f * 100).toFixed(2)}%`;
 
+/** @type {Float32Array | undefined} */
+let scratch; // the fractions of the path being built; the path is a string, so nothing holds them past the call
+
 /**
  * A level array as a path across the viewBox: one point at each column's center, down from full scale to `range`
  * below it, clamped to the plot.
@@ -43,7 +46,7 @@ const pct = (f) => `${(f * 100).toFixed(2)}%`;
  * @returns {string}
  */
 function pathOf(levels, range) {
-  const fracs = fractionsOf(levels, range);
+  const fracs = (scratch = fractionsOf(levels, range, scratch));
   const n = fracs.length;
   let d = "";
   for (let c = 0; c < n; c++) {
@@ -174,7 +177,7 @@ export function paintSourceScene(root, scene, painters, { range, picked, suite, 
   const style = effectiveStyle(picked, aurora !== null);
   if (root) paintSourcePage(root, scene, range, style);
   painters?.fx.paint(scene.spectrum, range, style, { suite, dt });
-  if (style === "aurora") aurora?.paint(scene.raw, range, suite);
+  if (style === "aurora") aurora?.paint(scene.raw, range, suite, { dt });
   else if (last === "aurora") aurora?.clear();
   return style;
 }

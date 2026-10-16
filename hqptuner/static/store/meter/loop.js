@@ -41,7 +41,7 @@ import { meterFeedOpen, meterGeometry, takeMeterFrames, toSpectrogram } from "./
 /** Spectrum columns the trace carries across the plot. */
 const TRACE_COLS = 600;
 /** The time between two steps, ms, and how early an animation frame may land and still step. */
-export const STEP_MS = 1000 / 30;
+const STEP_MS = 1000 / 30;
 const SLACK_MS = 4;
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */

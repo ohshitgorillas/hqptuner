@@ -1,7 +1,9 @@
 // Painter suite for hqptuner/static/components/faceplate/page/aurora.js: the page spectrum's aurora style, drawn by a
 // WebGL2 shader on its own canvas. A canvas with no WebGL2 context gets no painter. With one, a paint of a spectrum's
 // column levels uploads one bar value per band in one array and draws once; a paint with no spectrum and a clear only
-// clear. The bars sit on the bands of the first paint's levels and fall under aurora's own gravity, one step a paint.
+// clear. The bars sit on the bands of the first paint's levels and fall under aurora's own gravity, on the time the
+// paint is told has passed since the last one, so a run with some paints late leaves them where steady paints over
+// the same time do.
 //
 // The canvas is a fake whose WebGL2 context records every method called on it by name and arguments. Names in capitals
 // are the context's constants and read as numbers; the shader and program checks pass unless a test fails one, and
@@ -11,6 +13,9 @@
 // A color suite reaches a paint as its third argument, the suite's identifier as the store holds it. Whether a suite
 // changes what aurora draws is read by comparing every call a paint makes under it, uploads included, against the
 // same paint under Mono, so no one color is asserted.
+//
+// How far the bars have fallen is read from the last number array a run's last paint uploads, its first band; how
+// far they fall over a stretch is that band after the run against the same band after the run's first paint alone.
 //
 // Under the Accent palette aurora draws in the accent in force, read from the theme store's signals. Whether a change
 // of accent reaches the next paint is read by comparing two painters with one history, every paint the same, except
@@ -23,6 +28,7 @@ import assert from "node:assert/strict";
 
 import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/page/aurora.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
+import { near } from "../../support/near.js";
 
 /** @typedef {{ name: string, args: unknown[] }} Call */
 /** @typedef {{ width: number, height: number, calls: Call[], getContext: (kind: string) => unknown }} FakeCanvas */
@@ -32,6 +38,8 @@ const W = 480;
 const H = 170;
 //: A 60 dB plot.
 const RANGE = 60;
+//: One meter loop step, s.
+const STEP_S = 1 / 30;
 //: The calls that put pixels on the canvas or take them off.
 const DRAWS = new Set(["clear", "drawArrays", "drawElements"]);
 
@@ -94,7 +102,7 @@ function fakeCanvas(gl = true, made = MADE) {
  * The calls recorded while `act` runs on a painter built on a fresh fake canvas, the painter's setup forgotten. With no
  * painter built, nothing is recorded.
  *
- * @param {(fx: { paint: (levels: ArrayLike<number> | null, r: number, suite?: string) => void, clear: () => void }) => void} act
+ * @param {(fx: { paint: (levels: ArrayLike<number> | null, r: number, suite: string | undefined, o: { dt: number }) => void, clear: () => void }) => void} act
  * @returns {Call[]}
  */
 function during(act) {
@@ -149,7 +157,7 @@ test("test_a_canvas_whose_program_fails_to_link_gets_no_painter", () => {
 // ── nothing to draw ──────────────────────────────────────────────────────
 
 test("test_a_paint_with_no_spectrum_only_clears", () => {
-  assert.deepEqual(draws(during((fx) => fx.paint(null, RANGE))), ["clear"]);
+  assert.deepEqual(draws(during((fx) => fx.paint(null, RANGE, undefined, { dt: STEP_S }))), ["clear"]);
 });
 
 test("test_clear_only_clears_once", () => {
@@ -171,7 +179,8 @@ const MID_DB = -RANGE / 2;
  *
  * @param {string} suite
  */
-const paintedUnder = (suite) => during((fx) => fx.paint(new Float32Array(COLS).fill(MID_DB), RANGE, suite));
+const paintedUnder = (suite) =>
+  during((fx) => fx.paint(new Float32Array(COLS).fill(MID_DB), RANGE, suite, { dt: STEP_S }));
 
 test("test_a_change_of_suite_changes_what_an_aurora_paint_draws", () => {
   assert.notDeepEqual(paintedUnder(INFERNO), paintedUnder(MONO));
@@ -198,12 +207,60 @@ function twoPaintsWith(then) {
   accentHex.value = FIRST_HEX;
   const levels = new Float32Array(COLS).fill(MID_DB);
   return during((fx) => {
-    fx.paint(levels, RANGE, ACCENT);
+    fx.paint(levels, RANGE, ACCENT, { dt: STEP_S });
     accentHex.value = then;
-    fx.paint(levels, RANGE, ACCENT);
+    fx.paint(levels, RANGE, ACCENT, { dt: STEP_S });
   });
 }
 
 test("test_under_accent_an_aurora_paint_follows_a_change_of_accent", () => {
   assert.notDeepEqual(twoPaintsWith(SECOND_HEX), twoPaintsWith(FIRST_HEX));
+});
+
+// ── the fall, on the time between paints ────────────────────────────────
+
+//: Near the top and well under the floor of a 60 dB plot.
+const LOUD_DB = -6;
+const QUIET_DB = -RANGE - 30;
+//: A paint a whole 0.1 s after the last, three loop steps late.
+const LATE_S = 0.1;
+//: Steady paints making up 0.3 s, and late paints making up the same.
+const STEADY_FALL = 9;
+const LATE_FALL = 3;
+//: How far two falls over the same time may differ, as a share of the steady fall: rounding and one loop step's
+//: worth of carry, not a paint rate's whole difference.
+const FALL_TOL = 0.15;
+
+/**
+ * The first band of the last number array uploaded by the last paint of a run of paints under Mono, one per entry of
+ * `history`, each told that many seconds since the last and with every column at its level; NaN where none uploads one.
+ *
+ * @param {[number, number][]} history  [s, dBFS]
+ * @returns {number}
+ */
+function barAfter(history) {
+  const calls = during((fx) => {
+    for (const [dt, db] of history) fx.paint(new Float32Array(COLS).fill(db), RANGE, MONO, { dt });
+  });
+  const arrays = calls.flatMap((c) => c.args.filter((a) => a instanceof Float32Array));
+  const last = /** @type {Float32Array | undefined} */ (arrays.at(-1));
+  return last ? last[0] : NaN;
+}
+
+/**
+ * `n` paints each `dt` seconds after the last, every column at `db`.
+ *
+ * @param {number} n
+ * @param {number} dt  s
+ * @param {number} db
+ * @returns {[number, number][]}
+ */
+const runOf = (n, dt, db) => new Array(n).fill([dt, db]);
+
+test("test_aurora_bars_with_some_paints_late_fall_as_far_as_steady_paints_over_the_same_time", () => {
+  const loud = runOf(1, STEP_S, LOUD_DB);
+  const top = barAfter(loud);
+  const steady = top - barAfter([...loud, ...runOf(STEADY_FALL, STEP_S, QUIET_DB)]);
+  const late = top - barAfter([...loud, ...runOf(LATE_FALL, LATE_S, QUIET_DB)]);
+  assert.ok(...near(late, steady, Math.abs(steady) * FALL_TOL));
 });

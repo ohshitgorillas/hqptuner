@@ -13,14 +13,11 @@ import {
   stepGravity,
   suiteRamp,
 } from "../../../model/gauges/meter/spectrumfx.js";
-import { STEP_MS } from "../../../store/meter/loop.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";
 
 /** @typedef {import("../../../model/gauges/meter/spectrumfx.js").GravityState} GravityState */
 
-/** The time between two meter paints, s: the loop paints at most once a step. */
-const DT = STEP_MS / 1000;
 const VERSION = "#version 300 es\n";
 const POSITION = 0; // the vertex shader's position attribute location
 const QUAD = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]); // the whole clip space as a triangle strip, x then y
@@ -124,7 +121,11 @@ export function auroraPainter(canvas) {
   let inked = ""; // the color suite and accent the uploaded ramp is drawn from; empty while no ramp is uploaded
   /** @type {GravityState | null} */
   let gravity = null;
-  let elapsed = 0; // s, DT for every paint that drew since the last clear
+  /** @type {Float32Array | undefined} */
+  let fracs; // the plot fractions of the last paint, written over by the next
+  /** @type {Float32Array | undefined} */
+  let bands; // the bands of the last paint; stepGravity copies them
+  let elapsed = 0; // s, the time told to every paint that drew since the last clear
   const clear = () => {
     gravity = null;
     elapsed = 0;
@@ -134,15 +135,18 @@ export function auroraPainter(canvas) {
   /**
    * @param {ArrayLike<number> | null} levels  dBFS, one per column
    * @param {number} range  dB
-   * @param {string} [suite]  the color suite, Accent where none is given
+   * @param {string | undefined} suite  the color suite, Accent where none is given
+   * @param {{ dt: number }} step  `dt`: s since the last paint
    */
-  const paint = (levels, range, suite = ACCENT) => {
+  const paint = (levels, range, suite = ACCENT, { dt }) => {
     const prev = gravity;
     const was = elapsed;
     clear();
     if (!levels) return;
-    gravity = stepGravity(prev, bandsOf(fractionsOf(levels, range), BANDS), DT, AURORA_GRAVITY);
-    elapsed = was + DT;
+    fracs = fractionsOf(levels, range, fracs);
+    bands = bandsOf(fracs, BANDS, bands);
+    gravity = stepGravity(prev, bands, dt, AURORA_GRAVITY);
+    elapsed = was + dt;
     gl.useProgram(program);
     const accent = accentInForce();
     if (`${suite} ${accent}` !== inked) {
