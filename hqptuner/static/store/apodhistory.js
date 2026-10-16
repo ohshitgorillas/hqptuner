@@ -13,12 +13,11 @@
 // right edge, and each bin the part of its playback that falls inside them.
 //
 // The daemon's position is on its own time base, so a bin does not carry it as
-// a time (docs/spec/timing.md, "The two clocks"). Each bin is stamped once, when
-// it is recorded, with where its playback ends in playback ms: the meter feed's
-// edge (store/meter/feed.js feedEdge) less the effective delay the meters run
-// behind the feed (store/meter/delay.js). With no edge, no feed open or none
-// queued yet, the bin is still recorded, for the lamps read its rate, and
-// carries no stamp. The position is still read, to tell a new track and an
+// a time. Each bin is stamped once, when it is recorded, with where its playback
+// ends in playback ms: the meter feed's edge at that moment, the end of the
+// newest frame the feed has queued (store/meter/feed.js feedEdge). With no edge,
+// no feed open or none queued yet, the bin is recorded for the lamps, which read
+// its rate, and carries no stamp. The position tells a new track from an
 // unmoved frame.
 //
 // Visibility is stateful, not a threshold on the current reading: the strip
@@ -38,10 +37,7 @@ import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { num } from "../lib/coerce.js";
 import { engineStatus, PLAYING } from "./signals.js";
-import { effectiveDelay } from "./meter/delay.js";
 import { feedEdge } from "./meter/feed.js";
-
-const MS_PER_S = 1000;
 
 // At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
 // go: the strip is a monitor, not a record, and an unbounded array on a track
@@ -173,13 +169,12 @@ function rollTrack(st) {
 }
 
 /**
- * The stamp a bin recorded now carries: the feed's edge less the effective delay.
+ * The stamp a bin recorded now carries: the feed's edge.
  *
  * @returns {number | null}  playback, ms; null while the feed has no edge
  */
 function stampNow() {
-  const edge = feedEdge();
-  return edge === null ? null : edge - effectiveDelay.peek() * MS_PER_S;
+  return feedEdge();
 }
 
 // One poll's step. The first poll of a track only takes the baseline: the

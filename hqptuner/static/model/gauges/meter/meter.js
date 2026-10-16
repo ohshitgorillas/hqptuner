@@ -1,122 +1,31 @@
-// Source meter model: the decisions behind each painted frame, free of the DOM. Every function takes the frame's
-// time as arguments (`now` in ms on the rAF timeline, `dt` in s) and returns the next state, so a caller paints what
-// it gets back and a test drives it from a table.
+// Meter bin math, free of the DOM and of time: decoding a feed event's bins, folding frames, picking a channel,
+// tracing bins into drawing columns, the frequency spans, and where a level sits on the plot. Every function returns
+// its answer from the values it is handed and keeps nothing between calls.
 
 import { clamp } from "../../../lib/coerce.js";
 import { dbToPower, powerToDb } from "../../../lib/units.js";
 import { suiteColor } from "./spectrumfx.js";
 
-const FLOOR_DB = -300; // a spectrum bin with nothing shown yet
-const SPEC_FALL_TAU_MS = 150; // shown spectrum fall time constant: about a fifth of the gap closed per 30 Hz frame
-const SPEC_GHOST_TAU_MS = 1000; // ghost relaxation time constant: about a thirtieth of its gap closed per 30 Hz frame
-const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed (engine/meterfeed.py)
+const BIN_STEP_DB = 0.5; // one bin step below full scale on the feed
 const BIN_BYTES = 2; // bytes a bin's steps travel in, low byte first
 const HIGH_BYTE = 256; // steps one count of the high byte stands for
-const PEAK_FALL_DBPS = 20; // level peak fall, dB/s
-const RMS_TAU_S = 0.3; // level RMS integration time
-const HOLD_MS = 1500; // level hold before it decays
-const HOLD_DECAY_DBPS = 10; // level hold decay once released, dB/s
-const MAX_DT_S = 0.1; // longest step one frame may take
-const SMOOTH_COLS = 2; // trace columns averaged either side of each, across frequency
 
 /**
- * Shown spectrum, one entry per bin. Float32 storage is part of the result: each step reads back the rounded values it
- * stored.
+ * One channel of a frame: its peak and RMS, and its transform bins DC first.
  *
- * @typedef {object} SpectrumHold
- * @property {Float32Array} disp   shown level, dBFS
- * @property {Float32Array} ghost  held peak, dBFS, never below `disp`
- */
-
-/**
- * One channel's level reading.
- *
- * @typedef {object} LevelReading
- * @property {number} peak    ballistic peak, dBFS
- * @property {number} rms     integrated RMS, dBFS
- * @property {number} hold    held peak, dBFS
- * @property {number} holdAt  ms the hold was last reached
- */
-
-/**
- * Where one channel's level is heading this frame.
- *
- * @typedef {object} LevelTarget
- * @property {number} rms   dBFS
+ * @typedef {object} MeterChannel
  * @property {number} peak  dBFS
+ * @property {number} rms  dBFS
+ * @property {Float32Array} bins  dBFS
  */
 
 /**
- * A spectrum with nothing shown.
- *
- * @param {number} bins
- * @returns {SpectrumHold}
- */
-export function emptySpectrum(bins) {
-  return { disp: new Float32Array(bins).fill(FLOOR_DB), ghost: new Float32Array(bins).fill(FLOOR_DB) };
-}
-
-/**
- * The spectrum after a frame `dt` seconds long of new bin levels: a rise shows at once, and a fall closes the same share
- * of the gap left to the new level each frame of a given length, so it lands fast, settles gently and never passes below
- * the level it falls to. Each bin's ghost rises with the shown level at once and, while it sits above it, closes a
- * smaller fixed share of its gap to the shown level each frame of a given length, so it keeps the shape of the trace it
- * came from as it settles, with no hold, and never passes below the shown level. On a jump the new levels show
- * outright and the ghost lands on them.
- *
- * @param {SpectrumHold} prev
- * @param {ArrayLike<number>} levels  this frame's bin levels, dBFS
- * @param {{ now: number, dt: number }} at  the frame's stamp, ms, and its length, s
- * @param {boolean} jump              show the new levels outright (reset, first paint)
- * @returns {SpectrumHold}
- */
-export function stepSpectrum(prev, levels, { dt }, jump) {
-  const left = Math.exp((-dt * 1000) / SPEC_FALL_TAU_MS);
-  const disp = Float32Array.from(levels, (v, i) => (jump || v > prev.disp[i] ? v : v + (prev.disp[i] - v) * left));
-  const kept = jump ? 0 : Math.exp((-dt * 1000) / SPEC_GHOST_TAU_MS);
-  const ghost = disp.map((d, i) => d + Math.max(0, prev.ghost[i] - d) * kept);
-  return { disp, ghost };
-}
-
-/**
- * One channel's reading after a frame of `dt` seconds toward its target: the peak rises at once and falls at a fixed
- * rate, the RMS integrates, and the hold stays put for 1.5 s after it was last reached, then decays at a fixed rate,
- * never below the peak.
- *
- * @param {LevelReading} v
- * @param {LevelTarget} t
- * @param {number} now  ms
- * @param {number} dt   s
- * @returns {LevelReading}
- */
-export function stepLevel(v, t, now, dt) {
-  const peak = t.peak > v.peak ? t.peak : Math.max(t.peak, v.peak - PEAK_FALL_DBPS * dt);
-  const rms = v.rms + (t.rms - v.rms) * Math.min(1, dt / RMS_TAU_S);
-  if (peak >= v.hold) return { peak, rms, hold: peak, holdAt: now };
-  const hold = now - v.holdAt > HOLD_MS ? Math.max(peak, v.hold - HOLD_DECAY_DBPS * dt) : v.hold;
-  return { peak, rms, hold, holdAt: v.holdAt };
-}
-
-/**
- * The seconds one animation frame stamped `now` runs the ballistics for after the frame stamped `prev`: clamped to
- * [0, 100 ms], so a frame stamped before mount never runs them backwards and a stalled page never leaps.
- *
- * @param {number} prev  ms
- * @param {number} now   ms
- * @returns {number}
- */
-export function frameDt(prev, now) {
-  return clamp((now - prev) / 1000, 0, MAX_DT_S);
-}
-
-/**
- * One feed frame, or several folded into one: per channel its peak and RMS in dBFS and its transform bins in dBFS,
- * DC first, the playback it covers, and the feed geometry it arrived under. A frame off the feed also carries where
- * that playback starts and whether its event begins a break (docs/spec/timing.md, rule 3).
+ * One feed frame: its channels, the playback it covers, and the feed geometry it arrived under. A frame off the feed
+ * also carries where that playback starts and whether its event begins a break.
  *
  * @typedef {{ nyquist: number, channels: number, bins: number }} FrameGeometry
  * @typedef {object} MeterFrame
- * @property {{ peak: number, rms: number, bins: Float32Array }[]} channels
+ * @property {MeterChannel[]} channels
  * @property {number} ms  playback, ms: how long the frame lasts
  * @property {number} [at]  playback, ms: where the frame starts, counted from the feed's reset
  * @property {boolean} [break]  whether the frame's event begins a break
@@ -124,7 +33,8 @@ export function frameDt(prev, now) {
  */
 
 /**
- * A frame's bins off the wire: two bytes per bin, low byte first, base64, each `BIN_STEP_DB` per step below full scale.
+ * A frame's bins off the wire: two bytes per bin, low byte first, base64, each count a BIN_STEP_DB step below full
+ * scale.
  *
  * @param {string} text
  * @returns {Float32Array}  dBFS
@@ -140,98 +50,99 @@ export function decodeBins(text) {
 }
 
 /**
- * The power average of several dB arrays of one length, element by element, each row weighted by `weights`, equally
- * when absent.
+ * Frames folded into one set of channels, with the power each channel summed while folding: per channel, one entry
+ * per bin and one more, last, for the RMS. A caller hands it back to the next fold to fill in place.
  *
- * @param {ArrayLike<number>[]} rows
- * @param {number[]} [weights]  one per row
- * @returns {Float32Array}
+ * @typedef {object} FoldScene
+ * @property {MeterChannel[]} channels
+ * @property {Float64Array[]} power  linear power, summed over the frames folded
  */
-function powerMean(rows, weights) {
-  const n = rows[0].length;
-  const acc = new Float64Array(n);
-  let total = 0;
-  rows.forEach((row, r) => {
-    const w = weights ? weights[r] : 1;
-    total += w;
-    for (let k = 0; k < n; k++) acc[k] += w * dbToPower(row[k]);
-  });
-  return Float32Array.from(acc, (p) => powerToDb(p / total));
+
+/**
+ * A fold scene of `channels` channels of `bins` bins each.
+ *
+ * @param {number} channels
+ * @param {number} bins
+ * @returns {FoldScene}
+ */
+function foldScene(channels, bins) {
+  const scene = /** @type {FoldScene} */ ({ channels: [], power: [] });
+  for (let c = 0; c < channels; c++) {
+    scene.channels.push({ peak: -Infinity, rms: -Infinity, bins: new Float32Array(bins) });
+    scene.power.push(new Float64Array(bins + 1));
+  }
+  return scene;
 }
 
 /**
- * Frames of one layout folded into one covering `ms`: per channel the loudest peak, and the RMS and each bin
- * power-averaged, each frame weighted by `weights`, equally when absent.
+ * Whether `scene` holds `channels` channels of `bins` bins each.
+ *
+ * @param {FoldScene | undefined} scene
+ * @param {number} channels
+ * @param {number} bins
+ * @returns {scene is FoldScene}
+ */
+function fits(scene, channels, bins) {
+  if (!scene || scene.channels.length !== channels || scene.power.length !== channels) return false;
+  return scene.channels.every((ch, c) => ch.bins.length === bins && scene.power[c].length === bins + 1);
+}
+
+/**
+ * The frames handed in folded into one set of channels: per channel the loudest peak, and the RMS and each bin
+ * power-averaged over the frames, each frame counted once. Fills and returns `out` when it holds the frames' layout,
+ * allocating nothing; allocates a fresh scene otherwise.
  *
  * @param {MeterFrame[]} frames  at least one, all of one layout
- * @param {number[] | undefined} weights  one per frame
- * @param {number} ms
- * @returns {MeterFrame}
+ * @param {FoldScene} [out]  a scene from an earlier fold, to fill in place
+ * @returns {FoldScene}
  */
-function foldWeighted(frames, weights, ms) {
-  return {
-    channels: frames[0].channels.map((_, c) => {
-      const chs = frames.map((f) => f.channels[c]);
-      return {
-        peak: Math.max(...chs.map((ch) => ch.peak)),
-        rms: powerMean(
-          chs.map((ch) => [ch.rms]),
-          weights,
-        )[0],
-        bins: powerMean(
-          chs.map((ch) => ch.bins),
-          weights,
-        ),
-      };
-    }),
-    ms,
-  };
-}
-
-/**
- * Feed frames folded into one, as the feed folds a stride: per channel the loudest peak, and the RMS and each bin
- * power-averaged; the frame time is theirs together. A single frame folds to itself.
- *
- * @param {MeterFrame[]} frames  at least one, all of one layout
- * @returns {MeterFrame}
- */
-export function foldFrames(frames) {
-  if (frames.length === 1) return frames[0];
-  return foldWeighted(
-    frames,
-    undefined,
-    frames.reduce((sum, f) => sum + f.ms, 0),
-  );
-}
-
-/**
- * The playback one move of the playhead crossed, folded into one frame: per channel the loudest peak of every frame it
- * touched, and the RMS and each bin power-averaged, each frame weighted by the ms of it crossed; the frame time is the
- * ms crossed.
- *
- * @param {{ frame: MeterFrame, ms: number }[]} pieces  at least one, oldest first, all of one layout
- * @returns {MeterFrame}
- */
-export function foldCrossed(pieces) {
-  const weights = pieces.map((p) => p.ms);
-  return foldWeighted(
-    pieces.map((p) => p.frame),
-    weights,
-    weights.reduce((sum, ms) => sum + ms, 0),
-  );
+export function foldFrames(frames, out) {
+  const nch = frames[0].channels.length;
+  const width = nch ? frames[0].channels[0].bins.length : 0;
+  const scene = fits(out, nch, width) ? out : foldScene(nch, width);
+  for (let c = 0; c < nch; c++) {
+    scene.channels[c].peak = -Infinity;
+    scene.power[c].fill(0);
+  }
+  for (const f of frames) {
+    for (let c = 0; c < nch; c++) {
+      const ch = f.channels[c];
+      const acc = scene.power[c];
+      if (ch.peak > scene.channels[c].peak) scene.channels[c].peak = ch.peak;
+      for (let k = 0; k < width; k++) acc[k] += dbToPower(ch.bins[k]);
+      acc[width] += dbToPower(ch.rms);
+    }
+  }
+  for (let c = 0; c < nch; c++) {
+    const acc = scene.power[c];
+    const bins = scene.channels[c].bins;
+    for (let k = 0; k < width; k++) bins[k] = powerToDb(acc[k] / frames.length);
+    scene.channels[c].rms = powerToDb(acc[width] / frames.length);
+  }
+  return scene;
 }
 
 /**
  * The bins one channel pick shows: that channel's, or for `sum` (or a channel the frame lacks) the power average
- * across channels, bin by bin.
+ * across channels, bin by bin, written into `out` when it has the frame's bin count, into a fresh array otherwise.
  *
- * @param {MeterFrame} frame
- * @param {string} pick
- * @returns {Float32Array}
+ * @param {{ channels: MeterChannel[] }} frame  at least one channel
+ * @param {string} pick  a channel index, or `sum`
+ * @param {Float32Array} [out]  an array from an earlier pick, to fill in place
+ * @returns {Float32Array}  dBFS
  */
-export function pickBins(frame, pick) {
+export function pickBins(frame, pick, out) {
   const ch = pick === "sum" ? undefined : frame.channels[Number(pick)];
-  return ch ? ch.bins : powerMean(frame.channels.map((c) => c.bins));
+  if (ch) return ch.bins;
+  const chs = frame.channels;
+  const width = chs[0].bins.length;
+  const sum = out && out.length === width ? out : new Float32Array(width);
+  for (let k = 0; k < width; k++) {
+    let power = 0;
+    for (let c = 0; c < chs.length; c++) power += dbToPower(chs[c].bins[k]);
+    sum[k] = powerToDb(power / chs.length);
+  }
+  return sum;
 }
 
 /**
@@ -263,7 +174,7 @@ export function spanShare(span) {
  * @param {ArrayLike<number>} bins  dBFS
  * @param {number} cols
  * @param {number} [share]  of the band up to Nyquist, from 0 Hz
- * @returns {Float32Array}
+ * @returns {Float32Array}  dBFS
  */
 export function traceColumns(bins, cols, share = 1) {
   const out = new Float32Array(cols).fill(-Infinity);
@@ -280,40 +191,15 @@ export function traceColumns(bins, cols, share = 1) {
 }
 
 /**
- * Columns smoothed across frequency: each the power average of itself and SMOOTH_COLS neighbors either side, weighted
- * 3-2-1 outward, over the neighbors that exist.
+ * Where a level sits on a plot spanning `range` dB down from full scale: 0 dB at 1, `-range` dB at 0, linear between,
+ * clamped to [0, 1].
  *
- * @param {ArrayLike<number>} cols  dBFS
- * @returns {Float32Array}
- */
-export function smoothColumns(cols) {
-  const n = cols.length;
-  const power = Float64Array.from(cols, dbToPower);
-  const out = new Float32Array(n);
-  for (let c = 0; c < n; c++) {
-    let sum = 0;
-    let weight = 0;
-    for (let j = -SMOOTH_COLS; j <= SMOOTH_COLS; j++) {
-      const k = c + j;
-      if (k < 0 || k >= n) continue;
-      const w = SMOOTH_COLS + 1 - Math.abs(j);
-      sum += w * power[k];
-      weight += w;
-    }
-    out[c] = powerToDb(sum / weight);
-  }
-  return out;
-}
-
-/**
- * Where a level sits on a bar running from `floor` dB to full scale, from 0 to 1.
- *
- * @param {number} db
- * @param {number} floor
+ * @param {number} db  dBFS
+ * @param {number} range  dB, positive
  * @returns {number}
  */
-export function fraction(db, floor) {
-  return clamp((db - floor) / -floor, 0, 1);
+export function fraction(db, range) {
+  return clamp((db + range) / range, 0, 1);
 }
 
 /**

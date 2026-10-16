@@ -1,11 +1,8 @@
-// Page spectrum display styles: the per-frame decisions behind each style, free of the DOM. Levels become plot
-// fractions and bands; bars carry falling peak caps, gravity bars fall under acceleration, aurora bands fall under
-// their own, ridge rows stack on a cadence, the Fade halo fades where the trace has been and says how much of the
-// canvas to dim each frame, and aurora gives way to the trace without WebGL2. Every height is a fraction of the plot, 0
-// on the floor and 1 at full scale. A painter draws the state a step gets back and a test drives it from a table; the
-// caps, gravity and halo steps return a new state and leave their inputs alone, while a ridge step, like fractions and
-// bands handed a buffer, writes into buffers it is given, allocating nothing. A color suite gives the color a part of
-// the spectrum is drawn in by its height, the Fade halo its colors and strengths, the bars their gradient if any.
+// Page spectrum colors and bands, free of the DOM and of time: the same call answers the same way whatever was asked
+// before it. Levels become plot fractions and bands, every height a fraction of the plot, 0 on the floor and 1 at full
+// scale; fractions and bands handed a buffer write into it, allocating nothing. A color suite gives the color a part of
+// the spectrum is drawn in by its height, the line styles and the Fade halo their gradient stops, the bars their
+// gradient if any, and aurora its ramp; aurora gives way to the trace without WebGL2.
 
 import { clamp } from "../../../lib/coerce.js";
 import { rampFrom, rgb } from "../../../lib/spectroraster.js";
@@ -13,75 +10,20 @@ import { ACCENT_SHADES } from "../../shell/settings.js";
 import { fraction } from "./meter.js";
 
 export const BANDS = 64; // bars the bar styles draw across the plot
-export const CAP_HOLD_S = 0.5; // a peak cap's hold before it falls, s
-const CAP_GRAVITY = 4; // a released peak cap's acceleration, plot fractions/s²
-const GRAVITY = 4; // a gravity bar's acceleration, plot fractions/s²
-export const AURORA_GRAVITY = 2.5; // an aurora band's acceleration, plot fractions/s²
-export const RIDGE_ROWS = 12; // ridge rows kept, newest first
-export const RIDGE_EVERY = 6; // steps between ridge rows
 const HALO_START = 0.5; // the halo's glow where a white trace has just been, share of the trace's strength
 const HALO_START_DARK = 1; // the halo's glow where a black trace has just been, share of the trace's strength
-const HALO_TAU_S = 2; // the halo's time constant: its glow falls to 1/e of what it was in this long, s
-
-/**
- * Peak caps, one per band: where each sits and how long since its band last reached it. Float32 storage is part of the
- * result: each step reads back the rounded values it stored.
- *
- * @typedef {object} CapState
- * @property {Float32Array} lvl  cap height, plot fraction
- * @property {Float32Array} age  time since the band last reached the cap, s
- */
-
-/**
- * Gravity bars, one per band: where each sits and how fast it is falling.
- *
- * @typedef {object} GravityState
- * @property {Float32Array} lvl  bar height, plot fraction
- * @property {Float32Array} v    fall speed, plot fractions/s
- */
-
-/**
- * Ridge rows, newest first, the steps taken since the first, and the ring the rows live in. States a step returns come
- * in twins sharing one ring: a step writes the twin of the state it is handed and returns it, so the state handed in,
- * rows and all, holds until the step after.
- *
- * @typedef {object} RidgeState
- * @property {Float32Array[]} rows  plot fractions per column
- * @property {number} tick          steps taken, the first counting one
- * @property {RidgeRing} [ring]     the row buffers, shared with the twin; none on a state no step returned
- */
-
-/**
- * The RIDGE_ROWS + 1 row buffers twin ridge states share, the twins, and the buffer each twin's newest row is in.
- *
- * @typedef {object} RidgeRing
- * @property {Float32Array[]} bufs
- * @property {[RidgeState, RidgeState]} twins
- * @property {[number, number]} heads
- */
-
-/**
- * The Fade halo on the canvas: whether a paint has drawn one yet, and the share of the canvas to dim before this frame.
- *
- * @typedef {object} HaloState
- * @property {boolean} drawn  whether the canvas holds a halo to dim
- * @property {number} dim     share of each pixel's strength to take away this frame, 0 to 1
- */
-
-/** The halo after a reset: nothing on the canvas, nothing to dim. */
-export const HALO_FRESH = Object.freeze({ drawn: false, dim: 0 });
 
 /**
  * Levels as plot fractions on a plot spanning `range` dB down from full scale, clamped to [0, 1].
  *
  * @param {ArrayLike<number>} disp  dBFS
- * @param {number} range  dB
+ * @param {number} range  dB, positive
  * @param {Float32Array} [out]  written in place where as long as `disp`, a new array taking its place otherwise
  * @returns {Float32Array}
  */
 export function fractionsOf(disp, range, out) {
   const fracs = out?.length === disp.length ? out : new Float32Array(disp.length);
-  for (let i = 0; i < disp.length; i++) fracs[i] = fraction(disp[i], -range);
+  for (let i = 0; i < disp.length; i++) fracs[i] = fraction(disp[i], range);
   return fracs;
 }
 
@@ -116,143 +58,6 @@ export function bandsOf(fracs, n, out) {
   return bands;
 }
 
-/**
- * Peak caps after a step of `dt` seconds: a band at or above its cap lifts it and restarts its hold; a cap holds for
- * CAP_HOLD_S after its band last reached it, then falls from rest under CAP_GRAVITY over the time past the hold, never
- * below its band, however time is cut into steps. Without a `prev` of the same length every cap sits on its band.
- *
- * @param {CapState | null} prev
- * @param {ArrayLike<number>} bands  plot fractions
- * @param {number} dt  s
- * @returns {CapState}
- */
-export function stepCaps(prev, bands, dt) {
-  const n = bands.length;
-  const next = { lvl: Float32Array.from(bands), age: new Float32Array(n) };
-  if (!prev || prev.lvl.length !== n) return next;
-  for (let i = 0; i < n; i++) {
-    if (bands[i] >= prev.lvl[i]) continue;
-    next.age[i] = prev.age[i] + dt;
-    const over = Math.max(0, next.age[i] - CAP_HOLD_S);
-    const was = Math.max(0, prev.age[i] - CAP_HOLD_S);
-    next.lvl[i] = Math.max(bands[i], prev.lvl[i] - (CAP_GRAVITY / 2) * (over * over - was * was));
-  }
-  return next;
-}
-
-/**
- * Gravity bars after a step of `dt` seconds: a band at or above its bar lifts it and stops its fall; otherwise the bar
- * falls under `gravity` exactly over the step, never below its band, however a stretch of time is cut into steps.
- * Without a `prev` of the same length every bar sits on its band at rest.
- *
- * @param {GravityState | null} prev
- * @param {ArrayLike<number>} bands  plot fractions
- * @param {number} dt  s
- * @param {number} [gravity]  plot fractions/s², GRAVITY unless given
- * @returns {GravityState}
- */
-export function stepGravity(prev, bands, dt, gravity = GRAVITY) {
-  const n = bands.length;
-  const next = { lvl: Float32Array.from(bands), v: new Float32Array(n) };
-  if (!prev || prev.lvl.length !== n) return next;
-  for (let i = 0; i < n; i++) {
-    if (bands[i] >= prev.lvl[i]) continue;
-    next.v[i] = prev.v[i] + gravity * dt;
-    next.lvl[i] = Math.max(bands[i], prev.lvl[i] - (prev.v[i] + (gravity * dt) / 2) * dt);
-  }
-  return next;
-}
-
-const RIDGE_RING = RIDGE_ROWS + 1; // row buffers twin ridge states share: the rows kept and one to write
-
-/**
- * A ring of buffers `width` wide whose second twin holds copies of `prev`'s newest RIDGE_ROWS rows at its tick, if any.
- *
- * @param {RidgeState | null} prev
- * @param {number} width  columns
- * @returns {RidgeRing}
- */
-function ridgeRing(prev, width) {
-  const rows = (prev?.rows ?? []).slice(0, RIDGE_ROWS);
-  const n = rows.length;
-  const bufs = Array.from({ length: RIDGE_RING }, (_, i) =>
-    i < n ? Float32Array.from(rows[n - 1 - i]) : new Float32Array(width),
-  );
-  /** @type {RidgeRing} */
-  const ring = {
-    bufs,
-    twins: [
-      { rows: [], tick: 0 },
-      { rows: bufs.slice(0, n).reverse(), tick: prev?.tick ?? 0 },
-    ],
-    heads: [0, (n - 1 + RIDGE_RING) % RIDGE_RING],
-  };
-  for (const twin of ring.twins) twin.ring = ring;
-  return ring;
-}
-
-/**
- * Ridge rows after a step handing in `row`: without a `prev` the rows hold a copy of `row` and the tick is one;
- * otherwise the tick advances, and when the prior tick is a multiple of RIDGE_EVERY a copy of `row` goes first and the
- * oldest rows past RIDGE_ROWS drop off. The step writes `prev`'s twin and returns it, copying `row` into the one ring
- * buffer no row of `prev` holds, so it leaves `prev` alone and allocates nothing. Only a ring built for a `prev` no
- * step returned, or for none, or a row of another width than the buffer it lands in, allocates.
- *
- * @param {RidgeState | null} prev
- * @param {ArrayLike<number>} row  plot fractions
- * @returns {RidgeState}
- */
-export function stepRidges(prev, row) {
-  const ring = prev?.ring ?? ridgeRing(prev, row.length);
-  const at = ring.twins[0] === prev ? 0 : 1;
-  const from = ring.twins[at];
-  const next = ring.twins[1 - at];
-  const push = from.tick % RIDGE_EVERY === 0;
-  const head = push ? (ring.heads[at] + 1) % RIDGE_RING : ring.heads[at];
-  if (push && ring.bufs[head].length !== row.length) ring.bufs[head] = new Float32Array(row.length);
-  if (push) ring.bufs[head].set(row);
-  ring.heads[1 - at] = head;
-  next.tick = from.tick + 1;
-  next.rows.length = Math.min(from.rows.length + Number(push), RIDGE_ROWS);
-  for (let k = 0; k < next.rows.length; k++) next.rows[k] = ring.bufs[(head - k + RIDGE_RING) % RIDGE_RING];
-  return next;
-}
-
-/**
- * The halo's glow at a spot a white trace left `age` seconds ago, as a share of the trace's strength: HALO_START where
- * the trace has just been, falling continuously by e every HALO_TAU_S. A darker halo starts stronger, falls alike.
- *
- * @param {number} age  s
- * @returns {number}
- */
-export function haloStrength(age) {
-  return HALO_START * Math.exp(-age / HALO_TAU_S);
-}
-
-/**
- * The halo after a paint `dt` seconds after the last: with a halo already drawn, the canvas dims by the share that
- * takes every pixel from its glow at one age to its glow `dt` later, so pixels dimmed frame by frame follow
- * haloStrength; with none, there is nothing to dim. Either way the paint draws, so the halo after it is drawn.
- *
- * @param {Readonly<HaloState>} prev
- * @param {number} dt  s
- * @returns {HaloState}
- */
-export function stepHalo(prev, dt) {
-  return { drawn: true, dim: prev.drawn ? 1 - haloStrength(dt) / HALO_START : 0 };
-}
-
-/**
- * The style a page draws for the picked `style`: the trace in place of aurora without WebGL2, else the pick itself.
- *
- * @param {string} style
- * @param {boolean} gl  whether the page has WebGL2
- * @returns {string}
- */
-export function effectiveStyle(style, gl) {
-  return style === "aurora" && !gl ? "trace" : style;
-}
-
 /** The color suite drawn in the four shades of the accent in force. */
 export const ACCENT = "accent";
 
@@ -261,7 +66,7 @@ export const ACCENT = "accent";
  *
  * @type {Readonly<Record<string, readonly string[]>>}
  */
-export const SPECTRUM_SUITES = Object.freeze({
+const SPECTRUM_SUITES = Object.freeze({
   retro: ["#29ce10", "#d6b521", "#ef3110"],
   inferno: ["#08090b", "#420a68", "#932667", "#dd513a", "#fca50a", "#fcffa4"],
   viridis: ["#440154", "#414487", "#2a788e", "#22a884", "#7ad151", "#fde725"],
