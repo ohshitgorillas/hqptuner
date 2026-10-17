@@ -1,7 +1,7 @@
 // Rendered suite for hqptuner/static/components/faceplate/page/SourceMeter.js: the page's Source section body. With a
 // stream it draws the spectrum and one level bar per channel; slim, the heads give way. With none it draws the no-stream line in the meter's place. Which
 // state holds is the store's (tests/js/store/faceplate-page/meter.test.js); what moves is painted each animation frame
-// (tests/js/components/faceplate-page/sourcepaint.test.js); this suite covers what the section renders to paint into.
+// (covered by the painter's own suite); this suite covers what the section renders to paint into.
 //
 // Renders through preact-render-to-string. The stream reaches the store at the wire: meter feed events through the
 // EventSource fake, playback through a fresh /api/status object; the plate through the window size the entry writes.

@@ -101,3 +101,13 @@ grep -rn 'MUTATION' hqptuner || echo none-left
 ```
 
 `nice` and `time` change only scheduling and reporting, and `|| echo` prints a word when the grep finds nothing. Each command reads files and writes nothing in the tree.
+
+## 2026-10-17
+
+A free `tsc` run behind the `scripts/gate.sh` prefix is metered on `npx` when it follows read-only git commands in one `&&` chain, although `npx tsc` alone and `scripts/gate.sh npx tsc` alone are free:
+
+```
+git status --short && git diff -- docs/spec/timing.md && scripts/gate.sh npx tsc -p jsconfig.json
+```
+
+Every stage reads files and writes nothing in the tree.

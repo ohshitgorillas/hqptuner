@@ -302,13 +302,11 @@ function useFxPainter(plot, fx, sgl, live) {
  */
 function useSourcePaint(root, range, painters) {
   useEffect(() => {
-    let last = "";
     return onMeterPaint((scene, dt) => {
-      last = paintSourceScene(root.current, scene, painters.current, {
+      paintSourceScene(root.current, scene, painters.current, {
         range: range.current,
         picked: spectrumStyle.value,
         suite: spectrumColors.value,
-        last,
         dt,
       });
     });

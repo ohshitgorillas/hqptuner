@@ -73,7 +73,6 @@ These are measurements, not assumptions. Code reads the wire rather than relying
 | Metering rate | Set by the daemon from the playback path, not the source rate: 44.1k for DSD64 played as DSD, 176.4k for DSD64 played as PCM at 705.6k, 48k seen on PCM | The same capture, `(bins - 1) / xform_time` |
 | Feed event length | 17.3 to 23.2 ms; always shorter than a paint | `stride × xform_time` (`engine/meterfeed.py`); 21.333 ms read off `/api/meter/feed` |
 | Feed arrival | In bursts of 5 events, bursts up to 262 ms apart | Arrival times read off `/api/meter/feed` |
-| Paint interval | At least `STEP_MS - SLACK_MS` (`store/meter/loop.js`): 33.3 ms at 30 Hz | The frame cap |
 
 ## Checklists
 

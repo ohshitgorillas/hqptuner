@@ -35,6 +35,7 @@ import { initHealth } from "./store/health.js";
 import { initApodHistory } from "./store/apodhistory.js";
 import { initSpectrogram } from "./store/meter/spectrogram.js";
 import { initMeterFeed } from "./store/meter/feed.js";
+import { initMeterLoop } from "./store/meter/loop.js";
 import { bookWanted } from "./store/live/presets.js";
 import { loadSpeakers } from "./store/matrix/speakers.js";
 import { initPanel, pageHost } from "./store/connpanel.js";
@@ -115,6 +116,7 @@ if (root) {
   initApodHistory();
   initSpectrogram();
   initMeterFeed();
+  initMeterLoop();
   bookWanted.value = true;
   loadSpeakers();
   initPanel();

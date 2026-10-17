@@ -147,9 +147,6 @@ export const FOLLOWING_ON_176K = [
   { at: 9767, n: 3600 },
 ];
 
-/** 96 kHz, a 48 kHz Nyquist. */
-export const RATE_96K = 96000;
-
 /**
  * A `geometry` event's payload: one channel per `channels`, `bins` bins (four unless given), at `rate`.
  *
