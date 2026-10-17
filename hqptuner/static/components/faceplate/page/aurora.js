@@ -1,22 +1,25 @@
 // The page spectrum's aurora style: cava's northern lights shader on its own WebGL2 canvas. Each paint turns the
-// spectrum's column levels, as they came before the trace's smoothing and easing, into bands falling under aurora's own
-// gravity, the per-frame steps in model/gauges/meter/spectrumfx.js, and draws them as columns rising from the plot's floor to
-// their level, each colored base to crown through the picked color suite's ramp, over a transparent clear. Accent
-// draws in the accent in force at each paint.
+// shown spectrum columns into plot fractions and bands (model/gauges/meter/spectrumfx.js), moves the painter's bands
+// toward them under gravity by the wall time the paint is handed (model/gauges/meter/steps.js), and draws them over
+// the whole canvas, colored base to crown through the picked color suite's ramp. Accent draws in the accent in force
+// at each paint. A restart, or a paint with no spectrum, clears the canvas and starts the bands and the sway afresh.
 
-import {
-  ACCENT,
-  AURORA_GRAVITY,
-  BANDS,
-  bandsOf,
-  fractionsOf,
-  stepGravity,
-  suiteRamp,
-} from "../../../model/gauges/meter/spectrumfx.js";
+import { ACCENT, BANDS, bandsOf, fractionsOf, suiteRamp } from "../../../model/gauges/meter/spectrumfx.js";
+import { freshGravity, stepGravity } from "../../../model/gauges/meter/steps.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";
 
-/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").GravityState} GravityState */
+/**
+ * @typedef {object} AuroraPainter
+ * @property {(
+ *   columns: ArrayLike<number> | null | undefined,
+ *   range: number,
+ *   suite: string | undefined,
+ *   opts: { dt: number, restart: boolean },
+ * ) => void} paint  draws the columns, dBFS as the trace shows them, over `range` dB (positive), in color suite `suite`
+ *   (Accent where none is given), `opts.dt` wall seconds after the last paint; a restart or no spectrum starts afresh
+ * @property {() => void} clear  blanks the canvas
+ */
 
 const VERSION = "#version 300 es\n";
 const POSITION = 0; // the vertex shader's position attribute location
@@ -100,63 +103,90 @@ function quad(gl) {
 }
 
 /**
- * A painter for `canvas`, or null when the canvas has no WebGL2 context or the shader fails to build: `paint` draws
- * one meter scene's spectrum column levels at `range` dB as northern lights colored base to crown through the color
- * suite's ramp, `clear` empties the canvas. A paint with no levels, or a clear, starts the bands' fall and the columns'
- * sway afresh.
+ * A function uploading to `rampAt` the ramp of the color suite it is handed, under Accent in the accent in force, where
+ * that suite and accent differ from the ones the uploaded ramp was drawn from.
+ *
+ * @param {WebGL2RenderingContext} gl
+ * @param {WebGLUniformLocation | null} rampAt
+ * @returns {(suite: string) => void}
+ */
+function inker(gl, rampAt) {
+  let inkedSuite = ""; // the color suite the uploaded ramp is drawn from; empty while no ramp is uploaded
+  let inkedAccent = ""; // the accent in force when the uploaded ramp was drawn
+  return (suite) => {
+    const accent = accentInForce();
+    if (suite === inkedSuite && accent === inkedAccent) return;
+    inkedSuite = suite;
+    inkedAccent = accent;
+    gl.uniform3fv(rampAt, suiteRamp(suite, STOPS, accent));
+  };
+}
+
+/**
+ * The aurora painter for `canvas`, or null where the canvas has no WebGL2 context, a shader fails to compile or the
+ * program fails to link.
  *
  * @param {HTMLCanvasElement} canvas
+ * @returns {AuroraPainter | null}
  */
 export function auroraPainter(canvas) {
   const gl = canvas.getContext("webgl2");
   const program = gl && link(gl, STOPS);
   if (!gl || !program) return null;
   const vao = quad(gl);
-  const bars = gl.getUniformLocation(program, "bars");
-  const time = gl.getUniformLocation(program, "time");
+  const barsAt = gl.getUniformLocation(program, "bars");
+  const timeAt = gl.getUniformLocation(program, "time");
+  const ink = inker(gl, gl.getUniformLocation(program, "ramp"));
   gl.useProgram(program);
   gl.uniform1i(gl.getUniformLocation(program, "bars_count"), BANDS);
-  const rampAt = gl.getUniformLocation(program, "ramp");
   gl.clearColor(0, 0, 0, 0);
-  let inked = ""; // the color suite and accent the uploaded ramp is drawn from; empty while no ramp is uploaded
-  /** @type {GravityState | null} */
-  let gravity = null;
+  const levels = new Float32Array(BANDS); // the bands as the shader is handed them
+  let gravity = freshGravity(BANDS);
+  let rested = true; // whether `gravity` is fresh, with no step taken since
+  let sway = 0; // s, wall time summed from every `dt` since the bands last started afresh
   /** @type {Float32Array | undefined} */
   let fracs; // the plot fractions of the last paint, written over by the next
   /** @type {Float32Array | undefined} */
-  let bands; // the bands of the last paint; stepGravity copies them
-  let elapsed = 0; // s, the time told to every paint that drew since the last clear
+  let bands; // the bands of the last paint, written over by the next
+
   const clear = () => {
-    gravity = null;
-    elapsed = 0;
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT);
   };
-  /**
-   * @param {ArrayLike<number> | null} levels  dBFS, one per column
-   * @param {number} range  dB
-   * @param {string | undefined} suite  the color suite, Accent where none is given
-   * @param {{ dt: number }} step  `dt`: s since the last paint
-   */
-  const paint = (levels, range, suite = ACCENT, { dt }) => {
-    const prev = gravity;
-    const was = elapsed;
-    clear();
-    if (!levels) return;
-    fracs = fractionsOf(levels, range, fracs);
-    bands = bandsOf(fracs, BANDS, bands);
-    gravity = stepGravity(prev, bands, dt, AURORA_GRAVITY);
-    elapsed = was + dt;
-    gl.useProgram(program);
-    const accent = accentInForce();
-    if (`${suite} ${accent}` !== inked) {
-      inked = `${suite} ${accent}`;
-      gl.uniform3fv(rampAt, Float32Array.from(suiteRamp(suite, STOPS, accent)));
-    }
+
+  const draw = () => {
+    for (let i = 0; i < BANDS; i++) levels[i] = gravity.lvl[i];
+    gl.viewport(0, 0, canvas.width, canvas.height);
     gl.bindVertexArray(vao);
-    gl.uniform1fv(bars, gravity.lvl);
-    gl.uniform1f(time, elapsed);
+    gl.uniform1fv(barsAt, levels);
+    gl.uniform1f(timeAt, sway);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, QUAD_VERTICES);
   };
+
+  /** @type {AuroraPainter["paint"]} */
+  const paint = (columns, range, suite = ACCENT, opts) => {
+    const { dt, restart } = opts;
+    if (typeof dt !== "number")
+      throw new TypeError("aurora paint: dt, the wall seconds since the last paint, is required");
+    const fresh = restart || !columns?.length;
+    if (fresh) {
+      if (!rested) gravity = freshGravity(BANDS);
+      rested = true;
+      sway = 0;
+      clear();
+    } else {
+      sway += dt;
+    }
+    if (columns?.length) {
+      fracs = fractionsOf(columns, range, fracs);
+      bands = bandsOf(fracs, BANDS, bands);
+      stepGravity(gravity, bands, dt);
+      rested = false;
+    }
+    gl.useProgram(program);
+    ink(suite);
+    draw();
+  };
+
   return { paint, clear };
 }

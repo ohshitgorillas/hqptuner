@@ -1,36 +1,37 @@
-// The page spectrum's effects canvas, laid over the SVG trace: each meter paint draws the picked spectrum style from
-// the per-frame steps in model/gauges/meter/spectrumfx.js. Trace and aurora leave the canvas clear for the SVG; bars draw
-// one bar per band with peak caps; ridges stack their rows up the plot, each newer row lower and in front; fade
-// strokes the live trace over a blurred halo of where it has been, held between paints as an image so each paint dims
-// it and merges in the trace's fresh glow; flames draw their heat grid as pixels scaled over the whole canvas, heat 0
-// clear. Caps, ridges, halo and flames move on the seconds each paint is told passed since the last, not per paint. A
-// change of style, or a paint with no spectrum, starts the next style's state afresh. Each bar takes the color suite's
-// color at its height, or under a suite with a fixed bar gradient is drawn over that gradient; the ridge lines, the fade trace and its halo are colored by level, and the caps take the
-// suite's top color. Accent draws in the accent in force at each paint.
+// The page spectrum's effects canvas, laid over the SVG trace: each paint draws the picked spectrum style. Trace and
+// aurora leave the canvas clear for the SVG; bars draw one bar per band with peak caps; ridges stack their rows up the
+// plot, each newer row lower and in front; fade strokes the live trace over a halo of where it has been; flames draw
+// their heat grid over the whole canvas, heat 0 clear. Every motion is a step of model/gauges/meter/steps.js or
+// fire.js handed the seconds the paint is told passed, as it is told them. A restart, a change of style or a paint with
+// no columns starts the style's state afresh on a clear canvas. Each bar takes the color suite's color at its height,
+// or under a suite with a fixed bar gradient is drawn over that gradient; the ridge lines, the fade trace and its halo
+// are colored by level, and the caps take the suite's top color. Accent draws in the accent in force at each paint.
 
 import {
-  ACCENT,
   BANDS,
-  HALO_FRESH,
-  RIDGE_ROWS,
   bandsOf,
   fractionsOf,
-  stepCaps,
-  stepHalo,
-  stepRidges,
   suiteBarStops,
   suiteColor,
   suiteHaloStops,
   suiteLineStops,
 } from "../../../model/gauges/meter/spectrumfx.js";
-import { fireColors, fireSize, fireSource, stepFire } from "../../../model/gauges/meter/fire.js";
-import { stepsDue } from "../../../model/gauges/meter/steps.js";
+import { fireColors, fireSize, fireSource, freshFlames, stepFlames } from "../../../model/gauges/meter/fire.js";
+import {
+  freshCaps,
+  freshHalo,
+  freshRidges,
+  ridgeRow,
+  stepCaps,
+  stepHalo,
+  stepRidges,
+} from "../../../model/gauges/meter/steps.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 
-/** @typedef {import("../../../model/gauges/meter/meter.js").SpectrumHold} SpectrumHold */
-/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").CapState} CapState */
-/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").HaloState} HaloState */
-/** @typedef {import("../../../model/gauges/meter/spectrumfx.js").RidgeState} RidgeState */
+/** @typedef {import("../../../model/gauges/meter/steps.js").CapState} CapState */
+/** @typedef {import("../../../model/gauges/meter/steps.js").HaloState} HaloState */
+/** @typedef {import("../../../model/gauges/meter/steps.js").RidgeState} RidgeState */
+/** @typedef {import("../../../model/gauges/meter/fire.js").FlamesState} FlamesState */
 
 /**
  * The CSS colors a painter draws with besides the color suite's.
@@ -40,11 +41,13 @@ import { accentInForce } from "../../../store/ui/theme.js";
  */
 
 /**
- * The flames' color table and the suite, accent and top heat it was built for.
+ * The fade halo between paints: its step, each pixel's strength as a share of full, and the image it is put through,
+ * whose colors are those each pixel's strength came from.
  *
- * @typedef {object} FireInk
- * @property {string} key
- * @property {Uint32Array} words  one RGBA word per heat, over the bytes fireColors gives
+ * @typedef {object} Glow
+ * @property {HaloState} halo
+ * @property {Float32Array} strength  0 to 1 per pixel
+ * @property {ImageData} img
  */
 
 /**
@@ -58,31 +61,36 @@ import { accentInForce } from "../../../store/ui/theme.js";
  */
 
 /**
- * Each style's state between paints: the fade halo's step and the halo image the last fade paint left; the part step
- * the last ridges or flames paint left owed; the flames' heat grid, color table and sheet.
+ * The flames between paints: their heat grid, the source row the last paint lit, the canvas size they were made for,
+ * the sheet the grid is put on, and the color table with the suite and accent it was built for.
+ *
+ * @typedef {object} Flames
+ * @property {FlamesState} state
+ * @property {Uint16Array} source
+ * @property {number} w
+ * @property {number} h
+ * @property {FireSheet | null} sheet  null where no sheet context can be had
+ * @property {string} suite
+ * @property {string} accent
+ * @property {Uint32Array} ink  one RGBA word per heat
+ */
+
+/**
+ * Each style's state between paints, null until its first paint and fresh again after a break.
  *
  * @typedef {object} FxState
  * @property {CapState | null} caps
  * @property {RidgeState | null} ridges
- * @property {HaloState} halo
- * @property {ImageData | null} glow
- * @property {Uint16Array | null} heat
- * @property {Float32Array | undefined} bands  the bands the bars last drew, reused by the next paint
- * @property {Uint16Array | undefined} source  the flames' source row the last paint lit, reused by the next paint
- * @property {number} owed  steps, as stepsDue carries them
- * @property {FireInk | null} ink
- * @property {FireSheet | null} sheet
+ * @property {Glow | null} glow
+ * @property {Flames | null} flames
  */
 
 /**
- * What one style's paint draws from: the context, the canvas size, the plot fractions per column, the style's state,
- * the color suite picked, the accent in force and the seconds since the last paint.
+ * What one style's paint draws from, one object a painter keeps and rewrites each paint.
  *
  * @typedef {object} Frame
  * @property {CanvasRenderingContext2D} ctx
- * @property {HTMLCanvasElement} canvas
- * @property {FxColors} colors
- * @property {Float32Array} fracs
+ * @property {Float32Array} fracs  plot fractions per column
  * @property {FxState} state
  * @property {string} suite
  * @property {string} accent  `#rrggbb`
@@ -97,6 +105,7 @@ const RIDGE_LINE = 1.5; // a ridge's stroke width, canvas pixels
 const TRACE_LINE = 1.5; // the fade trace's stroke width, CSS pixels, as the SVG trace's
 const HALO_LINE = 6; // the halo's stroke width before its blur, CSS pixels
 const HALO_BLUR = 2; // the halo's blur radius, CSS pixels
+const FULL = 255; // the most a channel holds
 /**
  * Fade reads its halo back every paint: the context is asked for one kept where reading back is cheap.
  *
@@ -120,25 +129,6 @@ export function fitCanvas(box, ratio) {
 }
 
 /**
- * Fill one rect per band across the canvas, the band's level a fraction of its height: a bar down to the floor, or a
- * cap `thick` pixels deep under the level. Where `ink` is given, each band fills in the color it gives the band's
- * level.
- *
- * @param {Frame} f
- * @param {Float32Array} lvls  plot fractions
- * @param {number | null} thick  pixels
- * @param {((lvl: number) => string) | null} ink
- */
-function fillBands(f, lvls, thick, ink) {
-  const { width: w, height: h } = f.canvas;
-  const bw = w / lvls.length;
-  lvls.forEach((lvl, b) => {
-    if (ink) f.ctx.fillStyle = ink(lvl);
-    f.ctx.fillRect(b * bw, h - lvl * h, bw * (1 - BAR_GAP), thick ?? lvl * h);
-  });
-}
-
-/**
  * A vertical gradient from `y0` to `y1` through `stops`, each its offset and color.
  *
  * @param {CanvasRenderingContext2D} ctx
@@ -158,45 +148,45 @@ function vertical(ctx, y0, y1, stops) {
  * gradient from the floor to full scale where it has one, the caps in the suite's top color.
  *
  * @param {Frame} f
+ * @param {Float32Array} bands  plot fractions, one per band
  */
-function bars(f) {
-  const { ctx, canvas, state, suite, accent } = f;
-  const bands = (state.bands = bandsOf(f.fracs, BANDS, state.bands));
-  state.caps = stepCaps(state.caps, bands, f.dt);
+function bars(f, bands) {
+  const { ctx, state, suite, accent } = f;
+  const { width: w, height: h } = ctx.canvas;
+  const caps = (state.caps ??= freshCaps(BANDS));
+  stepCaps(caps, bands, f.dt);
   const fixed = suiteBarStops(suite, accent);
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  if (fixed.length) {
-    ctx.fillStyle = vertical(ctx, canvas.height, 0, fixed);
-    fillBands(f, bands, null, null);
-  } else {
-    fillBands(f, bands, null, (lvl) => suiteColor(suite, lvl, accent));
+  const bw = w / bands.length;
+  ctx.clearRect(0, 0, w, h);
+  if (fixed.length) ctx.fillStyle = vertical(ctx, h, 0, fixed);
+  for (let b = 0; b < bands.length; b++) {
+    if (!fixed.length) ctx.fillStyle = suiteColor(suite, bands[b], accent);
+    ctx.fillRect(b * bw, h - bands[b] * h, bw * (1 - BAR_GAP), bands[b] * h);
   }
   ctx.fillStyle = suiteColor(suite, 1, accent);
-  fillBands(f, state.caps.lvl, CAP_PX, null);
+  for (let b = 0; b < caps.lvl.length; b++) ctx.fillRect(b * bw, h - caps.lvl[b] * h, bw * (1 - BAR_GAP), CAP_PX);
 }
 
 /**
  * Ridges: oldest first, highest up; each row a line colored by level over its baseline, filled down to it so the rows
  * behind hide. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past the top, so the
- * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge. The rows step on
- * as many steps as stepsDue gives the time since the last paint, the first paint at least one.
+ * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge.
  *
  * @param {Frame} f
+ * @param {FxColors} colors
  */
-function ridges(f) {
-  const { ctx, canvas, colors, state } = f;
-  const { width: w, height: h } = canvas;
-  const due = stepsDue(state.owed, f.dt);
-  state.owed = due.owed;
-  for (let k = 0; k < due.steps || !state.ridges; k++) state.ridges = stepRidges(state.ridges, f.fracs);
-  const rows = state.ridges.rows;
-  const step = (h - RIDGE_LINE) / (RIDGE_ROWS - 1 - RIDGE_OVER);
+function ridges(f, colors) {
+  const { ctx, state, fracs } = f;
+  const { width: w, height: h } = ctx.canvas;
+  if (state.ridges?.rows[0].length !== fracs.length) state.ridges = freshRidges(fracs.length);
+  const ring = stepRidges(state.ridges, fracs, f.dt);
+  const step = (h - RIDGE_LINE) / (ring.rows.length - 1 - RIDGE_OVER);
   const stops = suiteLineStops(f.suite, f.accent);
   ctx.clearRect(0, 0, w, h);
   ctx.fillStyle = colors.glass;
   ctx.lineWidth = RIDGE_LINE;
-  for (let k = rows.length - 1; k >= 0; k--) {
-    const row = rows[k];
+  for (let k = ring.count - 1; k >= 0; k--) {
+    const row = ridgeRow(ring, k);
     const base = h - RIDGE_LINE - k * step;
     ctx.strokeStyle = vertical(ctx, base, base - h * RIDGE_AMP, stops);
     ctx.beginPath();
@@ -214,48 +204,67 @@ function ridges(f) {
  * @param {Frame} f
  */
 function tracePath(f) {
-  const { ctx, canvas, fracs } = f;
-  const { width: w, height: h } = canvas;
+  const { ctx, fracs } = f;
+  const { width: w, height: h } = ctx.canvas;
   ctx.beginPath();
   for (let c = 0; c < fracs.length; c++) ctx.lineTo(((c + 0.5) / fracs.length) * w, h - fracs[c] * h);
 }
 
 /**
- * Merge `held`, the halo the last paint left, dimmed to `keep` of its alpha, into `fresh`, this paint's glow: each
- * pixel takes the stronger of the two. A dimmed pixel loses at least one step of alpha, so where rounding alone would
- * hold a faint residue for good, the halo still fades to clear.
+ * The fade halo for a canvas `w` by `h`: the one held, unless it is another size, then a fresh one.
  *
- * @param {Uint8ClampedArray} fresh  RGBA, written in place
- * @param {Uint8ClampedArray} held  RGBA
- * @param {number} keep  share of alpha kept, 0 to 1
+ * @param {Frame} f
+ * @param {number} w
+ * @param {number} h
+ * @returns {Glow}
  */
-function mergeHalo(fresh, held, keep) {
-  for (let i = 3; i < fresh.length; i += 4) {
-    const a = held[i];
-    const dimmed = Math.min(a - 1, a * keep);
-    if (dimmed <= fresh[i]) continue;
-    fresh[i - 3] = held[i - 3];
-    fresh[i - 2] = held[i - 2];
-    fresh[i - 1] = held[i - 1];
-    fresh[i] = dimmed;
+function glowFor(f, w, h) {
+  const held = f.state.glow;
+  if (held?.img.width === w && held.img.height === h) return held;
+  f.state.glow = { halo: freshHalo(), strength: new Float32Array(w * h), img: f.ctx.createImageData(w, h) };
+  return f.state.glow;
+}
+
+/**
+ * Merge `fresh`, this paint's glow, into the halo held: each pixel takes the stronger of the glow and its held
+ * strength less the share `dim` takes away, and the color of whichever it took. Where `clear` holds, nothing held is
+ * kept.
+ *
+ * @param {Glow} glow  written in place
+ * @param {Uint8ClampedArray} fresh  RGBA
+ */
+function mergeHalo(glow, fresh) {
+  const { halo, strength } = glow;
+  const out = glow.img.data;
+  const keep = halo.clear ? 0 : 1 - halo.dim;
+  for (let p = 0, i = 0; p < strength.length; p++, i += 4) {
+    const held = strength[p] * keep;
+    const lit = fresh[i + 3] / FULL;
+    if (lit >= held) {
+      strength[p] = lit;
+      out[i] = fresh[i];
+      out[i + 1] = fresh[i + 1];
+      out[i + 2] = fresh[i + 2];
+    } else {
+      strength[p] = held;
+    }
+    out[i + 3] = Math.round(strength[p] * FULL);
   }
 }
 
 /**
- * Fade: a blurred halo of the trace, merged over the last paint's halo dimmed by the share stepHalo gives, then the
- * live trace stroked crisp on top. The halo is read back before the trace is stroked, so the trace never lingers in it.
- * A halo image the canvas has been resized out from under starts afresh. Trace and halo are colored by level alike,
- * the halo at its starting strength in each color.
+ * Fade: a blurred halo of the trace, merged over the halo held as stepHalo dims it, then the live trace stroked crisp
+ * on top. The halo is read back before the trace is stroked, so the trace never lingers in it. Trace and halo are
+ * colored by level alike, the halo at its starting strength in each color.
  *
  * @param {Frame} f
  */
 function fade(f) {
-  const { ctx, canvas, state } = f;
-  const { width: w, height: h } = canvas;
+  const { ctx } = f;
+  const { width: w, height: h } = ctx.canvas;
   const px = globalThis.devicePixelRatio || 1;
-  const held = state.glow?.width === w && state.glow.height === h ? state.glow : null;
-  const stops = suiteLineStops(f.suite, f.accent);
-  state.halo = stepHalo(held ? state.halo : HALO_FRESH, f.dt);
+  const glow = glowFor(f, w, h);
+  stepHalo(glow.halo, f.dt);
   ctx.clearRect(0, 0, w, h);
   ctx.strokeStyle = vertical(ctx, h, 0, suiteHaloStops(f.suite, f.accent));
   ctx.lineJoin = "round";
@@ -265,31 +274,12 @@ function fade(f) {
   tracePath(f);
   ctx.stroke();
   ctx.restore();
-  const glow = ctx.getImageData(0, 0, w, h);
-  if (held) {
-    mergeHalo(glow.data, held.data, 1 - state.halo.dim);
-    ctx.putImageData(glow, 0, 0);
-  }
-  state.glow = glow;
-  ctx.strokeStyle = vertical(ctx, h, 0, stops);
+  mergeHalo(glow, ctx.getImageData(0, 0, w, h).data);
+  ctx.putImageData(glow.img, 0, 0);
+  ctx.strokeStyle = vertical(ctx, h, 0, suiteLineStops(f.suite, f.accent));
   ctx.lineWidth = TRACE_LINE * px;
   tracePath(f);
   ctx.stroke();
-}
-
-/**
- * The flames' color table for `suite`, `accent` and top heat `max`: the one held, unless it was built for others.
- *
- * @param {FxState} state
- * @param {string} suite
- * @param {string} accent
- * @param {number} max
- * @returns {Uint32Array}  one RGBA word per heat
- */
-function fireInk(state, suite, accent, max) {
-  const key = `${suite} ${accent} ${max}`;
-  if (state.ink?.key !== key) state.ink = { key, words: words(fireColors(suite, accent, max)) };
-  return state.ink.words;
 }
 
 /**
@@ -303,107 +293,151 @@ function words(bytes) {
 }
 
 /**
- * A sheet `cols` by `rows` pixels: the one held, unless it is another size. Null where no canvas can be made.
+ * A sheet `cols` by `rows` pixels: `held`, unless it is another size. Null where no sheet context can be had.
  *
- * @param {FxState} state
+ * @param {FireSheet | null | undefined} held
  * @param {number} cols
  * @param {number} rows
  * @returns {FireSheet | null}
  */
-function fireSheet(state, cols, rows) {
-  const held = state.sheet;
+function fireSheet(held, cols, rows) {
   if (held?.img.width === cols && held.img.height === rows) return held;
   const canvas = new OffscreenCanvas(cols, rows);
   const ctx = canvas.getContext("2d");
-  if (!ctx) return (state.sheet = null);
+  if (!ctx) return null;
   const img = ctx.createImageData(cols, rows);
-  state.sheet = { canvas, ctx, img, cells: words(img.data) };
-  return state.sheet;
+  return { canvas, ctx, img, cells: words(img.data) };
 }
 
 /**
- * Flames: the heat grid as many steps on from the last paint's as stepsDue gives the time since it, or from a cold
- * grid where the last is another size, its bottom row lit by the bands, each cell in the color fireColors gives its
- * heat, put on a sheet a pixel a cell and scaled over the whole canvas.
+ * The flames for a canvas `w` by `h`: the ones held, unless they are another size, then fresh ones on a cold grid,
+ * keeping the held sheet where the grid is the same size.
+ *
+ * @param {Frame} f
+ * @param {number} w
+ * @param {number} h
+ * @returns {Flames}
+ */
+function flamesFor(f, w, h) {
+  const held = f.state.flames;
+  if (held?.w === w && held.h === h) return held;
+  const size = fireSize(w, h);
+  f.state.flames = {
+    state: freshFlames(size),
+    source: new Uint16Array(size.cols),
+    w,
+    h,
+    sheet: fireSheet(held?.sheet, size.cols, size.rows),
+    suite: "",
+    accent: "",
+    ink: new Uint32Array(0),
+  };
+  return f.state.flames;
+}
+
+/**
+ * Flames: the heat grid stepped on by the time since the last paint, its bottom row lit by the columns, each cell in
+ * the color fireColors gives its heat, put on a sheet a pixel a cell and scaled over the whole canvas.
  *
  * @param {Frame} f
  */
 function fire(f) {
-  const { ctx, canvas, state } = f;
-  const { width: w, height: h } = canvas;
-  const size = fireSize(w, h);
-  const source = (state.source = fireSource(f.fracs, size, state.source));
-  const due = stepsDue(state.owed, f.dt);
-  state.owed = due.owed;
-  if (state.heat?.length !== size.cols * size.rows) state.heat = new Uint16Array(size.cols * size.rows);
-  for (let k = 0; k < due.steps; k++) state.heat = stepFire(state.heat, source, size, Math.random);
-  const ink = fireInk(state, f.suite, f.accent, size.max);
-  const sheet = fireSheet(state, size.cols, size.rows);
+  const { ctx } = f;
+  const { width: w, height: h } = ctx.canvas;
+  const flames = flamesFor(f, w, h);
+  const { size } = flames.state;
+  fireSource(f.fracs, size, flames.source);
+  stepFlames(flames.state, flames.source, f.dt, Math.random);
+  if (flames.suite !== f.suite || flames.accent !== f.accent) {
+    flames.suite = f.suite;
+    flames.accent = f.accent;
+    flames.ink = words(fireColors(f.suite, f.accent, size.max));
+  }
+  const { sheet, ink } = flames;
   ctx.clearRect(0, 0, w, h);
   if (!sheet) return;
-  const { heat } = state;
+  const { heat } = flames.state;
   const { cells } = sheet;
   for (let i = 0; i < heat.length; i++) cells[i] = ink[heat[i]];
   sheet.ctx.putImageData(sheet.img, 0, 0);
   ctx.drawImage(sheet.canvas, 0, 0, w, h);
 }
 
-/** @type {Record<string, (f: Frame) => void>} */
-const STYLES = { bars, ridges, fade, fire };
+/**
+ * Throw where a paint is not told, as a number of seconds, how long it has been since the last.
+ *
+ * @param {unknown} dt
+ */
+function timed(dt) {
+  if (typeof dt !== "number" || !Number.isFinite(dt)) {
+    throw new TypeError("fxPainter: a paint is told the seconds since the last paint");
+  }
+}
 
 /** @returns {FxState} */
-const fresh = () => ({
-  caps: null,
-  ridges: null,
-  halo: HALO_FRESH,
-  glow: null,
-  heat: null,
-  bands: undefined,
-  source: undefined,
-  owed: 0,
-  ink: null,
-  sheet: null,
-});
+const fresh = () => ({ caps: null, ridges: null, glow: null, flames: null });
 
 /**
- * A painter for `canvas`: `paint` draws one meter scene's spectrum at `range` dB under `style` in color suite `suite`,
- * Accent where none is given, in the accent in force when it paints, `dt` seconds after the last paint; `clear` empties
- * the canvas.
+ * The painter for the effects canvas: `paint` draws `columns` at `range` dB under `style` in color suite `suite`, in
+ * the accent in force when it paints, its motion `dt` seconds on from the last paint; `clear` empties the canvas.
  *
  * @param {HTMLCanvasElement} canvas
  * @param {FxColors} colors
+ * @returns {{
+ *   paint: (
+ *     columns: ArrayLike<number>,
+ *     range: number,
+ *     style: string,
+ *     opts: { suite: string, dt: number, restart: boolean },
+ *   ) => void,
+ *   clear: () => void,
+ * }}
  */
 export function fxPainter(canvas, colors) {
   let shown = "";
   let state = fresh();
   /** @type {Float32Array | undefined} */
-  let fracs; // the plot fractions of the last paint, written over by the next
+  let fracs;
+  /** @type {Float32Array | undefined} */
+  let bands;
+  /** @type {Frame | null} */
+  let frame = null;
   const clear = () => canvas.getContext("2d", CTX_OPTS)?.clearRect(0, 0, canvas.width, canvas.height);
-  /**
-   * @param {SpectrumHold | null} spectrum
-   * @param {number} range  dB
-   * @param {string} style
-   * @param {{ suite?: string, dt: number }} look  the color suite, Accent where none is given, and the seconds since
-   *   the last paint
-   */
-  const paint = (spectrum, range, style, { suite = ACCENT, dt }) => {
-    const ctx = canvas.getContext("2d", CTX_OPTS);
-    if (!ctx) return;
-    if (!spectrum) {
-      shown = "";
-      clear();
-      return;
-    }
-    if (style !== shown) {
-      if (shown) clear();
-      shown = style;
-      state = fresh();
-    }
-    const draw = STYLES[style];
-    const accent = accentInForce();
-    fracs = fractionsOf(spectrum.disp, range, fracs);
-    if (draw) draw({ ctx, canvas, colors, fracs, state, suite, accent, dt });
-    else clear();
+  /** @type {Record<string, (f: Frame) => void>} */
+  const styles = {
+    bars: (f) => bars(f, (bands = bandsOf(f.fracs, BANDS, bands))),
+    ridges: (f) => ridges(f, colors),
+    fade,
+    fire,
   };
-  return { paint, clear };
+  return {
+    /**
+     * @param {ArrayLike<number>} columns  dBFS per column, as the trace shows them
+     * @param {number} range  dB, positive
+     * @param {string} style
+     * @param {{ suite: string, dt: number, restart: boolean }} opts  dt is seconds since the last paint
+     */
+    paint(columns, range, style, { suite, dt, restart }) {
+      timed(dt);
+      const ctx = canvas.getContext("2d", CTX_OPTS);
+      if (!ctx) return;
+      if (!columns.length || restart || style !== shown) {
+        clear();
+        state = fresh();
+        shown = columns.length ? style : "";
+      }
+      const draw = styles[style];
+      if (!columns.length || !draw) return;
+      fracs = fractionsOf(columns, range, fracs);
+      frame ??= { ctx, fracs, state, suite, accent: "", dt };
+      frame.ctx = ctx;
+      frame.fracs = fracs;
+      frame.state = state;
+      frame.suite = suite;
+      frame.accent = accentInForce();
+      frame.dt = dt;
+      draw(frame);
+    },
+    clear,
+  };
 }

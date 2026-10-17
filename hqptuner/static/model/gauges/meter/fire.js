@@ -9,6 +9,7 @@
 
 import { clamp } from "../../../lib/coerce.js";
 import { CHANNEL_MAX, bandTop, rampAt, rampOf } from "./spectrumfx.js";
+import { freshPace, stepPace } from "./steps.js";
 
 const CELL_PX = 2; // a cell's side on a canvas small enough for it, canvas pixels
 const CELLS = 90000; // cells a grid holds at most when cells grow past CELL_PX to keep within it
@@ -150,6 +151,45 @@ export function stepFire(prev, source, size, rand) {
     for (let y = 0; y < size.rows - 1; y++) burnRow(heat, y, size);
   }
   return heat;
+}
+
+/**
+ * The Flames style as a paint draws it: the heat grid, the shape it was built for and the pace its steps are taken at.
+ *
+ * @typedef {object} FlamesState
+ * @property {Uint16Array} heat  the heat grid, row by row from the top, as stepFire gives it
+ * @property {FireSize} size  the grid's shape
+ * @property {import("./steps.js").Pace} pace  the part step carried to the next paint
+ */
+
+/**
+ * Flames after a break or a change of size: a cold grid of `size`, due a step at the first paint.
+ *
+ * @param {FireSize} size
+ * @returns {FlamesState}
+ */
+export function freshFlames(size) {
+  return { heat: new Uint16Array(size.cols * size.rows), size, pace: freshPace() };
+}
+
+/**
+ * The flames after a paint `dt` seconds after the last: the whole steps the paint owes through stepPace, each a
+ * stepFire handing in `source`. Each pass, the oldest heat any row still reads climbs one row, so a grid's rows of
+ * passes leave nothing of the grid before them. However many steps a paint owes, it burns at most the steps that make
+ * a grid's rows of passes, so a long gap costs no more than a full grid and shows the flames the last of its steps
+ * leave.
+ *
+ * @param {FlamesState} state  written in place
+ * @param {ArrayLike<number>} source  top heat per column, as fireSource gives it
+ * @param {number} dt  wall time since the last paint, s, at least 0
+ * @param {() => number} rand  as stepFire takes it
+ * @returns {FlamesState}  `state`
+ */
+export function stepFlames(state, source, dt, rand) {
+  const { size } = state;
+  const steps = Math.min(stepPace(state.pace, dt), Math.ceil(size.rows / size.passes));
+  for (let s = 0; s < steps; s++) state.heat = stepFire(state.heat, source, size, rand);
+  return state;
 }
 
 /**
