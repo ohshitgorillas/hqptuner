@@ -46,17 +46,21 @@ def markdown_files(docs: Path) -> list[Path]:
     return sorted(path for path in docs.rglob("*.md") if path.is_file())
 
 
-def read_lines(path: Path) -> list[str] | None:
-    """Return the file's lines, or ``None`` when it cannot be read as UTF-8."""
-    try:
-        return path.read_text(encoding="utf-8").splitlines()
-    except (OSError, UnicodeDecodeError):
-        return None
-
-
 def label(path: Path, root: Path) -> str:
     """Root-relative display path."""
     return str(path.relative_to(root))
+
+
+def read_lines(path: Path, root: Path, problems: list[str]) -> list[str]:
+    """Return the file's lines; a file that is missing or not UTF-8 reads as empty and lands in ``problems``."""
+    text = ""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        problems.append(f"{label(path, root)}: missing")
+    except (OSError, UnicodeDecodeError):
+        problems.append(f"{label(path, root)}: unreadable as UTF-8")
+    return text.splitlines()
 
 
 def line_limited(path: Path, docs: Path) -> bool:
@@ -65,13 +69,10 @@ def line_limited(path: Path, docs: Path) -> bool:
     return len(parts) > 1 and parts[0] in LINE_LIMITED
 
 
-def long_lines(path: Path, root: Path) -> list[str]:
-    """One problem per line in this file longer than ``LIMIT`` characters."""
-    lines = read_lines(path)
-    if lines is None:
-        return [f"{label(path, root)}: unreadable as UTF-8"]
+def long_lines(lines: list[str], path_label: str) -> list[str]:
+    """One problem per line of ``lines`` longer than ``LIMIT`` characters."""
     return [
-        f"{label(path, root)}:{number}: line is {len(line)} characters, over the limit of {LIMIT}"
+        f"{path_label}:{number}: line is {len(line)} characters, over the limit of {LIMIT}"
         for number, line in enumerate(lines, start=1)
         if len(line) > LIMIT
     ]
@@ -106,9 +107,8 @@ def index_problems(root: Path, docs: Path, files: list[Path]) -> list[str]:
     """Every unindexed doc and every subjectless entry."""
     index = docs / "README.md"
     index_label = label(index, root)
-    lines = read_lines(index)
-    problems = [] if lines is not None else [f"{index_label}: missing or unreadable as UTF-8"]
-    text = "\n".join(lines or [])
+    problems: list[str] = []
+    text = "\n".join(read_lines(index, root, problems))
     linked = indexed_targets(text, docs)
     problems += [
         f"{label(path, root)}: not linked from {index_label}"
@@ -127,7 +127,8 @@ def check(root: Path) -> list[str]:
     problems: list[str] = []
     for path in files:
         if line_limited(path, docs):
-            problems.extend(long_lines(path, root))
+            lines = read_lines(path, root, problems)
+            problems += long_lines(lines, label(path, root))
     return problems + index_problems(root, docs, files)
 
 

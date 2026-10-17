@@ -136,7 +136,7 @@ def test_a_line_over_the_limit_in_a_design_doc_fails_the_gate(
     """One character past the limit, under ``docs/spec/`` or ``docs/parked/`` at any depth, fails."""
     root = clean_tree(tmp_path)
     add_doc(root, relative, "x" * (LIMIT + 1) + "\n")
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
 
 
 @pytest.mark.parametrize(
@@ -159,8 +159,10 @@ def test_a_table_row_over_the_limit_fails_the_gate(tmp_path: Path, capsys: pytes
     """A table row is a line like any other."""
     row = "| " + "x" * (LIMIT + 1 - len("|  |")) + " |"
     root = clean_tree(tmp_path)
-    add_doc(root, "spec/table.md", "| a |\n| --- |\n" + row + "\n")
-    assert run_gate(capsys, root)[0] != 0
+    relative = "spec/table.md"
+    add_doc(root, relative, "| a |\n| --- |\n" + row + "\n")
+    expected = f"docs/{relative}:3: line is {LIMIT + 1} characters, over the limit of {LIMIT}"
+    assert expected in run_gate(capsys, root)[1].splitlines()
 
 
 @pytest.mark.parametrize("relative", ["research/wide.md", "internal/wide.md", "wide.md"])
@@ -195,7 +197,7 @@ def test_a_doc_the_index_does_not_name_fails_the_gate(
     """An unindexed ``.md`` anywhere under ``docs/``, at any depth, fails."""
     root = clean_tree(tmp_path)
     add_doc(root, relative, "# orphan\n", indexed=False)
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
 
 
 def test_an_indexed_doc_is_not_a_problem(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -223,7 +225,7 @@ def test_an_index_entry_with_no_subject_fails_the_gate(
     """An entry that links its doc and says nothing about it fails, wherever the doc lives."""
     root = clean_tree(tmp_path)
     add_doc(root, relative, "# bare\n", entry=_bare_entry(relative))
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
 
 
 def test_an_index_entry_with_a_subject_is_not_a_problem(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
@@ -250,7 +252,7 @@ def test_a_pragma_does_not_excuse_a_long_line(tmp_path: Path, capsys: pytest.Cap
     """A long line carrying a pragma still fails."""
     root = clean_tree(tmp_path)
     add_doc(root, "spec/long.md", "x" * (LIMIT + 1) + " " + pragma + "\n")
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
 
 
 @pytest.mark.parametrize("pragma", PRAGMAS)
@@ -260,7 +262,7 @@ def test_a_pragma_does_not_excuse_an_unindexed_doc(
     """An unindexed doc carrying a pragma still fails."""
     root = clean_tree(tmp_path)
     add_doc(root, "spec/orphan.md", f"# orphan\n\n{pragma}\n", indexed=False)
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
 
 
 @pytest.mark.parametrize("pragma", PRAGMAS)
@@ -270,4 +272,4 @@ def test_a_pragma_does_not_stand_in_for_a_subject(
     """An entry whose only text after the link is a pragma comment still has no subject, and fails."""
     root = clean_tree(tmp_path)
     add_doc(root, "spec/bare.md", "# bare\n", entry=_bare_entry("spec/bare.md", " " + pragma))
-    assert run_gate(capsys, root)[0] != 0
+    assert run_gate(capsys, root)[0] == 1
