@@ -4,7 +4,6 @@ version = 1
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
 "hqptuner/lanes/live/lane.py" = { lines = 406 }
-"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 443 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/fuzz/fuzz.py" = { lines = 433 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
