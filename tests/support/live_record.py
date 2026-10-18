@@ -11,8 +11,8 @@ from collections.abc import Mapping
 from types import MappingProxyType
 from typing import NamedTuple
 
+from hqptuner.engine.chainfamily import PCM
 from hqptuner.lanes.live import dropped
-from hqptuner.lanes.live.chain import PCM
 from hqptuner.lanes.live.memory import LiveMemory
 from hqptuner.lanes.writer import LiveWriteFailed, LiveWriteOk
 

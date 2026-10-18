@@ -27,8 +27,8 @@ from live_record import (
     remembering,
 )
 
+from hqptuner.engine.chainfamily import SDM
 from hqptuner.lanes.live import dropped
-from hqptuner.lanes.live.chain import SDM
 
 # --- what goes on the record --------------------------------------------------
 

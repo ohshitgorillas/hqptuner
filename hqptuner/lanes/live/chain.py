@@ -1,20 +1,15 @@
-"""Which chain the engine has loaded, and which output family a rate belongs to."""
+"""Which chain the engine has loaded, and which config slot holds the rate limit for each."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from hqptuner.engine.chainfamily import PCM, SDM, chain_name, status_chain
+
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
 
-PCM = "pcm"
-SDM = "sdm"
-
 EnumItems = list[dict[str, str]]
-
-# No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
-# the two families outright — no rate in Hz is ambiguous between them.
-_SDM_FLOOR = 2822400
 
 # The two rate slots. `SetRate` writes the FIXED slot (`samplerate`/`bitrate`): an
 # exact rate there overrides automatic base-rate selection, so 44.1k material goes out
@@ -26,19 +21,6 @@ _SDM_FLOOR = 2822400
 RATE_LIMIT_FIELD = {PCM: "defaults_samplerate", SDM: "defaults_bitrate"}
 
 
-def rate_family(hz: str) -> str:
-    """Which output family a rate in Hz belongs to."""
-    return SDM if int(hz) >= _SDM_FLOOR else PCM
-
-
-def _chain_name(name: str) -> str | None:
-    """Return the chain a mode name denotes, or None for ``[source]``/anything unknown."""
-    upper = (name or "").upper()
-    if upper.startswith("PCM"):
-        return PCM
-    return SDM if upper.startswith(("SDM", "DSD")) else None
-
-
 def configured_chain(mgr: LaneManager) -> str | None:
     """Return the CONFIGURED mode's chain — decisive when it is pcm or sdm, None in auto or when State cannot say."""
     index = (mgr.readings.state or {}).get("mode")
@@ -46,25 +28,8 @@ def configured_chain(mgr: LaneManager) -> str | None:
         return None
     for item in (mgr.readings.enums or {}).get("modes", []):
         if str(item.get("index")) == str(index):
-            return _chain_name(item.get("name") or "")
+            return chain_name(item.get("name") or "")
     return None
-
-
-def _chain_from_status(mgr: LaneManager) -> str | None:
-    """Return the chain the engine is running RIGHT NOW, from what Status reports.
-
-    ``Status.active_mode`` looks like the whole answer and is not: it echoes the
-    CONFIGURED mode, so in ``[source]`` — the one case this is reached in on a
-    live daemon — it reads ``"[source]"`` and nothing else. ``Status.active_rate``
-    does answer, and unambiguously: it is the rate coming out, and its family is
-    the chain that produced it (``rate_family``, no rate lands between the two).
-    """
-    status = mgr.readings.status or {}
-    named = _chain_name(status.get("active_mode") or "")
-    if named is not None:
-        return named
-    hz = status.get("active_rate") or ""
-    return rate_family(hz) if hz.isdigit() and hz != "0" else None
 
 
 def active_chain(mgr: LaneManager) -> str | None:
@@ -72,7 +37,7 @@ def active_chain(mgr: LaneManager) -> str | None:
 
     The configured mode answers it outright when set to pcm or sdm. In ``auto``
     the engine switches per source (readme §1.7, "Automatic switching"), so the
-    configured value cannot say and Status answers instead (``_chain_from_status``).
+    configured value cannot say and Status answers instead (``status_chain``).
     None when neither can answer, which keeps the fields on the restore lane
     rather than guessing a chain.
 
@@ -80,4 +45,4 @@ def active_chain(mgr: LaneManager) -> str | None:
     config LIMIT slot (``RATE_LIMIT_FIELD``), not to the loaded chain.
     """
     chain = configured_chain(mgr)
-    return chain if chain is not None else _chain_from_status(mgr)
+    return chain if chain is not None else status_chain(mgr.readings.status or {})

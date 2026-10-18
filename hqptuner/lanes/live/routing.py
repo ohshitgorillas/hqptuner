@@ -27,9 +27,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
+from hqptuner.engine.chainfamily import PCM, SDM
 from hqptuner.errors import HQPTunerError
 from hqptuner.lanes.live import rate
-from hqptuner.lanes.live.chain import PCM, SDM, EnumItems, active_chain
+from hqptuner.lanes.live.chain import EnumItems, active_chain
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
