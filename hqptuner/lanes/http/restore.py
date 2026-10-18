@@ -197,7 +197,7 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
     restart conjures absent hardware.
 
     Raises ``HttpLaneDeclinedError`` when the lane is not usable, settled before the
-    first pass: every pass opens with ``await_http_ready``, which polls to the alarm
+    first pass: every pass opens with ``await_serving``, which waits to the alarm
     deadline, so a daemon that has already refused us would cost three deadlines to
     say what the poll loop established long ago. Raises ``RestoreWriteFailedError``
     when no pass got a write through at all, and ``GroundingError`` for an edit that
@@ -214,18 +214,18 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
     active_profile = "" if switched else _active_profile(mgr, edits)
-    # taken before the first pass, not inside it: a pass refused with 503 and the
-    # next one adopted are one restore the caller has to outlast
-    mark = settle.mark_connect(mgr)
+    # the first pass the daemon accepts stamps it, not each one: a pass refused
+    # with 503 and the next one adopted are one restore the caller has to outlast
+    mark: settle.Mark | None = None
     verdict: PassVerdict | None = None
     attempts = 0
     for attempt in range(1, _PERSIST_RETRIES + 2):
         # a preset switch (or a prior attempt) just restarted the daemon and the
         # active label flips before the restart finishes — wait for the HTTP lane
         # to actually serve before writing, rather than racing it
-        await settle.await_http_ready(mgr)
+        await settle.await_serving(mgr)
         try:
-            intended = await _restore_once(mgr, merged, hooks, active_profile, mark=mark)
+            intended, accepted = await _restore_once(mgr, merged, hooks, active_profile)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
@@ -243,7 +243,8 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
             log.warning("restore pass %d dropped mid-write: %s", attempt, exc)
             await mgr.clock.sleep(RECONNECT_FAST)
             continue
-        verdict, attempts = await _judge(mgr, merged, intended, attempt), attempt
+        mark = accepted if mark is None else mark
+        verdict, attempts = await _judge(mgr, merged, intended, attempt, accepted), attempt
         if verdict.final:
             break
     return await _outcome(mgr, mark, verdict, attempts)
@@ -255,7 +256,7 @@ async def _outcome(
     """Answer for the passes that ran: the last judged one decides, and none judged means none got through."""
     if verdict is None:
         raise RestoreWriteFailedError(passes=_PERSIST_RETRIES + 1)
-    if verdict.final:
+    if verdict.final and mark is not None:
         # the restore restarted the daemon and `verify` proves only that the
         # 8088 lane serves the new config; the 4321 control connection is still
         # the dead one, so wait for the reconnect before answering the user
@@ -279,14 +280,16 @@ def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
     return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
 
 
-async def _judge(mgr: LaneManager, merged: dict[str, str], intended: dict[str, str], attempt: int) -> PassVerdict:
-    """Read the running config back after one restore and say how it differs from what the pass intended."""
+async def _judge(
+    mgr: LaneManager, merged: dict[str, str], intended: dict[str, str], attempt: int, mark: settle.Mark
+) -> PassVerdict:
+    """Read the running config back after one restore, stamped ``mark``, and say how it differs from the intent."""
     keys = verified_keys(merged, intended)
     # both sides of the persistent apply, recorded whether or not it converged: a
     # pass that converges on every key it verified can still have carried the wrong
     # startup volume, and the prose warning below only fires when it does not
     voltrace.observe(mgr, "apply_intended", voltrace.subset(intended))
-    realized = await verify(mgr, intended, keys)
+    realized = await verify(mgr, intended, keys, mark)
     voltrace.observe(mgr, "apply_realized", voltrace.subset(realized))
     diff = config_diff(intended, realized, keys)
     if not diff:
@@ -302,12 +305,11 @@ async def _restore_once(
     merged: dict[str, str],
     hooks: StoreHooks,
     active_profile: str = "",
-    *,
-    mark: settle.Mark | None,
-) -> dict[str, str]:
+) -> tuple[dict[str, str], settle.Mark]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
-    The archive's working config is the running config ⊕ edits. ``mark`` is the caller's connect mark.
+    The archive's working config is the running config ⊕ edits. Returned beside it is the stamp the accepted push
+    wrote.
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
@@ -334,16 +336,17 @@ async def _restore_once(
     mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    await settle.restore(mgr, restore_zip, mark=mark, scope="system")
-    return presetconf.read_config(intended_xml)
+    accepted = await settle.restart(mgr, lambda: mgr.require_http().restore(restore_zip, "system"))
+    return presetconf.read_config(intended_xml), accepted
 
 
-async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str]) -> dict[str, str]:
-    """Poll a fresh /backup until the running config reflects this apply's intended fields, or the deadline passes.
+async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str], mark: settle.Mark) -> dict[str, str]:
+    """Wait for the restart stamped ``mark`` to land, then read this apply's intended fields back.
 
-    The fields polled for are the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the
-    last realized config (read from the backup's base hqplayerd.xml) so the caller can diff it — the unconverged read is
-    the diff, so it is kept even when the poll gives up.
+    Polls a fresh /backup until the running config reflects them, or the deadline passes. The fields polled for are
+    the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the last realized config
+    (read from the backup's base hqplayerd.xml) so the caller can diff it — the unconverged read is the diff, so it
+    is kept even when the poll gives up.
     """
     realized: dict[str, str] = {}
 
@@ -361,9 +364,9 @@ async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str]) -> 
         converged = all(realized.get(key) == intended.get(key) for key in keys)
         return realized if converged else None
 
-    # the restore just restarted the daemon: nothing has landed yet, so spend the
-    # first interval waiting rather than on a read that cannot succeed
-    await mgr.clock.sleep(RECONNECT_FAST)
+    # the restore just restarted the daemon: nothing has landed yet, so wait for
+    # the restart rather than spend reads that cannot succeed
+    await settle.await_ready(mgr, mark)
     return await settle.poll_until(mgr, probe, interval=RECONNECT_FAST) or realized
 
 

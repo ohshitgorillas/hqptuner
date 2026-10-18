@@ -1,70 +1,93 @@
-"""Waiting for the daemon to settle after a restart."""
+"""The one way out for a request that restarts or reloads the daemon, and the waits on what it did.
+
+Every wait runs on ``mgr.clock`` and carries a deadline that defaults to the window, ``alarm_threshold``. A deadline
+passed is answered as a result for the caller to report, never raised.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import logging
 from typing import TYPE_CHECKING
+
+import httpx
+
+from hqptuner.lanes import LaneStamp
+from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
     from hqptuner.lanes import LaneManager
 
+log = logging.getLogger(__name__)
 
-@dataclass(frozen=True)
-class Mark:
-    """The connection generation a wait is measured from."""
+#: A restart request's stamp: the generation it was accepted in and when. A wait for the restart to land is a wait
+#: for Ready at a later generation than this one's.
+type Mark = LaneStamp
 
-    generation: int
-
-
-async def _nothing() -> None:
-    """Do nothing."""
+_TAKEN_DOWN = "the daemon accepted a request that restarts or reloads it"
 
 
-def mark_connect(mgr: LaneManager) -> Mark:
-    """Return the mark for the connection as it stands."""
-    del mgr
-    return Mark(0)
+class _BeforeAny:
+    """A mark every generation is later than: Ready after it is Ready at all."""
+
+    generation = -1
+    at = 0.0
 
 
-async def restore(mgr: LaneManager, data: bytes, *, mark: Mark | None, scope: str = "system") -> None:
-    """Push ``data`` to the daemon."""
+async def restart(mgr: LaneManager, request: Callable[[], Awaitable[object]]) -> Mark:
+    """Send ``request``, which restarts or reloads the daemon, and return the stamp to wait on.
+
+    The stamp is written as the daemon accepts the request, and the control socket is taken down after it. A
+    request that raises leaves no stamp and takes nothing down.
+    """
+    await request()
+    mark: Mark = mgr.phase.request_accepted(mgr.clock.monotonic())
+    await mgr.take_control_down(_TAKEN_DOWN)
+    return mark
 
 
-async def await_ready(mgr: LaneManager, mark: Mark | None) -> bool:
-    """Return whether the daemon came back past ``mark``."""
-    del mgr, mark
-    await _nothing()
-    return False
+async def await_ready(mgr: LaneManager, mark: Mark, deadline: float | None = None) -> bool:
+    """Wait for Ready at a generation later than ``mark``'s; answer whether it came before ``deadline``."""
+    return bool(await mgr.phase.until_ready(after=mark, clock=mgr.clock, deadline=deadline))
 
 
-async def await_http_ready(mgr: LaneManager) -> bool:
-    """Return whether the 8088 lane is serving."""
-    del mgr
-    await _nothing()
-    return False
+async def await_serving(mgr: LaneManager, deadline: float | None = None) -> bool:
+    """Wait for Ready at any generation, the standing one included; answer whether it came before ``deadline``."""
+    return await await_ready(mgr, _BeforeAny(), deadline)
 
 
 async def poll_until[T](
     mgr: LaneManager, probe: Callable[[], Awaitable[T | None]], *, interval: float, deadline: float | None = None
 ) -> T | None:
-    """Return the first answer ``probe`` gives."""
-    del mgr, probe, interval, deadline
-    await _nothing()
-    return None
+    """Read a write back every ``interval`` until ``probe`` confirms it, and return the confirming answer.
+
+    ``probe`` answers something truthy once the readback confirms; a falsy answer or an HTTP error is a pass that
+    did not. A confirmation is reported to the phase, which settles a pending request in place when the generation
+    has not moved. ``None`` is the deadline passed, after one last read at it.
+    """
+    clock = mgr.clock
+    until = clock.monotonic() + (mgr.cfg.alarm_threshold if deadline is None else deadline)
+    while True:
+        try:
+            answer = await probe()
+        except httpx.HTTPError as exc:
+            log.debug("readback pass failed on the wire: %s", exc)
+        else:
+            if answer:
+                mgr.phase.readback_confirmed(clock.monotonic())
+                return answer
+        remaining = until - clock.monotonic()
+        if remaining <= 0:
+            return None
+        await clock.sleep(min(interval, remaining))
 
 
 async def fresh_backup(mgr: LaneManager) -> bytes | None:
-    """Return a backup taken now."""
-    del mgr
-    await _nothing()
-    return None
+    """Return a ``/backup`` taken now, or ``None`` while the 8088 lane is declined.
 
-
-async def own_restart(mgr: LaneManager, request: Callable[[], Awaitable[object]], mark: Mark | None) -> None:
-    """Run ``request`` and wait out the restart it causes."""
-
-
-async def resync_engine_state(mgr: LaneManager) -> None:
-    """Reread the engine's state."""
+    A failed fetch raises ``httpx.HTTPError``, which ``poll_until`` reads as a pass that did not confirm.
+    """
+    if forms.decline(mgr) is not None:
+        return None
+    return await mgr.require_http().backup()

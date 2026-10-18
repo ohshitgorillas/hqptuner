@@ -202,5 +202,8 @@ class LaneManager(Protocol):
     def require_http(self) -> HttpConfigClient:
         """Return the 8088 client or raise."""
 
+    async def take_control_down(self, reason: str) -> None:
+        """Close the control socket ahead of a restart the daemon accepted, and report it taken Down."""
+
     async def refresh_http_forms(self) -> FormsOutcome:
         """Refill the form snapshots."""

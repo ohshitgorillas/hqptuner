@@ -115,20 +115,16 @@ async def load(mgr: PresetManager, name: str) -> PresetActivation:
     # before the daemon has been told anything
     voltrace.observe(mgr, "preset.stored", voltrace.subset(presetconf.read_config(xml)), name=name)
     previous = mgr.presetops.store.active  # the load below overwrites the pointer
-    await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
+    await settle.await_serving(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
     backup = await mgr.require_http().backup()
     mgr.presetops.persist_backup_for_load(backup, name)
     xml = presetiface.keep_interfaces(xml, engineconf.base_config_xml(backup, mgr.readings.active_config))
     archive = presetzip.restore_zip_with_working(backup, xml, mirror_name=name, mirror_xml=xml)
-    mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, archive, mark=mark, scope="system")
+    mark = await settle.restart(mgr, lambda: mgr.require_http().restore(archive, "system"))
     mgr.presetops.store.set_active(name)
     mgr.audit.preset_load(name, previous)
     reconnected = await settle.await_ready(mgr, mark)
-    # the restore restarted the daemon: every live reading we hold is the previous
-    # engine's (settle.resync_engine_state)
-    await settle.resync_engine_state(mgr)
-    # what the daemon came back on. Null means resync could not reach the engine,
+    # what the daemon came back on. Null means no reading reached us from the engine,
     # which is itself the answer to "what was it running after the restart".
     voltrace.observe(mgr, "post_restart_state", voltrace.live_volume(mgr), name=name)
     if not reconnected:
@@ -217,7 +213,7 @@ async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     daemon, store or grounding failure raises to the caller, the way ``load`` does.
     """
     name = canonical_name(name)  # everything after keys on the trimmed name
-    await settle.await_http_ready(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
+    await settle.await_serving(mgr)  # the daemon restarts on every load and restore; backup() needs HTTP serving
     backup = await mgr.require_http().backup()
     working = engineconf.base_config_xml(backup, mgr.readings.active_config)
     if not working:

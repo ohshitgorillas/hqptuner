@@ -9,7 +9,7 @@ from hqptuner.audit import AuditLog
 from hqptuner.clock import Clock
 from hqptuner.conf.httpauth import NoHttpClientError
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.core.lifecycle import Lifecycle
+from hqptuner.core.lifecycle import Fact, Lifecycle
 from hqptuner.core.readings import Readings
 from hqptuner.engine.controlerrors import ControlConnectionFailedError
 from hqptuner.engine.logtail import LogReader
@@ -38,6 +38,7 @@ class ConnectionManager:
         self.log_reader = LogReader(self.clock)
         self.live_writes = asyncio.Lock()
         self.metering: MeteringReader | None = None
+        self.control: ControlClient | None = None
         self.phase = Lifecycle(cfg.alarm_threshold)
         self.changed = self.phase.changed
 
@@ -54,7 +55,9 @@ class ConnectionManager:
         """Do nothing."""
 
     def require_control(self) -> ControlClient:
-        """Raise: there is no control connection."""
+        """Return the connected control client, or raise when no connection stands."""
+        if self.control is not None:
+            return self.control
         raise ControlConnectionFailedError(host=self.cfg.container_host_alias, port=self.cfg.hqp_control_port)
 
     def require_http(self) -> HttpConfigClient:
@@ -62,6 +65,14 @@ class ConnectionManager:
         if self.http_client is None:
             raise NoHttpClientError
         return self.http_client
+
+    async def take_control_down(self, reason: str) -> None:
+        """Close the control client, if one is held, and report the socket taken Down; ``reason`` is why."""
+        del reason
+        control = getattr(self, "control", None)
+        if control is not None:
+            await control.close()
+        self.phase.report(Fact.SOCKET_TAKEN, self.clock.monotonic())
 
     @staticmethod
     async def refresh_http_forms() -> FormsOutcome:

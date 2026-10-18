@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 from hqptuner import voltrace
 from hqptuner.conf import engineconf
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.lanes import settle
 from hqptuner.lanes.http import engineattrs, forms, restore
 from hqptuner.lanes.http.engineattrs import EngineVerification
 from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
@@ -178,7 +177,7 @@ class ApplyOps:
             live = live + await _write_live(mgr, plan.live_edits)
         restore_fields = plan.restore_fields
         persistent = await _persistent_apply(mgr, restore_fields, switch_to, save) if restore_fields else None
-        aftermath = await after_restore(mgr, persistent, restore_fields)
+        aftermath = after_restore(mgr, persistent, restore_fields)
         # after all of it: a preset load is the FIRST step of an apply, so every
         # checkpoint inside the load reads state the live setters and the restore
         # have not touched yet. This one reads on a live-only apply too —
@@ -202,8 +201,6 @@ class ApplyOps:
         mgr.presetops.persist_backup_for_apply(backup)
         carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=presetfields.carried_live_fields(mgr))
         result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
-        # same restart, same stale readings as the staged-apply path above
-        await settle.resync_engine_state(mgr)
         if result.verified.engine:
             mgr.readings.engine = result.verified.engine
         return EngineApplyResult(verified=result.verified, members=result.members, backup_bytes=result.backup_bytes)
