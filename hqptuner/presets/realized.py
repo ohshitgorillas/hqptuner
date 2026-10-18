@@ -5,7 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol
 
 from hqptuner.engine.chainfamily import chain_name, status_chain
-from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, LiveField, mode_form_value
+from hqptuner.lanes.live.overrides import form_value
+from hqptuner.lanes.live.routing import DIRECT, ROUTABLE
 
 if TYPE_CHECKING:
     from hqptuner.lanes.live.chain import EnumItems
@@ -39,16 +40,6 @@ def _loaded_chain(state: dict[str, str], engine: EngineReading) -> str | None:
     return configured if configured is not None else status_chain(engine.status or {})
 
 
-def _form_value(field: str, spec: LiveField, index: str, engine: EngineReading) -> str | None:
-    """Translate one routable field's Engine list index into the enum ID or mode value the File holds."""
-    items = (engine.enums or {}).get(spec.enum) or []
-    if field == "mode":
-        return mode_form_value(items, index)
-    item = _item_at(items, index)
-    value = None if item is None else item.get("value")
-    return None if value is None else str(value)
-
-
 def _engine_fields(engine: EngineReading | None) -> dict[str, str]:  # engine, enum ID and flag
     """Return the live-domain fields in File terms as the Engine reading answers for them, empty when not read yet."""
     state = engine.state if engine is not None else None
@@ -60,7 +51,7 @@ def _engine_fields(engine: EngineReading | None) -> dict[str, str]:  # engine, e
         index = state.get(spec.state)
         if index is None or spec.chain not in {None, chain}:
             continue
-        value = _form_value(field, spec, index, engine)
+        value = form_value(field, (engine.enums or {}).get(spec.enum) or [], index)
         if value is not None:
             fields[field] = value
     fields.update({field: state[attr] for field, attr in DIRECT.items() if state.get(attr) is not None})

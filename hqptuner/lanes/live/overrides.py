@@ -27,13 +27,16 @@ if TYPE_CHECKING:
 LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT})
 
 
-def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
-    """Return the enum ID of the item at this list index (the index→ID join)."""
-    for item in items:
-        if str(item.get("index")) == str(index):
-            value = item.get("value")
-            return None if value is None else str(value)
-    return None
+def form_value(field: str, items: EnumItems, index: str) -> str | None:
+    """Translate a routable field's Engine list index into the enum ID or mode value the File holds.
+
+    The index-to-ID join, the inverse of ``routing``'s: the item at this list index, and its enum ID.
+    """
+    if field == "mode":
+        return mode_form_value(items, index)
+    item = next((entry for entry in items if str(entry.get("index")) == str(index)), None)
+    value = None if item is None else item.get("value")
+    return None if value is None else str(value)
 
 
 def _override_for(mgr: LaneManager, field: str, state: dict[str, str]) -> str | None:
@@ -42,24 +45,17 @@ def _override_for(mgr: LaneManager, field: str, state: dict[str, str]) -> str | 
     index = state.get(spec.state)
     if index is None:
         return None
-    items = (mgr.readings.enums or {}).get(spec.enum) or []
-    return mode_form_value(items, index) if field == "mode" else _enum_id_for_index(items, index)
+    return form_value(field, (mgr.readings.enums or {}).get(spec.enum) or [], index)
 
 
 def _chain_overrides(mgr: LaneManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
-    """Both chains' filter/shaper settings.
-
-    The engine's own reading for the chain it is running, LIVE's memory for the chain it is not.
-    """
+    """Return the mode and the loaded chain's filter/shaper settings, as the engine reads them."""
     overrides = {}
     for field, spec in ROUTABLE.items():
         if spec.chain is None or spec.chain == chain:
             value = _override_for(mgr, field, state)
             if value is not None:
                 overrides[field] = value
-    for other, remembered in mgr.readings.live.chain.items():
-        if other != chain:
-            overrides.update(remembered)
     return overrides
 
 
@@ -68,12 +64,9 @@ def live_overrides(mgr: LaneManager) -> dict[str, str]:
 
     So a save captures what is actually playing rather than a stale file.
 
-    The engine answers for the ACTIVE chain only — State reports one
-    filter/shaper pair — so the dormant chain is reported from ``mgr.readings.live.chain``
-    instead, which is what LIVE set on it and what ``lane`` puts back when it
-    loads. Reading the engine's pair for both chains would be the one thing that
-    is never right: the two chains number their enum IDs differently, so it would
-    overwrite the dormant chain's settings with a translation of the other one's.
+    The engine answers for the loaded chain only: State reports one filter/shaper
+    pair, and the two chains number their enum IDs differently. The chain not
+    loaded has no Engine value, so nothing is reported for it.
     """
     state = mgr.readings.state or {}
     # No rate override: the rate lives in the limit slot, which is a config field

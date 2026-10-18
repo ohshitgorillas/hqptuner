@@ -285,21 +285,23 @@ def _why_unresolved(field: str, value: str) -> str:
     return f"{value} is not in the engine's live {spec.enum} list"
 
 
-def _off_chain(field: str, chain: str | None) -> bool:
-    """Whether this field belongs to the chain the engine does NOT have loaded."""
+def _off_chain(field: str, chain: str | None) -> str | None:
+    """Return the chain this field belongs to when the engine does NOT have it loaded, else None."""
     spec = ROUTABLE.get(field)
-    return spec is not None and spec.chain is not None and spec.chain != chain
+    if spec is None or spec.chain is None or spec.chain == chain:
+        return None
+    return spec.chain
 
 
 def _route_live(
     mgr: LaneManager, fields: dict[str, str], chain: str | None
-) -> tuple[dict[str, dict[str, str]], dict[str, str], dict[str, str]]:
-    """Every field as setter args, alongside the held ones and the unresolvable ones.
+) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
+    """Every field as setter args, alongside the reason for each one that does not resolve.
 
-    Held means for a chain that is not loaded; unresolvable means it would not resolve at all.
+    A field of the chain not loaded does not resolve: ``GetFilters``/``GetShapers`` answer
+    for the loaded chain only, so it has no Engine value and no setter reaches it.
     """
     edits: dict[str, dict[str, str]] = {}
-    stored: dict[str, str] = {}
     reasons: dict[str, str] = {}
     for field, value in fields.items():
         if field in DIRECT:
@@ -318,13 +320,9 @@ def _route_live(
             edits.update(pin.edits)
             reasons.update(pin.reasons)
             continue
-        if _off_chain(field, chain):
-            # No enumeration exists to resolve it against — GetFilters/GetShapers
-            # answer for the loaded chain only — so it is held as the config-form
-            # enum ID the caller sent and resolved when that chain loads. Not
-            # validated here for the same reason: there is nothing to validate it
-            # against until then, and `resolve_chain` drops what does not survive.
-            stored[field] = value
+        other = _off_chain(field, chain)
+        if other is not None:
+            reasons[field] = f"belongs to the {other} chain, which the engine has not loaded"
             continue
         index = _live_index(mgr, field, value, chain)
         if index is None:
@@ -332,22 +330,19 @@ def _route_live(
             continue
         spec = ROUTABLE.get(field) or LIVE_ONLY[field]
         edits.setdefault(spec.setting, {})[spec.arg] = index
-    return edits, stored, reasons
+    return edits, reasons
 
 
-def resolve_live(
-    mgr: LaneManager, fields: dict[str, str]
-) -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]]]:
-    """Return a LIVE batch as ``writer.apply_live`` edits plus what is held per chain, or ``LiveRouteError``.
+def resolve_live(mgr: LaneManager, fields: dict[str, str]) -> dict[str, dict[str, str]]:
+    """Return a LIVE batch as ``writer.apply_live`` edits, or ``LiveRouteError`` naming each unresolved field.
 
     All-or-nothing: the whole batch resolves before a single setter runs, because
     a live write has no Apply button to retry from and a half-applied batch would
     leave the engine in a state no control describes.
 
-    A field for the chain the engine has not loaded is held rather than refused.
-    A live snapshot carries both chains' settings, so a batch touching the dormant
-    one is ordinary; the edit is real and simply lands when that chain
-    does (``lane._reassert_chain``). The pinned rate holds nothing (``rate.route``).
+    A field of the chain the engine has not loaded is refused: enumerations are
+    mode-relative, so that chain has no Engine value and no live setter reaches it,
+    and nothing is held for it to land later.
     """
     # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
     # list is mode-dependent too (manual §4.6), so a mode change invalidates every
@@ -359,42 +354,10 @@ def resolve_live(
                 "enumerations the other values were resolved against"
             }
         )
-    edits, stored, reasons = _route_live(mgr, fields, active_chain(mgr))
+    edits, reasons = _route_live(mgr, fields, active_chain(mgr))
     if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.readings.state or {}):
         unfillable = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
-        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS and f not in stored), unfillable))
+        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS and f not in reasons), unfillable))
     if reasons:
         raise LiveRouteError(reasons)
-    return edits, _by_chain(stored)
-
-
-def _by_chain(stored: dict[str, str]) -> dict[str, dict[str, str]]:
-    """Held fields grouped under the chain each belongs to."""
-    grouped: dict[str, dict[str, str]] = {}
-    for field, value in stored.items():
-        grouped.setdefault(str(ROUTABLE[field].chain), {})[field] = value
-    return grouped
-
-
-def resolve_chain(mgr: LaneManager, chain: str) -> tuple[dict[str, dict[str, str]], set[str]]:
-    """Return a chain's remembered settings as ``writer.apply_live`` edits, alongside fields its lists do not carry.
-
-    Those dropped fields are dropped rather than approximated: the nearest filter
-    the engine does have is a filter the user never picked. Resolved against
-    ``mgr.readings.enums`` as it stands, so the caller must re-enumerate after the mode
-    change first — the lists this joins through are the ones SetMode just swapped.
-    """
-    edits: dict[str, dict[str, str]] = {}
-    dropped: set[str] = set()
-    for field, value in (mgr.readings.live.chain.get(chain) or {}).items():
-        spec = ROUTABLE[field]
-        index = _index_for_enum_id((mgr.readings.enums or {}).get(spec.enum) or [], value)
-        if index is None:
-            dropped.add(field)
-            continue
-        edits.setdefault(spec.setting, {})[spec.arg] = index
-    # SetFilter sets both halves at once, so a one-sided re-assert would clobber
-    # the other; State supplies the missing half now that the chain is loaded.
-    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.readings.state or {}):
-        del edits["filter"]
-    return edits, dropped
+    return edits

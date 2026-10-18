@@ -82,22 +82,8 @@ async def _persistent_apply(
     return await restore.apply(mgr, http_fields, hooks, switched=switch_to is not None)
 
 
-def _staged_live(http_fields: dict[str, str], restore_fields: dict[str, str]) -> dict[str, str]:
-    """Return the staged fields that went to the engine live: all of them, or none when the batch took the restore lane.
-
-    Routing is all-or-nothing (``routing.split_live``), so one field on the restore lane means every staged field
-    rode the restore and none was confirmed live.
-    """
-    return {} if restore_fields else dict(http_fields)
-
-
-async def _write_live(
-    mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]], staged: dict[str, str]
-) -> list[LiveWriteResult]:
-    """Send the batch's live-routed edits, readback-verified, and do the bookkeeping the next write relies on.
-
-    ``staged`` holds only the staged fields that went to the engine live (``_staged_live``).
-    """
+async def _write_live(mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]]) -> list[LiveWriteResult]:
+    """Send the batch's live-routed edits, readback-verified, and refresh what the next write resolves against."""
     async with mgr.live_writes:
         client = mgr.require_control()
         interrupted: list[str] = []
@@ -110,7 +96,6 @@ async def _write_live(
             raise
         _trace_live_volume(mgr, live_edits, report)
         await lane.refresh_after_live(mgr, client, live_edits)
-        lane.remember_routed(mgr, report, staged)
         return report
 
 
@@ -190,7 +175,7 @@ class ApplyOps:
             plan = await lane.mode_then_split(mgr, http_fields, live_edits)
         live = plan.report
         if plan.live_edits:
-            live = live + await _write_live(mgr, plan.live_edits, _staged_live(http_fields, plan.restore_fields))
+            live = live + await _write_live(mgr, plan.live_edits)
         restore_fields = plan.restore_fields
         persistent = await _persistent_apply(mgr, restore_fields, switch_to, save) if restore_fields else None
         aftermath = await after_restore(mgr, persistent, restore_fields)
