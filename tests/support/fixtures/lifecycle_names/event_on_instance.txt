@@ -1,0 +1,9 @@
+"""A ConnectionManager holding one asyncio.Event on its instance."""
+
+import asyncio
+
+
+class ConnectionManager:
+    def __init__(self):
+        self.phase = None
+        self.settled_signal = asyncio.Event()

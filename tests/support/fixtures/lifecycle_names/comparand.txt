@@ -1,0 +1,9 @@
+"""A module comparing a phase against one lifecycle value."""
+
+import enum
+
+PHASE = None
+
+
+def settled(phase):
+    return phase == @NAME@

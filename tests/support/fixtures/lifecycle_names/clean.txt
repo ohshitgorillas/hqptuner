@@ -1,0 +1,7 @@
+"""A module reading the phase and the generation, and nothing retired."""
+
+PHASE = None
+
+
+def settled(manager, generation=None):
+    return manager.phase == PHASE and generation is not None

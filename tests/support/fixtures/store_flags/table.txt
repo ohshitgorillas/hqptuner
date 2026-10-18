@@ -1,0 +1,3 @@
+// Fields the panel renders.
+
+export const @NAME@ = { filter: true, rate: false };

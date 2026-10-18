@@ -1,0 +1,7 @@
+import { signal } from "../vendor/preact-signals.mjs";
+
+export const fields = signal({});
+
+export function shown(key, file, form) {
+  return @NAME@[key] ? file[key] : form[key];
+}

@@ -24,6 +24,8 @@ lint:
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
 	$(VENV)/python scripts/gates/check_metadata.py
+	$(VENV)/python scripts/gates/check_lifecycle_names.py $$(git ls-files 'hqptuner/*.py' 'tests/*.py')
+	$(VENV)/python scripts/gates/check_store_flags.py $$(git ls-files 'hqptuner/static/*.js')
 	$(VENV)/filepawl check
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),

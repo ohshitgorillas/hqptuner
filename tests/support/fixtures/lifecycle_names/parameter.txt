@@ -1,0 +1,7 @@
+"""A module taking one lifecycle value as a parameter."""
+
+PHASE = None
+
+
+def settle(manager, @NAME@=None):
+    return manager

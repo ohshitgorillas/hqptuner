@@ -1,0 +1,7 @@
+"""A ConnectionManager holding one asyncio.Event on its class."""
+
+import asyncio
+
+
+class ConnectionManager:
+    settled_signal = asyncio.Event()
