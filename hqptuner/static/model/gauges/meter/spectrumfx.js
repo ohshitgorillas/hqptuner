@@ -2,14 +2,13 @@
 // named color suites), each suite's ramp from the floor to full scale and its color at a fraction along it, a fraction
 // past either end taking that end. Under Accent the ramp runs through the accent's own shades, derived from the accent
 // handed in as the page derives them, so it carries no hex of its own. A ramp is built once per suite, and once per
-// accent under Accent, and handed back as built until either changes. The bands: shown columns as plot fractions at the
-// Range, and those fractions grouped into bands, each band the top of its group, refilled into the buffers a paint
-// hands back. The stops a line is stroked in, and the Trace style's trace, solid in the accent under Accent and colored
+// accent under Accent, and handed back as built until either changes. The bands: plot fractions grouped into bands, each
+// band the top of its group, refilled into the buffers a paint hands back, and the reusable buffer both that and the
+// shown columns' fractions are written into. The stops a line is stroked in, and the Trace style's trace, solid in the accent under Accent and colored
 // by level under a named suite.
 
 import { rgb, rampFrom } from "../../../lib/spectroraster.js";
 import { ACCENT_SHADES } from "../../shell/settings.js";
-import { fraction } from "./meter.js";
 
 /** @typedef {[number, string]} Stop */
 
@@ -133,23 +132,8 @@ export function suiteColor(suite, at, accent) {
  * @param {number} length
  * @returns {Float32Array}
  */
-function bufferOf(out, length) {
+export function bufferOf(out, length) {
   return out?.length === length ? out : new Float32Array(length);
-}
-
-/**
- * Each shown column's plot fraction at `range`, low frequencies first. Written into `out` where it holds as many
- * values as there are columns, into a new buffer otherwise.
- *
- * @param {ArrayLike<number>} columns  dBFS
- * @param {number} range  dB, positive
- * @param {Float32Array} [out]  the fractions of the paint before, reused where it fits
- * @returns {Float32Array}
- */
-export function fractionsOf(columns, range, out) {
-  const fracs = bufferOf(out, columns.length);
-  for (let i = 0; i < columns.length; i++) fracs[i] = fraction(columns[i], range);
-  return fracs;
 }
 
 /**

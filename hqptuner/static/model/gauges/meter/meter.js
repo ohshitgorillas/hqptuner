@@ -1,8 +1,8 @@
 // The Source meter's model, free of the DOM and of any clock: the feed's bins decoded, a stride's frames folded into
 // one, a channel's bins picked, bins gathered under drawing columns, a level placed on the plot, the spectrum's
-// frequency spans, and the colors the level bars and held-peak mark draw in under the palette picked for the spectrum.
+// frequency spans, the shown columns as plot fractions at the Range, and the colors the level bars and held-peak mark draw in under the palette picked for the spectrum.
 
-import { suiteColor } from "./spectrumfx.js";
+import { bufferOf, suiteColor } from "./spectrumfx.js";
 
 /**
  * One channel of a meter frame.
@@ -212,7 +212,7 @@ export function pickBins(frame, channel) {
  * @returns {Float32Array}  dBFS, one per column
  */
 export function traceColumns(bins, columns, buffer) {
-  const out = buffer?.length === columns ? buffer : new Float32Array(columns);
+  const out = bufferOf(buffer, columns);
   out.fill(-Infinity);
   const last = bins.length - 1;
   for (let j = 0; j < columns && last >= 0; j++) {
@@ -232,6 +232,21 @@ export function traceColumns(bins, columns, buffer) {
  */
 export function fraction(db, range) {
   return 1 + db / range;
+}
+
+/**
+ * Each shown column's plot fraction at `range`, low frequencies first. Written into `out` where it holds as many
+ * values as there are columns, into a new buffer otherwise.
+ *
+ * @param {ArrayLike<number>} columns  dBFS
+ * @param {number} range  dB, positive
+ * @param {Float32Array} [out]  the fractions of the paint before, reused where it fits
+ * @returns {Float32Array}
+ */
+export function fractionsOf(columns, range, out) {
+  const fracs = bufferOf(out, columns.length);
+  for (let i = 0; i < columns.length; i++) fracs[i] = fraction(columns[i], range);
+  return fracs;
 }
 
 /**

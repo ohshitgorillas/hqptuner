@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { fraction } from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
+import * as meterModel from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
 import * as spectrumModel from "../../../../../hqptuner/static/model/gauges/meter/spectrumfx.js";
 
 /**
@@ -30,12 +30,18 @@ import * as spectrumModel from "../../../../../hqptuner/static/model/gauges/mete
  *   rampOf?: (suite: string, accent: string) => any,
  *   rampAt?: (ramp: any, at: number) => ArrayLike<number>,
  *   bandTop?: (fracs: ArrayLike<number>, band: number, bands: number) => number,
- *   fractionsOf?: (columns: ArrayLike<number>, range: number, out?: Float32Array) => Float32Array,
  *   bandsOf?: (fracs: ArrayLike<number>, bands: number, out?: Float32Array) => Float32Array,
  *   suiteRamp?: (suite: string, stops: number, accent: string) => Float32Array,
  * }}
  */
 const fx = spectrumModel;
+
+/**
+ * The meter model's fractions surface as a paint uses it.
+ *
+ * @type {{ fractionsOf?: (columns: ArrayLike<number>, range: number, out?: Float32Array) => Float32Array }}
+ */
+const meter = meterModel;
 
 //: Two Ranges a user may pick, dB, the second deeper.
 const RANGES = [120, 240];
@@ -84,7 +90,7 @@ const nearEach = (actual, expected, tol) => {
  * @param {number} range
  * @returns {number[]}
  */
-const fractionsAt = (columns, range) => Array.from(Float32Array.from(columns, (db) => fraction(db, range)));
+const fractionsAt = (columns, range) => Array.from(Float32Array.from(columns, (db) => meterModel.fraction(db, range)));
 
 /**
  * Each band's top read from `fracs`, as a single-precision buffer holds it.
@@ -117,18 +123,18 @@ const rampReadAt = (suite, stops, accent) => {
 
 for (const range of RANGES) {
   test(`test_each_column_becomes_its_plot_fraction_at_a_${range}_db_range`, () => {
-    assert.deepEqual(Array.from(fx.fractionsOf?.(COLUMNS, range) ?? []), fractionsAt(COLUMNS, range));
+    assert.deepEqual(Array.from(meter.fractionsOf?.(COLUMNS, range) ?? []), fractionsAt(COLUMNS, range));
   });
 }
 
 test("test_the_fractions_come_back_in_the_buffer_handed_in", () => {
   const out = new Float32Array(COLUMNS.length);
-  assert.equal(fx.fractionsOf?.(COLUMNS, RANGE, out), out);
+  assert.equal(meter.fractionsOf?.(COLUMNS, RANGE, out), out);
 });
 
 test("test_a_handed_fraction_buffer_holds_this_paints_fractions_not_a_louder_earlier_paints", () => {
   const out = new Float32Array(COLUMNS.length).fill(TOP);
-  fx.fractionsOf?.(COLUMNS, RANGE, out);
+  meter.fractionsOf?.(COLUMNS, RANGE, out);
   assert.deepEqual(Array.from(out), fractionsAt(COLUMNS, RANGE));
 });
 
