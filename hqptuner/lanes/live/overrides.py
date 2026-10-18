@@ -14,17 +14,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.live.chain import RATE_LIMIT_FIELD, EnumItems, active_chain
+from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
 
-# Every config field a live edit can reach — which is exactly the set the config
-# file cannot learn on its own, since a live edit never writes it. hqplayerd boots
-# from that file, so a restore-shaped write has to carry these from somewhere else
-# or the daemon comes back without them (``presets/presetfields.carried_live_fields``).
-LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT, *RATE_LIMIT_FIELD.values()})
+# Every config field a live edit reaches that a restore carries from the Engine, since
+# a live edit never writes the config file hqplayerd boots from. The rate pin is not
+# among them: the File's own rate limits are what a restore boots on
+# (``presets/realized.realized_config``).
+LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT})
 
 
 def _enum_id_for_index(items: EnumItems, index: str) -> str | None:
