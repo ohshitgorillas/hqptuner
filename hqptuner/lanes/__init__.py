@@ -16,7 +16,6 @@ if TYPE_CHECKING:
     from hqptuner.engine.devicecaps import DeviceCaps
     from hqptuner.engine.logtail import LogReader
     from hqptuner.lanes.http.forms import FormsOutcome
-    from hqptuner.lanes.live.memory import LiveMemory
 
 
 class LaneReadings(Protocol):
@@ -42,7 +41,6 @@ class LaneReadings(Protocol):
     caps_at: float
     caps_misses: int
     last_volume_write: str | None
-    live: LiveMemory
 
 
 class LaneManager(Protocol):
