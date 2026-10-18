@@ -98,6 +98,15 @@ DEFAULTS = {
     # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
+    # Commands the instance that accepted a restart (`restart_into`) still answers
+    # on its open connections before the restart severs them: the moment a
+    # `POST /config` or `POST /restore` leaves 4321 up after its 200. "0" severs at
+    # once. The command after the last one answered is received and dropped
+    # unanswered, and only then does State become the restarted instance's.
+    "_linger": "0",
+    # Connects the restart turns away, unanswered, before the restarted instance
+    # answers one: the restart window, counted in dials rather than seconds.
+    "_restart_window": "1",
 }
 
 
@@ -230,7 +239,25 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     chain the restart loaded, so the
     restored shaper is the loaded chain's row for the file's dither or
     modulator (``_reload_shaper``). The restored file also becomes the per-chain
-    shaper a later ``SetMode`` loads (``_reload_shaper``)."""
+    shaper a later ``SetMode`` loads (``_reload_shaper``).
+
+    With ``_linger`` above "0" the restart is accepted but not yet performed:
+    the running instance keeps answering for that many commands, and the one
+    after them performs it (``serve_shared``)."""
+    linger = state.get("_linger", "0")
+    if int(linger):
+        # the count lands first: `_on_restore` calls this from the 8088 fake's
+        # thread, and a connection that saw the pending restart without its count
+        # would perform it at once
+        state["_lingering"] = linger
+        state["_restart_pending"] = f"{mode} {dither} {modulator}"
+        return
+    _restart(state, mode, dither, modulator)
+
+
+def _restart(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
+    """The restart itself: State becomes the restored file's, every open
+    connection is severed, and ``_restart_window`` connects are turned away."""
     state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
     state["_cfg_dither"] = dither
     state["_cfg_modulator"] = modulator
@@ -238,7 +265,22 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     # the restart itself, as the wire sees it: every open connection is severed,
     # and the first connect inside the restart window is turned away
     state["_generation"] = str(int(state.get("_generation", "0")) + 1)
-    state["_refuse_connects"] = "1"
+    state["_refuse_connects"] = state.get("_restart_window", "1")
+
+
+def _restarts_now(state: dict[str, str]) -> bool:
+    """Count one command against a pending restart's ``_linger``, performing
+    the restart once none is left; True when it was performed."""
+    pending = state.get("_restart_pending")
+    if not pending:
+        return False
+    left = int(state.get("_lingering", "0"))
+    if left:
+        state["_lingering"] = str(left - 1)
+        return False
+    del state["_restart_pending"]
+    _restart(state, *pending.split(" "))
+    return True
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -437,8 +479,10 @@ async def serve_shared(
     arrived: set[str] = set()
     while True:
         data = await reader.read(4096)
-        if not data or state.get("_generation", "0") != generation:
-            break  # closed by the client, or severed by a restart since it connected
+        if not data or state.get("_generation", "0") != generation or _restarts_now(state):
+            # closed by the client, severed by a restart since it connected, or
+            # the command a lingering restart dies under, unanswered
+            break
         body = data.split(b"?>", 1)[-1].strip().decode()
         if hooks is not None:
             name = _fromstring(body).tag
