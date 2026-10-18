@@ -9,6 +9,7 @@ from hqptuner.audit import AuditLog
 from hqptuner.clock import Clock
 from hqptuner.conf.httpauth import NoHttpClientError
 from hqptuner.core.applyops import ApplyOps
+from hqptuner.core.lifecycle import Lifecycle
 from hqptuner.core.readings import Readings
 from hqptuner.engine.controlerrors import ControlConnectionFailedError
 from hqptuner.engine.logtail import LogReader
@@ -37,7 +38,8 @@ class ConnectionManager:
         self.log_reader = LogReader(self.clock)
         self.live_writes = asyncio.Lock()
         self.metering: MeteringReader | None = None
-        self.changed = asyncio.Event()
+        self.phase = Lifecycle(cfg.alarm_threshold)
+        self.changed = self.phase.changed
 
     async def run(self) -> None:
         """Return at once."""
