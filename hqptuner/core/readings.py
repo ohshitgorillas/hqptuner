@@ -75,6 +75,7 @@ class Readings:
     matrix_error: str | None = None
     speakers_error: str | None = None
     credentials_ok: bool | None = None
+    info: dict[str, str] | None = None  # engine, GetInfo attributes as text
     engine: dict[str, str] | None = None  # file, engine tag attributes as text and flag
     matrix_profiles: list[str] | None = None  # engine, text
     volume_range: dict[str, str] | None = None  # engine, dB and flag
