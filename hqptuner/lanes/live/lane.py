@@ -37,9 +37,10 @@ log = logging.getLogger(__name__)
 
 # Writes that invalidate an enumeration the NEXT live write resolves against:
 # SetMode swaps the filter and shaper lists wholesale, and the rate list depends
-# on both mode and the selected filter (manual §4.6). The poll loop re-enumerates
-# only on a mode-index change, so without this the control the user reaches for
-# next would resolve its value against a stale list.
+# on both mode and the selected filter (manual §4.6). The loader re-enumerates on
+# its poll interval, on a mode-index move and on a chain change, so without this
+# the control the user reaches for next could resolve its value against a stale list
+# until one of those came.
 _REENUMERATES = frozenset({"mode", "filter"})
 
 
@@ -98,14 +99,15 @@ async def chain_entered(mgr: LaneManager, client: ControlClient, before: str | N
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)
     if not reenumerated:
-        mgr.readings.enums = await client.get_all_enumerations()
+        enums = await client.get_all_enumerations()
+        mgr.readings.take_engine(mgr.phase.standing.generation, enums=enums)
 
 
 async def _reread_state(mgr: LaneManager, client: ControlClient) -> None:
     """Re-read State into the manager, keeping the last good reading when HQPlayer refuses the read."""
     state = await client.state_unless_refused()
     if state is not None:
-        mgr.readings.state = state
+        mgr.readings.take_engine(mgr.phase.standing.generation, state=state)
 
 
 def _reenumerates(edits: dict[str, dict[str, str]]) -> bool:
@@ -119,14 +121,15 @@ async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dic
     Live edits bypass the config file, so State is the only record of them. The
     enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
     the NEXT write resolves its value against, and refreshing State alone also
-    consumes the mode transition the poll loop watches to re-enumerate on its own
-    (``core/loader.poll``) — so a caller that skipped this left both the cache and
+    consumes the mode transition the loader watches to re-enumerate on its own
+    (``core/loader._beat``) — so a caller that skipped this left both the cache and
     the fallback stale. Every live-routing caller runs it, staged lane included.
     A refused State read is a complete reply that says nothing of the engine, so the last good reading stands.
     """
     await _reread_state(mgr, client)
     if _reenumerates(edits):
-        mgr.readings.enums = await client.get_all_enumerations()
+        enums = await client.get_all_enumerations()
+        mgr.readings.take_engine(mgr.phase.standing.generation, enums=enums)
 
 
 async def _refresh_quietly(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
@@ -146,7 +149,8 @@ async def _after_mode(mgr: LaneManager, client: ControlClient) -> None:
     Nothing is re-asserted on the chain the mode entered. A control failure is logged, not raised.
     """
     try:
-        mgr.readings.state = await client.get_state()
+        state = await client.get_state()
+        mgr.readings.take_engine(mgr.phase.standing.generation, state=state)
     except ControlError as exc:
         log.warning("post-mode State re-read failed: %s", exc)
 
@@ -166,8 +170,8 @@ async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
     itself is already readback-verified — so a control-connection failure there is
     logged, not raised. `SetFilter` and `SetMode` reload the engine and the daemon
     can drop the connection under the refresh that follows; raising turned a change
-    the user watched land into an error on the control they just touched. The poll
-    loop reconnects and reloads state and enumerations (`core/loader.connect_and_load`).
+    the user watched land into an error on the control they just touched. The loader
+    redials and refills the readings (`core/loader.run`).
     """
     client = mgr.require_control()
     edits = routing.resolve_live(mgr, fields)

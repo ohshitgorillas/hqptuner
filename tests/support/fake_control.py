@@ -90,6 +90,11 @@ DEFAULTS = {
     # playlist: the switch is refused, not stalled and not silently dropped.
     "_error": "",
     "_error_text": "refused",
+    # Space-separated commands answered ONCE with `NOT_XML_FRAME`, a whole
+    # newline-terminated frame that is not XML; the connection stays open, and
+    # each command leaves the knob as it is answered, so the next connection is
+    # answered normally.
+    "_not_xml": "",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -414,10 +419,41 @@ class Close:
 #: nothing, and closed the socket (the `_close` knob).
 CLOSE = Close()
 
+#: The frame the `_not_xml` knob answers with: whole and newline-terminated, its
+#: root closed but carrying one attribute twice, so it is not well-formed XML,
+#: no lenient reading repairs it and no further data completes it.
+NOT_XML_FRAME = f'{XML}<Answer value="1" value="2"/>\n'.encode()
 
-def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | None:
+
+class NotXml:
+    """What the fake returns instead of a frame when it answers with `NOT_XML_FRAME`."""
+
+
+#: Singleton of the above (the `_not_xml` knob).
+NOT_XML = NotXml()
+
+
+def _not_xml_once(name: str, state: dict[str, str]) -> bool:
+    """Whether `name` is answered with `NOT_XML_FRAME` this time, taking it off the knob if so."""
+    pending = state.get("_not_xml", "").split()
+    if name not in pending:
+        return False
+    pending.remove(name)
+    state["_not_xml"] = " ".join(pending)
+    return True
+
+
+def _on_the_wire(answer: str | NotXml) -> bytes:
+    """The bytes an answer goes out as: `NOT_XML_FRAME` as it stands, any
+    other frame behind the declaration and newline-terminated. Either way the
+    connection stays open."""
+    return NOT_XML_FRAME if isinstance(answer, NotXml) else f"{XML}{answer}\n".encode()
+
+
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | NotXml | None:
     """The answer to one command: a frame, `CLOSE` for a command the fake drops
-    the connection on, or None for one it stalls on."""
+    the connection on, `NOT_XML` for one it answers with a frame that is not
+    XML, or None for one it stalls on."""
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
     if log is not None:
@@ -426,6 +462,8 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
         return None  # received, logged, never answered
+    if _not_xml_once(name, state):
+        return NOT_XML  # received, logged, answered with a frame that will not parse
     if name in state.get("_error", "").split():
         # above the query dispatch: a daemon refuses reads as readily as writes
         return f'<{name} result="Error">{state.get("_error_text", "refused")}</{name}>'
@@ -499,6 +537,6 @@ async def serve_shared(
             break  # dropped: the socket goes away with nothing on it
         if answer is None:
             continue  # stalled: keep the connection open and say nothing
-        writer.write(f"{XML}{answer}\n".encode())
+        writer.write(_on_the_wire(answer))
         await writer.drain()
     writer.close()

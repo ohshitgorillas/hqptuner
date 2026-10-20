@@ -12,7 +12,7 @@ test is charged as idle its wall time less its CPU time less that wait: the
 seconds it held the suite without spending a core on it, and without the host
 holding it off one.
 
-The plugin measures and writes; it judges nothing. ``scripts/gates/check_idle.py``
+The plugin measures and writes; it judges nothing. ``scripts/gates/testing/check_idle.py``
 reads the report it leaves and fails a test whose idle rises more than 40 ms over
 its previous reading on the branch, or exceeds 40 ms with none. The report is
 stamped with the session's exit status, because a failing test often waits out

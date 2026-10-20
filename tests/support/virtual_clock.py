@@ -52,11 +52,13 @@ class _Timeline:
     idlers: list[tuple[asyncio.Future[None], asyncio.Task[Any] | None]] = field(default_factory=list)
     silent: bool = False
     instant: datetime = DEFAULT_INSTANT
+    reply_waits_began: list[float] = field(default_factory=list, repr=False)
 
     def monotonic(self) -> float:
         return self.now
 
     async def wait_for[T](self, fut: Awaitable[T], seconds: float, /) -> T:
+        self.reply_waits_began.append(self.now)
         if not self.silent:
             return await fut
         abandoned = asyncio.ensure_future(fut)
@@ -149,8 +151,7 @@ class VirtualClock(Clock):
     _timeline: _Timeline
 
     def __init__(self, *, now: datetime = DEFAULT_INSTANT) -> None:
-        """Start the timeline at zero; ``now`` is the UTC instant every wall-clock read answers with until
-        ``turn_wall_to`` moves it."""
+        """Start the timeline at zero; ``now`` is the UTC instant every wall-clock read answers with."""
         timeline = _Timeline(instant=now)
         super().__init__(
             monotonic=timeline.monotonic,
@@ -163,13 +164,13 @@ class VirtualClock(Clock):
         )
         object.__setattr__(self, "_timeline", timeline)
 
-    def turn_wall_to(self, instant: datetime) -> None:
-        """Answer every wall-clock read from here on with ``instant``; the timeline itself does not move."""
-        self._timeline.instant = instant
-
     def fall_silent(self) -> None:
         """Let every reply wait from here on run out at its deadline, as on a daemon that answers nothing more."""
         self._timeline.silent = True
+
+    def reply_waits_began(self) -> tuple[float, ...]:
+        """The clock reading at which each reply wait began, in the order they began."""
+        return tuple(self._timeline.reply_waits_began)
 
     async def idle(self) -> None:
         """Return once every task the clock knows of, other than the caller, is waiting on it."""

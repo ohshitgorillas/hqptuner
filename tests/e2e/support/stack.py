@@ -37,6 +37,8 @@ import fake_http
 import fake_metering
 from fake_control import DEFAULTS, CommandLog, serve_shared
 
+from hqptuner.core.lifecycle import Phase
+
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
 #: from here so that a source checkout's `hqptuner` package is importable.
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -242,16 +244,16 @@ def _startup_failure(reason: str, log_path: Path) -> str:
 
 
 def _answers(url: str) -> bool:
-    """A 200 from the URL, and on `/api/health` the app's own `ready` flag with
-    it: the route answers 200 from the moment the app is listening, while
-    `ready` is the app saying both daemon lanes are up."""
+    """A 200 from the URL, and on `/api/health` the phase Ready with it: the
+    route answers 200 from the moment the app is listening, while Ready is the
+    app saying both daemon lanes are up."""
     try:
         with urllib.request.urlopen(url, timeout=1.0) as response:  # noqa: S310 — literal loopback http URL
             if response.status != 200:
                 return False
             if not url.endswith("/api/health"):
                 return True
-            return bool(json.loads(response.read()).get("ready"))
+            return bool(json.loads(response.read()).get("phase") == Phase.READY.value)
     except OSError:
         return False
 

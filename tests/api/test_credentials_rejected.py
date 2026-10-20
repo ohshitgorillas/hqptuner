@@ -19,7 +19,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import advance_app, app_manager, wait_for_api
+from apps import advance_app, app_manager, connection_stands, phase_is_ready, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from httpx import Response
@@ -94,7 +94,7 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
 
 
 def _connected(client: TestClient) -> None:
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+    wait_for_api(client, connection_stands)
 
 
 def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: int = 20) -> None:
@@ -115,14 +115,15 @@ def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: i
 
 
 def _loaded(client: TestClient) -> None:
-    """Return once the app's startup load has finished: `ready` says the app has
-    loaded what a caller reads off it, and the settle `wait_for_api` starts with
-    leaves no load in flight, so no archive read of its own is still arriving.
+    """Return once the app's startup load has finished: the phase Ready says the
+    app has loaded what a caller reads off it, and the settle `wait_for_api`
+    starts with leaves no load in flight, so no archive read of its own is still
+    arriving.
 
-    `reachable` is the 4321 handshake, which turns true before the 8088 lane's
-    loads have run, so a case that counts archive fetches off its own request
-    has to wait for `ready`."""
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
+    Reachable is the 4321 handshake, which stands before the 8088 lane's loads
+    have run, so a case that counts archive fetches off its own request has to
+    wait for Ready."""
+    wait_for_api(client, phase_is_ready)
 
 
 def _require_recorded_refusal(client: TestClient) -> None:

@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import advance_app, wait_for_api
+from apps import advance_app, connection_stands, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -41,10 +41,6 @@ PLAYING = "2"
 
 #: Idle rechecks the reader gets after the app is reachable, each one a chance to dial.
 TICKS = 5
-
-
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
 
 
 def _idle(client: TestClient) -> None:
@@ -72,7 +68,7 @@ def _session[T](tmp_path: Path, *, advisor_enabled: bool, drive: Callable[[TestC
             advisor_enabled=advisor_enabled,
         )
         with TestClient(create_app(cfg, VirtualClock())) as client:
-            wait_for_api(client, _reachable)
+            wait_for_api(client, connection_stands)
             read = drive(client)
     finally:
         next(stream, None)

@@ -29,7 +29,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
-from apps import live_app, wait_for_api
+from apps import live_app
 from fake_control import DEFAULTS, CommandLog, serve_shared
 from fastapi.testclient import TestClient
 
@@ -43,13 +43,10 @@ RESET_ON_CLOSE = struct.pack("ii", 1, 0)
 #: The manager's background poll, parked past the end of any case, so the knob
 #: that resets the connection is tripped by the case's own request and never by
 #: a poll that would leave the request failing for want of a connection instead.
+#: Connecting reads every enumeration once, and the next re-read waits this long
+#: on the app's virtual clock; the heartbeat between polls reads only State and
+#: Status, which no knob here touches.
 PARKED_POLL_INTERVAL = 3600.0
-
-#: The last Control API command of both the connect-and-load and the poll in a
-#: control-only app; its second appearance in the daemon's log is the first
-#: background poll finishing, after which a knob flipped on the daemon is seen by
-#: the case's request alone.
-FIRST_POLL_SENTINEL = "MatrixListProfiles"
 
 #: A matrix profile the fake daemon lists, and the command that switches to it.
 SWITCHED_PROFILE = "Default"
@@ -100,14 +97,6 @@ def _resetting_daemon(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     loop.close()
 
 
-def _await_first_poll(client: TestClient, log: CommandLog) -> None:
-    def first_poll_done(c: TestClient) -> bool:
-        c.get("/api/health")
-        return sum(1 for name, _ in log if name == FIRST_POLL_SENTINEL) >= 2
-
-    wait_for_api(client, first_poll_done)
-
-
 def _resetting_app(tmp_path: Path, command: str) -> Iterator[tuple[TestClient, int]]:
     """The control-only app on a daemon that answers until the app has loaded,
     then resets the connection under ``command`` without answering it."""
@@ -117,7 +106,6 @@ def _resetting_app(tmp_path: Path, command: str) -> Iterator[tuple[TestClient, i
     port = next(daemon)
     app = live_app(port, tmp_path, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
-    _await_first_poll(client, log)
     state["_close"] = command
     yield client, port
     next(app, None)

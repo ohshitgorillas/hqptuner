@@ -9,7 +9,7 @@ as syntax trees and refuses ``reachable``, ``connected``, ``ready``,
 is not a hit.
 
 The seam is ``main(argv) -> int``: file paths in, one ``<path>:<line>:`` line
-per hit out, nonzero on any hit and zero on none. Every fixture source sits in
+per hit out, exit 1 on any hit and 0 on none. Every fixture source sits in
 ``tests/support/fixtures/lifecycle_names/`` as text, with ``@NAME@`` standing
 for the name a case is about, and is laid down under ``tmp_path`` at the path
 the case judges.
@@ -42,7 +42,7 @@ def _load_gate_module() -> ModuleType:
 
 GATE = _load_gate_module()
 
-#: The names ``docs/spec/lifecycle.md`` retires outside the lifecycle module.
+#: The names the gate retires outside the lifecycle module.
 RETIRED = ["reachable", "connected", "ready", "http_ok", "connects", "drops", "drops_at_connect", "restart_landed"]
 
 #: Each fixture shape carrying one retired name, and the line the name sits on.
@@ -100,7 +100,7 @@ def test_a_retired_name_is_refused_at_its_path_and_line(
 def test_only_a_file_with_a_retired_name_fails_the_gate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     clean = lay(tmp_path, "clean.txt", "hqptuner/engine/clean.py")
     dirty = lay(tmp_path, "attribute.txt", APP_FILE, "drops")
-    assert (run_gate(capsys, [clean])[0] == 0, run_gate(capsys, [dirty])[0] == 0) == (True, False)
+    assert (run_gate(capsys, [clean])[0], run_gate(capsys, [dirty])[0]) == (0, 1)
 
 
 @pytest.mark.parametrize("name", RETIRED)

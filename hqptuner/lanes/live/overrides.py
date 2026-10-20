@@ -14,17 +14,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.live.chain import EnumItems, active_chain
+from hqptuner.lanes.live.chain import EnumItems, loaded_chain
 from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
 
 if TYPE_CHECKING:
-    from hqptuner.lanes import LaneManager
-
-# Every config field a live edit reaches that a restore carries from the Engine, since
-# a live edit never writes the config file hqplayerd boots from. The rate pin is not
-# among them: the File's own rate limits are what a restore boots on
-# (``presets/realized.realized_config``).
-LIVE_DOMAIN = frozenset({*ROUTABLE, *DIRECT})
+    from hqptuner.lanes.live.chain import EngineReading
 
 
 def form_value(field: str, items: EnumItems, index: str) -> str | None:
@@ -39,39 +33,37 @@ def form_value(field: str, items: EnumItems, index: str) -> str | None:
     return None if value is None else str(value)
 
 
-def _override_for(mgr: LaneManager, field: str, state: dict[str, str]) -> str | None:
+def _override_for(reading: EngineReading, field: str, state: dict[str, str]) -> str | None:
     """One field's current live value in config-form terms, or None when the engine cannot answer for it."""
     spec = ROUTABLE[field]
     index = state.get(spec.state)
     if index is None:
         return None
-    return form_value(field, (mgr.readings.enums or {}).get(spec.enum) or [], index)
+    return form_value(field, (reading.enums or {}).get(spec.enum) or [], index)
 
 
-def _chain_overrides(mgr: LaneManager, chain: str | None, state: dict[str, str]) -> dict[str, str]:
+def _chain_overrides(reading: EngineReading, chain: str | None, state: dict[str, str]) -> dict[str, str]:
     """Return the mode and the loaded chain's filter/shaper settings, as the engine reads them."""
     overrides = {}
     for field, spec in ROUTABLE.items():
         if spec.chain is None or spec.chain == chain:
-            value = _override_for(mgr, field, state)
+            value = _override_for(reading, field, state)
             if value is not None:
                 overrides[field] = value
     return overrides
 
 
-def live_overrides(mgr: LaneManager) -> dict[str, str]:
-    """Return the engine's current live settings as config-form fields.
-
-    So a save captures what is actually playing rather than a stale file.
+def reading_overrides(reading: EngineReading) -> dict[str, str]:
+    """Return the live settings this Engine reading answers for, as config-form fields.
 
     The engine answers for the loaded chain only: State reports one filter/shaper
     pair, and the two chains number their enum IDs differently. The chain not
     loaded has no Engine value, so nothing is reported for it.
     """
-    state = mgr.readings.state or {}
-    # No rate override: the rate lives in the limit slot, which is a config field
-    # written persistently, so the file already carries it (``chain.RATE_LIMIT_FIELD``).
+    state = reading.state or {}
+    # No rate override: the rate lives in the limit slot, a config field the
+    # file carries.
     return {
-        **_chain_overrides(mgr, active_chain(mgr), state),
+        **_chain_overrides(reading, loaded_chain(reading), state),
         **{field: state[attr] for field, attr in DIRECT.items() if state.get(attr) is not None},
     }

@@ -38,9 +38,10 @@ from hqptuner.engine.trackcontext import TrackContext
 log = logging.getLogger(__name__)
 
 HEADER = struct.Struct("<4I3fI")  # version, channels, bins, bits, bandwidth, xformTime, gain, reserved
-RECONNECT_DELAY = 5.0
-# How long the reader waits before re-checking whether the engine started playing again. Shorter than the manager's
-# own status poll, so the gate adds no latency of its own beyond the staleness of the status it reads.
+RECONNECT_DELAY = 5.0  # wall time, seconds: the backoff after a refused or broken stream
+# Wall time, seconds, the reader waits before re-checking whether the engine started playing again. It is the named
+# fallback for play state: State reaches the reader only through the manager's poll, so the gate adds no latency
+# beyond the staleness of the State the manager last read.
 IDLE_RECHECK = 1.0
 # Ingest every Nth frame (~43/s at 44.1k). The block statistics are read off the frames a block kept, at the rate the
 # corpus they are graded against was captured at, so every hop is ingested.
@@ -52,13 +53,13 @@ SILENT_RMS_DB = -90.0
 SILENT_RMS_POWER = 10 ** (SILENT_RMS_DB / 10)
 
 # The detector's persistence window: per-bin minima are folded into blocks of
-# BLOCK_SECONDS coverage, and the window spectrum is the minimum over the last
+# BLOCK_SECONDS coverage (playback time), and the window spectrum is the minimum over the last
 # WINDOW_BLOCKS of them (~30 s) plus whatever partial block is open. A tone must
 # persist through the coverage in hand to survive the minimum, and once the
 # window is full that coverage is long enough that a sustained musical partial
 # cannot fake it. The window is how far back the minimum reaches; it is not a
 # wait, and the first frame folded already carries a readable spectrum.
-BLOCK_SECONDS = 1.0
+BLOCK_SECONDS = 1.0  # playback time, seconds: frame coverage per block
 WINDOW_BLOCKS = 30
 
 
@@ -91,19 +92,20 @@ class SpectralAggregate:
         self.bins = bins
         self.bandwidth = bandwidth
         self.frames = 0
-        self.seconds = 0.0
+        self.seconds = 0.0  # playback time, seconds: coverage of every frame added
         self.junk_run = junkrun.JunkRun()
         self._blocks: deque[blockstats.BlockRecord] = deque(maxlen=WINDOW_BLOCKS)
         self._latest: blockstats.BlockRecord | None = None
         self._rows: list[list[float]] = []
         self._block_min: npt.NDArray[np.float64] | None = None
-        self._block_seconds = 0.0
+        self._block_seconds = 0.0  # playback time, seconds: coverage of the open block
 
     def add(self, mags_sq: list[float], covered_seconds: float, *, silent: bool = False) -> bool:
         """Keep one frame's per-bin power, unless silent, in the open block, and say whether this frame closed it.
 
         Once the block has BLOCK_SECONDS of coverage it is read into a record and a fresh one starts; a block that
-        saw only silent frames closes carrying no record.
+        saw only silent frames closes carrying no record. ``covered_seconds`` is the frame's coverage, playback time in
+        seconds.
         """
         self.frames += 1
         self.seconds += covered_seconds
@@ -149,13 +151,13 @@ class MeteringReader:
         context: Callable[[], TrackContext | None],
         *,
         clock: Clock,
-        timeout: float,
+        timeout: float,  # wall time, seconds
         advisor: bool,
     ) -> None:
         """Record the metering port's host and port and how to read track context; nothing connects until ``run``.
 
         ``clock`` is the manager's clock: the reader idles on its ``pace`` and waits for the connection under its
-        ``wait_for``, which gives the dial up after ``timeout`` seconds and backs off as from a refused one.
+        ``wait_for``, which gives the dial up after ``timeout`` wall seconds and backs off as from a refused one.
         ``advisor`` says whether the junk-filter advisor reads the stream; without it the reader holds the socket only
         while the feed has a subscriber, a subscriber attaching wakes an idle reader at once, and no aggregate or
         verdict is ever kept.
@@ -167,18 +169,21 @@ class MeteringReader:
         self._advisor = advisor
         self._stop = asyncio.Event()
         self._wake = asyncio.Event()
+        self._redial = asyncio.Event()
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
         self._verdict: junkadvisor.JunkVerdict | None = None
         self.feed = MeterFeed(on_subscribe=self._wake.set)
 
     def retarget(self, address: tuple[str, int]) -> None:
-        """Point the reader at another daemon; the next dial uses it.
+        """Point the reader at another daemon: a stream held to the old address ends and the reader dials the new one.
 
-        The address is read at ``open_connection`` time rather than latched at construction, so a connection setting
-        the user changed at runtime reaches the metering side channel with the reconnect the manager already forces.
+        The address is read at ``open_connection`` time rather than latched at construction. A held stream ends at its
+        next check, as on ``stop``, and the reader's own loop dials again at once without serving an idle wait.
         """
         self._host, self._port = address
+        self._redial.set()
+        self._wake.set()
 
     def stop(self) -> None:
         """Ask the reader to shut down: the stream loop, the idle wait and the backoff all end at the next check."""
@@ -194,7 +199,7 @@ class MeteringReader:
 
         The verdict is classified once per closed block, on the reader's own task, and held until the next block
         closes; this returns that held value and touches neither the aggregate nor the spur holder, so every caller,
-        on whatever thread, reads the same verdict. None while the engine is unreachable, while no aggregate stands,
+        on whatever thread, reads the same verdict. None while no State reading is held, while no aggregate stands,
         and before the first block of one has closed. The ramp is a property of the spectrum in front of the rules,
         so it appears at the block whose window carries the signature and is gone at the first that does not. The
         spur is held per bin by the reader's ``SpurHolder`` until the tone's excess over the local baseline falls under
@@ -237,12 +242,13 @@ class MeteringReader:
         """
         while not self._stop.is_set():
             self._wake.clear()
+            self._redial.clear()
             keep = False
             delay, wake = IDLE_RECHECK, self._wake
             try:
                 ctx = self._context()
                 if ctx is None:
-                    pass  # unreachable daemon: nothing to stream, and no evidence worth keeping
+                    pass  # no State reading held: nothing to stream, and no evidence worth keeping
                 elif ctx.playing and self._wanted():
                     keep = await self._stream()
                 else:
@@ -263,7 +269,7 @@ class MeteringReader:
         return self._advisor or self.feed.attached()
 
     async def _stream(self) -> bool:
-        """Ingest frames until the engine stops playing or nothing reads them (True), or the loop is stopped (False).
+        """Ingest frames until the engine stops playing or nothing reads them (True), or a stop or retarget (False).
 
         The play state is checked on a tick of its own rather than after each frame: a stream that goes quiet must
         still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
@@ -275,10 +281,10 @@ class MeteringReader:
         read: asyncio.Task[tuple[tuple[float, ...], bytes]] | None = None
         try:
             frame = 0
-            while not self._stop.is_set():
+            while not (self._stop.is_set() or self._redial.is_set()):
                 ctx = self._context()
                 if ctx is None or not ctx.playing or not self._wanted():
-                    return ctx is not None  # paused or unread keeps the evidence; unreachable does not
+                    return ctx is not None  # paused or unread keeps the evidence; no State reading held does not
                 if read is None:
                     read = asyncio.create_task(_read_frame(reader))
                 if not await self._arrived(read):

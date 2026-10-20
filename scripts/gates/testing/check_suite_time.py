@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
+    from collections.abc import Callable, Mapping
 
 ROOT = Path(__file__).resolve().parent.parent.parent.parent
 
@@ -111,34 +111,38 @@ def prune(bars: dict[str, Path], live: set[str]) -> list[str]:
     return gone
 
 
-def git(root: Path, *args: str) -> str | None:
-    """Return what ``git args`` prints run in ``root``, or None when git is missing or fails."""
+def git(root: Path, *args: str, env: Mapping[str, str] | None = None) -> str | None:
+    """Return what ``git args`` prints run in ``root`` under ``env``, or None when git is missing or fails.
+
+    ``env`` is the whole environment git sees; None leaves it the process's own.
+    """
     if shutil.which("git") is None:
         return None
-    done = subprocess.run(["git", *args], cwd=root, capture_output=True, text=True, check=False)  # noqa: S603, S607
+    cmd = ["git", *args]
+    done = subprocess.run(cmd, cwd=root, env=env, capture_output=True, text=True, check=False)  # noqa: S603
     return done.stdout if done.returncode == 0 else None
 
 
-def live_branches(root: Path) -> set[str] | None:
+def live_branches(root: Path, env: Mapping[str, str] | None = None) -> set[str] | None:
     """Return the branches of ``root``'s repository as ``recorded_bars`` names them, or None when git cannot list them.
 
     A bar's file name writes ``/`` as ``--``, so a live branch whose name holds
     ``--`` is listed with ``/`` there, the name its bar is recorded under.
     """
-    out = git(root, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads")
+    out = git(root, "for-each-ref", "--format=%(refname:lstrip=2)", "refs/heads", env=env)
     return None if out is None else {name.replace("--", "/") for name in out.split()}
 
 
-def divergence(root: Path, name: str) -> tuple[int, int] | None:
+def divergence(root: Path, name: str, env: Mapping[str, str] | None = None) -> tuple[int, int] | None:
     """Return (commits on ``HEAD`` not on branch ``name``, commits on it not on ``HEAD``), or None if git cannot say."""
-    out = git(root, "rev-list", "--left-right", "--count", f"HEAD...refs/heads/{name}")
+    out = git(root, "rev-list", "--left-right", "--count", f"HEAD...refs/heads/{name}", env=env)
     match = None if out is None else _COUNTS.fullmatch(out.strip())
     if match is None:
         return None
     return int(match.group(1)), int(match.group(2))
 
 
-def inherited_bar(root: Path) -> Path | None:
+def inherited_bar(root: Path, env: Mapping[str, str] | None = None) -> Path | None:
     """Return the bar of the recorded branch nearest ``root``'s ``HEAD``, or None.
 
     None when ``root``'s branch has a bar of its own, or no other recorded
@@ -148,7 +152,7 @@ def inherited_bar(root: Path) -> Path | None:
         return None
     own = branch(root)
     bars = {name: path for name, path in recorded_bars(main_checkout(root)).items() if name != own}
-    divergences = {name: counts for name in bars if (counts := divergence(root, name)) is not None}
+    divergences = {name: counts for name in bars if (counts := divergence(root, name, env)) is not None}
     near = nearest(divergences)
     return None if near is None else bars[near]
 
@@ -263,21 +267,23 @@ def stamped_wait(stamp: Path) -> float:
     return float(json.loads(stamp.read_text(encoding="utf-8")).get("cpu_wait", 0.0))
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) -> int:
     """CLI: optional ``--accept``; report and stamp are this tree's, the bar its branch's beside the main checkout.
+
+    ``env`` is the environment every ``git`` call runs under; None leaves it the process's own.
 
     The bars of branches git no longer lists are deleted first; when git cannot
     list branches, none is deleted. A branch with no bar of its own is judged
     against the bar of the recorded branch nearest it.
     """
     args = sys.argv[1:] if argv is None else argv
-    live = live_branches(ROOT)
+    live = live_branches(ROOT, env)
     if live is not None:
         for name in prune(recorded_bars(main_checkout(ROOT)), live):
             print(f"bar of deleted branch {name} removed")
     wait = stamped_wait(ROOT / STAMP_NAME)
     return check(
-        ROOT / REPORT_NAME, baseline_path(ROOT), accept="--accept" in args, wait=wait, parent=inherited_bar(ROOT)
+        ROOT / REPORT_NAME, baseline_path(ROOT), accept="--accept" in args, wait=wait, parent=inherited_bar(ROOT, env)
     )
 
 

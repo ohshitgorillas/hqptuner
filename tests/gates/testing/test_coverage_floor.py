@@ -1,0 +1,232 @@
+"""The gate that holds every individual source file to a coverage floor.
+
+``scripts/gates/testing/check_coverage_floor.py`` reads a ``coverage.py`` JSON report —
+the artifact ``pytest --cov-report=json:<path>`` writes — and asks one question
+of every entry in its top-level ``files`` map: does this file's
+``summary.percent_covered`` reach the floor? A file that does not is named on
+stdout unless an entry in the module's exemption mapping excuses it, and an
+exemption naming a file the report does not contain is drift, the same way a
+stale entry is in the gates-wired gate.
+
+The two ways a coverage gate can pass vacuously are treated as failures in
+their own right: a report that is not there at all (the suite died before
+writing one, and the gate runs afterwards in a pre-commit config with no
+``fail_fast``), and a report whose ``files`` map is empty.
+
+These cases hand-build report JSON under ``tmp_path`` and point the script's
+checking function at it, injecting their own exemption mapping. Observable
+contract is the pair the script offers a caller: the int exit code, and what
+lands on stdout. Nothing here reads the gate's internals, and nothing here runs
+coverage.
+
+The seam is ``check(report, floor, exempt=None) -> int``; ``None`` for the
+mapping falls back to the module's own shipped exemptions.
+"""
+
+import importlib.util
+import json
+from pathlib import Path
+from types import ModuleType
+
+import pytest
+from narrow import FixtureError
+
+#: The gate script under test, found relative to this file rather than through
+#: an import: it lives in ``scripts/gates/``, outside any package.
+GATE_PATH = Path(__file__).resolve().parents[3] / "scripts" / "gates" / "testing" / "check_coverage_floor.py"
+
+
+def _load_gate_module() -> ModuleType:
+    spec = importlib.util.spec_from_file_location("check_coverage_floor_under_test", GATE_PATH)
+    if spec is None or spec.loader is None:
+        raise FixtureError(reason=f"no importable module at {GATE_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+GATE = _load_gate_module()
+CHECK = GATE.check
+
+
+def lines_naming(out: str, path: str) -> list[str]:
+    """Every stdout line that names ``path``; the caller pins how many and what they say."""
+    return [line for line in out.splitlines() if path in line]
+
+
+def without_the_report_path(text: str, report: Path) -> str:
+    """``text`` with the report's own filesystem path removed.
+
+    ``tmp_path`` is named after the test function, so words from a test's name
+    turn up inside any path the gate echoes back. Stripping the path first
+    means an assertion can only match the gate's own wording.
+    """
+    return text.replace(str(report), "")
+
+
+def write_report(tmp_path: Path, percentages: dict[str, float]) -> Path:
+    """Write a coverage.py-shaped JSON report naming each file at its percentage."""
+    report = {
+        "meta": {"format": 3, "version": "7.6.1"},
+        "files": {
+            path: {"summary": {"percent_covered": percent, "num_statements": 100}}
+            for path, percent in percentages.items()
+        },
+        "totals": {"percent_covered": 100.0},
+    }
+    path = tmp_path / "coverage.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    return path
+
+
+#: What coverage.py reports for every file it saw run to the last line, and
+#: also for a file with no statements at all.
+FULLY_COVERED = 100.0
+
+
+def write_fully_covered_report(tmp_path: Path, statements: dict[str, int]) -> Path:
+    """Write a coverage.py-shaped JSON report naming each file fully covered, with its statement count."""
+    report = {
+        "meta": {"format": 3, "version": "7.6.1"},
+        "files": {
+            path: {"summary": {"percent_covered": FULLY_COVERED, "num_statements": count}}
+            for path, count in statements.items()
+        },
+        "totals": {"percent_covered": FULLY_COVERED},
+    }
+    path = tmp_path / "coverage.json"
+    path.write_text(json.dumps(report), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize(
+    ("statements", "code"),
+    [({"hqptuner/__init__.py": 0}, 1), ({"hqptuner/tiny.py": 1}, 0)],
+    ids=["no statements", "one statement"],
+)
+def test_a_file_with_no_statements_is_not_measured_so_a_report_of_only_those_measures_nothing(
+    tmp_path: Path, statements: dict[str, int], code: int
+) -> None:
+    """A file with no code is skipped, not counted as fully covered; the 'one statement' case is the control."""
+    assert CHECK(write_fully_covered_report(tmp_path, statements), 90, {}) == code
+
+
+@pytest.mark.parametrize("expected", ["hqptuner/thin.py", "71.5", "90"])
+def test_a_file_below_the_floor_is_named_with_its_percentage_and_the_floor(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
+    report = write_report(tmp_path, {"hqptuner/thin.py": 71.5})
+    CHECK(report, 90, {})
+    out = without_the_report_path(capsys.readouterr().out, report)
+    assert [expected in line for line in lines_naming(out, "hqptuner/thin.py")] == [True]
+
+
+def test_one_file_below_the_floor_fails_a_report_whose_other_files_pass(tmp_path: Path) -> None:
+    """The question is asked of every file: one offender among many sinks the gate."""
+    report = write_report(
+        tmp_path,
+        {
+            "hqptuner/good_one.py": 99.0,
+            "hqptuner/good_two.py": 100.0,
+            "hqptuner/thin.py": 3.0,
+            "hqptuner/good_three.py": 96.0,
+        },
+    )
+    assert CHECK(report, 90, {}) == 1
+
+
+@pytest.mark.parametrize(
+    ("percentages", "code"),
+    [({"hqptuner/one.py": 97.0, "hqptuner/two.py": 100.0}, 0), ({"hqptuner/thin.py": 71.5}, 1)],
+    ids=["all above", "one below"],
+)
+def test_every_file_above_the_floor_passes_the_gate(tmp_path: Path, percentages: dict[str, float], code: int) -> None:
+    assert CHECK(write_report(tmp_path, percentages), 90, {}) == code
+
+
+@pytest.mark.parametrize(("percent", "code"), [(90.0, 0), (89.9, 1)], ids=["at the floor", "just below"])
+def test_a_file_exactly_at_the_floor_passes_the_gate(tmp_path: Path, percent: float, code: int) -> None:
+    """The comparison is ``>=``: hitting the floor is reaching it, not missing it."""
+    assert CHECK(write_report(tmp_path, {"hqptuner/borderline.py": percent}), 90, {}) == code
+
+
+@pytest.mark.parametrize(
+    ("path", "exempt", "code"),
+    [
+        ("hqptuner/legacy.py", {"hqptuner/legacy.py": "vendored, covered by the JS suite"}, 0),
+        ("hqptuner/other.py", {}, 1),
+    ],
+    ids=["exempt", "not exempt"],
+)
+def test_an_exempt_file_below_the_floor_passes_the_gate(
+    tmp_path: Path, path: str, exempt: dict[str, str], code: int
+) -> None:
+    assert CHECK(write_report(tmp_path, {path: 12.0}), 90, exempt) == code
+
+
+def test_an_exempt_file_below_the_floor_is_not_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """An exemption is silent — it excuses the file rather than warning about it."""
+    report = write_report(tmp_path, {"hqptuner/legacy.py": 12.0})
+    CHECK(report, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"})
+    assert "hqptuner/legacy.py" not in capsys.readouterr().out
+
+
+def test_an_exemption_excuses_only_the_file_it_names(tmp_path: Path) -> None:
+    """The excuse is scoped to its own path; the file beside it is still checked."""
+    report = write_report(tmp_path, {"hqptuner/legacy.py": 12.0, "hqptuner/thin.py": 40.0})
+    assert CHECK(report, 90, {"hqptuner/legacy.py": "vendored, covered by the JS suite"}) == 1
+
+
+def test_an_exemption_naming_no_file_in_the_report_fails_the_gate(tmp_path: Path) -> None:
+    report = write_report(tmp_path, {"hqptuner/present.py": 99.0})
+    assert CHECK(report, 90, {"hqptuner/deleted_last_year.py": "excused for a forgotten reason"}) == 1
+
+
+def test_an_exemption_naming_no_file_in_the_report_is_named_on_stdout(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    report = write_report(tmp_path, {"hqptuner/present.py": 99.0})
+    CHECK(report, 90, {"hqptuner/deleted_last_year.py": "excused for a forgotten reason"})
+    assert "hqptuner/deleted_last_year.py" in capsys.readouterr().out
+
+
+def test_a_missing_report_fails_the_gate(tmp_path: Path) -> None:
+    """A suite that died writes no report; passing vacuously there is worse than no gate."""
+    assert CHECK(tmp_path / "never-written.json", 90, {}) == 1
+
+
+def test_a_missing_report_is_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    missing = tmp_path / "never-written.json"
+    CHECK(missing, 90, {})
+    assert str(missing) in capsys.readouterr().out
+
+
+def test_a_report_measuring_no_files_fails_the_gate(tmp_path: Path) -> None:
+    """An empty measurement is not a pass."""
+    assert CHECK(write_report(tmp_path, {}), 90, {}) == 1
+
+
+@pytest.mark.parametrize("expected", ["hqptuner/first.py", "hqptuner/second.py", "hqptuner/third.py"])
+def test_every_file_below_the_floor_is_reported_not_only_the_first(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], expected: str
+) -> None:
+    report = write_report(
+        tmp_path,
+        {
+            "hqptuner/first.py": 10.0,
+            "hqptuner/second.py": 20.0,
+            "hqptuner/third.py": 30.0,
+            "hqptuner/fine.py": 99.0,
+        },
+    )
+    CHECK(report, 90, {})
+    assert expected in capsys.readouterr().out
+
+
+def test_a_file_above_the_floor_is_not_named_on_stdout(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The report lists offenders; a compliant file beside them is not one."""
+    report = write_report(tmp_path, {"hqptuner/first.py": 10.0, "hqptuner/fine.py": 99.0})
+    CHECK(report, 90, {})
+    assert "hqptuner/fine.py" not in capsys.readouterr().out

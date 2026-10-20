@@ -21,12 +21,22 @@ from hqptuner.lanes.http.restore import RestoreDeclined, RestoreResult
 from hqptuner.lanes.http.storecarry import StoreCarry
 from hqptuner.lanes.live import lane
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult
-from hqptuner.presets import presetfields, presetlane
+from hqptuner.presets import fileconfig, presetfields, presetlane
 from hqptuner.presets.presetlane import PresetActivation
 from hqptuner.presets.presetops import PresetAftermath, after_restore
+from hqptuner.presets.realized import realized_config
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
+
+
+def _realized_edits(mgr: "ConnectionManager", staged: dict[str, str]) -> dict[str, str]:
+    """Return what a restore boots on, as edits onto the File the restore lane writes them into.
+
+    The lane fetches the File as a fresh ``/backup`` for each push and writes these into its working config, so the
+    File is left out here: what remains is the Engine's live-domain fields with the staged edits over them.
+    """
+    return realized_config({}, staged, mgr.readings.engine_snapshot())
 
 
 def _trace_live_volume(
@@ -78,7 +88,7 @@ async def _persistent_apply(
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
     hooks = presetfields.restore_hooks(mgr, saving=save)
-    return await restore.apply(mgr, http_fields, hooks, switched=switch_to is not None)
+    return await restore.apply(mgr, _realized_edits(mgr, http_fields), hooks, switched=switch_to is not None)
 
 
 async def _write_live(mgr: "ConnectionManager", live_edits: dict[str, dict[str, str]]) -> list[LiveWriteResult]:
@@ -130,14 +140,15 @@ class ApplyOps:
         client = self._mgr.require_control()
         try:
             await client.set_volume(db)
-            self._mgr.readings.state = await client.get_state()
+            state = await client.get_state()
+            self._mgr.readings.take_engine(self._mgr.phase.standing.generation, state=state)
         except ControlError:
             # recorded before it propagates: a refused write, or one whose readback
             # never came, is exactly the one a later reading cannot be told from a
             # write that never happened
             voltrace.write(self._mgr, "api.volume", db, None, ok=False)
             raise
-        readback = self._mgr.readings.state.get("volume")
+        readback = state.get("volume")
         voltrace.write(self._mgr, "api.volume", db, readback, ok=True)
         return VolumeReport(readback)
 
@@ -199,8 +210,8 @@ class ApplyOps:
             raise declined
         backup = await mgr.require_http().backup()
         mgr.presetops.persist_backup_for_apply(backup)
-        carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=presetfields.carried_live_fields(mgr))
+        carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=_realized_edits(mgr, {}))
         result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
         if result.verified.engine:
-            mgr.readings.engine = result.verified.engine
+            fileconfig.record_engine(mgr, result.verified.engine)
         return EngineApplyResult(verified=result.verified, members=result.members, backup_bytes=result.backup_bytes)

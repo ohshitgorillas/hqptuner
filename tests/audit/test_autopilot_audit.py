@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from audit_records import last, records
 from fake_config_xml import cfg_xml
 from fake_http import state
@@ -108,7 +108,7 @@ def autopilot_client(
         debug_log=audit_log,
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         yield client
 
 

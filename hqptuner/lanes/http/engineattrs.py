@@ -77,11 +77,11 @@ async def verify(mgr: LaneManager, overrides: dict[str, str], mark: settle.Mark)
 
 
 def _with_carried_live_fields(backup: bytes, active: str | None, stored: dict[str, str]) -> bytes:
-    """``backup`` with the running live-domain settings ``stored`` (store as fallback) written into its working member.
+    """``backup`` with the running live-domain settings ``stored`` written into its working member.
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs
-    the user the mode, filters and shapers they saved (``presets/presetfields``).
+    the user the mode, filters and shapers the Engine is running.
     """
     working = engineconf.base_config_xml(backup, active or None)
     member = engineconf.working_member_name(backup, active or None)

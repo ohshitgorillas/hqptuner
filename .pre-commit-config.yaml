@@ -127,7 +127,7 @@ repos:
       # judged and not recorded, so this reports the red rather than a number.
       - id: idle-time
         name: per-test idle against the threshold
-        entry: .venv/bin/python scripts/gates/check_idle.py
+        entry: .venv/bin/python scripts/gates/testing/check_idle.py
         language: system
         pass_filenames: false
         always_run: true
@@ -136,7 +136,7 @@ repos:
       # judged, so this reports the red rather than a wait.
       - id: clock-waits
         name: no real-clock timeout runs out
-        entry: .venv/bin/python scripts/gates/check_clock_waits.py
+        entry: .venv/bin/python scripts/gates/testing/check_clock_waits.py
         language: system
         pass_filenames: false
         always_run: true

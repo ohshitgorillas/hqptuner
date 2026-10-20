@@ -1,10 +1,10 @@
 """The drop report: what the Engine ran before an outcome and does not run after it.
 
 The report compares two stamped Engine readings, the last verified one before the outcome
-and the first verified one after it, and replays nothing (`docs/spec/settings-truth.md`
-rules 6 and 8). A field goes on it by its config-form name with the value the Engine held
+and the first verified one after it, and replays nothing. A field goes on it by its
+config-form name with the value the Engine held
 before, named the way the enumeration names it. A field of a chain the after-reading has
-not loaded has no Engine value there, so nothing says it was dropped (rule 10).
+not loaded has no Engine value there, so nothing says it was dropped.
 
 Each reading is a table in the shapes the Control API answers in, with the enumerations of
 `tests/support/fake_control.py`: the PCM filter list carries `sinc-M` at index 2 as enum ID

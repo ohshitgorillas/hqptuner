@@ -1,6 +1,6 @@
 """The connect body and the heartbeat, as the daemon's standing sees them.
 
-``docs/spec/lifecycle.md`` "Transitions" and rules 2, 6, 7 and 9: the loop dials, handshakes, fills the readings and
+The loop dials, handshakes, fills the readings and
 polls, and every move of the phase is the wire fact behind it. Each case runs ``loader.run`` on a virtual clock against
 the Control API fake and the 8088 fake, moves one of them from the test's side of the wire, lets poll intervals pass,
 and reads the phase, the generation or the readings that come back.

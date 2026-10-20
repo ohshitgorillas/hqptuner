@@ -16,9 +16,9 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from apps import live_app, wait_for_api
+from apps import live_app
 from conftest import spawn_threaded_daemon
-from fake_control import DEFAULTS, CommandLog
+from fake_control import DEFAULTS
 from fastapi.testclient import TestClient
 
 #: The per-command deadline the app is built with, in virtual seconds. The cases
@@ -31,33 +31,15 @@ STALL_TIMEOUT = 0.5
 #: `_close` knob gives up on its deadline and drops that connection, and the
 #: request under test then fails "not connected" without ever reaching the fake —
 #: the case would be asserting on the poll's failure rather than on the route.
+#: Connecting reads every enumeration once, and the next re-read waits this long
+#: on the app's virtual clock, so a knob flipped once the app is up meets the
+#: case's request first. The heartbeat between polls reads only State and Status.
 PARKED_POLL_INTERVAL = 3600.0
 
 #: A live setting whose setter is one command with one State attribute behind it
 #: (`SetJunkFilter` -> `filter_junk`), so a stalled write has nothing else in the
 #: batch to confuse the report with.
 STALLED_FIELD = "junk_filter"
-
-#: The last Control API command of both `loader.connect_and_load` and `loader.poll` in a
-#: control-only app (the 8088 refreshes that follow never touch this wire), so
-#: its SECOND appearance in the daemon's log is the first background poll
-#: finishing. The fixtures that flip a `_stall`/`_close` knob on a healthy
-#: daemon wait for it first: the app reports reachable after connect-and-load
-#: but BEFORE that first poll, so a knob flipped straight after the yield can
-#: catch the poll instead, which then times out and drops the shared connection
-#: before the case's own write gets near the wire.
-FIRST_POLL_SENTINEL = "MatrixListProfiles"
-
-
-def _await_first_poll(client: TestClient, log: CommandLog) -> None:
-    """Spin on real requests until the manager's first poll has completed —
-    the request is what progresses the app's own loop (see wait_for_api)."""
-
-    def first_poll_done(c: TestClient) -> bool:
-        c.get("/api/health")
-        return sum(1 for name, _ in log if name == FIRST_POLL_SENTINEL) >= 2
-
-    wait_for_api(client, first_poll_done)
 
 
 # --- the connection dropped AFTER the write landed -----------------------------
@@ -90,11 +72,9 @@ def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
     the shared State dict afterwards, which is also how a case reads the daemon's
     side of the wire without asking it anything."""
     state = dict(DEFAULTS)
-    log: CommandLog = []
-    daemon = spawn_threaded_daemon(state=state, log=log)
+    daemon = spawn_threaded_daemon(state=state)
     app = live_app(next(daemon), tmp_path, request_timeout=STALL_TIMEOUT, poll_interval=PARKED_POLL_INTERVAL)
     client = next(app)
-    _await_first_poll(client, log)  # see FIRST_POLL_SENTINEL: flipped earlier, the knob catches the poll
     state["_close"] = HOUSEKEEPING_COMMAND
     yield client, state
     next(app, None)

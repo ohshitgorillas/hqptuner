@@ -1,8 +1,8 @@
 """An edit to the chain the Engine has not loaded, at the routing lane.
 
 Enumerations are mode-relative: `GetFilters` and `GetShapers` answer for the loaded chain
-only, so a field of the other chain has no Engine value and no live setter reaches it
-(`docs/spec/settings-truth.md` rule 10). Such an edit is not held for later: a LIVE batch
+only, so a field of the other chain has no Engine value and no live setter reaches it.
+Such an edit is not held for later: a LIVE batch
 carrying one has no fallback lane, so the batch is refused before any setter runs.
 
 The manager's readings put the Engine on one chain, with the enumerations of

@@ -1,6 +1,6 @@
 """A request that restarts the daemon, and the waits on what it did, read off the one phase.
 
-``docs/spec/lifecycle.md`` rules 4, 5 and 11: a restart request is stamped as the
+A restart request is stamped as the
 daemon accepts it and not before; a wait for the restart to land never releases on
 the instance the restart is about to kill, and hands its deadline back as a result;
 a write's own readback settles the request in place. The request goes to the fake

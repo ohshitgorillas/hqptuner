@@ -1,6 +1,6 @@
 """Behavior of output-device capability: parsing the daemon's device-open
 announcement out of its log, deciding which device the menus should narrow to,
-matching announcement against selection, and the manager/REST surfaces over it.
+matching announcement against selection, and the manager surface over it.
 
 The governing rule everywhere below is that absence of evidence narrows nothing:
 every case the log cannot speak for resolves to None, never to a guess. The log
@@ -9,19 +9,14 @@ text used here is the shape the running daemon writes (spec block, captured
 lane HQPTuner reads."""
 
 from collections.abc import Iterator
-from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
-from apps import wait_for_api
 from conftest import ManagerFactory
-from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.httpforms import ConfigForm
-from hqptuner.config import Config
 from hqptuner.core import engineread
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine import devicecaps
@@ -415,62 +410,3 @@ async def test_manager_serves_nothing_when_the_two_views_disagree_and_the_capabi
     # naming another generation's device
     manager = await _both_views(http_manager_factory, request.getfixturevalue(daemon))
     assert _pcm_rates(manager.readings.device_caps) == expected
-
-
-# --- the REST surface -------------------------------------------------------
-
-
-def _config_loaded(client: TestClient) -> bool:
-    """The connect-and-load sequence has finished: the form is served and the
-    file view is grounded (same readiness gate as the `wired_api` suite)."""
-    resp = client.get("/api/config")
-    return resp.status_code == 200 and "title" in resp.json()["data"]["file"]
-
-
-def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> Iterator[TestClient]:
-    """The app with both lanes live against the given 8088 fake, ready once its
-    connect-and-load sequence has finished."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_http_port=daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-    )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        wait_for_api(test_client, _config_loaded)
-        yield test_client
-
-
-@pytest.fixture
-def announcing_client(
-    announcing_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
-) -> Iterator[TestClient]:
-    """Both lanes live, with the 8088 daemon announcing the device its own config
-    form has selected — the ordinary connected app."""
-    yield from _wired_client(announcing_daemon, threaded_daemon_port, tmp_path)
-
-
-def _served_pcm_rates(client: TestClient) -> object:
-    """The PCM rates ``/api/config`` serves, or None where it carries a null capability."""
-    caps = client.get("/api/config").json()["data"]["device_caps"]
-    return None if caps is None else caps["pcm_rates"]
-
-
-@pytest.mark.parametrize(
-    ("client", "refresh", "expected"),
-    [
-        pytest.param("announcing_client", False, [44100, 192000], id="known and views agree"),
-    ],
-)
-def test_api_config_carries_the_real_capability_only_when_it_is_known_and_the_two_views_agree(
-    request: pytest.FixtureRequest, client: str, *, refresh: bool, expected: list[int] | None
-) -> None:
-    served: TestClient = request.getfixturevalue(client)
-    if refresh:
-        served.post("/api/config/refresh")
-    assert _served_pcm_rates(served) == expected

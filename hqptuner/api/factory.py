@@ -42,7 +42,8 @@ log = logging.getLogger(__name__)
 def _staging(manager: ConnectionManager, static: StaticMetadata) -> tuple[PendingStore, PushFeed]:
     """Build the staging buffer and the push feed, each wired to the other.
 
-    The buffer tells the feed of every write to it; the feed reads the buffer back as its ``pending`` event.
+    The buffer tells the feed of every write to it, and the manager's readings of every move of the Engine view or the
+    File readings; the feed reads the buffer back as its ``pending`` event.
     """
 
     def poke() -> None:
@@ -50,6 +51,7 @@ def _staging(manager: ConnectionManager, static: StaticMetadata) -> tuple[Pendin
 
     store = PendingStore(on_change=poke)
     feed = PushFeed(push.sources(manager, static, store))
+    manager.readings.on_change = poke
     return store, feed
 
 

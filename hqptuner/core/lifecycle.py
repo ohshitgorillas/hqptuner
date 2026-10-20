@@ -30,6 +30,7 @@ class Fact(Enum):
     FORM_STOPPED = "form_stopped"
     SOCKET_LOST = "socket_lost"
     SOCKET_TAKEN = "socket_taken"
+    SOCKET_CLOSED = "socket_closed"
     DIAL_REFUSED = "dial_refused"
     WINDOW_RAN = "window_ran"
     REQUEST_ACCEPTED = "request_accepted"
@@ -51,7 +52,7 @@ class Stamp:
     """The generation and clock reading at which a restart request was accepted."""
 
     generation: int
-    at: float
+    at: float  # the manager's monotonic clock, seconds: when the request was accepted
 
 
 @dataclass(frozen=True)
@@ -60,23 +61,26 @@ class Standing:
 
     ``stamp`` is the restart request still pending, if any. ``ended`` is how the last
     request or departure ended, and reads ``NONE`` while a request is pending.
+    ``connected_since`` is the reading of the manager's monotonic clock, in seconds, at
+    which the standing connection answered ``GetInfo``, and ``None`` while no connection
+    stands.
     """
 
     phase: Phase = Phase.DOWN
     generation: int = 0
     taken: bool = False
     stamp: Stamp | None = None
-    down_since: float | None = None
+    down_since: float | None = None  # the manager's monotonic clock, seconds: when the connection went down
     ended: Outcome = Outcome.NONE
+    connected_since: float | None = None
 
 
-_CONNECTED = frozenset({Phase.REACHABLE, Phase.READY})
+CONNECTED_PHASES = frozenset({Phase.REACHABLE, Phase.READY})
 
 
 def _connected(standing: Standing, now: float) -> Standing:
-    """Stand Reachable on a new socket that answered ``GetInfo``."""
-    del now
-    return replace(standing, phase=Phase.REACHABLE, taken=False, down_since=None)
+    """Stand Reachable since ``now`` on a new socket that answered ``GetInfo``."""
+    return replace(standing, phase=Phase.REACHABLE, taken=False, down_since=None, connected_since=now)
 
 
 def _ready(standing: Standing, now: float) -> Standing:
@@ -92,19 +96,20 @@ def _unready(standing: Standing, now: float) -> Standing:
 
 
 def _lost(standing: Standing, now: float) -> Standing:
-    """Go Down proven when the daemon ends the socket, advancing the generation."""
+    """Go Down proven when the daemon ends the socket or refuses a dial, advancing the generation."""
     return replace(
         standing,
         phase=Phase.DOWN,
         generation=standing.generation + 1,
         taken=False,
         down_since=now,
+        connected_since=None,
     )
 
 
 def _taken(standing: Standing, now: float) -> Standing:
-    """Go Down taken when HQPTuner closes the socket ahead of its own restart."""
-    return replace(standing, phase=Phase.DOWN, taken=True, down_since=now)
+    """Go Down taken when HQPTuner closes the control socket itself, leaving the generation where it stood."""
+    return replace(standing, phase=Phase.DOWN, taken=True, down_since=now, connected_since=None)
 
 
 def _refused(standing: Standing, now: float) -> Standing:
@@ -126,6 +131,10 @@ _TABLE: dict[tuple[Phase, Fact], _Move] = {
     (Phase.READY, Fact.SOCKET_LOST): _lost,
     (Phase.REACHABLE, Fact.SOCKET_TAKEN): _taken,
     (Phase.READY, Fact.SOCKET_TAKEN): _taken,
+    (Phase.REACHABLE, Fact.SOCKET_CLOSED): _taken,
+    (Phase.READY, Fact.SOCKET_CLOSED): _taken,
+    (Phase.REACHABLE, Fact.DIAL_REFUSED): _lost,
+    (Phase.READY, Fact.DIAL_REFUSED): _lost,
     (Phase.DOWN, Fact.DIAL_REFUSED): _refused,
     (Phase.ALARM, Fact.DIAL_REFUSED): _refused,
 }
@@ -144,7 +153,7 @@ def _requested(standing: Standing, now: float) -> Standing:
 def _confirmed(standing: Standing) -> Standing:
     """Settle the pending request in place when its readback confirmed with the generation unmoved."""
     stamp = standing.stamp
-    if stamp is None or standing.phase not in _CONNECTED or standing.generation != stamp.generation:
+    if stamp is None or standing.phase not in CONNECTED_PHASES or standing.generation != stamp.generation:
         return standing
     return replace(standing, stamp=None, ended=Outcome.SETTLED_IN_PLACE)
 
@@ -210,9 +219,9 @@ class Lifecycle:
     it returns on the edge that satisfied it even if a later one has already moved on.
     """
 
-    def __init__(self, window: float) -> None:
-        """Stand Down under ``window``, the longest a restart may take before it is an outage."""
-        self._standing = Standing()
+    def __init__(self, window: float, now: float) -> None:
+        """Stand Down since ``now`` under ``window``, the longest a restart may take before an outage."""
+        self._standing = Standing(down_since=now)
         self._window = window
         self._edges: dict[asyncio.Event, _Holds] = {}
         self.changed = asyncio.Event()

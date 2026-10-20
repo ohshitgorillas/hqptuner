@@ -3,49 +3,10 @@ threaded fake control daemon (the 4321 wire protocol, conftest) and to the
 faithful fake 8088 config daemon, so every route body serves what the fakes
 answered over the wire."""
 
-from collections.abc import Callable, Iterator
-from pathlib import Path
-from typing import Any
+from collections.abc import Callable
 
 import pytest
-from apps import wait_for_api
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
-
-from hqptuner.api.factory import create_app
-from hqptuner.config import Config
-
-
-def _config_loaded(client: TestClient) -> bool:
-    """Connect-and-load has finished: the /config form is served, the file view
-    is grounded, and the daemon's data/cfgs/Test.xml migrated into the store —
-    the last steps of the manager's connect sequence, in that order."""
-    resp = client.get("/api/config")
-    if resp.status_code != 200:
-        return False
-    data = resp.json()["data"]
-    options = [o["value"] for o in data["profiles"]["options"]]
-    return "title" in data["file"] and "Test" in options
-
-
-@pytest.fixture
-def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[TestClient]:
-    """Both lanes live: control on the threaded fake, config on the fake 8088."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=threaded_daemon_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=0.05,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-    )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
-        wait_for_api(client, _config_loaded)
-        yield client
-
 
 # --- which chain's controls are live-adjustable -------------------------------
 # GetFilters/GetShapers answer for the ACTIVE mode's chain only, so the frontend
@@ -115,22 +76,6 @@ def test_a_live_write_leaves_the_staged_buffer_alone(live_api: TestClient) -> No
     live_api.post("/api/config/stage", json={"http": {"title": "Opal"}})
     live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
     assert live_api.get("/api/config/pending").json()["http"] == {"title": "Opal"}
-
-
-# --- /config read model (form + file ⊕ live overrides + preset store) ---------
-
-
-def test_config_file_view_prefers_the_live_engine_filter_over_the_file(wired_api: TestClient) -> None:
-    # the config XML says filter=40, but State reports list index 0 = enum 0:
-    # the live overlay must win, or the file view reports a setting the engine
-    # stopped using
-    assert wired_api.get("/api/config").json()["data"]["file"]["filter"] == "0"
-
-
-def test_config_active_preset_is_the_stores_truth(wired_api: TestClient) -> None:
-    # nothing is staged, so the save rides an apply of the "(no preset)" switch
-    wired_api.post("/api/config/apply", json={"switch_to": "", "save": {"name": "Mine"}})
-    assert wired_api.get("/api/config").json()["data"]["active"] == "Mine"
 
 
 # --- static surface (no daemon involved) ----------------------------------------

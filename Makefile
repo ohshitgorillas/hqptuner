@@ -99,11 +99,11 @@ pytest-offline:
 # test's start, either side of its call and at its end, and writes a second
 # report; the fourth line fails any test whose reading rises more than 40 ms
 # over its previous one on the branch, or exceeds 40 ms with none, and records
-# only the readings that passed (scripts/gates/check_idle.py).
+# only the readings that passed (scripts/gates/testing/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the fifth line refuses any test with
-# one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
+# one (scripts/gates/testing/check_clock_waits.py). The suite deadline aborts a run
 # still going at the third line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
@@ -111,8 +111,8 @@ test: pytest-offline
 	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
-	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
-	$(VENV)/python scripts/gates/check_clock_waits.py
+	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/testing/check_idle.py)
+	$(VENV)/python scripts/gates/testing/check_clock_waits.py
 
 test-live:
 	$(VENV)/pytest -m "$(LIVE_MARKERS)" -q

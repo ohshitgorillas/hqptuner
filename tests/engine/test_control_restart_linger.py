@@ -1,6 +1,6 @@
 """A daemon that has accepted a restart still answers for a moment on 4321.
 
-Measured on hqplayerd (``docs/spec/lifecycle.md`` "Measured facts"): after a
+Measured on hqplayerd: after a
 restart request is accepted, the pre-restart daemon keeps answering, 4321 drops
 about 0.3 s later and comes back about 3 s after that. The fake states that
 moment in commands rather than seconds, through its ``_linger`` knob: the

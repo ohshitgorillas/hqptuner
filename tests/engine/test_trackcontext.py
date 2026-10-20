@@ -1,8 +1,8 @@
 """The track context is read off the manager's 4321 readings: what the daemon last reported.
 
 Each fixture is one consistent daemon snapshot: ``State`` carries settings as list indices,
-``Status`` carries the running filter and rate, and the enumerations map index to name
-(``docs/spec/protocol.md``, State and Status). Values come from that document and the fakes.
+``Status`` carries the running filter and rate, and the enumerations map index to name.
+Values come from the wire protocol's State and Status shapes and the fakes.
 """
 
 from __future__ import annotations
@@ -35,6 +35,9 @@ JUNK_FILTERS = [
 ]
 RATE_705K = 705600
 RATE_352K = 352800
+SOURCE_44K = 44100
+SOURCE_96K = 96000
+DSD64 = 2822400
 RATES = [
     {"index": "0", "rate": "0"},
     {"index": "1", "rate": str(RATE_352K)},
@@ -48,6 +51,8 @@ def _context(
     filter_index: str = "1",
     junk_index: str = "1",
     rate: int = RATE_705K,
+    track: dict[str, str] | None = None,
+    active_mode: str = "PCM",
 ) -> TrackContext | None:
     """Fill a bare manager's readings with one consistent snapshot and read its context."""
     filter_name = FILTERS[int(filter_index)]["name"]
@@ -66,12 +71,13 @@ def _context(
     }
     mgr.readings.status = {
         "state": state,
-        "active_mode": "PCM",
+        "active_mode": active_mode,
         "active_filter": filter_name,
         "active_shaper": "none",
         "active_rate": str(rate),
         "filter_junk": junk_index,
     }
+    mgr.readings.status_metadata = track
     return context_from(mgr)
 
 
@@ -89,11 +95,30 @@ def test_junk_filter_is_the_name_of_the_engaged_junk_filter(index: str, name: st
     assert context.junk_filter == name
 
 
-@pytest.mark.parametrize("rate", [RATE_705K, RATE_352K])
-def test_samplerate_is_the_output_rate_in_hz_as_an_int(rate: int) -> None:
-    context = _context(rate=rate)
+def test_samplerate_is_the_source_rate_not_the_output_rate() -> None:
+    context = _context(rate=RATE_705K, track={"samplerate": str(SOURCE_44K)})
     assert context is not None
-    assert context.samplerate == rate
+    assert context.samplerate == SOURCE_44K
+
+
+def test_samplerate_follows_the_source_when_the_output_rate_is_unchanged() -> None:
+    context = _context(rate=RATE_705K, track={"samplerate": str(SOURCE_96K)})
+    assert context is not None
+    assert context.samplerate == SOURCE_96K
+
+
+def test_sdm_is_true_for_a_dsd_source_on_a_pcm_output_chain() -> None:
+    context = _context(track={"samplerate": str(DSD64), "sdm": "1"}, active_mode="PCM")
+    assert context is not None
+    assert context.sdm is True
+
+
+def test_sdm_is_false_for_a_pcm_source_on_an_sdm_output_chain() -> None:
+    contexts = (
+        _context(track={"samplerate": str(SOURCE_44K), "sdm": "0"}, active_mode="SDM"),
+        _context(track={"samplerate": str(DSD64), "sdm": "1"}, active_mode="SDM"),
+    )
+    assert [context.sdm for context in contexts if context is not None] == [False, True]
 
 
 def test_state_two_reads_as_playing() -> None:
@@ -104,6 +129,5 @@ def test_state_two_reads_as_playing() -> None:
 
 @pytest.mark.parametrize("state", [STOPPED, PAUSED, STOP_REQUESTED])
 def test_stopped_paused_and_stop_requested_read_as_not_playing(state: str) -> None:
-    context = _context(state=state)
-    assert context is not None
-    assert context.playing is False
+    contexts = (_context(state=state), _context(state=PLAYING_STATE))
+    assert [context.playing for context in contexts if context is not None] == [False, True]

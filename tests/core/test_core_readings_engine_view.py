@@ -7,9 +7,11 @@ File, or the Engine reading from before a break, reads differently from one
 that does not.
 """
 
+from typing import Literal
+
 import pytest
 
-from hqptuner.core.readings import Readings, Source, Stamp
+from hqptuner.core.readings import EngineFields, Readings, Source, Stamp
 
 #: Two generations a reading may be taken in, and the one after the first.
 FIRST_GENERATION = 1
@@ -48,7 +50,7 @@ ENGINE_VOLUME_RANGE = {"min": "-60", "max": "0", "enabled": "1", "adaptive": "0"
 FILE_CONFIG = {"mode": "1", "filter": "12", "shaper": "1"}
 
 
-def engine_fields(state: dict[str, str]) -> dict[str, object]:
+def engine_fields(state: dict[str, str]) -> EngineFields:
     """Every Engine field one full reading carries, ``State`` as given."""
     return {"state": state, "status": ENGINE_STATUS, "enums": ENGINE_ENUMS, "volume_range": ENGINE_VOLUME_RANGE}
 
@@ -85,16 +87,19 @@ def test_a_break_ends_the_engine_view_read_before_it() -> None:
 
 
 @pytest.mark.parametrize("unread", ["state", "volume_range"])
-def test_after_a_break_a_field_the_next_reading_did_not_carry_reads_as_not_read(unread: str) -> None:
+def test_after_a_break_a_field_the_next_reading_did_not_carry_reads_as_not_read(
+    unread: Literal["state", "volume_range"],
+) -> None:
     readings = file_backed_readings()
     readings.take_engine(FIRST_GENERATION, **engine_fields(ENGINE_STATE))
     readings.break_engine()
-    next_fields = {**engine_fields(OTHER_ENGINE_STATE), "status": NEXT_ENGINE_STATUS}
+    next_fields = engine_fields(OTHER_ENGINE_STATE)
+    next_fields["status"] = NEXT_ENGINE_STATUS
     del next_fields[unread]
     readings.take_engine(NEXT_GENERATION, **next_fields)
     snapshot = readings.engine_snapshot()
     assert snapshot is not None
-    assert getattr(snapshot, unread) is None
+    assert (getattr(snapshot, unread), snapshot.status) == (None, NEXT_ENGINE_STATUS)
 
 
 @pytest.mark.parametrize("generation", [NEXT_GENERATION, LATER_GENERATION])

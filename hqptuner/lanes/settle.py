@@ -27,6 +27,8 @@ type Mark = LaneStamp
 
 _TAKEN_DOWN = "the daemon accepted a request that restarts or reloads it"
 
+ZIP_MAGIC = b"PK\x03\x04"
+
 
 class _BeforeAny:
     """A mark every generation is later than: Ready after it is Ready at all."""
@@ -84,10 +86,13 @@ async def poll_until[T](
 
 
 async def fresh_backup(mgr: LaneManager) -> bytes | None:
-    """Return a ``/backup`` taken now, or ``None`` while the 8088 lane is declined.
+    """Return a ``/backup`` archive taken now, or ``None`` if the 8088 lane is declined or the answer is not a zip.
 
-    A failed fetch raises ``httpx.HTTPError``, which ``poll_until`` reads as a pass that did not confirm.
+    Bytes that are not a zip are refused before anything parses them, so garbage is never read as realized state;
+    the zip magic is checked first. A failed fetch raises ``httpx.HTTPError``, which ``poll_until`` reads as a pass
+    that did not confirm.
     """
     if forms.decline(mgr) is not None:
         return None
-    return await mgr.require_http().backup()
+    data = await mgr.require_http().backup()
+    return data if data[:4] == ZIP_MAGIC else None

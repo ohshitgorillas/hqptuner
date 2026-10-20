@@ -46,22 +46,30 @@ _DIGEST_CHALLENGE = (
 #: The 40-byte body the daemon serves with both the 401 and the 403.
 _AUTH_BODY = b"Authentication is required for this page"
 
+HTTP_UNAUTHORIZED = 401
+HTTP_FORBIDDEN = 403
 
-def _count_request(st: dict[str, Any], path: str) -> None:
+_Refusal = tuple[int, str, bytes]
+
+
+def _count_request(st: dict[str, Any], path: str, refusal: _Refusal | None) -> None:
     """Bookkeeping on arrivals, the same shape as `_restore_attempts`.
 
     `_requests` counts every arrival at the lane, any method, any path, refused
     or served, so a caller can be tested for how much traffic it spent.
     `_backup_reads` narrows that to the settings archive: the poll cycle never
     fetches it, so it is the arrival that says a caller reached the write path
-    rather than merely polled."""
+    rather than merely polled. An arrival answered with the 401 digest challenge is
+    the first leg of a handshake, not a fetch: the client's authenticated retry is
+    the one fetch, so only that leg is counted."""
+    challenged = refusal is not None and refusal[0] == HTTP_UNAUTHORIZED
     with _STATE:
         st["_requests"] = st.get("_requests", 0) + 1
-        if path == "/backup/settings.zip":
+        if path == "/backup/settings.zip" and not challenged:
             st["_backup_reads"] = st.get("_backup_reads", 0) + 1
 
 
-def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[int, str, bytes] | None:
+def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> _Refusal | None:
     """The credential wire on 8088, verified against hqplayerd 6.0.4.
 
     Every page needs authentication: with no `Authorization` header the daemon
@@ -76,9 +84,9 @@ def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[in
     if st.get("_down") or path in st.get("_fail_paths", ()):
         return None
     if not authorization and st.get("_refuse_auth"):
-        return 401, _DIGEST_CHALLENGE, _AUTH_BODY
+        return HTTP_UNAUTHORIZED, _DIGEST_CHALLENGE, _AUTH_BODY
     if authorization and st.get("_refuse_auth"):
-        return 403, "", _AUTH_BODY
+        return HTTP_FORBIDDEN, "", _AUTH_BODY
     return None
 
 
@@ -136,7 +144,7 @@ def _http_render(st: dict[str, Any]) -> str:
 
 
 def _speakers_render(st: dict[str, Any]) -> str:
-    """GET /speakers (readme §1.9) — the enabled switch plus per-channel level
+    """GET /speakers, the speaker-processing page: the enabled switch plus per-channel level
     (dBFS) and distance (cm) inputs, each channel under its own <h2> name, the
     layout the parser reads channel labels from on 6.0.4."""
     parts = [f'<input type="checkbox" name="enabled" value="1"{" checked" if st["speakers_enabled"] else ""}/>']
@@ -376,11 +384,9 @@ def _save_profile(st: dict[str, Any], raw: bytes) -> None:
         st.setdefault("_saved", {})[name] = cfg_xml(st)
 
 
-def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
-    """Answer the request with the daemon's authentication refusal if the state
-    calls for one, reporting whether it did."""
-    authorization = handler.headers.get("Authorization", "")
-    refusal = _auth_refusal(st, handler.path, authorization)
+def _serve_refusal(handler: BaseHTTPRequestHandler, refusal: _Refusal | None) -> bool:
+    """Answer the request with the daemon's authentication refusal if there is
+    one, reporting whether it did."""
     if refusal is None:
         return False
     status, challenge, body = refusal
@@ -411,8 +417,9 @@ def _sever_open_connections(st: dict[str, Any]) -> None:
 def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
-            _count_request(st, self.path)
-            if _serve_refusal(self, st):
+            refusal = _auth_refusal(st, self.path, self.headers.get("Authorization", ""))
+            _count_request(st, self.path, refusal)
+            if _serve_refusal(self, refusal):
                 return
             status, body = _http_get_response(st, self.path)
             self.send_response(status)
@@ -421,10 +428,11 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
                 self.wfile.write(body)
 
         def do_POST(self) -> None:
-            _count_request(st, self.path)
+            refusal = _auth_refusal(st, self.path, self.headers.get("Authorization", ""))
+            _count_request(st, self.path, refusal)
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
-            if _serve_refusal(self, st):
+            if _serve_refusal(self, refusal):
                 return
             status = 200  # /config POST is unused by the restore lane
             if self.path == "/restore":
@@ -585,7 +593,7 @@ def state(**extra: object) -> dict[str, Any]:
         # the daemon's active named configuration; None is [default], which serves
         # the working config as hqplayerd.xml
         "_active_profile": None,
-        # speaker processing (readme §1.9): off, two flat channels
+        # speaker processing: off, two flat channels
         "speakers_enabled": False,
         "_speakers": [
             {"label": "Left", "level": "0", "distance": "0"},
@@ -659,16 +667,14 @@ def state(**extra: object) -> dict[str, Any]:
         # archives GET /backup/settings.zip serves one per read, ahead of the live one
         "_backups": [],
         # POST /restore arrivals to refuse with 503 before adopting one, and the
-        # running count of arrivals. Both default to the healthy daemon: nothing
-        # is refused and the count is bookkeeping no existing test reads.
+        # running count of arrivals. The default refuses nothing.
         "_restore_refusals": 0,
         "_restore_attempts": 0,
         # Running count of GET /log arrivals, same bookkeeping shape.
         "_log_reads": 0,
         # Refuse authentication on every page (401 challenge, then 403 to the
-        # digest), and the running count of arrivals at the lane. Both default to
-        # the healthy daemon: credentials are accepted and the count is
-        # bookkeeping no existing test reads.
+        # digest), and the running count of arrivals at the lane. The default
+        # accepts the credentials.
         "_refuse_auth": False,
         "_requests": 0,
         # Running count of GET /backup/settings.zip arrivals, refused or served.

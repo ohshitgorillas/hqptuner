@@ -1,6 +1,6 @@
 """The daemon's standing moves only on the wire fact that proves the move.
 
-``docs/spec/lifecycle.md`` "The one phase" and "Transitions": the standing is one
+The standing is one
 phase, the generation counts proven departures and nothing else, and a
 transition is a pure function of the standing and one wire fact. Each case
 starts from a standing at a stated phase and generation, feeds facts in the

@@ -5,19 +5,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
-from hqptuner.engine.chainfamily import SDM, status_chain
-
 PLAYING = 2
 
 
 class _Readings(Protocol):
-    """The snapshots the context reads: ``State``, ``Status`` and the enumerations, as the control client parses."""
+    """The snapshots the context reads: ``State``, ``Status`` and its track metadata, and the enumerations."""
 
     @property
     def state(self) -> dict[str, str] | None: ...
 
     @property
     def status(self) -> dict[str, str] | None: ...
+
+    @property
+    def status_metadata(self) -> dict[str, str] | None: ...
 
     @property
     def enums(self) -> dict[str, list[dict[str, str]]] | None: ...
@@ -32,7 +33,7 @@ class _HoldsReadings(Protocol):
 
 @dataclass(frozen=True)
 class TrackContext:
-    """The playback facts a filter decision reads."""
+    """The playback facts a filter decision reads, ``samplerate`` and ``sdm`` describing the source track."""
 
     filter: str | None
     junk_filter: str | None
@@ -56,11 +57,6 @@ def _name_at(items: list[dict[str, str]], index: str | None) -> str | None:
     return None
 
 
-def _rate(status: dict[str, str]) -> int | None:
-    """Return the output rate in Hz, or None when Status reports none."""
-    return _int(status.get("active_rate")) or None
-
-
 def context_from(mgr: _HoldsReadings) -> TrackContext | None:
     """Return the track context, or None when no State reading is held."""
     readings = mgr.readings
@@ -68,11 +64,12 @@ def context_from(mgr: _HoldsReadings) -> TrackContext | None:
     if state is None:
         return None
     status = readings.status or {}
+    meta = readings.status_metadata or {}
     junk_filters = (readings.enums or {}).get("junk_filters", [])
     return TrackContext(
         filter=status.get("active_filter"),
         junk_filter=_name_at(junk_filters, state.get("filter_junk")),
-        samplerate=_rate(status),
-        sdm=status_chain(status) == SDM,
+        samplerate=_int(meta.get("samplerate")),
+        sdm=meta.get("sdm") in ("1", "true"),
         playing=_int(state.get("state")) == PLAYING,
     )

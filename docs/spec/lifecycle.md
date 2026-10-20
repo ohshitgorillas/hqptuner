@@ -59,6 +59,7 @@ Each transition is proven by one wire fact. The daemon's accept and its first an
 | Ready | Reachable | The configuration lane stopped answering on a poll while the control socket stands. |
 | Reachable, Ready | Down, proven | EOF, reset or timeout on the control socket. |
 | Reachable, Ready | Down, taken | HQPTuner closed the socket after the daemon accepted a restart request. |
+| Reachable, Ready | Down, taken | HQPTuner closed the control socket. |
 | Down, taken | Down, proven | A dial refused or unanswered. |
 | Down | Alarm | The window has run on the manager's clock since Down was entered. |
 | any | request stamped | A request that restarts or reloads the daemon was accepted: `POST /restore`, `POST /matrix`, `POST /speakers`. |

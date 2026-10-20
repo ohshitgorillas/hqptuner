@@ -296,7 +296,7 @@ case "$CMD" in
     done
     say "readback"
     echo "  pending: $(pending_of)"
-    echo "  health:  $(get /api/health | jq -c '{reachable, connected_at}')"
+    echo "  health:  $(get /api/health | jq -c '{phase, generation, connected_at}')"
     rm -f "$CURRENT"
     ;;
   status)

@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any, NamedTuple
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandHooks, CommandLog, OnNextArrival
 from fastapi.testclient import TestClient
@@ -94,7 +94,7 @@ def control_client(http_daemon: dict[str, Any], tmp_path: Path, audit_log: Path)
         clients = app(http_daemon, tmp_path, port, audit_log)
         client = next(clients)
         stack.callback(next, clients, None)
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         return client, log
 
     yield build

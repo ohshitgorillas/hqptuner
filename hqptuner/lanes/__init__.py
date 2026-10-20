@@ -24,10 +24,28 @@ class LaneEngineFields(TypedDict, total=False):
 
     state: dict[str, str] | None
     status: dict[str, str] | None
+    status_metadata: dict[str, str] | None
     enums: dict[str, list[dict[str, str]]] | None
     volume_range: dict[str, str] | None
     matrix_profiles: list[str] | None
     active_config: str | None
+    license: dict[str, str] | None
+    release: str | None
+    info: dict[str, str] | None
+
+
+class LaneFileFields(TypedDict, total=False):
+    """The File values one reading on 8088 may carry, each optional."""
+
+    file_config: dict[str, str] | None
+    config_form: ConfigForm | None
+    matrix_form: MatrixForm | None
+    speakers_form: SpeakersForm | None
+    config_error: str | None
+    matrix_error: str | None
+    speakers_error: str | None
+    credentials_ok: bool | None
+    engine: dict[str, str] | None
 
 
 class LaneStamp(Protocol):
@@ -142,6 +160,9 @@ class LaneReadings(Protocol):
 
     def take_engine(self, generation: int, **fields: Unpack[LaneEngineFields]) -> None:
         """Take one Engine reading read in ``generation``."""
+
+    def take_file(self, **fields: Unpack[LaneFileFields]) -> bool:
+        """Take one File reading and answer whether it moved them."""
 
     def engine_snapshot(self) -> LaneEngineSnapshot | None:
         """Return the current Engine view, or ``None`` when nothing was read since the last break."""

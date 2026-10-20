@@ -8,9 +8,9 @@ anyway.
 
 Every function takes the ``ConnectionManager`` and reaches the daemon through its
 public accessors, exactly like the other lanes. It lives under ``presets`` rather
-than ``lanes`` because it depends on the store, as do ``carried_live_fields`` and
-``preset_mirror`` in ``presets/presetfields.py``, which the engine and http
-lanes are handed by their callers.
+than ``lanes`` because it depends on the store, as do ``restore_hooks`` and
+``preset_mirror`` in ``presets/presetfields.py``, which the http lanes are
+handed by their callers.
 """
 
 from __future__ import annotations
@@ -23,8 +23,8 @@ from hqptuner import voltrace
 from hqptuner.conf import engineconf, presetconf, presetiface, presetzip
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import settle
-from hqptuner.lanes.live import overrides
 from hqptuner.presets import fileconfig
+from hqptuner.presets.realized import realized_config
 from hqptuner.presets.store.autopilot import AutopilotError
 from hqptuner.presets.store.presets import canonical_name
 
@@ -218,11 +218,8 @@ async def save(mgr: PresetManager, name: str) -> PresetSaveResult:
     working = engineconf.base_config_xml(backup, mgr.readings.active_config)
     if not working:
         raise NoRunningConfigToSaveError()
-    # Live-routed edits (filters, dither/modulator, mode) never touched the
-    # file, so the working config is stale for exactly those settings. Fold
-    # the engine's current values in first — a save stores what the user is
-    # hearing, not what happens to be on disk.
-    working = presetconf.apply_edits(working, overrides.live_overrides(mgr))
+    # A save stores the realized config: the File with the Engine's stamped live-domain values written in.
+    working = presetconf.apply_edits(working, realized_config({}, {}, mgr.readings.engine_snapshot()))
     mgr.presetops.store.save(name, working, trigger="save")
     mgr.presetops.store.set_active(name)
     _record_autopilot(mgr, name)

@@ -1,6 +1,6 @@
 """A restart's outcome, the waits on it and the alarm, read off the one phase.
 
-``docs/spec/lifecycle.md`` "The one phase" and rules 4, 5 and 11: how a restart
+How a restart
 ended falls out of the phase, the generation and the request stamp; a wait
 subscribes to the transition it names and hands its deadline back as a result.
 Each case feeds wire facts from a table at the clock readings the table gives,
@@ -94,7 +94,7 @@ async def _play(lifecycle: Lifecycle, clock: VirtualClock, rows: Iterable[Row], 
 
 def _standing_on_the_old_instance(window: float) -> Lifecycle:
     """A lifecycle whose control socket and configuration lane both answered at reading zero."""
-    lifecycle = Lifecycle(window=window)
+    lifecycle = Lifecycle(window=window, now=0.0)
     lifecycle.report(Fact.GETINFO_ANSWERED, 0.0)
     lifecycle.report(Fact.FORM_ANSWERED, 0.0)
     return lifecycle
@@ -168,7 +168,7 @@ async def test_a_wait_with_no_deadline_of_its_own_gives_up_at_the_window() -> No
 
 async def test_a_request_stamped_wakes_whoever_waits_on_the_transitions() -> None:
     clock = VirtualClock()
-    lifecycle = Lifecycle(window=WINDOW)
+    lifecycle = Lifecycle(window=WINDOW, now=clock.monotonic())
 
     async def stamp_later() -> None:
         await clock.sleep(5.0)

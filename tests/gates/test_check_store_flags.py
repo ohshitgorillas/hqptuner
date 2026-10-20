@@ -6,7 +6,7 @@ server says which store answers a field, and the client keeps no copy of that
 rule.
 
 The seam is ``main(argv) -> int``: file paths in, one ``<path>:<line>:`` line
-per hit out, nonzero on any hit and zero on none. Every fixture source sits in
+per hit out, exit 1 on any hit and 0 on none. Every fixture source sits in
 ``tests/support/fixtures/store_flags/`` as text, with ``@NAME@`` standing for
 the flag a case is about, and is laid down under ``tmp_path`` at the path the
 case judges.
@@ -39,7 +39,7 @@ def _load_gate_module() -> ModuleType:
 
 GATE = _load_gate_module()
 
-#: The per-field flags ``docs/spec/settings-truth.md`` refuses by name.
+#: The per-field flags the gate refuses by name.
 FLAGS = ["fileTruth", "appliesLive"]
 
 #: Each fixture shape carrying one flag, and the line the flag sits on.
@@ -87,7 +87,7 @@ def test_a_store_flag_under_static_is_refused_at_its_path_and_line(
 def test_only_a_file_with_a_store_flag_fails_the_gate(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     clean = lay(tmp_path, "clean.txt", "hqptuner/static/store/clean.js")
     dirty = lay(tmp_path, "lookup.txt", STATIC_FILE, "appliesLive")
-    assert (run_gate(capsys, [clean])[0] == 0, run_gate(capsys, [dirty])[0] == 0) == (True, False)
+    assert (run_gate(capsys, [clean])[0], run_gate(capsys, [dirty])[0]) == (0, 1)
 
 
 @pytest.mark.parametrize("relative", ["tests/js/store/settings.test.js", "hqptuner/api/settings.py"])

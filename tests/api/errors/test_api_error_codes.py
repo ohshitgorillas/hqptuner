@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -213,7 +213,7 @@ def stamped_client(
 ) -> Iterator[TestClient]:
     """The app over an auto-pilot store holding ``request.param``."""
     with _client(http_daemon, threaded_daemon_port, tmp_path, request.param) as client:
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         yield client
 
 

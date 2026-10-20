@@ -1,8 +1,9 @@
 """Readers over the backup archive: the fields that live only in ``hqplayerd.xml``.
 
-Both fetch through ``require_http().backup()`` and cache what they parse in
-``readings``. Neither runs per poll, since the archive is large; each is fetched
-on connect, on demand, or after an apply's verify step.
+``read_engine`` always fetches the archive through ``require_http().backup()``; ``load_file_config`` fetches it
+unless the caller hands one over; ``record_file_config`` and ``record_engine`` only record. Each records what it
+parsed through ``readings.take_file``. None runs per status beat, since the archive is large: the loader reads it
+once per connection, and the rest run on demand or after an apply's verify step.
 """
 
 from typing import TYPE_CHECKING
@@ -18,10 +19,15 @@ async def read_engine(mgr: "PresetManager") -> dict[str, str]:
 
     That backup is the only lane that carries them — they are not on the form.
     """
-    readings = mgr.readings
     backup = await mgr.require_http().backup()
-    readings.engine = engineconf.read_engine_attrs(engineconf.base_config_xml(backup, readings.active_config))
-    return readings.engine
+    engine = engineconf.read_engine_attrs(engineconf.base_config_xml(backup, mgr.readings.active_config))
+    record_engine(mgr, engine)
+    return engine
+
+
+def record_engine(mgr: "PresetManager", engine: dict[str, str]) -> None:
+    """Record ``engine`` as the File's engine-tag attributes: the one writer of ``readings.engine``."""
+    mgr.readings.take_file(engine=engine)
 
 
 async def load_file_config(mgr: "PresetManager", *, backup: bytes | None = None) -> dict[str, str]:
@@ -33,5 +39,14 @@ async def load_file_config(mgr: "PresetManager", *, backup: bytes | None = None)
     """
     if backup is None:
         backup = await mgr.require_http().backup()
-    mgr.readings.file_config = presetconf.read_config(engineconf.base_config_xml(backup, mgr.readings.active_config))
-    return mgr.readings.file_config
+    return record_file_config(mgr, backup)
+
+
+def record_file_config(mgr: "PresetManager", backup: bytes) -> dict[str, str]:
+    """Read ``backup``'s working ``hqplayerd.xml`` into form-field terms, record it as the file truth, and return it.
+
+    Raises ``engineconf.UnreadableArchiveError`` for bytes that are not a readable archive, recording nothing.
+    """
+    file_config = presetconf.read_config(engineconf.base_config_xml(backup, mgr.readings.active_config))
+    mgr.readings.take_file(file_config=file_config)
+    return file_config

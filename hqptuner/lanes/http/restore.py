@@ -35,6 +35,8 @@ from hqptuner.lanes import settle
 from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
+    from collections.abc import Callable
+
     from hqptuner.lanes import LaneManager
     from hqptuner.lanes.http.storecarry import StoreHooks
 
@@ -179,6 +181,14 @@ class PassVerdict:
         return not self.diff or self.unfixable is not None
 
 
+@dataclass(frozen=True)
+class Pushed:
+    """One restore the daemon accepted: the config it should produce, and the stamp the push wrote."""
+
+    intended: dict[str, str]
+    mark: settle.Mark
+
+
 async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, switched: bool = False) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
@@ -207,9 +217,9 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
     if declined is not None:
         raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
-    # never reached that file — so the running values for those settings ride
-    # along (store as fallback), under the staged edits, which win (StoreHooks.carried)
-    merged = {**hooks.carried(), **edits, **FORCED_CONFIG}
+    # never reached that file — so ``edits`` carries the running values for those
+    # settings under the staged edits, which win
+    merged = {**edits, **FORCED_CONFIG}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
@@ -225,13 +235,13 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
         # to actually serve before writing, rather than racing it
         await settle.await_serving(mgr)
         try:
-            intended, accepted = await _restore_once(mgr, merged, hooks, active_profile)
+            pushed = await _restore_once(mgr, merged, hooks, active_profile)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
-            mgr.readings.credentials_ok = False
+            forms.record_credentials(mgr, accepted=False)
             declined = forms.decline(mgr)
             if declined is not None:
                 raise declined from exc
@@ -243,8 +253,8 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
             log.warning("restore pass %d dropped mid-write: %s", attempt, exc)
             await mgr.clock.sleep(RECONNECT_FAST)
             continue
-        mark = accepted if mark is None else mark
-        verdict, attempts = await _judge(mgr, merged, intended, attempt, accepted), attempt
+        mark = pushed.mark if mark is None else mark
+        verdict, attempts = await _judge(mgr, merged, pushed, attempt, hooks), attempt
         if verdict.final:
             break
     return await _outcome(mgr, mark, verdict, attempts)
@@ -281,15 +291,16 @@ def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
 
 
 async def _judge(
-    mgr: LaneManager, merged: dict[str, str], intended: dict[str, str], attempt: int, mark: settle.Mark
+    mgr: LaneManager, merged: dict[str, str], pushed: Pushed, attempt: int, hooks: StoreHooks
 ) -> PassVerdict:
-    """Read the running config back after one restore, stamped ``mark``, and say how it differs from the intent."""
+    """Read the running config back after one accepted restore, and say how it differs from the intent."""
+    intended = pushed.intended
     keys = verified_keys(merged, intended)
     # both sides of the persistent apply, recorded whether or not it converged: a
     # pass that converges on every key it verified can still have carried the wrong
     # startup volume, and the prose warning below only fires when it does not
     voltrace.observe(mgr, "apply_intended", voltrace.subset(intended))
-    realized = await verify(mgr, intended, keys, mark)
+    realized = await verify(mgr, intended, keys, pushed.mark, hooks.file_config)
     voltrace.observe(mgr, "apply_realized", voltrace.subset(realized))
     diff = config_diff(intended, realized, keys)
     if not diff:
@@ -305,7 +316,7 @@ async def _restore_once(
     merged: dict[str, str],
     hooks: StoreHooks,
     active_profile: str = "",
-) -> tuple[dict[str, str], settle.Mark]:
+) -> Pushed:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
     The archive's working config is the running config ⊕ edits. Returned beside it is the stamp the accepted push
@@ -337,14 +348,21 @@ async def _restore_once(
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
     accepted = await settle.restart(mgr, lambda: mgr.require_http().restore(restore_zip, "system"))
-    return presetconf.read_config(intended_xml), accepted
+    return Pushed(presetconf.read_config(intended_xml), accepted)
 
 
-async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str], mark: settle.Mark) -> dict[str, str]:
+async def verify(
+    mgr: LaneManager,
+    intended: dict[str, str],
+    keys: set[str],
+    mark: settle.Mark,
+    file_config: Callable[[bytes], dict[str, str]],
+) -> dict[str, str]:
     """Wait for the restart stamped ``mark`` to land, then read this apply's intended fields back.
 
     Polls a fresh /backup until the running config reflects them, or the deadline passes. The fields polled for are
-    the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Returns the last realized config
+    the ones this apply wrote (``keys``), and the deadline is the alarm deadline. Each read goes through
+    ``file_config``, which records it as the file truth for the lossy-form fields. Returns the last realized config
     (read from the backup's base hqplayerd.xml) so the caller can diff it — the unconverged read is the diff, so it
     is kept even when the poll gives up.
     """
@@ -353,16 +371,16 @@ async def verify(mgr: LaneManager, intended: dict[str, str], keys: set[str], mar
     async def probe() -> dict[str, str] | None:
         nonlocal realized
         fresh = await settle.fresh_backup(mgr)
-        try:
-            xml = None if fresh is None else engineconf.base_config_xml(fresh, mgr.readings.active_config)
-        except engineconf.UnreadableArchiveError:
-            xml = None
-        if xml is None:
+        if fresh is None:
             return None
-        realized = presetconf.read_config(xml)
-        mgr.readings.file_config = realized  # fresh file truth for the lossy-form fields
-        converged = all(realized.get(key) == intended.get(key) for key in keys)
-        return realized if converged else None
+        try:
+            realized = file_config(fresh)
+        except engineconf.UnreadableArchiveError:
+            pass
+        else:
+            if all(realized.get(key) == intended.get(key) for key in keys):
+                return realized
+        return None
 
     # the restore just restarted the daemon: nothing has landed yet, so wait for
     # the restart rather than spend reads that cannot succeed
