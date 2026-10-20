@@ -1,7 +1,6 @@
 """What a register row is: a field, where the File keeps it, its live setter and the domain of its values."""
 
 import re
-from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
 from typing import Protocol, override
@@ -150,8 +149,9 @@ class Setter:
 
     key: str
     command: str
-    readback: Mapping[str, str]  # setter argument -> State attribute it reads back as
     stageable: bool
+    tolerance: float | None  # a numeric readback matches within this; None means an exact State match
+    value_fills: bool  # an argument the edit omits reads back as the edit's value
 
 
 @dataclass(frozen=True, kw_only=True)

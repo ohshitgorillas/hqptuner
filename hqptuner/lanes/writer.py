@@ -19,21 +19,17 @@ pauses briefly before resuming. Nothing here restarts the daemon or drops the
 client; that is the http lane's `POST /restore`, above.
 """
 
-from collections.abc import Awaitable, Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Literal
 
 from hqptuner.audit import AuditLog
-from hqptuner.engine.control import ControlClient, Reply
+from hqptuner.engine.control import ControlClient, state_mismatch_of
 from hqptuner.engine.controlerrors import CommandError, ControlError, readback_mismatch
+from hqptuner.engine.view import out_of_domain, says
 from hqptuner.fields import query
-from hqptuner.fields.model import Decimal, Setter
-
-_VOLUME_TOLERANCE = 0.05
-
-# A setter answers with the daemon's refusal, or None when its readback verified.
-Handler = Callable[[ControlClient, Setter, dict[str, str]], Awaitable[CommandError | None]]
+from hqptuner.fields.model import Setter
 
 # Told the setting whose write a dropped connection interrupted, before the ``ControlError`` propagates.
 Interrupted = Callable[[str], None]
@@ -78,65 +74,53 @@ class LiveWriteFailed:
 LiveWriteResult = LiveWriteOk | LiveWriteFailed
 
 
-class VolumeMismatchError(CommandError):
-    """A post-apply volume readback landed outside ``_VOLUME_TOLERANCE`` of what was set."""
+class ToleranceMismatchError(CommandError):
+    """A post-apply numeric readback landed outside its setter's ``tolerance`` of what was set."""
 
-    def __init__(self, *, want: str, got: str | None) -> None:
-        """Render the ``readback_mismatch`` sentence for ``volume``, naming the wanted and the read-back value."""
-        super().__init__(readback_mismatch("volume", want, got))
-
-
-async def _sent(client: ControlClient, setter: Setter, params: dict[str, str]) -> Reply:
-    """Send ``setter``'s command with each of its readback arguments the edit gives, and return the answer."""
-    return await client.send(setter.command, **{arg: params[arg] for arg in setter.readback if arg in params})
+    def __init__(self, *, setting: str, want: str, got: str | None) -> None:
+        """Render the ``readback_mismatch`` sentence for ``setting``, naming the wanted and the read-back value."""
+        super().__init__(readback_mismatch(setting, want, got))
 
 
-async def _verified(client: ControlClient, reply: Reply, expected: dict[str, str]) -> CommandError | None:
-    """Return the daemon's refusal of ``reply``, else the State readback's mismatch against ``expected``."""
-    refused = reply.refusal()
-    if refused is not None:
-        return refused
-    return await client.state_mismatch(expected)
+def _sent_args(setter: Setter, params: dict[str, str]) -> dict[str, str]:
+    """Return each of ``setter``'s readback arguments the edit gives, as the command carries them."""
+    return {arg: params[arg] for arg in query.readback(setter) if arg in params}
 
 
-async def _apply_uniform(client: ControlClient, setter: Setter, params: dict[str, str]) -> CommandError | None:
-    reply = await _sent(client, setter, params)
-    return await _verified(client, reply, {state: params[arg] for arg, state in setter.readback.items()})
+def _expected(setter: Setter, params: dict[str, str]) -> dict[str, str]:
+    """Return each State attribute ``setter``'s readback reads with the value the edit wants it to hold.
 
-
-async def _apply_filter(client: ControlClient, setter: Setter, params: dict[str, str]) -> CommandError | None:
-    # value alone sets both 1x and Nx; value1x splits them
-    reply = await _sent(client, setter, params)
-    return await _verified(
-        client, reply, {state: params.get(arg, params["value"]) for arg, state in setter.readback.items()}
-    )
-
-
-def _volume_mismatch(want: str, got: str | None) -> VolumeMismatchError | None:
-    """Return the mismatch of the volume ``got`` read back against ``want``, or None within ``_VOLUME_TOLERANCE``.
-
-    Volume is a float, so it is verified with a tolerance rather than compared for equality.
+    An argument the edit omits reads back as the edit's ``value`` when the setter's ``value_fills``.
     """
-    if got is None or abs(float(got) - float(want)) > _VOLUME_TOLERANCE:
-        return VolumeMismatchError(want=want, got=got)
+    return {
+        state: params.get(arg, params[query.PRIMARY]) if setter.value_fills else params[arg]
+        for arg, state in query.readback(setter).items()
+    }
+
+
+def _mismatch(setter: Setter, expected: dict[str, str], state: dict[str, str]) -> CommandError | None:
+    """Return how ``state`` misses what ``expected`` wants, or None when it holds it.
+
+    A setter with a ``tolerance`` reads back a number, matched within it; every other setter matches State exactly.
+    """
+    if setter.tolerance is None:
+        return state_mismatch_of(expected, state)
+    for attr, want in expected.items():
+        got = state.get(attr)
+        if got is None or abs(float(got) - float(want)) > setter.tolerance:
+            return ToleranceMismatchError(setting=setter.key, want=want, got=got)
     return None
 
 
-async def _apply_volume(client: ControlClient, setter: Setter, params: dict[str, str]) -> CommandError | None:
-    want = params["value"]
-    refused = (await _sent(client, setter, params)).refusal()
+async def _written(client: ControlClient, setter: Setter, params: dict[str, str]) -> CommandError | None:
+    """Send ``setter``'s command and return the daemon's refusal, else the readback's mismatch, else None."""
+    refused = (await client.send(setter.command, **_sent_args(setter, params))).refusal()
     if refused is not None:
         return refused
     state, refused = await client.state_readback()
     if refused is not None:
         return refused
-    return _volume_mismatch(want, state.get(setter.readback["value"]))
-
-
-# The setters that are genuinely not the uniform shape carry their own handler: SetFilter's
-# ``value`` alone sets both 1x and Nx, and volume is a float that must be verified with a
-# tolerance rather than compared for equality. Every other setter is ``_apply_uniform``.
-_HANDLERS: Mapping[str, Handler] = {"filter": _apply_filter, "volume": _apply_volume}
+    return _mismatch(setter, _expected(setter, params), state)
 
 
 async def apply_live(
@@ -173,27 +157,29 @@ async def apply_live(
 def _malformed(setter: Setter, params: dict[str, str]) -> str | None:
     """Return why an edit cannot be sent at all, or None when it is well formed.
 
-    Checked before the wire is touched: every setter reads ``value``, and a setter whose field is a decimal number,
-    the volume, parses it as one.
+    Checked before the wire is touched: every setter reads ``value``, and each field the setter writes whose
+    argument the edit carries must hold a value of its domain.
     """
-    if "value" not in params:
-        return str(KeyError("value"))
-    row = query.field(setter.key)
-    if row is not None and isinstance(row.domain, Decimal) and not row.domain.accepts(params["value"]):
-        return f"could not convert string to float: {params['value']!r}"
+    if query.PRIMARY not in params:
+        return str(KeyError(query.PRIMARY))
+    for row in query.written_by(setter):
+        value = None if row.live is None else params.get(row.live.arg)
+        refused = None if value is None else out_of_domain(row, value)
+        if refused is not None:
+            return says(refused)
     return None
 
 
 async def _apply_one(client: ControlClient, setter: Setter, params: dict[str, str], audit: AuditLog) -> LiveWriteResult:
     setting = setter.key
-    value = params.get("value", "")
+    value = params.get(query.PRIMARY, "")
     malformed = _malformed(setter, params)
     if malformed is not None:
         audit.live_write(setting, value, None, ok=False)
         return LiveWriteFailed(setting=setting, error=malformed, code="invalid_input")
     # daemon_refused for a refusal or a readback mismatch: the refusal's own code is the verdict
     try:
-        refused = await _HANDLERS.get(setting, _apply_uniform)(client, setter, params)
+        refused = await _written(client, setter, params)
     except ControlError:
         # the write may have reached the engine, so it is on the record, unverified, before it propagates
         audit.live_write(setting, value, None, ok=False)

@@ -12,7 +12,7 @@ from enum import Enum
 import pytest
 
 from hqptuner.fields import query
-from hqptuner.fields.model import Attr, Carry, Chain, Codec, EngineAttr, Enumeration, Join, Location, Plugin
+from hqptuner.fields.model import Attr, Carry, Chain, Codec, EngineAttr, Enumeration, Join, Location, Plugin, Setter
 
 
 class Absent(Enum):
@@ -313,15 +313,24 @@ def live_fact(name: str, column: str) -> object:
     return Absent.LIVE if row.live is None else getattr(row.live, column)
 
 
+def setter_under(key: str) -> Setter | Absent:
+    """The setter written under ``key``, or ``Absent.SETTER``."""
+    found = [setter for setter in query.setters() if setter.key == key]
+    return found[0] if found else Absent.SETTER
+
+
 def setter_fact(key: str, column: str) -> object:
     """The ``column`` of the setter written under ``key``, or ``Absent.SETTER``."""
-    found = [setter for setter in query.setters() if setter.key == key]
-    return getattr(found[0], column) if found else Absent.SETTER
+    setter = setter_under(key)
+    return setter if isinstance(setter, Absent) else getattr(setter, column)
 
 
 def setter_readback(key: str) -> dict[str, str] | Absent:
     """The setter under ``key``'s readback, argument to State attribute, as a plain dict."""
-    readback = setter_fact(key, "readback")
+    setter = setter_under(key)
+    if isinstance(setter, Absent):
+        return setter
+    readback = query.readback(setter)
     return dict(readback) if isinstance(readback, Mapping) else Absent.SETTER
 
 

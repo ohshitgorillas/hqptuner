@@ -85,8 +85,8 @@ def _named(items: EnumItems, index: str | None, value_key: str) -> Reading | Non
     return None
 
 
-# The State attribute the pinned rate's setter reads its one argument back as.
-(_RATE_STATE,) = next(setter.readback for setter in query.setters() if setter.key == rate.SETTING).values()
+# The State attribute the pinned rate reads back as.
+_RATE_STATE = query.live(rate.RATE).state
 
 
 def _spec(field: str) -> LiveField:

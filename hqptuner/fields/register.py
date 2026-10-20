@@ -291,25 +291,55 @@ FIELDS: tuple[Field, ...] = (
 )
 
 SETTERS: tuple[Setter, ...] = (  # in apply order
-    Setter(key="mode", command="SetMode", readback=MappingProxyType({"value": "mode"}), stageable=True),
+    Setter(
+        key="mode",
+        command="SetMode",
+        stageable=True,
+        tolerance=None,
+        value_fills=False,
+    ),
     Setter(
         key="filter",
         command="SetFilter",
-        readback=MappingProxyType({"value": "filterNx", "value1x": "filter1x"}),
         stageable=True,
+        tolerance=None,
+        value_fills=True,
     ),
-    Setter(key="shaper", command="SetShaping", readback=MappingProxyType({"value": "shaper"}), stageable=True),
-    Setter(key="rate", command="SetRate", readback=MappingProxyType({"value": "rate"}), stageable=False),
     Setter(
-        key="junk_filter", command="SetJunkFilter", readback=MappingProxyType({"value": "filter_junk"}), stageable=True
+        key="shaper",
+        command="SetShaping",
+        stageable=True,
+        tolerance=None,
+        value_fills=False,
+    ),
+    Setter(
+        key="rate",
+        command="SetRate",
+        stageable=False,
+        tolerance=None,
+        value_fills=False,
+    ),
+    Setter(
+        key="junk_filter",
+        command="SetJunkFilter",
+        stageable=True,
+        tolerance=None,
+        value_fills=False,
     ),
     Setter(
         key="adaptive_volume",
         command="SetAdaptiveVolume",
-        readback=MappingProxyType({"value": "adaptive"}),
         stageable=True,
+        tolerance=None,
+        value_fills=False,
     ),
-    Setter(key="volume", command="Volume", readback=MappingProxyType({"value": "volume"}), stageable=True),
+    Setter(
+        key="volume",
+        command="Volume",
+        stageable=True,
+        tolerance=0.05,
+        value_fills=False,
+    ),
 )
 
 HOST_INTERFACES: tuple[Attr, ...] = (Attr("upnp", "interface"), Attr("network", "mcast_interface"))

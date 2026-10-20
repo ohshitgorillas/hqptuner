@@ -8,7 +8,7 @@ from typing import Protocol, Self
 
 from hqptuner.fields import query
 from hqptuner.fields.chain import chain_name, status_chain
-from hqptuner.fields.model import Chain, Enumeration, Field, Join, Live
+from hqptuner.fields.model import Chain, Decimal, Domain, Enumeration, Field, Flag, Join, Live
 
 _AUTO = "auto"
 _SOURCE = "[source]"
@@ -50,6 +50,7 @@ class Cause(Enum):
     """Why a value does not resolve to a live index."""
 
     NOT_FLAG = auto()
+    NOT_DECIMAL = auto()
     NOT_LISTED = auto()
     OFF_CHAIN = auto()
     NOT_LIVE = auto()
@@ -184,7 +185,7 @@ class EngineView:
         if live.join is Join.PROFILE_NAME:
             return value if self.profile_listed(value) else Refusal(field, value, Cause.PROFILE_UNLISTED)
         if live.enumeration is None:
-            return value if row.domain.accepts(value) else Refusal(field, value, Cause.NOT_FLAG)
+            return _unenumerated(row, value)
         if not self._on_chain(live):
             return Refusal(field, value, Cause.OFF_CHAIN, chain=live.chain)
         index = self.index_of(field, value)
@@ -214,9 +215,30 @@ class EngineView:
         return None if item is None else _FORM_VALUE[live.join](item)
 
 
+def _unenumerated(row: Field, value: str) -> str | Refusal:
+    """Return the value a field with no enumeration writes as, or the refusal of its domain."""
+    refused = out_of_domain(row, value)
+    return value if refused is None else refused
+
+
+#: The cause a value is refused with when its field's domain rejects it, by domain type.
+_DOMAIN_CAUSE: Mapping[type[Domain], Cause] = {Flag: Cause.NOT_FLAG, Decimal: Cause.NOT_DECIMAL}
+
+
+def out_of_domain(row: Field, value: str) -> Refusal | None:
+    """Return the refusal of ``value`` by ``row``'s domain, or None when the domain accepts it.
+
+    Raise KeyError when the domain rejects ``value`` and no cause is worded for its type.
+    """
+    if row.domain.accepts(value):
+        return None
+    return Refusal(row.name, value, _DOMAIN_CAUSE[type(row.domain)])
+
+
 #: The wording of each cause; owner copy.
 _WORDING: Mapping[Cause, str] = {
     Cause.NOT_FLAG: "{value!r} is not a 0/1 flag",
+    Cause.NOT_DECIMAL: "could not convert string to float: {value!r}",
     Cause.NOT_LISTED: "{value} is not in the engine's live {enumeration} list",
     Cause.OFF_CHAIN: "belongs to the {chain} chain, which the engine has not loaded",
     Cause.NOT_LIVE: "not a live setting",

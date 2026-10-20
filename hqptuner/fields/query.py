@@ -3,8 +3,11 @@
 from collections.abc import Mapping
 from types import MappingProxyType
 
-from hqptuner.fields.model import Attr, Carry, Codec, Domain, EngineAttr, Field, Location, Plugin, Setter
+from hqptuner.fields.model import Attr, Carry, Codec, Domain, EngineAttr, Field, Live, Location, Plugin, Setter
 from hqptuner.fields.register import DEVICE_FIELDS, FIELDS, HOST_INTERFACES, PROOFS, SETTERS
+
+#: The primary argument of every setter, the first on the wire.
+PRIMARY = "value"
 
 
 def field(name: str) -> Field | None:
@@ -15,6 +18,30 @@ def field(name: str) -> Field | None:
 def setters() -> tuple[Setter, ...]:
     """Return every setter, in apply order."""
     return SETTERS
+
+
+def written_by(setter: Setter) -> tuple[Field, ...]:
+    """Return the fields ``setter`` writes, in register order."""
+    return tuple(row for row in FIELDS if row.live is not None and row.live.setter == setter.command)
+
+
+def readback(setter: Setter) -> Mapping[str, str]:
+    """Return each argument of ``setter`` with the State attribute it reads back as, in wire order.
+
+    The wire order is the protocol's: ``value``, the primary argument, first, then the setter's other arguments in
+    register order.
+    """
+    pairs = {row.live.arg: row.live.state for row in written_by(setter) if row.live is not None}
+    primary = {arg: state for arg, state in pairs.items() if arg == PRIMARY}
+    return MappingProxyType(primary | {arg: state for arg, state in pairs.items() if arg != PRIMARY})
+
+
+def live(name: str) -> Live:
+    """Return the live facts of the field ``name``; raise KeyError when it has none."""
+    row = field(name)
+    if row is None or row.live is None:
+        raise KeyError(name)
+    return row.live
 
 
 def stageable() -> tuple[str, ...]:
