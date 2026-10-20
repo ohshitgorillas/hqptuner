@@ -5,9 +5,8 @@
 // on its header, Matrix profile the profile select, its description and its response plot, and Resampling and Shaping
 // the running chain's pickers with Filter presets on Resampling's header.
 
-import { html } from "../../lib/dom.js";
+import { classNames, html } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
-import { classNames } from "../../model/shell/format.js";
 import { pageSections } from "../../model/shell/page.js";
 import { runningValue } from "../../store/resolve.js";
 import { playbackPath } from "../../store/faceplate/path.js";

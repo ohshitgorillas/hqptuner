@@ -46,11 +46,3 @@ export const plusMinus = (v, dp) => (v >= 0 ? "+" : MINUS) + mag(v, dp);
  * @returns {string}
  */
 export const minusText = (v) => String(v).replace("-", MINUS);
-
-/**
- * A class attribute from the names that apply: falsy entries skipped, the rest joined by spaces ('' when none apply).
- *
- * @param {...(string | number | boolean | null | undefined)} names
- * @returns {string}
- */
-export const classNames = (...names) => names.filter(Boolean).join(" ");

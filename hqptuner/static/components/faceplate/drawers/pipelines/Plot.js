@@ -5,9 +5,8 @@
 // `plotInputs`; the curves are the vendored chain response.
 
 import { signal } from "@preact/signals";
-import { html } from "../../../../lib/dom.js";
+import { classNames, html } from "../../../../lib/dom.js";
 import { ampToDb, dbToAmp } from "../../../../lib/units.js";
-import { classNames } from "../../../../model/shell/format.js";
 import { groups, stageAt } from "../../../../model/shell/pipelines.js";
 import { bandGain, dockState, plotInputs } from "../../../../model/shell/pipelines-edit.js";
 import { chainResponse } from "../../../../vendor/eqlab/core/dsp/chain.js";

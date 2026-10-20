@@ -1,6 +1,6 @@
 // A segmented control: one radio button per option.
 
-import { html } from "../../../lib/dom.js";
+import { classNames, html } from "../../../lib/dom.js";
 
 /** @typedef {import("./types.js").Opt} Opt */
 
@@ -21,12 +21,12 @@ import { html } from "../../../lib/dom.js";
  * }} props
  */
 export function Seg({ options, value, aria, off = false, cls, k, testid, dots = {}, face, onPick }) {
-  const root = ["seg", cls, off ? "grayed" : undefined].filter(Boolean).join(" ");
+  const root = classNames("seg", cls, off && "grayed");
   return html`
     <span class=${root} role="radiogroup" aria-label=${aria} data-k=${k} data-testid=${testid}>
       ${options.map((o) => {
         const on = o.value === value;
-        const mark = [on ? "on" : undefined, dots[o.value] ? "dirty" : undefined].filter(Boolean).join(" ");
+        const mark = classNames(on && "on", dots[o.value] && "dirty");
         return html`
           <button
             type="button"

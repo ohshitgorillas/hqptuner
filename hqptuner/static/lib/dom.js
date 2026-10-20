@@ -6,6 +6,14 @@ import htm from "htm";
 
 export const html = htm.bind(h);
 
+/**
+ * A class attribute from the names that apply: falsy entries skipped, the rest joined by spaces ('' when none apply).
+ *
+ * @param {...(string | number | boolean | null | undefined)} names
+ * @returns {string}
+ */
+export const classNames = (...names) => names.filter(Boolean).join(" ");
+
 // The mouse wheel never changes a control's value. The wheel is how you move
 // down the page, and a page this dense in sliders, number boxes and dropdowns
 // would otherwise hand out silent edits to anyone scrolling past one. The guard

@@ -3,8 +3,7 @@
 // differs from and takes is store/faceplate/builders/snapshot.js's; every tap hands the edit back through its change().
 
 import { Fragment } from "preact";
-import { html } from "../../../lib/dom.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames, html } from "../../../lib/dom.js";
 import { isChain } from "../../../model/builders/snapshot.js";
 import { idFor, selectedLabel } from "../../../store/prose.js";
 import { openOptionList } from "../../../store/faceplate/view.js";
