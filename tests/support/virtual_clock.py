@@ -8,8 +8,8 @@ sits still instead of spinning. A task busy on a socket is not waiting on the cl
 reply that is still in flight.
 
 A reply wait (``wait_for``) is handed its operation's own result while HQPlayer answers, and no deadline runs. Once the
-test says HQPlayer has fallen silent, each reply wait from then on abandons its operation and waits on the clock for its
-deadline, as on a daemon that answers nothing more.
+test says HQPlayer has fallen silent, every reply wait not yet answered, one already under way included, abandons its
+operation and waits on the clock for the deadline it began with, as on a daemon that answers nothing more.
 
 One clock per app or manager: each ``TestClient`` runs its app on an event loop of its own.
 """
@@ -44,6 +44,15 @@ class _Wait:
         return not self.future.done() and not (self.event is not None and self.event.is_set())
 
 
+@dataclass(eq=False)
+class _Reply:
+    """A reply wait handed its operation while HQPlayer still answered, and whether silence has since cut it off."""
+
+    loop: asyncio.AbstractEventLoop
+    task: asyncio.Task[Any]
+    silenced: bool = False
+
+
 @dataclass
 class _Timeline:
     now: float = 0.0
@@ -53,20 +62,58 @@ class _Timeline:
     silent: bool = False
     instant: datetime = DEFAULT_INSTANT
     reply_waits_began: list[float] = field(default_factory=list, repr=False)
+    replies: set[_Reply] = field(default_factory=set, repr=False)
 
     def monotonic(self) -> float:
         return self.now
 
     async def wait_for[T](self, fut: Awaitable[T], seconds: float, /) -> T:
-        self.reply_waits_began.append(self.now)
-        if not self.silent:
-            return await fut
-        abandoned = asyncio.ensure_future(fut)
-        abandoned.cancel()
-        with contextlib.suppress(asyncio.CancelledError):
-            await abandoned
-        await self.park(seconds, None, outcome=True)
+        began = self.now
+        self.reply_waits_began.append(began)
+        task = asyncio.current_task()
+        if task is None:
+            raise NotInTaskError
+        reply = _Reply(asyncio.get_running_loop(), task)
+        # registered before silence is read, so a silence from another thread either sees this wait or is seen by it
+        self.replies.add(reply)
+        if self.silent:
+            reply.silenced = True
+            self.replies.discard(reply)
+            abandoned = asyncio.ensure_future(fut)
+            abandoned.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await abandoned
+        else:
+            try:
+                return await fut
+            except asyncio.CancelledError:
+                # a cancel of the task's own, arriving alongside the silence, still ends it
+                if not reply.silenced or task.uncancel() > 0:
+                    raise
+            finally:
+                self.replies.discard(reply)
+        await self.park(began + seconds - self.now, None, outcome=True)
         raise TimeoutError(seconds)
+
+    def fall_silent(self) -> None:
+        self.silent = True
+        try:
+            running: asyncio.AbstractEventLoop | None = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        for reply in tuple(self.replies):
+            if reply.loop is running:
+                self.cut_off(reply)
+            else:
+                reply.loop.call_soon_threadsafe(self.cut_off, reply)
+
+    def cut_off(self, reply: _Reply) -> None:
+        """End a reply wait still under way: its operation is canceled and it waits on the clock from here on."""
+        if reply not in self.replies or reply.silenced:
+            return
+        reply.silenced = True
+        self.know(reply.task)
+        reply.task.cancel()
 
     async def sleep(self, seconds: float) -> None:
         await self.park(seconds, None, outcome=True)
@@ -128,6 +175,10 @@ class _Timeline:
             future.set_result(True)
 
     def check(self) -> None:
+        # a task finished but not yet forgotten still has done callbacks to run, any of which may end a wait; its own
+        # forget checks again once they have
+        if any(task.done() for task in self.known):
+            return
         pending = {task: wait for task, wait in self.waits.items() if wait.pending}
         live = {task for task in self.known if not task.done()}
         for future, caller in self.idlers:
@@ -165,8 +216,12 @@ class VirtualClock(Clock):
         object.__setattr__(self, "_timeline", timeline)
 
     def fall_silent(self) -> None:
-        """Let every reply wait from here on run out at its deadline, as on a daemon that answers nothing more."""
-        self._timeline.silent = True
+        """Let every reply wait not yet answered, from here on or under way now, run out at the deadline it began with.
+
+        That is a daemon that answers nothing more. Safe to call from a thread other than the one the clock's loop runs
+        on: a wait under way there is cut off on that loop.
+        """
+        self._timeline.fall_silent()
 
     def reply_waits_began(self) -> tuple[float, ...]:
         """The clock reading at which each reply wait began, in the order they began."""
