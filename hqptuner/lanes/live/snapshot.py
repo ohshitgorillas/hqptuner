@@ -19,10 +19,10 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
 from hqptuner.lanes.live import rate
 from hqptuner.lanes.live.chain import EnumItems, active_chain
 from hqptuner.lanes.live.routing import DIRECT, LIVE_ONLY, ROUTABLE, LiveField, mode_form_value
-from hqptuner.lanes.writer import SETTINGS, LiveSetting
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
@@ -85,18 +85,8 @@ def _named(items: EnumItems, index: str | None, value_key: str) -> Reading | Non
     return None
 
 
-def reported_as(setting: str) -> str:
-    """Return the State attribute a uniform setter's value comes back in (``writer.SETTINGS``).
-
-    ``TypeError`` for a setter with a handler of its own, which has no single attribute to name.
-    """
-    spec = SETTINGS[setting]
-    if not isinstance(spec, LiveSetting):
-        raise TypeError(setting)
-    return spec.state
-
-
-_RATE_STATE = reported_as(rate.SETTING)
+# The State attribute the pinned rate's setter reads its one argument back as.
+(_RATE_STATE,) = next(setter.readback for setter in query.setters() if setter.key == rate.SETTING).values()
 
 
 def _spec(field: str) -> LiveField:

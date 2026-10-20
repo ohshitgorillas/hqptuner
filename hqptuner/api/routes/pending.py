@@ -10,8 +10,9 @@ from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import StageBody
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.pending import PendingSnapshot
+from hqptuner.fields import query
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.lanes.writer import LiveWriteFailed, stageable_live_settings
+from hqptuner.lanes.writer import LiveWriteFailed
 
 router = APIRouter(prefix="/api")
 
@@ -45,7 +46,7 @@ def stage(body: StageBody, request: Request) -> PendingSnapshot:
     422 when a live key is not a setting the buffer takes: no setter exists for it, or it is the pinned rate, which
     only ``POST /api/config/live`` sends. Nothing is written to the daemon here; apply is a separate call.
     """
-    unknown = set(body.live) - set(stageable_live_settings())
+    unknown = set(body.live) - set(query.stageable())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
     store = pending_of(request)

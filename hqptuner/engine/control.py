@@ -319,9 +319,8 @@ class ControlClient:
     #
     # Only the settings whose call is more than "one value attribute, one State
     # attribute" live here. The uniform ones (mode, shaper, rate, junk filter,
-    # adaptive volume) are rows in ``writer.SETTINGS`` driving ``set_command``
-    # directly — a wrapper per setting was a second place for the element name
-    # to be spelled, and spelling it twice is how it drifts.
+    # adaptive volume) are the register's ``Setter`` rows (``fields/register.py``),
+    # sent through ``send`` with no wrapper per setting.
 
     async def send_filter(self, nx: str, x1: str | None = None) -> Reply:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value, 1x=value1x).

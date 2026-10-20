@@ -80,7 +80,8 @@ class EngineAttr:
 type Location = Attr | Plugin | Codec | EngineAttr
 
 _INTEGER = re.compile(r"-?[0-9]+")
-_DECIMAL = re.compile(r"-?[0-9]+(\.[0-9]+)?")
+# surrounding whitespace, an optional sign, digits with an optional fraction or a bare fraction, an optional exponent
+_DECIMAL = re.compile(r"\s*[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?\s*")
 
 
 class Domain(Protocol):
@@ -125,7 +126,7 @@ class Integer(Domain):
 
 @dataclass(frozen=True)
 class Decimal(Domain):
-    """A decimal number."""
+    """A decimal number, as the volume control sends it."""
 
     @override
     def accepts(self, value: str) -> bool:

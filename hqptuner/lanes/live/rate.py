@@ -24,7 +24,7 @@ from hqptuner.lanes.live.chain import EnumItems, configured_chain
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
 
-#: The LIVE field, and the ``writer.SETTINGS`` key its edit goes out under.
+#: The LIVE field, and the register's setter key its edit goes out under.
 RATE = "rate"
 SETTING = "rate"
 
