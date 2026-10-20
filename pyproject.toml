@@ -334,6 +334,7 @@ layers = [
     "lanes",
     "engine",
     "conf",
+    "fields",
 ]
 
 [build-system]
@@ -349,6 +350,7 @@ packages = [
   "hqptuner.conf",
   "hqptuner.core",
   "hqptuner.engine",
+  "hqptuner.fields",
   "hqptuner.lanes",
   "hqptuner.lanes.http",
   "hqptuner.lanes.live",
