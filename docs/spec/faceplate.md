@@ -65,6 +65,17 @@ The control set is **not enumerated in prose**.
   - Shaping (PCM out) dither line → `Output ›` (DAC bits, Format tab).
   - DSP pipelines crossfeed blocks → `Crossfeed ›`.
 
+## Controls (all)
+- Switches, number boxes, selects and sliders behave alike wherever they are drawn: drawers, page, popovers, builders, Settings. A control reports a change; its setting's lane decides what the change writes (live at once or staged, Lanes above), and its owner decides what value it holds after a refused write (the speakers/headphones view keeps the user's pick, `matrix.md`; a refused star reverts, `state.md`).
+- **Switch** (segmented): one button per option, lit on the option equal to the value its owner holds. A click on any button, the lit one included, reaches the owner, which decides whether it does anything (every hand click on the speakers/headphones switch records, `matrix.md`). Off grays the whole switch and no button takes a tap. An option its list marks unavailable shows grayed and takes no tap; whether a list grays, hides or offers an option is that list's own rule. An option holding a staged edit carries the accent dot. A screen reader hears a radio group under the switch's name, each option a radio, checked when lit; each option is its own tab stop.
+- **Number box:** typing is never overwritten by a poll; the box takes its owner's value again only while it is not being edited. A value commits on Enter or when the box loses focus, never per keystroke. A blank or non-numeric box commits nothing and shows the owner's value again. A number outside the bounds commits as the nearest bound. After a commit the box shows the value that landed. The mouse wheel never changes it.
+  - Open: whether the DSP pipelines response plot, which "updates live while a stage field changes" (`matrix.md`), follows each keystroke or each commit.
+  - Open: the one source of a box's minimum, maximum, step and unit. The daemon's form carries min, max and step for its own fields (`protocol.md`), `VolumeRange` bounds the volume slider, and no wire field carries a unit.
+- **Select:** shows the value its owner holds, so a pick the owner does not take snaps back. An option its list marks unavailable shows grayed and cannot be picked. A value matching no option shows no option picked. The mouse wheel never changes it.
+- **Slider:** a track and a number box showing one value. The thumb moves only under a held pointer or a key pressed while it has focus, never under the wheel or a pointer passing over it. Each move and the release are reported, and the lane decides what a move writes (the compensation strength previews while dragging and commits on release, `crossfeed-compensation.md`).
+- **Staged row:** a row whose setting holds a staged edit carries the accent dot on its label, as its tab or title does for the drawer.
+- **Folded choice line:** where a choice folds its unpicked lines (Crossfeed; the Profile builder's choice steps), an unpicked line shows its name and, where it has one, a one-line summary, never its paragraph. A tap on it picks it.
+
 ## Page
 - Engaged stages only, in signal order. Fixed spacing (22px between sections); one `.fill` section takes the spare height.
 - Every section uses the same two columns: controls | copy or plot.
