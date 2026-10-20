@@ -20,7 +20,7 @@ The rules this table assumes — no shutdown persistence, live-vs-file divergenc
 | Output mode (PCM/SDM) | live | `SetMode` verified: index domain (0=[source], 1=PCM, 2=SDM); immediate; reset rate to auto, swap enumeration lists. HTTP field `mode` (`auto`/`pcm`/`sdm`) also set it persistently |
 | Backend (ALSA/Network) | http | field `backend` (`alsa`/`network`/`combo`). Windows daemon: `asio` and `wasapi` in place of `alsa` |
 | Rate | http | `defaults_samplerate` / `defaults_bitrate`, always the tier's 48k member. **`SetRate` only as a pin the user asks for** (LIVE field `rate`, opt-in, §Rate slots below): it writes the FIXED slot (`samplerate`/`bitrate`) and an exact rate there overrides automatic base-rate selection, so 44.1k material goes out at a 48k base and the engine refuses the filter (measured on 6.0.4: pin 24576000 under a 44.1 kHz source held 24576000; clearing it gave 22579200) |
-| Auto rate family | http | `auto_family`, forced on with the fixed slots at 0 (`FORCED_CONFIG`); what picks the tier member matching the source, per track |
+| Auto rate family | http | `auto_family`, forced on with the fixed slots at 0 (the field register's forced fields, `fields/query.py` `forced()`); what picks the tier member matching the source, per track |
 | Output device | http | **per-backend**: `alsa_device` / `net_device` (select) |
 | DAC bits | http | **per-backend**: `alsa_bits` / `net_bits` (0–32). Independent values (live: `alsa_bits=24`, `net_bits=20`) |
 | DoP | http | **per-backend**: `alsa_dop` / `net_dop` (checkbox) |
@@ -41,13 +41,13 @@ Basis: field names and default config in the 6.0.2 Windows installer (`hqplayerd
 
 **Rate per-family and friendly.** HQPTuner rate menus write the **limit** only, as fixed friendly menus (`1x…32x` / `DSD64…DSD2048`) mapped to **48k-base member of each tier**. No Auto entry: limit slot has none, and naming the tier reach same outcome.
 
-**Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` merged into every `/restore` payload (`FORCED_CONFIG`, `lanes/http/restore.py`). Not exposed in UI, enforced on write only. Request slot pinned to `0` is **binding, not cosmetic**: config write have no source to take base family from, so writing it would send 44.1k material out at 48k base and override user's own `alsa_anydsd` / `net_anydsd` decision.
+**Forced on every write (HQPTuner policy).** `auto_family=1`, `samplerate=0`, `bitrate=0` merged into every `/restore` payload (the field register's forced fields, `fields/query.py` `forced()`). Not exposed in UI, enforced on write only. Request slot pinned to `0` is **binding, not cosmetic**: config write have no source to take base family from, so writing it would send 44.1k material out at 48k base and override user's own `alsa_anydsd` / `net_anydsd` decision.
 
 **LIVE pin the request slot, exactly as asked, opt-in.** `SetRate` is the only live rate setter. LIVE field `rate` carry the rate in Hz, `"0"` clearing the pin; `lanes/live/rate` join it to the `RatesItem` index of the running list, and refuse a rate that list lack, any rate in `[source]` (engine ignore it there), and `rate` beside any other field (mode and filter both swap the rate list). No family member chosen for the user and no source rerouted to the other base: the pin is the exact Hz tapped.
 
 Store send it only while Allow pinned rates is on (`store/live/pin.js`, preference in `store/ui/prefs.js`), and turning that preference off clear a standing pin. Pending buffer refuse `rate` (`stageable()` in `fields/query.py`), so a staged raw index cannot skip the join. Pin never reach the realized config that Save stores (`realized_config` in `presets/realized.py`): it sit in the fixed slot, not the limit, so Output tab Rate box never show it and Save never persist it.
 
-**HQPTuner keep no memory of the pin.** `lanes/live/lane` record nothing for it, so once a mode switch clear it on the engine (`docs/spec/protocol.md` "SetRate / GetRates") nothing put it back, and `store/live/pin.js` read it off `State` joined to the running rates list rather than hold it. No saved snapshot hold it (`snapshot.live_state` never read it). Config file's fixed slot stay forced to `0` (`FORCED_CONFIG`), so a daemon restart drop it too.
+**HQPTuner keep no memory of the pin.** `lanes/live/lane` record nothing for it, so once a mode switch clear it on the engine (`docs/spec/protocol.md` "SetRate / GetRates") nothing put it back, and `store/live/pin.js` read it off `State` joined to the running rates list rather than hold it. No saved snapshot hold it (`snapshot.live_state` never read it). Config file's fixed slot stay forced to `0` (the field register's forced fields, `fields/query.py` `forced()`), so a daemon restart drop it too.
 
 ## DSP
 

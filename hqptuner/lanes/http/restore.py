@@ -42,19 +42,6 @@ log = logging.getLogger(__name__)
 RECONNECT_FAST = 1.0
 _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable divergence
 
-# A staged edit whose readback lives under a DIFFERENT key: the profile verbs are
-# write-only commands, and what proves one landed is the profile list they edit.
-_PROVEN_BY = {
-    query.kept_at(Codec.PROFILE_SAVE): query.kept_at(Codec.PROFILES),
-    query.kept_at(Codec.PROFILE_DELETE): query.kept_at(Codec.PROFILES),
-}
-
-# Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
-# per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
-# and the engine follows the source's 44.1/48 base — which requires auto_family
-# on and the fixed sample/bit rate left on Auto. Not exposed in the UI.
-FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
-
 
 class RestoreOutcome(Enum):
     """What a persistent (restore-lane) apply came back with."""
@@ -160,7 +147,9 @@ def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
     edits are the contract; the rest of the file is not this apply's business.
     """
     keys = {k for k in merged if k in intended}
-    return keys | {_PROVEN_BY[k] for k in merged if k in _PROVEN_BY}
+    # a write-only verb (the profile save and delete) has no readback of its own:
+    # what proves it landed is the field it edits
+    return keys | {proof for k in merged if (proof := query.proven_by(k)) is not None}
 
 
 def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[str]) -> dict[str, dict[str, str | None]]:
@@ -218,8 +207,10 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
         raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so ``edits`` carries the running values for those
-    # settings under the staged edits, which win
-    merged = {**edits, **FORCED_CONFIG}
+    # settings under the staged edits, which win. The forced fields go over both:
+    # the per-family Rate ceiling holds only while auto_family is on and the fixed
+    # sample and bit rate stay on Auto, and the UI exposes none of them
+    merged = {**edits, **query.forced()}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)

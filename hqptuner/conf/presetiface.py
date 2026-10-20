@@ -7,21 +7,23 @@ longer exists stops the daemon from starting.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from hqptuner.conf import xmledit
+from hqptuner.fields.query import host_interfaces
 
-#: The attributes that name a host network interface: the UPnP renderer's (readme §1.4) and
-#: the NAA discovery multicast's (readme §1.3.5).
-INTERFACES: tuple[tuple[str, str], ...] = (("upnp", "interface"), ("network", "mcast_interface"))
+if TYPE_CHECKING:
+    from hqptuner.fields.model import Attr
 
 
-def _set_interfaces(xml: bytes) -> dict[tuple[str, str], str]:
+def _set_interfaces(xml: bytes) -> dict[Attr, str]:
     """Return the interface attributes ``xml`` sets, keyed by element and attribute; one it leaves unset is absent."""
-    found: dict[tuple[str, str], str] = {}
-    for tag, attr in INTERFACES:
-        m = xmledit.find_element(xml, tag)
-        value = None if m is None else xmledit.get_attr(m.group(0), attr)
+    found: dict[Attr, str] = {}
+    for interface in host_interfaces():
+        m = xmledit.find_element(xml, interface.tag)
+        value = None if m is None else xmledit.get_attr(m.group(0), interface.attr)
         if value is not None:
-            found[(tag, attr)] = value
+            found[interface] = value
     return found
 
 
@@ -35,9 +37,9 @@ def keep_interfaces(preset_xml: bytes, running_xml: bytes) -> bytes:
         return preset_xml
     running = _set_interfaces(running_xml)
     xml = preset_xml
-    for tag, attr in INTERFACES:
-        if (tag, attr) in running:
-            xml = xmledit.edit_element(xml, tag, attr, running[(tag, attr)])
-        elif (m := xmledit.find_element(xml, tag)) is not None:
-            xml = xmledit.splice(xml, m.span(), xmledit.drop_attr(m.group(0), attr))
+    for interface in host_interfaces():
+        if interface in running:
+            xml = xmledit.edit_element(xml, interface.tag, interface.attr, running[interface])
+        elif (m := xmledit.find_element(xml, interface.tag)) is not None:
+            xml = xmledit.splice(xml, m.span(), xmledit.drop_attr(m.group(0), interface.attr))
     return xml

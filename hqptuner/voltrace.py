@@ -26,6 +26,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any, Protocol
 
+from hqptuner.fields.query import volume_traced
+
 if TYPE_CHECKING:
     from collections.abc import Mapping
 
@@ -53,25 +55,8 @@ class VoltraceManager(Protocol):
         """Return the audit log every record goes through."""
 
 
-#: The config-form fields this trace watches, both volume mechanisms in one set:
-#: the startup volume (``defaults_volume``), the range and mode the engine holds
-#: (``volume_max``/``volume_min``/``volume_fixed``/``adaptive_volume``) and the
-#: fixed-volume pair that suppresses the live control entirely.
-VOLUME_FIELDS = frozenset(
-    {
-        "defaults_volume",
-        "volume_max",
-        "volume_min",
-        "volume_fixed",
-        "fixed_volume",
-        "fixed_volume_enabled",
-        "adaptive_volume",
-    }
-)
-
-
 def subset(mapping: Mapping[str, Any] | None) -> dict[str, str | None]:
-    """Every ``VOLUME_FIELDS`` key, with None for one this mapping does not carry.
+    """Every field the register marks volume-traced, with None for one this mapping does not carry.
 
     Total over ``None`` on purpose, and the None case is routine rather than defensive: ``config_form`` and
     ``file_config`` are both None until their first successful fetch, which is every tick of a startup where the
@@ -80,7 +65,7 @@ def subset(mapping: Mapping[str, Any] | None) -> dict[str, str | None]:
     and it means no caller can hand an emitter a None and raise inside a poll tick.
     """
     carried = mapping or {}
-    return {field: _text(carried.get(field)) for field in sorted(VOLUME_FIELDS)}
+    return {field: _text(carried.get(field)) for field in sorted(volume_traced())}
 
 
 def _text(value: object) -> str | None:

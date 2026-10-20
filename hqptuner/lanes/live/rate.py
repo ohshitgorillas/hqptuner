@@ -1,18 +1,13 @@
 """The pinned output rate: the LIVE field ``rate``, in Hz, that ``SetRate`` writes.
 
-``SetRate`` takes a ``RatesItem`` index of the running mode's list, index 0 being
-auto, so ``"0"`` clears the pin. ``[source]`` mode ignores it, the engine holds one
-pin, and ``SetMode`` drops it. It writes the FIXED slot,
-which overrides automatic base-rate selection, so the pin is exactly the rate the
-user asked for, sent only while the Allow pinned rates preference is on
-(``store/live/pin.js``). A mode switch clears it on the engine and nothing puts it
-back. The config file's fixed slot stays forced to auto
-(``http.restore.FORCED_CONFIG``), so a pin never survives a restart. A confirmed pin
-is remembered for one purpose only, reporting it once a restart has dropped it
-(``lanes/live/dropped``); it is never re-asserted.
-
-Kept out of ``routing.LIVE_ONLY``, which ``snapshot.live_state`` reads, so a saved
-snapshot never holds a pin.
+``SetRate`` takes a ``RatesItem`` index of the running mode's list; index 0 is
+auto, so ``"0"`` clears the pin. ``[source]`` mode outputs at the source's own
+rate whatever the pin, the engine holds one pin, and ``SetMode`` drops it.
+``SetRate`` writes the fixed slot, which overrides automatic base-rate
+selection, so the pin is exactly the requested rate. After a mode switch clears
+a pin on the engine, the engine runs automatic base-rate selection until the
+user pins again. When a restart drops a confirmed pin, ``lanes/live/dropped``
+reports it, and the user re-pins.
 """
 
 from __future__ import annotations
@@ -25,6 +20,8 @@ if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
 
 #: The LIVE field, and the register's setter key its edit goes out under.
+# ``rate`` is a field of its own, outside ``routing.LIVE_ONLY`` and the ``SNAPSHOT_FIELDS`` a
+# saved snapshot holds, so a restored snapshot leaves the rate to automatic base-rate selection.
 RATE = "rate"
 SETTING = "rate"
 
@@ -67,8 +64,11 @@ def _refusal(mgr: LaneManager, fields: dict[str, str], index: str | None) -> str
 
 def route(mgr: LaneManager, fields: dict[str, str]) -> PinRoute:
     """Resolve the ``rate`` in a LIVE batch to its ``SetRate`` index, or refuse it."""
+    # The frontend sends a pin only under the Allow pinned rates preference (store/live/pin.js).
     index = _index_for(_rates(mgr), fields[RATE])
     why = _refusal(mgr, fields, index)
     if why is not None:
         return PinRoute({}, {RATE: why})
+    # Every restore write sets the config file's fixed slot to auto (fields.query.forced),
+    # so a restart returns the engine to automatic base-rate selection.
     return PinRoute({SETTING: {"value": str(index)}}, {})

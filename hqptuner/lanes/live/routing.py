@@ -48,7 +48,7 @@ class LiveField(NamedTuple):
 
 # The seven form fields with an exact live equivalent. Deliberately NOT here:
 # defaults_samplerate / defaults_bitrate. Those are a per-family *ceiling* under
-# forced auto-family (http.restore.FORCED_CONFIG), while SetRate forces a fixed
+# forced auto-family (fields.query.forced), while SetRate forces a fixed
 # output rate — different settings, and equating them would break auto-family.
 ROUTABLE: dict[str, LiveField] = {
     "filter1x": LiveField("filter", "value1x", "filters", PCM, "filter1x"),
