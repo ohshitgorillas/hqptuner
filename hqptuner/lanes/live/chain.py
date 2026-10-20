@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Protocol
 
-from hqptuner.engine.chainfamily import chain_name, status_chain
+from hqptuner.fields.chain import chain_name, status_chain
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
