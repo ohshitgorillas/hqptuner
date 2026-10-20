@@ -105,10 +105,10 @@ def agreed_device(config_form: ConfigForm | None, file_config: dict[str, str] | 
     so loading a preset leaves a window where they describe different devices —
     the file already carries the new preset's, the form still reports the one
     before it. A capability read in that window describes one generation's device
-    beside another generation's settings, which is how a reachable rate came to
-    be corrected down to a device the user had just switched away from.
+    beside another generation's settings, so a reachable rate is corrected down
+    to a device the user had just switched away from.
 
-    The file view speaks the same form-field names (conf/presetconf.FIELD_MAP),
+    The file view speaks the same form-field names (the field register's),
     so the two are compared directly. A file view that is absent, or silent about
     the device, is not a disagreement: there is only one answer and the form
     carries it. A file view naming ``combo`` is not silence — it names two

@@ -11,7 +11,7 @@ writer is exercised against 6.0.4-shaped documents, and the whole-apply cases
 run through the faithful HTTP fake. Post-process values are asserted as the raw
 XML attribute strings HQPTuner's own config reader yields for a plugin field
 (``tests/apply/test_absent_targets.py`` pins that round-trip for every field in
-``PLUGIN_MAP``).
+the field register's ``by_plugin()``).
 """
 
 import json
@@ -23,6 +23,8 @@ from fake_http import state
 
 from hqptuner.conf import matrixprofiles
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.presets import fileconfig
 
 ROW0 = {"source": "0", "gain": "0", "gainunit": "dB", "mixdown": "0", "process": ""}
@@ -41,7 +43,7 @@ def save_value(name: str, *rows: dict[str, str]) -> str:
 
 
 def staged_save(name: str, *rows: dict[str, str]) -> dict[str, str]:
-    return {matrixprofiles.MATRIX_PROFILE_SAVE: save_value(name, *rows)}
+    return {query.kept_at(Codec.PROFILE_SAVE): save_value(name, *rows)}
 
 
 def without_profile(xml: bytes, name: str) -> bytes:

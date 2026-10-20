@@ -10,14 +10,9 @@ or a rebound device cannot survive an apply. The snapshot XML is the whole
 package (device, filters, volume, and the ``<post_process>`` plugins) in one
 file — no two-form round-trip.
 
-``FIELD_MAP`` was derived empirically (value-correlation of a live ``GET /config``
-form against a real snapshot on 6.0.4), then completed against the daemon manual
-(``hqplayerd-readme.txt``) and a live config dump — every form field has a
-verified XML location, so nothing is refused-because-ungrounded. The five that the
-value-correlation alone could not place (their attribute sat at default/absent in
-that snapshot) are grounded here from the manual: ``idle_time`` → ``<engine
-idle_time>``, DoP → ``<alsa|network pack_sdm>``, and the fixed-volume pair onto the
-top-level ``<fixed>`` element (below).
+Where the snapshot keeps each form field is the field register's answer
+(``hqptuner.fields.query.located``): an element attribute, a ``<post_process>``
+plugin attribute, or a codec this module and its siblings implement.
 
 An edit whose target element/plugin is absent from a snapshot **creates** that
 target at its schema position (``xmledit.PARENT``) carrying only the attribute the
@@ -32,26 +27,10 @@ from __future__ import annotations
 import json
 
 from hqptuner.audit import AuditLog
-from hqptuner.conf.fixedvol import (
-    FIXED_ENABLED,
-    FIXED_LEVEL,
-    any_fixed_level,
-    find_active_fixed,
-    fixed_level_of,
-    reconcile_fixed,
-)
-from hqptuner.conf.matrixconf import (
-    MATRIX_PIPELINES,
-    PLUGIN_MAP,
-    materialize_profile,
-    read_pipelines,
-    replace_pipelines,
-)
+from hqptuner.conf.fixedvol import any_fixed_level, find_active_fixed, fixed_level_of, reconcile_fixed
+from hqptuner.conf.matrixconf import materialize_profile, read_pipelines, replace_pipelines
 from hqptuner.conf.matrixpayload import parse_delete, parse_save
 from hqptuner.conf.matrixprofiles import (
-    MATRIX_PROFILE_DELETE,
-    MATRIX_PROFILE_SAVE,
-    MATRIX_PROFILES,
     backfill_profile_chains,
     delete_profile,
     profile_names,
@@ -59,6 +38,8 @@ from hqptuner.conf.matrixprofiles import (
     write_profile,
 )
 from hqptuner.conf.xmledit import GroundingError, edit_element, edit_plugin, find_element, find_plugin, get_attr
+from hqptuner.fields.model import Attr, Codec, Location, Plugin
+from hqptuner.fields.query import kept_at, located
 
 
 class FieldEditFailedError(GroundingError):
@@ -76,96 +57,6 @@ class UnknownFieldError(GroundingError):
         """Render the wording naming the unrouted field."""
         super().__init__(f"unknown config field: {field!r}")
 
-
-# form field name -> (element tag, attribute). Every tag here occurs once in a
-# snapshot; multi-instance <plugin> lives in PLUGIN_MAP, keyed by its type attr.
-FIELD_MAP: dict[str, tuple[str, str]] = {
-    "title": ("title", "value"),
-    "backend": ("output", "type"),
-    "mode": ("mode", "value"),
-    # PCM chain
-    "filter": ("pcm", "filter"),
-    "filter1x": ("pcm", "filter1x"),
-    "dither": ("pcm", "dither"),
-    "samplerate": ("pcm", "samplerate"),
-    # SDM chain
-    "oversampling": ("sdm", "oversampling"),
-    "oversampling1x": ("sdm", "oversampling1x"),
-    "modulator": ("sdm", "modulator"),
-    "bitrate": ("sdm", "bitrate"),
-    # default rates / startup volume
-    "defaults_samplerate": ("defaults", "samplerate"),
-    "defaults_bitrate": ("defaults", "bitrate"),
-    "defaults_volume": ("defaults", "volume"),
-    # ALSA backend section
-    "alsa_device": ("alsa", "device"),
-    "alsa_bits": ("alsa", "dac_bits"),
-    "alsa_period": ("alsa", "period_time"),
-    "alsa_offset": ("alsa", "channel_offset"),
-    "alsa_anydsd": ("alsa", "any_dsd"),
-    "alsa_dop": ("alsa", "pack_sdm"),  # readme §1.3.2: pack_sdm 0=None, 1=DoP v1.1
-    # Network backend section (net_device is special — see NET_DEVICE)
-    "net_bits": ("network", "dac_bits"),
-    "net_period": ("network", "period_time"),
-    "net_anydsd": ("network", "any_dsd"),
-    "net_ipv6": ("network", "ipv6"),
-    "net_dop": ("network", "pack_sdm"),  # readme §1.3.5: pack_sdm 0=None, 1=DoP v1.1
-    # engine (name drift: integrator->sdm_integrator, pcm_conversion->pdm_conv,
-    # noise_filter->pdm_filt, alsa_offset->channel_offset handled above)
-    "auto_family": ("engine", "auto_family"),
-    "idle_time": ("engine", "idle_time"),  # readme §1.3: engine idle-hold, in ms
-    "channels": ("engine", "channels"),
-    "fft_size": ("engine", "fft_size"),
-    "pipelines": ("engine", "pipelines"),
-    "direct_sdm": ("engine", "direct_sdm"),
-    "dsd_6db": ("engine", "dsd_6db"),
-    "integrator": ("engine", "sdm_integrator"),
-    "sdm_conversion": ("engine", "sdm_conversion"),
-    "pcm_conversion": ("engine", "pdm_conv"),
-    "noise_filter": ("engine", "pdm_filt"),
-    "gain_comp": ("engine", "gain_comp"),
-    "playlist_album_gain": ("engine", "playlist_album_gain"),
-    "pre_before_meter": ("engine", "pre_before_meter"),
-    "quick_pause": ("engine", "quick_pause"),
-    "short_buffer": ("engine", "short_buffer"),
-    "volume_max": ("engine", "volume_max"),
-    "volume_min": ("engine", "volume_min"),
-    "volume_fixed": ("engine", "volume_fixed"),
-    "adaptive_volume": ("engine", "volume_adaptive"),
-    # matrix processing — the carrier element for the <post_process> plugin chain
-    # and the pipeline table (pipelines themselves ride MATRIX_PIPELINES below)
-    "matrix_enabled": ("matrix", "enabled"),
-    "matrix_engine": ("matrix", "engine"),
-    "matrix_expand_hf": ("matrix", "expand_hf"),
-    "matrix_iir2fir": ("matrix", "iir2fir"),
-    # logging / upnp
-    "log_enabled": ("log", "enabled"),
-    "log_file": ("log", "file"),
-    "upnp_freewheel": ("upnp", "freewheel"),
-}
-
-# A Windows daemon's two local backends: the ALSA section's six settings, once
-# per backend, each on an element named for it. Apart from FIELD_MAP because a
-# Linux daemon's form carries none of them.
-_LOCAL_BACKEND_ATTRS = {
-    "device": "device",
-    "bits": "dac_bits",
-    "period": "period_time",
-    "offset": "channel_offset",
-    "anydsd": "any_dsd",
-    "dop": "pack_sdm",
-}
-LOCAL_BACKEND_MAP: dict[str, tuple[str, str]] = {
-    f"{tag}_{suffix}": (tag, attr) for tag in ("asio", "wasapi") for suffix, attr in _LOCAL_BACKEND_ATTRS.items()
-}
-_ATTRIBUTE_MAP = {**FIELD_MAP, **LOCAL_BACKEND_MAP}
-
-# PLUGIN_MAP (<post_process><plugin type="X">) is imported from matrixconf and
-# re-exported here, where ``_route`` and ``read_config`` read it.
-
-# net_device fuses two XML attributes: value "S26/hw:CARD=Output,DEV=0" splits on
-# the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
-NET_DEVICE = "net_device"
 
 #: ``target`` of a profile write that lands in the running config rather than in
 #: a stored preset — the fan-out uses ``preset:<name>`` (``presets/presetops``).
@@ -202,14 +93,17 @@ def _apply_one(xml: bytes, field: str, value: str) -> bytes:
 
 
 def _route(xml: bytes, field: str, value: str) -> bytes:
-    if field == NET_DEVICE:
+    location = located().get(field)
+    if location is Codec.NET_DEVICE:
+        # net_device fuses two XML attributes: value "S26/hw:CARD=Output,DEV=0" splits on
+        # the first "/" into <network address="S26" device="hw:CARD=Output,DEV=0">.
         address, _, device = value.partition("/")
         xml = edit_element(xml, "network", "address", address)
         return edit_element(xml, "network", "device", device)
-    if field in PLUGIN_MAP:
-        return edit_plugin(xml, *PLUGIN_MAP[field], value)
-    if field in _ATTRIBUTE_MAP:
-        return edit_element(xml, *_ATTRIBUTE_MAP[field], value)
+    if isinstance(location, Plugin):
+        return edit_plugin(xml, location.type, location.attr, value)
+    if isinstance(location, Attr):
+        return edit_element(xml, location.tag, location.attr, value)
     raise UnknownFieldError(field=field)
 
 
@@ -219,7 +113,8 @@ def _pop_profile_edits(remaining: dict[str, str]) -> dict[str, str]:
     Separate from applying them because they are applied LAST and the field loop refuses any key it does not
     recognize — leaving them in place would raise "unknown config field".
     """
-    return {k: remaining.pop(k) for k in (MATRIX_PROFILE_DELETE, MATRIX_PROFILE_SAVE) if k in remaining}
+    verbs = (kept_at(Codec.PROFILE_DELETE), kept_at(Codec.PROFILE_SAVE))
+    return {k: remaining.pop(k) for k in verbs if k in remaining}
 
 
 def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> bytes:
@@ -231,13 +126,14 @@ def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> 
     # Both audit flags are questions about the config as it stood, not about the
     # half-edited bytes a rename leaves between the delete and the save.
     before = xml
-    if MATRIX_PROFILE_DELETE in verbs:
-        name, _ = parse_delete(verbs[MATRIX_PROFILE_DELETE])
+    delete, save = kept_at(Codec.PROFILE_DELETE), kept_at(Codec.PROFILE_SAVE)
+    if delete in verbs:
+        name, _ = parse_delete(verbs[delete])
         audit_profile_delete(audit, before, name, CONFIG_TARGET)
         xml = delete_profile(xml, name)
-    if MATRIX_PROFILE_SAVE in verbs:
-        audit_profile_write(audit, before, verbs[MATRIX_PROFILE_SAVE], CONFIG_TARGET)
-        xml = write_profile(xml, verbs[MATRIX_PROFILE_SAVE])
+    if save in verbs:
+        audit_profile_write(audit, before, verbs[save], CONFIG_TARGET)
+        xml = write_profile(xml, verbs[save])
     return xml
 
 
@@ -247,9 +143,10 @@ def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str |
     ``None`` when nothing is active, and ``None`` too when this very apply deletes it, since a matrix about to be
     removed is not one to adopt.
     """
-    if not profile or MATRIX_PROFILE_DELETE not in edits:
+    delete = kept_at(Codec.PROFILE_DELETE)
+    if not profile or delete not in edits:
         return profile
-    return None if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == profile else profile
+    return None if parse_delete(edits[delete])[0] == profile else profile
 
 
 def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None, profile: str | None = None) -> bytes:
@@ -280,11 +177,13 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     if adopt:
         xml = materialize_profile(xml, adopt)
     profile_verbs = _pop_profile_edits(remaining)
-    fixed_edits = {k: remaining.pop(k) for k in (FIXED_ENABLED, FIXED_LEVEL) if k in remaining}
+    fixed = (kept_at(Codec.FIXED_ENABLED), kept_at(Codec.FIXED_LEVEL))
+    fixed_edits = {k: remaining.pop(k) for k in fixed if k in remaining}
     if fixed_edits:
         xml = reconcile_fixed(xml, fixed_edits)
-    if MATRIX_PIPELINES in remaining:
-        xml = replace_pipelines(xml, remaining.pop(MATRIX_PIPELINES))
+    pipelines = kept_at(Codec.PIPELINES)
+    if pipelines in remaining:
+        xml = replace_pipelines(xml, remaining.pop(pipelines))
     # The matrix switch is the user's. <post_process> lives INSIDE <matrix>, so a
     # plugin under a bypassed matrix is inert (readme §1.11 / §1.11.2) — but that
     # is a fact to TELL the user, not to act on behind them: matrix also carries
@@ -315,20 +214,25 @@ def read_config(xml: bytes) -> dict[str, str]:
     ``net_device`` is recombined as ``address/device``.
     """
     out: dict[str, str] = {}
-    for field, (tag_name, attr) in _ATTRIBUTE_MAP.items():
-        val = _read_attr(xml, tag_name, attr)
-        if val is not None:
-            out[field] = val
-    for field, (ptype, attr) in PLUGIN_MAP.items():
-        val = _read_plugin_attr(xml, ptype, attr)
+    for field, location in located().items():
+        val = _read_location(xml, location)
         if val is not None:
             out[field] = val
     out.update(_read_special(xml))
     return out
 
 
+def _read_location(xml: bytes, location: Location) -> str | None:
+    """Read the value at one element or plugin attribute; None for any other location, which the codecs read."""
+    if isinstance(location, Attr):
+        return _read_attr(xml, location.tag, location.attr)
+    if isinstance(location, Plugin):
+        return _read_plugin_attr(xml, location.type, location.attr)
+    return None
+
+
 def _read_special(xml: bytes) -> dict[str, str]:
-    """Read the fields that don't fit the one-tag-one-attr maps.
+    """Read the fields the register keeps through a codec rather than at one attribute.
 
     Those are the fused net_device, the atomic pipeline set, and presence-means-enabled fixed volume.
     """
@@ -336,16 +240,16 @@ def _read_special(xml: bytes) -> dict[str, str]:
     address = _read_attr(xml, "network", "address")
     device = _read_attr(xml, "network", "device")
     if address is not None and device is not None:
-        out[NET_DEVICE] = f"{address}/{device}"
+        out[kept_at(Codec.NET_DEVICE)] = f"{address}/{device}"
     pipelines = read_pipelines(xml)
     if pipelines is not None:
-        out[MATRIX_PIPELINES] = pipelines
+        out[kept_at(Codec.PIPELINES)] = pipelines
     # saved profiles: the readback that proves a staged save or delete reached the
     # config file, since the daemon never writes the element itself
-    out[MATRIX_PROFILES] = read_profiles(xml)
+    out[kept_at(Codec.PROFILES)] = read_profiles(xml)
     # fixed volume: presence of the top-level <fixed> element is the "enabled" flag
     active_fixed = find_active_fixed(xml)
-    out[FIXED_ENABLED] = "1" if active_fixed is not None else "0"
+    out[kept_at(Codec.FIXED_ENABLED)] = "1" if active_fixed is not None else "0"
     # The LEVEL is reported whether or not the feature is on: when it is off the
     # level lives in the commented line (fixedvol's remember step), and that parked
     # number is the user's, where the daemon's form only ever offers its own.
@@ -353,5 +257,5 @@ def _read_special(xml: bytes) -> dict[str, str]:
     # "reverted".
     level = fixed_level_of(active_fixed.group(0)) if active_fixed is not None else any_fixed_level(xml)
     if level is not None:
-        out[FIXED_LEVEL] = level
+        out[kept_at(Codec.FIXED_LEVEL)] = level
     return out

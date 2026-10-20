@@ -30,6 +30,8 @@ from hqptuner.conf.matrixscope import (
     matrix_scope,
 )
 from hqptuner.conf.xmledit import GroundingError, ensure_body
+from hqptuner.fields.model import Codec
+from hqptuner.fields.query import kept_at
 
 
 class PipelinesBadJsonError(GroundingError):
@@ -37,40 +39,7 @@ class PipelinesBadJsonError(GroundingError):
 
     def __init__(self, *, error: ValueError) -> None:
         """Render the wording naming the underlying JSON error."""
-        super().__init__(f"{MATRIX_PIPELINES}: not valid JSON: {error}", code="rows-bad-json")
-
-
-MATRIX_PIPELINES = "matrix_pipelines"
-
-# <post_process><plugin type="X" ...>. Field -> (plugin type, attribute).
-#
-# Lives here rather than in presetconf because a saved profile is a stored matrix
-# and carries a chain of its own: naming a profile's post-process fields is this
-# module's job. ``presetconf`` re-exports it, and imports it from here — the other
-# direction is a cycle, since presetconf already imports this module.
-PLUGIN_MAP: dict[str, tuple[str, str]] = {
-    "post_bauer_enabled": ("bauer", "enabled"),
-    "post_bauer_preset": ("bauer", "preset"),
-    "post_bauer_frequency": ("bauer", "frequency"),
-    "post_bauer_level": ("bauer", "level"),
-    "post_correction_enabled": ("correction", "enabled"),
-    "post_correction_dac0": ("correction", "dac0"),
-    # loudness plugin — form field -> XML attr, grounded by value-correlation: the
-    # live /matrix form defaults uniquely match the snapshot's <plugin
-    # type="loudness"> attributes (lowfreq=80<->low_frequency, lowtype=lshelf<->
-    # low_type, rangehigh=-20<->range_high, ...). readme §1.11.2.1 documents them.
-    "post_loudness_enabled": ("loudness", "enabled"),
-    "post_loudness_lowfreq": ("loudness", "low_frequency"),
-    "post_loudness_lowlevel": ("loudness", "low_level"),
-    "post_loudness_lowsteep": ("loudness", "low_steepness"),
-    "post_loudness_lowtype": ("loudness", "low_type"),
-    "post_loudness_highfreq": ("loudness", "high_frequency"),
-    "post_loudness_highlevel": ("loudness", "high_level"),
-    "post_loudness_highsteep": ("loudness", "high_steepness"),
-    "post_loudness_hightype": ("loudness", "high_type"),
-    "post_loudness_rangelow": ("loudness", "range_low"),
-    "post_loudness_rangehigh": ("loudness", "range_high"),
-}
+        super().__init__(f"{kept_at(Codec.PIPELINES)}: not valid JSON: {error}", code="rows-bad-json")
 
 
 def _validate_rows(value: str) -> list[dict[str, str]]:
@@ -78,7 +47,7 @@ def _validate_rows(value: str) -> list[dict[str, str]]:
         raw = json.loads(value)
     except ValueError as exc:
         raise PipelinesBadJsonError(error=exc) from exc
-    return rows_from_list(raw, MATRIX_PIPELINES)
+    return rows_from_list(raw, kept_at(Codec.PIPELINES))
 
 
 def pipeline_tag(channel: int, row: dict[str, str]) -> bytes:

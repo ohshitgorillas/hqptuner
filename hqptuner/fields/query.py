@@ -84,6 +84,19 @@ def located() -> Mapping[str, Location]:
     return MappingProxyType({row.name: row.location for row in FIELDS if row.location is not None})
 
 
+def at(location: Location) -> str | None:
+    """Return the field the File keeps at ``location``, or None when it keeps none there."""
+    return next((row.name for row in FIELDS if row.location == location), None)
+
+
+def kept_at(codec: Codec) -> str:
+    """Return the field the File keeps through ``codec``; raise KeyError when it keeps none there."""
+    name = at(codec)
+    if name is None:
+        raise KeyError(codec)
+    return name
+
+
 def by_plugin() -> Mapping[Plugin, str]:
     """Return the field kept at each plugin attribute."""
     return MappingProxyType({row.location: row.name for row in FIELDS if isinstance(row.location, Plugin)})

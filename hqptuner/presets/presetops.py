@@ -15,6 +15,8 @@ from typing import TYPE_CHECKING
 
 from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
@@ -196,8 +198,8 @@ class PresetOps:
         target never blocks another. Delete runs before save per preset, the
         same rename ordering the config edit uses.
         """
-        save_value = edits.get(matrixprofiles.MATRIX_PROFILE_SAVE)
-        delete_value = edits.get(matrixprofiles.MATRIX_PROFILE_DELETE)
+        save_value = edits.get(query.kept_at(Codec.PROFILE_SAVE))
+        delete_value = edits.get(query.kept_at(Codec.PROFILE_DELETE))
         save_to = matrixprofiles.save_targets(save_value) if save_value else []
         delete_name, delete_from = matrixpayload.parse_delete(delete_value) if delete_value else ("", [])
         results: dict[str, str] = {}

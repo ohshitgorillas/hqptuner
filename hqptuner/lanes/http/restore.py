@@ -24,13 +24,10 @@ import httpx
 from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth, presetconf, presetzip
 from hqptuner.conf.matrixpayload import parse_delete
-from hqptuner.conf.matrixprofiles import (
-    MATRIX_PROFILE_DELETE,
-    MATRIX_PROFILE_SAVE,
-    MATRIX_PROFILES,
-)
 from hqptuner.conf.matrixscope import has_profile
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes import settle
 from hqptuner.lanes.http import forms
 
@@ -47,7 +44,10 @@ _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable dive
 
 # A staged edit whose readback lives under a DIFFERENT key: the profile verbs are
 # write-only commands, and what proves one landed is the profile list they edit.
-_PROVEN_BY = {MATRIX_PROFILE_SAVE: MATRIX_PROFILES, MATRIX_PROFILE_DELETE: MATRIX_PROFILES}
+_PROVEN_BY = {
+    query.kept_at(Codec.PROFILE_SAVE): query.kept_at(Codec.PROFILES),
+    query.kept_at(Codec.PROFILE_DELETE): query.kept_at(Codec.PROFILES),
+}
 
 # Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
 # per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
@@ -275,7 +275,7 @@ async def _outcome(
         return RestoreConverged(attempts, mgr.readings.active_config)
     if verdict.unfixable is None:
         return RestoreUnconverged(verdict.diff)
-    return RestoreUnavailable(verdict.diff, {presetconf.NET_DEVICE: verdict.unfixable})
+    return RestoreUnavailable(verdict.diff, {query.kept_at(Codec.NET_DEVICE): verdict.unfixable})
 
 
 def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
@@ -285,9 +285,9 @@ def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
     profile that is active — a matrix about to be removed is not one to adopt.
     """
     name = (mgr.readings.state or {}).get("matrix_profile", "")
-    if not name or MATRIX_PROFILE_DELETE not in edits:
+    if not name or query.kept_at(Codec.PROFILE_DELETE) not in edits:
         return name
-    return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
+    return "" if parse_delete(edits[query.kept_at(Codec.PROFILE_DELETE)])[0] == name else name
 
 
 async def _judge(
@@ -396,7 +396,7 @@ def _net_device_options(mgr: LaneManager) -> set[str] | None:
     form = mgr.readings.config_form
     if form is None:
         return None
-    field = next((f for f in form["fields"] if f.get("name") == presetconf.NET_DEVICE), None)
+    field = next((f for f in form["fields"] if f.get("name") == query.kept_at(Codec.NET_DEVICE)), None)
     return {o["value"] for o in (field or {}).get("options", [])}
 
 
@@ -407,10 +407,10 @@ async def _unfixable_device(mgr: LaneManager, diff: Diff) -> UnfixableDevice | N
     endpoint list is re-read first: the restore restarted the daemon, so the snapshot predates it, and the refresh
     keeps whatever it last had when the daemon does not answer.
     """
-    if presetconf.NET_DEVICE not in diff:
+    if query.kept_at(Codec.NET_DEVICE) not in diff:
         return None
     await mgr.refresh_http_forms()
-    want = diff[presetconf.NET_DEVICE]["want"]
+    want = diff[query.kept_at(Codec.NET_DEVICE)]["want"]
     options = _net_device_options(mgr)
     if options is None or want in options:
         return None

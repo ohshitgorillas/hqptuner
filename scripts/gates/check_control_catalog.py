@@ -5,7 +5,7 @@ One knob is spelled out in three places, and nothing else checks that they
 still agree:
 
 - ``static/store/schema.js`` — UI key -> widget, lane, and the form field it writes
-- ``conf/presetconf.py`` FIELD_MAP / PLUGIN_MAP — form field -> XML element + attribute
+- the field register (``hqptuner/fields``) — form field -> where the File keeps it
 - ``data/settings.json`` — label and tooltip prose, keyed by tab group
 
 Adding or renaming a control touches three files. Miss one and nothing fails:
@@ -41,7 +41,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from hqptuner.conf import fixedvol, matrixconf, matrixprofiles, presetconf
+from hqptuner.fields import query
+from hqptuner.fields.model import Attr, Codec, Plugin
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC = ROOT / "hqptuner" / "static"
@@ -54,6 +55,17 @@ VENDOR_RESOLVE_JS = ROOT / "tests" / "js" / "support" / "vendor-resolve.js"
 DRAWER_DIRS = (
     STATIC / "components" / "faceplate" / "drawers",
     STATIC / "components" / "faceplate" / "settings",
+)
+
+#: the codec-kept fields the persistent write path routes by name; ``Codec.PROFILES`` is the
+#: saved-profile readback, never written, so it is no write target
+WRITTEN_CODECS = (
+    Codec.NET_DEVICE,
+    Codec.FIXED_ENABLED,
+    Codec.FIXED_LEVEL,
+    Codec.PIPELINES,
+    Codec.PROFILE_SAVE,
+    Codec.PROFILE_DELETE,
 )
 
 #: tab groups settings.json is keyed by; anything else kills the tooltip join
@@ -105,22 +117,13 @@ def load_tables() -> tuple[Schema, set[str], Modules]:
 
 
 def write_targets() -> set[str]:
-    """Every form field the persistent write path can actually place in the XML."""
-    return (
-        set(presetconf.FIELD_MAP)
-        | set(presetconf.LOCAL_BACKEND_MAP)
-        | set(matrixconf.PLUGIN_MAP)
-        | {
-            presetconf.NET_DEVICE,
-            fixedvol.FIXED_ENABLED,
-            fixedvol.FIXED_LEVEL,
-            matrixconf.MATRIX_PIPELINES,
-            # atomic saved-profile verbs: routed by name like the pipeline set,
-            # not through FIELD_MAP (they write a whole element, not an attribute)
-            matrixprofiles.MATRIX_PROFILE_SAVE,
-            matrixprofiles.MATRIX_PROFILE_DELETE,
-        }
-    )
+    """Every form field the persistent write path can actually place in the XML.
+
+    That is each field kept at one attribute or plugin attribute, and each field in ``WRITTEN_CODECS``. A field kept
+    at an ``<engine>`` attribute is written by the engine-attribute path, not by a form field, so it is no target.
+    """
+    attributes = {name for name, location in query.located().items() if isinstance(location, Attr | Plugin)}
+    return attributes | {query.kept_at(codec) for codec in WRITTEN_CODECS}
 
 
 def prose_key(key: str, entry: dict[str, Any]) -> str:
@@ -152,9 +155,9 @@ def check_tooltips(schema: Schema, settings: Settings) -> list[str]:
 
 
 def check_write_path(schema: Schema, targets: set[str]) -> list[str]:
-    """Every persistent control writes a field presetconf can locate in the XML."""
+    """Every persistent control writes a field the register can locate in the XML."""
     return [
-        f"{key}: http field {entry.get('field')!r} has no XML target in presetconf"
+        f"{key}: http field {entry.get('field')!r} has no XML target in the field register"
         for key, entry in schema.items()
         if entry.get("lane") == "http" and entry.get("field") not in targets
     ]
@@ -231,7 +234,7 @@ def main() -> int:
     report("prose with no control (informational)", orphan_prose(schema, settings))
 
     if problems:
-        tables = "schema.js, presetconf.py, settings.json and the drawers"
+        tables = "schema.js, the field register, settings.json and the drawers"
         print(f"\n{len(problems)} catalog disagreement(s) across {tables}.")
     return 1 if problems else 0
 
