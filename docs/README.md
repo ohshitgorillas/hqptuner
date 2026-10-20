@@ -11,6 +11,7 @@ The design and binding rules.
 - [design-system](spec/design-system.md): frontend layout and stylesheet rules.
 - [eq-export](spec/eq-export.md): EQ export formats and their mapping.
 - [faceplate](spec/faceplate.md): the faceplate's controls and behavior.
+- [fields](spec/fields.md): every setting's facts in one register, and the enumeration joins.
 - [lifecycle](spec/lifecycle.md): the daemon connection lifecycle.
 - [matrix](spec/matrix.md): matrix profile, pipeline and EQ editing.
 - [protocol](spec/protocol.md): hqplayerd wire truth.
@@ -38,6 +39,5 @@ Background studies.
 
 Working notes for contributors.
 
-- [copy-before-after](internal/copy-before-after.md): copy that differs from the manual text it derives from.
-- [gate-notes](internal/gate-notes.md): read-only commands the change budget meters.
+- [copy-before-after](internal/copy-before-after.md): copy that differs from the manual text it derives from.- [gate-notes](internal/gate-notes.md): read-only commands the change budget meters.
 - [v2-roadmap](internal/v2-roadmap.md): the v2 implementation roadmap.
