@@ -43,7 +43,7 @@ class Reading:
     """One field read from State: its form value and the name its enumeration gives it."""
 
     value: str
-    name: str | None
+    name: str
 
 
 class Cause(Enum):

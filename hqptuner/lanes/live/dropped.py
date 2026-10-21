@@ -42,7 +42,7 @@ def report(before: EngineReading, after: EngineReading) -> tuple[Dropped, ...]:
     """
     now = _held(after)
     return tuple(
-        Dropped(field, held.value, held.name or held.value)
+        Dropped(field, held.value, held.name)
         for field, held in _held(before).items()
         if field in now and now[field].value != held.value
     )

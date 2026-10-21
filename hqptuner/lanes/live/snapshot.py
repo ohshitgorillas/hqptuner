@@ -48,7 +48,7 @@ class ChainUnknownError(HQPTunerError):
 
 def _shown(field: str, reading: Reading) -> dict[str, str]:
     """Return a reading as the ``{value, name}`` a snapshot holds, naming the default matrix, whose value is empty."""
-    name = reading.name or reading.value
+    name = reading.name
     if not name and query.live(field).join is Join.PROFILE_NAME:
         name = DEFAULT_PROFILE_NAME
     return {"value": reading.value, "name": name}
