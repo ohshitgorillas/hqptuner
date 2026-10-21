@@ -12,51 +12,34 @@ reports it, and the user re-pins.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
-from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
+from hqptuner.fields.model import Enumeration
 
 if TYPE_CHECKING:
-    from hqptuner.lanes import LaneManager
-
-#: The LIVE field, and the register's setter key its edit goes out under.
-# ``rate`` is a field of its own, outside ``routing.LIVE_ONLY`` and the ``SNAPSHOT_FIELDS`` a
-# saved snapshot holds, so a restored snapshot leaves the rate to automatic base-rate selection.
-RATE = "rate"
-SETTING = "rate"
+    from hqptuner.engine.view import EngineView
 
 
-class PinRoute(NamedTuple):
-    """A LIVE batch's ``rate``: its ``writer.apply_live`` edit, or the reason it is refused, keyed ``rate``."""
+def pins(field: str) -> bool:
+    """Whether ``field`` is the output rate, the one live field the rates list answers."""
+    row = query.field(field)
+    return row is not None and row.live is not None and row.live.enumeration is Enumeration.RATES
 
-    edits: dict[str, dict[str, str]]
-    reasons: dict[str, str]
 
-
-def _refusal(view: EngineView, fields: dict[str, str], index: str | None) -> str | None:
-    """Return why the batch cannot pin its rate, or None when it can.
+def refusal(view: EngineView, field: str, fields: dict[str, str]) -> str | None:
+    """Return why ``field`` cannot pin its rate in this batch, or None when it can or is not the rate.
 
     Alone in its batch, because the mode and the filter both swap the rate list
     the index is resolved against. Only with PCM or SDM configured, because
-    ``[source]`` ignores ``SetRate``. Only a rate the running list carries.
+    ``[source]`` ignores ``SetRate``. Every restore write sets the config file's fixed slot to
+    auto (``fields.query.forced``), so a restart returns the engine to automatic base-rate selection.
+    The frontend sends a pin only under the Allow pinned rates preference.
     """
+    if not pins(field):
+        return None
     if len(fields) > 1:
         return "a pinned rate cannot be batched with other live settings: the mode and the filter swap the rate list"
     if view.configured_chain() is None:
         return "no rate can be pinned unless the output mode is PCM or SDM"
-    if index is None:
-        return f"{fields[RATE]} is not in the engine's live rates list"
     return None
-
-
-def route(mgr: LaneManager, fields: dict[str, str]) -> PinRoute:
-    """Resolve the ``rate`` in a LIVE batch to its ``SetRate`` index, or refuse it."""
-    # The frontend sends a pin only under the Allow pinned rates preference (store/live/pin.js).
-    view = EngineView.of(mgr.readings)
-    index = view.index_of(RATE, fields[RATE])
-    why = _refusal(view, fields, index)
-    if why is not None:
-        return PinRoute({}, {RATE: why})
-    # Every restore write sets the config file's fixed slot to auto (fields.query.forced),
-    # so a restart returns the engine to automatic base-rate selection.
-    return PinRoute({SETTING: {"value": str(index)}}, {})

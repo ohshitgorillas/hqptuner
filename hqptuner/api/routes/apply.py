@@ -16,6 +16,7 @@ from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.fields import query
 from hqptuner.lanes.live import lane, routing
 from hqptuner.lanes.live.lane import LiveApplyReport
 from hqptuner.presets import presetlane
@@ -181,7 +182,7 @@ async def config_live(body: LiveBody, manager: Mgr) -> Reported[LiveApplyReport]
     if not body.fields:
         raise refuse(NoLiveFieldsGivenError())
     fields = dict(body.fields)
-    unknown = sorted(set(fields) - set(routing.live_fields()))
+    unknown = sorted(set(fields) - set(query.live_controls()))
     if unknown:
         raise refuse(UnknownLiveFieldsError(unknown=unknown))
     _stand_autopilot_down(manager, fields)

@@ -19,7 +19,7 @@ from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.lanes.live.routing import mode_form_value, split_live
+from hqptuner.lanes.live.routing import split_live
 
 MODES = [
     {"index": "0", "name": "[source]", "value": "-1"},
@@ -169,10 +169,3 @@ def test_routing_leaves_the_staged_live_edits_it_was_handed_unchanged() -> None:
     staged = {"shaper": {"value": "0"}}
     split_live(_manager(), {"dither": NS9_ID}, staged)
     assert staged == {"shaper": {"value": "0"}}
-
-
-@pytest.mark.parametrize(("index", "form_value"), [("0", "auto"), ("1", "pcm"), ("2", "sdm"), ("7", None)])
-def test_a_mode_index_names_its_form_value_only_where_the_modes_list_carries_it(
-    index: str, form_value: str | None
-) -> None:
-    assert mode_form_value(MODES, index) == form_value

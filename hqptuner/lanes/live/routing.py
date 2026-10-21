@@ -27,142 +27,104 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
+from hqptuner.engine.view import Cause, EngineView, Refusal, says
 from hqptuner.errors import HQPTunerError
-from hqptuner.fields.chain import PCM, SDM
+from hqptuner.fields import query
+from hqptuner.fields.model import Chain, Enumeration, Join
 from hqptuner.lanes.live import rate
-from hqptuner.lanes.live.chain import EnumItems, active_chain
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
+    from hqptuner.lanes.live.chain import EnumItems
+
+
+def _target(field: str) -> tuple[str, str] | None:
+    """Return the setting key and argument the live lane writes ``field`` under, none for a field it does not take."""
+    row = query.field(field)
+    if row is None or row.live is None or not row.live_control:
+        return None
+    command = row.live.setter
+    return next(((setter.key, row.live.arg) for setter in query.setters() if setter.command == command), None)
+
+
+def _setting_of(field: str) -> str | None:
+    """Return the setting key the live lane writes ``field`` under, none for a field it does not take."""
+    target = _target(field)
+    return None if target is None else target[0]
+
+
+def _is_mode(field: str) -> bool:
+    """Whether ``field`` is the one the register joins by mode name."""
+    row = query.field(field)
+    return row is not None and row.live is not None and row.live.join is Join.MODE_NAME
 
 
 class LiveField(NamedTuple):
     """How one config-form field maps onto a Control API setter."""
 
-    setting: str  # writer.py handler key
-    arg: str  # setter attribute ('value' | 'value1x')
-    enum: str  # manager.readings.enums key to translate through
-    chain: str | None  # chain the field belongs to; None = chain-independent
-    state: str  # State attribute carrying this setting's current list index
+    setting: str
+    arg: str
+    enum: Enumeration
+    chain: Chain | None
+    state: str
 
 
-# The seven form fields with an exact live equivalent. Deliberately NOT here:
-# defaults_samplerate / defaults_bitrate. Those are a per-family *ceiling* under
-# forced auto-family (fields.query.forced), while SetRate forces a fixed
-# output rate — different settings, and equating them would break auto-family.
-ROUTABLE: dict[str, LiveField] = {
-    "filter1x": LiveField("filter", "value1x", "filters", PCM, "filter1x"),
-    "filter": LiveField("filter", "value", "filters", PCM, "filterNx"),
-    "dither": LiveField("shaper", "value", "shapers", PCM, "shaper"),
-    "oversampling1x": LiveField("filter", "value1x", "filters", SDM, "filter1x"),
-    "oversampling": LiveField("filter", "value", "filters", SDM, "filterNx"),
-    "modulator": LiveField("shaper", "value", "shapers", SDM, "shaper"),
-    "mode": LiveField("mode", "value", "modes", None, "mode"),
+def _routable() -> dict[str, LiveField]:
+    """Return the fields a staged form edit may write live, from the register."""
+    found = {}
+    for row in query.staged_routes():
+        setting, arg = _target(row.name) or ("", "")
+        live = query.live(row.name)
+        if live.enumeration is not None:
+            found[row.name] = LiveField(setting, arg, live.enumeration, live.chain, live.state)
+    return found
+
+
+ROUTABLE: dict[str, LiveField] = _routable()
+DIRECT: dict[str, str] = {
+    name: query.live(name).state for name in query.live_controls() if query.live(name).enumeration is None
 }
-
-# config form `mode` values -> the ModesItem name to match. Matched by NAME, not
-# by a hardcoded index: the modes enum is device-dependent (it drops SDM when the
-# active device can't do DSD), so positions are not stable.
-MODE_NAMES = {"auto": "[source]", "pcm": "PCM", "sdm": "SDM"}
-
-# Live-lane fields the FRONTEND stages directly (schema `lane: "live"`), so they
-# never pass through `split_live` and are absent from ROUTABLE — but they make
-# the config file just as stale, and a save that ignores them stores a setting
-# the user is not hearing. Config-form field -> the State attribute carrying it.
-# No enumeration in between: both sides are the same 0/1 flag, so the value is
-# the value (`adaptive_volume` <-> `<engine volume_adaptive>`).
-DIRECT: dict[str, str] = {"adaptive_volume": "adaptive"}
-
-# The whole domain of a DIRECT field, by string equality: a numeric parse would
-# wave "01" and "1.5" through to a daemon that then refuses or misreads them.
-_FLAG_VALUES = frozenset({"0", "1"})
-
-
-def _index_for_enum_id(items: EnumItems, enum_id: str) -> str | None:
-    """Return the list index of the item carrying this enum ID (the ID↔index join)."""
-    for item in items:
-        if str(item.get("value")) == str(enum_id):
-            index = item.get("index")
-            return None if index is None else str(index)
-    return None
-
-
-def _index_for_mode(items: EnumItems, form_value: str) -> str | None:
-    """Return the ModesItem index for a config-form mode value (auto|pcm|sdm)."""
-    want = MODE_NAMES.get(str(form_value))
-    if want is None:
-        return None
-    for item in items:
-        if (item.get("name") or "").startswith(want):
-            index = item.get("index")
-            return None if index is None else str(index)
-    return None
+MODE_NAMES = {"auto": "[source]", **{chain.value: chain.value.upper() for chain in Chain}}
 
 
 def mode_form_value(items: EnumItems, index: str) -> str | None:
-    """Return the config-form mode value (auto|pcm|sdm) a ModesItem index denotes.
+    """Return the config-form mode value (auto|pcm|sdm) a ModesItem index denotes."""
+    view = EngineView(state=None, status=None, enums={Enumeration.MODES: items}, matrix_profiles=None)
+    return view.value_at("mode", index)
 
-    The inverse of ``_index_for_mode``, and public because two other lanes need
-    it: ``overrides`` to report the running mode and ``snapshot`` to store
-    it in a live snapshot. Matched by NAME for the same reason the forward join is —
-    the modes enumeration is device-dependent, so positions are not stable.
+
+def _complete_filter_pair(edits: dict[str, dict[str, str]], state: dict[str, str]) -> set[str]:
+    """Fill the omitted half of each ``SetFilter`` edit from the current State, and return the settings it cannot fill.
+
+    An edit carries both args, since ``SetFilter value="N"`` alone sets the 1x and Nx filters both. An engine that
+    reports neither ``filter1x`` nor ``filterNx`` leaves its edit to the restore lane.
     """
-    for item in items:
-        if str(item.get("index")) != str(index):
+    unfillable = set()
+    for setter in query.setters():
+        pair = edits.get(setter.key)
+        if pair is None or not setter.value_fills:
             continue
-        name = (item.get("name") or "").upper()
-        return next((form for form, want in MODE_NAMES.items() if name.startswith(want.upper())), None)
-    return None
+        for arg, attr in query.readback(setter).items():
+            if arg in pair:
+                continue
+            current = state.get(attr)
+            if current is None:
+                unfillable.add(setter.key)
+                break
+            pair[arg] = str(current)
+    return unfillable
 
 
-def _resolve(mgr: LaneManager, field: str, value: str, chain: str | None) -> str | None:
-    """Return the live list index this form field+value becomes, or None when it cannot route live.
+def _mode_blocks_batch(fields: dict[str, str]) -> str | None:
+    """Return the mode field of a batch that carries other fields beside it, else None.
 
-    It cannot route live on a wrong chain, a missing enumeration, or an unknown value.
+    Such a batch goes to the restore lane whole: ``SetMode`` swaps the enumeration lists the other indices are
+    relative to.
     """
-    spec = ROUTABLE[field]
-    if spec.chain is not None and spec.chain != chain:
-        return None
-    items = (mgr.readings.enums or {}).get(spec.enum) or []
-    if field == "mode":
-        return _index_for_mode(items, value)
-    return _index_for_enum_id(items, value)
+    return next((field for field in fields if _is_mode(field)), None) if len(fields) > 1 else None
 
 
-def _complete_filter_pair(pair: dict[str, str], state: dict[str, str]) -> bool:
-    """Fill the unstaged half of a SetFilter edit from the current State.
-
-    ``SetFilter value="N"`` alone sets BOTH the 1x and Nx filters, so a
-    one-sided edit that omits its sibling silently clobbers it. Both
-    args must therefore be explicit. Returns False when State cannot supply the
-    missing side (older engines report neither ``filter1x`` nor ``filterNx``), in
-    which case the edit belongs on the restore lane instead.
-    """
-    for arg, field in (("value", "filterNx"), ("value1x", "filter1x")):
-        if arg in pair:
-            continue
-        current = state.get(field)
-        if current is None:
-            return False
-        pair[arg] = str(current)
-    return True
-
-
-def _mode_blocks_batch(routable: dict[str, str]) -> bool:
-    """Whether a mode change in this batch makes the chain edits unroutable.
-
-    ``SetMode`` swaps the enumeration lists the filter/shaper indices are
-    relative to, so indices resolved against the PRE-switch lists would be stale
-    by the time the setter ran. Rather than re-enumerate mid-apply, a batch that
-    changes mode alongside chain fields goes to the restore lane whole — which
-    restarts once and re-reads everything consistently.
-    """
-    return "mode" in routable and len(routable) > 1
-
-
-def _route_all(
-    mgr: LaneManager, routable: dict[str, str], chain: str | None
-) -> tuple[dict[str, dict[str, str]], set[str]]:
+def _route_all(view: EngineView, routable: dict[str, str]) -> tuple[dict[str, dict[str, str]], set[str]]:
     """Resolve every routable field into setter args, dropping the ones that cannot translate.
 
     Returns the live edits and the fields they consumed.
@@ -170,19 +132,13 @@ def _route_all(
     live: dict[str, dict[str, str]] = {}
     routed: set[str] = set()
     for field, value in routable.items():
-        index = _resolve(mgr, field, value, chain)
-        if index is None:
+        index = view.resolve(field, value)
+        target = _target(field)
+        if isinstance(index, Refusal) or target is None:
             continue
-        spec = ROUTABLE[field]
-        live.setdefault(spec.setting, {})[spec.arg] = index
+        live.setdefault(target[0], {})[target[1]] = index
         routed.add(field)
     return live, routed
-
-
-def _unroute_filter(live: dict[str, dict[str, str]], routed: set[str]) -> set[str]:
-    """Hand the SetFilter pair back to the restore lane (State couldn't complete it)."""
-    del live["filter"]
-    return {field for field in routed if ROUTABLE[field].setting != "filter"}
 
 
 def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) -> dict[str, dict[str, str]]:
@@ -207,22 +163,18 @@ def split_live(
     file, and a value applied live never reaches that file, so a split batch would
     boot the daemon straight back onto the values it just replaced.
     """
-    routable = {k: v for k, v in http_fields.items() if k in ROUTABLE}
-    if not routable or _mode_blocks_batch(routable):
+    staged = {row.name for row in query.staged_routes()}
+    routable = {k: v for k, v in http_fields.items() if k in staged}
+    if not routable or _mode_blocks_batch(routable) is not None:
         return live_edits, dict(http_fields)
-    live, routed = _route_all(mgr, routable, active_chain(mgr))
-    if "filter" in live and not _complete_filter_pair(live["filter"], mgr.readings.state or {}):
-        routed = _unroute_filter(live, routed)
-    if any(field not in routed for field in http_fields):
+    live, routed = _route_all(EngineView.of(mgr.readings), routable)
+    unfillable = _complete_filter_pair(live, mgr.readings.state or {})
+    if any(field not in routed or _setting_of(field) in unfillable for field in http_fields):
         return live_edits, dict(http_fields)
     return _merge(live_edits, live), {}
 
 
 # --- LIVE lane: immediate, unstaged writes -----------------------------------
-# A live control writes the moment it changes, so its batches resolve
-# against the running enumerations exactly like the apply lane's live half above
-# — plus the controls that lane never routes: the junk filter, the DIRECT flags
-# and the pinned rate. `lanes/live/lane.py` applies what this resolves.
 
 
 class LiveRouteError(HQPTunerError):
@@ -242,60 +194,7 @@ class LiveRouteError(HQPTunerError):
         self.reasons = reasons
 
 
-LIVE_ONLY: dict[str, LiveField] = {
-    # Junk (playback) filter. Already index-domain on both sides — the daemon's
-    # /config form has no field for it, so the frontend has always carried the
-    # list index (store/schema.js `junk_filter`) — which makes the translation a
-    # membership check: an index the running enumeration does not carry is
-    # refused here instead of failing its readback afterwards.
-    "junk_filter": LiveField("junk_filter", "value", "junk_filters", None, "filter_junk"),
-}
-
-_FILTER_FIELDS = tuple(field for field, spec in ROUTABLE.items() if spec.setting == "filter")
-
-
-def live_fields() -> tuple[str, ...]:
-    """Every config-form field the LIVE lane accepts, the pinned rate (``lanes/live/rate``) among them."""
-    return (*ROUTABLE, *LIVE_ONLY, *DIRECT, rate.RATE)
-
-
-def _known_index(items: EnumItems, index: str) -> str | None:
-    """``index`` back, but only if the running enumeration carries it."""
-    return str(index) if any(str(item.get("index")) == str(index) for item in items) else None
-
-
-def _live_index(mgr: LaneManager, field: str, value: str, chain: str | None) -> str | None:
-    """Return the list index this LIVE field+value becomes, or None when it cannot."""
-    if field in ROUTABLE:
-        return _resolve(mgr, field, value, chain)
-    spec = LIVE_ONLY.get(field)
-    if spec is None:
-        # Neither table carries it, so there is nothing to resolve against: it is
-        # refused with the rest of the unresolvable fields rather than crashing.
-        return None
-    items = (mgr.readings.enums or {}).get(spec.enum) or []
-    return _known_index(items, value)
-
-
-def _why_unresolved(field: str, value: str) -> str:
-    """Why a field would not resolve, in terms the control that sent it can show."""
-    spec = ROUTABLE.get(field) or LIVE_ONLY.get(field)
-    if spec is None:
-        return "not a live setting"
-    return f"{value} is not in the engine's live {spec.enum} list"
-
-
-def _off_chain(field: str, chain: str | None) -> str | None:
-    """Return the chain this field belongs to when the engine does NOT have it loaded, else None."""
-    spec = ROUTABLE.get(field)
-    if spec is None or spec.chain is None or spec.chain == chain:
-        return None
-    return spec.chain
-
-
-def _route_live(
-    mgr: LaneManager, fields: dict[str, str], chain: str | None
-) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
+def _route_live(view: EngineView, fields: dict[str, str]) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
     """Every field as setter args, alongside the reason for each one that does not resolve.
 
     A field of the chain not loaded does not resolve: ``GetFilters``/``GetShapers`` answer
@@ -304,60 +203,39 @@ def _route_live(
     edits: dict[str, dict[str, str]] = {}
     reasons: dict[str, str] = {}
     for field, value in fields.items():
-        if field in DIRECT:
-            # both sides are the same 0/1 flag, so there is nothing to translate,
-            # and the form field's name is already the writer's setting key. Still
-            # validated: otherwise the daemon is the first to refuse, as a per-item
-            # failure inside a 200 rather than the batch refusal every other
-            # unresolvable field gets.
-            if value not in _FLAG_VALUES:
-                reasons[field] = f"{value!r} is not a 0/1 flag"
-            else:
-                edits[field] = {"value": value}
-            continue
-        if field == rate.RATE:
-            pin = rate.route(mgr, fields)
-            edits.update(pin.edits)
-            reasons.update(pin.reasons)
-            continue
-        other = _off_chain(field, chain)
-        if other is not None:
-            reasons[field] = f"belongs to the {other} chain, which the engine has not loaded"
-            continue
-        index = _live_index(mgr, field, value, chain)
-        if index is None:
-            reasons[field] = _why_unresolved(field, value)
-            continue
-        spec = ROUTABLE.get(field) or LIVE_ONLY[field]
-        edits.setdefault(spec.setting, {})[spec.arg] = index
+        target = _target(field)
+        refused = rate.refusal(view, field, fields)
+        resolved = None if target is None or refused is not None else view.resolve(field, value)
+        if target is None:
+            reasons[field] = says(Refusal(field, value, Cause.NOT_LIVE))
+        elif refused is not None:
+            reasons[field] = refused
+        elif isinstance(resolved, Refusal):
+            reasons[field] = says(resolved)
+        elif resolved is not None:
+            edits.setdefault(target[0], {})[target[1]] = resolved
     return edits, reasons
 
 
 def resolve_live(mgr: LaneManager, fields: dict[str, str]) -> dict[str, dict[str, str]]:
     """Return a LIVE batch as ``writer.apply_live`` edits, or ``LiveRouteError`` naming each unresolved field.
 
-    All-or-nothing: the whole batch resolves before a single setter runs, because
-    a live write has no Apply button to retry from and a half-applied batch would
-    leave the engine in a state no control describes.
-
-    A field of the chain the engine has not loaded is refused: enumerations are
-    mode-relative, so that chain has no Engine value and no live setter reaches it,
-    and nothing is held for it to land later.
+    The whole batch resolves before a single setter runs. A mode in the batch refuses every other field, the rate
+    included (manual §4.6). A field of a chain the engine has not loaded is refused.
     """
-    # The whole batch, not just the ROUTABLE part `split_live` guards: the rate
-    # list is mode-dependent too (manual §4.6), so a mode change invalidates every
-    # index resolved beside it, not only the chain fields'.
-    if _mode_blocks_batch(fields):
+    mode = _mode_blocks_batch(fields)
+    if mode is not None:
         raise LiveRouteError(
             {
-                "mode": "an output-mode change cannot be batched with other live settings: SetMode swaps the "
+                mode: "an output-mode change cannot be batched with other live settings: SetMode swaps the "
                 "enumerations the other values were resolved against"
             }
         )
-    edits, reasons = _route_live(mgr, fields, active_chain(mgr))
-    if "filter" in edits and not _complete_filter_pair(edits["filter"], mgr.readings.state or {}):
-        unfillable = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
-        reasons.update(dict.fromkeys((f for f in fields if f in _FILTER_FIELDS and f not in reasons), unfillable))
+    edits, reasons = _route_live(EngineView.of(mgr.readings), fields)
+    unfillable = _complete_filter_pair(edits, mgr.readings.state or {})
+    if unfillable:
+        why = "State reports no current filter, so the other half of the SetFilter pair cannot be filled in"
+        reasons.update(dict.fromkeys((f for f in fields if f not in reasons and _setting_of(f) in unfillable), why))
     if reasons:
         raise LiveRouteError(reasons)
     return edits
