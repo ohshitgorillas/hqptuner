@@ -93,6 +93,12 @@ def _mode_live() -> Live:
     return next(live for live in lives if live.join is Join.MODE_NAME)
 
 
+def is_mode(field: str) -> bool:
+    """Whether ``field`` is the one the register joins by mode name."""
+    row = query.field(field)
+    return row is not None and row.live is not None and row.live == _mode_live()
+
+
 def _live_row(field: str) -> Field | None:
     """Return the row of ``field``, none when the live lane does not take it."""
     row = query.field(field)

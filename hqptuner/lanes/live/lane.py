@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.view import EngineView
 from hqptuner.lanes.live import routing
 from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
@@ -189,10 +190,7 @@ def mode_already_running(mgr: LaneManager, want: str) -> bool:
     it clears the engine's rate pin outright and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
-    index = (mgr.readings.state or {}).get("mode")
-    if index is None:
-        return False
-    return routing.mode_form_value((mgr.readings.enums or {}).get("modes") or [], index) == want
+    return EngineView.of(mgr.readings).mode() == want
 
 
 async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyReport:

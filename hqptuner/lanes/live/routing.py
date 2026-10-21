@@ -27,20 +27,26 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from hqptuner.engine.view import Cause, EngineView, Refusal, says
+from hqptuner.engine.view import Cause, EngineView, Refusal, is_mode, says
 from hqptuner.errors import HQPTunerError
 from hqptuner.fields import query
-from hqptuner.fields.model import Chain, Enumeration, Join
+from hqptuner.fields.model import Chain, Enumeration, Field
 from hqptuner.lanes.live import rate
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from hqptuner.lanes import LaneManager
     from hqptuner.lanes.live.chain import EnumItems
 
 
 def _target(field: str) -> tuple[str, str] | None:
     """Return the setting key and argument the live lane writes ``field`` under, none for a field it does not take."""
-    row = query.field(field)
+    return _target_of(query.field(field))
+
+
+def _target_of(row: Field | None) -> tuple[str, str] | None:
+    """Return the setting key and argument the live lane writes ``row`` under, none for a row it does not take."""
     if row is None or row.live is None or not row.live_control:
         return None
     command = row.live.setter
@@ -53,12 +59,6 @@ def _setting_of(field: str) -> str | None:
     return None if target is None else target[0]
 
 
-def _is_mode(field: str) -> bool:
-    """Whether ``field`` is the one the register joins by mode name."""
-    row = query.field(field)
-    return row is not None and row.live is not None and row.live.join is Join.MODE_NAME
-
-
 class LiveField(NamedTuple):
     """How one config-form field maps onto a Control API setter."""
 
@@ -69,22 +69,24 @@ class LiveField(NamedTuple):
     state: str
 
 
-def _routable() -> dict[str, LiveField]:
-    """Return the fields a staged form edit may write live, from the register."""
+def routable(rows: Iterable[Field]) -> dict[str, LiveField]:
+    """Return the fields of ``rows`` a staged form edit may write live; a row with no setter raises ``KeyError``."""
     found = {}
-    for row in query.staged_routes():
-        setting, arg = _target(row.name) or ("", "")
+    for row in rows:
+        target = _target_of(row)
+        if target is None:
+            raise KeyError(row.name)
+        setting, arg = target
         live = query.live(row.name)
         if live.enumeration is not None:
             found[row.name] = LiveField(setting, arg, live.enumeration, live.chain, live.state)
     return found
 
 
-ROUTABLE: dict[str, LiveField] = _routable()
+ROUTABLE: dict[str, LiveField] = routable(query.staged_routes())
 DIRECT: dict[str, str] = {
     name: query.live(name).state for name in query.live_controls() if query.live(name).enumeration is None
 }
-MODE_NAMES = {"auto": "[source]", **{chain.value: chain.value.upper() for chain in Chain}}
 
 
 def mode_form_value(items: EnumItems, index: str) -> str | None:
@@ -121,7 +123,7 @@ def _mode_blocks_batch(fields: dict[str, str]) -> str | None:
     Such a batch goes to the restore lane whole: ``SetMode`` swaps the enumeration lists the other indices are
     relative to.
     """
-    return next((field for field in fields if _is_mode(field)), None) if len(fields) > 1 else None
+    return next((field for field in fields if is_mode(field)), None) if len(fields) > 1 else None
 
 
 def _route_all(view: EngineView, routable: dict[str, str]) -> tuple[dict[str, dict[str, str]], set[str]]:
@@ -205,14 +207,13 @@ def _route_live(view: EngineView, fields: dict[str, str]) -> tuple[dict[str, dic
     for field, value in fields.items():
         target = _target(field)
         refused = rate.refusal(view, field, fields)
-        resolved = None if target is None or refused is not None else view.resolve(field, value)
         if target is None:
             reasons[field] = says(Refusal(field, value, Cause.NOT_LIVE))
         elif refused is not None:
             reasons[field] = refused
-        elif isinstance(resolved, Refusal):
+        elif isinstance(resolved := view.resolve(field, value), Refusal):
             reasons[field] = says(resolved)
-        elif resolved is not None:
+        else:
             edits.setdefault(target[0], {})[target[1]] = resolved
     return edits, reasons
 

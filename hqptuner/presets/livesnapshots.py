@@ -11,9 +11,11 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.view import EngineView
 from hqptuner.errors import HQPTunerError
 from hqptuner.fields import query
 from hqptuner.fields.chain import PCM, SDM
+from hqptuner.fields.model import Enumeration
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.live import lane, routing, snapshot
 from hqptuner.lanes.live.lane import LiveApplyReport
@@ -99,9 +101,10 @@ def _mode_name(manager: PresetManager, value: str) -> str | None:
     """Return the display name of a given output mode, or None when it is not pcm or sdm."""
     if value not in (PCM, SDM):
         return None
-    want = routing.MODE_NAMES[value]
-    items = (manager.readings.enums or {}).get("modes") or []
-    return next((str(item["name"]) for item in items if str(item.get("name") or "").startswith(want)), want)
+    view = EngineView.of(manager.readings)
+    index = view.index_of("mode", value)
+    name = None if index is None else view.name_at(Enumeration.MODES, index)
+    return value.upper() if name is None else name
 
 
 def _profile_name(manager: PresetManager, value: str) -> str | None:
