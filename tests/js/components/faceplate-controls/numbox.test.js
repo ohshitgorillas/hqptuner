@@ -22,7 +22,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { NumBox } from "../../../../hqptuner/static/components/faceplate/controls/NumBox.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { propsOf } from "../../support/wheel.js";
+import { attach, domEvent as event, fire, wheelAt } from "../../support/wheel.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -117,75 +117,6 @@ class FakeInput {
   removeEventListener() {}
 }
 
-/**
- * A DOM event as a handler receives it.
- *
- * @param {string} type
- * @param {FakeInput} el
- * @param {Record<string, unknown>} [extra]
- */
-function event(type, el, extra = {}) {
-  const ev = {
-    type,
-    target: el,
-    currentTarget: el,
-    defaultPrevented: false,
-    cancelable: true,
-    preventDefault() {
-      ev.defaultPrevented = true;
-    },
-    stopPropagation() {},
-    ...extra,
-  };
-  return ev;
-}
-
-/**
- * The vnodes from `node` out to the outermost element of the same render: the chain a wheel bubbles along.
- *
- * @param {VNode[]} seen
- * @param {VNode} node
- * @returns {VNode[]}
- */
-function ancestry(seen, node) {
-  /** @param {unknown} kids */
-  const flat = (kids) => (Array.isArray(kids) ? kids.flat(Infinity) : [kids]);
-  /** @type {VNode[]} */
-  const chain = [node];
-  let at = node;
-  for (;;) {
-    const here = at;
-    const parent = seen.find((v) => flat(propsOf(v).children).includes(here));
-    if (!parent) return chain;
-    chain.push(parent);
-    at = parent;
-  }
-}
-
-/**
- * Calls one handler prop with an event, when the vnode carries it.
- *
- * @param {VNode} node
- * @param {string} name
- * @param {unknown} ev
- */
-function fire(node, name, ev) {
-  const fn = propsOf(node)[name];
-  if (typeof fn === "function") fn(ev);
-}
-
-/**
- * Hands the input element to the box's ref, object or callback, as mounting would.
- *
- * @param {VNode} box
- * @param {FakeInput} el
- */
-function attach(box, el) {
-  const ref = /** @type {{ ref?: unknown }} */ (/** @type {unknown} */ (box)).ref;
-  if (typeof ref === "function") ref(el);
-  else if (ref && typeof ref === "object") /** @type {{ current: unknown }} */ (ref).current = el;
-}
-
 /** One mounted box and the browser around it: the element, the document's focus, and the dispatch rules. */
 class Browser {
   /**
@@ -245,12 +176,11 @@ class Browser {
   }
 
   wheel() {
-    const ev = event("wheel", this.el, { deltaY: -100, deltaX: 0, deltaMode: 0 });
-    for (const node of ancestry(this.seen, this.box)) fire(node, "onWheel", ev);
-    if (ev.defaultPrevented || this.doc.activeElement !== this.el) return;
-    this.el.value = String(Number(this.el.value) + STEP);
-    fire(this.box, "onInput", event("input", this.el));
-    this.changed();
+    wheelAt({ seen: this.seen, node: this.box, el: this.el, doc: this.doc }, -100, () => {
+      this.el.value = String(Number(this.el.value) + STEP);
+      fire(this.box, "onInput", event("input", this.el));
+      this.changed();
+    });
   }
 
   /** @param {Gesture} g */
@@ -259,22 +189,9 @@ class Browser {
     else this[g.type]();
   }
 
-  /**
-   * Runs the gestures with `document` and `window` present, restoring both afterwards.
-   *
-   * @param {Gesture[]} gestures
-   */
+  /** @param {Gesture[]} gestures */
   run(gestures) {
-    const g = /** @type {Record<string, unknown>} */ (globalThis);
-    const before = { document: g.document, window: g.window };
-    g.document = this.doc;
-    g.window = { scrollBy() {}, scroll() {} };
-    try {
-      for (const gesture of gestures) this.perform(gesture);
-    } finally {
-      g.document = before.document;
-      g.window = before.window;
-    }
+    for (const gesture of gestures) this.perform(gesture);
   }
 }
 

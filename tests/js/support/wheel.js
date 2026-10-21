@@ -90,3 +90,98 @@ export const propsOf = (v) => v.props || {};
  *
  * @typedef {{ node: VNode, label: string, movable: boolean }} WheelControl
  */
+
+/**
+ * A DOM event as a handler receives it: `el` is both target and current target, and `preventDefault` marks it canceled.
+ *
+ * @param {string} type
+ * @param {unknown} el
+ * @param {Record<string, unknown>} [extra]
+ */
+export function domEvent(type, el, extra = {}) {
+  const ev = {
+    type,
+    target: el,
+    currentTarget: el,
+    defaultPrevented: false,
+    cancelable: true,
+    preventDefault() {
+      ev.defaultPrevented = true;
+    },
+    stopPropagation() {},
+    ...extra,
+  };
+  return ev;
+}
+
+/**
+ * Calls one handler prop with an event, when the vnode carries it.
+ *
+ * @param {VNode} node
+ * @param {string} name
+ * @param {unknown} ev
+ */
+export function fire(node, name, ev) {
+  const fn = propsOf(node)[name];
+  if (typeof fn === "function") fn(ev);
+}
+
+/**
+ * Hands an element to a vnode's ref, object or callback, as mounting would.
+ *
+ * @param {VNode} box
+ * @param {unknown} el
+ */
+export function attach(box, el) {
+  const ref = /** @type {{ ref?: unknown }} */ (/** @type {unknown} */ (box)).ref;
+  if (typeof ref === "function") ref(el);
+  else if (ref && typeof ref === "object") /** @type {{ current: unknown }} */ (ref).current = el;
+}
+
+/**
+ * The vnodes from `node` out to the outermost element of the same render: the chain a wheel bubbles along.
+ *
+ * @param {VNode[]} seen
+ * @param {VNode} node
+ * @returns {VNode[]}
+ */
+function ancestry(seen, node) {
+  /** @param {unknown} kids */
+  const flat = (kids) => (Array.isArray(kids) ? kids.flat(Infinity) : [kids]);
+  /** @type {VNode[]} */
+  const chain = [node];
+  let at = node;
+  for (;;) {
+    const here = at;
+    const parent = seen.find((v) => flat(propsOf(v).children).includes(here));
+    if (!parent) return chain;
+    chain.push(parent);
+    at = parent;
+  }
+}
+
+/**
+ * One wheel over a control, as a browser delivers it: the event bubbles from the control's vnode outwards through every
+ * wheel listener of the same render, then, unless canceled or the control is not the document's active element, the
+ * default action runs. `document` and `window` exist only for the dispatch.
+ *
+ * @param {{ seen: VNode[], node: VNode, el: unknown, doc: { activeElement: unknown } }} at every vnode of the render,
+ *   the control's vnode and element (the event's target), and the document, whose active element decides the default
+ *   action
+ * @param {number} deltaY the wheel's vertical delta
+ * @param {() => void} byDefault the default action: what the browser does to a focused control the wheel was not stopped on
+ */
+export function wheelAt({ seen, node, el, doc }, deltaY, byDefault) {
+  const g = /** @type {Record<string, unknown>} */ (globalThis);
+  const before = { document: g.document, window: g.window };
+  g.document = doc;
+  g.window = { scrollBy() {}, scroll() {} };
+  try {
+    const ev = domEvent("wheel", el, { deltaY, deltaX: 0, deltaMode: 0 });
+    for (const on of ancestry(seen, node)) fire(on, "onWheel", ev);
+    if (!ev.defaultPrevented && doc.activeElement === el) byDefault();
+  } finally {
+    g.document = before.document;
+    g.window = before.window;
+  }
+}
