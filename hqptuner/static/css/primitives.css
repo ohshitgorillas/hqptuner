@@ -41,6 +41,8 @@ select option{background:var(--glass);color:var(--acc)}
 .seg{display:inline-flex;border:var(--hair) solid var(--shade);border-radius:var(--r-2);overflow:hidden;background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade)}
 .seg button{height:var(--ctl-h);padding:0 var(--sp-7);border:0;border-right:var(--hair) solid var(--seam);background:transparent;color:var(--ink-2);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
 .seg button:last-child{border-right:0}
+.seg button.dirty{position:relative}   /* an option holding a staged edit */
+.seg button.dirty::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 .seg button.on{background:var(--acc);color:var(--on-acc)}
 .seg .su{text-transform:none;letter-spacing:0}   /* unit inside a seg option: case kept */
 .seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
