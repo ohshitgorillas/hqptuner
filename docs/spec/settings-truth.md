@@ -157,8 +157,8 @@ A reading that overlays the Engine on the File, and the two readings served apar
 # Rejected: a document neither store holds, served as the file.
 file = {**file_config, **live_overrides}
 
-# Holds: each store answers for itself, stamped, and the client marks where they differ.
-field = FieldReading(engine=state.filter, file=file_config.filter, lane="live")
+# Holds: each store answers for itself, stamped, and the server names the store to show and whether they differ.
+field = FieldReading(engine=state.filter, file=file_config.filter, show="engine", diverges=differ(state.filter, file_config.filter))
 ```
 
 A value with no source, and one that names it:

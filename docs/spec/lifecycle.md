@@ -76,7 +76,7 @@ A refusal of the management credentials is not a transition. The configuration l
 5. **A wait subscribes to a transition.** A wait names the transition it wants and returns on the edge that satisfies it. No wait sleeps on an edge and re-reads the parts. Every wait runs on `mgr.clock`, carries a deadline, and defaults that deadline to the window. A deadline passed is a result the caller reports, never one it papers over.
 6. **A connection owns its readings.** Readings taken on one connection are invalid at the next Down and refilled on the next Ready. A consumer that needs them waits for Ready; none reads a snapshot from a connection that is gone as if it were current.
 7. **The two front lanes return separately.** Ready is the control connection standing and the configuration lane having answered on that same connection. A handshake alone is Reachable. A wait for a restart to land is a wait for Ready, because 4321 and 8088 do not come back together.
-8. **The API reports the phase and decides nothing.** Health carries the phase, the generation and the connection's age. The page shows what it is told. The page holds exactly two things of its own: whether a write it sent is still in flight, and the grace it gives a cold install before believing Down.
+8. **The API reports the phase and decides nothing.** Health carries the phase, the generation and the connection's age. The page shows what it is told. The page holds exactly one thing of its own: whether a write it sent is still in flight. It gives no grace before believing Down, and no phase opens the connection panel: the panel opens on its own only when health says the credentials were refused or the address cannot be found (`docs/spec/api.md` "Health"), never for an engine restart or the engine being down.
 9. **Decisions are pure; the loop executes.** A transition is a pure function of the phase and a wire fact (testing rule 17). The connect body and the heartbeat feed facts to it and apply its answer. Neither sets a phase directly.
 10. **The settings side takes a transition, not the lifecycle's internals.** `docs/spec/settings-truth.md` is handed three named outcomes: own restart landed, own restart settled in place, foreign departure. It reads no counter and no flag. It supplies one fact back: whether a write's readback confirmed on a standing connection, which is what settles a request in place.
 11. **Lifecycle tests assert invariants.** Every lifecycle test runs on a virtual clock against a fake daemon driven from a table of wire events (testing rules 7, 11 and 13). It asserts a property the design promises: a wait never releases on the instance a restart is about to kill, Ready never precedes the configuration lane's answer, a foreign departure is never read as own. Tables in a test span the measured range below, and include a daemon that answers on 4321 for a moment after accepting a restart.
@@ -101,7 +101,7 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | Health | Reporting the phase | `api/routes/status.py` |
 | Page signals | Picking the phase off health | `store/signals.js` |
 | Brand knob | Drawing the phase and the page's own in-flight write | `store/faceplate/conn.js` |
-| Connection panel | The cold-page grace and the verdict on a saved address | `store/connpanel.js` |
+| Connection panel | Opening on refused credentials or an address not found, and the verdict on a saved address | `store/connpanel.js` |
 
 ## Measured facts
 

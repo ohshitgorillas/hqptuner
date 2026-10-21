@@ -56,13 +56,17 @@ Neither credential field is empty by default, since both fall back to hqplayerd'
 - `show`: `engine` or `file`, the store the lane names for display; the client shows `reading[show]` and holds no lane table.
 - `restarts`: true when applying the field restarts the engine, which drives the restart mark.
 - `diverges`: true when the Engine and the File disagree, compared by the server in one domain; the client compares no list index with an enum ID.
-- `bounds`: `{"min", "max", "step"}` from the daemon form's own limits or from `VolumeRange`, or `null` where the daemon gives none, and then the control is unbounded. A unit is display copy and is not served.
+- `bounds`: `{"min", "max", "step"}` from the daemon form's own limits or from `VolumeRange`. HQPlayer bounds every numeric value, so a numeric field is always served with its bounds; `null` only on a field that is not a number. A unit is display copy and is not served.
 
 The client holds no per-field flag naming a store, a restart or a bound.
 
 ## Health
 
-`GET /api/health` answers `{"phase", "generation", "connected_at", "credentials_ok"}`. `phase` is one of `Down`, `Reachable`, `Ready`, `Alarm` (`docs/spec/lifecycle.md`), and `generation` is the lifecycle policy's ordering token. `connected_at` stamps the current connection, and `credentials_ok` carries the management credentials' verdict, which does not move the phase. A client picks the page's one phase from `phase` and holds no reachable, ready or connected flag of its own.
+`GET /api/health` answers `{"phase", "generation", "connected_at", "credentials_ok", "address_found"}`. `phase` is one of `Down`, `Reachable`, `Ready`, `Alarm` (`docs/spec/lifecycle.md`), and `generation` is the lifecycle policy's ordering token. `connected_at` stamps the current connection, and `credentials_ok` carries the management credentials' verdict, which does not move the phase. A client picks the page's one phase from `phase` and holds no reachable, ready or connected flag of its own.
+
+`address_found` carries the configured address's verdict from the last dial, and like `credentials_ok` it does not move the phase. It is `false` when the host name does not resolve or the dial fails with host or network unreachable; `true` once a dial reaches the host, a refused dial included, since a host that refuses is there and its daemon is down or restarting; `null` before the first dial. The connection panel opens on its own only when `credentials_ok` or `address_found` is `false`, never on the phase.
+
+- Open: whether a dial that times out with no answer counts as an address not found.
 
 ## Meter feed
 
