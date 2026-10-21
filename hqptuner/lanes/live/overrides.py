@@ -1,56 +1,14 @@
-"""Live state expressed back as config-form fields — the save side of ``routing``.
-
-A live-routed edit never touched the config file, so the file is stale the moment
-one lands. Saving a preset off that file would store settings the user is not
-hearing, so ``presetlane.save`` folds these overrides into the working XML first,
-and ``GET /api/config`` overlays them so every tab reads what is playing rather
-than what was last written to disk.
-
-The translation is the mirror of ``routing``'s apply side: State's list index ->
-the enumeration item at that index -> its enum ID, which is what the file holds.
-"""
+"""The live settings an Engine reading answers for, as config-form fields, for ``presets.realized``."""
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from hqptuner.lanes.live.chain import EnumItems, loaded_chain
-from hqptuner.lanes.live.routing import DIRECT, ROUTABLE, mode_form_value
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 
 if TYPE_CHECKING:
-    from hqptuner.lanes.live.chain import EngineReading
-
-
-def form_value(field: str, items: EnumItems, index: str) -> str | None:
-    """Translate a routable field's Engine list index into the enum ID or mode value the File holds.
-
-    The index-to-ID join, the inverse of ``routing``'s: the item at this list index, and its enum ID.
-    """
-    if field == "mode":
-        return mode_form_value(items, index)
-    item = next((entry for entry in items if str(entry.get("index")) == str(index)), None)
-    value = None if item is None else item.get("value")
-    return None if value is None else str(value)
-
-
-def _override_for(reading: EngineReading, field: str, state: dict[str, str]) -> str | None:
-    """One field's current live value in config-form terms, or None when the engine cannot answer for it."""
-    spec = ROUTABLE[field]
-    index = state.get(spec.state)
-    if index is None:
-        return None
-    return form_value(field, (reading.enums or {}).get(spec.enum) or [], index)
-
-
-def _chain_overrides(reading: EngineReading, chain: str | None, state: dict[str, str]) -> dict[str, str]:
-    """Return the mode and the loaded chain's filter/shaper settings, as the engine reads them."""
-    overrides = {}
-    for field, spec in ROUTABLE.items():
-        if spec.chain is None or spec.chain == chain:
-            value = _override_for(reading, field, state)
-            if value is not None:
-                overrides[field] = value
-    return overrides
+    from hqptuner.engine.view import EngineReading
 
 
 def reading_overrides(reading: EngineReading) -> dict[str, str]:
@@ -60,10 +18,6 @@ def reading_overrides(reading: EngineReading) -> dict[str, str]:
     pair, and the two chains number their enum IDs differently. The chain not
     loaded has no Engine value, so nothing is reported for it.
     """
-    state = reading.state or {}
-    # No rate override: the rate lives in the limit slot, a config field the
-    # file carries.
-    return {
-        **_chain_overrides(reading, loaded_chain(reading), state),
-        **{field: state[attr] for field, attr in DIRECT.items() if state.get(attr) is not None},
-    }
+    view = EngineView.of(reading)
+    found = ((row.name, view.read(row.name)) for row in query.realized())
+    return {name: held.value for name, held in found if held is not None}

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from hqptuner.lanes.live.overrides import reading_overrides
 
 if TYPE_CHECKING:
-    from hqptuner.lanes.live.chain import EngineReading
+    from hqptuner.engine.view import EngineReading
 
 
 def _engine_fields(engine: EngineReading | None) -> dict[str, str]:  # engine, enum ID and flag

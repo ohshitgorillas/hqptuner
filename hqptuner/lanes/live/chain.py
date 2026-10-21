@@ -9,8 +9,6 @@ from hqptuner.fields.chain import chain_name, status_chain
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
 
-EnumItems = list[dict[str, str]]
-
 
 class EngineReading(Protocol):
     """One Engine reading, as ``core.readings.EngineSnapshot`` and the manager's readings carry it."""

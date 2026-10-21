@@ -30,14 +30,13 @@ from typing import TYPE_CHECKING, NamedTuple
 from hqptuner.engine.view import Cause, EngineView, Refusal, is_mode, says
 from hqptuner.errors import HQPTunerError
 from hqptuner.fields import query
-from hqptuner.fields.model import Chain, Enumeration, Field
 from hqptuner.lanes.live import rate
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+    from hqptuner.fields.model import Chain, Enumeration, Field
     from hqptuner.lanes import LaneManager
-    from hqptuner.lanes.live.chain import EnumItems
 
 
 def _target(field: str) -> tuple[str, str] | None:
@@ -87,12 +86,6 @@ ROUTABLE: dict[str, LiveField] = routable(query.staged_routes())
 DIRECT: dict[str, str] = {
     name: query.live(name).state for name in query.live_controls() if query.live(name).enumeration is None
 }
-
-
-def mode_form_value(items: EnumItems, index: str) -> str | None:
-    """Return the config-form mode value (auto|pcm|sdm) a ModesItem index denotes."""
-    view = EngineView(state=None, status=None, enums={Enumeration.MODES: items}, matrix_profiles=None)
-    return view.value_at("mode", index)
 
 
 def _complete_filter_pair(edits: dict[str, dict[str, str]], state: dict[str, str]) -> set[str]:
