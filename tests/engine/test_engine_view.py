@@ -10,10 +10,10 @@ states, and the live snapshot's rule that ``""`` is the default matrix.
 
 import json
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from answered_reading import Answered
 
 from hqptuner.engine.view import Cause, EngineView, Reading, Refusal, says
 from hqptuner.fields.model import Chain, Enumeration
@@ -52,16 +52,6 @@ SDM_STATUS = {"active_mode": "SDM (DSD)", "active_rate": "2822400"}
 
 #: ``[source]`` configured: the Engine echoes ``[source]`` as the active mode.
 AUTO_STATE = {**PCM_STATE, "mode": "0"}
-
-
-@dataclass(frozen=True)
-class Answered:
-    """One Engine reading as the test writes it."""
-
-    state: Mapping[str, str] | None
-    status: Mapping[str, str] | None
-    enums: Mapping[str, Sequence[Mapping[str, str]]] | None
-    matrix_profiles: Sequence[str] | None
 
 
 def enumerations(chain: str, modes: str = "stock") -> dict[str, list[dict[str, str]]]:

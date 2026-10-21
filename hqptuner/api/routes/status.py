@@ -148,7 +148,7 @@ def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> d
     if manager.readings.enums is None:
         raise refuse(NotLoadedError())
     mode_name = engineread.current_mode_name(manager)
-    merged = merge_enumerations(manager.readings.enums, static, mode_name)
+    merged = merge_enumerations(EngineView.of(manager.readings), static, mode_name)
     mode = ModeInfo(index=(manager.readings.state or {}).get("mode"), name=mode_name)
     return deps.snapshot(replace(merged, mode=mode))
 

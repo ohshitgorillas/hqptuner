@@ -168,6 +168,10 @@ class EngineView:
         """Return the index of the item in ``enumeration`` named ``name``."""
         return next((item.get("index") for item in self._items(enumeration) if item.get("name") == name), None)
 
+    def each[T](self, enumeration: Enumeration, build: Callable[[Mapping[str, str]], T]) -> list[T]:
+        """Return what ``build`` makes of each item of ``enumeration``, in list order; empty when unread."""
+        return [build(item) for item in self._items(enumeration)]
+
     def read(self, field: str) -> Reading | None:
         """Return ``field`` as State holds it, none off its chain or unread."""
         row = query.field(field)

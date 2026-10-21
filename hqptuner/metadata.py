@@ -10,9 +10,12 @@ Types live in ``metadata_types``, the isinstance narrowing that builds them from
 
 import json
 import weakref
+from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from hqptuner import metadata_json
+from hqptuner.engine.view import EngineView
+from hqptuner.fields.model import Enumeration
 from hqptuner.metadata_types import (
     EasyDb,
     EnumFilterItem,
@@ -141,55 +144,58 @@ class StaticMetadata:
         return self._shapers_db.sdm_modulators.get(name)
 
 
-Enums = dict[str, list[dict[str, str]]]
+Enums = Mapping[str, Sequence[Mapping[str, str]]] | None
 
 #: Each ``StaticMetadata``'s last merge: the very ``enums`` object it read (held, so its id cannot be reused by
 #: another), the mode name, and the result.
 _LAST_MERGE: weakref.WeakKeyDictionary[StaticMetadata, tuple[Enums, str, MergedEnums]] = weakref.WeakKeyDictionary()
 
 
-def merge_enumerations(enums: Enums, static: StaticMetadata, mode_name: str) -> MergedEnums:
-    """Attach static prose to live enumeration items.
+def merge_enumerations(view: EngineView, static: StaticMetadata, mode_name: str) -> MergedEnums:
+    """Attach static prose to the live enumeration items of ``view``.
 
     Unmatched engine entries still render (static: null). Live facets (quality/focus/ratio in the description,
     apodizing in arg bit 0) stay on the engine item. The live enumerations are only ever replaced whole, never edited
-    in place, so the same ``enums`` object under the same mode returns the merge already built for it.
+    in place, so a view holding the same enumerations object under the same mode returns the merge already built
+    for it.
     """
     last = _LAST_MERGE.get(static)
-    if last is not None and last[0] is enums and last[1] == mode_name:
+    if last is not None and last[0] is view.enums and last[1] == mode_name:
         return last[2]
-    merged = _merge(enums, static, mode_name)
-    _LAST_MERGE[static] = (enums, mode_name, merged)
+    merged = _merge(view, static, mode_name)
+    _LAST_MERGE[static] = (view.enums, mode_name, merged)
     return merged
 
 
-def _merge(enums: Enums, static: StaticMetadata, mode_name: str) -> MergedEnums:
+def _merge(view: EngineView, static: StaticMetadata, mode_name: str) -> MergedEnums:
     """Build the merged lists ``merge_enumerations`` serves."""
-    filters: list[EnumFilterItem] = [
-        {
-            "index": item.get("index", ""),
-            "name": item["name"],
-            "value": item.get("value", ""),
-            "arg": item.get("arg", "0"),
-            "description": item.get("description", ""),
-            "apodizing": bool(int(item.get("arg", "0")) & 1),
-            "static": static.filter_entry(item["name"]),
-        }
-        for item in enums.get("filters", [])
-    ]
-    shapers: list[EnumShaperItem] = [
-        {
-            "index": item.get("index", ""),
-            "name": item["name"],
-            "value": item.get("value", ""),
-            "static": static.shaper_entry(item["name"], mode_name),
-        }
-        for item in enums.get("shapers", [])
-    ]
     return MergedEnums(
-        modes=enums.get("modes", []),
-        filters=filters,
-        shapers=shapers,
-        rates=enums.get("rates", []),
-        junk_filters=enums.get("junk_filters", []),
+        modes=view.each(Enumeration.MODES, dict),
+        filters=view.each(Enumeration.FILTERS, lambda item: _filter_item(item, static)),
+        shapers=view.each(Enumeration.SHAPERS, lambda item: _shaper_item(item, static, mode_name)),
+        rates=view.each(Enumeration.RATES, dict),
+        junk_filters=view.each(Enumeration.JUNK_FILTERS, dict),
     )
+
+
+def _filter_item(item: Mapping[str, str], static: StaticMetadata) -> EnumFilterItem:
+    """Return one live filters item with its static entry and apodizing flag attached."""
+    return {
+        "index": item.get("index", ""),
+        "name": item["name"],
+        "value": item.get("value", ""),
+        "arg": item.get("arg", "0"),
+        "description": item.get("description", ""),
+        "apodizing": bool(int(item.get("arg", "0")) & 1),
+        "static": static.filter_entry(item["name"]),
+    }
+
+
+def _shaper_item(item: Mapping[str, str], static: StaticMetadata, mode_name: str) -> EnumShaperItem:
+    """Return one live shapers item with the static entry ``mode_name``'s database gives it attached."""
+    return {
+        "index": item.get("index", ""),
+        "name": item["name"],
+        "value": item.get("value", ""),
+        "static": static.shaper_entry(item["name"], mode_name),
+    }
