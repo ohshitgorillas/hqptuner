@@ -315,10 +315,13 @@ ignore_missing_imports = true
 # engine/trackcontext.py, lanes/__init__.py, presets/__init__.py), which the
 # concrete ConnectionManager satisfies structurally.
 #
-# audit.py, config.py and metadata.py are deliberately outside the contract.
-# They are top-level modules that import nothing from any hqptuner subpackage,
-# so they are leaves of the internal graph and cannot form an upward edge; the
-# contract is not `exhaustive`, so unlisted siblings are simply unconstrained.
+# audit.py, config.py and metadata.py are top-level modules outside the
+# contract. It is not `exhaustive`, so their own imports are unconstrained, but
+# a chain running through them from a lower layer to a higher one still breaks
+# it. audit.py and config.py import only other top-level modules (audit.py
+# reaches `shape` through audit_narrow.py), so they reach no layer and any
+# layer may import them. Of the layers, metadata.py imports engine and fields,
+# and only api imports it, so every chain through it runs downward.
 [tool.importlinter]
 root_package = "hqptuner"
 exclude_type_checking_imports = false
