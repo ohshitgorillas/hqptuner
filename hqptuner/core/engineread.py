@@ -124,10 +124,15 @@ async def refresh_devices(mgr: "ConnectionManager") -> None:
     await mgr.refresh_http_forms()
 
 
-def current_mode_name(mgr: "ConnectionManager") -> str:
-    """Return the name the engine's mode enumeration gives State's mode index, or "" if either is missing."""
+def current_mode_index(view: EngineView) -> str | None:
+    """Return ``view``'s State mode index, read under the register's State key for mode, or None if unread."""
+    return (view.state or {}).get(query.live("mode").state)
+
+
+def current_mode_name(view: EngineView) -> str:
+    """Return the name ``view``'s mode enumeration gives its State mode index, or "" if either is missing."""
     live = query.live("mode")
-    index = (mgr.readings.state or {}).get(live.state)
+    index = current_mode_index(view)
     if index is None or live.enumeration is None:
         return ""
-    return EngineView.of(mgr.readings).name_at(live.enumeration, index) or ""
+    return view.name_at(live.enumeration, index) or ""
