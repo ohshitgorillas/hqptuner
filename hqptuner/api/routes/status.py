@@ -19,7 +19,7 @@ from hqptuner.core.engineread import LogTail
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
-from hqptuner.lanes.live import chain
+from hqptuner.engine.view import EngineView
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -92,12 +92,12 @@ def state(manager: Mgr) -> deps.Snapshot[dict[str, str | None]]:
     Served from the last-loaded copy, reachable daemon or not; 503 until the first frame has landed.
     """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
-    # engine currently has loaded (chain.active_chain — the configured mode when
+    # engine currently has loaded (EngineView.loaded_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
     live = manager.readings.state
-    data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
+    data = None if live is None else {**live, "active_chain": EngineView.of(manager.readings).loaded_chain()}
     return deps.snapshot(data)
 
 

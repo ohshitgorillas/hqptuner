@@ -26,7 +26,6 @@ from typing import TYPE_CHECKING, NamedTuple
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.view import EngineView
 from hqptuner.lanes.live import routing
-from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -95,7 +94,7 @@ async def chain_entered(mgr: LaneManager, client: ControlClient, before: str | N
     the whole of the next track. `reenumerated` says the caller already pulled
     fresh lists for a mode change, so this does not pull them twice.
     """
-    after = active_chain(mgr)
+    after = EngineView.of(mgr.readings).loaded_chain()
     if after is None or after == before:
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)

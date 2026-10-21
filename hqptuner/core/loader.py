@@ -27,10 +27,10 @@ from hqptuner.engine.controlerrors import (
     ResponseTooLargeError,
     UnparseableResponseError,
 )
+from hqptuner.engine.view import EngineView
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.live.chain import active_chain
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -226,7 +226,7 @@ async def _beat(mgr: ConnectionManager, client: ControlClient, cadence: Cadence)
     """Re-read State and Status; on the poll cadence or a mode move, the enumerations and the forms too."""
     before_state = mgr.readings.state
     before_mode = (before_state or {}).get("mode")
-    before_chain = active_chain(mgr)
+    before_chain = EngineView.of(mgr.readings).loaded_chain()
     fields = await _fast(client)
     now = mgr.clock.monotonic()
     due = poll_due(now, cadence.polled_at, mgr.cfg.poll_interval)
