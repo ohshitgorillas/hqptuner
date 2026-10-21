@@ -3,7 +3,8 @@
 The report compares two stamped Engine readings, the last verified one before the outcome
 and the first verified one after it, and replays nothing. A field goes on it by its
 config-form name with the value the Engine held
-before, named the way the enumeration names it. A field of a chain the after-reading has
+before, named the way the enumeration names it; an item with no name, a rate or a 0/1 flag,
+is named by its value. A field of a chain the after-reading has
 not loaded has no Engine value there, so nothing says it was dropped.
 
 Each reading is a table in the shapes the Control API answers in, with the enumerations of
@@ -89,14 +90,15 @@ class Held(NamedTuple):
 
     field: str
     moved: dict[str, str]
-    name: str | None
+    name: str
     value: str
 
 
 SINC_M = Held("filter", {"filterNx": "2"}, "sinc-M", "25")
 NS9 = Held("dither", {"shaper": "1"}, "NS9", "5")
 JUNK_20K = Held("junk_filter", {"filter_junk": "1"}, "20k", "1")
-ADAPTIVE_ON = Held("adaptive_volume", {"adaptive": "1"}, None, "1")
+ADAPTIVE_ON = Held("adaptive_volume", {"adaptive": "1"}, "1", "1")
+RATE_PIN = Held("rate", {"rate": "2"}, "352800", "352800")
 
 #: Each field the Engine no longer holds after the outcome, beside one it ran off the
 #: config file before and still runs after.
@@ -105,8 +107,9 @@ MOVES = {
     "dither": (NS9, JUNK_20K),
     "junk_filter": (JUNK_20K, ADAPTIVE_ON),
     "adaptive_volume": (ADAPTIVE_ON, SINC_M),
+    "rate": (RATE_PIN, NS9),
 }
-NAMED = {"filter": SINC_M, "dither": NS9, "junk_filter": JUNK_20K}
+NAMED = {"filter": SINC_M, "dither": NS9, "junk_filter": JUNK_20K, "adaptive_volume": ADAPTIVE_ON, "rate": RATE_PIN}
 CHAIN_FIELDS = {"filter": SINC_M, "dither": NS9}
 
 

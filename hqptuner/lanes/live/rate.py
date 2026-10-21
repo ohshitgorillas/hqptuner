@@ -14,7 +14,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, NamedTuple
 
-from hqptuner.lanes.live.chain import EnumItems, configured_chain
+from hqptuner.engine.view import EngineView
 
 if TYPE_CHECKING:
     from hqptuner.lanes import LaneManager
@@ -26,19 +26,6 @@ RATE = "rate"
 SETTING = "rate"
 
 
-def _index_for(items: EnumItems, hz: str) -> str | None:
-    """Return the ``RatesItem`` index carrying this rate in Hz, or None when the list lacks it."""
-    for item in items:
-        if str(item.get("rate")) == str(hz):
-            index = item.get("index")
-            return None if index is None else str(index)
-    return None
-
-
-def _rates(mgr: LaneManager) -> EnumItems:
-    return (mgr.readings.enums or {}).get("rates") or []
-
-
 class PinRoute(NamedTuple):
     """A LIVE batch's ``rate``: its ``writer.apply_live`` edit, or the reason it is refused, keyed ``rate``."""
 
@@ -46,7 +33,7 @@ class PinRoute(NamedTuple):
     reasons: dict[str, str]
 
 
-def _refusal(mgr: LaneManager, fields: dict[str, str], index: str | None) -> str | None:
+def _refusal(view: EngineView, fields: dict[str, str], index: str | None) -> str | None:
     """Return why the batch cannot pin its rate, or None when it can.
 
     Alone in its batch, because the mode and the filter both swap the rate list
@@ -55,7 +42,7 @@ def _refusal(mgr: LaneManager, fields: dict[str, str], index: str | None) -> str
     """
     if len(fields) > 1:
         return "a pinned rate cannot be batched with other live settings: the mode and the filter swap the rate list"
-    if configured_chain(mgr) is None:
+    if view.configured_chain() is None:
         return "no rate can be pinned unless the output mode is PCM or SDM"
     if index is None:
         return f"{fields[RATE]} is not in the engine's live rates list"
@@ -65,8 +52,9 @@ def _refusal(mgr: LaneManager, fields: dict[str, str], index: str | None) -> str
 def route(mgr: LaneManager, fields: dict[str, str]) -> PinRoute:
     """Resolve the ``rate`` in a LIVE batch to its ``SetRate`` index, or refuse it."""
     # The frontend sends a pin only under the Allow pinned rates preference (store/live/pin.js).
-    index = _index_for(_rates(mgr), fields[RATE])
-    why = _refusal(mgr, fields, index)
+    view = EngineView.of(mgr.readings)
+    index = view.index_of(RATE, fields[RATE])
+    why = _refusal(view, fields, index)
     if why is not None:
         return PinRoute({}, {RATE: why})
     # Every restore write sets the config file's fixed slot to auto (fields.query.forced),

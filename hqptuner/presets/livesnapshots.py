@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
 from hqptuner.fields.chain import PCM, SDM
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.live import lane, routing, snapshot
@@ -84,7 +85,7 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     """
     if wanted is None:
         return None
-    known = set(snapshot.SNAPSHOT_FIELDS)
+    known = set(query.snapshot_fields())
     unknown = [key for key in wanted if key not in known]
     if unknown:
         raise NotLiveSnapshotSettingsError(unknown=unknown)
@@ -149,7 +150,7 @@ def _given(
     manager: PresetManager, loaded_chain: str, keys: set[str] | None, values: dict[str, str]
 ) -> dict[str, dict[str, str]]:
     """Return each given value as ``{value, name}``; ``ValuesUnknownError`` naming each value the record cannot hold."""
-    allowed = set(snapshot.SNAPSHOT_FIELDS) if keys is None else keys
+    allowed = set(query.snapshot_fields()) if keys is None else keys
     given: dict[str, dict[str, str]] = {}
     reasons: dict[str, str] = {}
     for field, value in values.items():
