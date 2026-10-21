@@ -45,6 +45,25 @@ Lane reports returned inside a 200 body carry the same vocabulary per item: a fa
 
 Neither credential field is empty by default, since both fall back to hqplayerd's published stock pair, so a field's emptiness does not say whether the install has been configured; a password that is not the stock default does. `GET /api/connection` reports it as `has_password`, so the connection panel can tell a stored credential from a defaulted one. A blank password field in that panel keeps whichever credential is in force and never clears one.
 
+## Field readings
+
+`GET /api/config` answers every field with its Engine value, its File value and its Staged value, each stamped, and the lane the field writes on (`docs/spec/settings-truth.md` rule 3). The body is `{"generation": int, "fields": {key: FieldReading}}`, replaced whole on each read and never merged. A `FieldReading` has these members:
+
+- `engine`: `{"value", "name", "generation"}`, the Engine's last verified reading, `value` a list index, or `null` for a field off the loaded chain or not yet read.
+- `file`: `{"value", "generation"}`, the File's reading, `value` an enum ID or the form's own domain, or `null`.
+- `staged`: the pending buffer's value, or `null` when the stores already hold it (`core/pending.py`).
+- `lane`: one of `live`, `restore`, `form`, `matrix`, `volume` (`docs/spec/settings-classification.md`).
+- `show`: `engine` or `file`, the store the lane names for display; the client shows `reading[show]` and holds no lane table.
+- `restarts`: true when applying the field restarts the engine, which drives the restart mark.
+- `diverges`: true when the Engine and the File disagree, compared by the server in one domain; the client compares no list index with an enum ID.
+- `bounds`: `{"min", "max", "step"}` from the daemon form's own limits or from `VolumeRange`, or `null` where the daemon gives none, and then the control is unbounded. A unit is display copy and is not served.
+
+The client holds no per-field flag naming a store, a restart or a bound.
+
+## Health
+
+`GET /api/health` answers `{"phase", "generation", "connected_at", "credentials_ok"}`. `phase` is one of `Down`, `Reachable`, `Ready`, `Alarm` (`docs/spec/lifecycle.md`), and `generation` is the lifecycle policy's ordering token. `connected_at` stamps the current connection, and `credentials_ok` carries the management credentials' verdict, which does not move the phase. A client picks the page's one phase from `phase` and holds no reachable, ready or connected flag of its own.
+
 ## Meter feed
 
 The meters read the daemon's metering stream (`docs/spec/protocol.md` "Metering side channel") from `GET /api/meter/feed` as server-sent events, each an `event:` line naming it and a `data:` line of compact JSON. Two events are sent:

@@ -188,7 +188,7 @@ The client re-deriving the server's rule, and the client taking the server's ans
 const value = fileTruth[key] ? file[key] : form[key];
 
 // Holds: the server said which store answers; the client shows it.
-const value = reading[reading.lane];
+const value = reading[reading.show];
 ```
 
 A test that restates which value wins, and one that asserts the invariant. Shape only, not values to copy:
