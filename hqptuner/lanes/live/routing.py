@@ -83,9 +83,6 @@ def routable(rows: Iterable[Field]) -> dict[str, LiveField]:
 
 
 ROUTABLE: dict[str, LiveField] = routable(query.staged_routes())
-DIRECT: dict[str, str] = {
-    name: query.live(name).state for name in query.live_controls() if query.live(name).enumeration is None
-}
 
 
 def _complete_filter_pair(edits: dict[str, dict[str, str]], state: dict[str, str]) -> set[str]:

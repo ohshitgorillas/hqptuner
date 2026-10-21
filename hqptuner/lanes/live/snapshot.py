@@ -46,7 +46,7 @@ class ChainUnknownError(HQPTunerError):
         self.reasons = dict(_UNKNOWN_CHAIN)
 
 
-def _shown(field: str, reading: Reading) -> dict[str, str]:
+def shown(field: str, reading: Reading) -> dict[str, str]:
     """Return a reading as the ``{value, name}`` a snapshot holds, naming the default matrix, whose value is empty."""
     name = reading.name
     if not name and query.live(field).join is Join.PROFILE_NAME:
@@ -74,4 +74,4 @@ def live_snapshot(mgr: LaneManager) -> LiveSnapshot:
     if chain is None:
         raise ChainUnknownError
     readings = ((field, view.read(field)) for field in query.snapshot_fields())
-    return LiveSnapshot(chain, {field: _shown(field, reading) for field, reading in readings if reading is not None})
+    return LiveSnapshot(chain, {field: shown(field, reading) for field, reading in readings if reading is not None})
