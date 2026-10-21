@@ -34,6 +34,7 @@ from hqptuner.conf.matrixprofiles import (
     backfill_profile_chains,
     delete_profile,
     profile_names,
+    profile_to_adopt,
     read_profiles,
     write_profile,
 )
@@ -137,18 +138,6 @@ def _apply_profile_edits(xml: bytes, verbs: dict[str, str], audit: AuditLog) -> 
     return xml
 
 
-def _profile_to_materialize(edits: dict[str, str], profile: str | None) -> str | None:
-    """Return the profile whose matrix this apply should install as the live one.
-
-    ``None`` when nothing is active, and ``None`` too when this very apply deletes it, since a matrix about to be
-    removed is not one to adopt.
-    """
-    delete = kept_at(Codec.PROFILE_DELETE)
-    if not profile or delete not in edits:
-        return profile
-    return None if parse_delete(edits[delete])[0] == profile else profile
-
-
 def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None, profile: str | None = None) -> bytes:
     """Return ``xml`` with each staged form-field edit applied surgically.
 
@@ -173,7 +162,7 @@ def apply_edits(xml: bytes, edits: dict[str, str], audit: AuditLog | None = None
     # to copy from. Backfilling first gives it the chain the user is running, which
     # materialize then puts back where it came from.
     xml = backfill_profile_chains(xml)
-    adopt = _profile_to_materialize(edits, profile)
+    adopt = profile_to_adopt(edits, profile or "")
     if adopt:
         xml = materialize_profile(xml, adopt)
     profile_verbs = _pop_profile_edits(remaining)

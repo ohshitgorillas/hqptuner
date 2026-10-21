@@ -22,11 +22,11 @@ import re
 from typing import TypedDict
 
 from hqptuner.conf.matrixconf import live_post_process, pipeline_tag, rows_of
-from hqptuner.conf.matrixpayload import parse_save, validate_name
+from hqptuner.conf.matrixpayload import parse_delete, parse_save, validate_name
 from hqptuner.conf.matrixscope import attr_escape, attr_unescape
 from hqptuner.conf.xmledit import GroundingError, ensure_element, in_comment
-from hqptuner.fields.model import Plugin
-from hqptuner.fields.query import by_plugin
+from hqptuner.fields.model import Codec, Plugin
+from hqptuner.fields.query import by_plugin, kept_at
 
 
 class MatrixAbsentError(GroundingError):
@@ -35,6 +35,18 @@ class MatrixAbsentError(GroundingError):
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__("the matrix element is absent from this snapshot", code="matrix-absent")
+
+
+def profile_to_adopt(edits: dict[str, str], active: str) -> str:
+    """Return the matrix profile an apply carrying ``edits`` adopts as the live matrix, ``""`` for none.
+
+    ``active`` is the profile the engine is on, ``""`` for the default matrix. A profile this very apply deletes
+    is not adopted, since a matrix about to be removed is not one to install.
+    """
+    delete = kept_at(Codec.PROFILE_DELETE)
+    if not active or delete not in edits:
+        return active
+    return "" if parse_delete(edits[delete])[0] == active else active
 
 
 def _profile_re(name: str) -> re.Pattern[bytes]:

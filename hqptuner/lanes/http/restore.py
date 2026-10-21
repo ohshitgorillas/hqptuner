@@ -23,7 +23,7 @@ import httpx
 
 from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth, presetconf, presetzip
-from hqptuner.conf.matrixpayload import parse_delete
+from hqptuner.conf.matrixprofiles import profile_to_adopt
 from hqptuner.conf.matrixscope import has_profile
 from hqptuner.errors import HQPTunerError
 from hqptuner.fields import query
@@ -214,7 +214,7 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
-    active_profile = "" if switched else _active_profile(mgr, edits)
+    active_profile = "" if switched else profile_to_adopt(edits, (mgr.readings.state or {}).get("matrix_profile", ""))
     # the first pass the daemon accepts stamps it, not each one: a pass refused
     # with 503 and the next one adopted are one restore the caller has to outlast
     mark: settle.Mark | None = None
@@ -267,18 +267,6 @@ async def _outcome(
     if verdict.unfixable is None:
         return RestoreUnconverged(verdict.diff)
     return RestoreUnavailable(verdict.diff, {query.kept_at(Codec.NET_DEVICE): verdict.unfixable})
-
-
-def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
-    """Return the matrix profile this apply should install as the live matrix.
-
-    Empty for the default matrix, and empty too when this batch deletes the
-    profile that is active — a matrix about to be removed is not one to adopt.
-    """
-    name = (mgr.readings.state or {}).get("matrix_profile", "")
-    if not name or query.kept_at(Codec.PROFILE_DELETE) not in edits:
-        return name
-    return "" if parse_delete(edits[query.kept_at(Codec.PROFILE_DELETE)])[0] == name else name
 
 
 async def _judge(
