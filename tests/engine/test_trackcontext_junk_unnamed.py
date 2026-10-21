@@ -29,11 +29,11 @@ STATUS = {"state": "2", "active_mode": "PCM", "active_filter": "poly-sinc-gauss-
 GENERATION = 1
 
 
-def _junk_filter(junk_index: str | None) -> str | None:
+def _junk_filter(junk_index: str | None, items: list[dict[str, str]] = JUNK_FILTERS) -> str | None:
     """Read the context's junk filter off a bare manager whose State carries ``junk_index`` (none when None)."""
     mgr = ConnectionManager(Config(), clock=VirtualClock())
     state = STATE if junk_index is None else {**STATE, "filter_junk": junk_index}
-    mgr.readings.take_engine(GENERATION, state=state, status=STATUS, enums={"junk_filters": JUNK_FILTERS})
+    mgr.readings.take_engine(GENERATION, state=state, status=STATUS, enums={"junk_filters": items})
     context = context_from(mgr)
     return None if context is None else context.junk_filter
 
@@ -44,3 +44,8 @@ def test_junk_filter_is_unnamed_when_state_reports_no_junk_index() -> None:
 
 def test_junk_filter_is_unnamed_at_an_index_the_enumeration_does_not_list() -> None:
     assert [_junk_filter(UNLISTED), _junk_filter(LISTED)] == [None, JUNK_20K]
+
+
+def test_junk_filter_is_unnamed_at_a_listed_item_that_carries_no_name() -> None:
+    nameless = [{"index": "0", "name": "none"}, {"index": LISTED}]
+    assert [_junk_filter(LISTED, nameless), _junk_filter("0", nameless)] == [None, "none"]

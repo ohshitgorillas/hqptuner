@@ -19,7 +19,9 @@ import logging
 from typing import TYPE_CHECKING
 
 from hqptuner.engine.trackcontext import context_from
+from hqptuner.engine.view import EngineView
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields.model import Enumeration
 from hqptuner.lanes import autopilot
 from hqptuner.lanes.live import lane
 
@@ -32,11 +34,6 @@ log = logging.getLogger(__name__)
 def _enabled(mgr: ConnectionManager) -> bool:
     """Return whether auto-pilot is on; a corrupt or unreadable store raises."""
     return mgr.presetops.autopilot.enabled
-
-
-def _junk_filters(mgr: ConnectionManager) -> list[dict[str, str]]:
-    """Return the running junk-filter enumeration, empty until the engine has answered for it."""
-    return (mgr.readings.enums or {}).get("junk_filters") or []
 
 
 def _move(mgr: ConnectionManager) -> tuple[str, str | None] | None:
@@ -67,7 +64,7 @@ async def act(mgr: ConnectionManager) -> None:
         if move is None:
             return
         want, engaged = move
-        index = autopilot.junk_filter_index(_junk_filters(mgr), want)
+        index = EngineView.of(mgr.readings).index_named(Enumeration.JUNK_FILTERS, want)
         if index is None:
             log.warning("auto-pilot wanted junk filter %r, which the running enumeration does not carry", want)
             return

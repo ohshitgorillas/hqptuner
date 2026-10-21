@@ -233,7 +233,7 @@ def _mode_apart(http_fields: dict[str, str]) -> str | None:
     its config file, so the mode belongs in that file with the rest of the batch,
     not on a live setter the restore would immediately overwrite.
     """
-    if any(field not in routing.ROUTABLE for field in http_fields):
+    if any(not routing.is_staged_route(field) for field in http_fields):
         return None
     return http_fields.get("mode")
 

@@ -12,6 +12,8 @@ import httpx
 
 from hqptuner.core.readings import Readings
 from hqptuner.engine import devicecaps, logtail
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes import settle
 
 if TYPE_CHECKING:
@@ -124,11 +126,8 @@ async def refresh_devices(mgr: "ConnectionManager") -> None:
 
 def current_mode_name(mgr: "ConnectionManager") -> str:
     """Return the name the engine's mode enumeration gives State's mode index, or "" if either is missing."""
-    readings = mgr.readings
-    if not readings.state or not readings.enums:
+    live = query.live("mode")
+    index = (mgr.readings.state or {}).get(live.state)
+    if index is None or live.enumeration is None:
         return ""
-    idx = readings.state.get("mode", "")
-    for item in readings.enums.get("modes", []):
-        if item.get("index") == idx:
-            return item.get("name", "")
-    return ""
+    return EngineView.of(mgr.readings).name_at(live.enumeration, index) or ""

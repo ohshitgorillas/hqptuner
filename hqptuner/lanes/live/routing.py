@@ -25,7 +25,7 @@ only slower. A field routes live only when the whole translation succeeds.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, NamedTuple
+from typing import TYPE_CHECKING
 
 from hqptuner.engine.view import Cause, EngineView, Refusal, is_mode, says
 from hqptuner.errors import HQPTunerError
@@ -33,19 +33,12 @@ from hqptuner.fields import query
 from hqptuner.lanes.live import rate
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from hqptuner.fields.model import Chain, Enumeration, Field
     from hqptuner.lanes import LaneManager
 
 
 def _target(field: str) -> tuple[str, str] | None:
     """Return the setting key and argument the live lane writes ``field`` under, none for a field it does not take."""
-    return _target_of(query.field(field))
-
-
-def _target_of(row: Field | None) -> tuple[str, str] | None:
-    """Return the setting key and argument the live lane writes ``row`` under, none for a row it does not take."""
+    row = query.field(field)
     if row is None or row.live is None or not row.live_control:
         return None
     command = row.live.setter
@@ -58,31 +51,10 @@ def _setting_of(field: str) -> str | None:
     return None if target is None else target[0]
 
 
-class LiveField(NamedTuple):
-    """How one config-form field maps onto a Control API setter."""
-
-    setting: str
-    arg: str
-    enum: Enumeration
-    chain: Chain | None
-    state: str
-
-
-def routable(rows: Iterable[Field]) -> dict[str, LiveField]:
-    """Return the fields of ``rows`` a staged form edit may write live; a row with no setter raises ``KeyError``."""
-    found = {}
-    for row in rows:
-        target = _target_of(row)
-        if target is None:
-            raise KeyError(row.name)
-        setting, arg = target
-        live = query.live(row.name)
-        if live.enumeration is not None:
-            found[row.name] = LiveField(setting, arg, live.enumeration, live.chain, live.state)
-    return found
-
-
-ROUTABLE: dict[str, LiveField] = routable(query.staged_routes())
+def is_staged_route(field: str) -> bool:
+    """Return whether a staged form edit of ``field`` may write live."""
+    row = query.field(field)
+    return row is not None and row.staged_route
 
 
 def _complete_filter_pair(edits: dict[str, dict[str, str]], state: dict[str, str]) -> set[str]:
@@ -155,8 +127,7 @@ def split_live(
     file, and a value applied live never reaches that file, so a split batch would
     boot the daemon straight back onto the values it just replaced.
     """
-    staged = {row.name for row in query.staged_routes()}
-    routable = {k: v for k, v in http_fields.items() if k in staged}
+    routable = {k: v for k, v in http_fields.items() if is_staged_route(k)}
     if not routable or _mode_blocks_batch(routable) is not None:
         return live_edits, dict(http_fields)
     live, routed = _route_all(EngineView.of(mgr.readings), routable)
