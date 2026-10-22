@@ -1,0 +1,5 @@
+"""A module with one routing table and one table keyed by other words."""
+
+ROUTES = {"@A@": "live", "@B@": "restore"}
+
+COLORS = {"amber": "warn", "teal": "ok"}

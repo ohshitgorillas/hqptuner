@@ -1,0 +1,6 @@
+PARENT = {"mode": "engine", "dither": "output"}
+
+
+def options(snapshot):
+    for item in snapshot.enums["filters"]:
+        yield item

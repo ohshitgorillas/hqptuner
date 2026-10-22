@@ -1,0 +1,3 @@
+"""A module that keeps its own annotated routing table."""
+
+ROUTES: dict[str, str] = {"@A@": "live", "@B@": "restore"}

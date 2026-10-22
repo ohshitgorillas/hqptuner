@@ -1,0 +1,6 @@
+"""A module that walks one enumeration list with a list comprehension."""
+
+
+def names(reading):
+    labels = [item.get("name", "") for item in reading.enums["@NAME@"]]
+    return labels

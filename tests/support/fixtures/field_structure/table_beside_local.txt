@@ -1,0 +1,8 @@
+"""A module with one routing table and one built inside a function."""
+
+ROUTES = {"@A@": "live", "@B@": "restore"}
+
+
+def routes() -> dict[str, str]:
+    """The routes, built fresh on each call."""
+    return {"@A@": "live", "@B@": "restore"}

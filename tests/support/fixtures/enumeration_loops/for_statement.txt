@@ -1,0 +1,10 @@
+"""A module that walks one enumeration list with a for statement."""
+
+MISSING = None
+
+
+def index_of(snapshot, enum_id):
+    for item in snapshot.enums["@NAME@"]:
+        if item.get("value") == enum_id:
+            return item["index"]
+    return MISSING
