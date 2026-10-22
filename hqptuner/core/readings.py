@@ -116,6 +116,7 @@ class Readings:
     matrix_error: str | None = None
     speakers_error: str | None = None
     credentials_ok: bool | None = None
+    address_found: bool | None = None
     info: dict[str, str] | None = None  # engine, GetInfo attributes as text
     license: dict[str, str] | None = None  # engine, GetLicense attributes as text
     release: str | None = None  # engine, the installed release off the 8088 /about page as text, None until read
@@ -131,6 +132,12 @@ class Readings:
     held: EngineSnapshot | None = None
     on_change: Callable[[], None] = field(default=_unheard, repr=False, compare=False)
     _source_stamps: dict[tuple[Source, str], Stamp | None] = field(default_factory=dict, init=False, repr=False)
+
+    def take_address(self, *, found: bool | None) -> None:
+        """Record the dial's address verdict and notify when it changes."""
+        if self.address_found != found:
+            self.address_found = found
+            self.on_change()
 
     def take_engine(self, generation: int, **fields: Unpack[EngineFields]) -> None:
         """Take one Engine reading read in ``generation``; a field it does not carry keeps its reading."""

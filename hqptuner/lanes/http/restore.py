@@ -34,6 +34,7 @@ from hqptuner.lanes.http import forms
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from collections.abc import Callable
 
+    from hqptuner.conf.httpconf import HttpConfigClient
     from hqptuner.lanes import LaneManager
     from hqptuner.lanes.http.storecarry import StoreHooks
 
@@ -225,14 +226,15 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
         # active label flips before the restart finishes — wait for the HTTP lane
         # to actually serve before writing, rather than racing it
         await settle.await_serving(mgr)
+        http = mgr.require_http()
         try:
-            pushed = await _restore_once(mgr, merged, hooks, active_profile)
+            pushed = await _restore_once(mgr, http, merged, hooks, active_profile)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
-            forms.record_credentials(mgr, accepted=False)
+            forms.record_credentials(mgr, http, accepted=False)
             declined = forms.decline(mgr)
             if declined is not None:
                 raise declined from exc
@@ -292,6 +294,7 @@ async def _judge(
 
 async def _restore_once(
     mgr: LaneManager,
+    http: HttpConfigClient,
     merged: dict[str, str],
     hooks: StoreHooks,
     active_profile: str = "",
@@ -303,7 +306,7 @@ async def _restore_once(
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
-    backup = await mgr.require_http().backup()
+    backup = await http.backup()
     hooks.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
@@ -326,7 +329,7 @@ async def _restore_once(
     mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    accepted = await settle.restart(mgr, lambda: mgr.require_http().restore(restore_zip, "system"))
+    accepted = await settle.restart(mgr, lambda: http.restore(restore_zip, "system"))
     return Pushed(presetconf.read_config(intended_xml), accepted)
 
 

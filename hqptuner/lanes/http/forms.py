@@ -46,6 +46,7 @@ class FormsRefresh:
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from hqptuner.conf.httpconf import HttpConfigClient
     from hqptuner.conf.httpforms import ConfigForm, SpeakersForm
     from hqptuner.lanes import LaneManager
 
@@ -85,7 +86,7 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
         lambda e: readings.take_file(speakers_error=e),
     )
     if http.credentials_ok is not None:
-        record_credentials(mgr, accepted=http.credentials_ok)
+        record_credentials(mgr, http, accepted=http.credentials_ok)
     return FormsRefresh(_outcome(mgr))
 
 
@@ -132,7 +133,7 @@ def _outcome(mgr: LaneManager) -> FormsOutcome:
     return FormsOutcome.NO_ANSWER
 
 
-def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
+def record_credentials(mgr: LaneManager, source: HttpConfigClient, *, accepted: bool) -> None:
     """Record what the 8088 lane just proved about the credentials, logging only the transition.
 
     The one writer of ``readings.credentials_ok``: the poll records the client's verdict here, and a restore pass
@@ -141,7 +142,7 @@ def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
     Per poll would put the same line in the log every two seconds for as long as
     the install stays broken, which is how a real report gets scrolled past.
     """
-    if not mgr.readings.take_file(credentials_ok=accepted):
+    if source is not mgr.http_client or not mgr.readings.take_file(credentials_ok=accepted):
         return
     if accepted:
         log.info("hqplayerd management credentials accepted")

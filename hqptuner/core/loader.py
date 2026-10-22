@@ -165,17 +165,29 @@ async def connect(mgr: ConnectionManager, cadence: Cadence) -> None:
     """
     cfg = mgr.cfg
     client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
+    mgr.dialing = client
     try:
         await client.connect()
+        if not still_stands(mgr.dialing, client):
+            return
+        mgr.readings.take_address(found=client.dial_outcome.address_found)
         info = await client.get_info()
     except ControlError as exc:
         log.debug("control dial turned away: %s", exc)
-        await client.close()
-        mgr.phase.report(Fact.DIAL_REFUSED, mgr.clock.monotonic())
+        if still_stands(mgr.dialing, client):
+            mgr.readings.take_address(found=client.dial_outcome.address_found)
+            mgr.phase.report(Fact.DIAL_REFUSED, mgr.clock.monotonic())
     else:
+        if not still_stands(mgr.dialing, client):
+            return
         mgr.control = client
         mgr.phase.report(Fact.GETINFO_ANSWERED, mgr.clock.monotonic())
         await _stand(mgr, client, cadence, info)
+    finally:
+        if still_stands(mgr.dialing, client):
+            mgr.dialing = None
+        if not still_stands(mgr.control, client):
+            await client.close()
 
 
 async def _stand(mgr: ConnectionManager, client: ControlClient, cadence: Cadence, info: dict[str, str]) -> None:

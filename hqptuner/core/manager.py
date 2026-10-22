@@ -99,6 +99,7 @@ class ConnectionManager:
         self.live_writes = asyncio.Lock()
         self.metering: MeteringReader | None = None
         self.control: ControlClient | None = None
+        self.dialing: ControlClient | None = None
         self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic())
         self.changed = self.phase.changed
         self._supervisor = _Supervisor(self)
@@ -150,7 +151,10 @@ class ConnectionManager:
         its ``finally`` to close. The connect body reads the configured address on every dial. The metering reader
         dials its own socket, so it is pointed at the configured host and metering port separately.
         """
+        self.dialing = None
         self.phase.report(Fact.SOCKET_CLOSED, self.clock.monotonic())
+        self.readings.take_address(found=None)
+        self.readings.take_file(credentials_ok=None)
         self.readings.break_engine()
         control, self.control = self.control, None
         if control is not None:
