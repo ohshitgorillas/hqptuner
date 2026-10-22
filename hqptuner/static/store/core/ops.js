@@ -1,6 +1,6 @@
 // The write lifecycle: busy, error, latest-wins and the alert lines every write reports on.
 
-import { computed, signal } from "@preact/signals";
+import { batch, computed, signal } from "@preact/signals";
 
 /** @typedef {"apply" | "live" | "snapshot" | "description" | "favorite" | "narrowing"} Area */
 
@@ -10,41 +10,92 @@ export const FAILED = Symbol("FAILED");
 /** What a `latest()` call resolves to when a later call started first. */
 export const STALE = Symbol("STALE");
 
-/** The one lead constant. */
-export const LEAD = 0;
+/** @type {Record<string, string>} */
+export const LEADS = {};
+
+const engineRuns = signal(0);
+const areaErrors = signal(/** @type {Map<string, unknown>} */ (new Map()));
+
+/** @param {string | null} area @param {unknown[]} errors */
+function updateArea(area, errors) {
+  if (area === null) return;
+  const next = new Map(areaErrors.peek());
+  next.delete(area);
+  for (const error of errors) next.set(area, error);
+  areaErrors.value = next;
+}
 
 /**
  * @template T
  * @typedef {object} Op
  * @property {{ readonly value: boolean }} busy
  * @property {{ readonly value: unknown }} error
- * @property {(fn: () => Promise<T>) => Promise<T | typeof FAILED>} run
+ * @property {string | null} lead
+ * @property {(fn: () => T | Promise<T>) => Promise<T | typeof FAILED>} run
  * @property {() => void} clear
  */
 
 /**
  * One write area's lifecycle: busy, error, and the run that sets them.
  *
- * @param {Area} _area
- * @param {{ engine?: boolean, alert?: Area | null }} [_opts]
+ * @param {string} kind
+ * @param {{ engine?: boolean, alert?: string | null }} [options]
  * @returns {Op<any>}
  */
-export const op = (_area, _opts) => ({
-  busy: signal(false),
-  error: signal(null),
-  run: async () => FAILED,
-  clear: () => {},
-});
+export function op(kind, { engine = false, alert = kind } = {}) {
+  const busy = signal(false);
+  const error = signal(/** @type {unknown} */ (null));
+  let pending = 0;
+  const clear = () =>
+    batch(() => {
+      error.value = null;
+      updateArea(alert, []);
+    });
+  /** @param {() => any} fn */
+  const run = async (fn) => {
+    batch(() => {
+      pending += 1;
+      busy.value = true;
+      if (engine) engineRuns.value = engineRuns.peek() + 1;
+    });
+    try {
+      const result = await fn();
+      clear();
+      return result;
+    } catch (caught) {
+      batch(() => {
+        error.value = caught;
+        updateArea(alert, [caught]);
+      });
+      return FAILED;
+    } finally {
+      batch(() => {
+        pending -= 1;
+        busy.value = pending > 0;
+        if (engine) engineRuns.value = engineRuns.peek() - 1;
+      });
+    }
+  };
+  const lead = Object.hasOwn(LEADS, kind) ? LEADS[kind] : null;
+  return { busy, error, lead, run, clear };
+}
 
 /**
  * A wrapper under which only the most recent call's promise resolves to its value.
  *
  * @returns {<T>(promise: Promise<T>) => Promise<T | typeof STALE>}
  */
-export const latest = () => async () => STALE;
+export function latest() {
+  let sequence = 0;
+  return async (promise) => {
+    const current = ++sequence;
+    const result = await promise;
+    return current === sequence ? result : STALE;
+  };
+}
 
 /** True while an engine write runs. */
-export const inFlight = computed(() => false);
+export const inFlight = computed(() => engineRuns.value > 0);
 
-/** One entry per failing area. @type {{ readonly value: { area: Area, error: unknown }[] }} */
-export const failures = computed(() => []);
+/** One entry per failing area. @type {{ readonly value: { area: string, error: unknown }[] }} */
+export const failures = computed(() => Array.from(areaErrors.value, ([area, error]) => ({ area, error })));
