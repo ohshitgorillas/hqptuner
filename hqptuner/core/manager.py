@@ -121,6 +121,7 @@ class ConnectionManager:
         if self._http is not None:
             self._retired.append(self._http)
         self._http = client
+        self.readings.break_file()
 
     async def run(self) -> None:
         """Keep the daemon connected until ``stop``, entering the connect loop again after a fault's retry delay."""
@@ -152,6 +153,7 @@ class ConnectionManager:
         dials its own socket, so it is pointed at the configured host and metering port separately.
         """
         self.dialing = None
+        self.readings.break_file()
         self.phase.report(Fact.SOCKET_CLOSED, self.clock.monotonic())
         self.readings.take_address(found=None)
         self.readings.take_file(credentials_ok=None)

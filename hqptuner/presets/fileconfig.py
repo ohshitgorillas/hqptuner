@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING
 from hqptuner.conf import engineconf, presetconf
 
 if TYPE_CHECKING:
+    from hqptuner.lanes import FileAcquisition
     from hqptuner.presets import PresetManager
 
 
@@ -20,19 +21,33 @@ async def read_engine(mgr: "PresetManager") -> dict[str, str]:
     That backup is the only lane that carries them — they are not on the form.
     """
     generation = mgr.phase.standing.generation
-    backup = await mgr.require_http().backup()
+    acquisition = mgr.readings.acquire_file("engine")
+    source = mgr.require_http()
+    backup = await source.backup()
     engine = engineconf.read_engine_attrs(engineconf.base_config_xml(backup, mgr.readings.active_config))
-    record_engine(mgr, engine, generation=generation)
+    if source is mgr.http_client:
+        record_engine(mgr, engine, generation=generation, acquisition=acquisition)
     return engine
 
 
-def record_engine(mgr: "PresetManager", engine: dict[str, str], *, generation: int | None = None) -> None:
+def record_engine(
+    mgr: "PresetManager",
+    engine: dict[str, str],
+    *,
+    generation: int | None = None,
+    acquisition: "FileAcquisition | None" = None,
+) -> None:
     """Record ``engine`` as the File's engine-tag attributes: the one writer of ``readings.engine``."""
-    mgr.readings.take_file(generation=generation, engine=engine)
+    if acquisition is None or mgr.readings.file_current(acquisition):
+        mgr.readings.take_file(generation=generation, engine=engine)
 
 
 async def load_file_config(
-    mgr: "PresetManager", *, backup: bytes | None = None, generation: int | None = None
+    mgr: "PresetManager",
+    *,
+    backup: bytes | None = None,
+    generation: int | None = None,
+    acquisition: "FileAcquisition | None" = None,
 ) -> dict[str, str]:
     """Read running config from the backup archive's working ``hqplayerd.xml``, in form-field terms.
 
@@ -42,15 +57,24 @@ async def load_file_config(
     """
     if backup is None:
         generation = mgr.phase.standing.generation
-        backup = await mgr.require_http().backup()
-    return record_file_config(mgr, backup, generation=generation)
+        acquisition = mgr.readings.acquire_file("file_config")
+        source = mgr.require_http()
+        backup = await source.backup()
+    return record_file_config(mgr, backup, generation=generation, acquisition=acquisition)
 
 
-def record_file_config(mgr: "PresetManager", backup: bytes, *, generation: int | None = None) -> dict[str, str]:
+def record_file_config(
+    mgr: "PresetManager",
+    backup: bytes,
+    *,
+    generation: int | None = None,
+    acquisition: "FileAcquisition | None" = None,
+) -> dict[str, str]:
     """Read ``backup``'s working ``hqplayerd.xml`` into form-field terms, record it as the file truth, and return it.
 
     Raises ``engineconf.UnreadableArchiveError`` for bytes that are not a readable archive, recording nothing.
     """
     file_config = presetconf.read_config(engineconf.base_config_xml(backup, mgr.readings.active_config))
-    mgr.readings.take_file(generation=generation, file_config=file_config)
+    if acquisition is None or mgr.readings.file_current(acquisition):
+        mgr.readings.take_file(generation=generation, file_config=file_config)
     return file_config

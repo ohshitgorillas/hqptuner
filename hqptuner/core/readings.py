@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import TYPE_CHECKING, TypedDict, Unpack
 
+from hqptuner.lanes import FileAcquisition, FileSourceOwner
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -96,8 +98,8 @@ class Readings:
     """Every store's current reading, empty until a lane fills it.
 
     The Engine readings live until the next break: after one they read as not
-    read yet until the next reading. The File readings live until the next
-    write to the File and no Engine break touches them. ``on_change`` runs
+    read yet until the next reading. File readings survive writes until a fresh
+    acquisition replaces them, and no Engine break touches them. ``on_change`` runs
     whenever a reading or a break moves the Engine view, and whenever a File
     reading moves the File readings, so whoever relays them hears of it when
     they move.
@@ -132,6 +134,25 @@ class Readings:
     held: EngineSnapshot | None = None
     on_change: Callable[[], None] = field(default=_unheard, repr=False, compare=False)
     _source_stamps: dict[tuple[Source, str], Stamp | None] = field(default_factory=dict, init=False, repr=False)
+    _file_owners: dict[str, FileSourceOwner] = field(
+        default_factory=lambda: {name: FileSourceOwner(name) for name in FILE_PAYLOADS},
+        init=False,
+        repr=False,
+        compare=False,
+    )
+
+    def acquire_file(self, *payloads: str) -> FileAcquisition:
+        """Capture ownership of the named File sources, or all sources when omitted."""
+        return FileAcquisition(owners=tuple(self._file_owners[name] for name in payloads or FILE_PAYLOADS))
+
+    def file_current(self, acquisition: FileAcquisition) -> bool:
+        """Answer whether every captured File source still owns its acquisition."""
+        return all(self._file_owners[owner.payload] is owner for owner in acquisition.owners)
+
+    def break_file(self, *payloads: str) -> None:
+        """Retire acquisitions for the named File sources while retaining their readings."""
+        for name in payloads or FILE_PAYLOADS:
+            self._file_owners[name] = FileSourceOwner(name)
 
     def take_address(self, *, found: bool | None) -> None:
         """Record the dial's address verdict and notify when it changes."""

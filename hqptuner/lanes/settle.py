@@ -37,13 +37,18 @@ class _BeforeAny:
     at = 0.0
 
 
-async def restart(mgr: LaneManager, request: Callable[[], Awaitable[object]]) -> Mark:
+async def restart(
+    mgr: LaneManager, request: Callable[[], Awaitable[object]], *, file_sources: tuple[str, ...] = ()
+) -> Mark:
     """Send ``request``, which restarts or reloads the daemon, and return the stamp to wait on.
 
     The stamp is written as the daemon accepts the request, and the control socket is taken down after it. A
     request that raises leaves no stamp and takes nothing down.
     """
+    source = mgr.http_client
     await request()
+    if source is mgr.http_client:
+        mgr.readings.break_file(*file_sources)
     mark: Mark = mgr.phase.request_accepted(mgr.clock.monotonic())
     await mgr.take_control_down(_TAKEN_DOWN)
     return mark

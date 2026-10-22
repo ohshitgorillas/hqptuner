@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Protocol, TypedDict, TypeVar, Unpack
 
 if TYPE_CHECKING:
@@ -17,6 +18,20 @@ if TYPE_CHECKING:
     from hqptuner.engine.devicecaps import DeviceCaps
     from hqptuner.engine.logtail import LogReader
     from hqptuner.lanes.http.forms import FormsOutcome
+
+
+@dataclass(frozen=True, eq=False)
+class FileSourceOwner:
+    """An identity owning acquisitions of one File payload."""
+
+    payload: str
+
+
+@dataclass(frozen=True)
+class FileAcquisition:
+    """Ownership identities captured for the File sources a request reads."""
+
+    owners: tuple[FileSourceOwner, ...]
 
 
 class LaneEngineFields(TypedDict, total=False):
@@ -163,6 +178,15 @@ class LaneReadings(Protocol):
 
     def take_file(self, generation: int | None = None, **fields: Unpack[LaneFileFields]) -> bool:
         """Take one File reading and answer whether it moved them."""
+
+    def acquire_file(self, *payloads: str) -> FileAcquisition:
+        """Capture ownership of the named File sources, or all sources when omitted."""
+
+    def file_current(self, acquisition: FileAcquisition) -> bool:
+        """Answer whether every captured File source still owns its acquisition."""
+
+    def break_file(self, *payloads: str) -> None:
+        """Retire acquisitions for the named File sources while retaining their readings."""
 
     def engine_snapshot(self) -> LaneEngineSnapshot | None:
         """Return the current Engine view, or ``None`` when nothing was read since the last break."""

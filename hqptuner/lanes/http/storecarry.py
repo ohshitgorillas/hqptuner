@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from hqptuner.lanes import FileAcquisition
+
 
 @dataclass(frozen=True)
 class StoreHooks:
@@ -26,7 +28,7 @@ class StoreHooks:
     config's file truth, recorded by its owner in ``presets``, and returns it.
     """
 
-    file_config: Callable[[bytes, int], dict[str, str]]
+    file_config: Callable[[bytes, int, FileAcquisition], dict[str, str]]
     persist_backup: Callable[[bytes], object]
     parked_members: Callable[[], dict[str, bytes]]
     mirror: Callable[[bytes], dict[str, bytes]]

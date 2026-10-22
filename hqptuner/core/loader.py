@@ -315,14 +315,20 @@ async def _load_backup(mgr: ConnectionManager, cadence: Cadence) -> None:
     and stays owed; the connection stands either way.
     """
     generation = mgr.phase.standing.generation
+    acquisition = mgr.readings.acquire_file("file_config")
+    source = mgr.require_http()
     try:
-        backup = await mgr.require_http().backup()
-        await fileconfig.load_file_config(mgr, backup=backup, generation=generation)
+        backup = await source.backup()
+        if source is not mgr.http_client or not mgr.readings.file_current(acquisition):
+            return
+        await fileconfig.load_file_config(mgr, backup=backup, generation=generation, acquisition=acquisition)
     except (httpx.HTTPError, engineconf.UnreadableArchiveError) as exc:
-        log.warning("file config read failed: %s", exc)
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            log.warning("file config read failed: %s", exc)
     else:
         await _migrate(mgr, backup)
-        cadence.archive_read = True
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            cadence.archive_read = True
 
 
 async def _migrate(mgr: ConnectionManager, backup: bytes) -> None:

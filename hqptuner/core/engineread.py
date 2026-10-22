@@ -119,7 +119,7 @@ async def refresh_devices(mgr: "ConnectionManager") -> None:
     which never learned a live-routed setting; nothing puts those back.
     No idle gate: interrupting playback is the user's call to spend.
     """
-    mark = await settle.restart(mgr, mgr.require_http().refresh_devices)
+    mark = await settle.restart(mgr, mgr.require_http().refresh_devices, file_sources=("config_form", "matrix_form"))
     await settle.await_ready(mgr, mark)
     await mgr.refresh_http_forms()
 

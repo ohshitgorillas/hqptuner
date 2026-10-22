@@ -76,21 +76,33 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
     readings = mgr.readings
     await _fetch(
         mgr,
-        http.get_config,
-        lambda form, generation: _take_config(mgr, form, generation=generation),
-        lambda e: readings.take_file(config_error=e),
+        http,
+        "config_form",
+        _FormRead(
+            http.get_config,
+            lambda form, generation: _take_config(mgr, form, generation=generation),
+            lambda e: readings.take_file(config_error=e),
+        ),
     )
     await _fetch(
         mgr,
-        http.get_matrix,
-        lambda form, generation: readings.take_file(generation=generation, matrix_form=form, matrix_error=None),
-        lambda e: readings.take_file(matrix_error=e),
+        http,
+        "matrix_form",
+        _FormRead(
+            http.get_matrix,
+            lambda form, generation: readings.take_file(generation=generation, matrix_form=form, matrix_error=None),
+            lambda e: readings.take_file(matrix_error=e),
+        ),
     )
     await _fetch(
         mgr,
-        http.get_speakers,
-        lambda form, generation: take_speakers(mgr, form, generation=generation),
-        lambda e: readings.take_file(speakers_error=e),
+        http,
+        "speakers_form",
+        _FormRead(
+            http.get_speakers,
+            lambda form, generation: take_speakers(mgr, form, generation=generation),
+            lambda e: readings.take_file(speakers_error=e),
+        ),
     )
     if http.credentials_ok is not None:
         record_credentials(mgr, http, accepted=http.credentials_ok)
@@ -112,20 +124,32 @@ def _take_config(mgr: LaneManager, config: ConfigForm, *, generation: int) -> No
     readings.take_file(generation=generation, config_form=config, config_error=None)
 
 
+@dataclass(frozen=True)
+class _FormRead[F]:
+    getter: Callable[[], Awaitable[F]]
+    take: Callable[[F, int], object]
+    fail: Callable[[str], object]
+
+
 async def _fetch[F](
     mgr: LaneManager,
-    getter: Callable[[], Awaitable[F]],
-    take: Callable[[F, int], object],
-    fail: Callable[[str], object],
+    source: HttpConfigClient,
+    payload: str,
+    reader: _FormRead[F],
 ) -> None:
     """Fetch one form and hand it to ``take``, or on a wire failure hand the failure's text to ``fail``."""
+    if source is not mgr.http_client:
+        return
+    acquisition = mgr.readings.acquire_file(payload)
     generation = mgr.phase.standing.generation
     try:
-        form = await getter()
+        form = await reader.getter()
     except httpx.HTTPError as exc:
-        fail(str(exc))
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            reader.fail(str(exc))
     else:
-        take(form, generation)
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            reader.take(form, generation)
 
 
 def _outcome(mgr: LaneManager) -> FormsOutcome:

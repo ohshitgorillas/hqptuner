@@ -35,7 +35,7 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
     from collections.abc import Callable
 
     from hqptuner.conf.httpconf import HttpConfigClient
-    from hqptuner.lanes import LaneManager
+    from hqptuner.lanes import FileAcquisition, LaneManager
     from hqptuner.lanes.http.storecarry import StoreHooks
 
 log = logging.getLogger(__name__)
@@ -338,7 +338,7 @@ async def verify(
     intended: dict[str, str],
     keys: set[str],
     mark: settle.Mark,
-    file_config: Callable[[bytes, int], dict[str, str]],
+    file_config: Callable[[bytes, int, FileAcquisition], dict[str, str]],
 ) -> dict[str, str]:
     """Wait for the restart stamped ``mark`` to land, then read this apply's intended fields back.
 
@@ -353,11 +353,12 @@ async def verify(
     async def probe() -> dict[str, str] | None:
         nonlocal realized
         generation = mgr.phase.standing.generation
+        acquisition = mgr.readings.acquire_file("file_config")
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
         try:
-            realized = file_config(fresh, generation)
+            realized = file_config(fresh, generation, acquisition)
         except engineconf.UnreadableArchiveError:
             pass
         else:

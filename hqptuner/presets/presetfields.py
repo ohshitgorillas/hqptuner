@@ -10,6 +10,7 @@ from hqptuner.presets import fileconfig
 from hqptuner.presets.store.presets import canonical_name
 
 if TYPE_CHECKING:
+    from hqptuner.lanes import FileAcquisition
     from hqptuner.presets import PresetManager
 
 
@@ -26,8 +27,8 @@ def restore_hooks(mgr: PresetManager, *, saving: str | None = None) -> StoreHook
     def mirror(intended_xml: bytes) -> dict[str, bytes]:
         return preset_mirror(mgr, intended_xml, saving=saving)
 
-    def file_config(backup: bytes, generation: int) -> dict[str, str]:
-        return fileconfig.record_file_config(mgr, backup, generation=generation)
+    def file_config(backup: bytes, generation: int, acquisition: FileAcquisition) -> dict[str, str]:
+        return fileconfig.record_file_config(mgr, backup, generation=generation, acquisition=acquisition)
 
     return StoreHooks(
         file_config=file_config,
