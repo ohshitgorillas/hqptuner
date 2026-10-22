@@ -25,8 +25,10 @@ from hqptuner.engine.controlerrors import (
     ControlConnectionFailedError,
     ControlError,
     ControlTimeoutError,
+    DialOutcome,
     ResponseTooLargeError,
     StateMismatchError,
+    dial_outcome,
 )
 from hqptuner.engine.frames import FrameBuffer
 
@@ -111,15 +113,27 @@ class ControlClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+        self._dial_outcome = DialOutcome(address_found=None)
+
+    @property
+    def dial_outcome(self) -> DialOutcome:
+        """Return address evidence from the latest connect attempt, inconclusive before any attempt."""
+        return self._dial_outcome
 
     async def connect(self) -> None:
         """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
         # a refused reconnect repeats every poll while HQPlayer is down, and the
         # manager already logs the drop once
+        self._dial_outcome = DialOutcome(address_found=None)
         with self._as_control_error("connect", level=logging.DEBUG):
-            reader, writer = await self._deadline.wait_for(
-                asyncio.open_connection(self._host, self._port), self._timeout
-            )
+            try:
+                reader, writer = await self._deadline.wait_for(
+                    asyncio.open_connection(self._host, self._port), self._timeout
+                )
+            except OSError as exc:
+                self._dial_outcome = dial_outcome(exc)
+                raise
+        self._dial_outcome = dial_outcome(None)
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:
