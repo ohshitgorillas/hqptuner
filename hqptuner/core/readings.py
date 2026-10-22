@@ -61,6 +61,15 @@ class FileFields(TypedDict, total=False):
     engine: dict[str, str] | None  # file, engine tag attributes as text and flag
 
 
+FILE_PAYLOADS = ("file_config", "config_form", "matrix_form", "speakers_form", "engine")
+
+
+def _acquisition_stamp(source: Source, generation: int | None, value: object) -> Stamp | None:
+    if generation is None or value is None:
+        return None
+    return Stamp(source=source, generation=generation)
+
+
 def _unheard() -> None:
     """Hear nothing: the change hook of readings nobody relays."""
 
@@ -121,24 +130,40 @@ class Readings:
     engine_stamp: Stamp | None = None
     held: EngineSnapshot | None = None
     on_change: Callable[[], None] = field(default=_unheard, repr=False, compare=False)
+    _source_stamps: dict[tuple[Source, str], Stamp | None] = field(default_factory=dict, init=False, repr=False)
 
     def take_engine(self, generation: int, **fields: Unpack[EngineFields]) -> None:
         """Take one Engine reading read in ``generation``; a field it does not carry keeps its reading."""
         before = self.engine_snapshot()
+        stamps_moved = False
         for name, value in fields.items():
             setattr(self, name, value)
+            stamps_moved = self._take_source_stamp(Source.ENGINE, name, generation, value) or stamps_moved
         self.engine_stamp = Stamp(source=Source.ENGINE, generation=generation)
-        if self.engine_snapshot() != before:
+        if self.engine_snapshot() != before or stamps_moved:
             self.on_change()
 
-    def take_file(self, **fields: Unpack[FileFields]) -> bool:
+    def take_file(self, generation: int | None = None, **fields: Unpack[FileFields]) -> bool:
         """Take one File reading and answer whether it moved them; a field it does not carry keeps its reading."""
         moved = any(getattr(self, name) != value for name, value in fields.items())
+        stamps_moved = False
         for name, value in fields.items():
             setattr(self, name, value)
-        if moved:
+            if name in FILE_PAYLOADS:
+                stamps_moved = self._take_source_stamp(Source.FILE, name, generation, value) or stamps_moved
+        if moved or stamps_moved:
             self.on_change()
         return moved
+
+    def source_stamp(self, source: Source, payload: str) -> Stamp | None:
+        """Return the acquisition stamp for a source payload, if available."""
+        return self._source_stamps.get((source, payload))
+
+    def _take_source_stamp(self, source: Source, payload: str, generation: int | None, value: object) -> bool:
+        before = self.source_stamp(source, payload)
+        stamp = _acquisition_stamp(source, generation, value)
+        self._source_stamps[source, payload] = stamp
+        return stamp != before
 
     def engine_snapshot(self) -> EngineSnapshot | None:
         """Return the current Engine view, or ``None`` when nothing was read since the last break."""
@@ -165,6 +190,7 @@ class Readings:
             self.held = snapshot
         for name in ENGINE_FIELDS:
             setattr(self, name, None)
+            self._source_stamps.pop((Source.ENGINE, name), None)
         self.engine_stamp = None
         if snapshot is not None:
             self.on_change()

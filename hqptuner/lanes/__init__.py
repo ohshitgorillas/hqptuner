@@ -161,7 +161,7 @@ class LaneReadings(Protocol):
     def take_engine(self, generation: int, **fields: Unpack[LaneEngineFields]) -> None:
         """Take one Engine reading read in ``generation``."""
 
-    def take_file(self, **fields: Unpack[LaneFileFields]) -> bool:
+    def take_file(self, generation: int | None = None, **fields: Unpack[LaneFileFields]) -> bool:
         """Take one File reading and answer whether it moved them."""
 
     def engine_snapshot(self) -> LaneEngineSnapshot | None:
