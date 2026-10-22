@@ -208,6 +208,46 @@ test("test_inflight_tracks_engine_writes_only", async () => {
   assert.deepEqual(seen, [false, true, false]);
 });
 
+// Break: a per-call override is ignored or persists into the next default run.
+for (const { engine, override, expected } of [
+  { engine: true, override: false, expected: [false, true, false] },
+  { engine: false, override: true, expected: [true, false, false] },
+]) {
+  test(`test_per_call_engine_override_preserves_op_default_${engine}`, async () => {
+    const item = operation("fixture-per-call", { engine });
+    const overridden = pending();
+    const first = item.run(() => overridden.promise, { engine: override });
+    const seen = [ops.inFlight.value];
+    overridden.resolve(null);
+    await first;
+    const defaulted = pending();
+    const second = item.run(() => defaulted.promise);
+    seen.push(ops.inFlight.value);
+    defaulted.resolve(null);
+    await second;
+    seen.push(ops.inFlight.value);
+    assert.deepEqual(seen, expected);
+  });
+}
+
+// Break: a read override enters engine flight while its callback rejects.
+test("test_failed_read_does_not_enter_engine_flight", async () => {
+  const item = operation("fixture-read-failure", { engine: true });
+  const deferred = pending();
+  const run = item.run(
+    async () => {
+      await deferred.promise;
+      throw new Error("fixture read failure");
+    },
+    { engine: false },
+  );
+  const seen = [ops.inFlight.value];
+  deferred.resolve(null);
+  await run;
+  seen.push(ops.inFlight.value);
+  assert.deepEqual(seen, [false, false]);
+});
+
 // Break: settling one engine op hides another engine op still in flight.
 test("test_inflight_stays_set_until_all_engine_ops_settle", async () => {
   const first = pending();

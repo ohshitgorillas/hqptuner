@@ -62,3 +62,17 @@ const sameObject = (a, b) => {
  */
 export const draftDiffers = (base, values, keys) =>
   [...new Set(keys)].filter((k) => Object.hasOwn(values, k) && !samePosted(member(base, k), values[k]));
+
+/**
+ * Retain edits added or changed since submission.
+ *
+ * @param {Record<string, unknown>} submitted
+ * @param {Record<string, unknown>} current
+ * @returns {Record<string, unknown>}
+ */
+export const retainDraftEdits = (submitted, current) => {
+  const changed = new Set(draftDiffers(submitted, current, Object.keys(submitted)));
+  return Object.fromEntries(
+    Object.entries(current).filter(([key]) => !Object.hasOwn(submitted, key) || changed.has(key)),
+  );
+};

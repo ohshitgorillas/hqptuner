@@ -31,7 +31,7 @@ function updateArea(area, errors) {
  * @property {{ readonly value: boolean }} busy
  * @property {{ readonly value: unknown }} error
  * @property {string | null} lead
- * @property {(fn: () => T | Promise<T>) => Promise<T | typeof FAILED>} run
+ * @property {(fn: () => T | Promise<T>, options?: { engine?: boolean }) => Promise<T | typeof FAILED>} run
  * @property {() => void} clear
  */
 
@@ -51,12 +51,12 @@ export function op(kind, { engine = false, alert = kind } = {}) {
       error.value = null;
       updateArea(alert, []);
     });
-  /** @param {() => any} fn */
-  const run = async (fn) => {
+  /** @param {() => any} fn @param {{ engine?: boolean }} [options] */
+  const run = async (fn, { engine: runEngine = engine } = {}) => {
     batch(() => {
       pending += 1;
       busy.value = true;
-      if (engine) engineRuns.value = engineRuns.peek() + 1;
+      if (runEngine) engineRuns.value = engineRuns.peek() + 1;
     });
     try {
       const result = await fn();
@@ -72,7 +72,7 @@ export function op(kind, { engine = false, alert = kind } = {}) {
       batch(() => {
         pending -= 1;
         busy.value = pending > 0;
-        if (engine) engineRuns.value = engineRuns.peek() - 1;
+        if (runEngine) engineRuns.value = engineRuns.peek() - 1;
       });
     }
   };
