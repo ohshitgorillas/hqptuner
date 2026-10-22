@@ -3,9 +3,11 @@
 from collections.abc import Mapping
 from dataclasses import replace
 from types import MappingProxyType
+from typing import Literal
 
 from hqptuner.fields.model import (
     Attr,
+    BoundsSelector,
     Carry,
     Chain,
     Choice,
@@ -14,11 +16,13 @@ from hqptuner.fields.model import (
     EngineAttr,
     Enumeration,
     Field,
+    FileSelector,
     Flag,
     Integer,
     Join,
     Live,
     Plugin,
+    ReadDescriptor,
     Setter,
     Text,
 )
@@ -290,12 +294,81 @@ _HARDWARE_FIELDS: tuple[Field, ...] = (
     replace(_KEPT, name="cuda_cdev", location=EngineAttr("cuda_cdev"), domain=Integer()),
 )
 
-FIELDS: tuple[Field, ...] = (
-    *_SETTER_FIELDS,
-    *_ONE_ATTRIBUTE_FIELDS,
-    *_PLUGIN_FIELDS,
-    *_CODEC_FIELDS,
-    *_HARDWARE_FIELDS,
+_CONFIG_NUMBERS = frozenset(
+    {
+        "fixed_volume",
+        "volume_max",
+        "volume_min",
+        "defaults_volume",
+        "gain_comp",
+        "channels",
+        "alsa_offset",
+        "alsa_bits",
+        "alsa_period",
+        "net_bits",
+        "net_period",
+        "asio_offset",
+        "asio_bits",
+        "asio_period",
+        "wasapi_offset",
+        "wasapi_bits",
+        "wasapi_period",
+    }
+)
+_MATRIX_NUMBERS = frozenset(
+    {
+        "post_bauer_frequency",
+        "post_bauer_level",
+        "post_loudness_lowfreq",
+        "post_loudness_lowsteep",
+        "post_loudness_lowlevel",
+        "post_loudness_highfreq",
+        "post_loudness_highsteep",
+        "post_loudness_highlevel",
+        "post_loudness_rangelow",
+        "post_loudness_rangehigh",
+    }
+)
+
+
+def _bounds(row: Field) -> BoundsSelector | None:
+    if row.name in _CONFIG_NUMBERS:
+        return BoundsSelector("config_form", row.name)
+    if row.name in _MATRIX_NUMBERS:
+        return BoundsSelector("matrix_form", row.name)
+    if row.live is not None and row.live.setter == "Volume":
+        return BoundsSelector("volume_range", row.name)
+    return BoundsSelector(None, row.name) if isinstance(row.domain, (Integer, Decimal)) else None
+
+
+def _file_selector(row: Field) -> FileSelector | None:
+    if isinstance(row.location, EngineAttr):
+        return FileSelector("engine", row.location.attr)
+    return FileSelector("file_config", row.name) if row.location is not None else None
+
+
+def _read_lane(row: Field) -> Literal["live", "restore", "form", "matrix", "volume"]:
+    if row.live is None:
+        return "form" if isinstance(row.location, Attr) and row.location.tag == "matrix" else "restore"
+    lanes: dict[str, Literal["live", "volume", "matrix"]] = {"Volume": "volume", "MatrixSetProfile": "matrix"}
+    return lanes.get(row.live.setter, "live")
+
+
+def _read_descriptor(row: Field) -> ReadDescriptor | None:
+    if row.forced is not None or row.location in (Codec.PROFILE_SAVE, Codec.PROFILE_DELETE):
+        return None
+    return ReadDescriptor(
+        file=_file_selector(row),
+        bounds=_bounds(row),
+        lane=_read_lane(row),
+        show="engine" if row.live is not None else "file",
+        restarts=row.live is None,
+    )
+
+
+FIELDS: tuple[Field, ...] = tuple(
+    replace(row, read=_read_descriptor(row))
+    for row in (*_SETTER_FIELDS, *_ONE_ATTRIBUTE_FIELDS, *_PLUGIN_FIELDS, *_CODEC_FIELDS, *_HARDWARE_FIELDS)
 )
 
 SETTERS: tuple[Setter, ...] = (  # in apply order

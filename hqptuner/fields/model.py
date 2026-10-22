@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 from enum import Enum, StrEnum, auto
-from typing import Protocol, override
+from typing import Literal, Protocol, override
 
 
 class Chain(StrEnum):
@@ -166,6 +166,33 @@ class Live:
     chain: Chain | None
 
 
+@dataclass(frozen=True)
+class FileSelector:
+    """A field's saved value source and key."""
+
+    source: Literal["file_config", "engine", "config_form", "matrix_form", "speakers_form"]
+    key: str
+
+
+@dataclass(frozen=True)
+class BoundsSelector:
+    """Required numeric bounds; a None source means no daemon source is known."""
+
+    source: Literal["config_form", "matrix_form", "speakers_form", "volume_range"] | None
+    key: str
+
+
+@dataclass(frozen=True)
+class ReadDescriptor:
+    """The sources and presentation of a readable field."""
+
+    file: FileSelector | None
+    bounds: BoundsSelector | None
+    lane: Literal["live", "restore", "form", "matrix", "volume"]
+    show: Literal["engine", "file"]
+    restarts: bool
+
+
 @dataclass(frozen=True, kw_only=True)
 class Field:
     """One setting and every fact the register holds about it."""
@@ -183,3 +210,4 @@ class Field:
     lossy_form: bool
     volume_traced: bool
     reenumerates: bool
+    read: ReadDescriptor | None = None

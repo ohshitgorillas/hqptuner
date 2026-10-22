@@ -15,6 +15,11 @@ def field(name: str) -> Field | None:
     return next((row for row in FIELDS if row.name == name), None)
 
 
+def readable() -> tuple[Field, ...]:
+    """Return fields with read descriptors, in register order."""
+    return tuple(row for row in FIELDS if row.read is not None)
+
+
 def setters() -> tuple[Setter, ...]:
     """Return every setter, in apply order."""
     return SETTERS
