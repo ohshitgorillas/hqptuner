@@ -10,11 +10,12 @@ import assert from "node:assert/strict";
 import { dragStep } from "../../../../hqptuner/static/model/store/drag.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/store/drag.js").DragStep} DragStep */
+/** @typedef {import("../../../../hqptuner/static/model/store/drag.js").DragMode} DragMode */
 
 /**
  * One mode and what it writes at a move, then at the drop.
  *
- * @type {{ mode: string, writes: [DragStep["write"], DragStep["write"]], name: string }[]}
+ * @type {{ mode: DragMode, writes: [DragStep["write"], DragStep["write"]], name: string }[]}
  */
 const WRITES = [
   { mode: "stage", writes: ["none", "stage"], name: "writes_nothing_while_moving_and_stages_on_drop" },
@@ -38,7 +39,7 @@ for (const row of WRITES) {
  * because the staged value carries it from there; a drag that writes live holds past its drop, because nothing else
  * carries the value until the readback.
  *
- * @type {{ mode: string, locals: [DragStep["local"], DragStep["local"]], name: string }[]}
+ * @type {{ mode: DragMode, locals: [DragStep["local"], DragStep["local"]], name: string }[]}
  */
 const LOCALS = [
   { mode: "stage", locals: ["hold", "clear"], name: "holds_its_value_while_moving_and_lets_go_on_drop" },
