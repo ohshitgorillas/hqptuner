@@ -69,6 +69,11 @@ def snapshot_fields() -> tuple[str, ...]:
     return tuple(row.name for row in FIELDS if row.snapshot)
 
 
+def dropped_snapshot_fields() -> frozenset[str]:
+    """Return the fields removed from stored snapshot values and names on read."""
+    return frozenset(row.name for row in FIELDS if row.drop_on_snapshot_read)
+
+
 def chain_scoped() -> frozenset[str]:
     """Return the fields that belong to a chain."""
     return frozenset(row.name for row in FIELDS if row.live is not None and row.live.chain is not None)

@@ -32,6 +32,7 @@ _KEPT = Field(
     staged_route=False,
     live_control=False,
     snapshot=False,
+    drop_on_snapshot_read=False,
     carry=None,
     forced=None,
     lossy_form=False,
@@ -148,6 +149,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _KEPT,
         name="junk_filter",
+        drop_on_snapshot_read=True,
         live=Live(
             setter="SetJunkFilter",
             arg="value",

@@ -177,6 +177,7 @@ class Field:
     staged_route: bool
     live_control: bool
     snapshot: bool
+    drop_on_snapshot_read: bool
     carry: Carry | None
     forced: str | None
     lossy_form: bool
