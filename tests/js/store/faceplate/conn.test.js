@@ -15,7 +15,7 @@ import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
 import { connState } from "../../../../hqptuner/static/store/faceplate/conn.js";
 
 /** A health reading as the poll writes it: fresh each time, so the signal notifies. */
-const reading = (/** @type {boolean} */ ready) => ({ reachable: true, ready, info: {} });
+const reading = (/** @type {boolean} */ ready) => ({ phase: ready ? "Ready" : "Reachable", info: {} });
 
 beforeEach(() => {
   health.value = reading(true);
