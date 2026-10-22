@@ -181,3 +181,4 @@ class Field:
     forced: str | None
     lossy_form: bool
     volume_traced: bool
+    reenumerates: bool

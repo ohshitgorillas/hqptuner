@@ -25,6 +25,11 @@ def written_by(setter: Setter) -> tuple[Field, ...]:
     return tuple(row for row in FIELDS if row.live is not None and row.live.setter == setter.command)
 
 
+def reenumerating_setters() -> frozenset[str]:
+    """Return the setter keys whose writes invalidate an enumeration."""
+    return frozenset(setter.key for setter in SETTERS if any(row.reenumerates for row in written_by(setter)))
+
+
 def readback(setter: Setter) -> Mapping[str, str]:
     """Return each argument of ``setter`` with the State attribute it reads back as, in wire order.
 

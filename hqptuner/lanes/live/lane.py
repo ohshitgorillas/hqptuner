@@ -25,6 +25,7 @@ from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes.live import routing
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
@@ -35,21 +36,12 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 log = logging.getLogger(__name__)
 
-# Writes that invalidate an enumeration the NEXT live write resolves against:
-# SetMode swaps the filter and shaper lists wholesale, and the rate list depends
-# on both mode and the selected filter (manual §4.6). The loader re-enumerates on
-# its poll interval, on a mode-index move and on a chain change, so without this
-# the control the user reaches for next could resolve its value against a stale list
-# until one of those came.
-_REENUMERATES = frozenset({"mode", "filter"})
-
 
 @dataclass(frozen=True)
 class LiveApplyReport:
     """One LIVE batch's answer: each setter's readback verdict, and whether it moved an enumeration."""
 
     live: list[LiveWriteResult] = dataclasses.field(default_factory=list)
-    # true when this batch moved an enumeration the next write resolves against (``_REENUMERATES``)
     reenumerated: bool = False
 
 
@@ -111,21 +103,12 @@ async def _reread_state(mgr: LaneManager, client: ControlClient) -> None:
 
 
 def _reenumerates(edits: dict[str, dict[str, str]]) -> bool:
-    """Whether a live batch moves an enumeration the next write resolves against (``_REENUMERATES``)."""
-    return bool(_REENUMERATES & set(edits))
+    """Whether a live batch moves an enumeration the next write resolves against."""
+    return bool(query.reenumerating_setters() & edits.keys())
 
 
 async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
-    """Re-read what a live batch just invalidated: the running state always, the enumerations when the batch moved one.
-
-    Live edits bypass the config file, so State is the only record of them. The
-    enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
-    the NEXT write resolves its value against, and refreshing State alone also
-    consumes the mode transition the loader watches to re-enumerate on its own
-    (``core/loader._beat``) — so a caller that skipped this left both the cache and
-    the fallback stale. Every live-routing caller runs it, staged lane included.
-    A refused State read is a complete reply that says nothing of the engine, so the last good reading stands.
-    """
+    """Re-read what a live batch just invalidated: the running state always."""
     await _reread_state(mgr, client)
     if _reenumerates(edits):
         enums = await client.get_all_enumerations()

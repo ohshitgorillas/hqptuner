@@ -36,6 +36,7 @@ _KEPT = Field(
     forced=None,
     lossy_form=False,
     volume_traced=False,
+    reenumerates=False,
 )
 
 # A field a staged edit routes live, the live control takes, a snapshot holds and the realized config carries.
@@ -45,6 +46,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _ROUTED,
         name="mode",
+        reenumerates=True,
         location=Attr("mode", "value"),
         live=Live(
             setter="SetMode", arg="value", state="mode", enumeration=Enumeration.MODES, join=Join.MODE_NAME, chain=None
@@ -53,6 +55,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _ROUTED,
         name="filter1x",
+        reenumerates=True,
         location=Attr("pcm", "filter1x"),
         live=Live(
             setter="SetFilter",
@@ -66,6 +69,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _ROUTED,
         name="filter",
+        reenumerates=True,
         location=Attr("pcm", "filter"),
         live=Live(
             setter="SetFilter",
@@ -92,6 +96,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _ROUTED,
         name="oversampling1x",
+        reenumerates=True,
         location=Attr("sdm", "oversampling1x"),
         live=Live(
             setter="SetFilter",
@@ -105,6 +110,7 @@ _SETTER_FIELDS: tuple[Field, ...] = (
     replace(
         _ROUTED,
         name="oversampling",
+        reenumerates=True,
         location=Attr("sdm", "oversampling"),
         live=Live(
             setter="SetFilter",
