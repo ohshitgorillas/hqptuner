@@ -40,7 +40,7 @@ class EngineReading(Protocol):
 
 @dataclass(frozen=True)
 class Reading:
-    """One field read from State: its form value and the name its enumeration gives it."""
+    """One field's value in the requested domain and the name its enumeration gives it."""
 
     value: str
     name: str
@@ -172,19 +172,33 @@ class EngineView:
         """Return what ``build`` makes of each item of ``enumeration``, in list order; empty when unread."""
         return [build(item) for item in self._items(enumeration)]
 
+    def raw_read(self, field: str) -> Reading | None:
+        """Return the State-domain value and Engine name, none off its chain or unread.
+
+        Share the existing enumeration joins and chain eligibility with ``read``;
+        leave ``read``'s form-domain values unchanged.
+        """
+        reading = self._reading(field)
+        return None if reading is None else Reading(reading[0], reading[1].name)
+
     def read(self, field: str) -> Reading | None:
         """Return ``field`` as State holds it, none off its chain or unread."""
+        reading = self._reading(field)
+        return None if reading is None else reading[1]
+
+    def _reading(self, field: str) -> tuple[str, Reading] | None:
+        """Return the raw State value and its form reading through the field's join."""
         row = query.field(field)
         live = None if row is None else row.live
         raw = None if live is None else (self.state or {}).get(live.state)
         if live is None or raw is None:
             return None
         if live.enumeration is None:
-            return Reading(raw, raw)
+            return raw, Reading(raw, raw)
         value = self._value_at(live, raw)
         if value is None:
             return None
-        return Reading(value, self.name_at(live.enumeration, raw) or value)
+        return raw, Reading(value, self.name_at(live.enumeration, raw) or value)
 
     def resolve(self, field: str, value: str) -> str | Refusal:
         """Return the live index ``value`` of ``field`` writes as, or why it cannot."""
