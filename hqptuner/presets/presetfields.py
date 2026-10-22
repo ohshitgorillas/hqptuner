@@ -26,8 +26,8 @@ def restore_hooks(mgr: PresetManager, *, saving: str | None = None) -> StoreHook
     def mirror(intended_xml: bytes) -> dict[str, bytes]:
         return preset_mirror(mgr, intended_xml, saving=saving)
 
-    def file_config(backup: bytes) -> dict[str, str]:
-        return fileconfig.record_file_config(mgr, backup)
+    def file_config(backup: bytes, generation: int) -> dict[str, str]:
+        return fileconfig.record_file_config(mgr, backup, generation=generation)
 
     return StoreHooks(
         file_config=file_config,

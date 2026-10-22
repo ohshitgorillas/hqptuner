@@ -338,7 +338,7 @@ async def verify(
     intended: dict[str, str],
     keys: set[str],
     mark: settle.Mark,
-    file_config: Callable[[bytes], dict[str, str]],
+    file_config: Callable[[bytes, int], dict[str, str]],
 ) -> dict[str, str]:
     """Wait for the restart stamped ``mark`` to land, then read this apply's intended fields back.
 
@@ -352,11 +352,12 @@ async def verify(
 
     async def probe() -> dict[str, str] | None:
         nonlocal realized
+        generation = mgr.phase.standing.generation
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
         try:
-            realized = file_config(fresh)
+            realized = file_config(fresh, generation)
         except engineconf.UnreadableArchiveError:
             pass
         else:

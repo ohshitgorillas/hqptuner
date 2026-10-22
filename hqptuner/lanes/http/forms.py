@@ -74,15 +74,22 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
     if http is None:
         return FormsRefresh(FormsOutcome.NO_CREDENTIALS)
     readings = mgr.readings
-    await _fetch(http.get_config, lambda form: _take_config(mgr, form), lambda e: readings.take_file(config_error=e))
     await _fetch(
+        mgr,
+        http.get_config,
+        lambda form, generation: _take_config(mgr, form, generation=generation),
+        lambda e: readings.take_file(config_error=e),
+    )
+    await _fetch(
+        mgr,
         http.get_matrix,
-        lambda form: readings.take_file(matrix_form=form, matrix_error=None),
+        lambda form, generation: readings.take_file(generation=generation, matrix_form=form, matrix_error=None),
         lambda e: readings.take_file(matrix_error=e),
     )
     await _fetch(
+        mgr,
         http.get_speakers,
-        lambda form: take_speakers(mgr, form),
+        lambda form, generation: take_speakers(mgr, form, generation=generation),
         lambda e: readings.take_file(speakers_error=e),
     )
     if http.credentials_ok is not None:
@@ -90,7 +97,7 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
     return FormsRefresh(_outcome(mgr))
 
 
-def _take_config(mgr: LaneManager, config: ConfigForm) -> None:
+def _take_config(mgr: LaneManager, config: ConfigForm, *, generation: int) -> None:
     """Take the /config form into ``readings``, tracing the volume it landed on."""
     readings = mgr.readings
     # Compared against the form as it stands at this instant: the poll loop
@@ -102,19 +109,23 @@ def _take_config(mgr: LaneManager, config: ConfigForm) -> None:
     # otherwise untraceable.
     landing = voltrace.form_subset(config)
     voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(readings.config_form))
-    readings.take_file(config_form=config, config_error=None)
+    readings.take_file(generation=generation, config_form=config, config_error=None)
 
 
 async def _fetch[F](
-    getter: Callable[[], Awaitable[F]], take: Callable[[F], object], fail: Callable[[str], object]
+    mgr: LaneManager,
+    getter: Callable[[], Awaitable[F]],
+    take: Callable[[F, int], object],
+    fail: Callable[[str], object],
 ) -> None:
     """Fetch one form and hand it to ``take``, or on a wire failure hand the failure's text to ``fail``."""
+    generation = mgr.phase.standing.generation
     try:
         form = await getter()
     except httpx.HTTPError as exc:
         fail(str(exc))
     else:
-        take(form)
+        take(form, generation)
 
 
 def _outcome(mgr: LaneManager) -> FormsOutcome:
@@ -150,13 +161,13 @@ def record_credentials(mgr: LaneManager, source: HttpConfigClient, *, accepted: 
         log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
 
 
-def take_speakers(mgr: LaneManager, form: SpeakersForm) -> None:
+def take_speakers(mgr: LaneManager, form: SpeakersForm, *, generation: int | None = None) -> None:
     """Take the /speakers form the daemon just answered into ``readings``, clearing that page's error.
 
     The one writer of ``readings.speakers_form``: the poll records each page it fetched here, and a speaker apply
     records its re-read here.
     """
-    mgr.readings.take_file(speakers_form=form, speakers_error=None)
+    mgr.readings.take_file(generation=generation, speakers_form=form, speakers_error=None)
 
 
 def decline(mgr: LaneManager) -> httpauth.HttpLaneDeclinedError | None:

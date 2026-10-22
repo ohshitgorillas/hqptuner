@@ -52,8 +52,9 @@ async def apply(mgr: "LaneManager", channels: dict[str, dict[str, str]], *, enab
     http = mgr.require_http()
     await settle.restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled))
     applied = await _verify(mgr, channels, enabled=enabled)
+    generation = mgr.phase.standing.generation
     with contextlib.suppress(httpx.HTTPError):
-        forms.take_speakers(mgr, await http.get_speakers())
+        forms.take_speakers(mgr, await http.get_speakers(), generation=generation)
     return SpeakerApplyResult(applied, mgr.readings.speakers_form)
 
 

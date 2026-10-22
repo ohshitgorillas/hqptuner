@@ -26,7 +26,7 @@ class StoreHooks:
     config's file truth, recorded by its owner in ``presets``, and returns it.
     """
 
-    file_config: Callable[[bytes], dict[str, str]]
+    file_config: Callable[[bytes, int], dict[str, str]]
     persist_backup: Callable[[bytes], object]
     parked_members: Callable[[], dict[str, bytes]]
     mirror: Callable[[bytes], dict[str, bytes]]

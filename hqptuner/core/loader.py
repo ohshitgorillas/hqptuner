@@ -314,9 +314,10 @@ async def _load_backup(mgr: ConnectionManager, cadence: Cadence) -> None:
     arrive, or arrives as no readable archive, is logged with its error, leaves the File not read, feeds no import
     and stays owed; the connection stands either way.
     """
+    generation = mgr.phase.standing.generation
     try:
         backup = await mgr.require_http().backup()
-        await fileconfig.load_file_config(mgr, backup=backup)
+        await fileconfig.load_file_config(mgr, backup=backup, generation=generation)
     except (httpx.HTTPError, engineconf.UnreadableArchiveError) as exc:
         log.warning("file config read failed: %s", exc)
     else:

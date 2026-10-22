@@ -213,5 +213,5 @@ class ApplyOps:
         carry = StoreCarry(mirror=presetfields.preset_mirror(mgr), carried=_realized_edits(mgr, {}))
         result = await engineattrs.apply(mgr, backup, overrides, carry, all_presets=all_presets)
         if result.verified.engine:
-            fileconfig.record_engine(mgr, result.verified.engine)
+            fileconfig.record_engine(mgr, result.verified.engine, generation=result.generation)
         return EngineApplyResult(verified=result.verified, members=result.members, backup_bytes=result.backup_bytes)
