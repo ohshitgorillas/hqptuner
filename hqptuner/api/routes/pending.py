@@ -5,11 +5,12 @@ A self-contained feature surface mounted alongside ``app``.
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr, audit_of, pending_of
+from hqptuner.api.deps import Mgr, audit_of, manager_of, pending_of
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import StageBody
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.pending import PendingSnapshot
+from hqptuner.engine.view import EngineView
 from hqptuner.fields import query
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.writer import LiveWriteFailed
@@ -52,18 +53,18 @@ def stage(body: StageBody, request: Request) -> PendingSnapshot:
     store = pending_of(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
-    store.stage(body.live, body.http)
+    store.stage(body.live, body.http, EngineView.of(manager_of(request).readings))
     store.drop(body.drop.live, body.drop.http)
     # what THIS request carried, not the accumulated buffer: the buffer is a sum
     # of requests and the log has to be able to attribute a field to one of them
     audit_of(request).stage(body.http, body.live, body.drop.model_dump())
-    return store.snapshot()
+    return store.reconcile(manager_of(request).readings)
 
 
 @router.get("/config/pending")
 def pending(request: Request) -> PendingSnapshot:
     """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
-    return pending_of(request).snapshot()
+    return pending_of(request).reconcile(manager_of(request).readings)
 
 
 @router.delete("/config/pending")

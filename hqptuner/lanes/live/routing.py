@@ -25,7 +25,8 @@ only slower. A field routes live only when the whole translation succeeds.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from enum import Enum, auto
+from typing import TYPE_CHECKING, Protocol
 
 from hqptuner.engine.view import Cause, EngineView, Refusal, is_mode, says
 from hqptuner.errors import HQPTunerError
@@ -33,7 +34,16 @@ from hqptuner.fields import query
 from hqptuner.lanes.live import rate
 
 if TYPE_CHECKING:
-    from hqptuner.lanes import LaneManager
+    from hqptuner.lanes import LaneManager, LaneReadings
+
+
+class RoutingSource(Protocol):
+    """The readings needed to choose a staged batch's destination."""
+
+    @property
+    def readings(self) -> LaneReadings:
+        """Return the current daemon readings."""
+        ...
 
 
 def _target(field: str) -> tuple[str, str] | None:
@@ -55,6 +65,17 @@ def is_staged_route(field: str) -> bool:
     """Return whether a staged form edit of ``field`` may write live."""
     row = query.field(field)
     return row is not None and row.staged_route
+
+
+def mode_apart(http_fields: dict[str, str]) -> str | None:
+    """Return the staged mode sent before the rest of an entirely live-routable batch.
+
+    The mode write refreshes the enumerations used by the remainder. A restore-class field keeps the mode in the
+    restore batch, whose restart would otherwise overwrite a preceding live mode write.
+    """
+    if any(not is_staged_route(field) for field in http_fields):
+        return None
+    return http_fields.get("mode")
 
 
 def _complete_filter_pair(edits: dict[str, dict[str, str]], state: dict[str, str]) -> set[str]:
@@ -117,7 +138,7 @@ def _merge(base: dict[str, dict[str, str]], extra: dict[str, dict[str, str]]) ->
 
 
 def split_live(
-    mgr: LaneManager, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+    mgr: RoutingSource, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
 ) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
     """Fold the whole batch into ``live_edits`` when every field routes live, else hand the whole batch back.
 
@@ -135,6 +156,42 @@ def split_live(
     if any(field not in routed or _setting_of(field) in unfillable for field in http_fields):
         return live_edits, dict(http_fields)
     return _merge(live_edits, live), {}
+
+
+def split_remainder(
+    mgr: RoutingSource, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+) -> tuple[dict[str, dict[str, str]], dict[str, str]]:
+    """Route companions after a mode write, carrying the mode into any required restore."""
+    rest = {name: value for name, value in http_fields.items() if name != "mode"}
+    edits, remainder = split_live(mgr, rest, live_edits)
+    if remainder:
+        remainder = {**remainder, "mode": http_fields["mode"]}
+    return edits, remainder
+
+
+class Destination(Enum):
+    """The store a staged field will reach, or a decision awaiting post-switch readings."""
+
+    ENGINE = auto()
+    FILE = auto()
+    DEFERRED = auto()
+
+
+def staged_destinations(
+    mgr: RoutingSource, http_fields: dict[str, str], live_edits: dict[str, dict[str, str]]
+) -> dict[str, Destination]:
+    """Choose the staged HTTP fields' destinations using Apply's mode-first routing."""
+    mode = mode_apart(http_fields)
+    if mode is None:
+        _, restore = split_live(mgr, http_fields, live_edits)
+    elif EngineView.of(mgr.readings).mode() == mode:
+        _, restore = split_remainder(mgr, http_fields, live_edits)
+    else:
+        _, restore = split_live(mgr, {"mode": mode}, {})
+        if not restore:
+            return {name: Destination.ENGINE if name == "mode" else Destination.DEFERRED for name in http_fields}
+        restore = http_fields
+    return {name: Destination.FILE if name in restore else Destination.ENGINE for name in http_fields}
 
 
 # --- LIVE lane: immediate, unstaged writes -----------------------------------

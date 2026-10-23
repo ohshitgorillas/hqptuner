@@ -197,29 +197,6 @@ async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
         return LiveApplyReport([*first.live, *second.live], first.reenumerated or second.reenumerated)
 
 
-def _mode_apart(http_fields: dict[str, str]) -> str | None:
-    """Return the staged mode value when it goes on the wire as its own batch.
-
-    Every live mode write does, whatever else is staged with it. ``SetMode`` swaps
-    the lists every later value resolves against, so it has to go through the
-    re-enumerating path (``apply_now``) — beside other routable fields because
-    those fields resolve against the lists it swapped
-    (``routing._mode_blocks_batch``), and ALONE because the batch after it does.
-    A mode routed as an ordinary edit left the enumerations stale and the poll
-    loop blind to the switch it watches for, so the next apply's filter resolved
-    against the departed mode's list and the engine took a different filter than
-    the one named.
-
-    Only in a batch that can go fully live, though. One restore-lane field means
-    the restart is happening regardless, and that restart boots the daemon onto
-    its config file, so the mode belongs in that file with the rest of the batch,
-    not on a live setter the restore would immediately overwrite.
-    """
-    if any(not routing.is_staged_route(field) for field in http_fields):
-        return None
-    return http_fields.get("mode")
-
-
 async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult] | None:
     """Write a staged mode as its own re-enumerating batch; None when it cannot go live at all.
 
@@ -235,24 +212,6 @@ async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult]
         log.warning("mode-first batch fell back to the restore lane: mode %r does not resolve live", mode)
         return None
     return (await apply_now(mgr, {"mode": mode})).live
-
-
-def split_remainder(
-    mgr: LaneManager,
-    http_fields: dict[str, str],
-    live_edits: dict[str, dict[str, str]],
-    report: list[LiveWriteResult],
-) -> SplitPlan:
-    """Split what is staged beside a mode already written, against the lists that switch produced.
-
-    What falls back to the restore lane takes the mode with it: that restart boots the daemon
-    from its config file, which never learned the mode just applied live.
-    """
-    rest = {name: value for name, value in http_fields.items() if name != "mode"}
-    edits, remainder = routing.split_live(mgr, rest, live_edits)
-    if remainder:
-        remainder = {**remainder, "mode": http_fields["mode"]}
-    return SplitPlan(report, edits, remainder)
 
 
 async def mode_then_split(
@@ -273,15 +232,16 @@ async def mode_then_split(
     lane that dies under the mode write aborts the apply: a dead socket is not an
     answer to route on.
 
-    A staged mode with nothing beside it takes the same route (``_mode_apart``):
+    A staged mode with nothing beside it takes the same route (``routing.mode_apart``):
     the batch that needs the post-switch lists is then the NEXT apply rather than
     the remainder of this one, and it is no less entitled to them.
     """
-    mode = _mode_apart(http_fields)
+    mode = routing.mode_apart(http_fields)
     if mode is None:
         edits, remainder = routing.split_live(mgr, http_fields, live_edits)
         return SplitPlan([], edits, remainder)
     report = await apply_mode_first(mgr, mode)
     if report is None:
         return SplitPlan([], live_edits, dict(http_fields))
-    return split_remainder(mgr, http_fields, live_edits, report)
+    edits, remainder = routing.split_remainder(mgr, http_fields, live_edits)
+    return SplitPlan(report, edits, remainder)
