@@ -10,7 +10,6 @@ from dataclasses import dataclass, replace
 import httpx
 from fastapi import APIRouter, Request
 
-from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, NotLoadedError, refuse
@@ -28,24 +27,18 @@ router = APIRouter(prefix="/api")
 
 @dataclass(frozen=True)
 class HealthReport:
-    """``GET /api/health``: the connection's phase and generation, its age, info/license, versions, credentials."""
+    """``GET /api/health``: the connection's phase, generation, age, and recorded credential and address verdicts."""
 
     phase: str
     generation: int
     # Seconds on mgr.clock's monotonic clock since the standing control connection
     # became Reachable; null while none stands.
     connected_at: float | None
-    info: dict[str, str] | None
-    # installed release ("6.0.2") off the daemon's /about page — GetInfo's
-    # `engine` is the separately-numbered DSP engine, not this.
-    release: str | None
-    license: dict[str, str] | None
-    # HQPTuner's own version, not the engine's, read from the package.
-    app_version: str
     # The 4321 handshake carries no authentication, so the phase cannot speak for
     # the 8088 configuration lane's credentials; this is that lane's own verdict on
     # the configured management credentials.
     credentials_ok: bool | None
+    address_found: bool | None
 
 
 @dataclass(frozen=True)
@@ -62,21 +55,18 @@ class StatusReport:
 
 @router.get("/health")
 def health(manager: Mgr) -> HealthReport:
-    """Return the connection's phase and generation, connection age, info/license, HQPTuner's version, and credentials.
+    """Return the connection's phase, generation, age, and recorded credential and address verdicts.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
     """
     readings = manager.readings
     standing = manager.phase.standing
     return HealthReport(
-        phase=standing.phase.value,
+        phase=standing.phase.value.capitalize(),
         generation=standing.generation,
         connected_at=_age(standing.connected_since, now=manager.clock.monotonic()),
-        info=readings.info,
-        release=readings.release,
-        license=readings.license,
-        app_version=__version__,
         credentials_ok=readings.credentials_ok,
+        address_found=readings.address_found,
     )
 
 

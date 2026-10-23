@@ -1,7 +1,4 @@
-"""/api/health "release" — the daemon's installed release string, parsed from
-the 8088 web interface's /about page (the text after the Version heading).
-A release that was not read is served as absent and never moves the phase, so the cases here
-run the app on both lanes: the threaded 4321 fake plus the fake 8088 daemon."""
+"""The release reading retains the version answered by the daemon's about page."""
 
 from collections.abc import Callable, Iterator
 from pathlib import Path
@@ -9,7 +6,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import phase_is_ready, wait_for_api
+from apps import app_manager, phase_is_ready, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -74,11 +71,11 @@ UNREAD_RELEASES = [
 
 
 @pytest.mark.parametrize("overrides", UNREAD_RELEASES)
-def test_a_release_that_was_not_read_is_served_as_absent(
+def test_a_release_that_was_not_read_remains_absent_in_readings(
     dual_client: Callable[..., TestClient], overrides: dict[str, object]
 ) -> None:
     unread, answering = dual_client(**overrides), dual_client()
     _settle(unread)
     _settle(answering)
-    releases = (unread.get("/api/health").json()["release"], answering.get("/api/health").json()["release"])
+    releases = (app_manager(unread).readings.release, app_manager(answering).readings.release)
     assert releases == (None, ANSWERED_RELEASE)

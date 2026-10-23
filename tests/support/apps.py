@@ -15,7 +15,6 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.core.lifecycle import CONNECTED_PHASES, Phase
 from hqptuner.core.manager import ConnectionManager
 
 METADATA_MIN = Path(__file__).parent / "fixtures" / "metadata_min"
@@ -26,7 +25,7 @@ READY_CEILING = 30.0
 
 
 #: The phases health reports while a control connection stands.
-STANDING_PHASES = frozenset(phase.value for phase in CONNECTED_PHASES)
+STANDING_PHASES = frozenset({"Reachable", "Ready"})
 
 
 def _phase(client: TestClient) -> str:
@@ -41,7 +40,7 @@ def connection_stands(client: TestClient) -> bool:
 
 def phase_is_ready(client: TestClient) -> bool:
     """Whether health reports Ready: the configuration lane has answered on the standing connection."""
-    return _phase(client) == Phase.READY.value
+    return _phase(client) == "Ready"
 
 
 async def settled(clock: VirtualClock) -> None:

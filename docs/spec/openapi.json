@@ -1428,11 +1428,18 @@
         "type": "object"
       },
       "HealthReport": {
-        "description": "``GET /api/health``: the connection's phase and generation, its age, info/license, versions, credentials.",
+        "description": "``GET /api/health``: the connection's phase, generation, age, and recorded credential and address verdicts.",
         "properties": {
-          "app_version": {
-            "title": "App Version",
-            "type": "string"
+          "address_found": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address Found"
           },
           "connected_at": {
             "anyOf": [
@@ -1460,60 +1467,12 @@
             "title": "Generation",
             "type": "integer"
           },
-          "info": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Info"
-          },
-          "license": {
-            "anyOf": [
-              {
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "License"
-          },
           "phase": {
             "title": "Phase",
             "type": "string"
-          },
-          "release": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Release"
           }
         },
-        "required": [
-          "phase",
-          "generation",
-          "connected_at",
-          "info",
-          "release",
-          "license",
-          "app_version",
-          "credentials_ok"
-        ],
+        "required": ["phase", "generation", "connected_at", "credentials_ok", "address_found"],
         "title": "HealthReport",
         "type": "object"
       },
@@ -3846,7 +3805,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Return the connection's phase and generation, connection age, info/license, HQPTuner's version, and credentials.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
+        "description": "Return the connection's phase, generation, age, and recorded credential and address verdicts.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
