@@ -42,7 +42,8 @@ class PipelinesBadJsonError(GroundingError):
         super().__init__(f"{kept_at(Codec.PIPELINES)}: not valid JSON: {error}", code="rows-bad-json")
 
 
-def _validate_rows(value: str) -> list[dict[str, str]]:
+def validate_rows(value: str) -> list[dict[str, str]]:
+    """Parse and validate the complete staged pipeline table."""
     try:
         raw = json.loads(value)
     except ValueError as exc:
@@ -93,7 +94,7 @@ def replace_pipelines(xml: bytes, value: str) -> bytes:
     outside it are preserved; indentation is taken from the existing rows so the
     daemon's own formatting survives.
     """
-    return _replace_pipelines_here(xml, _validate_rows(value))
+    return _replace_pipelines_here(xml, validate_rows(value))
 
 
 def _replace_pipelines_here(xml: bytes, rows: list[dict[str, str]]) -> bytes:

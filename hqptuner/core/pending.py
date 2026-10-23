@@ -3,11 +3,12 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from hqptuner.conf.matrixconf import validate_rows
 from hqptuner.core.fieldvalues import current_engine_view, file_value
 from hqptuner.core.readings import Readings
 from hqptuner.engine.view import EngineView
 from hqptuner.fields import query
-from hqptuner.fields.model import Field
+from hqptuner.fields.model import Attr, Codec, Field
 from hqptuner.lanes.live.routing import Destination, staged_destinations
 
 
@@ -78,6 +79,14 @@ def _dirty_live(edits: dict[str, dict[str, str]], view: EngineView) -> dict[str,
     return {key: args for key, args in live.items() if args}
 
 
+def _pipeline_fields() -> tuple[str, str]:
+    location = Attr("engine", "pipelines")
+    count = query.at(location)
+    if count is None:
+        raise KeyError(location)
+    return query.kept_at(Codec.PIPELINES), count
+
+
 def clean_pending(snapshot: PendingSnapshot, readings: Readings) -> PendingSnapshot:
     """Remove edits already held by their batch's destination without changing payload domains."""
     view = current_engine_view(readings)
@@ -87,6 +96,9 @@ def clean_pending(snapshot: PendingSnapshot, readings: Readings) -> PendingSnaps
         for name, value in snapshot.http.items()
         if value != _http_baseline(name, readings, view, destinations[name])
     }
+    rows, count = _pipeline_fields()
+    if rows in snapshot.http and count in snapshot.http and (rows in http or count in http):
+        http.update({rows: snapshot.http[rows], count: snapshot.http[count]})
     return PendingSnapshot(live=_dirty_live(snapshot.live, view), http=http)
 
 
@@ -108,6 +120,28 @@ class PendingStore:
 
         A new live bucket replaces the old bucket. An HTTP field removes only its matching live argument.
         """
+        rows, count = _pipeline_fields()
+        if rows in http or (count in http and rows in self.http):
+            payload = http[rows] if rows in http else self.http[rows]
+            self.stage_pipelines(payload, live=live, http=http, view=view)
+        else:
+            self._merge(live, http, view)
+
+    def stage_pipelines(
+        self,
+        value: str,
+        *,
+        live: dict[str, dict[str, str]] | None = None,
+        http: dict[str, str] | None = None,
+        view: EngineView | None = None,
+    ) -> None:
+        """Validate rows and merge them with their derived count as one complete edit."""
+        rows, count = _pipeline_fields()
+        edits = dict(http or {})
+        edits.update({rows: value, count: str(max(2, len(validate_rows(value))))})
+        self._merge(live or {}, edits, view)
+
+    def _merge(self, live: dict[str, dict[str, str]], http: dict[str, str], view: EngineView | None) -> None:
         for key, arg, row in _live_fields():
             if view is not None and not _on_chain(row, view):
                 continue
@@ -127,7 +161,11 @@ class PendingStore:
         so a name it has already dropped must not be an error. A live bucket emptied of its arguments goes with them:
         an empty bucket is not "no change", it is a setter the apply would still call.
         """
-        for field in http:
+        removed = set(http)
+        pipeline_fields = set(_pipeline_fields())
+        if removed & pipeline_fields:
+            removed.update(pipeline_fields)
+        for field in removed:
             self.http.pop(field, None)
         for key, args in live.items():
             bucket = self.live.get(key)
