@@ -3,6 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
+from hqptuner.core.fieldvalues import current_engine_view, file_value
 from hqptuner.core.readings import Readings
 from hqptuner.engine.view import EngineView
 from hqptuner.fields import query
@@ -56,22 +57,13 @@ class _RoutingReadings:
     readings: Readings
 
 
-def _file_value(name: str, readings: Readings) -> str | None:
-    """Read the field's registered File source in its write domain."""
-    row = query.field(name)
-    selector = None if row is None or row.read is None else row.read.file
-    if selector is None:
-        return None
-    sources = {"file_config": readings.file_config, "engine": readings.engine}
-    return (sources.get(selector.source) or {}).get(selector.key)
-
-
 def _http_baseline(name: str, readings: Readings, view: EngineView, destination: Destination) -> str | None:
     """Return the current value in the HTTP batch's destination domain."""
     if destination is Destination.DEFERRED:
         return None
     if destination is Destination.FILE:
-        return _file_value(name, readings)
+        row = query.field(name)
+        return None if row is None else file_value(readings, row)
     current = view.read(name)
     return None if current is None else current.value
 
@@ -88,7 +80,7 @@ def _dirty_live(edits: dict[str, dict[str, str]], view: EngineView) -> dict[str,
 
 def clean_pending(snapshot: PendingSnapshot, readings: Readings) -> PendingSnapshot:
     """Remove edits already held by their batch's destination without changing payload domains."""
-    view = EngineView.of(readings)
+    view = current_engine_view(readings)
     destinations = staged_destinations(_RoutingReadings(readings), snapshot.http, snapshot.live)
     http = {
         name: value
