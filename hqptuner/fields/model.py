@@ -194,6 +194,16 @@ class ReadDescriptor:
 
 
 @dataclass(frozen=True, kw_only=True)
+class MetadataSelector:
+    """A read-only value projected from a supplied metadata source."""
+
+    source: Literal["readings", "presets", "app_version"]
+    attribute: str | None = None
+    members: tuple[str, ...] = ()
+    readonly: Literal[True] = True
+
+
+@dataclass(frozen=True, kw_only=True)
 class Field:
     """One setting and every fact the register holds about it."""
 
@@ -211,3 +221,4 @@ class Field:
     volume_traced: bool
     reenumerates: bool
     read: ReadDescriptor | None = None
+    metadata: MetadataSelector | None = None

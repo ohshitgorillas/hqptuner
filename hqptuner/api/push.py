@@ -68,7 +68,7 @@ def sources(manager: ConnectionManager, static: StaticMetadata, store: PendingSt
         Source("status", lambda: status.status(manager)),
         Source("volume", lambda: volume.volume_get(manager)),
         Source("enumerations", lambda: status.merged_enumerations(manager, static)),
-        Source("config", lambda: config.config(credentialed(manager))),
+        Source("config", lambda: config.current_config(manager, store)),
         Source("matrix", lambda: matrix.matrix(credentialed(manager))),
         Source("pending", store.snapshot),
     ]

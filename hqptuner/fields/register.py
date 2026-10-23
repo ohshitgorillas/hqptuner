@@ -21,6 +21,7 @@ from hqptuner.fields.model import (
     Integer,
     Join,
     Live,
+    MetadataSelector,
     Plugin,
     ReadDescriptor,
     Setter,
@@ -366,61 +367,45 @@ def _read_descriptor(row: Field) -> ReadDescriptor | None:
     )
 
 
-FIELDS: tuple[Field, ...] = tuple(
-    replace(row, read=_read_descriptor(row))
-    for row in (*_SETTER_FIELDS, *_ONE_ATTRIBUTE_FIELDS, *_PLUGIN_FIELDS, *_CODEC_FIELDS, *_HARDWARE_FIELDS)
+_METADATA_FIELDS: tuple[Field, ...] = (
+    replace(_KEPT, name="profiles", metadata=MetadataSelector(source="presets", members=("value", "options"))),
+    replace(_KEPT, name="active_preset", metadata=MetadataSelector(source="presets", attribute="active")),
+    replace(_KEPT, name="device_caps", metadata=MetadataSelector(source="readings", attribute="device_caps")),
+    replace(_KEPT, name="info", metadata=MetadataSelector(source="readings", attribute="info")),
+    replace(_KEPT, name="release", metadata=MetadataSelector(source="readings", attribute="release")),
+    replace(_KEPT, name="license", metadata=MetadataSelector(source="readings", attribute="license")),
+    replace(_KEPT, name="app_version", metadata=MetadataSelector(source="app_version")),
 )
 
+
+FIELDS: tuple[Field, ...] = (
+    tuple(
+        replace(row, read=_read_descriptor(row))
+        for row in (*_SETTER_FIELDS, *_ONE_ATTRIBUTE_FIELDS, *_PLUGIN_FIELDS, *_CODEC_FIELDS, *_HARDWARE_FIELDS)
+    )
+    + _METADATA_FIELDS
+)
+
+
+def _setter(
+    key: str,
+    command: str,
+    *,
+    stageable: bool = True,
+    tolerance: float | None = None,
+    value_fills: bool = False,
+) -> Setter:
+    return Setter(key=key, command=command, stageable=stageable, tolerance=tolerance, value_fills=value_fills)
+
+
 SETTERS: tuple[Setter, ...] = (  # in apply order
-    Setter(
-        key="mode",
-        command="SetMode",
-        stageable=True,
-        tolerance=None,
-        value_fills=False,
-    ),
-    Setter(
-        key="filter",
-        command="SetFilter",
-        stageable=True,
-        tolerance=None,
-        value_fills=True,
-    ),
-    Setter(
-        key="shaper",
-        command="SetShaping",
-        stageable=True,
-        tolerance=None,
-        value_fills=False,
-    ),
-    Setter(
-        key="rate",
-        command="SetRate",
-        stageable=False,
-        tolerance=None,
-        value_fills=False,
-    ),
-    Setter(
-        key="junk_filter",
-        command="SetJunkFilter",
-        stageable=True,
-        tolerance=None,
-        value_fills=False,
-    ),
-    Setter(
-        key="adaptive_volume",
-        command="SetAdaptiveVolume",
-        stageable=True,
-        tolerance=None,
-        value_fills=False,
-    ),
-    Setter(
-        key="volume",
-        command="Volume",
-        stageable=True,
-        tolerance=0.05,
-        value_fills=False,
-    ),
+    _setter("mode", "SetMode"),
+    _setter("filter", "SetFilter", value_fills=True),
+    _setter("shaper", "SetShaping"),
+    _setter("rate", "SetRate", stageable=False),
+    _setter("junk_filter", "SetJunkFilter"),
+    _setter("adaptive_volume", "SetAdaptiveVolume"),
+    _setter("volume", "Volume", tolerance=0.05),
 )
 
 HOST_INTERFACES: tuple[Attr, ...] = (Attr("upnp", "interface"), Attr("network", "mcast_interface"))

@@ -38,7 +38,7 @@ Each setting's `FieldReading` has these members:
 
 After a restart the backend re-reads File sources in the background. The page keeps showing the last known values until the fresh reading arrives, then replaces them; controls never show "unread" during this refresh. An older acquisition stamp still identifies the older acquisition, but does not by itself clear the displayed value. An accepted File write re-reads the affected sources. The refresh requirement is not satisfied by retaining old values without re-reading them.
 
-Profiles, the active preset, device capabilities, daemon info, release, license and app version are read-only fields in the shared field register and are served through this same config reading. Their existing displays remain available; they have no separate metadata feed. The setting shape above may be extended for those registered read-only fields.
+The registered read-only fields are `profiles`, `active_preset`, `device_caps`, `info`, `release`, `license` and `app_version`. Each is served in `fields` as `{ value, readonly: true }`. `profiles.value` preserves the preset listing's `{ value, options }` payload, and `active_preset.value` identifies the active HQPTuner preset. The other values carry device capabilities, daemon info, release, license and app version respectively. Their existing displays remain available through this same config reading; they have no separate metadata feed.
 
 ## Health
 

@@ -98,12 +98,12 @@ def test_the_posted_password_survives_a_restart_only_when_remember_asked_it_to(
     assert restarted.hqp_password == resolved
 
 
-def test_posted_credentials_open_the_config_route_with_no_restart(app_factory: AppFactory) -> None:
+def test_posted_credentials_open_config_refresh_with_no_restart(app_factory: AppFactory) -> None:
     client = app_factory()
-    if client.get("/api/config").status_code != 503:
-        raise FixtureError(reason="the config route was open before any credentials were posted")
+    if client.post("/api/config/refresh").status_code != 503:
+        raise FixtureError(reason="config refresh was open before any credentials were posted")
     post_connection(client, password="p", remember=True)
-    assert client.get("/api/config").status_code == 200
+    assert client.post("/api/config/refresh").status_code == 200
 
 
 #: The password the install starts with, the password then posted (`None` for

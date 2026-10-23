@@ -416,36 +416,71 @@
         "title": "Body_state_import_api_state_import_post",
         "type": "object"
       },
-      "ConfigView": {
-        "description": "``GET /api/config`` data: the /config form's fields beside HQPTuner's presets.",
+      "Bounds": {
+        "description": "A complete numeric range reported by the daemon.",
         "properties": {
-          "active": {
-            "title": "Active",
-            "type": "string"
-          },
-          "device_caps": {
+          "max": {
             "anyOf": [
               {
-                "$ref": "#/components/schemas/DeviceCaps"
+                "type": "integer"
               },
               {
-                "type": "null"
+                "type": "number"
               }
-            ]
+            ],
+            "title": "Max"
           },
-          "fields": {
-            "items": {
-              "$ref": "#/components/schemas/FormField"
-            },
-            "title": "Fields",
-            "type": "array"
+          "min": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Min"
           },
-          "profiles": {
-            "$ref": "#/components/schemas/PresetChoice"
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "title": "Step"
           }
         },
-        "required": ["fields", "profiles", "active", "device_caps"],
-        "title": "ConfigView",
+        "required": ["min", "max", "step"],
+        "title": "Bounds",
+        "type": "object"
+      },
+      "ConfigReading": {
+        "description": "Registered settings at one lifecycle generation.",
+        "properties": {
+          "fields": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/FieldReading"
+                },
+                {
+                  "$ref": "#/components/schemas/MetadataReading"
+                }
+              ]
+            },
+            "title": "Fields",
+            "type": "object"
+          },
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          }
+        },
+        "required": ["generation", "fields"],
+        "title": "Reading",
         "type": "object"
       },
       "ConnectionBody": {
@@ -746,32 +781,6 @@
           }
         },
         "title": "EngineBody",
-        "type": "object"
-      },
-      "EngineReading": {
-        "description": "``GET /api/engine``: the hardware-acceleration attributes, and the active preset snapshot they were read from.",
-        "properties": {
-          "active_config": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Active Config"
-          },
-          "engine": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Engine",
-            "type": "object"
-          }
-        },
-        "required": ["engine", "active_config"],
-        "title": "EngineReading",
         "type": "object"
       },
       "EngineVerification": {
@@ -1163,6 +1172,89 @@
           }
         },
         "title": "FavoritesBody",
+        "type": "object"
+      },
+      "FieldReading": {
+        "description": "The independent readings and registered policy of one field.",
+        "properties": {
+          "bounds": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Bounds"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "diverges": {
+            "title": "Diverges",
+            "type": "boolean"
+          },
+          "engine": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/hqptuner__core__fieldreadings__EngineReading"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "file": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FileReading"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lane": {
+            "enum": ["live", "restore", "form", "matrix", "volume"],
+            "title": "Lane",
+            "type": "string"
+          },
+          "restarts": {
+            "title": "Restarts",
+            "type": "boolean"
+          },
+          "show": {
+            "enum": ["engine", "file"],
+            "title": "Show",
+            "type": "string"
+          },
+          "staged": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Staged"
+          }
+        },
+        "required": ["engine", "file", "staged", "lane", "show", "restarts", "diverges", "bounds"],
+        "title": "FieldReading",
+        "type": "object"
+      },
+      "FileReading": {
+        "description": "A File-domain value with its acquisition generation.",
+        "properties": {
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["value", "generation"],
+        "title": "FileReading",
         "type": "object"
       },
       "FilterEntry": {
@@ -1910,6 +2002,51 @@
         "title": "MergedEnums",
         "type": "object"
       },
+      "MetadataReading": {
+        "description": "A registered read-only metadata payload.",
+        "properties": {
+          "readonly": {
+            "const": true,
+            "title": "Readonly",
+            "type": "boolean"
+          },
+          "value": {
+            "$ref": "#/components/schemas/MetadataValue"
+          }
+        },
+        "required": ["value", "readonly"],
+        "title": "MetadataReading",
+        "type": "object"
+      },
+      "MetadataValue": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "items": {
+                    "$ref": "#/components/schemas/PresetOption"
+                  },
+                  "type": "array"
+                }
+              ]
+            },
+            "type": "object"
+          },
+          {
+            "$ref": "#/components/schemas/DeviceCaps"
+          },
+          {
+            "type": "null"
+          }
+        ]
+      },
       "ModeInfo": {
         "description": "The active output mode, as the status route attaches it to ``MergedEnums`` after the merge.",
         "properties": {
@@ -2102,25 +2239,6 @@
         },
         "required": ["fanout"],
         "title": "PresetAftermath",
-        "type": "object"
-      },
-      "PresetChoice": {
-        "description": "The preset picker as the form renders it: the selected preset and every option, \"(no preset)\" first.",
-        "properties": {
-          "options": {
-            "items": {
-              "$ref": "#/components/schemas/PresetOption"
-            },
-            "title": "Options",
-            "type": "array"
-          },
-          "value": {
-            "title": "Value",
-            "type": "string"
-          }
-        },
-        "required": ["value", "options"],
-        "title": "PresetChoice",
         "type": "object"
       },
       "PresetOption": {
@@ -2702,17 +2820,6 @@
         "title": "ShapersDb",
         "type": "object"
       },
-      "Snapshot_ConfigView_": {
-        "description": "Last-loaded state.",
-        "properties": {
-          "data": {
-            "$ref": "#/components/schemas/ConfigView"
-          }
-        },
-        "required": ["data"],
-        "title": "Snapshot",
-        "type": "object"
-      },
       "Snapshot_MatrixReport_": {
         "description": "Last-loaded state.",
         "properties": {
@@ -3182,6 +3289,52 @@
         "required": ["report", "saved"],
         "title": "WithSaved",
         "type": "object"
+      },
+      "hqptuner__api__routes__config__EngineReading": {
+        "description": "``GET /api/engine``: the hardware-acceleration attributes, and the active preset snapshot they were read from.",
+        "properties": {
+          "active_config": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Active Config"
+          },
+          "engine": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Engine",
+            "type": "object"
+          }
+        },
+        "required": ["engine", "active_config"],
+        "title": "EngineReading",
+        "type": "object"
+      },
+      "hqptuner__core__fieldreadings__EngineReading": {
+        "description": "A State-domain value with its acquisition generation.",
+        "properties": {
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value",
+            "type": "string"
+          }
+        },
+        "required": ["value", "name", "generation"],
+        "title": "EngineReading",
+        "type": "object"
       }
     }
   },
@@ -3307,14 +3460,14 @@
     },
     "/api/config": {
       "get": {
-        "description": "Return the /config form joined with HQPTuner's preset list and the output device's caps.\n\nNeeds credentials \u2014 without them the 8088 lane does not exist and the route 503s.",
+        "description": "Return registered settings and metadata from the current source stores.",
         "operationId": "config_api_config_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Snapshot_ConfigView_"
+                  "$ref": "#/components/schemas/ConfigReading"
                 }
               }
             },
@@ -3667,7 +3820,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/EngineReading"
+                  "$ref": "#/components/schemas/hqptuner__api__routes__config__EngineReading"
                 }
               }
             },

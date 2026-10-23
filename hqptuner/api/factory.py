@@ -74,7 +74,9 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     layer_onto_config(cfg, record)
     http_client = build_http_client(cfg)
     if http_client is None:
-        log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
+        log.warning(
+            "no hqplayerd credentials — /api/config/refresh unavailable until POST /api/connection carries a pair"
+        )
     manager = ConnectionManager(cfg, http_client, clock)
 
     store, feed = _staging(manager, static)

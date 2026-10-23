@@ -20,6 +20,11 @@ def readable() -> tuple[Field, ...]:
     return tuple(row for row in FIELDS if row.read is not None)
 
 
+def metadata() -> tuple[Field, ...]:
+    """Return fields with metadata selectors, in register order."""
+    return tuple(row for row in FIELDS if row.metadata is not None)
+
+
 def setters() -> tuple[Setter, ...]:
     """Return every setter, in apply order."""
     return SETTERS

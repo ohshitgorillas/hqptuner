@@ -57,10 +57,9 @@ CYCLES_PER_MOVE = 2
 #: A bound on the passes one move may take; reached only by a lane that stopped polling.
 PASSES_PER_MOVE = 12
 
-#: The titles the daemon's /config form serves after each move; the fake starts
-#: at `fake_http.state()`'s, which is neither.
-FIRST_TITLE = "first-refresh"
-SECOND_TITLE = "second-refresh"
+#: Daemon-reported startup-volume bounds after each refresh.
+FIRST_MINIMUM = -48
+SECOND_MINIMUM = -36
 
 #: The restore-lane field and value whose `pending` event ends the read.
 END_FIELD = "marker"
@@ -78,16 +77,17 @@ def _read_closed_by(field: str) -> Callable[[Sequence[SseBlock]], bool]:
     return closed
 
 
-def _titles_pushed(blocks: Sequence[SseBlock]) -> list[object]:
-    """The form's ``title`` value each ``config`` event carried, in the order they arrived."""
-    titles: list[object] = []
+def _minimums_pushed(blocks: Sequence[SseBlock]) -> list[object]:
+    """The startup-volume minimum carried by each config event."""
+    minimums: list[object] = []
     for config in events(blocks, "config"):
         body = json.loads(config.data)
-        data = body.get("data") if isinstance(body, dict) else None
-        fields = data.get("fields") if isinstance(data, dict) else None
-        rows = fields if isinstance(fields, list) else []
-        titles.extend(row.get("value") for row in rows if isinstance(row, dict) and row.get("name") == "title")
-    return titles
+        fields = body.get("fields") if isinstance(body, dict) else None
+        volume = fields.get("defaults_volume") if isinstance(fields, dict) else None
+        bounds = volume.get("bounds") if isinstance(volume, dict) else None
+        if isinstance(bounds, dict):
+            minimums.append(bounds.get("min"))
+    return minimums
 
 
 def _verdicts_pushed(blocks: Sequence[SseBlock]) -> list[object]:
@@ -166,11 +166,19 @@ def app(tmp_path: Path, http: dict[str, Any]) -> Iterator[TestClient]:
     next(daemon, None)
 
 
-def test_a_form_value_the_daemon_now_serves_reaches_the_subscriber_on_the_refresh_that_read_it(
+# Break: publish form refreshes only at keepalive or a later staging event.
+def test_daemon_bounds_reach_the_subscriber_on_the_refresh_that_read_them(
     app: TestClient, http: dict[str, Any]
 ) -> None:
-    blocks = _pushed_across_two_moves(app, http, [("title", FIRST_TITLE), ("title", SECOND_TITLE)])
-    assert FIRST_TITLE in _titles_pushed(blocks)
+    blocks = _pushed_across_two_moves(
+        app,
+        http,
+        [
+            ("_defaults_volume_bounds", {"min": FIRST_MINIMUM, "max": 0, "step": 1}),
+            ("_defaults_volume_bounds", {"min": SECOND_MINIMUM, "max": 0, "step": 1}),
+        ],
+    )
+    assert FIRST_MINIMUM in _minimums_pushed(blocks)
 
 
 def test_a_credential_verdict_reaches_the_subscriber_on_the_refresh_that_read_it(
