@@ -4,7 +4,7 @@
 // Every reading is one this file writes, in the shape the server serves a field reading, and in every one the Engine
 // and the File disagree. Each held value is distinct from every store's, so a shown value names the one it came from.
 //
-// Not covered, because the design leaves it open: what a view shows beyond `unread` for a field with no reading at all
+// Not covered, because the design leaves it open: what a view shows for a field with no reading at all
 // (its value, staged, dirty, lane, restart mark and bounds).
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/model/store/reading.test.js
@@ -174,75 +174,65 @@ test("test_a_missing_reading_is_not_fresh", () => {
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// fieldOf: unread once the generation passes the reading; never the old value, never the File's.
-
-test("test_a_view_reads_unread_once_the_generation_passes_its_reading", () => {
-  const taken = reading({ show: "engine" });
-  assert.deepEqual([fieldOf(taken, {}, GEN).unread, fieldOf(taken, {}, GEN + 1).unread], [false, true]);
-});
-
-test("test_an_unread_view_shows_neither_the_old_engine_value_nor_the_files", () => {
-  const taken = reading({ show: "engine" });
-  const stale = fieldOf(taken, {}, GEN + 1).value;
-  /** @type {unknown[]} */
-  const stores = [ENGINE_VALUE, FILE_VALUE];
-  assert.deepEqual([fieldOf(taken, {}, GEN).value, stores.includes(stale)], [ENGINE_VALUE, false]);
-});
-
-test("test_an_unread_file_shown_view_with_nothing_held_shows_nothing", () => {
-  const taken = reading({ show: "file" });
-  assert.deepEqual([fieldOf(taken, {}, GEN).value, fieldOf(taken, {}, GEN + 1).value], [FILE_VALUE, null]);
-});
-
-test("test_a_file_shown_view_reads_unread_on_an_old_file_stamp_beside_a_current_engine_stamp", () => {
-  const current = fieldOf(reading({ show: "file" }), {}, GEN).unread;
-  const fileOld = fieldOf(aged("file", "file"), {}, GEN).unread;
-  assert.deepEqual([current, fileOld], [false, true]);
-});
-
-test("test_a_field_with_no_reading_reads_unread", () => {
-  assert.equal(fieldOf(undefined, {}, GEN).unread, true);
-});
+// fieldOf: retain last known values across a restart until replacement readings arrive.
 
 for (const show of SHOWS) {
-  test(`test_an_unread_view_showing_the_${show}_runs_at_nothing`, () => {
+  test(`test_the_${show}_view_does_not_become_unread_when_its_stamp_ages`, () => {
+    assert.equal(fieldOf(aged(show, show), {}, GEN).unread, false);
+  });
+
+  test(`test_the_${show}_view_keeps_its_shown_value_after_a_restart_until_replaced`, () => {
     const taken = reading({ show });
-    assert.deepEqual([fieldOf(taken, {}, GEN).running, fieldOf(taken, {}, GEN + 1).running], [VALUE_OF[show], null]);
+    const replacement = reading({ show, [show]: { value: DRAG, generation: GEN + 1 } }, GEN + 1);
+    assert.deepEqual(
+      [fieldOf(taken, {}, GEN + 1).value, fieldOf(replacement, {}, GEN + 1).value],
+      [VALUE_OF[show], DRAG],
+    );
+  });
+
+  test(`test_the_${show}_view_keeps_its_running_value_after_a_restart_until_replaced`, () => {
+    const taken = reading({ show });
+    const replacement = reading({ show, [show]: { value: PAGE_STAGED, generation: GEN + 1 } }, GEN + 1);
+    const local = { drag: DRAG, staged: SERVED_STAGED };
+    assert.deepEqual(
+      [fieldOf(taken, local, GEN + 1).running, fieldOf(replacement, local, GEN + 1).running],
+      [VALUE_OF[show], PAGE_STAGED],
+    );
   });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// fieldOf while unread: only the store fallback is withheld; the page's drag and every staged value still show.
+// fieldOf after a restart: the page's drag and every staged value still take precedence.
 
-test("test_an_unread_view_still_shows_the_held_drag", () => {
+test("test_after_a_restart_the_view_still_shows_the_held_drag", () => {
   const local = { drag: DRAG, staged: PAGE_STAGED };
   assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), local, GEN + 1).value, DRAG);
 });
 
-test("test_an_unread_view_still_shows_the_page_staged_value", () => {
+test("test_after_a_restart_the_view_still_shows_the_page_staged_value", () => {
   assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), { staged: PAGE_STAGED }, GEN + 1).value, PAGE_STAGED);
 });
 
-test("test_an_unread_view_still_shows_the_served_staged_value", () => {
+test("test_after_a_restart_the_view_still_shows_the_served_staged_value", () => {
   assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), {}, GEN + 1).value, SERVED_STAGED);
 });
 
-test("test_an_unread_view_keeps_the_served_staged_value_as_its_staged", () => {
+test("test_after_a_restart_the_view_keeps_the_served_staged_value_as_its_staged", () => {
   assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), {}, GEN + 1).staged, SERVED_STAGED);
 });
 
-test("test_an_unread_view_with_a_served_staged_value_is_dirty", () => {
+test("test_after_a_restart_the_view_with_a_served_staged_value_is_dirty", () => {
   assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), {}, GEN + 1).dirty, true);
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
-// fieldOf: the Engine and File stores as served, stamps included, each kept only while its own stamp is current.
+// fieldOf: the Engine and File stores as served, including older acquisition stamps.
 
 for (const store of SHOWS) {
-  test(`test_the_view_holds_each_store_as_served_by_its_own_stamp_with_the_${store}_old`, () => {
+  test(`test_the_view_keeps_the_${store}_store_and_its_acquisition_stamp_when_old`, () => {
     const taken = aged("engine", store);
     const view = fieldOf(taken, {}, GEN);
-    assert.deepEqual([view[store], view[OTHER[store]]], [null, taken[OTHER[store]]]);
+    assert.deepEqual(view[store], taken[store]);
   });
 
   test(`test_the_${store}_store_served_null_is_null_in_the_view`, () => {

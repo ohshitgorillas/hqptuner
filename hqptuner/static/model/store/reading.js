@@ -73,22 +73,19 @@ const servedMarks = (reading) =>
  *
  * @param {FieldReading | undefined} reading
  * @param {LocalValues} local
- * @param {number} generation
+ * @param {number} _generation
  * @returns {FieldView}
  */
-export const fieldOf = (reading, local, generation) => {
-  const engine = current(reading?.engine, generation);
-  const file = current(reading?.file, generation);
+export const fieldOf = (reading, local, _generation) => {
   const staged = local.staged ?? reading?.staged ?? null;
-  const stores = reading && { ...reading, engine, file };
   return {
-    value: shownOf(stores, { drag: local.drag, staged }),
-    running: shownOf(stores, {}),
-    engine,
-    file,
+    value: shownOf(reading, { drag: local.drag, staged }),
+    running: shownOf(reading, {}),
+    engine: reading?.engine ?? null,
+    file: reading?.file ?? null,
     staged,
     dirty: staged !== null,
     ...servedMarks(reading),
-    unread: !freshAt(reading, generation),
+    unread: false,
   };
 };
