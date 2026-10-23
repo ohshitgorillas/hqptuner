@@ -4,7 +4,7 @@
 // processing at all.
 
 import { engineStatus, PAUSED, PLAYING, phase } from "../signals.js";
-import { runningValue } from "../resolve.js";
+import { field } from "../core/readings.js";
 import { loadedChain } from "../live/rates.js";
 import { truthy } from "../../lib/coerce.js";
 import { familyOf, isDsdRate } from "../../model/family.js";
@@ -35,7 +35,7 @@ export function playbackPath() {
   const sdmOut = outputIsSdm(s.status || {});
   if (!sourceIsDsd(s.metadata || {})) return sdmOut ? "pcm-sdm" : "pcm-pcm";
   if (!sdmOut) return "dsd-pcm";
-  return truthy(runningValue("direct_sdm")) ? "direct" : "sdm-sdm";
+  return truthy(field("direct_sdm").value.running) ? "direct" : "sdm-sdm";
 }
 
 /**
