@@ -134,6 +134,7 @@ class Readings:
     held: EngineSnapshot | None = None
     on_change: Callable[[], None] = field(default=_unheard, repr=False, compare=False)
     _source_stamps: dict[tuple[Source, str], Stamp | None] = field(default_factory=dict, init=False, repr=False)
+    _file_read_owners: dict[str, FileSourceOwner] = field(default_factory=dict, init=False, repr=False)
     _file_owners: dict[str, FileSourceOwner] = field(
         default_factory=lambda: {name: FileSourceOwner(name) for name in FILE_PAYLOADS},
         init=False,
@@ -149,10 +150,25 @@ class Readings:
         """Answer whether every captured File source still owns its acquisition."""
         return all(self._file_owners[owner.payload] is owner for owner in acquisition.owners)
 
+    def file_read_current(self, payload: str) -> bool:
+        """Whether the retained payload still has current reading evidence."""
+        return self._file_read_owners.get(payload) is self._file_owners[payload]
+
+    def _retire_file_readings(self, generation: int) -> None:
+        self._file_read_owners = {
+            name: owner
+            for name, owner in self._file_read_owners.items()
+            if self.source_stamp(Source.FILE, name) == Stamp(Source.FILE, generation)
+        }
+
     def break_file(self, *payloads: str) -> None:
         """Retire acquisitions for the named File sources while retaining their readings."""
-        for name in payloads or FILE_PAYLOADS:
+        names = payloads or FILE_PAYLOADS
+        changed = any(self.file_read_current(name) for name in names)
+        for name in names:
             self._file_owners[name] = FileSourceOwner(name)
+        if changed:
+            self.on_change()
 
     def take_address(self, *, found: bool | None) -> None:
         """Record the dial's address verdict and notify when it changes."""
@@ -168,18 +184,23 @@ class Readings:
             setattr(self, name, value)
             stamps_moved = self._take_source_stamp(Source.ENGINE, name, generation, value) or stamps_moved
         self.engine_stamp = Stamp(source=Source.ENGINE, generation=generation)
+        self._retire_file_readings(generation)
         if self.engine_snapshot() != before or stamps_moved:
             self.on_change()
 
     def take_file(self, generation: int | None = None, **fields: Unpack[FileFields]) -> bool:
         """Take one File reading and answer whether it moved them; a field it does not carry keeps its reading."""
         moved = any(getattr(self, name) != value for name, value in fields.items())
+        owners_before = self._file_read_owners.copy()
         stamps_moved = False
         for name, value in fields.items():
             setattr(self, name, value)
             if name in FILE_PAYLOADS:
+                self._file_read_owners[name] = self._file_owners[name]
                 stamps_moved = self._take_source_stamp(Source.FILE, name, generation, value) or stamps_moved
-        if moved or stamps_moved:
+        if self.engine_stamp is not None:
+            self._retire_file_readings(self.engine_stamp.generation)
+        if moved or stamps_moved or self._file_read_owners != owners_before:
             self.on_change()
         return moved
 
