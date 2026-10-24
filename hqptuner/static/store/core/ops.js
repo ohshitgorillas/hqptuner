@@ -1,6 +1,7 @@
 // The write lifecycle: busy, error, latest-wins and the alert lines every write reports on.
 
-import { batch, computed, signal } from "@preact/signals";
+import { batch, computed, effect, signal } from "@preact/signals";
+import { failText } from "../../lib/errtext.js";
 
 /** @typedef {"apply" | "live" | "snapshot" | "description" | "favorite" | "narrowing"} Area */
 
@@ -11,7 +12,31 @@ export const FAILED = Symbol("FAILED");
 export const STALE = Symbol("STALE");
 
 /** @type {Record<string, string>} */
-export const LEADS = { apply: "Apply failed: ", live: "Live change failed: " };
+export const LEADS = {
+  apply: "Apply failed: ",
+  live: "Live change failed: ",
+  snapshot: "Snapshot failed: ",
+  description: "Profile description failed: ",
+  favorite: "Favorite failed: ",
+  narrowing: "Narrow filters failed: ",
+};
+
+/**
+ * A writable error sentence whose dismissal clears the operation's error.
+ * @param {Op<any>} operation
+ * @returns {{ value: string }}
+ */
+export function opErrorText(operation) {
+  const text = signal("");
+  effect(() => {
+    const error = operation.error.value;
+    text.value = error === null ? "" : failText(operation.lead || "", error);
+  });
+  effect(() => {
+    if (!text.value) operation.clear();
+  });
+  return text;
+}
 
 const engineRuns = signal(0);
 const areaErrors = signal(/** @type {Map<string, unknown>} */ (new Map()));

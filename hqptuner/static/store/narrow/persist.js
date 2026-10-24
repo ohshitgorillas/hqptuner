@@ -8,9 +8,9 @@
 // with. Nothing polls — a tab picks up another tab's narrowing on reload, and
 // two browsers racing is last-write-wins. The favorites-only switch is NOT part
 // of that store: it lives in favorites.js and stays session state.
-import { signal, effect, batch } from "@preact/signals";
+import { effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { failText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 import { PLATFORM, quietWindow } from "../../lib/clock.js";
 import { sameJson } from "../../lib/samejson.js";
 import {
@@ -69,10 +69,8 @@ const QUIET_MS = 400;
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 
 /** The last failed narrowing read or write's sentence, "" once one succeeds. */
-export const narrowingError = signal("");
-
-/** The sentence a failed narrowing call opens with. */
-const NARROWING_LEAD = "Narrow filters failed: ";
+const narrowingOp = op("narrowing");
+export const narrowingError = opErrorText(narrowingOp);
 
 /** The quiet window a facet move restarts; it writes the facets out when it closes. */
 let quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), PLATFORM);
@@ -121,7 +119,7 @@ function changedKeys(snap) {
  * @returns {Promise<void>}
  */
 export async function hydrateNarrowing() {
-  try {
+  await narrowingOp.run(async () => {
     const body = await api.narrowing();
     const facets = body.facets || {};
     applying = true;
@@ -136,9 +134,7 @@ export async function hydrateNarrowing() {
       applying = false;
     }
     narrowingError.value = "";
-  } catch (e) {
-    narrowingError.value = failText(NARROWING_LEAD, e);
-  }
+  });
 }
 
 /**
@@ -153,14 +149,14 @@ export async function flushNarrowing() {
   if (!touched.size) return;
   const snap = snapshot();
   touched.clear();
-  try {
+  const result = await narrowingOp.run(async () => {
     const body = await api.saveNarrowing(snap);
     lastSent = body.facets || snap;
     narrowingError.value = "";
-  } catch (e) {
+  });
+  if (result === FAILED) {
     // Still owed: the next facet the user moves, or the next flush, retries it.
     for (const key of changedKeys(snap)) touched.add(key);
-    narrowingError.value = failText(NARROWING_LEAD, e);
   }
 }
 

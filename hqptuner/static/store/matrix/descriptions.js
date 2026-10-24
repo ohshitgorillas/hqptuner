@@ -21,7 +21,7 @@
 // Module load stays node-safe: the hydrate is guarded on `fetch` existing.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { failText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 import { PLATFORM, quietWindow } from "../../lib/clock.js";
 
 // How long the typist has to pause before the queue drains on its own.
@@ -34,10 +34,8 @@ const QUIET_MS = 800;
 export const descriptions = signal(/** @type {Record<string, Description>} */ ({}));
 // The last failed read or write's sentence, "" once one succeeds. One error for
 // the feature, latest wins — there is one editor on screen at a time.
-export const descriptionError = signal("");
-
-/** The sentence a failed description call opens with. */
-const DESCRIPTION_LEAD = "Profile description failed: ";
+const descriptionOp = op("description");
+export const descriptionError = opErrorText(descriptionOp);
 
 /**
  * Put a failed description call's sentence in `descriptionError`.
@@ -45,7 +43,9 @@ const DESCRIPTION_LEAD = "Profile description failed: ";
  * @returns {void}
  */
 export function descriptionFailed(e) {
-  descriptionError.value = failText(DESCRIPTION_LEAD, e);
+  void descriptionOp.run(() => {
+    throw e;
+  });
 }
 
 /** @type {Map<string, string>} name -> the newest text not yet sent */
@@ -70,13 +70,11 @@ export function descriptionFor(name) {
  * @returns {Promise<void>}
  */
 export async function hydrateDescriptions() {
-  try {
+  await descriptionOp.run(async () => {
     const body = await api.descriptions();
     descriptions.value = body.profiles || {};
     descriptionError.value = "";
-  } catch (e) {
-    descriptionFailed(e);
-  }
+  });
 }
 
 /**
@@ -110,15 +108,15 @@ export async function flushDescriptions() {
   const draining = [...queued];
   queued.clear();
   for (const [name, text] of draining) {
-    try {
+    const result = await descriptionOp.run(async () => {
       const body = await api.saveDescription(name, text);
       descriptions.value = body.profiles || {};
       descriptionError.value = "";
-    } catch (e) {
+    });
+    if (result === FAILED) {
       // Only re-queue when nothing newer arrived while the write was in flight —
       // the newer text is the one the user means.
       if (!queued.has(name)) queued.set(name, text);
-      descriptionFailed(e);
     }
   }
 }
