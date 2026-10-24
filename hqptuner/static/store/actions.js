@@ -2,7 +2,7 @@
 // the apply/save lifecycle. Everything here mutates a signal in store/signals.js
 // and/or POSTs through lib/api.js; the read side is store/resolve.js.
 
-import { signal, computed } from "@preact/signals";
+import { computed } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { failText } from "../lib/errtext.js";
 import { truthy } from "../lib/coerce.js";
@@ -11,6 +11,7 @@ import { summarize } from "./apply-summary.js";
 import { volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus, lastApply } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset } from "./resolve.js";
 import { field, readings } from "./core/readings.js";
+import { op, latest, STALE } from "./core/ops.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { setSpeakersGate } from "./matrix/speakers.js";
 import { setHardware } from "./faceplate/settings/hardware.js";
@@ -22,7 +23,8 @@ import { applyBauerCoupling, applyFixedVolumeCoupling } from "./schema/couplings
 // keystrokes) each POST, and an EARLIER request's response must not clobber a
 // LATER optimistic value, so only the newest in-flight call is allowed to adopt
 // the server's echo.
-let stageSeq = 0;
+const latestStage = latest();
+export const applyOp = op("apply", { engine: true });
 
 /**
  * @typedef {object} StageBody
@@ -53,9 +55,8 @@ export async function stagePipelines(rows, extra = {}) {
  */
 async function stageHttp(fields) {
   staged.value = { live: staged.value.live, http: { ...staged.value.http, ...fields } };
-  const seq = ++stageSeq;
-  const echo = await api.stage({ live: {}, http: fields });
-  if (seq === stageSeq) staged.value = echo;
+  const echo = await latestStage(api.stage({ live: {}, http: fields }));
+  if (echo !== STALE) staged.value = echo;
 }
 
 // Stage one edit. Live edits merge into their liveKey bucket (so a control that
@@ -109,6 +110,7 @@ export async function edit(key, value) {
   // being true here: a failed apply keeps its staging, and a stale FAILED verdict
   // beside a fresh edit would read as this edit having failed before it was ever sent.
   lastApply.value = null;
+  applyOp.clear();
   /** @type {StageBody} */
   const body = { live: {}, http: {} };
   // liveKey/field are optional on SchemaField for want of a lane discriminator
@@ -210,7 +212,7 @@ export function clearPreview() {
 }
 
 // apply lifecycle: `applying` turns the brand knob busy (store/faceplate/conn.js)
-export const applying = signal(false);
+export const applying = /** @type {{ value: boolean }} */ (applyOp.busy);
 
 // Both write lanes share a lifecycle: hold `applying` for the duration so the
 // brand knob can show it, and report a thrown failure as a
@@ -219,20 +221,29 @@ export const applying = signal(false);
 /**
  * @template T
  * @param {() => Promise<T>} run
- * @param {(e: unknown) => string} describe the failure sentence for a caught error
  * @param {boolean} restarts whether this lane takes the daemon down — the page dims for it
  * @returns {Promise<T>}
  */
-async function applyLane(run, describe, restarts) {
-  applying.value = true;
-  try {
-    return await duringEngineWrite(run, restarts);
-  } catch (e) {
-    lastApply.value = { ok: false, code: "lane-failed", text: describe(e) };
-    throw e;
-  } finally {
-    applying.value = false;
-  }
+async function applyLane(run, restarts) {
+  /** @type {T | undefined} */
+  let answer;
+  let threw = false;
+  let failure;
+  await applyOp.run(async () => {
+    try {
+      answer = await duringEngineWrite(run, restarts);
+    } catch (e) {
+      threw = true;
+      failure = e;
+      lastApply.value = { ok: false, code: "lane-failed", text: failText(applyOp.lead || "", e) };
+      throw e;
+    }
+    const verdict = lastApply.value;
+    if (verdict && !verdict.ok) throw { message: verdict.text, fromBackend: true };
+    return answer;
+  });
+  if (threw) throw failure;
+  return /** @type {T} */ (answer);
 }
 
 // Apply the staged set. The backend keeps staging on a soft failure, so on
@@ -285,22 +296,16 @@ async function commitApply(save) {
       const view = field(key).value;
       return view.dirty && view.restart;
     });
-  return applyLane(
-    async () => {
-      /** @type {{ save?: { name: string }, switch_to?: string }} */
-      const body = {};
-      if (save) body.save = save;
-      if (switchTo !== null) body.switch_to = switchTo;
-      // re-mirror pending + fresh values (dropdown picks up a new preset), on a refusal too: an
-      // apply whose preset save failed has already landed and cleared the staged set
-      const answer = await api.apply(Object.keys(body).length ? body : undefined).finally(refreshConfig);
-      lastApply.value = summarize(answer, count, live);
-      if (lastApply.value.ok) clearPreview(); // switch committed — drop the preview
-      return answer;
-    },
-    (e) => failText("Apply failed: ", e),
-    restarts,
-  );
+  return applyLane(async () => {
+    /** @type {{ save?: { name: string }, switch_to?: string }} */
+    const body = {};
+    if (save) body.save = save;
+    if (switchTo !== null) body.switch_to = switchTo;
+    const answer = await api.apply(Object.keys(body).length ? body : undefined).finally(refreshConfig);
+    lastApply.value = summarize(answer, count, live);
+    if (lastApply.value.ok) clearPreview();
+    return answer;
+  }, restarts);
 }
 
 // The high-frequency filter's auto-pilot: with this on, the backend engages and disengages the filter from the

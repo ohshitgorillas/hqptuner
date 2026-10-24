@@ -16,7 +16,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { health, engineStatus, lastApply } from "../../../../hqptuner/static/store/signals.js";
-import { liveWriteError } from "../../../../hqptuner/static/store/live/write.js";
+import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
 import { livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
 import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
@@ -80,7 +80,7 @@ async function quiet(scenario = {}) {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X, ...scenario });
   health.value = { ...HEALTHY };
   lastApply.value = null;
-  liveWriteError.value = "";
+  liveOp.clear();
   livePresetError.value = "";
   descriptionError.value = "";
   favoritesError.value = "";

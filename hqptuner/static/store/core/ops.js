@@ -11,7 +11,7 @@ export const FAILED = Symbol("FAILED");
 export const STALE = Symbol("STALE");
 
 /** @type {Record<string, string>} */
-export const LEADS = {};
+export const LEADS = { apply: "Apply failed: ", live: "Live change failed: " };
 
 const engineRuns = signal(0);
 const areaErrors = signal(/** @type {Map<string, unknown>} */ (new Map()));

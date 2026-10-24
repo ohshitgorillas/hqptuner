@@ -3,7 +3,10 @@
 // the line goes when the area next succeeds, or when it is tapped, which clears the area's error.
 import { computed } from "@preact/signals";
 import { lastApply } from "../signals.js";
-import { liveWriteError } from "../live/write.js";
+import { applyOp } from "../actions.js";
+import { liveOp } from "../live/write.js";
+import { failures, LEADS } from "../core/ops.js";
+import { failText } from "../../lib/errtext.js";
 import { livePresetError } from "../live/presets.js";
 import { descriptionError } from "../matrix/descriptions.js";
 import { favoritesError } from "../narrow/favorites.js";
@@ -39,12 +42,16 @@ const errorLine = (kind, error) =>
  * @type {{ readonly value: FailureAlert[] }}
  */
 export const failureAlerts = computed(() => {
-  const verdict = lastApply.value;
   return [
-    ...line("apply-failed", verdict && !verdict.ok ? verdict.text : "", () => {
-      lastApply.value = null;
-    }),
-    ...errorLine("live-write-failed", liveWriteError),
+    ...failures.value
+      .filter(({ area }) => area === "apply" || area === "live")
+      .sort((a, b) => a.area.localeCompare(b.area))
+      .flatMap(({ area, error }) =>
+        line(area === "apply" ? "apply-failed" : "live-write-failed", failText(LEADS[area], error), () => {
+          (area === "apply" ? applyOp : liveOp).clear();
+          if (area === "apply") lastApply.value = null;
+        }),
+      ),
     ...errorLine("snapshot-failed", livePresetError),
     ...errorLine("description-failed", descriptionError),
     ...errorLine("favorite-failed", favoritesError),
