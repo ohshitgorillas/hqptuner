@@ -38,7 +38,9 @@ import { initMeterFeed } from "./store/meter/feed.js";
 import { initMeterLoop } from "./store/meter/loop.js";
 import { bookWanted } from "./store/live/presets.js";
 import { loadSpeakers } from "./store/matrix/speakers.js";
-import { initPanel, pageHost } from "./store/connpanel.js";
+import { createConnPanel } from "./store/connpanel.js";
+
+const panel = createConnPanel();
 
 /** The chain body: rail, hairline, page, and the stage drawers over the page. */
 function ChainBody() {
@@ -96,9 +98,9 @@ function PlateAlerts() {
 export function Faceplate() {
   return html`
     <${Plate}>
-      <${Header} />
+      <${Header} panel=${panel} />
       <${PlateAlerts} />
-      <${ConnPanel} />
+      <${ConnPanel} panel=${panel} />
       <div class="rule"></div>
       <${EngineRow} />
       <div class="rule"></div>
@@ -119,8 +121,8 @@ if (root) {
   initMeterLoop();
   bookWanted.value = true;
   loadSpeakers();
-  initPanel();
-  pageHost.value = location.hostname;
+  panel.initPanel();
+  panel.pageHost.value = location.hostname;
   startSync();
   watchFaceplateTheme(document.documentElement);
   render(html`<${Faceplate} />`, root);

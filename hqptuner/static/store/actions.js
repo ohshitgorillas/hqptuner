@@ -7,6 +7,8 @@ import { api } from "../lib/api.js";
 import { failText } from "../lib/errtext.js";
 import { truthy } from "../lib/coerce.js";
 import { schema } from "./schema.js";
+import { hardware } from "./schema/hardware.js";
+import { speakers } from "./schema/speakers.js";
 import { summarize } from "./apply-summary.js";
 import { volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus, lastApply } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset } from "./resolve.js";
@@ -115,7 +117,7 @@ export async function edit(key, value) {
   const body = { live: {}, http: {} };
   // liveKey/field are optional on SchemaField for want of a lane discriminator
   // (store/resolve.js); each lane's own entries always carry theirs.
-  if (e.lane === "live") {
+  if (field(key).value.lane === "live") {
     const liveKey = e.liveKey || "";
     const prior = staged.value.live[liveKey] || {};
     body.live[liveKey] = { ...prior, [e.arg || "value"]: String(value) };
@@ -138,21 +140,18 @@ export async function edit(key, value) {
 }
 
 /**
- * Write one catalog key through its entry's lane: a `speakers`-lane key drafts the speakers form's switch and a
- * `hardware`-lane key drafts the engine attribute of its name, each staging nothing in the config staging buffer and
- * going out with its form's own apply; every other key stages through `edit()`.
+ * Speakers and hardware keys reach the engine only through their own form's apply; all other keys stage via `edit()`.
  *
  * @param {string} key
- * @param {string | number | boolean} value  a speakers-lane value is a truth: "1"/"0" or a boolean
+ * @param {string | number | boolean} value  a speakers value is a truth: "1"/"0" or a boolean
  * @returns {Promise<void>}
  */
 export async function setControl(key, value) {
-  const lane = schema[key]?.lane;
-  if (lane === "speakers") {
+  if (Object.hasOwn(speakers, key)) {
     setSpeakersGate(truthy(value));
     return;
   }
-  if (lane === "hardware") {
+  if (Object.hasOwn(hardware, key)) {
     setHardware(/** @type {import("./faceplate/settings/hardware.js").HardwareKey} */ (key), String(value));
     return;
   }

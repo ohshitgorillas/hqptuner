@@ -40,6 +40,57 @@ afterEach(() => {
   op(AREA).clear();
 });
 
+// Break: removing one edit leaves it held or discards another field's edit.
+test("test_removed_edit_follows_reload_without_discarding_other_edits", async () => {
+  let reading = BASE;
+  const item = await draft({ load: async () => reading });
+  item.set("gain", 4);
+  item.set("delay", 13);
+  const seen = [item.differs.value];
+  item.remove("gain");
+  reading = READBACK;
+  await item.reload();
+  seen.push(item.differs.value);
+  reading = { gain: 6, delay: 13 };
+  await item.reload();
+  seen.push(item.differs.value);
+  assert.deepEqual(seen, [["gain", "delay"], ["delay"], []]);
+});
+
+// Break: explicit refresh retains the old base or discards the user's edits.
+test("test_explicit_reload_preserves_edits_against_each_new_file_reading", async () => {
+  let reading = BASE;
+  const item = await draft({ load: async () => reading });
+  item.set("gain", 4);
+  const seen = [item.differs.value];
+  reading = READBACK;
+  await item.reload();
+  seen.push(item.differs.value);
+  reading = { gain: 6, delay: 11 };
+  await item.reload();
+  seen.push(item.differs.value);
+  assert.deepEqual(seen, [["gain"], [], ["gain"]]);
+});
+
+// Break: explicit refresh bypasses the form's read lifecycle or marks an engine write.
+test("test_explicit_reload_is_busy_without_marking_an_engine_write", async () => {
+  const refreshed = pending();
+  let initial = true;
+  const item = await draft({ load: () => (initial ? Promise.resolve(BASE) : refreshed.promise) });
+  initial = false;
+  const seen = [[item.busy.value, inFlight.value]];
+  const run = item.reload();
+  seen.push([item.busy.value, inFlight.value]);
+  refreshed.resolve(READBACK);
+  await run;
+  seen.push([item.busy.value, inFlight.value]);
+  assert.deepEqual(seen, [
+    [false, false],
+    [true, false],
+    [false, false],
+  ]);
+});
+
 // Break: the first load is skipped or base is populated before it resolves.
 test("test_base_becomes_the_first_completed_file_read", async () => {
   const load = pending();

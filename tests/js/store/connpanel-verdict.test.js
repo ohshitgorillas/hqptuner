@@ -5,7 +5,7 @@
 // `fetch` is faked at the real REST paths with the real response shapes, the
 // `health` signal is assigned the readings a poll would have delivered, and the
 // panel's own exported signals are assigned to state the situation.
-// The suite's fake clock (tests/js/support/clock.js) is handed in through `initPanel`,
+// The suite's fake clock (tests/js/support/clock.js) is handed in through `createConnPanel`,
 // so every "at N ms" below is a reading of that clock and never a
 // duration this suite spends; `settle()` turns the event loop rather than
 // waiting on one.
@@ -19,14 +19,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
-import {
-  form,
-  hostTouched,
-  verdict,
-  initPanel,
-  openPanel,
-  submitConnection,
-} from "../../../hqptuner/static/store/connpanel.js";
+import { createConnPanel } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 import { fakeClock } from "../support/clock.js";
@@ -41,12 +34,13 @@ const REAL_FETCH = env.fetch;
 // The health readings this suite drives with, in the shape /api/health serves.
 // `credentials_ok` is tri-state: null is the 8088 lane's silence.
 /** @type {Reading} */
-const SILENT = { reachable: false, ready: false, connected: false, credentials_ok: null };
+const SILENT = { phase: "Down", credentials_ok: null, address_found: null };
 /** @type {Reading} */
-const CONTROL_ONLY = { reachable: true, ready: false, connected: true, credentials_ok: null };
+const CONTROL_ONLY = { phase: "Reachable", credentials_ok: null, address_found: true };
 
 /** The fake clock the page reads, in milliseconds since the page loaded. */
 let fake = fakeClock();
+let panel = createConnPanel({ clock: fake.clock });
 /** @type {(() => void) | undefined} */
 let dispose;
 
@@ -67,13 +61,14 @@ afterEach(() => {
 /** @param {number} [at] */
 function start(at = 0) {
   fake = fakeClock();
+  panel = createConnPanel({ clock: fake.clock });
   moveTo(at);
   health.value = null;
   panelOpen.value = false;
-  hostTouched.value = false;
-  verdict.value = null;
-  form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(fake.clock);
+  panel.hostTouched.value = false;
+  panel.verdict.value = null;
+  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
+  dispose = panel.initPanel();
 }
 
 // Turns of the event loop, never a duration: enough for the fake's immediate
@@ -152,10 +147,10 @@ for (const kase of SAVES) {
   test(kase.name, async () => {
     start();
     const posts = wire({ hasPassword: kase.held });
-    openPanel();
+    panel.openPanel();
     await settle();
-    form.value = { ...form.value, host: "10.0.0.9", username: "tuner", password: kase.typed };
-    await submitConnection();
+    panel.form.value = { ...panel.form.value, host: "10.0.0.9", username: "tuner", password: kase.typed };
+    await panel.submitConnection();
     assert.equal(sentPassword(posts[0] ?? {}), kase.sent);
   });
 }
@@ -190,10 +185,12 @@ for (const kase of SAID) {
   test(kase.name, async () => {
     start();
     wire({ lane: kase.lane });
-    form.value = { ...form.value, host: kase.host, username: "tuner", password: "s3cret" };
-    await submitConnection();
+    panel.openPanel();
+    await settle();
+    panel.form.value = { ...panel.form.value, host: kase.host, username: "tuner", password: "s3cret" };
+    await panel.submitConnection();
     if (kase.reading) reading(kase.reading, kase.at);
     await settle();
-    assert.equal(verdict.value, kase.verdict);
+    assert.equal(panel.verdict.value, kase.verdict);
   });
 }

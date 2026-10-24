@@ -8,7 +8,7 @@
 //
 // `fetch` is faked at the real REST paths with the real response shapes, the `health` signal is assigned the
 // readings a poll would have delivered, and the suite's fake clock (tests/js/support/clock.js) is handed in through
-// `initPanel`, so every "at N ms" below is a reading of that clock and never a duration this suite spends; `settle()`
+// `createConnPanel`, so every "at N ms" below is a reading of that clock and never a duration this suite spends; `settle()`
 // turns the event loop rather than waiting on one. Readings are fresh objects every time: writing the same reference
 // to a signal does not notify.
 //
@@ -18,14 +18,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../../hqptuner/static/store/signals.js";
-import {
-  form,
-  hostTouched,
-  verdict,
-  initPanel,
-  openPanel,
-  submitConnection,
-} from "../../../../hqptuner/static/store/connpanel.js";
+import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
 import * as view from "../../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../../support/wire/wire.js";
 import { fakeClock } from "../../support/clock.js";
@@ -40,17 +33,18 @@ const REAL_FETCH = env.fetch;
 // The health readings this suite drives with, in the shape /api/health serves. `credentials_ok` is tri-state: null
 // is the 8088 lane's silence.
 /** @type {Reading} */
-const SILENT = { reachable: false, ready: false, connected: false, credentials_ok: null };
+const SILENT = { phase: "Down", credentials_ok: null, address_found: false };
 /** @type {Reading} */
-const CONTROL_ONLY = { reachable: true, ready: false, connected: true, credentials_ok: null };
+const CONTROL_ONLY = { phase: "Reachable", credentials_ok: null, address_found: true };
 /** @type {Reading} */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
+const HEALTHY = { phase: "Ready", credentials_ok: true, address_found: true };
 
 /** Ten minutes after the save, in ms: past any window a watcher waits before calling a silent daemon unreachable. */
 const LONG_AFTER = 600000;
 
 /** The fake clock the page reads, in milliseconds since the page loaded. */
 let fake = fakeClock();
+let panel = createConnPanel({ clock: fake.clock });
 /** @type {(() => void) | undefined} */
 let dispose;
 
@@ -93,11 +87,12 @@ afterEach(() => {
 // yet edited.
 function start() {
   fake = fakeClock();
+  panel = createConnPanel({ clock: fake.clock });
   health.value = null;
-  hostTouched.value = false;
-  verdict.value = null;
-  form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(fake.clock);
+  panel.hostTouched.value = false;
+  panel.verdict.value = null;
+  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
+  dispose = panel.initPanel();
 }
 
 // Turns of the event loop, never a duration: enough for the fake's immediate answers and the store's continuations
@@ -137,7 +132,7 @@ test("test_escape_with_the_connection_panel_up_takes_it_down", () => {
 test("test_opening_the_connection_panel_raises_the_faceplates_panel_flag", async () => {
   start();
   wire("ok");
-  openPanel();
+  panel.openPanel();
   await settle();
   assert.equal(overlay()?.value, true);
 });
@@ -177,14 +172,14 @@ for (const kase of FORGOTTEN) {
   test(kase.name, async () => {
     start();
     wire(kase.lane);
-    openPanel();
+    panel.openPanel();
     await settle();
-    form.value = { ...form.value, host: "10.0.0.9", username: "tuner", password: "s3cret" };
-    await submitConnection();
+    panel.form.value = { ...panel.form.value, host: "10.0.0.9", username: "tuner", password: "s3cret" };
+    await panel.submitConnection();
     setOverlay(false);
     fake.advance(kase.at);
     health.value = { ...kase.reading };
     await settle();
-    assert.notEqual(verdict.value, kase.leftover);
+    assert.notEqual(panel.verdict.value, kase.leftover);
   });
 }

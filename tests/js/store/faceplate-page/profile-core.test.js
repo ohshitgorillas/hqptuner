@@ -18,7 +18,17 @@ const REAL_FETCH = globalThis.fetch;
 let wire;
 /** @type {Promise<import("../../support/wire/wire.js").FakeResponse> | null} */
 let answer = null;
-let reached = Promise.withResolvers();
+let reached = hold();
+
+/** @returns {{ promise: Promise<void>, resolve: () => void }} */
+function hold() {
+  let resolve = () => {};
+  /** @type {Promise<void>} */
+  const promise = new Promise((release) => {
+    resolve = release;
+  });
+  return { promise, resolve };
+}
 
 /** @param {string} name */
 function serve(name) {
@@ -54,7 +64,7 @@ beforeEach(() => {
   enums.value = { matrix_profiles: [FIRST, SECOND] };
   serve(FIRST);
   answer = null;
-  reached = Promise.withResolvers();
+  reached = hold();
   cur.value = { st: FIRST, name: SECOND };
   staged.value = new Map();
   ask.value = null;
@@ -99,12 +109,12 @@ test("test_live_profile_eligibility_follows_replacement_enumerations", () => {
 
 // Break: a profile switch has local busy state but never marks the engine in flight.
 test("test_page_switch_marks_engine_in_flight_until_it_settles", async () => {
-  const held = Promise.withResolvers();
-  answer = held.promise;
+  const held = hold();
+  answer = held.promise.then(() => ok({ ok: true }));
   const seen = [inFlight.value];
   const pending = switchProfile(SECOND);
   seen.push(inFlight.value);
-  held.resolve(ok({ ok: true }));
+  held.resolve();
   await pending;
   seen.push(inFlight.value);
   assert.deepEqual(seen, [false, true, false]);
@@ -123,13 +133,13 @@ test("test_page_switch_refusal_reaches_live_line_and_retry_clears_it", async () 
 
 // Break: the builder's live switch does not share the page picker's busy state.
 test("test_builder_live_switch_marks_the_page_picker_busy", async () => {
-  const held = Promise.withResolvers();
-  answer = held.promise;
+  const held = hold();
+  answer = held.promise.then(() => ok({ ok: true }));
   const seen = [profileChoices().busy];
   const pending = saveProfile();
   await reached.promise;
   seen.push(profileChoices().busy);
-  held.resolve(ok({ ok: true }));
+  held.resolve();
   await pending;
   seen.push(profileChoices().busy);
   assert.deepEqual(seen, [false, true, false]);

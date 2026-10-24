@@ -16,6 +16,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { edit } from "../../../../hqptuner/static/store/actions.js";
+import { refreshReadings } from "../../../../hqptuner/static/store/core/readings.js";
 import {
   savedProfiles,
   profileRows,
@@ -51,18 +52,21 @@ test("test_the_picker_sorts_its_names", async () => {
 test("test_a_staged_save_adds_its_name_to_the_picker", async () => {
   await reset({ file_profiles: { Old: PROF([ROW("-1")]) } });
   await stageProfileSave("New", [ROW("-2")]);
+  await refreshReadings();
   assert.deepEqual(savedProfiles.value, ["New", "Old"]);
 });
 
 test("test_a_staged_delete_removes_the_name_from_the_picker", async () => {
   await reset({ file_profiles: { Old: PROF([ROW("-1")]), Kept: PROF([ROW("-2")]) } });
   await stageProfileDelete("Old");
+  await refreshReadings();
   assert.deepEqual(savedProfiles.value, ["Kept"]);
 });
 
 test("test_a_corrupt_staged_save_is_treated_as_nothing_staged", async () => {
   await reset({ file_profiles: { Old: PROF([ROW("-1")]) } });
   await edit("matrix_profile_save", "{not json");
+  await refreshReadings();
   assert.deepEqual(savedProfiles.value, ["Old"]);
 });
 
@@ -77,6 +81,7 @@ test("test_a_profile_saved_this_session_is_not_live_switchable", async () => {
   // the daemon only knows what it read at startup
   await reset({ live_profiles: ["Known"] });
   await stageProfileSave("Fresh", [ROW("-1")]);
+  await refreshReadings();
   assert.equal(isLiveProfile("Fresh"), false);
 });
 
@@ -95,12 +100,14 @@ test("test_profile_rows_come_from_the_config_for_a_saved_profile", async () => {
 test("test_a_staged_save_outranks_the_config_copy_of_the_same_profile", async () => {
   await reset({ file_profiles: { P: PROF([ROW("-9")]) } });
   await stageProfileSave("P", [ROW("-1")]);
+  await refreshReadings();
   assert.deepEqual(profileRows("P"), [ROW("-1")]);
 });
 
 test("test_a_staged_save_does_not_leak_rows_into_another_profile", async () => {
   await reset({ file_profiles: { P: PROF([ROW("-9")]) } });
   await stageProfileSave("Other", [ROW("-1")]);
+  await refreshReadings();
   assert.deepEqual(profileRows("P"), [ROW("-9")]);
 });
 

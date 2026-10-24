@@ -98,16 +98,26 @@ test("test_an_existing_field_observes_replacement_readings", () => {
 // Break: an older request arriving last replaces a newer completed reading.
 test("test_older_refetch_cannot_overwrite_a_newer_reading", async () => {
   await quiesce(wire);
-  const first = Promise.withResolvers();
-  const second = Promise.withResolvers();
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answerfirst = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const first = new Promise((resolve) => {
+    answerfirst = resolve;
+  });
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answersecond = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const second = new Promise((resolve) => {
+    answersecond = resolve;
+  });
   const replies = [first, second];
-  wire = stagingWire({ routes: (path) => (path === "/api/config" ? replies.shift()?.promise : undefined) });
+  wire = stagingWire({ routes: (path) => (path === "/api/config" ? replies.shift() : undefined) });
   const older = refreshReadings();
   const newer = refreshReadings();
-  second.resolve(ok(body({ [KEY]: reading({ engine: { value: NEXT, name: "next", generation: GEN } }) })));
+  answersecond(ok(body({ [KEY]: reading({ engine: { value: NEXT, name: "next", generation: GEN } }) })));
   await newer;
   const seen = [field(KEY).value.value];
-  first.resolve(ok(body({ [KEY]: reading() })));
+  answerfirst(ok(body({ [KEY]: reading() })));
   await older;
   seen.push(field(KEY).value.value);
   assert.deepEqual(seen, [NEXT, NEXT]);

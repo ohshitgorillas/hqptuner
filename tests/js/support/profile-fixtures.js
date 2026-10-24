@@ -6,7 +6,7 @@
 import { config, matrixConfig, engineState, enums } from "../../../hqptuner/static/store/signals.js";
 import { readings } from "../../../hqptuner/static/store/core/readings.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { stagingWire } from "./wire/wire.js";
+import { stagingWire, ok } from "./wire/wire.js";
 
 /**
  * One pipeline row, every value a string.
@@ -41,14 +41,50 @@ export const profileReading = (name) => ({
   bounds: null,
 });
 
+/**
+ * @param {unknown} value
+ * @returns {import("../../../hqptuner/static/model/store/reading.js").FieldReading}
+ */
+const pendingReading = (value) => ({
+  engine: null,
+  file: { value: "", generation: 0 },
+  staged: value ?? null,
+  lane: "restore",
+  show: "file",
+  restarts: true,
+  diverges: false,
+  bounds: null,
+});
+
 // A faked staging wire plus a clean signal tree; `m` supplies the matrix
 // config's own members on top of the empty form.
+/**
+ * @param {{
+ *   live_profiles?: string[],
+ *   live_active?: string,
+ *   file_profiles?: Record<string, ReturnType<typeof PROF>>,
+ *   preset_profiles?: Record<string, string[]>,
+ * }} [options]
+ */
 export async function reset({ live_profiles = [], live_active = "", ...m } = {}) {
-  stagingWire();
+  const wire = stagingWire({
+    routes: (path, _opts, w) =>
+      path === "/api/config"
+        ? ok({
+            generation: 0,
+            fields: {
+              matrix_profile: profileReading(live_active),
+              matrix_profile_save: pendingReading(w.staged.http.matrix_profile_save),
+              matrix_profile_delete: pendingReading(w.staged.http.matrix_profile_delete),
+            },
+          })
+        : undefined,
+  });
   engineState.value = {};
   config.value = { fields: [], file: {}, active: "" };
   matrixConfig.value = { fields: [], rows: [], ...m };
   enums.value = { matrix_profiles: live_profiles };
   readings.value = { generation: 0, fields: { matrix_profile: profileReading(live_active) } };
   await discardAll();
+  return wire;
 }

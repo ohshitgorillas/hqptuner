@@ -24,9 +24,10 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SpeakersBody } from "../../../../hqptuner/static/components/faceplate/drawers/Speakers.js";
 import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
-import { speakers, speakersBusy, speakersError } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import {
   SETS,
+  applyDraft,
   discardDraft,
   pickSpeakerSet,
   setChannelDistance,
@@ -35,7 +36,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -81,12 +82,10 @@ const MARK = "restart-mark";
 /** @param {MarkupElement} e  whether the element is a restart mark */
 const isMark = (e) => attr(e, "data-testid") === MARK;
 
-/** @param {{ direct?: boolean, busy?: boolean, form?: ReturnType<typeof formAt> }} [s] */
-function reset({ direct = false, busy = false, form = FORM } = {}) {
-  stagingWire();
-  speakers.value = form;
-  speakersBusy.value = busy;
-  speakersError.value = "";
+/** @param {{ direct?: boolean, form?: ReturnType<typeof formAt> }} [s] */
+async function reset({ direct = false, form = FORM } = {}) {
+  stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form }) : undefined) });
+  await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
   discardDraft();
   pickSpeakerSet(FIRST.id);
@@ -126,34 +125,34 @@ const spots = () =>
  */
 const call = (fn, ...args) => (typeof fn === "function" ? fn(...args) : undefined);
 
-test("test_one_row_is_drawn_per_channel_of_the_first_set", () => {
-  reset();
+test("test_one_row_is_drawn_per_channel_of_the_first_set", async () => {
+  await reset();
   const first = withClass("sprow").length;
   assert.equal(first, FIRST.channels.length);
 });
 
-test("test_one_row_is_drawn_per_channel_of_the_last_set", () => {
-  reset();
+test("test_one_row_is_drawn_per_channel_of_the_last_set", async () => {
+  await reset();
   pickSpeakerSet(LAST.id);
   assert.equal(withClass("sprow").length, LAST.channels.length);
 });
 
-test("test_a_rows_distance_box_holds_the_drafted_distance", () => {
-  reset();
+test("test_a_rows_distance_box_holds_the_drafted_distance", async () => {
+  await reset();
   setChannelDistance(1, "350");
   const values = rowBoxes().map((row) => row.map((box) => attr(box, "value")));
   assert.deepEqual(values[1], ["0", "350"]);
 });
 
-test("test_a_change_in_a_distance_box_drafts_that_channels_distance", () => {
-  reset();
+test("test_a_change_in_a_distance_box_drafts_that_channels_distance", async () => {
+  await reset();
   const boxes = draw().seen.filter((v) => v.type === "input" && v.props.type === "number");
   call(boxes[3]?.props.onChange, { currentTarget: { value: "333" } });
   assert.equal(speakerDraft().channels[1]?.distance, 333);
 });
 
-test("test_the_set_select_holds_the_picked_set", () => {
-  reset();
+test("test_the_set_select_holds_the_picked_set", async () => {
+  await reset();
   pickSpeakerSet(LAST.id);
   const picked = all().filter((e) => e.name === "option" && hasAttr(e, "selected"));
   assert.deepEqual(
@@ -164,28 +163,45 @@ test("test_the_set_select_holds_the_picked_set", () => {
 
 // --- Direct SDM --------------------------------------------------------------------------------------------------
 
-test("test_under_direct_sdm_each_level_box_is_disabled_and_each_distance_box_is_not", () => {
-  reset({ direct: true });
+test("test_under_direct_sdm_each_level_box_is_disabled_and_each_distance_box_is_not", async () => {
+  await reset({ direct: true });
   assert.deepEqual(
     rowBoxes().map((row) => row.map((box) => hasAttr(box, "disabled"))),
     FIRST.channels.map(() => [true, false]),
   );
 });
 
-test("test_the_direct_sdm_line_shows_while_the_levels_are_dead", () => {
-  reset({ direct: true });
+test("test_the_direct_sdm_line_shows_while_the_levels_are_dead", async () => {
+  await reset({ direct: true });
   assert.equal(withClass("spsdm").length, 1);
 });
 
-test("test_the_rows_column_carries_sdm_while_the_levels_are_dead", () => {
-  reset({ direct: true });
+test("test_the_rows_column_carries_sdm_while_the_levels_are_dead", async () => {
+  await reset({ direct: true });
   const on = withClass("spleft").map((e) => classes(e).includes("sdm"));
   assert.deepEqual(on, [true]);
 });
 
-test("test_an_apply_in_flight_disables_every_control", () => {
-  reset({ busy: true });
+test("test_an_apply_in_flight_disables_every_control", async () => {
+  await reset();
+  /** @type {(response: ReturnType<typeof ok>) => void} */
+  let finish = () => {};
+  const response = new Promise(
+    /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
+      finish = resolve;
+    },
+  );
+  stagingWire({
+    routes: (path, opts) => {
+      if (path !== "/api/speakers") return undefined;
+      return opts.method === "POST" ? response : ok({ data: FORM });
+    },
+  });
+  setChannelDistance(1, "333");
+  const applying = applyDraft();
   const busy = all().filter((e) => ["input", "select"].includes(e.name) && hasAttr(e, "disabled")).length;
+  finish(ok({ report: { applied: true, speakers: FORM } }));
+  await applying;
   assert.equal(busy, FIRST.channels.length * 2 + 1);
 });
 
@@ -220,32 +236,32 @@ function setHeadMarked() {
   return head ? holdsMark(head) : null;
 }
 
-test("test_the_set_head_carries_no_restart_mark", () => {
-  reset();
+test("test_the_set_head_carries_no_restart_mark", async () => {
+  await reset();
   assert.equal(setHeadMarked(), false);
 });
 
 // --- the room plan -----------------------------------------------------------------------------------------------
 
-test("test_the_plan_draws_one_speaker_per_channel_of_the_first_set", () => {
-  reset();
+test("test_the_plan_draws_one_speaker_per_channel_of_the_first_set", async () => {
+  await reset();
   const first = spots().length;
   assert.equal(first, FIRST.channels.length);
 });
 
-test("test_the_plan_draws_one_speaker_per_channel_of_the_last_set", () => {
-  reset();
+test("test_the_plan_draws_one_speaker_per_channel_of_the_last_set", async () => {
+  await reset();
   pickSpeakerSet(LAST.id);
   assert.equal(spots().length, LAST.channels.length);
 });
 
-test("test_the_plan_draws_no_speaker_while_the_daemon_reports_none_set", () => {
-  reset({ form: UNSET_FORM });
+test("test_the_plan_draws_no_speaker_while_the_daemon_reports_none_set", async () => {
+  await reset({ form: UNSET_FORM });
   assert.equal(spots().length, 0);
 });
 
-test("test_a_drafted_level_puts_its_speaker_on_the_plan", () => {
-  reset({ form: UNSET_FORM });
+test("test_a_drafted_level_puts_its_speaker_on_the_plan", async () => {
+  await reset({ form: UNSET_FORM });
   setChannelLevel(1, SET_DB);
   assert.equal(spots().length, 1);
 });

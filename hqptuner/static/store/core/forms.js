@@ -12,8 +12,10 @@ import { op } from "./ops.js";
  * @property {{ readonly value: Record<string, unknown> | null }} base
  * @property {{ readonly value: Record<string, unknown> }} values
  * @property {(key: string, v: unknown) => void} set
+ * @property {(key: string) => void} remove
  * @property {{ readonly value: string[] }} differs
  * @property {() => Promise<void>} apply
+ * @property {() => Promise<void>} reload
  * @property {() => void} discard
  * @property {{ readonly value: boolean }} busy
  * @property {{ readonly value: unknown }} error
@@ -56,8 +58,16 @@ export function formDraft({ load, write, keys, area }) {
     set: (key, value) => {
       values.value = { ...values.peek(), [key]: value };
     },
+    remove: (key) => {
+      const next = { ...values.peek() };
+      delete next[key];
+      values.value = next;
+    },
     differs,
     apply,
+    reload: async () => {
+      await operation.run(reload, { engine: false });
+    },
     discard: () => {
       values.value = {};
     },

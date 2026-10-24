@@ -27,10 +27,12 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/useredit-focus.test.js
 
-import test from "node:test";
+import test, { before } from "node:test";
 import assert from "node:assert/strict";
 
-import { documentSees, focus, keydown, setup, fire } from "../support/useredit-dom.js";
+import { documentSees, focus, keydown, setup, fire, installUserEdit } from "../support/useredit-dom.js";
+
+before(installUserEdit);
 
 /** @typedef {import("../support/useredit-dom.js").ControlSeam} ControlSeam */
 

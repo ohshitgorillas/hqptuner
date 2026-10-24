@@ -288,13 +288,18 @@ test("test_gray_follows_the_staged_fixed_volume_flag", () => {
 
 // Break: the release clears its hold after the POST but before the refetch lands.
 test("test_live_hold_lasts_until_the_readback_lands", async () => {
-  const reply = Promise.withResolvers();
-  wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply.promise : ok({})) });
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const reply = new Promise((resolve) => {
+    answer = resolve;
+  });
+  wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply : ok({})) });
   const item = control(KEY, { drag: "preview" });
   const run = item.drop(HELD);
   await new Promise((resolve) => setImmediate(resolve));
   const seen = [item.value];
-  reply.resolve(ok(readings.value));
+  answer(ok(readings.value));
   await run;
   await quiesce(wire);
   seen.push(item.value);
@@ -303,8 +308,13 @@ test("test_live_hold_lasts_until_the_readback_lands", async () => {
 
 // Break: staging clears the thumb before a fresh reading can carry the edit.
 test("test_stage_release_keeps_the_edit_until_fresh_reading", async () => {
-  const reply = Promise.withResolvers();
-  wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply.promise : undefined) });
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const reply = new Promise((resolve) => {
+    answer = resolve;
+  });
+  wire = stagingWire({ routes: (path) => (path === "/api/config" ? reply : undefined) });
   const item = control(KEY, { drag: "stage" });
   item.move(HELD);
   const run = item.drop(HELD);
@@ -314,7 +324,7 @@ test("test_stage_release_keeps_the_edit_until_fresh_reading", async () => {
     ...readings.value,
     fields: { [KEY]: { ...readings.value.fields[KEY], staged: HELD } },
   };
-  reply.resolve(ok(fresh));
+  answer(ok(fresh));
   await run;
   await quiesce(wire);
   seen.push(Number(item.value));
@@ -323,10 +333,15 @@ test("test_stage_release_keeps_the_edit_until_fresh_reading", async () => {
 
 // Break: a completed release clears a newly started drag that has not written yet.
 test("test_earlier_release_preserves_a_new_unreleased_drag", async () => {
-  const reply = Promise.withResolvers();
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const reply = new Promise((resolve) => {
+    answer = resolve;
+  });
   wire = stagingWire({
     routes: (path, opts) => {
-      if (opts.method === "POST") return reply.promise;
+      if (opts.method === "POST") return reply;
       return path === "/api/config" ? ok(readings.value) : undefined;
     },
   });
@@ -334,7 +349,7 @@ test("test_earlier_release_preserves_a_new_unreleased_drag", async () => {
   const released = item.drop(ENGINE);
   item.move(HELD);
   const seen = [item.value];
-  reply.resolve(ok({}));
+  answer(ok({}));
   await released;
   await quiesce(wire);
   seen.push(item.value);
@@ -343,10 +358,15 @@ test("test_earlier_release_preserves_a_new_unreleased_drag", async () => {
 
 // Break: one binding's completed release clears another binding's newer drag.
 test("test_release_preserves_a_new_drag_from_another_binding", async () => {
-  const reply = Promise.withResolvers();
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const reply = new Promise((resolve) => {
+    answer = resolve;
+  });
   wire = stagingWire({
     routes: (path, opts) => {
-      if (opts.method === "POST") return reply.promise;
+      if (opts.method === "POST") return reply;
       return path === "/api/config" ? ok(readings.value) : undefined;
     },
   });
@@ -355,7 +375,7 @@ test("test_release_preserves_a_new_drag_from_another_binding", async () => {
   const released = earlier.drop(ENGINE);
   later.move(HELD);
   const seen = [later.value];
-  reply.resolve(ok({}));
+  answer(ok({}));
   await released;
   await quiesce(wire);
   seen.push(later.value);
@@ -364,22 +384,32 @@ test("test_release_preserves_a_new_drag_from_another_binding", async () => {
 
 // Break: an older completed write releases the drag owned by a newer write.
 test("test_stale_write_leaves_the_later_hold_in_place", async () => {
-  const first = Promise.withResolvers();
-  const second = Promise.withResolvers();
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answerfirst = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const first = new Promise((resolve) => {
+    answerfirst = resolve;
+  });
+  /** @type {(value: ReturnType<typeof ok>) => void} */
+  let answersecond = () => {};
+  /** @type {Promise<ReturnType<typeof ok>>} */
+  const second = new Promise((resolve) => {
+    answersecond = resolve;
+  });
   const replies = [first, second];
   wire = stagingWire({
     routes: (path, opts) => {
-      if (opts.method === "POST") return replies.shift()?.promise;
+      if (opts.method === "POST") return replies.shift();
       return path === "/api/config" ? ok(readings.value) : undefined;
     },
   });
   const item = control(KEY, { drag: "preview" });
   const older = item.drop(ENGINE);
   const newer = item.drop(HELD);
-  first.resolve(ok({}));
+  answerfirst(ok({}));
   await older;
   const seen = [item.value];
-  second.resolve(ok({}));
+  answersecond(ok({}));
   await newer;
   await quiesce(wire);
   seen.push(item.value);

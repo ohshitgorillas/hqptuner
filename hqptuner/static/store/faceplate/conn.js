@@ -3,8 +3,7 @@
 // readiness reads under it.
 
 import { phase } from "../signals.js";
-import { applying } from "../actions.js";
-import { engineBusy } from "../enginewrite.js";
+import { inFlight } from "../core/ops.js";
 
 /** @typedef {"ok" | "busy" | "lost"} ConnState */
 
@@ -14,6 +13,6 @@ import { engineBusy } from "../enginewrite.js";
  * @returns {ConnState}
  */
 export function connState() {
-  if (applying.value || engineBusy.value) return "busy";
+  if (inFlight.value) return "busy";
   return phase.value === "Ready" ? "ok" : "lost";
 }
