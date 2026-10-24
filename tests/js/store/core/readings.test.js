@@ -95,6 +95,24 @@ test("test_an_existing_field_observes_replacement_readings", () => {
   assert.deepEqual(seen, [ENGINE, FILE]);
 });
 
+// Break: an older request arriving last replaces a newer completed reading.
+test("test_older_refetch_cannot_overwrite_a_newer_reading", async () => {
+  await quiesce(wire);
+  const first = Promise.withResolvers();
+  const second = Promise.withResolvers();
+  const replies = [first, second];
+  wire = stagingWire({ routes: (path) => (path === "/api/config" ? replies.shift()?.promise : undefined) });
+  const older = refreshReadings();
+  const newer = refreshReadings();
+  second.resolve(ok(body({ [KEY]: reading({ engine: { value: NEXT, name: "next", generation: GEN } }) })));
+  await newer;
+  const seen = [field(KEY).value.value];
+  first.resolve(ok(body({ [KEY]: reading() })));
+  await older;
+  seen.push(field(KEY).value.value);
+  assert.deepEqual(seen, [NEXT, NEXT]);
+});
+
 // Break: field ignores the server's pending value or keeps it after reconciliation.
 test("test_served_staging_is_shown_until_the_server_clears_it", () => {
   readings.value = body({ [KEY]: reading({ staged: STAGED }) });

@@ -6,7 +6,7 @@ import { isBlank, num } from "../../lib/coerce.js";
 import { fieldOf } from "../../model/store/reading.js";
 import { engineState, engineStatus, generation } from "../signals.js";
 import { playbackPath, transportNow } from "../faceplate/path.js";
-import { op } from "./ops.js";
+import { latest, op, STALE } from "./ops.js";
 
 /** @typedef {import("../../model/store/reading.js").FieldReading} FieldReading */
 /** @typedef {import("../../model/store/reading.js").FieldView} FieldView */
@@ -17,14 +17,15 @@ export const readings = signal(/** @type {ConfigReading | null} */ (null));
 
 /** @type {Map<string, { readonly value: FieldView }>} */
 const fields = new Map();
-/** @type {Map<string, { value: unknown }>} */
+/** @typedef {{ value: unknown } | null} HeldDrag */
+/** @type {Map<string, { value: HeldDrag }>} */
 const drags = new Map();
 
-/** @param {string} key @returns {{ value: unknown }} */
+/** @param {string} key @returns {{ value: HeldDrag }} */
 function dragFor(key) {
   const cached = drags.get(key);
   if (cached) return cached;
-  const drag = signal(/** @type {unknown} */ (null));
+  const drag = signal(/** @type {HeldDrag} */ (null));
   drags.set(key, drag);
   return drag;
 }
@@ -41,21 +42,26 @@ export function field(key) {
   const drag = dragFor(key);
   const view = computed(() => {
     const reading = readings.value?.fields[key];
-    return fieldOf(reading && "show" in reading ? reading : undefined, { drag: drag.value }, generation.value);
+    return fieldOf(reading && "show" in reading ? reading : undefined, { drag: drag.value?.value }, generation.value);
   });
   fields.set(key, view);
   return view;
 }
 
 /**
- * Hold the page's own in-flight drag value for a field.
+ * Hold the page's own in-flight drag value and return its ownership-checked release.
  *
  * @param {string} key
  * @param {unknown} v
- * @returns {void}
+ * @returns {() => void}
  */
 export const holdDrag = (key, v) => {
-  dragFor(key).value = v;
+  const drag = dragFor(key);
+  const held = { value: v };
+  drag.value = held;
+  return () => {
+    if (drag.value === held) drag.value = null;
+  };
 };
 
 /**
@@ -93,14 +99,30 @@ export const playback = computed(() => {
  */
 export const status = (name) => engineStatus.value?.status?.[name] ?? null;
 
-/**
- * Refetch the served readings.
- *
- * @returns {Promise<void>}
- */
-export const refreshReadings = async () => {
-  readings.value = await api.config();
-};
+/** Create a refresher whose superseded callers wait for the adopted reading. */
+function readingsRefresher() {
+  const newest = latest();
+  let current = Promise.resolve();
+  return () => {
+    const request = api.config().then(
+      (body) => ({ body }),
+      (error) => ({ error }),
+    );
+    const settled = newest(request).then(async (result) => {
+      if (result === STALE) {
+        await current;
+        return;
+      }
+      if ("error" in result) throw result.error;
+      readings.value = result.body;
+    });
+    current = settled;
+    return settled;
+  };
+}
+
+/** Refetch the served readings, adopting only the latest request. */
+export const refreshReadings = readingsRefresher();
 
 const refresh = op("readings", { alert: null });
 let observedGeneration = generation.peek();
