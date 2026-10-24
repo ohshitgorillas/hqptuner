@@ -5,10 +5,14 @@
 // shows at once and is written when the typist pauses or the well loses focus (store/matrix/descriptions.js).
 
 import { signal } from "@preact/signals";
-import { api } from "../../../lib/api.js";
 import { errText } from "../../../lib/errtext.js";
-import { refreshConfig } from "../../sync.js";
-import { savedProfiles, matrixActiveProfile, isLiveProfile } from "../../matrix/profiles.js";
+import {
+  savedProfiles,
+  matrixActiveProfile,
+  isLiveProfile,
+  profileSwitch,
+  switchMatrixProfile,
+} from "../../matrix/profiles.js";
 import { descriptionFor, queueDescription, flushDescriptions } from "../../matrix/descriptions.js";
 
 /** The daemon's own name for the profile that has none (hqplayerd readme §1.12), its select value "". */
@@ -20,12 +24,6 @@ const UNNAMED = "[Default]";
  * @typedef {{ value: string, label: string, disabled: boolean, reason: string }} ProfileChoice
  */
 
-/** A switch is in flight. */
-const busy = signal(false);
-/** How many switches have not settled: up from a switch's start until the forms are re-read behind it. */
-const switching = signal(0);
-/** The last refused switch, as the server's own sentence; "" once a switch goes through. */
-const error = signal("");
 /** What the user typed into the well and for which profile, until the stored copy catches up. */
 const draft = signal(/** @type {{ name: string, text: string } | null} */ (null));
 
@@ -46,8 +44,8 @@ export function profileChoices() {
         return { value: n, label: n, disabled: !live, reason: live ? "" : "not loaded by the engine" };
       }),
     ],
-    busy: busy.value,
-    error: error.value,
+    busy: profileSwitch.busy.value,
+    error: profileSwitch.error.value === null ? "" : errText(profileSwitch.error.value),
   };
 }
 
@@ -58,27 +56,14 @@ export function profileChoices() {
  * @param {string} name  "" for the unnamed profile
  * @returns {Promise<void>}
  */
-export async function switchProfile(name) {
-  switching.value += 1;
-  busy.value = true;
-  error.value = "";
-  try {
-    await api.matrixProfile(name);
-    await refreshConfig();
-  } catch (e) {
-    error.value = errText(e);
-  } finally {
-    busy.value = false;
-    switching.value -= 1;
-  }
-}
+export const switchProfile = (name) => switchMatrixProfile(name);
 
 /**
- * How many profile switches have not settled; the running profile read is current only while it is 0.
+ * Whether profile switches remain unsettled; the running profile read is current only while it is 0.
  *
  * @returns {number}
  */
-export const profileUnsettled = () => switching.value;
+export const profileUnsettled = () => Number(profileSwitch.busy.value);
 
 /**
  * The running profile's description: what the user is typing for it, else its stored text, else "".

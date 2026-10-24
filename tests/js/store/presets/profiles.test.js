@@ -1,7 +1,7 @@
 // Behavioral suite for store/matrix/profiles.js — the saved-matrix-profile read model:
 // savedProfiles' merge of staged save/delete over the config's <matrix_profile>
 // elements and the daemon's startup list, profileRows' staged-vs-file
-// resolution, isLiveProfile's reachability rule, and the active-name fallbacks.
+// resolution, isLiveProfile's reachability rule, and the served active name.
 //
 // Everything is driven the way the app drives it: matrixConfig assigned
 // directly (the poll's own seam) and staging through the exported
@@ -66,13 +66,6 @@ test("test_a_corrupt_staged_save_is_treated_as_nothing_staged", async () => {
   assert.deepEqual(savedProfiles.value, ["Old"]);
 });
 
-test("test_the_daemon_list_falls_back_to_the_form_datalist", async () => {
-  // no live_profiles (credentials kept the live list empty) — the /matrix form's
-  // datalist options stand in, with the blank placeholder filtered out
-  await reset({ profiles: { options: [{ value: "FormName" }, { value: "" }] } });
-  assert.deepEqual(savedProfiles.value, ["FormName"]);
-});
-
 // --- isLiveProfile: what a live switch can reach -----------------------------------
 
 test("test_a_daemon_known_profile_is_live_switchable", async () => {
@@ -118,14 +111,9 @@ test("test_a_daemon_only_profile_has_no_rows_to_stage", async () => {
 
 // --- matrixActiveProfile ---------------------------------------------------------------
 
-test("test_the_active_profile_prefers_the_live_report", async () => {
-  await reset({ live_active: "LiveName", active: "FormName" });
+test("test_the_active_profile_follows_the_served_reading", async () => {
+  await reset({ live_active: "LiveName" });
   assert.equal(matrixActiveProfile.value, "LiveName");
-});
-
-test("test_the_form_active_name_is_used_when_the_live_lane_is_silent", async () => {
-  await reset({ active: "FormName" });
-  assert.equal(matrixActiveProfile.value, "FormName");
 });
 
 test("test_no_active_name_at_all_reads_as_default", async () => {

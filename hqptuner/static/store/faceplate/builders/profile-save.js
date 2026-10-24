@@ -12,7 +12,6 @@ import { api } from "../../../lib/api.js";
 import { schema } from "../../schema.js";
 import { canonPipelines, effective, effectivePipelines, isDirty as stagedDirty } from "../../resolve.js";
 import { applyAll, discardAll, stagePipelines } from "../../actions.js";
-import { refreshConfig } from "../../sync.js";
 import {
   isLiveProfile,
   presetProfiles,
@@ -21,6 +20,7 @@ import {
   savedProfiles,
   stageProfileDelete,
   stageProfileSave,
+  switchMatrixProfile,
 } from "../../matrix/profiles.js";
 import { descriptionError, descriptionFailed, descriptionFor, descriptions } from "../../matrix/descriptions.js";
 import { activeMode, structuralBlock, structuralParams } from "../../xfeed/mode.js";
@@ -267,8 +267,7 @@ async function write(name) {
   meta.value = { ...meta.value, name };
   base = { meta: meta.value, sig: sigNow() };
   if (!live) return;
-  await api.matrixProfile(name);
-  await refreshConfig();
+  await switchMatrixProfile(name);
 }
 
 /**

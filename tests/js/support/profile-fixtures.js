@@ -3,7 +3,8 @@
 // each case starts from. Module-level signals outlive a test, so the reset
 // reassigns every tree and clears the staged buffer via discardAll().
 
-import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
+import { config, matrixConfig, engineState, enums } from "../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../hqptuner/static/store/core/readings.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { stagingWire } from "./wire/wire.js";
 
@@ -28,12 +29,26 @@ export const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "",
  */
 export const PROF = (rows, post = {}) => ({ rows, post });
 
+/** @param {string} name */
+export const profileReading = (name) => ({
+  engine: { value: name, name, generation: 0 },
+  file: null,
+  staged: null,
+  lane: "matrix",
+  show: "engine",
+  restarts: false,
+  diverges: false,
+  bounds: null,
+});
+
 // A faked staging wire plus a clean signal tree; `m` supplies the matrix
 // config's own members on top of the empty form.
-export async function reset(m = {}) {
+export async function reset({ live_profiles = [], live_active = "", ...m } = {}) {
   stagingWire();
   engineState.value = {};
   config.value = { fields: [], file: {}, active: "" };
   matrixConfig.value = { fields: [], rows: [], ...m };
+  enums.value = { matrix_profiles: live_profiles };
+  readings.value = { generation: 0, fields: { matrix_profile: profileReading(live_active) } };
   await discardAll();
 }
