@@ -9,7 +9,8 @@ import { truthy } from "../lib/coerce.js";
 import { schema } from "./schema.js";
 import { summarize } from "./apply-summary.js";
 import { volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus, lastApply } from "./signals.js";
-import { canonPipelines, stagedCount, activePreset, cleanStagedKeys, split } from "./resolve.js";
+import { canonPipelines, stagedCount, activePreset } from "./resolve.js";
+import { field, readings } from "./core/readings.js";
 import { duringEngineWrite } from "./enginewrite.js";
 import { setSpeakersGate } from "./matrix/speakers.js";
 import { setHardware } from "./faceplate/settings/hardware.js";
@@ -23,11 +24,6 @@ import { applyBauerCoupling, applyFixedVolumeCoupling } from "./schema/couplings
 // the server's echo.
 let stageSeq = 0;
 
-// Every stage POST also carries the entries that have gone clean (`drop`), which
-// the server removes from its buffer. Computed AFTER the optimistic merge below,
-// so the edit being staged is judged in the state the user just put it in: an
-// edit returning a control to its baseline reports itself, in the same request
-// that stages it, and the server's merge-then-drop order settles it.
 /**
  * @typedef {object} StageBody
  *   One stage POST's edits, in the two lanes' own key domains: `live` is nested
@@ -36,11 +32,6 @@ let stageSeq = 0;
  * @property {Record<string, string>} http
  */
 
-const stageBody = (/** @type {StageBody} */ body) => ({ ...body, drop: cleanStagedKeys() });
-
-// Stage the whole pipeline set (optimistic, like edit()). A set identical to
-// baseline still stages — isDirty's string compare then reads clean, same as any
-// field, and `drop` is what stops that clean entry sitting in the buffer.
 /**
  * Stage the whole pipeline set as one canonical-JSON http-lane field.
  *
@@ -63,7 +54,7 @@ export async function stagePipelines(rows, extra = {}) {
 async function stageHttp(fields) {
   staged.value = { live: staged.value.live, http: { ...staged.value.http, ...fields } };
   const seq = ++stageSeq;
-  const echo = await api.stage(stageBody({ live: {}, http: fields }));
+  const echo = await api.stage({ live: {}, http: fields });
   if (seq === stageSeq) staged.value = echo;
 }
 
@@ -138,7 +129,7 @@ export async function edit(key, value) {
     http: { ...staged.value.http, ...body.http },
   };
   clearLive(key);
-  staged.value = await api.stage(stageBody(body));
+  staged.value = await api.stage(body);
   // An edit that walks back out of a hazard withdraws the yes that was about it,
   // so walking into it again asks again (store/guards.js).
   pruneAcknowledged();
@@ -288,7 +279,12 @@ async function commitApply(save) {
   // is actually sent. A save target is not a third: the server saves the preset without
   // restarting the engine. An all-live batch with neither never leaves the Control API,
   // saved or not, and the page must not dim for it.
-  const restarts = split.value.restart > 0 || switchTo !== null;
+  const restarts =
+    switchTo !== null ||
+    Object.keys(readings.value?.fields ?? {}).some((key) => {
+      const view = field(key).value;
+      return view.dirty && view.restart;
+    });
   return applyLane(
     async () => {
       /** @type {{ save?: { name: string }, switch_to?: string }} */

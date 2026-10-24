@@ -8,7 +8,7 @@ import { useEffect } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
 import { clamp } from "../../../lib/coerce.js";
 import { parseProcess } from "../../../vendor/eqlab/core/matrixspec.js";
-import { pipelineBaseline } from "../../../store/resolve.js";
+import { effectivePipelines } from "../../../store/resolve.js";
 import { xfeedBlock } from "../../../store/xfeed/block.js";
 import { structuralBlock } from "../../../store/xfeed/mode.js";
 import { body, showBody } from "../../../store/faceplate/view.js";
@@ -146,7 +146,7 @@ function Well() {
 /** The section's body: the select line, a refused switch's sentence, the description well, and the response plot. */
 export function MatrixProfileBody() {
   const { error } = profileChoices();
-  const { traces, range } = responsePlot(/** @type {PipelineRow[]} */ (pipelineBaseline.value));
+  const { traces, range } = responsePlot(/** @type {PipelineRow[]} */ (effectivePipelines.value));
   return html`
     <div class="stack mstack">
       <${ProfileLine} />
