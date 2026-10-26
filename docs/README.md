@@ -10,6 +10,7 @@ The design and binding rules.
 - [crossfeed-compensation](spec/crossfeed-compensation.md): compensating headphone EQ for the Bauer crossfeed tilt.
 - [design-system](spec/design-system.md): frontend layout and stylesheet rules.
 - [eq-export](spec/eq-export.md): EQ export formats and their mapping.
+- [junk-advisor](spec/junk-advisor.md): the junk-filter advisor's rules, note states and grading.
 - [faceplate](spec/faceplate.md): the faceplate's controls and behavior.
 - [lifecycle](spec/lifecycle.md): the daemon connection lifecycle.
 - [matrix](spec/matrix.md): matrix profile, pipeline and EQ editing.
