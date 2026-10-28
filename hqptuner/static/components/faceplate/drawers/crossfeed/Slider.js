@@ -1,11 +1,9 @@
 // The Crossfeed block's slider and number box over one value (the .xsl grammar): a drag
 // streams, the release or a typed number commits, held to the slider's range.
 
-import { html, userEdit, wheelGuard, TypedInput } from "../../../../lib/dom.js";
+import { html, rangeEdit, wheelGuard, TypedInput } from "../../../../lib/dom.js";
 import { clamp } from "../../../../lib/coerce.js";
 import { restartMarkIf } from "../../drawer/controls.js";
-
-/** @typedef {import("../../../../lib/dom.js").ControlEvent} ControlEvent */
 
 /**
  * A labeled slider beside its number box, its label carrying the restart mark when what it writes restarts the engine.
@@ -15,8 +13,7 @@ import { restartMarkIf } from "../../drawer/controls.js";
  */
 export function Slider({ label, sub, restarts = false, min, max, step, unit, dp, value, disabled, onDrag, onCommit }) {
   const held = (/** @type {number} */ v) => clamp(v, min, max);
-  const rangeOn = (/** @type {(v: number) => void} */ fn) =>
-    userEdit(value, (/** @type {ControlEvent} */ e) => fn(Number(e.target.value)));
+  const rangeOn = (/** @type {(v: number) => void} */ fn) => rangeEdit(String(value), fn);
   return html`
     <div class="xsl">
       <span class="cl">${label}${restartMarkIf(restarts)}${sub ? html`<span class="h">${sub}</span>` : null}</span>

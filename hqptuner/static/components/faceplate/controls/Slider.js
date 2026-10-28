@@ -1,9 +1,7 @@
 // A slider: one range input beside a number box over one value.
 
-import { classNames, html, userEdit, wheelGuard } from "../../../lib/dom.js";
+import { classNames, html, rangeEdit, wheelGuard } from "../../../lib/dom.js";
 import { NumBox } from "./NumBox.js";
-
-/** @typedef {import("../../../lib/dom.js").ControlEvent} ControlEvent */
 
 /**
  * A track and a number box showing `value`. The track answers only a held pointer or a focused key: `onMove` hears every
@@ -27,8 +25,7 @@ import { NumBox } from "./NumBox.js";
  * }} props
  */
 export function Slider({ value, aria, min, max, step, dp, unit, off = false, cls, k, testid, onMove, onCommit }) {
-  const track = (/** @type {(v: number) => void} */ fn) =>
-    userEdit(value, (/** @type {ControlEvent} */ e) => fn(Number(e.target.value)));
+  const track = (/** @type {(v: number) => void} */ fn) => rangeEdit(String(value), fn);
   const held = (/** @type {number} */ v) => Math.min(Math.max(v, min), max);
   return html`
     <div class=${classNames("xsl", cls, off && "grayed")} data-k=${k} data-testid=${testid}>

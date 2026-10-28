@@ -8,9 +8,10 @@ import { userEdit, watchGestures } from "../../../hqptuner/static/lib/dom.js";
 
 /**
  * A control as the provenance listeners and the wrapped handler read one: the
- * three members they touch, with the two a bare DIV does not carry optional.
+ * three members they touch, with the two a bare DIV does not carry optional,
+ * and the document it lives in, which userEdit reads its gestures from.
  *
- * @typedef {{ tagName: string, type?: string, value?: string }} ControlSeam
+ * @typedef {{ tagName: string, type?: string, value?: string, ownerDocument?: unknown }} ControlSeam
  */
 
 /** @type {Map<string, Function[]>} */
@@ -67,10 +68,13 @@ export const focus = (el) => {
  */
 export function setup() {
   /** @type {ControlSeam} */
-  const el = { tagName: "INPUT", type: "range", value: "63" };
+  const el = { tagName: "INPUT", type: "range", value: "63", ownerDocument: page };
   /** @type {ControlEvent[]} */
   const calls = [];
-  const handler = userEdit(50, (ev) => calls.push(ev));
+  // The control's own handler runs its edit through userEdit, naming the control
+  // whose document's gestures decide it.
+  /** @param {ControlEvent} ev */
+  const handler = (ev) => userEdit(/** @type {Element} */ (/** @type {unknown} */ (el)), "50", () => calls.push(ev));
   return { el, calls, handler };
 }
 

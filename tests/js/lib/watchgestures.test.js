@@ -28,7 +28,7 @@ const PRIMARY_BUTTON = 0;
 const PRIMARY_HELD = 1;
 const NO_BUTTONS = 0;
 
-/** @typedef {{ tagName: string, type: string, value: string }} Slider */
+/** @typedef {{ tagName: string, type: string, value: string, ownerDocument: unknown }} Slider */
 /** @typedef {Record<string, unknown> & { type: string, target: unknown }} GestureSeam */
 /** @typedef {((e: GestureSeam) => void) | { handleEvent(e: GestureSeam): void }} ListenerSeam */
 
@@ -79,12 +79,13 @@ before(() => watchGestures(/** @type {Document} */ (/** @type {unknown} */ (page
 /** @returns {{ el: Slider, calls: unknown[], handler: (e: { type: string, target: Slider }) => void }} */
 function setup() {
   /** @type {Slider} */
-  const el = { tagName: "INPUT", type: "range", value: "73" };
+  const el = { tagName: "INPUT", type: "range", value: "73", ownerDocument: page };
   /** @type {unknown[]} */
   const calls = [];
-  const guarded = userEdit(CANONICAL, (e) => calls.push(e));
+  // The control's own handler runs its edit through userEdit, naming the control
+  // whose document's gestures decide it.
   const handler = (/** @type {{ type: string, target: Slider }} */ e) =>
-    guarded(/** @type {import("../../../hqptuner/static/lib/dom.js").ControlEvent} */ (/** @type {unknown} */ (e)));
+    userEdit(/** @type {Element} */ (/** @type {unknown} */ (el)), String(CANONICAL), () => calls.push(e));
   return { el, calls, handler };
 }
 

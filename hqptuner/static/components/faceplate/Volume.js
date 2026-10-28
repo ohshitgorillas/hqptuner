@@ -6,7 +6,7 @@
 // bounds: ( and ) at the bounds and a strip under the track between them.
 
 import { useEffect, useRef } from "preact/hooks";
-import { html, userEdit, wheelGuard } from "../../lib/dom.js";
+import { html, rangeEdit, wheelGuard } from "../../lib/dom.js";
 import { PLATFORM, holdRepeat } from "../../lib/clock.js";
 import { percentOf } from "../../model/gauges/output.js";
 import { dbText } from "../../model/gauges/volume.js";
@@ -16,7 +16,6 @@ import { loudnessMarks, volumeGrid, volumeNow, writeVolume } from "../../store/f
 import { Popover, UNDER_ENGINE_READOUT, parkAt, triggerProps } from "./Popover.js";
 
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
-/** @typedef {import("../../lib/dom.js").ControlEvent} ControlEvent */
 
 const ID = "volume";
 const HOLD_DELAY = 400; // ms before a held ± starts repeating
@@ -142,7 +141,7 @@ function LoudMarks() {
 function Track({ clock }) {
   const v = volumeNow();
   const { min, max, step } = volumeGrid();
-  const edit = userEdit(v.level, (/** @type {ControlEvent} */ e) => writeVolume(Number(e.target.value), clock));
+  const edit = rangeEdit(String(v.level), (level) => writeVolume(level, clock));
   return html`
     <div class="vsl">
       <input
