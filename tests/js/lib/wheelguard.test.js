@@ -151,6 +151,14 @@ test("test_a_wheel_over_a_focused_control_is_canceled_too", () => {
   assert.equal(event.defaultPrevented, true);
 });
 
+// Blurring a number box commits what it holds, so a wheel that blurred a box
+// mid-type would change its value.
+test("test_a_wheel_over_a_focused_control_leaves_it_focused", () => {
+  const { target, event } = setup({ focused: true });
+  wheelGuard(event);
+  assert.equal(target.blurred, false);
+});
+
 // --- the page gets the wheel instead --------------------------------------------
 
 test("test_the_page_scrolls_once_by_the_wheel_delta", () => {

@@ -1,10 +1,14 @@
 // The document seam the two `lib/dom.js` userEdit suites drive provenance
 // through, plus the gestures and the wrapped-handler fixture both suites share.
 // dom.js attaches its capture listeners to the document handed to
-// watchGestures, so this module hands it a fake document that records them and
-// replays each gesture to every listener of its type. No global is installed.
+// watchGestures, so this module hands it the document of a fake page
+// (tests/js/support/page.js), whose `activeElement` moves on `focus()` and
+// `blur()` and whose events run the capture, target and bubble phases. No
+// global is installed.
 
 import { userEdit, watchGestures } from "../../../hqptuner/static/lib/dom.js";
+import { fakeClock } from "./clock.js";
+import { fakePage } from "./page.js";
 
 /**
  * A control as the provenance listeners and the wrapped handler read one: the
@@ -14,20 +18,17 @@ import { userEdit, watchGestures } from "../../../hqptuner/static/lib/dom.js";
  * @typedef {{ tagName: string, type?: string, value?: string, ownerDocument?: unknown }} ControlSeam
  */
 
-/** @type {Map<string, Function[]>} */
-const registered = new Map();
+const { doc } = fakePage({ clock: fakeClock().clock });
 
-const page = {
-  addEventListener(/** @type {string} */ type, /** @type {Function} */ fn) {
-    registered.set(type, [...(registered.get(type) || []), fn]);
-  },
-};
+watchGestures(/** @type {Document} */ (doc));
 
-watchGestures(/** @type {Document} */ (/** @type {unknown} */ (page)));
+//: Gestures a browser fires without bubbling; every other one this seam sends bubbles.
+const NON_BUBBLING = new Set(["focus", "blur"]);
 
-// One document-level event, delivered to every listener dom.js registered for
-// its type — the browser's capture phase, which sees the event whatever element
-// it targets.
+// One gesture as the page delivers it. A control of the page receives it as its
+// target, so the document's capture listeners see it on the way down; a bare
+// stand-in for some other element, which is not in the page, is announced at the
+// document itself, which every listener there sees whatever element it targets.
 /**
  * @param {string} type
  * @param {unknown} target
@@ -35,8 +36,10 @@ watchGestures(/** @type {Document} */ (/** @type {unknown} */ (page)));
  * @returns {void}
  */
 export function documentSees(type, target, extra = {}) {
-  const event = { type, target, ...extra };
-  for (const fn of registered.get(type) || []) fn(event);
+  const node = /** @type {any} */ (target);
+  const bubbles = !NON_BUBBLING.has(type);
+  if (typeof node?.dispatchEvent === "function") node.dispatchEvent({ type, bubbles, ...extra });
+  else doc.dispatchEvent({ type, target, bubbles, ...extra });
 }
 
 /** @typedef {import("../../../hqptuner/static/lib/dom.js").ControlEvent} ControlEvent */
@@ -50,16 +53,12 @@ export const press = (el) => documentSees("pointerdown", el, { button: 0, button
  */
 export const keydown = (el, key) => documentSees("keydown", el, { key });
 
-// A browser announces a focus change twice, and a document-level capture
-// listener sees both: `focus`/`blur` (which do not bubble but are capturable)
-// and `focusin`/`focusout` (which bubble). Both spellings are delivered, in the
-// order a browser fires them, so a case states "the element was focused" rather
-// than which of the two the implementation chose to listen for.
+// Focus moves the way a browser moves it: the page's `activeElement` becomes the
+// control, and the page fires `blur`/`focusout` on the element losing focus, then
+// `focus`/`focusin` on the control, so a case states "the element was focused"
+// rather than which signal the implementation chose to read.
 /** @param {ControlSeam} el */
-export const focus = (el) => {
-  documentSees("focus", el, { relatedTarget: null });
-  documentSees("focusin", el, { relatedTarget: null });
-};
+export const focus = (el) => /** @type {any} */ (el).focus();
 
 // A range element mid-edit: the browser has already moved its value to 63 by the
 // time the input event fires; 50 is the canonical value the app last knew.
@@ -68,7 +67,9 @@ export const focus = (el) => {
  */
 export function setup() {
   /** @type {ControlSeam} */
-  const el = { tagName: "INPUT", type: "range", value: "63", ownerDocument: page };
+  const el = doc.body.appendChild(doc.createElement("input"));
+  el.type = "range";
+  el.value = "63";
   /** @type {ControlEvent[]} */
   const calls = [];
   // The control's own handler runs its edit through userEdit, naming the control

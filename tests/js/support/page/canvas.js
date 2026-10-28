@@ -6,6 +6,8 @@
 // given is a row of that canvas's ledger, in order: `{ call: "getContext", args: [kind] }`, `{ call: name, args }`,
 // `{ set: name, value }`.
 
+import { glContext } from "../painters/canvasledger.js";
+
 /** @typedef {{ call: string, args: unknown[] } | { set: string, value: unknown }} LedgerRow */
 
 //: The width `measureText` gives each character, CSS pixels.
@@ -116,55 +118,19 @@ function context2d(canvas, rows) {
   });
 }
 
-//: What the WebGL2 context answers, by method, where the answer is not nothing.
-const GL_ANSWERS = /** @type {Record<string, () => unknown>} */ ({
-  getShaderParameter: () => true,
-  getProgramParameter: () => true,
-  getShaderInfoLog: () => "",
-  getProgramInfoLog: () => "",
-  getAttribLocation: () => 0,
-  getParameter: () => 4096,
-  getError: () => 0,
-  isContextLost: () => false,
-  getExtension: () => null,
-  getSupportedExtensions: () => [],
-});
-
 /**
- * A WebGL2 context that draws nothing: every upper-case name a constant of its own, every create call a fresh object,
- * the answers in GL_ANSWERS, nothing from every other method; every call a ledger row.
+ * A WebGL2 context that draws nothing, tests/js/support/painters/canvasledger.js's, its drawing buffer the canvas's
+ * size and every call and property write a row of the canvas's ledger.
  *
  * @param {any} canvas
  * @param {LedgerRow[]} rows
  */
-function contextGl(canvas, rows) {
-  /** @type {Map<string, number>} */
-  const constants = new Map();
-  return new Proxy(
-    {},
-    {
-      get: (_t, key) => {
-        if (typeof key !== "string") return undefined;
-        if (key === "canvas") return canvas;
-        if (key === "drawingBufferWidth") return canvas.width;
-        if (key === "drawingBufferHeight") return canvas.height;
-        if (/^[A-Z][A-Z0-9_]*$/.test(key)) {
-          if (!constants.has(key)) constants.set(key, 0x10000 + constants.size);
-          return constants.get(key);
-        }
-        return (/** @type {unknown[]} */ ...args) => {
-          rows.push({ call: key, args });
-          if (key in GL_ANSWERS) return GL_ANSWERS[key]();
-          return key.startsWith("create") || key === "getUniformLocation" ? {} : undefined;
-        };
-      },
-      set: (_t, key, value) => {
-        rows.push({ set: String(key), value });
-        return true;
-      },
-    },
+const contextGl = (canvas, rows) =>
+  glContext(
+    canvas,
+    () => canvas,
+    (row) => void rows.push(row),
   );
-}
 
 /**
  * Gives `canvas` a size and a `getContext` whose contexts write `canvas`'s ledger, kept in `ledgers`; one context per

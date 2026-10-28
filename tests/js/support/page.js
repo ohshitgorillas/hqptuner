@@ -4,9 +4,8 @@
 // under test reaches them through what it is handed, an element's `ownerDocument` and that document's `defaultView`.
 //
 // The document answers what preact's renderer and the page code read and write: create, insert and remove nodes,
-// attributes, `id`, `className`, `classList`, `dataset`, inline `style`, text, `innerHTML`, queries by simple
-// selectors (tag, `#id`, `.class`, `[attr]`, `[attr=value]`, joined by descendant spaces and listed by commas),
-// `getElementById`, `activeElement` moved by `focus()` and `blur()` with a browser's `blur`, `focusout`, `focus` and
+// attributes, `id`, `className`, `classList`, `dataset`, inline `style`, text, `innerHTML`, queries by the selectors
+// tests/js/support/painters/elementtree/selector.js parses and matches, `getElementById`, `activeElement` moved by `focus()` and `blur()` with a browser's `blur`, `focusout`, `focus` and
 // `focusin`, `hidden` with `visibilityState`, and events that run capture listeners from the window down, then the
 // target's own, then bubble back up when `bubbles` is set. `html` is parsed into the body.
 //
@@ -17,8 +16,10 @@
 // all handed to `clock`, so time moves only when the suite moves its clock.
 //
 // A `ResizeObserver` reports each element it observes once, on the clock's next frame, with the box the element has
-// then, as the browser's first observation does. `resize(el, rect)` gives `el` that box, which its
+// then, as the browser's first observation does. `resize(el, rect)` gives `el` that border box, which its
 // `getBoundingClientRect` and client size answer from then on, and reports it at once to every observer watching `el`.
+// A report's `contentRect` and `contentBoxSize` are the content box: the border box less the element's inline
+// padding and border widths, as a browser's are; its `borderBoxSize` is the border box.
 //
 // A canvas, a `canvas` element of the document or an `OffscreenCanvas` of the window, answers `getContext("2d")` with
 // a context that keeps its drawing state and draws nothing, and `getContext("webgl2")` with a context whose shaders
@@ -36,8 +37,10 @@
 /** @typedef {{ x: number, y: number, width: number, height: number, top: number, left: number, right: number, bottom: number }} Rect */
 /** @typedef {import("./page/canvas.js").LedgerRow} LedgerRow */
 /** @typedef {{ fn: Function, capture: boolean }} Listener */
+/** @typedef {import("./painters/elementtree/selector.js").SelectorNode} SelectorNode */
 
 import { asCanvas } from "./page/canvas.js";
+import { matchesAny, parseSelector } from "./painters/elementtree/selector.js";
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 //: Elements that never hold children, so their tags close themselves.
@@ -118,44 +121,34 @@ function inlineStyle() {
 }
 
 /**
- * One simple selector step, `tag#id.class[attr=value]`, as a test of an element.
+ * `el` as tests/js/support/painters/elementtree/selector.js reads a node; null for anything that is not an element.
  *
- * @param {string} step
- * @returns {(el: any) => boolean}
+ * @param {any} el
+ * @returns {SelectorNode | null}
  */
-function compound(step) {
-  const tag = /^[a-zA-Z][\w-]*|^\*/.exec(step)?.[0];
-  const ids = [...step.matchAll(/#([\w-]+)/g)].map((m) => m[1]);
-  const classes = [...step.matchAll(/\.([\w-]+)/g)].map((m) => m[1]);
-  const attrs = [...step.matchAll(/\[([\w-]+)(?:=["']?([^"'\]]*)["']?)?\]/g)].map((m) => [m[1], m[2]]);
-  return (el) =>
-    el.nodeType === 1 &&
-    (!tag || tag === "*" || el.localName === tag.toLowerCase()) &&
-    ids.every((id) => el.getAttribute("id") === id) &&
-    classes.every((c) => el.classList.contains(c)) &&
-    attrs.every(([name, value]) => el.hasAttribute(name) && (value === undefined || el.getAttribute(name) === value));
-}
+const selectorNode = (el) =>
+  el?.nodeType === 1
+    ? {
+        name: el.localName,
+        attrs: el.attrs,
+        get parent() {
+          return selectorNode(el.parentNode);
+        },
+      }
+    : null;
+
+//: The scope selectors are matched under: the whole page, every ancestor up to the root counted.
+const WHOLE_PAGE = /** @type {SelectorNode} */ (/** @type {unknown} */ ({ parent: null }));
 
 /**
- * A selector list as a test of an element: each entry's last step matches the element and every earlier step an
- * ancestor of it, in order.
+ * A selector list, parsed by tests/js/support/painters/elementtree/selector.js, as a test of an element.
  *
  * @param {string} selector
  * @returns {(el: any) => boolean}
  */
 function matcher(selector) {
-  const lists = selector.split(",").map((s) => s.trim().split(/\s+/).map(compound));
-  return (el) =>
-    lists.some((steps) => {
-      if (!steps[steps.length - 1](el)) return false;
-      let at = el.parentNode;
-      for (let i = steps.length - 2; i >= 0; i--) {
-        while (at && !(at.nodeType === 1 && steps[i](at))) at = at.parentNode;
-        if (!at) return false;
-        at = at.parentNode;
-      }
-      return true;
-    });
+  const chains = parseSelector(selector);
+  return (el) => el.nodeType === 1 && matchesAny(/** @type {SelectorNode} */ (selectorNode(el)), chains, WHOLE_PAGE);
 }
 
 /**
@@ -601,9 +594,15 @@ function resizeObserverOf(page) {
     /** @param {any} el */
     deliver(el) {
       const box = el.getBoundingClientRect();
-      const size = [{ inlineSize: box.width, blockSize: box.height }];
-      const contentRect = rectOf({ width: box.width, height: box.height });
-      this.report([{ target: el, contentRect, contentBoxSize: size, borderBoxSize: size }], this);
+      /** @param {string} prop */
+      const px = (prop) => parseFloat(el.style[prop]) || 0;
+      const inset = { left: px("paddingLeft"), top: px("paddingTop") };
+      const width = box.width - inset.left - px("paddingRight") - px("borderLeftWidth") - px("borderRightWidth");
+      const height = box.height - inset.top - px("paddingBottom") - px("borderTopWidth") - px("borderBottomWidth");
+      const contentRect = rectOf({ x: inset.left, y: inset.top, width, height });
+      const contentBoxSize = [{ inlineSize: width, blockSize: height }];
+      const borderBoxSize = [{ inlineSize: box.width, blockSize: box.height }];
+      this.report([{ target: el, contentRect, contentBoxSize, borderBoxSize }], this);
     }
   };
 }

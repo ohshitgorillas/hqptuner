@@ -79,6 +79,8 @@ test("a release on another page does not end the hold on a slider in this page",
   watchGestures(there.doc);
   press(here.el);
   release(there.el);
+  // A hold that ended lets one edit through and no more, so the second edit runs only while the hold lives.
+  editRuns(here.el);
   assert.equal(editRuns(here.el), 1);
 });
 
@@ -98,8 +100,19 @@ test("observeSize hands fn the content box the element is resized to", () => {
   const page = sliderPage();
   /** @type {number[][]} */
   const boxes = [];
+  // Padding and border set the content box inside the border box the element is resized to.
+  Object.assign(page.el.style, {
+    paddingLeft: "10px",
+    paddingRight: "6px",
+    paddingTop: "3px",
+    paddingBottom: "5px",
+    borderLeftWidth: "2px",
+    borderRightWidth: "2px",
+    borderTopWidth: "1px",
+    borderBottomWidth: "1px",
+  });
   observeSize(page.el, (rect) => boxes.push([rect.width, rect.height]));
-  page.resize(page.el, { width: 120, height: 40 });
+  page.resize(page.el, { width: 140, height: 50 });
   assert.deepEqual(boxes.at(-1), [120, 40]);
 });
 

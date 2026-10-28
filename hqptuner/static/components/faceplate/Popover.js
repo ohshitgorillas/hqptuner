@@ -64,7 +64,7 @@ export function originOf(panel, face) {
 /**
  * Run `fn` whenever the plate's body changes size, as when a line above it comes, grows or goes and moves its top. It
  * watches the body the plate shows, moving to the new one when the body swaps, and stops when the caller unmounts. Where
- * there is no ResizeObserver it watches nothing.
+ * there is no ResizeObserver it runs `fn` once, when it mounts or the body swaps, and watches nothing after.
  *
  * @param {{ current: Element | null }} ref  an element on the plate
  * @param {() => void} fn  re-places the caller; the latest one passed runs

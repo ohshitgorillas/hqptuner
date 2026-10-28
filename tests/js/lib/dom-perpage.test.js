@@ -121,6 +121,8 @@ test("test_a_buttonless_pointermove_on_another_page_leaves_this_page_s_drag_aliv
   const { edit, runs } = editor(el);
   press(el);
   glideUnheld(b.doc.body);
+  // An ended drag lets one edit through and no more, so this edit, the second, runs only while the drag lives.
+  editor(el).edit();
   edit();
   assert.equal(runs(), 1);
 });

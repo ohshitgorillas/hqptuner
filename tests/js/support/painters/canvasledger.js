@@ -30,29 +30,39 @@ const GL_ANSWERS = /** @type {Record<string, (...args: any[]) => unknown>} */ ({
 });
 
 /**
- * A WebGL2 context on `canvas`: every upper-case name a constant of its own, every create call a fresh object, the
- * answers in GL_ANSWERS, and nothing from every other method.
+ * A WebGL2 context on `canvas` whose drawing buffer is `buffer()` in size: every upper-case name a constant of its
+ * own, every create call a fresh object, the answers in GL_ANSWERS, and nothing from every other method. `record`, when
+ * given, is handed every call made on the context and every property it is given, as `{ call: name, args }` and
+ * `{ set: name, value }`, in order.
  *
  * @param {unknown} canvas
+ * @param {() => { width: number, height: number }} buffer
+ * @param {(row: { call: string, args: unknown[] } | { set: string, value: unknown }) => void} [record]
  */
-function glContext(canvas) {
+export function glContext(canvas, buffer, record = () => {}) {
   /** @type {Map<string, number>} */
   const constants = new Map();
   return new Proxy(
     {},
     {
       get: (_t, key) => {
-        const name = String(key);
-        if (name === "canvas") return canvas;
-        if (name === "drawingBufferWidth") return W;
-        if (name === "drawingBufferHeight") return H;
-        if (/^[A-Z][A-Z0-9_]*$/.test(name)) {
-          if (!constants.has(name)) constants.set(name, 0x10000 + constants.size);
-          return constants.get(name);
+        if (typeof key !== "string") return undefined;
+        if (key === "canvas") return canvas;
+        if (key === "drawingBufferWidth") return buffer().width;
+        if (key === "drawingBufferHeight") return buffer().height;
+        if (/^[A-Z][A-Z0-9_]*$/.test(key)) {
+          if (!constants.has(key)) constants.set(key, 0x10000 + constants.size);
+          return constants.get(key);
         }
-        if (name in GL_ANSWERS) return GL_ANSWERS[name];
-        if (name.startsWith("create") || name === "getUniformLocation") return () => ({});
-        return () => undefined;
+        return (/** @type {unknown[]} */ ...args) => {
+          record({ call: key, args });
+          if (key in GL_ANSWERS) return GL_ANSWERS[key](...args);
+          return key.startsWith("create") || key === "getUniformLocation" ? {} : undefined;
+        };
+      },
+      set: (_t, key, value) => {
+        record({ set: String(key), value });
+        return true;
       },
     },
   );
@@ -99,7 +109,7 @@ export function canvasLedger() {
   function withContexts(el, name) {
     if (String(name).toLowerCase() !== "canvas") return el;
     const flat = rasterCanvas(W, H).getContext();
-    const gl = glContext(el);
+    const gl = glContext(el, () => ({ width: W, height: H }));
     el.getContext = (/** @type {string} */ kind) => {
       asks.set(kind, (asks.get(kind) ?? 0) + 1);
       if (kind === "2d") return flat;
