@@ -13,9 +13,9 @@
 // shows after each matches number for number, to within float rounding; the drawing calls themselves, their number and
 // their order are never asserted. A shader's compile and a program's link succeed unless the case says otherwise.
 //
-// `Math.random` hands back one fixed value while a painter is built and while it paints, so a painter that seeds
-// itself at random starts the same every time. Time is counted in whole sixtieths of a second, so two runs at
-// different rates reach the same moment exactly.
+// No global is patched: the painter is handed its canvas and nothing else, so two fresh painters handed the same paints
+// must draw the same. Time is counted in whole sixtieths of a second, so two runs at different rates reach the same
+// moment exactly.
 //
 // Where the painter returns no painter at all, every helper says so in its result rather than throwing, so each case
 // fails on its assertion. Two showings compare only where each holds a draw: two canvases with nothing drawn on them
@@ -53,8 +53,6 @@ const TICK_S = 1 / 60;
 const STEP = 2;
 const SLOW = 3;
 const LATE = 6;
-//: The value Math.random hands back while a painter is built and paints.
-const RANDOM = 0.375;
 //: How far two numbers may differ and still read as the same, relative to the larger.
 const TOL = 1e-6;
 //: Two color suites the owner offers, and the Accent palette, as the store holds them.
@@ -273,30 +271,13 @@ function context(s, methods, constant, canvas) {
 // ── painting ────────────────────────────────────────────────────────────
 
 /**
- * `fn` run with Math.random handing back RANDOM.
- *
- * @template T
- * @param {() => T} fn
- * @returns {T}
- */
-function seeded(fn) {
-  const real = Math.random;
-  Math.random = () => RANDOM;
-  try {
-    return fn();
-  } finally {
-    Math.random = real;
-  }
-}
-
-/**
  * A painter on a fresh fake canvas, null where auroraPainter gives none.
  *
  * @param {Faults} [faults]
  */
 function painter(faults) {
   const { element, state } = glCanvas(faults);
-  const fx = /** @type {Painter | null} */ (seeded(() => auroraPainter(/** @type {any} */ (element))));
+  const fx = /** @type {Painter | null} */ (auroraPainter(/** @type {any} */ (element)));
   return { fx, state };
 }
 
@@ -319,12 +300,10 @@ const columns = (low, high = low) => new Float32Array(COLS).fill(low).fill(high,
 function shows(paints) {
   const { fx, state } = painter();
   if (!fx) return "no painter";
-  seeded(() => {
-    for (const p of paints) {
-      p.before?.();
-      fx.paint(p.cols, p.range ?? RANGE, p.suite ?? ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
-    }
-  });
+  for (const p of paints) {
+    p.before?.();
+    fx.paint(p.cols, p.range ?? RANGE, p.suite ?? ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
+  }
   return structuredClone(state.shows);
 }
 
@@ -521,16 +500,14 @@ for (const fail of /** @type {const} */ (["context", "vertex", "fragment", "link
 function outcome(look) {
   const { fx } = painter();
   if (!fx) return "no painter";
-  return seeded(() => {
-    for (const p of paintsOf(STEADY))
-      fx.paint(p.cols, RANGE, ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
-    try {
-      fx.paint(columns(QUIET_DB), RANGE, ACCENT, look);
-      return "painted";
-    } catch {
-      return "threw";
-    }
-  });
+  for (const p of paintsOf(STEADY))
+    fx.paint(p.cols, RANGE, ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
+  try {
+    fx.paint(columns(QUIET_DB), RANGE, ACCENT, look);
+    return "painted";
+  } catch {
+    return "threw";
+  }
 }
 
 for (const [name, look] of /** @type {[string, unknown][]} */ ([
