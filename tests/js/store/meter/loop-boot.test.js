@@ -2,9 +2,9 @@
 // runs. While the meter feed is open, a painter subscribed through onMeterPaint is handed each paint's `dt`, the wall
 // time since the paint before it, in seconds.
 //
-// The app boots by importing its entry module (hqptuner/static/app.js) into the page tests/js/support/bootpage.js
-// installs, whose animation frames run only when the case hands them out, at the wall times in FRAME_TIMES_MS, so
-// paints are unevenly spaced. Metering and playback reach the stores through fresh /api/status objects on engineStatus
+// The app boots through `boot(doc, clock)` of its entry module (hqptuner/static/app.js) on the page and clock
+// tests/js/support/bootpage.js builds, whose animation frames run only when the case hands them out, at the wall
+// times in FRAME_TIMES_MS, so paints are unevenly spaced. Metering and playback reach the stores through fresh /api/status objects on engineStatus
 // written by the poll seam (tests/js/support/apodpolls.js); the feed is the EventSource fake, its stamps the tables in
 // tests/js/support/meterfeed.js. What the loop does with each paint is the store suites' (loop.test.js,
 // loop-painters.test.js); this suite asks only that the started app runs it, and only while the engine plays: once
@@ -18,7 +18,7 @@ import assert from "node:assert/strict";
 
 import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { installBootPage } from "../../support/bootpage.js";
+import { bootPage } from "../../support/bootpage.js";
 import { lastStream } from "../../support/eventsource.js";
 import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
 import { CONTIGUOUS_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
@@ -35,9 +35,9 @@ const SECOND_MS = 1000;
 const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
 
 test("test_once_the_app_has_started_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it", async (t) => {
-  const { runFrame, cleanup } = installBootPage();
+  const { start, runFrame, cleanup } = bootPage();
   t.after(cleanup);
-  await import("../../../../hqptuner/static/app.js");
+  start();
   /** @type {number[]} wall time, s, each paint handed */
   const handed = [];
   const unsubscribe = onMeterPaint((/** @type {unknown} */ _scene, /** @type {number} */ dt) => void handed.push(dt));
@@ -72,9 +72,9 @@ const SILENT = { peak: -Infinity, rms: -Infinity, bins: Array.from({ length: BIN
 const CLEARED = { dt: 0, restart: true, channels: Array.from({ length: STEREO }, () => SILENT) };
 
 test("test_once_the_app_has_started_a_stopped_engine_hands_painters_one_cleared_scene_and_no_paint_after_it", async (t) => {
-  const { runFrame, cleanup } = installBootPage();
+  const { start, runFrame, cleanup } = bootPage();
   t.after(cleanup);
-  await import("../../../../hqptuner/static/app.js");
+  start();
   /** @type {Array<{ dt: number, restart: boolean, channels: Array<{ peak: number, rms: number, bins: number[] }> }>} */
   const handed = [];
   const unsubscribe = onMeterPaint(
