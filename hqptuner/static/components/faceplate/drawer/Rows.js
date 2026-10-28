@@ -1,10 +1,13 @@
 // A drawer tab's body items. A row names a catalog key (store/schema.js): its control column (label head, control, gray
-// reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine, then, under it, every option with its line (`optMan`) or a select's picked
-// option's line. A stack is several rows under one label line: each row's control and gray reason stacked one over the
-// other, each row's paragraphs in order beside them. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
+// reason) beside the setting's paragraph, the label head carrying the restart mark when the key restarts the engine,
+// then, under it, every option with its line (`optMan`) or a select's picked option's line. A stack is several rows
+// under one label line: each row's control and gray reason stacked one over the other, each row's paragraphs in order
+// beside them. Label and paragraph come from the settings metadata (store/prose.js), the value from the three-tree
 // resolution, the gray reason from the schema's own rule; a control writes through setControl(), by the key's lane.
 // Beside rows: a field and a choice (Field.js, Choice.js), a section header, a read-only note, a backend group shown by
 // the schema's backend, an intro, and a block the caller passes in by name.
+// A row or stack marks its values stale while the drawer's own form waits on its readback after a write, or after its
+// last read failed.
 
 import { html } from "../../../lib/dom.js";
 import { schema as catalog } from "../../../store/schema.js";
@@ -12,10 +15,17 @@ import { describe } from "../../../store/prose.js";
 import { isDirty } from "../../../store/resolve.js";
 import { grayReason } from "../../../store/ui/graying.js";
 import { setControl } from "../../../store/actions.js";
-import { formRestarts, groupShown, restartLane, rowLines, rowShown } from "../../../store/faceplate/drawer.js";
+import {
+  formRestarts,
+  formStale,
+  groupShown,
+  restartLane,
+  rowLines,
+  rowShown,
+} from "../../../store/faceplate/drawer.js";
 import { alertsNow } from "../../../store/faceplate/alerts.js";
 import { worseBlink } from "../../../model/shell/alerts.js";
-import { drawsSelect, grayLine, keyControl, labelHead } from "./controls.js";
+import { drawsSelect, drowClass, grayLine, keyControl, labelHead } from "./controls.js";
 import { field } from "./Field.js";
 import { choice } from "./Choice.js";
 import { Xref } from "../Xref.js";
@@ -133,15 +143,16 @@ function rowParts(spec, entry, here) {
  *
  * @param {RowSpec} spec
  * @param {XrefHere} here  the drawer and tab the row is drawn on
+ * @param {boolean} stale  whether its values are marked stale
  */
-function row(spec, here) {
+function row(spec, here, stale) {
   const entry = catalog[spec.key];
   if (!entry || !rowShown(spec, here.tab)) return null;
   const { key } = spec;
   const { label, ctl, man } = rowParts(spec, entry, here);
   const head = labelHead(label, { sub: spec.sub, band: spec.band, restarts: restartLane(key) });
   return html`
-    <div class="drow" data-k=${key} data-dirty=${dirtyAttr([key])} data-alert=${keysAlert([key], here)}>
+    <div class=${drowClass(stale)} data-k=${key} data-dirty=${dirtyAttr([key])} data-alert=${keysAlert([key], here)}>
       <div class="ctl">${head} ${ctl}</div>
       <div class="man">${man}</div>
       ${spec.optMan ? optList(spec, label) : pickedLine(spec, entry, here)}
@@ -155,15 +166,16 @@ function row(spec, here) {
  *
  * @param {StackSpec} spec
  * @param {XrefHere} here  the drawer and tab the stack is drawn on
+ * @param {boolean} stale  whether its values are marked stale
  */
-function stack(spec, here) {
+function stack(spec, here, stale) {
   const rows = spec.stack.filter((r) => catalog[r.key] && rowShown(r, here.tab));
   if (rows.length === 0) return null;
   const keys = rows.map((r) => r.key);
   const parts = rows.map((r) => rowParts(r, catalog[r.key], here));
   const head = labelHead(spec.label, { band: spec.band, restarts: keys.some((k) => restartLane(k)) });
   return html`
-    <div class="drow" data-dirty=${dirtyAttr(keys)} data-alert=${keysAlert(keys, here)}>
+    <div class=${drowClass(stale)} data-dirty=${dirtyAttr(keys)} data-alert=${keysAlert(keys, here)}>
       <div class="ctl">${head} ${parts.map((p, i) => html`<div class="dstk" data-k=${keys[i]}>${p.ctl}</div>`)}</div>
       <div class="man">${parts.map((p) => p.man)}</div>
     </div>
@@ -184,10 +196,11 @@ const secHead = (text, cls) => html`<div class=${cls}><span class="t">${text}</s
  * @param {DrawerSchema} schema
  * @param {GroupItem} g
  * @param {XrefHere} here  the drawer and tab the group is drawn on
+ * @param {boolean} stale  whether its rows' values are marked stale
  */
-const group = (schema, g, here) => html`
+const group = (schema, g, here, stale) => html`
   <div class="begrp" data-be=${g.group} hidden=${!groupShown(schema, g.group)}>
-    ${secHead(g.label, "dsec")} ${g.rows.map((r) => ("stack" in r ? stack(r, here) : row(r, here)))}
+    ${secHead(g.label, "dsec")} ${g.rows.map((r) => ("stack" in r ? stack(r, here, stale) : row(r, here, stale)))}
   </div>
 `;
 
@@ -243,12 +256,12 @@ function block(schema, it, blocks, here) {
  */
 export function item(schema, it, blocks, tab) {
   const here = { drawer: schema.id, tab };
-  if ("row" in it) return row(it.row, here);
+  if ("row" in it) return row(it.row, here, formStale(schema));
   if ("field" in it) return it.field.when && !it.field.when() ? null : field(it.field, here, formRestarts(schema));
   if ("choice" in it) return choice(it.choice, here);
   if ("head" in it) return secHead(it.head, "msec");
   if ("note" in it) return html`<p class="mnote">${noteLine(it.note())}</p>`;
-  if ("group" in it) return group(schema, it, here);
+  if ("group" in it) return group(schema, it, here, formStale(schema));
   if ("intro" in it) return introPara(it.intro);
   return block(schema, it, blocks, here);
 }

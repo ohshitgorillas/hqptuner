@@ -7,7 +7,7 @@
 
 import { computed } from "@preact/signals";
 import { engineStatus, volumeShown } from "../signals.js";
-import { runningValue, formFieldName, pipelineBaseline } from "../resolve.js";
+import { runningValue, formFieldName, effectivePipelines } from "../resolve.js";
 import { schema } from "../schema.js";
 import { optionsFor } from "../ui/options.js";
 import { hiddenStages } from "../ui/prefs.js";
@@ -313,10 +313,10 @@ export function nameAt(key, attr) {
 }
 
 /** Whether the running pipelines do work, not every one a unity copy of a channel to itself. */
-const pipelinesWork = computed(() => !pipelineBaseline.value.every(passesThrough));
+const pipelinesWork = computed(() => !effectivePipelines.value.every(passesThrough));
 
 /** Whether a structural crossfeed block is installed in the running pipelines. */
-const structuralRuns = computed(() => !!structuralBlock(pipelineBaseline.value));
+const structuralRuns = computed(() => !!structuralBlock(effectivePipelines.value));
 
 /**
  * The crossfeed that runs: a structural block in the running pipelines, else the Bauer switch, else none.
@@ -355,7 +355,7 @@ export function railNow() {
     },
     matrix: truthy(runningValue("matrix_enabled")),
     profile: matrixActiveProfile.value,
-    pipelines: pipelineBaseline.value.length,
+    pipelines: effectivePipelines.value.length,
     working: pipelinesWork.value,
     crossfeed: crossfeedNow(),
     loudness: truthy(runningValue("loudness_enabled")),

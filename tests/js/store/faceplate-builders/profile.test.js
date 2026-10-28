@@ -15,7 +15,8 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
+import { config, matrixConfig, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { effective, effectivePipelines } from "../../../../hqptuner/static/store/resolve.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
@@ -42,7 +43,7 @@ import {
   removeProfile,
   discardEdit,
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
-import { ROW, PROF } from "../../support/profile-fixtures.js";
+import { ROW, PROF, profileReading } from "../../support/profile-fixtures.js";
 import { stagingWire, ok, quiesce } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/profile-fixtures.js").PipelineRow} PipelineRow */
@@ -180,6 +181,8 @@ beforeEach(async () => {
   engineState.value = {};
   config.value = configTree();
   matrixConfig.value = matrixTree();
+  enums.value = { matrix_profiles: ["Warm"] };
+  readings.value = { generation: 0, fields: { matrix_profile: profileReading("Warm") } };
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
   await discardAll();
   staged.value = new Map();
@@ -314,6 +317,7 @@ test("test_the_book_holds_a_stored_profiles_rows_and_post", () => {
 
 test("test_the_book_holds_null_for_a_name_only_the_daemon_knows", () => {
   matrixConfig.value = matrixTree({ live: ["Warm", "Echo"] });
+  enums.value = { matrix_profiles: ["Warm", "Echo"] };
   assert.equal(profileBook()[LOADED]?.Echo, null);
 });
 

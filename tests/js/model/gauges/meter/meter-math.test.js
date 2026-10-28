@@ -15,7 +15,20 @@ import {
   spanShare,
   traceColumns,
 } from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
+import * as meterModel from "../../../../../hqptuner/static/model/gauges/meter/meter.js";
 import { near } from "../../../support/near.js";
+
+/**
+ * The bin pick and the trace reduction as a paint uses them: each fills the buffer it is handed and returns it, and
+ * the trace takes the Frequency span's share of the band. Read off the module namespace so the calls type-check
+ * before the surface takes them.
+ *
+ * @type {{
+ *   pickBins: (frame: { channels: { bins: Float32Array }[] }, pick: string, out?: Float32Array) => Float32Array,
+ *   traceColumns: (bins: ArrayLike<number>, columns: number, out?: Float32Array, share?: number) => Float32Array,
+ * }}
+ */
+const painted = /** @type {any} */ (meterModel);
 
 //: Tolerance for a power average written here to three places and possibly stored in a Float32Array.
 const DB_EPS = 1e-3;
@@ -136,6 +149,24 @@ test("test_a_channel_index_picks_that_channels_bins", () => {
   assert.deepEqual(Array.from(picked), [-20, -30]);
 });
 
+//: Two channels of two bins each, for the sum pick.
+const SUM_FRAME = frame([channel(-1, -10, [-10, -40]), channel(-2, -20, [-20, -30])]);
+//: The pick that combines every channel.
+const SUM = "sum";
+//: Full scale, louder than any bin of SUM_FRAME: what a louder earlier paint left in the buffer.
+const FULL_SCALE = 0;
+
+test("test_a_sum_pick_hands_back_the_buffer_it_was_handed", () => {
+  const out = new Float32Array(2);
+  assert.equal(painted.pickBins(SUM_FRAME, SUM, out), out);
+});
+
+test("test_a_handed_buffer_holds_this_sum_picks_bins_not_a_louder_earlier_paints", () => {
+  const out = new Float32Array(2).fill(FULL_SCALE);
+  painted.pickBins(SUM_FRAME, SUM, out);
+  assert.deepEqual(Array.from(out), Array.from(painted.pickBins(SUM_FRAME, SUM)));
+});
+
 // ── Tracing bins into drawing columns ────────────────────────────────────
 
 test("test_each_column_reads_the_loudest_bin_under_it_low_frequencies_first", () => {
@@ -147,6 +178,51 @@ test("test_each_column_reads_the_loudest_bin_under_it_low_frequencies_first", ()
 test("test_a_trace_has_as_many_columns_as_asked_for", () => {
   const bins = Float32Array.from([-50, -6, -50, -50, -50, -50, -50, -30, -50]);
   assert.deepEqual([traceColumns(bins, 3).length, traceColumns(bins, 7).length], [3, 7]);
+});
+
+// ── Tracing a Frequency span ─────────────────────────────────────────────
+
+//: Seventeen bins from 0 Hz (bin 0) to Nyquist (bin 16), dBFS: tones at bins 1 and 3 (inside the lowest quarter of
+//: the band), at bin 6 (inside the lower half, above the lowest quarter) and a loud one at bin 13 (upper half only).
+const SPAN_BINS = Float32Array.from([
+  -50, -20, -50, -30, -50, -50, -25, -50, -50, -50, -50, -50, -50, -6, -50, -50, -50,
+]);
+//: Columns asked for at every span.
+const SPAN_COLUMNS = 2;
+
+/** @type {{ span: string, share: number, columns: number[] }[]} */
+const SPAN_TRACES = [
+  // Bins 0 to 8 across both columns: bin 1 under the left, bin 6 under the right; bin 13 out of view.
+  { span: "half", share: 0.5, columns: [-20, -25] },
+  // Bins 0 to 4 across both columns: bin 1 under the left, bin 3 under the right; bins 6 and 13 out of view.
+  { span: "quarter", share: 0.25, columns: [-20, -30] },
+];
+
+for (const { span, share, columns } of SPAN_TRACES) {
+  test(`test_the_${span}_span_spreads_its_share_of_the_band_across_every_column`, () => {
+    const out = new Float32Array(SPAN_COLUMNS);
+    assert.deepEqual(Array.from(painted.traceColumns(SPAN_BINS, SPAN_COLUMNS, out, share)), columns);
+  });
+}
+
+//: A level every bin in view holds.
+const FLAT = -20;
+//: A louder level every bin above the view holds.
+const ABOVE_VIEW = -6;
+//: The quarter span's share of the band.
+const QUARTER = 0.25;
+//: Seventeen bins from 0 Hz (bin 0) to Nyquist (bin 16): bins 0 to 4, the lowest quarter, flat at FLAT; the rest at
+//: ABOVE_VIEW.
+const FLAT_LOW_BINS = Float32Array.from({ length: 17 }, (_, bin) => (bin <= 4 ? FLAT : ABOVE_VIEW));
+//: More columns than the quarter span has bins in view, so most columns fall between bins.
+const WIDE_COLUMNS = 16;
+
+test("test_a_narrow_span_flat_in_view_traces_flat_across_columns_that_fall_between_bins", () => {
+  const out = new Float32Array(WIDE_COLUMNS);
+  assert.deepEqual(
+    Array.from(painted.traceColumns(FLAT_LOW_BINS, WIDE_COLUMNS, out, QUARTER)),
+    new Array(WIDE_COLUMNS).fill(FLAT),
+  );
 });
 
 // ── Frequency spans ──────────────────────────────────────────────────────
@@ -176,4 +252,19 @@ test("test_a_level_sits_its_depth_below_full_scale_over_the_range_down_from_the_
 
 test("test_the_same_level_sits_higher_on_a_deeper_range", () => {
   assert.deepEqual([fraction(-60, 120), fraction(-60, 240)], [0.5, 0.75]);
+});
+
+//: A plot range, dB down from full scale.
+const RANGE = 120;
+//: A level deeper than RANGE reaches.
+const BELOW_RANGE = -200;
+//: A peak over full scale.
+const OVER_FULL_SCALE = 6;
+
+test("test_a_level_below_the_range_sits_at_the_bottom_of_the_plot", () => {
+  assert.equal(fraction(BELOW_RANGE, RANGE), 0);
+});
+
+test("test_a_level_over_full_scale_sits_at_the_top_of_the_plot", () => {
+  assert.equal(fraction(OVER_FULL_SCALE, RANGE), 1);
 });

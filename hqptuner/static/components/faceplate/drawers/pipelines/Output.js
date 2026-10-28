@@ -9,9 +9,8 @@
 // first paint) it draws the shown tab's output.
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { html } from "../../../../lib/dom.js";
+import { classNames, html } from "../../../../lib/dom.js";
 import { downloadText } from "../../../../lib/download.js";
-import { classNames } from "../../../../model/shell/format.js";
 import { PAGE, crosspoint, listItems, outputView } from "../../../../model/shell/pipelines.js";
 import { shownTab } from "../../../../store/faceplate/drawer.js";
 import { addPipeline, chName, chShort, pipelinesView } from "../../../../store/faceplate/drawers/pipelines.js";

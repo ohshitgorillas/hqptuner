@@ -18,15 +18,15 @@ if TYPE_CHECKING:
 class StoreHooks:
     """What a staged restore (``restore.apply``) owes the preset store.
 
-    ``carried`` answers once per apply: the live-domain values the restart has to
-    come back on. The other three run on every pass. ``persist_backup`` gets that
-    pass's fresh backup before the push, so a crash mid-apply leaves it on disk;
-    ``parked_members`` are the parked filter uploads the archive carries; and
-    ``mirror`` maps the pass's intended working config to the ``data/cfgs``
-    members that bring hqplayerd's own profile list up to the store.
+    ``persist_backup`` gets each pass's fresh backup before the push, so a crash
+    mid-apply leaves it on disk; ``parked_members`` are the parked filter uploads
+    the archive carries; and ``mirror`` maps the pass's intended working config to
+    the ``data/cfgs`` members that bring hqplayerd's own profile list up to the
+    store. ``file_config`` reads each verify read's backup into the running
+    config's file truth, recorded by its owner in ``presets``, and returns it.
     """
 
-    carried: Callable[[], dict[str, str]]
+    file_config: Callable[[bytes], dict[str, str]]
     persist_backup: Callable[[bytes], object]
     parked_members: Callable[[], dict[str, bytes]]
     mirror: Callable[[bytes], dict[str, bytes]]

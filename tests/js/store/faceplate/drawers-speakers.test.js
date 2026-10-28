@@ -13,7 +13,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { config } from "../../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import {
   SETS,
@@ -62,8 +62,9 @@ const LAST = SETS[SETS.length - 1];
  * @param {{ enabled?: boolean, direct?: boolean, loaded?: boolean }} [s]
  */
 async function reset({ enabled = false, direct = false, loaded = true } = {}) {
-  stagingWire();
-  speakers.value = loaded ? form(enabled) : null;
+  const served = loaded ? form(enabled) : null;
+  stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: served }) : undefined) });
+  await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
   await discardAll();
   discardDraft();
@@ -79,7 +80,8 @@ async function reset({ enabled = false, direct = false, loaded = true } = {}) {
 function speakersWire(applied, after) {
   return stagingWire({
     routes: (path, opts, w) => {
-      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
+      if (path !== "/api/speakers") return undefined;
+      if (opts.method !== "POST") return ok({ data: after });
       w.posts.push(JSON.parse(String(opts.body)));
       return ok({ report: { applied, speakers: after } });
     },
@@ -99,7 +101,8 @@ test("test_the_draft_is_not_loaded_while_the_daemons_form_is_absent", async () =
 test("test_the_draft_is_loaded_once_the_daemons_form_arrives", async () => {
   await reset({ loaded: false });
   speakerDraft(); // read while absent, so the arrival has to reach a draft already read
-  speakers.value = form(false);
+  stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form(false) }) : undefined) });
+  await loadSpeakers();
   assert.equal(speakerDraft().loaded, true);
 });
 
@@ -129,6 +132,25 @@ test("test_an_edit_back_to_the_daemons_value_no_longer_differs", async () => {
   setChannelDistance(1, "301");
   assert.equal(speakerDraft().differs, false);
 });
+
+for (const [field, typed, reported] of /** @type {["distance" | "level", string, number][]} */ ([
+  ["distance", "350.0", 350],
+  ["level", "-3.00", -3],
+])) {
+  // Break: comparing a numeric edit's spelling with readback text leaves an equal value dirty.
+  test(`test_matching_numeric_readback_cleans_the_${field}_despite_its_spelling`, async () => {
+    await reset();
+    const channel = 1;
+    const setValue = field === "distance" ? setChannelDistance : setChannelLevel;
+    setValue(channel, typed);
+    const differedBeforeReadback = speakerDraft().differs;
+    const after = form(false);
+    after.channels[channel][field] = reported;
+    stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: after }) : undefined) });
+    await loadSpeakers();
+    assert.deepEqual([differedBeforeReadback, speakerDraft().differs], [true, false]);
+  });
+}
 
 test("test_an_emptied_box_falls_back_to_the_daemons_value", async () => {
   await reset();
@@ -262,6 +284,34 @@ test("test_an_unconfirmed_apply_keeps_the_draft", async () => {
   await applyDraft();
   assert.equal(speakerDraft().channels[1]?.distance, 350);
 });
+
+for (const newerDistance of [375, 425]) {
+  // Break: successful apply discards an edit entered after its submitted snapshot.
+  test(`test_apply_readback_preserves_the_newer_distance_${newerDistance}`, async () => {
+    await reset();
+    const submittedDistance = 350;
+    const after = form(false, [287, submittedDistance, 280, 330, 240, 241, 210, 211]);
+    /** @type {(response: ReturnType<typeof ok>) => void} */
+    let finish = () => {};
+    const response = new Promise(
+      /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
+        finish = resolve;
+      },
+    );
+    stagingWire({
+      routes: (path, opts) => {
+        if (path !== "/api/speakers") return undefined;
+        return opts.method === "POST" ? response : ok({ data: after });
+      },
+    });
+    setChannelDistance(1, submittedDistance);
+    const applying = applyDraft();
+    setChannelDistance(1, newerDistance);
+    finish(ok({ report: { applied: true, speakers: after } }));
+    await applying;
+    assert.equal(speakerDraft().channels[1]?.distance, newerDistance);
+  });
+}
 
 // --- levels under Direct SDM -------------------------------------------------------------------------------------
 

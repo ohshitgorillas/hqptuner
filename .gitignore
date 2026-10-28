@@ -13,13 +13,13 @@ __pycache__/
 .pytest-run.json
 # last green run's wall time, the bar scripts/gates/testing/check_suite_time.py holds the suite to
 .suite-time*.json
-# per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/check_idle.py
+# per-test idle, written by scripts/idle_probe.py and judged by scripts/gates/testing/check_idle.py
 .idle-probe.json
 # each test's latest idle, one file per branch, the record that gate judges the next run against
 .idle-last*.json
 # an idle record no gate reads
 .idle-min.json
-# per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/check_clock_waits.py
+# per-test expired real-clock timeouts, written by scripts/clock_probe.py and judged by scripts/gates/testing/check_clock_waits.py
 .clock-probe.json
 htmlcov/
 

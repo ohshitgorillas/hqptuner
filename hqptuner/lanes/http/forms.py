@@ -3,7 +3,7 @@
 It sits with
 the lanes because it is the same shape as they are: a function over the manager
 that owns one slice of the daemon conversation, here the read side of the HTTP
-lane the manager polls on every tick.
+lane the loader refreshes on its poll interval.
 """
 
 from __future__ import annotations
@@ -46,7 +46,7 @@ class FormsRefresh:
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
-    from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
+    from hqptuner.conf.httpforms import ConfigForm, SpeakersForm
     from hqptuner.lanes import LaneManager
 
 
@@ -60,79 +60,102 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
     hide it behind a message that reads like the daemon's fault. Anything but ``httpx.HTTPError``
     (which ``AuthRefused`` subclasses) propagates.
 
-    Each polled form is one row of ``getters`` (its readings attribute, its error
-    attribute, its getter), and one ``try``/``except`` serves every row. The getters
-    are bound methods, so each one is referenced statically and a getter no row
-    names reads as unused.
+    Each form is fetched by ``_fetch`` and taken into ``readings`` as one File reading
+    of its page, the form with its error, before the next page is fetched.
 
-    The per-form ``except`` clause below only records the wire fact (the failing
-    route's own error text) as a side effect on ``readings`` — never a value this
-    function turns around and returns. ``FormsOutcome`` is decided by ``_outcome``,
-    after the loop, from state: how many of the three came back, and whether the
-    daemon refused the credentials, which the client records where it detects it.
+    The wire fact a failed fetch yields (the failing route's own error text) is only
+    recorded on ``readings`` — never a value this function turns around and returns.
+    ``FormsOutcome`` is decided by ``_outcome``, after the three pages, from state: how
+    many of the three came back, and whether the daemon refused the credentials, which
+    the client records where it detects it.
     """
     http = mgr.http_client
     if http is None:
         return FormsRefresh(FormsOutcome.NO_CREDENTIALS)
-    getters: tuple[tuple[str, str, Callable[[], Awaitable[ConfigForm | MatrixForm | SpeakersForm]]], ...] = (
-        ("config_form", "config_error", http.get_config),
-        ("matrix_form", "matrix_error", http.get_matrix),
-        ("speakers_form", "speakers_error", http.get_speakers),
+    readings = mgr.readings
+    await _fetch(http.get_config, lambda form: _take_config(mgr, form), lambda e: readings.take_file(config_error=e))
+    await _fetch(
+        http.get_matrix,
+        lambda form: readings.take_file(matrix_form=form, matrix_error=None),
+        lambda e: readings.take_file(matrix_error=e),
     )
-    fetched = 0
-    for form_attr, error_attr, getter in getters:
-        try:
-            form = await getter()
-        except httpx.HTTPError as exc:
-            setattr(mgr.readings, error_attr, str(exc))
-            continue
-        fetched += 1
-        if form_attr == "config_form":
-            # Against the form as it stands at THIS instant, never a snapshot taken
-            # when the refresh began: the poll loop and a route can both be inside
-            # this function at once, and a comparison against the pre-fetch value
-            # then records the same landing once per caller. Read and write with no
-            # await between them, which is what makes the pair atomic. The startup
-            # volume's baseline in the browser is this form rather than the config
-            # file, so a form that reported the wrong number for one tick is
-            # otherwise untraceable.
-            landing = voltrace.form_subset(form)
-            voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(mgr.readings.config_form))
-        setattr(mgr.readings, form_attr, form)
-        setattr(mgr.readings, error_attr, None)
+    await _fetch(
+        http.get_speakers,
+        lambda form: take_speakers(mgr, form),
+        lambda e: readings.take_file(speakers_error=e),
+    )
     if http.credentials_ok is not None:
-        _record_credentials(mgr, accepted=http.credentials_ok)
-    return FormsRefresh(_outcome(mgr, fetched, len(getters)))
+        record_credentials(mgr, accepted=http.credentials_ok)
+    return FormsRefresh(_outcome(mgr))
 
 
-def _outcome(mgr: LaneManager, fetched: int, total: int) -> FormsOutcome:
+def _take_config(mgr: LaneManager, config: ConfigForm) -> None:
+    """Take the /config form into ``readings``, tracing the volume it landed on."""
+    readings = mgr.readings
+    # Compared against the form as it stands at this instant: the poll loop
+    # and a route can both be inside this function at once, and each caller
+    # records a landing only against the value it reads here. Read and write with no
+    # await between them, which is what makes the pair atomic. The startup
+    # volume's baseline in the browser is this form rather than the config
+    # file, so a form that reported the wrong number for one tick is
+    # otherwise untraceable.
+    landing = voltrace.form_subset(config)
+    voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(readings.config_form))
+    readings.take_file(config_form=config, config_error=None)
+
+
+async def _fetch[F](
+    getter: Callable[[], Awaitable[F]], take: Callable[[F], object], fail: Callable[[str], object]
+) -> None:
+    """Fetch one form and hand it to ``take``, or on a wire failure hand the failure's text to ``fail``."""
+    try:
+        form = await getter()
+    except httpx.HTTPError as exc:
+        fail(str(exc))
+    else:
+        take(form)
+
+
+def _outcome(mgr: LaneManager) -> FormsOutcome:
     """Decide what this pass answers, from state alone — never from a caught exception.
 
     A refusal outranks a partial fetch: the three pages share one credential, so a
     refusal recorded this pass (or still standing from one before it — the same
-    tolerance ``_record_credentials`` already keeps) is the pass's answer over a
+    tolerance ``record_credentials`` already keeps) is the pass's answer over a
     plain wire count.
     """
     if mgr.readings.credentials_ok is False:
         return FormsOutcome.REFUSED
-    if fetched == total:
+    readings = mgr.readings
+    if readings.config_error is None and readings.matrix_error is None and readings.speakers_error is None:
         return FormsOutcome.OK
     return FormsOutcome.NO_ANSWER
 
 
-def _record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
+def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
     """Record what the 8088 lane just proved about the credentials, logging only the transition.
+
+    The one writer of ``readings.credentials_ok``: the poll records the client's verdict here, and a restore pass
+    the daemon refused records its refusal here.
 
     Per poll would put the same line in the log every two seconds for as long as
     the install stays broken, which is how a real report gets scrolled past.
     """
-    if mgr.readings.credentials_ok is accepted:
+    if not mgr.readings.take_file(credentials_ok=accepted):
         return
-    mgr.readings.credentials_ok = accepted
     if accepted:
         log.info("hqplayerd management credentials accepted")
     else:
         log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
+
+
+def take_speakers(mgr: LaneManager, form: SpeakersForm) -> None:
+    """Take the /speakers form the daemon just answered into ``readings``, clearing that page's error.
+
+    The one writer of ``readings.speakers_form``: the poll records each page it fetched here, and a speaker apply
+    records its re-read here.
+    """
+    mgr.readings.take_file(speakers_form=form, speakers_error=None)
 
 
 def decline(mgr: LaneManager) -> httpauth.HttpLaneDeclinedError | None:

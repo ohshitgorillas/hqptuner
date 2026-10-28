@@ -17,17 +17,13 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-
-
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
 
 
 def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
@@ -42,7 +38,7 @@ def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
         live_preset_file=tmp_path / "live-presets.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
-        wait_for_api(client, _reachable)
+        wait_for_api(client, connection_stands)
         yield client
 
 
@@ -73,24 +69,6 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
 # page shows both chains and has no Apply button to come back to.
 
 
-@pytest.mark.parametrize(("field", "value"), [("oversampling1x", "38"), ("oversampling", "23"), ("modulator", "3")])
-def test_an_edit_to_the_dormant_sdm_chain_is_reported_as_held(
-    chain_api: Callable[..., TestClient], field: str, value: str
-) -> None:
-    client = chain_api(mode="1")
-    resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["report"]["stored"] == {field: value}
-
-
-@pytest.mark.parametrize(("field", "value"), [("filter1x", "40"), ("filter", "25"), ("dither", "5")])
-def test_an_edit_to_the_dormant_pcm_chain_is_reported_as_held(
-    chain_api: Callable[..., TestClient], field: str, value: str
-) -> None:
-    client = chain_api(mode="2")
-    resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["report"]["stored"] == {field: value}
-
-
 def test_a_held_filter_edit_leaves_the_running_filter_alone(chain_api: Callable[..., TestClient]) -> None:
     # enum 23 is `sinc-M` on the SDM chain and index 1 there; the PCM chain the
     # engine is running has `sinc-M` at index 2. A held edit that leaked onto the
@@ -109,18 +87,6 @@ def test_a_held_shaper_edit_leaves_the_running_shaper_alone(chain_api: Callable[
     assert client.get("/api/state").json()["data"]["shaper"] == "0"
 
 
-@pytest.mark.parametrize(("field", "value"), [("filter", "40"), ("oversampling", "23")])
-def test_an_edit_is_held_when_no_chain_can_be_named(
-    chain_api: Callable[..., TestClient], field: str, value: str
-) -> None:
-    # [source] mode before playback starts: the configured mode cannot say which
-    # chain is loaded and Status has no active mode to offer either, so NEITHER
-    # chain's edit can be resolved — holding both beats refusing the page.
-    client = chain_api(mode="0", _active_mode="")
-    resp = client.post("/api/config/live", json={"fields": {field: value}})
-    assert resp.json()["report"]["stored"] == {field: value}
-
-
 # --- an edit to the chain the engine IS running -------------------------------
 
 
@@ -128,18 +94,3 @@ def test_an_edit_to_the_loaded_chain_is_reported_as_applied(chain_api: Callable[
     client = chain_api(mode="1")
     resp = client.post("/api/config/live", json={"fields": {"filter": "40"}})
     assert resp.json()["report"]["live"] == [{"setting": "filter", "ok": True}]
-
-
-#: With the PCM chain loaded, an edit to it holds nothing and one to the dormant
-#: SDM chain is held.
-HELD_BY_CHAIN = [
-    pytest.param({"filter": "40"}, {}, id="loaded-chain"),
-]
-
-
-@pytest.mark.parametrize(("fields", "held"), HELD_BY_CHAIN)
-def test_an_edit_is_held_only_when_it_targets_the_dormant_chain(
-    chain_api: Callable[..., TestClient], fields: dict[str, str], held: dict[str, str]
-) -> None:
-    client = chain_api(mode="1")
-    assert client.post("/api/config/live", json={"fields": fields}).json()["report"]["stored"] == held

@@ -3,8 +3,7 @@
 // names are the drawer stylesheet's (css/drawer.css, matrix.css).
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { html, wheelGuard, TypedInput } from "../../../../lib/dom.js";
-import { classNames } from "../../../../model/shell/format.js";
+import { classNames, html, wheelGuard, TypedInput } from "../../../../lib/dom.js";
 
 /** @typedef {{ value: string | number | undefined, label: string }} SegOption */
 /** @typedef {{ W: number, H: number }} Box */

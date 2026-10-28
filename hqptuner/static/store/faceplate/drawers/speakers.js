@@ -6,11 +6,11 @@
 // Level trims do nothing while Direct SDM runs; distances still apply. The DOM half is
 // components/faceplate/drawers/Speakers.js.
 
-import { computed, signal } from "@preact/signals";
+import { computed } from "@preact/signals";
 import { isBlank, num, truthy } from "../../../lib/coerce.js";
-import { effective, runningValue } from "../../resolve.js";
+import { runningValue } from "../../resolve.js";
 import { enumPref } from "../../ui/prefs.js";
-import { applySpeakers, gateDiffers, gateDraft, speakers } from "../../matrix/speakers.js";
+import { applySpeakers, speakerForm, speakers } from "../../matrix/speakers.js";
 
 export { setSpeakersGate } from "../../matrix/speakers.js";
 
@@ -68,9 +68,6 @@ const [speakerSet, setSpeakerSet] = enumPref(
   SETS[0].id,
 );
 
-/** Each channel's pending edits, by index as a string: exactly the overlay the POST takes. */
-const edits = signal(/** @type {Record<string, ChannelEdit>} */ ({}));
-
 /** @param {unknown} v  a form limit, absent where the input carried none */
 const limit = (v) => (isBlank(v) ? undefined : num(v));
 
@@ -108,16 +105,12 @@ const daemonChannel = (index) => (form()?.channels ?? []).find((c) => c.index ==
  * @param {string | number} value
  */
 function draftField(index, kind, value) {
-  const key = String(index);
-  const row = { ...(edits.value[key] ?? {}) };
   const text = String(value).trim();
   const held = daemonChannel(index);
   const blank = text === "" || !Number.isFinite(Number(text));
-  if (blank || (held && Number(text) === num(held[kind]))) delete row[kind];
-  else row[kind] = text;
-  const next = { ...edits.value, [key]: row };
-  if (Object.keys(row).length === 0) delete next[key];
-  edits.value = next;
+  const key = `${index}.${kind}`;
+  if (blank || (held && Number(text) === num(held[kind]))) speakerForm.remove(key);
+  else speakerForm.set(key, Number(text));
 }
 
 /**
@@ -145,20 +138,7 @@ export const pickSpeakerSet = (id) => setSpeakerSet(id);
 
 /** Drop every edit: the switch and each channel's level and distance fall back to the daemon's. The set stays. */
 export function discardDraft() {
-  edits.value = {};
-  gateDraft.value = null;
-}
-
-/**
- * Whether one channel's edits differ from what the daemon holds now, which a later read can have moved onto them.
- *
- * @param {number} index
- * @param {ChannelEdit} row
- */
-function rowDiffers(index, row) {
-  const held = daemonChannel(index);
-  const kinds = /** @type {("level" | "distance")[]} */ (["level", "distance"]);
-  return kinds.some((kind) => row[kind] !== undefined && (!held || num(row[kind]) !== num(held[kind])));
+  speakerForm.discard();
 }
 
 /**
@@ -171,23 +151,23 @@ export function speakerDraft() {
   const f = form();
   const set = SETS.find((s) => s.id === speakerSet.value) ?? SETS[0];
   const channels = (f?.channels ?? []).map((c) => {
-    const e = edits.value[String(c.index)] ?? {};
+    const e = speakerForm.values.value;
     return {
       index: c.index,
       name: displayName(c.label),
-      level: num(e.level ?? c.level),
-      distance: num(e.distance ?? c.distance),
+      level: num(e[`${c.index}.level`] ?? c.level),
+      distance: num(e[`${c.index}.distance`] ?? c.distance),
       levelBox: box(c, "level"),
       distanceBox: box(c, "distance"),
     };
   });
   return {
     loaded: f !== null,
-    enabled: truthy(effective("spken")),
+    enabled: !!(speakerForm.values.value.enabled ?? f?.enabled),
     set: set.id,
     shown: set.channels,
     channels,
-    differs: gateDiffers() || Object.entries(edits.value).some(([k, row]) => rowDiffers(Number(k), row)),
+    differs: speakerForm.differs.value.length > 0,
   };
 }
 
@@ -209,7 +189,5 @@ export const levelsDead = () => truthy(runningValue("direct_sdm"));
  */
 export async function applyDraft() {
   if (!staged.value) return false;
-  const done = await applySpeakers(speakerDraft().enabled, edits.value);
-  if (done) discardDraft();
-  return done;
+  return applySpeakers(speakerDraft().enabled, {});
 }

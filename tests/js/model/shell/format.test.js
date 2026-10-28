@@ -1,13 +1,12 @@
 // Behavioral suite for hqptuner/static/model/shell/format.js: the number forms the faceplate prints (a value with its sign, a
-// negative with a typographic minus, a sign always shown, a typed value's hyphen made a minus), and a class list joined
-// from the names that apply.
+// negative with a typographic minus, a sign always shown, a typed value's hyphen made a minus).
 //
 // Run: node --test tests/js/model/shell/format.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { classNames, minus, minusText, plusMinus, signed } from "../../../../hqptuner/static/model/shell/format.js";
+import { minus, minusText, plusMinus, signed } from "../../../../hqptuner/static/model/shell/format.js";
 
 //: The typographic minus every form prints in place of a hyphen.
 const MINUS = "−";
@@ -78,23 +77,4 @@ test("test_minus_text_takes_a_number", () => {
 
 test("test_minus_text_leaves_text_without_a_hyphen_alone", () => {
   assert.equal(minusText("12"), "12");
-});
-
-// ── Class names ──────────────────────────────────────────────────────────
-
-//: State classes the test writes, and the attribute two of them make.
-const CUR = "cur";
-const FOLD = "fold";
-const CUR_FOLD = "cur fold";
-
-test("test_class_names_join_the_names_that_apply", () => {
-  assert.equal(classNames(CUR, false, FOLD), CUR_FOLD);
-});
-
-test("test_class_names_skip_every_falsy_entry", () => {
-  assert.equal(classNames(null, CUR, undefined, "", 0, FOLD), CUR_FOLD);
-});
-
-test("test_class_names_with_nothing_applying_is_empty", () => {
-  assert.equal(classNames(false, null), "");
 });

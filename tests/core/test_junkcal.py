@@ -1,6 +1,6 @@
 """Junk-filter calibration capture stamps what it writes with the manager's clock.
 
-Each case builds the app with `HQPTUNER_JUNKCAL_DIR` set, on two fakes: a
+Each case builds the app with `junkcal_dir` set, on two fakes: a
 threaded control daemon whose `State` reports the engine playing and whose
 `Status` carries a 96 kHz source, and a 4322 stream sending a block and a
 quarter of one single-channel frame (a `<4I3fI` header, four `f32` levels in
@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, wait_for_api
+from apps import advance_app, app_manager, connection_stands, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -60,16 +60,11 @@ def _spur_frame() -> bytes:
     return header + struct.pack(f"<4f{2 * BINS}f", *levels, *reals, *([0.0] * BINS))
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
 @pytest.fixture
-def captured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
+def captured(tmp_path: Path) -> Iterator[Path]:
     """The capture directory after ``POLLS`` poll passes of Nx content playing on a clock at ``INSTANT``."""
     capture = tmp_path / "junkcal"
     capture.mkdir()
-    monkeypatch.setenv("HQPTUNER_JUNKCAL_DIR", str(capture))
     daemon = spawn_threaded_daemon({"state": PLAYING, "_metadata": f'<metadata samplerate="{SOURCE_RATE}"/>'})
     stream = fake_metering.spawn(_spur_frame(), frames=PAST_A_BLOCK)
     cfg = Config(
@@ -84,10 +79,11 @@ def captured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
         advisor_enabled=True,
+        junkcal_dir=capture,
     )
     with contextlib.ExitStack() as closing:
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock(now=INSTANT))))
-        wait_for_api(client, _reachable)
+        wait_for_api(client, connection_stands)
         interval = app_manager(client).cfg.poll_interval
         for _ in range(POLLS):
             advance_app(client, interval)

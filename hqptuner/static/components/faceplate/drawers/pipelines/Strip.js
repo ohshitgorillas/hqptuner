@@ -4,8 +4,7 @@
 // read-only. A convolution stage is added by uploading its file. The decisions are model/shell/pipelines.js's.
 
 import { useRef } from "preact/hooks";
-import { html, TypedInput } from "../../../../lib/dom.js";
-import { classNames } from "../../../../model/shell/format.js";
+import { classNames, html, TypedInput } from "../../../../lib/dom.js";
 import { NEW_STAGE, chipText, groups, stageAt } from "../../../../model/shell/pipelines.js";
 import { effectivePipelines } from "../../../../store/resolve.js";
 import { pipelinesView, removePipeline, setRaw, setStages } from "../../../../store/faceplate/drawers/pipelines.js";

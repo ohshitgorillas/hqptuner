@@ -2,8 +2,8 @@
 // and the time axis under it. Each label sits at its fraction along the edge; the end labels are marked so the
 // stylesheet keeps them inside their track.
 
-import { html } from "../../../../lib/dom.js";
-import { classNames, minusText } from "../../../../model/shell/format.js";
+import { classNames, html } from "../../../../lib/dom.js";
+import { minusText } from "../../../../model/shell/format.js";
 
 /** @typedef {import("../../../../store/faceplate/drawers/source.js").SourceMeterView} SourceMeterView */
 

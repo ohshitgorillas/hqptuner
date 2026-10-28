@@ -2,7 +2,7 @@
 // the index the engine reports, whether this track's path runs it, its plain-name breakdown and the prose of the option
 // it runs. One field is open per section: the running filter, or the one the user opened while the same playback
 // holds; a plate tall enough opens both filters. A pick is written live by the option's enum ID, and the drawer's own
-// select follows through the live overlay.
+// select follows through the live overlay. The copy fit's cuts are held here, valid for one fit key.
 
 import { signal, computed, effect } from "@preact/signals";
 import { describe, idFor, optionProse } from "../../prose.js";
@@ -44,6 +44,9 @@ import { bothRows, fieldRuns, openOn, sectionRows } from "../../../model/shell/c
  * @property {ConvField[]} fields
  *
  * @typedef {{ resampling: ConvSection, shaping: ConvSection }} ConvSections
+ *
+ * @typedef {{ key: string, by: Record<string, number>, passes: number }} Cuts  each cut copy's prose word count and
+ *   the passes run, for the page whose fit key is `key`
  */
 
 /** Each chain control's field id, in the order derive.js lists a chain's controls. @type {FieldId[]} */
@@ -52,7 +55,7 @@ const IDS = ["1x", "nx", "sh"];
 /** The fields each section holds. @type {Record<SectionId, FieldId[]>} */
 const SECTION_FIELDS = { resampling: ["1x", "nx"], shaping: ["sh"] };
 
-/** What plays now, as the lifted conversion model reads it. @returns {Play} */
+/** What plays now, as the conversion model reads it. @returns {Play} */
 const playNow = () => ({ run: runningChain(), path: playbackPath(), stage: sourceIsNx() ? "nx" : "1x" });
 
 /** The playback a field the user opened belongs to: a new chain, path or source side reopens on what runs. */
@@ -68,6 +71,29 @@ effect(() => {
   void playKey.value;
   opened.value = {};
 });
+
+/** The copy fit's cuts to the page's copies, and the fit key they hold for. */
+export const cuts = signal(/** @type {Cuts} */ ({ key: "", by: {}, passes: 0 }));
+
+/**
+ * Start the fit over from full copy under a new fit key.
+ *
+ * @param {string} key  the fit key the cuts hold for
+ */
+export function restartCuts(key) {
+  cuts.value = { key, by: {}, passes: 0 };
+}
+
+/**
+ * One pass of the fit: one copy cut to its first `words` words of prose.
+ *
+ * @param {string} id     the copy's id on the page
+ * @param {number} words  the words of prose it keeps
+ */
+export function cutCopy(id, words) {
+  const now = cuts.value;
+  cuts.value = { key: now.key, by: { ...now.by, [id]: words }, passes: now.passes + 1 };
+}
 
 /**
  * The running option's breakdown as the option style prints it. Simplified gives the plain family and variant, the

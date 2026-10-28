@@ -3,13 +3,14 @@
 // the top-down room plan, the listener facing up the page and each listed speaker the model places (one with a
 // distance or level entered) at its layout angle, toed in, at a radius set by its own distance, its level riding as a
 // label; the box fits the placed speakers, centered on the listener. While Direct SDM runs the level boxes are dead and
-// a line says why; distances stay live. Edits are held by store/faceplate/drawers/speakers.js, which decides
-// everything drawn here.
+// a line says why; the distance boxes are live. Edits are held by store/faceplate/drawers/speakers.js, which decides
+// the boxes and the set; model/gauges/speakers.js places the speakers on the plan.
 
 import { useEffect } from "preact/hooks";
 import { html, TypedInput } from "../../../lib/dom.js";
 import { minus } from "../../../model/shell/format.js";
 import { HEAD, placeSpeakers, planExtent } from "../../../model/gauges/speakers.js";
+import { formStale } from "../../../store/faceplate/drawer.js";
 import { loadSpeakers, speakers, speakersBusy, speakersError } from "../../../store/matrix/speakers.js";
 import {
   DIRECT_SDM_NOTE as DIRECT_SDM,
@@ -22,6 +23,7 @@ import {
 } from "../../../store/faceplate/drawers/speakers.js";
 import { withXref } from "../Xref.js";
 
+/** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").DraftChannel} DraftChannel */
 /** @typedef {import("../../../store/faceplate/drawers/speakers.js").BoxLimits} BoxLimits */
@@ -175,9 +177,9 @@ function roomPlan(listed) {
  * The Speakers drawer's block: the set and the listed channels' boxes beside the room plan. It reads the daemon's
  * form the first time it is drawn, if nothing has yet.
  *
- * @param {{ here: XrefHere }} props  here: where it is drawn
+ * @param {{ schema: DrawerSchema, here: XrefHere }} props  schema: the drawer it is drawn in; here: where it is drawn
  */
-export function SpeakersBody({ here }) {
+export function SpeakersBody({ schema, here }) {
   useEffect(() => {
     if (speakers.value === null) loadSpeakers();
   }, []);
@@ -192,7 +194,9 @@ export function SpeakersBody({ here }) {
     <div class="spbody">
       <div class=${dead ? "spleft sdm" : "spleft"}>
         ${setSelect(d.set, busy)}
-        <div class="sprows">${listed.map((c) => channelRow(c, { dead, busy }))}</div>
+        <div class=${formStale(schema) ? "sprows stale" : "sprows"}>
+          ${listed.map((c) => channelRow(c, { dead, busy }))}
+        </div>
         ${dead ? html`<p class="spsdm">${withXref(DIRECT_SDM, here)}</p>` : null}
         ${
           err

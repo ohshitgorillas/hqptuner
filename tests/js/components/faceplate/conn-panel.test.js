@@ -17,7 +17,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { ConnPanel } from "../../../../hqptuner/static/components/faceplate/ConnPanel.js";
-import { form, pageHost, verdict, hostTouched, closePanel } from "../../../../hqptuner/static/store/connpanel.js";
+import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, hasAttr } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
@@ -31,10 +31,7 @@ const env = globalThis;
 const REAL_FETCH = env.fetch;
 
 const OPEN = panelOpen.value;
-const FORM = form.value;
-const PAGE_HOST = pageHost.value;
-const VERDICT = verdict.value;
-const HOST_TOUCHED = hostTouched.value;
+let panel = createConnPanel();
 
 /** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
 const CALLS = [];
@@ -55,6 +52,7 @@ function answer(path, method) {
 }
 
 beforeEach(() => {
+  panel = createConnPanel();
   CALLS.length = 0;
   env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     const method = opts.method || "GET";
@@ -64,12 +62,8 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  closePanel();
+  panel.closePanel();
   panelOpen.value = OPEN;
-  form.value = FORM;
-  pageHost.value = PAGE_HOST;
-  verdict.value = VERDICT;
-  hostTouched.value = HOST_TOUCHED;
   env.fetch = REAL_FETCH;
 });
 
@@ -79,7 +73,7 @@ afterEach(() => {
  * @returns {MarkupElement}
  */
 const sheet = () => {
-  const aside = elements(render(html`<${ConnPanel} />`)).find(
+  const aside = elements(render(html`<${ConnPanel} panel=${panel} />`)).find(
     (e) => e.name === "aside" && attr(e, "data-testid") === "conn-panel",
   );
   if (!aside) throw new Error('the markup carries no aside[data-testid="conn-panel"]');
@@ -100,7 +94,7 @@ const authLinkHostname = () => {
  * @param {(v: VNode) => boolean} pick
  */
 async function tap(pick) {
-  const { seen } = renderTree(html`<${ConnPanel} />`);
+  const { seen } = renderTree(html`<${ConnPanel} panel=${panel} />`);
   const hit = seen.find(pick);
   const onClick = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
   if (typeof onClick === "function") await onClick();
@@ -127,14 +121,14 @@ test("test_the_open_sheet_is_a_dialog", () => {
 
 test("test_a_host_field_naming_the_server_machine_links_the_daemon_page_through_the_page_host", () => {
   panelOpen.value = true;
-  form.value = { ...FORM, host: "host.docker.internal" };
-  pageHost.value = "192.168.1.40";
+  panel.form.value = { ...panel.form.value, host: "host.docker.internal" };
+  panel.pageHost.value = "192.168.1.40";
   assert.equal(authLinkHostname(), "192.168.1.40");
 });
 
 test("test_tapping_connect_posts_the_host_field_to_the_connection_route", async () => {
   panelOpen.value = true;
-  form.value = { ...FORM, host: "10.0.0.5" };
+  panel.form.value = { ...panel.form.value, host: "10.0.0.5" };
   await tap((v) => v.props["data-testid"] === "conn-connect");
   assert.deepEqual(
     sent("POST", "/api/connection").map((c) => c.body?.host),

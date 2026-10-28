@@ -15,7 +15,6 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { h } from "preact";
 
-import "../../support/domseam.js";
 import { useStorage } from "../../support/storage.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Faceplate } from "../../../../hqptuner/static/app.js";

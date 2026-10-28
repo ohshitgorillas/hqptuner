@@ -7,15 +7,17 @@
 // The wire is the seam: polls are Status frames written to `engineStatus` through tests/js/support/apodpolls.js, with
 // the history's effect registered so each poll records a bin, and the running engine's filter enumeration is served
 // through tests/js/support/filterfacets.js. Every case starts a track of its own and sets the preference it reads.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/apodlamp.test.js
 
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { apodLampLevel } from "../../../../hqptuner/static/store/meter/apodlamp.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
 import { apodLight } from "../../../../hqptuner/static/store/ui/prefs.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { feed, setPollStep } from "../../support/apodpolls.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
 
@@ -23,6 +25,9 @@ initApodHistory();
 
 /** Seconds of playback each poll observes. */
 const STEP = 1;
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
 
 /** Events in one bin of a quiet passage, and of a busy one; both below the scale's saturation. */
 const QUIET = 3;
@@ -42,6 +47,10 @@ const FILTERS = [
   [FULL, "4/5 transients ⥮ Any", 1],
   [PLAIN, "2/5 tone ⥮ Any", 0],
 ];
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+});
 
 /**
  * The lamp's level after a fresh track records one bin of `events` under the "all" preference.

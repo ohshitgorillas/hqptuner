@@ -27,7 +27,7 @@
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { getStored, removeStored } from "../../lib/browser/storage.js";
-import { failText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 
 // The pre-server store. Read exactly once, by the migration below, so stars set
 // before favorites moved to the server survive the move.
@@ -44,10 +44,8 @@ export const nFavOnly = signal(false);
 // The last failed read or write's sentence, "" once one succeeds. One error for
 // the whole feature, latest wins: there is one set, and a second toggle clears
 // whatever the first left behind.
-export const favoritesError = signal("");
-
-/** The sentence a failed favorites call opens with. */
-const FAVORITE_LEAD = "Favorite failed: ";
+const favoriteOp = op("favorite");
+export const favoritesError = opErrorText(favoriteOp);
 
 /**
  * The names left in localStorage by a pre-server HQPTuner, empty when there are
@@ -89,7 +87,7 @@ function dropLegacy() {
  * @returns {Promise<void>}
  */
 export async function hydrateFavorites() {
-  try {
+  await favoriteOp.run(async () => {
     const body = await api.favorites();
     const stored = body.filters || [];
     favoriteFilters.value = new Set(stored);
@@ -104,9 +102,7 @@ export async function hydrateFavorites() {
     const saved = await api.saveFavorites({ filters: [...new Set([...stored, ...legacy])] });
     favoriteFilters.value = new Set(saved.filters || []);
     dropLegacy();
-  } catch (e) {
-    favoritesError.value = failText(FAVORITE_LEAD, e);
-  }
+  });
 }
 
 /**
@@ -174,12 +170,10 @@ async function toggleIn(set, kind, name) {
   set.value = next;
   syncFavOnly();
   favoritesError.value = "";
-  try {
-    await api.saveFavorites({ [kind]: [...next] });
-  } catch (e) {
+  const result = await favoriteOp.run(() => api.saveFavorites({ [kind]: [...next] }));
+  if (result === FAILED) {
     set.value = before;
     syncFavOnly();
-    favoritesError.value = failText(FAVORITE_LEAD, e);
   }
 }
 

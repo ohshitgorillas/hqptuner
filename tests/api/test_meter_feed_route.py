@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Protocol
 
 import fake_metering
 import pytest
-from apps import advance_app, wait_for_api
+from apps import advance_app, connection_stands, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from sse import any_event, events, open_stream
@@ -127,7 +127,7 @@ def feed_api(tmp_path: Path) -> Iterator[FeedApi]:
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
         # connected, then one idle recheck of the reader's, which is when it
         # sees the engine playing and dials the stream
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         advance_app(client, IDLE_RECHECK)
         return client
 

@@ -7,7 +7,8 @@
 // The stream reaches the store at the wire: meter feed events through the EventSource fake
 // (tests/js/support/eventsource.js), playback through fresh /api/status objects. The feed's clock is a fixed `() => 0`,
 // so the feed never goes quiet. Prefs are written through their own setters over a fake storage; the plate through
-// the window size the entry writes.
+// the window size the entry writes. The engine plays only while /api/health reports the connection Ready, so every
+// case starts on a Ready connection.
 //
 // Ticks are fractions of the plot: across from 0 Hz, down from full scale.
 //
@@ -17,7 +18,7 @@ import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { pageMeter } from "../../../../hqptuner/static/store/faceplate/page/meter.js";
-import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
   METER_RANGES,
@@ -38,6 +39,9 @@ const [PAGE_FIRST = "", PAGE_SECOND = ""] = METER_RANGES;
 const PAGE_LAST = METER_RANGES.at(-1) ?? "";
 const [METER_FIRST = ""] = METER_RANGES;
 const METER_LAST = METER_RANGES.at(-1) ?? "";
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
 
 /**
  * A geometry event's data.
@@ -63,6 +67,7 @@ function stream({ state = "2", geo = geometry() } = {}) {
 const r4 = (v) => +v.toFixed(4);
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   matrixConfig.value = null;
   setMeterChannel("sum");

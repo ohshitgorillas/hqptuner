@@ -1,0 +1,8 @@
+"""A module whose docstring names @NAME@ in prose."""
+
+# The manager once kept @NAME@ here.
+LABEL = "@NAME@"
+
+
+def landed(manager):
+    return manager.@NAME@

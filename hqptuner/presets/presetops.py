@@ -15,7 +15,6 @@ from typing import TYPE_CHECKING
 
 from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
@@ -101,7 +100,7 @@ class PresetAftermath:
     fanout: dict[str, str]
 
 
-async def after_restore(
+def after_restore(
     mgr: "PresetManager", persistent: RestoreResult | None, http_fields: dict[str, str]
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
@@ -115,7 +114,6 @@ async def after_restore(
     """
     if persistent is None or persistent.outcome is not RestoreOutcome.APPLIED:
         return PresetAftermath({})
-    await settle.resync_engine_state(mgr)
     ops = mgr.presetops
     ops.clear_parked_filters()
     ops.backfill_profiles()

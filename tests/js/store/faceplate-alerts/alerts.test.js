@@ -16,7 +16,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { health, engineStatus, lastApply } from "../../../../hqptuner/static/store/signals.js";
-import { liveWriteError } from "../../../../hqptuner/static/store/live/write.js";
+import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
 import { livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
 import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
@@ -39,8 +39,11 @@ const HOLD_MS = 6000;
 /** The rail stage that runs the SDM modulator. */
 const MODULATOR_STAGE = "shaping";
 
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
+/** The daemon generation the suite runs at. */
+const GEN = 1;
+
+/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
+const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
 
 /** The junk advisor's object as /api/status carries it. */
 const ADVICE = { filter: "30k", reason: "Ultrasonic junk above 30 kHz suggests the 30k filter", ceiling_khz: 30 };
@@ -80,7 +83,7 @@ async function quiet(scenario = {}) {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X, ...scenario });
   health.value = { ...HEALTHY };
   lastApply.value = null;
-  liveWriteError.value = "";
+  liveOp.clear();
   livePresetError.value = "";
   descriptionError.value = "";
   favoritesError.value = "";

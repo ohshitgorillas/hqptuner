@@ -4,6 +4,7 @@
 // the apply group runs that form (`own`).
 
 import { applyDraft, discardDraft, staged } from "../../../store/faceplate/drawers/speakers.js";
+import { speakersStale } from "../../../store/matrix/speakers.js";
 import { SpeakersBody } from "./Speakers.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -20,7 +21,7 @@ export const SPEAKERS_DRAWER = {
       body: [{ row: { key: "spken" } }, { block: "speakers" }],
     },
   ],
-  own: { staged: () => staged.value, apply: applyDraft, discard: discardDraft },
+  own: { staged: () => staged.value, apply: applyDraft, discard: discardDraft, stale: () => speakersStale.value },
 };
 
 /** The components the schema's blocks mount, by name. */

@@ -2,7 +2,7 @@
 // its select offers (the daemon's unnamed profile first, then every saved name, the running one picked and a name the
 // engine did not load disabled), the live switch, and the running profile's description.
 //
-// Driven at the wire: the /matrix form is assigned into `matrixConfig` as the poll writes it, and a fetch fake answers
+// Driven at the wire: profile readings and enumerations are assigned as the poll writes them, and a fetch fake answers
 // the real REST paths in their real shapes and records every request: POST /api/matrix/profile for the switch, the
 // four reads the config refresh after it makes, and PUT /api/descriptions for a description. No store function is
 // stubbed. Profile names are the fixture's own wire data.
@@ -13,6 +13,8 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, matrixConfig, enums } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { profileReading } from "../../support/profile-fixtures.js";
 import { descriptions, flushDescriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import {
   profileChoices,
@@ -33,8 +35,8 @@ const REAL_FETCH = env.fetch;
 /** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
 const CALLS = [];
 
-/** What the next GET /api/matrix answers with: the /matrix form as the engine reports it after a switch. */
-let nextForm = {};
+/** The profile name the next GET /api/config reading reports. */
+let nextName = "Lounge";
 /** The answer to a switch, or undefined for the route's success shape. */
 /** @type {FakeResponse | undefined} */
 let switchAnswer;
@@ -43,18 +45,22 @@ let switchAnswer;
 let held = null;
 
 /**
- * A /matrix form as GET /api/matrix carries it: the daemon's startup list and the profile running live.
+ * Seed the daemon's profile list and active reading beside its empty matrix form.
  *
  * @param {string[]} live  MatrixListProfiles
  * @param {string} active  MatrixGetProfile, "" for the unnamed one
  */
-const form = (live, active) => ({ fields: [], rows: [], live_profiles: live, live_active: active });
+const form = (live, active) => {
+  enums.value = { matrix_profiles: live };
+  readings.value = { generation: 0, fields: { matrix_profile: profileReading(active) } };
+  return { fields: [], rows: [] };
+};
 
 /** The four reads the config refresh after a switch makes, each in its real shape. */
 /** @type {Record<string, () => FakeResponse>} */
 const READS = {
-  "/api/matrix": () => ok({ data: nextForm }),
-  "/api/config": () => ok({ data: config.value }),
+  "/api/matrix": () => ok({ data: matrixConfig.value }),
+  "/api/config": () => ok({ generation: 0, fields: { matrix_profile: profileReading(nextName) } }),
   "/api/enumerations": () => ok({ data: enums.value }),
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };
@@ -88,7 +94,7 @@ beforeEach(async () => {
   };
   config.value = { fields: [], file: {}, active: "" };
   matrixConfig.value = form(["Desk", "Lounge"], "Lounge");
-  nextForm = matrixConfig.value;
+  nextName = "Lounge";
   descriptions.value = {};
   switchAnswer = undefined;
   held = null;
@@ -128,8 +134,8 @@ test("test_a_switch_sends_only_the_picked_profiles_name", async () => {
   );
 });
 
-test("test_after_a_switch_the_picked_choice_follows_the_form_the_engine_reports", async () => {
-  nextForm = form(["Desk", "Lounge"], "Desk");
+test("test_after_a_switch_the_picked_choice_follows_the_reading_the_engine_reports", async () => {
+  nextName = "Desk";
   await switchProfile("Desk");
   assert.equal(profileChoices().value, "Desk");
 });

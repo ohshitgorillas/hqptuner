@@ -31,7 +31,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, wait_for_api
+from apps import advance_app, app_manager, connection_stands, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -63,10 +63,6 @@ class AdvisorClient(Protocol):
     def __call__(self, *, advisor: bool) -> TestClient: ...
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
 @pytest.fixture
 def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path) -> Iterator[AdvisorClient]:
     """The REST surface on both fakes, the auto-pilot store seeded on, built for one setting of the advisor flag."""
@@ -91,7 +87,7 @@ def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_p
         client = TestClient(create_app(cfg, VirtualClock()))
         client.__enter__()
         opened.append(client)
-        wait_for_api(client, _reachable)
+        wait_for_api(client, connection_stands)
         return client
 
     yield build
@@ -133,7 +129,7 @@ def spur_client(tmp_path: Path) -> Iterator[AdvisorClient]:
             advisor_enabled=advisor,
         )
         client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
-        wait_for_api(client, _reachable)
+        wait_for_api(client, connection_stands)
         return client
 
     yield build

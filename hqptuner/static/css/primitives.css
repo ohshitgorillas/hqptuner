@@ -23,10 +23,11 @@
 
 /* VFD glass: amber readout window. .l = small label, .v = value. Also the skin for selects, number inputs, picker buttons. */
 .vfd{box-sizing:border-box;background:var(--glass);border:var(--hair) solid var(--shade);border-radius:var(--r-2);box-shadow:var(--well);padding:var(--sp-2) var(--sp-5);font-family:var(--f-mono);color:var(--acc);display:flex;flex-direction:column;justify-content:center;gap:0;min-width:0;line-height:var(--lh-text)}
-/* Window label: one size everywhere. lh 1.1 fits label + value in a 40px window. */
+/* Window label: one size everywhere. lh 1.1 fits label + value in one --ctl-h window. */
 .vfd .l{font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-3);letter-spacing:var(--ls-3);color:var(--ink-2);text-transform:uppercase;line-height:1.1}
 .vfd .v{font-size:var(--fs-4);font-weight:var(--fw-medium);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vfd.dim{color:var(--ink-2)}   /* auto / idle value: neutral ink, not dim amber (text never darker than ink-2) */
+.stale .vfd{color:var(--ink-2)}   /* a value shown while its form's readback is pending or its last read failed: neutral ink */
 /* The ▾ is two --chev halves, --sp-6 in from the right edge; the text keeps --sp-5 clear of it. */
 select.vfd{appearance:none;-webkit-appearance:none;height:var(--ctl-h);line-height:var(--ctl-h);font-size:var(--fs-5);padding:0 calc(var(--sp-6) + 2 * var(--chev) + var(--sp-5)) 0 var(--sp-6);cursor:pointer;width:100%;
   background-image:linear-gradient(45deg,transparent 50%,var(--acc-dim) 50%),linear-gradient(135deg,var(--acc-dim) 50%,transparent 50%);background-position:calc(100% - var(--sp-6) - var(--chev)) 50%,calc(100% - var(--sp-6)) 50%;background-size:var(--chev) var(--chev);background-repeat:no-repeat}
@@ -41,7 +42,10 @@ select option{background:var(--glass);color:var(--acc)}
 .seg{display:inline-flex;border:var(--hair) solid var(--shade);border-radius:var(--r-2);overflow:hidden;background:var(--glass);box-shadow:inset 0 var(--hair) var(--sp-2) var(--shade)}
 .seg button{height:var(--ctl-h);padding:0 var(--sp-7);border:0;border-right:var(--hair) solid var(--seam);background:transparent;color:var(--ink-2);font-family:var(--f-eng);font-weight:var(--fw-semi);font-size:var(--fs-5);letter-spacing:var(--ls-1);text-transform:uppercase;cursor:pointer;line-height:var(--lh-eng)}
 .seg button:last-child{border-right:0}
+.seg button.dirty{position:relative}   /* an option holding a staged edit */
+.seg button.dirty::after{content:"";position:absolute;top:var(--dot-inset);right:var(--dot-inset);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
 .seg button.on{background:var(--acc);color:var(--on-acc)}
+.stale .seg button.on{background:var(--ink-2)}   /* a lit value shown while its form's readback is pending or its last read failed: neutral fill */
 .seg .su{text-transform:none;letter-spacing:0}   /* unit inside a seg option: case kept */
 .seg.mini button{height:var(--ctl-h-mini);font-size:var(--fs-2);padding:0 var(--sp-3);letter-spacing:var(--ls-1)}
 /* View / navigation pick (drawer tabs, meter views, which input / page / plot): ink on a lifted key with an accent
@@ -63,7 +67,7 @@ a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;te
 .round.vbtn{color:var(--ink);font-size:var(--fs-glyph-vol);line-height:1;font-family:var(--f-body)}
 .round.dx{font-size:var(--fs-glyph);line-height:1;font-family:var(--f-body);flex-shrink:0}
 
-/* Removable tag (active narrowing, shown in the Resampling header). */
+/* Removable tag (an active narrowing): the `b` inside it removes it. */
 .tag{display:inline-flex;align-items:center;gap:var(--sp-3);height:var(--tag-h);padding:0 var(--sp-4);border:var(--hair) solid var(--line-2);border-radius:calc(var(--tag-h) / 2);font-size:var(--fs-3);color:var(--ink-2);white-space:nowrap}
 .tag b{color:var(--ink-2);font-weight:var(--fw-medium);cursor:pointer}
 
@@ -94,6 +98,6 @@ a.btn,label.btn{display:inline-flex;align-items:center;justify-content:center;te
 .brh.dirty .sn::after,
 .st.bst.dirty .n::after,
 .st.dirty .n > .stg{content:"";display:inline-block;vertical-align:top;margin-left:var(--sp-3);width:var(--dot);height:var(--dot);border-radius:var(--r-round);background:var(--acc);box-shadow:0 0 var(--sp-2) var(--acc)}
-/* Two-stage note collapsed to its lead-in: `… see more` expands it in place. */
+/* `… see more` ending prose shown short: a link-styled button opening the held-back prose in a note popover. */
 .seemore{border:0;padding:0;background:none;font:inherit;color:var(--acc);cursor:pointer;text-decoration:underline;text-decoration-color:var(--acc-dim);text-underline-offset:var(--sp-1)}
 .seemore:focus-visible{outline:var(--stroke) solid var(--acc);outline-offset:var(--sp-1);border-radius:var(--r-1)}

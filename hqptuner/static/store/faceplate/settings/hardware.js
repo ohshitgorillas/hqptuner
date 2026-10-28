@@ -1,12 +1,12 @@
 // The hardware settings' store half: CUDA offload, multicore DSP, E-core use, the block count and the two CUDA devices.
-// These are engine attributes outside the config staging buffer, so the store holds its own form: a base, what the
-// daemon last reported or last verified, and a draft of edits over it. The write is the engine's own POST, which
-// restarts the daemon, so it rides the engine-write lifecycle; only a verified apply moves the base. The all-stations
+// These engine attributes sit outside the config staging buffer, so they make an engine form of their own on the apply
+// area (store/core/forms.js): it holds the engine's values and the user's edits over them, and applies through the
+// engine's own POST, which restarts the daemon. An apply the daemon does not confirm is a failed write. The all-stations
 // switch says where that write lands and is never an edit.
 
 import { computed, signal } from "@preact/signals";
 import { api } from "../../../lib/api.js";
-import { duringEngineWrite } from "../../enginewrite.js";
+import { UNCONFIRMED, formDraft } from "../../core/forms.js";
 
 /**
  * @typedef {"cuda" | "multicore" | "ecores" | "nblocks" | "cuda_dev" | "cuda_cdev"} HardwareKey
@@ -19,8 +19,10 @@ import { duringEngineWrite } from "../../enginewrite.js";
  * @typedef {object} HardwareDraft
  * @property {boolean} loaded  the engine has been read
  * @property {HardwareValues} values  the draft
- * @property {HardwareValues} base  what the daemon last reported or verified
+ * @property {HardwareValues} base  what the daemon last reported
  * @property {boolean} differs  an edit would change what the daemon holds
+ * @property {boolean} stale  the base may differ from what the daemon holds: a write has landed and its readback has
+ *   not, or the last engine read failed
  */
 
 /** The engine attributes this form holds. @type {HardwareKey[]} */
@@ -39,10 +41,6 @@ const DEFAULTS = {
   cuda_dev: "-1",
   cuda_cdev: "-1",
 };
-
-const base = signal(/** @type {HardwareValues} */ ({ ...DEFAULTS }));
-const values = signal(/** @type {HardwareValues} */ ({ ...DEFAULTS }));
-const loaded = signal(false);
 
 /** Whether an apply writes every station rather than the loaded one. */
 export const allStations = signal(false);
@@ -71,32 +69,45 @@ function readEngine(engine) {
   return out;
 }
 
+const form = formDraft({
+  area: "apply",
+  keys: HARDWARE_KEYS,
+  load: async () => {
+    const r = await api.engine();
+    return readEngine((r && r.engine) || {});
+  },
+  write: async (edits) => {
+    const overrides = { ...form.base.value, ...edits };
+    const r = await api.applyEngine({ overrides, all_presets: allStations.peek() });
+    if (r?.report?.verified?.applied !== true) throw new Error(UNCONFIRMED);
+  },
+});
+
 /**
- * Read the engine into the base and the draft, dropping any edit.
+ * Read the engine into the base, dropping any edit.
  *
  * @returns {Promise<void>}
  */
 export async function loadHardware() {
-  const r = await api.engine();
-  const read = readEngine((r && r.engine) || {});
-  base.value = read;
-  values.value = { ...read };
-  loaded.value = true;
+  form.discard();
+  await form.reload();
 }
 
 /**
- * The draft, the base, and whether any value differs from the base as a string.
+ * The draft, the base, and whether any value differs from the base; until the engine is read, both sit at the
+ * daemon's defaults.
  *
  * @returns {HardwareDraft}
  */
 export function hardwareDraft() {
-  const now = values.value;
-  const was = base.value;
+  const read = /** @type {HardwareValues | null} */ (form.base.value);
+  const was = read ?? DEFAULTS;
   return {
-    loaded: loaded.value,
-    values: now,
+    loaded: read !== null,
+    values: /** @type {HardwareValues} */ ({ ...was, ...form.values.value }),
     base: was,
-    differs: HARDWARE_KEYS.some((k) => String(now[k]) !== String(was[k])),
+    differs: form.differs.value.length > 0,
+    stale: form.stale.value,
   };
 }
 
@@ -107,27 +118,23 @@ export function hardwareDraft() {
  * @param {string} value
  */
 export function setHardware(key, value) {
-  values.value = { ...values.value, [key]: value };
+  form.set(key, value);
 }
 
 /** Whether the draft holds an edit to apply. */
 export const staged = computed(() => hardwareDraft().differs);
 
 /**
- * Send the draft through the engine's own POST. A verified apply re-bases onto the values sent; an unverified one
- * leaves the draft staged.
+ * Send the draft through the engine's own POST on the apply area. The base takes the engine's readback only on a
+ * confirmed apply; otherwise every edit stays in the draft and the failure shows on the apply alert line.
  *
- * @returns {Promise<boolean>} whether the daemon verified the new values
+ * @returns {Promise<boolean>} whether the daemon confirmed the new values
  */
-export async function applyHardware() {
-  const overrides = { ...values.value };
-  const r = await duringEngineWrite(() => api.applyEngine({ overrides, all_presets: allStations.value }));
-  const applied = r?.report?.verified?.applied === true;
-  if (applied) base.value = overrides;
-  return applied;
+export function applyHardware() {
+  return form.apply();
 }
 
-/** Put every drafted value back to the base. */
+/** Drop every edit, so the draft reads the base again. */
 export function discardHardware() {
-  values.value = { ...base.value };
+  form.discard();
 }

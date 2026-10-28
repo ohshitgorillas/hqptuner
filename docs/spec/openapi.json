@@ -417,7 +417,7 @@
         "type": "object"
       },
       "ConfigView": {
-        "description": "``GET /api/config`` data: the /config form's fields beside HQPTuner's presets and the running config.",
+        "description": "``GET /api/config`` data: the /config form's fields beside HQPTuner's presets.",
         "properties": {
           "active": {
             "title": "Active",
@@ -440,18 +440,11 @@
             "title": "Fields",
             "type": "array"
           },
-          "file": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "File",
-            "type": "object"
-          },
           "profiles": {
             "$ref": "#/components/schemas/PresetChoice"
           }
         },
-        "required": ["fields", "profiles", "active", "file", "device_caps"],
+        "required": ["fields", "profiles", "active", "device_caps"],
         "title": "ConfigView",
         "type": "object"
       },
@@ -1435,15 +1428,11 @@
         "type": "object"
       },
       "HealthReport": {
-        "description": "``GET /api/health``: daemon reachability, connection age, info/license, versions, credential verdict.",
+        "description": "``GET /api/health``: the connection's phase and generation, its age, info/license, versions, credentials.",
         "properties": {
           "app_version": {
             "title": "App Version",
             "type": "string"
-          },
-          "connected": {
-            "title": "Connected",
-            "type": "boolean"
           },
           "connected_at": {
             "anyOf": [
@@ -1467,12 +1456,9 @@
             ],
             "title": "Credentials Ok"
           },
-          "dropped_settings": {
-            "items": {
-              "$ref": "#/components/schemas/WrittenSetting"
-            },
-            "title": "Dropped Settings",
-            "type": "array"
+          "generation": {
+            "title": "Generation",
+            "type": "integer"
           },
           "info": {
             "anyOf": [
@@ -1502,30 +1488,31 @@
             ],
             "title": "License"
           },
-          "reachable": {
-            "title": "Reachable",
-            "type": "boolean"
-          },
-          "ready": {
-            "title": "Ready",
-            "type": "boolean"
+          "phase": {
+            "title": "Phase",
+            "type": "string"
           },
           "release": {
-            "title": "Release",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Release"
           }
         },
         "required": [
-          "reachable",
-          "ready",
-          "connected",
+          "phase",
+          "generation",
           "connected_at",
           "info",
           "release",
           "license",
           "app_version",
-          "credentials_ok",
-          "dropped_settings"
+          "credentials_ok"
         ],
         "title": "HealthReport",
         "type": "object"
@@ -1589,7 +1576,7 @@
         "type": "object"
       },
       "LiveApplyReport": {
-        "description": "One LIVE batch's answer: each setter's readback verdict, and the fields held for the chain not loaded.",
+        "description": "One LIVE batch's answer: each setter's readback verdict, and whether it moved an enumeration.",
         "properties": {
           "live": {
             "items": {
@@ -1609,13 +1596,6 @@
             "default": false,
             "title": "Reenumerated",
             "type": "boolean"
-          },
-          "stored": {
-            "additionalProperties": {
-              "type": "string"
-            },
-            "title": "Stored",
-            "type": "object"
           }
         },
         "title": "LiveApplyReport",
@@ -3243,33 +3223,6 @@
         "required": ["report", "saved"],
         "title": "WithSaved",
         "type": "object"
-      },
-      "WrittenSetting": {
-        "description": "One live setting the engine confirmed: the config-form field, the form value written, the engine's name for it.\n\n``name`` is None where the engine names no value: the adaptive volume flag and a pinned rate.",
-        "properties": {
-          "field": {
-            "title": "Field",
-            "type": "string"
-          },
-          "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Name"
-          },
-          "value": {
-            "title": "Value",
-            "type": "string"
-          }
-        },
-        "required": ["field", "value", "name"],
-        "title": "WrittenSetting",
-        "type": "object"
       }
     }
   },
@@ -3395,7 +3348,7 @@
     },
     "/api/config": {
       "get": {
-        "description": "Return the /config form joined with HQPTuner's preset list, the running config, and the output device's caps.\n\nNeeds credentials \u2014 without them the 8088 lane does not exist and the route 503s.",
+        "description": "Return the /config form joined with HQPTuner's preset list and the output device's caps.\n\nNeeds credentials \u2014 without them the 8088 lane does not exist and the route 503s.",
         "operationId": "config_api_config_get",
         "responses": {
           "200": {
@@ -3748,7 +3701,7 @@
     },
     "/api/engine": {
       "get": {
-        "description": "Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.\n\nThey are not on any form, so this costs a backup fetch \u2014 read on demand, never per poll.",
+        "description": "Return the hardware-acceleration attributes, read out of a fresh backup, and the active preset snapshot's name.\n\nThey are on no form, so this costs a backup fetch, read on demand.",
         "operationId": "engine_get_api_engine_get",
         "responses": {
           "200": {
@@ -3765,7 +3718,7 @@
         "summary": "Engine Get"
       },
       "post": {
-        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it.\n\n400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The\nrestore restarts the daemon and interrupts playback \u2014 the user's call, never refused for it.",
+        "description": "Write hardware-acceleration attributes by editing the backup archive and restoring it.\n\n400 with no overrides, 422 when one is not a valid engine attribute, 502 when the daemon fails the write. The\nrestore restarts the daemon and interrupts playback, which is the user's call.",
         "operationId": "engine_apply_api_engine_post",
         "requestBody": {
           "content": {
@@ -3893,7 +3846,7 @@
     },
     "/api/health": {
       "get": {
-        "description": "Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
+        "description": "Return the connection's phase and generation, connection age, info/license, HQPTuner's version, and credentials.\n\nAnswers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.",
         "operationId": "health_api_health_get",
         "responses": {
           "200": {
@@ -3908,18 +3861,6 @@
           }
         },
         "summary": "Health"
-      }
-    },
-    "/api/health/dropped-settings": {
-      "delete": {
-        "description": "Empty ``GET /api/health``'s ``dropped_settings`` for every client, leaving the daemon untouched.\n\nA restart after the clear lists only what that restart dropped.",
-        "operationId": "clear_dropped_settings_api_health_dropped_settings_delete",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Clear Dropped Settings"
       }
     },
     "/api/livepresets": {
@@ -4110,7 +4051,7 @@
     },
     "/api/log": {
       "get": {
-        "description": "Return a static tail of the daemon's log file (the Logging drawer's tail).\n\nRead-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;\none with no log to serve is refused under a code of its own.",
+        "description": "Return a static tail of the daemon's log file (the Logging drawer's tail).\n\nRead-only, no 4321 socket. A daemon that cannot be reached, or answers the read with an error, is refused;\none with no log to serve is refused under a code of its own.",
         "operationId": "log_tail_api_log_get",
         "parameters": [
           {
@@ -4471,7 +4412,7 @@
     },
     "/api/restore": {
       "post": {
-        "description": "Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.\n\nThe daemon self-restarts on it, interrupting playback. The one thing taken out of the archive first is\nHQPTuner's own descriptions member, which ``GET /api/backup`` put there: it is folded into this install's store\nand never handed to hqplayerd, which did not write it and has no idea what it is. Everything else \u2014 including a\nbare XML upload, which is not an archive at all \u2014 reaches the daemon exactly as the user sent it.",
+        "description": "Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.\n\nThe daemon self-restarts on it, interrupting playback. The only member removed first is HQPTuner's descriptions\nmember: it is folded into this install's store. Everything else, including a bare\nXML upload, reaches the daemon exactly as the user sent it.",
         "operationId": "restore_api_restore_post",
         "requestBody": {
           "content": {
@@ -4602,7 +4543,7 @@
     },
     "/api/state-import": {
       "post": {
-        "description": "Replace each store a state archive carries, recording the upload's name, size, and SHA-256 first.\n\nThe whole archive is checked before anything is written; a refusal (``state_unreadable``, ``state_too_new``)\nchanges nothing. The install's stores are saved to ``backups/pre-import-state.zip`` first, and a backup that\ncannot be written (``backup_failed``) changes nothing either; then the active preset pointer is cleared. The daemon\nis never contacted. A plain ``def``, so the disk work runs on the threadpool.",
+        "description": "Replace each store a state archive carries, recording the upload's name, size, and SHA-256 first.\n\nThe whole archive is checked before anything is written; a refusal (``state_unreadable``, ``state_too_new``)\nchanges nothing. The install's stores are saved to ``backups/pre-import-state.zip`` first, and a backup that\ncannot be written (``backup_failed``) changes nothing either; then the active preset pointer is cleared. The work\nis on disk only. A plain ``def``, so it runs on the threadpool.",
         "operationId": "state_import_api_state_import_post",
         "requestBody": {
           "content": {

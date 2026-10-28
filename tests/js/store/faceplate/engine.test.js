@@ -2,14 +2,18 @@
 // per-track counter deltas and whether the output buffer applies. Every reading is a number while the engine plays and
 // the field carries one, and none (null) otherwise.
 //
-// The frame is the wire: every case hands in Status attributes as the daemon sends them, strings.
+// The frame is the wire: every case hands in Status attributes as the daemon sends them, strings, and the same frame is
+// the latest /api/status on engineStatus. The engine plays only while /api/health reports the connection Ready, so every
+// case runs on a Ready connection except the phase cases, which move it away after the frame landed.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/engine.test.js
 
-import { test } from "node:test";
+import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { engineReadings } from "../../../../hqptuner/static/store/faceplate/engine.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
+import { playback } from "../../../../hqptuner/static/store/core/readings.js";
 
 /** @typedef {Record<string, string>} Frame */
 
@@ -31,7 +35,20 @@ const DELTAS = { clips: 2, apod: 12 };
  * @param {Frame} frame
  * @param {boolean} [applies]  whether the output buffer applies
  */
-const read = (frame, applies = true) => engineReadings(frame, DELTAS, applies);
+const read = (frame, applies = true) => {
+  engineStatus.value = { status: { ...frame } };
+  return engineReadings(frame, DELTAS, applies, playback.value.playing);
+};
+
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The connection lifecycle phases other than Ready: Down, Reachable and Alarm. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+  engineStatus.value = null;
+});
 
 test("test_a_playing_engine_reads_its_speed", () => {
   assert.equal(read(PLAYING).speed, 1.62);
@@ -59,5 +76,21 @@ test("test_apodizing_reads_this_tracks_delta_and_the_total", () => {
 
 test("test_a_counter_whose_track_delta_equals_the_total_reads_no_track_count", () => {
   const frame = { ...PLAYING, clips: "5" };
-  assert.deepEqual(engineReadings(frame, { ...DELTAS, clips: 5 }, true).clips, { track: null, total: 5 });
+  engineStatus.value = { status: { ...frame } };
+  assert.deepEqual(engineReadings(frame, { ...DELTAS, clips: 5 }, true, playback.value.playing).clips, {
+    track: null,
+    total: 5,
+  });
 });
+
+// --- the connection phase: while it is not Ready the engine counts as not playing, whatever the last frame said ---
+
+for (const phase of NOT_READY) {
+  // Break: the engine row reads playing off the frame's state alone and ignores the connection phase.
+  test(`test_a_playing_frame_reads_no_speed_once_the_connection_is_not_ready: ${phase}`, () => {
+    const seen = [read(PLAYING).speed];
+    health.value = { phase, generation: GEN };
+    seen.push(engineReadings(PLAYING, DELTAS, true, playback.value.playing).speed);
+    assert.deepEqual(seen, [1.62, null]);
+  });
+}

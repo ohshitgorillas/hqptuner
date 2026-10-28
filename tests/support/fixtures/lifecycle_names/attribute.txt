@@ -1,0 +1,5 @@
+"""A module reading one lifecycle value off the manager."""
+
+
+def landed(manager):
+    return manager.@NAME@

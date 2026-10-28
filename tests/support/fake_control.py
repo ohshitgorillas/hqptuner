@@ -90,6 +90,11 @@ DEFAULTS = {
     # playlist: the switch is refused, not stalled and not silently dropped.
     "_error": "",
     "_error_text": "refused",
+    # Space-separated commands answered ONCE with `NOT_XML_FRAME`, a whole
+    # newline-terminated frame that is not XML; the connection stays open, and
+    # each command leaves the knob as it is answered, so the next connection is
+    # answered normally.
+    "_not_xml": "",
     # Which family the SOURCE is, which in [source] mode is which chain the engine
     # has loaded (readme §1.7). Named for the Status attribute it used to be
     # emitted as verbatim; it no longer is, because the daemon echoes "[source]"
@@ -98,6 +103,15 @@ DEFAULTS = {
     # 2026-07-27): configured mode 2 reports active_mode="SDM (DSD)",
     # byte-identical to ModesItem index 2. Empty means nothing is playing.
     "_active_mode": "PCM",
+    # Commands the instance that accepted a restart (`restart_into`) still answers
+    # on its open connections before the restart severs them: the moment a
+    # `POST /config` or `POST /restore` leaves 4321 up after its 200. "0" severs at
+    # once. The command after the last one answered is received and dropped
+    # unanswered, and only then does State become the restarted instance's.
+    "_linger": "0",
+    # Connects the restart turns away, unanswered, before the restarted instance
+    # answers one: the restart window, counted in dials rather than seconds.
+    "_restart_window": "1",
 }
 
 
@@ -230,7 +244,25 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     chain the restart loaded, so the
     restored shaper is the loaded chain's row for the file's dither or
     modulator (``_reload_shaper``). The restored file also becomes the per-chain
-    shaper a later ``SetMode`` loads (``_reload_shaper``)."""
+    shaper a later ``SetMode`` loads (``_reload_shaper``).
+
+    With ``_linger`` above "0" the restart is accepted but not yet performed:
+    the running instance keeps answering for that many commands, and the one
+    after them performs it (``serve_shared``)."""
+    linger = state.get("_linger", "0")
+    if int(linger):
+        # the count lands first: `_on_restore` calls this from the 8088 fake's
+        # thread, and a connection that saw the pending restart without its count
+        # would perform it at once
+        state["_lingering"] = linger
+        state["_restart_pending"] = f"{mode} {dither} {modulator}"
+        return
+    _restart(state, mode, dither, modulator)
+
+
+def _restart(state: dict[str, str], mode: str, dither: str, modulator: str) -> None:
+    """The restart itself: State becomes the restored file's, every open
+    connection is severed, and ``_restart_window`` connects are turned away."""
     state["mode"] = {"pcm": "1", "sdm": "2"}.get(mode, "0")
     state["_cfg_dither"] = dither
     state["_cfg_modulator"] = modulator
@@ -238,7 +270,22 @@ def restart_into(state: dict[str, str], mode: str, dither: str, modulator: str) 
     # the restart itself, as the wire sees it: every open connection is severed,
     # and the first connect inside the restart window is turned away
     state["_generation"] = str(int(state.get("_generation", "0")) + 1)
-    state["_refuse_connects"] = "1"
+    state["_refuse_connects"] = state.get("_restart_window", "1")
+
+
+def _restarts_now(state: dict[str, str]) -> bool:
+    """Count one command against a pending restart's ``_linger``, performing
+    the restart once none is left; True when it was performed."""
+    pending = state.get("_restart_pending")
+    if not pending:
+        return False
+    left = int(state.get("_lingering", "0"))
+    if left:
+        state["_lingering"] = str(left - 1)
+        return False
+    del state["_restart_pending"]
+    _restart(state, *pending.split(" "))
+    return True
 
 
 def _items(tag: str, rows: tuple[tuple[str, str, str], ...]) -> str:
@@ -372,10 +419,41 @@ class Close:
 #: nothing, and closed the socket (the `_close` knob).
 CLOSE = Close()
 
+#: The frame the `_not_xml` knob answers with: whole and newline-terminated, its
+#: root closed but carrying one attribute twice, so it is not well-formed XML,
+#: no lenient reading repairs it and no further data completes it.
+NOT_XML_FRAME = f'{XML}<Answer value="1" value="2"/>\n'.encode()
 
-def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | None:
+
+class NotXml:
+    """What the fake returns instead of a frame when it answers with `NOT_XML_FRAME`."""
+
+
+#: Singleton of the above (the `_not_xml` knob).
+NOT_XML = NotXml()
+
+
+def _not_xml_once(name: str, state: dict[str, str]) -> bool:
+    """Whether `name` is answered with `NOT_XML_FRAME` this time, taking it off the knob if so."""
+    pending = state.get("_not_xml", "").split()
+    if name not in pending:
+        return False
+    pending.remove(name)
+    state["_not_xml"] = " ".join(pending)
+    return True
+
+
+def _on_the_wire(answer: str | NotXml) -> bytes:
+    """The bytes an answer goes out as: `NOT_XML_FRAME` as it stands, any
+    other frame behind the declaration and newline-terminated. Either way the
+    connection stays open."""
+    return NOT_XML_FRAME if isinstance(answer, NotXml) else f"{XML}{answer}\n".encode()
+
+
+def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> str | Close | NotXml | None:
     """The answer to one command: a frame, `CLOSE` for a command the fake drops
-    the connection on, or None for one it stalls on."""
+    the connection on, `NOT_XML` for one it answers with a frame that is not
+    XML, or None for one it stalls on."""
     el = _fromstring(body)
     name, attrs = el.tag, el.attrib
     if log is not None:
@@ -384,6 +462,8 @@ def handle(body: str, state: dict[str, str], log: CommandLog | None = None) -> s
         return CLOSE  # received, logged, connection dropped without an answer
     if name in state["_stall"].split():
         return None  # received, logged, never answered
+    if _not_xml_once(name, state):
+        return NOT_XML  # received, logged, answered with a frame that will not parse
     if name in state.get("_error", "").split():
         # above the query dispatch: a daemon refuses reads as readily as writes
         return f'<{name} result="Error">{state.get("_error_text", "refused")}</{name}>'
@@ -437,8 +517,10 @@ async def serve_shared(
     arrived: set[str] = set()
     while True:
         data = await reader.read(4096)
-        if not data or state.get("_generation", "0") != generation:
-            break  # closed by the client, or severed by a restart since it connected
+        if not data or state.get("_generation", "0") != generation or _restarts_now(state):
+            # closed by the client, severed by a restart since it connected, or
+            # the command a lingering restart dies under, unanswered
+            break
         body = data.split(b"?>", 1)[-1].strip().decode()
         if hooks is not None:
             name = _fromstring(body).tag
@@ -455,6 +537,6 @@ async def serve_shared(
             break  # dropped: the socket goes away with nothing on it
         if answer is None:
             continue  # stalled: keep the connection open and say nothing
-        writer.write(f"{XML}{answer}\n".encode())
+        writer.write(_on_the_wire(answer))
         await writer.drain()
     writer.close()

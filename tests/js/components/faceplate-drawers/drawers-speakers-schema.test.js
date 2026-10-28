@@ -24,7 +24,7 @@ import {
   SPEAKERS_DRAWER,
 } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
-import { speakers, speakersBusy, speakersError } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -58,11 +58,13 @@ const form = (enabled) => ({
  * handed.
  *
  * @param {boolean} answered  the switch the confirmed report carries
+ * @param {boolean} [initial] the switch before the write
  */
-const speakersWire = (answered) =>
+const speakersWire = (answered, initial = answered) =>
   stagingWire({
     routes: (path, opts, wire) => {
-      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
+      if (path !== "/api/speakers") return undefined;
+      if (opts.method !== "POST") return ok({ data: form(wire.posts.length ? answered : initial) });
       wire.posts.push(JSON.parse(String(opts.body)));
       return ok({ report: { applied: true, speakers: form(answered) } });
     },
@@ -75,9 +77,7 @@ const speakersWire = (answered) =>
  */
 async function reset(enabled = true) {
   const w = speakersWire(enabled);
-  speakers.value = form(enabled);
-  speakersBusy.value = false;
-  speakersError.value = "";
+  await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm", value: false }], file: {} };
   await discardAll();
   discardDraft();
@@ -180,10 +180,8 @@ const ROW_DRAWER = {
  * as confirmed and recording each body it was handed.
  */
 async function resetForTheRow() {
-  const w = speakersWire(true);
-  speakers.value = form(false);
-  speakersBusy.value = false;
-  speakersError.value = "";
+  const w = speakersWire(true, false);
+  await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "", profiles: null };
   engineState.value = {};
   enums.value = null;

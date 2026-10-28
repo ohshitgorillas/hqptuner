@@ -3,7 +3,7 @@
 archive — the two zip helpers plus the backup/restore routes that use them.
 
 The store itself — reading, writing, validation, merging, export — is pinned in
-``tests/presets/test_description_store.py``. The suite is cut there because
+``tests/presets/stores/test_description_store.py``. The suite is cut there because
 everything in this file needs an app and a client, and half of it needs a daemon,
 while nothing in the store file needs any of the three.
 

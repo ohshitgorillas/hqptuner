@@ -23,7 +23,10 @@ import {
   setHardware,
   staged,
 } from "../../../../hqptuner/static/store/faceplate/settings/hardware.js";
-import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { failures, inFlight, op } from "../../../../hqptuner/static/store/core/ops.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
+import { heldReadbackWire, turn, until } from "../../support/rendered/stalemark.js";
+import { bad, ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 
 /**
  * @typedef {Record<string, string | number>} EngineTable  the engine attributes as `GET /api/engine` carries them
@@ -38,6 +41,15 @@ const NO_MULTICORE = { cuda: "1", ecores: "pool", nblocks: "4", cuda_dev: "0", c
 
 //: The same engine with `nblocks` carried as a JSON number.
 const NUMERIC_NBLOCKS = { ...ENGINE, nblocks: 4 };
+
+//: The engine as read back after a write that landed `ecores: "filter"`, the restore having also moved `cuda_cdev`.
+const READBACK = { ...ENGINE, ecores: "filter", cuda_cdev: "-1" };
+
+//: The engine as read after a restart, every attribute but `ecores` and `cuda` as before.
+const RESTARTED = { ...ENGINE, cuda: "0", ecores: "default" };
+
+//: The alert line a failed hardware apply reports on.
+const APPLY_LINE = "apply";
 
 /**
  * A daemon answering the engine's read with `engine` and its write with `report`; returns the write bodies it was
@@ -87,6 +99,7 @@ beforeEach(async () => {
   discardHardware();
   setAllStations(false);
   await loadHardware();
+  op(APPLY_LINE).clear();
 });
 
 // --- the keys and the daemon's defaults --------------------------------------------------------------------------
@@ -194,12 +207,6 @@ test("test_an_apply_with_all_stations_on_sends_all_presets_true", async () => {
   assert.deepEqual(on, [true]);
 });
 
-test("test_a_verified_apply_rebases_onto_the_values_sent", async () => {
-  setHardware("ecores", "filter");
-  await apply({ verified: { applied: true } });
-  assert.deepEqual(hardwareDraft().base, { ...ENGINE, ecores: "filter" });
-});
-
 test("test_an_apply_the_daemon_did_not_verify_keeps_the_base", async () => {
   setHardware("ecores", "filter");
   await apply({ verified: { applied: false } });
@@ -216,4 +223,176 @@ test("test_an_applied_flag_outside_the_verified_report_does_not_rebase", async (
   setHardware("ecores", "filter");
   await apply({ applied: true });
   assert.deepEqual(hardwareDraft().base, ENGINE);
+});
+
+// --- apply through the shared form draft -------------------------------------------------------------------------
+
+/**
+ * A `POST /api/engine` report: the daemon's readback, confirmed or not.
+ *
+ * @param {boolean} applied
+ * @param {EngineTable} engine
+ */
+const report = (applied, engine) => ({ report: { verified: { applied, engine }, members: [], backup_bytes: 0 } });
+
+/**
+ * A daemon whose engine reads `before` until a write has been answered and `after` from then on; each write is
+ * answered with `answer`, or with what the promise `answer` resolves to.
+ *
+ * @param {{
+ *   before?: EngineTable,
+ *   after?: EngineTable,
+ *   answer: ReturnType<typeof ok> | Promise<ReturnType<typeof ok>>,
+ * }} d
+ */
+function restoringDaemon({ before = ENGINE, after = before, answer }) {
+  let written = false;
+  return stagingWire({
+    routes: (path, opts) => {
+      if (path !== "/api/engine") return undefined;
+      if (opts.method !== "POST") return ok({ engine: written ? after : before, active_config: null });
+      return Promise.resolve(answer).then((response) => {
+        written = true;
+        return response;
+      });
+    },
+  });
+}
+
+/** The alert areas failing now. */
+const failingAreas = () => failures.value.map((entry) => entry.area);
+
+// Break: the apply runs on a busy flag of its own instead of an engine op, so the engine never reads as in flight.
+test("test_the_engine_is_in_flight_exactly_while_an_apply_runs", async () => {
+  /** @type {(response: ReturnType<typeof ok>) => void} */
+  let answer = () => {};
+  const answered = new Promise(
+    /** @param {(response: ReturnType<typeof ok>) => void} resolve */ (resolve) => {
+      answer = resolve;
+    },
+  );
+  const wire = restoringDaemon({ after: READBACK, answer: answered });
+  setHardware("ecores", "filter");
+  const seen = [inFlight.value];
+  const applying = applyHardware();
+  await turn();
+  seen.push(inFlight.value);
+  answer(ok(report(true, READBACK)));
+  await applying;
+  await quiesce(wire);
+  seen.push(inFlight.value);
+  assert.deepEqual(seen, [false, true, false]);
+});
+
+// Break: a confirmed apply re-bases on the values it sent instead of reading the engine back.
+test("test_a_confirmed_apply_shows_the_engines_readback", async () => {
+  const wire = restoringDaemon({ after: READBACK, answer: ok(report(true, READBACK)) });
+  setHardware("ecores", "filter");
+  await applyHardware();
+  await quiesce(wire);
+  assert.deepEqual(hardwareDraft().values, READBACK);
+});
+
+// Break: the apply lets the daemon's refusal reach the caller as a throw.
+test("test_a_refused_apply_throws_nothing_at_the_caller", async () => {
+  const wire = restoringDaemon({ answer: bad(502, "fixture restore refused") });
+  setHardware("ecores", "filter");
+  await assert.doesNotReject(() => applyHardware());
+  await quiesce(wire);
+});
+
+/** The two answers an apply does not land on: a readback the daemon did not confirm, and a refusal. */
+const UNLANDED = /** @type {const} */ ([
+  ["an_unconfirmed", () => ok(report(false, ENGINE))],
+  ["a_refused", () => bad(502, "fixture restore refused")],
+]);
+
+for (const [outcome, answer] of UNLANDED) {
+  // Break: the apply keeps its failure to itself, so the apply alert line never shows it.
+  test(`test_${outcome}_apply_reports_on_the_apply_alert_line`, async () => {
+    const wire = restoringDaemon({ answer: answer() });
+    setHardware("ecores", "filter");
+    const seen = [failingAreas()];
+    await applyHardware().catch(() => undefined);
+    await quiesce(wire);
+    seen.push(failingAreas());
+    assert.deepEqual(seen, [[], [APPLY_LINE]]);
+  });
+}
+
+// Break: a generation move leaves the form on the reading from before the restart, or its re-read drops the edit.
+test("test_an_engine_restart_rereads_the_engine_under_an_edit_in_progress", async () => {
+  health.value = { phase: "Ready", generation: 7 };
+  await quiesce(daemon().wire);
+  setHardware("ecores", "filter");
+  const wire = restoringDaemon({ before: RESTARTED, answer: ok(report(true, RESTARTED)) });
+  health.value = { phase: "Ready", generation: 8 };
+  await quiesce(wire);
+  const shown = hardwareDraft().values;
+  health.value = null;
+  await quiesce(wire);
+  assert.deepEqual(shown, { ...RESTARTED, ecores: "filter" });
+});
+
+// --- the stale mark ----------------------------------------------------------------------------------------------
+
+//: The refusal a daemon answers an engine read with.
+const READ_REFUSED = "fixture engine read refused";
+
+/**
+ * A daemon that reads `ENGINE` until a write, confirms the write with `READBACK`, and answers the read after it with
+ * `readback`, held until `release()` is called; `asked()` reads whether that read has been requested.
+ *
+ * @param {import("../../support/wire/wire.js").FakeResponse} readback
+ */
+const heldReadbackDaemon = (readback) =>
+  heldReadbackWire({
+    path: "/api/engine",
+    before: ok({ engine: ENGINE, active_config: null }),
+    written: ok(report(true, READBACK)),
+    after: readback,
+  });
+
+/** A daemon refusing every engine read; returns the wire, to wait on. */
+const refusingDaemon = () =>
+  stagingWire({
+    routes: (path) => (path === "/api/engine" ? bad(502, READ_REFUSED) : undefined),
+  });
+
+// Break: hardwareDraft() does not carry the form's stale mark, or the apply never raises it or never lowers it.
+test("test_the_values_read_stale_from_a_confirmed_apply_until_its_readback_lands", async () => {
+  const { wire, release, asked } = heldReadbackDaemon(ok({ engine: READBACK, active_config: null }));
+  setHardware("ecores", "filter");
+  const seen = [hardwareDraft().stale];
+  const applying = applyHardware();
+  await until(asked);
+  await turn();
+  seen.push(hardwareDraft().stale);
+  release();
+  await applying;
+  await quiesce(wire);
+  seen.push(hardwareDraft().stale);
+  assert.deepEqual(seen, [false, true, false]);
+});
+
+// Break: a refused readback after a confirmed apply lowers the stale mark, presenting the pre-write reading as current.
+test("test_a_refused_readback_after_a_confirmed_apply_leaves_the_values_stale", async () => {
+  const { wire, release, asked } = heldReadbackDaemon(bad(502, READ_REFUSED));
+  setHardware("ecores", "filter");
+  const applying = applyHardware();
+  await until(asked);
+  release();
+  await applying.catch(() => undefined);
+  await quiesce(wire);
+  assert.equal(hardwareDraft().stale, true);
+});
+
+// Break: a failed engine read leaves the stale mark down, or the next read that lands does not lower it.
+test("test_the_values_read_stale_exactly_while_the_last_engine_read_failed", async () => {
+  await quiesce(refusingDaemon());
+  await loadHardware().catch(() => undefined);
+  const seen = [hardwareDraft().stale];
+  await load();
+  seen.push(hardwareDraft().stale);
+  assert.deepEqual(seen, [true, false]);
 });

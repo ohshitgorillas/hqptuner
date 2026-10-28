@@ -5,7 +5,7 @@
 // draws 1:1 at its box's size.
 
 import { useRef, useState } from "preact/hooks";
-import { html } from "../../../../lib/dom.js";
+import { classNames, html } from "../../../../lib/dom.js";
 import { clamp } from "../../../../lib/coerce.js";
 import { signed } from "../../../../model/shell/format.js";
 import {
@@ -19,7 +19,6 @@ import {
 } from "../../../../model/gauges/plot-axes.js";
 import { pointerIn, useBox } from "./parts.js";
 import { hzLabel } from "../../../plots.js";
-import { classNames } from "../../../../model/shell/format.js";
 
 /** @typedef {import("../../../../model/gauges/plot-axes.js").PlotGeometry} PlotGeometry */
 /** @typedef {import("../../../../model/gauges/plot-axes.js").LevelGrid} LevelGrid */

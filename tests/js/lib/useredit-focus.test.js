@@ -11,9 +11,9 @@
 // tests/js/lib/useredit.test.js owns the rest of the provenance policy — held
 // pointer, release arm, one-shot consumption, the refusals — and this file adds
 // only the focus gate on the key arm, driven through the same seam: the fake
-// document tests/js/support/useredit-dom.js installs BEFORE importing dom.js,
-// which registers its capture listeners at module load, with events replayed to
-// those listeners the way the capture phase delivers them.
+// document tests/js/support/useredit-dom.js hands to watchGestures, which
+// attaches dom.js's capture listeners to it with no global installed, with
+// events replayed to those listeners the way the capture phase delivers them.
 //
 // A browser announces a focus change twice, and a document-level capture
 // listener sees both: `focus`/`blur` (which do not bubble but are capturable)

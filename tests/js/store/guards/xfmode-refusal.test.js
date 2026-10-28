@@ -12,29 +12,23 @@
 // Blocks are built and torn down through the real stage/remove entry points
 // over the staging wire; pairInfo is pure and tested directly.
 
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { stageStructural, removeStructural, structuralBlock } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { pairInfo } from "../../../../hqptuner/static/lib/binaural-setup.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
-import { config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { readings, refreshReadings } from "../../../../hqptuner/static/store/core/readings.js";
 import { effective, effectivePipelines, isDirty } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { ok, stagingWire } from "../../support/wire/wire.js";
+import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
 
 /**
  * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
  * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/binaural/recognize.js").StructuralRecognition} StructuralRecognition
  */
 
-/**
- * One /config or /matrix form field, as `resetForms()` below builds it.
- * `value` is a union because the form answers a checkbox with a real bool and
- * everything else with a string.
- *
- * @typedef {{ name: string, value: string | boolean }} FormField
- */
+/** @typedef {import("../../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
 
 const EQ_L = "iir:type=peak;f=1000;q=1;g=-3";
 const EQ_R = "iir:type=peak;f=2000;q=2;g=2";
@@ -102,14 +96,58 @@ function parsed(rows) {
 const straight = () => [dbRow("0", "0", "-3", EQ_L), dbRow("1", "1", "2", EQ_R)];
 const linPair = () => [linRow("0", "0", "2", EQ_L), linRow("1", "1", "0.5", EQ_R)];
 
-// Full reset every time — the staging buffer outlives a test.
-/** @param {PipelineRow[]} rows */
-async function reset(rows) {
-  stagingWire({ fallback: (w) => ok(w.staged) });
-  matrixConfig.value = { fields: [] };
-  config.value = { fields: [], file: { matrix_pipelines: JSON.stringify(rows) } };
+/** @type {ReturnType<typeof stagingWire>} */
+let wire;
+
+/**
+ * @param {PipelineRow[]} rows
+ * @param {Record<string, string | boolean>} [values]
+ */
+async function reset(rows, values = {}) {
+  /** @type {Record<string, FieldReading>} */
+  const fields = {};
+  for (const [key, value] of Object.entries({ matrix_pipelines: JSON.stringify(rows), ...values })) {
+    fields[key] = {
+      engine: null,
+      file: { value, generation: 1 },
+      staged: null,
+      lane: "form",
+      show: "file",
+      restarts: true,
+      diverges: false,
+      bounds: null,
+    };
+  }
+  wire = stagingWire({
+    routes: (path, _opts, w) =>
+      path === "/api/config"
+        ? ok({
+            generation: 1,
+            fields: Object.fromEntries(
+              Object.entries(fields).map(([key, value]) => [
+                key,
+                {
+                  ...value,
+                  staged: w.staged.http[key === "crossfeed_enabled" ? "post_bauer_enabled" : key] ?? null,
+                },
+              ]),
+            ),
+          })
+        : undefined,
+  });
+  readings.value = { generation: 1, fields };
   await discardAll();
+  await settle();
 }
+
+async function settle() {
+  await quiesce(wire);
+  await refreshReadings();
+}
+
+afterEach(async () => {
+  if (wire) await quiesce(wire);
+});
 
 const live = () => effectivePipelines.value;
 /** @param {string} source */
@@ -120,6 +158,7 @@ const bySource = (source) => live().find((/** @type {PipelineRow} */ r) => r.sou
 test("test_install_over_a_straight_db_pair_stages_sixteen_rows", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.equal(live().length, 16);
 });
 
@@ -143,6 +182,7 @@ test("test_a_reversed_straight_pair_installs_with_no_note", async () => {
 test("test_an_installed_block_carries_the_left_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.equal(installedBlock(live()).eqProcess.left, EQ_L);
 });
 
@@ -151,43 +191,55 @@ test("test_an_installed_block_carries_the_left_ears_chain", async () => {
 test("test_removal_recovers_the_left_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.equal(bySource("0").process, EQ_L);
+  await settle();
+  assert.equal(bySource("0")?.process, EQ_L);
 });
 
 test("test_removal_recovers_the_right_ears_chain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.equal(bySource("1").process, EQ_R);
+  await settle();
+  assert.equal(bySource("1")?.process, EQ_R);
 });
 
 test("test_removal_recovers_the_right_ears_db_gain", async () => {
   await reset(straight());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.ok(Math.abs(parseFloat(bySource("1").gain) - 2) < 1e-3);
+  await settle();
+  assert.ok(Math.abs(parseFloat(String(bySource("1")?.gain)) - 2) < 1e-3);
 });
 
 test("test_a_lin_install_recovers_its_chain", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.equal(bySource("0").process, EQ_L);
+  await settle();
+  assert.equal(bySource("0")?.process, EQ_L);
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_pair", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.equal(bySource("0").gainunit, "dB");
+  await settle();
+  assert.equal(bySource("0")?.gainunit, "dB");
 });
 
 test("test_a_lin_install_hands_back_a_db_marked_right_row", async () => {
   await reset(linPair());
   stageStructural(live(), DEFAULTS);
+  await settle();
   removeStructural(live(), installedBlock(live()));
-  assert.equal(bySource("1").gainunit, "dB");
+  await settle();
+  assert.equal(bySource("1")?.gainunit, "dB");
 });
 
 // --- extra rows outside the pair ride along, untouched -------------------------
@@ -196,6 +248,7 @@ test("test_extra_rows_outside_the_stereo_mixdowns_survive_install_in_order", asy
   const extras = [dbRow("2", "2", "0", EQ_X), dbRow("3", "3", "-1", "")];
   await reset([...straight(), ...extras]);
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.deepEqual(live().slice(16), extras);
 });
 
@@ -232,6 +285,7 @@ for (const [name, rows] of REFUSALS) {
     await reset(rows);
     const before = JSON.stringify(live());
     stageStructural(live(), DEFAULTS);
+    await settle();
     assert.equal(JSON.stringify(live()), before);
   });
 }
@@ -244,42 +298,31 @@ for (const [name, rows] of REFUSALS) {
 // covers. A refusal that has already written them leaves the user's daemon
 // changed by a call that reported it did nothing.
 //
-// Both settings are matrix-form controls, read back through `effective` under
-// their schema names (resolve.test.js: a matrix control reads the matrix form
-// under its bare name).
+// Both settings are served readings, read back through `effective` under their
+// schema names.
 
 const crossed = () => [dbRow("0", "1", "-3", EQ_L), dbRow("1", "0", "-3", EQ_R)];
 
-// Same reset, with forms carrying the settings under test: the matrix form for
-// the two conflict fixes, the config form for the DSP pipelines row count.
-/**
- * @param {PipelineRow[]} rows
- * @param {{ matrix?: FormField[], fields?: FormField[] }} [forms]
- */
-async function resetForms(rows, { matrix = [], fields = [] } = {}) {
-  stagingWire({ fallback: (w) => ok(w.staged) });
-  matrixConfig.value = { fields: matrix };
-  config.value = { fields, file: { matrix_pipelines: JSON.stringify(rows) } };
-  await discardAll();
-}
-
 test("test_a_refused_install_leaves_crossfeed_enabled_alone", async () => {
-  await resetForms(crossed(), { matrix: [{ name: "post_bauer_enabled", value: "1" }] });
+  await reset(crossed(), { crossfeed_enabled: "1" });
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.equal(effective("crossfeed_enabled"), "1");
 });
 
 test("test_a_refused_install_leaves_the_matrix_iir2fir_mode_alone", async () => {
-  await resetForms(crossed(), { matrix: [{ name: "iir2fir", value: "2" }] });
+  await reset(crossed(), { matrix_iir2fir: "2" });
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.equal(effective("matrix_iir2fir"), "2");
 });
 
 // The block needs sixteen pipeline rows, so an install raises the DSP row count
 // field with them. A refusal installs no rows and so must not raise it either.
 test("test_a_refused_install_leaves_the_dsp_pipelines_row_count_unstaged", async () => {
-  await resetForms(crossed(), { fields: [{ name: "pipelines", value: "2" }] });
+  await reset(crossed(), { pipelines: "2" });
   stageStructural(live(), DEFAULTS);
+  await settle();
   assert.equal(isDirty("pipelines"), false);
 });
 

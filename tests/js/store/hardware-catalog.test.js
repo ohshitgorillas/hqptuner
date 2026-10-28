@@ -1,7 +1,6 @@
 // Behavioral suite for the Hardware acceleration drawer's three engine settings, `multicore`, `ecores` and `cuda`, as
-// entries of the engine control catalog (store/schema.js over store/schema/): each entry carries a lane of its own,
-// `hardware`, and the catalog's value for it reads the hardware settings' own form, the drawer's draft over the
-// engine's reported attributes (store/faceplate/settings/hardware.js).
+// entries of the engine control catalog: the catalog's value reads the hardware settings' own form, the drawer's
+// draft over the engine's reported attributes (store/faceplate/settings/hardware.js).
 //
 // The value domain of each setting is the catalog's to choose, so the value cases assert a relation between two
 // readings (the engine reporting one attribute value against another, the draft edited against not) rather than a
@@ -17,7 +16,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { config, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
-import { schema } from "../../../hqptuner/static/store/schema.js";
 import { effective } from "../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import {
@@ -29,9 +27,6 @@ import {
 import { ok, stagingWire } from "../support/wire/wire.js";
 
 /** @typedef {Record<string, string>} EngineTable  the engine attributes as `GET /api/engine` carries them */
-
-/** The lane the owner names for the Hardware drawer's engine settings. */
-const HARDWARE_LANE = "hardware";
 
 //: The engine as the daemon reports it, every attribute off the daemon's default.
 const ENGINE = { cuda: "convolution", multicore: "0", ecores: "pool", nblocks: "4", cuda_dev: "0", cuda_cdev: "1" };
@@ -63,13 +58,6 @@ async function reset(engine = ENGINE) {
   discardHardware();
   setAllStations(false);
   await loadHardware();
-}
-
-for (const { id } of SETTINGS) {
-  test(`test_the_catalog_gives_${id}_the_hardware_lane`, () => {
-    const entry = /** @type {Record<string, { lane?: unknown } | undefined>} */ (schema)[id];
-    assert.equal(entry?.lane, HARDWARE_LANE);
-  });
 }
 
 for (const { id, other } of SETTINGS) {

@@ -5,15 +5,21 @@
 // band top is read from the plot fractions grouped into bands. Nothing here carries time: the same call answers the
 // same way whatever was asked before it.
 //
+// A suite whose bars draw in one gradient, Retro, gives the Bars style that gradient's stops; a suite whose bars take a
+// color per band gives none. Every palette gives the Fade style's halo its stops. Reading a color off a ramp allocates
+// nothing, so a paint may read it per bar (timing rule 9): the same color comes back as the same object.
+// A painter that colors bar by bar builds a suite's ramp once and reads each color's text off it: the text read at a
+// fraction, both ends and fractions beyond them included, is the color the suite gives at that fraction, and a ramp
+// keeps its own colors after a ramp for another accent is built.
+//
 // The surface is read off the module namespace with optional access, so a module without a name fails its cases on
 // their assertions rather than at load. The palette identifiers are iterated, never asserted: which suites exist, their
-// order and their count are the owner's.
+// order and their count are the owner's. The two suites named below are named as the store holds them, for the way
+// their bars draw, never for their colors.
 //
-// The bars' and the halo's stops have no case here: no caller names the export that gives them, so the test cannot
-// reach them by a name that is contract. How many bands span the plot is a module constant, and a constant is not
-// asserted.
+// How many bands span the plot is a module constant, and a constant is not asserted.
 //
-// Run: node --test tests/js/model/gauges/meter/spectrum-suites.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/model/gauges/meter/spectrum-suites.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -31,8 +37,12 @@ import * as spectrumModel from "../../../../../hqptuner/static/model/gauges/mete
  *   CHANNEL_MAX?: number,
  *   rampOf?: (suite: string, accent: string) => any,
  *   rampAt?: (ramp: any, at: number) => ArrayLike<number>,
+ *   hexAt?: (ramp: any, at: number) => string,
+ *   suiteColor?: (suite: string, at: number, accent: string) => string,
  *   traceStops?: (suite: string, accent: string) => Stop[],
  *   suiteLineStops?: (suite: string, accent: string) => Stop[],
+ *   suiteBarStops?: (suite: string, accent: string) => Stop[] | null | undefined,
+ *   suiteHaloStops?: (suite: string, accent: string) => Stop[],
  *   bandTop?: (fracs: Float32Array, band: number, bands: number) => number,
  * }}
  */
@@ -61,6 +71,17 @@ const OUTSIDE = 10;
 //: Levels as plot fractions, exact in single precision.
 const QUIET = 0.25;
 const LOUD = 0.75;
+//: The suite whose bars draw in one gradient, as the store holds it.
+const RETRO = "retro";
+//: A suite whose bars take a color per band, as the store holds it.
+const INFERNO = "inferno";
+//: What a missing export answers in place of its stops, so its absence never reads as a suite with none.
+const NO_EXPORT = "no such export";
+//: What a missing `hexAt` and a missing `suiteColor` answer, unlike any color and unlike each other.
+const NO_HEX_AT = "no hexAt export";
+const NO_SUITE_COLOR = "no suiteColor export";
+//: The fractions a color is read at: the sweep, both ends included, and a fraction beyond either end.
+const READ_AT = [BELOW, ...SWEEP, ABOVE];
 
 const PALETTES = fx.SPECTRUM_PALETTES ?? [];
 const SUITES = PALETTES.filter((p) => p !== fx.ACCENT);
@@ -97,6 +118,64 @@ function rampColor(suite, accent, at) {
 }
 
 /**
+ * The stops a suite's bars draw in under a blue accent, null when it gives none; a module without the export answers
+ * NO_EXPORT.
+ *
+ * @param {string} suite
+ * @returns {Stop[] | null | string}
+ */
+function barStops(suite) {
+  return fx.suiteBarStops ? (fx.suiteBarStops(suite, BLUE) ?? null) : NO_EXPORT;
+}
+
+/**
+ * The stops a palette's Fade halo draws in under a blue accent; a module without the export answers none.
+ *
+ * @param {string} palette
+ * @returns {Stop[]}
+ */
+function haloStops(palette) {
+  return (fx.suiteHaloStops ? fx.suiteHaloStops(palette, BLUE) : null) ?? [];
+}
+
+/**
+ * The color half way along a palette's ramp, read twice off the one ramp; a module without `rampAt` answers a fresh
+ * object each time.
+ *
+ * @param {string} palette
+ * @returns {[unknown, unknown]}
+ */
+function midColorTwice(palette) {
+  const ramp = fx.rampOf?.(palette, BLUE);
+  const read = () => (fx.rampAt ? fx.rampAt(ramp, MID) : {});
+  return [read(), read()];
+}
+
+/**
+ * The color text read off a ramp at a fraction, as its components joined; a module without `hexAt` answers NO_HEX_AT.
+ *
+ * @param {any} ramp
+ * @param {number} at
+ * @returns {string}
+ */
+function hexColor(ramp, at) {
+  return fx.hexAt ? rgbOf(fx.hexAt(ramp, at)).join() : NO_HEX_AT;
+}
+
+/**
+ * The color a suite gives at a fraction, as its components joined; a module without `suiteColor` answers
+ * NO_SUITE_COLOR.
+ *
+ * @param {string} suite
+ * @param {string} accent
+ * @param {number} at
+ * @returns {string}
+ */
+function suiteColorAt(suite, accent, at) {
+  return fx.suiteColor ? rgbOf(fx.suiteColor(suite, at, accent)).join() : NO_SUITE_COLOR;
+}
+
+/**
  * A flat spectrum at one level, every bin the same.
  *
  * @param {number} level
@@ -119,7 +198,41 @@ for (const palette of PALETTES) {
     const top = Math.max(...SWEEP.flatMap((at) => rampColor(palette, BLUE, at)));
     assert.ok(top <= (fx.CHANNEL_MAX ?? -1), `top component ${top}, channel maximum ${fx.CHANNEL_MAX}`);
   });
+
+  test(`test_under_${palette}_reading_one_ramp_color_twice_hands_back_one_object`, () => {
+    const [first, second] = midColorTwice(palette);
+    assert.equal(first, second);
+  });
+
+  test(`test_under_${palette}_the_fade_halo_is_given_stops`, () => {
+    assert.ok(haloStops(palette).length > 0, `halo stops under ${palette}: ${JSON.stringify(haloStops(palette))}`);
+  });
 }
+
+for (const palette of PALETTES) {
+  for (const at of READ_AT) {
+    test(`test_under_${palette}_the_color_read_off_its_ramp_at_${at}_is_the_suite_color_there`, () => {
+      assert.equal(hexColor(fx.rampOf?.(palette, BLUE), at), suiteColorAt(palette, BLUE, at));
+    });
+  }
+}
+
+test("test_under_accent_a_ramp_read_after_a_ramp_for_another_accent_keeps_its_own_accents_color", () => {
+  const ramp = fx.rampOf?.(fx.ACCENT ?? "", BLUE);
+  fx.rampOf?.(fx.ACCENT ?? "", RED);
+  const color = hexColor(ramp, MID);
+  assert.equal(color, suiteColorAt(fx.ACCENT ?? "", BLUE, MID));
+});
+
+test("test_under_retro_the_bars_draw_in_one_gradient_of_more_than_one_color", () => {
+  const stops = barStops(RETRO);
+  const colors = new Set((Array.isArray(stops) ? stops : []).map(([, c]) => rgbOf(c).join()));
+  assert.ok(colors.size > 1, `bar stops under ${RETRO}: ${JSON.stringify(stops)}`);
+});
+
+test("test_under_a_suite_coloring_each_band_the_bars_are_given_no_gradient", () => {
+  assert.equal(barStops(INFERNO), null);
+});
 
 for (const suite of SUITES) {
   test(`test_under_${suite}_the_trace_is_colored_by_level`, () => {

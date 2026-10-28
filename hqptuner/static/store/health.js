@@ -1,14 +1,14 @@
-// Engine-health alerts off the Status frame's health fields (clips, apod,
-// process_speed, input_fill/output_fill) — the daemon reports these but its own
-// UI barely surfaces them. Everything is evaluated only while PLAYING: idle
-// values are engine leftovers, not health.
+// Engine-health alerts and per-track readings off the Status frame's health
+// fields (clips, apod, process_speed, output_fill). Alerts are evaluated only
+// while PLAYING: idle values are engine leftovers, not health.
 //
 // clips/apod are cumulative counters, so alerts work on per-track deltas
 // (baseline reset when track_serial changes). process_speed flutters at track
 // edges, so each of its alerts fires only once speed has stayed below its
 // threshold for SUSTAIN_MS on the clock (and clears instantly on recovery).
-import { signal, computed, effect } from "@preact/signals";
-import { engineStatus, PLAYING } from "./signals.js";
+import { signal, computed, effect, untracked } from "@preact/signals";
+import { engineStatus } from "./signals.js";
+import { playback } from "./core/readings.js";
 import { filterFacets } from "./narrow/facets.js";
 import { PLATFORM, quietWindow } from "../lib/clock.js";
 import { num } from "../lib/coerce.js";
@@ -41,10 +41,10 @@ const qualifying = { warn: false, crit: false };
 
 // Whether output_fill has been seen > 0 at least once this track. A buffer that
 // only ever holds at 0 does not apply to this output (SDM/DSD direct paths
-// report a flat 0, input_fill a flat -1) — the engine row shows no reading rather
-// than a false 0%. There is deliberately no sustained-low "starvation" alert:
-// a real output-buffer underrun is transient by design — the buffer drains to
-// 0, playback skips for a moment, then it refills to 100% — never a sustained
+// report a flat 0, input_fill a flat -1), so the engine row shows no reading
+// rather than a false 0%. There is deliberately no sustained-low "starvation"
+// alert: a real output-buffer underrun is transient by design (the buffer drains
+// to 0, playback skips for a moment, then it refills to 100%), never a sustained
 // low, so any sustained-low reading is a non-applicable buffer, not a fault.
 const outputActive = signal(false);
 export const outputBufferApplies = computed(() => outputActive.value);
@@ -80,18 +80,19 @@ let prevClips = 0;
  *   wording, which nothing but the reader depends on.
  */
 
-// Slow-speed/baseline bookkeeping. Subscribes to engineStatus ONLY — internal
-// signals are peek()ed so the effect never re-triggers itself.
+// The slow-speed and baseline effects. The baseline effect subscribes to
+// engineStatus ONLY; the speed effect also follows playback, so the speed
+// alerts hold only while the connection counts as playing, frame or no frame.
+// Internal signals are peek()ed so neither effect re-triggers itself.
 //
-// Registration is idempotent: the effects would share one set of baselines and
-// waits, so a second registration would judge every frame twice. Returns the
-// disposer for a caller that wants it; it stops the effect and cancels both
-// pending waits.
+// Registration is idempotent: the effects share one set of baselines and
+// waits, and a second registration would judge every frame twice. The
+// disposer stops both effects and cancels both pending waits.
 /** @type {(() => void) | null} */
 let dispose = null;
 
 /**
- * Register the slow-speed/baseline effect once, and hand back its disposer.
+ * Register the slow-speed and baseline effects once, and hand back their disposer.
  *
  * @param {Clock} [clock] the clock the slow-speed waits run on; a later call keeps the first registration's
  */
@@ -102,20 +103,25 @@ export function initHealth(clock = PLATFORM) {
     warn: quietWindow(SUSTAIN_MS, () => markSlow("warn", true), clock),
     crit: quietWindow(SUSTAIN_MS, () => markSlow("crit", true), clock),
   };
-  const stop = effect(() => {
+  const stopBaseline = effect(() => {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rebaseline(st);
     flashClips(st);
-    if (Number(st.state) === PLAYING && num(st.output_fill) > 0 && !outputActive.peek()) {
-      outputActive.value = true; // this output populates a buffer — latch for the track
+    if (untracked(() => playback.value.playing) && num(st.output_fill) > 0 && !outputActive.peek()) {
+      outputActive.value = true; // this output populates a buffer; latch for the track
     }
-    const below = belowThresholds(st);
+  });
+  const stopSpeed = effect(() => {
+    const st = (engineStatus.value || {}).status;
+    if (!st) return;
+    const below = belowThresholds(st, playback.value.playing);
     waitOut("warn", below.warn, waits.warn);
     waitOut("crit", below.crit, waits.crit);
   });
   dispose = () => {
-    stop();
+    stopBaseline();
+    stopSpeed();
     waits.warn.cancel();
     waits.crit.cancel();
   };
@@ -150,7 +156,7 @@ function flashClips(st) {
 
 // One severity's wait: start it on the first qualifying frame and let further
 // qualifying frames leave it running; the frame that stops qualifying cancels
-// it and clears the alert — recovery is immediate, never decayed.
+// it and clears the alert: recovery is immediate, never decayed.
 /**
  * @param {Severity} sev
  * @param {boolean} qualifies
@@ -183,10 +189,10 @@ const usableSpeed = (/** @type {number} */ sp) => sp > 0;
 
 /**
  * @param {StatusFrame} st
+ * @param {boolean} playing  whether the engine counts as playing (store/core/readings.js playback)
  * @returns {Slow}
  */
-function belowThresholds(st) {
-  const playing = Number(st.state) === PLAYING;
+function belowThresholds(st, playing) {
   // an unreadable speed reads as 0, which usableSpeed rejects
   const sp = num(st.process_speed);
   const speedOk = playing && usableSpeed(sp);
@@ -196,7 +202,7 @@ function belowThresholds(st) {
   };
 }
 
-// This track's counter deltas — the engine row shows them alongside the raw
+// This track's counter deltas, which the engine row shows alongside the raw
 // totals.
 export const trackCounters = computed(() => {
   const st = (engineStatus.value || {}).status;
@@ -208,18 +214,17 @@ export const trackCounters = computed(() => {
   };
 });
 
-// The engine-health alert list: [{kind, sev: "warn"|"crit", text}]. Empty
-// when healthy or idle.
+// Each builder below returns its category's one alert, or null. `kind` names
+// WHICH alert fired, independent of its wording; the faceplate homes each alert
+// by it (store/faceplate/alerts.js). Without it the sentence would be the only
+// thing telling two alerts apart, making the copy load-bearing.
 //
-// `kind` names WHICH alert fired, independent of its wording; the faceplate
-// homes each alert by it (store/faceplate/alerts.js). Without it the sentence
-// would be the only thing telling two alerts apart, making the copy load-bearing.
-// One alert per category, or null. Order below is the order they render in.
-// Critical speed supersedes the warning rather than joining it — they describe
-// the same fault at two severities. The remedy names the DSP chain, not the
-// network path to the device (connectivity has nothing to do with throughput).
+// The remedy both speed alerts end on. It names the DSP chain, not the network
+// path to the device: connectivity has nothing to do with throughput.
 const SLOW_DSP_TAIL = "Use a lighter filter or a lower output rate.";
 
+// Critical speed supersedes the warning rather than joining it: they describe
+// the same fault at two severities.
 /**
  * @param {Slow} s
  * @param {number} sp
@@ -252,7 +257,7 @@ function clipAlert(clips) {
 }
 
 // Only worth raising when the running filter is one an apodizing swap would
-// help — silent for an unknown filter rather than guessing.
+// help; silent for an unknown filter rather than guessing.
 /**
  * @param {number} apod
  * @param {string} filterName
@@ -266,9 +271,11 @@ function apodAlert(apod, filterName) {
   return { kind: "apodizing", sev: "warn", text };
 }
 
+// The engine-health alert list, {kind, sev: "warn"|"crit", text} each, in the
+// order they render in. Empty when healthy or idle.
 export const engineAlerts = computed(() => {
   const st = (engineStatus.value || {}).status;
-  if (!st || Number(st.state) !== PLAYING) return [];
+  if (!st || !playback.value.playing) return [];
   const s = slow.value;
   const counters = trackCounters.value;
   return [

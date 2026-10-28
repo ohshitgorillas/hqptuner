@@ -4,7 +4,8 @@
 // the whole canvas, colored base to crown through the picked color suite's ramp. Accent draws in the accent in force
 // at each paint. A restart, or a paint with no spectrum, clears the canvas and starts the bands and the sway afresh.
 
-import { ACCENT, BANDS, bandsOf, fractionsOf, suiteRamp } from "../../../model/gauges/meter/spectrumfx.js";
+import { fractionsOf } from "../../../model/gauges/meter/meter.js";
+import { ACCENT, BANDS, bandsOf, suiteRamp } from "../../../model/gauges/meter/spectrumfx.js";
 import { freshGravity, stepGravity } from "../../../model/gauges/meter/steps.js";
 import { accentInForce } from "../../../store/ui/theme.js";
 import { NORTHERN_LIGHTS_FRAG, PASS_THROUGH_VERT } from "../../../vendor/cava/northern_lights.js";

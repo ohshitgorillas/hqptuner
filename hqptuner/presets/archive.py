@@ -59,8 +59,7 @@ async def restore(mgr: "PresetManager", store: DescriptionStore, upload: bytes) 
             # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a
             # refusal of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
-    mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, data, mark=mark)
+    mark = await settle.restart(mgr, lambda: mgr.require_http().restore(data))
     # The restore restarted the daemon under us. Returning here would report a restore done while both lanes are
     # still down, and the page would read Unreachable a moment after being told it succeeded.
     await settle.await_ready(mgr, mark)

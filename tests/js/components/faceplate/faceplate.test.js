@@ -8,7 +8,6 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import "../../support/domseam.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Faceplate } from "../../../../hqptuner/static/app.js";
 import { body, openStage, openPopover, showBody } from "../../../../hqptuner/static/store/faceplate/view.js";

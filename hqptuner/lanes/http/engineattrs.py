@@ -50,9 +50,10 @@ class EngineAttrsResult:
     backup_bytes: int
 
 
-async def verify(mgr: LaneManager, overrides: dict[str, str]) -> EngineVerification:
-    """Poll a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
+async def verify(mgr: LaneManager, overrides: dict[str, str], mark: settle.Mark) -> EngineVerification:
+    """Wait for the restart stamped ``mark`` to land, then read the ``<engine>`` overrides back.
 
+    Polls a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
     Returns the last-read attributes either way, so a caller can report what actually landed.
     """
     got: dict[str, str] = {}
@@ -69,18 +70,18 @@ async def verify(mgr: LaneManager, overrides: dict[str, str]) -> EngineVerificat
         got = engineconf.read_engine_attrs(xml)
         return got if all(got.get(key) == want for key, want in overrides.items()) else None
 
-    # the restore just restarted the daemon — spend the first interval waiting
-    await mgr.clock.sleep(_VERIFY_INTERVAL)
+    # the restore just restarted the daemon — wait for it to land before reading back
+    await settle.await_ready(mgr, mark)
     applied = await settle.poll_until(mgr, probe, interval=_VERIFY_INTERVAL, deadline=_VERIFY_WINDOW)
     return EngineVerification(applied=applied is not None, engine=got)
 
 
 def _with_carried_live_fields(backup: bytes, active: str | None, stored: dict[str, str]) -> bytes:
-    """``backup`` with the running live-domain settings ``stored`` (store as fallback) written into its working member.
+    """``backup`` with the running live-domain settings ``stored`` written into its working member.
 
     This restore restarts the daemon onto that member, and a live edit never wrote
     those settings to any file — so without this the engine-attribute apply costs
-    the user the mode, filters and shapers they saved (``presets/presetfields``).
+    the user the mode, filters and shapers the Engine is running.
     """
     working = engineconf.base_config_xml(backup, active or None)
     member = engineconf.working_member_name(backup, active or None)
@@ -112,11 +113,6 @@ async def apply(
     backup = _with_carried_live_fields(engineconf.with_boot_member(backup, active or None), active, carry.carried)
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
-    mark = settle.mark_connect(mgr)
-    await settle.restore(mgr, modified, mark=mark, scope="system")
-    verified = await verify(mgr, overrides)
-    # `verify` reads the 8088 lane back and cannot speak for the 4321 control connection,
-    # which is still the dead one the restart left behind. After it rather than before,
-    # so verify's own window is unchanged and this only adds the lane it cannot see.
-    await settle.await_ready(mgr, mark)
+    mark = await settle.restart(mgr, lambda: mgr.require_http().restore(modified, "system"))
+    verified = await verify(mgr, overrides, mark)
     return EngineAttrsResult(verified=verified, members=members, backup_bytes=len(backup))

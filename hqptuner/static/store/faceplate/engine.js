@@ -4,8 +4,6 @@
 // buffer the daemon reports as -1 (it does not apply on this path), and for an output buffer that has not been seen to
 // fill this track (store/health.js).
 
-import { PLAYING } from "../signals.js";
-
 /** @typedef {import("../health.js").StatusFrame} StatusFrame */
 
 /**
@@ -29,14 +27,14 @@ import { PLAYING } from "../signals.js";
 /**
  * The engine row's readings for a Status frame.
  *
- * @param {StatusFrame | null | undefined} status  the Status frame as the poll delivers it
+ * @param {StatusFrame | null | undefined} status  the Status frame as the push stream delivers it
  * @param {{ clips: number, apod: number }} counters  this track's deltas (store/health.js trackCounters)
  * @param {boolean} outputApplies  whether the output buffer has filled this track (store/health.js)
+ * @param {boolean} playing  whether the engine counts as playing (store/core/readings.js playback)
  * @returns {EngineReadings}
  */
-export function engineReadings(status, counters, outputApplies) {
+export function engineReadings(status, counters, outputApplies, playing) {
   const st = status || {};
-  const playing = Number(st.state) === PLAYING;
   /** @param {string | undefined} v */
   const reading = (v) => (playing && v != null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
   /** @param {string | undefined} v */

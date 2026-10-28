@@ -5,10 +5,10 @@ Each event is named for its route and carries that route's JSON body: ``health``
 every event's content is its whole body. A body its route would refuse is withheld, and the text held for
 it forgotten, so the next body that route answers goes out however it compares with the last one sent.
 
-While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``) and whenever the
-staging buffer is written, and never asks the daemon anything itself; with none, it reads nothing. A keepalive interval
-with nothing to send writes an SSE comment instead, which is how a client gone without hanging up is found: the write
-to its dead socket ends its stream.
+While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``), whenever a reading
+moves the manager's Engine view or File readings and whenever the staging buffer is written, and never asks the daemon
+anything itself; with none, it reads nothing. A keepalive interval with nothing to send writes an SSE comment instead,
+which is how a client gone without hanging up is found: the write to its dead socket ends its stream.
 
 Each event's text is written once and that same string is queued for every subscriber. A subscriber attaching first
 has the feed recompute, so the subscribers already attached get whatever moved, then gets every held text at once, in
@@ -123,7 +123,7 @@ class PushFeed:
         return sent
 
     def poke(self) -> None:
-        """Recompute on the feed's own loop, from whatever thread wrote the staging buffer; before ``run``, nothing."""
+        """Recompute on the feed's own loop, from whatever thread moved what it relays; before ``run``, nothing."""
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._publish_watched)
 
@@ -137,6 +137,7 @@ class PushFeed:
         while True:
             woke = await clock.pace(changed, KEEPALIVE)
             changed.clear()
+            # The fallback: a recompute at each keepalive interval carries out any move no edge or hook reported.
             if not self._publish_watched() and not woke:
                 self._send(KEEPALIVE_TEXT)
 

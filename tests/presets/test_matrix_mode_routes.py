@@ -2,7 +2,7 @@
 the browser learns and records which half of the Matrix tab a preset is for.
 
 The store itself — reading, writing, the mode and name rules, a foreign file —
-is pinned in ``tests/presets/test_matrix_mode_store.py``. The suite is cut there
+is pinned in ``tests/presets/stores/test_matrix_mode_store.py``. The suite is cut there
 because everything in this file needs an app and a client and nothing in the
 store file does.
 

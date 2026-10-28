@@ -14,28 +14,37 @@
 // plus a name staged but not yet applied — which exists as far as the user is
 // concerned, and is the one case a load cannot switch live.
 import { computed } from "@preact/signals";
-import { matrixConfig } from "../signals.js";
+import { api } from "../../lib/api.js";
+import { matrixConfig, enums } from "../signals.js";
 import { effective } from "../resolve.js";
 import { edit } from "../actions.js";
+import { field, refreshReadings } from "../core/readings.js";
+import { op } from "../core/ops.js";
+import { refreshConfig } from "../sync.js";
 
 const SAVE = "matrix_profile_save";
 const DELETE = "matrix_profile_delete";
 
 const fileProfiles = computed(() => (matrixConfig.value && matrixConfig.value.file_profiles) || {});
 
-// Names the daemon itself knows, from the live 4321 lane, falling back to the
-// /matrix form's datalist when credentials keep the live list empty.
-const daemonProfiles = computed(() => {
-  const m = matrixConfig.value || {};
-  if (m.live_profiles && m.live_profiles.length) return m.live_profiles;
-  return ((m.profiles && m.profiles.options) || []).map((/** @type {SchemaOption} */ o) => o.value).filter(Boolean);
-});
+const daemonProfiles = computed(() => enums.value?.matrix_profiles ?? []);
 
-export const matrixActiveProfile = computed(() => {
-  const m = matrixConfig.value || {};
-  const name = m.live_active || (m.active !== "[Default]" ? m.active : "");
-  return name || "[Default]";
-});
+export const matrixActiveProfile = computed(() => String(field("matrix_profile").value.value || "[Default]"));
+
+export const profileSwitch = op("profile-switch", { engine: true, alert: "live" });
+
+/**
+ * Switch the engine profile and refresh its readings within one shared operation.
+ * @param {string} name
+ * @returns {Promise<void>}
+ */
+export async function switchMatrixProfile(name) {
+  await profileSwitch.run(async () => {
+    await api.matrixProfile(name);
+    await refreshConfig();
+    await refreshReadings();
+  });
+}
 
 function stagedSave() {
   const json = effective(SAVE);

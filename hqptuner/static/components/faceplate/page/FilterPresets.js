@@ -6,8 +6,7 @@
 // Parked to the left of its button.
 
 import { useCallback } from "preact/hooks";
-import { html } from "../../../lib/dom.js";
-import { classNames } from "../../../model/shell/format.js";
+import { classNames, html } from "../../../lib/dom.js";
 import { foldSubsets, pickPreset, presetRows, showSubsets } from "../../../store/faceplate/page/presets.js";
 import { AMark } from "../NameFace.js";
 import { Popover, parkAt, triggerProps } from "../Popover.js";

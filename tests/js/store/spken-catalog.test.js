@@ -1,8 +1,6 @@
-// Behavioral suite for the Speakers drawer's switch, `spken`, as an entry of the engine control catalog
-// (store/schema.js over store/schema/): the entry carries a lane of its own, `speakers`, and the catalog's value for it
-// reads the speakers form, the daemon's /speakers form with the drawer's draft over it.
+// The Speakers drawer's switch follows the daemon form with the drawer's draft over it.
 //
-// The value domain of the switch is the catalog's to choose, so the value cases assert a relation between two readings
+// The value cases assert a relation between two readings
 // (the form switched on against switched off, the draft flipped against not) rather than a literal.
 //
 // The wire is the seam: each case writes the daemon's /speakers form into `speakers`, and the draft is reset through
@@ -15,18 +13,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { config, engineState, matrixConfig } from "../../../hqptuner/static/store/signals.js";
-import { schema } from "../../../hqptuner/static/store/schema.js";
-import { effective } from "../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
-import { speakers, speakersBusy, speakersError } from "../../../hqptuner/static/store/matrix/speakers.js";
-import { discardDraft, setSpeakersGate } from "../../../hqptuner/static/store/faceplate/drawers/speakers.js";
-import { stagingWire } from "../support/wire/wire.js";
-
-/** The catalog id of the Speakers drawer's switch. */
-const SPKEN = "spken";
-
-/** The lane the owner names for the speakers form's entries. */
-const SPEAKERS_LANE = "speakers";
+import { loadSpeakers } from "../../../hqptuner/static/store/matrix/speakers.js";
+import {
+  discardDraft,
+  setSpeakersGate,
+  speakerDraft,
+} from "../../../hqptuner/static/store/faceplate/drawers/speakers.js";
+import { ok, stagingWire } from "../support/wire/wire.js";
 
 const LABELS = ["Left", "Right"];
 
@@ -42,32 +36,25 @@ const form = (enabled) => ({
 
 /** @param {boolean} enabled  the daemon's switch */
 async function reset(enabled) {
-  stagingWire();
+  stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form(enabled) }) : undefined) });
   engineState.value = {};
   config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "" };
   matrixConfig.value = { fields: [], active: "[Default]" };
-  speakers.value = form(enabled);
-  speakersBusy.value = false;
-  speakersError.value = "";
+  await loadSpeakers();
   await discardAll();
   discardDraft();
 }
 
-test("test_the_catalog_gives_spken_the_speakers_lane", () => {
-  const entry = /** @type {Record<string, { lane?: unknown } | undefined>} */ (schema)[SPKEN];
-  assert.equal(entry?.lane, SPEAKERS_LANE);
-});
-
-test("test_the_catalog_value_of_spken_follows_the_daemons_speakers_form", async () => {
+test("test_the_speakers_switch_follows_the_daemons_speakers_form", async () => {
   await reset(false);
-  const off = effective(SPKEN);
+  const off = speakerDraft().enabled;
   await reset(true);
-  assert.notDeepEqual(effective(SPKEN), off);
+  assert.notDeepEqual(speakerDraft().enabled, off);
 });
 
-test("test_the_catalog_value_of_spken_follows_the_drawers_draft_over_the_daemons_form", async () => {
+test("test_the_speakers_switch_follows_the_drawers_draft_over_the_daemons_form", async () => {
   await reset(false);
-  const daemon = effective(SPKEN);
+  const daemon = speakerDraft().enabled;
   setSpeakersGate(true);
-  assert.notDeepEqual(effective(SPKEN), daemon);
+  assert.notDeepEqual(speakerDraft().enabled, daemon);
 });

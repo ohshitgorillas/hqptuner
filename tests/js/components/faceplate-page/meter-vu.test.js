@@ -8,6 +8,7 @@
 // tests/js/components/faceplate-page/meter.test.js does. A level bar is an element of class `lvb`; a VU meter is an
 // element carrying `data-testid="vu-meter"`. The Meters pick goes through the prefs store's setter, read off the module
 // namespace with optional access, so a store without one fails these cases on their assertions.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/meter-vu.test.js
 
@@ -17,7 +18,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import * as uiPrefs from "../../../../hqptuner/static/store/ui/prefs.js";
@@ -30,6 +31,9 @@ const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
 //: The channels the stream reports.
 const CHANNELS = 2;
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
 
 //: The two meters on offer, as the store holds them.
 const LEVELS = "levels";
@@ -66,6 +70,7 @@ const needles = () => draw().filter((e) => attr(e, "data-testid") === "vu-meter"
 const meters = () => ({ bars: bars(), vu: needles() });
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   pickMeters(LEVELS);
   viewport.value = FULL;

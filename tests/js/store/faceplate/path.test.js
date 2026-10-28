@@ -103,7 +103,7 @@ const TRANSPORTS = [
 for (const [name, isReady, state, now] of TRANSPORTS) {
   test(`test_${name}_reads_${now}`, () => {
     play({ state });
-    health.value = { ready: isReady };
+    health.value = { phase: isReady ? "Ready" : "Reachable" };
     assert.equal(transportNow(), now);
   });
 }
@@ -120,7 +120,7 @@ function report({ status, state }) {
   config.value = { fields: [{ name: "direct_sdm", value: false }] };
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
-  health.value = { ready: true };
+  health.value = { phase: "Ready" };
 }
 
 test("test_the_path_lights_when_status_reports_playing_while_state_still_reads_stopped", () => {

@@ -4,9 +4,9 @@
 // block's head carries the restart mark when its drawer's form restarts the engine, one mark per block.
 
 import { html, TypedInput } from "../../../lib/dom.js";
-import { formRestarts } from "../../../store/faceplate/drawer.js";
+import { formRestarts, formStale } from "../../../store/faceplate/drawer.js";
 import { hardwareDraft, setHardware } from "../../../store/faceplate/settings/hardware.js";
-import { grayLine, labelHead } from "../drawer/controls.js";
+import { drowClass, grayLine, labelHead } from "../drawer/controls.js";
 import { Slider } from "../drawers/crossfeed/Slider.js";
 
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -32,6 +32,13 @@ const MANUAL_SEED = "8";
 const setBlocks = (v) => setHardware("nblocks", String(v));
 
 /**
+ * A block's row, marked stale while its drawer's form says its reading may differ from what the daemon holds.
+ *
+ * @param {DrawerSchema} schema
+ */
+const blockRow = (schema) => drowClass(formStale(schema));
+
+/**
  * Blocks per cycle: the `Set manually` box, the slider it gates, and the automatic note while unticked.
  *
  * @param {BlockProps} props
@@ -40,7 +47,7 @@ export function NblocksBlock({ schema }) {
   const nblocks = hardwareDraft().values.nblocks;
   const auto = nblocks === AUTO;
   return html`
-    <div class="drow" data-field="nblocks">
+    <div class=${blockRow(schema)} data-field="nblocks">
       <div class="ctl">
         <div class="slctl">
           <label class="chk">
@@ -112,7 +119,7 @@ export function CudaDevicesBlock({ schema, here }) {
   const off = cuda === "0";
   const convOnly = cuda === "convolution";
   return html`
-    <div class="drow" data-field="cudadevs">
+    <div class=${blockRow(schema)} data-field="cudadevs">
       <div class="ctl">
         ${labelHead("CUDA devices", { restarts: formRestarts(schema) })}
         <div class="cgrp">

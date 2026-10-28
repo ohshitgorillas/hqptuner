@@ -11,14 +11,12 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/loop-boot.test.js
 
-import "../../support/bootpage.js";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import "../../../../hqptuner/static/app.js";
 import { onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
-import { runFrame } from "../../support/bootpage.js";
+import { installBootPage } from "../../support/bootpage.js";
 import { lastStream } from "../../support/eventsource.js";
 import { newTrack, poll } from "../../support/apodpolls.js";
 import { CONTIGUOUS_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
@@ -32,10 +30,14 @@ const SECOND_MS = 1000;
 /** Wall times in ms rounded to a millionth of a ms. */
 const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
 
-test("test_once_the_app_has_started_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it", () => {
+test("test_once_the_app_has_started_each_paint_hands_its_painters_the_wall_time_since_the_paint_before_it", async (t) => {
+  const { runFrame, cleanup } = installBootPage();
+  t.after(cleanup);
+  await import("../../../../hqptuner/static/app.js");
   /** @type {number[]} wall time, s, each paint handed */
   const handed = [];
-  onMeterPaint((/** @type {unknown} */ _scene, /** @type {number} */ dt) => void handed.push(dt));
+  const unsubscribe = onMeterPaint((/** @type {unknown} */ _scene, /** @type {number} */ dt) => void handed.push(dt));
+  t.after(unsubscribe);
   engineStatus.value = { metering: false };
   newTrack();
   poll();

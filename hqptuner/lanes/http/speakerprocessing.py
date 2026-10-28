@@ -15,11 +15,12 @@ import httpx
 
 from hqptuner.conf.httpforms import SpeakersForm
 from hqptuner.lanes import settle
+from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.lanes import LaneManager
 
-_POLL = 1.0  # cadence for polling /speakers back after the reload
+_POLL = 1.0  # seconds on the manager's clock between reads of /speakers back after the reload
 
 
 class SpeakerApplyOutcome(Enum):
@@ -49,10 +50,10 @@ async def apply(mgr: "LaneManager", channels: dict[str, dict[str, str]], *, enab
     read that fails after a confirmed write leaves the previous cache standing rather than failing the apply.
     """
     http = mgr.require_http()
-    await settle.own_restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled), settle.mark_connect(mgr))
+    await settle.restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled))
     applied = await _verify(mgr, channels, enabled=enabled)
     with contextlib.suppress(httpx.HTTPError):
-        mgr.readings.speakers_form = await http.get_speakers()
+        forms.take_speakers(mgr, await http.get_speakers())
     return SpeakerApplyResult(applied, mgr.readings.speakers_form)
 
 

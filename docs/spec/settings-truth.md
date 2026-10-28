@@ -69,7 +69,7 @@ Three questions about a field have one answer each, and one pure function each:
 2. **One question, one function.** Each of the three questions above is answered by one pure function whose return value is the answer (testing rule 17). A second site that composes the File with the Engine, under any name, is a second answer, and is a defect.
 3. **The client decides nothing about truth.** The server answers every field with its Engine value, its File value and its Staged value, each stamped, and the lane the field writes on. The client shows the value the lane names and marks a divergence; it holds no priority order, no per-field truth flag and no list of which fields apply live. A client-side rule of the form "for these fields read the file" is the server's rule copied, and drifts.
 4. **Divergence is surfaced, never merged.** No read path returns a document in which some fields are the Engine's and some the File's under one source. Where the Engine and the File disagree on a field, both values reach the user, each with its source. The realized config is the one composite, it is a write payload, and it is never served as a reading.
-5. **A view is bound to one store's lifetime.** A copy of Engine values dies at Down and at every outcome the lifecycle policy names, settled in place included: a reload the connection survived still replaced the Engine. The next reading starts from nothing, not from the copy. A copy of File values dies at the next write to the File. A view that lives across the break it was bound to is a third store.
+5. **A view is bound to one store's lifetime.** A copy of Engine values dies at Down and at every outcome the lifecycle policy names, settled in place included: a reload the connection survived still replaced the Engine. The next reading starts from nothing, not from the copy. A copy of File values dies at the next write to the File. A view that lives across the break it was bound to is a third store. What a control draws is not a view: it keeps the last reading it drew until a fresh one lands, and while a form waits on its File readback, or its last read failed, its values are marked stale.
 6. **A break carries nothing on its own.** A restart and a chain switch each end what the Engine held. A value present after the break is either the Engine's own answer, read back, or a value the table says is carried and names the carrier of. The program never replays a remembered value into the Engine after a break to make it look as if the break had not happened; where a user wants a chain back, a live snapshot is the mechanism, and it is theirs to invoke.
 7. **A write is verified against its own store.** `result="OK"` and HTTP 200 are not proof. A live write is confirmed by `State` readback from the Engine; a restore by `/backup` readback from the File after the restart settles; a form write by the form after the reload settles. A write is never confirmed by reading the other store, and never by reading a view. The verify step reports to the lifecycle policy whether its readback confirmed on a standing connection (lifecycle rule 10); that is the one fact this side hands back.
 8. **The drop report is a comparison of two readings, not a memory.** What the Engine ran before a restart and does not run after it is computed once, at the first verified reading after an outcome, from that reading against the last verified reading before it. That earlier reading is held, stamped with its generation, until the report is made and not after. Its input is two stamped readings, and it replays nothing. After a foreign departure that was an idle close the two readings are equal and the report is empty.
@@ -157,8 +157,8 @@ A reading that overlays the Engine on the File, and the two readings served apar
 # Rejected: a document neither store holds, served as the file.
 file = {**file_config, **live_overrides}
 
-# Holds: each store answers for itself, stamped, and the client marks where they differ.
-field = FieldReading(engine=state.filter, file=file_config.filter, lane="live")
+# Holds: each store answers for itself, stamped, and the server names the store to show and whether they differ.
+field = FieldReading(engine=state.filter, file=file_config.filter, show="engine", diverges=differ(state.filter, file_config.filter))
 ```
 
 A value with no source, and one that names it:
@@ -188,7 +188,7 @@ The client re-deriving the server's rule, and the client taking the server's ans
 const value = fileTruth[key] ? file[key] : form[key];
 
 // Holds: the server said which store answers; the client shows it.
-const value = reading[reading.lane];
+const value = reading[reading.show];
 ```
 
 A test that restates which value wins, and one that asserts the invariant. Shape only, not values to copy:

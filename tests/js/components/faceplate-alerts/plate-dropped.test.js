@@ -14,7 +14,6 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import "../../support/domseam.js";
 import {
   health,
   config,
@@ -27,7 +26,7 @@ import {
 import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
 import { liveBook, livePresets, livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
-import { liveWriteError } from "../../../../hqptuner/static/store/live/write.js";
+import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
 import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { narrowingError } from "../../../../hqptuner/static/store/narrow/persist.js";
@@ -86,7 +85,7 @@ beforeEach(async () => {
   liveBook.value = {};
   livePresets.value = null;
   lastApply.value = null;
-  liveWriteError.value = "";
+  liveOp.clear();
   livePresetError.value = "";
   descriptionError.value = "";
   favoritesError.value = "";
