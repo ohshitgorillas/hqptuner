@@ -4,7 +4,7 @@
 // buffer the daemon reports as -1 (it does not apply on this path), and for an output buffer that has not been seen to
 // fill this track (store/health.js).
 
-import { PLAYING } from "../signals.js";
+import { isPlaying } from "../signals.js";
 
 /** @typedef {import("../health.js").StatusFrame} StatusFrame */
 
@@ -36,7 +36,7 @@ import { PLAYING } from "../signals.js";
  */
 export function engineReadings(status, counters, outputApplies) {
   const st = status || {};
-  const playing = Number(st.state) === PLAYING;
+  const playing = isPlaying(st);
   /** @param {string | undefined} v */
   const reading = (v) => (playing && v != null && v !== "" && Number.isFinite(Number(v)) ? Number(v) : null);
   /** @param {string | undefined} v */

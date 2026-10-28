@@ -28,7 +28,7 @@
 import { signal, effect } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import { decodeBins } from "../../model/gauges/meter/meter.js";
-import { engineStatus, PLAYING } from "../signals.js";
+import { enginePlaying } from "../signals.js";
 import { metering } from "../actions.js";
 import { addSpectrumFrame } from "./spectrogram.js";
 
@@ -88,8 +88,6 @@ let regeometried = false;
  * @type {number | null}
  */
 let edge = null;
-
-const playing = () => Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
 
 /**
  * A wire frame with its bins decoded to dBFS and its stamp converted to playback ms at the geometry's rate, marked as
@@ -164,9 +162,9 @@ export function openMeterFeed(next = PLATFORM) {
     trim();
   });
   source = es;
-  let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
+  let was = enginePlaying.peek();
   unwatch = effect(() => {
-    const on = playing();
+    const on = enginePlaying.value;
     if (on && !was) since = clock.now();
     if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
@@ -224,5 +222,5 @@ export function initMeterFeed(next = PLATFORM) {
 
 /** Whether the engine plays and the open feed has sent nothing for too long. @returns {boolean} */
 export function meterSilent() {
-  return source !== null && playing() && clock.now() - since >= QUIET_MS;
+  return source !== null && enginePlaying.value && clock.now() - since >= QUIET_MS;
 }

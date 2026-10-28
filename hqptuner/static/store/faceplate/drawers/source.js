@@ -16,7 +16,7 @@ import { freqTicks, timeTicks } from "../../../model/gauges/meter/meter-plot.js"
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
-import { engineStatus, PLAYING } from "../../signals.js";
+import { engineStatus, enginePlaying } from "../../signals.js";
 import { apodWindow, meterChannel, meterRange } from "../../ui/prefs.js";
 import { sourceIsDsd } from "../path.js";
 
@@ -79,7 +79,7 @@ export function setSpectrogramSpan(v) {
 function stateOf() {
   const status = engineStatus.value || {};
   if (!metering.value) return "off";
-  if (Number((status.status || {}).state) !== PLAYING) return "idle";
+  if (!enginePlaying.value) return "idle";
   if (!meterSilent()) return "live";
   return sourceIsDsd(status.metadata || {}) && !truthy(runningValue("matrix_enabled")) ? "matrix" : "silent";
 }
