@@ -93,6 +93,8 @@ class FakeInput {
     this.value = value;
     this.tagName = "INPUT";
     this.disabled = false;
+    /** @type {unknown} the document the element lives in, through which the page code reaches its window */
+    this.ownerDocument = null;
   }
 
   /** The browser's numeric reading of the text: NaN for blank or non-numeric text. */
@@ -140,7 +142,9 @@ function mount(over = {}) {
   attach(trackNode, track);
   attach(boxNode, box);
   const body = {};
-  const doc = { activeElement: /** @type {unknown} */ (body), body };
+  const doc = { activeElement: /** @type {unknown} */ (body), body, defaultView: { scrollBy() {}, scroll() {} } };
+  track.ownerDocument = doc;
+  box.ownerDocument = doc;
   return { seen, trackNode, boxNode, track, box, doc, moves, commits };
 }
 

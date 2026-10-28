@@ -88,6 +88,8 @@ class Node {
     this.nodeType = nodeType;
     /** @type {Element | null} */
     this.parentNode = null;
+    /** @type {unknown} the document the node lives in, through which the page code reaches focus */
+    this.ownerDocument = null;
   }
 
   get nextSibling() {
@@ -194,11 +196,21 @@ function typedAcross(typed, next) {
   const page = {
     .../** @type {object} */ (before),
     /** @type {Element | null} */ activeElement: null,
-    createElementNS: (/** @type {string} */ _ns, /** @type {string} */ name) => new Element(name),
-    createTextNode: (/** @type {string} */ data) => new Text(data),
+    defaultView: {},
+    createElementNS: (/** @type {string} */ _ns, /** @type {string} */ name) => owned(new Element(name)),
+    createTextNode: (/** @type {string} */ data) => owned(new Text(data)),
+  };
+  /**
+   * @template {Node} T
+   * @param {T} node
+   * @returns {T}
+   */
+  const owned = (node) => {
+    node.ownerDocument = page;
+    return node;
   };
   env.document = page;
-  const root = new Element("div");
+  const root = owned(new Element("div"));
   const paint = () => {
     /** @type {Array<() => void>} */
     const after = [];

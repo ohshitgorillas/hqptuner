@@ -97,6 +97,8 @@ class FakeSelect {
     this.selectedIndex = values.indexOf(value);
     /** @type {(() => void) | null} */
     this.onBlurred = null;
+    /** @type {unknown} the document the element lives in, through which the page code reaches its window */
+    this.ownerDocument = null;
   }
 
   /** The selected option's value, or blank when none is selected. */
@@ -133,7 +135,12 @@ class Browser {
     this.box = box;
     this.el = new FakeSelect(values, value);
     this.body = {};
-    this.doc = { activeElement: /** @type {unknown} */ (this.body), body: this.body };
+    this.doc = {
+      activeElement: /** @type {unknown} */ (this.body),
+      body: this.body,
+      defaultView: { scrollBy() {}, scroll() {} },
+    };
+    this.el.ownerDocument = this.doc;
     this.el.onBlurred = () => {
       this.doc.activeElement = this.body;
       fire(box, "onBlur", event("blur", this.el));
