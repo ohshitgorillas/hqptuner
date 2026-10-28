@@ -1,8 +1,10 @@
 // The Source meter's model, free of the DOM and of any clock: the feed's bins decoded, a stride's frames folded into
-// one, a channel's bins picked, bins gathered under drawing columns, a level placed on the plot, the spectrum's
-// frequency spans, the shown columns as plot fractions at the Range, and the colors the level bars and held-peak mark draw in under the palette picked for the spectrum.
+// one, a channel's bins picked, bins gathered under drawing columns and into a spectrogram slice's bands, a level
+// placed on the plot, the spectrum's frequency spans, and the shown columns as plot fractions at the Range.
 
-import { bufferOf, suiteColor } from "./spectrumfx.js";
+import { clamp } from "../../../lib/coerce.js";
+import { rowAt } from "../../../lib/spectroraster.js";
+import { bufferOf } from "./spectrumfx.js";
 
 /**
  * One channel of a meter frame.
@@ -21,7 +23,7 @@ import { bufferOf, suiteColor } from "./spectrumfx.js";
  * @property {number} ms  playback, ms, the frame covers
  * @property {number} [at]  playback, ms, where the frame starts
  * @property {boolean} [break]  whether the feed marks a break before the frame
- * @property {FrameGeometry | null} [geo]  the layout the frame was decoded under; null before any geometry event
+ * @property {FrameGeometry | null} [geo]  the layout the frame is decoded under; null while the feed has sent no geometry event
  */
 
 /**
@@ -40,15 +42,6 @@ import { bufferOf, suiteColor } from "./spectrumfx.js";
  * @property {number} nyquist  Hz
  * @property {number} channels
  * @property {number} bins
- */
-
-/**
- * The paint a level reading draws in.
- *
- * @typedef {object} MeterPaint
- * @property {string} peak
- * @property {string} rms
- * @property {string} hold
  */
 
 /**
@@ -181,57 +174,132 @@ export function foldFrames(frames, into) {
 }
 
 /**
- * A channel's bins from a frame: the channel index the spectrogram holds picks that channel; `sum`, or an index the
- * frame has no channel for, picks the power average of every channel.
+ * A channel's bins from a frame: a channel index picks that channel's own bins, handed back as the frame holds them;
+ * `sum`, or an index the frame has no channel for, picks the power average of every channel, written into `out` where
+ * it holds as many values as a channel has bins, into a new buffer otherwise.
  *
- * @param {MeterFrame} frame
+ * @param {Pick<MeterFrame, "channels">} frame
  * @param {string} channel  `sum` or a channel index
+ * @param {Float32Array} [out]  an earlier pick's bins, reused where it fits
  * @returns {Float32Array}  dBFS, low frequencies first
  */
-export function pickBins(frame, channel) {
+export function pickBins(frame, channel, out) {
   const { channels } = frame;
   const one = /^\d+$/.test(channel) ? channels[Number(channel)] : undefined;
   if (one) return one.bins;
-  const out = new Float32Array(channels[0]?.bins.length ?? 0);
-  for (let b = 0; b < out.length; b++) {
+  const sums = bufferOf(out, channels[0]?.bins.length ?? 0);
+  for (let b = 0; b < sums.length; b++) {
     let sum = 0;
     for (const ch of channels) sum += power(ch.bins[b]);
-    out[b] = level(sum / channels.length);
+    sums[b] = level(sum / channels.length);
   }
-  return out;
+  return sums;
 }
 
 /**
- * The loudest bin under each drawing column, low frequencies first. Column `j` of `n` covers the bins from
- * `floor(j * bins / n)` up to the next column's start, and at least one bin; a column over no bins at all reads
- * -Infinity. Written into `buffer` where it holds `columns` values, a new buffer otherwise.
+ * How many bins, from 0 Hz up, a view holding `share` of the band shows: the bins run from 0 Hz to Nyquist, so the
+ * view ends at the last bin at or below `share` of the way to the top one. At least one bin when the band holds any.
  *
- * @param {Float32Array} bins  dBFS
+ * @param {number} count  bins in the band
+ * @param {number} share  in (0, 1]
+ * @returns {number}
+ */
+const binsInView = (count, share) => clamp(Math.floor(share * (count - 1)) + 1, Math.min(1, count), count);
+
+/**
+ * The first bin at or above the edge between column `e - 1` and column `e`, half way between where the two stand.
+ *
+ * @param {number} e  the column above the edge
+ * @param {number} last  the bin at the top of the view
+ * @param {number} gaps  the steps between the first column and the last
+ * @returns {number}
+ */
+const edgeBin = (e, last, gaps) => Math.ceil(((2 * e - 1) * last) / (2 * gaps));
+
+/**
+ * The loudest bin under each drawing column, low frequencies first, with `share` of the band spread across every
+ * column: column 0 stands at 0 Hz, the last column at the top of the view, and column `j` of `n` at `j / (n - 1)` of the
+ * way between. Each column reads the bins nearer to it than to its neighbors, and at least the bin nearest it, so a
+ * column that falls between bins reads that bin and the trace has no gaps; a lone column reads every bin in view, and
+ * with no bins every column reads -Infinity. Written into `out` where it holds `columns` values, a new buffer otherwise.
+ *
+ * @param {ArrayLike<number>} bins  dBFS, 0 Hz to Nyquist
  * @param {number} columns
- * @param {Float32Array} [buffer]  the columns of the paint before, reused where it fits
+ * @param {Float32Array} [out]  an earlier paint's columns, reused where it fits
+ * @param {number} [share]  the Frequency span's share of the band, from spanShare; the whole band by default
  * @returns {Float32Array}  dBFS, one per column
  */
-export function traceColumns(bins, columns, buffer) {
-  const out = bufferOf(buffer, columns);
-  out.fill(-Infinity);
-  const last = bins.length - 1;
+export function traceColumns(bins, columns, out, share = 1) {
+  const cols = bufferOf(out, columns);
+  cols.fill(-Infinity);
+  const last = binsInView(bins.length, share) - 1;
+  const gaps = Math.max(1, columns - 1);
   for (let j = 0; j < columns && last >= 0; j++) {
-    const from = Math.min(last, Math.floor((j * bins.length) / columns));
-    const to = Math.max(from + 1, Math.floor(((j + 1) * bins.length) / columns));
-    for (let b = from; b < to; b++) if (bins[b] > out[j]) out[j] = bins[b];
+    const near = Math.round((j * last) / gaps);
+    const from = Math.max(0, Math.min(near, edgeBin(j, last, gaps)));
+    const to = j === columns - 1 ? last : Math.min(last, Math.max(near, edgeBin(j + 1, last, gaps) - 1));
+    for (let b = from; b <= to; b++) if (bins[b] > cols[j]) cols[j] = bins[b];
   }
-  return out;
+  return cols;
 }
 
 /**
- * Where a level sits on the plot: 1 at full scale, 0 `range` dB below it. A level outside that span lies beyond 0 or 1.
+ * Bin `k`'s row among `rows`: the band its frequency, k / `last` of the Nyquist, falls in, by the raster's rowAt.
+ *
+ * @param {number} k
+ * @param {number} last  the bin at the Nyquist
+ * @param {number} rows
+ * @returns {number}
+ */
+const bandOf = (k, last, rows) => Math.floor(rowAt(k, last, rows) + 0.5);
+
+/**
+ * Of bins `k - 1` and `k`, below and above row `r`'s center, the one nearer it; `k` where both are equally near.
+ *
+ * @param {number} k
+ * @param {number} last  the bin at the Nyquist
+ * @param {number} rows
+ * @param {number} r
+ * @returns {number}
+ */
+const nearerCenter = (k, last, rows, r) => (rowAt(k, last, rows) - r <= r - rowAt(k - 1, last, rows) ? k : k - 1);
+
+/**
+ * A spectrogram slice's rows from bins, low frequencies first: row r of `rows` is the band the raster reads it as
+ * (rowAt), with bin `k` of `bins.length` at k / (bins.length - 1) of the Nyquist. Each row holds the loudest of the bins
+ * in its band, the bin at the Nyquist in the top row; a band holding no bin holds the bin nearest its center, the
+ * higher of two equally near. A lone bin fills every row; with no bins every row reads -Infinity. Written into `out`
+ * where it holds `rows` values, a new buffer otherwise.
+ *
+ * @param {ArrayLike<number>} bins  dBFS, 0 Hz to Nyquist
+ * @param {number} rows
+ * @param {Float32Array} [out]
+ * @returns {Float32Array}  dBFS, one per row
+ */
+export function bandRows(bins, rows, out) {
+  const levels = bufferOf(out, rows);
+  const last = bins.length - 1;
+  if (last < 1) return levels.fill(last === 0 ? bins[0] : -Infinity);
+  let k = 0;
+  for (let r = 0; r < rows; r++) {
+    const first = k;
+    let loud = -Infinity;
+    for (; k <= last && (r === rows - 1 || bandOf(k, last, rows) <= r); k++) if (bins[k] > loud) loud = bins[k];
+    levels[r] = k > first ? loud : bins[nearerCenter(k, last, rows, r)];
+  }
+  return levels;
+}
+
+/**
+ * Where a level sits on the plot: 1 at full scale, 0 `range` dB below it. A level below the range sits at 0, one over
+ * full scale at 1.
  *
  * @param {number} db  dBFS
  * @param {number} range  dB, positive
- * @returns {number}
+ * @returns {number}  in [0, 1]
  */
 export function fraction(db, range) {
-  return 1 + db / range;
+  return clamp(1 + db / range, 0, 1);
 }
 
 /**
@@ -240,28 +308,11 @@ export function fraction(db, range) {
  *
  * @param {ArrayLike<number>} columns  dBFS
  * @param {number} range  dB, positive
- * @param {Float32Array} [out]  the fractions of the paint before, reused where it fits
+ * @param {Float32Array} [out]  an earlier paint's fractions, reused where it fits
  * @returns {Float32Array}
  */
 export function fractionsOf(columns, range, out) {
   const fracs = bufferOf(out, columns.length);
   for (let i = 0; i < columns.length; i++) fracs[i] = fraction(columns[i], range);
   return fracs;
-}
-
-/**
- * The colors a level reading draws in: the peak bar, the RMS bar and the held-peak mark each in the color the spectrum
- * draws at its own level under `palette`, under Accent in the accent's shades.
- *
- * @param {string} palette  the palette picked for the spectrum
- * @param {{ peak: number, rms: number, hold: number }} reading  plot fractions, 0 on the floor, 1 at full scale
- * @param {string} accent  the accent in force, `#rrggbb`
- * @returns {MeterPaint}
- */
-export function meterColors(palette, reading, accent) {
-  return {
-    peak: suiteColor(palette, reading.peak, accent),
-    rms: suiteColor(palette, reading.rms, accent),
-    hold: suiteColor(palette, reading.hold, accent),
-  };
 }

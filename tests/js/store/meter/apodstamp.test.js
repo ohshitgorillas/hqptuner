@@ -11,6 +11,7 @@
 // (tests/js/support/apodpolls.js): every case starts a new track, whose first poll is the baseline and records no bin,
 // so each bin a case reads is one its own polls appended. Every case runs under a spectrum offset that is not zero
 // unless it names another delay. No meter loop runs.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/apodstamp.test.js
 
@@ -21,6 +22,7 @@ import { closeMeterFeed, openMeterFeed, takeMeterFrames } from "../../../../hqpt
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { spectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { apodBins, initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { append, newTrack, setPollStep } from "../../support/apodpolls.js";
@@ -46,6 +48,9 @@ const ENGINE_DELAY_US = "500000";
 /** How far two playback times in ms may differ and still be the same time: far under one sample at any rate. */
 const SAME_MS = 1e-6;
 
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
+
 /** A playback position no table here reaches: playback, ms. */
 const ELSEWHERE_MS = 1000;
 
@@ -66,6 +71,7 @@ function open() {
 }
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   spectrumOffset.value = OFFSET_S;
   playhead.value = null;

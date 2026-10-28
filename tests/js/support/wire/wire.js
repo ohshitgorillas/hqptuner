@@ -45,6 +45,23 @@ const env = globalThis;
  */
 export const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 
+/** The generation an unrouted GET /api/config reading is stamped with. */
+const UNROUTED_CONFIG_GENERATION = 1;
+
+/**
+ * The answer to a request no route claimed: GET /api/config in its served shape, else an empty body.
+ *
+ * @param {string} path
+ * @param {FakeRequest} opts
+ * @returns {FakeResponse}
+ */
+const unrouted = (path, opts) =>
+  ok(
+    path === "/api/config" && (opts.method ?? "GET") === "GET"
+      ? { generation: UNROUTED_CONFIG_GENERATION, fields: {} }
+      : {},
+  );
+
 // A refusal in the daemon's own shape: FastAPI answers every error with a
 // `detail` string. `bad(status)` with no detail is the other real case — a
 // response that is not our JSON at all, which `json()` rejects on.
@@ -156,7 +173,7 @@ export function stagingWire({ routes, fallback } = {}) {
     const hit = routes && (await routes(path, opts, w));
     if (hit !== undefined) return hit;
     if (fallback) return fallback(w);
-    return ok(path === "/api/config/apply" ? { report: {} } : {});
+    return path === "/api/config/apply" ? ok({ report: {} }) : unrouted(path, opts);
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const req = answer(path, opts);
@@ -215,6 +232,6 @@ export function staticWire(staged = { live: {}, http: {} }, routes) {
   env.fetch = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     if (path === "/api/config/stage" || path === "/api/config/pending") return ok(staged);
     const hit = routes && (await routes(path, opts));
-    return hit === undefined ? ok({}) : hit;
+    return hit === undefined ? unrouted(path, opts) : hit;
   };
 }

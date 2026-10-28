@@ -26,8 +26,11 @@ import { fakeClock } from "../../support/clock.js";
 
 initHealth(fakeClock().clock);
 
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
+/** The daemon generation the suite runs at. */
+const GEN = 1;
+
+/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
+const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
 
 /** The junk advisor's object as /api/status carries it. */
 const ADVICE = { filter: "30k", reason: "reason-fixture", ceiling_khz: 30 };

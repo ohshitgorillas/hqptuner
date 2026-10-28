@@ -8,7 +8,6 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import "./domseam.js";
 import { h, cloneElement } from "preact";
 import { render } from "preact-render-to-string";
 

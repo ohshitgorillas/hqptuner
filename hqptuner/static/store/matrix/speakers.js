@@ -1,7 +1,7 @@
 import { computed } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { formDraft } from "../core/forms.js";
+import { UNCONFIRMED, formDraft } from "../core/forms.js";
 
 /** @typedef {{ level?: string, distance?: string }} ChannelEdit */
 /** @typedef {import("../faceplate/drawers/speakers.js").SpeakersForm} SpeakersForm */
@@ -42,12 +42,14 @@ export const speakerForm = formDraft({
       enabled: !!(values.enabled ?? speakerForm.base.value?.enabled),
       channels: channelEdits(values),
     });
-    if (!report.applied) throw new Error("applied, but the daemon did not confirm the new values — check below");
+    if (!report.applied) throw new Error(UNCONFIRMED);
   },
 });
 
 export const speakers = computed(() => /** @type {SpeakersForm | null} */ (speakerForm.base.value));
 export const speakersBusy = speakerForm.busy;
+/** Whether the form shown may differ from what the daemon holds: a write has landed and its readback has not, or the last read failed. */
+export const speakersStale = speakerForm.stale;
 export const speakersError = computed(() => (speakerForm.error.value === null ? "" : errText(speakerForm.error.value)));
 
 /** Draft the speaker-processing switch. @param {boolean} on */
@@ -65,12 +67,10 @@ export const loadSpeakers = () => speakerForm.reload();
  * @param {Record<string, ChannelEdit>} channels
  * @returns {Promise<boolean>}
  */
-export async function applySpeakers(enabled, channels) {
-  if (speakerForm.base.value === null) return false;
+export function applySpeakers(enabled, channels) {
   setSpeakersGate(enabled);
   for (const [index, row] of Object.entries(channels)) {
     for (const [kind, value] of Object.entries(row)) speakerForm.set(`${index}.${kind}`, Number(value));
   }
-  await speakerForm.apply();
-  return speakerForm.error.value === null;
+  return speakerForm.apply();
 }

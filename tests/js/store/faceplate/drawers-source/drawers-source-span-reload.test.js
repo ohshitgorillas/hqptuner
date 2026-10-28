@@ -6,14 +6,14 @@
 // `.fresh-<tag>.js` specifier (tests/js/support/vendor-resolve.js) over the same storage, is the page after the reload.
 // The span is read through the module namespace, so a store without one reads as no span at all.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-source-span-reload.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-source/drawers-source-span-reload.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { useStorage } from "../../support/storage.js";
+import { useStorage } from "../../../support/storage.js";
 
-const STORE = "../../../../hqptuner/static/store/faceplate/drawers/source.js";
+const STORE = "../../../../../hqptuner/static/store/faceplate/drawers/source.js";
 
 // The whole band and its lower quarter, as the store holds them.
 const WHOLE_BAND = "full";

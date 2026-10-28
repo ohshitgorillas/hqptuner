@@ -231,3 +231,105 @@ test("test_a_pace_hands_out_as_many_whole_steps_over_a_stretch_whether_it_comes_
   const summed = paints.reduce((sum, dt) => sum + stepPace(many, dt), 0);
   assert.ok(...near(summed / whole, 1, SAME));
 });
+
+// ── the level meter's and the spectrum's own motion ───────────────────────
+
+//: A level between the loud and the quiet one, dBFS.
+const MID_DB = -20;
+//: How far apart, dB, two levels must stand for one to count as not yet at the other.
+const APART_DB = 1;
+//: How long a peak falls in the shorter of two falls compared, s; the longer one is twice it.
+const FALL_S = 0.5;
+//: The levels a run of music steps through, loud and quiet, rising and falling.
+const RUN_DB = [LOUD_DB, MID_DB, QUIET_DB, MID_DB, LOUD_DB, QUIET_DB, MID_DB];
+//: How many times over the paint table each level of a run is held, long enough for a released held peak to fall.
+const RUN_REPEAT = 10;
+
+/** One channel's level readings after a long quiet. */
+const quietLevels = () => stepLevels(freshLevels(1), target(QUIET_DB), LOUD_S);
+
+/** The spectrum after a long loud stretch. */
+const loudSpectrum = () => stepSpectrum(freshSpectrum(1), [LOUD_DB], LOUD_S);
+
+/**
+ * How far a level peak falls from the loud level over `seconds` of quiet.
+ *
+ * @param {number} seconds
+ */
+function peakFall(seconds) {
+  const loud = stepLevels(freshLevels(1), target(LOUD_DB), LOUD_S);
+  return LOUD_DB - stepLevels(loud, target(QUIET_DB), seconds)[0].peak;
+}
+
+/**
+ * Every paint of a run of music, each level of RUN_DB held over the paint table run RUN_REPEAT times, as `read` of
+ * the state after it; a message for each paint whose `upper` reading stood below its `lower` one.
+ *
+ * @template S
+ * @param {S} state
+ * @param {(state: S, db: number, dt: number) => S} step
+ * @param {(state: S) => number} upper
+ * @param {(state: S) => number} lower
+ * @returns {[boolean, string]}
+ */
+function neverUnder(state, step, upper, lower) {
+  /** @type {string[]} */
+  const under = [];
+  let s = state;
+  for (const db of RUN_DB) {
+    for (const dt of stretch(RUN_REPEAT)) {
+      s = step(s, db, dt);
+      if (Number.isNaN(upper(s)) || upper(s) < lower(s)) under.push(`${upper(s)} under ${lower(s)} at ${db} dBFS`);
+    }
+  }
+  return [under.length === 0, under.slice(0, 3).join("; ")];
+}
+
+test("test_a_level_peak_jumps_to_a_louder_reading_in_one_paint", () => {
+  assert.equal(stepLevels(quietLevels(), target(LOUD_DB), PAINT)[0].peak, LOUD_DB);
+});
+
+test("test_a_level_peak_falls_back_at_a_steady_rate", () => {
+  assert.ok(...near(peakFall(2 * FALL_S) / peakFall(FALL_S), 2, SAME));
+});
+
+test("test_a_level_rms_integrates_rather_than_jumping_to_a_louder_reading", () => {
+  const rms = stepLevels(quietLevels(), target(LOUD_DB), PAINT)[0].rms;
+  assert.ok(rms < LOUD_DB - APART_DB, `rms at ${rms} dBFS one paint after a ${LOUD_DB} dBFS reading`);
+});
+
+test("test_a_held_peak_rises_with_the_peak_in_one_paint", () => {
+  assert.equal(stepLevels(quietLevels(), target(LOUD_DB), PAINT)[0].hold, LOUD_DB);
+});
+
+test("test_a_held_peak_never_falls_below_the_peak", () => {
+  assert.ok(
+    ...neverUnder(
+      freshLevels(1),
+      (s, db, dt) => stepLevels(s, target(db), dt),
+      (s) => s[0].hold,
+      (s) => s[0].peak,
+    ),
+  );
+});
+
+test("test_the_shown_spectrum_does_not_drop_at_once_to_a_quieter_reading", () => {
+  const shown = stepSpectrum(loudSpectrum(), [QUIET_DB], PAINT).disp[0];
+  assert.ok(shown > QUIET_DB + APART_DB, `shown at ${shown} dBFS one paint after a ${LOUD_DB} dBFS stretch`);
+});
+
+test("test_the_spectrum_ghost_never_falls_below_the_shown_level", () => {
+  assert.ok(
+    ...neverUnder(
+      freshSpectrum(1),
+      (s, db, dt) => stepSpectrum(s, [db], dt),
+      (s) => s.ghost[0],
+      (s) => s.disp[0],
+    ),
+  );
+});
+
+test("test_the_spectrum_ghost_falls_slower_than_the_shown_level", () => {
+  const s = stretch(1).reduce((st, dt) => stepSpectrum(st, [QUIET_DB], dt), loudSpectrum());
+  assert.ok(s.ghost[0] > s.disp[0] + APART_DB, `ghost at ${s.ghost[0]} dBFS, shown at ${s.disp[0]} dBFS`);
+});

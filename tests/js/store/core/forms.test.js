@@ -1,128 +1,25 @@
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { formDraft } from "../../../../hqptuner/static/store/core/forms.js";
 import { health } from "../../../../hqptuner/static/store/signals.js";
-import { failures, inFlight, op } from "../../../../hqptuner/static/store/core/ops.js";
+import { inFlight } from "../../../../hqptuner/static/store/core/ops.js";
+import { engineRestarting } from "../../../../hqptuner/static/store/enginewrite.js";
+import {
+  BASE,
+  HEALTH_PATH,
+  READBACK,
+  STANDING_GENERATION,
+  draft,
+  failingAfter,
+  healthWire,
+  lineErrors,
+  pending,
+  resetForm,
+  settled,
+} from "../../support/forms/formdraft.js";
 
-const BASE = { gain: 2, delay: 7 };
-const READBACK = { gain: 4, delay: 11 };
-const KEYS = ["gain", "delay"];
-const AREA = "apply";
+const WRITE_DONE = "write done";
 
-function pending() {
-  /** @type {(value: Record<string, unknown>) => void} */
-  let resolve = () => {};
-  const promise = new Promise((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-}
-
-async function settled() {
-  await Promise.resolve();
-  await Promise.resolve();
-}
-
-/** @param {Partial<Parameters<typeof formDraft>[0]>} [options] */
-async function draft(options = {}) {
-  const item = formDraft({
-    load: async () => BASE,
-    write: async () => undefined,
-    keys: KEYS,
-    area: AREA,
-    ...options,
-  });
-  await settled();
-  return item;
-}
-
-afterEach(() => {
-  op(AREA).clear();
-});
-
-// Break: removing one edit leaves it held or discards another field's edit.
-test("test_removed_edit_follows_reload_without_discarding_other_edits", async () => {
-  let reading = BASE;
-  const item = await draft({ load: async () => reading });
-  item.set("gain", 4);
-  item.set("delay", 13);
-  const seen = [item.differs.value];
-  item.remove("gain");
-  reading = READBACK;
-  await item.reload();
-  seen.push(item.differs.value);
-  reading = { gain: 6, delay: 13 };
-  await item.reload();
-  seen.push(item.differs.value);
-  assert.deepEqual(seen, [["gain", "delay"], ["delay"], []]);
-});
-
-// Break: explicit refresh retains the old base or discards the user's edits.
-test("test_explicit_reload_preserves_edits_against_each_new_file_reading", async () => {
-  let reading = BASE;
-  const item = await draft({ load: async () => reading });
-  item.set("gain", 4);
-  const seen = [item.differs.value];
-  reading = READBACK;
-  await item.reload();
-  seen.push(item.differs.value);
-  reading = { gain: 6, delay: 11 };
-  await item.reload();
-  seen.push(item.differs.value);
-  assert.deepEqual(seen, [["gain"], [], ["gain"]]);
-});
-
-// Break: explicit refresh bypasses the form's read lifecycle or marks an engine write.
-test("test_explicit_reload_is_busy_without_marking_an_engine_write", async () => {
-  const refreshed = pending();
-  let initial = true;
-  const item = await draft({ load: () => (initial ? Promise.resolve(BASE) : refreshed.promise) });
-  initial = false;
-  const seen = [[item.busy.value, inFlight.value]];
-  const run = item.reload();
-  seen.push([item.busy.value, inFlight.value]);
-  refreshed.resolve(READBACK);
-  await run;
-  seen.push([item.busy.value, inFlight.value]);
-  assert.deepEqual(seen, [
-    [false, false],
-    [true, false],
-    [false, false],
-  ]);
-});
-
-// Break: the first load is skipped or base is populated before it resolves.
-test("test_base_becomes_the_first_completed_file_read", async () => {
-  const load = pending();
-  const item = await draft({ load: () => load.promise });
-  const seen = [item.base.value];
-  load.resolve(BASE);
-  await settled();
-  seen.push(item.base.value);
-  assert.deepEqual(seen, [null, BASE]);
-});
-
-// Break: set drops edits made before the first File reading.
-test("test_initial_read_preserves_edits_already_entered", async () => {
-  const load = pending();
-  const item = await draft({ load: () => load.promise });
-  item.set("gain", 4);
-  load.resolve(BASE);
-  await settled();
-  assert.equal(item.values.value.gain, 4);
-});
-
-// Break: a draft reports differences against an absent base.
-test("test_differs_waits_for_a_base_then_observes_the_edit", async () => {
-  const load = pending();
-  const item = await draft({ load: () => load.promise });
-  item.set("gain", 4);
-  const seen = [item.differs.value];
-  load.resolve(BASE);
-  await settled();
-  seen.push(item.differs.value);
-  assert.deepEqual(seen, [[], ["gain"]]);
-});
+afterEach(resetForm);
 
 // Break: apply posts before the form is read, or never posts after it is read.
 test("test_apply_only_writes_after_a_base_has_loaded", async () => {
@@ -142,50 +39,6 @@ test("test_apply_only_writes_after_a_base_has_loaded", async () => {
   await settled();
   await item.apply();
   assert.deepEqual([before, writes], [[], [4]]);
-});
-
-// Break: the initial standalone load participates in engine flight.
-test("test_initial_load_keeps_engine_inflight_clear", async () => {
-  const load = pending();
-  await draft({ load: () => load.promise });
-  const seen = [inFlight.value];
-  load.resolve(BASE);
-  await settled();
-  seen.push(inFlight.value);
-  assert.deepEqual(seen, [false, false]);
-});
-
-// Break: a generation-triggered standalone load participates in engine flight.
-test("test_generation_load_keeps_engine_inflight_clear", async () => {
-  const generation = 101;
-  health.value = { phase: "Ready", generation };
-  const reload = pending();
-  let initial = true;
-  await draft({ load: () => (initial ? Promise.resolve(BASE) : reload.promise) });
-  initial = false;
-  health.value = { phase: "Ready", generation: generation + 1 };
-  await settled();
-  const seen = [inFlight.value];
-  reload.resolve(READBACK);
-  await settled();
-  seen.push(inFlight.value);
-  try {
-    assert.deepEqual(seen, [false, false]);
-  } finally {
-    health.value = null;
-    await settled();
-  }
-});
-
-// Break: an initial load failure is swallowed without reaching the draft error.
-test("test_initial_load_failure_is_exposed_by_the_draft", async () => {
-  const error = new Error("fixture load refusal");
-  const item = await draft({
-    load: async () => {
-      throw error;
-    },
-  });
-  assert.equal(item.error.value, error);
 });
 
 // Break: differs uses strict identity, ignores keys, or stops reacting to set.
@@ -317,10 +170,7 @@ test("test_failed_apply_reaches_its_alert_area", async () => {
   });
   item.set("gain", 4);
   await item.apply();
-  assert.deepEqual(
-    failures.value.filter((entry) => entry.area === AREA).map((entry) => entry.error),
-    [error],
-  );
+  assert.deepEqual(lineErrors(), [error]);
 });
 
 // Break: success retains submitted edits, or clears a newer edit too.
@@ -356,25 +206,153 @@ test("test_write_receives_a_snapshot_of_the_submitted_edits", async () => {
   assert.equal(submitted?.gain, 4);
 });
 
-// Break: generation moves leave the old base in place or overwrite user edits.
-test("test_generation_reload_preserves_edits_against_the_new_file_base", async () => {
-  health.value = { phase: "Ready", generation: 41 };
-  let reading = BASE;
-  const item = await draft({ load: async () => reading });
+// Break: apply calls write directly instead of inside enginewrite.js duringEngineWrite, so the page never dims.
+test("test_form_apply_dims_the_page_for_the_engine_restart", async () => {
+  healthWire([]);
+  const item = await draft();
   item.set("gain", 4);
-  const seen = [item.differs.value];
-  reading = { gain: 4, delay: 11 };
-  health.value = { phase: "Ready", generation: 42 };
-  await settled();
-  seen.push(item.differs.value);
-  reading = { gain: 6, delay: 11 };
-  health.value = { phase: "Ready", generation: 43 };
-  await settled();
-  seen.push(item.differs.value);
+  /** @type {boolean[]} */
+  const seen = [];
+  const stop = engineRestarting.subscribe((/** @type {unknown} */ v) => seen.push(Boolean(v)));
+  await item.apply();
+  stop();
+  assert.ok(seen.includes(true), JSON.stringify(seen));
+});
+
+// Break: apply skips duringEngineWrite, so no health read follows the form's write.
+test("test_form_apply_reads_health_back_after_the_write", async () => {
+  /** @type {string[]} */
+  const log = [];
+  healthWire(log);
+  health.value = { phase: "Ready", generation: STANDING_GENERATION };
+  const item = await draft({
+    write: async () => {
+      log.push(WRITE_DONE);
+    },
+  });
+  item.set("gain", 4);
+  await item.apply();
   try {
-    assert.deepEqual(seen, [["gain"], [], ["gain"]]);
+    assert.ok(log.lastIndexOf(HEALTH_PATH) > log.indexOf(WRITE_DONE), JSON.stringify(log));
   } finally {
     health.value = null;
     await settled();
   }
+});
+
+// Break: the readback runs inside the apply's op run, so a refused readback after a confirmed write lands on the line.
+test("test_failed_readback_after_a_successful_write_puts_nothing_on_the_alert_line", async () => {
+  const reading = failingAfter();
+  const item = await draft({ load: reading.load, write: async () => reading.fail() });
+  item.set("gain", 4);
+  await item.apply();
+  assert.deepEqual(lineErrors(), []);
+});
+
+/**
+ * A draft whose readback after a write waits on the test: `asked` resolves when the readback is requested, and
+ * `answer` lands it.
+ */
+async function heldReadback() {
+  const readback = pending();
+  /** @type {() => void} */
+  let markAsked = () => {};
+  const asked = new Promise((done) => {
+    markAsked = () => done(undefined);
+  });
+  let written = false;
+  const item = await draft({
+    load: () => {
+      if (!written) return Promise.resolve(BASE);
+      markAsked();
+      return readback.promise;
+    },
+    write: async () => {
+      written = true;
+    },
+  });
+  return { item, asked, answer: readback.resolve };
+}
+
+// Break: stale is never raised after a write, or is not lowered when the readback lands.
+test("test_stale_marks_the_values_from_write_success_until_the_readback_lands", async () => {
+  const { item, asked, answer } = await heldReadback();
+  item.set("gain", 4);
+  const seen = [item.stale?.value];
+  const run = item.apply();
+  await asked;
+  await settled();
+  seen.push(item.stale?.value);
+  answer(READBACK);
+  await run;
+  seen.push(item.stale?.value);
+  assert.deepEqual(seen, [false, true, false]);
+});
+
+// Break: a write clears base, so the form shows nothing while the readback is outstanding.
+test("test_base_keeps_the_last_reading_while_the_readback_is_outstanding", async () => {
+  const { item, asked, answer } = await heldReadback();
+  item.set("gain", 4);
+  const run = item.apply();
+  await asked;
+  await settled();
+  const shown = item.base.value;
+  answer(READBACK);
+  await run;
+  assert.equal(shown, BASE);
+});
+
+// Break: a failed readback clears base instead of leaving the last reading shown.
+test("test_failed_readback_keeps_the_last_reading_as_base", async () => {
+  const reading = failingAfter();
+  const item = await draft({ load: reading.load, write: async () => reading.fail() });
+  item.set("gain", 4);
+  await item.apply();
+  assert.equal(item.base.value, BASE);
+});
+
+// Break: a failed readback lowers stale, presenting the pre-write reading as current.
+test("test_failed_readback_leaves_the_values_marked_stale", async () => {
+  const reading = failingAfter();
+  const item = await draft({ load: reading.load, write: async () => reading.fail() });
+  item.set("gain", 4);
+  await item.apply();
+  assert.equal(item.stale?.value, true);
+});
+
+// Break: apply resolves to nothing, or to the write's own result, instead of reporting that the write landed.
+test("test_apply_resolves_true_when_the_write_lands", async () => {
+  const item = await draft();
+  item.set("gain", 4);
+  assert.equal(await item.apply(), true);
+});
+
+// Break: apply reports the readback's outcome instead of the write's, so a refused readback reads as a failed write.
+test("test_apply_resolves_true_when_the_write_lands_but_its_readback_fails", async () => {
+  const reading = failingAfter();
+  const item = await draft({ load: reading.load, write: async () => reading.fail() });
+  item.set("gain", 4);
+  assert.equal(await item.apply(), true);
+});
+
+// Break: apply resolves to nothing, or to the op's FAILED sentinel, when the write is refused.
+test("test_apply_resolves_false_when_the_write_fails", async () => {
+  const item = await draft({
+    write: async () => {
+      throw new Error("fixture write refusal");
+    },
+  });
+  item.set("gain", 4);
+  assert.equal(await item.apply(), false);
+});
+
+// Break: apply returns without a verdict when no File reading has landed to apply against.
+test("test_apply_resolves_false_before_the_form_has_been_read", async () => {
+  const load = pending();
+  const item = await draft({ load: () => load.promise });
+  item.set("gain", 4);
+  const result = await item.apply();
+  load.resolve(BASE);
+  await settled();
+  assert.equal(result, false);
 });

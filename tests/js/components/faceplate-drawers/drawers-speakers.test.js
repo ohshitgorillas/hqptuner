@@ -36,40 +36,19 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
+import { SPEAKER_DISTANCES, SPEAKER_LABELS, speakersFormAt } from "../../support/rendered/speakersform.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-const LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
-const DISTANCES = [287, 301, 280, 330, 240, 241, 210, 211];
 //: HQPlayer's stock distance, meaning not set.
 const UNSET_CM = 0;
 //: A level someone entered.
 const SET_DB = -3;
 
-/**
- * The daemon's /speakers form with these distances and every level at HQPlayer's stock 0.
- *
- * @param {number[]} distances
- */
-const formAt = (distances) => ({
-  enabled: true,
-  channels: LABELS.map((label, index) => ({
-    index,
-    label,
-    level: 0,
-    distance: distances[index],
-    level_min: -60,
-    level_max: 0,
-    level_step: 0.1,
-    distance_min: 0,
-    distance_max: 5000,
-  })),
-});
-
-const FORM = formAt(DISTANCES);
-const UNSET_FORM = formAt(LABELS.map(() => UNSET_CM));
+const FORM = speakersFormAt(SPEAKER_DISTANCES);
+const UNSET_FORM = speakersFormAt(SPEAKER_LABELS.map(() => UNSET_CM));
 
 const FIRST = SETS[0];
 const LAST = SETS[SETS.length - 1];
@@ -82,7 +61,7 @@ const MARK = "restart-mark";
 /** @param {MarkupElement} e  whether the element is a restart mark */
 const isMark = (e) => attr(e, "data-testid") === MARK;
 
-/** @param {{ direct?: boolean, form?: ReturnType<typeof formAt> }} [s] */
+/** @param {{ direct?: boolean, form?: ReturnType<typeof speakersFormAt> }} [s] */
 async function reset({ direct = false, form = FORM } = {}) {
   stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form }) : undefined) });
   await loadSpeakers();

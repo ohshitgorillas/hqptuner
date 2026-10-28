@@ -1,5 +1,5 @@
-/* Matrix engine family drawers: Matrix engine, Crossfeed, Loudness, DAC correction (drawer.js family 'matrix'), plus the
-   Speakers drawer. Plots reuse the page plot's glass (.eq, page.css). */
+/* Matrix engine family drawers: Matrix engine, DSP pipelines, Crossfeed, Loudness, DAC correction (drawer.js family
+   'matrix'), plus the Speakers drawer and the shared plot frame. Plots reuse the page plot's glass (.eq, page.css). */
 
 /* Drawers whose body is one stretching block (plot takes the height left): the panel is a column. */
 :is(#drawer-crossfeed,#pb-drawer-crossfeed) .dpanel,:is(#drawer-loudness,#pb-drawer-loudness) .dpanel{display:flex;flex-direction:column}
@@ -35,6 +35,7 @@
 .xsl{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:var(--sp-1) var(--sp-6)}
 .xsl .cl{grid-column:1/-1;font-size:var(--fs-cl);color:var(--ink-2)}
 .xsl input[type=range]{accent-color:var(--acc);height:var(--range-h-sm);margin:0;width:100%;min-width:0}
+.stale input[type=range]{accent-color:var(--ink-2)}   /* a handle shown while its form's readback is pending or its last read failed: neutral */
 .xsl input.vfd{width:var(--xf-num-w);height:var(--ctl-h-sm);font-size:var(--fs-5)}
 .xsl .num .u{width:var(--unit-w)}
 .xsl .num{gap:var(--sp-4)}
@@ -46,7 +47,7 @@
 .dblock[data-block="crossfeed"]>.gr,.dblock[data-block="loudness"]>.gr{margin-top:var(--sp-3)}
 
 /* ── Loudness ────────────────────────────────────────────────────────────
-   Bands: Bass | Treble, one row per parameter inside the 360px control column; both manual lines beside the row.
+   Bands: Bass | Treble, one row per parameter inside the control column; both manual lines beside the row.
    Range: the bounds on their own −120 … 0 dBFS axis; here they are the settings, so amber (the Volume bar draws the
    same parentheses in ink-2, as a reference). Plot right of the range, filling the height left. */
 .lbands{display:grid;grid-template-columns:var(--drow-col-gpu) minmax(0,1fr);gap:0 var(--sp-10);padding:var(--sp-3) 0 0;border-top:var(--hair) solid var(--row-rule)}
@@ -90,7 +91,7 @@
 .lrange > .fh{justify-content:space-between;align-items:center}
 .lrange > .fh .lpb .ro{height:var(--ro-h);font-size:var(--fs-4);width:var(--ro-w)}
 .lrange > .fh .lpb .cl{font-size:var(--fs-cl)}
-/* …and its rhythm tightened a step (rows, option lines) so all four settings and every option fit without scrolling. */
+/* Matrix engine drawer: rhythm a step tighter (rows, option lines) so every setting and option fits without scrolling. */
 :is(#drawer-matrix,#pb-drawer-matrix) .drow{padding:var(--sp-3) 0}
 :is(#drawer-matrix,#pb-drawer-matrix) .drow .man{line-height:1.42}
 :is(#drawer-matrix,#pb-drawer-matrix) .optlist{margin-top:var(--sp-3)}
@@ -102,7 +103,7 @@
 .lrange .vrbox input.vfd{width:var(--slx-num-w)}
 .lrange .vrbox .cl{width:var(--lvtab-l)}
 
-/* Compact (1133×744). Crossfeed: copy in closer (overflow rule), to the column that keeps the compensation hint on one
+/* Compact plate. Crossfeed: copy in closer (overflow rule), to the column that keeps the compensation hint on one
    line; the Structural line's controls stay the taller side, so the gate row, the opening paragraph and the lines'
    controls tighten their rhythm a step. Loudness: its control column is the taller side of every row (bands, range), so
    copy in closer cannot help; the rhythm tightens a step, its segments and band boxes take the mid height and its range
@@ -161,7 +162,7 @@
 .xintro{margin:0 0 var(--sp-2);max-width:none;font-size:var(--fs-3);line-height:1.42;color:var(--ink)}   /* the picked line's copy voice, full width */
 .xctl .ci{align-items:flex-start}
 
-/* Structural cartoon: near paths solid amber, far paths dashed ink-2, ±30° ticks. */
+/* Structural cartoon: near paths solid ink, far paths dashed ink-2, ±30° ticks. */
 .xfgeo{flex:1 1 0;min-height:var(--plot-min-xf);display:grid;grid-template-columns:var(--drow-col) minmax(0,1fr);gap:0 var(--sp-10);padding-top:var(--sp-3)}
 .xfpic{min-height:0;display:flex;justify-content:center}
 .xfdiag{display:block;width:100%;height:100%}
@@ -183,8 +184,9 @@
 .xfdiag .spk .sl{font-family:var(--f-eng);font-weight:var(--fw-bold);font-size:var(--fs-3);letter-spacing:var(--ls-1);fill:var(--ink);line-height:var(--lh-eng)}
 
 /* ── DSP pipelines ───────────────────────────────────────────────────────
-   Tabs: Overview = the pin grid + totals, actions, manual; Out x = the input switch, a fixed page of 8
-   lines + page buttons, the selected pipeline's strip, then dock | plot filling the height left. */
+   Tabs: Overview = the pin grid + totals, actions, manual; Out x = the input switch, a fixed page of lines
+   (model/shell/pipelines.js PAGE) + page buttons, the selected pipeline's strip, then dock | plot filling the height
+   left. */
 :is(#drawer-pipelines,#pb-drawer-pipelines) .dtabs button{padding:0 var(--sp-5)}
 :is(#drawer-pipelines,#pb-drawer-pipelines).pl-short .dtabs button:not([data-tab="overview"]){text-transform:none}   /* channel names keep their case, like the grid */
 :is(#drawer-pipelines,#pb-drawer-pipelines) .dpanel{display:flex;flex-direction:column;padding-bottom:var(--sp-2)}
@@ -209,7 +211,7 @@
 .seg.oinseg button{font-family:var(--f-mono);font-size:var(--fs-3);padding:0 var(--sp-5);text-transform:none;letter-spacing:0;line-height:var(--lh-text)}
 .ohead .gr{flex-shrink:1;min-width:0}
 .olist{display:flex;flex-direction:column;gap:var(--sp-2)}
-.plrows.orows{flex:none}   /* as many lines as the input has, 8 at most: the plot keeps the rest */
+.plrows.orows{flex:none}   /* as many lines as the input has, one page at most: the plot keeps the rest */
 .opg{display:flex;align-items:center;gap:var(--sp-2);flex-wrap:wrap}
 .opg:empty{display:none}
 .opb{min-width:var(--chip-h);height:var(--ctl-h-mini);padding:0 var(--sp-2);border:var(--hair) solid var(--shade);border-radius:var(--r-1);background:var(--glass);color:var(--ink-2);font-family:var(--f-mono);font-size:var(--fs-3);cursor:pointer;line-height:var(--lh-text)}
@@ -323,7 +325,7 @@ input.vfd.pq{height:var(--ctl-h-sm);width:100%;text-align:left;font-size:var(--f
 .pdock input.vfd[type=number]{-moz-appearance:textfield}
 .pdock input.vfd[type=number]::-webkit-inner-spin-button,.pdock input.vfd[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 
-/* Speakers under Direct SDM (mock scenario): level boxes dead, distances live; a note under the rows. */
+/* Speakers under Direct SDM: level boxes dead, distances live; a note under the rows. */
 .spleft.sdm .sprow .num:first-of-type input{color:var(--ink-4);cursor:not-allowed}
 .spsdm{margin:var(--sp-5) 0 0;font-size:var(--fs-3);line-height:1.45;color:var(--ink-2);max-width:var(--measure-note)}
 

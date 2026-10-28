@@ -12,27 +12,28 @@
 // seam (tests/js/support/apodpolls.js). The feed's clock is the one openMeterFeed() is handed, so silence is a clock
 // step, never a wait. Prefs are written through their own setters over a fake storage. The spectrogram's span is set
 // through the store's setter, reached through the module namespace so a store without one leaves the span where it was.
-// The spans are the store's own identifiers, the same three the page spectrum's span uses.
+// The spans are the store's own identifiers, the same three the page spectrum's span uses. The engine plays only while
+// /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
-// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-source.test.js
+// Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-source/drawers-source.test.js
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import * as sourceStore from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
-import { setFreqSpan } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { engineStatus, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
-import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import * as sourceStore from "../../../../../hqptuner/static/store/faceplate/drawers/source.js";
+import { setFreqSpan } from "../../../../../hqptuner/static/store/faceplate/view.js";
+import { engineStatus, health, matrixConfig } from "../../../../../hqptuner/static/store/signals.js";
+import { closeMeterFeed, openMeterFeed } from "../../../../../hqptuner/static/store/meter/feed.js";
 import {
   METER_RANGES,
   setApodWindow,
   setMeterChannel,
   setMeterRange,
-} from "../../../../hqptuner/static/store/ui/prefs.js";
-import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { useStorage } from "../../support/storage.js";
-import { setPollStep } from "../../support/apodpolls.js";
-import { fakeClock } from "../../support/clock.js";
+} from "../../../../../hqptuner/static/store/ui/prefs.js";
+import { lastStream, useEventSource } from "../../../support/eventsource.js";
+import { useStorage } from "../../../support/storage.js";
+import { setPollStep } from "../../../support/apodpolls.js";
+import { fakeClock } from "../../../support/clock.js";
 
 const { sourceMeter, stripEvents } = sourceStore;
 
@@ -54,6 +55,11 @@ const QUARTER = "quarter";
  */
 const setSpan = (span) => sourceStore.setSpectrogramSpan?.(span);
 
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The lifecycle phases in which the connection is not Ready. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
 let feed = fakeClock();
 
 /**
@@ -74,6 +80,7 @@ function stream({ state = "2", metering = true, metadata = { samplerate: "44100"
 const geo = (nyquist, channels) => ({ nyquist, channels, bins: 1025 });
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   matrixConfig.value = null;
   setApodWindow("60");
@@ -118,6 +125,17 @@ test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", ()
   feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");
 });
+
+// While the connection is not Ready the engine counts as not playing, though the last Status still says it plays.
+for (const phase of NOT_READY) {
+  // Break: the drawer reads playing off the Status state alone and ignores the connection phase.
+  test(`test_a_playing_source_shows_the_idle_line_once_the_connection_is_not_ready: ${phase}`, () => {
+    const seen = [sourceMeter().state];
+    health.value = { phase, generation: GEN };
+    seen.push(sourceMeter().state);
+    assert.deepEqual(seen, ["live", "idle"]);
+  });
+}
 
 // --- frequency axis ------------------------------------------------------------------------------------------------
 
@@ -222,7 +240,7 @@ const bin = (ms, n, at) => ({ ms, n, at });
  * @param {number} cols
  * @param {number} end  playback, ms
  */
-const columns = (bins, span, cols, end) => Array.from(stripEvents(bins, span, cols, end));
+const columns = (bins, span, cols, end) => Array.from(stripEvents(bins, span, end, new Uint8Array(cols)));
 
 //: A bin with no stamp, as wide as STAMPED and counting more, inside the window were its missing stamp read as 0 ms.
 const UNSTAMPED = bin(1000, 4, null);
@@ -234,32 +252,32 @@ test("test_a_bin_with_no_stamp_adds_nothing_to_the_strip", () => {
 
 test("test_a_bins_events_land_under_the_playback_it_observed", () => {
   const bins = [bin(1000, 0, 1000), bin(1000, 2, 2000)];
-  assert.deepEqual(Array.from(stripEvents(bins, 2000, 4, 2000)), [0, 0, 1, 1]);
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 2000, new Uint8Array(4))), [0, 0, 1, 1]);
 });
 
 test("test_a_lone_event_in_a_wide_interval_still_marks_the_strip", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(4000, 1, 4000)], 4000, 4, 4000)), [1, 1, 1, 1]);
+  assert.deepEqual(Array.from(stripEvents([bin(4000, 1, 4000)], 4000, 4000, new Uint8Array(4))), [1, 1, 1, 1]);
 });
 
 test("test_a_denser_interval_draws_hotter_than_a_sparser_one", () => {
-  const strip = stripEvents([bin(1000, 2, 1000), bin(1000, 4, 2000)], 2000, 2, 2000);
+  const strip = stripEvents([bin(1000, 2, 1000), bin(1000, 4, 2000)], 2000, 2000, new Uint8Array(2));
   assert.ok(strip[1] > strip[0]);
 });
 
 test("test_an_empty_history_draws_a_blank_strip", () => {
-  assert.deepEqual(Array.from(stripEvents([], 60000, 4, 0)), [0, 0, 0, 0]);
+  assert.deepEqual(Array.from(stripEvents([], 60000, 0, new Uint8Array(4))), [0, 0, 0, 0]);
 });
 
 test("test_a_window_wider_than_the_history_leaves_its_head_blank", () => {
-  assert.deepEqual(Array.from(stripEvents([bin(1000, 3, 1000)], 2000, 2, 1000)), [0, 3]);
+  assert.deepEqual(Array.from(stripEvents([bin(1000, 3, 1000)], 2000, 1000, new Uint8Array(2))), [0, 3]);
 });
 
 test("test_a_strip_ending_past_the_newest_bin_leaves_the_unobserved_stretch_blank", () => {
   const bins = [bin(1000, 3, 1000), bin(1000, 3, 2000)];
-  assert.deepEqual(Array.from(stripEvents(bins, 2000, 4, 2500)), [2, 2, 2, 0]);
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 2500, new Uint8Array(4))), [2, 2, 2, 0]);
 });
 
 test("test_a_bin_straddling_the_left_edge_shows_the_part_still_inside_the_window", () => {
   const bins = [bin(2000, 6, 2000), bin(2000, 0, 4000)];
-  assert.deepEqual(Array.from(stripEvents(bins, 2000, 2, 3000)), [3, 0]);
+  assert.deepEqual(Array.from(stripEvents(bins, 2000, 3000, new Uint8Array(2))), [3, 0]);
 });

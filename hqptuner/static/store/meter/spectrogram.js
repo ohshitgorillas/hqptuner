@@ -2,10 +2,10 @@
 // feed frames it covers, placed in playback by those frames' own stamps: a
 // slice starts at its first frame's `at` and ends where its last frame ends. A
 // frame that begins a break empties the history and starts a fresh slice. A
-// track change clears the
-// apodizing history (store/apodhistory.js), and the slices with it.
+// track change empties the apodizing history (store/apodhistory.js), and an
+// empty apodizing history clears the slices.
 //
-// The range drawn is the slices inside the window whose right edge is the one
+// The range drawn is the slices inside the window whose right edge is the
 // playhead (store/meter/playhead.js), found by sliceRange
 // (model/gauges/slicerange.js); nothing is drawn while it is null. The raster
 // picks the channel and places each slice by its stamp against that edge.
@@ -14,14 +14,16 @@
 //
 // A slice keeps every channel's levels and their power-average sum, so the
 // channel picker redraws the whole history, each as ROWS rows from 0 Hz to the
-// Nyquist it was measured at, one byte a row at ROW_STEP_DB below full scale,
-// which reaches the feed's floor: a change of source rate mid-history leaves
-// the older slices drawn at their own frequencies.
+// slice's own Nyquist, one byte a row at the raster's ROW_STEP_DB
+// (lib/spectroraster.js) below full scale, which ROW_MAX holds at the feed's
+// floor: slices of different source rates in one history are each drawn at
+// their own frequencies.
 import { signal, computed, effect } from "@preact/signals";
 import { windowSpan } from "../../lib/apodscale.js";
 import { clamp } from "../../lib/coerce.js";
+import { ROW_STEP_DB } from "../../lib/spectroraster.js";
 import { dbToPower, powerToDb } from "../../lib/units.js";
-import { pickBins, traceColumns } from "../../model/gauges/meter/meter.js";
+import { bandRows, pickBins } from "../../model/gauges/meter/meter.js";
 import { sliceRange } from "../../model/gauges/slicerange.js";
 import { apodBins } from "../apodhistory.js";
 import { apodWindow } from "../ui/prefs.js";
@@ -33,14 +35,13 @@ const FINE_MS = 25;
 const FINE_SPAN_MS = 300000;
 // Rows a slice keeps from 0 Hz to its Nyquist.
 const ROWS = 480;
-const ROW_STEP_DB = 1.2;
 const ROW_MAX = 250;
 
 /** @typedef {import("../../model/gauges/meter/meter.js").FrameGeometry} Geometry */
 /** @typedef {import("../../model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /**
- * One slice: where it starts and how long it lasts, the Nyquist it was measured at, and its rows per channel and
- * summed across channels.
+ * One slice: where it starts and how long it lasts, the Nyquist its rows reach, and its rows per channel and summed
+ * across channels.
  *
  * @typedef {object} Slice
  * @property {number} at  playback, ms: where its first frame starts
@@ -60,7 +61,8 @@ const ROW_MAX = 250;
  */
 
 /**
- * The closed slices, oldest first, in a plain array mutated in place; `version` says when it changed.
+ * The closed slices, oldest first, in a plain array grown and trimmed in place and replaced on a clear; `version` bumps
+ * on each change.
  *
  * @type {Slice[]}
  */
@@ -72,19 +74,19 @@ let hand = null;
 const version = signal(0);
 
 /**
- * Bins as a slice's rows: the loudest bin under each row, one byte a ROW_STEP_DB step below full scale.
+ * Bins as a slice's rows: each row's band level (bandRows), one byte a ROW_STEP_DB step below full scale.
  *
  * @param {Float32Array} bins  dBFS
  * @returns {Uint8Array}
  */
 function rowsOf(bins) {
-  const cols = traceColumns(bins, ROWS);
-  return Uint8Array.from(cols, (db) => clamp(Math.round(-db / ROW_STEP_DB), 0, ROW_MAX));
+  const levels = bandRows(bins, ROWS);
+  return Uint8Array.from(levels, (db) => clamp(Math.round(-db / ROW_STEP_DB), 0, ROW_MAX));
 }
 
 /**
- * Close the slice in hand onto the history, and drop what the history no longer keeps: the slices that start more
- * than FINE_SPAN_MS of playback before the newest one ends.
+ * Close the slice in hand onto the history, and drop the slices that start more than FINE_SPAN_MS of playback before
+ * the newest one ends.
  *
  * @param {Partial} p
  * @param {Geometry} geo

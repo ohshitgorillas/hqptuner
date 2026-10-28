@@ -4,10 +4,10 @@
 // the options, value and option lines a row's control renders, and the apply mode the head's split button runs. The DOM
 // half is components/faceplate/drawer/; the schema grammar is drawer/grammar.js.
 //
-// Members of one `family` share their staged state: any member's staged edit lights every
-// member's apply group. A family is declared once (`FAMILIES`): the rail stages its members draw and the catalog keys they hold,
-// so the store knows it with no drawer loaded. A drawer with its own form (`own`) stands that form in for the staged
-// set: its staged state dots every tab, its apply group always shows, and Apply and Discard run the form.
+// Members of one `family` share their staged state: any member's staged edit lights every member's apply group.
+// A family is declared once (`FAMILIES`): the rail stages its members draw and the catalog keys they hold, so the store
+// knows it with no drawer loaded. A drawer with its own form (`own`) stands that form in for the staged set: its staged
+// state dots every tab, its apply group always shows, and Apply and Discard run the form.
 //
 // The apply mode is a browser-held preference, one choice for every drawer: `apply` applies the staged set, `save`
 // applies it and saves it into the loaded station.
@@ -224,6 +224,16 @@ function family(drawer) {
  * @param {DrawerSchema} drawer
  */
 export const formRestarts = (drawer) => !!drawer.own;
+
+/**
+ * Whether the values a drawer's own form shows are marked stale: its form's `stale` holds while the form waits on its
+ * readback after a write, or after its last read failed. A drawer without a form, or whose form has no `stale`, is
+ * never stale.
+ *
+ * @param {DrawerSchema} drawer
+ * @returns {boolean}
+ */
+export const formStale = (drawer) => drawer.own?.stale?.() ?? false;
 
 /**
  * What a drawer's head shows with `tabId` open.

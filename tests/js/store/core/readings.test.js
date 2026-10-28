@@ -245,6 +245,15 @@ test("test_playing_follows_the_status_transport", () => {
   assert.deepEqual(seen, [true, false]);
 });
 
+// Break: playing follows the Status transport whatever the connection phase.
+for (const phase of ["Down", "Reachable", "Alarm"]) {
+  test(`test_a_playing_status_is_not_playing_while_the_phase_is_${phase}`, () => {
+    report("2", PCM, "pcm");
+    health.value = { phase, generation: GEN };
+    assert.equal(playback.value.playing, false);
+  });
+}
+
 // Break: chain is inferred from the output rate rather than the server's loaded chain.
 test("test_chain_follows_the_server_even_when_the_output_family_disagrees", () => {
   report("2", DSD, "pcm");

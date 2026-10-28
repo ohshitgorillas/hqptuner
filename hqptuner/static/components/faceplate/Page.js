@@ -1,10 +1,11 @@
 // The faceplate's page: one section per engaged stage, in signal order, as model/shell/page.js decides from the running
 // path, the running matrix engine and the browser's Top of page preference. A section is an engraved header (title,
-// hairline, then anything the section carries on its header line) over a body, two columns unless the section's
-// instrument fills it whole, and a folded section is its header line alone. Source holds the page meter with Display
-// on its header, Matrix profile the profile select, its description and its response plot, and Resampling and Shaping
-// the running chain's pickers with Filter presets on Resampling's header.
+// the section's alert lines, hairline, then anything it carries on its header line) over a body, two columns unless
+// the section's instrument fills it whole, and a folded section is its header line alone. Source holds the page meter
+// with Display on its header, Matrix profile the profile select, its description and its response plot, and
+// Resampling and Shaping the running chain's pickers with Filter presets on Resampling's header.
 
+import { useRef } from "preact/hooks";
 import { classNames, html } from "../../lib/dom.js";
 import { truthy } from "../../lib/coerce.js";
 import { pageSections } from "../../model/shell/page.js";
@@ -23,6 +24,7 @@ import { FilterPresetsButton } from "./page/FilterPresets.js";
 
 /** @typedef {import("../../model/shell/page.js").SectionId} SectionId */
 /** @typedef {import("../../model/shell/page.js").PageSection} PageSection */
+/** @typedef {import("./page/Conversion.js").Queued} Queued */
 
 /** @type {Record<SectionId, string>} */
 const TITLES = {
@@ -62,9 +64,10 @@ export function Section({ id, title, fill = false, fold = false, cls, bodyCls, t
 }
 
 /**
- * What each section draws: its header contents, its body and the classes its body or itself carries.
+ * What each section draws: its header contents, its body and the classes its body or itself carries. `queued` is the
+ * page's one fit-pass flag, shared by every section whose copy the pass measures.
  *
- * @type {Record<SectionId, (s: PageSection) => Record<string, unknown>>}
+ * @type {Record<SectionId, (s: PageSection, queued: Queued) => Record<string, unknown>>}
  */
 const BODIES = {
   source: () => ({
@@ -78,16 +81,17 @@ const BODIES = {
     bodyCls: "stretch",
     children: html`<${MatrixProfileBody} />`,
   }),
-  resampling: () => ({
+  resampling: (_s, queued) => ({
     head: html`<${FilterPresetsButton} />`,
     bodyCls: conversionSections().resampling.open.length > 1 ? "both" : undefined,
-    children: html`<${Conversion} section="resampling" />`,
+    children: html`<${Conversion} section="resampling" queued=${queued} />`,
   }),
-  shaping: () => ({ children: html`<${Conversion} section="shaping" />` }),
+  shaping: (_s, queued) => ({ children: html`<${Conversion} section="shaping" queued=${queued} />` }),
 };
 
 /** The page: its sections from the running state and the Top of page preference. */
 export function Page() {
+  const queued = useRef(false);
   const sections = pageSections({
     path: playbackPath(),
     matrixOn: truthy(runningValue("matrix_enabled")),
@@ -97,7 +101,7 @@ export function Page() {
     <main class="page">
       ${sections.map(
         (s) =>
-          html`<${Section} key=${s.id} id=${s.id} title=${TITLES[s.id]} fill=${s.fill} fold=${s.fold} ...${BODIES[s.id](s)} />`,
+          html`<${Section} key=${s.id} id=${s.id} title=${TITLES[s.id]} fill=${s.fill} fold=${s.fold} ...${BODIES[s.id](s, queued)} />`,
       )}
     </main>
   `;

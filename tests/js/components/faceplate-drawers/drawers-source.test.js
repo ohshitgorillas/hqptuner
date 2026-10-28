@@ -3,7 +3,7 @@
 // Range, Channel and Window switches lit at the prefs and writing them, and the spectrogram's Span switch lit at the
 // span in force and setting it; with none it draws the no-stream line in the
 // meter's place. Which state holds, the axes and the strip's events are the store's
-// (tests/js/store/faceplate/drawers-source.test.js); this suite covers what the block draws from them.
+// (tests/js/store/faceplate/drawers-source/drawers-source.test.js); this suite covers what the block draws from them.
 //
 // Renders through preact-render-to-string. A tap is fired through the vnode seam (tests/js/support/vnodeseam.js),
 // since server rendering fires no events. The stream reaches the store at the wire: meter feed events through the
@@ -11,6 +11,7 @@
 // `data-v`; every string asserted is a wire value or a number derived from one. The Span switch's options carry the
 // store's own identifiers for the span; the span is set and read through the store's signal and setter, reached through
 // the module namespace so a store without them leaves a pick unread.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Not reachable here: the two canvases' pixels, which a mount effect paints and server rendering never runs, and the
 // colors read from the stylesheet's tokens. The painting rules are the model's (model/gauges/meter/meter-plot.js,
@@ -24,7 +25,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/drawers/Source.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import * as sourceStore from "../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import {
@@ -49,6 +50,9 @@ const SCHEMA = { id: "source", title: "Source", aria: "Source", tabs: [{ id: "me
 // The Ranges the switch offers are the owner's: the cases pick by place in the offered set, never by value.
 const [FIRST = "", SECOND = ""] = METER_RANGES;
 const LAST = METER_RANGES.at(-1) ?? "";
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
 
 /**
  * Open a fresh feed over one /api/status object, and send the geometry event when one is given.
@@ -107,6 +111,7 @@ function tap(v) {
 }
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   setApodWindow("60");
   setMeterChannel("sum");

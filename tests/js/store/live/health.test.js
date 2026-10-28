@@ -17,10 +17,10 @@
 // through initHealth, so every "for N ms" below is a reading of that clock and
 // never a duration this suite spends.
 
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
 import {
   initHealth,
   engineAlerts,
@@ -39,6 +39,16 @@ const HOLD_MS = 6000;
 const CADENCE = 1000;
 
 let serial = 0;
+
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The lifecycle phases in which the connection is not Ready. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
+// Every case but the phase ones below runs on a Ready connection, the only phase in which the engine plays.
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+});
 
 // One poll. Always a fresh object — see hazard 2.
 function poll(fields = {}) {
@@ -116,6 +126,21 @@ test("test_the_critical_threshold_is_exclusive", () => {
   reset();
   assert.deepEqual(sevs(hold(HOLD_MS, { process_speed: "1.00" })), ["warn"]);
 });
+
+// --- the connection phase --------------------------------------------------
+// While the connection is not Ready the engine counts as not playing, even though the last Status frame said it was,
+// and engine health alerts fire only while it plays.
+
+for (const phase of NOT_READY) {
+  // Break: the speed alert reads Status state alone and ignores the connection phase.
+  test(`test_a_sustained_slow_speed_warning_clears_once_the_connection_is_not_ready: ${phase}`, () => {
+    reset();
+    const seen = [sevs(hold(HOLD_MS, { process_speed: "1.02" }))];
+    health.value = { phase, generation: GEN };
+    seen.push(sevs(engineAlerts.value));
+    assert.deepEqual(seen, [["warn"], []]);
+  });
+}
 
 // --- output buffer ----------------------------------------------------------
 // A real output-buffer underrun is transient by design — the buffer drains to 0,

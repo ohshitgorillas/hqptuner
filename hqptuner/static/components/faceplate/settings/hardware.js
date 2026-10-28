@@ -1,9 +1,10 @@
 // The Hardware acceleration drawer's schema and its Settings rail readouts. Multicore DSP, E-core allocation and CUDA
-// offload are the catalog's rows (`multicore`, `ecores`, `cuda`, store/schema/hardware.js), and their readouts name and
-// list what each entry does. The settings are engine attributes held by store/faceplate/settings/hardware.js, never in
-// the staged set: the engine's own POST restarts the daemon, so the apply group runs that form (`own`). The block count
-// and the CUDA devices are blocks the caller mounts by name. The all-stations switch sits at the foot of both tabs over
-// one value, a local control under each tab's id (store/schema/local.js).
+// offload are the catalog's rows (`multicore`, `ecores`, `cuda`, store/schema/hardware.js), and their readouts take
+// each entry's label and options. The settings are engine attributes held by store/faceplate/settings/hardware.js,
+// never in the staged set: the engine's own POST restarts the daemon, so the drawer's own form (`own`) stages, applies
+// and discards them, and marks them stale while its readback is pending or its last read failed. The block count and
+// the CUDA devices are blocks the caller mounts by name. The all-stations switch sits at the foot of both tabs over one
+// value, a local control under each tab's id (store/schema/local.js).
 
 import { applyHardware, discardHardware, hardwareDraft, staged } from "../../../store/faceplate/settings/hardware.js";
 import { local } from "../../../store/schema/local.js";
@@ -37,7 +38,12 @@ export const HARDWARE_DRAWER = {
       body: [{ row: { key: "cuda" } }, { block: "cudadevs" }, { field: local.hwallgpu }],
     },
   ],
-  own: { staged: () => staged.value, apply: applyHardware, discard: discardHardware },
+  own: {
+    staged: () => staged.value,
+    apply: applyHardware,
+    discard: discardHardware,
+    stale: () => hardwareDraft().stale,
+  },
 };
 
 /**

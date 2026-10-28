@@ -1,5 +1,5 @@
 // The entry, served at /: the faceplate's root, mounted where the page has a mount point.
-// Header and engine row stay, with the plate's alert lines between them on every view; under them the chain body
+// Header and engine row show on every view, with the plate's alert lines between them; under them the chain body
 // (rail, page, one drawer per rail stage over the page, each drawn from its registered schema, the page's plate-level
 // popovers, and the option list a chain picker opens over the body with its hover tip), the Settings body the gear
 // swaps in, the Snapshot builder's body with the same option list and tip for its list pickers, the Profile builder's
@@ -7,7 +7,7 @@
 // panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
 // first render.
 import { render } from "preact";
-import { html } from "./lib/dom.js";
+import { html, watchGestures } from "./lib/dom.js";
 import { Plate } from "./components/faceplate/Plate.js";
 import { Header } from "./components/faceplate/Header.js";
 import { EngineRow } from "./components/faceplate/EngineRow.js";
@@ -42,7 +42,7 @@ import { createConnPanel } from "./store/connpanel.js";
 
 const panel = createConnPanel();
 
-/** The chain body: rail, hairline, page, and the stage drawers over the page. */
+/** The chain body: rail, hairline, page, the stage drawers over the page, its popovers, and the option list and tip. */
 function ChainBody() {
   const stages = railStages(railNow());
   return html`
@@ -94,7 +94,7 @@ function PlateAlerts() {
   `;
 }
 
-/** The faceplate: header, the plate's alert lines and engine row over the body that shows. */
+/** The faceplate: header, the plate's alert lines and engine row over the body that shows, the bottom bar under it. */
 export function Faceplate() {
   return html`
     <${Plate}>
@@ -125,5 +125,6 @@ if (root) {
   panel.pageHost.value = location.hostname;
   startSync();
   watchFaceplateTheme(document.documentElement);
+  watchGestures(document);
   render(html`<${Faceplate} />`, root);
 }

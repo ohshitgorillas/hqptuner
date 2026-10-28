@@ -9,12 +9,12 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-alerts/engine-row.test.js
 
-import { test } from "node:test";
+import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { EngineRow } from "../../../../hqptuner/static/components/faceplate/EngineRow.js";
 import { elements, attr, classes } from "../../support/markup.js";
@@ -25,6 +25,13 @@ import { fakeClock } from "../../support/clock.js";
 
 const fake = fakeClock();
 initHealth(fake.clock);
+
+/** The daemon generation the suite runs at. */
+const GEN = 1;
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN, credentials_ok: true };
+});
 
 /** How long speed stays below a threshold before its alert fires, in ms on the clock. */
 const HOLD_MS = 6000;

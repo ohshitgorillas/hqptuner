@@ -14,7 +14,6 @@
 import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-import "../../support/domseam.js";
 import {
   health,
   config,

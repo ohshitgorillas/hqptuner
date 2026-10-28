@@ -1,9 +1,10 @@
 // One draft for an engine form: the form as read, the user's edits, and the apply that writes them.
 
-import { computed, effect, signal, untracked } from "@preact/signals";
+import { batch, computed, effect, signal, untracked } from "@preact/signals";
 import { draftDiffers, retainDraftEdits } from "../../model/store/draft.js";
+import { duringEngineWrite } from "../enginewrite.js";
 import { generation } from "../signals.js";
-import { op } from "./ops.js";
+import { FAILED, STALE, latest, op } from "./ops.js";
 
 /** @typedef {import("./ops.js").Area} Area */
 
@@ -14,12 +15,47 @@ import { op } from "./ops.js";
  * @property {(key: string, v: unknown) => void} set
  * @property {(key: string) => void} remove
  * @property {{ readonly value: string[] }} differs
- * @property {() => Promise<void>} apply
+ * @property {() => Promise<boolean>} apply  resolves to whether the write landed, whatever its readback did
  * @property {() => Promise<void>} reload
  * @property {() => void} discard
  * @property {{ readonly value: boolean }} busy
  * @property {{ readonly value: unknown }} error
+ * @property {{ readonly value: boolean }} stale
  */
+
+/**
+ * The form as last read. A read reports only through `stale`: it never touches the draft's error or its alert area,
+ * and a failed one leaves the last reading in place. Only the newest read started speaks: one a later read
+ * superseded leaves `base` and `stale` alone, however it ends. `landed` runs in the same batch as each reading that
+ * lands.
+ *
+ * @param {() => Promise<Record<string, unknown>>} load
+ * @param {Area} area
+ * @param {() => void} landed
+ */
+function formReading(load, area, landed) {
+  const base = signal(/** @type {Record<string, unknown> | null} */ (null));
+  const stale = signal(false);
+  const reads = op(area, { alert: null });
+  const newest = latest();
+  const read = async () => {
+    const reading = await newest(reads.run(load));
+    if (reading === STALE) return;
+    if (reading === FAILED) {
+      stale.value = true;
+      return;
+    }
+    batch(() => {
+      base.value = reading;
+      stale.value = false;
+      landed();
+    });
+  };
+  return { base, stale, read };
+}
+
+/** The failure an engine form's write reports when the daemon does not confirm the apply. */
+export const UNCONFIRMED = "applied, but the daemon did not confirm the new values";
 
 /**
  * A draft for one engine form, loaded and written through the given functions.
@@ -28,29 +64,32 @@ import { op } from "./ops.js";
  * @returns {FormDraft}
  */
 export function formDraft({ load, write, keys, area }) {
-  const base = signal(/** @type {Record<string, unknown> | null} */ (null));
   const values = signal(/** @type {Record<string, unknown>} */ ({}));
+  /** The edits a landed write sent, until the first reading after it lands. @type {Record<string, unknown> | null} */
+  let sent = null;
+  const { base, stale, read } = formReading(load, area, () => {
+    if (sent === null) return;
+    values.value = retainDraftEdits(sent, values.peek());
+    sent = null;
+  });
   const operation = op(area, { engine: true });
   const differs = computed(() => (base.value === null ? [] : draftDiffers(base.value, values.value, keys)));
-  const reload = async () => {
-    base.value = await load();
-  };
   effect(() => {
     generation.value;
-    untracked(() => void operation.run(reload, { engine: false }));
+    untracked(() => void read());
   });
   const apply = async () => {
-    if (base.peek() === null) return;
+    if (base.peek() === null) return false;
     const submitted = structuredClone(values.peek());
-    await operation.run(
-      async () => {
+    const outcome = await operation.run(async () => {
+      await duringEngineWrite(async () => {
         await write(submitted);
-        base.value = null;
-        await reload();
-        values.value = retainDraftEdits(submitted, values.peek());
-      },
-      { engine: true },
-    );
+        stale.value = true;
+        sent = submitted;
+      });
+      await read();
+    });
+    return outcome !== FAILED;
   };
   return {
     base,
@@ -65,13 +104,12 @@ export function formDraft({ load, write, keys, area }) {
     },
     differs,
     apply,
-    reload: async () => {
-      await operation.run(reload, { engine: false });
-    },
+    reload: read,
     discard: () => {
       values.value = {};
     },
     busy: operation.busy,
     error: operation.error,
+    stale,
   };
 }

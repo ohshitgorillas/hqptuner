@@ -10,6 +10,7 @@
 // so each bin a case reads is one its own polls appended. The history and the spectrogram are registered once, as the
 // page registers them. No meter loop runs: the playhead is the signal the loop
 // publishes, written here directly.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/meter/apodstrip.test.js
 
@@ -20,6 +21,7 @@ import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store
 import { initSpectrogram, stripEnd } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { apodBins, initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { append, newTrack, setPollStep } from "../../support/apodpolls.js";
@@ -38,6 +40,9 @@ const { clock } = fakeClock();
 /** A playback position no table here reaches: playback, ms. */
 const ELSEWHERE_MS = 1000;
 
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
+
 initApodHistory();
 initSpectrogram();
 
@@ -50,6 +55,7 @@ function open() {
 }
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   playhead.value = null;
   setPollStep(1);

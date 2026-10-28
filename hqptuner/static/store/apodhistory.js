@@ -1,16 +1,17 @@
-// Per-track apodizing-event history — the data behind the Source drawer's
+// Per-track apodizing-event history, the data behind the Source drawer's
 // density strip. The daemon reports `apod` as a cumulative counter, so the
-// strip's shape comes from per-poll increases: one bin per distinct Status frame
-// while PLAYING, cleared when the track changes. Distinct is the operative word
-// — a frame repeating the last one is a poll that outran the daemon, not an
-// interval, and see accumulate() for what recording it did to the strip.
+// strip's shape comes from per-frame increases: one bin per distinct Status
+// frame while PLAYING, cleared when the track changes. Distinct is the operative
+// word: a frame whose position has not moved observed no playback and is not an
+// interval (see accumulate()).
 //
 // A bin carries the playback it observed, in milliseconds: how far the daemon's
 // position moved since the frame before it (playedMs in lib/apodscale.js). The
-// page's poll cadence is not that width. The daemon's Status is playback-tied,
-// at about 1 to 2 Hz, and the browser delays or holds back the page's timer. A
-// window of W seconds shows the playback of the W seconds before the strip's
-// right edge, and each bin the part of its playback that falls inside them.
+// rate frames reach the page at is not that width: the daemon's Status is
+// playback-tied, and the push stream sends the status body whenever any of it
+// moves. A window of W seconds shows the playback of the W seconds before the
+// strip's right edge, and each bin the part of its playback that falls inside
+// them.
 //
 // The daemon's position is on its own time base, so a bin does not carry it as
 // a time. Each bin is stamped once, when it is recorded, with where its playback
@@ -20,28 +21,29 @@
 // its rate, and carries no stamp. The position tells a new track from an
 // unmoved frame.
 //
-// Visibility is stateful, not a threshold on the current reading: the strip
-// appears on the first event of a track and stays up for as long as playback
-// continues, so a burst in an opening section does not vanish from the strip the
-// moment the burst ends. It comes back down only when playback stops, or when a
-// track ends having produced no events at all.
+// Visibility (`visible`) is stateful, not a threshold on the current reading: it
+// turns on at the first event of a track and holds for as long as playback
+// continues, so a burst in an opening section does not drop it the moment the
+// burst ends. It turns off only when playback stops, or when a track ends having
+// produced no events at all.
 //
 // "Ends" is the track change itself, not a remaining-time reading. The daemon's
 // `remain_min` / `remain_sec` are `length - position`, and `length` is 0 on any
 // stream that does not carry one, so on a Roon source they report negative
 // elapsed time and never reach zero.
 //
-// Nor is the track change always a change of `track_serial` — see isNewTrack()
-// for the two shapes it takes and how each was measured.
+// Nor is the track change always a change of `track_serial`; see isNewTrack()
+// for the two shapes it takes.
 import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { num } from "../lib/coerce.js";
-import { engineStatus, PLAYING } from "./signals.js";
+import { engineStatus } from "./signals.js";
+import { playback } from "./core/readings.js";
 import { feedEdge } from "./meter/feed.js";
 
-// At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
-// go: the strip is a monitor, not a record, and an unbounded array on a track
-// that never ends (a radio stream carries one serial indefinitely) is a leak.
+// Sized for half an hour of bins at two a second. Past this the oldest go: the
+// strip is a monitor, not a record, and an unbounded array on a track that never
+// ends (a radio stream carries one serial indefinitely) is a leak.
 const MAX_BINS = 3600;
 
 /**
@@ -55,7 +57,7 @@ const MAX_BINS = 3600;
  * @property {string | undefined | null} serial
  *   The track this history belongs to, as the daemon reported it.
  * @property {number | null} apodPrev
- *   Last observed cumulative counter, or null before the baseline poll.
+ *   Last observed cumulative counter, or null before the baseline frame.
  * @property {string | undefined} posPrev
  *   The daemon's track position, s, as the previous recorded frame reported
  *   it, verbatim.
@@ -65,9 +67,10 @@ const MAX_BINS = 3600;
 
 const bins = signal(/** @type {Bin[]} */ ([]));
 // A monotonic count of bins ever recorded, which the array's own length stops
-// being once MAX_BINS starts sliding the window. The header indicator restarts
-// its flash on every change of this, so a length that goes flat after an hour of
-// playback would leave the lamp lit at the last value and never fire again.
+// being once MAX_BINS starts sliding the window. The engine row's apodizing
+// lamp restarts its flash on every change of this, so a length that goes flat
+// once the window is full would leave the lamp at its last flash and never fire
+// again.
 const seq = signal(0);
 const track = signal(/** @type {TrackState} */ ({ serial: null, apodPrev: null, posPrev: undefined, sawEvent: false }));
 const visible = signal(false);
@@ -86,8 +89,8 @@ export const apodBinSeq = computed(() => seq.value);
  * @property {string} [position]
  */
 
-// A track that produced nothing retires the strip when it ends. Skipping out of
-// a quiet track counts the same as playing through one: the daemon reports no
+// A track that produced nothing turns visibility off when it ends. Skipping out
+// of a quiet track counts the same as playing through one: the daemon reports no
 // difference between the two on a source without a length, and the strip has
 // nothing to keep showing either way.
 /**
@@ -102,9 +105,8 @@ let dispose = null;
 /**
  * Register the bin-accumulation effect once, and hand back its disposer.
  *
- * Idempotent for the same reason `initHealth` is: the effects would share this
- * module's signals, so a second registration would append two bins per poll and
- * halve the strip's time base.
+ * Idempotent, as `initHealth` is: the module holds one history, fed by one
+ * effect, and every caller gets that effect's disposer.
  *
  * @returns {() => void}
  */
@@ -114,7 +116,7 @@ export function initApodHistory() {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rollTrack(st);
-    if (Number(st.state) !== PLAYING) {
+    if (!playback.value.playing) {
       if (visible.peek()) visible.value = false;
       return;
     }
@@ -127,14 +129,14 @@ export function initApodHistory() {
 // Whether this frame belongs to a different track than the last one.
 //
 // A new `track_serial` is the obvious answer and the only one the daemon states
-// outright, but it is not the only kind of track change. Measured live on a Roon
-// source: skipping tracks by hand starts a new stream and a new serial, while a
-// track ending on its own hands the next one to the SAME serial and simply
-// restarts the readings. Both of the per-track readings run backwards when that
-// happens — `position` returns to the top of the track, and the apodizing
-// counter, which counts this track and not the session, returns to near zero —
-// and neither ever runs backwards inside one track. So a reading that went
-// backwards is a track boundary the serial did not report.
+// outright, but it is not the only kind of track change. On a Roon source,
+// skipping tracks by hand starts a new stream and a new serial, while a track
+// ending on its own hands the next one to the SAME serial and simply restarts
+// the readings. Both of the per-track readings run backwards when that happens
+// (`position` returns to the top of the track, and the apodizing counter, which
+// counts this track and not the session, returns to near zero), and neither
+// ever runs backwards inside one track. So a reading that went backwards is a
+// track boundary the serial did not report.
 //
 // Position is compared as a number here, unlike the repeated-frame test in
 // accumulate(), which compares it as a string: this asks which reading is
@@ -153,9 +155,10 @@ function isNewTrack(st, t) {
   return pos !== null && prev !== null && pos < prev;
 }
 
-// Start a new track's history, settling the outgoing track's visibility first.
-// Everything else about the strip survives the change — a run of playback keeps
-// one continuous strip, per the visibility rule above.
+// Start a new track's history: empty bins and no baseline. Visibility turns off
+// only when the outgoing track produced no events; otherwise it survives the
+// change, so a run of playback keeps the strip up, per the visibility rule
+// above.
 /**
  * @param {StatusFrame} st
  * @returns {void}
@@ -177,18 +180,18 @@ function stampNow() {
   return feedEdge();
 }
 
-// One poll's step. The first poll of a track only takes the baseline: the
+// One frame's step. The first frame of a track only takes the baseline: the
 // counter's absolute value carries the whole session's events, so a bin built
 // against no previous reading would put every event since the daemon started
 // into this track's first interval.
 //
 // A frame whose position has not moved since the last recorded one observed no
-// playback, whatever its counter says. The page's poll clock drifts against the
-// daemon's Status, which is playback-tied at about 1 to 2 Hz, so a poll lands on
-// an unmoved frame every so often. Such a frame records no bin and
-// leaves the baseline where it was, so any events it counted land in the next
-// bin. A position that moved while the counter held is a genuine quiet interval
-// and is recorded as the zero it is.
+// playback, whatever its counter says. The status body moves on more than the
+// position, and a change in playback reruns the effect on the same frame, so
+// unmoved frames arrive. Such a frame records no bin and leaves the baseline
+// where it was, so any events it counted land in the next bin. A position that
+// moved while the counter held is a genuine quiet interval and is recorded as
+// the zero it is.
 /**
  * @param {StatusFrame} st
  * @returns {void}

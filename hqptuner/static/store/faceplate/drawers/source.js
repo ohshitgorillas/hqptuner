@@ -1,14 +1,14 @@
-// The Source drawer's meter, store half: what the block shows over the meter feed (store/meter/feed.js). Whether the meter or a no-stream
-// line shows and which line, the linear frequency axis up to the source Nyquist or the share of it the frequency span
-// picked keeps in view, the channel switch's choices and the
-// channel drawn, the color span, and the time window the apodizing strip and the spectrogram share with its axis.
-// Also the strip's events per pixel column. The DOM half is components/faceplate/drawers/Source.js.
+// The Source drawer's meter, store half: what the block shows over the meter feed (store/meter/feed.js). Whether the
+// meter or a no-stream line shows and which line, the linear frequency axis up to the source Nyquist or the share of it
+// the frequency span picked keeps in view, the channel switch's choices and the channel drawn, the color span, and the
+// time window the apodizing strip and the spectrogram share with its axis. Also the strip's events per pixel column.
+// The DOM half is components/faceplate/drawers/Source.js and the modules under components/faceplate/drawers/source/.
 //
 // The window is one span for both charts, the chosen seconds. Both end on the one playhead, in playback ms
 // (store/meter/spectrogram.js stripEnd), which runs past the newest apodizing bin into playback no Status has observed
 // yet, drawn blank.
 
-import { signal } from "@preact/signals";
+import { computed, signal } from "@preact/signals";
 import { clamp, truthy } from "../../../lib/coerce.js";
 import { windowSpan } from "../../../lib/apodscale.js";
 import { FREQ_SPANS, spanShare } from "../../../model/gauges/meter/meter.js";
@@ -16,7 +16,8 @@ import { freqTicks, timeTicks } from "../../../model/gauges/meter/meter-plot.js"
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
-import { engineStatus, PLAYING } from "../../signals.js";
+import { engineStatus } from "../../signals.js";
+import { playback } from "../../core/readings.js";
 import { apodWindow, meterChannel, meterRange } from "../../ui/prefs.js";
 import { sourceIsDsd } from "../path.js";
 
@@ -79,7 +80,7 @@ export function setSpectrogramSpan(v) {
 function stateOf() {
   const status = engineStatus.value || {};
   if (!metering.value) return "off";
-  if (Number((status.status || {}).state) !== PLAYING) return "idle";
+  if (!playback.value.playing) return "idle";
   if (!meterSilent()) return "live";
   return sourceIsDsd(status.metadata || {}) && !truthy(runningValue("matrix_enabled")) ? "matrix" : "silent";
 }
@@ -92,12 +93,8 @@ function stateOf() {
  */
 const channelChoices = (count) => ["sum", ...Array.from({ length: count }, (_, i) => String(i))];
 
-/**
- * What the Source drawer's meter shows now.
- *
- * @returns {SourceMeterView}
- */
-export function sourceMeter() {
+/** The meter's view without its state: built anew only when a signal it reads changes. */
+const meterAxes = computed(() => {
   const geo = meterGeometry.value;
   const nyquist = geo ? geo.nyquist : CD_NYQUIST;
   const channels = channelChoices(geo ? geo.channels : STEREO);
@@ -106,7 +103,6 @@ export function sourceMeter() {
   const share = spanShare(spectrogramSpan.value);
   const top = nyquist * share;
   return {
-    state: stateOf(),
     nyquist,
     top,
     edgeIsNyquist: share === 1,
@@ -119,7 +115,34 @@ export function sourceMeter() {
     channels,
     window,
   };
+});
+
+/**
+ * The view sourceMeter() handed out last and the axes it was built on. Its state is read on every call, since a feed
+ * going quiet is a clock read and no signal (store/meter/feed.js meterSilent).
+ *
+ * @type {{ axes: object | null, view: SourceMeterView | null }}
+ */
+const held = { axes: null, view: null };
+
+/**
+ * What the Source drawer's meter shows now: the view handed out last while neither its state nor a signal behind it
+ * has changed.
+ *
+ * @returns {SourceMeterView}
+ */
+export function sourceMeter() {
+  const axes = meterAxes.value;
+  const state = stateOf();
+  if (held.view && held.axes === axes && held.view.state === state) return held.view;
+  const view = { state, ...axes };
+  held.axes = axes;
+  held.view = view;
+  return view;
 }
+
+/** stripEvents' events per column, reused across calls and made anew only when the strip's length changes. */
+let stripAcc = new Float64Array(0);
 
 /**
  * Add each bin's events to the pixel columns its playback falls under, spread evenly across that playback.
@@ -144,22 +167,26 @@ function spread(acc, b, left, w) {
 }
 
 /**
- * The apodizing strip's level at each of `cols` pixel columns across a window of `span` playback ms ending on playback
- * `end`: 0 where no event fell or no bin has observed the playback yet, else the events under the column rounded, at
- * least 1 and at most the strip's hottest. A bin with no stamp draws nothing.
+ * The apodizing strip's level at each pixel column of `strip` across a window of `span` playback ms ending on playback
+ * `end`, written into `strip`: 0 where no event fell or no bin has observed the playback yet, else the events under the
+ * column rounded, at least 1 and at most the strip's hottest. A bin with no stamp draws nothing.
  *
  * @param {{ ms: number, n: number, at: number | null }[]} bins  oldest first, `ms` the playback ms each observed, `at`
  *   the playback ms each ends on, null where it has no stamp
  * @param {number} span  playback, ms
- * @param {number} cols
  * @param {number} end  playback, ms: where the right edge stands
- * @returns {Uint8Array}
+ * @param {Uint8Array} strip  one level per pixel column, the caller's, its length the column count
+ * @returns {Uint8Array}  `strip`
  */
-export function stripEvents(bins, span, cols, end) {
-  const acc = new Float64Array(cols);
+export function stripEvents(bins, span, end, strip) {
+  const cols = strip.length;
+  if (stripAcc.length !== cols) stripAcc = new Float64Array(cols);
+  const acc = stripAcc;
+  acc.fill(0);
   if (span > 0) {
     const left = end - span;
     for (const b of bins) if (b.ms > 0 && b.n > 0) spread(acc, b, left, span / cols);
   }
-  return Uint8Array.from(acc, (ev) => (ev > 0 ? clamp(Math.round(ev), 1, MAX_EVENTS) : 0));
+  for (let x = 0; x < cols; x++) strip[x] = acc[x] > 0 ? clamp(Math.round(acc[x]), 1, MAX_EVENTS) : 0;
+  return strip;
 }
