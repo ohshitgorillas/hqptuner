@@ -8,6 +8,7 @@
 // and the caps take the suite's top color. Accent draws in the accent in force at each paint. Gradients and color
 // tables are held for one suite, accent and canvas height, and rebuilt where any of the three differs.
 
+import { pixelRatio } from "../../../lib/dom.js";
 import { fractionsOf } from "../../../model/gauges/meter/meter.js";
 import {
   BANDS,
@@ -319,7 +320,7 @@ function glow(f, g, halo, px) {
 function fade(f) {
   const { ctx } = f;
   const { width: w, height: h } = ctx.canvas;
-  const px = globalThis.devicePixelRatio || 1;
+  const px = pixelRatio(ctx.canvas);
   const pal = f.held.palette;
   const halo = stepHalo((f.state.halo ??= freshHalo()), f.dt);
   const g = haloCanvas(f.held, w, h);
