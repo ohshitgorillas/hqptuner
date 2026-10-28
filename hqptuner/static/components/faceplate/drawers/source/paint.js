@@ -12,6 +12,7 @@
 
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
+import { styleOf } from "../../../../lib/dom.js";
 import { H, W, rasterTarget, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
@@ -229,6 +230,6 @@ export function useMeterPaint(spec, strip) {
     const s = spec.current;
     const a = strip.current;
     if (!s || !a) return undefined;
-    return meterPainter(s, a, getComputedStyle(s));
+    return meterPainter(s, a, styleOf(s));
   }, []);
 }

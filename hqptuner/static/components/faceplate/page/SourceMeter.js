@@ -8,7 +8,7 @@
 // (sourcepaint.js), and the picked spectrum style onto the canvases over the trace (spectrumfx.js, aurora.js).
 
 import { useEffect, useRef } from "preact/hooks";
-import { classNames, html } from "../../../lib/dom.js";
+import { classNames, html, makeCanvas, observeSize, pixelRatio, styleOf } from "../../../lib/dom.js";
 import { traceStops } from "../../../model/gauges/meter/spectrumfx.js";
 import { minusText } from "../../../model/shell/format.js";
 import { METER_NOTES as NOTES } from "../../../store/faceplate/drawers/source.js";
@@ -241,7 +241,7 @@ function Bars({ view, names }) {
  * @returns {FxColors}
  */
 function fxColors(el) {
-  const cs = getComputedStyle(el);
+  const cs = styleOf(el);
   return { glass: cs.getPropertyValue("--glass").trim() };
 }
 
@@ -257,14 +257,16 @@ function fit(canvas, size) {
 }
 
 /**
- * A canvas of `width` by `height` off the page, for a painter's own drawing in 2D.
+ * A canvas maker for `el`'s page, for a painter's own drawing in 2D.
  *
- * @param {number} width
- * @param {number} height
+ * @param {Element} el
+ * @returns {(width: number, height: number) => { width: number, height: number, getContext: () => any }}
  */
-function offPage(width, height) {
-  const canvas = new OffscreenCanvas(width, height);
-  return { width, height, getContext: () => canvas.getContext("2d") };
+function offPageOf(el) {
+  return (width, height) => {
+    const canvas = makeCanvas(el, width, height);
+    return { width, height, getContext: () => canvas.getContext("2d") };
+  };
 }
 
 /**
@@ -319,19 +321,16 @@ function useCanvasPainters({ plot, fx, sgl }, live) {
     const glCanvas = sgl.current;
     if (!box || !canvas || !glCanvas) return undefined;
     painters.current = {
-      fx: fxPainter(canvas, fxColors(canvas), { random: Math.random, makeCanvas: offPage }),
+      fx: fxPainter(canvas, fxColors(canvas), { random: Math.random, makeCanvas: offPageOf(canvas) }),
       aurora: auroraPainter(glCanvas),
     };
-    const ro = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (!rect) return;
-      const size = fitCanvas(rect, devicePixelRatio);
+    const unobserve = observeSize(box, (rect) => {
+      const size = fitCanvas(rect, pixelRatio(box));
       fit(canvas, size);
       fit(glCanvas, size);
     });
-    ro.observe(box);
     return () => {
-      ro.disconnect();
+      unobserve();
       painters.current = null;
     };
   }, [live]);

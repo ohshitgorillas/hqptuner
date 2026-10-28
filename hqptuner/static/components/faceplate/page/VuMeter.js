@@ -6,7 +6,7 @@
 // arc. What renders holds still; each animation frame turns the needles only (needlePainter, one per pair).
 
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { html } from "../../../lib/dom.js";
+import { html, observeSize } from "../../../lib/dom.js";
 import { suiteLineStops } from "../../../model/gauges/meter/spectrumfx.js";
 import { SCALE_MAX_VU as MAX_VU, SCALE_MIN_VU as MIN_VU, scaleShare } from "../../../model/gauges/meter/vu.js";
 import { minusText } from "../../../model/shell/format.js";
@@ -168,12 +168,9 @@ function useFaceHeight(ref) {
   useEffect(() => {
     const box = ref.current;
     if (!box) return undefined;
-    const ro = new ResizeObserver((entries) => {
-      const rect = entries[0]?.contentRect;
-      if (rect && rect.width > 0 && rect.height > 0) setVh(Number(f1((VW * rect.height) / rect.width)));
+    return observeSize(box, (rect) => {
+      if (rect.width > 0 && rect.height > 0) setVh(Number(f1((VW * rect.height) / rect.width)));
     });
-    ro.observe(box);
-    return () => ro.disconnect();
   }, []);
   return vh;
 }
