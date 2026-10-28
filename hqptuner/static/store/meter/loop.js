@@ -1,5 +1,6 @@
 // The meter loop: the browser's one requestAnimationFrame, taken from the Clock
-// initMeterLoop() is handed. It runs while the meter feed is open (store/meter/feed.js) and stops when it closes.
+// initMeterLoop() is handed. It runs while the meter feed is open (store/meter/feed.js) and the engine is playing
+// (enginePlaying, store/signals.js), whether or not a painter is subscribed, and stops when either stops holding.
 //
 // Each paint moves the frames the feed queued since the last paint onto the loop's own queue, handing each to the
 // spectrogram's history as it does, in arrival order and once: no later than any paint shows it, and a frame a restart
@@ -19,13 +20,16 @@
 // subscribed through onMeterPaint that scene and `dt`, the wall time since the last paint in seconds, uncapped. A
 // painter draws what it is handed and decides nothing about time.
 //
-// While the feed is closed the loop holds no frames, the playhead is null, and no painter is called.
-import { effect } from "@preact/signals";
+// When the loop stops it holds no frames, the playhead is null, and every painter still subscribed is handed the scene
+// once, restarted with nothing heard and `dt` 0, so the meters clear; no painter is called while it stays stopped. When
+// it starts again it starts afresh: the first paint's `dt` is 0 and none of the idle time reaches a painter.
+import { computed, effect } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import { foldFrames } from "../../model/gauges/meter/meter.js";
 import { pacePaint } from "../../model/gauges/playhead.js";
 import { effectiveDelay } from "./delay.js";
 import { meterFeedOpen, takeMeterFrames, toSpectrogram } from "./feed.js";
+import { enginePlaying } from "../signals.js";
 import { playhead } from "./playhead.js";
 
 const MS_PER_S = 1000;
@@ -190,9 +194,10 @@ function paint(mine, now) {
 }
 
 /**
- * Hand `fn` the scene and `dt` at every paint while the meter feed is open, from the first paint that begins after
- * this call, until the returned unsubscribe is called. A painter may subscribe or unsubscribe any painter during its
- * own call: one unsubscribed before its turn in a paint is not called in it.
+ * Hand `fn` the scene and `dt` at every paint while the meter feed is open and the engine plays, from the first paint
+ * that begins after this call, until the returned unsubscribe is called. When the loop stops, `fn` gets one clearing
+ * call. A painter may subscribe or unsubscribe any painter during its own call: one unsubscribed before its turn in a
+ * paint is not called in it.
  *
  * @param {MeterPainter} fn
  * @returns {() => void}  unsubscribe
@@ -211,12 +216,16 @@ function request(mine) {
   clock.requestAnimationFrame((now) => paint(mine, now));
 }
 
+/** Whether the meter feed is open and the engine plays: the one condition the loop runs on. */
+const running = computed(() => meterFeedOpen.value && enginePlaying.value);
+
 /** @type {(() => void) | null} */
 let dispose = null;
 
 /**
- * Register once the effect that runs the loop while the meter feed is open and stops it when it closes, and hand back
- * its disposer. Each opening starts the loop afresh, holding nothing from the feed before.
+ * Register once the effect that runs the loop while the meter feed is open and the engine plays and stops it when
+ * either ends, and hand back its disposer. Stopping hands each painter one clearing call. Each start is afresh, holding
+ * nothing from before.
  *
  * @param {Clock} [next] the clock whose animation frames the loop paints on
  * @returns {() => void}
@@ -224,11 +233,17 @@ let dispose = null;
 export function initMeterLoop(next = PLATFORM) {
   if (dispose) return dispose;
   clock = next;
+  let was = false;
   const registered = effect(() => {
-    const open = meterFeedOpen.value;
+    const on = running.value;
     run += 1;
     reset();
-    if (open) request(run);
+    if (on) request(run);
+    else if (was) {
+      scene.restart = true;
+      hand(0);
+    }
+    was = on;
   });
   dispose = registered;
   return registered;

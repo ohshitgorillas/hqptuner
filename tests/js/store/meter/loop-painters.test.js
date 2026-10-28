@@ -10,6 +10,13 @@
 // says it restarted. While the feed is closed no painter is called, and a painter that subscribes or unsubscribes
 // during a paint costs no painter that paint.
 //
+// The loop paints only while the feed is open and the engine plays (docs/superpowers/specs/meter-loop-idle-design.md,
+// Modules). When either stops holding, every painter still subscribed is handed the scene once, restarted, with
+// nothing heard and `dt` 0, so the meters clear, and is called no more until both hold again; then the loop starts
+// afresh, its first paint handed `dt` 0 and none of the idle time. The loop starts or stops only when that two-way
+// condition changes: a status poll that leaves the engine stopped calls no painter, one that leaves it playing restarts
+// no scene, and neither does a signal a painter reads changing while the engine plays.
+//
 // The stores pace on one fake clock (tests/js/support/clock.js) whose animation frames run after the waits in
 // FRAME_GAPS_MS in turn, from a 60 Hz frame to a hidden tab's second, so paints are unevenly spaced. The feed is the
 // EventSource fake (tests/js/support/eventsource.js); `follow` (tests/js/support/meterfeed.js) sends its frames at the
@@ -23,6 +30,7 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { signal } from "@preact/signals-core";
 
 import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
@@ -33,7 +41,7 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
-import { newTrack, poll } from "../../support/apodpolls.js";
+import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
 import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
 
@@ -94,13 +102,15 @@ const same = (/** @type {number} */ ms) => Math.round(ms * 1e6) / 1e6;
 const settle = () => fake.advance(SETTLE_MS);
 
 /**
- * Send LENGTHS `times` over on the stream open now, every frame carrying `reading`.
+ * Send LENGTHS `times` over on the stream open now, every frame carrying `reading` on each of `channels` channels.
  *
  * @param {typeof LOUD} reading
  * @param {number} times
+ * @param {number} [channels]
  */
-function run(reading, times) {
-  for (let i = 0; i < times; i++) for (const n of LENGTHS) follow([reading], n);
+function run(reading, times, channels = 1) {
+  const all = Array.from({ length: channels }, () => reading);
+  for (let i = 0; i < times; i++) for (const n of LENGTHS) follow(all, n);
 }
 
 /** Send one frame carrying QUIET an hour of samples on, a break from every run sent before it. */
@@ -117,6 +127,8 @@ function jump() {
  * @property {number} peak  dBFS: the scene's first channel; NaN when it has none
  * @property {number} rms  dBFS: the scene's first channel; NaN when it has none
  * @property {boolean} restart
+ * @property {Array<{ peak: number, rms: number, bins: number[] }>} channels  every channel of the scene: dBFS, bins
+ *   copied when the painter was called
  */
 
 /** The unsubscribers of every painter a case subscribed. @type {Array<() => void>} */
@@ -132,7 +144,15 @@ function subscribe() {
   const into = [];
   const unsubscribe = onMeterPaint((/** @type {MeterScene} */ scene, /** @type {number} */ dt) => {
     const ch = scene.channels[0];
-    into.push({ now: clock.now(), dt, peak: ch ? ch.peak : NaN, rms: ch ? ch.rms : NaN, restart: scene.restart });
+    const channels = scene.channels.map((c) => ({ peak: c.peak, rms: c.rms, bins: Array.from(c.bins) }));
+    into.push({
+      now: clock.now(),
+      dt,
+      peak: ch ? ch.peak : NaN,
+      rms: ch ? ch.rms : NaN,
+      restart: scene.restart,
+      channels,
+    });
   });
   subscribed.push(unsubscribe);
   return into;
@@ -298,4 +318,151 @@ test("test_a_painter_subscribed_during_a_paint_is_called_at_every_paint_after_it
   settle();
   const later = framesRun.slice(framesRun.indexOf(at) + 1);
   assert.deepEqual(joined.slice(-later.length), later);
+});
+
+/** Channels the cases that clear the scene run at, so the claim reaches past the first. */
+const STEREO = 2;
+
+/** Bins in each channel of the geometry those cases run at. */
+const BINS = 4;
+
+/** One channel of a scene with nothing heard: every level, and every one of its bins, at -Infinity dBFS. */
+const SILENT = { peak: -Infinity, rms: -Infinity, bins: Array.from({ length: BINS }, () => -Infinity) };
+
+/** The scene a painter is handed when the loop stops: restarted, nothing heard on any channel, no time passed. */
+const CLEARED = {
+  dt: 0,
+  peak: -Infinity,
+  rms: -Infinity,
+  restart: true,
+  channels: Array.from({ length: STEREO }, () => SILENT),
+};
+
+/**
+ * What a painter was handed, without when.
+ *
+ * @param {Painted[]} paints
+ */
+const handed = (paints) => paints.map(({ dt, peak, rms, restart, channels }) => ({ dt, peak, rms, restart, channels }));
+
+/**
+ * Two painters subscribed and a loud stereo run painted, then `stop` and a long wait: what each painter was handed
+ * from `stop` on.
+ *
+ * @param {() => void} stop
+ */
+function afterStopping(stop) {
+  const first = subscribe();
+  const second = subscribe();
+  lastStream()?.emit("geometry", geometry(RATE_44K, STEREO, BINS));
+  run(LOUD, 3, STEREO);
+  settle();
+  const marks = [first.length, second.length];
+  stop();
+  fake.advance(CLOSED_MS);
+  return [handed(first.slice(marks[0])), handed(second.slice(marks[1]))];
+}
+
+test("test_when_the_engine_stops_playing_each_painter_is_handed_one_cleared_scene_and_no_paint_after_it", () => {
+  assert.deepEqual(
+    afterStopping(() => poll({ state: STOPPED })),
+    [[CLEARED], [CLEARED]],
+  );
+});
+
+test("test_when_the_feed_closes_each_painter_is_handed_one_cleared_scene_and_no_paint_after_it", () => {
+  assert.deepEqual(
+    afterStopping(() => {
+      engineStatus.value = { ...engineStatus.value, metering: false };
+    }),
+    [[CLEARED], [CLEARED]],
+  );
+});
+
+/**
+ * A painter subscribed through a quiet run, the engine stopped for a long wait, then playing again with a loud run:
+ * the paints from the moment it plays again on.
+ *
+ * @returns {Painted[]}
+ */
+function afterPlayingAgain() {
+  const paints = subscribe();
+  run(QUIET, 1);
+  settle();
+  poll({ state: STOPPED });
+  fake.advance(CLOSED_MS);
+  const resumed = clock.now();
+  poll();
+  run(LOUD, 1);
+  settle();
+  return paints.filter((p) => p.now >= resumed);
+}
+
+test("test_the_first_paint_after_the_engine_plays_again_is_handed_dt_0", () => {
+  assert.equal(afterPlayingAgain()[0]?.dt, 0);
+});
+
+test("test_the_paints_after_the_engine_plays_again_are_handed_none_of_the_time_it_was_stopped", () => {
+  const after = afterPlayingAgain();
+  const total = after.reduce((sum, p) => sum + p.dt, 0) * SECOND_MS;
+  assert.equal(same(total), same((after.at(-1)?.now ?? NaN) - (after[0]?.now ?? NaN)));
+});
+
+test("test_a_status_poll_that_leaves_the_engine_stopped_calls_no_painter", () => {
+  const paints = subscribe();
+  run(QUIET, 1);
+  settle();
+  poll({ state: STOPPED });
+  fake.advance(CLOSED_MS);
+  const mark = paints.length;
+  for (let i = 0; i < 3; i++) {
+    poll({ state: STOPPED });
+    fake.advance(CLOSED_MS);
+  }
+  assert.deepEqual(handed(paints.slice(mark)), []);
+});
+
+test("test_a_status_poll_that_leaves_the_engine_playing_restarts_no_scene", () => {
+  const paints = subscribe();
+  run(QUIET, 1);
+  settle();
+  const mark = paints.length;
+  for (let i = 0; i < 3; i++) {
+    poll();
+    run(QUIET, 1);
+    settle();
+  }
+  assert.deepEqual(
+    paints.slice(mark).filter((p) => p.restart || p.dt === 0),
+    [],
+  );
+});
+
+test("test_a_signal_a_painter_reads_changing_while_the_engine_plays_again_restarts_no_scene", () => {
+  const shade = signal(0);
+  /** @type {Array<{ dt: number, restart: boolean }>} */
+  const calls = [];
+  subscribed.push(
+    onMeterPaint((/** @type {MeterScene} */ scene, /** @type {number} */ dt) => {
+      void shade.value;
+      calls.push({ dt, restart: scene.restart });
+    }),
+  );
+  run(QUIET, 1);
+  settle();
+  poll({ state: STOPPED });
+  fake.advance(CLOSED_MS);
+  poll();
+  run(QUIET, 1);
+  settle();
+  const mark = calls.length;
+  for (let i = 1; i <= 3; i++) {
+    shade.value = i;
+    run(QUIET, 1);
+    settle();
+  }
+  assert.deepEqual(
+    calls.slice(mark).filter((c) => c.restart || c.dt === 0),
+    [],
+  );
 });

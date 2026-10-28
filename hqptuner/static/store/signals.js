@@ -18,7 +18,7 @@
 import { signal, computed } from "@preact/signals";
 
 export const PAUSED = 1;
-export const PLAYING = 2; // Status state: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
+const PLAYING = 2; // Status state: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
 
 // --- source signals ---
 export const health = signal(null);
@@ -44,3 +44,17 @@ export const phase = computed(() => health.value?.phase ?? null);
 export const generation = computed(() => health.value?.generation ?? 0);
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
 export const advisor = computed(() => (engineStatus.value || {}).advisor !== false);
+
+/**
+ * Whether a status frame (the `status` block of /api/status) says the engine is playing: its `state` is PLAYING.
+ * A missing frame is not playing.
+ *
+ * @param {{ state?: number | string } | null | undefined} st
+ * @returns {boolean}
+ */
+export function isPlaying(st) {
+  return !!st && Number(st.state) === PLAYING;
+}
+
+/** Whether the engine is playing, as /api/status last reported it: isPlaying of engineStatus's `status` block. */
+export const enginePlaying = computed(() => isPlaying((engineStatus.value || {}).status));
