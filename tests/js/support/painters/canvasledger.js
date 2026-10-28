@@ -6,8 +6,8 @@
 // tests/js/support/raster.js context; a "webgl2" ask by a WebGL2 context that draws nothing, whose shaders compile and
 // whose programs link, every create call handing back a fresh object; any other kind by null. A painter takes its
 // context from its canvas, so two runs that paint alike ask alike unless one of them set up more painters. The page
-// also reads `getComputedStyle` and `devicePixelRatio` off the window, which node lacks; the ledger puts them there,
-// as a 1x screen with no stylesheet loaded has them, until it is uninstalled.
+// also reads `getComputedStyle` and `devicePixelRatio` off the document's window, its `defaultView`; the ledger puts
+// them there, as a 1x screen with no stylesheet loaded has them, until it is uninstalled.
 
 import { rasterCanvas } from "../raster.js";
 
@@ -75,28 +75,30 @@ const unstyled = () =>
     { get: (_t, key) => (key === "getPropertyValue" ? () => "" : typeof key === "string" ? "" : undefined) },
   );
 
-//: The window globals a page sizing and coloring its canvases reads, as a 1x screen with no stylesheet has them.
+//: What a page sizing and coloring its canvases reads off its window, as a 1x screen with no stylesheet has it.
 const WINDOW = /** @type {[string, unknown][]} */ ([
   ["getComputedStyle", unstyled],
   ["devicePixelRatio", 1],
 ]);
 
 /**
- * Makes every canvas the installed document creates answer `getContext`, and counts the asks; puts the WINDOW globals
- * on the global until `uninstall()` puts back what they replaced.
+ * Makes every canvas the installed document creates answer `getContext`, and counts the asks; puts WINDOW on the
+ * document's `defaultView` until `uninstall()` puts back what it replaced.
  *
  * @returns {{ asked: (kind: string) => number, uninstall: () => void }}
  */
 export function canvasLedger() {
+  const doc = /** @type {any} */ (globalThis.document);
+  /** @type {Record<string, unknown>} */
+  const win = doc.defaultView;
   /** @type {Map<string, PropertyDescriptor | undefined>} */
   const prior = new Map();
   for (const [name, value] of WINDOW) {
-    prior.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
-    Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+    prior.set(name, Object.getOwnPropertyDescriptor(win, name));
+    Object.defineProperty(win, name, { configurable: true, writable: true, value });
   }
   /** @type {Map<string, number>} */
   const asks = new Map();
-  const doc = /** @type {any} */ (globalThis.document);
   const create = doc.createElement;
   const createNS = doc.createElementNS;
   doc.createElement = (/** @type {string} */ name) => withContexts(create(name), name);
@@ -121,8 +123,8 @@ export function canvasLedger() {
     asked: (kind) => asks.get(kind) ?? 0,
     uninstall: () => {
       for (const [name, descriptor] of prior) {
-        if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-        else Reflect.deleteProperty(globalThis, name);
+        if (descriptor) Object.defineProperty(win, name, descriptor);
+        else Reflect.deleteProperty(win, name);
       }
     },
   };

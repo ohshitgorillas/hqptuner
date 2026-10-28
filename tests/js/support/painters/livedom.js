@@ -8,10 +8,11 @@
 // attributes, `dataset`, `classList`, `children`, `parentElement`), and what a component may read to measure its space:
 // `getBoundingClientRect`, `getBBox`, `clientWidth`/`clientHeight`, `offsetWidth`/`offsetHeight`, all from
 // `boxOf(el)`, the test's table of laid-out sizes in CSS pixels. Every element answers its box from the start, as a
-// laid-out page does. A `ResizeObserver` reports each observed element's box once after it is observed, as the
+// laid-out page does. The document's `defaultView` is its window, which the page reaches through an element's
+// `ownerDocument`; its `ResizeObserver` reports each observed element's box once after it is observed, as the
 // browser's first observation does.
 //
-// `install()` puts the document and `ResizeObserver` on the global and takes over preact's two schedules, re-render
+// `install()` puts the document on the global and takes over preact's two schedules, re-render
 // and after-paint, so nothing runs on a timer: everything the mount scheduled runs at `settle()`, re-renders and
 // effects and resize reports in turn until none is left. `uninstall()` puts back what `install()` replaced.
 //
@@ -61,6 +62,7 @@ import { elementTree } from "./elementtree.js";
  * @property {Map<any, LiveNode>} byElement
  * @property {LiveNode} root
  * @property {Record<string, unknown>} document
+ * @property {Record<string, unknown>} window  the document's `defaultView`
  * @property {{ renders: (() => void)[], afterPaint: (() => void)[], resizes: (() => void)[] }} queues
  */
 
@@ -491,6 +493,7 @@ function documentOf(ctx) {
       t.data = String(text);
       return t.el;
     },
+    defaultView: ctx.window,
     body: ctx.root.el,
     documentElement: ctx.root.el,
     getElementById: () => null,
@@ -543,10 +546,7 @@ function installer(ctx) {
   const hooks = /** @type {any} */ (options);
   /** @type {Record<string, unknown>} */
   const priorHooks = {};
-  const globals = /** @type {[string, unknown][]} */ ([
-    ["document", ctx.document],
-    ["ResizeObserver", resizeObserverOf(ctx)],
-  ]);
+  const globals = /** @type {[string, unknown][]} */ ([["document", ctx.document]]);
   return {
     install() {
       for (const [name, value] of globals) {
@@ -596,6 +596,7 @@ export function liveDom(boxOf) {
   const ctx = /** @type {Ctx} */ ({ boxOf, dark: false, written: new Set(), byElement: new Map(), document: {} });
   ctx.queues = { renders: [], afterPaint: [], resizes: [] };
   ctx.root = node(ctx, 1, "div", HTML_NS);
+  ctx.window = { ResizeObserver: resizeObserverOf(ctx) };
   ctx.document = documentOf(ctx);
   return {
     root: ctx.root.el,

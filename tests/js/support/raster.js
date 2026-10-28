@@ -4,7 +4,10 @@
 // `globalCompositeOperation`. Pixels are sampled at their centers with no antialiasing; a stroke covers every pixel whose
 // center lies within half its line width, at least one pixel wide, of the path. Images are read and written through
 // their alpha channel. A context method this canvas does not draw throws, naming itself, so a painter calling one is
-// seen rather than read as drawing nothing. No test() and no assert lives here.
+// seen rather than read as drawing nothing. The canvas belongs to a document whose window holds a `devicePixelRatio`
+// of 1, as a fake page's does when not given one, so code reaching the page through the canvas's `ownerDocument` and
+// that document's `defaultView` finds it there and nothing is installed on `globalThis`. No test() and no assert lives
+// here.
 
 /** @typedef {{ width: number, height: number, data: Uint8ClampedArray }} Picture */
 /** @typedef {[number, number, number, number, number, number]} Matrix */
@@ -14,6 +17,8 @@
 const CURVE_SEGMENTS = 24;
 //: The most a channel holds.
 const FULL = 255;
+//: The pixel ratio a raster canvas's window holds.
+const DPR = 1;
 
 /**
  * An image of `w` by `h` pixels, every pixel clear.
@@ -573,7 +578,8 @@ export function rasterCanvas(width, height) {
     saved: [],
     path: [],
   };
-  const canvas = { width, height, ink: r.ink, getContext: () => ctx };
+  const ownerDocument = { defaultView: { devicePixelRatio: DPR } };
+  const canvas = { width, height, ink: r.ink, ownerDocument, getContext: () => ctx };
   /** @type {Methods} */
   const methods = { ...stateMethods(r), ...pathMethods(r), ...drawMethods(r) };
   const ctx = new Proxy(

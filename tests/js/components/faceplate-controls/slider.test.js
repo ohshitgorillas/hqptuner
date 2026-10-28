@@ -289,21 +289,47 @@ test("test_an_edit_of_the_track_with_no_pointer_held_and_no_key_pressed_snaps_ba
   assert.equal(m.track.value, HELD);
 });
 
-// The thumb moves under a held pointer, and each move and the release are reported.
-// Breaks when the slider refuses an edit whatever its own document saw, or reads gestures from no document at all.
-const HELD_REPORTS = [
-  { name: "an_edit_of_the_track_under_a_pointer_held_on_it_reports_the_move", of: "moves" },
-  { name: "an_edit_of_the_track_under_a_pointer_held_on_it_reports_the_release", of: "commits" },
-];
-
-for (const row of HELD_REPORTS) {
-  test(`test_${row.name}`, () => {
-    const m = mount();
-    pressOn(m.doc, m.track);
-    nudge(m, "35");
-    assert.deepEqual(m[row.of === "moves" ? "moves" : "commits"], [35]);
-  });
+/**
+ * A drag of the track under the held pointer: its text moved through each of `through`, with input for each and no
+ * change, as a browser fires them before the pointer is released.
+ *
+ * @param {ReturnType<typeof mount>} m
+ * @param {string[]} through
+ */
+function drag(m, through) {
+  for (const to of through) {
+    m.track.value = to;
+    fire(m.trackNode, "onInput", event("input", m.track));
+  }
 }
+
+/**
+ * The pointer released at the end of a drag: change, at the text the drag left.
+ *
+ * @param {ReturnType<typeof mount>} m
+ */
+function release(m) {
+  fire(m.trackNode, "onChange", event("change", m.track));
+}
+
+// The thumb moves under a held pointer, and each move and the release are reported (the faceplate spec, Slider:
+// the compensation strength previews while dragging and commits on release).
+// Breaks when the slider refuses an edit whatever its own document saw, or reads gestures from no document at all;
+// when it reports a move only on release; when it commits on a move rather than on release.
+test("test_each_move_of_a_drag_under_a_pointer_held_on_the_track_is_reported_before_the_release", () => {
+  const m = mount();
+  pressOn(m.doc, m.track);
+  drag(m, ["30", "35"]);
+  assert.deepEqual(m.moves, [30, 35]);
+});
+
+test("test_a_drag_under_a_pointer_held_on_the_track_commits_once_on_release_at_where_it_ended", () => {
+  const m = mount();
+  pressOn(m.doc, m.track);
+  drag(m, ["30", "35"]);
+  release(m);
+  assert.deepEqual(m.commits, [35]);
+});
 
 /**
  * One wheel over the focused track, whose default action nudges it a step.
