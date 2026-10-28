@@ -3,7 +3,7 @@
 // names are the drawer stylesheet's (css/drawer.css, matrix.css).
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { classNames, html, wheelGuard, TypedInput } from "../../../../lib/dom.js";
+import { classNames, html, observeSize, wheelGuard, TypedInput } from "../../../../lib/dom.js";
 
 /** @typedef {{ value: string | number | undefined, label: string }} SegOption */
 /** @typedef {{ W: number, H: number }} Box */
@@ -88,9 +88,7 @@ export function useBox(fallback) {
       if (W) setBox((/** @type {Box} */ b) => (b.W === W && b.H === H ? b : { W, H }));
     };
     measure();
-    const ro = new globalThis.ResizeObserver(measure);
-    ro.observe(el);
-    return () => ro.disconnect();
+    return observeSize(el, measure);
   }, []);
   return [ref, box];
 }

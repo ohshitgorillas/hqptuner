@@ -2,8 +2,8 @@
 // gives, never scaled. It owns the listeners every part of the frame shares: the window's size, Escape, and the click
 // that closes a popover from outside.
 
-import { useEffect } from "preact/hooks";
-import { html } from "../../lib/dom.js";
+import { useEffect, useRef } from "preact/hooks";
+import { html, observeSize, pageOf } from "../../lib/dom.js";
 import { closeTop, closeOutside } from "../../store/faceplate/view.js";
 import { plate, viewport } from "../../store/faceplate/plate.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
@@ -13,11 +13,13 @@ import { engineRestarting } from "../../store/enginewrite.js";
  * Read the window's size into the store, where it differs from the size the store holds. The size is the stage's own
  * box, the space the page lays out in, since a standalone launch on iPad can report a shorter `innerHeight` to scripts.
  * The stage spans the window, never the plate, so a page scrolled to a plate larger than the window reads the window.
+ *
+ * @param {HTMLElement} stage
  */
-function measure() {
-  const stage = document.getElementById("stage");
-  const w = stage?.clientWidth || window.innerWidth;
-  const h = stage?.clientHeight || window.innerHeight;
+function measure(stage) {
+  const { win } = pageOf(stage);
+  const w = stage.clientWidth || win.innerWidth;
+  const h = stage.clientHeight || win.innerHeight;
   if (w !== viewport.value.w || h !== viewport.value.h) viewport.value = { w, h };
 }
 
@@ -37,23 +39,27 @@ function onClick(e) {
  */
 const REMEASURE = ["resize", "orientationchange", "pageshow"];
 
-/** Follow the window and the document for as long as the plate is mounted. */
-function listen() {
-  measure();
-  const vv = window.visualViewport;
-  REMEASURE.forEach((type) => window.addEventListener(type, measure));
-  vv?.addEventListener("resize", measure);
-  const stage = document.getElementById("stage");
-  const ro = stage && typeof ResizeObserver === "function" ? new ResizeObserver(measure) : undefined;
-  if (stage) ro?.observe(stage);
-  document.addEventListener("keydown", onKey);
-  document.addEventListener("click", onClick);
+/**
+ * Follow the stage's window and document for as long as the plate is mounted.
+ *
+ * @param {HTMLElement} stage
+ */
+function listen(stage) {
+  const { doc, win } = pageOf(stage);
+  const again = () => measure(stage);
+  again();
+  const vv = win.visualViewport;
+  REMEASURE.forEach((type) => win.addEventListener(type, again));
+  vv?.addEventListener("resize", again);
+  const unobserve = observeSize(stage, again);
+  doc.addEventListener("keydown", onKey);
+  doc.addEventListener("click", onClick);
   return () => {
-    ro?.disconnect();
-    REMEASURE.forEach((type) => window.removeEventListener(type, measure));
-    vv?.removeEventListener("resize", measure);
-    document.removeEventListener("keydown", onKey);
-    document.removeEventListener("click", onClick);
+    unobserve();
+    REMEASURE.forEach((type) => win.removeEventListener(type, again));
+    vv?.removeEventListener("resize", again);
+    doc.removeEventListener("keydown", onKey);
+    doc.removeEventListener("click", onClick);
   };
 }
 
@@ -63,13 +69,14 @@ function listen() {
  * @param {{ children?: unknown }} props
  */
 export function Plate({ children }) {
-  useEffect(listen, []);
+  const stage = useRef(/** @type {HTMLElement | null} */ (null));
+  useEffect(() => (stage.current ? listen(stage.current) : undefined), []);
   const p = plate.value;
   const b = plateBottom();
   const style = `--plate-w:${p.w}px;--plate-h:${p.h}px`;
   const restarting = engineRestarting.value ? "" : undefined;
   return html`
-    <div id="stage">
+    <div id="stage" ref=${stage}>
       <div
         class="plate"
         data-size=${p.id}

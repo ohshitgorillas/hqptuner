@@ -4,7 +4,7 @@
 // it suits a flat background.
 
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { html } from "../../lib/dom.js";
+import { html, observeSize } from "../../lib/dom.js";
 import { knockout } from "../../model/gauges/knockout.js";
 
 /** @typedef {import("../../model/gauges/knockout.js").TextBox} TextBox */
@@ -21,16 +21,14 @@ function useTextBox() {
   const [box, setBox] = useState(/** @type {TextBox | null} */ (null));
   useLayoutEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver !== "function") return undefined;
-    const ro = new ResizeObserver(() => {
+    if (!el) return undefined;
+    return observeSize(el, () => {
       const { x, y, width, height } = el.getBBox();
       /** @param {TextBox | null} b */
       const next = (b) =>
         b && b.x === x && b.y === y && b.width === width && b.height === height ? b : { x, y, width, height };
       if (width > 0) setBox(next);
     });
-    ro.observe(el);
-    return () => ro.disconnect();
   }, []);
   return [ref, box];
 }

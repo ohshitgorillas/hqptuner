@@ -3,7 +3,7 @@
 // A caller that parks its panel against the trigger passes `park`, which runs each time the panel opens.
 
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { html } from "../../lib/dom.js";
+import { html, observeSize } from "../../lib/dom.js";
 import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
 import { body, openPopover, togglePopover } from "../../store/faceplate/view.js";
 
@@ -75,10 +75,8 @@ export function useBodyResize(ref, fn) {
   const shown = body.value;
   useLayoutEffect(() => {
     const b = ref.current?.closest(".plate")?.querySelector(".body");
-    if (!b || typeof ResizeObserver !== "function") return undefined;
-    const ro = new ResizeObserver(() => latest.current());
-    ro.observe(b);
-    return () => ro.disconnect();
+    if (!b) return undefined;
+    return observeSize(b, () => latest.current());
   }, [shown]);
 }
 
