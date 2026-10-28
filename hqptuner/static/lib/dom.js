@@ -1,7 +1,7 @@
 // Shared htm+preact binding. One `html` tagged template for every component.
 // htm binds to preact's hyperscript `h` and parses templates at runtime, so
 // components run as served, with no JSX build step.
-import { h } from "preact";
+import { h, options, render } from "preact";
 import { useEffect, useRef } from "preact/hooks";
 import htm from "htm";
 
@@ -26,6 +26,59 @@ export const classNames = (...names) => names.filter(Boolean).join(" ");
 export function pageOf(el) {
   const doc = /** @type {Document} */ (el.ownerDocument ?? el);
   return { doc, win: /** @type {Window & typeof globalThis} */ (doc.defaultView) };
+}
+
+/** @typedef {{ document?: Document }} Global */
+
+/** Run `fn` with `doc` standing in as the global document where the page has none, and take it away after. @template T @param {Document} doc @param {() => T} fn @returns {T} */
+function lending(doc, fn) {
+  const g = /** @type {Global} */ (globalThis);
+  const own = Object.hasOwn(g, "document");
+  const prior = g.document;
+  if (!prior) g.document = doc;
+  try {
+    return fn();
+  } finally {
+    if (!prior) delete g.document;
+    else if (own) g.document = prior;
+  }
+}
+
+// A redraw Preact schedules runs outside `mount`, and builds its nodes through the global `document`. Preact's render
+// hook (`__r`, which hooks.module.js chains the same way) fires for every component about to render, after the
+// component's parent DOM node is set: that node's document is the tree's own, so it stands in for the global one where
+// the page has none, and goes when the redraw's synchronous run is over.
+let hooked = false;
+/** @type {Document | null} the document lent to the global by the last redraw, until its microtask takes it away */
+let lent = null;
+
+/** Chain the render hook once: each component about to render lends its own tree's document. */
+function lendOnRedraw() {
+  if (hooked) return;
+  hooked = true;
+  const opts = /** @type {{ __r?: (vnode: { __c?: { __P?: Node } }) => void }} */ (/** @type {unknown} */ (options));
+  const prev = opts.__r;
+  opts.__r = (vnode) => {
+    const g = /** @type {Global} */ (globalThis);
+    const parent = vnode.__c?.__P;
+    if (parent && (!g.document || g.document === lent)) {
+      const doc = pageOf(parent).doc;
+      const fresh = lent === null;
+      g.document = lent = doc;
+      if (fresh)
+        queueMicrotask(() => {
+          if (g.document === lent) delete g.document;
+          lent = null;
+        });
+    }
+    prev?.(vnode);
+  };
+}
+
+/** Render `vnode` into `root`. Preact builds nodes through the global `document`; where the page has none, `root`'s own document stands in for the render's duration, and each later redraw of the tree lends its own. @param {unknown} vnode @param {Element} root */
+export function mount(vnode, root) {
+  lendOnRedraw();
+  lending(pageOf(root).doc, () => render(vnode, root));
 }
 
 /** Whether `node` is an element of any page: the node type tells, where `instanceof Element` names only the global realm's. @param {unknown} node @returns {node is Element} */

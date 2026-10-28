@@ -71,6 +71,7 @@ function readEngine(engine) {
 
 const form = formDraft({
   area: "apply",
+  eager: false,
   keys: HARDWARE_KEYS,
   load: async () => {
     const r = await api.engine();

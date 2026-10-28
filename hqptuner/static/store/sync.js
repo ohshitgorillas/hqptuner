@@ -134,12 +134,12 @@ function landVolume(v) {
 /** @type {EventSource | null} */
 let stream = null;
 
-/** @returns {boolean} whether the browser has hidden the page; false where there is no document */
-const pageHidden = () => typeof document !== "undefined" && document.hidden;
+/** @param {Document | undefined} doc @returns {boolean} whether the browser has hidden the page; false where there is no document */
+const pageHidden = (doc) => doc !== undefined && doc.hidden;
 
-/** Open the push stream, unless one is open or the page is hidden. */
-function openStream() {
-  if (stream || pageHidden()) return;
+/** Open the push stream, unless one is open or `doc` is hidden. @param {Document | undefined} doc */
+function openStream(doc) {
+  if (stream || pageHidden(doc)) return;
   const es = new EventSource(PUSH);
   for (const [name, sig, unwrap] of ROUTES) {
     es.addEventListener(name, (e) => assignChanged(sig, unwrap(JSON.parse(e.data))));
@@ -159,15 +159,17 @@ function closeStream() {
  * is shown. The stream answers every snapshot it holds as it opens, so a page
  * coming back is current at once. Where there is no document or no EventSource
  * nothing is opened.
+ *
+ * @param {Document | undefined} [doc] the page to watch
  */
-export function startSync() {
+export function startSync(doc = globalThis.document) {
   safe(api.metadata).then((m) => {
     if (m) metadata.value = m;
   });
-  if (typeof document === "undefined" || typeof EventSource === "undefined") return;
-  openStream();
-  document.addEventListener("visibilitychange", () => {
-    if (pageHidden()) closeStream();
-    else openStream();
+  if (doc === undefined || typeof EventSource === "undefined") return;
+  openStream(doc);
+  doc.addEventListener("visibilitychange", () => {
+    if (pageHidden(doc)) closeStream();
+    else openStream(doc);
   });
 }

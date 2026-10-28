@@ -35,6 +35,7 @@ function channelEdits(values) {
 
 export const speakerForm = formDraft({
   area: "apply",
+  eager: false,
   keys,
   load: async () => formValues((await api.speakers()).data),
   write: async (values) => {

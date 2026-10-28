@@ -58,12 +58,12 @@ function formReading(load, area, landed) {
 export const UNCONFIRMED = "applied, but the daemon did not confirm the new values";
 
 /**
- * A draft for one engine form, loaded and written through the given functions.
+ * A draft for one engine form, loaded and written through the given functions. It reads once as it is made, unless `eager` is false: then its first read waits for a `reload` or a generation bump.
  *
- * @param {{ load: () => Promise<Record<string, unknown>>, write: (values: Record<string, unknown>) => Promise<unknown>, keys: string[], area: Area }} spec
+ * @param {{ load: () => Promise<Record<string, unknown>>, write: (values: Record<string, unknown>) => Promise<unknown>, keys: string[], area: Area, eager?: boolean }} spec
  * @returns {FormDraft}
  */
-export function formDraft({ load, write, keys, area }) {
+export function formDraft({ load, write, keys, area, eager = true }) {
   const values = signal(/** @type {Record<string, unknown>} */ ({}));
   /** The edits a landed write sent, until the first reading after it lands. @type {Record<string, unknown> | null} */
   let sent = null;
@@ -74,9 +74,11 @@ export function formDraft({ load, write, keys, area }) {
   });
   const operation = op(area, { engine: true });
   const differs = computed(() => (base.value === null ? [] : draftDiffers(base.value, values.value, keys)));
+  let reading = eager;
   effect(() => {
     generation.value;
-    untracked(() => void read());
+    if (reading) untracked(() => void read());
+    reading = true;
   });
   const apply = async () => {
     if (base.peek() === null) return false;

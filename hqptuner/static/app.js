@@ -6,8 +6,7 @@
 // body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The connection
 // panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
 // first render.
-import { render } from "preact";
-import { html, watchGestures } from "./lib/dom.js";
+import { html, mount, watchGestures } from "./lib/dom.js";
 import { Plate } from "./components/faceplate/Plate.js";
 import { Header } from "./components/faceplate/Header.js";
 import { EngineRow } from "./components/faceplate/EngineRow.js";
@@ -38,6 +37,10 @@ import { initMeterFeed } from "./store/meter/feed.js";
 import { initMeterLoop } from "./store/meter/loop.js";
 import { bookWanted } from "./store/live/presets.js";
 import { loadSpeakers } from "./store/matrix/speakers.js";
+import { startNarrowing } from "./store/narrow/persist.js";
+import { hydrateFavorites } from "./store/narrow/favorites.js";
+import { hydrateMatrixModes } from "./store/matrix/mode.js";
+import { hydrateDescriptions } from "./store/matrix/descriptions.js";
 import { createConnPanel } from "./store/connpanel.js";
 
 const panel = createConnPanel();
@@ -111,20 +114,26 @@ export function Faceplate() {
   `;
 }
 
-const root = globalThis.document?.getElementById?.("app");
-if (root) {
-  initFavicon();
-  initHealth();
+/** Start the app on `doc`: favicon, health, APOD history, spectrogram, meter feed and loop, speakers, narrowing, favorites, matrix modes, descriptions, panel, sync, theme and gesture watch, then render the Faceplate into `doc`'s `#app`. Host name from `doc.defaultView.location`; every timer from `clock`. A document with no `#app` boots nothing. @param {Document} doc @param {typeof import("./lib/clock.js").PLATFORM} clock */
+export function boot(doc, clock) {
+  const root = doc.getElementById("app");
+  if (!root) return;
+  initFavicon(doc);
+  initHealth(clock);
   initApodHistory();
   initSpectrogram();
-  initMeterFeed();
-  initMeterLoop();
+  startSync(doc);
+  initMeterFeed(clock);
+  initMeterLoop(clock);
   bookWanted.value = true;
   loadSpeakers();
+  startNarrowing(doc, clock);
+  void hydrateFavorites();
+  void hydrateMatrixModes();
+  void hydrateDescriptions();
   panel.initPanel();
-  panel.pageHost.value = location.hostname;
-  startSync();
-  watchFaceplateTheme(document.documentElement);
-  watchGestures(document);
-  render(html`<${Faceplate} />`, root);
+  panel.pageHost.value = doc.defaultView?.location.hostname ?? "";
+  watchFaceplateTheme(doc.documentElement);
+  watchGestures(doc);
+  mount(html`<${Faceplate} />`, root);
 }

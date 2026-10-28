@@ -3,12 +3,12 @@
 //
 // A selector list is split at `,`; each selector is split into compounds at whitespace and at `>`, which stands as a
 // combinator of its own wherever it appears. A compound is a run of parts: a tag or `*`, `#id`, `.class`, or an
-// attribute test `[a]`, `[a=v]`, `[a="v"]`, `[a='v']`, `[a~=v]`, `[a^=v]`, `[a$=v]`, `[a*=v]`. An unsupported part or
-// an empty selector throws.
+// attribute test `[a]`, `[a=v]`, `[a="v"]`, `[a='v']`, `[a~=v]`, `[a^=v]`, `[a$=v]`, `[a*=v]`, or `:not(compound)`,
+// which passes a node the compound inside it does not match. An unsupported part or an empty selector throws.
 
 /**
  * @typedef {{ name: string, op: string, value: string }} AttrTest
- * @typedef {{ tag: string | null, id: string | null, classes: string[], attrs: AttrTest[] }} Compound
+ * @typedef {{ tag: string | null, id: string | null, classes: string[], attrs: AttrTest[], nots: Compound[] }} Compound
  * @typedef {{ compound: Compound, combinator: string }[]} Chain
  */
 
@@ -53,6 +53,12 @@ const PARTS = [
       c.attrs.push({ name: m[1], op: m[2] ?? "", value: m[3] ?? m[4] ?? m[5] ?? "" });
     },
   },
+  {
+    pattern: /^:not\(([^()]+)\)/,
+    put: (c, m) => {
+      c.nots.push(parseCompound(m[1]));
+    },
+  },
 ];
 
 /**
@@ -75,7 +81,7 @@ function frontPart(rest) {
  */
 function parseCompound(text) {
   /** @type {Compound} */
-  const c = { tag: null, id: null, classes: [], attrs: [] };
+  const c = { tag: null, id: null, classes: [], attrs: [], nots: [] };
   let rest = text;
   while (rest.length > 0) {
     const front = frontPart(rest);
@@ -175,6 +181,7 @@ const PART_MATCHERS = [
     return c.classes.every((k) => cls.includes(k));
   },
   (n, c) => c.attrs.every((a) => attrMatches(n.attrs.get(a.name), a.op, a.value)),
+  (n, c) => c.nots.every((not) => !compoundMatches(n, not)),
 ];
 
 /**
@@ -182,7 +189,9 @@ const PART_MATCHERS = [
  * @param {Compound} c
  * @returns {boolean}
  */
-const compoundMatches = (n, c) => PART_MATCHERS.every((matcher) => matcher(n, c));
+function compoundMatches(n, c) {
+  return PART_MATCHERS.every((matcher) => matcher(n, c));
+}
 
 /**
  * Whether `n` matches the chain up to and including link `at`, its ancestors looked for no higher than `scope`.

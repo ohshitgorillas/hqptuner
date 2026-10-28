@@ -18,7 +18,7 @@
 // could not save it.
 //
 // Nothing polls. A tab picks up another tab's edits on reload, like favorites.
-// Module load stays node-safe: the hydrate is guarded on `fetch` existing.
+// Importing this reads nothing: boot calls `hydrateDescriptions`.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { op, opErrorText, FAILED } from "../core/ops.js";
@@ -131,7 +131,3 @@ export function dropQueuedDescriptions() {
   queued.clear();
   descriptionError.value = "";
 }
-
-// Read the map once, at load. Guarded on `fetch` because this module is imported
-// by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateDescriptions();

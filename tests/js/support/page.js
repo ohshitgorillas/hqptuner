@@ -7,7 +7,7 @@
 // attributes, `id`, `className`, `classList`, `dataset`, inline `style`, text, `innerHTML`, queries by the selectors
 // tests/js/support/painters/elementtree/selector.js parses and matches, `getElementById`, `activeElement` moved by `focus()` and `blur()` with a browser's `blur`, `focusout`, `focus` and
 // `focusin`, `hidden` with `visibilityState`, and events that run capture listeners from the window down, then the
-// target's own, then bubble back up when `bubbles` is set. `html` is parsed into the body.
+// target's own, then bubble back up when `bubbles` is set. `html` is parsed into the body. SVG `getBBox` is the border box.
 //
 // The window holds the page's `location` (host `page.test`), `devicePixelRatio` (`dpr`, 1 when not given),
 // `getComputedStyle` (each element's inline style, every other property empty, as a page with no stylesheet has it),
@@ -698,6 +698,7 @@ function documentOf(page, win) {
   /** @param {string} name @param {string | null} ns */
   const element = (name, ns) => {
     const el = new PageNode(page, 1, ns === HTML_NS ? name.toLowerCase() : name, ns);
+    if (ns === "http://www.w3.org/2000/svg") Object.assign(el, { getBBox: () => el.getBoundingClientRect() });
     return el.localName === "canvas" ? asCanvas(page.ledgers, el, CANVAS_W, CANVAS_H) : el;
   };
   /** @type {any} */

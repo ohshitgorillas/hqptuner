@@ -21,9 +21,8 @@
 // other still holds a star leaves the switch alone, because it still narrows
 // something. It is session state, never persisted anywhere.
 //
-// Module load stays node-safe like prefs.js: the hydrate is guarded on `fetch`
-// existing and swallows its own failure, so importing this in the SSR harness
-// neither throws nor leaves a rejected promise behind.
+// Importing this reads nothing: boot calls `hydrateFavorites`, which swallows its
+// own failure and leaves no rejected promise behind.
 import { signal } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { getStored, removeStored } from "../../lib/browser/storage.js";
@@ -176,7 +175,3 @@ async function toggleIn(set, kind, name) {
     syncFavOnly();
   }
 }
-
-// Read the set once, at load. Guarded on `fetch` because this module is imported
-// by the SSR harness, where there is no backend to ask and no failure to report.
-if (typeof fetch === "function") void hydrateFavorites();

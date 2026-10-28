@@ -1,5 +1,5 @@
-// Writing the narrow bar's facets to the server, and reading them back at load
-// — its own module because it is the only part of narrowing that talks to the
+// Writing the narrow bar's facets to the server, and reading them back when boot
+// starts narrowing — its own module because it is the only part of narrowing that talks to the
 // backend, and the state it mirrors has no business knowing that.
 //
 // The facets are stored for the INSTALL, in state/narrowing.json, the way stars
@@ -89,6 +89,21 @@ let applying = false;
 export function initNarrowing(next = PLATFORM) {
   quiet.cancel();
   quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), next);
+}
+
+/**
+ * Start persisting on ``doc``: pace the quiet window on ``clock``, flush when the tab is hidden or closed inside the
+ * quiet window (nothing to restore on failure, the page is going away), and read the stored facets once.
+ * @param {Document} doc
+ * @param {Clock} clock
+ * @returns {void}
+ */
+export function startNarrowing(doc, clock) {
+  initNarrowing(clock);
+  doc.addEventListener("visibilitychange", () => {
+    if (doc.visibilityState === "hidden") void flushNarrowing();
+  });
+  void hydrateNarrowing();
 }
 
 /**
@@ -186,14 +201,3 @@ effect(() => {
   for (const key of changed) touched.add(key);
   quiet.arm();
 });
-
-// Read the stored facets once, at load. Guarded on `fetch` because this module
-// is imported by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateNarrowing();
-// A tab hidden or closed inside the quiet window would otherwise drop the last
-// toggle. Nothing to restore on failure here — the page is going away.
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void flushNarrowing();
-  });
-}
