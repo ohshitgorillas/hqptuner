@@ -38,12 +38,14 @@
 // `wheelAt` throws on such a control rather than dispatching over it, the same
 // way a case throws on a render with no control at all.
 //
-// `document` and `window` are environment seams the guard reads (activeElement,
-// scrollBy). They exist in a browser and not under `node --test`, so they are
-// installed for the duration of one dispatch and restored afterwards, whatever
-// happens. The control is made the ACTIVE element: a focused control is the
-// case the contract is hardest on, since it is the one a browser will happily
-// let the wheel edit.
+// The guard reaches the page through the control: its `ownerDocument` for
+// focus and that document's `defaultView` for the scroll, which the caller's
+// element carries. For the length of one dispatch the global `document` and
+// `window` are stand-ins that throw on any member read, restored afterwards
+// whatever happens, so a guard that reads focus from, or scrolls, a global page
+// instead of its control's own fails here. The control is made the ACTIVE
+// element: a focused control is the case the contract is hardest on, since it
+// is the one a browser will happily let the wheel edit.
 
 /**
  * A vnode's props, as the harnesses read them.
@@ -139,6 +141,21 @@ export function attach(box, el) {
 }
 
 /**
+ * A global no code may read during a dispatch: every member read throws, naming the global and the member.
+ *
+ * @param {string} name
+ */
+const unreadable = (name) =>
+  new Proxy(
+    {},
+    {
+      get(_target, key) {
+        throw new Error(`the global ${name} was read: ${String(key)}`);
+      },
+    },
+  );
+
+/**
  * The vnodes from `node` out to the outermost element of the same render: the chain a wheel bubbles along.
  *
  * @param {VNode[]} seen
@@ -163,7 +180,7 @@ function ancestry(seen, node) {
 /**
  * One wheel over a control, as a browser delivers it: the event bubbles from the control's vnode outwards through every
  * wheel listener of the same render, then, unless canceled or the control is not the document's active element, the
- * default action runs. `document` and `window` exist only for the dispatch.
+ * default action runs. The global `document` and `window` throw on any read for the dispatch.
  *
  * @param {{ seen: VNode[], node: VNode, el: unknown, doc: { activeElement: unknown } }} at every vnode of the render,
  *   the control's vnode and element (the event's target), and the document, whose active element decides the default
@@ -173,15 +190,18 @@ function ancestry(seen, node) {
  */
 export function wheelAt({ seen, node, el, doc }, deltaY, byDefault) {
   const g = /** @type {Record<string, unknown>} */ (globalThis);
+  const had = { document: "document" in g, window: "window" in g };
   const before = { document: g.document, window: g.window };
-  g.document = doc;
-  g.window = { scrollBy() {}, scroll() {} };
+  g.document = unreadable("document");
+  g.window = unreadable("window");
   try {
     const ev = domEvent("wheel", el, { deltaY, deltaX: 0, deltaMode: 0 });
     for (const on of ancestry(seen, node)) fire(on, "onWheel", ev);
     if (!ev.defaultPrevented && doc.activeElement === el) byDefault();
   } finally {
-    g.document = before.document;
-    g.window = before.window;
+    if (had.document) g.document = before.document;
+    else delete g.document;
+    if (had.window) g.window = before.window;
+    else delete g.window;
   }
 }

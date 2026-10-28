@@ -1,7 +1,7 @@
 // The document seam the two `lib/dom.js` userEdit suites drive provenance
 // through, plus the gestures and the wrapped-handler fixture both suites share.
 // dom.js attaches its capture listeners to the document handed to
-// watchGestures, so this module hands it the document of a fake page
+// watchGestures, so this module hands it the document of a fresh fake page
 // (tests/js/support/page.js), whose `activeElement` moves on `focus()` and
 // `blur()` and whose events run the capture, target and bubble phases. No
 // global is installed.
@@ -18,9 +18,20 @@ import { fakePage } from "./page.js";
  * @typedef {{ tagName: string, type?: string, value?: string, ownerDocument?: unknown }} ControlSeam
  */
 
-const { doc } = fakePage({ clock: fakeClock().clock });
+/**
+ * A fresh page whose document's gestures dom.js watches.
+ *
+ * @returns {any}
+ */
+function watchedPage() {
+  const { doc: page } = fakePage({ clock: fakeClock().clock });
+  watchGestures(/** @type {Document} */ (page));
+  return page;
+}
 
-watchGestures(/** @type {Document} */ (doc));
+// The document of the case in progress. Every setup() opens a new page, so no
+// focus, gesture or listener of an earlier case reaches a later one.
+let doc = watchedPage();
 
 //: Gestures a browser fires without bubbling; every other one this seam sends bubbles.
 const NON_BUBBLING = new Set(["focus", "blur"]);
@@ -66,6 +77,7 @@ export const focus = (el) => /** @type {any} */ (el).focus();
  * @returns {{ el: ControlSeam, calls: ControlEvent[], handler: (e: ControlEvent) => void }}
  */
 export function setup() {
+  doc = watchedPage();
   /** @type {ControlSeam} */
   const el = doc.body.appendChild(doc.createElement("input"));
   el.type = "range";

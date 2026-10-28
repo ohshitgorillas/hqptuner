@@ -562,7 +562,7 @@ function moveFocus(doc, to, from = doc.activeElement === doc.body ? null : doc.a
 
 /**
  * The window's ResizeObserver: each observed element reported once on the clock's next frame, and again on every
- * `resize` of it.
+ * `resize` of it, its content box never below zero.
  *
  * @param {any} page
  */
@@ -594,11 +594,11 @@ function resizeObserverOf(page) {
     /** @param {any} el */
     deliver(el) {
       const box = el.getBoundingClientRect();
-      /** @param {string} prop */
-      const px = (prop) => parseFloat(el.style[prop]) || 0;
+      const px = (/** @type {string} */ prop) => parseFloat(el.style[prop]) || 0;
+      const edge = (/** @type {string} */ side) => px(`padding${side}`) + px(`border${side}Width`);
       const inset = { left: px("paddingLeft"), top: px("paddingTop") };
-      const width = box.width - inset.left - px("paddingRight") - px("borderLeftWidth") - px("borderRightWidth");
-      const height = box.height - inset.top - px("paddingBottom") - px("borderTopWidth") - px("borderBottomWidth");
+      const width = Math.max(0, box.width - edge("Left") - edge("Right"));
+      const height = Math.max(0, box.height - edge("Top") - edge("Bottom"));
       const contentRect = rectOf({ x: inset.left, y: inset.top, width, height });
       const contentBoxSize = [{ inlineSize: width, blockSize: height }];
       const borderBoxSize = [{ inlineSize: box.width, blockSize: box.height }];

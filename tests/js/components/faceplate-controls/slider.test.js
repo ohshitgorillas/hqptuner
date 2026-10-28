@@ -8,9 +8,10 @@
 // range and fires input and change. The elements are plain objects carried as the event target, so what the slider
 // writes back to them is what a user would see.
 //
-// Not reachable here: the track moving under a held pointer or a pressed key, and the move and release it reports. The
-// provenance of an edit is kept by document listeners that lib/dom.js installs when it loads, and no suite installs a
-// document before that import. A browser run closes these.
+// The provenance of an edit is kept per document: each mounted slider's elements live in a fake page's document
+// (tests/js/support/page.js), handed to watchGestures as the page hands in its own, beside a second watched page. A
+// pointer is pressed on a control by announcing it at that control's document, as the document's capture listeners see
+// it in a browser. No global document or window is installed.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-controls/slider.test.js
 
@@ -18,8 +19,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { html, watchGestures } from "../../../../hqptuner/static/lib/dom.js";
 import { Slider } from "../../../../hqptuner/static/components/faceplate/controls/Slider.js";
+import { fakeClock } from "../../support/clock.js";
+import { fakePage } from "../../support/page.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attach, domEvent as event, fire, wheelAt } from "../../support/wheel.js";
 import { attr, classes, elements, hasAttr, text } from "../../support/markup.js";
@@ -141,11 +144,23 @@ function mount(over = {}) {
   const box = new FakeInput("number", p.value);
   attach(trackNode, track);
   attach(boxNode, box);
-  const body = {};
-  const doc = { activeElement: /** @type {unknown} */ (body), body, defaultView: { scrollBy() {}, scroll() {} } };
+  const { doc } = fakePage({ clock: fakeClock().clock });
+  const other = fakePage({ clock: fakeClock().clock }).doc;
+  watchGestures(doc);
+  watchGestures(other);
   track.ownerDocument = doc;
   box.ownerDocument = doc;
-  return { seen, trackNode, boxNode, track, box, doc, moves, commits };
+  return { seen, trackNode, boxNode, track, box, doc, other, moves, commits };
+}
+
+/**
+ * A primary pointer pressed and held on `target`, announced at `doc`, the document whose capture listeners see it.
+ *
+ * @param {{ dispatchEvent: (ev: object) => boolean }} doc
+ * @param {unknown} target
+ */
+function pressOn(doc, target) {
+  doc.dispatchEvent({ type: "pointerdown", target, bubbles: true, button: 0, buttons: 1 });
 }
 
 /**
@@ -256,9 +271,12 @@ const NOBODY_REPORTS = [
   { name: "an_edit_of_the_track_with_no_pointer_held_and_no_key_pressed_reports_no_commit", of: "commits" },
 ];
 
+// A pointer is held on another watched page throughout: breaks when the slider takes provenance from gesture state
+// shared across documents, or from any document but its own.
 for (const row of NOBODY_REPORTS) {
   test(`test_${row.name}`, () => {
     const m = mount();
+    pressOn(m.other, m.other.body);
     nudge(m, "35");
     assert.deepEqual(m[row.of === "moves" ? "moves" : "commits"], []);
   });
@@ -266,9 +284,26 @@ for (const row of NOBODY_REPORTS) {
 
 test("test_an_edit_of_the_track_with_no_pointer_held_and_no_key_pressed_snaps_back_to_the_owners_value", () => {
   const m = mount();
+  pressOn(m.other, m.other.body);
   nudge(m, "35");
   assert.equal(m.track.value, HELD);
 });
+
+// The thumb moves under a held pointer, and each move and the release are reported.
+// Breaks when the slider refuses an edit whatever its own document saw, or reads gestures from no document at all.
+const HELD_REPORTS = [
+  { name: "an_edit_of_the_track_under_a_pointer_held_on_it_reports_the_move", of: "moves" },
+  { name: "an_edit_of_the_track_under_a_pointer_held_on_it_reports_the_release", of: "commits" },
+];
+
+for (const row of HELD_REPORTS) {
+  test(`test_${row.name}`, () => {
+    const m = mount();
+    pressOn(m.doc, m.track);
+    nudge(m, "35");
+    assert.deepEqual(m[row.of === "moves" ? "moves" : "commits"], [35]);
+  });
+}
 
 /**
  * One wheel over the focused track, whose default action nudges it a step.

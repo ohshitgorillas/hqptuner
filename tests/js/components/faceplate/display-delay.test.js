@@ -10,7 +10,10 @@
 // through preact's own client render on a fake document: elements carry the members preact's diff and the popover's
 // parking touch, and an element's `value` reads back as a string, as a browser's does. Effects after paint run through
 // preact's `options.requestAnimationFrame` seam, flushed by hand once each render returns, so no frame timer runs. Focus
-// is `document.activeElement`.
+// is the `activeElement` of the box's own document. preact's client renderer creates nodes through the global
+// `document`, so for the length of the case the global is a different object from the box's document: it hands
+// preact's node creation to the page and throws on any other member read, so a hook that reads focus from the global
+// document instead of its box's own fails here.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate/display-delay.test.js
 
@@ -38,6 +41,25 @@ const START = 0.25;
 
 /** @type {{ document?: unknown }} */
 const env = globalThis;
+
+//: The members of the global document preact's renderer creates nodes through, handed on to the page.
+const CREATES = new Set(["createElementNS", "createElement", "createTextNode"]);
+
+/**
+ * A global document that is not `page`: its node creation is `page`'s, and every other member read throws, naming it.
+ *
+ * @param {Record<string, unknown>} page
+ */
+const globalBeside = (page) =>
+  new Proxy(
+    {},
+    {
+      get(_target, key) {
+        if (typeof key === "string" && CREATES.has(key) && key in page) return page[key];
+        throw new Error(`the global document was read: ${String(key)}`);
+      },
+    },
+  );
 
 beforeEach(() => {
   useStorage();
@@ -192,9 +214,9 @@ function first(node, name) {
  * @returns {string[]}
  */
 function typedAcross(typed, next) {
+  const had = "document" in env;
   const before = env.document;
   const page = {
-    .../** @type {object} */ (before),
     /** @type {Element | null} */ activeElement: null,
     defaultView: {},
     createElementNS: (/** @type {string} */ _ns, /** @type {string} */ name) => owned(new Element(name)),
@@ -209,7 +231,7 @@ function typedAcross(typed, next) {
     node.ownerDocument = page;
     return node;
   };
-  env.document = page;
+  env.document = globalBeside(page);
   const root = owned(new Element("div"));
   const paint = () => {
     /** @type {Array<() => void>} */
@@ -235,7 +257,8 @@ function typedAcross(typed, next) {
     mount(null, /** @type {ParentNode} */ (/** @type {unknown} */ (root)));
     return [shown, kept];
   } finally {
-    env.document = before;
+    if (had) env.document = before;
+    else delete env.document;
   }
 }
 

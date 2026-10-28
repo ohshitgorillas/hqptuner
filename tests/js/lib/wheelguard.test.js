@@ -95,7 +95,7 @@ const asWheelEvent = (e) => /** @type {WheelEvent} */ (/** @type {unknown} */ (e
 
 /**
  * @param {{ focused: boolean, deltaY?: number, deltaMode?: number }} spec
- * @returns {{ target: Control, event: WheelEvent, scrolls: number[][] }}
+ * @returns {{ target: Control, event: WheelEvent, scrolls: number[][], doc: { activeElement: unknown } }}
  */
 function setup({ focused, deltaY = 120, deltaMode = 0 }) {
   const page = newPage();
@@ -125,7 +125,7 @@ function setup({ focused, deltaY = 120, deltaMode = 0 }) {
   /** @type {number[][]} */
   const scrolls = [];
   page.win.scrollBy = (/** @type {number} */ x, /** @type {number} */ y) => scrolls.push([x, y]);
-  return { target, event: asWheelEvent(event), scrolls };
+  return { target, event: asWheelEvent(event), scrolls, doc: page.doc };
 }
 
 /** @type {{ firstChild: null, childNodes: never[] } | null} */
@@ -157,6 +157,14 @@ test("test_a_wheel_over_a_focused_control_leaves_it_focused", () => {
   const { target, event } = setup({ focused: true });
   wheelGuard(event);
   assert.equal(target.blurred, false);
+});
+
+// Focus can also leave by another element taking it, with no blur() on the
+// control, so this case reads where the page's focus is.
+test("test_a_wheel_over_a_focused_control_leaves_the_page_focus_on_it", () => {
+  const { target, event, doc } = setup({ focused: true });
+  wheelGuard(event);
+  assert.equal(doc.activeElement, target);
 });
 
 // --- the page gets the wheel instead --------------------------------------------
