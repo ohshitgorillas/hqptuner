@@ -21,6 +21,12 @@ The design and binding rules.
 - [timing](spec/timing.md): playback time and wall time.
 - [wizard](spec/wizard/wizard.md): the setup wizard workflow.
 
+## superpowers/specs/
+
+Designs for work in progress.
+
+- [meter-loop-idle](superpowers/specs/meter-loop-idle-design.md): the meter loop runs only while the engine plays.
+
 ## parked/
 
 Design kept for withdrawn work.
