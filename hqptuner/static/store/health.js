@@ -8,7 +8,7 @@
 // edges, so each of its alerts fires only once speed has stayed below its
 // threshold for SUSTAIN_MS on the clock (and clears instantly on recovery).
 import { signal, computed, effect } from "@preact/signals";
-import { engineStatus, PLAYING } from "./signals.js";
+import { engineStatus, isPlaying } from "./signals.js";
 import { filterFacets } from "./narrow/facets.js";
 import { PLATFORM, quietWindow } from "../lib/clock.js";
 import { num } from "../lib/coerce.js";
@@ -107,7 +107,7 @@ export function initHealth(clock = PLATFORM) {
     if (!st) return;
     rebaseline(st);
     flashClips(st);
-    if (Number(st.state) === PLAYING && num(st.output_fill) > 0 && !outputActive.peek()) {
+    if (isPlaying(st) && num(st.output_fill) > 0 && !outputActive.peek()) {
       outputActive.value = true; // this output populates a buffer — latch for the track
     }
     const below = belowThresholds(st);
@@ -186,7 +186,7 @@ const usableSpeed = (/** @type {number} */ sp) => sp > 0;
  * @returns {Slow}
  */
 function belowThresholds(st) {
-  const playing = Number(st.state) === PLAYING;
+  const playing = isPlaying(st);
   // an unreadable speed reads as 0, which usableSpeed rejects
   const sp = num(st.process_speed);
   const speedOk = playing && usableSpeed(sp);
@@ -268,7 +268,7 @@ function apodAlert(apod, filterName) {
 
 export const engineAlerts = computed(() => {
   const st = (engineStatus.value || {}).status;
-  if (!st || Number(st.state) !== PLAYING) return [];
+  if (!st || !isPlaying(st)) return [];
   const s = slow.value;
   const counters = trackCounters.value;
   return [

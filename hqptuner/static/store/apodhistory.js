@@ -36,7 +36,7 @@
 import { signal, computed, effect } from "@preact/signals";
 import { playedMs } from "../lib/apodscale.js";
 import { num } from "../lib/coerce.js";
-import { engineStatus, PLAYING } from "./signals.js";
+import { engineStatus, isPlaying } from "./signals.js";
 import { feedEdge } from "./meter/feed.js";
 
 // At least half an hour of bins at the daemon's 1 to 2 Hz Status. Past this the oldest
@@ -114,7 +114,7 @@ export function initApodHistory() {
     const st = (engineStatus.value || {}).status;
     if (!st) return;
     rollTrack(st);
-    if (Number(st.state) !== PLAYING) {
+    if (!isPlaying(st)) {
       if (visible.peek()) visible.value = false;
       return;
     }
