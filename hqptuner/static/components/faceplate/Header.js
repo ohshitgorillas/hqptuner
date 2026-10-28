@@ -4,7 +4,7 @@
 // another station's snapshots wait for it to be loaded. An alert homed on the knob or the gear blinks it in the alert's
 // color. The knob's tap opens the connection panel, with a popover of the alert lines homed there over it when any are.
 
-import { html } from "../../lib/dom.js";
+import { html, isElement } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
 import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
 import { snapshotTip } from "../../store/faceplate/builders/rows.js";
@@ -109,8 +109,9 @@ function Knob(/** @type {{ panel: import("../../store/connpanel.js").ConnPanelSt
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const trigger = panel.parentElement?.querySelector(`button[data-pop="${TREE}"]`);
-  if (!(trigger instanceof HTMLElement)) return;
+  const found = panel.parentElement?.querySelector(`button[data-pop="${TREE}"]`);
+  if (!isElement(found)) return;
+  const trigger = /** @type {HTMLElement} */ (found);
   panel.style.left = `${trigger.offsetLeft}px`;
   panel.style.width = `${Math.max(MIN_WIDTH, trigger.offsetWidth)}px`;
 }

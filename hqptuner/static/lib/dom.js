@@ -28,6 +28,11 @@ export function pageOf(el) {
   return { doc, win: /** @type {Window & typeof globalThis} */ (doc.defaultView) };
 }
 
+/** Whether `node` is an element of any page: the node type tells, where `instanceof Element` names only the global realm's. @param {unknown} node @returns {node is Element} */
+export function isElement(node) {
+  return /** @type {Node | null} */ (node)?.nodeType === 1;
+}
+
 /** Call `fn(rect)` with `el`'s content box on every resize; returns the unobserve function. A page with no ResizeObserver calls `fn` once and returns a no-op. @param {Element} el @param {(rect: DOMRectReadOnly) => void} fn @returns {() => void} */
 export function observeSize(el, fn) {
   const { win } = pageOf(el);

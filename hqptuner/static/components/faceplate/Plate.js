@@ -3,7 +3,7 @@
 // that closes a popover from outside.
 
 import { useEffect, useRef } from "preact/hooks";
-import { html, observeSize, pageOf } from "../../lib/dom.js";
+import { html, isElement, observeSize, pageOf } from "../../lib/dom.js";
 import { closeTop, closeOutside } from "../../store/faceplate/view.js";
 import { plate, viewport } from "../../store/faceplate/plate.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
@@ -30,7 +30,7 @@ function onKey(e) {
 
 /** @param {MouseEvent} e */
 function onClick(e) {
-  if (e.target instanceof Element) closeOutside(e.target);
+  if (isElement(e.target)) closeOutside(e.target);
 }
 
 /**

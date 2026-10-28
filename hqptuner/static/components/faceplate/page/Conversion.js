@@ -8,7 +8,7 @@
 
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { PLATFORM } from "../../../lib/clock.js";
-import { html } from "../../../lib/dom.js";
+import { html, isElement, pageOf, styleOf } from "../../../lib/dom.js";
 import { schema } from "../../../store/schema.js";
 import { conversionSections, cutCopy, cuts, openField, restartCuts } from "../../../store/faceplate/page/conversion.js";
 import { plate } from "../../../store/faceplate/plate.js";
@@ -59,7 +59,7 @@ function pageOverrun(page) {
   return overrunOf({
     bottoms: kids.map((c) => c.getBoundingClientRect().bottom),
     pageBottom: page.getBoundingClientRect().bottom,
-    padding: parseFloat(getComputedStyle(page).paddingBottom),
+    padding: parseFloat(styleOf(page).paddingBottom),
   });
 }
 
@@ -72,9 +72,10 @@ function pageOverrun(page) {
  * @param {number} n
  */
 function fillCut(el, name, words, n) {
-  const code = document.createElement("code");
+  const { doc } = pageOf(el);
+  const code = doc.createElement("code");
   code.textContent = name;
-  const more = document.createElement("button");
+  const more = doc.createElement("button");
   more.className = "seemore";
   more.textContent = SEE_MORE;
   el.replaceChildren(code, ` ${words.slice(0, n).join(" ")} `, more);
@@ -159,7 +160,7 @@ function scheduleFit(host, clock, queued) {
   clock.queueMicrotask(() => {
     queued.current = false;
     const page = host.closest("main");
-    if (host.isConnected && page instanceof HTMLElement) refit(page);
+    if (host.isConnected && isElement(page)) refit(page);
   });
 }
 

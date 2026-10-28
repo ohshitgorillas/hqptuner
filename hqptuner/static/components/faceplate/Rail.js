@@ -8,7 +8,7 @@
 // fonts land. A stage whose drawer holds a staged edit carries the staged mark after its name.
 
 import { useEffect, useRef } from "preact/hooks";
-import { html } from "../../lib/dom.js";
+import { html, pageOf } from "../../lib/dom.js";
 import { railBreak, railLamp, railNow, railStages, railValue } from "../../store/faceplate/chain.js";
 import { transportNow } from "../../store/faceplate/path.js";
 import { openStage, toggleStage } from "../../store/faceplate/view.js";
@@ -125,7 +125,8 @@ export function Rail() {
     if (ref.current) layout(ref.current);
   }, [drawn, fit]);
   useEffect(() => {
-    document.fonts?.ready.then(() => {
+    if (!ref.current) return;
+    pageOf(ref.current).doc.fonts?.ready.then(() => {
       if (ref.current) layout(ref.current);
     });
   }, []);
