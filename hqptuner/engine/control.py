@@ -25,8 +25,10 @@ from hqptuner.engine.controlerrors import (
     ControlConnectionFailedError,
     ControlError,
     ControlTimeoutError,
+    DialOutcome,
     ResponseTooLargeError,
     StateMismatchError,
+    dial_outcome,
 )
 from hqptuner.engine.frames import FrameBuffer
 
@@ -111,15 +113,27 @@ class ControlClient:
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
+        self._dial_outcome = DialOutcome(address_found=None)
+
+    @property
+    def dial_outcome(self) -> DialOutcome:
+        """Return address evidence from the latest connect attempt, inconclusive before any attempt."""
+        return self._dial_outcome
 
     async def connect(self) -> None:
         """Open the TCP connection and turn on SO_KEEPALIVE so a silently dead daemon surfaces as a socket error."""
         # a refused reconnect repeats every poll while HQPlayer is down, and the
         # manager already logs the drop once
+        self._dial_outcome = DialOutcome(address_found=None)
         with self._as_control_error("connect", level=logging.DEBUG):
-            reader, writer = await self._deadline.wait_for(
-                asyncio.open_connection(self._host, self._port), self._timeout
-            )
+            try:
+                reader, writer = await self._deadline.wait_for(
+                    asyncio.open_connection(self._host, self._port), self._timeout
+                )
+            except OSError as exc:
+                self._dial_outcome = dial_outcome(exc)
+                raise
+        self._dial_outcome = dial_outcome(None)
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:
@@ -319,9 +333,8 @@ class ControlClient:
     #
     # Only the settings whose call is more than "one value attribute, one State
     # attribute" live here. The uniform ones (mode, shaper, rate, junk filter,
-    # adaptive volume) are rows in ``writer.SETTINGS`` driving ``set_command``
-    # directly — a wrapper per setting was a second place for the element name
-    # to be spelled, and spelling it twice is how it drifts.
+    # adaptive volume) are the register's ``Setter`` rows (``fields/register.py``),
+    # sent through ``send`` with no wrapper per setting.
 
     async def send_filter(self, nx: str, x1: str | None = None) -> Reply:
         """`value` alone sets both 1x and Nx; `value1x` splits them (Nx=value, 1x=value1x).

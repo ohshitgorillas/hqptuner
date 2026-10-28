@@ -1,7 +1,29 @@
 """Control API (TCP 4321) failure types, each carrying the ``code`` the API reports it under."""
 
+import errno
+import socket
+from dataclasses import dataclass
+
 from hqptuner.conf.noanswer import no_answer_message
 from hqptuner.errors import HQPTunerError
+
+
+@dataclass(frozen=True)
+class DialOutcome:
+    """Address evidence from a TCP dial; None means the attempt proved neither verdict."""
+
+    address_found: bool | None
+
+
+def dial_outcome(error: OSError | None) -> DialOutcome:
+    """Classify a completed TCP dial, with None representing a successful connection."""
+    if error is None:
+        return DialOutcome(address_found=True)
+    if isinstance(error, socket.gaierror) or error.errno in (errno.EHOSTUNREACH, errno.ENETUNREACH):
+        return DialOutcome(address_found=False)
+    if isinstance(error, ConnectionRefusedError) or error.errno == errno.ECONNREFUSED:
+        return DialOutcome(address_found=True)
+    return DialOutcome(address_found=None)
 
 
 class ControlError(HQPTunerError):

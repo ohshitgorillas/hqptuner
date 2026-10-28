@@ -71,6 +71,11 @@ repos:
         entry: .venv/bin/python scripts/gates/check_store_flags.py
         language: system
         files: ^hqptuner/static/.*\.js$
+      - id: field-structure
+        name: field structure gate
+        entry: .venv/bin/python scripts/gates/check_field_structure.py
+        language: system
+        files: ^hqptuner/.*\.py$
       - id: no-copy-assertions
         name: no copy in assertions
         entry: .venv/bin/python scripts/gates/testing/check_no_copy_assertions.py

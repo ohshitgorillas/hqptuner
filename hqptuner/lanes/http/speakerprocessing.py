@@ -50,10 +50,14 @@ async def apply(mgr: "LaneManager", channels: dict[str, dict[str, str]], *, enab
     read that fails after a confirmed write leaves the previous cache standing rather than failing the apply.
     """
     http = mgr.require_http()
-    await settle.restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled))
+    await settle.restart(mgr, lambda: http.apply_speakers(channels, enabled=enabled), file_sources=("speakers_form",))
     applied = await _verify(mgr, channels, enabled=enabled)
+    acquisition = mgr.readings.acquire_file("speakers_form")
+    generation = mgr.phase.standing.generation
     with contextlib.suppress(httpx.HTTPError):
-        forms.take_speakers(mgr, await http.get_speakers())
+        form = await http.get_speakers()
+        if http is mgr.http_client and mgr.readings.file_current(acquisition):
+            forms.take_speakers(mgr, form, generation=generation)
     return SpeakerApplyResult(applied, mgr.readings.speakers_form)
 
 

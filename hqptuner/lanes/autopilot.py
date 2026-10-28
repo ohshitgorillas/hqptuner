@@ -36,16 +36,3 @@ def desired_junk_filter(verdict: JunkVerdict | None, active_filter: str | None) 
     if verdict is None or junkadvisor.treats(verdict, junkadvisor.NO_FILTER, active_filter):
         return junkadvisor.NO_FILTER
     return verdict.filter
-
-
-def junk_filter_index(items: list[dict[str, str]], name: str) -> str | None:
-    """Return the running enumeration's list index for this junk-filter name, or None when it carries no such name.
-
-    The name the decision above settled on is joined against what the engine actually offers rather than against
-    anything static.
-    """
-    for item in items:
-        if item.get("name") == name:
-            index = item.get("index")
-            return None if index is None else str(index)
-    return None

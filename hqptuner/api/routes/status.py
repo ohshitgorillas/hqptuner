@@ -10,7 +10,6 @@ from dataclasses import dataclass, replace
 import httpx
 from fastapi import APIRouter, Request
 
-from hqptuner import __version__
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, NotLoadedError, refuse
@@ -19,7 +18,7 @@ from hqptuner.core.engineread import LogTail
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
-from hqptuner.lanes.live import chain
+from hqptuner.engine.view import EngineView
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -28,24 +27,18 @@ router = APIRouter(prefix="/api")
 
 @dataclass(frozen=True)
 class HealthReport:
-    """``GET /api/health``: the connection's phase and generation, its age, info/license, versions, credentials."""
+    """``GET /api/health``: the connection's phase, generation, age, and recorded credential and address verdicts."""
 
     phase: str
     generation: int
     # Seconds on mgr.clock's monotonic clock since the standing control connection
     # became Reachable; null while none stands.
     connected_at: float | None
-    info: dict[str, str] | None
-    # installed release ("6.0.2") off the daemon's /about page — GetInfo's
-    # `engine` is the separately-numbered DSP engine, not this.
-    release: str | None
-    license: dict[str, str] | None
-    # HQPTuner's own version, not the engine's, read from the package.
-    app_version: str
     # The 4321 handshake carries no authentication, so the phase cannot speak for
     # the 8088 configuration lane's credentials; this is that lane's own verdict on
     # the configured management credentials.
     credentials_ok: bool | None
+    address_found: bool | None
 
 
 @dataclass(frozen=True)
@@ -62,21 +55,18 @@ class StatusReport:
 
 @router.get("/health")
 def health(manager: Mgr) -> HealthReport:
-    """Return the connection's phase and generation, connection age, info/license, HQPTuner's version, and credentials.
+    """Return the connection's phase, generation, age, and recorded credential and address verdicts.
 
     Answers from the poll loop's cached view, so it never waits on a socket and stays useful while the daemon is down.
     """
     readings = manager.readings
     standing = manager.phase.standing
     return HealthReport(
-        phase=standing.phase.value,
+        phase=standing.phase.value.capitalize(),
         generation=standing.generation,
         connected_at=_age(standing.connected_since, now=manager.clock.monotonic()),
-        info=readings.info,
-        release=readings.release,
-        license=readings.license,
-        app_version=__version__,
         credentials_ok=readings.credentials_ok,
+        address_found=readings.address_found,
     )
 
 
@@ -92,12 +82,12 @@ def state(manager: Mgr) -> deps.Snapshot[dict[str, str | None]]:
     Served from the last-loaded copy, reachable daemon or not; 503 until the first frame has landed.
     """
     # `active_chain` is not a State attribute: it is which filter/shaper chain the
-    # engine currently has loaded (chain.active_chain — the configured mode when
+    # engine currently has loaded (EngineView.loaded_chain — the configured mode when
     # pcm/sdm, Status.active_mode in auto, null when neither can answer). Served
     # here so the frontend knows which chain's controls are live-adjustable
     # without duplicating that State/Status fallback in JS.
     live = manager.readings.state
-    data = None if live is None else {**live, "active_chain": chain.active_chain(manager)}
+    data = None if live is None else {**live, "active_chain": EngineView.of(manager.readings).loaded_chain()}
     return deps.snapshot(data)
 
 
@@ -145,11 +135,12 @@ def enumerations(request: Request, manager: Mgr) -> deps.Snapshot[MergedEnums]:
 
 def merged_enumerations(manager: ConnectionManager, static: StaticMetadata) -> deps.Snapshot[MergedEnums]:
     """Answer ``GET /api/enumerations``'s body off the manager and the static overlay, refusing until they loaded."""
-    if manager.readings.enums is None:
+    view = EngineView.of(manager.readings)
+    if view.enums is None:
         raise refuse(NotLoadedError())
-    mode_name = engineread.current_mode_name(manager)
-    merged = merge_enumerations(manager.readings.enums, static, mode_name)
-    mode = ModeInfo(index=(manager.readings.state or {}).get("mode"), name=mode_name)
+    mode_name = engineread.current_mode_name(view)
+    merged = merge_enumerations(view, static, mode_name)
+    mode = ModeInfo(index=engineread.current_mode_index(view), name=mode_name)
     return deps.snapshot(replace(merged, mode=mode))
 
 

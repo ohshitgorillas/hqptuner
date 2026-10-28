@@ -107,13 +107,13 @@ def test_apply_and_save_persists_the_applied_edit_into_the_preset(http_client: T
 
 
 def _active(client: TestClient) -> str:
-    active: str = client.get("/api/config").json()["data"]["active"]
+    active: str = client.get("/api/config").json()["fields"]["active_preset"]["value"]
     return active
 
 
 @pytest.mark.parametrize("switch_to", ["Kept", ""], ids=["a-preset", "no-preset"])
 def test_applying_a_switch_sets_or_clears_the_active_preset(http_client: TestClient, switch_to: str) -> None:
-    http_client.post("/api/config/refresh")  # /config only serves once the forms are fetched
+    http_client.post("/api/config/refresh")
     _save(http_client, "Kept")
     _save(http_client, "Other")
     if _active(http_client) != "Other":

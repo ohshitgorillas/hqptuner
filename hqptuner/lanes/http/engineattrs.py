@@ -22,7 +22,7 @@ from hqptuner.conf import engineconf, presetconf
 from hqptuner.lanes import settle
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
-    from hqptuner.lanes import LaneManager
+    from hqptuner.lanes import FileAcquisition, LaneManager
     from hqptuner.lanes.http.storecarry import StoreCarry
 
 # readback window after the restore, before reporting the apply unconfirmed —
@@ -48,18 +48,26 @@ class EngineAttrsResult:
     verified: EngineVerification
     members: list[str]
     backup_bytes: int
+    generation: int | None
+    acquisition: FileAcquisition | None
 
 
-async def verify(mgr: LaneManager, overrides: dict[str, str], mark: settle.Mark) -> EngineVerification:
+async def verify(
+    mgr: LaneManager, overrides: dict[str, str], mark: settle.Mark
+) -> tuple[EngineVerification, int | None, FileAcquisition | None]:
     """Wait for the restart stamped ``mark`` to land, then read the ``<engine>`` overrides back.
 
     Polls a fresh backup until every override is reflected in its base config's ``<engine>`` tag, or the window ends.
     Returns the last-read attributes either way, so a caller can report what actually landed.
     """
     got: dict[str, str] = {}
+    generation: int | None = None
+    acquisition: FileAcquisition | None = None
 
     async def probe() -> dict[str, str] | None:
-        nonlocal got
+        nonlocal got, generation, acquisition
+        acquired = mgr.phase.standing.generation
+        ownership = mgr.readings.acquire_file("engine")
         fresh = await settle.fresh_backup(mgr)
         try:
             xml = None if fresh is None else engineconf.base_config_xml(fresh, mgr.readings.active_config)
@@ -68,12 +76,14 @@ async def verify(mgr: LaneManager, overrides: dict[str, str], mark: settle.Mark)
         if xml is None:
             return None
         got = engineconf.read_engine_attrs(xml)
+        generation = acquired
+        acquisition = ownership
         return got if all(got.get(key) == want for key, want in overrides.items()) else None
 
     # the restore just restarted the daemon — wait for it to land before reading back
     await settle.await_ready(mgr, mark)
     applied = await settle.poll_until(mgr, probe, interval=_VERIFY_INTERVAL, deadline=_VERIFY_WINDOW)
-    return EngineVerification(applied=applied is not None, engine=got)
+    return EngineVerification(applied=applied is not None, engine=got), generation, acquisition
 
 
 def _with_carried_live_fields(backup: bytes, active: str | None, stored: dict[str, str]) -> bytes:
@@ -114,5 +124,7 @@ async def apply(
     members = engineconf.config_members(backup, active or None, all_presets=all_presets)
     modified = engineconf.edit_config_zip(backup, members, overrides)
     mark = await settle.restart(mgr, lambda: mgr.require_http().restore(modified, "system"))
-    verified = await verify(mgr, overrides, mark)
-    return EngineAttrsResult(verified=verified, members=members, backup_bytes=len(backup))
+    verified, generation, acquisition = await verify(mgr, overrides, mark)
+    return EngineAttrsResult(
+        verified=verified, members=members, backup_bytes=len(backup), generation=generation, acquisition=acquisition
+    )

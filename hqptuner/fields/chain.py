@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-PCM = "pcm"
-SDM = "sdm"
+from hqptuner.fields.model import Chain
+
+PCM = Chain.PCM
+SDM = Chain.SDM
 
 # No PCM rate the engine offers reaches DSD64, so the lowest SDM rate separates
 # the two families outright — no rate in Hz is ambiguous between them.

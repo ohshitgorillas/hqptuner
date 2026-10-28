@@ -24,8 +24,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes.live import routing
-from hqptuner.lanes.live.chain import active_chain
 from hqptuner.lanes.writer import LiveWriteOk, LiveWriteResult, apply_live
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
@@ -35,21 +36,12 @@ if TYPE_CHECKING:  # avoid a circular import at runtime
 
 log = logging.getLogger(__name__)
 
-# Writes that invalidate an enumeration the NEXT live write resolves against:
-# SetMode swaps the filter and shaper lists wholesale, and the rate list depends
-# on both mode and the selected filter (manual §4.6). The loader re-enumerates on
-# its poll interval, on a mode-index move and on a chain change, so without this
-# the control the user reaches for next could resolve its value against a stale list
-# until one of those came.
-_REENUMERATES = frozenset({"mode", "filter"})
-
 
 @dataclass(frozen=True)
 class LiveApplyReport:
     """One LIVE batch's answer: each setter's readback verdict, and whether it moved an enumeration."""
 
     live: list[LiveWriteResult] = dataclasses.field(default_factory=list)
-    # true when this batch moved an enumeration the next write resolves against (``_REENUMERATES``)
     reenumerated: bool = False
 
 
@@ -94,7 +86,7 @@ async def chain_entered(mgr: LaneManager, client: ControlClient, before: str | N
     the whole of the next track. `reenumerated` says the caller already pulled
     fresh lists for a mode change, so this does not pull them twice.
     """
-    after = active_chain(mgr)
+    after = EngineView.of(mgr.readings).loaded_chain()
     if after is None or after == before:
         return
     log.info("chain changed (%s -> %s)", before or "unknown", after)
@@ -111,21 +103,12 @@ async def _reread_state(mgr: LaneManager, client: ControlClient) -> None:
 
 
 def _reenumerates(edits: dict[str, dict[str, str]]) -> bool:
-    """Whether a live batch moves an enumeration the next write resolves against (``_REENUMERATES``)."""
-    return bool(_REENUMERATES & set(edits))
+    """Whether a live batch moves an enumeration the next write resolves against."""
+    return bool(query.reenumerating_setters() & edits.keys())
 
 
 async def refresh_after_live(mgr: LaneManager, client: ControlClient, edits: dict[str, dict[str, str]]) -> None:
-    """Re-read what a live batch just invalidated: the running state always, the enumerations when the batch moved one.
-
-    Live edits bypass the config file, so State is the only record of them. The
-    enumerations are the subtler half: a write in ``_REENUMERATES`` swaps a list
-    the NEXT write resolves its value against, and refreshing State alone also
-    consumes the mode transition the loader watches to re-enumerate on its own
-    (``core/loader._beat``) — so a caller that skipped this left both the cache and
-    the fallback stale. Every live-routing caller runs it, staged lane included.
-    A refused State read is a complete reply that says nothing of the engine, so the last good reading stands.
-    """
+    """Re-read what a live batch just invalidated: the running state always."""
     await _reread_state(mgr, client)
     if _reenumerates(edits):
         enums = await client.get_all_enumerations()
@@ -189,10 +172,7 @@ def mode_already_running(mgr: LaneManager, want: str) -> bool:
     it clears the engine's rate pin outright and reloads the chain. A preset saved and
     re-applied in the same mode should disturb neither.
     """
-    index = (mgr.readings.state or {}).get("mode")
-    if index is None:
-        return False
-    return routing.mode_form_value((mgr.readings.enums or {}).get("modes") or [], index) == want
+    return EngineView.of(mgr.readings).mode() == want
 
 
 async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyReport:
@@ -217,29 +197,6 @@ async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
         return LiveApplyReport([*first.live, *second.live], first.reenumerated or second.reenumerated)
 
 
-def _mode_apart(http_fields: dict[str, str]) -> str | None:
-    """Return the staged mode value when it goes on the wire as its own batch.
-
-    Every live mode write does, whatever else is staged with it. ``SetMode`` swaps
-    the lists every later value resolves against, so it has to go through the
-    re-enumerating path (``apply_now``) — beside other routable fields because
-    those fields resolve against the lists it swapped
-    (``routing._mode_blocks_batch``), and ALONE because the batch after it does.
-    A mode routed as an ordinary edit left the enumerations stale and the poll
-    loop blind to the switch it watches for, so the next apply's filter resolved
-    against the departed mode's list and the engine took a different filter than
-    the one named.
-
-    Only in a batch that can go fully live, though. One restore-lane field means
-    the restart is happening regardless, and that restart boots the daemon onto
-    its config file, so the mode belongs in that file with the rest of the batch,
-    not on a live setter the restore would immediately overwrite.
-    """
-    if any(field not in routing.ROUTABLE for field in http_fields):
-        return None
-    return http_fields.get("mode")
-
-
 async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult] | None:
     """Write a staged mode as its own re-enumerating batch; None when it cannot go live at all.
 
@@ -255,24 +212,6 @@ async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult]
         log.warning("mode-first batch fell back to the restore lane: mode %r does not resolve live", mode)
         return None
     return (await apply_now(mgr, {"mode": mode})).live
-
-
-def split_remainder(
-    mgr: LaneManager,
-    http_fields: dict[str, str],
-    live_edits: dict[str, dict[str, str]],
-    report: list[LiveWriteResult],
-) -> SplitPlan:
-    """Split what is staged beside a mode already written, against the lists that switch produced.
-
-    What falls back to the restore lane takes the mode with it: that restart boots the daemon
-    from its config file, which never learned the mode just applied live.
-    """
-    rest = {name: value for name, value in http_fields.items() if name != "mode"}
-    edits, remainder = routing.split_live(mgr, rest, live_edits)
-    if remainder:
-        remainder = {**remainder, "mode": http_fields["mode"]}
-    return SplitPlan(report, edits, remainder)
 
 
 async def mode_then_split(
@@ -293,15 +232,16 @@ async def mode_then_split(
     lane that dies under the mode write aborts the apply: a dead socket is not an
     answer to route on.
 
-    A staged mode with nothing beside it takes the same route (``_mode_apart``):
+    A staged mode with nothing beside it takes the same route (``routing.mode_apart``):
     the batch that needs the post-switch lists is then the NEXT apply rather than
     the remainder of this one, and it is no less entitled to them.
     """
-    mode = _mode_apart(http_fields)
+    mode = routing.mode_apart(http_fields)
     if mode is None:
         edits, remainder = routing.split_live(mgr, http_fields, live_edits)
         return SplitPlan([], edits, remainder)
     report = await apply_mode_first(mgr, mode)
     if report is None:
         return SplitPlan([], live_edits, dict(http_fields))
-    return split_remainder(mgr, http_fields, live_edits, report)
+    edits, remainder = routing.split_remainder(mgr, http_fields, live_edits)
+    return SplitPlan(report, edits, remainder)

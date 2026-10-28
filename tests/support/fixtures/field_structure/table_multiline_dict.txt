@@ -1,0 +1,10 @@
+"""A module that keeps its own routing table across several lines."""
+
+import logging
+
+LOG = logging.getLogger(__name__)
+
+ROUTES = {
+    "@A@": "live",
+    "@B@": "restore",
+}

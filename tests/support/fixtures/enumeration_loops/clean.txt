@@ -1,0 +1,8 @@
+"""A module with loops, none of them over an enumeration list."""
+
+
+def totals(reading):
+    seen = 0
+    for key in sorted(reading.state):
+        seen += len(key)
+    return [seen for _ in range(2)]

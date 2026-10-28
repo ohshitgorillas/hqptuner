@@ -9,14 +9,9 @@ after it. It holds no record of its own and replays nothing into the Engine.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
-from hqptuner.lanes.live.chain import EngineReading, loaded_chain
-from hqptuner.lanes.live.routing import live_fields
-from hqptuner.lanes.live.snapshot import read_field
-
-if TYPE_CHECKING:
-    from hqptuner.lanes.live.snapshot import Reading
+from hqptuner.engine.view import EngineReading, EngineView, Reading
+from hqptuner.fields import query
 
 
 @dataclass(frozen=True)
@@ -24,22 +19,19 @@ class Dropped:
     """A field the Engine ran before an outcome and does not run after it, and the value it held.
 
     ``field`` is the config-form name, ``value`` the config-form value the Engine ran (an enum ID
-    for a filter or shaper), ``name`` the enumeration's name for it, None where none names it.
+    for a filter or shaper), ``name`` the enumeration's name for it, the value itself where the
+    enumeration names no item (a rate or a 0/1 flag).
     """
 
     field: str
     value: str
-    name: str | None
+    name: str
 
 
 def _held(reading: EngineReading) -> dict[str, Reading]:
     """Return every live field this reading answers for, empty when it has no State."""
-    state = reading.state
-    if state is None:
-        return {}
-    enums = reading.enums or {}
-    chain = loaded_chain(reading)
-    found = ((field, read_field(field, state, enums, chain)) for field in live_fields())
+    view = EngineView.of(reading)
+    found = ((field, view.read(field)) for field in query.live_controls())
     return {field: value for field, value in found if value is not None}
 
 

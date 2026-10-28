@@ -66,8 +66,8 @@ def test_a_refused_live_preset_delete_is_a_client_error(
     assert _delete_live_preset(live_api, tmp_path, name, store).status_code // 100 == 4
 
 
-def test_config_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
-    assert live_api.get("/api/config").json()["code"] == "no_credentials"
+def test_config_refresh_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
+    assert live_api.post("/api/config/refresh").json()["code"] == "no_credentials"
 
 
 def test_a_live_batch_the_lane_refuses_carries_code_route_refused(live_api: TestClient) -> None:

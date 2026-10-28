@@ -5,23 +5,17 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol
 
+from hqptuner.engine.view import EngineReading, EngineView
+from hqptuner.fields import query
+
 PLAYING = 2
 
 
-class _Readings(Protocol):
-    """The snapshots the context reads: ``State``, ``Status`` and its track metadata, and the enumerations."""
-
-    @property
-    def state(self) -> dict[str, str] | None: ...
-
-    @property
-    def status(self) -> dict[str, str] | None: ...
+class _Readings(EngineReading, Protocol):
+    """The engine reading plus the track metadata ``Status`` carries."""
 
     @property
     def status_metadata(self) -> dict[str, str] | None: ...
-
-    @property
-    def enums(self) -> dict[str, list[dict[str, str]]] | None: ...
 
 
 class _HoldsReadings(Protocol):
@@ -47,16 +41,6 @@ def _int(value: str | None) -> int | None:
     return int(value) if value is not None and value.isdigit() else None
 
 
-def _name_at(items: list[dict[str, str]], index: str | None) -> str | None:
-    """Return the name the enumeration lists at this list index, or None when it lists none there."""
-    if index is None:
-        return None
-    for item in items:
-        if item.get("index") == index:
-            return item.get("name")
-    return None
-
-
 def context_from(mgr: _HoldsReadings) -> TrackContext | None:
     """Return the track context, or None when no State reading is held."""
     readings = mgr.readings
@@ -65,10 +49,16 @@ def context_from(mgr: _HoldsReadings) -> TrackContext | None:
         return None
     status = readings.status or {}
     meta = readings.status_metadata or {}
-    junk_filters = (readings.enums or {}).get("junk_filters", [])
+    junk = query.live("junk_filter")
+    junk_index = state.get(junk.state)
+    junk_name = (
+        None
+        if junk_index is None or junk.enumeration is None
+        else EngineView.of(readings).name_at(junk.enumeration, junk_index)
+    )
     return TrackContext(
         filter=status.get("active_filter"),
-        junk_filter=_name_at(junk_filters, state.get("filter_junk")),
+        junk_filter=junk_name,
         samplerate=_int(meta.get("samplerate")),
         sdm=meta.get("sdm") in ("1", "true"),
         playing=_int(state.get("state")) == PLAYING,

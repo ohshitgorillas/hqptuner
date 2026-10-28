@@ -5,13 +5,16 @@ A self-contained feature surface mounted alongside ``app``.
 
 from fastapi import APIRouter, Request
 
-from hqptuner.api.deps import Mgr, audit_of, pending_of
-from hqptuner.api.errors import ErrorBody, refuse
+from hqptuner.api.deps import Mgr, audit_of, manager_of, pending_of
+from hqptuner.api.errors import ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import StageBody
+from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.pending import PendingSnapshot
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes.http.restore import RestoreOutcome
-from hqptuner.lanes.writer import LiveWriteFailed, stageable_live_settings
+from hqptuner.lanes.writer import LiveWriteFailed
 
 router = APIRouter(prefix="/api")
 
@@ -45,24 +48,27 @@ def stage(body: StageBody, request: Request) -> PendingSnapshot:
     422 when a live key is not a setting the buffer takes: no setter exists for it, or it is the pinned rate, which
     only ``POST /api/config/live`` sends. Nothing is written to the daemon here; apply is a separate call.
     """
-    unknown = set(body.live) - set(stageable_live_settings())
+    unknown = set(body.live) - set(query.stageable())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
     store = pending_of(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
-    store.stage(body.live, body.http)
+    try:
+        store.stage(body.live, body.http, EngineView.of(manager_of(request).readings))
+    except GroundingError as exc:
+        raise refuse(InvalidInputError(error=exc)) from exc
     store.drop(body.drop.live, body.drop.http)
     # what THIS request carried, not the accumulated buffer: the buffer is a sum
     # of requests and the log has to be able to attribute a field to one of them
     audit_of(request).stage(body.http, body.live, body.drop.model_dump())
-    return store.snapshot()
+    return store.reconcile(manager_of(request).readings)
 
 
 @router.get("/config/pending")
 def pending(request: Request) -> PendingSnapshot:
     """Return the staged buffer as it stands, so a reloaded browser recovers what it had staged."""
-    return pending_of(request).snapshot()
+    return pending_of(request).reconcile(manager_of(request).readings)
 
 
 @router.delete("/config/pending")

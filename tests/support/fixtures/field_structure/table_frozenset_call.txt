@@ -1,0 +1,6 @@
+"""A module that keeps its own frozen set of live settings."""
+
+import logging
+
+LOG = logging.getLogger(__name__)
+LIVE = frozenset(("@A@", "@B@"))

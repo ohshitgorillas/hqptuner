@@ -122,6 +122,8 @@ def _http_render(st: dict[str, Any]) -> str:
     # the engine has open. Unset (the usual state) means both routes agree.
     form_device = st.get("_form_net_device") or st["net_device"]
     dev_opts = "".join(f'<option value="{v}"{" selected" if form_device == v else ""}>{v}</option>' for v in endpoints)
+    volume_bounds = st.get("_defaults_volume_bounds", {"min": -60, "max": 0})
+    volume_limits = " ".join(f'{key}="{value}"' for key, value in volume_bounds.items())
     rows = [
         f'<input type="text" name="title" value="{st["title"]}"/>',
         f'<select name="backend">{opts}</select>',
@@ -133,7 +135,7 @@ def _http_render(st: dict[str, Any]) -> str:
         # the startup volume, as the real 6.0.4 page renders it
         # (tests/support/fixtures/config-form-6.0.4.html: a number input bounded
         # by the volume range) — the form carries it as well as the config file
-        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" min="-60" max="0"/>',
+        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" {volume_limits}/>',
         f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
         f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
         # the daemon renders 0/1/2 as a bare checkbox: -3 dB and -6 dB are

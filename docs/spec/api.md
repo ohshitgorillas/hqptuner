@@ -2,6 +2,66 @@
 
 This document owns the contract HQPTuner's REST API keeps with its clients.
 
+## Field readings
+
+`GET /api/config` returns the shared field reading directly, without a `data` wrapper:
+
+```js
+{
+  generation,
+  fields: { [key]: FieldReading }
+}
+```
+
+Each setting's `FieldReading` has these members:
+
+```js
+{
+  engine: { value, name, generation } | null,
+  file: { value, generation } | null,
+  staged: value | null,
+  lane: "live" | "restore" | "form" | "matrix" | "volume",
+  show: "engine" | "file",
+  restarts: boolean,
+  diverges: boolean,
+  bounds: { min, max, step } | null
+}
+```
+
+`engine.value` is the Engine's list index for an enumeration, with its Engine name in `name`; `engine` is null when the field is off chain or its Engine source has not been read. `file.value` retains the enum ID or the form's own domain, and `file` is null before that source has been read. Each store's `generation` records its acquisition generation; the response's `generation` is the lifecycle generation. The server does not assign a new acquisition stamp merely by serving a retained value.
+
+`staged` is the pending buffer's value, or null when its destination store already holds that value. Reconciliation compares values in the destination store's domain. The latest change to a live setting applies immediately. Restart-class changes remain staged until Apply; a newer staged value replaces the older one, and Apply restarts the engine once.
+
+`lane` names the field's write lane and `show` names the store used for display. `restarts` describes the field's own restart classification, independently of other edits in a staged batch. A restart mark never appears merely because another staged field needs a restart. `diverges` reports whether the Engine and File disagree, compared by the server in one domain; an Engine list index is never compared directly with a File enum ID. It is false when either store is unread, off chain or otherwise incomparable. Clients keep no lane table, compare no Engine indices with File enum IDs and derive no per-field restart or divergence policy.
+
+`bounds` comes from the daemon's form or `VolumeRange`. Numeric fields always have `min`, `max` and `step`; only nonnumeric fields have null bounds. Numeric controls wait until the daemon has reported their limits. Last-known limits and invented limits are not substitutes for that evidence.
+
+After a restart the backend re-reads File sources in the background. The page keeps showing the last known values until the fresh reading arrives, then replaces them; controls never show "unread" during this refresh. An older acquisition stamp still identifies the older acquisition, but does not by itself clear the displayed value. An accepted File write re-reads the affected sources. The refresh requirement is not satisfied by retaining old values without re-reading them.
+
+The registered read-only fields are `profiles`, `active_preset`, `device_caps`, `info`, `release`, `license` and `app_version`. Each is served in `fields` as `{ value, readonly: true }`. `profiles.value` preserves the preset listing's `{ value, options }` payload, and `active_preset.value` identifies the active HQPTuner preset. The other values carry device capabilities, daemon info, release, license and app version respectively. Their existing displays remain available through this same config reading; they have no separate metadata feed.
+
+## Health
+
+`GET /api/health` returns this object directly:
+
+```js
+{
+  phase: "Down" | "Reachable" | "Ready" | "Alarm",
+  generation,
+  connected_at,
+  credentials_ok: true | false | null,
+  address_found: true | false | null
+}
+```
+
+`phase` and `generation` belong to the lifecycle. `connected_at` is elapsed seconds since the standing connection became Reachable, or null without a connection; it is not a timestamp. `credentials_ok` reports learned credential acceptance or rejection, and is null without conclusive evidence. Credential rejection does not change the lifecycle phase.
+
+`address_found` is false for name resolution failure or host/network unreachable, true after a successful TCP connection or an explicit connection refusal, and null before the first dial or after an inconclusive dial timeout. An authentication or application-handshake failure does not erase evidence that the host was found. Address and credential evidence reset when their target or credentials change. Health serialization performs no dial or independent phase inference.
+
+## Pipeline staging
+
+The client stages pipeline rows only. The server's pending buffer derives their count and owns rows and count as one edit. At 128 rows the page stops offering the add button; there is no refusal message. At the minimum it does not offer the remove button.
+
 ## Errors
 
 Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is FastAPI's field, a sentence or the live lane's per-field reasons dict, user-facing and reworded at will; nothing branches on it and no test asserts it (`docs/spec/testing.md` rule 9). `code` is the stable identifier a client acts on. The status is a property of the code, so a route names the cause and never picks a status.
@@ -44,29 +104,6 @@ Lane reports returned inside a 200 body carry the same vocabulary per item: a fa
 ## Connection
 
 Neither credential field is empty by default, since both fall back to hqplayerd's published stock pair, so a field's emptiness does not say whether the install has been configured; a password that is not the stock default does. `GET /api/connection` reports it as `has_password`, so the connection panel can tell a stored credential from a defaulted one. A blank password field in that panel keeps whichever credential is in force and never clears one.
-
-## Field readings
-
-`GET /api/config` answers every field with its Engine value, its File value and its Staged value, each stamped, and the lane the field writes on (`docs/spec/settings-truth.md` rule 3). The body is `{"generation": int, "fields": {key: FieldReading}}`, replaced whole on each read and never merged. A `FieldReading` has these members:
-
-- `engine`: `{"value", "name", "generation"}`, the Engine's last verified reading, `value` a list index, or `null` for a field off the loaded chain or not yet read.
-- `file`: `{"value", "generation"}`, the File's reading, `value` an enum ID or the form's own domain, or `null`.
-- `staged`: the pending buffer's value, or `null` when the stores already hold it (`core/pending.py`).
-- `lane`: one of `live`, `restore`, `form`, `matrix`, `volume` (`docs/spec/settings-classification.md`).
-- `show`: `engine` or `file`, the store the lane names for display; the client shows `reading[show]` and holds no lane table.
-- `restarts`: true when applying the field restarts the engine, which drives the restart mark.
-- `diverges`: true when the Engine and the File disagree, compared by the server in one domain; the client compares no list index with an enum ID.
-- `bounds`: `{"min", "max", "step"}` from the daemon form's own limits or from `VolumeRange`. HQPlayer bounds every numeric value, so a numeric field is always served with its bounds; `null` only on a field that is not a number. A unit is display copy and is not served.
-
-The client holds no per-field flag naming a store, a restart or a bound.
-
-## Health
-
-`GET /api/health` answers `{"phase", "generation", "connected_at", "credentials_ok", "address_found"}`. `phase` is one of `Down`, `Reachable`, `Ready`, `Alarm` (`docs/spec/lifecycle.md`), and `generation` is the lifecycle policy's ordering token. `connected_at` stamps the current connection, and `credentials_ok` carries the management credentials' verdict, which does not move the phase. A client picks the page's one phase from `phase` and holds no reachable, ready or connected flag of its own.
-
-`address_found` carries the configured address's verdict from the last dial, and like `credentials_ok` it does not move the phase. It is `false` when the host name does not resolve or the dial fails with host or network unreachable; `true` once a dial reaches the host, a refused dial included, since a host that refuses is there and its daemon is down or restarting; `null` before the first dial. The connection panel opens on its own only when `credentials_ok` or `address_found` is `false`, never on the phase.
-
-- Open: whether a dial that times out with no answer counts as an address not found.
 
 ## Meter feed
 

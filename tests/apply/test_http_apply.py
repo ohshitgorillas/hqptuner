@@ -13,9 +13,10 @@ import fake_http
 import pytest
 from conftest import ManagerFactory
 
-from hqptuner.conf import presetconf
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreConverged, RestoreOutcome, RestoreUnavailable
 from hqptuner.presets import presetlane
@@ -170,7 +171,7 @@ async def test_a_net_device_the_daemon_no_longer_offers_names_it_unfixable(
     manager, _ = apply_via
     result = await restore.apply(manager, {"net_device": "GHOST/hw:CARD=Gone,DEV=0"}, restore_hooks(manager))
     assert isinstance(result, RestoreUnavailable)
-    assert result.unfixable[presetconf.NET_DEVICE].want == "GHOST/hw:CARD=Gone,DEV=0"
+    assert result.unfixable[query.kept_at(Codec.NET_DEVICE)].want == "GHOST/hw:CARD=Gone,DEV=0"
 
 
 #: Restore row for the fake daemon: it re-reads the live loudness plugin's ``low_frequency``.

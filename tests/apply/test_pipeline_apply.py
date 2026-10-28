@@ -65,8 +65,9 @@ async def test_pipeline_apply_reports_applied(http_manager: ConnectionManager) -
 
 
 def test_invalid_gain_is_refused_before_any_write(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"})}})
-    resp = http_client.post("/api/config/apply")
+    resp = http_client.post(
+        "/api/config/stage", json={"http": {"matrix_pipelines": rows_json({**ROW0, "gain": "loud"}, ROW1)}}
+    )
     assert resp.json()["code"] == "invalid_input"
 
 

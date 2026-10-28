@@ -27,10 +27,10 @@ from hqptuner.engine.controlerrors import (
     ResponseTooLargeError,
     UnparseableResponseError,
 )
+from hqptuner.engine.view import EngineView
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
 from hqptuner.lanes.live import lane
-from hqptuner.lanes.live.chain import active_chain
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -165,17 +165,29 @@ async def connect(mgr: ConnectionManager, cadence: Cadence) -> None:
     """
     cfg = mgr.cfg
     client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
+    mgr.dialing = client
     try:
         await client.connect()
+        if not still_stands(mgr.dialing, client):
+            return
+        mgr.readings.take_address(found=client.dial_outcome.address_found)
         info = await client.get_info()
     except ControlError as exc:
         log.debug("control dial turned away: %s", exc)
-        await client.close()
-        mgr.phase.report(Fact.DIAL_REFUSED, mgr.clock.monotonic())
+        if still_stands(mgr.dialing, client):
+            mgr.readings.take_address(found=client.dial_outcome.address_found)
+            mgr.phase.report(Fact.DIAL_REFUSED, mgr.clock.monotonic())
     else:
+        if not still_stands(mgr.dialing, client):
+            return
         mgr.control = client
         mgr.phase.report(Fact.GETINFO_ANSWERED, mgr.clock.monotonic())
         await _stand(mgr, client, cadence, info)
+    finally:
+        if still_stands(mgr.dialing, client):
+            mgr.dialing = None
+        if not still_stands(mgr.control, client):
+            await client.close()
 
 
 async def _stand(mgr: ConnectionManager, client: ControlClient, cadence: Cadence, info: dict[str, str]) -> None:
@@ -226,7 +238,7 @@ async def _beat(mgr: ConnectionManager, client: ControlClient, cadence: Cadence)
     """Re-read State and Status; on the poll cadence or a mode move, the enumerations and the forms too."""
     before_state = mgr.readings.state
     before_mode = (before_state or {}).get("mode")
-    before_chain = active_chain(mgr)
+    before_chain = EngineView.of(mgr.readings).loaded_chain()
     fields = await _fast(client)
     now = mgr.clock.monotonic()
     due = poll_due(now, cadence.polled_at, mgr.cfg.poll_interval)
@@ -302,14 +314,21 @@ async def _load_backup(mgr: ConnectionManager, cadence: Cadence) -> None:
     arrive, or arrives as no readable archive, is logged with its error, leaves the File not read, feeds no import
     and stays owed; the connection stands either way.
     """
+    generation = mgr.phase.standing.generation
+    acquisition = mgr.readings.acquire_file("file_config")
+    source = mgr.require_http()
     try:
-        backup = await mgr.require_http().backup()
-        await fileconfig.load_file_config(mgr, backup=backup)
+        backup = await source.backup()
+        if source is not mgr.http_client or not mgr.readings.file_current(acquisition):
+            return
+        await fileconfig.load_file_config(mgr, backup=backup, generation=generation, acquisition=acquisition)
     except (httpx.HTTPError, engineconf.UnreadableArchiveError) as exc:
-        log.warning("file config read failed: %s", exc)
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            log.warning("file config read failed: %s", exc)
     else:
         await _migrate(mgr, backup)
-        cadence.archive_read = True
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            cadence.archive_read = True
 
 
 async def _migrate(mgr: ConnectionManager, backup: bytes) -> None:

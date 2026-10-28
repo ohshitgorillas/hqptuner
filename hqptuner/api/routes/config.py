@@ -1,7 +1,8 @@
 """Configuration surface — /config form, preset previews, device refresh, backup, state archive, engine, restore.
 
-Every route but the state export and import needs the daemon's 8088 management lane, so takes ``HttpMgr``; those two
-touch only HQPTuner's own files and log, so take ``Cfg`` and answer without credentials.
+GET /config reads cached stores with ``Mgr``. State export and import touch only HQPTuner's own files and log, so
+take ``Cfg`` and answer without credentials. The other routes need the daemon's 8088 management lane and take
+``HttpMgr``.
 """
 
 import hashlib
@@ -11,44 +12,23 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, File, Request, Response, UploadFile
 
-from hqptuner import logbuffer
+from hqptuner import __version__, logbuffer
 from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import EngineBody
 from hqptuner.conf.engineconf import UnreadableArchiveError
-from hqptuner.conf.httpforms import FormField
 from hqptuner.core import engineread
 from hqptuner.core.applyops import EngineApplyResult
+from hqptuner.core.fieldreadings import ConfigReading, MetadataSources, config_reading
+from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.pending import PendingStore
 from hqptuner.engine.controlerrors import ControlError
-from hqptuner.engine.devicecaps import DeviceCaps
 from hqptuner.presets import archive, fileconfig, presetlane, presetops
-from hqptuner.presets.presetlane import PresetOption
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.export import state_archive
 
 router = APIRouter(prefix="/api")
-
-
-@dataclass(frozen=True)
-class PresetChoice:
-    """The preset picker as the form renders it: the selected preset and every option, "(no preset)" first."""
-
-    value: str
-    options: list[PresetOption]
-
-
-@dataclass(frozen=True)
-class ConfigView:
-    """``GET /api/config`` data: the /config form's fields beside HQPTuner's presets."""
-
-    fields: list[FormField]
-    profiles: PresetChoice
-    active: str
-    # What the selected output device announced it can carry, or null when
-    # nothing is known about it. The rate menus gray against this; null grays
-    # nothing.
-    device_caps: DeviceCaps | None
 
 
 @dataclass(frozen=True)
@@ -164,24 +144,20 @@ class RestoreFailedError(ErrorBody):
         super().__init__(f"Restoring the settings failed: {error}")
 
 
-@router.get("/config")
-def config(manager: HttpMgr) -> deps.Snapshot[ConfigView]:
-    """Return the /config form joined with HQPTuner's preset list and the output device's caps.
-
-    Needs credentials — without them the 8088 lane does not exist and the route 503s.
-    """
-    form = deps.ensure_form(manager.readings.config_form, manager.readings.config_error)
-    # `profiles` and `active` come from HQPTuner's own preset store — the source of
-    # truth — not the daemon's (unreliable) profile subsystem, which under our
-    # restore-only model always reports [default].
-    presets = presetlane.listing(manager)
-    view = ConfigView(
-        fields=form["fields"],
-        profiles=PresetChoice(value=presets.value, options=presets.options),
-        active=presets.active,
-        device_caps=manager.readings.device_caps,
+def current_config(manager: ConnectionManager, pending: PendingStore) -> ConfigReading:
+    """Capture the config response in one event-loop turn for REST and push."""
+    return config_reading(
+        manager.readings,
+        pending.snapshot(),
+        manager.phase.standing.generation,
+        MetadataSources(readings=manager.readings, presets=presetlane.listing(manager), app_version=__version__),
     )
-    return deps.snapshot(view)
+
+
+@router.get("/config")
+async def config(manager: Mgr, request: Request) -> ConfigReading:
+    """Return registered settings and metadata from the current source stores."""
+    return current_config(manager, deps.pending_of(request))
 
 
 # `:path` rather than the default convertor, which is `[^/]+` and so cannot match

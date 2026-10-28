@@ -46,6 +46,7 @@ class FormsRefresh:
 if TYPE_CHECKING:
     from collections.abc import Awaitable, Callable
 
+    from hqptuner.conf.httpconf import HttpConfigClient
     from hqptuner.conf.httpforms import ConfigForm, SpeakersForm
     from hqptuner.lanes import LaneManager
 
@@ -73,23 +74,42 @@ async def refresh(mgr: LaneManager) -> FormsRefresh:
     if http is None:
         return FormsRefresh(FormsOutcome.NO_CREDENTIALS)
     readings = mgr.readings
-    await _fetch(http.get_config, lambda form: _take_config(mgr, form), lambda e: readings.take_file(config_error=e))
     await _fetch(
-        http.get_matrix,
-        lambda form: readings.take_file(matrix_form=form, matrix_error=None),
-        lambda e: readings.take_file(matrix_error=e),
+        mgr,
+        http,
+        "config_form",
+        _FormRead(
+            http.get_config,
+            lambda form, generation: _take_config(mgr, form, generation=generation),
+            lambda e: readings.take_file(config_error=e),
+        ),
     )
     await _fetch(
-        http.get_speakers,
-        lambda form: take_speakers(mgr, form),
-        lambda e: readings.take_file(speakers_error=e),
+        mgr,
+        http,
+        "matrix_form",
+        _FormRead(
+            http.get_matrix,
+            lambda form, generation: readings.take_file(generation=generation, matrix_form=form, matrix_error=None),
+            lambda e: readings.take_file(matrix_error=e),
+        ),
+    )
+    await _fetch(
+        mgr,
+        http,
+        "speakers_form",
+        _FormRead(
+            http.get_speakers,
+            lambda form, generation: take_speakers(mgr, form, generation=generation),
+            lambda e: readings.take_file(speakers_error=e),
+        ),
     )
     if http.credentials_ok is not None:
-        record_credentials(mgr, accepted=http.credentials_ok)
+        record_credentials(mgr, http, accepted=http.credentials_ok)
     return FormsRefresh(_outcome(mgr))
 
 
-def _take_config(mgr: LaneManager, config: ConfigForm) -> None:
+def _take_config(mgr: LaneManager, config: ConfigForm, *, generation: int) -> None:
     """Take the /config form into ``readings``, tracing the volume it landed on."""
     readings = mgr.readings
     # Compared against the form as it stands at this instant: the poll loop
@@ -101,19 +121,35 @@ def _take_config(mgr: LaneManager, config: ConfigForm) -> None:
     # otherwise untraceable.
     landing = voltrace.form_subset(config)
     voltrace.observe_change(mgr, "config_form", landing, voltrace.form_subset(readings.config_form))
-    readings.take_file(config_form=config, config_error=None)
+    readings.take_file(generation=generation, config_form=config, config_error=None)
+
+
+@dataclass(frozen=True)
+class _FormRead[F]:
+    getter: Callable[[], Awaitable[F]]
+    take: Callable[[F, int], object]
+    fail: Callable[[str], object]
 
 
 async def _fetch[F](
-    getter: Callable[[], Awaitable[F]], take: Callable[[F], object], fail: Callable[[str], object]
+    mgr: LaneManager,
+    source: HttpConfigClient,
+    payload: str,
+    reader: _FormRead[F],
 ) -> None:
     """Fetch one form and hand it to ``take``, or on a wire failure hand the failure's text to ``fail``."""
+    if source is not mgr.http_client:
+        return
+    acquisition = mgr.readings.acquire_file(payload)
+    generation = mgr.phase.standing.generation
     try:
-        form = await getter()
+        form = await reader.getter()
     except httpx.HTTPError as exc:
-        fail(str(exc))
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            reader.fail(str(exc))
     else:
-        take(form)
+        if source is mgr.http_client and mgr.readings.file_current(acquisition):
+            reader.take(form, generation)
 
 
 def _outcome(mgr: LaneManager) -> FormsOutcome:
@@ -132,7 +168,7 @@ def _outcome(mgr: LaneManager) -> FormsOutcome:
     return FormsOutcome.NO_ANSWER
 
 
-def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
+def record_credentials(mgr: LaneManager, source: HttpConfigClient, *, accepted: bool) -> None:
     """Record what the 8088 lane just proved about the credentials, logging only the transition.
 
     The one writer of ``readings.credentials_ok``: the poll records the client's verdict here, and a restore pass
@@ -141,7 +177,7 @@ def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
     Per poll would put the same line in the log every two seconds for as long as
     the install stays broken, which is how a real report gets scrolled past.
     """
-    if not mgr.readings.take_file(credentials_ok=accepted):
+    if source is not mgr.http_client or not mgr.readings.take_file(credentials_ok=accepted):
         return
     if accepted:
         log.info("hqplayerd management credentials accepted")
@@ -149,13 +185,13 @@ def record_credentials(mgr: LaneManager, *, accepted: bool) -> None:
         log.warning("%s", httpauth.AUTH_REFUSED_MESSAGE)
 
 
-def take_speakers(mgr: LaneManager, form: SpeakersForm) -> None:
+def take_speakers(mgr: LaneManager, form: SpeakersForm, *, generation: int | None = None) -> None:
     """Take the /speakers form the daemon just answered into ``readings``, clearing that page's error.
 
     The one writer of ``readings.speakers_form``: the poll records each page it fetched here, and a speaker apply
     records its re-read here.
     """
-    mgr.readings.take_file(speakers_form=form, speakers_error=None)
+    mgr.readings.take_file(generation=generation, speakers_form=form, speakers_error=None)
 
 
 def decline(mgr: LaneManager) -> httpauth.HttpLaneDeclinedError | None:

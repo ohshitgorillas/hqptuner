@@ -23,37 +23,25 @@ import httpx
 
 from hqptuner import voltrace
 from hqptuner.conf import engineconf, httpauth, presetconf, presetzip
-from hqptuner.conf.matrixpayload import parse_delete
-from hqptuner.conf.matrixprofiles import (
-    MATRIX_PROFILE_DELETE,
-    MATRIX_PROFILE_SAVE,
-    MATRIX_PROFILES,
-)
+from hqptuner.conf.matrixprofiles import profile_to_adopt
 from hqptuner.conf.matrixscope import has_profile
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes import settle
 from hqptuner.lanes.http import forms
 
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from collections.abc import Callable
 
-    from hqptuner.lanes import LaneManager
+    from hqptuner.conf.httpconf import HttpConfigClient
+    from hqptuner.lanes import FileAcquisition, LaneManager
     from hqptuner.lanes.http.storecarry import StoreHooks
 
 log = logging.getLogger(__name__)
 
 RECONNECT_FAST = 1.0
 _PERSIST_RETRIES = 2  # corrective re-applies before giving up on a fixable divergence
-
-# A staged edit whose readback lives under a DIFFERENT key: the profile verbs are
-# write-only commands, and what proves one landed is the profile list they edit.
-_PROVEN_BY = {MATRIX_PROFILE_SAVE: MATRIX_PROFILES, MATRIX_PROFILE_DELETE: MATRIX_PROFILES}
-
-# Fields HQPTuner pins on every config write so the friendly-rate UI holds: the
-# per-family Rate dropdown sets a ceiling (defaults_samplerate/defaults_bitrate)
-# and the engine follows the source's 44.1/48 base — which requires auto_family
-# on and the fixed sample/bit rate left on Auto. Not exposed in the UI.
-FORCED_CONFIG = {"auto_family": "1", "samplerate": "0", "bitrate": "0"}
 
 
 class RestoreOutcome(Enum):
@@ -160,7 +148,9 @@ def verified_keys(merged: dict[str, str], intended: dict[str, str]) -> set[str]:
     edits are the contract; the rest of the file is not this apply's business.
     """
     keys = {k for k in merged if k in intended}
-    return keys | {_PROVEN_BY[k] for k in merged if k in _PROVEN_BY}
+    # a write-only verb (the profile save and delete) has no readback of its own:
+    # what proves it landed is the field it edits
+    return keys | {proof for k in merged if (proof := query.proven_by(k)) is not None}
 
 
 def config_diff(intended: dict[str, str], realized: dict[str, str], keys: set[str]) -> dict[str, dict[str, str | None]]:
@@ -218,12 +208,14 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
         raise declined
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so ``edits`` carries the running values for those
-    # settings under the staged edits, which win
-    merged = {**edits, **FORCED_CONFIG}
+    # settings under the staged edits, which win. The forced fields go over both:
+    # the per-family Rate ceiling holds only while auto_family is on and the fixed
+    # sample and bit rate stay on Auto, and the UI exposes none of them
+    merged = {**edits, **query.forced()}
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
-    active_profile = "" if switched else _active_profile(mgr, edits)
+    active_profile = "" if switched else profile_to_adopt(edits, (mgr.readings.state or {}).get("matrix_profile", ""))
     # the first pass the daemon accepts stamps it, not each one: a pass refused
     # with 503 and the next one adopted are one restore the caller has to outlast
     mark: settle.Mark | None = None
@@ -234,14 +226,15 @@ async def apply(mgr: LaneManager, edits: dict[str, str], hooks: StoreHooks, *, s
         # active label flips before the restart finishes — wait for the HTTP lane
         # to actually serve before writing, rather than racing it
         await settle.await_serving(mgr)
+        http = mgr.require_http()
         try:
-            pushed = await _restore_once(mgr, merged, hooks, active_profile)
+            pushed = await _restore_once(mgr, http, merged, hooks, active_profile)
         except httpauth.AuthRefused as exc:
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
-            forms.record_credentials(mgr, accepted=False)
+            forms.record_credentials(mgr, http, accepted=False)
             declined = forms.decline(mgr)
             if declined is not None:
                 raise declined from exc
@@ -275,19 +268,7 @@ async def _outcome(
         return RestoreConverged(attempts, mgr.readings.active_config)
     if verdict.unfixable is None:
         return RestoreUnconverged(verdict.diff)
-    return RestoreUnavailable(verdict.diff, {presetconf.NET_DEVICE: verdict.unfixable})
-
-
-def _active_profile(mgr: LaneManager, edits: dict[str, str]) -> str:
-    """Return the matrix profile this apply should install as the live matrix.
-
-    Empty for the default matrix, and empty too when this batch deletes the
-    profile that is active — a matrix about to be removed is not one to adopt.
-    """
-    name = (mgr.readings.state or {}).get("matrix_profile", "")
-    if not name or MATRIX_PROFILE_DELETE not in edits:
-        return name
-    return "" if parse_delete(edits[MATRIX_PROFILE_DELETE])[0] == name else name
+    return RestoreUnavailable(verdict.diff, {query.kept_at(Codec.NET_DEVICE): verdict.unfixable})
 
 
 async def _judge(
@@ -313,6 +294,7 @@ async def _judge(
 
 async def _restore_once(
     mgr: LaneManager,
+    http: HttpConfigClient,
     merged: dict[str, str],
     hooks: StoreHooks,
     active_profile: str = "",
@@ -324,7 +306,7 @@ async def _restore_once(
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
-    backup = await mgr.require_http().backup()
+    backup = await http.backup()
     hooks.persist_backup(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
@@ -347,7 +329,7 @@ async def _restore_once(
     mirror = hooks.mirror(intended_xml)
     if mirror:
         restore_zip = engineconf.rewrite_zip(restore_zip, mirror)
-    accepted = await settle.restart(mgr, lambda: mgr.require_http().restore(restore_zip, "system"))
+    accepted = await settle.restart(mgr, lambda: http.restore(restore_zip, "system"))
     return Pushed(presetconf.read_config(intended_xml), accepted)
 
 
@@ -356,7 +338,7 @@ async def verify(
     intended: dict[str, str],
     keys: set[str],
     mark: settle.Mark,
-    file_config: Callable[[bytes], dict[str, str]],
+    file_config: Callable[[bytes, int, FileAcquisition], dict[str, str]],
 ) -> dict[str, str]:
     """Wait for the restart stamped ``mark`` to land, then read this apply's intended fields back.
 
@@ -370,11 +352,13 @@ async def verify(
 
     async def probe() -> dict[str, str] | None:
         nonlocal realized
+        generation = mgr.phase.standing.generation
+        acquisition = mgr.readings.acquire_file("file_config")
         fresh = await settle.fresh_backup(mgr)
         if fresh is None:
             return None
         try:
-            realized = file_config(fresh)
+            realized = file_config(fresh, generation, acquisition)
         except engineconf.UnreadableArchiveError:
             pass
         else:
@@ -396,7 +380,7 @@ def _net_device_options(mgr: LaneManager) -> set[str] | None:
     form = mgr.readings.config_form
     if form is None:
         return None
-    field = next((f for f in form["fields"] if f.get("name") == presetconf.NET_DEVICE), None)
+    field = next((f for f in form["fields"] if f.get("name") == query.kept_at(Codec.NET_DEVICE)), None)
     return {o["value"] for o in (field or {}).get("options", [])}
 
 
@@ -407,10 +391,10 @@ async def _unfixable_device(mgr: LaneManager, diff: Diff) -> UnfixableDevice | N
     endpoint list is re-read first: the restore restarted the daemon, so the snapshot predates it, and the refresh
     keeps whatever it last had when the daemon does not answer.
     """
-    if presetconf.NET_DEVICE not in diff:
+    if query.kept_at(Codec.NET_DEVICE) not in diff:
         return None
     await mgr.refresh_http_forms()
-    want = diff[presetconf.NET_DEVICE]["want"]
+    want = diff[query.kept_at(Codec.NET_DEVICE)]["want"]
     options = _net_device_options(mgr)
     if options is None or want in options:
         return None
