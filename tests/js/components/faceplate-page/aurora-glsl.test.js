@@ -12,6 +12,8 @@
 // off replaces what was there, a draw with blending on is laid over it. Two paints draw the same when what the canvas
 // shows after each matches number for number, to within float rounding; the drawing calls themselves, their number and
 // their order are never asserted. A shader's compile and a program's link succeed unless the case says otherwise.
+// The cases where a paint is told no time paint instead on a canvas element of tests/js/support/page.js's fake page,
+// whose WebGL2 context is the page's own.
 //
 // No global is patched: the painter is handed its canvas and nothing else, so two fresh painters handed the same paints
 // must draw the same. Time is counted in whole sixtieths of a second, so two runs at different rates reach the same
@@ -31,6 +33,8 @@ import assert from "node:assert/strict";
 
 import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/page/aurora.js";
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
+import { fakeClock } from "../../support/clock.js";
+import { fakePage } from "../../support/page.js";
 
 /** @typedef {{ paint: (c: ArrayLike<number> | null, r: number, s: string | undefined, o: any) => void, clear: () => void }} Painter */
 /** @typedef {{ fail?: "context" | "vertex" | "fragment" | "link" }} Faults */
@@ -493,12 +497,23 @@ for (const fail of /** @type {const} */ (["context", "vertex", "fragment", "link
 // ── dt is required ──────────────────────────────────────────────────────
 
 /**
- * What a paint told `look` does after a steady run: "threw", "painted", or "no painter".
+ * A painter on a W by H canvas element of a fresh fake page, whose WebGL2 context is the page's own; null where
+ * auroraPainter gives none.
+ */
+function pagePainter() {
+  const page = fakePage({ clock: fakeClock().clock });
+  const element = page.doc.createElement("canvas");
+  Object.assign(element, { width: W, height: H });
+  return /** @type {Painter | null} */ (auroraPainter(element));
+}
+
+/**
+ * What a paint told `look` does after a steady run on a page canvas: "threw", "painted", or "no painter".
  *
  * @param {unknown} look
  */
 function outcome(look) {
-  const { fx } = painter();
+  const fx = pagePainter();
   if (!fx) return "no painter";
   for (const p of paintsOf(STEADY))
     fx.paint(p.cols, RANGE, ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });

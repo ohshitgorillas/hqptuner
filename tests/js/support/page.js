@@ -54,8 +54,6 @@ import { asCanvas } from "./page/canvas.js";
 import { RAW, inlineStyle, isDark, kebab, loudly, quietly, rectOf, rotateOf, tracking } from "./page/tracking.js";
 import { matchesAny, parseSelector } from "./painters/elementtree/selector.js";
 
-export { rotateOf };
-
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 //: Elements that never hold children, so their tags close themselves.
 const VOID = new Set(["area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "wbr"]);

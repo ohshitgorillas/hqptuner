@@ -5,10 +5,10 @@
 // turns each needle along the dial the face draws after that redraw: a reading at an end of the scale points the needle
 // at that end's mark on the redrawn scale.
 //
-// Mounting. The pair is mounted with preact's client renderer into tests/js/support/painters/livedom.js, laid out with
-// each face FACE_W by FACE_H pixels and the pair holding both, so its layout effects, effects, re-renders and resize
-// reports run. `needlePainter(needles)` is created on the pair's needles as the Source section finds them under the
-// mount root (hqptuner/static/components/faceplate/page/SourceMeter.js: every element carrying class `vun`, in
+// Mounting. The pair is mounted with preact's client renderer into a fake page (tests/js/support/page.js `fakePage`,
+// hosted by `hostPage` from before the mount until after the unmount), laid out with each face FACE_W by FACE_H pixels
+// and the pair holding both, so its layout effects, effects, re-renders and resize reports run.
+// `needlePainter(needles)` is created on the pair's needles as the Source section finds them under the mount root (hqptuner/static/components/faceplate/page/SourceMeter.js: every element carrying class `vun`, in
 // document order), as soon as the first render commits, before anything the mount scheduled has run, as a painter
 // created when the root mounts is; then the page settles, and only then does the painter paint. Nothing the painter
 // does is stubbed and the painter is handed nothing but those needles.
@@ -29,11 +29,12 @@ import { render } from "preact";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VuPair, needlePainter } from "../../../../hqptuner/static/components/faceplate/page/VuMeter.js";
-import { liveDom } from "../../support/painters/livedom.js";
+import { fakeClock } from "../../support/clock.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { near } from "../../support/near.js";
 import { vuReading } from "../../support/painters/vustate.js";
 
-/** @typedef {import("../../support/painters/livedom.js").LiveDom} LiveDom */
+/** @typedef {ReturnType<typeof fakePage>} Page */
 /** @typedef {[number, number, number, number, number, number]} Matrix */
 
 //: The channels the pair draws, L and R.
@@ -62,6 +63,9 @@ const DIAL_ID = "vu-meter";
 const MARK_ATTR = "data-vu";
 //: The selector the Source section finds the needles by.
 const NEEDLE_SELECTOR = ".vun";
+//: The page's markup: the root the pair mounts into, and its id.
+const ROOT_ID = "root";
+const PAGE_HTML = `<div id="${ROOT_ID}"></div>`;
 
 const IDENTITY = /** @type {Matrix} */ ([1, 0, 0, 1, 0, 0]);
 const ANGLE_UNITS = /** @type {Record<string, number>} */ ({ "": 1, deg: 1, rad: 180 / Math.PI, grad: 0.9, turn: 360 });
@@ -140,13 +144,12 @@ function parseTransform(list) {
 /**
  * The matrix carrying `el`'s own coordinates into its `svg`'s drawing space.
  *
- * @param {LiveDom} dom
  * @param {any} el
  * @returns {Matrix}
  */
-function toDrawing(dom, el) {
+function toDrawing(el) {
   let m = IDENTITY;
-  for (let at = el; at !== null && at.localName !== "svg"; at = dom.parentOf(at)) {
+  for (let at = el; at !== null && at.localName !== "svg"; at = at.parentElement) {
     const own = at.style.transform || at.getAttribute("transform") || "";
     m = times(parseTransform(own), m);
   }
@@ -156,12 +159,11 @@ function toDrawing(dom, el) {
 /**
  * The two ends of a drawn line, in its svg's drawing space.
  *
- * @param {LiveDom} dom
  * @param {any} el
  * @returns {[[number, number], [number, number]]}
  */
-function lineEnds(dom, el) {
-  const m = toDrawing(dom, el);
+function lineEnds(el) {
+  const m = toDrawing(el);
   const at = (/** @type {string} */ x, /** @type {string} */ y) => {
     const px = Number.parseFloat(el.getAttribute(x) ?? "NaN");
     const py = Number.parseFloat(el.getAttribute(y) ?? "NaN");
@@ -180,22 +182,29 @@ function lineEnds(dom, el) {
 const direction = (from, to) => (Math.atan2(to[0] - from[0], from[1] - to[1]) * 180) / Math.PI;
 
 /**
- * The dials in document order.
+ * Every element of the page, in document order.
  *
- * @param {LiveDom} dom
+ * @param {Page} dom
  * @returns {any[]}
  */
-const dialsOf = (dom) => dom.all().filter((el) => el.getAttribute("data-testid") === DIAL_ID);
+const allOf = (dom) => [...dom.doc.querySelectorAll("*")];
+
+/**
+ * The dials in document order.
+ *
+ * @param {Page} dom
+ * @returns {any[]}
+ */
+const dialsOf = (dom) => allOf(dom).filter((el) => el.getAttribute("data-testid") === DIAL_ID);
 
 /**
  * The laid-out size of `el`: a face and everything in it FACE_W by FACE_H, the pair and its root holding both faces.
  *
- * @param {LiveDom} dom
  * @param {any} el
  * @returns {{ width: number, height: number }}
  */
-function boxIn(dom, el) {
-  for (let at = el; at !== null; at = dom.parentOf(at)) {
+function boxIn(el) {
+  for (let at = el; at !== null; at = at.parentElement) {
     if (at.getAttribute("data-testid") === DIAL_ID) return { width: FACE_W, height: FACE_H };
   }
   return { width: FACE_W, height: CHANNELS * FACE_H };
@@ -212,26 +221,26 @@ function boxIn(dom, el) {
  * @returns {{ needle: number, mark: number }}
  */
 function pointing(d, vu) {
-  /** @type {LiveDom} */
-  const dom = liveDom((el) => boxIn(dom, el));
-  dom.install();
+  const dom = fakePage({ clock: fakeClock().clock, html: PAGE_HTML, boxOf: boxIn });
+  const root = dom.doc.getElementById(ROOT_ID);
+  const release = hostPage(dom);
   try {
-    render(html`<${VuPair} />`, dom.root);
-    const painter = needlePainter(Array.from(dom.root.querySelectorAll(NEEDLE_SELECTOR)));
+    render(html`<${VuPair} />`, root);
+    const painter = needlePainter(Array.from(root.querySelectorAll(NEEDLE_SELECTOR)));
     dom.settle();
     dom.mark();
     painter.paint(vuReading(new Array(CHANNELS).fill(vu)));
     const dial = dialsOf(dom)[d];
     const moved = dial === undefined ? [] : dom.writes().filter((el) => dom.within(el, dial));
     if (moved.length !== 1) return { needle: NaN, mark: NaN };
-    const [pivot, tip] = lineEnds(dom, moved[0]);
-    const mark = dom.all().find((el) => dom.within(el, dial) && Number(el.getAttribute(MARK_ATTR) ?? NaN) === vu);
+    const [pivot, tip] = lineEnds(moved[0]);
+    const mark = allOf(dom).find((el) => dom.within(el, dial) && Number(el.getAttribute(MARK_ATTR) ?? NaN) === vu);
     if (mark === undefined) return { needle: direction(pivot, tip), mark: NaN };
-    const [a, b] = lineEnds(dom, mark);
+    const [a, b] = lineEnds(mark);
     return { needle: direction(pivot, tip), mark: direction(pivot, [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]) };
   } finally {
-    render(null, dom.root);
-    dom.uninstall();
+    render(null, root);
+    release();
   }
 }
 

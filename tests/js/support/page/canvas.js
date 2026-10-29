@@ -59,7 +59,7 @@ const GL_ANSWERS = /** @type {Record<string, (...args: any[]) => unknown>} */ ({
  * @param {() => { width: number, height: number }} buffer
  * @param {(row: { call: string, args: unknown[] } | { set: string, value: unknown }) => void} [record]
  */
-export function glContext(canvas, buffer, record = () => {}) {
+function glContext(canvas, buffer, record = () => {}) {
   /** @type {Map<string, number>} */
   const constants = new Map();
   return new Proxy(

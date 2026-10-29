@@ -8,19 +8,20 @@
 // `data-vu`, its reading in VU as a decimal number; a mark in the red part of the scale also carries
 // `data-zone="red"`. No label text is read.
 //
-// Painter contract. The pair is mounted with preact's client renderer into tests/js/support/painters/livedom.js, every
-// element laid out FACE_W by FACE_H pixels, so each face measures its space and redraws its dial as on the page.
-// `needlePainter(needles)` is created once on the pair's needles as the Source section finds them under the mount root
+// Painter contract. The pair is mounted with preact's client renderer into a fake page (tests/js/support/page.js
+// `fakePage`, hosted by `hostPage` from before the mount until after the unmount), every element laid out FACE_W by
+// FACE_H pixels, so each face measures its space and redraws its dial as on the page. `needlePainter(needles)` is
+// created once on the pair's needles as the Source section finds them under the mount root
 // (hqptuner/static/components/faceplate/page/SourceMeter.js): every element carrying class `vun`, in document order,
-// one per channel, as soon as the first render commits; then the page settles, the document is taken off the global,
-// and only then does the painter paint. It returns `{ paint(vu) }`, where `vu` is the model's VuState (`vu` per
-// channel, the reading in VU; `deflection` and `speed` consistent with it). A needle's angle is the rotation the paint
-// writes to it, in degrees clockwise from upright, as that module reads it. Where the needle points is read only from
-// what a paint wrote: the one element a paint writes inside a dial is that dial's needle.
+// one per channel, as soon as the first render commits; then the page settles, and only then does the painter paint.
+// It returns `{ paint(vu) }`, where `vu` is the model's VuState (`vu` per channel, the reading in VU; `deflection` and
+// `speed` consistent with it). A needle's angle is the rotation the paint writes to it, in degrees clockwise from
+// upright, as the page reads it. Where the needle points is read only from what a paint wrote: the one element a paint
+// writes inside a dial is that dial's needle.
 //
-// That a paint allocates nothing is not observed here; that it reads nothing is: after creation the document is
-// darkened (queries find nothing, attributes and properties read absent) and no document exists on the global, so a
-// paint that looks anything up again draws nothing.
+// That a paint allocates nothing is not observed here; that it reads nothing is: after creation the page is darkened
+// (queries find nothing, attributes and properties read absent, through the page's document and the global alike), so
+// a paint that looks anything up again draws nothing.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/vumeter.test.js
 
@@ -33,12 +34,13 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { VuPair, needlePainter } from "../../../../hqptuner/static/components/faceplate/page/VuMeter.js";
 import { scaleShare } from "../../../../hqptuner/static/model/gauges/meter/vu.js";
 import { attr, elements } from "../../support/markup.js";
-import { liveDom } from "../../support/painters/livedom.js";
+import { fakeClock } from "../../support/clock.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { near } from "../../support/near.js";
 import { vuReading } from "../../support/painters/vustate.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
-/** @typedef {import("../../support/painters/livedom.js").LiveDom} LiveDom */
+/** @typedef {ReturnType<typeof fakePage>} Page */
 /** @typedef {import("../../../../hqptuner/static/components/faceplate/page/VuMeter.js").NeedlePainter} NeedlePainter */
 
 //: The channels the pair draws, L and R.
@@ -75,6 +77,9 @@ const ZONE_ATTR = "data-zone";
 const RED = "red";
 //: The selector the Source section finds the needles by.
 const NEEDLE_SELECTOR = ".vun";
+//: The page's markup: the root the pair mounts into, and its id.
+const ROOT_ID = "root";
+const PAGE_HTML = `<div id="${ROOT_ID}"></div>`;
 
 /** The pair's rendered markup. */
 const markup = () => render(html`<${VuPair} />`);
@@ -110,49 +115,32 @@ function marks(d) {
 /**
  * The mounted dials in document order.
  *
- * @param {LiveDom} dom
+ * @param {Page} dom
  * @returns {any[]}
  */
-const dialsOf = (dom) => dom.all().filter((el) => el.getAttribute("data-testid") === DIAL_ID);
-
-/**
- * What `run` returns with `dom`'s document on the global, taken off again after.
- *
- * @template T
- * @param {LiveDom} dom
- * @param {() => T} run
- * @returns {T}
- */
-function withDocument(dom, run) {
-  dom.install();
-  try {
-    return run();
-  } finally {
-    dom.uninstall();
-  }
-}
+const dialsOf = (dom) => [...dom.doc.querySelectorAll("*")].filter((el) => el.getAttribute("data-testid") === DIAL_ID);
 
 /**
  * What `use` makes of a freshly mounted, laid-out pair and a painter created on its needles, found under the mount root
- * as the Source section finds them, at the first commit; `use` runs once the page has settled and the document is off
- * the global. The pair is unmounted after.
+ * as the Source section finds them, at the first commit; `use` runs once the page has settled. The page is hosted from
+ * before the mount until after the pair is unmounted.
  *
  * @template T
- * @param {(dom: LiveDom, painter: NeedlePainter) => T} use
+ * @param {(dom: Page, painter: NeedlePainter) => T} use
  * @returns {T}
  */
 function onPair(use) {
-  const dom = liveDom(() => FACE_BOX);
+  const dom = fakePage({ clock: fakeClock().clock, html: PAGE_HTML, boxOf: () => FACE_BOX });
+  const root = dom.doc.getElementById(ROOT_ID);
+  const release = hostPage(dom);
   try {
-    const painter = withDocument(dom, () => {
-      mount(html`<${VuPair} />`, dom.root);
-      const made = needlePainter(Array.from(dom.root.querySelectorAll(NEEDLE_SELECTOR)));
-      dom.settle();
-      return made;
-    });
+    mount(html`<${VuPair} />`, root);
+    const painter = needlePainter(Array.from(root.querySelectorAll(NEEDLE_SELECTOR)));
+    dom.settle();
     return use(dom, painter);
   } finally {
-    withDocument(dom, () => mount(null, dom.root));
+    mount(null, root);
+    release();
   }
 }
 
@@ -160,7 +148,7 @@ function onPair(use) {
  * The angle of the needle a paint turned in `dial`: the rotation of the one element written inside it since the
  * document's last mark. NaN when the paint wrote no element there, or more than one.
  *
- * @param {LiveDom} dom
+ * @param {Page} dom
  * @param {any} dial
  * @returns {number}
  */
@@ -175,7 +163,7 @@ function needleAngle(dom, dial) {
  *
  * @template T
  * @param {number[]} readings  per channel, VU
- * @param {(dom: LiveDom) => T} read
+ * @param {(dom: Page) => T} read
  * @returns {T}
  */
 function painted(readings, read) {

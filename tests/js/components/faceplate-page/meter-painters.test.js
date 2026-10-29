@@ -4,8 +4,9 @@
 // the one effects painter it had and the GL canvas its one aurora painter, so nothing restarts and no graphics
 // resources pile up.
 //
-// Mounting. The section is mounted with preact's client renderer into tests/js/support/painters/livedom.js, every
-// element laid out BOX_W by BOX_H, so its layout effects, effects and re-renders run; each change is made through the
+// Mounting. The section is mounted with preact's client renderer into a fake page (tests/js/support/page.js
+// `fakePage`, hosted by `hostPage` from before the mount until after the unmount), every element laid out BOX_W by
+// BOX_H, so its layout effects, effects and re-renders run; each change is made through the
 // store it belongs to and the page settles after it. The stream reaches the stores at the wire: playback through a
 // fresh /api/status object on a Ready connection, the feed through the EventSource fake
 // (tests/js/support/eventsource.js), its frames sent by `follow` (tests/js/support/meterfeed.js) in the meter feed's
@@ -14,8 +15,8 @@
 // the new count. The Meters pick and the spectrum style go through the prefs store's setters, read off the module
 // namespace with optional access.
 //
-// Reading the painters. Every canvas the page creates is tests/js/support/painters/canvasledger.js's, which counts
-// the drawing contexts asked of it by kind: the effects canvas is drawn in 2d, the aurora's in webgl2. A run mounts
+// Reading the painters. Every canvas the page creates is the fake page's, which counts the drawing contexts asked of
+// any of its canvases by kind (`asked`): the effects canvas is drawn in 2d, the aurora's in webgl2. A run mounts
 // the section, paints for PLAY_MS, makes the change or not, and paints for PLAY_MS more. The asks of a run with the
 // change, over the asks of the same run without it, are 1 where the change set nothing up again, more where it set up
 // painters afresh, and NaN where the run without the change asked none.
@@ -37,10 +38,9 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { fakeClock } from "../../support/clock.js";
 import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.js";
-import { liveDom } from "../../support/painters/livedom.js";
-import { canvasLedger } from "../../support/painters/canvasledger.js";
+import { fakePage, hostPage } from "../../support/page.js";
 
-/** @typedef {import("../../support/painters/livedom.js").LiveDom} LiveDom */
+/** @typedef {ReturnType<typeof fakePage>} Page */
 
 const FULL = { w: 1366, h: 1024 };
 const SLIM = { w: 1080, h: 810 };
@@ -63,6 +63,9 @@ const PLAY_MS = 500;
 //: The size every element is laid out at, CSS pixels.
 const BOX_W = 600;
 const BOX_H = 200;
+//: The page's markup: the root the section mounts into, and its id.
+const ROOT_ID = "root";
+const PAGE_HTML = `<div id="${ROOT_ID}"></div>`;
 
 //: The two meters on offer, as the store holds them.
 const LEVELS = "levels";
@@ -117,7 +120,7 @@ const CHANGES = [
  * Send FRAMES frames of `channels` channels, move the clock on PLAY_MS and settle the page.
  *
  * @param {{ advance: (ms: number) => void }} clock
- * @param {LiveDom} dom
+ * @param {Page} dom
  * @param {number} channels
  */
 function play(clock, dom, channels) {
@@ -144,22 +147,20 @@ function asksOver(kind, style, from, change) {
   openMeterFeed(fake.clock);
   initMeterLoop(fake.clock);
   lastStream()?.emit("geometry", geometry(RATE_44K, STEREO));
-  /** @type {LiveDom} */
-  const dom = liveDom(() => ({ width: BOX_W, height: BOX_H }));
-  dom.install();
-  const ledger = canvasLedger();
+  const dom = fakePage({ clock: fake.clock, html: PAGE_HTML, boxOf: () => ({ width: BOX_W, height: BOX_H }) });
+  const root = dom.doc.getElementById(ROOT_ID);
+  const release = hostPage(dom);
   try {
-    render(html`<${SourceMeter} />`, dom.root);
+    render(html`<${SourceMeter} />`, root);
     dom.settle();
     play(fake, dom, STEREO);
     const channels = change ? change() : STEREO;
     dom.settle();
     play(fake, dom, channels);
-    return ledger.asked(kind);
+    return dom.asked(kind);
   } finally {
-    render(null, dom.root);
-    ledger.uninstall();
-    dom.uninstall();
+    render(null, root);
+    release();
     closeMeterFeed();
   }
 }

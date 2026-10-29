@@ -1,4 +1,4 @@
-// The selectors tests/js/support/painters/elementtree.js answers: parsing a selector list into chains of compounds,
+// The selectors the fake page of tests/js/support/page.js answers: parsing a selector list into chains of compounds,
 // and matching a node against them. No test() and no assert lives here.
 //
 // A selector list is split at `,`; each selector is split into compounds at whitespace and at `>`, which stands as a
@@ -150,7 +150,7 @@ export function parseSelector(selector) {
  * @param {Map<string, string>} attrs
  * @returns {string[]}
  */
-export const classesOf = (attrs) => (attrs.get("class") ?? "").split(/\s+/);
+const classesOf = (attrs) => (attrs.get("class") ?? "").split(/\s+/);
 
 /**
  * @param {string | undefined} have
