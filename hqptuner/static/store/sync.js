@@ -160,9 +160,9 @@ function closeStream() {
  * coming back is current at once. Where there is no document or no EventSource
  * nothing is opened.
  *
- * @param {Document | undefined} [doc] the page to watch
+ * @param {Document | undefined} doc the page to watch
  */
-export function startSync(doc = globalThis.document) {
+export function startSync(doc) {
   safe(api.metadata).then((m) => {
     if (m) metadata.value = m;
   });
