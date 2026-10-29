@@ -16,7 +16,7 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/app/boot.test.js
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 
 import { boot } from "../../../hqptuner/static/app.js";
@@ -25,7 +25,7 @@ import { newTrack, poll } from "../support/apodpolls.js";
 import { fakeClock } from "../support/clock.js";
 import { lastStream, useEventSource } from "../support/eventsource.js";
 import { CONTIGUOUS_44K, RATE_44K, geometry, play } from "../support/meterfeed.js";
-import { fakePage } from "../support/page.js";
+import { fakePage, hostPage } from "../support/page.js";
 import { ok, quiesce, stagingWire } from "../support/wire/wire.js";
 
 /** GET /api/health as a daemon not yet reached serves it. */
@@ -52,6 +52,18 @@ const clock = {
   },
 };
 const page = fakePage({ clock: fake.clock, html: '<div id="app"></div>' });
+/** The global `document` this file leaves preact: the page's node factory, and nothing else of the page. @param {any} doc */
+const nodeFactory = (doc) => ({
+  createElement: (/** @type {string} */ name) => doc.createElement(name),
+  createElementNS: (/** @type {string | null} */ ns, /** @type {string} */ name) => doc.createElementNS(ns, name),
+  createTextNode: (/** @type {string} */ text) => doc.createTextNode(text),
+});
+// Preact builds its nodes through the global document. hostPage lends it the page for the file's life and queues its
+// re-renders on the page, which `page.settle()` runs before a case reads the page; the global is then cut down to the
+// page's node factory, so code that reads past `doc` for the global document finds no `#app`, no Faceplate and no
+// query there, and `doc` stays the only way to the page.
+after(hostPage(page));
+/** @type {any} */ (globalThis).document = nodeFactory(page.doc);
 useEventSource();
 /** @type {string[]} every path the page asked the wire for */
 const asked = [];
@@ -68,7 +80,8 @@ let started;
 const booted = () =>
   (started ??= Promise.resolve()
     .then(() => boot(page.doc, clock))
-    .then(() => quiesce(wire)));
+    .then(() => quiesce(wire))
+    .then(() => page.settle()));
 
 /** Switch metering on with a new playing track, then play the feed's opening events on the stream opened last. */
 const playFeed = () => {
@@ -103,8 +116,8 @@ test("test_once_booted_the_meter_loop_asks_the_handed_clock_for_its_frames", asy
   assert.ok(framesAsked > before);
 });
 
-// Break: drawing the DSP speed alert the started engine-health alerts raise reaches past `doc` for a global document,
-// which the fake page never installs (rebuild-integrate-design.md Modules, Homes).
+// Break: drawing the DSP speed alert the started engine-health alerts raise reaches past `doc` for the global document,
+// which holds only preact's node factory here, no page to query (rebuild-integrate-design.md Modules, Homes).
 test("test_once_booted_a_sustained_below_realtime_engine_draws_its_alert_on_the_documents_faceplate_alone", async () => {
   await booted();
   /** @type {string[]} every error the page left unhandled while it drew */
@@ -118,6 +131,7 @@ test("test_once_booted_a_sustained_below_realtime_engine_draws_its_alert_on_the_
     fake.advance(FRAME_MS);
   }
   await quiesce(wire);
+  page.settle();
   process.off("unhandledRejection", keep);
   // The DSP speed alert's home is the engine-row speed figure, crit below realtime.
   const gauge = page.doc.getElementById("app").querySelector(".gauge");
