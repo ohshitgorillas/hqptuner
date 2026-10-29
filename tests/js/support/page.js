@@ -28,7 +28,10 @@
 // order: `{ call: "getContext", args: [kind] }`, `{ call: name, args }`, `{ set: name, value }`. `ledger(canvas)`
 // returns the rows so far.
 //
-// `usePage` and `setHidden` below are the older visibility seam its three live suites still install on the global.
+// `hidden` starts as `opts.hidden`; `setHidden` flips it and dispatches `visibilitychange`. `settle()` runs every queued
+// re-render, after-paint and first resize report, and all they queue, until none is left. `hostPage(page)`, the one
+// global write here, makes `page.doc` preact's global `document` and queues preact's re-render and after-paint schedules
+// on the page, one page at a time; its release puts the global and both schedules back.
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
@@ -38,6 +41,8 @@
 /** @typedef {import("./page/canvas.js").LedgerRow} LedgerRow */
 /** @typedef {{ fn: Function, capture: boolean }} Listener */
 /** @typedef {import("./painters/elementtree/selector.js").SelectorNode} SelectorNode */
+
+import { options as preactOptions } from "preact";
 
 import { asCanvas } from "./page/canvas.js";
 import { matchesAny, parseSelector } from "./painters/elementtree/selector.js";
@@ -579,9 +584,10 @@ function resizeObserverOf(page) {
       if (this.watched.has(el)) return;
       this.watched.add(el);
       page.observers.add(this);
-      page.clock.requestAnimationFrame(() => {
-        if (this.watched.has(el)) this.deliver(el);
-      });
+      let reported = false;
+      const first = () => void (!reported && (reported = true) && this.watched.has(el) && this.deliver(el));
+      page.queued.push(first);
+      page.clock.requestAnimationFrame(first);
     }
     /** @param {any} el */
     unobserve(el) {
@@ -706,7 +712,7 @@ function documentOf(page, win) {
     nodeType: 9,
     defaultView: win,
     path: () => [doc, win],
-    hidden: false,
+    hidden: Boolean(page.hidden),
     /** @param {string} name */
     createElement: (name) => element(name, HTML_NS),
     /** @param {string | null} ns @param {string} name */
@@ -735,17 +741,19 @@ function documentOf(page, win) {
 /**
  * A fake document and its window, handed to the code under test; nothing is installed on `globalThis`.
  *
- * @param {{ clock: Clock, html?: string, dpr?: number }} opts
- * @returns {{ doc: any, win: any, resize: (el: any, rect: Partial<Rect>) => void, ledger: (canvas: object) => LedgerRow[] }}
+ * @param {{ clock: Clock, html?: string, dpr?: number, hidden?: boolean }} opts
+ * @returns {{ doc: any, win: any, resize: (el: any, rect: Partial<Rect>) => void, ledger: (canvas: object) => LedgerRow[], settle: () => void, setHidden: (hidden: boolean) => void }}
  */
 export function fakePage(opts) {
-  const { clock, html = "", dpr = 1 } = opts;
-  const page = /** @type {any} */ ({ clock, boxes: new Map(), observers: new Set(), ledgers: new WeakMap() });
+  const { clock, html = "", dpr = 1, hidden = false } = opts;
+  const page = /** @type {any} */ ({ clock, hidden, queued: [], boxes: new Map(), observers: new Set() });
+  page.ledgers = new WeakMap();
   const win = windowOf(page, dpr);
   const doc = documentOf(page, win);
   page.win = win;
   win.document = doc;
   parseInto(doc, doc.body, html);
+  queues.set(doc, page.queued);
   return {
     doc,
     win,
@@ -754,47 +762,39 @@ export function fakePage(opts) {
       for (const observer of [...page.observers]) if (observer.watched.has(el)) observer.deliver(el);
     },
     ledger: (canvas) => [...(page.ledgers.get(canvas) ?? [])],
+    settle() {
+      for (let pass = 0; page.queued.length > 0; pass += 1) {
+        if (pass === 1000) throw new Error("settle: the page still queues work after 1000 passes");
+        for (const fn of page.queued.splice(0)) fn();
+      }
+    },
+    setHidden(next) {
+      doc.hidden = next;
+      doc.dispatchEvent({ type: "visibilitychange" });
+    },
   };
 }
 
-/**
- * The global the visibility seam is installed on, viewed as an optional member: under `node --test` there is none,
- * and the DOM lib declares it as always present and fully shaped.
- *
- * @type {{ document?: unknown }}
- */
-const env = globalThis;
+//: Each page's queued re-renders, after-paints and first resize reports, by its document.
+const queues = /** @type {WeakMap<object, Array<() => void>>} */ (new WeakMap());
+//: The global preact builds nodes through, as an optional member: under `node --test` there is none.
+const env = /** @type {{ document?: unknown }} */ (globalThis);
+let hosted = /** @type {object | null} */ (null);
 
-/** @type {Set<() => unknown>} */
-const onVisibility = new Set();
-
-const visibility = {
-  hidden: false,
-  addEventListener(/** @type {string} */ type, /** @type {() => unknown} */ fn) {
-    if (type === "visibilitychange") onVisibility.add(fn);
-  },
-  removeEventListener(/** @type {string} */ type, /** @type {() => unknown} */ fn) {
-    if (type === "visibilitychange") onVisibility.delete(fn);
-  },
-};
-
-/**
- * Install the document, its page starting hidden or shown.
- *
- * @param {boolean} [hidden]
- */
-export function usePage(hidden = false) {
-  visibility.hidden = hidden;
-  env.document = visibility;
-}
-
-/**
- * Hide or show the page as the browser does: flip `hidden`, then dispatch
- * `visibilitychange` to every listener.
- *
- * @param {boolean} hidden
- */
-export function setHidden(hidden) {
-  visibility.hidden = hidden;
-  for (const fn of onVisibility) fn();
+/** Host `page` as the header says; returns its release. @param {ReturnType<typeof fakePage>} page @returns {() => void} */
+export function hostPage(page) {
+  if (hosted) throw new Error("hostPage: a page is already hosted; release it first");
+  const hooks = /** @type {any} */ (preactOptions);
+  const was = [Object.getOwnPropertyDescriptor(env, "document"), hooks.debounceRendering, hooks.requestAnimationFrame];
+  const queue = queues.get(page.doc) ?? [];
+  env.document = page.doc;
+  hooks.debounceRendering = hooks.requestAnimationFrame = (/** @type {() => void} */ fn) => void queue.push(fn);
+  hosted = page;
+  return () => {
+    if (hosted !== page) return;
+    if (was[0]) Object.defineProperty(env, "document", was[0]);
+    else delete env.document;
+    [, hooks.debounceRendering, hooks.requestAnimationFrame] = was;
+    hosted = null;
+  };
 }

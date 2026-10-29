@@ -13,18 +13,22 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/hidden.test.js
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 
 import { startSync } from "../../../../hqptuner/static/store/sync.js";
+import { fakeClock } from "../../support/clock.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { setHidden, usePage } from "../../support/page.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { staticWire } from "../../support/wire/wire.js";
 
+const page = fakePage({ clock: fakeClock().clock, hidden: true });
+const { setHidden } = page;
+
 useEventSource();
-usePage(true);
+after(hostPage(page));
 staticWire();
-startSync();
+startSync(page.doc);
 
 test("test_no_stream_is_opened_while_the_page_is_hidden", () => {
   assert.equal(lastStream(), null);

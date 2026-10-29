@@ -15,7 +15,7 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/polling.test.js
 
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -30,8 +30,9 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { startSync, refreshConfig, refreshDevices } from "../../../../hqptuner/static/store/sync.js";
 import { setVolume } from "../../../../hqptuner/static/store/actions.js";
+import { fakeClock } from "../../support/clock.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { usePage } from "../../support/page.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { ok, bad } from "../../support/wire/wire.js";
 
 // --- the wire ------------------------------------------------------------------
@@ -72,10 +73,12 @@ function wire(routes = {}) {
 // whole await chain — no wall-clock wait anywhere.
 const drain = () => new Promise((resolve) => setImmediate(resolve));
 
+const page = fakePage({ clock: fakeClock().clock });
+
 useEventSource();
-usePage();
+after(hostPage(page));
 wire();
-startSync();
+startSync(page.doc);
 await drain();
 
 // --- what startSync opens and primes ---------------------------------------------

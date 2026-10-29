@@ -11,14 +11,15 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/mirror.test.js
 
-import test from "node:test";
+import test, { after } from "node:test";
 import assert from "node:assert/strict";
 import { effect } from "@preact/signals";
 
 import { config, volumeRange } from "../../../../hqptuner/static/store/signals.js";
 import { startSync } from "../../../../hqptuner/static/store/sync.js";
+import { fakeClock } from "../../support/clock.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { usePage } from "../../support/page.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { staticWire } from "../../support/wire/wire.js";
 
 const CONFIG = { stale: false, loaded_at: 1, data: { fields: [], file: {}, active: "Desk" } };
@@ -28,10 +29,12 @@ const settle = async () => {
   for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 
+const page = fakePage({ clock: fakeClock().clock });
+
 useEventSource();
-usePage();
+after(hostPage(page));
 staticWire();
-startSync();
+startSync(page.doc);
 await settle();
 
 // --- the notification counters --------------------------------------------------
