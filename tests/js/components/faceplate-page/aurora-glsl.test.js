@@ -5,15 +5,16 @@
 // over a cleared canvas; the color suite, and under Accent the accent in force, change what a paint draws; a paint
 // told no time is an error.
 //
-// The canvas is a fake whose WebGL2 context keeps what a shader would be handed and draws nothing itself. Each draw
-// is kept as a picture of everything the GPU would read for it: the program's shader sources, every uniform set on that
-// program, the contents of every texture bound to a unit and of every buffer, and the viewport. What the canvas shows
-// is the list of those pictures laid since its last clear: a clear leaves only its clear color, a draw with blending
-// off replaces what was there, a draw with blending on is laid over it. Two paints draw the same when what the canvas
-// shows after each matches number for number, to within float rounding; the drawing calls themselves, their number and
-// their order are never asserted. A shader's compile and a program's link succeed unless the case says otherwise.
-// The cases where a paint is told no time paint instead on a canvas element of tests/js/support/page.js's fake page,
-// whose WebGL2 context is the page's own.
+// The canvas is one of tests/js/support/page/canvas.js, whose WebGL2 context draws nothing itself and keeps every call
+// made on it in the canvas's ledger. Each draw is read back from that ledger as a picture of everything the GPU would
+// read for it: the program's shader sources, every uniform set on that program, the contents of every texture bound to
+// a unit and of every buffer, and the viewport. What the canvas shows is the list of those pictures laid since its
+// last clear: a clear leaves only its clear color, a draw with blending off replaces what was there, a draw with
+// blending on is laid over it. Two paints draw the same when what the canvas shows after each matches number for
+// number, to within float rounding; the drawing calls themselves, their number and their order are never asserted. A
+// shader's compile and a program's link succeed unless the case gives the canvas a fault. The cases where a paint is
+// told no time paint instead on a canvas element of tests/js/support/page.js's fake page, whose WebGL2 context is the
+// page's own.
 //
 // No global is patched: the painter is handed its canvas and nothing else, so two fresh painters handed the same paints
 // must draw the same. Time is counted in whole sixtieths of a second, so two runs at different rates reach the same
@@ -35,6 +36,7 @@ import { auroraPainter } from "../../../../hqptuner/static/components/faceplate/
 import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js";
 import { fakeClock } from "../../support/clock.js";
 import { fakePage } from "../../support/page.js";
+import { asFaultyCanvas } from "../../support/page/canvas.js";
 
 /** @typedef {{ paint: (c: ArrayLike<number> | null, r: number, s: string | undefined, o: any) => void, clear: () => void }} Painter */
 /** @typedef {{ fail?: "context" | "vertex" | "fragment" | "link" }} Faults */
@@ -68,10 +70,7 @@ const PRESET = "violet";
 const FIRST_HEX = "#4f9dde";
 const SECOND_HEX = "#c03a9b";
 
-//: The bits of `clear`'s mask, as WebGL defines them.
-const BITS = { COLOR_BUFFER_BIT: 0x4000, DEPTH_BUFFER_BIT: 0x100, STENCIL_BUFFER_BIT: 0x400 };
-
-// ── the fake WebGL2 canvas ──────────────────────────────────────────────
+// ── what the canvas shows, read from its ledger ─────────────────────────
 
 /**
  * The numbers `v` carries: a typed array or array as a plain array, a number as itself, anything else as nothing.
@@ -86,51 +85,47 @@ function copyOf(v) {
   return "source";
 }
 
-/**
- * A W by H canvas whose WebGL2 context keeps, for every draw, what the GPU would read for it.
- *
- * @param {Faults} [faults]
- */
-function glCanvas(faults = {}) {
-  const constant = constants();
-  const s = gpu();
-  /** @type {Methods} */
-  const methods = { ...programMethods(s, faults, constant), ...dataMethods(s), ...frameMethods(s, constant) };
-  const canvas = { width: W, height: H, clientWidth: W, clientHeight: H };
-  const gl = context(s, methods, constant, canvas);
-  const element = {
-    ...canvas,
-    getContext: (/** @type {string} */ kind) => (kind === "webgl2" && faults.fail !== "context" ? gl : null),
-  };
-  return { element, state: s };
-}
-
-/** @typedef {Record<string, (...args: any[]) => unknown>} Methods */
 /** @typedef {ReturnType<typeof gpu>} Gpu */
-
-/** A lookup handing every WebGL constant name one number of its own, the buffer bits at their WebGL values. */
-function constants() {
-  /** @type {Map<string, number>} */
-  const known = new Map(Object.entries(BITS));
-  return (/** @type {string} */ name) => {
-    if (!known.has(name)) known.set(name, 0x10000 + known.size);
-    return /** @type {number} */ (known.get(name));
-  };
-}
+/** @typedef {(s: Gpu, ...args: any[]) => unknown} Step */
 
 /** What a fresh context holds: nothing bound, nothing drawn. */
 function gpu() {
   return {
     /** @type {any} */ program: null,
+    /** @type {Map<object, unknown>} */ sources: new Map(),
+    /** @type {Map<object, { shaders: object[], uniforms: Map<string, unknown> }>} */ programs: new Map(),
+    /** @type {Map<object, Map<string, unknown>>} */ contents: new Map(),
     /** @type {Map<number, any>} */ units: new Map(),
     unit: 0,
     /** @type {Map<number, any>} */ bound: new Map(),
     /** @type {any[]} */ buffers: [],
     /** @type {Set<number>} */ enabled: new Set(),
-    clearColor: [0, 0, 0, 0],
-    viewport: [0, 0, W, H],
+    /** @type {unknown[]} */ clearColor: [0, 0, 0, 0],
+    /** @type {unknown[]} */ viewport: [0, 0, W, H],
     /** @type {any[]} */ shows: [],
   };
+}
+
+/**
+ * The shaders and uniforms of the program `p` on `s`.
+ *
+ * @param {Gpu} s
+ * @param {object} p
+ */
+function programOf(s, p) {
+  if (!s.programs.has(p)) s.programs.set(p, { shaders: [], uniforms: new Map() });
+  return /** @type {{ shaders: object[], uniforms: Map<string, unknown> }} */ (s.programs.get(p));
+}
+
+/**
+ * The contents handed the texture or buffer `o` on `s`.
+ *
+ * @param {Gpu} s
+ * @param {object} o
+ */
+function contentsOf(s, o) {
+  if (!s.contents.has(o)) s.contents.set(o, new Map());
+  return /** @type {Map<string, unknown>} */ (s.contents.get(o));
 }
 
 /**
@@ -138,37 +133,16 @@ function gpu() {
  *
  * @param {Gpu} s
  */
-const picture = (s) => ({
-  sources: s.program ? s.program.shaders.map((/** @type {any} */ sh) => sh.source) : null,
-  uniforms: s.program ? Object.fromEntries(s.program.uniforms) : null,
-  textures: [...s.units.entries()].map(([u, t]) => [u, t ? Object.fromEntries(t.contents) : null]),
-  buffers: s.buffers.map((b) => Object.fromEntries(b.contents)),
-  viewport: [...s.viewport],
-});
-
-/**
- * The context methods of `s` that build shaders and programs, failing where `faults` says.
- *
- * @param {Gpu} s
- * @param {Faults} faults
- * @param {(name: string) => number} constant
- * @returns {Methods}
- */
-const programMethods = (s, faults, constant) => ({
-  createShader: (type) => ({ type, source: "" }),
-  shaderSource: (sh, src) => (sh.source = src),
-  getShaderParameter: (sh) =>
-    !(faults.fail === "vertex" && sh.type === constant("VERTEX_SHADER")) &&
-    !(faults.fail === "fragment" && sh.type === constant("FRAGMENT_SHADER")),
-  getShaderInfoLog: () => "",
-  createProgram: () => ({ shaders: [], uniforms: new Map() }),
-  attachShader: (p, sh) => p.shaders.push(sh),
-  getProgramParameter: () => faults.fail !== "link",
-  getProgramInfoLog: () => "",
-  useProgram: (p) => (s.program = p),
-  getUniformLocation: (p, name) => ({ p, name }),
-  getAttribLocation: () => 0,
-});
+const picture = (s) => {
+  const p = s.program ? programOf(s, s.program) : null;
+  return {
+    sources: p ? p.shaders.map((sh) => s.sources.get(sh) ?? "") : null,
+    uniforms: p ? Object.fromEntries(p.uniforms) : null,
+    textures: [...s.units.entries()].map(([u, t]) => [u, t ? Object.fromEntries(contentsOf(s, t)) : null]),
+    buffers: s.buffers.map((b) => Object.fromEntries(contentsOf(s, b))),
+    viewport: [...s.viewport],
+  };
+};
 
 /**
  * The texture at the active unit of `s`.
@@ -178,111 +152,107 @@ const programMethods = (s, faults, constant) => ({
 const textureAt = (s) => s.units.get(s.unit);
 
 /**
- * The context methods of `s` that hand textures and buffers their contents.
+ * What the ledger's calls that build programs and hand textures and buffers their contents do to `s`.
  *
- * @param {Gpu} s
- * @returns {Methods}
+ * @returns {Record<string, Step>}
  */
-const dataMethods = (s) => ({
-  createTexture: () => ({ contents: new Map() }),
-  activeTexture: (unit) => (s.unit = unit),
-  bindTexture: (_t, tex) => s.units.set(s.unit, tex),
-  texImage2D: (...args) => {
+const dataSteps = () => ({
+  shaderSource: (s, sh, src) => s.sources.set(sh, src),
+  attachShader: (s, p, sh) => programOf(s, p).shaders.push(sh),
+  useProgram: (s, p) => (s.program = p),
+  activeTexture: (s, unit) => (s.unit = unit),
+  bindTexture: (s, _t, tex) => s.units.set(s.unit, tex),
+  texImage2D: (s, ...args) => {
     const t = textureAt(s);
-    if (t) t.contents = new Map([["whole", copyOf(args)]]);
+    if (t) s.contents.set(t, new Map([["whole", copyOf(args)]]));
   },
-  texSubImage2D: (...args) => textureAt(s)?.contents.set(`sub ${args.slice(0, 6).join(" ")}`, copyOf(args.slice(6))),
-  texStorage2D: (...args) => textureAt(s)?.contents.set("storage", copyOf(args)),
-  createBuffer: () => {
-    const b = { contents: new Map() };
-    s.buffers.push(b);
-    return b;
+  texSubImage2D: (s, ...args) => {
+    const t = textureAt(s);
+    if (t) contentsOf(s, t).set(`sub ${args.slice(0, 6).join(" ")}`, copyOf(args.slice(6)));
   },
-  bindBuffer: (target, b) => s.bound.set(target, b),
-  bufferData: (target, data) => {
+  texStorage2D: (s, ...args) => {
+    const t = textureAt(s);
+    if (t) contentsOf(s, t).set("storage", copyOf(args));
+  },
+  bindBuffer: (s, target, b) => {
+    if (b && !s.buffers.includes(b)) s.buffers.push(b);
+    s.bound.set(target, b);
+  },
+  bufferData: (s, target, data) => {
     const b = s.bound.get(target);
-    if (b) b.contents = new Map([["whole", copyOf(data)]]);
+    if (b) s.contents.set(b, new Map([["whole", copyOf(data)]]));
   },
-  bufferSubData: (target, offset, data) => s.bound.get(target)?.contents.set(`sub ${offset}`, copyOf(data)),
-  createVertexArray: () => ({}),
+  bufferSubData: (s, target, offset, data) => {
+    const b = s.bound.get(target);
+    if (b) contentsOf(s, b).set(`sub ${offset}`, copyOf(data));
+  },
 });
 
 /**
- * The context methods of `s` that set what a draw lays down, and draw it.
+ * What the ledger's calls that set what a draw lays down, and draw it, do to `s`, the constants read off `gl`.
  *
- * @param {Gpu} s
- * @param {(name: string) => number} constant
- * @returns {Methods}
+ * @param {any} gl
+ * @returns {Record<string, Step>}
  */
-function frameMethods(s, constant) {
-  const draw = () => {
-    if (s.enabled.has(constant("BLEND"))) s.shows = [...s.shows, picture(s)];
+function frameSteps(gl) {
+  /** @type {(s: Gpu) => void} */
+  const draw = (s) => {
+    if (s.enabled.has(gl.BLEND)) s.shows = [...s.shows, picture(s)];
     else s.shows = [picture(s)];
   };
   return {
-    enable: (cap) => s.enabled.add(cap),
-    disable: (cap) => s.enabled.delete(cap),
-    clearColor: (...rgba) => (s.clearColor = rgba),
-    clear: (mask) => {
-      if (mask & BITS.COLOR_BUFFER_BIT) s.shows = [{ clear: [...s.clearColor] }];
+    enable: (s, cap) => s.enabled.add(cap),
+    disable: (s, cap) => s.enabled.delete(cap),
+    clearColor: (s, ...rgba) => (s.clearColor = rgba),
+    clear: (s, mask) => {
+      if (mask & gl.COLOR_BUFFER_BIT) s.shows = [{ clear: [...s.clearColor] }];
     },
-    viewport: (...v) => (s.viewport = v),
+    viewport: (s, ...v) => (s.viewport = v),
     drawArrays: draw,
     drawElements: draw,
     drawArraysInstanced: draw,
     drawElementsInstanced: draw,
-    isContextLost: () => false,
-    getExtension: () => null,
-    getSupportedExtensions: () => [],
-    getParameter: () => 4096,
-    getError: () => 0,
   };
 }
 
 /**
- * A WebGL2 context over `s` answering with `methods`: a constant name reads as its number, a uniform is kept on
- * the program its location names, and a call `methods` lacks does nothing.
+ * What `canvas` shows after the calls of `rows`, its ledger: a uniform is kept on the program its location names, and
+ * a call that lays nothing down changes nothing.
  *
- * @param {Gpu} s
- * @param {Methods} methods
- * @param {(name: string) => number} constant
- * @param {{ width: number, height: number }} canvas
- * @returns {any}
+ * @param {any} canvas
+ * @param {any[]} rows
  */
-function context(s, methods, constant, canvas) {
-  return new Proxy(
-    {},
-    {
-      get: (_t, key) => {
-        const name = String(key);
-        if (name === "canvas") return canvas;
-        if (name === "drawingBufferWidth") return canvas.width;
-        if (name === "drawingBufferHeight") return canvas.height;
-        if (/^[A-Z0-9_]+$/.test(name)) return constant(name);
-        return (/** @type {any[]} */ ...args) => {
-          if (name.startsWith("uniform")) {
-            const loc = args[0];
-            if (loc) loc.p.uniforms.set(loc.name, copyOf(args.slice(1)));
-            return undefined;
-          }
-          return name in methods ? methods[name](...args) : undefined;
-        };
-      },
-    },
-  );
+function showingOf(canvas, rows) {
+  const gl = canvas.getContext("webgl2");
+  /** @type {Record<string, Step>} */
+  const steps = { ...dataSteps(), ...frameSteps(gl) };
+  const s = gpu();
+  for (const row of rows) {
+    if (!("call" in row)) continue;
+    const { call, args } = row;
+    if (call.startsWith("uniform")) {
+      const loc = args[0];
+      if (loc) programOf(s, loc.program).uniforms.set(loc.name, copyOf(args.slice(1)));
+    } else steps[call]?.(s, ...args);
+  }
+  return s.shows;
 }
 
 // ── painting ────────────────────────────────────────────────────────────
 
 /**
- * A painter on a fresh fake canvas, null where auroraPainter gives none.
+ * A painter on a fresh W by H canvas of tests/js/support/page/canvas.js failing where `faults` says, null where
+ * auroraPainter gives none, and what that canvas shows.
  *
  * @param {Faults} [faults]
  */
 function painter(faults) {
-  const { element, state } = glCanvas(faults);
+  /** @type {WeakMap<object, any[]>} */
+  const ledgers = new WeakMap();
+  const element = asFaultyCanvas(ledgers, { clientWidth: W, clientHeight: H }, { width: W, height: H, faults });
   const fx = /** @type {Painter | null} */ (auroraPainter(/** @type {any} */ (element)));
-  return { fx, state };
+  const showing = () => showingOf(element, [...(ledgers.get(element) ?? [])]);
+  return { fx, showing };
 }
 
 /**
@@ -302,13 +272,13 @@ const columns = (low, high = low) => new Float32Array(COLS).fill(low).fill(high,
  * @returns {unknown}
  */
 function shows(paints) {
-  const { fx, state } = painter();
+  const { fx, showing } = painter();
   if (!fx) return "no painter";
   for (const p of paints) {
     p.before?.();
     fx.paint(p.cols, p.range ?? RANGE, p.suite ?? ACCENT, { dt: p.ticks * TICK_S, restart: p.restart ?? false });
   }
-  return structuredClone(state.shows);
+  return structuredClone(showing());
 }
 
 /**

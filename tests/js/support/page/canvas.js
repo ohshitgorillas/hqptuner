@@ -2,11 +2,15 @@
 //
 // A canvas answers `getContext("2d")` with a context that keeps its drawing state and draws nothing, and
 // `getContext("webgl2")` with a context whose shaders compile and whose programs link, every create call handing back
-// a fresh object; any other kind gets null. Every context asked, every call made on a context and every property it is
+// a fresh object and every uniform location naming the program and uniform it was asked for; any other kind gets null.
+// A canvas given faults fails where they say: it has no WebGL2 context, its vertex or fragment shaders fail to
+// compile, or its programs fail to link. Every context asked, every call made on a context and every property it is
 // given is a row of that canvas's ledger, in order: `{ call: "getContext", args: [kind] }`, `{ call: name, args }`,
-// `{ set: name, value }`.
+// `{ set: name, value }`. A call's arrays, typed arrays and array buffers are kept as they were when the call was made,
+// so a later write into the same array changes no row; any other argument is kept as itself.
 
 /** @typedef {{ call: string, args: unknown[] } | { set: string, value: unknown }} LedgerRow */
+/** @typedef {{ fail?: "context" | "vertex" | "fragment" | "link" }} GlFaults */
 
 //: The width `measureText` gives each character, CSS pixels.
 const GLYPH_W = 6;
@@ -35,10 +39,14 @@ const STATE_2D = Object.freeze({
   shadowOffsetY: 0,
 });
 
+//: The bits of `clear`'s mask, as WebGL defines them.
+const GL_BITS = Object.freeze({ COLOR_BUFFER_BIT: 0x4000, DEPTH_BUFFER_BIT: 0x100, STENCIL_BUFFER_BIT: 0x400 });
+
+//: The shader type each compile fault fails.
+const FAILING_SHADER = Object.freeze({ vertex: "VERTEX_SHADER", fragment: "FRAGMENT_SHADER" });
+
 //: What the WebGL2 context answers, by method, where the answer is not nothing.
 const GL_ANSWERS = /** @type {Record<string, (...args: any[]) => unknown>} */ ({
-  getShaderParameter: () => true,
-  getProgramParameter: () => true,
   getShaderInfoLog: () => "",
   getProgramInfoLog: () => "",
   getAttribLocation: () => 0,
@@ -50,18 +58,49 @@ const GL_ANSWERS = /** @type {Record<string, (...args: any[]) => unknown>} */ ({
 });
 
 /**
+ * How a WebGL2 context under `faults` answers whether a shader compiled and a program linked, and the location of a
+ * uniform: a shader fails where its type is the one `faults` fails, a program where `faults` fails the link, and a
+ * location is `{ program, name }`.
+ *
+ * @param {GlFaults} faults
+ * @param {(name: string) => number} constant
+ * @returns {Record<string, (...args: any[]) => unknown>}
+ */
+function buildAnswers(faults, constant) {
+  /** @type {WeakMap<object, unknown>} */
+  const types = new WeakMap();
+  const failing = faults.fail === "vertex" || faults.fail === "fragment" ? constant(FAILING_SHADER[faults.fail]) : null;
+  return {
+    createShader: (type) => {
+      const shader = {};
+      types.set(shader, type);
+      return shader;
+    },
+    getShaderParameter: (shader) => failing === null || types.get(shader) !== failing,
+    getProgramParameter: () => faults.fail !== "link",
+    getUniformLocation: (program, name) => Object.freeze({ program, name }),
+  };
+}
+
+/**
  * A WebGL2 context on `canvas` whose drawing buffer is `buffer()` in size: every upper-case name a constant of its
- * own, every create call a fresh object, the answers in GL_ANSWERS, and nothing from every other method. `record`, when
- * given, is handed every call made on the context and every property it is given, as `{ call: name, args }` and
- * `{ set: name, value }`, in order.
+ * own, the buffer bits at their WebGL values, every create call a fresh object, the answers in GL_ANSWERS and
+ * buildAnswers, and nothing from every other method. `record`, when given, is handed every call made on the context
+ * and every property it is given, as `{ call: name, args }` and `{ set: name, value }`, in order.
  *
  * @param {unknown} canvas
  * @param {() => { width: number, height: number }} buffer
  * @param {(row: { call: string, args: unknown[] } | { set: string, value: unknown }) => void} [record]
+ * @param {GlFaults} [faults]
  */
-function glContext(canvas, buffer, record = () => {}) {
+function glContext(canvas, buffer, record = () => {}, faults = {}) {
   /** @type {Map<string, number>} */
-  const constants = new Map();
+  const constants = new Map(Object.entries(GL_BITS));
+  const constant = (/** @type {string} */ name) => {
+    if (!constants.has(name)) constants.set(name, 0x10000 + constants.size);
+    return /** @type {number} */ (constants.get(name));
+  };
+  const built = buildAnswers(faults, constant);
   return new Proxy(
     {},
     {
@@ -70,14 +109,12 @@ function glContext(canvas, buffer, record = () => {}) {
         if (key === "canvas") return canvas;
         if (key === "drawingBufferWidth") return buffer().width;
         if (key === "drawingBufferHeight") return buffer().height;
-        if (/^[A-Z][A-Z0-9_]*$/.test(key)) {
-          if (!constants.has(key)) constants.set(key, 0x10000 + constants.size);
-          return constants.get(key);
-        }
+        if (/^[A-Z][A-Z0-9_]*$/.test(key)) return constant(key);
         return (/** @type {unknown[]} */ ...args) => {
-          record({ call: key, args });
+          record({ call: key, args: args.map(asCalled) });
+          if (key in built) return built[key](...args);
           if (key in GL_ANSWERS) return GL_ANSWERS[key](...args);
-          return key.startsWith("create") || key === "getUniformLocation" ? {} : undefined;
+          return key.startsWith("create") ? {} : undefined;
         };
       },
       set: (_t, key, value) => {
@@ -86,6 +123,21 @@ function glContext(canvas, buffer, record = () => {}) {
       },
     },
   );
+}
+
+/**
+ * `v` as it is now: an array, typed array, data view or array buffer copied, an array's items likewise, and any other
+ * value as itself.
+ *
+ * @param {unknown} v
+ * @returns {unknown}
+ */
+function asCalled(v) {
+  if (Array.isArray(v)) return v.map(asCalled);
+  if (v instanceof ArrayBuffer) return v.slice(0);
+  if (v instanceof DataView) return new DataView(v.buffer.slice(v.byteOffset, v.byteOffset + v.byteLength));
+  if (ArrayBuffer.isView(v)) return /** @type {any} */ (v).slice();
+  return v;
 }
 
 /** @param {number} w @param {number} h */
@@ -118,7 +170,7 @@ function answers2d(state, rows) {
   let dash = [];
   const paint = () => ({
     /** @param {...unknown} args */
-    addColorStop: (...args) => void rows.push({ call: "addColorStop", args }),
+    addColorStop: (...args) => void rows.push({ call: "addColorStop", args: args.map(asCalled) }),
   });
   return {
     save: () => void saved.push({ ...state }),
@@ -156,7 +208,7 @@ function context2d(canvas, rows) {
       if (key === "canvas") return canvas;
       if (key in state) return state[key];
       return (/** @type {unknown[]} */ ...args) => {
-        rows.push({ call: key, args });
+        rows.push({ call: key, args: args.map(asCalled) });
         return answers[key]?.(...args);
       };
     },
@@ -171,17 +223,21 @@ function context2d(canvas, rows) {
 
 /**
  * A WebGL2 context that draws nothing, its drawing buffer the canvas's size and every call and property write a row of
- * the canvas's ledger.
+ * the canvas's ledger; null where `faults` fails the context.
  *
  * @param {any} canvas
  * @param {LedgerRow[]} rows
+ * @param {GlFaults} faults
  */
-const contextGl = (canvas, rows) =>
-  glContext(
-    canvas,
-    () => canvas,
-    (row) => void rows.push(row),
-  );
+const contextGl = (canvas, rows, faults) =>
+  faults.fail === "context"
+    ? null
+    : glContext(
+        canvas,
+        () => canvas,
+        (row) => void rows.push(row),
+        faults,
+      );
 
 /**
  * Gives `canvas` a size and a `getContext` whose contexts write `canvas`'s ledger, kept in `ledgers`; one context per
@@ -195,6 +251,19 @@ const contextGl = (canvas, rows) =>
  * @returns {T}
  */
 export function asCanvas(ledgers, canvas, width, height) {
+  return asFaultyCanvas(ledgers, canvas, { width, height });
+}
+
+/**
+ * As asCanvas, `size` giving the canvas its width and height, and its WebGL2 context failing where `size.faults` says.
+ *
+ * @template T
+ * @param {WeakMap<object, LedgerRow[]>} ledgers
+ * @param {T & object} canvas
+ * @param {{ width: number, height: number, faults?: GlFaults }} size
+ * @returns {T}
+ */
+export function asFaultyCanvas(ledgers, canvas, { width, height, faults = {} }) {
   /** @type {LedgerRow[]} */
   const rows = [];
   ledgers.set(canvas, rows);
@@ -208,7 +277,7 @@ export function asCanvas(ledgers, canvas, width, height) {
       if (!contexts.has(kind)) {
         contexts.set(
           kind,
-          kind === "2d" ? context2d(canvas, rows) : kind === "webgl2" ? contextGl(canvas, rows) : null,
+          kind === "2d" ? context2d(canvas, rows) : kind === "webgl2" ? contextGl(canvas, rows, faults) : null,
         );
       }
       return contexts.get(kind);
