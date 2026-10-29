@@ -33,11 +33,17 @@
 // global write here, makes `page.doc` preact's global `document` and queues preact's re-render and after-paint schedules
 // on the page, one page at a time; its release puts the global and both schedules back.
 //
+// `boxOf(el)`, when given, is every element's border box from its creation until a `resize` of it. `asked(kind)` is how
+// many times any canvas of the page was asked for a `kind` context.
+//
+// `mark`, `writes`, `darken`, `within` and `rotation` read the write tracking and darkening that
+// tests/js/support/page/tracking.js keeps on every node.
+//
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
 /** @typedef {import("./clock.js").fakeClock} FakeClockFactory */
 /** @typedef {ReturnType<FakeClockFactory>["clock"]} Clock */
-/** @typedef {{ x: number, y: number, width: number, height: number, top: number, left: number, right: number, bottom: number }} Rect */
+/** @typedef {import("./page/tracking.js").Rect} Rect */
 /** @typedef {import("./page/canvas.js").LedgerRow} LedgerRow */
 /** @typedef {{ fn: Function, capture: boolean }} Listener */
 /** @typedef {import("./painters/elementtree/selector.js").SelectorNode} SelectorNode */
@@ -45,7 +51,10 @@
 import { options as preactOptions } from "preact";
 
 import { asCanvas } from "./page/canvas.js";
+import { RAW, inlineStyle, isDark, kebab, loudly, quietly, rectOf, rotateOf, tracking } from "./page/tracking.js";
 import { matchesAny, parseSelector } from "./painters/elementtree/selector.js";
+
+export { rotateOf };
 
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 //: Elements that never hold children, so their tags close themselves.
@@ -56,18 +65,6 @@ const CANVAS_H = 150;
 //: The window's viewport, CSS pixels.
 const VIEW_W = 1024;
 const VIEW_H = 768;
-
-/** @param {Partial<Rect>} r @returns {Rect} */
-function rectOf(r) {
-  const x = r.x ?? r.left ?? 0;
-  const y = r.y ?? r.top ?? 0;
-  const width = r.width ?? 0;
-  const height = r.height ?? 0;
-  return { x, y, width, height, left: x, top: y, right: x + width, bottom: y + height };
-}
-
-/** @param {string} prop */
-const kebab = (prop) => (prop.startsWith("--") ? prop : prop.replace(/[A-Z]/g, (ch) => `-${ch.toLowerCase()}`));
 
 /** @param {string} s */
 const decode = (s) =>
@@ -80,50 +77,6 @@ const decode = (s) =>
 
 /** @param {string} s */
 const escapeText = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
-
-/**
- * An inline style: properties by their CSS name, read and written as camelCase or kebab-case members, through
- * `setProperty`/`getPropertyValue`/`removeProperty`, or whole through `cssText`.
- *
- * @returns {Record<string, any>}
- */
-function inlineStyle() {
-  /** @type {Map<string, string>} */
-  const props = new Map();
-  const api = {
-    /** @param {string} name @param {unknown} value */
-    setProperty: (name, value) =>
-      void (value == null || value === "" ? props.delete(name) : props.set(name, String(value))),
-    /** @param {string} name */
-    getPropertyValue: (name) => props.get(name) ?? "",
-    /** @param {string} name */
-    removeProperty: (name) => {
-      const was = props.get(name) ?? "";
-      props.delete(name);
-      return was;
-    },
-  };
-  return new Proxy(api, {
-    get: (target, key) => {
-      if (typeof key !== "string") return undefined;
-      if (key in target) return /** @type {any} */ (target)[key];
-      if (key === "cssText") return [...props].map(([k, v]) => `${k}: ${v};`).join(" ");
-      if (key === "length") return props.size;
-      return props.get(kebab(key)) ?? "";
-    },
-    set: (_target, key, value) => {
-      if (typeof key !== "string") return false;
-      if (key === "cssText") {
-        props.clear();
-        for (const decl of String(value).split(";")) {
-          const at = decl.indexOf(":");
-          if (at > 0) props.set(decl.slice(0, at).trim(), decl.slice(at + 1).trim());
-        }
-      } else api.setProperty(kebab(key), value);
-      return true;
-    },
-  });
-}
 
 /**
  * `el` as tests/js/support/painters/elementtree/selector.js reads a node; null for anything that is not an element.
@@ -276,12 +229,15 @@ class Target {
   dispatchEvent(event) {
     const flags = arm(event, this);
     const path = this.path();
+    const page = /** @type {any} */ (this).page;
+    /** @param {Listener} l @param {Target} at */
+    const call = (l, at) => (page ? loudly(page, () => l.fn.call(at, event)) : l.fn.call(at, event));
     /** @param {Target} at @param {(l: Listener) => boolean} which @param {number} phase */
     const run = (at, which, phase) => {
       if (flags.stopped) return;
       event.currentTarget = at;
       event.eventPhase = phase;
-      for (const l of [...(at.listeners.get(event.type) ?? [])].filter(which)) l.fn.call(at, event);
+      for (const l of [...(at.listeners.get(event.type) ?? [])].filter(which)) call(l, at);
     };
     for (const at of [...path].reverse().slice(0, -1)) run(at, (l) => l.capture, 1);
     run(this, () => true, 2);
@@ -307,7 +263,8 @@ function arm(event, target) {
 }
 
 /**
- * A node of the fake document: an element (`nodeType` 1) or text (`nodeType` 3).
+ * A node of the fake document: an element (`nodeType` 1) or text (`nodeType` 3). What the constructor hands back is
+ * the node seen through `tracking`.
  */
 class PageNode extends Target {
   /** @param {any} page @param {number} nodeType @param {string} name @param {string | null} ns */
@@ -326,8 +283,11 @@ class PageNode extends Target {
     this.parentNode = null;
     /** @type {Map<string, string>} */
     this.attrs = new Map();
-    this.style = inlineStyle();
+    const self = new Proxy(this, tracking(page));
+    RAW.set(self, this);
+    this.style = inlineStyle(page, () => self);
     this.data = "";
+    return self;
   }
   path() {
     /** @type {Target[]} */
@@ -465,10 +425,12 @@ class PageNode extends Target {
     this.setAttribute("class", v);
   }
   get classList() {
-    const names = () => this.className.split(/\s+/).filter(Boolean);
+    const attrs = /** @type {Map<string, string>} */ ((RAW.get(this) ?? this).attrs);
+    const names = () => (attrs.get("class") ?? "").split(/\s+/).filter(Boolean);
     const write = (/** @type {string[]} */ list) => this.setAttribute("class", [...new Set(list)].join(" "));
+    const shown = () => (isDark(this.page) ? [] : names());
     return {
-      contains: (/** @type {string} */ c) => names().includes(c),
+      contains: (/** @type {string} */ c) => shown().includes(c),
       add: (/** @type {string[]} */ ...cs) => write([...names(), ...cs]),
       remove: (/** @type {string[]} */ ...cs) => write(names().filter((c) => !cs.includes(c))),
       /** @param {string} c @param {boolean} [force] */
@@ -480,16 +442,18 @@ class PageNode extends Target {
       /** @param {string} a @param {string} b */
       replace: (a, b) => write(names().map((n) => (n === a ? b : n))),
       get length() {
-        return names().length;
+        return shown().length;
       },
     };
   }
   get dataset() {
+    const attrs = /** @type {Map<string, string>} */ ((RAW.get(this) ?? this).attrs);
     const attr = (/** @type {string | symbol} */ key) => `data-${kebab(String(key))}`;
+    const read = (/** @type {string | symbol} */ key) => (isDark(this.page) ? undefined : attrs.get(attr(key)));
     return new Proxy(
       {},
       {
-        get: (_t, key) => (typeof key === "string" ? (this.getAttribute(attr(key)) ?? undefined) : undefined),
+        get: (_t, key) => (typeof key === "string" ? read(key) : undefined),
         set: (_t, key, value) => {
           this.setAttribute(attr(key), value);
           return true;
@@ -498,15 +462,15 @@ class PageNode extends Target {
           this.removeAttribute(attr(key));
           return true;
         },
-        has: (_t, key) => this.hasAttribute(attr(key)),
+        has: (_t, key) => read(key) !== undefined,
         ownKeys: () =>
-          [...this.attrs.keys()]
-            .filter((k) => k.startsWith("data-"))
-            .map((k) => k.slice(5).replace(/-([a-z])/g, (_m, ch) => ch.toUpperCase())),
+          isDark(this.page)
+            ? []
+            : [...attrs.keys()]
+                .filter((k) => k.startsWith("data-"))
+                .map((k) => k.slice(5).replace(/-([a-z])/g, (_m, ch) => ch.toUpperCase())),
         getOwnPropertyDescriptor: (_t, key) =>
-          this.hasAttribute(attr(key))
-            ? { configurable: true, enumerable: true, value: this.getAttribute(attr(key)) }
-            : undefined,
+          read(key) === undefined ? undefined : { configurable: true, enumerable: true, value: read(key) },
       },
     );
   }
@@ -533,7 +497,8 @@ class PageNode extends Target {
     return this.querySelectorAll(name);
   }
   getBoundingClientRect() {
-    return { ...(this.page.boxes.get(this) ?? rectOf({})) };
+    const { boxes, boxOf } = this.page;
+    return { ...(boxes.get(this) ?? (boxOf ? rectOf(boxOf(this)) : rectOf({}))) };
   }
   getClientRects() {
     return [this.getBoundingClientRect()];
@@ -686,7 +651,7 @@ function windowOf(page, dpr) {
     OffscreenCanvas: class OffscreenCanvas {
       /** @param {number} width @param {number} height */
       constructor(width, height) {
-        asCanvas(page.ledgers, this, width, height);
+        page.canvases.push(asCanvas(page.ledgers, this, width, height));
       }
     },
   });
@@ -702,11 +667,14 @@ function windowOf(page, dpr) {
  */
 function documentOf(page, win) {
   /** @param {string} name @param {string | null} ns */
-  const element = (name, ns) => {
-    const el = new PageNode(page, 1, ns === HTML_NS ? name.toLowerCase() : name, ns);
-    if (ns === "http://www.w3.org/2000/svg") Object.assign(el, { getBBox: () => el.getBoundingClientRect() });
-    return el.localName === "canvas" ? asCanvas(page.ledgers, el, CANVAS_W, CANVAS_H) : el;
-  };
+  const element = (name, ns) =>
+    quietly(page, () => {
+      const el = new PageNode(page, 1, ns === HTML_NS ? name.toLowerCase() : name, ns);
+      if (ns === "http://www.w3.org/2000/svg") Object.assign(el, { getBBox: () => el.getBoundingClientRect() });
+      if (el.localName !== "canvas") return el;
+      page.canvases.push(el);
+      return asCanvas(page.ledgers, el, CANVAS_W, CANVAS_H);
+    });
   /** @type {any} */
   const doc = Object.assign(new Target(), {
     nodeType: 9,
@@ -718,7 +686,8 @@ function documentOf(page, win) {
     /** @param {string | null} ns @param {string} name */
     createElementNS: (ns, name) => element(name, ns),
     /** @param {string} text */
-    createTextNode: (text) => Object.assign(new PageNode(page, 3, "#text", null), { data: String(text) }),
+    createTextNode: (text) =>
+      quietly(page, () => Object.assign(new PageNode(page, 3, "#text", null), { data: String(text) })),
     /** @param {string} id */
     getElementById: (id) => descendants(doc.documentElement).find((el) => el.getAttribute("id") === id) ?? null,
     /** @param {string} selector */
@@ -730,29 +699,31 @@ function documentOf(page, win) {
   });
   Object.defineProperty(doc, "visibilityState", { get: () => (doc.hidden ? "hidden" : "visible") });
   page.doc = doc;
-  const root = doc.createElement("html");
-  root.parentNode = doc;
-  const head = root.appendChild(doc.createElement("head"));
-  const body = root.appendChild(doc.createElement("body"));
-  Object.assign(doc, { documentElement: root, head, body, activeElement: body, childNodes: [root] });
+  quietly(page, () => {
+    const root = doc.createElement("html");
+    root.parentNode = doc;
+    const head = root.appendChild(doc.createElement("head"));
+    const body = root.appendChild(doc.createElement("body"));
+    Object.assign(doc, { documentElement: root, head, body, activeElement: body, childNodes: [root] });
+  });
   return doc;
 }
 
 /**
  * A fake document and its window, handed to the code under test; nothing is installed on `globalThis`.
  *
- * @param {{ clock: Clock, html?: string, dpr?: number, hidden?: boolean }} opts
- * @returns {{ doc: any, win: any, resize: (el: any, rect: Partial<Rect>) => void, ledger: (canvas: object) => LedgerRow[], settle: () => void, setHidden: (hidden: boolean) => void }}
+ * @param {{ clock: Clock, html?: string, dpr?: number, hidden?: boolean, boxOf?: (el: any) => Partial<Rect> }} opts
+ * @returns {{ doc: any, win: any, resize: (el: any, rect: Partial<Rect>) => void, ledger: (canvas: object) => LedgerRow[], asked: (kind: string) => number, settle: () => void, setHidden: (hidden: boolean) => void, mark: () => void, writes: () => any[], darken: () => void, within: (el: any, inside: any) => boolean, rotation: (el: any) => number }}
  */
 export function fakePage(opts) {
-  const { clock, html = "", dpr = 1, hidden = false } = opts;
-  const page = /** @type {any} */ ({ clock, hidden, queued: [], boxes: new Map(), observers: new Set() });
-  page.ledgers = new WeakMap();
+  const { clock, html = "", dpr = 1, hidden = false, boxOf } = opts;
+  const page = /** @type {any} */ ({ clock, hidden, boxOf, queued: [], boxes: new Map(), observers: new Set() });
+  Object.assign(page, { ledgers: new WeakMap(), canvases: [], written: new Set(), dark: false, inside: 0 });
   const win = windowOf(page, dpr);
   const doc = documentOf(page, win);
   page.win = win;
   win.document = doc;
-  parseInto(doc, doc.body, html);
+  quietly(page, () => parseInto(doc, doc.body, html));
   queues.set(doc, page.queued);
   return {
     doc,
@@ -762,6 +733,23 @@ export function fakePage(opts) {
       for (const observer of [...page.observers]) if (observer.watched.has(el)) observer.deliver(el);
     },
     ledger: (canvas) => [...(page.ledgers.get(canvas) ?? [])],
+    asked: (kind) =>
+      page.canvases
+        .flatMap((/** @type {object} */ canvas) => page.ledgers.get(canvas) ?? [])
+        .filter((/** @type {any} */ row) => row.call === "getContext" && row.args[0] === kind).length,
+    mark: () => void page.written.clear(),
+    writes: () =>
+      quietly(page, () => {
+        const root = doc.documentElement;
+        return [root, ...descendants(root)].filter((el) => page.written.has(el));
+      }),
+    darken: () => void (page.dark = true),
+    within: (el, inside) => quietly(page, () => inside.contains(el)),
+    rotation: (el) =>
+      quietly(page, () => {
+        const turned = rotateOf(el.getAttribute("transform"));
+        return Number.isNaN(turned) ? rotateOf(el.style.transform) : turned;
+      }),
     settle() {
       for (let pass = 0; page.queued.length > 0; pass += 1) {
         if (pass === 1000) throw new Error("settle: the page still queues work after 1000 passes");

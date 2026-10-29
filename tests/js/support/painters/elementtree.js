@@ -24,6 +24,7 @@
 // tests/js/support/painters/elementtree/element.js.
 
 import { elements } from "../markup.js";
+import { rotateOf } from "../page.js";
 import { node } from "./elementtree/element.js";
 
 /** @typedef {import("../markup.js").MarkupElement} MarkupElement */
@@ -86,19 +87,6 @@ function parseAttrs(run) {
   let m;
   while ((m = attr.exec(run)) !== null) out.set(m[1], decode(m[2] ?? ""));
   return out;
-}
-
-const UNITS = /** @type {Record<string, number>} */ ({ "": 1, deg: 1, rad: 180 / Math.PI, grad: 0.9, turn: 360 });
-
-/**
- * @param {unknown} transform
- * @returns {number}
- */
-function rotateOf(transform) {
-  if (typeof transform !== "string") return NaN;
-  const m = /rotate\(\s*([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*(deg|rad|grad|turn)?/i.exec(transform);
-  if (!m) return NaN;
-  return Number(m[1]) * UNITS[(m[2] ?? "").toLowerCase()];
 }
 
 /**

@@ -6,8 +6,6 @@
 // given is a row of that canvas's ledger, in order: `{ call: "getContext", args: [kind] }`, `{ call: name, args }`,
 // `{ set: name, value }`.
 
-import { glContext } from "../painters/canvasledger.js";
-
 /** @typedef {{ call: string, args: unknown[] } | { set: string, value: unknown }} LedgerRow */
 
 //: The width `measureText` gives each character, CSS pixels.
@@ -36,6 +34,59 @@ const STATE_2D = Object.freeze({
   shadowOffsetX: 0,
   shadowOffsetY: 0,
 });
+
+//: What the WebGL2 context answers, by method, where the answer is not nothing.
+const GL_ANSWERS = /** @type {Record<string, (...args: any[]) => unknown>} */ ({
+  getShaderParameter: () => true,
+  getProgramParameter: () => true,
+  getShaderInfoLog: () => "",
+  getProgramInfoLog: () => "",
+  getAttribLocation: () => 0,
+  getParameter: () => 4096,
+  getError: () => 0,
+  isContextLost: () => false,
+  getExtension: () => null,
+  getSupportedExtensions: () => [],
+});
+
+/**
+ * A WebGL2 context on `canvas` whose drawing buffer is `buffer()` in size: every upper-case name a constant of its
+ * own, every create call a fresh object, the answers in GL_ANSWERS, and nothing from every other method. `record`, when
+ * given, is handed every call made on the context and every property it is given, as `{ call: name, args }` and
+ * `{ set: name, value }`, in order.
+ *
+ * @param {unknown} canvas
+ * @param {() => { width: number, height: number }} buffer
+ * @param {(row: { call: string, args: unknown[] } | { set: string, value: unknown }) => void} [record]
+ */
+export function glContext(canvas, buffer, record = () => {}) {
+  /** @type {Map<string, number>} */
+  const constants = new Map();
+  return new Proxy(
+    {},
+    {
+      get: (_t, key) => {
+        if (typeof key !== "string") return undefined;
+        if (key === "canvas") return canvas;
+        if (key === "drawingBufferWidth") return buffer().width;
+        if (key === "drawingBufferHeight") return buffer().height;
+        if (/^[A-Z][A-Z0-9_]*$/.test(key)) {
+          if (!constants.has(key)) constants.set(key, 0x10000 + constants.size);
+          return constants.get(key);
+        }
+        return (/** @type {unknown[]} */ ...args) => {
+          record({ call: key, args });
+          if (key in GL_ANSWERS) return GL_ANSWERS[key](...args);
+          return key.startsWith("create") || key === "getUniformLocation" ? {} : undefined;
+        };
+      },
+      set: (_t, key, value) => {
+        record({ set: String(key), value });
+        return true;
+      },
+    },
+  );
+}
 
 /** @param {number} w @param {number} h */
 const image = (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(Math.max(0, w * h * 4)) });
@@ -119,8 +170,8 @@ function context2d(canvas, rows) {
 }
 
 /**
- * A WebGL2 context that draws nothing, tests/js/support/painters/canvasledger.js's, its drawing buffer the canvas's
- * size and every call and property write a row of the canvas's ledger.
+ * A WebGL2 context that draws nothing, its drawing buffer the canvas's size and every call and property write a row of
+ * the canvas's ledger.
  *
  * @param {any} canvas
  * @param {LedgerRow[]} rows
