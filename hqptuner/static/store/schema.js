@@ -47,3 +47,40 @@ import { volume } from "./schema/volume.js";
 
 /** @type {Record<string, SchemaField>} */
 export const schema = { ...output, ...dsp, ...postprocess, ...speakers, ...volume, ...hardware };
+
+/**
+ * The form constraint name for a catalog entry, which is also the name the server serves its reading under.
+ *
+ * @param {SchemaField | undefined} entry
+ * @returns {string}
+ */
+export function formFieldName(entry) {
+  return entry?.formField ?? entry?.field ?? "";
+}
+
+/** @type {Record<string, string>} */
+const keyByServedName = Object.fromEntries(
+  Object.entries(schema).flatMap(([key, entry]) => (entry.field && entry.field !== key ? [[entry.field, key]] : [])),
+);
+
+/**
+ * The catalog key of a field named by its key or by the name the server serves it under; a name the catalog does not hold comes back as given.
+ *
+ * @param {string} name
+ * @returns {string}
+ */
+export const keyOf = (name) => (schema[name] ? name : (keyByServedName[name] ?? name));
+
+/**
+ * Where the pending buffer holds an entry's edit: the live buffer under its liveKey and arg, else the http buffer under its served field name.
+ *
+ * @param {SchemaField} entry
+ * @param {string | null | undefined} lane the lane the entry's reading names, else the entry's own
+ * @returns {{ live: true, name: string, arg: string } | { live: false, name: string }}
+ */
+export function stagedSlot(entry, lane) {
+  if ((lane ?? (entry.liveKey ? "live" : "form")) === "live") {
+    return { live: true, name: entry.liveKey ?? "", arg: entry.arg ?? "value" };
+  }
+  return { live: false, name: entry.field ?? "" };
+}

@@ -6,7 +6,7 @@ import { computed } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { failText } from "../lib/errtext.js";
 import { truthy } from "../lib/coerce.js";
-import { schema } from "./schema.js";
+import { schema, stagedSlot } from "./schema.js";
 import { hardware } from "./schema/hardware.js";
 import { speakers } from "./schema/speakers.js";
 import { summarize } from "./apply-summary.js";
@@ -117,12 +117,11 @@ export async function edit(key, value) {
   const body = { live: {}, http: {} };
   // liveKey/field are optional on SchemaField for want of a lane discriminator
   // (store/resolve.js); each lane's own entries always carry theirs.
-  if (field(key).value.lane === "live") {
-    const liveKey = e.liveKey || "";
-    const prior = staged.value.live[liveKey] || {};
-    body.live[liveKey] = { ...prior, [e.arg || "value"]: String(value) };
+  const slot = stagedSlot(e, field(key).value.lane);
+  if (slot.live) {
+    body.live[slot.name] = { ...staged.value.live[slot.name], [slot.arg]: String(value) };
   } else {
-    body.http[e.field || ""] = String(value);
+    body.http[slot.name] = String(value);
   }
   applyBauerCoupling(key, value, body.http);
   applyFixedVolumeCoupling(key, value, body.http);

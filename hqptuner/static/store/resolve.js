@@ -1,6 +1,9 @@
 import { computed } from "@preact/signals";
 import { field, readings } from "./core/readings.js";
 import { config, matrixConfig } from "./signals.js";
+import { formFieldName } from "./schema.js";
+
+export { formFieldName };
 
 /** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} PipelineRow */
 /** @typedef {{ name: string, value?: unknown, min?: string | number, max?: string | number, step?: string | number, options?: { value: string, label: string }[] }} FormField */
@@ -47,15 +50,6 @@ export function canonPipelines(rows) {
       source: String(row.source ?? "0"),
     })),
   );
-}
-
-/**
- * The form constraint name for a catalog entry.
- * @param {SchemaField} entry
- * @returns {string}
- */
-export function formFieldName(entry) {
-  return entry.formField ?? entry.field ?? "";
 }
 
 /**

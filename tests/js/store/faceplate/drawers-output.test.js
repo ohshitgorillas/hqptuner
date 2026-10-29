@@ -12,7 +12,14 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  generation,
+  metadata,
+} from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import {
@@ -23,7 +30,8 @@ import {
   pickDevice,
   pickTier,
 } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
@@ -50,32 +58,92 @@ const CAPS = {
 /** @type {StagingWire} */
 let wire;
 
+/** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/** The Engine's list index of each output mode. */
+const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = { channels: { min: 2, max: 32, step: 1 } };
+
 /**
- * Load the /config payload, the named form values over the defaults.
+ * One field's served reading: the output mode from the Engine on the live lane with no restart of its own; every
+ * other field here from the File on the restore lane, restarting the engine; each carrying what the staging wire
+ * holds for it.
+ *
+ * @param {string} name
+ * @param {unknown} value
+ * @param {Record<string, unknown>} staged
+ */
+function served1(name, value, staged) {
+  const held = name in staged && staged[name] !== value ? staged[name] : null;
+  if (name === "mode") {
+    const index = MODE_INDEX[/** @type {keyof typeof MODE_INDEX} */ (value)];
+    return fieldReading(index, {
+      name: String(value),
+      lane: "live",
+      file: { value, generation: generation.value },
+      staged: held,
+    });
+  }
+  const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, bounds, staged: held });
+}
+
+/**
+ * The served field readings of every value `load` set.
+ *
+ * @param {StagingWire | undefined} w
+ */
+function served(w) {
+  const staged = w ? w.staged.http : {};
+  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
+}
+
+/**
+ * Load the /config payload, the named form values over the defaults: the values as served readings, and the form's
+ * options and the device caps as its metadata.
  *
  * @param {{ pcm?: string, sdm?: string, channels?: number, device?: string, caps?: object | null }} [over]
  */
 function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA, caps = null } = {}) {
+  file = {
+    defaults_samplerate: pcm,
+    defaults_bitrate: sdm,
+    mode: "pcm",
+    backend: "network",
+    net_dop: false,
+    net_device: device,
+    alsa_device: ALSA_OPTIONS[0].value,
+    channels,
+  };
   config.value = {
     fields: [
-      { name: "defaults_samplerate", type: "select", value: pcm },
-      { name: "defaults_bitrate", type: "select", value: sdm },
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: "network" },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_device", type: "select", value: device, options: NET_OPTIONS },
-      { name: "alsa_device", type: "select", value: ALSA_OPTIONS[0].value, options: ALSA_OPTIONS },
-      { name: "channels", type: "number", value: channels },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_device", type: "select", options: NET_OPTIONS },
+      { name: "alsa_device", type: "select", options: ALSA_OPTIONS },
+      { name: "channels", type: "number" },
     ],
     file: {},
     active: "",
     profiles: null,
     device_caps: caps,
   };
+  seedReadings(served(wire));
 }
 
 beforeEach(async () => {
-  wire = stagingWire();
+  wire = stagingWire({
+    routes: (path, opts, w) =>
+      path === "/api/config" && (opts.method ?? "GET") === "GET"
+        ? ok({ generation: generation.value, fields: served(w) })
+        : undefined,
+  });
   load();
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };

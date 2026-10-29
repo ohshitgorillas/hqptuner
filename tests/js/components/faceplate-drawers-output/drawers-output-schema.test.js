@@ -16,55 +16,143 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  generation,
+  metadata,
+} from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+/** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
 const NET = "naa-office/hw:CARD=sndrpihifiberry,DEV=0";
 const ALSA = "hw:CARD=NVidia,DEV=3";
 
+/** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/** The Engine's list index of each output mode. */
+const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = {
+  channels: { min: 2, max: 32, step: 1 },
+  net_bits: { min: 0, max: 32, step: 1 },
+  alsa_bits: { min: 0, max: 32, step: 1 },
+  alsa_offset: { min: 0, max: 31, step: 1 },
+  net_period: { min: -1, max: 250, step: 1 },
+  alsa_period: { min: -1, max: 250, step: 1 },
+};
+
 /**
- * Load the /config payload with the given backend.
+ * One field's served reading: the output mode from the Engine on the live lane with no restart of its own; every
+ * other field here from the File on the restore lane, restarting the engine; each carrying what the staging wire
+ * holds for it.
+ *
+ * @param {string} name
+ * @param {unknown} value
+ * @param {Record<string, unknown>} staged
+ */
+function served1(name, value, staged) {
+  const held = name in staged && staged[name] !== value ? staged[name] : null;
+  if (name === "mode") {
+    const index = MODE_INDEX[/** @type {keyof typeof MODE_INDEX} */ (value)];
+    return fieldReading(index, {
+      name: String(value),
+      lane: "live",
+      file: { value, generation: generation.value },
+      staged: held,
+    });
+  }
+  const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, bounds, staged: held });
+}
+
+/**
+ * The served field readings of every value `load` set.
+ *
+ * @param {StagingWire | undefined} w
+ */
+function served(w) {
+  const staged = w ? w.staged.http : {};
+  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
+}
+
+/** @type {StagingWire} */
+let wire;
+
+/**
+ * Load the /config payload with the given backend: the values as served readings, and the form's options as its
+ * metadata.
  *
  * @param {string} backend
  */
 function load(backend) {
+  file = {
+    mode: "pcm",
+    backend,
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    channels: 2,
+    net_device: NET,
+    alsa_device: ALSA,
+    net_dop: false,
+    alsa_dop: false,
+    net_anydsd: true,
+    alsa_anydsd: false,
+    net_bits: 20,
+    alsa_bits: 24,
+    net_ipv6: true,
+    alsa_offset: 0,
+    net_period: 0,
+    alsa_period: 100,
+  };
   config.value = {
     fields: [
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: backend },
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "channels", type: "number", value: 2 },
-      { name: "net_device", type: "select", value: NET, options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "alsa_device", type: "select", value: ALSA, options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "alsa_dop", type: "checkbox", value: false },
-      { name: "net_anydsd", type: "checkbox", value: true },
-      { name: "alsa_anydsd", type: "checkbox", value: false },
-      { name: "net_bits", type: "number", value: 20 },
-      { name: "alsa_bits", type: "number", value: 24 },
-      { name: "net_ipv6", type: "checkbox", value: true },
-      { name: "alsa_offset", type: "number", value: 0 },
-      { name: "net_period", type: "number", value: 0 },
-      { name: "alsa_period", type: "number", value: 100 },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "channels", type: "number" },
+      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
+      { name: "alsa_device", type: "select", options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
+      { name: "net_dop", type: "checkbox" },
+      { name: "alsa_dop", type: "checkbox" },
+      { name: "net_anydsd", type: "checkbox" },
+      { name: "alsa_anydsd", type: "checkbox" },
+      { name: "net_bits", type: "number" },
+      { name: "alsa_bits", type: "number" },
+      { name: "net_ipv6", type: "checkbox" },
+      { name: "alsa_offset", type: "number" },
+      { name: "net_period", type: "number" },
+      { name: "alsa_period", type: "number" },
     ],
     file: {},
     active: "",
     profiles: null,
     device_caps: null,
   };
+  seedReadings(served(wire));
 }
 
 beforeEach(async () => {
-  stagingWire();
+  wire = stagingWire({
+    routes: (path, opts, w) =>
+      path === "/api/config" && (opts.method ?? "GET") === "GET"
+        ? ok({ generation: generation.value, fields: served(w) })
+        : undefined,
+  });
   load("network");
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };

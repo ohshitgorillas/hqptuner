@@ -16,7 +16,8 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, matrixConfig, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { isDeepStrictEqual } from "node:util";
+
 import { effective, effectivePipelines } from "../../../../hqptuner/static/store/resolve.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
@@ -44,6 +45,7 @@ import {
   discardEdit,
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
 import { ROW, PROF, profileReading } from "../../support/profile-fixtures.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire, ok, quiesce } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/profile-fixtures.js").PipelineRow} PipelineRow */
@@ -124,32 +126,118 @@ const FLAT_NOTE = "fixture flat note";
  */
 const matrixTree = ({ models = MODELS, live = ["Warm"] } = {}) => ({
   fields: [
-    { name: "post_bauer_enabled", value: "0", options: [] },
-    { name: "post_bauer_preset", value: "cmoy", options: BAUER },
-    { name: "post_correction_enabled", value: "0", options: [] },
-    { name: "post_correction_dac0", value: "fx-dac-a", options: models },
-    { name: "post_loudness_enabled", value: "0", options: [] },
-    { name: "post_loudness_rangelow", value: "-40", options: [] },
-    { name: "post_loudness_rangehigh", value: "-10", options: [] },
+    { name: "post_bauer_enabled", options: [] },
+    { name: "post_bauer_preset", options: BAUER },
+    { name: "post_correction_enabled", options: [] },
+    { name: "post_correction_dac0", options: models },
+    { name: "post_loudness_enabled", options: [] },
+    { name: "post_loudness_rangelow", options: [] },
+    { name: "post_loudness_rangehigh", options: [] },
   ],
-  rows: STEREO("0"),
   file_profiles: { Flat: FLAT(), Warm: WARM() },
   live_profiles: live,
   preset_profiles: { Day: ["Flat", "Warm"], Night: ["Warm"], Spare: ["Flat"] },
-  live_active: "Warm",
+});
+
+/** A fresh /config form: the stations and Fixed volume. */
+const configTree = () => ({
+  fields: [{ name: "fixed_volume_enabled", options: [] }],
+  profiles: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] },
 });
 
 /**
- * A fresh /config form: the stations, Day loaded, and Fixed volume.
+ * The File values the wire serves, by schema key: the post-process form, the pipeline rows and Fixed volume.
+ *
+ * @param {{ fixed?: string }} [o]
+ * @returns {Record<string, unknown>}
+ */
+const fileTree = ({ fixed = "0" } = {}) => ({
+  crossfeed_enabled: "0",
+  crossfeed_preset: "cmoy",
+  dac_correction_enabled: "0",
+  dac_correction_profile: "fx-dac-a",
+  loudness_enabled: "0",
+  loudness_range_low: "-40",
+  loudness_range_high: "-10",
+  matrix_pipelines: STEREO("0"),
+  fixed_volume_enabled: fixed,
+});
+
+/** The File values the wire serves now; `load` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/**
+ * Each served schema key's `/config` form field name, as the field register names the post-process plugin fields and
+ * the codec fields; the staging buffer's http lane is keyed by these.
+ *
+ * @type {Record<string, string>}
+ */
+const FORM_NAME = {
+  crossfeed_enabled: "post_bauer_enabled",
+  crossfeed_preset: "post_bauer_preset",
+  dac_correction_enabled: "post_correction_enabled",
+  dac_correction_profile: "post_correction_dac0",
+  loudness_enabled: "post_loudness_enabled",
+  loudness_range_low: "post_loudness_rangelow",
+  loudness_range_high: "post_loudness_rangehigh",
+  matrix_pipelines: "matrix_pipelines",
+  fixed_volume_enabled: "fixed_volume_enabled",
+};
+
+/**
+ * What the staging buffer holds for the field at schema key `key`, by its form field name; null when it holds nothing,
+ * and null when the File already holds that value, compared in the File's domain: a
+ * JSON-encoded staged value against a File value that is not a string is compared decoded.
+ *
+ * @param {Record<string, unknown>} pending
+ * @param {string} key
+ * @param {unknown} held  the File value
+ * @returns {unknown}
+ */
+function pendingOf(pending, key, held) {
+  const name = FORM_NAME[key];
+  if (!(name in pending)) return null;
+  const value = pending[name];
+  const asFile = typeof value === "string" && typeof held !== "string" ? JSON.parse(value) : value;
+  return isDeepStrictEqual(asFile, held) ? null : value;
+}
+
+/**
+ * The served config reading: each File value read from the File on the restore lane and restarting the engine,
+ * carrying what the staging wire holds for it; Warm the live profile and Day the loaded station.
+ *
+ * @param {StagingWire | undefined} at
+ * @returns {Record<string, unknown>}
+ */
+function served(at) {
+  const pending = at ? at.staged.http : {};
+  return {
+    ...Object.fromEntries(
+      Object.entries(file).map(([name, value]) => [
+        name,
+        fieldReading(value, {
+          show: "file",
+          generation: 0,
+          lane: "restore",
+          restarts: true,
+          staged: pendingOf(pending, name, value),
+        }),
+      ]),
+    ),
+    matrix_profile: profileReading("Warm"),
+    active_preset: { value: LOADED, readonly: true },
+  };
+}
+
+/**
+ * Serve these File values and seed them as the current reading.
  *
  * @param {{ fixed?: string }} [o]
  */
-const configTree = ({ fixed = "0" } = {}) => ({
-  fields: [{ name: "fixed_volume_enabled", value: fixed, options: [] }],
-  file: {},
-  profiles: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] },
-  active: LOADED,
-});
+function load(o) {
+  file = fileTree(o);
+  seedReadings(served(w), 0);
+}
 
 /**
  * The routes the builder's writes reach beyond staging.
@@ -158,6 +246,7 @@ const configTree = ({ fixed = "0" } = {}) => ({
  * @param {FakeRequest} opts
  */
 const routes = (path, opts) => {
+  if (path === "/api/config" && (opts.method ?? "GET") === "GET") return ok({ generation: 0, fields: served(w) });
   if (path === "/api/config/apply") return ok({ report: {} });
   if (path === "/api/descriptions" && opts.method === "PUT") return ok({ profiles: {} });
   return undefined;
@@ -182,7 +271,7 @@ beforeEach(async () => {
   config.value = configTree();
   matrixConfig.value = matrixTree();
   enums.value = { matrix_profiles: ["Warm"] };
-  readings.value = { generation: 0, fields: { matrix_profile: profileReading("Warm") } };
+  load();
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
   await discardAll();
   staged.value = new Map();
@@ -385,7 +474,7 @@ test("test_dac_correction_skips_with_no_model_offered", () => {
 });
 
 test("test_loudness_skips_while_fixed_volume_runs", () => {
-  config.value = configTree({ fixed: "1" });
+  load({ fixed: "1" });
   assert.equal(skip("loudness"), sentence("loudness", { fixed: true }));
 });
 

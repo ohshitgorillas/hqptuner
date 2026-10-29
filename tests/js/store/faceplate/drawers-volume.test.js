@@ -3,10 +3,9 @@
 // their gray and dirty state, the loudness bounds shown for reference and the live playback needle) with the move a
 // handle makes.
 //
-// The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js), the
-// daemon's /config and /matrix form fields (and the config file's values) are assigned into `config` and
-// `matrixConfig`, the engine's reported level and VolumeRange into `volume` and `volumeRange`. Every source signal is
-// reset on every case.
+// The store is driven at the wire: a staging fake answers the real REST paths (tests/js/support/wire/wire.js), each
+// running field's value is seeded into the served readings (tests/js/support/readings.js), the engine's reported
+// level and VolumeRange into `volume` and `volumeRange`. Every source signal is reset on every case.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/drawers-volume.test.js
 
@@ -22,6 +21,7 @@ import {
   volumeRangeNow,
 } from "../../../../hqptuner/static/store/faceplate/drawers/volume.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
@@ -55,29 +55,35 @@ let wire;
 /** @param {Running} r */
 function load(r = {}) {
   const s = { ...BASE, ...r };
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: s.fixed },
-      { name: "fixed_volume", value: "-10" },
-      { name: "volume_fixed", value: s.iso !== "0" },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: s.min },
-      { name: "volume_max", value: s.max },
-      { name: "defaults_volume", value: s.startup },
-    ],
-    file: { volume_fixed: s.iso, fixed_volume: "-10" },
+  config.value = { fields: [] };
+  matrixConfig.value = { fields: [] };
+  /** @type {Record<string, unknown>} */
+  const running = {
+    fixed_volume_enabled: s.fixed,
+    fixed_volume: "-10",
+    optimal_iso: s.iso,
+    direct_sdm: false,
+    volume_min: s.min,
+    volume_max: s.max,
+    startup_volume: s.startup,
+    matrix_enabled: s.loudness,
+    loudness_enabled: s.loudness,
+    loudness_range_low: "-45",
+    loudness_range_high: "-15",
   };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: s.loudness },
-      { name: "post_loudness_enabled", value: s.loudness },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
-    ],
-  };
+  seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
   volume.value = s.at;
   volumeDrag.value = null;
   volumeRange.value = s.report;
+}
+
+/**
+ * A File field's served reading: read from the File on the restore lane, restarting the engine.
+ *
+ * @param {unknown} value
+ */
+function fileReading(value) {
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true });
 }
 
 beforeEach(async () => {

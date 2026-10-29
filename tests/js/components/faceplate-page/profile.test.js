@@ -2,8 +2,10 @@
 // its body (the profile select and the Profile builder button, the description well, the response plot of the running
 // profile) and the header-line form the folded section carries (the select and the button alone).
 //
-// Driven at the wire: the /matrix form is assigned into `matrixConfig` as the poll writes it, its rows the running
-// profile's pipelines, and a fetch fake answers the real REST paths in their real shapes and records every request
+// Driven at the wire: the running profile and its pipeline rows are served field readings, seeded into `readings` as
+// GET /api/config serves them (the active profile read from the Engine on the matrix lane,
+// the pipelines from the File on the restore lane); the names the engine loaded are the `matrix_profiles` enumeration;
+// the /matrix form in `matrixConfig` carries only its fields and the stored profiles; and a fetch fake answers the real REST paths in their real shapes and records every request
 // (POST /api/matrix/profile for a switch, PUT /api/descriptions for a description). No store function is stubbed. Picks,
 // taps, typing and blur are fired through the renderer's vnode seam, since render-to-string fires no events. Profile
 // names are the fixture's own wire data; everything located by a word carries a `data-testid` instead.
@@ -26,6 +28,8 @@ import { body } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, text, hasAttr, classes } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok, bad } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { profileReading } from "../../support/profile-fixtures.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse */
@@ -50,14 +54,27 @@ let switchAnswer;
  */
 const row = (source, process) => ({ gain: "0", gainunit: "dB", mixdown: "0", process, source });
 
+/** The field readings GET /api/config serves now; `serve` sets them. @type {Record<string, unknown>} */
+let fields = {};
+
 /**
- * A /matrix form as GET /api/matrix carries it: the daemon's startup list, the profile running live and its rows.
+ * Serve the daemon's state: the names the engine loaded, the profile running live and its rows, and the profiles the
+ * /matrix form stores.
  *
  * @param {string[]} live
  * @param {string} active
  * @param {Row[]} [rows]
+ * @param {Record<string, { rows: Row[] }>} [stored]
  */
-const form = (live, active, rows = []) => ({ fields: [], rows, live_profiles: live, live_active: active });
+function serve(live, active, rows = [], stored = {}) {
+  enums.value = { matrix_profiles: live };
+  matrixConfig.value = { fields: [], file_profiles: stored };
+  fields = {
+    matrix_profile: profileReading(active),
+    matrix_pipelines: fieldReading(rows, { show: "file", generation: 0, lane: "restore", restarts: true }),
+  };
+  seedReadings(fields, 0);
+}
 
 /**
  * The answer to one request.
@@ -70,7 +87,7 @@ const form = (live, active, rows = []) => ({ fields: [], rows, live_profiles: li
 function answer(path, method, sent) {
   if (path === "/api/matrix/profile") return switchAnswer || ok({ ok: true });
   if (path === "/api/matrix") return ok({ data: matrixConfig.value });
-  if (path === "/api/config") return ok({ data: config.value });
+  if (path === "/api/config") return ok({ generation: 0, fields });
   if (path === "/api/enumerations") return ok({ data: enums.value });
   if (path === "/api/config/pending") return ok({ live: {}, http: {} });
   if (path === "/api/descriptions" && method === "PUT" && sent) {
@@ -85,8 +102,8 @@ beforeEach(() => {
     CALLS.push({ path, method: opts.method || "GET", body: sent });
     return answer(path, opts.method || "GET", sent);
   };
-  config.value = { fields: [], file: {}, active: "" };
-  matrixConfig.value = { ...form(["Lounge"], "Lounge"), file_profiles: { Desk: { rows: [] } } };
+  config.value = { fields: [] };
+  serve(["Lounge"], "Lounge", [], { Desk: { rows: [] } });
   descriptions.value = {};
   switchAnswer = undefined;
   body.value = "chain";
@@ -230,14 +247,11 @@ test("test_typing_in_the_well_then_leaving_it_writes_the_description", async () 
 
 test("test_rows_sharing_one_chain_draw_one_trace", () => {
   const eq = "iir:type=peak;f=1000;q=1;g=-3";
-  matrixConfig.value = form(["Lounge"], "Lounge", [row("0", eq), row("1", eq)]);
+  serve(["Lounge"], "Lounge", [row("0", eq), row("1", eq)]);
   assert.equal(traces().length, 1);
 });
 
 test("test_rows_with_two_chains_draw_a_trace_each", () => {
-  matrixConfig.value = form(["Lounge"], "Lounge", [
-    row("0", "iir:type=peak;f=1000;q=1;g=-3"),
-    row("1", "iir:type=peak;f=200;q=1;g=4"),
-  ]);
+  serve(["Lounge"], "Lounge", [row("0", "iir:type=peak;f=1000;q=1;g=-3"), row("1", "iir:type=peak;f=200;q=1;g=4")]);
   assert.equal(traces().length, 2);
 });

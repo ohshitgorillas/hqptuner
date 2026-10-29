@@ -3,8 +3,8 @@
 // marks.
 //
 // The wire is the seam: each case writes the engine's reported level and VolumeRange into `volume` and `volumeRange`,
-// the daemon's /config and /matrix form fields (and the config file's values) into `config` and `matrixConfig`, and a
-// knob drag into `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set,
+// each running field's value into the served readings (tests/js/support/readings.js), and a knob drag into
+// `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set,
 // and pace on a fake Clock that moves only when a case advances it, so nothing waits on the wall. Every source signal
 // is reset on every case.
 //
@@ -29,6 +29,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/volume.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { fakeClock } from "../../support/clock.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /**
  * @typedef {object} Running
@@ -74,26 +75,38 @@ function run(r = {}) {
   volume.value = s.at;
   volumeDrag.value = s.drag;
   volumeRange.value = s.report;
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: s.fixed },
-      { name: "fixed_volume", value: s.level },
-      { name: "volume_fixed", value: s.iso !== "0" },
-      { name: "direct_sdm", value: s.direct },
-      { name: "volume_min", value: s.min },
-      { name: "volume_max", value: s.max },
-    ],
-    file: { volume_fixed: s.iso, fixed_volume: s.level },
+  config.value = { fields: [] };
+  matrixConfig.value = { fields: [] };
+  /** @type {Record<string, unknown>} */
+  const running = {
+    fixed_volume_enabled: s.fixed,
+    fixed_volume: s.level,
+    optimal_iso: s.iso,
+    direct_sdm: s.direct,
+    volume_min: s.min,
+    volume_max: s.max,
+    matrix_enabled: s.matrix,
+    loudness_enabled: s.loudness,
+    loudness_range_low: "-45",
+    loudness_range_high: "-15",
   };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: s.matrix },
-      { name: "post_loudness_enabled", value: s.loudness },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
-    ],
-  };
+  /** @type {Record<string, unknown>} */
+  const pending = s.stagedHttp;
+  seedReadings(
+    Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value, pending[key] ?? null)])),
+  );
   staged.value = { live: {}, http: s.stagedHttp };
+}
+
+/**
+ * A File field's served reading: read from the File on the restore lane, restarting the engine,
+ * carrying the edit staged for it or null.
+ *
+ * @param {unknown} value
+ * @param {unknown} pending
+ */
+function fileReading(value, pending) {
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, staged: pending });
 }
 
 /**

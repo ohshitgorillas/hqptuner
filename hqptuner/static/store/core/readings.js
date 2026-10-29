@@ -4,7 +4,8 @@ import { computed, effect, signal, untracked } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { isBlank, num } from "../../lib/coerce.js";
 import { fieldOf } from "../../model/store/reading.js";
-import { engineState, engineStatus, generation } from "../signals.js";
+import { engineState, engineStatus, generation, staged } from "../signals.js";
+import { keyOf, schema, stagedSlot } from "../schema.js";
 import { playbackPath, transportNow } from "../faceplate/path.js";
 import { latest, op, STALE } from "./ops.js";
 
@@ -31,18 +32,36 @@ function dragFor(key) {
 }
 
 /**
- * The view of one field by key.
+ * The value the pending buffer holds for a catalog entry, else null.
  *
- * @param {string} key
+ * @param {SchemaField | undefined} entry
+ * @param {FieldReading | undefined} reading
+ * @returns {unknown}
+ */
+function stagedValue(entry, reading) {
+  if (!entry) return null;
+  const slot = stagedSlot(entry, reading?.lane);
+  const { live, http } = staged.value;
+  return (slot.live ? live[slot.name]?.[slot.arg] : http[slot.name]) ?? null;
+}
+
+/**
+ * The view of one field by catalog key or by the name the server serves it under; both name the same view.
+ *
+ * @param {string} name
  * @returns {{ readonly value: FieldView }}
  */
-export function field(key) {
+export function field(name) {
+  const key = keyOf(name);
   const cached = fields.get(key);
   if (cached) return cached;
   const drag = dragFor(key);
   const view = computed(() => {
-    const reading = readings.value?.fields[key];
-    return fieldOf(reading && "show" in reading ? reading : undefined, { drag: drag.value?.value }, generation.value);
+    const entry = schema[key];
+    const servedFields = readings.value?.fields;
+    const reading = servedFields?.[entry?.field ?? key] ?? servedFields?.[key];
+    const served = reading && "show" in reading ? reading : undefined;
+    return fieldOf(served, { drag: drag.value?.value, staged: stagedValue(entry, served) }, generation.value);
   });
   fields.set(key, view);
   return view;
