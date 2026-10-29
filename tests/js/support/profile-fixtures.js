@@ -4,8 +4,8 @@
 // reassigns every tree and clears the staged buffer via discardAll().
 
 import { config, matrixConfig, engineState, enums } from "../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../hqptuner/static/store/core/readings.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
+import { fieldReading, seedReadings } from "./readings.js";
 import { stagingWire, ok } from "./wire/wire.js";
 
 /**
@@ -30,31 +30,11 @@ export const ROW = (gain) => ({ gain, gainunit: "dB", mixdown: "0", process: "",
 export const PROF = (rows, post = {}) => ({ rows, post });
 
 /** @param {string} name */
-export const profileReading = (name) => ({
-  engine: { value: name, name, generation: 0 },
-  file: null,
-  staged: null,
-  lane: "matrix",
-  show: "engine",
-  restarts: false,
-  diverges: false,
-  bounds: null,
-});
+export const profileReading = (name) => fieldReading(name, { name, generation: 0, lane: "matrix" });
 
-/**
- * @param {unknown} value
- * @returns {import("../../../hqptuner/static/model/store/reading.js").FieldReading}
- */
-const pendingReading = (value) => ({
-  engine: null,
-  file: { value: "", generation: 0 },
-  staged: value ?? null,
-  lane: "restore",
-  show: "file",
-  restarts: true,
-  diverges: false,
-  bounds: null,
-});
+/** @param {unknown} value */
+const pendingReading = (value) =>
+  fieldReading("", { show: "file", generation: 0, staged: value ?? null, lane: "restore", restarts: true });
 
 // A faked staging wire plus a clean signal tree; `m` supplies the matrix
 // config's own members on top of the empty form.
@@ -84,7 +64,7 @@ export async function reset({ live_profiles = [], live_active = "", ...m } = {})
   config.value = { fields: [], file: {}, active: "" };
   matrixConfig.value = { fields: [], rows: [], ...m };
   enums.value = { matrix_profiles: live_profiles };
-  readings.value = { generation: 0, fields: { matrix_profile: profileReading(live_active) } };
+  seedReadings({ matrix_profile: profileReading(live_active) }, 0);
   await discardAll();
   return wire;
 }
