@@ -36,8 +36,8 @@ import assert from "node:assert/strict";
 import { config, matrixConfig, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
 import { stagedCount } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { useStorage, dropStorage } from "../../support/storage.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -71,33 +71,31 @@ function stagedByName() {
 }
 
 /**
- * The config reading as the backend serves it: the
+ * The config reading's fields as the backend serves them: the
  * ordinary field and the matrix config's crossfeed fields, each carrying
  * whatever the staging wire holds for it, every other staged name besides, and
  * the applied preset as the read-only `active_preset` field.
  *
  * @param {string} active
  */
-function reading(active) {
+function servedFields(active) {
   const staged = stagedByName();
   const base = { volume_max: -3, post_bauer_enabled: "1", post_bauer_preset: "default" };
   /** @type {Record<string, unknown>} */
   const fields = {};
   for (const name of new Set([...Object.keys(base), ...Object.keys(staged)])) {
     const value = name in base ? base[/** @type {keyof typeof base} */ (name)] : null;
-    fields[name] = {
-      engine: { value, name: String(value), generation: GEN },
-      file: { value, generation: GEN },
+    fields[name] = fieldReading(value, {
+      generation: GEN,
       staged: name in staged ? staged[name] : null,
       lane: "restore",
       show: "file",
       restarts: true,
-      diverges: false,
       bounds: typeof value === "number" ? { min: -40, max: 0, step: 1 } : null,
-    };
+    });
   }
   fields.active_preset = { value: active, readonly: true };
-  return { generation: GEN, fields };
+  return fields;
 }
 
 /** The applied preset the backend reports; `reset()` and `lookAt()` move it. */
@@ -126,7 +124,7 @@ const GETS = [];
 /** @type {StagingWire} */
 const W = stagingWire({
   routes: (path, opts) => {
-    if (path === "/api/config") return ok(reading(applied));
+    if (path === "/api/config") return ok({ generation: GEN, fields: servedFields(applied) });
     if (path !== PATH) return undefined;
     const method = opts.method || "GET";
     if (method !== "PUT") {
@@ -171,7 +169,7 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   pendingPreset.value = null;
   applied = active;
   config.value = { fields: FIELDS, file: {}, active, profiles: null };
-  readings.value = reading(active);
+  seedReadings(servedFields(active), GEN);
   matrixConfig.value = {
     fields: [
       { name: "post_bauer_enabled", value: "1" },
@@ -183,7 +181,7 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   pendingPreset.value = pending;
   matrixMode.value = mode;
   await quiesce(W);
-  readings.value = reading(active);
+  seedReadings(servedFields(active), GEN);
   PUTS.length = 0;
 }
 
@@ -201,9 +199,9 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
 async function lookAt(name) {
   applied = name;
   config.value = { fields: FIELDS, file: {}, active: name, profiles: null };
-  readings.value = reading(name);
+  seedReadings(servedFields(name), GEN);
   await quiesce(W);
-  readings.value = reading(name);
+  seedReadings(servedFields(name), GEN);
 }
 
 // --- the preset carries the choice ------------------------------------------------
