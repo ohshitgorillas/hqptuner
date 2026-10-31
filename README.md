@@ -1,6 +1,6 @@
 # HQPTuner: an improved configuration interface for HQPlayer Embedded
 
-A polished and enhanced configuration interface for HQPlayer Embedded.
+An enhanced configuration interface for HQPlayer Embedded.
 
 [Discord](https://discord.gg/9ncNefPXnV)
 
@@ -11,18 +11,25 @@ A polished and enhanced configuration interface for HQPlayer Embedded.
 ## Inspiration
 
 HQPlayer is, in my humble opinion, the best deal in all of high-end digital audio, with two caveats:
-1. You may go broke trying to afford CPUs and GPUs to feed it the power it craves.
-2. The UI is about as bad as it can be without crossing into outright malicious.
+1. Hitting the highest rates requires significant expenditure on hardware that is not getting any cheaper.
+2. The minimalist, brtutalist UI makes learning and using the program more difficult than it needs to be.
 
-The second point is the inspiration for HQPTuner. It's not just that the default UI is poorly organized with zero aesthetic appeal, but that I saw so much untapped and wasted potential that I knew would never be acted on otherwise.
+The second point is the inspiration for HQPTuner: where the stock UI expects users to arrive with a full understanding of the features and their settings by reading and re-reading the manual, HQPTuner instead puts the manual's knowledge where the decision is being made: in the UI, next to the feature.
 
-Let's take filter narrowing as an example. This is one of HQPTuner's flagship features and the one thing most badly missing from the stock UI.
+HQPTuner also adds a ton of convenience features as well! Let's take filter narrowing as an example: this is one of HQPTuner's flagship features and I think the one thing most badly missing from the default UI.
 
-The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 75 filters with baffling names like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what "minimum phase" means), find one that seems appropriate, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The dropdown won't tell you. There's a wealth of information in the manual, including which filters are apodizing, but if you want to cross-reference anything you're doing it in your head. The closest the stock UI gets to helping you here is that clicking "Help" takes you to another page with everything listed out rote-style for you to Ctrl+F through, same as the manual.
+The web interface presents you with four dropdowns: 1x and Nx filters for PCM and SDM, each populated by over 65 filters named in shorthand like `sinc-MGa`, `IIR2`, and `poly-sinc-xtr-short-mp-2s`. To select one, you open the manual, do your best to parse the descriptions (if you even know what any of the jargon means), find one that seems appropriate based on what you do know, and pick it out of the dropdown. If you're listening to Redbook content (16bit/44.1kHz), you might want an apodizing filter to correct for mastering errors. Which of the filters are apodizing? The interface won't tell you. There's a wealth of information in the manual, including which filters are apodizing, so you do your best to scroll through pages of filter tables to cross reference apodizing with something that fits your genre. From there, you're asked to decide between, say, `poly-sinc-ext2-xla`, `poly-sinc-gauss-xl`, `sinc-M`, `sinc-MG`, `sinc-Mx`, and others. How do you decide among them if you don't know what an "extended frequency response" is? What does "extreme roll-off and attenuation" imply? Roll-off of what? What's being attenuated? What on earth does "Gauss" or "half-band"—or "Gaussian half-band" for that matter—actually mean?
 
-HQPTuner instead integrates all of the manual's filter knowledge directly into the interface, so the lists can be narrowed by quality, genre, focus, phase, length, and/or rate limits. A simple switch restricts the 1x lists to apodizing filters only and is selected by default. Your dropdown is only a handful of relevant filters in a few clicks.
+Filter science is a complex and nuanced topic that will take most people several passes to grasp… and none of it is required to use HQPTuner.
 
-HQPlayer is a complex program that takes time to learn and knowledge to optimize. A bad UI doesn't just frustrate experienced users, it holds newbies back and drives away potential new users. HQPTuner's mission is to demystify and enhance the HQPlayer experience as much as possible. It's a UI that both newbies and experts should be able to use with ease.
+Here's the HQPTuner approach to selecting a filter:
+1. **Easy Mode** offers a jargon-free way to select from among the best filters in the program, and a few curiosities as well. Start with The Perfect Ten, aka the program's defaults, which are genuinely amazing filters that work for all content.
+2. If you're brave enough to face the jargon of the full filter list, HQPTuner's **Simplified options** mode translates HQPlayer's shorthand into plain English: filters are organized into families and classes with short descriptions of each, then separated by what makes a filter unique within its class. For example, `poly-sinc-gauss-long` becomes Polyphase sinc family, Gaussian class, Long linear phase. Yes, it's still filter jargon, but at least it's _legible_ filter jargon! Hold your mouse over a filter to see its full description and list of qualities from the manual.
+3. Use the **Narrowing system** to cut the list down to only filters appropriate for your genre and tastes. Your list goes from 60+ to a handful in just a few clicks.
+4. If you still can't decide, use the **Setting Switcher** in Live mode to try two filters side-by-side!
+5. When you find a sound you love, store it as a Live Snapshot and/or use the Favorites toggle to save it for later.
+
+In short, whether you're brand new to HQPlayer or an experienced user tired of the default UI, HQPTuner makes HQPlayer's configuration easier, more flexible, and better looking.
 
 ## Features and Improvements
 
