@@ -35,6 +35,7 @@ import {
   setSpeakersGate,
   speakerDraft,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
+import { seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
@@ -78,7 +79,8 @@ const speakersWire = (answered, initial = answered) =>
 async function reset(enabled = true) {
   const w = speakersWire(enabled);
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }], file: {} };
+  seedReadings({ direct_sdm: false });
   await discardAll();
   discardDraft();
   return w;
@@ -182,7 +184,8 @@ const ROW_DRAWER = {
 async function resetForTheRow() {
   const w = speakersWire(true, false);
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "", profiles: null };
+  config.value = { fields: [{ name: "direct_sdm" }], file: {}, active: "", profiles: null };
+  seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
   metadata.value = null;

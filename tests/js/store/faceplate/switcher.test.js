@@ -5,9 +5,10 @@
 //
 // Driven at the wire: the engine's enumerations, State and /config form come from tests/js/support/listsfixture.js
 // (SDM chain loaded unless a case loads PCM, Simplified names on so a slot's label differs from its engine name), the
-// /matrix form goes into `matrixConfig`, and a fetch fake answers the real REST paths and records every request body:
-// POST /api/config/live for a live write, POST /api/matrix/profile for a profile switch. Every engine and profile name
-// asserted is the fixture's own.
+// profiles the engine loaded are its `matrix_profiles` enumeration and the running one its `matrix_profile` reading,
+// seeded through tests/js/support/readings.js, and a fetch fake answers the real REST paths and records every request
+// body: POST /api/config/live for a live write, POST /api/matrix/profile for a profile switch. Every engine and profile
+// name asserted is the fixture's own.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/switcher.test.js
 
@@ -25,6 +26,9 @@ const { config, engineState, engineStatus, enums, matrixConfig } =
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
+const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
+const { seedReadings } = await import("../../support/readings.js");
+const { profileReading } = await import("../../support/profile-fixtures.js");
 const { setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 
@@ -83,7 +87,9 @@ beforeEach(() => {
   env.fetch = answer;
   loadLists({ chain: "sdm", plain: true });
   resetLists();
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Desk", "Lounge"], live_active: "Lounge" };
+  matrixConfig.value = { fields: [] };
+  enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
+  seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
   setBottomBar("switcher");
   for (const t of ALL) {
     setSwitcherTarget(t);

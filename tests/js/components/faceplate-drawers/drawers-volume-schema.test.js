@@ -29,28 +29,36 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
+/**
+ * A File field's served reading: read from the File on the restore lane, restarting the engine.
+ *
+ * @param {unknown} value
+ */
+const fileReading = (value) => fieldReading(value, { show: "file", lane: "restore", restarts: true });
+
 /** @param {{ fixed?: boolean, iso?: string }} r  running fixed_volume_enabled and volume_fixed (Auto headroom) */
 function load({ fixed = false, iso = "0" } = {}) {
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: fixed },
-      { name: "fixed_volume", value: "-10" },
-      { name: "volume_fixed", value: iso !== "0" },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-      { name: "defaults_volume", value: "-20" },
-      { name: "gain_comp", value: "0" },
-      { name: "playlist_album_gain", value: false },
-    ],
-    file: { volume_fixed: iso, fixed_volume: "-10" },
-  };
+  config.value = { fields: [] };
   matrixConfig.value = { fields: [] };
+  /** @type {Record<string, unknown>} */
+  const running = {
+    fixed_volume_enabled: fixed,
+    fixed_volume: "-10",
+    optimal_iso: iso,
+    direct_sdm: false,
+    volume_min: "-60",
+    volume_max: "0",
+    startup_volume: "-20",
+    gain_comp: "0",
+    playlist_album_gain: false,
+  };
+  seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
   volume.value = "-12.5";
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };

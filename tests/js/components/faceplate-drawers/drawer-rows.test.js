@@ -19,10 +19,11 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
-import { config } from "../../../../hqptuner/static/store/signals.js";
+import { config, generation } from "../../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
@@ -30,16 +31,16 @@ import { elements, attr, classes, text } from "../../support/markup.js";
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").RowSpec} RowSpec */
 
+/** The /config form fields' metadata: type and options. */
 const FIELDS = [
-  { name: "volume_max", type: "number", value: -3 },
-  { name: "fixed_volume_enabled", type: "checkbox", value: false },
-  { name: "quick_pause", type: "checkbox", value: false },
-  { name: "gain_comp", type: "number", value: 0 },
-  { name: "matrix_pipelines", type: "text", value: "1" },
+  { name: "volume_max", type: "number" },
+  { name: "fixed_volume_enabled", type: "checkbox" },
+  { name: "quick_pause", type: "checkbox" },
+  { name: "gain_comp", type: "number" },
+  { name: "matrix_pipelines", type: "text" },
   {
     name: "idle_time",
     type: "select",
-    value: "30",
     options: [
       { value: "30", label: "30" },
       { value: "60", label: "60" },
@@ -48,14 +49,63 @@ const FIELDS = [
   {
     name: "fft_size",
     type: "select",
-    value: "16384",
     options: [
       { value: "16384", label: "16384" },
       { value: "32768", label: "32768" },
     ],
   },
-  { name: "mode", type: "select", value: "pcm" },
+  { name: "mode", type: "select" },
 ];
+
+/** The values the File holds for the form fields above, by field name. */
+const VALUES = {
+  volume_max: -3,
+  fixed_volume_enabled: false,
+  quick_pause: false,
+  gain_comp: 0,
+  matrix_pipelines: "1",
+  idle_time: "30",
+  fft_size: "16384",
+};
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = { volume_max: { min: -60, max: 0, step: 1 }, gain_comp: { min: -20, max: 20, step: 0.1 } };
+
+/** The Engine's list index of the output mode the File holds. */
+const PCM_INDEX = 1;
+
+/**
+ * The served field readings: every form field here from the File on the restore lane, restarting the engine, the
+ * output mode from the Engine on the live lane with no restart of its own, and adaptive volume on its live setter;
+ * each carrying what the staging wire holds for it.
+ *
+ * @param {import("../../support/wire/wire.js").StagingWire} w
+ */
+function served(w) {
+  const staged = w.staged.http;
+  const held = (/** @type {string} */ name, /** @type {unknown} */ value) =>
+    name in staged && staged[name] !== value ? staged[name] : null;
+  /** @type {Record<string, unknown>} */
+  const fields = {};
+  for (const [name, value] of Object.entries(VALUES)) {
+    const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+    fields[name] = fieldReading(value, {
+      show: "file",
+      lane: "restore",
+      restarts: true,
+      bounds,
+      staged: held(name, value),
+    });
+  }
+  fields.mode = fieldReading(PCM_INDEX, {
+    name: "pcm",
+    lane: "live",
+    file: { value: "pcm", generation: generation.value },
+    staged: held("mode", "pcm"),
+  });
+  fields.adaptive_volume = fieldReading(0, { lane: "live", staged: held("adaptive_volume", 0) });
+  return fields;
+}
 
 /** The restart mark's test id, shared by every surface that carries it. */
 const MARK = "restart-mark";
@@ -75,8 +125,14 @@ const OUTPUT_MODE = "output_mode";
 let wire;
 
 beforeEach(async () => {
-  wire = stagingWire();
-  config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+  wire = stagingWire({
+    routes: (path, opts, w) =>
+      path === "/api/config" && (opts.method ?? "GET") === "GET"
+        ? ok({ generation: generation.value, fields: served(w) })
+        : undefined,
+  });
+  config.value = { fields: FIELDS, file: {}, profiles: null };
+  seedReadings(served(wire));
   await resetDrawerStore();
 });
 

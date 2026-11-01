@@ -31,6 +31,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, elements } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";
@@ -57,19 +58,22 @@ const DESIGN = { w: 1080, h: 810 };
 const tip = (key) => ({ label: `${key} fixture label`, tooltip: `Whole ${key} fixture paragraph` });
 
 /**
- * Load the /config form with the PCM 1x filter at `pcm1x`.
+ * Load the /config form with the PCM 1x filter at `pcm1x`: each field's value as a served reading from the File, and
+ * the form's options as its metadata.
  *
  * @param {string} pcm1x
  */
 function load(pcm1x) {
+  const fields = [
+    ...filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS),
+    { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
+  ];
   config.value = {
-    fields: [
-      ...filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS),
-      { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
-    ],
+    fields: fields.map(({ value: _value, ...meta }) => meta),
     file: {},
     active: "",
   };
+  seedReadings(Object.fromEntries(fields.map((f) => [f.name, fieldReading(f.value, { show: "file" })])));
 }
 
 beforeEach(async () => {

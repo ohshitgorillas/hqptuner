@@ -31,6 +31,7 @@ import { xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/c
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -52,6 +53,15 @@ const row = (source, mixdown) => ({ gain: "-3", gainunit: "dB", mixdown, process
 let wire;
 
 /**
+ * A served reading showing `value` from the file tree, where the form and the pipeline rows are read; `restarts` is the
+ * server's word that the engine restarts for the field.
+ *
+ * @param {unknown} value
+ * @param {boolean} [restarts]
+ */
+const fromFile = (value, restarts = false) => fieldReading(value, { show: "file", restarts });
+
+/**
  * Load one state of the trees.
  *
  * @param {{ matrix?: boolean, enabled?: string, preset?: string, picked?: "bauer" | "structural" }} [s]
@@ -59,23 +69,31 @@ let wire;
 async function load({ matrix = true, enabled = "1", preset = "default", picked = "bauer" } = {}) {
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: matrix },
-      { name: "iir2fir", value: "0" },
-      { name: "post_bauer_enabled", value: enabled },
+      { name: "enabled" },
+      { name: "iir2fir" },
+      { name: "post_bauer_enabled" },
       {
         name: "post_bauer_preset",
-        value: preset,
         options: [
           { value: "default", label: "default" },
           { value: "custom", label: "custom" },
         ],
       },
-      { name: "post_bauer_frequency", value: String(FC) },
-      { name: "post_bauer_level", value: "7" },
+      { name: "post_bauer_frequency" },
+      { name: "post_bauer_level" },
     ],
   };
-  config.value = { fields: [], file: { matrix_pipelines: JSON.stringify([row("0", "0"), row("1", "1")]) } };
+  config.value = { fields: [] };
   await discardAll();
+  seedReadings({
+    matrix_enabled: fromFile(matrix ? "1" : "0"),
+    matrix_iir2fir: fromFile("0"),
+    post_bauer_enabled: fromFile(enabled, true),
+    post_bauer_preset: fromFile(preset, true),
+    post_bauer_frequency: fromFile(String(FC), true),
+    post_bauer_level: fromFile("7", true),
+    matrix_pipelines: fromFile(JSON.stringify([row("0", "0"), row("1", "1")]), true),
+  });
   xfMode.value = picked;
 }
 
@@ -146,13 +164,13 @@ test("test_frequency_and_level_gray_off_the_custom_preset", () => {
 
 test("test_a_preset_tap_stages_that_preset", async () => {
   await fire((p) => p["data-v"] === "custom");
-  assert.equal(effective("crossfeed_preset"), "custom");
+  assert.equal(effective("post_bauer_preset"), "custom");
 });
 
 test("test_the_gate_stages_the_picked_lines_switch", async () => {
   await load({ enabled: "1" });
   await fire((p) => p["data-v"] === "0");
-  assert.equal(effective("crossfeed_enabled"), "0");
+  assert.equal(effective("post_bauer_enabled"), "0");
 });
 
 /** A control's identity: its option value, its schema key, or its role. @param {MarkupElement} e */

@@ -26,6 +26,7 @@ import {
   setStages,
 } from "../../../../hqptuner/static/store/faceplate/drawers/pipelines.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} Row */
 
@@ -46,6 +47,9 @@ const EQ_TEXT = "Preamp: -6.4 dB\nFilter 1: ON PK Fc 100 Hz Gain -3.0 dB Q 1.41\
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
 
+/** A served reading showing `value` from the config file. @param {unknown} value */
+const fromFile = (value) => fieldReading(value, { show: "file" });
+
 /**
  * Load a pipeline set as the config file's, with the engine's output channel count and the matrix engine's switch.
  *
@@ -53,12 +57,13 @@ let wire;
  * @param {{ channels?: number, engaged?: boolean }} [opts]
  */
 function load(rows, { channels = 2, engaged = true } = {}) {
-  config.value = {
-    fields: [{ name: "channels", type: "number", value: channels }],
-    file: { matrix_pipelines: JSON.stringify(rows) },
-    active: "",
-  };
-  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: engaged }], rows: [] };
+  config.value = { fields: [{ name: "channels", type: "number" }] };
+  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
+  seedReadings({
+    channels: fromFile(channels),
+    matrix_pipelines: fromFile(JSON.stringify(rows)),
+    matrix_enabled: fromFile(engaged ? "1" : "0"),
+  });
 }
 
 /** The pipeline set the server's buffer holds, or null when none is staged. @returns {Row[] | null} */

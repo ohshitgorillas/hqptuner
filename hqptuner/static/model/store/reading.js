@@ -15,6 +15,7 @@
  * @typedef {object} FieldView
  * @property {unknown} value
  * @property {unknown} running
+ * @property {string | null} name   the engine's name for the value shown, only while the value shown is the engine's own current reading
  * @property {EngineReading} engine
  * @property {FileReading} file
  * @property {unknown} staged
@@ -54,6 +55,20 @@ export const shownOf = (reading, local) => local.drag ?? local.staged ?? reading
  */
 export const freshAt = (reading, generation) => current(reading?.[reading.show], generation) !== null;
 
+/**
+ * The engine's name for the value a control shows: set only when nothing held or staged overrides the value, the reading
+ * shows the engine's store, and that store is stamped at or after the generation.
+ *
+ * @param {FieldReading | undefined} reading
+ * @param {LocalValues} local
+ * @param {number} generation
+ * @returns {string | null}
+ */
+const nameOf = (reading, local, generation) =>
+  reading?.show === "engine" && local.drag == null && local.staged == null
+    ? (current(reading.engine, generation)?.name ?? null)
+    : null;
+
 /** @type {Pick<FieldView, "diverges" | "restart" | "bounds" | "lane">} */
 const NO_MARKS = { diverges: false, restart: false, bounds: null, lane: null };
 
@@ -73,14 +88,15 @@ const servedMarks = (reading) =>
  *
  * @param {FieldReading | undefined} reading
  * @param {LocalValues} local
- * @param {number} _generation
+ * @param {number} generation
  * @returns {FieldView}
  */
-export const fieldOf = (reading, local, _generation) => {
+export const fieldOf = (reading, local, generation) => {
   const staged = local.staged ?? reading?.staged ?? null;
   return {
     value: shownOf(reading, { drag: local.drag, staged }),
     running: shownOf(reading, {}),
+    name: nameOf(reading, { drag: local.drag, staged }, generation),
     engine: reading?.engine ?? null,
     file: reading?.file ?? null,
     staged,

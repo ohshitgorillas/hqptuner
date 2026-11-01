@@ -6,8 +6,8 @@
 // running Direct SDM is on, every control disabled while an apply is in flight, and no restart mark on the set's head,
 // since the set is a browser preference that never stages.
 //
-// The wire is the seam: each case writes the daemon's /speakers form into `speakers` and the running direct_sdm into
-// `config`. A box's change handler is reached through preact's own `options.vnode` hook
+// The wire is the seam: each case writes the daemon's /speakers form into `speakers` and seeds the running direct_sdm
+// into the served readings (tests/js/support/readings.js). A box's change handler is reached through preact's own `options.vnode` hook
 // (tests/js/support/vnodeseam.js). A channel row is found by its `sprow` class, the set's head as the smallest element
 // enclosing the set select, which is found by its option values, the set ids; the restart mark by its test handle, its
 // `data-testid`.
@@ -34,6 +34,7 @@ import {
   setChannelLevel,
   speakerDraft,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
+import { seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 import { SPEAKER_DISTANCES, SPEAKER_LABELS, speakersFormAt } from "../../support/rendered/speakersform.js";
@@ -65,7 +66,8 @@ const isMark = (e) => attr(e, "data-testid") === MARK;
 async function reset({ direct = false, form = FORM } = {}) {
   stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form }) : undefined) });
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }], file: {} };
+  seedReadings({ direct_sdm: direct });
   discardDraft();
   pickSpeakerSet(FIRST.id);
 }
