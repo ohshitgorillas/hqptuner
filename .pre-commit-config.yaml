@@ -272,7 +272,7 @@ repos:
       # Design-doc lines stay under the limit, and docs/README.md indexes
       # every doc under docs/ with a subject.
       - id: docs
-        name: docs index and line-length gate
+        name: docs line-length gate
         entry: .venv/bin/python scripts/gates/check_docs.py .
         language: system
         pass_filenames: false

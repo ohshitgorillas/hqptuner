@@ -27,9 +27,7 @@
       "Bash(git commit *)"
     ]
   },
-  "enabledMcpjsonServers": [
-    "hqpdoc"
-  ],
+  "enabledMcpjsonServers": ["hqpdoc"],
   "hooks": {
     "PreToolUse": [
       {
@@ -37,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/change-budget.py"
+            "command": "python3 /home/atom/.claude/hooks/gauntlet-change-budget.py"
           },
           {
             "type": "command",
@@ -82,7 +80,7 @@
   },
   "enabledPlugins": {
     "filepawl@filepawl": true,
-    "triviajudge@triviajudge": true
+    "triviajudge@triviajudge": false
   },
   "extraKnownMarketplaces": {
     "filepawl": {
