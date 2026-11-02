@@ -16,7 +16,8 @@ def _load(name):
 
 read_volume = _load("read-volume")
 advise = read_volume.advise
-budget = read_volume.budget
+classify = read_volume.classify
+READ = read_volume.READ
 HOOK_DIR = read_volume.HOOK_DIR
 THRESHOLD = read_volume.THRESHOLD
 
@@ -48,15 +49,6 @@ def _read(index, path, size):
 def _post(name, tool_input, size, tool_id="pending"):
     return {"cwd": HOOK_DIR, "tool_name": name, "tool_input": tool_input,
             "tool_use_id": tool_id, "tool_response": "y" * size}
-
-
-def _metered(count, start=0):
-    """`count` completed metered calls, each with its result already recorded."""
-    rows = []
-    for i in range(start, start + count):
-        rows += [_call(f"m{i}", f"tm{i}", "Bash", {"command": f"sudo ls {i}"}),
-                 _result(f"tm{i}", 10)]
-    return rows
 
 
 def _check(label, condition):
@@ -106,23 +98,17 @@ def self_test():
     ok.append(_check("a new period is advised again",
                      bool(advise(_post("Read", {"file_path": one}, 10), after_reply))))
 
-    two = [_said("go"), *_metered(2)]
-    counted = advise(_post("Bash", {"command": "sed -E 's/a/b/' f"}, 10), two)
-    silent = (advise(_post("Bash", {"command": "grep -n x f"}, 10), two),
-              advise(_post("Edit", {"file_path": os.path.join(HOOK_DIR, "one.py")}, 10), two))
-    ok.append(_check("the third metered call in a period is counted, the free ones are not",
-                     "3/8" in (counted or "") and not any(silent)))
-    ok.append(_check("a metered Agent spawn is counted too",
-                     "3/8" in (advise(_post("Agent", {"subagent_type": "general-purpose"}, 10),
-                                      two) or "")))
-    unparsable = [_said("go"), _call("u", "tu", "Bash", {"command": "echo foo\\"}), _result("tu", 10),
-                  *_metered(2)]
-    ok.append(_check("an unparsable past command counts as nothing; the next metered call is 3/8",
-                     "3/8" in (advise(_post("Bash", {"command": "sudo ls"}, 10), unparsable) or "")))
-    full = [_said("go"), *_metered(budget.CHANGE_LIMIT - 1)]
-    ok.append(_check("the counter at the limit includes the call that just completed",
-                     f"{budget.CHANGE_LIMIT}/{budget.CHANGE_LIMIT}"
-                     in (advise(_post("Bash", {"command": "sudo ls"}, 10), full) or "")))
+    writes = [_post("Bash", {"command": c}, 10) for c in
+              ("sed -E 's/a/b/' f", "sudo ls", "echo x > f", "git commit -m x", "find . -delete")]
+    writes.append(_post("Edit", {"file_path": one}, 10))
+    writes.append(_post("Agent", {"subagent_type": "general-purpose"}, 10))
+    ok.append(_check("a call that may write gets no advisory, however much was read",
+                     not any(advise(w, plain) for w in writes)))
+    ok.append(_check("read-only Bash is classed as reading",
+                     all(classify("Bash", {"command": c}) == READ for c in
+                         ("git status", "grep -n x f | head -5", "sed -n 1,5p f", "ls 2>/dev/null"))))
+    ok.append(_check("the removed counter line never appears",
+                     not any("Budget" in (advise(w, plain) or "") for w in writes)))
     every = [advise(_post("Read", {"file_path": one}, n), plain) for n in (0, 10, 10**6)]
     ok.append(_check("no advisory ever carries a permission decision",
                      all("permissionDecision" not in (t or "") for t in every)))

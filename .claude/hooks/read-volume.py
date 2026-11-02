@@ -1,69 +1,175 @@
 #!/usr/bin/env python3
-"""read-volume — PostToolUse advisory. Never denies, never meters, never blocks.
+"""read-volume — PostToolUse advisory. Never denies, never blocks.
 
-The change budget prices what an agent *changes*. Nothing prices what it
-*reads*, and reading is where the context window actually goes — the bulk of
-free-read bytes are re-reads of files already in context, and heavy read
-periods often produce zero edits.
+Reading is where the context window actually goes — the bulk of read bytes are
+re-reads of files already in context, and heavy read periods often produce zero
+edits. So this emits two advisories, both purely informational:
 
-So this emits three advisories, all purely informational:
-
-  0. **Budget counter** — this call was metered, so it cost one of CHANGE_LIMIT.
-     Names the count and the reason, because the denial arrives eight commands
-     later and by then nothing connects it to the shape that caused it. The
-     count comes from the budget's own window and tally, never a second path.
-
-
-  a. **Byte advisory** — free reads in this leash period crossed another
+  a. **Byte advisory** — reads since the user last spoke crossed another
      multiple of THRESHOLD. Names the read-only agent types by name, because
      "delegate more" is advice nobody can act on and "spawn Explore" is.
   b. **Stale re-read advisory** — this call re-read a path the session had
      already read and nothing has written to since. A path that *was* edited
      since its last read never triggers: re-reading it is correct.
 
-The read advisories fire at most once per leash period (the byte one, once per
-crossing); the counter fires on every metered call, which is the point of it.
-None of them can stop anything. An advisory that blocks is a budget, and the
-budget already exists; this is here to be read and ignored when it's wrong.
+The stale advisory fires at most once per period (the user speaking starts a
+new one); the byte one once per crossing. Neither can stop anything; they are
+here to be read and ignored when wrong.
 
 Statelessness is deliberate: everything is derived from the transcript on each
 invocation, so there is no state file to go stale, no session id to key, and
 nothing to clean up. "Has this already fired this period?" is answered by
 replaying the period, not by remembering.
 """
-import importlib.util
 import json
 import os
 import re
 import shlex
 import sys
 
-THRESHOLD = 25_600      # bytes of free reading per leash period, per advisory
+THRESHOLD = 25_600      # bytes of reading per period, per advisory
 
 HOOK_DIR = os.path.dirname(os.path.abspath(__file__))
 
+READ, WRITE = "read", "write"
 
-def _load_hook(filename, name):
-    """A sibling hook module, imported by path.
+# Tools that only read, plus the harness's own bookkeeping and messaging.
+READ_TOOLS = {"Read", "NotebookRead", "Grep", "Glob", "WebFetch", "WebSearch",
+              "ToolSearch", "ListAgents", "TaskOutput", "AskUserQuestion",
+              "EnterPlanMode", "ExitPlanMode", "SendMessage", "Skill", "Monitor", "TaskStop"}
+# structured edit tools -> the input field naming their target path
+EDIT_TOOLS = {"Write": "file_path", "Edit": "file_path", "NotebookEdit": "notebook_path"}
+# Agent types that cannot write; exact names only, never a pattern.
+READ_ONLY_AGENTS = {"Explore", "Plan", "caveman:cavecrew-investigator"}
+# Agent spawns counted as reading: the project's own unbriefed reviewers.
+READ_SPAWN_AGENTS = {"user-reviewer", "abuser-reviewer", "pedant-reviewer"}
 
-    The budget is imported rather than reimplemented: "this leash period" has to
-    mean exactly what the budget means by it, and "a free read" exactly what the
-    budget prices at zero. Two copies of that would drift, and the advisory
-    would then be describing a rule nobody enforces.
-    """
-    spec = importlib.util.spec_from_file_location(name, os.path.join(HOOK_DIR, filename))
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+# Bash commands that only read. Anything else, in any pipe stage, is a write.
+READ_COMMANDS = {
+    "grep", "egrep", "fgrep", "rg", "ls", "cat", "head", "tail", "wc", "stat",
+    "file", "diff", "comm", "cut", "uniq", "nl", "column", "tr", "fold", "rev",
+    "tac", "less", "more", "jq", "which", "whereis", "echo", "printf",
+    "sha256sum", "md5sum", "b2sum", "cksum",
+}
+GIT_READ_SUBCMDS = {
+    "log", "show", "diff", "status", "blame", "shortlog", "rev-parse", "rev-list",
+    "ls-files", "ls-tree", "cat-file", "describe", "name-rev", "whatchanged", "check-ignore",
+}
+FIND_BAD = {"-exec", "-execdir", "-delete", "-ok", "-okdir", "-fprint", "-fprint0", "-fprintf", "-fls"}
+# shell syntax that can run or write something a stage list cannot see
+BANNED = ("`", "$(", "<(", ">(", "||", "&", ">", "--fix", "--write", "--in-place", "--output")
+DEVNULL = re.compile(r"\d*>\s*/dev/null")
 
 
-budget = _load_hook("change-budget.py", "change_budget")
-rules = _load_hook("metered_rules.py", "metered_rules")
+def _stage_reads(words, is_head):
+    """True when one pipe stage only reads."""
+    name, rest = os.path.basename(words[0]), words[1:]
+    if name in READ_COMMANDS:
+        return True
+    if name == "sed":
+        short = [a for a in rest if a.startswith("-") and not a.startswith("--")]
+        inplace = any("i" in a for a in short)
+        quiet = any(a in ("--quiet", "--silent") for a in rest) or any("n" in a for a in short)
+        return quiet and not inplace
+    if name == "find":
+        return not any(a in FIND_BAD for a in rest)
+    if not is_head:
+        return False
+    if name == "cd":
+        return len(rest) <= 1
+    if name == "git":
+        return bool(rest) and rest[0] in GIT_READ_SUBCMDS
+    return False
+
+
+def _bash_reads(command):
+    """True only for a Bash command every stage of which only reads; any doubt is a write."""
+    command = DEVNULL.sub(" ", command or "")
+    if not command.strip() or any(b in command for b in BANNED):
+        return False
+    for segment in re.split(r"&&|;", command):
+        if not segment.strip():
+            continue
+        for index, stage in enumerate(segment.split("|")):
+            words = shlex.split(stage, comments=False, posix=True)
+            if not words or not _stage_reads(words, index == 0):
+                return False
+    return True
+
+
+def classify(name, tool_input):
+    """READ for calls that only read, WRITE for anything else."""
+    tool_input = tool_input or {}
+    if name in READ_TOOLS:
+        return READ
+    if name == "Agent":
+        agent = tool_input.get("subagent_type")
+        return READ if agent in READ_ONLY_AGENTS or agent in READ_SPAWN_AGENTS else WRITE
+    if name == "Bash":
+        return READ if _bash_reads(tool_input.get("command", "")) else WRITE
+    return WRITE
+
+
+# ---- transcript rows --------------------------------------------------------
+
+# Wrappers the harness puts around, or instead of, what the user typed.
+TAGS = ("system-reminder", "local-command-caveat", "local-command-stdout",
+        "command-name", "command-message", "command-args", "command-contents",
+        "task-notification")
+HOOK_CONTEXT = re.compile(r"^.*hook additional context:.*$", re.M)
+
+
+def _msg(row):
+    # transcript rows wrap the API message under "message"; fall back to row
+    m = row.get("message")
+    return m if isinstance(m, dict) else row
+
+
+def _rows(path):
+    rows = []
+    with open(path) as f:
+        for line in f:
+            try:
+                rows.append(json.loads(line))
+            except Exception:
+                continue
+    return rows
+
+
+def _is_human_row(row):
+    m = _msg(row)
+    if m.get("role") != "user":
+        return False
+    content = m.get("content")
+    if isinstance(content, str):
+        return True
+    return isinstance(content, list) and not any(
+        isinstance(b, dict) and b.get("type") == "tool_result" for b in content)
+
+
+def _is_genuine_reply(row):
+    """A human row carrying prose the user typed, not a slash command or harness text."""
+    if not _is_human_row(row):
+        return False
+    content = _msg(row).get("content")
+    text = content if isinstance(content, str) else "\n".join(
+        b.get("text", "") for b in content if isinstance(b, dict) and b.get("type") == "text")
+    for tag in TAGS:
+        text = re.sub(rf"<{tag}>.*?</{tag}>", " ", text, flags=re.S)
+        text = re.sub(rf"</?{tag}>", " ", text)
+    text = HOOK_CONTEXT.sub(" ", text).strip()
+    return bool(text) and not text.startswith("/")
+
+
+def window(rows):
+    """The rows since the user last spoke, oldest first."""
+    for i in range(len(rows) - 1, -1, -1):
+        if _is_genuine_reply(rows[i]):
+            return rows[i + 1:]
+    return rows
+
 
 # ---- path extraction --------------------------------------------------------
-# Kept here rather than imported from scripts/: a hook must run without the repo
-# checkout being importable. scripts/budget_read_profile.py carries the same
-# parser for the offline analysis, and the two are meant to stay in step.
 
 NO_PATH_TOOLS = {"Grep", "Glob", "WebFetch", "WebSearch", "Agent", "Task"}
 PATH_FIELDS = {"Read": "file_path", "NotebookRead": "notebook_path"}
@@ -108,8 +214,8 @@ def paths_of(name, tool_input, cwd):
     if name in PATH_FIELDS:
         value = tool_input.get(PATH_FIELDS[name])
         return [_resolve(str(value), cwd)] if value else []
-    if name in budget.EDIT_TOOLS:
-        value = tool_input.get(budget.EDIT_TOOLS[name])
+    if name in EDIT_TOOLS:
+        value = tool_input.get(EDIT_TOOLS[name])
         return [_resolve(str(value), cwd)] if value else []
     if name == "Bash":
         return _bash_paths(tool_input.get("command", ""), cwd)
@@ -135,7 +241,7 @@ def _text(content):
 def _result_sizes(rows):
     sizes = {}
     for row in rows:
-        content = budget._msg(row).get("content")
+        content = _msg(row).get("content")
         if not isinstance(content, list):
             continue
         for block in content:
@@ -148,12 +254,12 @@ def _tool_uses(message):
     return [b for b in message["content"] if isinstance(b, dict) and b.get("type") == "tool_use"]
 
 
-def _kinds(blocks, root, cwd):
-    """Each tool_use block with its budget kind; an unparsable past command counts as nothing."""
+def _kinds(blocks):
+    """Each tool_use block with its kind; an unparsable past command counts as nothing."""
     for b in blocks:
         try:
-            kind = budget.classify(b.get("name") or "", b.get("input") or {}, root, cwd)
-        except budget.UnparsableCommandError:
+            kind = classify(b.get("name") or "", b.get("input") or {})
+        except ValueError:
             continue
         yield b, kind
 
@@ -162,12 +268,11 @@ def calls_in(rows, cwd_default):
     """Every tool_use in order, with the facts the advisories need."""
     out = []
     for row in rows:
-        message = budget._msg(row)
+        message = _msg(row)
         if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
             continue
         cwd = row.get("cwd") or cwd_default
-        root = budget._repo_root(cwd)
-        for block, kind in _kinds(_tool_uses(message), root, cwd):
+        for block, kind in _kinds(_tool_uses(message)):
             name, tool_input = block.get("name") or "", block.get("input") or {}
             out.append({
                 "id": block.get("id"),
@@ -187,7 +292,7 @@ def stale_events(calls):
     """
     last_read, last_write, stale = {}, {}, []
     for index, call in enumerate(calls):
-        if call["kind"] == budget.FREE and call["name"] not in NO_PATH_TOOLS:
+        if call["kind"] == READ and call["name"] not in NO_PATH_TOOLS:
             if any(p in last_read and last_write.get(p, -1) < last_read[p] for p in call["paths"]):
                 stale.append(index)
             for path in call["paths"]:
@@ -200,7 +305,7 @@ def stale_events(calls):
 
 # ---- advisories -------------------------------------------------------------
 
-AGENTS = ", ".join(sorted(budget.READ_ONLY_AGENTS))
+AGENTS = ", ".join(sorted(READ_ONLY_AGENTS))
 BYTE_TEXT = (
     "Read-volume advisory (not a limit, nothing is blocked): {after:,} bytes of free reading "
     "since the user last spoke. If the answer is small and the material is large, a read-only "
@@ -223,34 +328,15 @@ def _batch_follower(rows, tool_id, sizes):
     absent cannot tell whether it has siblings; silence is the safe direction for
     an advisory, and the crossing is absorbed into the next multiple."""
     for row in rows:
-        message = budget._msg(row)
+        message = _msg(row)
         if message.get("role") != "assistant" or not isinstance(message.get("content"), list):
             continue
         blocks = _tool_uses(message)
         if not any(b.get("id") == tool_id for b in blocks):
             continue
-        cwd = row.get("cwd") or ""
-        root = budget._repo_root(cwd)
-        pending = [b["id"] for b, kind in _kinds(blocks, root, cwd) if b.get("id") not in sizes and kind == budget.FREE]
+        pending = [b["id"] for b, kind in _kinds(blocks) if b.get("id") not in sizes and kind == READ]
         return bool(pending) and pending[0] != tool_id
     return True
-
-
-def count_metered(data, rows, root, cwd):
-    """This call's ordinal among the metered actions since the user last spoke.
-
-    Deliberately the same three functions the denial uses — budget.window() for
-    the period, count_blocks() for the tally, _pending_present() for whether
-    this call has reached the transcript yet. A second counting path here would
-    let the number the agent reads drift from the number that denies it, which
-    is the one thing this advisory cannot afford to get wrong.
-    """
-    period = budget.window(rows)
-    count = sum(budget.count_blocks(ev, root, cwd)[0] for ev in period)
-    name, tool_input = data.get("tool_name"), data.get("tool_input") or {}
-    if not budget._pending_present(period, budget._result_ids(rows), name, tool_input):
-        count += 1
-    return count
 
 
 def advise(data, rows):
@@ -258,16 +344,10 @@ def advise(data, rows):
     code path in this file that returns a permission decision."""
     cwd = data.get("cwd") or os.getcwd()
     name, tool_input = data.get("tool_name"), data.get("tool_input") or {}
-    root = budget._repo_root(cwd)
-    kind = budget.classify(name, tool_input, root, cwd)
-    if kind == budget.CHANGE:
-        count = count_metered(data, rows, root, cwd)
-        return (f"Budget: {count}/{budget.CHANGE_LIMIT} "
-                f"(metered: {rules.why_metered(name, tool_input, budget)})")
-    if kind != budget.FREE:
+    if classify(name, tool_input) != READ:
         return None
 
-    period = budget.window(rows)
+    period = window(rows)
     sizes = _result_sizes(rows)
     calls = calls_in(period, cwd)
 
@@ -276,7 +356,7 @@ def advise(data, rows):
     # result is never one of them at PostToolUse time, so its bytes are always
     # the increment — no double counting to guard against.
     tool_id = data.get("tool_use_id")
-    counted = sum(sizes.get(c["id"], 0) for c in calls if c["kind"] == budget.FREE)
+    counted = sum(sizes.get(c["id"], 0) for c in calls if c["kind"] == READ)
     after = counted + size
     if after // THRESHOLD > counted // THRESHOLD and not _batch_follower(rows, tool_id, sizes):
         return BYTE_TEXT.format(after=after, agents=AGENTS)
@@ -290,7 +370,7 @@ def advise(data, rows):
     logged = tool_id is not None and any(c["id"] == tool_id for c in session)
     if not logged:
         session.append({"id": tool_id, "name": name, "input": tool_input,
-                        "kind": budget.FREE, "paths": paths_of(name, tool_input, cwd)})
+                        "kind": READ, "paths": paths_of(name, tool_input, cwd)})
     stale = stale_events(session)
     if stale and stale[-1] == len(session) - 1:
         # once per period: only the first stale re-read in this period speaks
@@ -304,7 +384,7 @@ def advise(data, rows):
 def main():
     try:
         data = json.loads(sys.stdin.read())
-        rows = budget._rows(data.get("transcript_path") or "")
+        rows = _rows(data.get("transcript_path") or "")
     except Exception:
         return  # advisory only: never interfere with the tool call
     try:

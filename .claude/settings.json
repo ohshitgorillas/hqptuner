@@ -35,10 +35,6 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/change-budget.py"
-          },
-          {
-            "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/no-version-bumps.py"
           }
         ]
