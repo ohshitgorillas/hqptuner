@@ -16,6 +16,7 @@ import { config } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { grayRatesByDevice } from "../../../../hqptuner/static/store/narrow/devicecaps.js";
 import { stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 import { caps, tick, NET_DEVICE, PCM_8X, PCM_OPTIONS, PCM_TO_192 } from "../../support/devicecaps-harness.js";
 
 /** @typedef {import("../../support/devicecaps-harness.js").MenuOption} MenuOption */
@@ -32,8 +33,9 @@ async function seed(fields, deviceCaps = null) {
   stagingWire();
   config.value = { fields: [], file: {}, active: "", profiles: null, device_caps: null };
   await discardAll();
+  seedReadings(fields);
   config.value = {
-    fields: Object.entries(fields).map(([name, value]) => ({ name, value })),
+    fields: Object.keys(fields).map((name) => ({ name })),
     file: {},
     active: "",
     profiles: null,
