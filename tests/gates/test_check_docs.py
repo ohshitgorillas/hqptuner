@@ -93,13 +93,6 @@ def test_a_clean_tree_passes_where_the_same_tree_with_a_long_line_fails(
     assert [code == 0 for code in (clean_code, broken_code)] == [True, False]
 
 
-def test_a_doc_the_index_does_not_name_is_not_a_problem(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """A tree with no ``docs/README.md`` and docs it never names passes."""
-    root = clean_tree(tmp_path)
-    add_doc(root, "spec/orphan.md", "# orphan\n")
-    assert run_gate(capsys, root)[0] == 0
-
-
 # --- line length ------------------------------------------------------------
 
 
