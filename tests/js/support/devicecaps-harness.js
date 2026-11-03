@@ -151,7 +151,7 @@ export async function reset({
   mode,
 } = {}) {
   const w = stagingWire();
-  config.value = { fields: [], file: {}, active: "", profiles: null, device_caps: null };
+  config.value = { fields: [], profiles: null, device_caps: null };
   await discardAll();
 
   /** @type {Record<string, unknown>} */
@@ -171,7 +171,7 @@ export async function reset({
 
   const fields = Object.keys(values).map((name) => ({ name }));
   seedReadings(values);
-  config.value = { fields, file: {}, active: "", profiles: null, device_caps: deviceCaps };
+  config.value = { fields, profiles: null, device_caps: deviceCaps };
   await tick();
   return w;
 }
