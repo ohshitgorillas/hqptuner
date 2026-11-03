@@ -27,18 +27,12 @@
       "Bash(git commit *)"
     ]
   },
-  "enabledMcpjsonServers": [
-    "hqpdoc"
-  ],
+  "enabledMcpjsonServers": ["hqpdoc"],
   "hooks": {
     "PreToolUse": [
       {
         "matcher": "Bash|Write|Edit|NotebookEdit|Agent",
         "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/change-budget.py"
-          },
           {
             "type": "command",
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/no-version-bumps.py"
@@ -82,7 +76,7 @@
   },
   "enabledPlugins": {
     "filepawl@filepawl": true,
-    "triviajudge@triviajudge": true
+    "triviajudge@triviajudge": false
   },
   "extraKnownMarketplaces": {
     "filepawl": {
