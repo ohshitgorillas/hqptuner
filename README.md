@@ -30,7 +30,7 @@ HQPTuner offers the following features and improvements over the stock web confi
 
 **1. Option names in plain English.** HQPTuner offers "Simplified" option types, converting the list of baffling filter shorthand like `poly-sinc-hb-xs-2s` into the "Extra-short two-stage option within the Half-band variants of the Polyphase Sinc filter family". Filters are sorted by family (Analog-style, Conventional, Polyphase Sinc, Interpolation, Pure Sinc, and Misc), optionally categorized by variant class (e.g., "Extreme roll-off and attenuation" or "Extended frequency response"), then by their distinguishing features within that class, e.g., phase and length. This makes it vastly simpler to parse the filter list into reasonable choices. Yes, those choices are still filter jargon, but at least it's legible filter jargon!
 
-**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 77 opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
+**2. Filter narrowing.** The manual's knowledge folded into the filter lists, so 80 opaque names narrow to the few that fit in a few clicks. Save the filters you keep coming back to with the Favorites toggle.
 
 **3. Easy Mode.** Jargon-free filter selection. Nine curated presets, no prior knowledge required: pick one, nudge Emphasis toward Space or Transients, and hit Play. Tiles name and describe their filters, error correction levels, and relative resource consumption ("cost").
 
@@ -90,7 +90,7 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 
 ## Requirements
 
-* A running HQPlayer **Embedded** daemon (developed and verified against v6.0.4)
+* A running HQPlayer **Embedded** daemon
 * The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
 * Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR a PC running Windows on x64 or Arm64, OR Python v3.12+
 

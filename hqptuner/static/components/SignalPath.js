@@ -170,8 +170,8 @@ const directPassThrough = (/** @type {Status} */ st, /** @type {Metadata} */ md)
 // that is not in its path at all. Both fields are read only on the paths that
 // actually use them.
 //
-// Note the two filter enumerations are distinct: <pcm filter> (67 entries) and
-// <sdm oversampling> (77, different enum IDs, no "none") — architecture §3.3's
+// Note the two filter enumerations are distinct: <pcm filter> (70 entries) and
+// <sdm oversampling> (80, different enum IDs, no "none") — architecture §3.3's
 // mode-relative enumerations. The engine reports whichever the current mode uses,
 // so one `active_filter` read serves both branches.
 /**

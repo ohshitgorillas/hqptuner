@@ -72,7 +72,7 @@ function quality(desc) {
 // The glyph separating the facet head from the ratio class DIFFERS BY CHAIN:
 // PCM filters (which resample both directions) use ⥮, SDM oversampling filters
 // (up-only by nature — you cannot downsample into DSD) use ⥣. Verified
-// exhaustively against the captured enumerations: 67/67 PCM ⥮, 77/77 SDM ⥣.
+// exhaustively against the captured enumerations: 70/70 PCM ⥮, 80/80 SDM ⥣.
 // Matching ⥮ alone silently blanked focus for the 50 SDM filters that carry one,
 // and sent ratio/upsample down their static fallback. Any new parse of the
 // description tail goes through these two, never a bare glyph literal.
@@ -101,9 +101,9 @@ function focus(desc) {
 //
 // The engine ABBREVIATES where the manual spells out: the wire says `Int` and
 // `2^x`, the static overlay says `integer` and `2x`. Prefix-matching the long
-// forms ("integer".startsWith on "int") never fired, so 28 of 67 PCM filters
-// normalized to a raw `int`/`2^x` that matches no narrow chip — and because `??`
-// only falls back on null, that truthy junk beat the correct static value.
+// forms ("integer".startsWith on "int") never fires, which would leave a raw
+// `int`/`2^x` that matches no narrow chip — and because `??` only falls back on
+// null, that truthy junk would beat the correct static value.
 // Match the SHORT form; both spellings then land on the overlay's token.
 /**
  * @param {string} [s]

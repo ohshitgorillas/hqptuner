@@ -1,5 +1,5 @@
 {
-  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (67 PCM, 77 SDM, 84 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant except that an apodizing filter may share its non-apodizing peer's leaf, distinguished by `apod`; composed family+variant+leaf+apod unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
+  "_scope": "Union of data/engine-enums.json filters_pcm + filters_sdm (70 PCM, 80 SDM, 87 unique incl. every -2s entry) and data/filters.json overlay keys. Raw name -> family label, variant label (null where the family has no variants), leaf label. Leaf labels unique within their variant except that an apodizing filter may share its non-apodizing peer's leaf, distinguished by `apod`; composed family+variant+leaf+apod unique across the list. A fourth field, `short`, is the closed-dropdown title: the same family, variant and leaf composed with ` · `, empty segments dropped, and the long variant names abbreviated. Short titles are unique across the list.",
   "families": {
     "Analog-style": "Analog-like behavior; no pre-ringing, long post-ringing",
     "Conventional": "Common, efficient filter types found in most DACs",
@@ -238,6 +238,13 @@
       "short": "Poly-sinc · Gauss · Hi-res linear",
       "apod": "full"
     },
+    "poly-sinc-aclean-gauss": {
+      "family": "Polyphase sinc",
+      "variant": "Gaussian",
+      "leaf": "Adaptive cleanup",
+      "short": "Poly-sinc · Gauss · Adaptive cleanup",
+      "apod": "full"
+    },
     "poly-sinc-ext": {
       "family": "Polyphase sinc",
       "variant": "Extended frequency response",
@@ -308,6 +315,13 @@
       "short": "Poly-sinc · Extended v2 · Hi-res linear",
       "apod": "full"
     },
+    "poly-sinc-aclean-ext2": {
+      "family": "Polyphase sinc",
+      "variant": "Extended frequency response v2",
+      "leaf": "Adaptive cleanup",
+      "short": "Poly-sinc · Extended v2 · Adaptive cleanup",
+      "apod": "full"
+    },
     "poly-sinc-xtr-mp": {
       "family": "Polyphase sinc",
       "variant": "Extreme roll-off and attenuation",
@@ -327,6 +341,13 @@
       "variant": "Extreme roll-off and attenuation",
       "leaf": "Short minimum phase",
       "short": "Poly-sinc · Extreme · Short minimum",
+      "apod": "full"
+    },
+    "poly-sinc-aclean-xtr": {
+      "family": "Polyphase sinc",
+      "variant": "Extreme roll-off and attenuation",
+      "leaf": "Adaptive cleanup",
+      "short": "Poly-sinc · Extreme · Adaptive cleanup",
       "apod": "full"
     },
     "poly-sinc-xtr-short-lp": {

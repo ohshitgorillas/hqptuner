@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Added
+
+- **Added support for the three adaptive cleaning filters**, with descriptions, plain names and narrowing.
+
 ## [1.19.2] — 2026-10-10
 
 ### Changed

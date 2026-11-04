@@ -26,7 +26,7 @@ import { CHAINS, idOptions, idValue } from "./derive.js";
 // Filter narrowing is the same feature the Resampling tab has, on the same
 // state: one set of facets narrows a control here and its twin there, because
 // they are the same control and the narrowing is the user's standing answer to
-// "which of these 77 filters am I willing to look at". Presentational only — a
+// "which of these 80 filters am I willing to look at". Presentational only — a
 // running value the facets exclude drops off its own dropdown and stays selected
 // and named on the closed control (`valueLabel`), the same as on the tab.
 // Shapers carry `narrow` nowhere and are left whole.
