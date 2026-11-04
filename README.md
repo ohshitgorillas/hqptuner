@@ -235,7 +235,7 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_HQP_PASSWORD` | `password` | Management password; default is hqplayerd's stock credential |
 | `HQPTUNER_HQP_HOME` | `/var/lib/hqplayer/home` | hqplayerd's data/home directory on the daemon host (uploaded convolution impulses land here) |
 | `HQPTUNER_FILTER_MAX_BYTES` | `33554432` | Largest convolution filter upload accepted (32 MiB); uploads parked between applies are capped at 256 MiB in total |
-| `HQPTUNER_LISTEN_HOST` | `127.0.0.1` | HQPTuner bind address |
+| `HQPTUNER_LISTEN_HOST` | `127.0.0.1` | HQPTuner bind address. The Windows and macOS apps set it to `0.0.0.0`, as the Linux service and the container do |
 | `HQPTUNER_LISTEN_PORT` | `8090` | HQPTuner port |
 | `HQPTUNER_POLL_INTERVAL` | `2.0` | Status poll cadence (s) |
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |

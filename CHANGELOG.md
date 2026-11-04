@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **Access from other devices.** The Windows and macOS apps accept connections from phones, tablets and other computers on the network at the computer's address on port 8090.
+
 ## [1.20.0] — 2026-11-03
 
 ### Added
