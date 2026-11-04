@@ -6,6 +6,20 @@ set -euo pipefail
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
+# stapler exits 68 when it cannot reach Apple's ticket service, which some
+# hosted runners drop often; any other exit is a verdict on the dmg.
+stapler() {
+  local rc try
+  for try in 1 2 3 4 5; do
+    rc=0
+    xcrun stapler "$@" || rc=$?
+    [ "$rc" -eq 68 ] || return "$rc"
+    echo "  stapler $1: Apple's ticket service unreachable (68), try $try of 5"
+    [ "$try" -eq 5 ] || sleep 15
+  done
+  return 68
+}
+
 USAGE="usage: smoke.sh <package.dmg> [--notarized]"
 [ $# -eq 1 ] || [ $# -eq 2 ] || die "$USAGE"
 [ "${2:---notarized}" = --notarized ] || die "$USAGE"
@@ -31,7 +45,7 @@ status() { curl -s -o /dev/null --max-time 2 -w '%{http_code}' "$1" || true; }
 # ---- 1. Gatekeeper, then mount, copy the app out, unmount -------------------
 if [ -n "$NOTARIZED" ]; then
   spctl --assess --type open --context context:primary-signature -v "$DMG" || die "step 1: Gatekeeper rejects the dmg"
-  xcrun stapler validate "$DMG" || die "step 1: no notarization ticket stapled to the dmg"
+  stapler validate "$DMG" || die "step 1: no notarization ticket stapled to the dmg"
 fi
 mkdir "$MOUNT"
 hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" || die "step 1: hdiutil attach failed"

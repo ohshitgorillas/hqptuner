@@ -6,6 +6,20 @@ cd "$(dirname "$0")/.."   # repo root
 say()  { echo; echo "== $* =="; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
 
+# stapler exits 68 when it cannot reach Apple's ticket service, which some
+# hosted runners drop often; any other exit is a verdict on the dmg.
+stapler() {
+  local rc try
+  for try in 1 2 3 4 5; do
+    rc=0
+    xcrun stapler "$@" || rc=$?
+    [ "$rc" -eq 68 ] || return "$rc"
+    echo "  stapler $1: Apple's ticket service unreachable (68), try $try of 5"
+    [ "$try" -eq 5 ] || sleep 15
+  done
+  return 68
+}
+
 [ "$(uname -s)" = Darwin ] || die "this script runs on macOS."
 
 PYTHON="${PYTHON:-.venv/bin/python}"
@@ -103,7 +117,7 @@ if [ -n "$IDENTITY" ]; then
     fi
   done
   [ "$STATUS" = Accepted ] || die "notary submission $SUBMISSION is '$STATUS'; xcrun notarytool log $SUBMISSION has the reason."
-  xcrun stapler staple "$DMG"
+  stapler staple "$DMG" || die "stapling $DMG failed."
 else
   echo "  skipped: HQPTUNER_CODESIGN_IDENTITY is not set."
 fi
