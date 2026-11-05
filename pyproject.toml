@@ -109,8 +109,10 @@ also_copy = ["scripts"]
 # owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
 # not product: no gate reads it.
 # Cadence parses these planning files by their phase numbers, dependencies and
-# cursor fields, and rewrites the cursor every step, so they take no judge.
-md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md", ".planning/PROJECT.md", ".planning/REQUIREMENTS.md", ".planning/ROADMAP.md", ".planning/STATE.md"]
+# cursor fields, and rewrites the cursor every step, so they take no judge. The
+# entries match exact paths, so each phase file is listed by name; the md-trivia
+# pre-commit hook excludes all of `.planning/`.
+md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md", ".planning/PROJECT.md", ".planning/REQUIREMENTS.md", ".planning/ROADMAP.md", ".planning/STATE.md", ".planning/phases/1/CONTEXT.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
