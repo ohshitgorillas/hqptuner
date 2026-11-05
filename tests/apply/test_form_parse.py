@@ -7,10 +7,11 @@ import re
 from pathlib import Path
 
 import pytest
+from bs4 import BeautifulSoup
 from narrow import present
 
 from hqptuner.conf import fixedvol, presetconf
-from hqptuner.conf.formparse import MATRIX_ROW_RE, grouped_fields, parse_config_form
+from hqptuner.conf.formparse import MATRIX_ROW_RE, attr, grouped_fields, parse_config_form, parse_matrix_form
 from hqptuner.conf.httpforms import FormField
 
 FIXTURE = Path(__file__).parent.parent / "support" / "fixtures" / "config-form-6.0.4.html"
@@ -103,3 +104,46 @@ def test_grouped_fields_places_the_third_matrix_row_field_under_index_2() -> Non
     fields = [FormField(name="source_0"), FormField(name="source_1"), FormField(name="source_2")]
     row2 = grouped_fields(fields, MATRIX_ROW_RE)[2]
     assert {f.get("name") for f in row2.values()} == {"source_2"}
+
+
+@pytest.mark.parametrize(
+    ("attrs", "key", "expected"),
+    [("", "value", None), ('value=""', "value", ""), ('step="any"', "step", "any")],
+    ids=["no value attribute", "empty value", "step any"],
+)
+def test_a_number_input_keeps_a_value_or_step_that_is_not_a_number_as_the_page_wrote_it(
+    attrs: str, key: str, expected: str | None
+) -> None:
+    html = f'<form method="post"><input type="number" name="n" {attrs}></form>'
+    assert parse_config_form(html)["fields"][0].get(key) == expected
+
+
+def test_a_multi_valued_attribute_reads_as_its_values_joined_by_spaces() -> None:
+    tag = present(BeautifulSoup('<input class="wide dark">', "html.parser").select_one("input"))
+    assert attr(tag, "class") == "wide dark"
+
+
+@pytest.mark.parametrize(
+    ("page", "active"),
+    [
+        ("<b>Note</b> text <b>Active: </b>Night", "Night"),
+        ("<b>Active: </b><i>Night</i>", ""),
+    ],
+    ids=["another bold label first", "name inside an element"],
+)
+def test_the_matrix_form_reads_the_active_profile_from_the_text_after_its_label(page: str, active: str) -> None:
+    assert parse_matrix_form(f'<form method="post">{page}</form>')["active"] == active
+
+
+@pytest.mark.parametrize(
+    ("columns", "rows"),
+    [
+        ('<input name="source_0" value="1"><input type="checkbox" name="plot_0">', [{"index": 0, "source": "1"}]),
+        ('<input type="checkbox" name="plot_0"><input type="file" name="filter_0">', []),
+    ],
+    ids=["a value column beside the toggle", "client-side columns only"],
+)
+def test_the_matrix_form_has_a_row_only_where_a_value_bearing_column_exists(
+    columns: str, rows: list[dict[str, object]]
+) -> None:
+    assert parse_matrix_form(f'<form method="post">{columns}</form>')["rows"] == rows
