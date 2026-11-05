@@ -78,12 +78,12 @@ E2E_MARKERS := e2e
 LIVE_MARKERS := not $(E2E_MARKERS)
 OFFLINE_MARKERS := not live and $(LIVE_MARKERS)
 
-# The offline suite, the one place its command is written. `test` runs it
-# before the gates that read its reports. The pytest-offline pre-commit hook
-# runs this target alone, since pre-commit runs each of those gates as a hook of
-# its own.
+# The offline suite. Its command is written here and copied into the check job
+# of .github/workflows/check.yml. `test` runs it before the gates that read its
+# reports. The pytest-offline pre-commit hook runs this target alone, since
+# pre-commit runs each of those gates as a hook of its own.
 pytest-offline:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov-report=term-missing --junitxml=.pytest-junit.xml
 
 # The run stamp records when the run started, and the first recipe line of
 # `test` refuses any report older than it or missing
