@@ -1,0 +1,63 @@
+{
+  "phase": "1",
+  "trigger": "plan",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "057c120f",
+  "head": "dad22ac9",
+  "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+  "head_id": "dad22ac9e478abb992297063a44deb6e880d2433",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 50,
+      "severity": "high",
+      "claim": "Task 2 commits a tracked .mjs file that the existing `**/*.mjs` ignores in eslint.config.js:159 and .jscpd.json:4 then skip, which can count as widening a skip-list exemption. The plan's own Notes (line 100) say so, but they leave the ruling to the owner after the commit instead of making Task 2 wait for it.",
+      "failure_scenario": "Task 2 lands `.github/cadence/coverage-report-check.mjs` with the gitignore negation. From then on eslint and jscpd skip a tracked source file. The plan admits the template fails `no-undef` 4 times when linted. hqptuner2/CLAUDE.md says widening an exemption is a new exemption, approved before it is written, and AC5 says no exemption is added. So if the owner rules it a widening, the phase has already committed it without approval and broken AC5. The plan needs an owner ruling (or a node-globals lint block) before Task 2's commit, not after.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "dad22ac9",
+      "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+      "head_id": "dad22ac9e478abb992297063a44deb6e880d2433"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 99,
+      "severity": "low",
+      "claim": "The plan discloses footprint only for Task 6's suite run. The pre-commit `pytest-offline` hook is `always_run: true` (.pre-commit-config.yaml:91-101), so every commit in Tasks 1-5 also runs the full offline suite, and none of those runs is disclosed.",
+      "failure_scenario": "Each per-task commit (five or more) runs `make pytest-offline`: 3673 tests, about 39 s on one full core. ~/dev/CLAUDE.md 3.1 requires naming any action that reaches a full core for 10 s before it runs, and the plan names only Task 6's run.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "dad22ac9",
+      "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+      "head_id": "dad22ac9e478abb992297063a44deb6e880d2433"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 74,
+      "severity": "low",
+      "claim": "Read literally, Task 4's last verify check can never pass. It says every `run:` value of the check job contains exactly one pytest invocation and exactly one `--experimental-test-coverage`.",
+      "failure_scenario": "The `install` step's run value and the `make lint lint-js` step contain no pytest, so a check written to the letter fails. The step `make -o pytest-offline test` and the `scripts/pytest_plugins` PYTHONPATH also contain the substring `pytest`, so a substring count overcounts. The verify works only if it is read as one invocation across all the job's run values, and the plan never states that.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "dad22ac9",
+      "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+      "head_id": "dad22ac9e478abb992297063a44deb6e880d2433"
+    }
+  ]
+}

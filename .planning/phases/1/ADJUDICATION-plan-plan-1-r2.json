@@ -1,0 +1,35 @@
+{
+  "phase": "1",
+  "trigger": "plan",
+  "discriminator": "plan-1",
+  "round": 2,
+  "base": "057c120f",
+  "head": "dad22ac9",
+  "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+  "head_id": "dad22ac9e478abb992297063a44deb6e880d2433",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 91,
+      "severity": "medium",
+      "claim": "The round-2 edit to Task 2 makes Task 2 edit eslint.config.js, but Task 6's Verify still requires `git diff c530a6e3 HEAD -- ... eslint.config.js ...` to print nothing, so the two tasks now contradict each other.",
+      "failure_scenario": "Task 2 runs as written: it adds the `!.github/cadence/coverage-report-check.mjs` negation and the `.github/cadence/**/*.mjs` node-globals block. Task 6 then runs `git diff c530a6e3 HEAD -- scripts/gates/testing/check_coverage_floor.py pyproject.toml .pre-commit-config.yaml eslint.config.js .jscpd.json knip.json`. The diff is non-empty, so Task 6's Verify fails even though the plan is correct. The executor either stops the phase or has to override the check by hand, and that weakens the AC5 no-exemption proof that this bullet is meant to give.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "dad22ac9",
+      "base_id": "057c120fa6832b67863281cdfdae8aac290909c4",
+      "head_id": "dad22ac9e478abb992297063a44deb6e880d2433"
+    }
+  ]
+}
