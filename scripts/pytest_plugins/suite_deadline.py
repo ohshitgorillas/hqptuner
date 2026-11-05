@@ -10,9 +10,7 @@ its nearest recorded branch, and a run still going at the bar has every
 thread's stack dumped to stderr and the process ended with exit status 1. With
 no bar recorded there is no deadline.
 
-Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
-``pytest-offline`` target is the one command line that does so, run by both
-``make test`` and the ``pytest-offline`` pre-commit hook.
+Loaded by ``-p suite_deadline`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``.
 """
 
 from __future__ import annotations

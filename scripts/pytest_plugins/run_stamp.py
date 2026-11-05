@@ -5,9 +5,7 @@ The stamp is written at session start, before collection, so a run that later
 crashes or is killed has still stamped; ``scripts/gates/testing/check_fresh_reports.py``
 then refuses every report older than it.
 
-Loaded by ``-p run_stamp`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``; the Makefile's
-``pytest-offline`` target is the one command line that does so, run by both
-``make test`` and the ``pytest-offline`` pre-commit hook.
+Loaded by ``-p run_stamp`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``.
 """
 
 from __future__ import annotations
