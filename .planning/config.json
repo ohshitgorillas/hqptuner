@@ -1,0 +1,104 @@
+{
+  "granularity": "standard",
+  "model": {
+    "escalate_on_failure": false
+  },
+  "workflow": {
+    "research": false,
+    "plan_check": false,
+    "verifier": true,
+    "skip_discuss": false,
+    "inline_plan_threshold": 3,
+    "max_plan_tasks": 8,
+    "test_command": null,
+    "lint_command": null
+  },
+  "parallelization": {
+    "enabled": true,
+    "max_concurrent_agents": 3,
+    "min_plans_for_parallel": 2,
+    "use_worktrees": true
+  },
+  "git": {
+    "protected_branches": ["main", "master", "beta"],
+    "on_protected": "ask",
+    "integration_branch": "milestone",
+    "auto_branch": "ask",
+    "base_branch": null,
+    "create_tag": true,
+    "on_land_cleanup": true,
+    "issue_check": true,
+    "auto_close": false,
+    "forge_provider": "github",
+    "forge_repo": "ohshitgorillas/hqptuner",
+    "forge_host": null
+  },
+  "planning": {
+    "commit_docs": true
+  },
+  "memory": {
+    "backend": "builtin"
+  },
+  "review": {
+    "mode": "adjudicated",
+    "reviewers": ["claude-subagent"],
+    "key_file": null,
+    "providers": {
+      "openai": {
+        "tiers": {
+          "flagship": null,
+          "balanced": null,
+          "cheap": null
+        }
+      },
+      "gemini": {
+        "tiers": {
+          "flagship": null,
+          "balanced": null,
+          "cheap": null
+        }
+      },
+      "deepseek": {
+        "tiers": {
+          "flagship": null,
+          "balanced": null,
+          "cheap": null
+        }
+      }
+    },
+    "consult": {
+      "enabled": false,
+      "tier": "flagship",
+      "effort": "high",
+      "attempt_threshold": 3
+    },
+    "decision_review": {
+      "tier": "flagship",
+      "effort": "high"
+    }
+  },
+  "testing": {
+    "scope": "integrated",
+    "coverage": {
+      "lines": 95,
+      "branches": 90,
+      "statements": 0,
+      "include": ["hqptuner/**"],
+      "exclude": ["tests/**", "hqptuner/static/vendor/**"],
+      "commands": [
+        ".venv/bin/pytest -m \"not live and not e2e\" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json",
+        "node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json",
+        "node --experimental-test-coverage --test-coverage-exclude='tests/**' --test-coverage-exclude='**/vendor/**' --test-coverage-lines={lines} --test-coverage-branches={branches} --test-coverage-functions=85 --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js"
+      ]
+    },
+    "strong_areas": [
+      "hqptuner/lanes/",
+      "hqptuner/conf/",
+      "hqptuner/engine/",
+      "hqptuner/presets/store/",
+      "hqptuner/static/lib/dom.js",
+      "tests/js/support/"
+    ],
+    "required_jobs": ["check", "e2e"]
+  }
+}

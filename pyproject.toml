@@ -108,7 +108,9 @@ also_copy = ["scripts"]
 # from its own module constant. copy-before-after.md is a record of
 # owner-approved wording, so it takes no judge. The faceplate spec is a sketch,
 # not product: no gate reads it.
-md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md"]
+# Cadence parses these planning files by their phase numbers, dependencies and
+# cursor fields, and rewrites the cursor every step, so they take no judge.
+md_skip = ["CHANGELOG.md", "docs/internal/copy-before-after.md", "docs/spec/faceplate.md", ".planning/PROJECT.md", ".planning/REQUIREMENTS.md", ".planning/ROADMAP.md", ".planning/STATE.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.
