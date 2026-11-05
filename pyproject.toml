@@ -107,7 +107,11 @@ pytest_add_cli_args = ["-m", "not live and not e2e", "-x", "-q", "--ignore=tests
 # read it from here. The changelog gate is not scoped here: it reads CHANGELOG.md
 # from its own module constant. copy-before-after.md is a record of
 # owner-approved wording, so it takes no judge.
-md_skip = ["CHANGELOG.md", "docs/copy-before-after.md"]
+# Cadence parses these planning files by their phase numbers, dependencies and
+# cursor fields, and rewrites the cursor every step, so they take no judge. The
+# entries match exact paths, so each phase file is listed by name; the md-trivia
+# pre-commit hook excludes all of `.planning/`.
+md_skip = ["CHANGELOG.md", "docs/copy-before-after.md", ".planning/PROJECT.md", ".planning/REQUIREMENTS.md", ".planning/ROADMAP.md", ".planning/STATE.md"]
 suffixes = [".py", ".js", ".css"]
 excluded = ["tests/", "scripts/probes/", "hqptuner/static/vendor/"]
 # Beside the other agent-written caches, which .gitignore already carries.

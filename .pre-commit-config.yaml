@@ -47,7 +47,7 @@ repos:
         entry: .venv/bin/triviajudge-md
         language: system
         files: \.md$
-        exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md)$
+        exclude: ^(CHANGELOG\.md|docs/copy-before-after\.md|\.planning/.*)$
       - id: changelog-trivia
         name: changelog entries are new work, not repeats (LLM judge)
         entry: .venv/bin/triviajudge-changelog
