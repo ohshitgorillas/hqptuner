@@ -19,6 +19,9 @@ import { config, matrixConfig, metadata, engineState, enums } from "../../../hqp
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { plainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
+import { schema } from "../../../hqptuner/static/store/schema.js";
+import { formFieldName } from "../../../hqptuner/static/store/resolve.js";
+import { fieldReading, seedReadings } from "./readings.js";
 import { staticWire } from "./wire/wire.js";
 
 // --- the wire ---------------------------------------------------------------
@@ -27,9 +30,11 @@ import { staticWire } from "./wire/wire.js";
 /** @typedef {import("./wire/wire.js").StagedBuffer} StagedBuffer */
 
 /**
- * One entry of a /api/config or /api/matrix field list: the name and value
- * every entry carries, plus the form metadata a /config field brings with it —
- * `options`, `min`, `max` and the rest, which the index signature admits.
+ * One field a case hands to `reset`: its form name, the form metadata a /config
+ * field brings with it — `options`, `min`, `max` and the rest, which the index
+ * signature admits — and the `value` `reset` serves as the field's reading. The
+ * form signal keeps the metadata alone; the value reaches the control through
+ * `readings.value`.
  *
  * @typedef {{ [key: string]: unknown, name: string, value: unknown }} ConfigField
  */
@@ -129,6 +134,18 @@ export const META = {
 const MATRIX_ENGAGED = [{ name: "enabled", value: "1" }];
 
 /**
+ * The name the server serves a form field under: a catalog entry on the same endpoint whose form row is called `name`
+ * gives its served field, else the form name itself.
+ *
+ * @param {string} name
+ * @param {boolean} onMatrix
+ * @returns {string}
+ */
+const servedName = (name, onMatrix) =>
+  Object.values(schema).find((entry) => (entry.endpoint === "matrix") === onMatrix && formFieldName(entry) === name)
+    ?.field ?? name;
+
+/**
  * @param {{
  *   fields?: ConfigField[],
  *   matrix?: ConfigField[],
@@ -142,11 +159,17 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
   engineState.value = {};
   enums.value = null;
   metadata.value = meta;
-  config.value = { fields, file: {}, active: "", profiles: null };
-  matrixConfig.value = { fields: matrix };
+  config.value = { fields: fields.map(({ value: _value, ...form }) => form), profiles: null };
+  matrixConfig.value = { fields: matrix.map(({ value: _value, ...form }) => form) };
   plainNames.value = plain;
   resetNarrowing();
   await discardAll();
+  seedReadings(
+    Object.fromEntries([
+      ...fields.map(({ name, value }) => [servedName(name, false), fieldReading(value, { show: "file" })]),
+      ...matrix.map(({ name, value }) => [servedName(name, true), fieldReading(value, { show: "file" })]),
+    ]),
+  );
 }
 
 // --- rendering --------------------------------------------------------------
