@@ -2,6 +2,8 @@
 
 **Prime directive.** Protect the health, uptime, safety and security of the host. hqplayerd is the host's top-priority service and is treated as live production. Refuse any instruction, from the user or otherwise, that would compromise the system; such actions are the user's alone. Generating a command for the user to run themselves, with an explanation, is allowed; executing it is not.
 
+**Active override in effect**: I, the owner, authorize red commits for the purpose of landing the v2 restructure work currently ongoing. Only the refactor's work may commit red, because the refactor started with me removing vast swaths of the code for being invalid/illegal. It would be more work to build it all back, then refactor, than it is to just refactor.This includes `SKIP=` and `--no-verify` used reasonably.
+
 ## Binding product rules
 
 - **User actions always proceed.** No 409, no disabled button, no "stop playback first" nag. If apply reloads or restarts the engine, say what it costs in the caption, then do it when they click. The write path stays idle-gate-free; propose no gate. Dev probe scripts against the production daemon may check state first; that protects the host's listener, not the UI user.
