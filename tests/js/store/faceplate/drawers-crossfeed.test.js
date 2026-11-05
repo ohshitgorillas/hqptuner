@@ -146,7 +146,7 @@ test("test_the_bauer_gate_stages_the_post_process_switch", async () => {
   await load({ picked: "bauer" });
   setGate("1");
   await settle();
-  assert.equal(effective("post_bauer_enabled"), "1");
+  assert.equal(effective("crossfeed_enabled"), "1");
 });
 
 test("test_engaging_the_structural_gate_installs_the_block", async () => {

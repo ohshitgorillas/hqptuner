@@ -164,13 +164,13 @@ test("test_frequency_and_level_gray_off_the_custom_preset", () => {
 
 test("test_a_preset_tap_stages_that_preset", async () => {
   await fire((p) => p["data-v"] === "custom");
-  assert.equal(effective("post_bauer_preset"), "custom");
+  assert.equal(effective("crossfeed_preset"), "custom");
 });
 
 test("test_the_gate_stages_the_picked_lines_switch", async () => {
   await load({ enabled: "1" });
   await fire((p) => p["data-v"] === "0");
-  assert.equal(effective("post_bauer_enabled"), "0");
+  assert.equal(effective("crossfeed_enabled"), "0");
 });
 
 /** A control's identity: its option value, its schema key, or its role. @param {MarkupElement} e */
