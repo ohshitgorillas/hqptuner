@@ -1,0 +1,99 @@
+{
+  "status": "gaps",
+  "score": "7/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "In integrate, planning.mjs test-policy check --root . returns ok:true, accepted:true, gate_found:true, problems []",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "Ran in .claude/worktrees/integrate at 082346ff: {\"ok\":true,\"accepted\":true,\"enforcement\":\"available\",\"gate_found\":true,\"problems\":[],\"publish_authorized\":false}, rc=0. accepted:true rests on the tracked .planning/config.json and .github/cadence/coverage-policy.json (053b39de); git diff v2 HEAD over both prints 0 lines."
+    },
+    {
+      "n": 2,
+      "truth": "coverage-policy.json and coverage-report-check.mjs are tracked in integrate, the .mjs is byte-identical to the Cadence template, it is not ignored and eslint lints it",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "git ls-files .github/cadence lists .github/cadence/coverage-policy.json and .github/cadence/coverage-report-check.mjs. cmp against /home/atom/.claude/plugins/cache/cadence/cadence/3.11.1/cadence-core/templates/coverage-report-check.mjs exits 0. git diff --quiet HEAD -- .github/cadence exits 0, so the working copy is the committed copy. git check-ignore -q exits 1 (.gitignore:111-112 negation). npx eslint .github/cadence/coverage-report-check.mjs exits 0 (eslint.config.js ignore negation plus .github/cadence/**/*.mjs node-globals block)."
+    },
+    {
+      "n": 3,
+      "truth": "The accepted pytest coverage command then the report check on .coverage.json exits 0 at lines 95 / branches 90",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json, run on the existing report: 'lines: 97.54% meets 95', 'branches: 91.10% meets 90', 'statements: disabled (threshold 0)', rc=0. The report is from a run at HEAD: .coverage.json mtime 13:53:35, after 082346ff (13:50:47); meta branch_coverage True; .pytest-junit.xml from the same run shows tests=3673 failures=0 errors=0. git diff --stat c530a6e3 HEAD -- hqptuner tests is empty and the tracked tree is clean, so nothing measured changed after the run. Thresholds 95/90 come from the tracked coverage-policy.json. Per the dispatch, the pytest command itself was not re-run here; the main session's suite run is the fresh confirmation."
+    },
+    {
+      "n": 4,
+      "truth": "make -n pytest-offline prints the accepted pytest command verbatim and the check job runs pytest exactly once",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "make -n pytest-offline prints 'PYTHONPATH=scripts:scripts/pytest_plugins:$PYTHONPATH .venv/bin/pytest -m \"not live and not e2e\" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov-report=term-missing --junitxml=.pytest-junit.xml'; grep -cF of the accepted command prints 1. Makefile diff vs c530a6e3 is a pure flag reorder plus the comment. In .github/workflows/check.yml the check job's only .venv/bin/pytest is the 'pytest (offline)' step. make -n lint lint-js contains 0 pytest lines; make -n -o pytest-offline test IDLE_GATE=off prints only the four check_*.py gates (0 pytest, 0 node --test). No make check, make test-js or bare make pytest-offline in the job."
+    },
+    {
+      "n": 5,
+      "truth": "Phase commits change no coverage threshold, add no gate exemption, leave check_coverage_floor.py unchanged",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "git diff --stat c530a6e3 HEAD -- scripts/gates/testing/check_coverage_floor.py pyproject.toml .pre-commit-config.yaml .jscpd.json knip.json is empty. git diff c530a6e3 HEAD added lines matching noqa|type: ignore|eslint-disable|EXEMPT|-exempt:|history-ok:|fail_under|per-file-ignores|ignore_names: none (grep rc=1). eslint.config.js diff only adds the ignore negation '!.github/cadence/coverage-report-check.mjs', the node-globals block and deletes the two-line .mjs comment, which narrows an ignore. The SKIP=comment-trivia used for 082346ff is a commit-time hook skip recorded in SUMMARY as owner-approved, not a persisted exemption in the tree."
+    },
+    {
+      "n": 6,
+      "truth": "The check job runs the three accepted commands in an order where the report check reads the report the pytest step writes",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "check.yml check job steps in order: lint (make lint lint-js), pytest (offline) writing --cov-report=json:.coverage.json, test gates (make -o pytest-offline test IDLE_GATE=off), python coverage (node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json), javascript tests and coverage (accepted JS command with --test-coverage-lines=95 --test-coverage-branches=90). The value .coverage.json enters at the pytest step and lands in the report-check step; the local run of that pair (truth 3) observed it end to end. The policy check matched all three commands (problems [])."
+    },
+    {
+      "n": 7,
+      "truth": "The deferred JS half of ROADMAP Phase 1 SC3 (JS suite exits 0 at 95/90) is carried by a later phase",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "make -n test-js in integrate prints the accepted JS command with --test-coverage-lines=95 --test-coverage-branches=90, and ROADMAP.md Phase 4 SC1 requires 'PYTHONPATH=$(pwd) scripts/gate.sh make check' in integrate to print exit=0; make check = lint lint-js test test-js, so Phase 4 SC1 carries it. Not delivered in Phase 1, by D-05."
+    },
+    {
+      "n": 8,
+      "truth": "The deferred ROADMAP Phase 1 SC4 (check and e2e jobs pass on the commit that installs the gate) is carried by a later phase",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "ROADMAP.md Phase 1 SC4 still lists it. CONTEXT.md D-05 defers it to Phase 4. ROADMAP.md Phase 4 success criteria (lines 68-72) are only make check exit=0 on integrate, merge-base --is-ancestor, and make check exit=0 on v2. None names a check or e2e CI run, and STATE.md and REQUIREMENTS.md hold no D-05 or Phase 4 deferral entry."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Testing policy check passes on integrate",
+      "evidence": "planning.mjs test-policy check --root . in integrate at 082346ff: {\"ok\":true,\"accepted\":true,\"enforcement\":\"available\",\"gate_found\":true,\"problems\":[]}, rc=0."
+    },
+    {
+      "k": 2,
+      "name": "Policy file and report check tracked, check byte-identical to template",
+      "evidence": "git ls-files .github/cadence lists coverage-policy.json and coverage-report-check.mjs; cmp against cadence-core/templates/coverage-report-check.mjs exits 0; git check-ignore exits 1; npx eslint on the file exits 0."
+    },
+    {
+      "k": 3,
+      "name": "Python coverage meets lines 95 / branches 90",
+      "evidence": "Report check on .coverage.json: 'lines: 97.54% meets 95', 'branches: 91.10% meets 90', rc=0. Report written 13:53:35 after HEAD 082346ff (13:50:47) by a run of 3673 tests, 0 failures; no hqptuner/ or tests/ change since c530a6e3. The pytest command was not re-run by the verifier, per dispatch."
+    },
+    {
+      "k": 4,
+      "name": "pytest-offline carries the accepted command; check job runs pytest once",
+      "evidence": "make -n pytest-offline contains the accepted pytest command once (grep -cF = 1); check job has one .venv/bin/pytest step; make -n lint lint-js and make -n -o pytest-offline test IDLE_GATE=off print no pytest."
+    },
+    {
+      "k": 5,
+      "name": "No threshold change, no exemption, coverage floor gate untouched",
+      "evidence": "git diff c530a6e3 HEAD leaves check_coverage_floor.py, pyproject.toml, .pre-commit-config.yaml, .jscpd.json, knip.json untouched; no added exemption text; eslint.config.js change narrows the **/*.mjs ignore only."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "Deferred CI-run criterion (check and e2e jobs pass on the gate-installing commit) is carried by a later phase",
+      "reason": "unwired - D-05 defers ROADMAP Phase 1 SC4 to Phase 4, but no Phase 4 success criterion carries it, so the green check + e2e run can be dropped without notice",
+      "evidence": ".planning/ROADMAP.md Phase 1 SC4 lists 'The check and e2e jobs pass on the commit that installs the gate'; .planning/phases/1/CONTEXT.md D-05 moves it to Phase 4; .planning/ROADMAP.md Phase 4 SC1-SC3 cover only make check exit=0 on integrate, the merge, and make check exit=0 on v2. None names a CI run. check.yml triggers (push to dev, pull_request, workflow_call) mean no local make check proves it.",
+      "severity": "major",
+      "missing": "Add the deferred criterion to ROADMAP.md Phase 4 success criteria (the check and e2e jobs pass on the commit that installs the gate, or on the merge commit that brings it to v2), or record the owner's ruling that drops it."
+    }
+  ],
+  "human_checks": []
+}
