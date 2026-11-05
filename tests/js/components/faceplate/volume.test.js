@@ -25,6 +25,7 @@ import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js
 import { config, matrixConfig, volume, volumeDrag, volumeRange } from "../../../../hqptuner/static/store/signals.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
+import { seedReadings } from "../../support/readings.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { fakeClock } from "../../support/clock.js";
@@ -45,15 +46,22 @@ function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness =
   volume.value = at;
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min, max };
-  config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: loudness },
-      { name: "post_loudness_enabled", value: loudness },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
+      { name: "enabled" },
+      { name: "post_loudness_enabled" },
+      { name: "post_loudness_rangelow" },
+      { name: "post_loudness_rangehigh" },
     ],
   };
+  seedReadings({
+    direct_sdm: direct,
+    matrix_enabled: loudness,
+    post_loudness_enabled: loudness,
+    post_loudness_rangelow: "-45",
+    post_loudness_rangehigh: "-15",
+  });
   openPopover.value = null;
 }
 
