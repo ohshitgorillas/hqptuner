@@ -70,3 +70,4 @@ Milestone v2.0.0 lands the rebuild-integrate design on `v2`. The accepted testin
 1. `PYTHONPATH=$(pwd) scripts/gate.sh make check` in `.claude/worktrees/integrate` prints `exit=0`.
 2. `git merge-base --is-ancestor rebuild/integrate v2` exits 0.
 3. `scripts/gate.sh make check` on `v2` after the merge prints `exit=0`.
+4. The `check` and `e2e` jobs pass on the commit that brings the gate into `v2`.
