@@ -47,6 +47,23 @@ jobs:
       - name: make check
         run: make check IDLE_GATE=off
 
+      # The accepted coverage policy (.github/cadence/coverage-policy.json): the
+      # offline suite measured with branch coverage, then Python held to lines 95
+      # and branches 90 over that report, then the JS suite held to the same two.
+      # A change that drops either below turns this job red. Each command is the
+      # policy's text, so test-policy check finds it here.
+      - name: python coverage report
+        run: |
+          .venv/bin/pytest -m "not live and not e2e" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json
+
+      - name: python coverage thresholds
+        run: |
+          node .github/cadence/coverage-report-check.mjs --format python --report .coverage.json
+
+      - name: js coverage thresholds
+        run: |
+          node --experimental-test-coverage --test-coverage-exclude='tests/**' --test-coverage-exclude='**/vendor/**' --test-coverage-lines=95 --test-coverage-branches=90 --test-coverage-functions=85 --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js
+
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
