@@ -29,6 +29,7 @@ import { config } from "../../../../hqptuner/static/store/signals.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import * as drawer from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 import { attr, classes, elements } from "../../support/markup.js";
 import { heldReadbackWire, marksOn, turn, until } from "../../support/rendered/stalemark.js";
 import { SPEAKER_DISTANCES, speakersFormAt } from "../../support/rendered/speakersform.js";
@@ -103,7 +104,8 @@ const switchMarked = () => {
 beforeEach(async () => {
   await quiesce(readingDaemon());
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: false });
   drawer.discardDraft();
   drawer.pickSpeakerSet(FIRST.id);
 });
