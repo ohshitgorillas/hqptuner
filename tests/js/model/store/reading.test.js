@@ -22,6 +22,8 @@ import { fieldOf, freshAt, shownOf } from "../../../../hqptuner/static/model/sto
 
 /** The Engine's value, a list index. */
 const ENGINE_VALUE = 3;
+/** The Engine's own name for its value. */
+const ENGINE_NAME = "e";
 /** The File's value, an enum ID. */
 const FILE_VALUE = 40;
 /** The pending buffer's value, as the server serves it. */
@@ -48,7 +50,7 @@ const LANES = ["live", "restore", "form", "matrix", "volume"];
  * @returns {FieldReading}
  */
 const reading = (over = {}, stamp = GEN) => ({
-  engine: { value: ENGINE_VALUE, name: "e", generation: stamp },
+  engine: { value: ENGINE_VALUE, name: ENGINE_NAME, generation: stamp },
   file: { value: FILE_VALUE, generation: stamp },
   staged: null,
   lane: "live",
@@ -73,7 +75,7 @@ const aged = (show, old) => {
   const stamp = { engine: GEN, file: GEN, [old]: GEN - 1 };
   return reading({
     show,
-    engine: { value: ENGINE_VALUE, name: "e", generation: stamp.engine },
+    engine: { value: ENGINE_VALUE, name: ENGINE_NAME, generation: stamp.engine },
     file: { value: FILE_VALUE, generation: stamp.file },
   });
 };
@@ -358,3 +360,30 @@ for (const lane of LANES) {
     assert.equal(fieldOf(reading({ lane }), {}, GEN).lane, lane);
   });
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// fieldOf: the name is the Engine's own, only while the value shown is the Engine's current reading.
+
+test("test_the_view_names_the_engine_value_it_shows_when_the_engine_store_is_current", () => {
+  assert.equal(fieldOf(reading(), {}, GEN).name, ENGINE_NAME);
+});
+
+test("test_the_view_names_nothing_when_the_reading_shows_the_file", () => {
+  assert.equal(fieldOf(reading({ show: "file" }), {}, GEN).name, null);
+});
+
+test("test_the_view_names_nothing_while_a_drag_is_held", () => {
+  assert.equal(fieldOf(reading(), { drag: DRAG }, GEN).name, null);
+});
+
+test("test_the_view_names_nothing_while_the_page_has_staged_a_value", () => {
+  assert.equal(fieldOf(reading(), { staged: PAGE_STAGED }, GEN).name, null);
+});
+
+test("test_the_view_names_nothing_while_the_server_serves_a_staged_value", () => {
+  assert.equal(fieldOf(reading({ staged: SERVED_STAGED }), {}, GEN).name, null);
+});
+
+test("test_the_view_names_nothing_when_the_engine_store_is_stamped_before_the_generation", () => {
+  assert.equal(fieldOf(reading({}, GEN - 1), {}, GEN).name, null);
+});
