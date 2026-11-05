@@ -39,9 +39,10 @@ import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.j
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { readPlate, shownLines, lineTap } from "../../support/plateline.js";
+import { seedReadings } from "../../support/readings.js";
 import { attr } from "../../support/markup.js";
 import { quiesce } from "../../support/wire/wire.js";
-import { unreadWire, STATE, ENUMS, CONFIG, BOOK } from "../../support/wire/unreadwire.js";
+import { unreadWire, STATE, ENUMS, BOOK } from "../../support/wire/unreadwire.js";
 import { FAILURES, fail, succeedEverywhere } from "../../support/unreadareas.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -72,7 +73,10 @@ beforeEach(async () => {
   engineStatus.value = null;
   enums.value = ENUMS();
   matrixConfig.value = { fields: [] };
-  config.value = CONFIG();
+  config.value = {
+    fields: [],
+    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+  };
   liveBook.value = BOOK();
   livePresets.value = null;
   livePresetStation.value = null;
@@ -82,6 +86,7 @@ beforeEach(async () => {
   pendingPreset.value = null;
   await discardAll();
   await quiesce(wire);
+  seedReadings({ active_preset: { value: "Day", readonly: true } });
   health.value = { ...HEALTHY };
   applying.value = false;
   engineBusy.value = false;

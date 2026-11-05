@@ -32,6 +32,7 @@ import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.j
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { readPlate, shownLines, lineTap } from "../../support/plateline.js";
+import { seedReadings } from "../../support/readings.js";
 import { attr } from "../../support/markup.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 import { AREAS, save, saveRoutes, resetSaves } from "../../support/wire/unreadsaves.js";
@@ -65,9 +66,7 @@ beforeEach(async () => {
   matrixConfig.value = { fields: [] };
   config.value = {
     fields: [],
-    file: {},
-    active: "Day",
-    profiles: { value: "Day", options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
   };
   liveBook.value = {};
   livePresets.value = null;
@@ -76,6 +75,7 @@ beforeEach(async () => {
   await discardAll();
   await resetSaves();
   await quiesce(wire);
+  seedReadings({ active_preset: { value: "Day", readonly: true } });
   health.value = { ...HEALTHY };
   applying.value = false;
   engineBusy.value = false;

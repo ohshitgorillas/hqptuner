@@ -16,6 +16,7 @@ import { TARGETS, setSwitcherTarget } from "../../../../hqptuner/static/store/fa
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { elements, attr, hasAttr, classes } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -26,6 +27,7 @@ beforeEach(() => {
   setBottomBar(BOTTOM_BARS[0]);
   setSwitcherTarget(TARGETS[0]);
   config.value = null;
+  seedReadings({});
   liveBook.value = null;
 });
 
@@ -54,10 +56,9 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
 test("test_the_snapshot_builder_body_holds_the_option_list", () => {
   config.value = {
     fields: [],
-    file: {},
     profiles: { options: [{ value: "" }, { value: "Desk" }] },
-    active: "Desk",
   };
+  seedReadings({ active_preset: { value: "Desk", readonly: true } });
   liveBook.value = { Desk: { Near: { chain: "pcm", fields: { mode: "pcm" }, names: {} } } };
   showBody("snapshots");
   const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "snapshots");

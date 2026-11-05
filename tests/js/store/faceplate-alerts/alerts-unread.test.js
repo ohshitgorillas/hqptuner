@@ -35,7 +35,8 @@ import {
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { faceplateAlerts } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { quiesce } from "../../support/wire/wire.js";
-import { unreadWire, STATE, ENUMS, CONFIG, BOOK } from "../../support/wire/unreadwire.js";
+import { unreadWire, STATE, ENUMS, BOOK } from "../../support/wire/unreadwire.js";
+import { seedReadings } from "../../support/readings.js";
 import { fail, succeed, succeedEverywhere } from "../../support/unreadareas.js";
 import { fakeClock } from "../../support/clock.js";
 
@@ -59,7 +60,10 @@ beforeEach(async () => {
   engineStatus.value = null;
   engineState.value = STATE();
   enums.value = ENUMS();
-  config.value = CONFIG();
+  config.value = {
+    fields: [],
+    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+  };
   matrixConfig.value = { fields: [] };
   liveBook.value = BOOK();
   livePresets.value = null;
@@ -70,6 +74,7 @@ beforeEach(async () => {
   await discardAll();
   await quiesce(wire);
   await succeedEverywhere(wire);
+  seedReadings({ active_preset: { value: "Day", readonly: true } });
 });
 
 afterEach(() => {
