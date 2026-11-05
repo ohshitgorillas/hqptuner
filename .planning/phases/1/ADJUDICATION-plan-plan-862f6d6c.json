@@ -1,0 +1,35 @@
+{
+  "phase": "1",
+  "trigger": "plan",
+  "discriminator": "plan-862f6d6c",
+  "round": 1,
+  "base": "862f6d6c96b69a07d486a681e40e7a44ff8fee24",
+  "head": "862f6d6c96b69a07d486a681e40e7a44ff8fee24",
+  "base_id": "862f6d6c96b69a07d486a681e40e7a44ff8fee24",
+  "head_id": "862f6d6c96b69a07d486a681e40e7a44ff8fee24",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/1/PLAN.md",
+      "line": 61,
+      "severity": "medium",
+      "claim": "Task 1 says `_claim`'s numbered-suffix branch is reachable \"only through wall time\" and may be removed. That is wrong. In the test suite, the plan's own new-file behaviors (lines 54 and 56) reach that branch on almost every run, because `_build_row` stamps rows with `datetime.now(UTC)` and not with the injectable `mgr.clock` (hqptuner/core/junkcal.py:93, 110-118).",
+      "failure_scenario": "A fast test drives a gap close (4 idle ticks) or a samplerate/bins/bandwidth change, then one more eligible tick. Both period files are claimed in the same UTC second, so `junkcal-<ts>.jsonl` already exists and the loop takes `n += 1` to write `-2.jsonl`. Case 1: the executor follows the plan and removes the suffix loop as unreachable. `path.touch(exist_ok=False)` then raises FileExistsError. That is an OSError, so `tick` catches it as a write failure (junkcal.py:160), and the second period's row is lost. The \"opens a new file\" tests go red and Task 1 stalls. Case 2: the loop stays. Whether the `n += 1` branch is covered then depends on whether the wall-clock second rolls over between the two claims. junkcal's per-file and global branch counts then vary from run to run, the same variance CONTEXT already flags. The fix the plan should name is under rule 12 and rule 7: stamp rows from `mgr.clock.now`, so the virtual clock controls the collision and the branch stays.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "862f6d6c96b69a07d486a681e40e7a44ff8fee24",
+      "head_id": "862f6d6c96b69a07d486a681e40e7a44ff8fee24"
+    }
+  ]
+}
