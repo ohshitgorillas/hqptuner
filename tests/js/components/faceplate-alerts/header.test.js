@@ -27,11 +27,13 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
+import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
 import { liveBook, livePresets } from "../../../../hqptuner/static/store/live/presets.js";
 import { unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, hasAttr } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 import { staticWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -39,6 +41,8 @@ import { staticWire } from "../../support/wire/wire.js";
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
 const REAL_FETCH = env.fetch;
+
+const panel = createConnPanel();
 
 /** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
@@ -50,15 +54,14 @@ beforeEach(async () => {
   matrixConfig.value = { fields: [] };
   config.value = {
     fields: [],
-    file: {},
-    active: "Day",
-    profiles: { value: "Day", options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
   };
   liveBook.value = {};
   livePresets.value = null;
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();
+  seedReadings({ active_preset: { value: "Day", readonly: true } });
   health.value = { ...HEALTHY };
   applying.value = false;
   engineBusy.value = false;
@@ -81,7 +84,7 @@ const roon = () => {
 };
 
 /** Every element of the rendered header. */
-const all = () => elements(render(html`<${Header} />`));
+const all = () => elements(render(html`<${Header} panel=${panel} />`));
 
 /** One attribute of the element carrying a test id, or undefined when there is none. */
 const attrOf = (/** @type {string} */ testid, /** @type {string} */ name) => {
@@ -91,7 +94,7 @@ const attrOf = (/** @type {string} */ testid, /** @type {string} */ name) => {
 
 /** Tap the knob; taps nothing when it takes no tap. */
 function tapKnob() {
-  const { seen } = renderTree(html`<${Header} />`);
+  const { seen } = renderTree(html`<${Header} panel=${panel} />`);
   const hit = seen.find((v) => v.props["data-testid"] === "conn");
   const onClick = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
   if (typeof onClick === "function") onClick();

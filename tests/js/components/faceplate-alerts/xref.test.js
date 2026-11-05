@@ -24,6 +24,7 @@ import { openList, openPopover, openStage } from "../../../../hqptuner/static/st
 import { showTab, shownTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 import { elements, attr, classes } from "../../support/markup.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -38,16 +39,21 @@ import { elements, attr, classes } from "../../support/markup.js";
 function load({ min, max, fixed = false }) {
   config.value = {
     fields: [
-      { name: "volume_min", type: "number", value: min },
-      { name: "volume_max", type: "number", value: max },
-      { name: "fixed_volume_enabled", type: "checkbox", value: fixed },
-      { name: "backend", type: "select", value: "alsa" },
-      { name: "alsa_bits", type: "number", value: 24 },
+      { name: "volume_min", type: "number" },
+      { name: "volume_max", type: "number" },
+      { name: "fixed_volume_enabled", type: "checkbox" },
+      { name: "backend", type: "select" },
+      { name: "alsa_bits", type: "number" },
     ],
-    file: {},
-    active: "",
     profiles: null,
   };
+  seedReadings({
+    volume_min: min,
+    volume_max: max,
+    fixed_volume_enabled: fixed,
+    backend: "alsa",
+    alsa_bits: 24,
+  });
 }
 
 beforeEach(async () => {
