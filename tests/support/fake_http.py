@@ -278,6 +278,8 @@ def _backup_response(st: dict[str, Any]) -> bytes:
     """The archive GET /backup/settings.zip serves right now."""
     if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
         return b"not a zip archive"
+    if st.get("_truncated_backup"):  # an archive cut off mid-write: the zip signature, then nothing readable
+        return b"PK\x03\x04" + bytes(8)
     if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
         return _empty_backup_zip()
     # after a restore the daemon serves the pre-restart archive for a read or two

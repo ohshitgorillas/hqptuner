@@ -228,10 +228,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
             # inside the window between two polls; recorded here, so the guard
             # above answers for it from now on, and its refusal is this one's.
             mgr.readings.credentials_ok = False
-            declined = httpauth.decline_error(mgr)
-            if declined is not None:
-                raise declined from exc
-            raise
+            raise httpauth.CredentialsRefusedError from exc
         except httpx.HTTPError as exc:
             # the daemon dropped mid-write: transient, so the next pass retries.
             # A pass that dies must not erase the divergence an earlier one found:
