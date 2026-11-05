@@ -64,16 +64,18 @@ const tip = (key) => ({ label: `${key} fixture label`, tooltip: `Whole ${key} fi
  * @param {string} pcm1x
  */
 function load(pcm1x) {
-  const fields = [
-    ...filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS),
-    { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
-  ];
+  const filters = filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS);
   config.value = {
-    fields: fields.map(({ value: _value, ...meta }) => meta),
-    file: {},
-    active: "",
+    fields: [...filters.fields, { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] }],
   };
-  seedReadings(Object.fromEntries(fields.map((f) => [f.name, fieldReading(f.value, { show: "file" })])));
+  seedReadings(
+    Object.fromEntries(
+      Object.entries({ ...filters.values, sdm_conversion: "0" }).map(([name, value]) => [
+        name,
+        fieldReading(value, { show: "file" }),
+      ]),
+    ),
+  );
 }
 
 beforeEach(async () => {

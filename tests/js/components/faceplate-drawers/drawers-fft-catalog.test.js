@@ -19,6 +19,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes } from "../../support/markup.js";
 
@@ -58,14 +59,11 @@ const BARE = {
  * @param {{ pcm1x?: string, pcmnx?: string, sdm1x?: string, sdmnx?: string }} [f]
  */
 function load({ pcm1x = PLAIN, pcmnx = PLAIN, sdm1x = PLAIN, sdmnx = PLAIN } = {}) {
+  const filters = filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS);
   config.value = {
-    fields: [
-      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
-      { name: "fft_size", type: "select", value: "16384", options: FFT_LENGTHS },
-    ],
-    file: {},
-    active: "",
+    fields: [...filters.fields, { name: "fft_size", type: "select", options: FFT_LENGTHS }],
   };
+  seedReadings({ ...filters.values, fft_size: "16384" });
 }
 
 beforeEach(async () => {

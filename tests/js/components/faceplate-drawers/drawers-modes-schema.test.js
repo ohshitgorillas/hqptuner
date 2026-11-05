@@ -34,6 +34,7 @@ import { pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/st
 import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { dottedTabs, drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
@@ -46,22 +47,35 @@ const FILTERS = [
 ];
 
 /**
+ * A served reading showing `value` from the config file, a field the engine restarts for.
+ *
+ * @param {unknown} value
+ */
+const restartReading = (value) => fieldReading(value, { show: "file", restarts: true });
+
+/**
  * Load the /config form: each chain's 1x and Nx filter by value, the backend and its DAC bits.
  *
  * @param {{ pcm1x?: string, pcmnx?: string, sdm1x?: string, sdmnx?: string, bits?: number }} [f]
  */
 function load({ pcm1x = "1", pcmnx = "1", sdm1x = "1", sdmnx = "1", bits = 0 } = {}) {
+  const filters = filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS);
   config.value = {
     fields: [
-      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
-      { name: "dsd_6db", type: "checkbox", value: false },
-      { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
-      { name: "backend", type: "select", value: "alsa" },
-      { name: "alsa_bits", type: "number", value: bits },
+      ...filters.fields,
+      { name: "dsd_6db", type: "checkbox" },
+      { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] },
+      { name: "backend", type: "select" },
+      { name: "alsa_bits", type: "number" },
     ],
-    file: {},
-    active: "",
   };
+  seedReadings({
+    ...filters.values,
+    dsd_6db: restartReading(false),
+    sdm_conversion: restartReading("0"),
+    backend: "alsa",
+    alsa_bits: bits,
+  });
 }
 
 /** The mode drawers, each opened and closed once so no tab picked by an earlier case holds. */
