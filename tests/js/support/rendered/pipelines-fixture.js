@@ -19,7 +19,8 @@ export const plain = (src, mix) => ({
 const fromFile = (value) => fieldReading(value, { show: "file" });
 
 /**
- * Load a pipeline set as the config file's, with the matrix engine's switch.
+ * Load a pipeline set as the config file's, with the matrix engine's switch. The set is a restart-class field, so its
+ * reading carries `restarts`.
  *
  * @param {Row[]} rows
  * @param {boolean} [engaged]
@@ -29,7 +30,7 @@ export function loadPipelines(rows, engaged = true) {
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
   seedReadings({
     channels: fromFile(2),
-    matrix_pipelines: fromFile(JSON.stringify(rows)),
+    matrix_pipelines: fieldReading(JSON.stringify(rows), { show: "file", restarts: true }),
     matrix_enabled: fromFile(engaged ? "1" : "0"),
   });
 }
