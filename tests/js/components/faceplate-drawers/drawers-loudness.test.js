@@ -31,6 +31,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { attr, elements } from "../../support/markup.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -52,28 +53,42 @@ let wire;
 async function load({ on = true } = {}) {
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: true },
-      { name: "post_loudness_enabled", value: on },
-      { name: "post_loudness_rangelow", value: "-60" },
-      { name: "post_loudness_rangehigh", value: "-20" },
-      { name: "post_loudness_lowtype", value: "lshelf", options: TYPES },
-      { name: "post_loudness_lowfreq", value: "80" },
-      { name: "post_loudness_lowsteep", value: "0.5" },
-      { name: "post_loudness_lowlevel", value: "20" },
-      { name: "post_loudness_hightype", value: "hshelf", options: TYPES },
-      { name: "post_loudness_highfreq", value: "5000" },
-      { name: "post_loudness_highsteep", value: "1" },
-      { name: "post_loudness_highlevel", value: "10" },
+      { name: "enabled" },
+      { name: "post_loudness_enabled" },
+      { name: "post_loudness_rangelow" },
+      { name: "post_loudness_rangehigh" },
+      { name: "post_loudness_lowtype", options: TYPES },
+      { name: "post_loudness_lowfreq" },
+      { name: "post_loudness_lowsteep" },
+      { name: "post_loudness_lowlevel" },
+      { name: "post_loudness_hightype", options: TYPES },
+      { name: "post_loudness_highfreq" },
+      { name: "post_loudness_highsteep" },
+      { name: "post_loudness_highlevel" },
     ],
   };
-  config.value = {
-    fields: [
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-    ],
-    file: {},
-  };
+  config.value = { fields: [{ name: "volume_min" }, { name: "volume_max" }] };
   await discardAll();
+  seedReadings({
+    matrix_enabled: true,
+    post_loudness_enabled: on,
+    volume_min: "-60",
+    volume_max: "0",
+    ...Object.fromEntries(
+      Object.entries({
+        post_loudness_rangelow: "-60",
+        post_loudness_rangehigh: "-20",
+        post_loudness_lowtype: "lshelf",
+        post_loudness_lowfreq: "80",
+        post_loudness_lowsteep: "0.5",
+        post_loudness_lowlevel: "20",
+        post_loudness_hightype: "hshelf",
+        post_loudness_highfreq: "5000",
+        post_loudness_highsteep: "1",
+        post_loudness_highlevel: "10",
+      }).map(([name, value]) => [name, fieldReading(value, { show: "file", restarts: true })]),
+    ),
+  });
 }
 
 beforeEach(async () => {

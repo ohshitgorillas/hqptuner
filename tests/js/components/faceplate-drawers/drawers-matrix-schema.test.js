@@ -26,6 +26,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { dottedTabs, drawerMarkup } from "../../support/rendered/drawer-render.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
@@ -41,17 +42,29 @@ const opts = (...values) => values.map((value) => ({ value, label: value }));
 
 beforeEach(async () => {
   stagingWire();
-  config.value = { fields: [], file: {}, active: "" };
+  config.value = { fields: [] };
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: true },
-      { name: "expand_hf", value: false },
-      { name: "engine", value: "1", options: opts("1", "0") },
-      { name: "iir2fir", value: "0", options: opts("0", "1", "2") },
-      { name: "post_correction_enabled", value: false },
-      { name: "post_correction_dac0", value: "", options: opts("", "m1") },
+      { name: "enabled" },
+      { name: "expand_hf" },
+      { name: "engine", options: opts("1", "0") },
+      { name: "iir2fir", options: opts("0", "1", "2") },
+      { name: "post_correction_enabled" },
+      { name: "post_correction_dac0", options: opts("", "m1") },
     ],
   };
+  seedReadings(
+    Object.fromEntries(
+      Object.entries({
+        matrix_enabled: true,
+        matrix_expand_hf: false,
+        matrix_engine: "1",
+        matrix_iir2fir: "0",
+        post_correction_enabled: false,
+        post_correction_dac0: "",
+      }).map(([name, value]) => [name, fieldReading(value, { show: "file", restarts: true })]),
+    ),
+  );
   engineState.value = {};
   enums.value = null;
   metadata.value = null;

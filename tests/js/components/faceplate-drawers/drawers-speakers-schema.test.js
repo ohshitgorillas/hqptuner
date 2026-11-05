@@ -79,7 +79,7 @@ const speakersWire = (answered, initial = answered) =>
 async function reset(enabled = true) {
   const w = speakersWire(enabled);
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm" }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   seedReadings({ direct_sdm: false });
   await discardAll();
   discardDraft();
@@ -184,7 +184,7 @@ const ROW_DRAWER = {
 async function resetForTheRow() {
   const w = speakersWire(true, false);
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm" }], file: {}, active: "", profiles: null };
+  config.value = { fields: [{ name: "direct_sdm" }], profiles: null };
   seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
