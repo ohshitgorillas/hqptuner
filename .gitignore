@@ -140,3 +140,15 @@ apod-log.tsv
 
 # owner test-drive notes at the repo root
 /todo.txt
+
+# Cadence's joined run record - local diagnostics only, one machine's routing/provider/worker events
+.planning/trace.jsonl
+.planning/trace.1.jsonl
+
+# ...and Cadence's per-tool-call read record, the generation ITS rotation leaves behind, and that rotation's claim files and killed-mid-rotation temps
+.planning/reads.jsonl
+.planning/reads.1.jsonl
+.planning/reads.1.jsonl.claim
+.planning/reads.1.jsonl.claim.*
+.planning/reads.jsonl.rotate.*
+.planning/reads.1.jsonl.evict.*

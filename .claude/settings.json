@@ -76,7 +76,8 @@
   },
   "enabledPlugins": {
     "filepawl@filepawl": true,
-    "triviajudge@triviajudge": false
+    "triviajudge@triviajudge": false,
+    "cadence@cadence": true
   },
   "extraKnownMarketplaces": {
     "filepawl": {
