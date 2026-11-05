@@ -32,12 +32,13 @@ import {
   volume,
 } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
-import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardDraft, setChannelDistance } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { setGate, xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
 import { liveParams, xfMode } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { fitComp, msCompile } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
 import { elements, attr, classes } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -81,23 +82,48 @@ const EQ = "iir:type=peak;f=1000;q=1;g=-3";
  */
 const compensation = (s) => msCompile(EQ, -3, { fit: fitComp(FC, FEED), s }, { a: 0, b: 1 });
 
-/** The daemon's /matrix form with the engine on and Bauer's post-process absent. */
+/** The daemon's /matrix form: names and options, its values served as readings (see `load`). */
 const MATRIX_FIELDS = [
-  { name: "enabled", type: "checkbox", value: true },
-  { name: "engine", value: "1", options: opts("1", "0") },
-  { name: "iir2fir", value: IIR, options: opts(IIR, FIR) },
-  { name: "post_correction_enabled", type: "checkbox", value: false },
-  { name: "post_correction_dac0", value: "", options: opts("", "m1") },
+  { name: "enabled", type: "checkbox" },
+  { name: "engine", options: opts("1", "0") },
+  { name: "iir2fir", options: opts(IIR, FIR) },
+  { name: "post_correction_enabled", type: "checkbox" },
+  { name: "post_correction_dac0", options: opts("", "m1") },
 ];
 
-/** The same form with Bauer's post-process on at the custom corner. */
+/** The same form with Bauer's post-process fields added. */
 const BAUER_ON_FIELDS = [
   ...MATRIX_FIELDS,
-  { name: "post_bauer_enabled", value: "1" },
-  { name: "post_bauer_preset", value: "custom", options: opts("default", "custom") },
-  { name: "post_bauer_frequency", value: String(FC) },
-  { name: "post_bauer_level", value: String(FEED) },
+  { name: "post_bauer_enabled" },
+  { name: "post_bauer_preset", options: opts("default", "custom") },
+  { name: "post_bauer_frequency" },
+  { name: "post_bauer_level" },
 ];
+
+/**
+ * Serve the running forms' values: the engine on and Bauer's post-process absent, or on at the custom corner, over the
+ * pipelines given.
+ *
+ * @param {{ pipelines?: PipelineRow[], bauer?: boolean }} [s]
+ */
+function load({ pipelines = LOADED_PIPELINES, bauer = false } = {}) {
+  seedReadings({
+    volume_max: -3,
+    channels: 2,
+    matrix_pipelines: JSON.stringify(pipelines),
+    matrix_enabled: true,
+    matrix_engine: "1",
+    matrix_iir2fir: IIR,
+    post_correction_enabled: false,
+    post_correction_dac0: "",
+    ...(bauer && {
+      post_bauer_enabled: "1",
+      post_bauer_preset: "custom",
+      post_bauer_frequency: String(FC),
+      post_bauer_level: String(FEED),
+    }),
+  });
+}
 
 /** @type {StagingWire} */
 let wire = stagingWire();
@@ -111,6 +137,7 @@ beforeEach(async () => {
       }
       if (path === "/api/config") return ok({ data: config.value });
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
+      if (path === "/api/speakers") return ok({ data: SPEAKERS_FORM });
       return undefined;
     },
   });
@@ -120,14 +147,13 @@ beforeEach(async () => {
   engineStatus.value = { status: { state: "2", active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
   config.value = {
     fields: [
-      { name: "volume_max", type: "number", value: -3 },
-      { name: "channels", type: "number", value: 2 },
+      { name: "volume_max", type: "number" },
+      { name: "channels", type: "number" },
     ],
-    file: { matrix_pipelines: JSON.stringify(LOADED_PIPELINES) },
-    active: "",
   };
-  matrixConfig.value = { fields: MATRIX_FIELDS, rows: [] };
-  speakers.value = SPEAKERS_FORM;
+  matrixConfig.value = { fields: MATRIX_FIELDS };
+  load();
+  await loadSpeakers();
   volume.value = "-20";
   hiddenStages.value = [];
   openStage.value = null;
@@ -167,8 +193,8 @@ test("test_a_staged_structural_crossfeed_install_marks_the_crossfeed_and_dsp_pip
 });
 
 test("test_a_staged_change_to_the_bauer_compensation_marks_the_crossfeed_and_dsp_pipelines_stages_and_no_other", async () => {
-  config.value = { ...config.value, file: { matrix_pipelines: JSON.stringify(compensation(0.6)) } };
-  matrixConfig.value = { fields: BAUER_ON_FIELDS, rows: [] };
+  matrixConfig.value = { fields: BAUER_ON_FIELDS };
+  load({ pipelines: compensation(0.6), bauer: true });
   xfMode.value = "bauer";
   await stagePipelines(compensation(1));
   await quiesce(wire);

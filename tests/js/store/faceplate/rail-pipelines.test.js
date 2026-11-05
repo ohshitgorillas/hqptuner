@@ -5,8 +5,8 @@
 // running pipelines do work: a set where every pipeline copies a channel to that same channel at unity gain with an
 // empty process chain does none.
 //
-// The wire is the seam: the /matrix form into `matrixConfig`, its rows the running pipelines in the form's own shape
-// (source, mixdown, gain, gainunit dB or Lin, process). The structural block is built with the real compiler, so it is
+// The wire is the seam: the /matrix form's pipeline rows, the running pipelines in the form's own shape (source,
+// mixdown, gain, gainunit dB or Lin, process), reach the served readings as the `matrix_pipelines` field. The structural block is built with the real compiler, so it is
 // the serialization the install writes, not a fixture.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/rail-pipelines.test.js
@@ -26,9 +26,11 @@ import {
   volumeDrag,
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { seedReadings } from "../../support/readings.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
 
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -77,19 +79,20 @@ function wire({ rows = passthrough(STEREO), bauer = false } = {}) {
   engineState.value = { active_chain: "pcm", filter_junk: "0", filter1x: "0", filterNx: "0", shaper: "0" };
   enums.value = { junk_filters: [], filters: [], shapers: [] };
   engineStatus.value = { status: { state: "2", active_rate: "352800" }, metadata: { samplerate: "44100", bits: "16" } };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: true },
-      { name: "post_bauer_enabled", value: bauer },
-      { name: "post_correction_enabled", value: false },
-    ],
-    live_active: "Desk nearfield",
-    rows,
+    fields: [{ name: "enabled" }, { name: "post_bauer_enabled" }, { name: "post_correction_enabled" }],
   };
+  seedReadings({
+    direct_sdm: false,
+    matrix_enabled: true,
+    post_bauer_enabled: bauer,
+    post_correction_enabled: false,
+    matrix_profile: "Desk nearfield",
+    matrix_pipelines: JSON.stringify(rows),
+  });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
-  speakers.value = { enabled: false, channels: [] };
   hiddenStages.value = [];
   volume.value = "-20";
   volumeDrag.value = null;
@@ -126,7 +129,13 @@ function crossfeedLit(rows) {
   return lit("crossfeed");
 }
 
-beforeEach(() => wire());
+beforeEach(async () => {
+  stagingWire({
+    routes: (path) => (path === "/api/speakers" ? ok({ data: { enabled: false, channels: [] } }) : undefined),
+  });
+  await loadSpeakers();
+  wire();
+});
 
 // --- crossfeed: either kind engages it ---------------------------------------
 
