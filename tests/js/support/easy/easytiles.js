@@ -35,6 +35,7 @@ import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
+import { fieldReading, seedReadings } from "../readings.js";
 import { stagingWire, ok } from "../wire/wire.js";
 import { engineRows, configPayload, enumerations, loaded } from "./easyrate.js";
 
@@ -276,8 +277,16 @@ export async function resetLive({
     adaptive: "0",
     active_chain: chain,
   };
-  signals.config.value = configPayload(FORM(output, {}, engine), output, engine);
+  signals.config.value = configPayload(FORM(output, {}, engine));
   await discardAll();
+  seedReadings(
+    Object.fromEntries(
+      Object.entries({ mode: output, ...engineRows(engine) }).map(([name, value]) => [
+        name,
+        fieldReading(value, { show: "file", lane: "restore" }),
+      ]),
+    ),
+  );
   return w;
 }
 
