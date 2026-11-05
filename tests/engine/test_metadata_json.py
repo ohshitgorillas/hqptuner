@@ -175,3 +175,31 @@ def test_shapers_db_on_a_non_dict_raw_value_still_carries_an_empty_pcm_dithers_t
 )
 def test_easy_db_drops_a_value_holding_a_json_incompatible_nested_type(raw: object, expected: object) -> None:
     assert easy_db(raw) == expected
+
+
+@pytest.mark.parametrize(
+    ("bad", "other"), [("min_rate_hz", "max_rate_hz"), ("max_rate_hz", "min_rate_hz")], ids=["min", "max"]
+)
+def test_shaper_entry_drops_a_rate_bound_that_is_not_an_integer_and_leaves_the_other_unbounded(
+    bad: str, other: str
+) -> None:
+    assert shaper_entry({bad: "fast"}) == {other: None}
+
+
+def test_settings_db_drops_a_tooltip_that_is_not_a_string_and_keeps_the_label_beside_it() -> None:
+    assert settings_db({"output": {"gain": {"tooltip": 3, "label": "Gain"}}}).output == {"gain": {"label": "Gain"}}
+
+
+def test_plain_name_entry_drops_a_variant_that_is_neither_a_string_nor_null_and_keeps_the_family() -> None:
+    assert plain_name_entry({"variant": 3, "family": "sinc"}) == {"family": "sinc"}
+
+
+@pytest.mark.parametrize(
+    ("key", "wrong"),
+    [("_join_rules", 3), ("aliases", {"sinc-M": 1}), ("two_stage_note", 3)],
+    ids=["join rules", "aliases", "two-stage note"],
+)
+def test_filters_db_drops_a_top_level_field_of_the_wrong_shape_and_keeps_the_comment_beside_it(
+    key: str, wrong: object
+) -> None:
+    assert filters_db({key: wrong, "_comment": "kept"}) == {"_comment": "kept", "filters": {}}
