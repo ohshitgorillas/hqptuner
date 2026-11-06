@@ -32,6 +32,7 @@ files:
   - .claude/worktrees/integrate/tests/js/store/faceplate-lists/rate-cap.test.js
   - .claude/worktrees/integrate/tests/js/store/faceplate-lists/dsd-kind.test.js
   - .claude/worktrees/integrate/tests/js/components/faceplate-lists/default-mark.test.js
+  - .claude/worktrees/integrate/tests/js/support/wire/wire.js
 ---
 
 # Phase 2: Baseline recovery - Plan 5: Guard, catalog, live and preset store suites
