@@ -31,6 +31,7 @@ import {
   matrixConfig,
   volume,
 } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardDraft, setChannelDistance } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
@@ -135,7 +136,7 @@ beforeEach(async () => {
         w.staged = { live: {}, http: {} };
         return ok({ report: {} });
       }
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/speakers") return ok({ data: SPEAKERS_FORM });
       return undefined;
