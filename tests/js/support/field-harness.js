@@ -159,7 +159,7 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
   engineState.value = {};
   enums.value = null;
   metadata.value = meta;
-  config.value = { fields: fields.map(({ value: _value, ...form }) => form), profiles: null };
+  config.value = { fields: fields.map(({ value: _value, ...form }) => form) };
   matrixConfig.value = { fields: matrix.map(({ value: _value, ...form }) => form) };
   plainNames.value = plain;
   resetNarrowing();
