@@ -42,10 +42,10 @@ const CLOSE_TESTID = "close-list";
 /** @type {string[]} */
 let picked = [];
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
+  await loadLists();
   picked = [];
 });
 
@@ -82,7 +82,7 @@ const closeButtons = () =>
     .filter((id) => id === CLOSE_TESTID);
 
 /** Put a `pcm_conversion` field with two options on the /config form, so its list has rows. */
-function serveConversion() {
+async function serveConversion() {
   config.value = {
     ...config.value,
     fields: [
@@ -97,7 +97,7 @@ function serveConversion() {
       },
     ],
   };
-  seedReadings({ pcm_conversion: "0" });
+  await seedReadings({ pcm_conversion: "0" });
 }
 
 /**
@@ -169,14 +169,14 @@ test("test_a_standard_row_names_the_engine_option", () => {
   assert.equal(standard, "IIR");
 });
 
-test("test_a_simplified_row_names_its_leaf", () => {
+test("test_a_simplified_row_names_its_leaf", async () => {
   open("sdm_filter_1x", "IIR");
-  loadLists({ plain: true });
+  await loadLists({ plain: true });
   assert.equal(name(), "Leaf iir");
 });
 
-test("test_simplified_draws_one_head_for_each_variant_the_list_holds", () => {
-  loadLists({ plain: true });
+test("test_simplified_draws_one_head_for_each_variant_the_list_holds", async () => {
+  await loadLists({ plain: true });
   open("sdm_filter_1x", "IIR");
   const heads = markup().filter((e) => attr(e, "data-var") !== undefined);
   assert.deepEqual(
@@ -185,21 +185,21 @@ test("test_simplified_draws_one_head_for_each_variant_the_list_holds", () => {
   );
 });
 
-test("test_a_family_the_placement_does_not_name_still_lists_its_rows", () => {
-  loadLists({ plain: true });
+test("test_a_family_the_placement_does_not_name_still_lists_its_rows", async () => {
+  await loadLists({ plain: true });
   open("sdm_filter_1x", "IIR");
   assert.deepEqual([...rows()].sort(), ["IIR", "poly-sinc-gauss-long", "sinc-M"]);
 });
 
 test("test_tapping_a_variant_head_folds_its_rows", async () => {
-  loadLists({ plain: true });
+  await loadLists({ plain: true });
   open("sdm_filter_1x", "IIR");
   await fire((p) => p["data-var"] === "Var A");
   assert.deepEqual([...rows()].sort(), ["IIR", "sinc-M"]);
 });
 
-test("test_an_r2r_dac_folds_the_additive_dither_rows", () => {
-  loadLists({ plain: true });
+test("test_an_r2r_dac_folds_the_additive_dither_rows", async () => {
+  await loadLists({ plain: true });
   setDacType("r2r");
   open("pcm_dither", "none");
   assert.deepEqual([...rows()].sort(), ["NS9", "none"]);
@@ -235,8 +235,8 @@ test("test_a_modulator_panel_draws_no_close_button", () => {
   assert.deepEqual(closeButtons(), []);
 });
 
-test("test_a_dsd_processing_panel_draws_no_close_button", () => {
-  serveConversion();
+test("test_a_dsd_processing_panel_draws_no_close_button", async () => {
+  await serveConversion();
   open("pcm_conversion", "0");
   assert.deepEqual(closeButtons(), []);
 });

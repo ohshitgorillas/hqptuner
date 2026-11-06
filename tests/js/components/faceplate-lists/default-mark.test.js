@@ -117,7 +117,7 @@ const dspEntries = (defaults) =>
  *
  * @param {Record<string, string>} defaults
  */
-function serve(defaults) {
+async function serve(defaults) {
   const form = /** @type {{ fields: { name: string, options?: unknown[] }[] }} */ (config.value);
   config.value = {
     ...form,
@@ -126,18 +126,18 @@ function serve(defaults) {
       ...DSD_FIELDS,
     ],
   };
-  seedReadings({
+  await seedReadings({
     ...readings.value?.fields,
     ...Object.fromEntries(Object.entries(DSD_OPTIONS).map(([name, options]) => [name, options[0][0]])),
   });
   metadata.value = { .../** @type {object} */ (metadata.value), settings: { dsp: dspEntries(defaults) } };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
-  serve(DEFAULTS);
+  await loadLists();
+  await serve(DEFAULTS);
 });
 
 afterEach(async () => {
@@ -217,9 +217,9 @@ for (const w of WINDOWS) {
   });
 }
 
-test("test_a_stage_marks_its_own_default_while_its_sibling_stage_records_none", () => {
+test("test_a_stage_marks_its_own_default_while_its_sibling_stage_records_none", async () => {
   const { filter_1x: _none, ...rest } = DEFAULTS;
-  serve(rest);
+  await serve(rest);
   open("sdm_filter_nx", "IIR");
   assert.deepEqual(markedRows(), [DEFAULTS.filter_nx]);
 });
@@ -247,8 +247,8 @@ const POLYPHASE_SINC = "Polyphase sinc";
  * favorites-only switch on: the Polyphase sinc family narrows out of view while the Nx default, sinc-M, stays a row.
  */
 async function simplifiedWithoutPolyphaseSinc() {
-  loadLists({ plain: true });
-  serve(DEFAULTS);
+  await loadLists({ plain: true });
+  await serve(DEFAULTS);
   const meta = /** @type {{ plain_names: { filters: { entries: Record<string, object> } } }} */ (metadata.value);
   const filters = meta.plain_names.filters;
   const gauss = { family: POLYPHASE_SINC, variant: "Var A", leaf: "Leaf gauss", short: "gauss" };

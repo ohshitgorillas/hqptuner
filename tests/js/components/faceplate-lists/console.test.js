@@ -32,10 +32,10 @@ import { loadLists, resetLists } from "../../support/listsfixture.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-beforeEach(() => {
+beforeEach(async () => {
   narrowingWire();
   resetLists();
-  loadLists();
+  await loadLists();
   open("sdm_filter_1x");
 });
 
