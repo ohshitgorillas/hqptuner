@@ -109,11 +109,11 @@ function served(w) {
 let wire;
 
 /**
- * Load the /config payload: the values as served readings, and the form's options and the device caps as its metadata.
+ * Load the /config payload: the values as served readings, and the form's options as its metadata.
  *
- * @param {{ mode?: string, caps?: object | null }} [over]
+ * @param {{ mode?: string }} [over]
  */
-function load({ mode = "pcm", caps = null } = {}) {
+function load({ mode = "pcm" } = {}) {
   file = {
     defaults_samplerate: "192000",
     defaults_bitrate: "12288000",
@@ -133,8 +133,6 @@ function load({ mode = "pcm", caps = null } = {}) {
       { name: "net_device", type: "select", options: NET_OPTIONS },
       { name: "channels", type: "number" },
     ],
-    profiles: null,
-    device_caps: caps,
   };
   seedReadings(served(wire));
 }

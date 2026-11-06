@@ -121,8 +121,6 @@ beforeEach(async () => {
       { name: "net_period", type: "number" },
       { name: "alsa_period", type: "number" },
     ],
-    profiles: null,
-    device_caps: null,
   };
   seedReadings({
     mode: "pcm",
