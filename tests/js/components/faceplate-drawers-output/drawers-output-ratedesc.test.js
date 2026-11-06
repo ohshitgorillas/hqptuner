@@ -78,8 +78,6 @@ async function load(mode) {
       { name: "net_ipv6", type: "checkbox" },
       { name: "net_period", type: "number" },
     ],
-    profiles: null,
-    device_caps: null,
   };
   seedReadings({
     mode: mode,
