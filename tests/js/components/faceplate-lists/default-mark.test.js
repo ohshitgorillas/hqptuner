@@ -24,12 +24,14 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { hydrateFavorites, nFavOnly } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { attr, elements } from "../../support/markup.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -60,33 +62,39 @@ const DEFAULTS = {
 const selectField = (name, options) => ({
   name,
   type: "select",
-  value: options[0][0],
   options: options.map(([value, label]) => ({ value, label })),
 });
 
-/** The daemon's four DSD processing fields, three options each. */
-const DSD_FIELDS = [
-  selectField("integrator", [
+/**
+ * The daemon's four DSD processing fields' options, three each.
+ *
+ * @type {Record<string, [string, string][]>}
+ */
+const DSD_OPTIONS = {
+  integrator: [
     ["0", "IIR"],
     ["1", "FIR"],
     ["2", "CIC"],
-  ]),
-  selectField("sdm_conversion", [
+  ],
+  sdm_conversion: [
     ["0", "wide"],
     ["1", "narrow"],
     ["2", "XFi"],
-  ]),
-  selectField("noise_filter", [
+  ],
+  noise_filter: [
     ["0", "standard"],
     ["1", "low"],
     ["7", "sac"],
-  ]),
-  selectField("pcm_conversion", [
+  ],
+  pcm_conversion: [
     ["0", "traditional"],
     ["1", "single-steep"],
     ["9", "sinc-M"],
-  ]),
-];
+  ],
+};
+
+/** The four DSD processing fields. */
+const DSD_FIELDS = Object.entries(DSD_OPTIONS).map(([name, options]) => selectField(name, options));
 
 /** The PCM Nx form field gains sinc-M, so the Nx default is one of its options too. */
 const SINC_ON_PCM_NX = { value: "9", label: "sinc-M" };
@@ -105,7 +113,7 @@ const dspEntries = (defaults) =>
   );
 
 /**
- * Serve the DSD fields, the widened PCM Nx field, and the settings bundle with `defaults` recorded.
+ * Serve the DSD fields with their readings, the widened PCM Nx field, and the settings bundle with `defaults` recorded.
  *
  * @param {Record<string, string>} defaults
  */
@@ -118,6 +126,10 @@ function serve(defaults) {
       ...DSD_FIELDS,
     ],
   };
+  seedReadings({
+    ...readings.value?.fields,
+    ...Object.fromEntries(Object.entries(DSD_OPTIONS).map(([name, options]) => [name, options[0][0]])),
+  });
   metadata.value = { .../** @type {object} */ (metadata.value), settings: { dsp: dspEntries(defaults) } };
 }
 
