@@ -33,7 +33,7 @@ Plan shape: multiple plans, same phase (size question not asked; set by the coor
 - [ ] AC1: a search under `tests/js/` finds no `fileTruth`, no `/api/config` or `config` push fake carrying a `data` key, no `profiles` or `device_caps` key in a `config.value` fixture, no `live_profiles` / `live_active` key in a `matrixConfig.value` fixture, and no `readings.value =` assignment outside `store/core/readings.test.js` and `model/store/reading.test.js`.
 - [ ] AC2: a search of `hqptuner/static/store/sync.js` and `hqptuner/api/push.py` finds no `config` push route or source, and no test under `tests/` subscribes to or asserts on a `config` push event.
 - [ ] AC3: every port commit in the phase quotes a pre-edit gate run on its files printing `exit=0`.
-- [ ] AC4: the phase's commits change no assert line in a ported test unless the commit records the contract-mismatch route with before-and-after document quotations, or deletes a test pinning the excised `config` push.
+- [ ] AC4: the phase's commits change no assert line in a ported test unless the commit records the contract-mismatch route with before-and-after document quotations, or deletes a test pinning the excised `config` push, or changes the line only by an added `await` (with parentheses where a member access follows the call) and lists it under `Await-only assert lines:` (owner ruling 2026-11-06).
 - [ ] AC5: in `.claude/worktrees/integrate`, the D-07 whole-suite command prints `exit=0` with zero failures after the last port.
 - [ ] AC6: `.venv/bin/pytest -m "not live" -q tests/api` run through `scripts/gate.sh` in `.claude/worktrees/integrate` prints `exit=0` after the push excision.
 
