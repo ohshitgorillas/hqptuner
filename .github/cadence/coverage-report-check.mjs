@@ -43,6 +43,13 @@ const METRICS = ['lines', 'branches', 'statements'];
 for (const m of METRICS) {
   if (!Number.isFinite(policy[m])) fail(`policy: ${m} threshold is missing or not a number in ${policyPath}`);
 }
+// a scope that is present but not an array of strings is a broken policy, never a crash or a silent pass
+for (const key of ['include', 'exclude']) {
+  const v = policy[key];
+  if (v !== undefined && !(Array.isArray(v) && v.every((g) => typeof g === 'string'))) {
+    fail(`policy: ${policyPath} is not a usable coverage policy: ${key} must be an array of strings`);
+  }
+}
 if (failed) finish();
 const threshold = (m) => policy[m];
 
