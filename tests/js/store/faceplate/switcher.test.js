@@ -81,14 +81,14 @@ async function answer(path, opts = {}) {
 /** The bodies posted to one path. @param {string} path */
 const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
 
-beforeEach(() => {
+beforeEach(async () => {
   storage = useStorage();
   env.fetch = answer;
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
   matrixConfig.value = { fields: [] };
   enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
-  seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
+  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
   setBottomBar("switcher");
   for (const t of ALL) {
     setSwitcherTarget(t);
@@ -132,8 +132,8 @@ test("test_on_the_sdm_chain_each_list_target_reads_its_sdm_key", () => {
   assert.deepEqual(underEach("key"), ["sdm_filter_1x", "sdm_filter_nx", "sdm_modulator", null, null, null]);
 });
 
-test("test_on_the_pcm_chain_each_list_target_reads_its_pcm_key", () => {
-  loadLists({ chain: "pcm", plain: true });
+test("test_on_the_pcm_chain_each_list_target_reads_its_pcm_key", async () => {
+  await loadLists({ chain: "pcm", plain: true });
   assert.deepEqual(underEach("key"), ["pcm_filter_1x", "pcm_filter_nx", "pcm_dither", null, null, null]);
 });
 
@@ -222,9 +222,9 @@ test("test_output_mode_marks_its_sdm_slot_on_while_the_sdm_chain_runs", () => {
   assert.equal(slotField("on")?.[1], true);
 });
 
-test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", () => {
+test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", async () => {
   setSwitcherTarget("Output mode");
-  loadLists({ chain: "pcm", plain: true });
+  await loadLists({ chain: "pcm", plain: true });
   assert.equal(slotField("on")?.[0], true);
 });
 

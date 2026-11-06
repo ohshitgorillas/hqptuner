@@ -51,7 +51,7 @@ beforeEach(async () => {
   engineState.value = {};
   matrixConfig.value = { fields: [] };
   config.value = { fields: [] };
-  seedReadings({ active_preset: { value: "Day", readonly: true } });
+  await seedReadings({ active_preset: { value: "Day", readonly: true } });
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();

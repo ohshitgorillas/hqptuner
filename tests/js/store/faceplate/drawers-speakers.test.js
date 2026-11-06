@@ -67,7 +67,7 @@ async function reset({ enabled = false, direct = false, loaded = true } = {}) {
   stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: served }) : undefined) });
   await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm" }] };
-  seedReadings({ direct_sdm: direct });
+  await seedReadings({ direct_sdm: direct });
   await discardAll();
   discardDraft();
   pickSpeakerSet(FIRST.id);

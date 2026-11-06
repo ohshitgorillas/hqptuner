@@ -54,7 +54,7 @@ const select = (name, labels) => ({
  *
  * @param {{ junk?: string, filterNx?: string, shaper?: string }} [o]
  */
-function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
+async function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
   engineState.value = { active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx, shaper };
   enums.value = {
     junk_filters: ["none", "20k", "2x"].map(item),
@@ -73,7 +73,7 @@ function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
       select("post_correction_dac0", ["AK4499", "ES9038", "PCM1704"]),
     ],
   };
-  seedReadings({
+  await seedReadings({
     direct_sdm: true,
     noise_filter: "v1",
     matrix_enabled: true,
@@ -96,15 +96,15 @@ beforeEach(async () => {
     routes: (path) => (path === "/api/speakers" ? ok({ data: { enabled: true, channels: [] } }) : undefined),
   });
   await loadSpeakers();
-  wire();
+  await wire();
 });
 
 test("test_the_hf_filter_is_the_junk_filter_named_at_the_index_the_engine_reports", () => {
   assert.equal(railNow().hf, "20k");
 });
 
-test("test_the_hf_filter_follows_the_index_the_engine_reports", () => {
-  wire({ junk: "0" });
+test("test_the_hf_filter_follows_the_index_the_engine_reports", async () => {
+  await wire({ junk: "0" });
   assert.equal(railNow().hf, "none");
 });
 
@@ -112,8 +112,8 @@ test("test_the_nx_filter_is_the_filter_named_at_the_index_the_engine_reports", (
   assert.equal(railNow().conv.filterNx, "sinc-Mx");
 });
 
-test("test_the_shaper_is_the_shaper_named_at_the_index_the_engine_reports", () => {
-  wire({ shaper: "2" });
+test("test_the_shaper_is_the_shaper_named_at_the_index_the_engine_reports", async () => {
+  await wire({ shaper: "2" });
   assert.equal(railNow().conv.shaper, "LNS15");
 });
 

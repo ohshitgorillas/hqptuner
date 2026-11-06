@@ -32,16 +32,16 @@ const offering = (names) => ({
  * @param {string} active
  * @param {string[]} names
  */
-function serve(active, names) {
-  seedReadings({ active_preset: { value: active, readonly: true }, profiles: offering(names) });
+async function serve(active, names) {
+  await seedReadings({ active_preset: { value: active, readonly: true }, profiles: offering(names) });
 }
 
 /** A live snapshot record as the book holds it. */
 const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
-beforeEach(() => {
+beforeEach(async () => {
   bookWanted.value = false;
-  serve("Night", ["Day", "Night"]);
+  await serve("Night", ["Day", "Night"]);
   liveBook.value = { Day: { Warm: snap(), Bright: snap() }, Night: { Quiet: snap() }, "": { Loose: snap() } };
   unfolded.value = null;
 });
@@ -72,8 +72,8 @@ test("test_a_station_carries_the_snapshots_the_book_holds_under_its_name", () =>
   );
 });
 
-test("test_a_station_the_book_has_no_entry_for_carries_no_snapshots", () => {
-  serve("Night", ["Day", "Night", "Spare"]);
+test("test_a_station_the_book_has_no_entry_for_carries_no_snapshots", async () => {
+  await serve("Night", ["Day", "Night", "Spare"]);
   assert.deepEqual(station("Spare")?.snapshots, []);
 });
 
