@@ -57,7 +57,7 @@ export const engineRows = ({ backend = "alsa", anydsd = "1" } = {}) => {
 
 /**
  * The /api/config payload: the daemon's form as rows carrying form metadata
- * alone, name and options, with `profiles` null. The values those rows would
+ * alone, name and options. The values those rows would
  * carry reach `readings.value` through the one `seedReadings` of the harness
  * that assigns this.
  *
@@ -65,7 +65,6 @@ export const engineRows = ({ backend = "alsa", anydsd = "1" } = {}) => {
  */
 export const configPayload = (form) => ({
   fields: formFields(/** @type {never} */ (form)).map(({ value: _value, ...metadata }) => metadata),
-  profiles: null,
 });
 
 // The tails the engine spells a filter's ratio class with, by the class name a
