@@ -4,8 +4,10 @@
 # must start the app, and that app, which the installer itself started, must
 # answer at the runner's own network address. So must the installed app when it
 # is started the way a Start Menu launch starts it.
-# Installing over the previous release, whose app was quit first, must leave an
-# app that starts and keeps running, and the uninstaller must still work after it.
+# Installing over the previous release must leave an app that starts and keeps
+# running, and the uninstaller must still work after it. That holds whether the
+# previous release's app was quit first or left running; when it was left
+# running, none of it may remain once the installer returns.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -237,6 +239,22 @@ upgrade_quit() {
   uninstall "step 8 (previous release quit)" "$UPGRADE_APP"
 }
 
+# The previous release, left running while the installer runs. Setup must have
+# closed it by the time it returns. A survivor holds port 8090 and sits under the
+# directory, so this check comes before the upgraded app is looked up.
+upgrade_running() {
+  local label="step 9 (previous release running)"
+  upgrade_begin upgrade-running
+  start_previous "$label"
+  install_over "$label"
+  if windows_pid_alive "$PREV_PID"; then
+    upgrade_die "$label: previous-release PID $PREV_PID still running when the installer returned"
+  fi
+  PREV_PID=""
+  check_upgraded "$label"
+  uninstall "$label" "$UPGRADE_APP"
+}
+
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
 
 # The machine field of a PE file's header, as four hex digits.
@@ -398,6 +416,7 @@ fi
 # ---- 8. upgrade over the previous release, unless the target is a bundle ----
 if [ ! -d "$TARGET" ]; then
   upgrade_quit
+  upgrade_running
 fi
 
 echo "smoke: OK"
