@@ -19,6 +19,7 @@ import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config, engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -67,7 +68,8 @@ let serial = 0;
  */
 function playing(idleTime, song) {
   serial += 1;
-  config.value = { fields: [{ name: "idle_time", value: idleTime }], file: {}, active: "", profiles: null };
+  config.value = { fields: [{ name: "idle_time" }], profiles: null };
+  seedReadings({ idle_time: idleTime });
   engineStatus.value = {
     status: { state: "2", track_serial: String(serial), process_speed: "1.5", clips: "0" },
     metadata: { song },

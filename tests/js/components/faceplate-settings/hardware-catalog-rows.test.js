@@ -31,6 +31,7 @@ import {
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {{ overrides: Record<string, unknown> }} ApplyBody  a `POST /api/engine` body, the member read here */
@@ -77,7 +78,8 @@ async function reset() {
       return ok({ report: { verified: { applied: true } } });
     },
   });
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "", profiles: null };
+  config.value = { fields: [{ name: "direct_sdm" }], profiles: null };
+  seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
   metadata.value = null;

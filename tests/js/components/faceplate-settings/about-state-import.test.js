@@ -55,8 +55,6 @@ const OTHER_CODE = "invalid_input";
  */
 const offering = (names) => ({
   fields: [],
-  file: {},
-  active: "",
   profiles: { value: "", options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
 });
 
