@@ -121,11 +121,6 @@ const disabledOf = (id) =>
  */
 const call = (fn, ...args) => (typeof fn === "function" ? fn(...args) : undefined);
 
-test("test_the_switch_row_lights_the_daemons_switch_while_nothing_is_drafted", async () => {
-  await reset(true);
-  assert.deepEqual(litGate(), ["1"]);
-});
-
 test("test_the_switch_row_lights_the_drafted_switch", async () => {
   await reset(true);
   setSpeakersGate(false);

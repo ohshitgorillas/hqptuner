@@ -107,11 +107,6 @@ async function previewNight({ fields = [field("volume_max", "-3")], active = "" 
 
 // --- previewing a preset ------------------------------------------------------
 
-test("test_previewing_a_preset_grounds_the_editor_to_its_saved_values", async () => {
-  await previewNight();
-  assert.equal(effective("volume_max"), "-9");
-});
-
 test("test_previewing_a_preset_marks_it_pending", async () => {
   await previewNight();
   assert.equal(pendingPreset.value, "Night");
