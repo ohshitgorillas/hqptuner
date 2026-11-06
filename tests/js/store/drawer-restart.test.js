@@ -12,10 +12,10 @@ const KEY = "volume_max";
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
 
-beforeEach(() => {
+beforeEach(async () => {
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? ok(readings.value) : undefined) });
   health.value = { phase: "Ready", generation: GEN };
-  seedReadings({});
+  await seedReadings({});
 });
 
 afterEach(async () => {
@@ -25,10 +25,10 @@ afterEach(async () => {
 });
 
 // Break: restartLane chooses from static schema flags instead of the served verdict.
-test("test_restart_lane_tracks_the_served_restart_verdict_for_the_same_field", () => {
-  seedReadings({ [KEY]: fieldReading(-5, { restarts: true }) });
+test("test_restart_lane_tracks_the_served_restart_verdict_for_the_same_field", async () => {
+  await seedReadings({ [KEY]: fieldReading(-5, { restarts: true }) });
   const seen = [restartLane(KEY)];
-  seedReadings({ [KEY]: fieldReading(-5, { restarts: false }) });
+  await seedReadings({ [KEY]: fieldReading(-5, { restarts: false }) });
   seen.push(restartLane(KEY));
   assert.deepEqual(seen, [true, false]);
 });

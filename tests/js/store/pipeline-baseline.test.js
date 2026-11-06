@@ -72,7 +72,7 @@ async function trees({ rows = [], liveActive = "", file = {} } = {}) {
   matrixConfig.value = { fields: [], file_profiles: {} };
   // The served reading shows the daemon's rows once a profile is live and the daemon reports rows, else the file's.
   const live = liveActive !== "" && liveActive !== "[Default]" && rows.length > 0;
-  seedReadings({ matrix_pipelines: live ? rows : fieldReading(file.matrix_pipelines, { show: "file" }) });
+  await seedReadings({ matrix_pipelines: live ? rows : fieldReading(file.matrix_pipelines, { show: "file" }) });
   stagingWire({
     routes: (path) => {
       if (path === "/api/config") return ok(readings.value);

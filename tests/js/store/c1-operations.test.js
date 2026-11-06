@@ -25,7 +25,7 @@ beforeEach(async () => {
   liveArea.clear();
   await succeed(wire, "apply");
   await succeed(wire, "live");
-  seedReadings({ mode: fieldReading("pcm", { show: "file" }), active_preset: { value: "Day", readonly: true } });
+  await seedReadings({ mode: fieldReading("pcm", { show: "file" }), active_preset: { value: "Day", readonly: true } });
 });
 
 afterEach(() => {
