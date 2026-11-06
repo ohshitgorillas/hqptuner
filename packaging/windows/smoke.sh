@@ -68,23 +68,52 @@ user_env() {
   powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('$1', 'User')" | tr -d '\r'
 }
 
-# The runner's first IPv4 address that is neither loopback nor link-local.
+# The runner's first IPv4 address that is neither loopback nor link-local. The
+# lookup goes through CIM and is slow on the Arm64 runner, and the address does
+# not change during a run, so the first answer is kept in $WORK.
 lan_address() {
-  powershell -NoProfile -Command \
-    'Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch "^(127|169\.254)\." } | Select-Object -First 1 -ExpandProperty IPAddress' \
-    | tr -d '\r'
+  local cache="$WORK/lan-address"
+  if [ ! -s "$cache" ]; then
+    powershell -NoProfile -Command \
+      'Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch "^(127|169\.254)\." } | Select-Object -First 1 -ExpandProperty IPAddress' \
+      | tr -d '\r' > "$cache"
+  fi
+  cat "$cache"
+}
+
+# Every running process as one "<Windows PID><TAB><image path>" line, from Git
+# Bash's ps -W, which is much quicker than WMI. The columns are fixed width and a
+# status letter may lead a line, so WINPID and COMMAND are cut at the header's
+# column positions, not by field number.
+windows_processes() {
+  ps -W | awk '
+    NR == 1 { pid_end = index($0, "WINPID") + 5; command = index($0, "COMMAND"); next }
+    {
+      head = substr($0, 1, pid_end)
+      count = split(head, field, " ")
+      image = substr($0, command)
+      sub(/[ \t]+$/, "", image)
+      if (count > 0 && field[count] ~ /^[0-9]+$/ && image != "") print field[count] "\t" image
+    }'
 }
 
 # The Windows PIDs of running HQPTuner.exe processes whose image lies under the
 # directory $1. Git Bash's kill and kill -0 do not address a Windows PID. A
 # process keeps the spelling of the path it was started with, long or 8.3 short,
-# so all three spellings of the directory are tried, each made absolute because
-# a process image path always is. The directories travel in the environment
-# because PowerShell reads everything after -Command as script text.
+# and one this shell started may show a POSIX path, so the directory and each
+# candidate image are made absolute long Windows paths before they are compared,
+# without regard to case.
 running_under() {
-  RUN_DIR_W="$(cygpath -aw "$1")" RUN_DIR_L="$(cygpath -awl "$1")" RUN_DIR_S="$(cygpath -aws "$1")" powershell -NoProfile -Command \
-    '$dirs = $env:RUN_DIR_W, $env:RUN_DIR_L, $env:RUN_DIR_S | ForEach-Object { $_ + [IO.Path]::DirectorySeparatorChar }; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath } | Where-Object { $p = $_.ExecutablePath; $dirs | Where-Object { $p.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) } } | ForEach-Object { $_.ProcessId }' \
-    | tr -d '\r'
+  local dir image base winpid
+  dir=$(cygpath -awl "$1")
+  dir="${dir,,}\\"
+  while IFS=$'\t' read -r winpid image; do
+    base=${image##*[\\/]}
+    [ "${base,,}" = hqptuner.exe ] || continue
+    image=$(cygpath -awl "$image")
+    image=${image,,}
+    if [ "${image#"$dir"}" != "$image" ]; then echo "$winpid"; fi
+  done < <(windows_processes)
 }
 
 # What running_under saw, for a log: the directory in each spelling it matched
@@ -98,13 +127,14 @@ describe_lookup() {
 }
 
 windows_pid_alive() {
-  [ -n "$(WIN_PID="$1" powershell -NoProfile -Command \
-    'Get-Process -Id ([int]$env:WIN_PID) -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }' | tr -d '\r')" ]
+  windows_processes | awk -F'\t' -v pid="$1" '$1 == pid { found = 1 } END { exit !found }'
 }
 
+# Native taskkill by PID; the path conversion must not turn /PID and /F into paths.
+# A process that is already gone is not an error.
 stop_windows_pid() {
-  WIN_PID="$1" powershell -NoProfile -Command \
-    'Stop-Process -Id ([int]$env:WIN_PID) -Force -ErrorAction SilentlyContinue'
+  [ -n "$1" ] || return 0
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' taskkill /PID "$1" /F > /dev/null 2>&1 || true
 }
 
 # Run the uninstaller of the install at $2, by default $APP, and wait, at most
