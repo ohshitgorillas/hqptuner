@@ -19,6 +19,8 @@ import { engineState, enums, config } from "../../../../hqptuner/static/store/si
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
 import { bad, ok } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * The globals a fake wire installs a `fetch` on, viewed as an optional
@@ -147,6 +149,11 @@ const STATE = () => ({
 // `defaults_bitrate` (store/schema.js pcm_rate / sdm_rate, both fileTruth).
 const FILE = () => ({ mode: "pcm" });
 
+// The overlay as the served readings carry it: each key one field reading showing its file value.
+/** @param {FileOverlay} file */
+const fileFields = (file) =>
+  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
+
 // A live-lane server: the write path, plus the three endpoints a successful
 // write re-mirrors from. `report` is what /api/config/live answers on 200;
 // `status` + `detail` make it refuse instead. `fresh` / `mirrored` / `refreshed`
@@ -163,7 +170,7 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
   const reads = {
     "/api/state": () => ok({ data: mirrored || STATE() }),
     "/api/enumerations": () => ok({ data: fresh || ENUMS() }),
-    "/api/config": () => ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } }),
+    "/api/config": () => ok({ generation: readings.value?.generation, fields: fileFields(refreshed || file) }),
     "/api/config/pending": () => ok({ live: {}, http: {} }),
   };
   env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
@@ -184,7 +191,8 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
 function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
-  config.value = { fields: [], file, active: "", profiles: null };
+  config.value = { fields: [] };
+  seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 

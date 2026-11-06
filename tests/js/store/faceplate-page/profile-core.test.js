@@ -8,6 +8,7 @@ import { saveProfile, meta } from "../../../../hqptuner/static/store/faceplate/b
 import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 import { matrixActiveProfile, isLiveProfile } from "../../../../hqptuner/static/store/matrix/profiles.js";
 import { stagingWire, ok, bad, quiesce } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 const FIRST = "fixture-nearfield";
 const SECOND = "fixture-sofa";
@@ -32,9 +33,8 @@ function hold() {
 
 /** @param {string} name */
 function serve(name) {
-  readings.value = {
-    generation: 0,
-    fields: {
+  seedReadings(
+    {
       active_preset: { value: FIRST, readonly: true },
       matrix_profile: {
         engine: { value: name, name, generation: 0 },
@@ -47,20 +47,13 @@ function serve(name) {
         bounds: null,
       },
     },
-  };
+    0,
+  );
 }
 
 beforeEach(() => {
-  config.value = { fields: [], file: {}, active: FIRST, profiles: { options: [{ value: FIRST }] } };
-  matrixConfig.value = {
-    fields: [],
-    rows: [],
-    file_profiles: {},
-    preset_profiles: { [FIRST]: [] },
-    live_profiles: [FIRST, SECOND],
-    live_active: OLD,
-    active: OLD,
-  };
+  config.value = { fields: [], profiles: { options: [{ value: FIRST }] } };
+  matrixConfig.value = { fields: [], file_profiles: {}, preset_profiles: { [FIRST]: [] } };
   enums.value = { matrix_profiles: [FIRST, SECOND] };
   serve(FIRST);
   answer = null;

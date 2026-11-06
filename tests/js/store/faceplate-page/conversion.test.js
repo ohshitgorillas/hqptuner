@@ -31,6 +31,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/page/conversion.js";
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 const CD = "44100";
 const HIRES = "96000";
@@ -111,7 +112,8 @@ function wire({
     status: { state: playing ? "2" : "0", active_rate: output },
     metadata: { samplerate: source },
   };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   metadata.value = META;

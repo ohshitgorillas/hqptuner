@@ -13,7 +13,6 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config, matrixConfig, enums } from "../../../../hqptuner/static/store/signals.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { profileReading } from "../../support/profile-fixtures.js";
 import { descriptions, flushDescriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import {
@@ -25,6 +24,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
 import { ok, bad } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse */
 
@@ -52,8 +52,8 @@ let held = null;
  */
 const form = (live, active) => {
   enums.value = { matrix_profiles: live };
-  readings.value = { generation: 0, fields: { matrix_profile: profileReading(active) } };
-  return { fields: [], rows: [] };
+  seedReadings({ matrix_profile: profileReading(active) }, 0);
+  return { fields: [] };
 };
 
 /** The four reads the config refresh after a switch makes, each in its real shape. */
@@ -92,7 +92,7 @@ beforeEach(async () => {
     CALLS.push({ path, method: opts.method || "GET", body });
     return answer(path, opts.method || "GET", body);
   };
-  config.value = { fields: [], file: {}, active: "" };
+  config.value = { fields: [] };
   matrixConfig.value = form(["Desk", "Lounge"], "Lounge");
   nextName = "Lounge";
   descriptions.value = {};

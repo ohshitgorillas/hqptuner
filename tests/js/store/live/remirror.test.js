@@ -98,7 +98,7 @@ function overlapWire({ served = ENUMS() } = {}) {
 test("test_overlapping_remirrors_end_on_the_second_calls_state_when_the_first_answers_last", async () => {
   engineState.value = stateWith(SEEDED_FILTER);
   enums.value = ENUMS();
-  config.value = { fields: [], file: {}, active: "", profiles: null };
+  config.value = { fields: [] };
   const w = overlapWire();
 
   const first = remirrorLive(WRITTEN());
@@ -137,7 +137,7 @@ const VOLUME_WRITTEN = () => ["volume"];
 async function overlapModeByVolume() {
   engineState.value = stateWith(SEEDED_FILTER);
   enums.value = ENUMS();
-  config.value = { fields: [], file: {}, active: "", profiles: null };
+  config.value = { fields: [] };
   const w = overlapWire({ served: MODE_ENUMS() });
 
   const first = remirrorLive(MODE_WRITTEN());
