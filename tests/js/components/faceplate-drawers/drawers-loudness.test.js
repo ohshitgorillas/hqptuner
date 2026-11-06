@@ -69,7 +69,7 @@ async function load({ on = true } = {}) {
   };
   config.value = { fields: [{ name: "volume_min" }, { name: "volume_max" }] };
   await discardAll();
-  seedReadings({
+  await seedReadings({
     matrix_enabled: true,
     post_loudness_enabled: on,
     volume_min: "-60",

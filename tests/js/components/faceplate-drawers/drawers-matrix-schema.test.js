@@ -53,7 +53,7 @@ beforeEach(async () => {
       { name: "post_correction_dac0", options: opts("", "m1") },
     ],
   };
-  seedReadings(
+  await seedReadings(
     Object.fromEntries(
       Object.entries({
         matrix_enabled: true,

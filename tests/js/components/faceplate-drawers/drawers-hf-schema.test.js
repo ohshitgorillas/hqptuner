@@ -47,7 +47,7 @@ beforeEach(async () => {
   autopilotPosts = [];
   wire = stagingWire({ routes });
   config.value = { fields: [{ name: "pre_before_meter", type: "checkbox" }] };
-  seedReadings({ pre_before_meter: fieldReading(false, { show: "file", restarts: true }) });
+  await seedReadings({ pre_before_meter: fieldReading(false, { show: "file", restarts: true }) });
   engineState.value = { filter_junk: "0" };
   engineStatus.value = { autopilot: false, metering: true };
   enums.value = {
