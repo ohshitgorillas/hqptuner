@@ -45,7 +45,6 @@ function load({ min, max, fixed = false }) {
       { name: "backend", type: "select" },
       { name: "alsa_bits", type: "number" },
     ],
-    profiles: null,
   };
   seedReadings({
     volume_min: min,
