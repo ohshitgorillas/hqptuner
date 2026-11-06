@@ -35,6 +35,7 @@ import * as signals from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import * as narrow from "../../../../hqptuner/static/store/narrow/state.js";
 import { everyWrite } from "./easytable.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { fieldReading, seedReadings } from "../readings.js";
 import { stagingWire, ok } from "../wire/wire.js";
 import { engineRows, configPayload, enumerations, loaded } from "./easyrate.js";
@@ -117,8 +118,8 @@ const pick = (names, chosen) => ({
 });
 
 /**
- * The daemon's form as /api/config serves it: keyed by form-field name, each
- * filter field carrying its own chain's enumeration.
+ * The daemon's form metadata the `config` signal holds: keyed by form-field
+ * name, each filter field carrying its own chain's enumeration.
  *
  * @param {string} mode
  * @param {Record<string, string>} names filter names by SCHEMA key
@@ -184,7 +185,7 @@ const routes = (path, opts, w) => {
   }
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: signals.engineState.value });
   if (path === "/api/enumerations") return ok({ data: signals.enums.value });
-  if (path === "/api/config") return ok({ data: signals.config.value });
+  if (path === "/api/config") return ok(readings.value);
   return undefined;
 };
 
