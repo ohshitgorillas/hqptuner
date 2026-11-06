@@ -9,7 +9,7 @@
 // never with a literal. Refusal details and station names are the fixture's own wire data.
 //
 // The status is written only from the upload's handler and persists for the life of this file, so the page as it reads
-// before any import is captured once, at load. The station-list case runs last, since it moves the config.
+// before any import is captured once, at load. The station-list case runs last, since it moves the served station list.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-settings/about-state-import.test.js
 
@@ -19,10 +19,11 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { About } from "../../../../hqptuner/static/components/faceplate/settings/About.js";
-import { health, config } from "../../../../hqptuner/static/store/signals.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded } from "../../../../hqptuner/static/store/faceplate/stations.js";
 import { text } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
 
@@ -49,13 +50,13 @@ const DETAIL = "fixture refusal 7f3a";
 const OTHER_CODE = "invalid_input";
 
 /**
- * A config as /api/config serves it, offering the "(no preset)" entry and the named presets given.
+ * The `profiles` metadata /api/config serves, offering the "(no preset)" entry and the named presets given.
  *
  * @param {string[]} names
  */
 const offering = (names) => ({
-  fields: [],
-  profiles: { value: "", options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
+  value: { value: "", options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
+  readonly: true,
 });
 
 /**
@@ -83,7 +84,7 @@ const inflight = new Set();
 async function answer(path) {
   if (path === "/api/state-import") return importAnswer();
   if (path === "/api/health") return ok({ ...PAYLOAD });
-  if (path === "/api/config") return ok({ data: offering(serverStations) });
+  if (path === "/api/config") return ok({ generation: 0, fields: { profiles: offering(serverStations) } });
   if (path === "/api/livepresets") {
     return ok({ station: "", presets: [], stations: Object.fromEntries(["", ...serverStations].map((s) => [s, {}])) });
   }
@@ -126,7 +127,7 @@ beforeEach(() => {
   liveBook.value = {};
   unfolded.value = null;
   serverStations = STATIONS_BEFORE;
-  config.value = offering(STATIONS_BEFORE);
+  seedReadings({ profiles: offering(STATIONS_BEFORE) });
   importAnswer = async () => ok({ ok: true });
   inflight.clear();
   CALLS.length = 0;

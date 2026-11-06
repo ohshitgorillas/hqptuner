@@ -25,7 +25,7 @@ export const health = signal(null);
 export const engineState = signal(null); // /api/state data (live indices)
 export const engineStatus = signal(null); // /api/status data
 export const enums = signal(null);
-export const config = signal(null); // /api/config data {fields, profiles}
+export const config = signal(null); // /api/config data {fields}
 export const matrixConfig = signal(null); // /api/matrix data {fields} (crossfeed/correction)
 export const metadata = signal(null); // static: {filters, shapers, settings}
 

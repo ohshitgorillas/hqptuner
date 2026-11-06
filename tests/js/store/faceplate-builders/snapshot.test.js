@@ -178,10 +178,10 @@ function serve(mode, active, profile = "") {
   ];
   config.value = {
     fields: [{ name: "mode", options: [] }, ...formFields.map(({ name, options }) => ({ name, options }))],
-    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
   };
   matrixConfig.value = { fields: [] };
   seedReadings({
+    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
     mode,
     ...Object.fromEntries(formFields.map(({ name, value }) => [name, value])),
     active_preset: { value: active, readonly: true },

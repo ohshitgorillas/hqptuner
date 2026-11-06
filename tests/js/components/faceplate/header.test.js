@@ -79,7 +79,11 @@ function answer(path) {
  *
  * @param {string} name
  */
-const loadStation = (name) => seedReadings({ active_preset: { value: name, readonly: true } });
+const loadStation = (name) =>
+  seedReadings({
+    active_preset: { value: name, readonly: true },
+    profiles: { value: { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) }, readonly: true },
+  });
 
 /**
  * Lets the apply `holdApply` holds finish; a no-op while none is held.
@@ -111,10 +115,7 @@ beforeEach(async () => {
   };
   engineState.value = {};
   matrixConfig.value = { fields: [] };
-  config.value = {
-    fields: [],
-    profiles: { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) },
-  };
+  config.value = { fields: [] };
   liveBook.value = { Day: { Warm: snap() }, Night: { Quiet: snap() } };
   livePresets.value = null;
   livePresetStation.value = null;

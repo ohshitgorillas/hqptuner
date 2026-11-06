@@ -129,10 +129,8 @@ function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA,
       { name: "alsa_device", type: "select", options: ALSA_OPTIONS },
       { name: "channels", type: "number" },
     ],
-    profiles: null,
-    device_caps: caps,
   };
-  seedReadings(served(wire));
+  seedReadings({ ...served(wire), device_caps: { value: caps, readonly: true } });
 }
 
 beforeEach(async () => {

@@ -2,7 +2,7 @@
 // with the live snapshots saved under its name. One station's snapshots are unfolded at a time.
 
 import { signal } from "@preact/signals";
-import { config } from "../signals.js";
+import { metadataValue } from "../core/readings.js";
 import { activePreset } from "../resolve.js";
 import { liveBook } from "../live/presets.js";
 
@@ -39,8 +39,8 @@ export function toggleStation(name) {
  * @returns {Station[]}
  */
 export function stationTree() {
-  /** @type {{ value: string }[]} */
-  const options = config.value?.profiles?.options ?? [];
+  const offered = /** @type {{ options?: { value: string }[] } | null} */ (metadataValue("profiles"));
+  const options = offered?.options ?? [];
   const book = /** @type {Record<string, Record<string, SnapRecord>>} */ (liveBook.value ?? {});
   return options
     .filter((o) => o.value !== "")

@@ -46,6 +46,17 @@ function stagedValue(entry, reading) {
 }
 
 /**
+ * The value of one served metadata reading (`profiles`, `device_caps`), else null.
+ *
+ * @param {string} name
+ * @returns {unknown}
+ */
+export function metadataValue(name) {
+  const reading = readings.value?.fields[name];
+  return reading && "readonly" in reading ? reading.value : null;
+}
+
+/**
  * The view of one field by catalog key or by the name the server serves it under; both name the same view.
  *
  * @param {string} name

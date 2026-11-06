@@ -2,7 +2,7 @@
 // per named preset the config offers, the loaded one marked, each carrying the live snapshots the book holds under its
 // name; one station unfolded at a time.
 //
-// Driven by assigning the exported signals the tree is read from: the config the poll writes and the live-snapshot
+// Driven by assigning the exported signals the tree is read from: the served readings the poll adopts and the live-snapshot
 // book store/live/presets.js reads. Preset and snapshot names are the fixture's own wire data.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/stations.test.js
@@ -10,7 +10,6 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config } from "../../../../hqptuner/static/store/signals.js";
 import { seedReadings } from "../../support/readings.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
@@ -18,13 +17,13 @@ import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/stati
 /** @typedef {ReturnType<typeof stationTree>[number]} Station */
 
 /**
- * A config as /api/config serves it, offering the "(no preset)" entry and the named presets given.
+ * The `profiles` metadata /api/config serves, offering the "(no preset)" entry and the named presets given.
  *
  * @param {string[]} names
  */
 const offering = (names) => ({
-  fields: [],
-  profiles: { options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
+  value: { options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
+  readonly: true,
 });
 
 /**
@@ -34,8 +33,7 @@ const offering = (names) => ({
  * @param {string[]} names
  */
 function serve(active, names) {
-  config.value = offering(names);
-  seedReadings({ active_preset: { value: active, readonly: true } });
+  seedReadings({ active_preset: { value: active, readonly: true }, profiles: offering(names) });
 }
 
 /** A live snapshot record as the book holds it. */
