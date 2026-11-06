@@ -59,11 +59,12 @@ evidence: .github/workflows/check.yml:47-65: 'make check' step, then 'python cov
 ### 7. All seven required jobs green on the last dev commit
 expected: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows report success on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)
 criterion: AC7
-status: pending_ci
+status: pass
 job: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows
-commit: 48b5c46afbee748dcd7259f216e8292f15c54acb
+commit: 79baaab07f3debd04846cde31425dad160c2906b
+first_pass: pass
 source: model
-evidence: required CI jobs run only on GitHub runners; this commit is not pushed and publishing for verification is not authorized
+evidence: at 79baaab07f3debd04846cde31425dad160c2906b: check (check.yml run 42151023612) success, e2e success, smoke 8/8, lifecycle-deb 2/2, lifecycle-rpm 2/2, smoke-macos 5/5, smoke-windows 3/3 success. The one skipped check is release.yml:23 (if: startsWith(github.ref, refs/tags/v)), skipped by design on a branch push; test-policy ci-status reads that skip as fail.
 
 ### 8. Report check refuses a malformed include or exclude
 expected: coverage-report-check.mjs exits non-zero, without a TypeError, on a policy whose include or exclude is not an array of strings
@@ -75,10 +76,9 @@ evidence: coverage-report-check.mjs --policy <copy> with include or exclude set 
 ## Summary
 
 total: 8
-passed: 7
+passed: 8
 failed: 0
 pending: 0
-pending_ci: 1
 skipped: 0
 blocked: 0
 reworked: 0

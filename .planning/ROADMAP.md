@@ -6,7 +6,7 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 
 ## Phases
 
-- [ ] **Phase 1: Coverage gate in CI** - CI enforces the accepted testing policy and the suite meets it
+- [x] **Phase 1: Coverage gate in CI** - CI enforces the accepted testing policy and the suite meets it
 - [ ] **Phase 2: Windows network access** - a fresh Windows install is reachable from other devices
 - [ ] **Phase 3: Windows upgrade install** - installing over an existing version leaves a working app
 
