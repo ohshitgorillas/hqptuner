@@ -1,0 +1,63 @@
+{
+  "phase": "3",
+  "trigger": "plan",
+  "discriminator": "plan-af151d5",
+  "round": 1,
+  "base": "8c43e9a2",
+  "head": "af151d59",
+  "base_id": "8c43e9a26db37a8ccc56a72205b35b4c967d7154",
+  "head_id": "af151d59e939a1707b51c6eacd72814bb04cf7ca",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN-2.md",
+      "line": 39,
+      "severity": "high",
+      "claim": "Task 1's red run hinges on the broken app answering /api/health, but the PyInstaller bootloader holds the GIL while its error dialog is open, so the server thread freezes once the dialog appears. Whether the existing check accepts the broken app then depends on a sub-second race, so the red run is not a reliable bite proof, and a pass does not cleanly refute UAT item 7.",
+      "failure_scenario": "The bundled runw.exe (/tmp/plan2-probe/pyi/PyInstaller/bootloader/Windows-64bit-intel/runw.exe) resolves PyErr_Fetch, PyObject_Str and Py_Finalize by name, but never PyEval_SaveThread, PyEval_ReleaseThread or PyGILState_*. So the main thread keeps the GIL while DialogBoxIndirectParamW runs. In hqptuner/desktop.py:270-281 the main thread goes straight from worker.start() to browse, the pystray and PIL imports, and Image.open(tray.png). That is likely to raise and open the dialog before uvicorn finishes startup on the daemon thread. The kernel still accepts connections on the bound socket, so curl hits its 2 s --max-time and returns 000. After 30 tries the shared sequence rejects the app with 'answered 000 after 30 tries' and the control passes. Task 1 then halts the plan and reports to the owner that UAT's cause is refuted. On a run where health happens to be polled before the dialog opens, the same commit goes red as expected. Task 2's own line 44 ('the server thread may stop answering once the dialog is up') concedes the condition that defeats Task 1's expected outcome, and assumption line 54 is presented as open when this bootloader evidence already points against it.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "af151d59",
+      "base_id": "8c43e9a26db37a8ccc56a72205b35b4c967d7154",
+      "head_id": "af151d59e939a1707b51c6eacd72814bb04cf7ca"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN-2.md",
+      "line": 45,
+      "severity": "medium",
+      "claim": "The plan says the control 'proves each half discriminates' (docs/testing.md rule 10), but for the tray half the control never runs the Shell_NotifyIconGetRect query. So nothing shows that the query can say 'no icon' for a window the app owns. That leaves must-be-true line 18 (the shell holds an icon) unfalsified.",
+      "failure_scenario": "On the broken install, pystray_icon raises at Image.open before backend.Icon is built (hqptuner/desktop.py:235-236). No '*SystemTrayIcon' window ever exists, so the helper reports 'no icon' from its class-name filter alone. Take a helper that misreads the HRESULT, for example by treating any return as success, or by querying with the wrong cbSize or guidItem so the call fails in a way that gets read as success. It still reports 'no icon' in the control and 'icon present' on the healthy rows, and the green run passes. It would also accept an app whose pystray window exists but whose NIM_ADD failed (no taskbar, or a pystray change), which is the 'tray icon shown' half of ROADMAP criterion 1. Neither run in the plan can tell this helper from a correct one.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "af151d59",
+      "base_id": "8c43e9a26db37a8ccc56a72205b35b4c967d7154",
+      "head_id": "af151d59e939a1707b51c6eacd72814bb04cf7ca"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN-2.md",
+      "line": 21,
+      "severity": "low",
+      "claim": "The must-be-true says the red run 'is recorded before the new check lands', and Task 1 says to record the run id and failing lines. Neither names where the record goes, and the files: lease (line 7) covers only packaging/windows/smoke.sh.",
+      "failure_scenario": "The executor writes the red-run record into a .planning report or SUMMARY.md, which is outside the lease, or records it nowhere. Since no artifact is named, a verifier cannot check that the record exists or that it came before the Task 2 commit.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "af151d59",
+      "base_id": "8c43e9a26db37a8ccc56a72205b35b4c967d7154",
+      "head_id": "af151d59e939a1707b51c6eacd72814bb04cf7ca"
+    }
+  ]
+}
