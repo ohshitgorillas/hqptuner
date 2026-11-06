@@ -66,19 +66,19 @@ let serial = 0;
  * @param {string} idleTime
  * @param {string} song
  */
-function playing(idleTime, song) {
+async function playing(idleTime, song) {
   serial += 1;
   config.value = { fields: [{ name: "idle_time" }] };
-  seedReadings({ idle_time: idleTime });
+  await seedReadings({ idle_time: idleTime });
   engineStatus.value = {
     status: { state: "2", track_serial: String(serial), process_speed: "1.5", clips: "0" },
     metadata: { song },
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   openStage.value = null;
-  playing("10000", "Track");
+  await playing("10000", "Track");
 });
 
 /** Every element of the rendered rail. */
@@ -148,7 +148,7 @@ test("test_only_the_readout_set_wide_is_wide", () => {
   );
 });
 
-test("test_a_raised_alert_blinks_its_category", () => {
-  playing("0", "Roon");
+test("test_a_raised_alert_blinks_its_category", async () => {
+  await playing("0", "Roon");
   assert.equal(attr(button("timing"), "data-alert"), "warn");
 });

@@ -52,7 +52,7 @@ const ENGINE = { cuda: "convolution", multicore: "0", ecores: "pool", nblocks: "
  * @param {EngineTable} [engine]
  */
 async function load(engine = ENGINE) {
-  seedReadings(
+  await seedReadings(
     Object.fromEntries(
       ["multicore", "ecores", "cuda"].map((key) => [key, fieldReading(engine[key], { restarts: true })]),
     ),
@@ -63,7 +63,7 @@ async function load(engine = ENGINE) {
   await loadHardware();
 }
 
-beforeEach(() => load());
+beforeEach(async () => await load());
 
 /**
  * Each catalog setting of the drawer with a second value of its engine attribute, different from the one ENGINE reports.

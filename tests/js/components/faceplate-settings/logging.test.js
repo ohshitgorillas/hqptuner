@@ -50,14 +50,14 @@ const FORM = {
  *
  * @param {boolean} on
  */
-function load(on) {
+async function load(on) {
   config.value = FORM;
-  seedReadings({ log_enabled: on, log_file: RUNNING_PATH });
+  await seedReadings({ log_enabled: on, log_file: RUNNING_PATH });
 }
 
 beforeEach(async () => {
   stagingWire();
-  load(false);
+  await load(false);
   engineState.value = {};
   engineStatus.value = {};
   enums.value = {};

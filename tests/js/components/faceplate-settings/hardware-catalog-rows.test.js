@@ -79,7 +79,7 @@ async function reset() {
     },
   });
   config.value = { fields: [{ name: "direct_sdm" }] };
-  seedReadings({ direct_sdm: false });
+  await seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
   metadata.value = null;
