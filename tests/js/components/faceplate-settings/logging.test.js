@@ -31,28 +31,33 @@ import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settin
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const RUNNING_PATH = "/var/log/hqplayerd-running.log";
 
+/** The daemon's form: field names and types; the values are readings. */
+const FORM = {
+  fields: [
+    { name: "log_enabled", type: "checkbox" },
+    { name: "log_file", type: "text" },
+  ],
+};
+
 /**
- * The daemon's form with logging switched as given.
+ * Serve the daemon's form with logging switched as given.
  *
  * @param {boolean} on
  */
-const form = (on) => ({
-  fields: [
-    { name: "log_enabled", type: "checkbox", value: on },
-    { name: "log_file", type: "text", value: RUNNING_PATH },
-  ],
-  file: {},
-  active: "",
-});
+function load(on) {
+  config.value = FORM;
+  seedReadings({ log_enabled: on, log_file: RUNNING_PATH });
+}
 
 beforeEach(async () => {
   stagingWire();
-  config.value = form(false);
+  load(false);
   engineState.value = {};
   engineStatus.value = {};
   enums.value = {};

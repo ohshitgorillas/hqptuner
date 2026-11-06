@@ -20,6 +20,7 @@ import assert from "node:assert/strict";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { health, config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
 import { rec, STATE } from "../../support/wire/livepresetwire.js";
 import { NARROWING_DEFAULTS } from "../../support/wire/narrowingwire.js";
@@ -35,7 +36,10 @@ const PAYLOAD = {
 
 const STATION = "Night";
 const STAMP = "2026-02-03T04:05:06+00:00";
-const FIELDS = [{ name: "volume_max", value: "-3" }];
+const FIELDS = [{ name: "volume_max" }];
+
+//: The values the daemon serves for the form fields above and the matrix form below.
+const SERVED = { volume_max: "-3", post_bauer_enabled: "1", post_bauer_preset: "default" };
 
 const PRE_FAVORITE = "pre-import-filter";
 const IMPORTED_FAVORITE = "imported-filter";
@@ -147,14 +151,11 @@ const W = stagingWire({
 });
 
 health.value = { ...PAYLOAD };
-config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+config.value = { fields: FIELDS, profiles: null };
 matrixConfig.value = {
-  fields: [
-    { name: "post_bauer_enabled", value: "1" },
-    { name: "post_bauer_preset", value: "default" },
-  ],
-  rows: [],
+  fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }],
 };
+seedReadings(SERVED);
 
 const { About } = await import("../../../../hqptuner/static/components/faceplate/settings/About.js");
 const { toggleFavorite, hydrateFavorites } = await import("../../../../hqptuner/static/store/narrow/favorites.js");
@@ -221,7 +222,7 @@ test("test_the_live_snapshots_after_an_import_are_the_imported_ones", () => {
 });
 
 test("test_a_station_looked_at_after_an_import_takes_the_matrix_mode_the_import_recorded", async () => {
-  config.value = { fields: FIELDS, file: {}, active: STATION, profiles: null };
+  seedReadings({ ...SERVED, active_preset: { value: STATION, readonly: true } });
   await quiesce(W);
   assert.equal(matrixMode.value, "headphones");
 });

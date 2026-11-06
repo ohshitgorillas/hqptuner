@@ -37,6 +37,7 @@ import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -51,28 +52,30 @@ const SHORT_OPTIONS = [
   { value: "1", label: "Short" },
 ];
 
+/** The config form: field names, types and the options the wire carries; the values are readings. */
+const FORM = {
+  fields: [
+    { name: "idle_time", type: "select", options: IDLE_OPTIONS },
+    { name: "quick_pause", type: "checkbox" },
+    { name: "short_buffer", type: "select", options: SHORT_OPTIONS },
+    { name: "upnp_freewheel", type: "checkbox" },
+  ],
+};
+
 /**
- * The config form with idle time and UPnP freewheel at the values given.
+ * Serve the config form with idle time and UPnP freewheel at the values given.
  *
  * @param {string} idle
  * @param {boolean} freewheel
  */
-function form(idle, freewheel) {
-  return {
-    fields: [
-      { name: "idle_time", type: "select", value: idle, options: IDLE_OPTIONS },
-      { name: "quick_pause", type: "checkbox", value: false },
-      { name: "short_buffer", type: "select", value: "0", options: SHORT_OPTIONS },
-      { name: "upnp_freewheel", type: "checkbox", value: freewheel },
-    ],
-    file: {},
-    active: "",
-  };
+function load(idle, freewheel) {
+  config.value = FORM;
+  seedReadings({ idle_time: idle, quick_pause: false, short_buffer: "0", upnp_freewheel: freewheel });
 }
 
 beforeEach(async () => {
   stagingWire();
-  config.value = form("0", false);
+  load("0", false);
   engineState.value = {};
   engineStatus.value = { metering: true };
   enums.value = {};
@@ -131,7 +134,7 @@ test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
 });
 
 test("test_a_readout_prints_the_label_of_the_running_option", () => {
-  config.value = form("10000", false);
+  load("10000", false);
   assert.equal(railText(TIMING_READOUTS), "10");
 });
 
@@ -145,6 +148,6 @@ test("test_a_checkbox_readout_reads_its_running_false_as_the_off_option_value", 
 });
 
 test("test_a_checkbox_readout_reads_its_running_true_as_the_on_option_value", () => {
-  config.value = form("0", true);
+  load("0", true);
   assert.equal(UPNP_READOUTS[0]?.value(), "1");
 });
