@@ -7,7 +7,8 @@
 # Installing over the previous release must leave an app that starts and keeps
 # running, and the uninstaller must still work after it. That holds whether the
 # previous release's app was quit first or left running; when it was left
-# running, none of it may remain once the installer returns.
+# running, none of it may remain once the installer returns. After either, the
+# uninstaller must leave no install directory.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -228,6 +229,17 @@ check_upgraded() {
   UP_PID=""
 }
 
+# Uninstall the upgraded install. The uninstaller removes the directory after
+# its own executable, so the directory gets at most 10 s to go.
+uninstall_upgraded() {
+  uninstall "$1" "$UPGRADE_APP"
+  for _ in $(seq 1 10); do
+    if [ ! -e "$UPGRADE_APP" ]; then return 0; fi
+    sleep 1
+  done
+  die "$1: $UPGRADE_APP still present 10 s after uninstall"
+}
+
 # The previous release, quit before the installer runs.
 upgrade_quit() {
   upgrade_begin upgrade-quit
@@ -236,7 +248,7 @@ upgrade_quit() {
   PREV_PID=""
   install_over "step 8 (previous release quit)"
   check_upgraded "step 8 (previous release quit)"
-  uninstall "step 8 (previous release quit)" "$UPGRADE_APP"
+  uninstall_upgraded "step 8 (previous release quit)"
 }
 
 # The previous release, left running while the installer runs. Setup must have
@@ -252,7 +264,7 @@ upgrade_running() {
   fi
   PREV_PID=""
   check_upgraded "$label"
-  uninstall "$label" "$UPGRADE_APP"
+  uninstall_upgraded "$label"
 }
 
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
