@@ -81,15 +81,18 @@ stop_windows_pid() {
     'Stop-Process -Id ([int]$env:WIN_PID) -Force -ErrorAction SilentlyContinue'
 }
 
-# Run the uninstaller of the install at $APP and wait, at most 10 s, for the exe to go.
+# Run the uninstaller of the install at $APP and wait, at most 10 s, for it to
+# finish. The uninstaller hands off to a temp copy and returns at once; that copy
+# removes the exe and then the uninstaller itself, so both must be gone.
 uninstall() {
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$APP/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
     || die "$1: the uninstaller failed"
   for _ in $(seq 1 10); do
-    [ -e "$BIN" ] || break
+    if [ ! -e "$BIN" ] && [ ! -e "$APP/unins000.exe" ]; then return 0; fi
     sleep 1
   done
   [ ! -e "$BIN" ] || die "$1: $BIN still present 10 s after uninstall"
+  die "$1: $APP/unins000.exe still present 10 s after uninstall"
 }
 
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
