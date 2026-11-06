@@ -50,9 +50,9 @@ let held = null;
  * @param {string[]} live  MatrixListProfiles
  * @param {string} active  MatrixGetProfile, "" for the unnamed one
  */
-const form = (live, active) => {
+const form = async (live, active) => {
   enums.value = { matrix_profiles: live };
-  seedReadings({ matrix_profile: profileReading(active) }, 0);
+  await seedReadings({ matrix_profile: profileReading(active) }, 0);
   return { fields: [] };
 };
 
@@ -93,7 +93,7 @@ beforeEach(async () => {
     return answer(path, opts.method || "GET", body);
   };
   config.value = { fields: [] };
-  matrixConfig.value = form(["Desk", "Lounge"], "Lounge");
+  matrixConfig.value = await form(["Desk", "Lounge"], "Lounge");
   nextName = "Lounge";
   descriptions.value = {};
   switchAnswer = undefined;
@@ -116,8 +116,8 @@ test("test_the_running_profile_is_the_picked_choice", () => {
   assert.equal(profileChoices().value, "Lounge");
 });
 
-test("test_a_saved_name_the_engine_did_not_load_is_disabled", () => {
-  matrixConfig.value = { ...form(["Lounge"], "Lounge"), file_profiles: { Desk: { rows: [] } } };
+test("test_a_saved_name_the_engine_did_not_load_is_disabled", async () => {
+  matrixConfig.value = { ...(await form(["Lounge"], "Lounge")), file_profiles: { Desk: { rows: [] } } };
   assert.deepEqual(
     profileChoices()
       .options.filter((o) => o.disabled)
@@ -187,10 +187,10 @@ test("test_an_edit_reaches_the_wire_under_the_running_profiles_name", async () =
   );
 });
 
-test("test_an_edit_does_not_follow_a_switch_to_another_profile", () => {
+test("test_an_edit_does_not_follow_a_switch_to_another_profile", async () => {
   descriptions.value = { Desk: { text: "Nearfield.", updated: "2026-10-01T00:00:00+00:00" } };
   editDescription("Mains, late night.");
-  matrixConfig.value = form(["Desk", "Lounge"], "Desk");
+  matrixConfig.value = await form(["Desk", "Lounge"], "Desk");
   assert.equal(profileDescription().text, "Nearfield.");
 });
 

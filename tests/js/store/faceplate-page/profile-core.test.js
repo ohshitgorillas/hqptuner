@@ -32,8 +32,8 @@ function hold() {
 }
 
 /** @param {string} name */
-function serve(name) {
-  seedReadings(
+async function serve(name) {
+  await seedReadings(
     {
       active_preset: { value: FIRST, readonly: true },
       profiles: { value: { options: [{ value: FIRST }] }, readonly: true },
@@ -52,11 +52,11 @@ function serve(name) {
   );
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   config.value = { fields: [] };
   matrixConfig.value = { fields: [], file_profiles: {}, preset_profiles: { [FIRST]: [] } };
   enums.value = { matrix_profiles: [FIRST, SECOND] };
-  serve(FIRST);
+  await serve(FIRST);
   answer = null;
   reached = hold();
   cur.value = { st: FIRST, name: SECOND };
@@ -85,9 +85,9 @@ afterEach(async () => {
 });
 
 // Break: the active profile still reads the matrix form's stale name.
-test("test_active_profile_follows_replacement_served_readings", () => {
+test("test_active_profile_follows_replacement_served_readings", async () => {
   const seen = [matrixActiveProfile.value];
-  serve(SECOND);
+  await serve(SECOND);
   seen.push(matrixActiveProfile.value);
   assert.deepEqual(seen, [FIRST, SECOND]);
 });
