@@ -57,10 +57,6 @@ CYCLES_PER_MOVE = 2
 #: A bound on the passes one move may take; reached only by a lane that stopped polling.
 PASSES_PER_MOVE = 12
 
-#: Daemon-reported startup-volume bounds after each refresh.
-FIRST_MINIMUM = -48
-SECOND_MINIMUM = -36
-
 #: The restore-lane field and value whose `pending` event ends the read.
 END_FIELD = "marker"
 END_VALUE = "read-end"
@@ -75,19 +71,6 @@ def _read_closed_by(field: str) -> Callable[[Sequence[SseBlock]], bool]:
         return isinstance(http, dict) and field in http
 
     return closed
-
-
-def _minimums_pushed(blocks: Sequence[SseBlock]) -> list[object]:
-    """The startup-volume minimum carried by each config event."""
-    minimums: list[object] = []
-    for config in events(blocks, "config"):
-        body = json.loads(config.data)
-        fields = body.get("fields") if isinstance(body, dict) else None
-        volume = fields.get("defaults_volume") if isinstance(fields, dict) else None
-        bounds = volume.get("bounds") if isinstance(volume, dict) else None
-        if isinstance(bounds, dict):
-            minimums.append(bounds.get("min"))
-    return minimums
 
 
 def _verdicts_pushed(blocks: Sequence[SseBlock]) -> list[object]:
@@ -164,21 +147,6 @@ def app(tmp_path: Path, http: dict[str, Any]) -> Iterator[TestClient]:
         wait_for_api(client, phase_is_ready)
         yield client
     next(daemon, None)
-
-
-# Break: publish form refreshes only at keepalive or a later staging event.
-def test_daemon_bounds_reach_the_subscriber_on_the_refresh_that_read_them(
-    app: TestClient, http: dict[str, Any]
-) -> None:
-    blocks = _pushed_across_two_moves(
-        app,
-        http,
-        [
-            ("_defaults_volume_bounds", {"min": FIRST_MINIMUM, "max": 0, "step": 1}),
-            ("_defaults_volume_bounds", {"min": SECOND_MINIMUM, "max": 0, "step": 1}),
-        ],
-    )
-    assert FIRST_MINIMUM in _minimums_pushed(blocks)
 
 
 def test_a_credential_verdict_reaches_the_subscriber_on_the_refresh_that_read_it(

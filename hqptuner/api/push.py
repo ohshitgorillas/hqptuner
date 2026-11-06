@@ -1,7 +1,7 @@
 """The page's push stream: the read snapshots it would otherwise poll, as server-sent events sent again on change.
 
 Each event is named for its route and carries that route's JSON body: ``health``, ``state``, ``status``, ``volume``,
-``enumerations``, ``config``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves;
+``enumerations``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves;
 every event's content is its whole body. A body its route would refuse is withheld, and the text held for
 it forgotten, so the next body that route answers goes out however it compares with the last one sent.
 
@@ -27,7 +27,7 @@ from fastapi.responses import StreamingResponse
 
 from hqptuner.api.deps import credentialed
 from hqptuner.api.errors import ApiError
-from hqptuner.api.routes import config, status, volume
+from hqptuner.api.routes import status, volume
 from hqptuner.api.routes.matrix import matrix
 from hqptuner.clock import Clock
 from hqptuner.core.manager import ConnectionManager
@@ -61,14 +61,13 @@ class Held:
 
 
 def sources(manager: ConnectionManager, static: StaticMetadata, store: PendingStore) -> list[Source]:
-    """Return the eight events in the order a new subscriber receives them, each read through its route's body."""
+    """Return the seven events in the order a new subscriber receives them, each read through its route's body."""
     return [
         Source("health", lambda: status.health(manager)),
         Source("state", lambda: status.state(manager)),
         Source("status", lambda: status.status(manager)),
         Source("volume", lambda: volume.volume_get(manager)),
         Source("enumerations", lambda: status.merged_enumerations(manager, static)),
-        Source("config", lambda: config.current_config(manager, store)),
         Source("matrix", lambda: matrix.matrix(credentialed(manager))),
         Source("pending", store.snapshot),
     ]
