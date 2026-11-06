@@ -21,6 +21,8 @@ import {
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { previewPreset, clearPreview, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * @typedef {import("../../support/wire/wire.js").FakeResponse} FakeResponse
@@ -51,7 +53,7 @@ afterEach(() => {
  */
 function defaultAnswerFor(path) {
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
-  if (path === "/api/config") return ok({ data: config.value });
+  if (path === "/api/config") return ok(readings.value);
   if (path === "/api/matrix") return ok({ data: matrixConfig.value });
   if (path === "/api/enumerations") return ok({ data: null });
   if (path === "/api/config/apply") return ok({ report: {} });
@@ -79,7 +81,11 @@ const field = (name, value) => ({ name, value });
  */
 async function reset({ fields = [], active = "", routes = {} } = {}) {
   engineState.value = {};
-  config.value = { fields, file: {}, active };
+  config.value = { fields: fields.map(({ name }) => ({ name })) };
+  seedReadings({
+    ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
+    active_preset: { value: active, readonly: true },
+  });
   matrixConfig.value = { fields: [] };
   lastApply.value = null;
   wire(routes);

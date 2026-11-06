@@ -29,6 +29,7 @@ import {
   applyLivePreset,
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, presetWire, settle } from "../../support/wire/livepresetwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/live/presets.js").LivePreset} LivePreset */
 
@@ -69,6 +70,7 @@ afterEach(() => {
 function reset({ state, ...wire } = {}) {
   engineState.value = state === undefined ? STATE("pcm") : state;
   config.value = null;
+  seedReadings({});
   livePresets.value = null;
   liveBook.value = null;
   livePresetStation.value = null;
@@ -266,7 +268,7 @@ test("test_a_change_of_loaded_station_re_reads_the_list", async () => {
   await settle();
   w.station = "Den";
   w.presets = [rec("Warm", "pcm")];
-  config.value = { active: "Den" };
+  seedReadings({ active_preset: { value: "Den", readonly: true } });
   await settle();
   assert.deepEqual(names(), ["Warm"]);
 });

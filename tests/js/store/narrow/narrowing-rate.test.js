@@ -55,6 +55,7 @@ import {
 import { narrowOptions, rateAutoHide, effHideLimited } from "../../../../hqptuner/static/store/narrow/match.js";
 import { narrowingError, hydrateNarrowing, flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { enums, metadata, config } from "../../../../hqptuner/static/store/signals.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 const STAGE = "nx";
 const PCM_FIELD = "pcm_filter_nx";
@@ -131,20 +132,18 @@ function reset(filters, overlay = {}, extras = [], engine = {}) {
     filters: { filters: overlay, aliases: {} },
     shapers: { pcm_dithers: {}, sdm_modulators: {} },
   };
-  config.value = {
-    // These settings' /config form rows and file-truth keys carry the wire
-    // spellings — `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the
-    // `output_mode` spelling is the schema's field id, not the wire key).
-    fields: [
-      { name: "mode", value: mode },
-      { name: "backend", value: backend },
-      { name: "alsa_anydsd", value: alsaAnydsd },
-      { name: "net_anydsd", value: netAnydsd },
-    ],
-    file: { mode: mode, backend: backend, alsa_anydsd: alsaAnydsd, net_anydsd: netAnydsd },
-    active: "",
-    profiles: null,
-  };
+  // These settings' /config form rows and readings carry the wire spellings —
+  // `mode`, `backend`, `alsa_anydsd`, `net_anydsd` (the `output_mode` spelling
+  // is the schema's field id, not the wire key).
+  config.value = { fields: ["mode", "backend", "alsa_anydsd", "net_anydsd"].map((name) => ({ name })) };
+  seedReadings(
+    Object.fromEntries(
+      Object.entries({ mode, backend, alsa_anydsd: alsaAnydsd, net_anydsd: netAnydsd }).map(([name, v]) => [
+        name,
+        fieldReading(v, { show: "file" }),
+      ]),
+    ),
+  );
   resetNarrowing();
   const live = filters.map(([name], i) => ({ label: name, value: String(i) }));
   return live.concat(extras.map((name, i) => ({ label: name, value: String(filters.length + i) })));

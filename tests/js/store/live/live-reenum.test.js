@@ -37,6 +37,8 @@ import { engineState, enums, config } from "../../../../hqptuner/static/store/si
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
 import { ok, bad } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 const FILTERS = [
   { index: "0", value: "0", name: "none" },
@@ -135,6 +137,11 @@ const env = globalThis;
 
 const FILE = () => ({ mode: "pcm" });
 
+// The running configuration's overlay as the served readings carry it: each key one field reading showing its file value.
+/** @param {FileTruth} file */
+const fileFields = (file) =>
+  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
+
 // A live-lane server: the write path, plus the endpoints a write re-mirrors
 // from. `report` is the report /api/config/live answers on 200; `status` + `detail`
 // make it refuse instead. `gate(w)` is awaited BEFORE /api/enumerations answers,
@@ -173,7 +180,7 @@ function liveWire({
       if (gate) await gate(w);
       return ok({ data: lists });
     }
-    if (path === "/api/config") return ok({ data: { fields: [], file: overlay, active: "", profiles: null } });
+    if (path === "/api/config") return ok({ generation: readings.value?.generation, fields: fileFields(overlay) });
     // Pending answers RAW — the store mirrors it with the raw unwrapper.
     if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
@@ -190,7 +197,8 @@ function liveWire({
 function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
-  config.value = { fields: [], file, active: "", profiles: null };
+  config.value = { fields: [] };
+  seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 
