@@ -2,7 +2,6 @@
 version = 1
 
 [allowance]
-".claude/hooks/read-volume.py" = { lines = 404 }
 "hqptuner/audit.py" = { lines = 406 }
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
 "hqptuner/static/css/features/volume.css" = { lines = 407 }

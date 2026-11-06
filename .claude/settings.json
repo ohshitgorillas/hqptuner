@@ -62,15 +62,6 @@
             "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/changelog-style.py"
           }
         ]
-      },
-      {
-        "matcher": "Read|Bash|Grep|Glob|WebFetch|WebSearch|Agent|Write|Edit|NotebookEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PROJECT_DIR}\"/.claude/hooks/read-volume.py"
-          }
-        ]
       }
     ]
   },
