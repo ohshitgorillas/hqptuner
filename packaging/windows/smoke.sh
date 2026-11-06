@@ -9,6 +9,8 @@
 # previous release's app was quit first or left running; when it was left
 # running, none of it may remain once the installer returns. After either, the
 # uninstaller must leave no install directory.
+# An upgraded app whose bundled tray image is missing must fail that same check:
+# a control starts one and requires the rejection to name the error dialog.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -51,6 +53,7 @@ PID=""
 INSTALLED_PID=""
 PREV_PID=""
 UP_PID=""
+BROKEN_PID=""
 UPGRADE_APP=""
 UPGRADE_DATA=""
 UPGRADE_LOG=""
@@ -58,7 +61,7 @@ WORK=$(mktemp -d)
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; fi
-  for WINPID in $INSTALLED_PID $PREV_PID $UP_PID; do stop_windows_pid "$WINPID" || true; done
+  for WINPID in $INSTALLED_PID $PREV_PID $UP_PID $BROKEN_PID; do stop_windows_pid "$WINPID" || true; done
   rm -rf "$WORK" || true
 }
 trap cleanup EXIT
@@ -79,6 +82,80 @@ lan_address() {
       | tr -d '\r' > "$cache"
   fi
   cat "$cache"
+}
+
+# Every top-level window of the process with Windows PID $1, one line each, tab
+# separated: handle, class name, 1 or 0 for visible, the HRESULT that
+# Shell_NotifyIconGetRect returns for an icon registered by that window with uID
+# 0 (0x00000000 is S_OK, so an icon is there), and the title. A last line "end"
+# proves the whole script ran. The query only reads: no window is closed, shown
+# or sent input, and no icon is touched. The script travels in a file and the
+# values in the environment, because PowerShell reads everything after -Command as
+# script text. Invoke-Expression runs it, so no execution policy applies.
+app_windows() {
+  local script="$WORK/app-windows.ps1" out
+  if [ ! -s "$script" ]; then
+    cat > "$script" <<'POWERSHELL'
+$ErrorActionPreference = "Stop"
+Add-Type -TypeDefinition @'
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class SmokeWindows {
+  delegate bool EnumProc(IntPtr h, IntPtr l);
+  [StructLayout(LayoutKind.Sequential)] struct Rect { public int L, T, R, B; }
+  [StructLayout(LayoutKind.Sequential)] struct IconId { public uint Size; public IntPtr Wnd; public uint Id; public Guid Item; }
+  [DllImport("user32.dll")] static extern bool EnumWindows(EnumProc p, IntPtr l);
+  [DllImport("user32.dll")] static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
+  [DllImport("user32.dll")] static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetClassNameW(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern int GetWindowTextW(IntPtr h, StringBuilder s, int n);
+  [DllImport("shell32.dll")] static extern int Shell_NotifyIconGetRect(ref IconId id, out Rect r);
+  static string Clean(string s) { return s.Replace("\t", " ").Replace("\r", " ").Replace("\n", " "); }
+  public static string[] Report(uint pid) {
+    var lines = new List<string>();
+    EnumWindows(delegate (IntPtr h, IntPtr l) {
+      uint owner;
+      GetWindowThreadProcessId(h, out owner);
+      if (owner != pid) return true;
+      var cls = new StringBuilder(256);
+      GetClassNameW(h, cls, cls.Capacity);
+      var title = new StringBuilder(512);
+      GetWindowTextW(h, title, title.Capacity);
+      var id = new IconId();
+      id.Size = (uint)Marshal.SizeOf(typeof(IconId));
+      id.Wnd = h;
+      id.Id = 0;
+      Rect r;
+      int hr = Shell_NotifyIconGetRect(ref id, out r);
+      lines.Add(string.Format("{0:X}\t{1}\t{2}\t0x{3:X8}\t{4}", h.ToInt64(), Clean(cls.ToString()), IsWindowVisible(h) ? 1 : 0, hr, Clean(title.ToString())));
+      return true;
+    }, IntPtr.Zero);
+    return lines.ToArray();
+  }
+}
+'@
+[SmokeWindows]::Report([uint32]$env:SMOKE_WINDOWS_PID)
+"end"
+POWERSHELL
+  fi
+  out=$(SMOKE_WINDOWS_PID="$1" SMOKE_SCRIPT="$(cygpath -w "$script")" powershell -NoProfile -Command \
+    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' | tr -d '\r') || return 1
+  printf '%s\n' "$out" | tail -n 1 | grep -qx end || { printf '%s\n' "$out" >&2; return 1; }
+  printf '%s\n' "$out"
+}
+
+# The query result for the first visible window titled $2 in the report $1, empty
+# when there is none.
+titled_window_result() {
+  printf '%s\n' "$1" | awk -F'\t' -v title="$2" '!seen && $3 == "1" && $5 == title { print $4; seen = 1 }'
+}
+
+# Succeeds when the report $1 holds a window of pystray's tray class that the
+# query answers S_OK for. The class name is matched on pystray's suffix alone.
+tray_registered() {
+  printf '%s\n' "$1" | awk -F'\t' '$2 ~ /SystemTrayIcon$/ && $4 == "0x00000000" { found = 1 } END { exit !found }'
 }
 
 # Every running process as one "<Windows PID><TAB><image>" line, from Git Bash's
@@ -240,9 +317,22 @@ install_over() {
     || upgrade_die "$1: the installer failed over the previous release"
 }
 
+# The judgment on an upgraded app with Windows PID $1 that has answered
+# /api/health. It prints one finding per line and succeeds when there are none.
+# check_upgraded and the broken-tray control both call it, so they cannot drift.
+judge_upgraded() {
+  for _ in $(seq 1 5); do
+    if ! windows_pid_alive "$1"; then
+      echo "the upgraded app exited within 5 s of answering"
+      return 1
+    fi
+    sleep 1
+  done
+}
+
 # The app the upgrade started must be the only one under $UPGRADE_APP, answer on
-# loopback, still be running after its tray is built, answer at the runner's
-# network address, and stop when asked.
+# loopback, pass the judgment, answer at the runner's network address, and stop
+# when asked.
 check_upgraded() {
   for _ in $(seq 1 10); do
     UP_PID=$(running_under "$UPGRADE_APP")
@@ -260,16 +350,60 @@ check_upgraded() {
     sleep 1
   done
   [ "$code" = 200 ] || upgrade_die "$1: GET /api/health answered $code after 30 tries on the upgraded app"
-  for _ in $(seq 1 5); do
-    windows_pid_alive "$UP_PID" || upgrade_die "$1: the upgraded app exited within 5 s of answering"
-    sleep 1
-  done
+  local findings
+  if ! findings=$(judge_upgraded "$UP_PID"); then upgrade_die "$1: ${findings//$'\n'/; }"; fi
   ADDRESS=$(lan_address)
   [ -n "$ADDRESS" ] || upgrade_die "$1: the runner has no network address besides loopback"
   code=$(status "http://$ADDRESS:8090/api/health")
   [ "$code" = 200 ] || upgrade_die "$1: address check: the upgraded app at $ADDRESS answered $code"
   stop_and_wait "$1" "$UP_PID"
   UP_PID=""
+}
+
+# The reported symptom: the upgraded install lacks the bundled tray image, the
+# app's tray load raises, and the windowed bootloader leaves the process alive
+# behind an "Unhandled exception in script" dialog. This removes that one file,
+# starts the app, and requires three things of it before the judgment runs: the
+# dialog is a visible window, the tray query answers that window with no icon,
+# and no tray icon is registered. Then the judgment must reject the app and name
+# the dialog. The app's /api/health is never read, because its server may never
+# answer. The app is stopped by PID before the verdict is acted on.
+broken_tray_control() {
+  local label="$1: control" image="$UPGRADE_APP/_internal/data/tray.png"
+  local dialog="Unhandled exception in script" report="" result="" findings verdict=0
+  [ -f "$image" ] || die "$label: $image is not in the upgraded install, so removing it proves nothing"
+  rm -f "$image"
+  HQPTUNER_LISTEN_HOST="$LISTEN_HOST" LOCALAPPDATA="$(cygpath -w "$UPGRADE_DATA")" BROWSER="$(cygpath -w /usr/bin/true)" \
+    "$UPGRADE_APP/HQPTuner.exe" &
+  for _ in $(seq 1 10); do
+    BROKEN_PID=$(running_under "$UPGRADE_APP")
+    if [ -n "$BROKEN_PID" ]; then break; fi
+    sleep 1
+  done
+  case "$BROKEN_PID" in
+    ''|*[!0-9]*) upgrade_die "$label: expected one HQPTuner.exe without its tray image, found: '$BROKEN_PID'" ;;
+  esac
+  for _ in $(seq 1 20); do
+    report=$(app_windows "$BROKEN_PID") || upgrade_die "$label: the window report for PID $BROKEN_PID failed"
+    result=$(titled_window_result "$report" "$dialog")
+    if [ -n "$result" ]; then break; fi
+    windows_pid_alive "$BROKEN_PID" || upgrade_die "$label: the app without its tray image exited and showed no dialog"
+    sleep 1
+  done
+  echo "$label: windows of PID $BROKEN_PID (handle, class, visible, tray query, title):" >&2
+  printf '%s\n' "$report" >&2
+  [ -n "$result" ] || upgrade_die "$label: no visible window titled '$dialog' after 20 tries"
+  [ "$result" != 0x00000000 ] || upgrade_die "$label: the tray query answered S_OK for the '$dialog' window"
+  if tray_registered "$report"; then upgrade_die "$label: a tray icon is registered for the app without its tray image"; fi
+  findings=$(judge_upgraded "$BROKEN_PID") || verdict=$?
+  stop_and_wait "$label" "$BROKEN_PID"
+  BROKEN_PID=""
+  [ "$verdict" -ne 0 ] || upgrade_die "$label: the upgraded-app check accepted an install whose tray image is missing"
+  echo "$label: the upgraded-app check rejected it: ${findings//$'\n'/; }" >&2
+  case "$findings" in
+    *"$dialog"*) ;;
+    *) upgrade_die "$label: the upgraded-app check rejected the app without naming '$dialog': ${findings//$'\n'/; }" ;;
+  esac
 }
 
 # Uninstall the upgraded install. The uninstaller removes the directory after
@@ -291,6 +425,7 @@ upgrade_quit() {
   PREV_PID=""
   install_over "step 8 (previous release quit)"
   check_upgraded "step 8 (previous release quit)"
+  broken_tray_control "step 8 (previous release quit)"
   uninstall_upgraded "step 8 (previous release quit)"
 }
 
