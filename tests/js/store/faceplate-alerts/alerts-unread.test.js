@@ -60,10 +60,7 @@ beforeEach(async () => {
   engineStatus.value = null;
   engineState.value = STATE();
   enums.value = ENUMS();
-  config.value = {
-    fields: [],
-    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
-  };
+  config.value = { fields: [] };
   matrixConfig.value = { fields: [] };
   liveBook.value = BOOK();
   livePresets.value = null;
@@ -74,7 +71,10 @@ beforeEach(async () => {
   await discardAll();
   await quiesce(wire);
   await succeedEverywhere(wire);
-  seedReadings({ active_preset: { value: "Day", readonly: true } });
+  seedReadings({
+    active_preset: { value: "Day", readonly: true },
+    profiles: { value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) }, readonly: true },
+  });
 });
 
 afterEach(() => {
