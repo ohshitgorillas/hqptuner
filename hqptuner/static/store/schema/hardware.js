@@ -3,8 +3,7 @@
 //
 // The hardware catalog uses the engine's own form,
 // never the config staging buffer: each key is the engine attribute of the same
-// name, its value is the Hardware drawer's draft over what the engine reported,
-// and the engine's own POST writes it.
+// name, its value is its served reading, and the engine's own POST writes it.
 
 import { CUDA, ECORES, MULTICORE } from "./options.js";
 

@@ -35,7 +35,6 @@ export const volumeDrag = signal(null);
 export const volumeShown = computed(() => (volumeDrag.value != null ? String(volumeDrag.value) : volume.value));
 
 export const pendingPreset = signal(null);
-export const previewConfig = signal(null);
 export const staged = signal({ live: {}, http: {} });
 export const liveOverride = signal({});
 export const lastApply = /** @type {{ value: import("./apply-summary.js").Verdict | null }} */ (signal(null));

@@ -10,7 +10,7 @@ import { schema, stagedSlot } from "./schema.js";
 import { hardware } from "./schema/hardware.js";
 import { speakers } from "./schema/speakers.js";
 import { summarize } from "./apply-summary.js";
-import { volume, staged, liveOverride, previewConfig, pendingPreset, engineStatus, lastApply } from "./signals.js";
+import { volume, staged, liveOverride, pendingPreset, engineStatus, lastApply } from "./signals.js";
 import { canonPipelines, stagedCount, activePreset } from "./resolve.js";
 import { field, readings } from "./core/readings.js";
 import { op, latest, STALE } from "./core/ops.js";
@@ -184,8 +184,7 @@ export async function previewPreset(name) {
     clearPreview();
     return;
   }
-  const r = await api.preset(name);
-  previewConfig.value = (r && r.config) || {};
+  await api.preset(name);
   pendingPreset.value = name;
 }
 
@@ -206,7 +205,6 @@ export async function loadPreset(/** @type {string} */ name) {
  */
 export function clearPreview() {
   pendingPreset.value = null;
-  previewConfig.value = null;
 }
 
 // apply lifecycle: `applying` turns the brand knob busy (store/faceplate/conn.js)

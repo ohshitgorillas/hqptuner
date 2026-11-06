@@ -2,8 +2,8 @@
 // store/schema.js.
 //
 // The speakers catalog uses the daemon's /speakers form (readme §1.9), never the
-// config staging buffer: the value is the form's switch with the drawer's draft
-// over it (store/matrix/speakers.js), and the form's own POST writes it.
+// config staging buffer: the value is its served reading, and the form's own
+// POST writes it.
 
 import { BYPASS_ENGAGE } from "./options.js";
 
