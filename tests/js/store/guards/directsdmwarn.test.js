@@ -73,7 +73,7 @@ async function reset(volume) {
   engineState.value = {};
   config.value = { fields: volume.fields.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(volume.fields.map(({ name, value }) => [name, value])),
     ...Object.fromEntries(Object.entries(volume.file).map(([name, v]) => [name, fieldReading(v, { show: "file" })])),
   });

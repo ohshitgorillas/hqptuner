@@ -99,7 +99,7 @@ async function reset({ rows = pair(), enabled = "0", selected = null, fields = [
     })),
   };
   config.value = { fields: fields.map(({ name }) => ({ name })) };
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
     post_bauer_enabled: enabled,
     post_bauer_preset: "default",

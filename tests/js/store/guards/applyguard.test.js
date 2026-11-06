@@ -116,7 +116,7 @@ async function fixture({ volume = LIVE_VOLUME } = {}) {
   metadata.value = { settings: {}, filters: { filters: {}, aliases: {} }, shapers: { sdm_modulators: {} } };
   config.value = { fields: volume.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(volume.map(({ name, value }) => [name, value])),
     ...Object.fromEntries(
       Object.entries(REMEMBERED_LEVEL).map(([name, v]) => [name, fieldReading(v, { show: "file" })]),

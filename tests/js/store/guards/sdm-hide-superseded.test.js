@@ -151,7 +151,7 @@ async function resetConfigPage({ sdmNx = KEPT, sdm1x = KEPT, pcmNx = KEPT, pcm1x
   };
   const fields = Object.keys(values).map((name) => ({ name, options }));
   config.value = { fields };
-  seedReadings(values);
+  await seedReadings(values);
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;
@@ -362,7 +362,7 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
     })),
   };
   matrixConfig.value = { fields: [], file_profiles: {} };
-  seedReadings({ mode: chain, ...form });
+  await seedReadings({ mode: chain, ...form });
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;

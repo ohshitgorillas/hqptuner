@@ -127,7 +127,7 @@ async function reset(rows, values = {}) {
           })
         : undefined,
   });
-  seedReadings(fields, 1);
+  await seedReadings(fields, 1);
   await discardAll();
   await settle();
 }
