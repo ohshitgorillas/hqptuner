@@ -2,6 +2,7 @@ import test, { beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { control, drawerSession } from "../../../../hqptuner/static/store/faceplate/drawer/control.js";
 import { readings, dropDrag } from "../../../../hqptuner/static/store/core/readings.js";
+import { seedReadings } from "../../support/readings.js";
 import { health, config } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";
@@ -18,9 +19,8 @@ const NEXT_BOUNDS = { min: -48, max: -2, step: 1 };
 
 /** @param {Partial<FieldReading>} [over] */
 function serve(over = {}) {
-  readings.value = {
-    generation: GEN,
-    fields: {
+  seedReadings(
+    {
       [KEY]: {
         engine: { value: ENGINE, name: "fixture", generation: GEN },
         file: { value: FILE, generation: GEN },
@@ -33,7 +33,8 @@ function serve(over = {}) {
         ...over,
       },
     },
-  };
+    GEN,
+  );
 }
 
 /** @type {ReturnType<typeof stagingWire>} */
@@ -43,7 +44,7 @@ beforeEach(async () => {
   dropDrag(KEY);
   serve();
   health.value = { phase: "Ready", generation: GEN };
-  config.value = { fields: [{ name: KEY, type: "number", value: FILE }], file: {} };
+  config.value = { fields: [{ name: KEY, type: "number" }] };
   await discardAll();
   await quiesce(wire);
 });
@@ -257,9 +258,8 @@ test("test_volume_lane_uses_the_immediate_volume_endpoint", async () => {
 test("test_gray_follows_the_staged_fixed_volume_flag", () => {
   const item = control(KEY, {});
   const base = readings.value.fields[KEY];
-  readings.value = {
-    generation: GEN,
-    fields: {
+  seedReadings(
+    {
       [KEY]: base,
       fixed_volume_enabled: {
         ...base,
@@ -268,11 +268,11 @@ test("test_gray_follows_the_staged_fixed_volume_flag", () => {
         staged: true,
       },
     },
-  };
+    GEN,
+  );
   const seen = [Boolean(item.gray)];
-  readings.value = {
-    generation: GEN,
-    fields: {
+  seedReadings(
+    {
       [KEY]: base,
       fixed_volume_enabled: {
         ...base,
@@ -281,7 +281,8 @@ test("test_gray_follows_the_staged_fixed_volume_flag", () => {
         staged: false,
       },
     },
-  };
+    GEN,
+  );
   seen.push(Boolean(item.gray));
   assert.deepEqual(seen, [true, false]);
 });

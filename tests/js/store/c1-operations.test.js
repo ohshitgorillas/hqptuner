@@ -5,6 +5,7 @@ import { faceplateAlerts } from "../../../hqptuner/static/store/faceplate/alerts
 import { config, engineState, enums, lastApply } from "../../../hqptuner/static/store/signals.js";
 import { unreadWire, CONFIG, STATE, ENUMS } from "../support/wire/unreadwire.js";
 import { fail, succeed } from "../support/unreadareas.js";
+import { fieldReading, seedReadings } from "../support/readings.js";
 
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
@@ -16,7 +17,8 @@ const liveArea = op("fixture-c1-live", { alert: "live" });
 
 beforeEach(async () => {
   wire = unreadWire();
-  config.value = CONFIG();
+  const { fields, profiles } = CONFIG();
+  config.value = { fields, profiles };
   engineState.value = STATE();
   enums.value = ENUMS();
   lastApply.value = null;
@@ -24,6 +26,7 @@ beforeEach(async () => {
   liveArea.clear();
   await succeed(wire, "apply");
   await succeed(wire, "live");
+  seedReadings({ mode: fieldReading("pcm", { show: "file" }), active_preset: { value: "Day", readonly: true } });
 });
 
 afterEach(() => {

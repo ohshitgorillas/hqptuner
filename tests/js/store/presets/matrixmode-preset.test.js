@@ -50,7 +50,7 @@ const UNRECORDED = "Attic"; // in the picker, absent from the map
 
 // One ordinary daemon field, carried by every config this file assigns so that
 // an edit staged against it keeps its baseline across a change of preset.
-const FIELDS = [{ name: "volume_max", value: "-3" }];
+const FIELDS = [{ name: "volume_max" }];
 
 /** The lifecycle generation every config reading in this file is stamped with. */
 const GEN = 1;
@@ -168,15 +168,9 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   Object.assign(MODES, PRISTINE);
   pendingPreset.value = null;
   applied = active;
-  config.value = { fields: FIELDS, file: {}, active, profiles: null };
+  config.value = { fields: FIELDS };
   seedReadings(servedFields(active), GEN);
-  matrixConfig.value = {
-    fields: [
-      { name: "post_bauer_enabled", value: "1" },
-      { name: "post_bauer_preset", value: "default" },
-    ],
-    rows: [],
-  };
+  matrixConfig.value = { fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }] };
   await discardAll();
   pendingPreset.value = pending;
   matrixMode.value = mode;
@@ -198,7 +192,7 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
  */
 async function lookAt(name) {
   applied = name;
-  config.value = { fields: FIELDS, file: {}, active: name, profiles: null };
+  config.value = { fields: FIELDS };
   seedReadings(servedFields(name), GEN);
   await quiesce(W);
   seedReadings(servedFields(name), GEN);

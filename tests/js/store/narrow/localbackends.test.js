@@ -31,14 +31,11 @@ const DEVICE = "Studio interface";
  */
 async function seed(fields, deviceCaps = null) {
   stagingWire();
-  config.value = { fields: [], file: {}, active: "", profiles: null, device_caps: null };
+  config.value = { fields: [] };
   await discardAll();
   seedReadings(fields);
   config.value = {
     fields: Object.keys(fields).map((name) => ({ name })),
-    file: {},
-    active: "",
-    profiles: null,
     device_caps: deviceCaps,
   };
   await tick();

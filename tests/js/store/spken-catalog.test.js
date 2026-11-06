@@ -21,6 +21,7 @@ import {
   speakerDraft,
 } from "../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { ok, stagingWire } from "../support/wire/wire.js";
+import { seedReadings } from "../support/readings.js";
 
 const LABELS = ["Left", "Right"];
 
@@ -38,8 +39,9 @@ const form = (enabled) => ({
 async function reset(enabled) {
   stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: form(enabled) }) : undefined) });
   engineState.value = {};
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "" };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  matrixConfig.value = { fields: [] };
+  seedReadings({ direct_sdm: false });
   await loadSpeakers();
   await discardAll();
   discardDraft();

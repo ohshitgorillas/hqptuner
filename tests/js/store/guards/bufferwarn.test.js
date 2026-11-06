@@ -29,7 +29,7 @@ import { stagingWire, quiesce } from "../../support/wire/wire.js";
 async function reset() {
   const w = stagingWire();
   engineState.value = { filter_junk: 0 };
-  config.value = { fields: [], file: {}, active: "", profiles: null };
+  config.value = { fields: [] };
   cancel();
   await discardAll();
   return w;
