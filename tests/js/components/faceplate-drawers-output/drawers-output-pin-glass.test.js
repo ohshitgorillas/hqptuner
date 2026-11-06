@@ -72,7 +72,7 @@ function routes(path) {
 }
 
 /** Load the /config payload and put the engine on PCM playing, nothing pinned. */
-function load() {
+async function load() {
   config.value = {
     fields: [
       { name: "defaults_samplerate", type: "select" },
@@ -83,7 +83,7 @@ function load() {
       { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
     ],
   };
-  seedReadings({
+  await seedReadings({
     defaults_samplerate: "192000",
     defaults_bitrate: "12288000",
     mode: "pcm",
@@ -100,7 +100,7 @@ function load() {
 
 beforeEach(async () => {
   wire = stagingWire({ routes });
-  load();
+  await load();
   metadata.value = null;
   openPopover.value = null;
   setAllowPinnedRates(true);

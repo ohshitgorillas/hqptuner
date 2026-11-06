@@ -91,7 +91,7 @@ function routes(path, opts) {
 }
 
 /** Load the /config payload: limits at PCM 4x and SDM 256x, both inside the device's reach. */
-function load() {
+async function load() {
   config.value = {
     fields: [
       { name: "defaults_samplerate", type: "select" },
@@ -102,7 +102,7 @@ function load() {
       { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
     ],
   };
-  seedReadings({
+  await seedReadings({
     defaults_samplerate: fieldReading("192000", { show: "file", restarts: true }),
     defaults_bitrate: fieldReading("12288000", { show: "file", restarts: true }),
     mode: "pcm",
@@ -133,7 +133,7 @@ function reopen() {
 
 beforeEach(async () => {
   wire = stagingWire({ routes });
-  load();
+  await load();
   run();
   metadata.value = null;
   openPopover.value = null;
