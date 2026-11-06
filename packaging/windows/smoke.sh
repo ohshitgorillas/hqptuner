@@ -32,7 +32,7 @@ WORK=$(mktemp -d)
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; fi
-  if [ -n "$INSTALLED_PID" ]; then stop_windows_pid "$INSTALLED_PID" || true; fi
+  for WINPID in $INSTALLED_PID; do stop_windows_pid "$WINPID" || true; done
   rm -rf "$WORK" || true
 }
 trap cleanup EXIT
@@ -50,13 +50,25 @@ lan_address() {
 }
 
 # The Windows PIDs of running HQPTuner.exe processes whose image lies under the
-# directory $1. Git Bash's kill and kill -0 do not address a Windows PID. The
-# directory travels in the environment because PowerShell reads everything after
-# -Command as script text.
+# directory $1. Git Bash's kill and kill -0 do not address a Windows PID. A
+# process keeps the spelling of the path it was started with, long or 8.3 short,
+# so all three spellings of the directory are tried. The directories travel in
+# the environment because PowerShell reads everything after -Command as script
+# text.
 running_under() {
-  RUN_DIR="$(cygpath -wl "$1")" powershell -NoProfile -Command \
-    'Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:RUN_DIR + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }' \
+  RUN_DIR_W="$(cygpath -w "$1")" RUN_DIR_L="$(cygpath -wl "$1")" RUN_DIR_S="$(cygpath -ws "$1")" powershell -NoProfile -Command \
+    '$dirs = $env:RUN_DIR_W, $env:RUN_DIR_L, $env:RUN_DIR_S | ForEach-Object { $_ + [IO.Path]::DirectorySeparatorChar }; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath } | Where-Object { $p = $_.ExecutablePath; $dirs | Where-Object { $p.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) } } | ForEach-Object { $_.ProcessId }' \
     | tr -d '\r'
+}
+
+# What running_under saw, for a log: the directory in each spelling it matched
+# on, and every process named like HQPTuner with its parent and image path.
+describe_lookup() {
+  echo "lookup under: $(cygpath -w "$1") | $(cygpath -wl "$1") | $(cygpath -ws "$1")" >&2
+  powershell -NoProfile -Command \
+    'Get-CimInstance Win32_Process | Where-Object { $_.Name -like "*HQPTuner*" } | ForEach-Object { "process $($_.ProcessId) parent $($_.ParentProcessId) name $($_.Name) image [$($_.ExecutablePath)]" }' \
+    | tr -d '\r' >&2 || true
+  echo "lookup end" >&2
 }
 
 windows_pid_alive() {
@@ -115,6 +127,7 @@ else
   [ "$LISTEN_HOST" = 0.0.0.0 ] || die "step 1: the user's HQPTUNER_LISTEN_HOST is '$LISTEN_HOST', not '0.0.0.0'"
   # The installer has returned, and its run entries ran before it did.
   RUNNING=$(running_under "$APP")
+  if [ -n "$RUNNING" ]; then describe_lookup "$APP"; fi
   [ -z "$RUNNING" ] || die "step 1: a silent install without /LAUNCH left HQPTuner.exe running, PID $RUNNING"
 fi
 BIN="$APP/HQPTuner.exe"
@@ -138,9 +151,17 @@ if [ ! -d "$TARGET" ]; then
   env -u HQPTUNER_LISTEN_HOST LOCALAPPDATA="$(cygpath -w "$WORK/installed-data")" BROWSER="$(cygpath -w /usr/bin/true)" \
     MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TARGET" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LAUNCH \
     "/DIR=$(cygpath -w "$APP")" || die "step 2a: the installer failed"
-  INSTALLED_PID=$(running_under "$APP")
+  # The installer does not wait for the app it starts, so the lookup gets 10 tries.
+  INSTALLED_PID=""
+  for _ in $(seq 1 10); do
+    INSTALLED_PID=$(running_under "$APP")
+    if [ -n "$INSTALLED_PID" ]; then break; fi
+    sleep 1
+  done
   case "$INSTALLED_PID" in
-    ''|*[!0-9]*) die "step 2a: expected one HQPTuner.exe started by the installer, found: '$INSTALLED_PID'" ;;
+    ''|*[!0-9]*)
+      describe_lookup "$APP"
+      die "step 2a: expected one HQPTuner.exe started by the installer, found: '$INSTALLED_PID'" ;;
   esac
   CODE=000
   for _ in $(seq 1 30); do
@@ -182,6 +203,11 @@ for _ in $(seq 1 30); do
   sleep 1
 done
 [ "$CODE" = 200 ] || die "step 4: GET /api/health answered $CODE after 30 tries"
+# The lookup behind step 1's check and step 2a must find this running binary, or
+# an empty answer in step 1 proved nothing.
+FOUND=$(running_under "$APP")
+if [ -z "$FOUND" ]; then describe_lookup "$APP"; fi
+[ -n "$FOUND" ] || die "step 4: the process lookup does not find the running $BIN"
 CODE=$(status "$BASE_URL/")
 [ "$CODE" = 200 ] || die "step 4: GET / answered $CODE"
 # A sweep nobody answers is still an answer: this is discovery's socket calls
