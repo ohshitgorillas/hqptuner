@@ -1,0 +1,49 @@
+{
+  "phase": "3",
+  "trigger": "plan",
+  "discriminator": "plan-b1667e5",
+  "round": 1,
+  "base": "7c0967ed",
+  "head": "b1667e58",
+  "base_id": "7c0967ed6ca37b74c28e8855ff194bc8988c0578",
+  "head_id": "b1667e58974b9e835bbd5e8319045ab365c37f95",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN.md",
+      "line": 72,
+      "severity": "medium",
+      "claim": "Task 6 commits a user-visible installer change (CloseApplications=force) on its own, with no CHANGELOG.md entry. The entry lands only later, in Task 7's commit. That breaks the repo rule that every user-visible change lands with its [Unreleased] entry in the same commit (CLAUDE.md changelog binding, CONTRIBUTING.md:33).",
+      "failure_scenario": "Executor commits Task 6 alone, as the plan's per-task commits and Task 7's 'This is the phase's last commit' imply. That commit force-closes a running HQPTuner.exe and adds a Preparing page to interactive installs, but CHANGELOG.md is not touched. The commit then breaks the same-commit changelog rule, and Task 7's sentence 'the fix and its entry land together' is true only of half the fix.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "b1667e58974b9e835bbd5e8319045ab365c37f95",
+      "base_id": "7c0967ed6ca37b74c28e8855ff194bc8988c0578",
+      "head_id": "b1667e58974b9e835bbd5e8319045ab365c37f95"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN.md",
+      "line": 42,
+      "severity": "medium",
+      "claim": "Task 1 does not say where the v1.20.1 installer is downloaded. The smoke step passes the unquoted glob `dist/*-setup.exe` (release.yml smoke-windows matrix `target`), and the obvious choice, `gh release download --dir dist`, makes that glob match two installers.",
+      "failure_scenario": "HQPTuner-1.20.1-setup.exe goes into dist/ next to the new HQPTuner-X-setup.exe. `bash packaging/windows/smoke.sh dist/*-setup.exe x64 --signed <prev>` then expands to extra positional arguments, so smoke.sh's argument check (`[ $# -eq 2 ] || [ $# -eq 3 ]` today, or its Task 1 successor) dies with usage, or takes the old installer as TARGET. The red push then fails before any upgrade step. Task 5 says that does not count as the bite proof, so one owner push is wasted. The plan sets no rule against this, such as a separate download directory or a non-glob target.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "b1667e58974b9e835bbd5e8319045ab365c37f95",
+      "base_id": "7c0967ed6ca37b74c28e8855ff194bc8988c0578",
+      "head_id": "b1667e58974b9e835bbd5e8319045ab365c37f95"
+    }
+  ]
+}
