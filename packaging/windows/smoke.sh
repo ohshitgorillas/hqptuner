@@ -52,11 +52,11 @@ lan_address() {
 # The Windows PIDs of running HQPTuner.exe processes whose image lies under the
 # directory $1. Git Bash's kill and kill -0 do not address a Windows PID. A
 # process keeps the spelling of the path it was started with, long or 8.3 short,
-# so all three spellings of the directory are tried. The directories travel in
-# the environment because PowerShell reads everything after -Command as script
-# text.
+# so all three spellings of the directory are tried, each made absolute because
+# a process image path always is. The directories travel in the environment
+# because PowerShell reads everything after -Command as script text.
 running_under() {
-  RUN_DIR_W="$(cygpath -w "$1")" RUN_DIR_L="$(cygpath -wl "$1")" RUN_DIR_S="$(cygpath -ws "$1")" powershell -NoProfile -Command \
+  RUN_DIR_W="$(cygpath -aw "$1")" RUN_DIR_L="$(cygpath -awl "$1")" RUN_DIR_S="$(cygpath -aws "$1")" powershell -NoProfile -Command \
     '$dirs = $env:RUN_DIR_W, $env:RUN_DIR_L, $env:RUN_DIR_S | ForEach-Object { $_ + [IO.Path]::DirectorySeparatorChar }; Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath } | Where-Object { $p = $_.ExecutablePath; $dirs | Where-Object { $p.StartsWith($_, [StringComparison]::OrdinalIgnoreCase) } } | ForEach-Object { $_.ProcessId }' \
     | tr -d '\r'
 }
@@ -64,7 +64,7 @@ running_under() {
 # What running_under saw, for a log: the directory in each spelling it matched
 # on, and every process named like HQPTuner with its parent and image path.
 describe_lookup() {
-  echo "lookup under: $(cygpath -w "$1") | $(cygpath -wl "$1") | $(cygpath -ws "$1")" >&2
+  echo "lookup under: $(cygpath -aw "$1") | $(cygpath -awl "$1") | $(cygpath -aws "$1")" >&2
   powershell -NoProfile -Command \
     'Get-CimInstance Win32_Process | Where-Object { $_.Name -like "*HQPTuner*" } | ForEach-Object { "process $($_.ProcessId) parent $($_.ParentProcessId) name $($_.Name) image [$($_.ExecutablePath)]" }' \
     | tr -d '\r' >&2 || true
