@@ -1,6 +1,7 @@
 # State
 
 Phase: 3 of 3 (Windows upgrade install)
-Status: executed
-Next: /cad-verify 3
+Plan: 2 of 2 (The upgraded app shows its tray icon and no error dialog)
+Status: planned
+Next: /cad-execute 3
 Updated: 2026-11-06
