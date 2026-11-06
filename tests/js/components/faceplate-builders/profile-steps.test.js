@@ -5,10 +5,10 @@
 // model rows; Loudness's gate row, its settings lines while engaged, the defaults staged or the block shown; and the
 // Advanced settings page's three matrix engine rows and its way back to the overview.
 //
-// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: the stations and Fixed volume on
-// `config`, the post-process form (the Bauer presets, the DAC models, the three gates, the loudness fields) on
-// `matrixConfig`, staging through `stagingWire`'s real /api/config/stage path. The listening, the settings path each
-// step takes and the page showing are the store's `meta`, `known` and `page`. Taps and changes are fired through the
+// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: Fixed volume on `config`, the stations
+// a read-only `profiles` reading, the post-process form (the Bauer presets, the DAC models, the three gates, the
+// loudness fields) on `matrixConfig`, staging through `stagingWire`'s real /api/config/stage path. The listening, the
+// settings path each step takes and the page showing are the store's `meta`, `known` and `page`. Taps and changes are fired through the
 // renderer's vnode seam, since render-to-string fires no events; every copy string asserted is read from the
 // profile-data.js tables, every option the fixture's own.
 //
@@ -90,14 +90,12 @@ const matrixTree = () => ({
     { name: "post_loudness_rangehigh", options: [] },
   ],
   file_profiles: {},
-  live_profiles: [],
   preset_profiles: { [LOADED]: [] },
 });
 
-/** A fresh /config form: the stations and Fixed volume. */
+/** A fresh /config form: Fixed volume. */
 const configTree = () => ({
   fields: [{ name: "fixed_volume_enabled", options: [] }],
-  profiles: { options: [{ value: "" }, { value: LOADED }, { value: "Night" }] },
 });
 
 /**
@@ -165,7 +163,8 @@ function pendingOf(pending, key, held) {
 
 /**
  * The served config reading: each File value read from the File on the restore lane and restarting the engine,
- * carrying what the staging wire holds for it; no live profile and Day the loaded station.
+ * carrying what the staging wire holds for it; no live profile, the stations a read-only reading and Day the loaded
+ * station.
  *
  * @param {StagingWire | undefined} at
  * @returns {Record<string, unknown>}
@@ -187,6 +186,7 @@ function served(at) {
     ),
     matrix_profile: fieldReading("", { name: "", generation: 0, lane: "matrix" }),
     active_preset: { value: LOADED, readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: LOADED }, { value: "Night" }] }, readonly: true },
   };
 }
 
