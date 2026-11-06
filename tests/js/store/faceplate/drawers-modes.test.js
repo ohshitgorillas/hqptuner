@@ -28,11 +28,11 @@ const PCM_8X = "352800";
  * @param {number} alsa
  * @param {number} net
  */
-function load(backend, alsa, net) {
+async function load(backend, alsa, net) {
   config.value = {
     fields: [{ name: "backend" }, { name: "alsa_bits", type: "number" }, { name: "net_bits", type: "number" }],
   };
-  seedReadings({ backend, alsa_bits: alsa, net_bits: net });
+  await seedReadings({ backend, alsa_bits: alsa, net_bits: net });
 }
 
 /**
@@ -48,7 +48,7 @@ function run({ state = "0", source = CD, output = PCM_8X, chain = "" }) {
 beforeEach(async () => {
   stagingWire();
   liveOverride.value = {};
-  load("alsa", 0, 0);
+  await load("alsa", 0, 0);
   run({});
   await discardAll();
 });
@@ -70,28 +70,28 @@ test("test_a_playing_source_runs_the_mode_of_its_output_over_the_loaded_chain", 
   assert.equal(runningMode(), "sdm");
 });
 
-test("test_the_dither_line_names_the_dac_bits_of_the_alsa_backend", () => {
-  load("alsa", 24, 20);
+test("test_the_dither_line_names_the_dac_bits_of_the_alsa_backend", async () => {
+  await load("alsa", 24, 20);
   const line = ditherNote();
   assert.equal(line.includes("24"), true);
 });
 
-test("test_the_dither_line_names_the_dac_bits_of_the_network_backend", () => {
-  load("network", 24, 20);
+test("test_the_dither_line_names_the_dac_bits_of_the_network_backend", async () => {
+  await load("network", 24, 20);
   const line = ditherNote();
   assert.equal(line.includes("20"), true);
 });
 
-test("test_dac_bits_of_zero_read_as_the_auto_detect_line_a_combo_backend_also_reads", () => {
-  load("alsa", 0, 0);
+test("test_dac_bits_of_zero_read_as_the_auto_detect_line_a_combo_backend_also_reads", async () => {
+  await load("alsa", 0, 0);
   const zero = ditherNote();
-  load("combo", 24, 24);
+  await load("combo", 24, 24);
   const combo = ditherNote();
   assert.equal(zero, combo);
 });
 
 test("test_the_dither_line_names_staged_dac_bits", async () => {
-  load("alsa", 24, 24);
+  await load("alsa", 24, 24);
   await edit("alsa_bits", "16");
   assert.equal(ditherNote().includes("16"), true);
 });

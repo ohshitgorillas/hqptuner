@@ -44,7 +44,7 @@ beforeEach(async () => {
       { name: "post_loudness_highlevel" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     enabled: true,
     post_loudness_enabled: true,
     post_loudness_rangelow: "-60",

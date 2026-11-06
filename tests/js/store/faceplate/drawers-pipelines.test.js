@@ -56,10 +56,10 @@ const fromFile = (value) => fieldReading(value, { show: "file" });
  * @param {Row[]} rows
  * @param {{ channels?: number, engaged?: boolean }} [opts]
  */
-function load(rows, { channels = 2, engaged = true } = {}) {
+async function load(rows, { channels = 2, engaged = true } = {}) {
   config.value = { fields: [{ name: "channels", type: "number" }] };
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
-  seedReadings({
+  await seedReadings({
     channels: fromFile(channels),
     matrix_pipelines: fromFile(JSON.stringify(rows)),
     matrix_enabled: fromFile(engaged ? "1" : "0"),
@@ -75,7 +75,7 @@ function stagedRows() {
 beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
-  load(STEREO);
+  await load(STEREO);
   await discardAll();
 });
 
@@ -86,26 +86,26 @@ const STRUCTURAL = /** @type {Row[]} */ (
   compileRows({ lambda: 1, angle: 30, headRadius: 0.0875, srcA: 0, srcB: 1, preampDb: 0, eqProcess: "" })
 );
 
-test("test_the_output_tabs_are_the_outputs_the_set_feeds", () => {
-  load([plain(0, 0), plain(1, 3), plain(0, 3)]);
+test("test_the_output_tabs_are_the_outputs_the_set_feeds", async () => {
+  await load([plain(0, 0), plain(1, 3), plain(0, 3)]);
   assert.deepEqual(
     pipelinesView().outputs.map((t) => t.id),
     ["out0", "out3"],
   );
 });
 
-test("test_the_grid_spans_the_engines_output_channels", () => {
-  load(STEREO, { channels: 6 });
+test("test_the_grid_spans_the_engines_output_channels", async () => {
+  await load(STEREO, { channels: 6 });
   assert.equal(pipelinesView().nOut, 6);
 });
 
-test("test_a_crossfeed_block_marks_its_crosspoints", () => {
-  load(STRUCTURAL);
+test("test_a_crossfeed_block_marks_its_crosspoints", async () => {
+  await load(STRUCTURAL);
   assert.equal(pipelinesView().grid[0]?.[0]?.gen, "structural");
 });
 
-test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", () => {
-  load(STRUCTURAL);
+test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", async () => {
+  await load(STRUCTURAL);
   const flags = new Set(pipelinesView().pipes.flatMap((p) => p.stages.map((st) => st.blk === true)));
   assert.deepEqual([...flags], [true]);
 });

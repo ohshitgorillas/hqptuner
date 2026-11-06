@@ -107,7 +107,7 @@ function served(w) {
  *
  * @param {{ pcm?: string, sdm?: string, channels?: number, device?: string, caps?: object | null }} [over]
  */
-function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA, caps = null } = {}) {
+async function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA, caps = null } = {}) {
   file = {
     defaults_samplerate: pcm,
     defaults_bitrate: sdm,
@@ -130,7 +130,7 @@ function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA,
       { name: "channels", type: "number" },
     ],
   };
-  seedReadings({ ...served(wire), device_caps: { value: caps, readonly: true } });
+  await seedReadings({ ...served(wire), device_caps: { value: caps, readonly: true } });
 }
 
 beforeEach(async () => {
@@ -140,7 +140,7 @@ beforeEach(async () => {
         ? ok({ generation: generation.value, fields: served(w) })
         : undefined,
   });
-  load();
+  await load();
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;
@@ -159,8 +159,8 @@ test("test_a_staged_rate_moves_its_needle", async () => {
   assert.equal(dialView().limits.pcm, 4);
 });
 
-test("test_a_limit_on_the_44k_member_reads_as_its_tier", () => {
-  load({ pcm: "176400", sdm: "11289600" });
+test("test_a_limit_on_the_44k_member_reads_as_its_tier", async () => {
+  await load({ pcm: "176400", sdm: "11289600" });
   assert.deepEqual(dialView().limits, { pcm: 2, sdm: 8 });
 });
 
@@ -174,12 +174,12 @@ test("test_the_pcm_family_ends_at_the_sixth_tier", () => {
   assert.equal(fams.lastIndexOf("pcm"), 5);
 });
 
-test("test_only_a_tier_the_device_did_not_announce_is_hatched", () => {
+test("test_only_a_tier_the_device_did_not_announce_is_hatched", async () => {
   const hatched = () =>
     dialView()
       .tiers.filter((t) => t.unavailable)
       .map((t) => t.value);
-  load({ caps: CAPS });
+  await load({ caps: CAPS });
   assert.deepEqual(hatched(), ["98304000"]);
 });
 
@@ -263,8 +263,8 @@ test("test_the_trigger_names_the_effective_devices_card", () => {
   assert.equal(deviceView("net_device").main, "Holo Audio UAC2.0 Gen2.1 Standa");
 });
 
-test("test_a_device_missing_from_the_list_is_named_by_its_value", () => {
-  load({ device: "gone/hw:CARD=X,DEV=0" });
+test("test_a_device_missing_from_the_list_is_named_by_its_value", async () => {
+  await load({ device: "gone/hw:CARD=X,DEV=0" });
   assert.equal(deviceView("net_device").main, "gone/hw:CARD=X,DEV=0");
 });
 

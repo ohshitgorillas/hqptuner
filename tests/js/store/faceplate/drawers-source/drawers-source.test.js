@@ -80,11 +80,11 @@ function stream({ state = "2", metering = true, metadata = { samplerate: "44100"
 /** @param {number} nyquist @param {number} channels */
 const geo = (nyquist, channels) => ({ nyquist, channels, bins: 1025 });
 
-beforeEach(() => {
+beforeEach(async () => {
   health.value = { phase: "Ready", generation: GEN };
   useStorage();
   matrixConfig.value = null;
-  seedReadings({});
+  await seedReadings({});
   setApodWindow("60");
   setMeterChannel("sum");
   setMeterRange(FIRST_RANGE);
@@ -121,9 +121,9 @@ test("test_a_quiet_dsd_source_with_the_matrix_off_shows_the_matrix_line", () => 
   assert.equal(sourceMeter().state, "matrix");
 });
 
-test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", () => {
+test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", async () => {
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
-  seedReadings({ matrix_enabled: true });
+  await seedReadings({ matrix_enabled: true });
   stream({ metadata: { sdm: "1", samplerate: "2822400" } });
   feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");

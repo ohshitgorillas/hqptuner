@@ -75,7 +75,7 @@ async function load({ rows = pair(), matrix = true, enabled = "0", iir2fir = "0"
   };
   config.value = { fields: [] };
   await discardAll();
-  seedReadings({
+  await seedReadings({
     matrix_enabled: fromFile(matrix ? "1" : "0"),
     matrix_iir2fir: fromFile(iir2fir),
     post_bauer_enabled: fromFile(enabled),
