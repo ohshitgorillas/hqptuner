@@ -188,24 +188,24 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
 // pass alone and fail in sequence. `state` / `lists` / `file` seed the three
 // source signals a rate control reads; the rest goes to the wire.
 /** @param {ResetSeams} [seams] */
-function reset({ state, lists, file = FILE(), ...wire } = {}) {
+async function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
   config.value = { fields: [] };
-  seedReadings(fileFields(file));
+  await seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 
 /** @param {string} field */
 const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
 
-test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", () => {
-  reset();
+test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", async () => {
+  await reset();
   assert.equal(control("filter").value, "25");
 });
 
 test("test_writing_a_control_posts_one_field_to_the_live_lane", async () => {
-  const w = reset();
+  const w = await reset();
   await writeLive("filter", "40");
   assert.deepEqual(w.posts, [{ fields: { filter: "40" } }]);
 });
@@ -227,7 +227,7 @@ const STALL_DETAIL = "State: no reply within 5.0s (the daemon may have restarted
 const REFUSED = () => ({ status: 503, detail: STALL_DETAIL, mirrored: { ...STATE(), filterNx: "0" } });
 
 test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => {
-  reset(REFUSED());
+  await reset(REFUSED());
   await writeLive("filter", "40");
   assert.equal(control("filter").value, "0");
 });

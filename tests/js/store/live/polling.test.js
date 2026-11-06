@@ -156,7 +156,7 @@ test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
 });
 
 test("test_a_failed_readings_fetch_keeps_the_last_good_readings", async () => {
-  seedReadings({ kept_field: "kept" });
+  await seedReadings({ kept_field: "kept" });
   const kept = readings.value;
   wire({ "GET /api/config": bad(503, "daemon down") });
   await refreshConfig();

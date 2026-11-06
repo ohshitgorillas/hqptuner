@@ -192,13 +192,13 @@ function liveWire({
 // pass alone and fail in sequence.
 /**
  * @param {WireOpts & { state?: EngineState, lists?: Enums }} [opts]
- * @returns {LiveWireHandle}
+ * @returns {Promise<LiveWireHandle>}
  */
-function reset({ state, lists, file = FILE(), ...wire } = {}) {
+async function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
   config.value = { fields: [] };
-  seedReadings(fileFields(file));
+  await seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 
@@ -220,7 +220,7 @@ test("test_a_re_enumerating_write_ends_with_the_new_state_read_against_the_new_l
   // filterNx index 0 against the NEW list is enum 3. Against the old list it is
   // enum 0, and unmoved it is the seeded 25 — so only a store that adopted both
   // halves can answer 3.
-  reset({
+  await reset({
     fresh: RE_ENUMS(),
     mirrored: MOVED(),
     report: { live: [{ setting: "filter", ok: true }], reenumerated: true },
@@ -234,7 +234,7 @@ test("test_the_engine_state_is_still_the_pre_write_one_while_the_new_enumeration
   // pending answer has had its turn. A store that committed State first would be
   // showing index 0 against the old list here — enum 0, a filter the user never
   // chose and the engine is not running.
-  const w = reset({
+  const w = await reset({
     fresh: RE_ENUMS(),
     mirrored: MOVED(),
     report: { live: [{ setting: "filter", ok: true }], reenumerated: true },
@@ -259,7 +259,7 @@ const PLAIN = [
 // not already forbid.
 for (const c of PLAIN) {
   test(`test_a_${c.field}_write_asks_the_daemon_for_no_enumerations`, async () => {
-    const w = reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
+    const w = await reset({ fresh: RE_ENUMS(), report: { live: [{ setting: c.field, ok: true }] } });
     await writeLive(c.field, c.value);
     assert.equal(w.gets.includes("/api/enumerations"), false);
   });
@@ -268,7 +268,7 @@ for (const c of PLAIN) {
 test("test_a_write_that_rebuilds_nothing_still_adopts_the_engines_new_state", async () => {
   // Nothing re-enumerated, so the seeded list still applies: index 0 of it is
   // enum 0, which is neither the seeded 25 nor anything the new lists carry.
-  reset({ mirrored: MOVED(), report: { live: [{ setting: "junk_filter", ok: true }] } });
+  await reset({ mirrored: MOVED(), report: { live: [{ setting: "junk_filter", ok: true }] } });
   await writeLive("junk_filter", "0");
   assert.equal(control("filter").value, "0");
 });
@@ -287,7 +287,7 @@ const FAILED = [{ field: "rate", value: "192000" }];
 
 for (const c of FAILED) {
   test(`test_a_${c.field}_write_that_fails_outright_leaves_the_controls_on_the_engines_current_lists`, async () => {
-    reset({ status: 503, detail: STALL_DETAIL, fresh: RE_ENUMS(), mirrored: MOVED() });
+    await reset({ status: 503, detail: STALL_DETAIL, fresh: RE_ENUMS(), mirrored: MOVED() });
     await writeLive(c.field, c.value);
     assert.equal(control("filter").value, "3");
   });
@@ -320,7 +320,7 @@ test("test_a_held_write_shows_the_held_value_on_the_dormant_control", async () =
   // that issued the re-read and threw the answer away is still showing 3 here.
   // What this cannot separate is adoption from the overlay and adoption from the
   // report's own `stored` — both end on 7, and only the wire tells them apart.
-  reset(HELD());
+  await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(control("modulator").value, "7");
 });
@@ -328,13 +328,13 @@ test("test_a_held_write_shows_the_held_value_on_the_dormant_control", async () =
 test("test_a_held_write_reads_the_enumerations_no_more_than_that_re_read_carries", async () => {
   // The configuration re-read brings one set of lists with it. A store that
   // treated a held write as a re-enumeration as well would walk that lane twice.
-  const w = reset(HELD());
+  const w = await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(w.gets.filter((p) => p === "/api/enumerations").length, 1);
 });
 
 test("test_a_held_write_adopts_the_lists_that_re_read_brought_back", async () => {
-  reset(HELD());
+  await reset(HELD());
   await writeLive("modulator", "7");
   assert.equal(filterName(), "poly-sinc-short");
 });
