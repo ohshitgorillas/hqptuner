@@ -1,53 +1,66 @@
 ---
 phase: 2
 plan: 6
-requirements: [INTG-01, INTG-02]
+requirements: [INTG-01]
 files:
-  - .planning/phases/2/baseline/audit.md
-  - .planning/phases/2/baseline/exit.txt
-  - .planning/phases/2/baseline/regression.txt
+  - .claude/worktrees/integrate/tests/js/store/guards/applyguard.test.js
+  - .claude/worktrees/integrate/tests/js/store/presets/presets.test.js
+  - .claude/worktrees/integrate/tests/js/store/guards/shaperfit-mode-gate.test.js
+  - .claude/worktrees/integrate/tests/js/store/hardware-catalog.test.js
+  - .claude/worktrees/integrate/tests/js/components/faceplate-drawers/drawers-speakers-schema.test.js
+  - .claude/worktrees/integrate/tests/js/store/structural-roundtrip.test.js
+  - .claude/worktrees/integrate/tests/js/support/easy/easytiles.js
+  - .claude/worktrees/integrate/hqptuner/static/store/actions.js
+  - .claude/worktrees/integrate/hqptuner/static/store/signals.js
+  - .claude/worktrees/integrate/hqptuner/static/store/schema/hardware.js
+  - .claude/worktrees/integrate/hqptuner/static/store/schema/speakers.js
+  - .claude/worktrees/integrate/hqptuner/static/store/alerts/shaperfit.js
+  - .claude/worktrees/integrate/hqptuner/static/store/live/write.js
+  - .claude/worktrees/integrate/hqptuner/static/store/sync.js
 ---
 
-# Phase 2: Baseline recovery - Plan 6: Exit check
+# Phase 2: Baseline recovery - Plan 6: Stale claims out, production defects fixed
 
 ## Goal
 
-The JS baseline in `.claude/worktrees/integrate` passes, through repaired test machinery and fixed production defects, with every valid claim unchanged (design step 12a). This plan proves it: one run over the retained baseline plus every helper consumer, with zero failures, beside an audit of the phase's commits.
+The JS baseline in `.claude/worktrees/integrate` passes, through repaired test machinery and fixed production defects, with every valid claim unchanged (design step 12a). This plan deletes the test cases whose claims the owner retired (C1, C2, C3 in `routes.md`) and fixes the production code that fails the valid claims routed builder (B1, B2).
 
 ## Must be true when done
 
-- One file run over exactly `files.txt` plus every importer of each touched support file prints `exit=0` with `# fail 0` (AC1, AC2).
-- A search under `tests/js/`, support included, finds no `config.value` or `matrixConfig.value` assignment carrying a field value or a `file`, `active` or `rows` key (AC3).
-- No phase commit changes an assert line in a baseline test file without a `Contract mismatch:` record carrying two quotations (AC4).
-- `git log --name-only BASE..HEAD` lists neither `uv.lock` nor `.planning/reads.jsonl` (AC6).
+- Every test case routed C1, C2 or C3 in `routes.md` is deleted, and each deletion's commit message carries a `Contract mismatch:` line quoting the owner ruling and the code or spec line it rests on.
+- `previewConfig` appears nowhere under `hqptuner/static/` or `tests/js/`.
+- Every test case routed B1 or B2 passes, with that test file unchanged by this plan.
 - A full-suite run shows no failing test that was not already failing in `failures.log`.
 
 ## Context
 
-- Locked: D-04, D-06, D-07, D-12, D-13 (`.planning/phases/2/CONTEXT.md`). File run, full-suite run, BASE and paths as in Plan 1's Context. This plan writes no file under `tests/js/` or `hqptuner/`.
-- Precondition: Plans 1 to 5 are done. Every `Builder route:` entry, in `routes.md` and in the phase's commit messages, is closed by a commit that fixes the named `hqptuner/static/` path with its failing test unchanged. If one is open, this plan stops at Task 1.
-- D-07 support files: `listsfixture.js`, `shaperfit-fixtures.js`, `profile-fixtures.js`, `field-harness.js`, `threetrees.js`, `easy/easytiles.js`, `devicecaps-harness.js`, `rendered/pipelines-fixture.js`, `rendered/volume-range.js`. Add every other file under `tests/js/support/` that `git diff --name-only BASE..HEAD` lists. An importer is any file under `tests/js/` whose import specifier resolves to that support file.
+- Locked decisions, paths, file run, assert check, lint and BASE as in Plan 1's Context. Plans 1 to 5 are done first.
+- Owner rulings, 2026-11-05: a previewed preset does not change what a control shows (C1); a control's value is the served reading, not a form draft (C2); the stored server buffer keeps a clean entry and only the `staged` reading reconciles (C3). A test claiming otherwise is stale and is deleted, never rewritten to pass.
+- B1 and B2 are valid claims whose failing tests already exist and are red against current code. That red run is the bite proof (`docs/spec/testing.md` rule 8). The fix makes them pass with the test files untouched.
+- A test file left with no case after a deletion is deleted whole, and its imports of shared helpers go with it.
 
 ## Tasks
 
-### Task 1: Audit the phase's commits
+### Task 1: Delete the retired C1, C2 and C3 cases
 
-- **Files:** .planning/phases/2/baseline/audit.md
-- **Action:** Write `audit.md` with four sections, each with the command run and its result.
-  - Open routes: every `Builder route:` and `Contract mismatch:` line in `git log BASE..HEAD` and every `builder` entry of `routes.md`, each with the commit that closed it. Any entry with none is open.
-  - AC3: every assignment to `config.value` or `matrixConfig.value` under `tests/js/`, found by a multi-line search from the assignment to its closing `;`. Record what each carries, and for an assignment from a local builder, what that builder returns. Option entries' `value` is metadata.
-  - AC4: for each path in `files.txt`, the added and removed lines containing `assert`, or a `test(` title, in `git diff BASE HEAD`, each matched to the commit carrying its `Contract mismatch:` quotations.
-  - AC6: `git log --name-only --format= BASE..HEAD` filtered for `uv.lock` and `.planning/reads.jsonl`.
-- **Verify:** `audit.md` shows zero open routes, zero AC3 hits, zero unmatched assert-line changes and zero AC6 hits. Otherwise stop and return the finding: an open builder route needs a production-fix plan, an AC3 hit in an unleased file needs plan revision, and an unmatched assert change is a defect to revert. Testing scope: read-only checks; no test.
+- **Files:** .claude/worktrees/integrate/tests/js/store/guards/applyguard.test.js, .claude/worktrees/integrate/tests/js/store/presets/presets.test.js, .claude/worktrees/integrate/tests/js/store/guards/shaperfit-mode-gate.test.js, .claude/worktrees/integrate/tests/js/store/hardware-catalog.test.js, .claude/worktrees/integrate/tests/js/components/faceplate-drawers/drawers-speakers-schema.test.js, .claude/worktrees/integrate/tests/js/store/structural-roundtrip.test.js
+- **Action:** Delete every `test(` case `routes.md` routes `Cause: C1` (13), `Cause: C2` (7) and the four `structural-roundtrip.test.js` buffer cases C3 names (4), 24 in all, plus any fixture, import or setup line only those cases used. Leave every other case byte-identical. The commit message carries one `Contract mismatch:` line per cause with the owner ruling and its code or spec quotation from `routes.md`.
+- **Verify:** A file run over the six files shows none of the 24 titles and no failing test outside B1. Every remaining case's lines are byte-identical to HEAD before the task (the assert check). Lint. Testing scope: deletion only; no test is added or changed.
 
-### Task 2: Run the exit check
+### Task 2: Remove dead `previewConfig` and the stale catalog headers
 
-- **Files:** .planning/phases/2/baseline/exit.txt
-- **Action:** Build the list: every path of `files.txt`, plus every importer of each support file in Context, deduplicated and sorted. Write the list to `exit.txt`. Run one file run over exactly that list, with `--test-concurrency=8` and a footprint statement before it starts (`~/dev/CLAUDE.md` 3.1). Add no coverage flag (D-06); `make test-js` is not the exit command. Append the `exit=` line, the `# pass` / `# fail` counts and the log path to `exit.txt`.
-- **Verify:** `exit.txt` shows `exit=0` and `# fail 0`. Every line of `files.txt` appears in its list. For each support file in Context, `grep -rlE` over `tests/js` for its import shows no importer missing from the list. Testing scope: this run is the phase's acceptance evidence for INTG-01; nothing is added.
+- **Files:** .claude/worktrees/integrate/hqptuner/static/store/actions.js, .claude/worktrees/integrate/hqptuner/static/store/signals.js, .claude/worktrees/integrate/hqptuner/static/store/schema/hardware.js, .claude/worktrees/integrate/hqptuner/static/store/schema/speakers.js, .claude/worktrees/integrate/tests/js/support/easy/easytiles.js
+- **Action:** Remove the `previewConfig` signal (`signals.js:38`), its writes and import in `actions.js` (lines 13, 188, 209), and its reset in `easytiles.js:220`. Cut the header claims in `schema/hardware.js` and `schema/speakers.js` that a row's value is the drawer's draft over the engine's form; a row's value is its served reading.
+- **Verify:** `grep -rn previewConfig hqptuner/static tests/js` finds nothing. A full-suite run shows no failing test outside `failures.log`. Lint. Testing scope: dead-code removal; no behavior changes, no test.
 
-### Task 3: Run the full-suite regression check
+### Task 3: Fix the shaper-fit name lookup (B1)
 
-- **Files:** .planning/phases/2/baseline/regression.txt
-- **Action:** Run the full-suite run once, as Plan 1 Task 1 ran it (D-12: a regression check beside the exit check, not the exit criterion). Write the `exit=` line, counts and log path to `regression.txt`, with every failing test's file and title.
-- **Verify:** Every failing test listed in `regression.txt` also appears as failing in `failures.log`. A failure new since baseline is a regression of this phase: stop and return it with its decisive line. Testing scope: one run; nothing is added.
+- **Files:** .claude/worktrees/integrate/hqptuner/static/store/alerts/shaperfit.js
+- **Action:** Make `shaperName` take the modulator or ditherer name from the served reading's `name` (`docs/spec/api.md:35`), not by matching the engine list index against the config form's enum IDs, as B1 in `routes.md` states.
+- **Verify:** A file run over `store/faceplate-alerts/alerts.test.js`, `store/guards/shaperfit-alerts.test.js`, `components/faceplate-alerts/rail.test.js` and `store/guards/shaperfit-mode-gate.test.js` prints `exit=0`, with those files unchanged by this task. Lint. Testing scope: existing red tests are the proof; none added.
+
+### Task 4: Re-mirror a held live write into the readings (B2)
+
+- **Files:** .claude/worktrees/integrate/hqptuner/static/store/live/write.js, .claude/worktrees/integrate/hqptuner/static/store/sync.js
+- **Action:** After a live write, `remirrorLive` (`write.js:96`) refreshes through `refreshConfig` (`sync.js:101`), which mirrors the retired `config` signal. Make the refresh adopt the served `/api/config` answer as the readings, as `store/core/readings.js:136` does, so a held write shows on its control without a generation change. Remove the retired `.data` mirroring if nothing else reads it.
+- **Verify:** `live-reenum.test.js` `test_a_held_write_shows_the_held_value_on_the_dormant_control` passes with the file unchanged. A full-suite run shows no failing test outside `failures.log` and none of B1, B2. Lint. Testing scope: existing red test is the proof; none added.
