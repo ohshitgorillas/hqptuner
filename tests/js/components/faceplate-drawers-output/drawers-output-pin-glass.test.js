@@ -82,8 +82,6 @@ function load() {
       { name: "net_dop", type: "checkbox" },
       { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
     ],
-    profiles: null,
-    device_caps: null,
   };
   seedReadings({
     defaults_samplerate: "192000",
