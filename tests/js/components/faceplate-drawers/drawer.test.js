@@ -86,16 +86,16 @@ function routes(path, opts) {
  *
  * @param {string} active
  */
-const loadConfig = (active) => {
+const loadConfig = async (active) => {
   config.value = { fields: FIELDS };
-  seedReadings({ ...RUNNING, ...readings.value?.fields, active_preset: { value: active, readonly: true } });
+  await seedReadings({ ...RUNNING, ...readings.value?.fields, active_preset: { value: active, readonly: true } });
 };
 
 beforeEach(async () => {
   applies = [];
   wire = stagingWire({ routes });
-  seedReadings(RUNNING);
-  loadConfig(STATION);
+  await seedReadings(RUNNING);
+  await loadConfig(STATION);
   await resetDrawerStore();
   pickApplyMode("apply");
   showTab("vol", "range");
@@ -439,7 +439,7 @@ test("test_the_split_body_in_save_mode_is_live_with_a_loaded_station", async () 
 test("test_the_split_body_in_save_mode_is_disabled_without_a_loaded_station", async () => {
   await edit("volume_max", "-6");
   pickApplyMode("save");
-  loadConfig("");
+  await loadConfig("");
   assert.equal(splitBodyDisabled(), true);
 });
 
@@ -452,8 +452,8 @@ test("test_the_save_choice_in_the_mode_menu_is_live_with_a_loaded_station", () =
   assert.equal(saveChoiceDisabled(), false);
 });
 
-test("test_the_save_choice_in_the_mode_menu_is_disabled_without_a_loaded_station", () => {
-  loadConfig("");
+test("test_the_save_choice_in_the_mode_menu_is_disabled_without_a_loaded_station", async () => {
+  await loadConfig("");
   assert.equal(saveChoiceDisabled(), true);
 });
 

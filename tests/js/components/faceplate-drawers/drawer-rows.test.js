@@ -132,7 +132,7 @@ beforeEach(async () => {
         : undefined,
   });
   config.value = { fields: FIELDS };
-  seedReadings(served(wire));
+  await seedReadings(served(wire));
   await resetDrawerStore();
 });
 

@@ -42,7 +42,7 @@ function routes(path) {
 beforeEach(async () => {
   stagingWire({ routes });
   config.value = { fields: FIELDS };
-  seedReadings({ volume_max: -3, mode: "pcm" });
+  await seedReadings({ volume_max: -3, mode: "pcm" });
   await resetDrawerStore();
   pickApplyMode("apply");
 });

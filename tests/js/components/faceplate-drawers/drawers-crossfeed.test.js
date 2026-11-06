@@ -85,7 +85,7 @@ async function load({ matrix = true, enabled = "1", preset = "default", picked =
   };
   config.value = { fields: [] };
   await discardAll();
-  seedReadings({
+  await seedReadings({
     matrix_enabled: fromFile(matrix ? "1" : "0"),
     matrix_iir2fir: fromFile("0"),
     post_bauer_enabled: fromFile(enabled, true),
