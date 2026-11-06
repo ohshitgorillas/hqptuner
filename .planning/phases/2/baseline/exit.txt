@@ -1,0 +1,186 @@
+Phase 2 exit check (Plan 7 Task 2)
+rebuild/integrate HEAD 3e90a6169f76248cbfe6069c307ea495d06d21a8
+BASE 082346ffcc11303f511bbade18aa6b0f9367370b
+command: scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-concurrency=8 <list below>
+footprint: up to 8 node processes, each up to one full core, for an estimated 1 to 3 minutes; memory well under 2 GB total (host: 18 cores, load average 4.5 before start). No coverage flag (D-06).
+list: files.txt (53 paths; 52 present) plus direct importers of the 14 support files, deduplicated and sorted: 165 files
+deleted, not run: tests/js/store/hardware-catalog.test.js (in files.txt; deleted whole by ceb112e9, C2)
+support files (14): listsfixture.js shaperfit-fixtures.js profile-fixtures.js field-harness.js threetrees.js easy/easytiles.js devicecaps-harness.js rendered/pipelines-fixture.js rendered/volume-range.js easy/easyrate.js rendered/filter-fields.js wire/livepresetwire.js wire/unreadwire.js wire/wire.js
+--- list ---
+tests/js/app/boot.test.js
+tests/js/app/import.test.js
+tests/js/app/no-app.test.js
+tests/js/components/faceplate-alerts/drawer.test.js
+tests/js/components/faceplate-alerts/header-dropped-clear.test.js
+tests/js/components/faceplate-alerts/header-dropped.test.js
+tests/js/components/faceplate-alerts/header.test.js
+tests/js/components/faceplate-alerts/plate-dropped.test.js
+tests/js/components/faceplate-alerts/plate-unread-saves.test.js
+tests/js/components/faceplate-alerts/plate-unread.test.js
+tests/js/components/faceplate-alerts/rail.test.js
+tests/js/components/faceplate-alerts/rows.test.js
+tests/js/components/faceplate-alerts/xref.test.js
+tests/js/components/faceplate-builders/profile-steps.test.js
+tests/js/components/faceplate-builders/profile.test.js
+tests/js/components/faceplate-builders/rail.test.js
+tests/js/components/faceplate-builders/rows.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-backenddesc.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-dsdrow.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-pin-glass.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-pin.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-ratedesc.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-ratehead.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-schema.test.js
+tests/js/components/faceplate-drawers-output/drawers-output-seemore.test.js
+tests/js/components/faceplate-drawers-output/drawers-output.test.js
+tests/js/components/faceplate-drawers/drawer-items.test.js
+tests/js/components/faceplate-drawers/drawer-rows.test.js
+tests/js/components/faceplate-drawers/drawer.test.js
+tests/js/components/faceplate-drawers/drawers-crossfeed.test.js
+tests/js/components/faceplate-drawers/drawers-fft-catalog.test.js
+tests/js/components/faceplate-drawers/drawers-hf-schema.test.js
+tests/js/components/faceplate-drawers/drawers-loudness.test.js
+tests/js/components/faceplate-drawers/drawers-matrix-schema.test.js
+tests/js/components/faceplate-drawers/drawers-modes-schema.test.js
+tests/js/components/faceplate-drawers/drawers-pipelines-schema.test.js
+tests/js/components/faceplate-drawers/drawers-pipelines.test.js
+tests/js/components/faceplate-drawers/drawers-plate-names.test.js
+tests/js/components/faceplate-drawers/drawers-resampling-two-stage.test.js
+tests/js/components/faceplate-drawers/drawers-speakers-schema.test.js
+tests/js/components/faceplate-drawers/drawers-speakers-stale.test.js
+tests/js/components/faceplate-drawers/drawers-speakers.test.js
+tests/js/components/faceplate-drawers/drawers-volume-range-seemore.test.js
+tests/js/components/faceplate-drawers/drawers-volume-range.test.js
+tests/js/components/faceplate-drawers/drawers-volume-schema.test.js
+tests/js/components/faceplate-lists/console.test.js
+tests/js/components/faceplate-lists/default-mark.test.js
+tests/js/components/faceplate-lists/option-list.test.js
+tests/js/components/faceplate-lists/tip.test.js
+tests/js/components/faceplate-page/conversion.test.js
+tests/js/components/faceplate-page/presets.test.js
+tests/js/components/faceplate-page/profile.test.js
+tests/js/components/faceplate-settings/about-state-import-owed.test.js
+tests/js/components/faceplate-settings/about-state-import-stores.test.js
+tests/js/components/faceplate-settings/about-state-import.test.js
+tests/js/components/faceplate-settings/about.test.js
+tests/js/components/faceplate-settings/engine-rows.test.js
+tests/js/components/faceplate-settings/hardware-blocks.test.js
+tests/js/components/faceplate-settings/hardware-catalog-rows.test.js
+tests/js/components/faceplate-settings/hardware-stale.test.js
+tests/js/components/faceplate-settings/hardware.test.js
+tests/js/components/faceplate-settings/logging.test.js
+tests/js/components/faceplate/conn-panel.test.js
+tests/js/components/faceplate/header.test.js
+tests/js/components/faceplate/hf-filter.test.js
+tests/js/components/faceplate/page.test.js
+tests/js/components/faceplate/rail-staged.test.js
+tests/js/components/faceplate/rail.test.js
+tests/js/components/faceplate/switcher.test.js
+tests/js/components/faceplate/volume.test.js
+tests/js/components/matrix/library-clear.test.js
+tests/js/lib/api.test.js
+tests/js/store/apply-credentials-refused.test.js
+tests/js/store/apply-failure-prefix.test.js
+tests/js/store/apply-summary.test.js
+tests/js/store/apply-unlabeled-names.test.js
+tests/js/store/c1-operations.test.js
+tests/js/store/connpanel-r6.test.js
+tests/js/store/connpanel-verdict.test.js
+tests/js/store/connpanel.test.js
+tests/js/store/core/control.test.js
+tests/js/store/core/forms-applied.test.js
+tests/js/store/core/readings.test.js
+tests/js/store/descriptions.test.js
+tests/js/store/drawer-restart.test.js
+tests/js/store/faceplate-alerts/alerts-dropped.test.js
+tests/js/store/faceplate-alerts/alerts-unread-saves.test.js
+tests/js/store/faceplate-alerts/alerts-unread.test.js
+tests/js/store/faceplate-alerts/alerts.test.js
+tests/js/store/faceplate-builders/profile.test.js
+tests/js/store/faceplate-builders/shell.test.js
+tests/js/store/faceplate-builders/snapshot.test.js
+tests/js/store/faceplate-lists/dsd-kind.test.js
+tests/js/store/faceplate-lists/facets.test.js
+tests/js/store/faceplate-lists/folds.test.js
+tests/js/store/faceplate-lists/options.test.js
+tests/js/store/faceplate-lists/rate-cap.test.js
+tests/js/store/faceplate-page/conversion.test.js
+tests/js/store/faceplate-page/presets.test.js
+tests/js/store/faceplate-page/profile-core.test.js
+tests/js/store/faceplate-page/profile.test.js
+tests/js/store/faceplate-settings/hardware.test.js
+tests/js/store/faceplate/conn.test.js
+tests/js/store/faceplate/drawer-family.test.js
+tests/js/store/faceplate/drawer-grammar.test.js
+tests/js/store/faceplate/drawer-plate.test.js
+tests/js/store/faceplate/drawer-save-restart.test.js
+tests/js/store/faceplate/drawer.test.js
+tests/js/store/faceplate/drawers-crossfeed.test.js
+tests/js/store/faceplate/drawers-loudness.test.js
+tests/js/store/faceplate/drawers-modes.test.js
+tests/js/store/faceplate/drawers-output.test.js
+tests/js/store/faceplate/drawers-pipelines.test.js
+tests/js/store/faceplate/drawers-source/drawers-source.test.js
+tests/js/store/faceplate/drawers-speakers.test.js
+tests/js/store/faceplate/drawers-volume.test.js
+tests/js/store/faceplate/loadpreset.test.js
+tests/js/store/faceplate/path.test.js
+tests/js/store/faceplate/rail-now.test.js
+tests/js/store/faceplate/rail-pipelines.test.js
+tests/js/store/faceplate/stations.test.js
+tests/js/store/faceplate/switcher.test.js
+tests/js/store/faceplate/view-panel.test.js
+tests/js/store/faceplate/volume.test.js
+tests/js/store/fixed-volume-readings.test.js
+tests/js/store/guards/applyguard.test.js
+tests/js/store/guards/bufferwarn.test.js
+tests/js/store/guards/directsdmwarn.test.js
+tests/js/store/guards/sdm-hide-superseded.test.js
+tests/js/store/guards/shaperfit-alerts.test.js
+tests/js/store/guards/shaperfit-graying.test.js
+tests/js/store/guards/shaperfit-mode-gate.test.js
+tests/js/store/guards/xfmode-refusal.test.js
+tests/js/store/guards/xfmode.test.js
+tests/js/store/live/hidden.test.js
+tests/js/store/live/live-reenum.test.js
+tests/js/store/live/live.test.js
+tests/js/store/live/livepresets.test.js
+tests/js/store/live/mirror.test.js
+tests/js/store/live/pin.test.js
+tests/js/store/live/polling.test.js
+tests/js/store/live/remirror.test.js
+tests/js/store/live/syncdoc-settled.test.js
+tests/js/store/live/syncdoc.test.js
+tests/js/store/loudness-applied.test.js
+tests/js/store/narrow/devicecaps-fallback.test.js
+tests/js/store/narrow/devicecaps.test.js
+tests/js/store/narrow/localbackends.test.js
+tests/js/store/narrow/narrowing-persist.test.js
+tests/js/store/narrow/narrowing-rate.test.js
+tests/js/store/narrow/plainnames-flat.test.js
+tests/js/store/narrow/plainnames-rec.test.js
+tests/js/store/narrow/quality-facet-default.test.js
+tests/js/store/pipeline-baseline.test.js
+tests/js/store/presets/matrixmode-preset.test.js
+tests/js/store/presets/presets.test.js
+tests/js/store/presets/profile_fanout.test.js
+tests/js/store/presets/profiles.test.js
+tests/js/store/prose-notes.test.js
+tests/js/store/prose-options.test.js
+tests/js/store/prose-sdm-note.test.js
+tests/js/store/resolve-facade.test.js
+tests/js/store/simplified-two-stage.test.js
+tests/js/store/spken-catalog.test.js
+tests/js/store/structural-roundtrip.test.js
+--- result ---
+exit=0 log=/tmp/gate-node-WhbfrsZE.log
+# tests 2051
+# pass 2051
+# fail 0
+# canceled 0
+# skipped 0
+# todo 0
+# duration_ms 2980.043512
+importer check: grep -rlE over tests/js for each of the 14 support imports (--include='*.test.js') finds 154 files; comm against this list shows none missing. A specifier-resolving scan (/tmp/p2audit/importers.mjs) finds the same 154 direct test importers.
+not in the list by D-07's definition (import support file X that itself imports a changed support file; no direct import): store/core/forms-reads.test.js, store/core/forms.test.js, store/meter/loop-boot.test.js, store/presets/favorites.test.js, store/presets/modulator-favorites.test.js (all under tests/js/). They run in the Task 3 full-suite run.
+files.txt check: every path of files.txt is in the list except tests/js/store/hardware-catalog.test.js (deleted by ceb112e9, not run).
