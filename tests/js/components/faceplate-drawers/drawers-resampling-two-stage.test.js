@@ -63,12 +63,12 @@ const tip = (key) => ({ label: `${key} fixture label`, tooltip: `Whole ${key} fi
  *
  * @param {string} pcm1x
  */
-function load(pcm1x) {
+async function load(pcm1x) {
   const filters = filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS);
   config.value = {
     fields: [...filters.fields, { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] }],
   };
-  seedReadings(
+  await seedReadings(
     Object.fromEntries(
       Object.entries({ ...filters.values, sdm_conversion: "0" }).map(([name, value]) => [
         name,
@@ -81,7 +81,7 @@ function load(pcm1x) {
 beforeEach(async () => {
   stagingWire();
   viewport.value = DESIGN;
-  load(TWO_STAGE);
+  await load(TWO_STAGE);
   engineState.value = { state: "0", active_chain: "pcm" };
   engineStatus.value = {};
   enums.value = null;
@@ -106,10 +106,10 @@ function row() {
   return found ? found.html : "";
 }
 
-test("test_a_two_stage_filter_row_shows_one_more_see_more_trigger_than_its_single_stage_twin", () => {
-  load(SINGLE_STAGE);
+test("test_a_two_stage_filter_row_shows_one_more_see_more_trigger_than_its_single_stage_twin", async () => {
+  await load(SINGLE_STAGE);
   const single = triggersInSight(row());
-  load(TWO_STAGE);
+  await load(TWO_STAGE);
   assert.equal(triggersInSight(row()), single + 1);
 });
 

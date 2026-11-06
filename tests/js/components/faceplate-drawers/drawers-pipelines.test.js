@@ -68,7 +68,7 @@ beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
   openPopover.value = null;
-  loadPipelines(STEREO);
+  await loadPipelines(STEREO);
   await discardAll();
   showTab(SCHEMA.id, "overview");
 });
@@ -124,7 +124,7 @@ test("test_tapping_an_empty_pin_stages_a_pipeline_there", async () => {
 });
 
 test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () => {
-  loadPipelines([plain(0, 0), plain(1, 0), plain(0, 0)]);
+  await loadPipelines([plain(0, 0), plain(1, 0), plain(0, 0)]);
   showTab(SCHEMA.id, "out0");
   await fire(output(), (p) => p["data-v"] === "1");
   await fire(output(), (p) => p["data-v"] === "0");
@@ -136,7 +136,7 @@ test("test_an_output_tab_lists_the_pipelines_of_the_input_it_shows", async () =>
 });
 
 test("test_a_gain_edit_on_the_picked_pipeline_stages_its_gain", async () => {
-  loadPipelines([plain(0, 0), plain(1, 1)]);
+  await loadPipelines([plain(0, 0), plain(1, 1)]);
   await pickLine(0, 0);
   await fire(output(), (p) => p["data-testid"] === "pl-gain", "onChange", { currentTarget: { value: "-4" } });
   assert.equal(stagedRows()?.[0].gain, "-4");
