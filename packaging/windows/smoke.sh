@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Install a built installer silently, run the app once, stop it, then uninstall.
-# An installed app must also answer at the runner's own network address.
+# A silent install without /LAUNCH must start nothing. A silent install with it
+# must start the app, and that app, which the installer itself started, must
+# answer at the runner's own network address. So must the installed app when it
+# is started the way a Start Menu launch starts it.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -24,10 +27,12 @@ BASE_URL="http://127.0.0.1:8090"
 LISTEN_HOST=""
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"
 PID=""
+INSTALLED_PID=""
 WORK=$(mktemp -d)
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; fi
+  if [ -n "$INSTALLED_PID" ]; then stop_windows_pid "$INSTALLED_PID" || true; fi
   rm -rf "$WORK" || true
 }
 trap cleanup EXIT
@@ -52,6 +57,27 @@ running_under() {
   RUN_DIR="$(cygpath -wl "$1")" powershell -NoProfile -Command \
     'Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:RUN_DIR + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }' \
     | tr -d '\r'
+}
+
+windows_pid_alive() {
+  [ -n "$(WIN_PID="$1" powershell -NoProfile -Command \
+    'Get-Process -Id ([int]$env:WIN_PID) -ErrorAction SilentlyContinue | ForEach-Object { $_.Id }' | tr -d '\r')" ]
+}
+
+stop_windows_pid() {
+  WIN_PID="$1" powershell -NoProfile -Command \
+    'Stop-Process -Id ([int]$env:WIN_PID) -Force -ErrorAction SilentlyContinue'
+}
+
+# Run the uninstaller of the install at $APP and wait, at most 10 s, for the exe to go.
+uninstall() {
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$APP/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
+    || die "$1: the uninstaller failed"
+  for _ in $(seq 1 10); do
+    [ -e "$BIN" ] || break
+    sleep 1
+  done
+  [ ! -e "$BIN" ] || die "$1: $BIN still present 10 s after uninstall"
 }
 
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
@@ -99,6 +125,43 @@ FOUND=$(machine "$BIN")
 [ "$FOUND" = "$MACHINE" ] || die "step 2: the executable's machine type is $FOUND, not $MACHINE"
 signed "$BIN" "step 2"
 if [ ! -d "$TARGET" ]; then signed "$APP/unins000.exe" "step 2"; fi
+
+# ---- 2a. the app the installer starts, unless the target is a bundle --------
+# The first install is removed so that this one does not install over it. The
+# stores go under their own LOCALAPPDATA and BROWSER keeps the launch from
+# opening a real browser, as in step 3; the installer's child inherits both. The
+# installer's environment carries no HQPTUNER_LISTEN_HOST, so the app listens as
+# it does for a user whose first launch is the one the installer offers.
+if [ ! -d "$TARGET" ]; then
+  uninstall "step 2a"
+  mkdir "$WORK/installed-data"
+  env -u HQPTUNER_LISTEN_HOST LOCALAPPDATA="$(cygpath -w "$WORK/installed-data")" BROWSER="$(cygpath -w /usr/bin/true)" \
+    MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TARGET" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LAUNCH \
+    "/DIR=$(cygpath -w "$APP")" || die "step 2a: the installer failed"
+  INSTALLED_PID=$(running_under "$APP")
+  case "$INSTALLED_PID" in
+    ''|*[!0-9]*) die "step 2a: expected one HQPTuner.exe started by the installer, found: '$INSTALLED_PID'" ;;
+  esac
+  CODE=000
+  for _ in $(seq 1 30); do
+    CODE=$(status "$BASE_URL/api/health")
+    if [ "$CODE" = 200 ]; then break; fi
+    windows_pid_alive "$INSTALLED_PID" || die "step 2a: the installer-started app exited before GET /api/health answered"
+    sleep 1
+  done
+  [ "$CODE" = 200 ] || die "step 2a: GET /api/health answered $CODE after 30 tries"
+  ADDRESS=$(lan_address)
+  [ -n "$ADDRESS" ] || die "step 2a: the runner has no network address besides loopback"
+  CODE=$(status "http://$ADDRESS:8090/api/health")
+  [ "$CODE" = 200 ] || die "step 2a: address check: the installer-started app at $ADDRESS answered $CODE"
+  stop_windows_pid "$INSTALLED_PID"
+  for _ in $(seq 1 10); do
+    windows_pid_alive "$INSTALLED_PID" || break
+    sleep 1
+  done
+  if windows_pid_alive "$INSTALLED_PID"; then die "step 2a: installer-started PID $INSTALLED_PID still running 10 s after stop"; fi
+  INSTALLED_PID=""
+fi
 
 # ---- 3. start the binary ----------------------------------------------------
 # The stores go under LOCALAPPDATA, so the run gets its own. BROWSER keeps the
@@ -155,13 +218,7 @@ PID=""
 
 # ---- 7. uninstall, unless the target is a bundle ----------------------------
 if [ ! -d "$TARGET" ]; then
-  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$APP/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
-    || die "step 7: the uninstaller failed"
-  for _ in $(seq 1 10); do
-    [ -e "$BIN" ] || break
-    sleep 1
-  done
-  [ ! -e "$BIN" ] || die "step 7: $BIN still present 10 s after uninstall"
+  uninstall "step 7"
   [ ! -e "$SHORTCUT" ] || die "step 7: the Start Menu shortcut is still present"
   LEFT=$(user_env HQPTUNER_LISTEN_HOST)
   [ -z "$LEFT" ] || die "step 7: the user's HQPTUNER_LISTEN_HOST is still '$LEFT'"
