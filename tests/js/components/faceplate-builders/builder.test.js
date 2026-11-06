@@ -29,6 +29,7 @@ import { elements, attr, hasAttr, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { every, inside, kids, vcls, isV, descend, fire } from "../../support/rendered/treewalk.js";
 import { formField } from "../../support/chainenums.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/builders/snapshot.js").Edit} Edit */
 /** @typedef {{ index: string, value: string, name: string }} EnumItem */
@@ -58,17 +59,20 @@ function wire() {
   engineState.value = { state: "0", active_chain: "pcm", filter1x: "1", filterNx: "0", shaper: "0", adaptive: "1" };
   engineStatus.value = {};
   enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
+  const chain = [
+    formField("filter1x", "40", PCM_FILTERS),
+    formField("filter", "41", PCM_FILTERS),
+    formField("dither", "6", PCM_SHAPERS),
+  ];
   config.value = {
-    fields: [
-      { name: "mode", value: "pcm", options: [] },
-      formField("filter1x", "40", PCM_FILTERS),
-      formField("filter", "41", PCM_FILTERS),
-      formField("dither", "6", PCM_SHAPERS),
-    ],
-    file: {},
+    fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
     profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
-    active: "Headphones",
   };
+  seedReadings({
+    mode: "pcm",
+    ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
+    active_preset: { value: "Headphones", readonly: true },
+  });
 }
 
 const DESK = { st: "Headphones", name: "Desk" };

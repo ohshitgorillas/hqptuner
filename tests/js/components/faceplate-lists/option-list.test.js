@@ -24,6 +24,7 @@ import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { OptionList } from "../../../../hqptuner/static/components/faceplate/lists/OptionList.js";
 import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config, enums } from "../../../../hqptuner/static/store/signals.js";
+import { seedReadings } from "../../support/readings.js";
 import { hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
@@ -89,7 +90,6 @@ function serveConversion() {
       {
         name: "pcm_conversion",
         type: "select",
-        value: "0",
         options: [
           { value: "0", label: "traditional" },
           { value: "9", label: "sinc-M" },
@@ -97,6 +97,7 @@ function serveConversion() {
       },
     ],
   };
+  seedReadings({ pcm_conversion: "0" });
 }
 
 /**

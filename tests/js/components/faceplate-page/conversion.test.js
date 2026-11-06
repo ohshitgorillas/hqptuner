@@ -35,6 +35,7 @@ import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -66,7 +67,8 @@ function play({ rate = "48000", playing = true } = {}) {
     status: { state: playing ? "2" : "0", active_rate: "384000" },
     metadata: { samplerate: rate },
   };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   metadata.value = {
