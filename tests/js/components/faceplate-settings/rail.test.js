@@ -68,7 +68,7 @@ let serial = 0;
  */
 function playing(idleTime, song) {
   serial += 1;
-  config.value = { fields: [{ name: "idle_time" }], profiles: null };
+  config.value = { fields: [{ name: "idle_time" }] };
   seedReadings({ idle_time: idleTime });
   engineStatus.value = {
     status: { state: "2", track_serial: String(serial), process_speed: "1.5", clips: "0" },

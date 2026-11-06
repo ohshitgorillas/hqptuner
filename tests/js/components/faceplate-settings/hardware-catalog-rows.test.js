@@ -78,7 +78,7 @@ async function reset() {
       return ok({ report: { verified: { applied: true } } });
     },
   });
-  config.value = { fields: [{ name: "direct_sdm" }], profiles: null };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;

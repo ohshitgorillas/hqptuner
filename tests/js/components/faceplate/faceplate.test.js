@@ -54,11 +54,11 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
 });
 
 test("test_the_snapshot_builder_body_holds_the_option_list", () => {
-  config.value = {
-    fields: [],
-    profiles: { options: [{ value: "" }, { value: "Desk" }] },
-  };
-  seedReadings({ active_preset: { value: "Desk", readonly: true } });
+  config.value = { fields: [] };
+  seedReadings({
+    active_preset: { value: "Desk", readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: "Desk" }] }, readonly: true },
+  });
   liveBook.value = { Desk: { Near: { chain: "pcm", fields: { mode: "pcm" }, names: {} } } };
   showBody("snapshots");
   const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "snapshots");
