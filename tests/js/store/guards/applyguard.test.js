@@ -67,7 +67,7 @@ const LIVE_VOLUME = [
   { name: "volume_fixed", value: false },
   { name: "volume_min", value: "-60" },
   { name: "volume_max", value: "0" },
-  { name: "direct_sdm", value: false },
+  { name: "direct_sdm", value: "0" },
 ];
 
 /** @type {Record<string, string>} */
@@ -230,7 +230,7 @@ async function startApply(w) {
 // touch it, so the apply changes nothing about that hazard. The volume is still
 // not fixed at -3, so a guard reading the staged picture alone would warn here.
 test("test_applying_with_direct_sdm_already_on_and_staying_on_opens_no_question", async () => {
-  const w = await fixture({ volume: patch(LIVE_VOLUME, "direct_sdm", true) });
+  const w = await fixture({ volume: patch(LIVE_VOLUME, "direct_sdm", "1") });
   await stageQuietly(w, "volume_min", "-50");
   const { held } = await startApply(w);
   assert.equal(question.value, null);
@@ -255,7 +255,7 @@ test("test_a_direct_sdm_hazard_acknowledged_at_edit_time_opens_no_apply_time_que
 test("test_leaving_a_hazard_and_reaching_it_again_asks_again_at_edit_time", async () => {
   const w = await fixture();
   await stageAcknowledged(w, "direct_sdm", "1");
-  await stageQuietly(w, "direct_sdm", false);
+  await stageQuietly(w, "direct_sdm", "0");
   const { held } = await startEdit(w, "direct_sdm", "1");
   assert.equal(question.value?.owner, "direct_sdm");
   cancel();
