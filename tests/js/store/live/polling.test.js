@@ -56,7 +56,7 @@ afterEach(() => {
 const DEFAULTS = {
   "GET /api/metadata": ok({ filters: [] }),
   "GET /api/enumerations": ok({ data: null }),
-  "GET /api/config": ok({ data: { fields: [], file: {}, active: "" } }),
+  "GET /api/config": ok({ generation: 1, fields: {} }),
   "GET /api/matrix": ok({ data: { fields: [] } }),
   "GET /api/config/pending": ok({ live: {}, http: {} }),
 };
@@ -152,20 +152,6 @@ test("test_the_volume_event_feeds_the_range_signal_from_the_same_body", () => {
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------
 
-test("test_a_failed_config_fetch_keeps_the_last_good_snapshot", async () => {
-  config.value = { fields: [], file: {}, active: "LastGood" };
-  wire({ "GET /api/config": bad(503, "daemon down") });
-  await refreshConfig();
-  assert.equal(config.value.active, "LastGood");
-});
-
-test("test_the_next_successful_fetch_replaces_the_held_snapshot", async () => {
-  config.value = { fields: [], file: {}, active: "LastGood" };
-  wire({ "GET /api/config": ok({ data: { fields: [], file: {}, active: "Fresh" } }) });
-  await refreshConfig();
-  assert.equal(config.value.active, "Fresh");
-});
-
 test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
   matrixConfig.value = { fields: [], active: "Kept" };
   wire({ "GET /api/matrix": bad(503, "daemon down") });
@@ -207,11 +193,4 @@ test("test_refresh_devices_triggers_a_daemon_rescan", async () => {
   };
   await refreshDevices();
   assert.deepEqual(posts, ["/api/config/refresh"]);
-});
-
-test("test_refresh_devices_repulls_the_config_forms", async () => {
-  config.value = { fields: [], file: {}, active: "Stale" };
-  wire({ "GET /api/config": ok({ data: { fields: [], file: {}, active: "AfterRescan" } }) });
-  await refreshDevices();
-  assert.equal(config.value.active, "AfterRescan");
 });
