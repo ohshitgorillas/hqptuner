@@ -37,7 +37,7 @@ let wire;
  *
  * @param {boolean} manual  running fixed_volume_enabled, as the form's checkbox
  */
-function load(manual) {
+async function load(manual) {
   config.value = {
     fields: [
       "fixed_volume_enabled",
@@ -49,7 +49,7 @@ function load(manual) {
       "defaults_volume",
     ].map((name) => ({ name })),
   };
-  seedReadings({
+  await seedReadings({
     fixed_volume_enabled: manual,
     fixed_volume: fieldReading("-10", { show: "file" }),
     volume_fixed: fieldReading(AUTO_HEADROOM, { show: "file" }),
@@ -66,7 +66,7 @@ function load(manual) {
 
 beforeEach(async () => {
   wire = stagingWire();
-  load(false);
+  await load(false);
   await discardAll();
 });
 
@@ -77,13 +77,13 @@ beforeEach(async () => {
  */
 async function uncheckAutoHeadroom(manual) {
   await discardAll();
-  load(manual);
+  await load(manual);
   await edit("optimal_iso", UNCHECKED);
   await quiesce(wire);
 }
 
 test("test_unchecking_auto_headroom_over_a_running_manual_moves_the_drawers_line_to_manual", async () => {
-  load(true);
+  await load(true);
   fixedMode(); // read under Auto headroom, so the uncheck has to reach a line already read
   await uncheckAutoHeadroom(true);
   assert.equal(fixedMode(), "manual");

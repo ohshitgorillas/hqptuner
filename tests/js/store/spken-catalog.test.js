@@ -41,7 +41,7 @@ async function reset(enabled) {
   engineState.value = {};
   config.value = { fields: [{ name: "direct_sdm" }] };
   matrixConfig.value = { fields: [] };
-  seedReadings({ direct_sdm: false });
+  await seedReadings({ direct_sdm: false });
   await loadSpeakers();
   await discardAll();
   discardDraft();

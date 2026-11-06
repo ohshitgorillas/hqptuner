@@ -54,13 +54,13 @@ let wire;
 /** @type {unknown} */
 let response = { generation: GEN, fields: {} };
 
-beforeEach(() => {
+beforeEach(async () => {
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? ok(response) : undefined) });
   response = { generation: GEN, fields: {} };
   health.value = { phase: "Ready", generation: GEN };
   engineState.value = null;
   engineStatus.value = null;
-  seedReadings({});
+  await seedReadings({});
   dropDrag(KEY);
   dropDrag(OTHER);
   dropDrag("direct_sdm");
@@ -88,11 +88,11 @@ test("test_refresh_replaces_the_entire_served_config_body", async () => {
 });
 
 // Break: a previously obtained field stays bound to its first reading.
-test("test_an_existing_field_observes_replacement_readings", () => {
-  seedReadings({ [KEY]: ENGINE });
+test("test_an_existing_field_observes_replacement_readings", async () => {
+  await seedReadings({ [KEY]: ENGINE });
   const view = field(KEY);
   const seen = [view.value.value];
-  seedReadings({ [KEY]: fieldReading(FILE, { show: "file" }) });
+  await seedReadings({ [KEY]: fieldReading(FILE, { show: "file" }) });
   seen.push(view.value.value);
   assert.deepEqual(seen, [ENGINE, FILE]);
 });
@@ -126,22 +126,22 @@ test("test_older_refetch_cannot_overwrite_a_newer_reading", async () => {
 });
 
 // Break: field ignores the server's pending value or keeps it after reconciliation.
-test("test_served_staging_is_shown_until_the_server_clears_it", () => {
-  seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED }) });
+test("test_served_staging_is_shown_until_the_server_clears_it", async () => {
+  await seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED }) });
   const view = field(KEY);
   const seen = [view.value.value];
-  seedReadings({ [KEY]: ENGINE });
+  await seedReadings({ [KEY]: ENGINE });
   seen.push(view.value.value);
   assert.deepEqual(seen, [STAGED, ENGINE]);
 });
 
 // Break: holding a drag writes the served data or fails to release to its latest reading.
-test("test_a_drag_releases_to_the_latest_served_value", () => {
-  seedReadings({ [KEY]: ENGINE });
+test("test_a_drag_releases_to_the_latest_served_value", async () => {
+  await seedReadings({ [KEY]: ENGINE });
   const view = field(KEY);
   holdDrag(KEY, DRAG);
   const seen = [view.value.value];
-  seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED }) });
+  await seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED }) });
   seen.push(view.value.value);
   dropDrag(KEY);
   seen.push(view.value.value);
@@ -149,8 +149,8 @@ test("test_a_drag_releases_to_the_latest_served_value", () => {
 });
 
 // Break: a falsy drag is treated as an absent drag.
-test("test_zero_is_a_held_value_until_released", () => {
-  seedReadings({ [KEY]: ENGINE });
+test("test_zero_is_a_held_value_until_released", async () => {
+  await seedReadings({ [KEY]: ENGINE });
   holdDrag(KEY, 0);
   const seen = [field(KEY).value.value];
   dropDrag(KEY);
@@ -159,8 +159,8 @@ test("test_zero_is_a_held_value_until_released", () => {
 });
 
 // Break: one field's drag leaks into another field's local state.
-test("test_holding_one_field_leaves_other_fields_at_their_readings", () => {
-  seedReadings({ [KEY]: ENGINE, [OTHER]: fieldReading(FILE, { show: "file" }) });
+test("test_holding_one_field_leaves_other_fields_at_their_readings", async () => {
+  await seedReadings({ [KEY]: ENGINE, [OTHER]: fieldReading(FILE, { show: "file" }) });
   holdDrag(KEY, DRAG);
   const seen = [field(OTHER).value.value];
   holdDrag(OTHER, STAGED);
@@ -171,11 +171,11 @@ test("test_holding_one_field_leaves_other_fields_at_their_readings", () => {
 });
 
 // Break: the running value follows the held thumb instead of the named served store.
-test("test_running_ignores_the_drag_and_served_staging", () => {
-  seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED, file: { value: FILE, generation: GEN } }) });
+test("test_running_ignores_the_drag_and_served_staging", async () => {
+  await seedReadings({ [KEY]: fieldReading(ENGINE, { staged: STAGED, file: { value: FILE, generation: GEN } }) });
   holdDrag(KEY, DRAG);
   const seen = [field(KEY).value.running];
-  seedReadings({
+  await seedReadings({
     [KEY]: fieldReading(FILE, {
       show: "file",
       staged: STAGED,
@@ -281,13 +281,13 @@ test("test_path_tracks_the_playing_source_and_output", () => {
 });
 
 // Break: direct playback follows staged or dragged edits instead of the running store.
-test("test_direct_path_uses_the_running_reading", () => {
+test("test_direct_path_uses_the_running_reading", async () => {
   report("2", DSD, "sdm");
   engineStatus.value = { status: { state: "2", active_rate: DSD }, metadata: { samplerate: "2822400" } };
-  seedReadings({ direct_sdm: fieldReading(false, { staged: true }) });
+  await seedReadings({ direct_sdm: fieldReading(false, { staged: true }) });
   holdDrag("direct_sdm", true);
   const seen = [playback.value.path];
-  seedReadings({ direct_sdm: fieldReading(true, { staged: null }) });
+  await seedReadings({ direct_sdm: fieldReading(true, { staged: null }) });
   seen.push(playback.value.path);
   assert.deepEqual(seen, ["sdm-sdm", "direct"]);
 });

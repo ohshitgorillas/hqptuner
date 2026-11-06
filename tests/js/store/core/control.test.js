@@ -18,8 +18,8 @@ const NEXT_BOUNDS = { min: -48, max: -2, step: 1 };
 /** @typedef {import("../../../../hqptuner/static/model/store/reading.js").FieldReading} FieldReading */
 
 /** @param {Partial<FieldReading>} [over] */
-function serve(over = {}) {
-  seedReadings(
+async function serve(over = {}) {
+  await seedReadings(
     {
       [KEY]: {
         engine: { value: ENGINE, name: "fixture", generation: GEN },
@@ -42,7 +42,7 @@ let wire;
 beforeEach(async () => {
   wire = stagingWire({ routes: (path) => (path === "/api/config" ? ok(readings.value) : undefined) });
   dropDrag(KEY);
-  serve();
+  await serve();
   health.value = { phase: "Ready", generation: GEN };
   config.value = { fields: [{ name: KEY, type: "number" }] };
   await discardAll();
@@ -56,39 +56,39 @@ afterEach(async () => {
 });
 
 // Break: a binding keeps its first reading or chooses Engine over the named File.
-test("test_control_value_follows_the_served_display_store", () => {
+test("test_control_value_follows_the_served_display_store", async () => {
   const item = control(KEY, {});
   const seen = [item.value];
-  serve({ show: "engine" });
+  await serve({ show: "engine" });
   seen.push(item.value);
   assert.deepEqual(seen, [FILE, ENGINE]);
 });
 
 // Break: the dirty mark ignores served staging or stays lit after reconciliation.
-test("test_control_dirty_follows_served_staging", () => {
+test("test_control_dirty_follows_served_staging", async () => {
   const item = control(KEY, {});
   const seen = [item.dirty];
-  serve({ staged: HELD });
+  await serve({ staged: HELD });
   seen.push(item.dirty);
-  serve();
+  await serve();
   seen.push(item.dirty);
   assert.deepEqual(seen, [false, true, false]);
 });
 
 // Break: the restart mark is inferred locally or only appears after an edit.
-test("test_restart_mark_follows_the_server_before_an_edit", () => {
+test("test_restart_mark_follows_the_server_before_an_edit", async () => {
   const item = control(KEY, {});
   const seen = [item.restart];
-  serve({ restarts: false });
+  await serve({ restarts: false });
   seen.push(item.restart);
   assert.deepEqual(seen, [true, false]);
 });
 
 // Break: a control substitutes local limits or retains outdated daemon bounds.
-test("test_bounds_follow_each_served_range", () => {
+test("test_bounds_follow_each_served_range", async () => {
   const item = control(KEY, {});
   const seen = [item.bounds];
-  serve({ bounds: NEXT_BOUNDS });
+  await serve({ bounds: NEXT_BOUNDS });
   seen.push(item.bounds);
   assert.deepEqual(seen, [BOUNDS, NEXT_BOUNDS]);
 });
@@ -99,17 +99,17 @@ test("test_generation_change_keeps_last_known_control_value", async () => {
   health.value = { phase: "Ready", generation: GEN + 1 };
   const seen = [item.value];
   await quiesce(wire);
-  serve({ file: { value: HELD, generation: GEN + 1 } });
+  await serve({ file: { value: HELD, generation: GEN + 1 } });
   seen.push(item.value);
   assert.deepEqual(seen, [FILE, HELD]);
 });
 
 // Break: dragging fails to hold the pointer value over a subsequent server frame.
-test("test_stage_drag_holds_over_a_replacement_reading", () => {
+test("test_stage_drag_holds_over_a_replacement_reading", async () => {
   const item = control(KEY, { drag: "stage" });
   item.move(HELD);
   const seen = [item.value];
-  serve({ file: { value: ENGINE, generation: GEN } });
+  await serve({ file: { value: ENGINE, generation: GEN } });
   seen.push(item.value);
   assert.deepEqual(seen, [HELD, HELD]);
 });
@@ -226,7 +226,7 @@ for (const refuse of [false, true]) {
 
 // Break: every pointer movement writes immediately instead of observing the throttle.
 test("test_throttle_coalesces_moves_and_writes_the_release", async () => {
-  serve({ lane: "volume" });
+  await serve({ lane: "volume" });
   const w = liveWire();
   const clock = fakeClock();
   const item = control(KEY, { drag: "throttle", clock: clock.clock });
@@ -246,7 +246,7 @@ test("test_throttle_coalesces_moves_and_writes_the_release", async () => {
 
 // Break: the dedicated volume lane is routed through config/live.
 test("test_volume_lane_uses_the_immediate_volume_endpoint", async () => {
-  serve({ lane: "volume" });
+  await serve({ lane: "volume" });
   const w = liveWire();
   const item = control(KEY, { drag: "throttle", clock: fakeClock().clock });
   await item.drop(HELD);
@@ -255,10 +255,10 @@ test("test_volume_lane_uses_the_immediate_volume_endpoint", async () => {
 });
 
 // Break: disclosure follows the running flag instead of its staged override.
-test("test_gray_follows_the_staged_fixed_volume_flag", () => {
+test("test_gray_follows_the_staged_fixed_volume_flag", async () => {
   const item = control(KEY, {});
   const base = readings.value.fields[KEY];
-  seedReadings(
+  await seedReadings(
     {
       [KEY]: base,
       fixed_volume_enabled: {
@@ -271,7 +271,7 @@ test("test_gray_follows_the_staged_fixed_volume_flag", () => {
     GEN,
   );
   const seen = [Boolean(item.gray)];
-  seedReadings(
+  await seedReadings(
     {
       [KEY]: base,
       fixed_volume_enabled: {

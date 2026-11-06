@@ -60,7 +60,7 @@ async function trees({ fields = [], file = {}, engine = {}, routes } = {}) {
   engineState.value = engine;
   config.value = { fields: fields.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
     ...Object.fromEntries(Object.entries(file).map(([name, value]) => [name, fieldReading(value, { show: "file" })])),
   });
