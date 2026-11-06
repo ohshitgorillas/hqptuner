@@ -1,0 +1,21 @@
+{
+  "auto_passed": 0,
+  "gaps": 0,
+  "added": 0,
+  "skipped": 1,
+  "rejected": 0,
+  "rejected_entries": [],
+  "skipped_entries": [
+    {
+      "list": "passes",
+      "reason": "already-recorded",
+      "item": 6,
+      "status": "pass",
+      "entry": {
+        "k": 6,
+        "name": "CHANGELOG Fixed entry and README wording",
+        "evidence": "grep for \"reachable from that (PC|Mac) only\" in README.md prints 0; CHANGELOG.md:7-9 Fixed entry equals the owner string recorded in reports/plan-1.md; README.md:192 and :204 equal the owner wording recorded for fc9803f5 and 307c3e41; check_changelog.py rc=0, md-softwrap --check rc=0, no em dash in added lines."
+      }
+    }
+  ]
+}

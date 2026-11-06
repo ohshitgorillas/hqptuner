@@ -1,0 +1,65 @@
+{
+  "status": "delivered",
+  "score": "7/7",
+  "scope_note": "Every truth below is settled on local evidence only (code reading, git history, single gates, one Python spot-check). The Windows runtime half of UAT items 1, 2, 3, 4, 5 and 7 is a (ci: ...) criterion this Linux host cannot run, and no network read of CI was allowed, so those items are deliberately absent from passes and gaps and stay pending for the orchestrator's pending_ci record. The CI run IDs in SUMMARY.md (42159800331 red, 42165957447 attempt 2 green) were not observed by this verifier.",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "The app binds to whatever HQPTUNER_LISTEN_HOST carries, on the desktop launch path, and the code default stays 127.0.0.1",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "hqptuner/config.py:127 listen_host = _env(\"LISTEN_HOST\", \"127.0.0.1\"); hqptuner/__main__.py:40 run(host=cfg.listen_host); hqptuner/desktop.py:315 launch calls main(run=partial(serve, parts=parts)); desktop.py:266 serve -> parts.listen(host=host) -> desktop.py:207 uvicorn.Config(host=host). Spot-check: `HQPTUNER_LISTEN_HOST=0.0.0.0` then `Config().listen_host` printed `0.0.0.0`."
+    },
+    {
+      "n": 2,
+      "truth": "The installer hands HQPTUNER_LISTEN_HOST=0.0.0.0 to every launch it starts from [Run], finish-page checkbox and /LAUNCH alike, and keeps the HKCU registry value for later launches from one shared definition",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "packaging/windows/hqptuner.iss:15 `#define ListenHost \"0.0.0.0\"`; :46 [Registry] HKCU\\Environment ValueData \"{#ListenHost}\" with uninsdeletevalue; :55-56 SetEnvironmentVariableW external from kernel32.dll; :82-86 InitializeSetup sets HQPTUNER_LISTEN_HOST to '{#ListenHost}' before any wizard page or [Run] entry, in silent and interactive mode alike; :52 the only [Run] entry (nowait postinstall, Check: LaunchWanted, no unchecked flag) is what both the finish-page checkbox and the /LAUNCH path execute. ChangesEnvironment=yes kept at :30. That Setup's [Run] child inherits the variable is Windows runtime behavior and belongs to UAT item 2 (ci: smoke-windows), left pending."
+    },
+    {
+      "n": 3,
+      "truth": "A silent install starts the app only when its command line carries /LAUNCH, matched case-insensitively; the interactive wizard still offers the launch",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "packaging/windows/hqptuner.iss:70-78 LaunchWanted: Result := not WizardSilent, then any ParamStr(I) with CompareText(..., '/LAUNCH') = 0 sets True; no {param:} constant, no skipifsilent. The runtime half (no HQPTuner.exe after /VERYSILENT without the switch) is UAT item 5 (ci: smoke-windows), left pending."
+    },
+    {
+      "n": 4,
+      "truth": "smoke-windows exercises the installer-started launch at the runner's network address, the no-switch silent install, and the registry-environment relaunch, on both installer rows, with a lookup proven non-blind",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "packaging/windows/smoke.sh:132-134 step 1 dies if running_under finds a process after a /VERYSILENT install without /LAUNCH; :211-213 step 4 requires the same lookup to find the running binary, so an empty step 1 answer is not blind. :151-188 step 2a: uninstall first (:152), reinstall with /LAUNCH under `env -u HQPTUNER_LISTEN_HOST` plus own LOCALAPPDATA and BROWSER (:154-156), exactly one Windows PID (:164-168, multi-line rejected by *[!0-9]*), loopback health wait dying if the PID is gone (:169-176), address check `step 2a: address check:` (:180), stop by Windows PID and confirm gone (:181-187), cleanup stops it on failure (:35). Steps 3-4 relaunch with the registry value exported and check the network address (:194-225); step 7 uninstall checks (:249-254). Wired: .github/workflows/release.yml:362-373 matrix (x64 and arm64 setup.exe rows, x64 bundle row) and :387 `bash packaging/windows/smoke.sh`. `bash -n` rc=0; `shellcheck -S warning` rc=0. Observation, not a demonstrated defect: step 3 exports LISTEN_HOST read at :129 after the first install and does not re-read it after step 2a's reinstall; the [Registry] entry is unconditional, so both installs write it. The runtime outcomes are UAT items 1, 2, 3 and 5 (ci: smoke-windows), left pending."
+    },
+    {
+      "n": 5,
+      "truth": "The bite-proof commit carried the new step against the pre-fix installer",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "`git show fc9803f5:packaging/windows/hqptuner.iss` has Check: LaunchWanted at :50 and zero matches for InitializeSetup|SetEnvironmentVariableW; `git show fc9803f5:packaging/windows/smoke.sh` has the address-check line at :177 with the text SUMMARY quotes (`step 2a: address check: the installer-started app at $ADDRESS answered $CODE`). The fix landed later in 78bba4dd (hqptuner.iss +15, CHANGELOG.md +4). The red run itself (42159800331) is CI-only and UAT item 4 stays pending for pending_ci."
+    },
+    {
+      "n": 6,
+      "truth": "CHANGELOG.md [Unreleased] has a Fixed entry and README.md no longer contains \"reachable from that PC only\", both texts matching the owner-approved wording",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "`grep -cE \"reachable from that (PC|Mac) only\" README.md` printed 0. CHANGELOG.md:7-9 `### Fixed` / `- **The Windows app now allows connections from other devices on LAN.**`, identical to the owner string quoted in .planning/phases/2/reports/plan-1.md (Task 5 row). README.md:192 and :204 carry `Other devices on your LAN can connect to it at the Mac's/PC's address on port 8090.`, matching the owner correction recorded for 307c3e41 in reports/plan-1.md, and :204 keeps the firewall sentence from the approved fc9803f5 copy (reports/plan-1.2.md). `scripts/gates/check_changelog.py` printed `[ok] ... reads clean under ## [Unreleased]` rc=0; `md-softwrap.py --check README.md CHANGELOG.md` rc=0; zero em dashes in the added README/CHANGELOG lines. The owner's approval messages themselves are not in the repository; the match is against the executor's recorded owner strings."
+    },
+    {
+      "n": 7,
+      "truth": "AC6 has a commit on which all seven required jobs run, and it is not HEAD",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "397c076c (origin/dev) changes packaging/windows/smoke.sh, inside release.yml's push paths filter (.github/workflows/release.yml:7-14), so release.yml runs smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows there, and check.yml (:7-8, push to dev) runs check and e2e. HEAD 4183c2ba changes only .planning/ files, is not pushed, and is outside the release.yml paths filter, so if pushed only check and e2e would run on it. A pending_ci record for UAT item 7 written with `git rev-parse HEAD` would point at 4183c2ba, where five of the seven jobs never run; the CI read for AC6 has to target 397c076c. SUMMARY.md cites only the three smoke-windows rows of run 42165957447 attempt 2 as green and records no result for check, e2e, smoke, lifecycle-deb, lifecycle-rpm or smoke-macos, so AC6 is unconfirmed in the records and stays pending."
+    }
+  ],
+  "passes": [
+    {
+      "k": 6,
+      "name": "CHANGELOG Fixed entry and README wording",
+      "evidence": "grep for \"reachable from that (PC|Mac) only\" in README.md prints 0; CHANGELOG.md:7-9 Fixed entry equals the owner string recorded in reports/plan-1.md; README.md:192 and :204 equal the owner wording recorded for fc9803f5 and 307c3e41; check_changelog.py rc=0, md-softwrap --check rc=0, no em dash in added lines."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}

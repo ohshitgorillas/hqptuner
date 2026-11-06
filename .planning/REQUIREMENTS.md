@@ -31,7 +31,7 @@ Deferred. Tracked, not in the current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIN-01 | Phase 2 | Pending |
+| WIN-01 | Phase 2 | Complete |
 
 ---
 
