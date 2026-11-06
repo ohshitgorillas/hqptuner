@@ -68,7 +68,7 @@ const book = () => ({
  *
  * @param {string} active
  */
-function wire(active) {
+async function wire(active) {
   engineState.value = { state: "0", active_chain: "pcm", filter1x: "1", filterNx: "0", shaper: "0", adaptive: "1" };
   engineStatus.value = {};
   enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
@@ -80,7 +80,7 @@ function wire(active) {
   config.value = {
     fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
   };
-  seedReadings({
+  await seedReadings({
     profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
     mode: "pcm",
     ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
@@ -100,8 +100,8 @@ const edit = (name, stations) => ({ name, stations, inc: new Set(["mode"]), vals
 const DESK = { st: "Headphones", name: "Desk" };
 const BED = { st: "Headphones", name: "Bed" };
 
-beforeEach(() => {
-  wire("Headphones");
+beforeEach(async () => {
+  await wire("Headphones");
   liveBook.value = book();
   staged.value = new Map();
   cur.value = DESK;
@@ -305,8 +305,8 @@ test("test_new_snapshot_lights_open_while_new_is_edited", () => {
   assert.equal(classes(newEntry()).includes("open"), true);
 });
 
-test("test_tapping_new_snapshot_goes_to_new_in_the_loaded_station", () => {
-  wire("Speakers");
+test("test_tapping_new_snapshot_goes_to_new_in_the_loaded_station", async () => {
+  await wire("Speakers");
   tap((v) => isTagged(v, "button", "bnew"));
   assert.deepEqual(cur.value, { st: "Speakers", name: NEW });
 });

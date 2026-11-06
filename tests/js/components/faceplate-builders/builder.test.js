@@ -55,7 +55,7 @@ const book = () => ({
 });
 
 /** Write one idle PCM engine onto the wire-side signals, Headphones loaded. */
-function wire() {
+async function wire() {
   engineState.value = { state: "0", active_chain: "pcm", filter1x: "1", filterNx: "0", shaper: "0", adaptive: "1" };
   engineStatus.value = {};
   enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
@@ -67,7 +67,7 @@ function wire() {
   config.value = {
     fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
   };
-  seedReadings({
+  await seedReadings({
     mode: "pcm",
     ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
     active_preset: { value: "Headphones", readonly: true },
@@ -100,8 +100,8 @@ const dirtyDesk = () => {
   staged.value = new Map([[keyOf(DESK), renamed()]]);
 };
 
-beforeEach(() => {
-  wire();
+beforeEach(async () => {
+  await wire();
   liveBook.value = book();
   staged.value = new Map();
   cur.value = DESK;

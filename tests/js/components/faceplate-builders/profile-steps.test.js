@@ -204,7 +204,7 @@ beforeEach(async () => {
   config.value = configTree();
   matrixConfig.value = matrixTree();
   file = fileTree();
-  seedReadings(served(w), 0);
+  await seedReadings(served(w), 0);
   descriptions.value = {};
   await discardAll();
   staged.value = new Map();

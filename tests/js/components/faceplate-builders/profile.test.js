@@ -145,7 +145,7 @@ beforeEach(async () => {
   config.value = configTree();
   matrixConfig.value = matrixTree();
   enums.value = { matrix_profiles: ["Warm"] };
-  seedReadings(SERVED);
+  await seedReadings(SERVED);
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
   await discardAll();
   staged.value = new Map();
