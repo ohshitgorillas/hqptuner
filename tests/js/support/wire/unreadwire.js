@@ -84,12 +84,6 @@ export const CONFIG = () => ({
   profiles: { value: "Day", options: ["", "Day"].map((n) => ({ value: n, label: n })) },
 });
 
-/** The served readings, as GET /api/config answers them: the loaded preset only. */
-const READINGS = () => ({
-  generation: 1,
-  fields: { active_preset: { value: CONFIG().active, readonly: true } },
-});
-
 /** The snapshot as GET /api/livepresets lists it. */
 const RECORD = () => ({
   name: SNAPSHOT,
@@ -133,7 +127,7 @@ const TABLE = {
   "/api/livepresets": list,
   "/api/state": () => ok({ stale: false, loaded_at: 1, data: STATE() }),
   "/api/enumerations": () => ok({ data: ENUMS() }),
-  "/api/config": () => ok(READINGS()),
+  "/api/config": () => ok({ data: CONFIG() }),
   "/api/matrix": () => ok({ data: { fields: [] } }),
 };
 
