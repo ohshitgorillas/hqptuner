@@ -27,6 +27,7 @@ import {
   matrixConfig,
   lastApply,
 } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { applying, applyOp, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
 import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
@@ -64,7 +65,7 @@ const CALLS = [];
  */
 function answer(path) {
   if (path === "/api/preset/Night") return ok({ name: "Night", config: { volume_max: "-9" } });
-  if (path === "/api/config") return ok({ data: config.value });
+  if (path === "/api/config") return ok(readings.value);
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
   if (path === "/api/config/apply") return ok({ report: {} });
   if (path === "/api/livepresets") return ok({ presets: [], stations: {} });
