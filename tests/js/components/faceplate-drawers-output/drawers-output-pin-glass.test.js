@@ -25,6 +25,7 @@ import { useStorage } from "../../support/storage.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, elements, text } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 useStorage();
 
@@ -74,18 +75,24 @@ function routes(path) {
 function load() {
   config.value = {
     fields: [
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: "network" },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_device", type: "select", value: STANDA, options: [{ value: STANDA, label: STANDA }] },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
     ],
-    file: {},
-    active: "",
     profiles: null,
     device_caps: null,
   };
+  seedReadings({
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    mode: "pcm",
+    backend: "network",
+    net_dop: false,
+    net_device: STANDA,
+  });
   enums.value = {
     rates: [{ index: "0", rate: "0" }, ...PCM_HZ.map((r, n) => ({ index: String(n + 1), rate: String(r) }))],
   };

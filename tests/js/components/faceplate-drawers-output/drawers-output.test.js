@@ -133,8 +133,6 @@ function load({ mode = "pcm", caps = null } = {}) {
       { name: "net_device", type: "select", options: NET_OPTIONS },
       { name: "channels", type: "number" },
     ],
-    file: {},
-    active: "",
     profiles: null,
     device_caps: caps,
   };

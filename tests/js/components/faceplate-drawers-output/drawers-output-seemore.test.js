@@ -28,6 +28,7 @@ import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -102,29 +103,46 @@ beforeEach(async () => {
   stagingWire();
   config.value = {
     fields: [
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: "combo" },
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "channels", type: "number", value: 2 },
-      { name: "net_device", type: "select", value: NET, options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "alsa_device", type: "select", value: ALSA, options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "alsa_dop", type: "checkbox", value: false },
-      { name: "net_anydsd", type: "checkbox", value: true },
-      { name: "alsa_anydsd", type: "checkbox", value: false },
-      { name: "net_bits", type: "number", value: 20 },
-      { name: "alsa_bits", type: "number", value: 24 },
-      { name: "net_ipv6", type: "checkbox", value: true },
-      { name: "alsa_offset", type: "number", value: 0 },
-      { name: "net_period", type: "number", value: 0 },
-      { name: "alsa_period", type: "number", value: 100 },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "channels", type: "number" },
+      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
+      { name: "alsa_device", type: "select", options: [{ value: ALSA, label: "HDA NVidia: HDMI 0" }] },
+      { name: "net_dop", type: "checkbox" },
+      { name: "alsa_dop", type: "checkbox" },
+      { name: "net_anydsd", type: "checkbox" },
+      { name: "alsa_anydsd", type: "checkbox" },
+      { name: "net_bits", type: "number" },
+      { name: "alsa_bits", type: "number" },
+      { name: "net_ipv6", type: "checkbox" },
+      { name: "alsa_offset", type: "number" },
+      { name: "net_period", type: "number" },
+      { name: "alsa_period", type: "number" },
     ],
-    file: {},
-    active: "",
     profiles: null,
     device_caps: null,
   };
+  seedReadings({
+    mode: "pcm",
+    backend: "combo",
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    channels: 2,
+    net_device: NET,
+    alsa_device: ALSA,
+    net_dop: false,
+    alsa_dop: false,
+    net_anydsd: true,
+    alsa_anydsd: false,
+    net_bits: 20,
+    alsa_bits: 24,
+    net_ipv6: true,
+    alsa_offset: 0,
+    net_period: 0,
+    alsa_period: 100,
+  });
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;

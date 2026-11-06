@@ -27,6 +27,7 @@ import { openPopover, openStage } from "../../../../hqptuner/static/store/facepl
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements, text } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** The Backend row's catalog key, the form field it edits. */
 const BACKEND_KEY = "backend";
@@ -92,23 +93,34 @@ async function load(offered) {
   stagingWire();
   config.value = {
     fields: [
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: "network", options: offered },
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "channels", type: "number", value: 2 },
-      { name: "net_device", type: "select", value: NET, options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_anydsd", type: "checkbox", value: true },
-      { name: "net_bits", type: "number", value: 20 },
-      { name: "net_ipv6", type: "checkbox", value: true },
-      { name: "net_period", type: "number", value: 0 },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select", options: offered },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "channels", type: "number" },
+      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_anydsd", type: "checkbox" },
+      { name: "net_bits", type: "number" },
+      { name: "net_ipv6", type: "checkbox" },
+      { name: "net_period", type: "number" },
     ],
-    file: {},
-    active: "",
     profiles: null,
     device_caps: null,
   };
+  seedReadings({
+    mode: "pcm",
+    backend: "network",
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    channels: 2,
+    net_device: NET,
+    net_dop: false,
+    net_anydsd: true,
+    net_bits: 20,
+    net_ipv6: true,
+    net_period: 0,
+  });
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;

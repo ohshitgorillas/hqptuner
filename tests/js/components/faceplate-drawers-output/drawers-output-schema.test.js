@@ -138,8 +138,6 @@ function load(backend) {
       { name: "net_period", type: "number" },
       { name: "alsa_period", type: "number" },
     ],
-    file: {},
-    active: "",
     profiles: null,
     device_caps: null,
   };
