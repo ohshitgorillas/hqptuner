@@ -63,7 +63,7 @@ beforeEach(async () => {
       { name: "post_correction_dac0", options: opts("", "m1") },
     ],
   };
-  seedReadings({
+  await seedReadings({
     volume_max: -3,
     channels: 2,
     enabled: true,

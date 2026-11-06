@@ -46,7 +46,7 @@ const FIELDS = [
 beforeEach(async () => {
   stagingWire();
   config.value = { fields: FIELDS };
-  seedReadings({
+  await seedReadings({
     volume_max: fieldReading(-3, { show: "file", restarts: true }),
     mode: "pcm",
     idle_time: "30",

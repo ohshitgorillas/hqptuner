@@ -55,7 +55,7 @@ beforeEach(async () => {
   stagingWire({ routes });
   config.value = { fields: FIELDS };
   matrixConfig.value = { fields: [] };
-  seedReadings({
+  await seedReadings({
     [RESTART_KEY]: fieldReading(-3, { show: "file", restarts: true }),
     active_preset: { value: STATION, readonly: true },
   });

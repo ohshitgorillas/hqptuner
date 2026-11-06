@@ -47,7 +47,7 @@ let w = stagingWire();
 beforeEach(async () => {
   useStorage();
   w = stagingWire();
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
   await discardAll();
 });
@@ -65,8 +65,8 @@ const idOf = (name) => String(rowOptions(KEY).find((/** @type {{ label: string }
  *
  * @param {string} name
  */
-function runningOn(name) {
-  seedReadings({ ...readings.value?.fields, [FORM_FIELD]: idOf(name) });
+async function runningOn(name) {
+  await seedReadings({ ...readings.value?.fields, [FORM_FIELD]: idOf(name) });
 }
 
 // --- the plate -----------------------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ test("test_the_plate_carries_the_plain_family_variant_and_leaf_of_the_staged_fil
 });
 
 test("test_the_plate_carries_the_variant_of_a_staged_filter_whose_family_has_one", async () => {
-  runningOn(NONE);
+  await runningOn(NONE);
   await edit(KEY, idOf(GAUSS));
   assert.deepEqual(drawer.drawerPlate?.(KEY), PLATE[GAUSS]);
 });
@@ -85,7 +85,7 @@ test("test_the_plate_carries_the_variant_of_a_staged_filter_whose_family_has_one
 // --- the pick ------------------------------------------------------------------------------------------------------
 
 test("test_a_pick_stages_the_picked_names_config_form_enum_id", async () => {
-  runningOn(NONE);
+  await runningOn(NONE);
   await drawer.drawerPick?.(KEY, GAUSS);
   await quiesce(w);
   assert.equal(staged.value.http[FORM_FIELD], idOf(GAUSS));

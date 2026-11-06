@@ -86,7 +86,7 @@ beforeEach(async () => {
   stagingWire({ routes });
   config.value = { fields: FIELDS };
   matrixConfig.value = { fields: MATRIX_FIELDS };
-  seedReadings(served(STATION));
+  await seedReadings(served(STATION));
   engineState.value = { adaptive: 0 };
   enums.value = null;
   metadata.value = null;
@@ -240,7 +240,7 @@ test("test_the_save_mode_saves_into_the_loaded_station", async () => {
 test("test_the_save_mode_sends_nothing_with_no_loaded_station", async () => {
   await edit("volume_max", "-6");
   pickApplyMode("save");
-  seedReadings(served(""));
+  await seedReadings(served(""));
   await runApply();
   pickApplyMode("apply");
   await runApply();
