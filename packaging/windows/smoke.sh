@@ -7,14 +7,15 @@
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
-# usage: packaging/windows/smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed]
+# An installer target also needs --previous, the setup.exe of the release it
+# upgrades; a missing or absent one is refused rather than skipping the upgrade.
+# usage: packaging/windows/smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed] [--previous <setup.exe>]
 set -euo pipefail
 
 die() { echo "FAIL: $*" >&2; exit 1; }
 
-USAGE="usage: smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed]"
-[ $# -eq 2 ] || [ $# -eq 3 ] || die "$USAGE"
-[ "${3:---signed}" = --signed ] || die "$USAGE"
+USAGE="usage: smoke.sh <setup.exe|bundle-dir> <x64|arm64> [--signed] [--previous <setup.exe>]"
+[ $# -ge 2 ] || die "$USAGE"
 [ -e "$1" ] || die "step 1: target not found: $1"
 TARGET=$1
 case "$2" in
@@ -22,7 +23,22 @@ case "$2" in
   arm64) MACHINE=aa64 ;;
   *) die "$USAGE" ;;
 esac
-SIGNED=${3:-}
+SIGNED=""
+PREVIOUS=""
+shift 2
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --signed) SIGNED=--signed; shift ;;
+    --previous)
+      [ $# -ge 2 ] || die "$USAGE"
+      PREVIOUS=$2; shift 2 ;;
+    *) die "$USAGE" ;;
+  esac
+done
+if [ ! -d "$TARGET" ]; then
+  [ -n "$PREVIOUS" ] || die "step 1: an installer target needs --previous, the installer of the release it upgrades"
+  [ -f "$PREVIOUS" ] || die "step 1: the previous installer is not found: $PREVIOUS"
+fi
 BASE_URL="http://127.0.0.1:8090"
 LISTEN_HOST=""
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"

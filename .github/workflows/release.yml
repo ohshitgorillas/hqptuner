@@ -362,17 +362,21 @@ jobs:
             target: dist/*-setup.exe
             arch: x64
             signed: --signed
+            previous: --previous previous/setup.exe
           - runner: windows-11-arm
             artifact: windows-installer
             target: dist/*-setup.exe
             arch: arm64
             signed: --signed
+            previous: --previous previous/setup.exe
           - runner: windows-11-arm
             artifact: windows-bundle-x64
             target: dist/x64/HQPTuner
             arch: x64
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    env:
+      PREVIOUS_VERSION: "1.20.1"
     defaults:
       run:
         shell: bash
@@ -384,7 +388,17 @@ jobs:
           name: ${{ matrix.artifact }}
           path: dist
 
-      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }} ${{ matrix.signed }}
+      # The installer rows upgrade over this published release. It goes outside
+      # dist/, because the target glob there must match one installer.
+      - if: matrix.previous
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir previous
+          gh release download "v$PREVIOUS_VERSION" --repo "$GITHUB_REPOSITORY" \
+            --pattern "HQPTuner-$PREVIOUS_VERSION-setup.exe" --output previous/setup.exe
+
+      - run: bash packaging/windows/smoke.sh ${{ matrix.target }} ${{ matrix.arch }} ${{ matrix.signed }} ${{ matrix.previous }}
 
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
