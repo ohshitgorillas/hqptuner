@@ -64,7 +64,7 @@ beforeEach(async () => {
   stagingWire();
   viewport.value = DESIGN;
   metadata.value = META;
-  loadVolumeRange();
+  await loadVolumeRange();
   await discardAll();
 });
 

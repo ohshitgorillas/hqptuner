@@ -105,7 +105,7 @@ beforeEach(async () => {
   await quiesce(readingDaemon());
   await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm" }] };
-  seedReadings({ direct_sdm: false });
+  await seedReadings({ direct_sdm: false });
   drawer.discardDraft();
   drawer.pickSpeakerSet(FIRST.id);
 });

@@ -43,7 +43,7 @@ import { attr, classes, elements } from "../../support/markup.js";
 const fileReading = (value) => fieldReading(value, { show: "file", lane: "restore", restarts: true });
 
 /** @param {{ fixed?: boolean, iso?: string }} r  running fixed_volume_enabled and volume_fixed (Auto headroom) */
-function load({ fixed = false, iso = "0" } = {}) {
+async function load({ fixed = false, iso = "0" } = {}) {
   config.value = { fields: [] };
   matrixConfig.value = { fields: [] };
   /** @type {Record<string, unknown>} */
@@ -58,7 +58,7 @@ function load({ fixed = false, iso = "0" } = {}) {
     gain_comp: "0",
     playlist_album_gain: false,
   };
-  seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
+  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
   volume.value = "-12.5";
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };
@@ -68,7 +68,7 @@ beforeEach(async () => {
   stagingWire();
   metadata.value = null;
   openStage.value = "volume";
-  load();
+  await load();
   await discardAll();
 });
 
@@ -89,7 +89,7 @@ const levelDot = () => {
 };
 
 test("test_a_staged_fixed_level_dots_the_level_tab", async () => {
-  load({ fixed: true });
+  await load({ fixed: true });
   await edit("fixed_volume", "-6");
   assert.equal(levelDot(), true);
 });
