@@ -5,6 +5,7 @@
 
 import { api } from "../lib/api.js";
 import { sameJson } from "../lib/samejson.js";
+import { refreshReadings } from "./core/readings.js";
 import {
   health,
   engineState,
@@ -97,10 +98,10 @@ export async function refreshDevices() {
   await refreshConfig();
 }
 
-/** Re-pull the slow snapshots — enumerations, config, matrix and the pending buffer. */
+/** Re-pull the slow snapshots — enumerations, the served readings, matrix and the pending buffer. */
 export async function refreshConfig() {
   await mirror(api.enumerations, enums);
-  await mirror(api.config, config);
+  await safe(refreshReadings);
   await mirror(api.matrix, matrixConfig);
   await mirror(api.pending, staged, raw);
 }
