@@ -144,9 +144,9 @@ const STATE = () => ({
   active_chain: "pcm",
 });
 
-// `file` is the config XML overlaid with the engine's live settings, keyed by
-// FORM FIELD name: the PCM rate limit is `defaults_samplerate`, the SDM one
-// `defaults_bitrate` (store/schema.js pcm_rate / sdm_rate, both fileTruth).
+// `FILE()` is the overlay as field readings shown from file, keyed by FORM FIELD
+// name (`fileFields` builds them): the PCM rate limit is `defaults_samplerate`,
+// the SDM one `defaults_bitrate` (store/schema/output.js pcm_rate / sdm_rate).
 const FILE = () => ({ mode: "pcm" });
 
 // The overlay as the served readings carry it: each key one field reading showing its file value.
