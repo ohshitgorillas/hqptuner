@@ -1,0 +1,49 @@
+{
+  "phase": "2",
+  "trigger": "plan",
+  "discriminator": "cad-plan-292be84d",
+  "round": 1,
+  "base": "1d10113e4a38f70845e16b21c5ec84a371da3d17",
+  "head": "292be84dd259e2cee0eabedac4b252c551126429",
+  "base_id": "1d10113e4a38f70845e16b21c5ec84a371da3d17",
+  "head_id": "292be84dd259e2cee0eabedac4b252c551126429",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN.md",
+      "line": 41,
+      "severity": "low",
+      "claim": "Task 1 offers the `{param:}` constant as a way to read the switch, but `{param:Name|Default}` only parses the `/Name=Value` form, so it cannot detect a bare `/LAUNCH`, which is the switch name the plan fixes.",
+      "failure_scenario": "Suppose the executor picks the plan's `{param:LAUNCH|...}` option and the smoke runs `setup.exe /VERYSILENT /LAUNCH`. The constant returns its default whether or not the switch is present, so the Check never admits the launch. No app starts, and Task 3 dies at its 'not exactly one process' lookup instead of at the address check. The bite-proof push is spent, and the work goes back to the owner on a mechanism the plan itself recommended. Only the `ParamCount`/`ParamStr` route works for a bare switch.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "292be84dd259e2cee0eabedac4b252c551126429",
+      "base_id": "1d10113e4a38f70845e16b21c5ec84a371da3d17",
+      "head_id": "292be84dd259e2cee0eabedac4b252c551126429"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN.md",
+      "line": 59,
+      "severity": "low",
+      "claim": "Task 4 says to change nothing else in the README, but `README.md:192` has the same stale sentence for the Mac app ('It is reachable from that Mac only.'). It contradicts the same `HQPTUNER_LISTEN_HOST` table row (`README.md:238`) that D-09 cites, and `packaging/macos/smoke.sh:61-63` requires `LSEnvironment.HQPTUNER_LISTEN_HOST` to be `0.0.0.0`. This is a second instance of the same stale-copy defect, which `~/dev/CLAUDE.md` 10.2 puts in scope or makes a 6.1 boundary question; the plan does neither.",
+      "failure_scenario": "Execute Task 4 as written: its `grep -c \"reachable from that PC only\"` check prints 0 and the task passes. The README still tells Mac users their app works only on that Mac, while the table two sections down says the macOS app binds `0.0.0.0`. The phase ships the same contradiction it set out to remove, and no task or verify step catches it.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "292be84dd259e2cee0eabedac4b252c551126429",
+      "base_id": "1d10113e4a38f70845e16b21c5ec84a371da3d17",
+      "head_id": "292be84dd259e2cee0eabedac4b252c551126429"
+    }
+  ]
+}
