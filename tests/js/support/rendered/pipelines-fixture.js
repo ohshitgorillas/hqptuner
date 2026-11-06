@@ -20,12 +20,12 @@ const fromFile = (value) => fieldReading(value, { show: "file" });
 
 /**
  * Load a pipeline set as the config file's, with the matrix engine's switch. The set is a restart-class field, so its
- * reading carries `restarts`.
+ * reading carries `restarts`. The returned promise resolves once the readings are seeded.
  *
  * @param {Row[]} rows
  * @param {boolean} [engaged]
  */
-export function loadPipelines(rows, engaged = true) {
+export async function loadPipelines(rows, engaged = true) {
   config.value = { fields: [{ name: "channels", type: "number" }] };
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
   seedReadings({

@@ -38,12 +38,12 @@ function served(entry) {
 }
 
 /**
- * Set `readings.value` to `{ generation, fields }`; a plain value in `fields` becomes `fieldReading(value)`, a FieldReading is kept as given; `generation` defaults to the current `generation` of `store/signals.js`.
+ * Set `readings.value` to `{ generation, fields }`; a plain value in `fields` becomes `fieldReading(value)`, a FieldReading is kept as given; `generation` defaults to the current `generation` of `store/signals.js`. The returned promise resolves once the readings are seeded.
  *
  * @param {Record<string, unknown>} fields
  * @param {number} [stamp]
  */
-export function seedReadings(fields, stamp = generation.value) {
+export async function seedReadings(fields, stamp = generation.value) {
   /** @type {Record<string, unknown>} */
   const entries = {};
   for (const [key, entry] of Object.entries(fields)) entries[key] = served(entry) ? entry : fieldReading(entry);

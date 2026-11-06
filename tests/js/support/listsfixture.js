@@ -143,11 +143,11 @@ const overlays = () => ({
 
 /**
  * Put the engine on the wire with one chain loaded (the other dormant, read off the /config form), the overlays
- * served, and the option style set.
+ * served, and the option style set. The returned promise resolves once the readings are seeded.
  *
  * @param {{ chain?: "sdm" | "pcm", plain?: boolean }} [o]
  */
-export function loadLists({ chain = "sdm", plain = false } = {}) {
+export async function loadLists({ chain = "sdm", plain = false } = {}) {
   const sdm = chain === "sdm";
   // State holds the list indices of the loaded chain's form values: SDM 38, 38, 3 and PCM 40, 40, 5.
   const held = sdm ? { filter1x: "0", filterNx: "0", shaper: "1" } : { filter1x: "1", filterNx: "1", shaper: "1" };

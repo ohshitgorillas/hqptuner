@@ -17,11 +17,12 @@ import { fieldReading, seedReadings } from "../readings.js";
 
 /**
  * Load the running state `r` describes, each field it leaves out at its default: not fixed, Min -60, Startup -20,
- * Max 0, no loudness, the engine reporting the range enabled from -60 to 0, the volume at -12.5 and no drag.
+ * Max 0, no loudness, the engine reporting the range enabled from -60 to 0, the volume at -12.5 and no drag. The
+ * returned promise resolves once the readings are seeded.
  *
  * @param {Running} [r]
  */
-export function loadVolumeRange(r = {}) {
+export async function loadVolumeRange(r = {}) {
   const s = {
     fixed: false,
     min: "-60",
