@@ -3,12 +3,12 @@
 // skip, when the edit reads dirty, the state line, switching between profiles and stashing an edit, starting from
 // scratch, and what Save, Remove and Discard send.
 //
-// The wire is the seam: the /config form (the stations, the loaded one, Fixed volume) into `config`, the /api/matrix
-// payload (the post-process selects, the pipeline rows, the stored and daemon-known profiles, which stations hold
-// which, the live profile) into `matrixConfig`, the stored descriptions into `descriptions`. Staging rides
-// `stagingWire`'s real /api/config/stage path; every request the store sends is recorded on `w.posts` in arrival order,
-// so a save's sequence is observable as the requests it made. The record being edited and its stashed edits are the
-// shell's `cur` and `staged` (./shell.js).
+// The wire is the seam: the /config form (Fixed volume) into `config`, the /api/matrix payload (the post-process
+// selects, the pipeline rows, the stored profiles, which stations hold which) into `matrixConfig`, the stations, the
+// loaded one and the live profile as readings, the daemon-known profiles into `enums`, the stored descriptions into
+// `descriptions`. Staging rides `stagingWire`'s real /api/config/stage path; every request the store sends is recorded
+// on `w.posts` in arrival order, so a save's sequence is observable as the requests it made. The record being edited
+// and its stashed edits are the shell's `cur` and `staged` (./shell.js).
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate-builders/profile.test.js
 
@@ -121,10 +121,10 @@ const FLAT_NOTE = "fixture flat note";
 /**
  * A fresh /api/matrix payload.
  *
- * @param {{ models?: { value: string, label: string }[], live?: string[] }} [o]
- *   models: the DAC model select's options; live: the names the daemon knows
+ * @param {{ models?: { value: string, label: string }[] }} [o]
+ *   models: the DAC model select's options
  */
-const matrixTree = ({ models = MODELS, live = ["Warm"] } = {}) => ({
+const matrixTree = ({ models = MODELS } = {}) => ({
   fields: [
     { name: "post_bauer_enabled", options: [] },
     { name: "post_bauer_preset", options: BAUER },
@@ -135,11 +135,10 @@ const matrixTree = ({ models = MODELS, live = ["Warm"] } = {}) => ({
     { name: "post_loudness_rangehigh", options: [] },
   ],
   file_profiles: { Flat: FLAT(), Warm: WARM() },
-  live_profiles: live,
   preset_profiles: { Day: ["Flat", "Warm"], Night: ["Warm"], Spare: ["Flat"] },
 });
 
-/** A fresh /config form: the stations and Fixed volume. */
+/** A fresh /config form: Fixed volume. */
 const configTree = () => ({
   fields: [{ name: "fixed_volume_enabled", options: [] }],
 });
@@ -405,7 +404,7 @@ test("test_the_book_holds_a_stored_profiles_rows_and_post", () => {
 });
 
 test("test_the_book_holds_null_for_a_name_only_the_daemon_knows", () => {
-  matrixConfig.value = matrixTree({ live: ["Warm", "Echo"] });
+  matrixConfig.value = matrixTree();
   enums.value = { matrix_profiles: ["Warm", "Echo"] };
   assert.equal(profileBook()[LOADED]?.Echo, null);
 });
