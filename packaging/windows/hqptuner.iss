@@ -47,7 +47,7 @@ Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "HQPTUNER_LISTE
 Name: "{autoprograms}\HQPTuner"; Filename: "{app}\HQPTuner.exe"
 
 [Run]
-Filename: "{app}\HQPTuner.exe"; Description: "{cm:LaunchProgram,HQPTuner}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\HQPTuner.exe"; Description: "{cm:LaunchProgram,HQPTuner}"; Flags: nowait postinstall; Check: LaunchWanted
 
 [Code]
 function PreferArm64Files: Boolean;
@@ -58,4 +58,16 @@ end;
 function PreferX64Files: Boolean;
 begin
   Result := not PreferArm64Files and IsX64Compatible;
+end;
+
+// The finish page offers the launch. A silent install starts the app only when
+// its command line carries /LAUNCH.
+function LaunchWanted: Boolean;
+var
+  I: Integer;
+begin
+  Result := not WizardSilent;
+  for I := 1 to ParamCount do
+    if CompareText(ParamStr(I), '/LAUNCH') = 0 then
+      Result := True;
 end;
