@@ -12,6 +12,8 @@
   #error HQPTUNER_VERSION is not set
 #endif
 
+#define ListenHost "0.0.0.0"
+
 [Setup]
 AppId={{8F3B6C1E-5A47-4D0B-9E2C-7B1A64D3F0A9}
 AppName=HQPTuner
@@ -41,7 +43,7 @@ Source: "dist\windows\x64\HQPTuner\*"; DestDir: "{app}"; Flags: recursesubdirs i
 
 [Registry]
 ; The app listens on every address, as the Linux service and the container do.
-Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "HQPTUNER_LISTEN_HOST"; ValueData: "0.0.0.0"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "HQPTUNER_LISTEN_HOST"; ValueData: "{#ListenHost}"; Flags: uninsdeletevalue
 
 [Icons]
 Name: "{autoprograms}\HQPTuner"; Filename: "{app}\HQPTuner.exe"
@@ -50,6 +52,9 @@ Name: "{autoprograms}\HQPTuner"; Filename: "{app}\HQPTuner.exe"
 Filename: "{app}\HQPTuner.exe"; Description: "{cm:LaunchProgram,HQPTuner}"; Flags: nowait postinstall; Check: LaunchWanted
 
 [Code]
+function SetEnvironmentVariableW(Name, Value: String): Integer;
+  external 'SetEnvironmentVariableW@kernel32.dll stdcall';
+
 function PreferArm64Files: Boolean;
 begin
   Result := IsArm64;
@@ -70,4 +75,12 @@ begin
   for I := 1 to ParamCount do
     if CompareText(ParamStr(I), '/LAUNCH') = 0 then
       Result := True;
+end;
+
+// The registry value above reaches only processes started after it is written.
+// Setup's own environment is what the launch from [Run] inherits.
+function InitializeSetup: Boolean;
+begin
+  SetEnvironmentVariableW('HQPTUNER_LISTEN_HOST', '{#ListenHost}');
+  Result := True;
 end;

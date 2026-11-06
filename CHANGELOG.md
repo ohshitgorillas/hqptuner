@@ -4,6 +4,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 ## [Unreleased]
 
+### Fixed
+
+- **The Windows app now allows connections from other devices on LAN.**
+
 ## [1.20.1] — 2026-11-03
 
 ### Fixed
