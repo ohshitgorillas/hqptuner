@@ -42,6 +42,7 @@ import {
 import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
 import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
+import { seedReadings } from "../../support/readings.js";
 
 const SHELL = "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 
@@ -159,12 +160,33 @@ const book = () => ({
  */
 
 /**
- * Write the matrix forms with two engine-loaded profiles, the one given running.
+ * Serve the /config form and the readings the engine reports: the Output mode, the chain fields at their running
+ * values, the loaded station and the running matrix profile.
  *
+ * @param {string} mode
+ * @param {string} active
  * @param {string} [profile]
  */
-function wireMatrix(profile = "") {
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Room EQ", "Desk"], live_active: profile };
+function serve(mode, active, profile = "") {
+  const formFields = [
+    formField("filter1x", "40", PCM_FILTERS),
+    formField("filter", "41", PCM_FILTERS),
+    formField("dither", "6", PCM_SHAPERS),
+    formField("oversampling1x", "38", SDM_FILTERS),
+    formField("oversampling", "39", SDM_FILTERS),
+    formField("modulator", "4", SDM_SHAPERS),
+  ];
+  config.value = {
+    fields: [{ name: "mode", options: [] }, ...formFields.map(({ name, options }) => ({ name, options }))],
+    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
+  };
+  matrixConfig.value = { fields: [] };
+  seedReadings({
+    mode,
+    ...Object.fromEntries(formFields.map(({ name, value }) => [name, value])),
+    active_preset: { value: active, readonly: true },
+    matrix_profile: profile,
+  });
 }
 
 /**
@@ -187,22 +209,8 @@ function wire({
   engineState.value = { state: "0", active_chain: chain, filter1x: f1x, filterNx: fnx, shaper, adaptive };
   engineStatus.value = {};
   enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  config.value = {
-    fields: [
-      { name: "mode", value: mode, options: [] },
-      formField("filter1x", "40", PCM_FILTERS),
-      formField("filter", "41", PCM_FILTERS),
-      formField("dither", "6", PCM_SHAPERS),
-      formField("oversampling1x", "38", SDM_FILTERS),
-      formField("oversampling", "39", SDM_FILTERS),
-      formField("modulator", "4", SDM_SHAPERS),
-    ],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
-    active,
-  };
+  serve(mode, active, profile);
   metadata.value = overlays();
-  wireMatrix(profile);
   plainNames.value = false;
 }
 
