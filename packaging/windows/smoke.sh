@@ -44,6 +44,16 @@ lan_address() {
     | tr -d '\r'
 }
 
+# The Windows PIDs of running HQPTuner.exe processes whose image lies under the
+# directory $1. Git Bash's kill and kill -0 do not address a Windows PID. The
+# directory travels in the environment because PowerShell reads everything after
+# -Command as script text.
+running_under() {
+  RUN_DIR="$(cygpath -wl "$1")" powershell -NoProfile -Command \
+    'Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "HQPTuner.exe" -and $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:RUN_DIR + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase) } | ForEach-Object { $_.ProcessId }' \
+    | tr -d '\r'
+}
+
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
 
 # The machine field of a PE file's header, as four hex digits.
@@ -77,6 +87,9 @@ else
   [ -f "$SHORTCUT" ] || die "step 1: no Start Menu shortcut at $SHORTCUT"
   LISTEN_HOST=$(user_env HQPTUNER_LISTEN_HOST)
   [ "$LISTEN_HOST" = 0.0.0.0 ] || die "step 1: the user's HQPTUNER_LISTEN_HOST is '$LISTEN_HOST', not '0.0.0.0'"
+  # The installer has returned, and its run entries ran before it did.
+  RUNNING=$(running_under "$APP")
+  [ -z "$RUNNING" ] || die "step 1: a silent install without /LAUNCH left HQPTuner.exe running, PID $RUNNING"
 fi
 BIN="$APP/HQPTuner.exe"
 
