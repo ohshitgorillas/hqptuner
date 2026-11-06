@@ -21,7 +21,6 @@ import assert from "node:assert/strict";
 import {
   volume,
   volumeRange,
-  config,
   matrixConfig,
   engineState,
   engineStatus,
@@ -90,7 +89,7 @@ test("test_sync_opens_its_stream_on_the_push_route", () => {
 });
 
 // --- each push event lands in its signal ------------------------------------------
-// The state, status, enumerations, config and matrix events arrive wrapped as
+// The state, status, enumerations and matrix events arrive wrapped as
 // {stale, loaded_at, data} and land as their `data`; the pending and volume events
 // arrive unwrapped. The volume event feeds both the level and the range signal.
 
@@ -112,12 +111,6 @@ const EVENTS = [
     body: { stale: false, loaded_at: 1, data: { mode: { name: "PCM" } } },
     read: () => enums.value?.mode?.name,
     want: "PCM",
-  },
-  {
-    event: "config",
-    body: { stale: false, loaded_at: 1, data: { fields: [], file: {}, active: "Desk" } },
-    read: () => config.value?.active,
-    want: "Desk",
   },
   {
     event: "matrix",

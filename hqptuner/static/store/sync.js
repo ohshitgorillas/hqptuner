@@ -11,7 +11,6 @@ import {
   engineState,
   engineStatus,
   enums,
-  config,
   matrixConfig,
   metadata,
   volume,
@@ -117,7 +116,6 @@ const ROUTES = [
   ["state", engineState, data],
   ["status", engineStatus, data],
   ["enumerations", enums, data],
-  ["config", config, data],
   ["matrix", matrixConfig, data],
   ["pending", staged, raw],
 ];
