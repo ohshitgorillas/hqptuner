@@ -15,10 +15,12 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, staged } from "../../../../hqptuner/static/store/signals.js";
+import { staged } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { rowOptions } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { seedReadings } from "../../support/readings.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { useStorage } from "../../support/storage.js";
 
@@ -59,17 +61,12 @@ beforeEach(async () => {
 const idOf = (name) => String(rowOptions(KEY).find((/** @type {{ label: string }} */ o) => o.label === name)?.value);
 
 /**
- * Put the 1x PCM filter on the /config form at one engine name, so a pick of the other is a change.
+ * Serve the 1x PCM filter running at one engine name, so a pick of the other is a change.
  *
  * @param {string} name
  */
 function runningOn(name) {
-  const id = idOf(name);
-  const form = config.value ?? { fields: [], file: {} };
-  config.value = {
-    ...form,
-    fields: form.fields.map((/** @type {{ name: string }} */ f) => (f.name === FORM_FIELD ? { ...f, value: id } : f)),
-  };
+  seedReadings({ ...readings.value?.fields, [FORM_FIELD]: idOf(name) });
 }
 
 // --- the plate -----------------------------------------------------------------------------------------------------
