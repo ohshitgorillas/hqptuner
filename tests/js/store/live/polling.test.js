@@ -153,10 +153,11 @@ test("test_the_volume_event_feeds_the_range_signal_from_the_same_body", () => {
 // --- the mirror: a failed fetch keeps the last good value -------------------------
 
 test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
-  matrixConfig.value = { fields: [], active: "Kept" };
+  const kept = { fields: [{ name: "kept_field" }] };
+  matrixConfig.value = kept;
   wire({ "GET /api/matrix": bad(503, "daemon down") });
   await refreshConfig();
-  assert.equal(matrixConfig.value.active, "Kept");
+  assert.equal(matrixConfig.value, kept);
 });
 
 // --- setVolume: the immediate write's readback echo -------------------------------
