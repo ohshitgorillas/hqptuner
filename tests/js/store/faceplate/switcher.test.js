@@ -21,8 +21,7 @@ import { settle } from "../../support/wire/livepresetwire.js";
 
 let storage = useStorage();
 
-const { config, engineState, engineStatus, enums, matrixConfig } =
-  await import("../../../../hqptuner/static/store/signals.js");
+const { engineState, engineStatus, enums, matrixConfig } = await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
@@ -47,7 +46,7 @@ let posts = [];
 const READS = {
   "/api/state": () => ok({ data: { ...engineState.value } }),
   "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ data: { ...config.value } }),
+  "/api/config": () => ok({ ...readings.value }),
   "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };

@@ -32,7 +32,7 @@ import { propsOf } from "../../support/wheel.js";
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { config, engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
+const { engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar, setPlainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
@@ -56,7 +56,7 @@ let posts = [];
 const READS = {
   "/api/state": () => ok({ data: { ...engineState.value } }),
   "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ data: { ...config.value } }),
+  "/api/config": () => ok({ ...readings.value }),
   "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };
