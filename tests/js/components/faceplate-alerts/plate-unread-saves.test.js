@@ -74,7 +74,7 @@ beforeEach(async () => {
   await discardAll();
   await resetSaves();
   await quiesce(wire);
-  seedReadings({
+  await seedReadings({
     active_preset: { value: "Day", readonly: true },
     profiles: {
       value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },

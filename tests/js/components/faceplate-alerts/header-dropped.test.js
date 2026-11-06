@@ -79,7 +79,7 @@ beforeEach(async () => {
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();
-  seedReadings({
+  await seedReadings({
     active_preset: { value: "Day", readonly: true },
     profiles: {
       value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
