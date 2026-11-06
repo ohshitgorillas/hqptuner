@@ -28,9 +28,11 @@ import {
   enums,
   staged,
 } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { startSync, refreshConfig, refreshDevices } from "../../../../hqptuner/static/store/sync.js";
 import { setVolume } from "../../../../hqptuner/static/store/actions.js";
 import { fakeClock } from "../../support/clock.js";
+import { seedReadings } from "../../support/readings.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { fakePage, hostPage } from "../../support/page.js";
 import { ok, bad } from "../../support/wire/wire.js";
@@ -158,6 +160,17 @@ test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
   wire({ "GET /api/matrix": bad(503, "daemon down") });
   await refreshConfig();
   assert.equal(matrixConfig.value, kept);
+});
+
+test("test_a_failed_readings_fetch_keeps_the_last_good_readings", async (t) => {
+  t.after(() => {
+    readings.value = null;
+  });
+  seedReadings({ kept_field: "kept" });
+  const kept = readings.value;
+  wire({ "GET /api/config": bad(503, "daemon down") });
+  await refreshConfig();
+  assert.equal(readings.value, kept);
 });
 
 // --- setVolume: the immediate write's readback echo -------------------------------
