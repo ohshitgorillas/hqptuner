@@ -72,13 +72,13 @@ const selectField = (name, options) => ({
 });
 
 /** Add the daemon's noise filter and integrator fields, and the noise filter's plain-names section, to the wire. */
-function loadDsd() {
+async function loadDsd() {
   const form = /** @type {{ fields: unknown[] }} */ (config.value);
   config.value = {
     ...form,
     fields: [...form.fields, selectField("noise_filter", NOISE_OPTIONS), selectField("integrator", INTEGRATOR_OPTIONS)],
   };
-  seedReadings({
+  await seedReadings({
     ...readings.value?.fields,
     noise_filter: NOISE_OPTIONS[0][0],
     integrator: INTEGRATOR_OPTIONS[0][0],
@@ -95,11 +95,11 @@ function loadDsd() {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
-  loadDsd();
+  await loadLists();
+  await loadDsd();
 });
 
 afterEach(async () => {
@@ -119,9 +119,9 @@ test("test_a_filter_list_has_favorites", () => {
   assert.equal(open.hasFavorites?.("filters"), true);
 });
 
-test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", () => {
-  loadLists({ plain: true });
-  loadDsd();
+test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", async () => {
+  await loadLists({ plain: true });
+  await loadDsd();
   const fams = Object.fromEntries(listOptions("noise_filter").map((o) => [o.v, o.fam]));
   assert.deepEqual(fams, NOISE_FAMILIES);
 });

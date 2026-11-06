@@ -26,10 +26,10 @@ import { isPanel, kindOf, pickFromList } from "../../../../hqptuner/static/store
 import { favoritesWire, modulatorPuts, settle } from "../../support/wire/favoriteswire.js";
 import { SINC_PROSE, loadLists, resetLists } from "../../support/listsfixture.js";
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
+  await loadLists();
 });
 
 afterEach(async () => {
@@ -84,18 +84,18 @@ for (const [v, apod] of APODIZING) {
   });
 }
 
-test("test_a_simplified_option_carries_its_plain_family", () => {
-  loadLists({ plain: true });
+test("test_a_simplified_option_carries_its_plain_family", async () => {
+  await loadLists({ plain: true });
   assert.equal(option("sdm_filter_1x", "sinc-M")?.fam, "Fam A");
 });
 
-test("test_a_simplified_option_carries_its_plain_variant", () => {
-  loadLists({ plain: true });
+test("test_a_simplified_option_carries_its_plain_variant", async () => {
+  await loadLists({ plain: true });
   assert.equal(option("sdm_filter_1x", "sinc-M")?.var, "Var B");
 });
 
-test("test_a_simplified_option_carries_its_plain_leaf", () => {
-  loadLists({ plain: true });
+test("test_a_simplified_option_carries_its_plain_leaf", async () => {
+  await loadLists({ plain: true });
   assert.equal(option("sdm_filter_1x", "IIR")?.leaf, "Leaf iir");
 });
 
