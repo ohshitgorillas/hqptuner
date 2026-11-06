@@ -1,0 +1,26 @@
+PLAN CHECKPOINT: human-verify
+
+Plan: .planning/phases/3/PLAN.md
+
+Tasks: 5 of 6 (task 5 reopened and fixed in efa4fe09)
+
+| Task | Commit | Note |
+|---|---|---|
+| 1 smoke-windows receives pinned v1.20.1 installer | cc50fd49 | `--previous` arg in smoke.sh; release.yml downloads to `previous/setup.exe` on installer rows via one `PREVIOUS_VERSION` env line; local checks green |
+| 2 upgrade over quit v1.20.1 | b093c359 | step 8 `upgrade_quit`; shared helpers for Task 3; `uninstall` takes an optional directory; local checks green |
+| 3 upgrade over running v1.20.1 | 33eafd97 | step 9 `upgrade_running`; adds the previous-PID-gone check before the upgraded-app lookup; local checks green |
+| 4 install directory gone after upgrade uninstall | 23f0e888 | `uninstall_upgraded`, 10 s bounded wait on `$UPGRADE_APP`; local checks green |
+| 5 smoke fits 15 minutes (replaces the timeout raise) | bb21caaa | `running_under` and `windows_pid_alive` read `ps -W` (new `windows_processes`, WINPID/COMMAND cut at header columns); images and directory normalised with `cygpath -awl`, compared lowercase; `stop_windows_pid` is `taskkill /PID n /F` with path conversion off; `lan_address` cached in `$WORK`; `describe_lookup` left on CIM. `timeout-minutes` stays 15 |
+| 5 fix: the lookup finds a shell-started process | efa4fe09 | Red run 42199578574 failed all three rows at step 4 (`the process lookup does not find the running ...`). Cause from Cygwin `winsup/utils/ps.cc` (cygwin/cygwin main, fetched): a tracked process (`ppid != 0`, which every child this shell starts is) prints `progname_long` with a trailing `.exe` stripped, so `HQPTuner.exe` never matched; a pure Windows process (`ppid == 0`, e.g. installer /LAUNCH) prints the full Win32 image path from NtQuerySystemInformation, which is why steps 1 and 2a passed. Same source: row format `%c %7d %7d %7d %10u` + TTY `" %-7.7s"` in `%4s` + `%8u %8s %s`, so COMMAND does sit at the header's column (the column cut is right); STIME is 8 wide in both its forms; ` <defunct>` is appended to an exited unreaped child. `running_under` now matches the name with or without `.exe`, converts the image's directory (not the suffixless file) with `cygpath -awl` and compares it by prefix under the converted lowercase directory; `windows_processes` drops ` <defunct>` lines so a killed shell child is not seen as alive. `describe_lookup` prints `ps -W header [..]` and every `ps -W line [..]` containing hqptuner (case-insensitive) before the CIM output, which stays. Step 1's negative check, step 4's self-test and PID-only-under-directory are unchanged |
+| 6 installer fix and changelog | none | not started: waits on the red run (D-09). Owner-approved CHANGELOG wording for it (not written yet): `- **The Windows app now reinstalls cleanly.**` |
+
+Deviations:
+- [deviation] Task 5 asserted a `timeout-minutes` raise (proposal 35); owner ruling at the checkpoint: `smoke-windows` stays at 15 and the smoke's Windows process checks are made fast instead. Done as bb21caaa.
+
+Open items:
+- Task 5 is untestable on this host. Checked: `bash -n`, `shellcheck -S warning` (no new findings), `actionlint` release.yml (only the existing xcode-27 finding), `scripts/gate.sh make check` exit=0, and a fixture run of `windows_processes`, `running_under` and `windows_pid_alive` against a fake aligned `ps -W` table and fake `cygpath` (status-letter line, negative PID, 8.3 spelling, POSIX path, upper-case image, other directory excluded, nothing under an unrelated directory). Real `ps -W` column layout and COMMAND showing the full Windows image path on the runners are unverified until the red run.
+- Whether 15 minutes now suffices is unverified until the run; `taskkill` on PATH from Git Bash is assumed.
+- Task 6 waits on the red run (D-09) and the owner's CHANGELOG wording, which has not reached the executor. The full suite was not run, since the plan is not finished.
+- Untested from Task 1: `gh release download --output previous/setup.exe` after `mkdir previous` on the Windows runners, and whether `gh` is on PATH there. A silent install that hangs on a locked file would end as a job timeout, not a check failure.
+- Fix efa4fe09 checked: `bash -n`, `shellcheck -S warning` (clean; 4 SC2016 infos are baseline), `actionlint` release.yml (only the xcode-27 finding), `scripts/gate.sh make check` exit=0. Fixture run with fake `ps -W` rows in the real ps.cc format and a fake `cygpath`: shell-started POSIX path without `.exe`, Windows path without `.exe` in 8.3 and upper case, status-letter line, Windows path with `.exe`, POSIX path with `.exe`, subdirectory, two matches, other directory, lookalike `app2`, non-HQPTuner name, `<defunct>` dropped from `running_under` and `windows_pid_alive`, empty list, and `describe_lookup` output. Against the pre-fix script the POSIX-no-`.exe`, Windows-no-`.exe`, status-letter, subdirectory, multi and defunct rows fail (bite); win-exe and posix-exe pass in both. The subdirectory row fails on old code only because of the `.exe` stripping, not a changed meaning. Real `ps -W` output on the runners is still unseen; `cygpath -awl` on a POSIX directory is assumed to resolve `/tmp/...` to the runner temp directory in long form.
+- Next: owner pushes `dev` again for the red run (D-09); Task 6 does not start before it.
