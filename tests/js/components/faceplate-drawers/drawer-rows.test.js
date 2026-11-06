@@ -131,7 +131,7 @@ beforeEach(async () => {
         ? ok({ generation: generation.value, fields: served(w) })
         : undefined,
   });
-  config.value = { fields: FIELDS, profiles: null };
+  config.value = { fields: FIELDS };
   seedReadings(served(wire));
   await resetDrawerStore();
 });

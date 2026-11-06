@@ -87,7 +87,7 @@ function routes(path, opts) {
  * @param {string} active
  */
 const loadConfig = (active) => {
-  config.value = { fields: FIELDS, profiles: null };
+  config.value = { fields: FIELDS };
   seedReadings({ ...RUNNING, ...readings.value?.fields, active_preset: { value: active, readonly: true } });
 };
 

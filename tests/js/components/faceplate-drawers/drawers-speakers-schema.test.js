@@ -179,7 +179,7 @@ const ROW_DRAWER = {
 async function resetForTheRow() {
   const w = speakersWire(true, false);
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm" }], profiles: null };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
