@@ -88,7 +88,7 @@ function overlapWire({ served = ENUMS() } = {}) {
       if (w.held) await new Promise((resolve) => w.parked.push(() => resolve(undefined)));
       return ok({ data: path === "/api/state" ? stateWith(filterNx) : served });
     }
-    if (path === "/api/config") return ok({ data: { fields: [], file: {}, active: "", profiles: null } });
+    if (path === "/api/config") return ok({ generation: 0, fields: {} });
     if (path === "/api/config/pending") return ok({ live: {}, http: {} });
     return ok({});
   };
