@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { failures, op } from "../../../hqptuner/static/store/core/ops.js";
 import { faceplateAlerts } from "../../../hqptuner/static/store/faceplate/alerts.js";
 import { config, engineState, enums, lastApply } from "../../../hqptuner/static/store/signals.js";
-import { unreadWire, CONFIG, STATE, ENUMS } from "../support/wire/unreadwire.js";
+import { unreadWire, STATE, ENUMS } from "../support/wire/unreadwire.js";
 import { fail, succeed } from "../support/unreadareas.js";
 import { fieldReading, seedReadings } from "../support/readings.js";
 
@@ -17,8 +17,7 @@ const liveArea = op("fixture-c1-live", { alert: "live" });
 
 beforeEach(async () => {
   wire = unreadWire();
-  const { fields, profiles } = CONFIG();
-  config.value = { fields, profiles };
+  config.value = { fields: [] };
   engineState.value = STATE();
   enums.value = ENUMS();
   lastApply.value = null;

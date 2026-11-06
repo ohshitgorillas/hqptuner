@@ -76,20 +76,15 @@ export const ENUMS = () => ({
   mode: { name: "PCM" },
 });
 
-/** The config form, as /api/config carries it. */
-export const CONFIG = () => ({
-  fields: [],
-  file: { mode: "pcm" },
-  active: "Day",
-  profiles: { value: "Day", options: ["", "Day"].map((n) => ({ value: n, label: n })) },
-});
-
 /** The served readings, as /api/config answers: the station metadata alone. */
 const READINGS = () => ({
   generation: 1,
   fields: {
     active_preset: { value: "Day", readonly: true },
-    profiles: { value: CONFIG().profiles, readonly: true },
+    profiles: {
+      value: { value: "Day", options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+      readonly: true,
+    },
   },
 });
 
