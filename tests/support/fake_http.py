@@ -1,0 +1,722 @@
+"""Faithful fake hqplayerd HTTP config daemon (the port-8088 lane).
+
+Speaks the restore/XML write contract (docs/protocol.md §3.6): GET /backup
+serves a real hqplayerd.xml the daemon would produce, POST /restore adopts the
+uploaded working config, and GET /config + /matrix render the current state.
+The XML schema here is authored to match 6.0.4 INDEPENDENTLY of presetconf, so
+a wrong form->XML mapping in the writer surfaces as a failed readback — not a
+self-confirming round-trip. A change only lands if manager.apply produced a
+restore archive the real daemon would accept.
+
+`spawn` and `state` are the entry points; conftest wraps them as fixtures.
+"""
+
+import contextlib
+import io
+import re
+import socket
+import threading
+import zipfile
+from collections.abc import Iterator
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Any
+from urllib.parse import parse_qs
+
+from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
+
+#: Guards every read-modify-write of a served state dict. Handlers run on their
+#: own threads (see `_Server`), and the read lane mutates state too — the stale
+#: window counts down on `GET /backup/settings.zip` and a rescan rewrites the
+#: endpoint lists on `GET /config/refresh`, while the test thread is assigning
+#: the same keys and another handler may be rendering `/config` off them. One
+#: module-level lock rather than one per server: fakes are per-test and the
+#: sections are three dict operations long, so the contention is not worth the
+#: bookkeeping of threading a lock through every module-level helper.
+_STATE = threading.Lock()
+
+#: The challenge 6.0.4 sends with its 401, verbatim in shape: httpx.DigestAuth
+#: parses it, builds a digest and re-sends, so a caller with the wrong password
+#: never sees this status — it sees the 403 the re-send earns.
+_DIGEST_CHALLENGE = (
+    'Digest realm="com.signalyst.hqplayer.embedded", qop="auth", algorithm=MD5, '
+    'nonce="1f3a9c2b4d5e6f70", opaque="0a1b2c3d4e5f6071", charset=UTF-8'
+)
+
+#: The 40-byte body the daemon serves with both the 401 and the 403.
+_AUTH_BODY = b"Authentication is required for this page"
+
+
+def _count_request(st: dict[str, Any], path: str) -> None:
+    """Bookkeeping on arrivals, the same shape as `_restore_attempts`.
+
+    `_requests` counts every arrival at the lane, any method, any path, refused
+    or served, so a caller can be tested for how much traffic it spent.
+    `_backup_reads` narrows that to the settings archive: the poll cycle never
+    fetches it, so it is the arrival that says a caller reached the write path
+    rather than merely polled."""
+    with _STATE:
+        st["_requests"] = st.get("_requests", 0) + 1
+        if path == "/backup/settings.zip":
+            st["_backup_reads"] = st.get("_backup_reads", 0) + 1
+
+
+def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> tuple[int, str, bytes] | None:
+    """The credential wire on 8088, verified against hqplayerd 6.0.4.
+
+    Every page needs authentication: with no `Authorization` header the daemon
+    answers 401 and a digest challenge, and a digest built from a WRONG password
+    answers 403 `Forbidden` with the same 40-byte body. `httpx.DigestAuth`
+    consumes the 401 internally and re-sends, so 403 is the status that surfaces
+    to a caller carrying bad credentials.
+
+    `_challenge_auth` is the same wire with the RIGHT password: the daemon still
+    answers an unauthenticated request with 401 and the challenge, and then
+    serves the digest the client builds from it. That is what every fresh
+    connection to the real 6.0.4 looks like; the default state skips the
+    challenge so cases that do not care about credentials pay nothing for it.
+
+    A daemon that is down answers 503 first, on every path: a restart window is
+    not a credential verdict, so `_down` and `_fail_paths` outrank `_refuse_auth`
+    exactly as they do on the real thing."""
+    if st.get("_down") or path in st.get("_fail_paths", ()):
+        return None
+    if not authorization and (st.get("_refuse_auth") or st.get("_challenge_auth")):
+        return 401, _DIGEST_CHALLENGE, _AUTH_BODY
+    if authorization and st.get("_refuse_auth"):
+        return 403, "", _AUTH_BODY
+    return None
+
+
+def _working_member(st: dict[str, Any]) -> str:
+    """The root-level archive name the working config is served under: a named
+    active profile renames it to ``<Profile>.xml``, and only ``[default]``
+    serves ``hqplayerd.xml`` (docs/protocol.md §3.6)."""
+    profile = st.get("_active_profile")
+    return f"{profile}.xml" if profile else "hqplayerd.xml"
+
+
+def _backup_zip(st: dict[str, Any]) -> bytes:
+    xml = cfg_xml(st)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr(_working_member(st), xml)
+        z.writestr("data/cfgs/Test.xml", xml)
+        z.writestr("data/library.xml", b"<library/>")
+        # presets saved via POST /config/profile/save appear as their own snapshot
+        for name, saved in st.get("_saved", {}).items():
+            z.writestr(f"data/cfgs/{name}.xml", saved)
+    return out.getvalue()
+
+
+def _empty_backup_zip() -> bytes:
+    """The archive hqplayerd 6.0.4 serves after a named profile/load until it is
+    restarted — a bare data/ with no base config (docs/protocol.md §3.6 bug)."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as z:
+        z.writestr("data/", b"")
+    return out.getvalue()
+
+
+def _http_render(st: dict[str, Any]) -> str:
+    """GET /config form — the read side, rendered from state."""
+    opts = "".join(
+        f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
+    )
+    with _STATE:  # a rescan on another handler thread may be rewriting the list
+        endpoints = tuple(st["_net_endpoints"])
+    # `_form_net_device` is the lag window: the config file already carries the
+    # device a just-loaded preset picked, while this page still renders the one
+    # the engine has open. Unset (the usual state) means both routes agree.
+    form_device = st.get("_form_net_device") or st["net_device"]
+    dev_opts = "".join(f'<option value="{v}"{" selected" if form_device == v else ""}>{v}</option>' for v in endpoints)
+    rows = [
+        f'<input type="text" name="title" value="{st["title"]}"/>',
+        f'<select name="backend">{opts}</select>',
+        f'<select name="net_device">{dev_opts}</select>',
+        f'<input type="text" name="filter" value="{st["filter"]}"/>',
+        f'<input type="text" name="samplerate" value="{st["samplerate"]}"/>',
+        f'<input type="text" name="bitrate" value="{st["bitrate"]}"/>',
+        f'<input type="text" name="channels" value="{st["channels"]}"/>',
+        # the startup volume, as the real 6.0.4 page renders it
+        # (tests/support/fixtures/config-form-6.0.4.html: a number input bounded
+        # by the volume range) — the form carries it as well as the config file
+        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" min="-60" max="0"/>',
+        f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
+        f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
+        # the daemon renders 0/1/2 as a bare checkbox: -3 dB and -6 dB are
+        # indistinguishable here, which is why the file lane carries the truth
+        f'<input type="checkbox" name="volume_fixed" value="1"{" checked" if st["volume_fixed"] != "0" else ""}/>',
+    ]
+    return '<form method="post">' + "".join(rows) + "</form>"
+
+
+def _speakers_render(st: dict[str, Any]) -> str:
+    """GET /speakers (readme §1.9) — the enabled switch plus per-channel level
+    (dBFS) and distance (cm) inputs, each channel under its own <h2> name, the
+    layout the parser reads channel labels from on 6.0.4."""
+    parts = [f'<input type="checkbox" name="enabled" value="1"{" checked" if st["speakers_enabled"] else ""}/>']
+    for i, ch in enumerate(st["_speakers"]):
+        parts.append(
+            f"<h2>{ch['label']}</h2>"
+            f'<input type="number" name="level_{i}" value="{ch["level"]}" min="-60" max="0" step="0.1"/>'
+            f'<input type="number" name="distance_{i}" value="{ch["distance"]}" min="0" max="5000"/>'
+        )
+    return '<form method="post">' + "".join(parts) + "</form>"
+
+
+def _adopt_speakers(st: dict[str, Any], content_type: str, raw: bytes) -> None:
+    """POST /speakers — adopt the (complete) form. Checkbox contract as the real
+    daemon keeps it: `enabled` present means on, absent means off."""
+    fields = _parse_multipart_fields(content_type, raw)
+    st["speakers_enabled"] = fields.get("enabled") == "1"
+    for i, ch in enumerate(st["_speakers"]):
+        ch["level"] = fields.get(f"level_{i}", ch["level"])
+        ch["distance"] = fields.get(f"distance_{i}", ch["distance"])
+
+
+def _matrix_pipeline_row(i: int, source: str, mixdown: str, process: str) -> str:
+    """One pipeline table row, markup-faithful to 6.0.4 — including the daemon's
+    malformed gainunit options (`value="dB""`, a stray quote the browser and any
+    tolerant parser read as value dB plus a junk attribute)."""
+    ch = "".join(f'<option value="{v}"{" selected" if str(v) == source else ""}>{v + 1}</option>' for v in range(4))
+    mix = "".join(f'<option value="{v}"{" selected" if str(v) == mixdown else ""}>{v + 1}</option>' for v in range(4))
+    return (
+        f"<tr><td>{i + 1}</td>"
+        f'<td><select name="source_{i}">{ch}</select></td>'
+        f'<td><input type="number" name="gain_{i}" value="0" step="0.01"/></td>'
+        f'<td><select name="gainunit_{i}"><option value="dB"" selected>dB</option>'
+        f'<option value="Lin"">Lin</option></select></td>'
+        f'<td><select name="mixdown_{i}">{mix}</select></td>'
+        f'<td><input type="text" size="128" name="process_{i}" value="{process}"></td>'
+        f'<td><input type="checkbox" name="plot_{i}" value="1"/></td>'
+        f'<td><input type="file" accept="wav,txt" name="filter_{i}" multiple/></td></tr>'
+    )
+
+
+def _matrix_render(st: dict[str, Any]) -> str:
+    """GET /matrix — markup-faithful to the real 6.0.4 page: global controls,
+    profile input + datalist + active label, indexed pipeline table, post-process
+    plugin fields."""
+    profs = "".join(f'<option value="{p}">{p}</option>' for p in st["_matrix_profiles"])
+    pipelines = _matrix_pipeline_row(0, "0", "0", st["process_0"]) + _matrix_pipeline_row(1, "1", "1", "")
+    parts = [
+        '<h2>Matrix pipeline</h2><input type="checkbox" name="enabled" value="1" checked/>',
+        (
+            '<select name="engine"><option value="0">overlap-save</option>'
+            '<option value="1" selected>overlap-add</option></select>'
+        ),
+        '<input type="checkbox" name="expand_hf" value="1"/>',
+        (
+            '<select name="iir2fir"><option value="0" selected>none</option>'
+            '<option value="1">direct</option><option value="2">linear</option></select>'
+        ),
+        f'<b>Active: </b>{st["matrix_active"]}<br>',
+        (
+            f'<input type="text" size="64" name="profile" list="profile_items"/><datalist id="profile_items">{profs}'
+            "</datalist>"
+        ),
+        f"<table>{pipelines}</table>",
+        f'<input type="checkbox" name="post_bauer_enabled" value="1"{" checked" if st["post_bauer_enabled"] else ""}/>',
+        f'<input type="number" name="post_bauer_frequency" value="{st["post_bauer_frequency"]}"/>',
+        (
+            f'<input type="checkbox" name="post_loudness_enabled" value="1"'
+            f'{" checked" if st["post_loudness_enabled"] else ""}/>'
+        ),
+        f'<input type="number" name="post_loudness_lowfreq" value="{st["post_loudness_lowfreq"]}"/>',
+    ]
+    return '<form method="post" enctype="multipart/form-data">' + "".join(parts) + "</form>"
+
+
+def _about_render(st: dict[str, Any]) -> str:
+    """GET /about — the stock UI page (protocol.md §3.6 route table). The
+    daemon's installed release string follows the Version heading on its own
+    line, which is where a reader parses it from. ``_about_body`` overrides the
+    whole page: a daemon whose about page carries no Version heading at all."""
+    body = st.get("_about_body")
+    if body is not None:
+        return str(body)
+    return (
+        "<html><body>\n<h1>HQPlayer Embedded</h1>\n"
+        "<h3>Version</h3>\n"
+        f"{st['release']}\n"
+        "<h3>Copyright</h3>\nJussi Laako\n</body></html>"
+    )
+
+
+def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
+    if path == "/log":
+        # `_log_reads` counts every arrival, refused or not, the way
+        # `_restore_attempts` counts POST /restore: serving the whole log is the
+        # cost a caller that re-reads it per poll is paying, and a request either
+        # reached the daemon or it did not.
+        with _STATE:
+            st["_log_reads"] = st.get("_log_reads", 0) + 1
+    # `_down`: restore accepted, daemon never came back. `_fail_paths`: the same
+    # 503 frame narrowed to named routes — a daemon answering some pages and
+    # refusing others (one subsystem down, the rest of the web UI up).
+    if st.get("_down") or path in st.get("_fail_paths", ()):
+        return 503, b""
+    if path == "/config/refresh":  # webUI: a bare GET in a method=get form
+        _refresh_devices(st)
+        return 200, b""
+    if path == "/log":
+        return 200, st["_log"].encode()
+    if path == "/about":
+        return 200, _about_render(st).encode()
+    if path == "/config":
+        return 200, _http_render(st).encode()
+    if path == "/matrix":
+        return 200, _matrix_render(st).encode()
+    if path == "/speakers":
+        return 200, _speakers_render(st).encode()
+    if path == "/backup/settings.zip":
+        return 200, _backup_response(st)
+    return 404, b""
+
+
+def _backup_response(st: dict[str, Any]) -> bytes:
+    """The archive GET /backup/settings.zip serves right now."""
+    if st.get("_corrupt_backup"):  # a restarting daemon serves an error page here, not a zip
+        return b"not a zip archive"
+    if st.get("_empty"):  # post-profile-load bug window: bare data/, no base config
+        return _empty_backup_zip()
+    # after a restore the daemon serves the pre-restart archive for a read or two
+    # before catching up — the restart window verify must ride through
+    with _STATE:  # read lane, but this one counts down: two concurrent reads
+        stale = st.get("_stale", 0) > 0  # must not both take the same ticket
+        if stale:
+            st["_stale"] -= 1
+    return st["_pre_backup"] if stale else _backup_zip(st)
+
+
+def _restore_config(st: dict[str, Any], content_type: str, raw: bytes) -> None:
+    boundary = content_type.split("boundary=")[1].encode()
+    zbytes = b""
+    for part in raw.split(b"--" + boundary):
+        if b'name="cfgfile"' in part:
+            zbytes = part.split(b"\r\n\r\n", 1)[1].rsplit(b"\r\n", 1)[0]
+    # the upload EXACTLY as it arrived, recorded before anything parses it, so a
+    # test can say what HQPTuner put on the wire — including an upload the
+    # daemon then refuses
+    st["_restore_bytes"] = zbytes
+    archive = zipfile.ZipFile(io.BytesIO(zbytes))
+    st["_restore_members"] = archive.namelist()  # what the restore carried (filter uploads land as data/*)
+    if st.get("_active_profile") and "hqplayerd.xml" not in st["_restore_members"]:
+        # A named profile was active, so the uploaded working config is the root
+        # <Profile>.xml. The restart boots from hqplayerd.xml, the upload carried
+        # none, and the edit to <Profile>.xml is discarded: the config stays as it
+        # was, and the daemon comes back on [default].
+        st["_active_profile"] = None
+        return
+    xml = archive.read("hqplayerd.xml")
+    if elem_attr(xml, "title", "value") == "REJECT":
+        return  # modeled value-level rejection: the daemon refuses, state unchanged
+    st["_pre_backup"] = _backup_zip(st)  # snapshot before adopting, for the stale window
+    st["_active_profile"] = None  # the restart boots from hqplayerd.xml, on [default]
+    adopt_cfg(st, xml)
+    st["_stale"] = st.get("_lag", 0)
+    if st.get("_die"):
+        st["_down"] = True
+    # An adopted restore SELF-RESTARTS the daemon (docs/architecture.md §2.2 lane
+    # 2), and the restarted engine comes up running the restored file — so the
+    # Control API's State reflects it afterwards. That side lands on the 4321
+    # daemon, which this fake cannot see: a dual-lane test hangs its own
+    # callable on ``_on_restore`` and moves the control fake's State from there,
+    # the way ``_on_refresh`` models the rescan stopping the engine.
+    restarted = st.get("_on_restore")
+    if restarted is not None:
+        restarted()
+
+
+def _restore_post(st: dict[str, Any], content_type: str, raw: bytes) -> int:
+    """POST /restore, returning the HTTP status the daemon answers with.
+
+    ``_restore_refusals`` refuses that many arrivals with 503 before adopting
+    anything: the real daemon is unreachable for ~5.6 s after each restore, so a
+    lane whose write lands in that window sees the POST itself fail. 503 raises
+    from ``httpconf._post``'s ``raise_for_status`` as an ``httpx.HTTPError``, the
+    same arm that catches a live connection refusal.
+
+    ``_restore_attempts`` counts every arrival, refused or not, so a retry loop
+    can be tested for how many passes it makes (docs/testing.md rule 7)."""
+    with _STATE:
+        st["_restore_attempts"] = st.get("_restore_attempts", 0) + 1
+        refused = st.get("_restore_refusals", 0) > 0
+        if refused:
+            st["_restore_refusals"] -= 1
+    if refused:
+        return 503
+    try:
+        _restore_config(st, content_type, raw)
+    except (zipfile.BadZipFile, KeyError):
+        # An upload that is not a readable settings archive is refused: the
+        # daemon adopts nothing and does not answer success. The upload itself is
+        # already recorded, so a caller can still be asked what it sent.
+        return 400
+    return 200
+
+
+def _refresh_devices(st: dict[str, Any]) -> None:
+    """GET /config/refresh — re-scan output devices. Endpoints that were powered
+    off (staged in _hidden_endpoints) become bindable and join the offered set,
+    modeling a NAA that came back on since the last form read.
+
+    The rescan also STOPS THE ENGINE (6.0.4, reported on Opal), so every
+    live-only setting comes back at the config file's value. That side of it
+    lands on the 4321 daemon, which this fake cannot see: a test that wants it
+    hangs its own callable on ``_on_refresh`` and moves the control fake's State
+    from there, the way a real rescan would."""
+    with _STATE:  # both lists are read-modify-written here, off a handler thread
+        endpoints = list(st["_net_endpoints"])
+        endpoints += [ep for ep in st.get("_hidden_endpoints", []) if ep not in endpoints]
+        st["_net_endpoints"] = endpoints  # a fresh list, so no renderer sees it grow
+        st["_hidden_endpoints"] = []
+    # outside the lock: the callable is the test's own, and it reaches for the
+    # 4321 fake rather than for anything served here
+    engine_stops = st.get("_on_refresh")
+    if engine_stops is not None:
+        engine_stops()
+
+
+def _parse_multipart_fields(content_type: str, raw: bytes) -> dict[str, str]:
+    """Non-file fields of a multipart POST (or urlencoded fallback)."""
+    if "boundary=" not in content_type:
+        return {k: v[0] for k, v in parse_qs(raw.decode()).items()}
+    boundary = content_type.split("boundary=")[1].encode()
+    fields: dict[str, str] = {}
+    for part in raw.split(b"--" + boundary):
+        head, _, body = part.partition(b"\r\n\r\n")
+        m = re.search(rb'name="([^"]+)"', head)
+        if m is None or b"filename=" in head:
+            continue
+        fields[m.group(1).decode()] = body.rsplit(b"\r\n", 1)[0].decode()
+    return fields
+
+
+# No POST /matrix or POST /matrix/{load,save,delete} here. HQPTuner writes the
+# matrix only through /restore now: profile save/delete are staged
+# <matrix_profile> config edits and a profile load rides 4321 MatrixSetProfile
+# (matrix-spec.md "Probe findings — saved"). Modeling routes nothing calls
+# would be scaffolding for a lane that is deliberately gone.
+
+
+def _save_profile(st: dict[str, Any], raw: bytes) -> None:
+    """POST /config/profile/save — freeze the current working config as a named
+    preset snapshot, so a later /backup carries it as data/cfgs/<name>.xml."""
+    name = parse_qs(raw.decode()).get("profile_name", [""])[0]
+    if name:
+        st.setdefault("_saved", {})[name] = cfg_xml(st)
+
+
+def _serve_refusal(handler: BaseHTTPRequestHandler, st: dict[str, Any]) -> bool:
+    """Answer the request with the daemon's authentication refusal if the state
+    calls for one, reporting whether it did."""
+    authorization = handler.headers.get("Authorization", "")
+    if authorization:
+        with _STATE:  # handlers run on their own threads
+            st.setdefault("_authorizations", []).append(
+                {"method": handler.command, "path": handler.path, "header": authorization}
+            )
+    refusal = _auth_refusal(st, handler.path, authorization)
+    if refusal is None:
+        return False
+    status, challenge, body = refusal
+    handler.send_response(status)
+    if challenge:
+        handler.send_header("WWW-Authenticate", challenge)
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
+    return True
+
+
+def _sever_open_connections(st: dict[str, Any]) -> None:
+    """Close every connection the fake is currently holding, the way a daemon
+    that has gone away drops the sockets it was serving on. A client parked on
+    one of them sees the same end of stream a dead daemon gives it, so the lane
+    is unreachable on the connection it already had as well as on the ones it
+    can no longer open."""
+    with _STATE:
+        held = list(st.get("_open_connections", ()))
+        st["_open_connections"] = set()
+    for conn in held:
+        with contextlib.suppress(OSError):  # already gone: nothing left to sever
+            conn.shutdown(socket.SHUT_RDWR)
+        conn.close()
+
+
+def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            _count_request(st, self.path)
+            if _serve_refusal(self, st):
+                return
+            status, body = _http_get_response(st, self.path)
+            self.send_response(status)
+            self.end_headers()
+            if body:
+                self.wfile.write(body)
+
+        def do_POST(self) -> None:
+            _count_request(st, self.path)
+            length = int(self.headers.get("Content-Length", "0"))
+            raw = self.rfile.read(length)
+            if _serve_refusal(self, st):
+                return
+            status = 200  # /config POST is unused by the restore lane
+            if self.path == "/restore":
+                status = _restore_post(st, self.headers.get("Content-Type", ""), raw)
+            elif self.path == "/config/profile/save":
+                _save_profile(st, raw)
+            elif self.path == "/speakers":
+                _adopt_speakers(st, self.headers.get("Content-Type", ""), raw)
+            self.send_response(status)
+            self.end_headers()
+            self.wfile.write(b"<html>Restore</html>")
+
+        def log_message(self, *_: object) -> None:
+            pass
+
+    return Handler
+
+
+class _Server(ThreadingHTTPServer):
+    """A daemon fake whose shutdown cannot be held up by a client still holding
+    a connection open.
+
+    A plain `HTTPServer` handles each request INLINE in the accept loop, so a
+    keep-alive connection with no request in flight parks that loop in
+    `socket.readinto` — and `shutdown()`, which waits for the loop to come
+    round, then blocks forever. Real clients keep sockets open: an
+    `HttpConfigClient` whose manager outlives the fixture that served it has one
+    idle-open at teardown, and whether the accept loop is parked in it at that
+    instant is a race. It hung the suite about one run in five.
+
+    A handler thread per connection takes that read off the accept loop.
+    `daemon_threads` keeps a parked handler from outliving the test, and
+    `block_on_close=False` keeps `server_close()` from joining one.
+
+    Handlers now touch `st` concurrently, where before they were serialized, and
+    the test thread writes the same dict throughout. Neither lane is read-only:
+    `_stale` counts down inside a `GET /backup/settings.zip`, and
+    `GET /config/refresh` rewrites `_net_endpoints` and `_hidden_endpoints`
+    while `/config` may be rendering off them. Every read-modify-write of `st`
+    therefore runs under the module's `_STATE` lock, and the sections under it
+    publish whole replacement values rather than mutating a list in place, so a
+    reader that took the old list keeps a list nothing is appending to.
+    """
+
+    daemon_threads = True
+    block_on_close = False
+
+    #: The state this server is serving, so the sockets it is holding can be
+    #: registered on it and severed on demand.
+    st: dict[str, Any]
+
+    def process_request_thread(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
+    ) -> None:
+        # A keep-alive connection is held for as long as its handler thread runs,
+        # so that thread's lifetime is the socket's: registering here is what
+        # lets `_take_lane_down` drop the connections a dead daemon would.
+        with _STATE:
+            self.st.setdefault("_open_connections", set()).add(request)
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            with _STATE:
+                self.st.get("_open_connections", set()).discard(request)
+
+
+def spawn(
+    st: dict[str, Any],
+    host: str = "127.0.0.1",
+    bind_port: int = 0,
+    handler: type[BaseHTTPRequestHandler] | None = None,
+) -> Iterator[dict[str, Any]]:
+    """Serve `st` on a loopback port until the generator is closed. Yields the
+    state dict with `_port` filled in — tests read and mutate it directly.
+
+    `host` and `bind_port` are how a case puts two daemons at two ADDRESSES on the
+    same port number, which is what a test of address resolution needs: the
+    whole of 127/8 is loopback, so 127.0.0.2:8088 and 127.0.0.3:8088 are two
+    daemons one config can name one at a time. Everything else takes the
+    defaults and lands on an ephemeral 127.0.0.1 port as before.
+
+    `handler` lets a case bring its own `BaseHTTPRequestHandler` — a test whose
+    fake speaks a shape this module's dict-driven `_http_handler` does not
+    cover — while still getting this function's teardown, with the same
+    handler-thread-per-connection server underneath. Left out, it defaults to
+    this module's own handler over `st`.
+
+    `_take_lane_down` is the whole 8088 lane going away: the listener stops
+    accepting, so a new connection is refused, and every connection the fake was
+    holding is severed. It is idempotent and teardown calls it, so a case that
+    takes the lane down mid-test costs nothing extra at the end."""
+    server = _Server((host, bind_port), handler or _http_handler(st))
+    server.st = st
+    server.timeout = None  # `handle_request` blocks in `select` rather than polling
+    st["_port"] = server.server_address[1]
+    st["_listening"] = True  # set before the thread starts: it reads this flag on every pass
+
+    def serve() -> None:
+        while st.get("_listening"):
+            server.handle_request()
+
+    thread = threading.Thread(target=serve, daemon=True)
+    thread.start()
+
+    def take_lane_down() -> None:
+        if st.get("_listening"):
+            st["_listening"] = False
+            # `handle_request` is parked in `select` on the listening socket, not
+            # polling a timeout, so clearing the flag alone leaves it asleep: one
+            # loopback connection wakes it, it is accepted and handled (an empty
+            # request, harmless), and the loop then sees the flag cleared and
+            # returns instead of calling `handle_request` again.
+            with contextlib.suppress(OSError), socket.create_connection((host, st["_port"]), timeout=1):
+                pass
+            thread.join()
+            server.server_close()
+        _sever_open_connections(st)
+
+    st["_take_lane_down"] = take_lane_down
+    yield st
+    take_lane_down()
+
+
+def state(**extra: object) -> dict[str, Any]:
+    # forced-field defaults deliberately DIFFER from what HQPTuner pins on write
+    # (auto_family off, rates non-zero), so a forcing test proves a real change.
+    return {
+        "title": "Opal",
+        # GET /log body — the 8088 web interface serves the daemon's log here
+        "_log": "\n".join(f"log line {i}" for i in range(1, 61)),
+        "backend": "network",
+        # GET /about — the installed release string under the Version heading
+        "release": "6.0.2",
+        # the live-routed set as the config file carries it: a control-lane write
+        # never reaches these, so a restore is the only way they ever change
+        "mode": "sdm",
+        "filter": "40",
+        "filter1x": "47",
+        "dither": "3",
+        "oversampling": "41",
+        "oversampling1x": "42",
+        "modulator": "12",
+        # per-family rate LIMITS (<defaults>), not the request slots below
+        "defaults_samplerate": "192000",
+        "defaults_bitrate": "24576000",
+        "samplerate": "192000",
+        "bitrate": "22579200",
+        "channels": "2",
+        "auto_family": False,
+        "net_ipv6": False,
+        # <upnp interface>, the host interface the UPnP renderer binds (readme
+        # §1.4); empty renders no attribute, which leaves the daemon on its default
+        "upnp_interface": "",
+        "net_device": "S26/hw:CARD=Output,DEV=0",
+        # the device GET /config renders while the file above already names
+        # another: the window after a preset load, before the form catches up.
+        # None means the two routes agree, which is the ordinary case.
+        "_form_net_device": None,
+        # endpoints the daemon can bind; a net_device outside this set is refused
+        # on restore (endpoint gone) — the unfixable-divergence case
+        "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
+        # powered-off endpoints a /config/refresh rescan makes bindable
+        "_hidden_endpoints": [],
+        "_saved": {},
+        # the daemon's active named configuration; None is [default], which serves
+        # the working config as hqplayerd.xml, and any restore lands back on it
+        "_active_profile": None,
+        # speaker processing (readme §1.9): off, two flat channels
+        "speakers_enabled": False,
+        "_speakers": [
+            {"label": "Left", "level": "0", "distance": "0"},
+            {"label": "Right", "level": "0", "distance": "0"},
+        ],
+        # the plugin chain lives inside <matrix>; on because bauer below is on
+        "matrix_enabled": True,
+        "matrix_engine": "1",
+        "matrix_expand_hf": "0",
+        "matrix_iir2fir": "0",
+        # pipeline rows as raw attr strings (channel re-derived from position)
+        "_pipelines": [
+            {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
+            {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
+        ],
+        # saved profiles as the config file carries them (name -> raw attr rows plus
+        # the profile's own raw <plugin> attrs) — the only place the daemon ever
+        # reads a profile from, so one ships here. "Stock" predates profiles storing
+        # a chain, so it carries none: the ordinary state of an already-saved profile.
+        "_profiles": {
+            "Stock": {
+                "rows": [
+                    {"gain": "0", "mixdown": "0", "process": "", "source": "0"},
+                    {"gain": "0", "mixdown": "1", "process": "", "source": "1"},
+                ],
+                "plugins": [],
+            }
+        },
+        # /matrix page state: saved profile names (datalist), the printed active
+        # label, and pipeline 0's process chain
+        "_matrix_profiles": ["", "Default", "Mch-to-Stereo mixdown"],
+        "matrix_active": "[Default]",
+        "process_0": "",
+        "post_bauer_enabled": True,
+        "post_bauer_frequency": "700",
+        "post_loudness_enabled": False,
+        "post_loudness_lowfreq": "80",
+        # DAC correction: off, with no filter file picked. dac0 reads empty right
+        # after a matrix reload too, while the output device re-discovers.
+        "post_correction_enabled": False,
+        "post_correction_dac0": "",
+        "cuda": "1",
+        # the daemon's own defaults: -1 is automatic device selection on both GPU
+        # slots, and "default" is normal (non-offloaded) e-core allocation
+        "cuda_dev": "-1",
+        "cuda_cdev": "-1",
+        "ecores": "default",
+        "multicore": "1",
+        "nblocks": "16",
+        # 0 = off, 1 = -3 dB, 2 = -6 dB; the /config form can only render 0 vs on
+        "volume_fixed": "1",
+        # Volume-tab file truth. `fixed_level` is None when the feature is off:
+        # the daemon expresses "off" by the ABSENCE of the top-level <fixed/>
+        # element, not by a flag on it, so presence is the only state there is.
+        # `fixed_parked` is the level the daemon remembers WHILE off, carried in a
+        # commented line; None means this config has never had a fixed volume.
+        "fixed_level": None,
+        "fixed_parked": None,
+        "volume_max": "0",
+        "volume_min": "-60",
+        "volume_adaptive": "0",
+        "defaults_volume": "-3",
+        # GET routes answered 503 instead of their page; tests move it mid-run
+        "_fail_paths": [],
+        "_lag": 0,
+        # POST /restore arrivals to refuse with 503 before adopting one, and the
+        # running count of arrivals. Both default to the healthy daemon: nothing
+        # is refused and the count is bookkeeping no existing test reads.
+        "_restore_refusals": 0,
+        "_restore_attempts": 0,
+        # Running count of GET /log arrivals, same bookkeeping shape.
+        "_log_reads": 0,
+        # Refuse authentication on every page (401 challenge, then 403 to the
+        # digest), and the running count of arrivals at the lane. Both default to
+        # the healthy daemon: credentials are accepted and the count is
+        # bookkeeping no existing test reads.
+        "_refuse_auth": False,
+        # Challenge an unauthenticated request with the 401 and serve the digest
+        # that comes back, the way the real daemon greets a fresh connection
+        # carrying the right password. Off by default: the healthy daemon here
+        # asks nothing, so no existing case pays for a handshake.
+        "_challenge_auth": False,
+        # Every `Authorization` header that arrived, in order: method, path and
+        # the header verbatim, so a case can read the credentials a caller sent.
+        "_authorizations": [],
+        "_requests": 0,
+        # Running count of GET /backup/settings.zip arrivals, refused or served.
+        "_backup_reads": 0,
+        **extra,
+    }
