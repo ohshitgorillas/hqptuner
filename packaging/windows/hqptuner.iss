@@ -28,6 +28,8 @@ WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
 ChangesEnvironment=yes
+; A running HQPTuner.exe is closed before any file is copied, silent or not.
+CloseApplications=force
 ; Paths below are relative to the repository root.
 SourceDir=..\..
 OutputDir=dist
@@ -36,6 +38,11 @@ OutputBaseFilename=HQPTuner-{#Version}-setup
 SignTool=hqptuner
 SignedUninstaller=yes
 #endif
+
+; An upgrade replaces the bundle whole, so no file of an older bundle is left
+; beside the new one. unins000.* stay in {app}.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Files]
 Source: "dist\windows\arm64\HQPTuner\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; Check: PreferArm64Files
