@@ -20,14 +20,14 @@ import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-beforeEach(() => {
+beforeEach(async () => {
   body.value = "chain";
   openStage.value = null;
   openPopover.value = null;
   setBottomBar(BOTTOM_BARS[0]);
   setSwitcherTarget(TARGETS[0]);
   config.value = null;
-  seedReadings({});
+  await seedReadings({});
   liveBook.value = null;
 });
 
@@ -53,9 +53,9 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
   assert.deepEqual(openDrawers(), []);
 });
 
-test("test_the_snapshot_builder_body_holds_the_option_list", () => {
+test("test_the_snapshot_builder_body_holds_the_option_list", async () => {
   config.value = { fields: [] };
-  seedReadings({
+  await seedReadings({
     active_preset: { value: "Desk", readonly: true },
     profiles: { value: { options: [{ value: "" }, { value: "Desk" }] }, readonly: true },
   });

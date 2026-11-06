@@ -97,14 +97,14 @@ function tracked(path, opts) {
   return req;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   useStorage();
   env.fetch = tracked;
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
   matrixConfig.value = { fields: [] };
   enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
-  seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
+  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
   volume.value = "-27.5";
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };

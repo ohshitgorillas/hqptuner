@@ -80,8 +80,8 @@ function answer(path) {
  *
  * @param {string} name
  */
-const loadStation = (name) =>
-  seedReadings({
+const loadStation = async (name) =>
+  await seedReadings({
     active_preset: { value: name, readonly: true },
     profiles: { value: { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) }, readonly: true },
   });
@@ -125,7 +125,7 @@ beforeEach(async () => {
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();
-  loadStation("Day");
+  await loadStation("Day");
   health.value = { reachable: true, ready: true, info: {} };
   applying.value = false;
   engineBusy.value = false;
@@ -192,8 +192,8 @@ test("test_tapping_the_knob_with_no_alert_opens_the_connection_settings", async 
   assert.equal(panelOpen.value, true);
 });
 
-test("test_the_tree_trigger_names_the_loaded_station_alone", () => {
-  loadStation("Night");
+test("test_the_tree_trigger_names_the_loaded_station_alone", async () => {
+  await loadStation("Night");
   const [trigger] = marked("stations");
   assert.deepEqual(
     ["Day", "Night"].filter((n) => trigger !== undefined && text(trigger).includes(n)),
@@ -330,19 +330,19 @@ const markTips = (station) =>
     .filter((m) => m.station === station)
     .map((m) => (attr(m.mark, TIP) ?? "") !== "");
 
-test("test_with_day_loaded_only_night_carries_the_restart_mark", () => {
-  loadStation("Day");
+test("test_with_day_loaded_only_night_carries_the_restart_mark", async () => {
+  await loadStation("Day");
   assert.deepEqual(marksByStation(), [false, true]);
 });
 
-test("test_with_night_loaded_only_day_carries_the_restart_mark", () => {
-  loadStation("Night");
+test("test_with_night_loaded_only_day_carries_the_restart_mark", async () => {
+  await loadStation("Night");
   assert.deepEqual(marksByStation(), [true, false]);
 });
 
 for (const [loaded, other] of [STATIONS, [...STATIONS].reverse()]) {
-  test(`test_with_${loaded.toLowerCase()}_loaded_the_restart_mark_on_${other.toLowerCase()}_carries_a_hover_tip`, () => {
-    loadStation(loaded);
+  test(`test_with_${loaded.toLowerCase()}_loaded_the_restart_mark_on_${other.toLowerCase()}_carries_a_hover_tip`, async () => {
+    await loadStation(loaded);
     assert.deepEqual(markTips(other), [true]);
   });
 }

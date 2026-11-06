@@ -107,8 +107,8 @@ const BAUER_ON_FIELDS = [
  *
  * @param {{ pipelines?: PipelineRow[], bauer?: boolean }} [s]
  */
-function load({ pipelines = LOADED_PIPELINES, bauer = false } = {}) {
-  seedReadings({
+async function load({ pipelines = LOADED_PIPELINES, bauer = false } = {}) {
+  await seedReadings({
     volume_max: -3,
     channels: 2,
     matrix_pipelines: JSON.stringify(pipelines),
@@ -153,7 +153,7 @@ beforeEach(async () => {
     ],
   };
   matrixConfig.value = { fields: MATRIX_FIELDS };
-  load();
+  await load();
   await loadSpeakers();
   volume.value = "-20";
   hiddenStages.value = [];
@@ -195,7 +195,7 @@ test("test_a_staged_structural_crossfeed_install_marks_the_crossfeed_and_dsp_pip
 
 test("test_a_staged_change_to_the_bauer_compensation_marks_the_crossfeed_and_dsp_pipelines_stages_and_no_other", async () => {
   matrixConfig.value = { fields: BAUER_ON_FIELDS };
-  load({ pipelines: compensation(0.6), bauer: true });
+  await load({ pipelines: compensation(0.6), bauer: true });
   xfMode.value = "bauer";
   await stagePipelines(compensation(1));
   await quiesce(wire);

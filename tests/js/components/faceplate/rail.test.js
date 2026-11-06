@@ -42,18 +42,18 @@ import { seedReadings } from "../../support/readings.js";
  * @param {string} junk
  * @param {string} [state]  Status `state`: "2" is playing
  */
-function playing(junk, state = "2") {
+async function playing(junk, state = "2") {
   health.value = { phase: "Ready" };
   engineState.value = { active_chain: "pcm", filter_junk: junk };
   enums.value = { junk_filters: ["none", "30k"].map((name, i) => ({ index: String(i), name })) };
   engineStatus.value = { status: { state, active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
   config.value = { fields: [] };
   matrixConfig.value = { fields: [{ name: "enabled" }] };
-  seedReadings({ matrix_enabled: true });
+  await seedReadings({ matrix_enabled: true });
 }
 
-beforeEach(() => {
-  playing("1");
+beforeEach(async () => {
+  await playing("1");
   staged.value = { live: {}, http: {} };
   volume.value = "-20";
   hiddenStages.value = [];
@@ -119,8 +119,8 @@ test("test_a_running_hf_filter_lights_its_lamp", () => {
   assert.ok(classes(partOf("hf", "lamp")).includes("on"));
 });
 
-test("test_an_unlit_stage_carries_off", () => {
-  playing("0");
+test("test_an_unlit_stage_carries_off", async () => {
+  await playing("0");
   assert.ok(classes(button("hf")).includes("off"));
 });
 
