@@ -55,6 +55,8 @@ import { applyAll, discardAll, edit, previewPreset } from "../../../../hqptuner/
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool, an
@@ -164,7 +166,7 @@ async function fixture({ volume = LIVE_VOLUME, file = REMEMBERED_LEVEL, preset, 
         return applyFails ? bad(503, "engine refused") : ok({ report: {} });
       }
       if (preset && path === `/api/preset/${preset.name}`) return ok({ name: preset.name, config: preset.config });
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return undefined;
@@ -173,13 +175,12 @@ async function fixture({ volume = LIVE_VOLUME, file = REMEMBERED_LEVEL, preset, 
   engineState.value = {};
   enums.value = null;
   metadata.value = { settings: {}, filters: { filters: {}, aliases: {} }, shapers: { sdm_modulators: {} } };
-  config.value = {
-    fields: volume,
-    file,
-    active: "",
-    profiles: null,
-  };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: volume.map(({ name }) => ({ name })), profiles: null };
+  matrixConfig.value = { fields: [] };
+  seedReadings({
+    ...Object.fromEntries(volume.map(({ name, value }) => [name, value])),
+    ...Object.fromEntries(Object.entries(file).map(([name, v]) => [name, fieldReading(v, { show: "file" })])),
+  });
   lastApply.value = null;
   cancel();
   await discardAll();

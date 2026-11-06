@@ -34,6 +34,7 @@ import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binau
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
 import { msCompile, fitComp, msRecognize, BAUER_PRESETS } from "../../../../hqptuner/static/vendor/eqlab/core/xfeed.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /**
  * @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow
@@ -93,14 +94,19 @@ const compensation = () => msCompile(EQ, -3, { fit: fitComp(DEF.fc, DEF.feed), s
 async function reset({ rows = pair(), enabled = "0", selected = null, fields = [] } = {}) {
   wire();
   matrixConfig.value = {
-    fields: [
-      { name: "post_bauer_enabled", value: enabled },
-      { name: "post_bauer_preset", value: "default" },
-      { name: "post_bauer_frequency", value: String(DEF.fc) },
-      { name: "post_bauer_level", value: String(DEF.feed) },
-    ],
+    fields: ["post_bauer_enabled", "post_bauer_preset", "post_bauer_frequency", "post_bauer_level"].map((name) => ({
+      name,
+    })),
   };
-  config.value = { fields, file: { matrix_pipelines: JSON.stringify(rows) } };
+  config.value = { fields: fields.map(({ name }) => ({ name })) };
+  seedReadings({
+    ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
+    post_bauer_enabled: enabled,
+    post_bauer_preset: "default",
+    post_bauer_frequency: String(DEF.fc),
+    post_bauer_level: String(DEF.feed),
+    matrix_pipelines: fieldReading(JSON.stringify(rows), { show: "file" }),
+  });
   await discardAll();
   xfMode.value = selected;
 }
