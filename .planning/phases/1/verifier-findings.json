@@ -1,0 +1,143 @@
+{
+  "status": "gaps",
+  "score": "7/11",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "An offline run of accepted command 1 writes .coverage.json with totals.covered_branches / totals.num_branches at or above 0.91",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "Main session's command 1 run (/tmp/gate-pytest-xpYHdmZ8.log: '2661 passed, 169 deselected, 2 warnings in 41.51s') wrote .coverage.json (meta.timestamp 2026-11-05T16:26:42, branch_coverage true): totals 1450/1556 = 0.9319 branches, lines 7188/7373 = 0.9749. The verifier read the report and did not run the suite."
+    },
+    {
+      "n": 2,
+      "truth": ".coverage.json from that run has an entry for hqptuner/core/junkcal.py, and pyproject.toml [tool.coverage.run] omit no longer lists it",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "files['hqptuner/core/junkcal.py'].summary: 94/94 statements, 14/14 branches, 100%. pyproject.toml has no [tool.coverage.run] table left (ec8073f4 removes it and its omit line; grep on omit/tool.coverage finds nothing). The junkcal row timestamp now comes from mgr.clock.now() (junkcal.py:89-93,154), so tests drive it through the virtual clock."
+    },
+    {
+      "n": 3,
+      "truth": "Accepted command 2 exits 0 on the report, and exits non-zero on a copy whose covered_branches is lowered below 90% of num_branches",
+      "status": "FAILED",
+      "uat_item": 3,
+      "evidence": "Pass half observed: main session's command 2 run /tmp/gate-node-7l9hwPYo.log prints 'lines: 97.49% meets 95' / 'branches: 93.19% meets 90' / 'statements: disabled (threshold 0)', which matches this report's totals. Bite half not observed: no run against a lowered copy exists in this verification. SUMMARY says the 88.95% copy result 'come[s] from the executor's report and [was] not re-run'. The code path looks right statically (.github/cadence/coverage-report-check.mjs:118-120 fail when covered*100 < want*total; finish() exits 1 at :26). The dispatch forbids the verifier from running coverage commands."
+    },
+    {
+      "n": 4,
+      "truth": "planning.mjs test-policy check exits 0",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "node .../cadence-core/bin/planning.mjs test-policy check --root . -> {\"ok\":true,\"accepted\":true,\"enforcement\":\"available\",\"gate_found\":true,\"problems\":[]}, rc=0"
+    },
+    {
+      "n": 5,
+      "truth": "git ls-files .github/cadence lists coverage-policy.json and coverage-report-check.mjs",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "git ls-files .github/cadence -> .github/cadence/coverage-policy.json, .github/cadence/coverage-report-check.mjs. git check-ignore -v on the script exits 1 (not ignored), via .gitignore:108 '!.github/cadence/coverage-report-check.mjs' after '*.mjs' at :106. SUMMARY's open item says this exits 0; it actually exits 1, and the claim does not affect the outcome."
+    },
+    {
+      "n": 6,
+      "truth": "The check job in .github/workflows/check.yml runs the three accepted commands after its make check step",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "check.yml jobs.check.steps: 'make check' (run: make check IDLE_GATE=off), then 'python coverage report', 'python coverage thresholds' and 'js coverage thresholds', each in a run: | block. Their text matches .github/cadence/coverage-policy.json commands[0..2] character for character, with {lines}=95 and {branches}=90 filled into command 3. e2e, release.yml and docker.yml are unchanged in the phase diff (e9ba6048..HEAD)."
+    },
+    {
+      "n": 7,
+      "truth": "check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows report success on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 7,
+      "evidence": "Nothing is pushed: git rev-list --left-right --count origin/dev...HEAD -> '0 13' (origin/dev at a942cfca, 2026-11-03), so no CI run exists for HEAD 13c67d13. The pushed range would include pyproject.toml, which matches the release.yml paths filter (release.yml:7-14), so a push of the whole range should trigger the five release jobs. The verifier checked local refs only and made no network call."
+    },
+    {
+      "n": 8,
+      "truth": "No policy value, per-file floor, EXEMPT entry or gate exemption changed in the phase",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "git diff e9ba6048..HEAD: .github/cadence/coverage-policy.json, scripts/gates/ and .pre-commit-config.yaml are untouched. The only .planning/config.json change adds review.triggers.risk_surface; testing.* is untouched. No added line matches noqa|type: ignore|eslint-disable|EXEMPT|pragma|TODO|FIXME|XXX|HACK|placeholder|not implemented."
+    },
+    {
+      "n": 9,
+      "truth": "The JS suite meets the accepted policy (lines 95, branches 90) under accepted command 3",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "Main session's command 3 run /tmp/gate-node-b7Q6yW7R.log: '# tests 4844' '# pass 4844' '# fail 0', and 'all files | 96.40 | 90.10 | 86.06', with no threshold failure line. The branch margin is 0.10 points above 90, so a small JS change could turn check red."
+    },
+    {
+      "n": 10,
+      "truth": ".github/cadence/coverage-report-check.mjs is the cadence template verbatim (D-04), and any behavior it adds is covered by an automated check",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "cmp against /home/atom/.claude/plugins/cache/cadence/cadence/3.11.1/cadence-core/templates/coverage-report-check.mjs -> 'differ: byte 1932, line 46'. diff shows 323cb3e4 added an include/exclude validation block at lines 46-52. SUMMARY open items: 'The fix in 323cb3e4 has no automated test ... verified by hand against five malformed policies'. D-04 locked a verbatim copy, and the testing policy is active."
+    },
+    {
+      "n": 11,
+      "truth": "Branches removed as dead code under D-07 were unreachable, so behavior is unchanged",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "74351375 restore.py:226-231 now raises httpauth.CredentialsRefusedError directly where it used to raise decline_error(mgr). decline_error (hqptuner/conf/httpauth.py:109-110) returned NoHttpClientError when mgr.http_client is None, and that check comes before the credentials_ok check. mgr.http_client can become None at runtime: hqptuner/api/routes/connection.py:125 assigns build_http_client(cfg), which returns None when a credential is missing (hqptuner/core/connection.py:156-157). This can happen during the await in _restore_once. The removed 'declined is None' leg was unreachable, but the commit's 'which is what decline_error returned on every reachable path' is not exact: the no-client case now reports a credentials refusal instead of no-client. Narrow race, low impact."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Branch coverage clears the 91% margin",
+      "evidence": ".coverage.json (2026-11-05T16:26:42, main session's command 1 run, 2661 passed): totals 1450/1556 = 0.9319"
+    },
+    {
+      "k": 2,
+      "name": "junkcal.py is measured",
+      "evidence": "files['hqptuner/core/junkcal.py'] 94/94 statements, 14/14 branches. pyproject.toml has no [tool.coverage.run] omit (removed in ec8073f4)."
+    },
+    {
+      "k": 4,
+      "name": "Testing policy agrees with the workflows",
+      "evidence": "planning.mjs test-policy check --root . -> ok:true, gate_found:true, problems:[], rc=0"
+    },
+    {
+      "k": 5,
+      "name": "Both cadence files are tracked",
+      "evidence": "git ls-files .github/cadence lists coverage-policy.json and coverage-report-check.mjs. check-ignore exits 1."
+    },
+    {
+      "k": 6,
+      "name": "check job runs the three commands after make check",
+      "evidence": ".github/workflows/check.yml jobs.check: the make check step, then three steps running policy commands 1-3 verbatim, with 95/90 filled in."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 3,
+      "name": "Python threshold check passes and bites",
+      "reason": "behavior wrong: the bite half is not observed. No automated check in this verification ran command 2 against a report lowered below 90% branches. Only the pass half was observed.",
+      "evidence": "/tmp/gate-node-7l9hwPYo.log shows the pass ('branches: 93.19% meets 90'). SUMMARY says the 88.95% bite result came from the executor and was not re-run. coverage-report-check.mjs:118-120 looks right statically, but nobody ran it on a lowered copy.",
+      "severity": "minor",
+      "missing": "Run 'node .github/cadence/coverage-report-check.mjs --format python --report <copy>' on a scratch copy of .coverage.json whose totals.covered_branches is below 0.9 * totals.num_branches (for example 1400/1556). Cite the non-zero exit and the 'FAIL branches: ... is below 90' line."
+    },
+    {
+      "k": 7,
+      "name": "All seven required jobs green on the last dev commit",
+      "reason": "missing: there is no CI run for the phase's last dev commit, because local dev is 13 commits ahead of origin/dev and nothing is pushed",
+      "evidence": "git rev-list --left-right --count origin/dev...HEAD -> 0 13. origin/dev is a942cfca. HEAD is 13c67d13.",
+      "severity": "major",
+      "missing": "The owner pushes dev, with the whole range so that pyproject.toml triggers release.yml. Then ci-status must show check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows succeeding on that head."
+    },
+    {
+      "name": "coverage-report-check.mjs departs from the verbatim template (D-04) with an untested validation block",
+      "reason": "behavior untested: no automated check exercises the include/exclude validation added in 323cb3e4. The copy is also no longer the verbatim template that D-04 locked.",
+      "evidence": ".github/cadence/coverage-report-check.mjs:46-52 (not in the cadence 3.11.1 template; cmp differs at line 46). SUMMARY says it was verified by hand only and has no test home.",
+      "severity": "minor",
+      "missing": "Either the owner rules on the D-04 deviation, or the smallest automated check is added: a policy with a non-array include, and one with include ['a',1], each exits 1 with 'must be an array of strings'. The alternative is to return to the verbatim template and carry the fix upstream in cadence."
+    },
+    {
+      "name": "restore.py dead-code removal changes the no-client refusal after a mid-pass AuthRefused",
+      "reason": "behavior wrong (narrow): the replacement is not exactly equivalent to the removed decline_error path. If mgr.http_client was cleared during the pass, the old code raised NoHttpClientError and the new code raises CredentialsRefusedError.",
+      "evidence": "hqptuner/lanes/http/restore.py:226-231 (74351375). hqptuner/conf/httpauth.py:109-112 checks for a missing client before checking credentials_ok. hqptuner/api/routes/connection.py:125 and hqptuner/core/connection.py:156-157 can set http_client to None at runtime.",
+      "severity": "minor",
+      "missing": "Keep the mapping in one owner: raise decline_error(mgr) (non-None once credentials_ok is False) with a cast or assert-free narrowing, or make an explicit decision that a credentials refusal is the right answer here. Then correct the commit-message claim in the record."
+    }
+  ],
+  "human_checks": []
+}
