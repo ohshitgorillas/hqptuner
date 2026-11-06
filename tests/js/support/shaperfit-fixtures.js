@@ -176,7 +176,6 @@ export async function reset(scenario = {}) {
       { name: "defaults_samplerate" },
       { name: "defaults_bitrate" },
     ],
-    profiles: null,
   };
   await discardAll();
   seedReadings({
