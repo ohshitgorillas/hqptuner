@@ -28,6 +28,7 @@ import {
   staged,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 const LABELS = ["Left", "Right", "Center", "LFE", "Left rear", "Right rear", "Left side", "Right side"];
 const DISTANCES = [287, 301, 280, 330, 240, 241, 210, 211];
@@ -65,7 +66,8 @@ async function reset({ enabled = false, direct = false, loaded = true } = {}) {
   const served = loaded ? form(enabled) : null;
   stagingWire({ routes: (path) => (path === "/api/speakers" ? ok({ data: served }) : undefined) });
   await loadSpeakers();
-  config.value = { fields: [{ name: "direct_sdm", value: direct }], file: {} };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: direct });
   await discardAll();
   discardDraft();
   pickSpeakerSet(FIRST.id);

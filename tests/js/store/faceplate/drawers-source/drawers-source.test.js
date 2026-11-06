@@ -34,6 +34,7 @@ import { lastStream, useEventSource } from "../../../support/eventsource.js";
 import { useStorage } from "../../../support/storage.js";
 import { setPollStep } from "../../../support/apodpolls.js";
 import { fakeClock } from "../../../support/clock.js";
+import { seedReadings } from "../../../support/readings.js";
 
 const { sourceMeter, stripEvents } = sourceStore;
 
@@ -83,6 +84,7 @@ beforeEach(() => {
   health.value = { phase: "Ready", generation: GEN };
   useStorage();
   matrixConfig.value = null;
+  seedReadings({});
   setApodWindow("60");
   setMeterChannel("sum");
   setMeterRange(FIRST_RANGE);
@@ -120,7 +122,8 @@ test("test_a_quiet_dsd_source_with_the_matrix_off_shows_the_matrix_line", () => 
 });
 
 test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", () => {
-  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: true }] };
+  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
+  seedReadings({ matrix_enabled: true });
   stream({ metadata: { sdm: "1", samplerate: "2822400" } });
   feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");

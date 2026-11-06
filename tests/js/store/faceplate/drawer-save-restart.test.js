@@ -28,6 +28,7 @@ import { engineRestarting } from "../../../../hqptuner/static/store/enginewrite.
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode, runApply } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 const STATION = "Study";
 
@@ -38,7 +39,7 @@ const LIVE_KEY = "adaptive_volume";
 const LIVE_VALUE = "1";
 
 /** The /config form fields the rows read their baselines from. */
-const FIELDS = [{ name: RESTART_KEY, type: "number", value: -3 }];
+const FIELDS = [{ name: RESTART_KEY, type: "number" }];
 
 /** @type {Record<string, unknown>} */
 let report = {};
@@ -52,8 +53,12 @@ function routes(path) {
 beforeEach(async () => {
   report = {};
   stagingWire({ routes });
-  config.value = { fields: FIELDS, file: {}, active: STATION, profiles: null };
-  matrixConfig.value = { fields: [], rows: [] };
+  config.value = { fields: FIELDS, profiles: null };
+  matrixConfig.value = { fields: [] };
+  seedReadings({
+    [RESTART_KEY]: fieldReading(-3, { show: "file", restarts: true }),
+    active_preset: { value: STATION, readonly: true },
+  });
   engineState.value = { adaptive: 0 };
   enums.value = null;
   metadata.value = null;

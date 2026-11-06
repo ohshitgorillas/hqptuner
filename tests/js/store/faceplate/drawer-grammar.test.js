@@ -25,17 +25,17 @@ import {
   shownTab,
 } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").BodyItem} BodyItem */
 
 const FIELDS = [
-  { name: "volume_max", type: "number", value: -3 },
-  { name: "mode", type: "select", value: "pcm" },
+  { name: "volume_max", type: "number" },
+  { name: "mode", type: "select" },
   {
     name: "idle_time",
     type: "select",
-    value: "30",
     options: [
       { value: "30", label: "30" },
       { value: "60", label: "60" },
@@ -45,7 +45,12 @@ const FIELDS = [
 
 beforeEach(async () => {
   stagingWire();
-  config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+  config.value = { fields: FIELDS, profiles: null };
+  seedReadings({
+    volume_max: fieldReading(-3, { show: "file", restarts: true }),
+    mode: "pcm",
+    idle_time: "30",
+  });
   engineState.value = { adaptive: 0 };
   enums.value = null;
   metadata.value = null;

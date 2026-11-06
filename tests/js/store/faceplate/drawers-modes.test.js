@@ -15,6 +15,7 @@ import { config, engineState, engineStatus, liveOverride } from "../../../../hqp
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { ditherNote, runningMode } from "../../../../hqptuner/static/store/faceplate/drawers/modes.js";
 import { stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 const CD = "44100";
 const DSD256 = "11289600";
@@ -29,13 +30,9 @@ const PCM_8X = "352800";
  */
 function load(backend, alsa, net) {
   config.value = {
-    fields: [
-      { name: "backend", value: backend },
-      { name: "alsa_bits", type: "number", value: alsa },
-      { name: "net_bits", type: "number", value: net },
-    ],
-    file: {},
+    fields: [{ name: "backend" }, { name: "alsa_bits", type: "number" }, { name: "net_bits", type: "number" }],
   };
+  seedReadings({ backend, alsa_bits: alsa, net_bits: net });
 }
 
 /**
