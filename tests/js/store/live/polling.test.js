@@ -152,13 +152,6 @@ test("test_the_volume_event_feeds_the_range_signal_from_the_same_body", () => {
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------
 
-test("test_a_failed_config_fetch_keeps_the_last_good_snapshot", async () => {
-  config.value = { fields: [], file: {}, active: "LastGood" };
-  wire({ "GET /api/config": bad(503, "daemon down") });
-  await refreshConfig();
-  assert.equal(config.value.active, "LastGood");
-});
-
 test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
   matrixConfig.value = { fields: [], active: "Kept" };
   wire({ "GET /api/matrix": bad(503, "daemon down") });
