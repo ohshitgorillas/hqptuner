@@ -233,9 +233,9 @@ function served(at) {
  *
  * @param {{ fixed?: string }} [o]
  */
-function load(o) {
+async function load(o) {
   file = fileTree(o);
-  seedReadings(served(w), 0);
+  await seedReadings(served(w), 0);
 }
 
 /**
@@ -270,7 +270,7 @@ beforeEach(async () => {
   config.value = configTree();
   matrixConfig.value = matrixTree();
   enums.value = { matrix_profiles: ["Warm"] };
-  load();
+  await load();
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
   await discardAll();
   staged.value = new Map();
@@ -472,8 +472,8 @@ test("test_dac_correction_skips_with_no_model_offered", () => {
   assert.equal(skip("correction"), sentence("correction", { models: 0 }));
 });
 
-test("test_loudness_skips_while_fixed_volume_runs", () => {
-  load({ fixed: "1" });
+test("test_loudness_skips_while_fixed_volume_runs", async () => {
+  await load({ fixed: "1" });
   assert.equal(skip("loudness"), sentence("loudness", { fixed: true }));
 });
 
