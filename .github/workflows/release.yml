@@ -19,7 +19,7 @@ permissions:
 jobs:
   # A red tree must not publish a release, so tags are gated on the same
   # `make check` as the image. Pushes to dev skip it.
-  check:
+  tag-check:
     if: startsWith(github.ref, 'refs/tags/v')
     uses: ./.github/workflows/check.yml
 
@@ -403,7 +403,7 @@ jobs:
   # The release notes are that version's CHANGELOG.md section, verbatim.
   publish:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos, package-windows, smoke-windows]
+    needs: [tag-check, build, smoke, lifecycle-deb, lifecycle-rpm, build-macos, smoke-macos, package-windows, smoke-windows]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     permissions:
