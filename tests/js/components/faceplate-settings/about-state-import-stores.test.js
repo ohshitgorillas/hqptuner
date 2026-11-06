@@ -19,6 +19,7 @@ import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { health, config, matrixConfig } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { seedReadings } from "../../support/readings.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
@@ -142,7 +143,7 @@ const W = stagingWire({
     }
     if (bare === "/api/health") return ok({ ...PAYLOAD });
     if (bare === "/api/state") return ok({ stale: false, loaded_at: 1, data: STATE("pcm") });
-    if (bare === "/api/config") return ok({ data: { fields: FIELDS, file: {}, active: "", profiles: null } });
+    if (bare === "/api/config") return ok(readings.value);
     if (!STORE_ROUTES.has(bare)) return undefined;
     CALLS.push({ path: bare, method, body: typeof opts.body === "string" ? opts.body : undefined });
     if (method === "PUT") write(bare, opts);
@@ -151,7 +152,7 @@ const W = stagingWire({
 });
 
 health.value = { ...PAYLOAD };
-config.value = { fields: FIELDS, profiles: null };
+config.value = { fields: FIELDS };
 matrixConfig.value = {
   fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }],
 };
