@@ -1,0 +1,34 @@
+{
+  "phase": "1",
+  "trigger": "risk_surface",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "e9ba6048",
+  "head": "27f4de0a",
+  "base_id": "e9ba604898d2aa7a7dda800e1924182e506b92b5",
+  "head_id": "27f4de0a2d7903b762bc03788bc2a1cec173423d",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".github/cadence/coverage-report-check.mjs",
+      "line": 72,
+      "severity": "low",
+      "claim": "The script checks that the policy thresholds are finite numbers, but it never checks the type of policy.include or policy.exclude, so a malformed scope crashes with an uncaught TypeError instead of the script's own FAIL line.",
+      "failure_scenario": "I ran it with a policy of {\"coverage\":{\"lines\":95,\"branches\":90,\"statements\":0,\"include\":\"hqptuner/**\"}} against the real .coverage.json. Output: `TypeError: include.map is not a function or its return value is not iterable` at line 74 col 71, exit 1. The gate still fails closed, but the output is a Node stack trace, not the `policy: <path> is not a usable coverage policy` diagnostic the script gives every other malformed policy. Same crash path: an exclude given as a non-array while include is a non-empty array.",
+      "ruling": "survived",
+      "convergent": false,
+      "base_id": "e9ba604898d2aa7a7dda800e1924182e506b92b5",
+      "head_id": "27f4de0a2d7903b762bc03788bc2a1cec173423d"
+    }
+  ]
+}

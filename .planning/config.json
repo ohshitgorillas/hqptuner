@@ -75,6 +75,11 @@
     "decision_review": {
       "tier": "flagship",
       "effort": "high"
+    },
+    "triggers": {
+      "risk_surface": {
+        "surfaces": ["auth", "concurrency", "destructive", "secrets", "api_contract", "untrusted_input"]
+      }
     }
   },
   "testing": {
