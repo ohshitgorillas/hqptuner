@@ -61,9 +61,6 @@ let wire;
 /** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
 let file = {};
 
-/** The device caps the wire serves as metadata; `load` sets them. @type {object | null} */
-let shownCaps = null;
-
 /** The Engine's list index of each output mode. */
 const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
 
@@ -101,10 +98,7 @@ function served1(name, value, staged) {
  */
 function served(w) {
   const staged = w ? w.staged.http : {};
-  return {
-    ...Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)])),
-    device_caps: { value: shownCaps, readonly: true },
-  };
+  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
 }
 
 /**
@@ -135,8 +129,9 @@ function load({ pcm = "192000", sdm = "12288000", channels = 2, device = STANDA,
       { name: "alsa_device", type: "select", options: ALSA_OPTIONS },
       { name: "channels", type: "number" },
     ],
+    profiles: null,
+    device_caps: caps,
   };
-  shownCaps = caps;
   seedReadings(served(wire));
 }
 

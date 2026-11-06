@@ -83,8 +83,7 @@ const inflight = new Set();
 async function answer(path) {
   if (path === "/api/state-import") return importAnswer();
   if (path === "/api/health") return ok({ ...PAYLOAD });
-  if (path === "/api/config")
-    return ok({ generation: 1, fields: { profiles: { value: offering(serverStations).profiles, readonly: true } } });
+  if (path === "/api/config") return ok({ data: offering(serverStations) });
   if (path === "/api/livepresets") {
     return ok({ station: "", presets: [], stations: Object.fromEntries(["", ...serverStations].map((s) => [s, {}])) });
   }

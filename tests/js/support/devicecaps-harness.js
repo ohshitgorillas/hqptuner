@@ -151,7 +151,7 @@ export async function reset({
   mode,
 } = {}) {
   const w = stagingWire();
-  config.value = { fields: [] };
+  config.value = { fields: [], profiles: null, device_caps: null };
   await discardAll();
 
   /** @type {Record<string, unknown>} */
@@ -170,8 +170,8 @@ export async function reset({
   control("mode", mode);
 
   const fields = Object.keys(values).map((name) => ({ name }));
-  seedReadings({ ...values, device_caps: { value: deviceCaps, readonly: true } });
-  config.value = { fields };
+  seedReadings(values);
+  config.value = { fields, profiles: null, device_caps: deviceCaps };
   await tick();
   return w;
 }

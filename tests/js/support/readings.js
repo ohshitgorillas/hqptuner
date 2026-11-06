@@ -49,15 +49,3 @@ export function seedReadings(fields, stamp = generation.value) {
   for (const [key, entry] of Object.entries(fields)) entries[key] = served(entry) ? entry : fieldReading(entry);
   readings.value = /** @type {typeof readings.value} */ ({ generation: stamp, fields: entries });
 }
-
-/**
- * Merge the read-only metadata reading `{ value, readonly: true }` under `name` into `readings.value`, keeping every
- * other field and the generation; with no readings yet, start from the current `generation` of `store/signals.js`.
- *
- * @param {string} name
- * @param {unknown} value
- */
-export function seedMetadata(name, value) {
-  const current = readings.value ?? { generation: generation.value, fields: {} };
-  readings.value = { ...current, fields: { ...current.fields, [name]: { value, readonly: true } } };
-}

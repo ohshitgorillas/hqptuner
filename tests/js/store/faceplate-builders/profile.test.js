@@ -142,6 +142,7 @@ const matrixTree = ({ models = MODELS, live = ["Warm"] } = {}) => ({
 /** A fresh /config form: the stations and Fixed volume. */
 const configTree = () => ({
   fields: [{ name: "fixed_volume_enabled", options: [] }],
+  profiles: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] },
 });
 
 /**
@@ -225,7 +226,6 @@ function served(at) {
     ),
     matrix_profile: profileReading("Warm"),
     active_preset: { value: LOADED, readonly: true },
-    profiles: { value: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] }, readonly: true },
   };
 }
 

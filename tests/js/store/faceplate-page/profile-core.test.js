@@ -36,7 +36,6 @@ function serve(name) {
   seedReadings(
     {
       active_preset: { value: FIRST, readonly: true },
-      profiles: { value: { options: [{ value: FIRST }] }, readonly: true },
       matrix_profile: {
         engine: { value: name, name, generation: 0 },
         file: { value: OLD, generation: 0 },
@@ -53,7 +52,7 @@ function serve(name) {
 }
 
 beforeEach(() => {
-  config.value = { fields: [] };
+  config.value = { fields: [], profiles: { options: [{ value: FIRST }] } };
   matrixConfig.value = { fields: [], file_profiles: {}, preset_profiles: { [FIRST]: [] } };
   enums.value = { matrix_profiles: [FIRST, SECOND] };
   serve(FIRST);

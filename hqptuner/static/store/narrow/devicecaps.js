@@ -11,7 +11,7 @@
 // makes a reachable setting unreachable, which is the worse failure.
 
 import { computed, effect } from "@preact/signals";
-import { servedMetadata } from "../core/readings.js";
+import { config } from "../signals.js";
 import { effective } from "../resolve.js";
 import { edit } from "../actions.js";
 import { schema } from "../schema.js";
@@ -59,7 +59,7 @@ const members = (/** @type {string | number | undefined} */ tier) => {
 // one may already be different, and narrowing a freshly picked device to the old
 // one's limits is exactly the stale gray this guards against.
 const deviceCaps = computed(() => {
-  const caps = /** @type {DeviceCaps | null} */ (servedMetadata("device_caps"));
+  const caps = (config.value && config.value.device_caps) || null;
   if (!caps) return null;
   const field = fieldOf(backend(), "device");
   if (!field) return null;

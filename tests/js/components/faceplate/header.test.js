@@ -42,8 +42,7 @@ import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/v
 import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
-import { seedMetadata } from "../../support/readings.js";
-import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { seedReadings } from "../../support/readings.js";
 import { ok } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -65,7 +64,7 @@ const CALLS = [];
  */
 function answer(path) {
   if (path === "/api/preset/Night") return ok({ name: "Night", config: { volume_max: "-9" } });
-  if (path === "/api/config") return ok(readings.value);
+  if (path === "/api/config") return ok({ data: config.value });
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
   if (path === "/api/config/apply") return ok({ report: {} });
   if (path === "/api/livepresets") return ok({ presets: [], stations: {} });
@@ -80,7 +79,7 @@ function answer(path) {
  *
  * @param {string} name
  */
-const loadStation = (name) => seedMetadata("active_preset", name);
+const loadStation = (name) => seedReadings({ active_preset: { value: name, readonly: true } });
 
 /**
  * Lets the apply `holdApply` holds finish; a no-op while none is held.
@@ -112,8 +111,10 @@ beforeEach(async () => {
   };
   engineState.value = {};
   matrixConfig.value = { fields: [] };
-  config.value = { fields: [] };
-  seedMetadata("profiles", { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) });
+  config.value = {
+    fields: [],
+    profiles: { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) },
+  };
   liveBook.value = { Day: { Warm: snap() }, Night: { Quiet: snap() } };
   livePresets.value = null;
   livePresetStation.value = null;

@@ -126,6 +126,7 @@ const matrixTree = () => ({
 /** A fresh /config form: the stations, Day loaded, Fixed volume off. */
 const configTree = () => ({
   fields: [{ name: "fixed_volume_enabled", options: [] }],
+  profiles: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] },
 });
 
 /** The values the daemon serves for both forms: Warm's post-process chain, Day loaded, Fixed volume off. */
@@ -133,7 +134,6 @@ const SERVED = {
   ...post("0", "cmoy", "fx-dac-a"),
   fixed_volume_enabled: "0",
   active_preset: { value: LOADED, readonly: true },
-  profiles: { value: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] }, readonly: true },
 };
 
 /** @type {StagingWire} */
