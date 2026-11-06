@@ -5,9 +5,10 @@
 // the picker by station with its dirty marks and its change switching record, the name window, the stations menu, the
 // description, the confirm line, the state line and caption, the foot's buttons, and the Advanced settings link.
 //
-// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: the stations, the loaded one and Fixed
-// volume on `config`, the post-process selects, the pipeline rows, the stored and daemon-known profiles and the live one
-// on `matrixConfig`, the stored descriptions on `descriptions`, staging on `stagingWire`'s /api/config/stage path. The
+// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: Fixed volume on `config`, the stations
+// and the loaded one as readings, the post-process selects, the pipeline rows and the stored profiles on `matrixConfig`,
+// the daemon-known profiles on `enums` and the live one as the `matrix_profile` reading, the stored descriptions on
+// `descriptions`, staging on `stagingWire`'s /api/config/stage path. The
 // record being edited, the confirm line's question and the refusal are the shell's `cur`, `ask` and `refused`; the page
 // showing is the store's `page`, the body and open drawer the view's `body` and `openStage`. Taps and typing are fired
 // through the renderer's vnode seam, since render-to-string fires no events. Every name asserted is the fixture's own;
@@ -34,7 +35,7 @@ import {
   switchTo,
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
 import { body, openStage, openList, openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
-import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
+import { config, matrixConfig, engineState, enums } from "../../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { NEW, OVERVIEW } from "../../../../hqptuner/static/model/builders/builder.js";
@@ -42,7 +43,7 @@ import { elements, attr, classes, hasAttr, text } from "../../support/markup.js"
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 import { every, inside, kids, first, vcls, isV, descend, fire as fireNow } from "../../support/rendered/treewalk.js";
-import { ROW, PROF } from "../../support/profile-fixtures.js";
+import { ROW, PROF, profileReading } from "../../support/profile-fixtures.js";
 import { seedReadings } from "../../support/readings.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
 
@@ -118,21 +119,20 @@ const matrixTree = () => ({
     Flat: PROF(STEREO("-2"), post("1", "jmeier", "fx-dac-b")),
     Warm: PROF(STEREO("0"), post("0", "cmoy", "fx-dac-a")),
   },
-  live_profiles: ["Warm"],
   preset_profiles: { Day: ["Flat", "Warm"], Night: ["Warm"], Spare: ["Flat"] },
-  live_active: "Warm",
 });
 
-/** A fresh /config form: the stations, Day loaded, Fixed volume off. */
+/** A fresh /config form: Fixed volume. */
 const configTree = () => ({
   fields: [{ name: "fixed_volume_enabled", options: [] }],
 });
 
-/** The values the daemon serves for both forms: Warm's post-process chain, Day loaded, Fixed volume off. */
+/** The values the daemon serves for both forms: Warm's post-process chain and live, Day loaded, Fixed volume off. */
 const SERVED = {
   ...post("0", "cmoy", "fx-dac-a"),
   fixed_volume_enabled: "0",
   active_preset: { value: LOADED, readonly: true },
+  matrix_profile: profileReading("Warm"),
   profiles: { value: { options: [{ value: "" }, ...STATIONS.map((value) => ({ value }))] }, readonly: true },
 };
 
@@ -144,6 +144,7 @@ beforeEach(async () => {
   engineState.value = {};
   config.value = configTree();
   matrixConfig.value = matrixTree();
+  enums.value = { matrix_profiles: ["Warm"] };
   seedReadings(SERVED);
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
   await discardAll();
