@@ -20,6 +20,7 @@ import {
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
 import { playbackPath, runningChain, transportNow } from "../../../../hqptuner/static/store/faceplate/path.js";
+import { seedReadings } from "../../support/readings.js";
 
 const CD = "44100";
 const DSD64 = "2822400";
@@ -48,7 +49,8 @@ const PLAYING = "2";
 function play({ state = "2", source = CD, output = PCM_8X, direct = false, chain = "", edited = {} }) {
   engineState.value = { active_chain: chain };
   engineStatus.value = { status: { state, active_rate: output }, metadata: { samplerate: source } };
-  config.value = { fields: [{ name: "direct_sdm", value: direct }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: direct });
   staged.value = { live: {}, http: {} };
   liveOverride.value = edited;
 }
@@ -117,7 +119,8 @@ for (const [name, isReady, state, now] of TRANSPORTS) {
 function report({ status, state }) {
   engineState.value = state === null ? null : { state, active_chain: "pcm" };
   engineStatus.value = { status: { state: status, active_rate: DSD256 }, metadata: { samplerate: CD } };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   health.value = { phase: "Ready" };

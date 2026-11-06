@@ -11,6 +11,7 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { config } from "../../../../hqptuner/static/store/signals.js";
+import { seedReadings } from "../../support/readings.js";
 import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
 import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/static/store/faceplate/stations.js";
 
@@ -19,21 +20,30 @@ import { stationTree, unfolded, toggleStation } from "../../../../hqptuner/stati
 /**
  * A config as /api/config serves it, offering the "(no preset)" entry and the named presets given.
  *
- * @param {string} active  the loaded preset
  * @param {string[]} names
  */
-const offering = (active, names) => ({
+const offering = (names) => ({
   fields: [],
-  active,
-  profiles: { value: active, options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
+  profiles: { options: [{ value: "", label: "" }, ...names.map((n) => ({ value: n, label: n }))] },
 });
+
+/**
+ * Serve the config offering `names`, with `active` the loaded preset the daemon reports.
+ *
+ * @param {string} active
+ * @param {string[]} names
+ */
+function serve(active, names) {
+  config.value = offering(names);
+  seedReadings({ active_preset: { value: active, readonly: true } });
+}
 
 /** A live snapshot record as the book holds it. */
 const snap = () => ({ chain: "pcm", fields: { mode: "pcm" }, names: {} });
 
 beforeEach(() => {
   bookWanted.value = false;
-  config.value = offering("Night", ["Day", "Night"]);
+  serve("Night", ["Day", "Night"]);
   liveBook.value = { Day: { Warm: snap(), Bright: snap() }, Night: { Quiet: snap() }, "": { Loose: snap() } };
   unfolded.value = null;
 });
@@ -65,7 +75,7 @@ test("test_a_station_carries_the_snapshots_the_book_holds_under_its_name", () =>
 });
 
 test("test_a_station_the_book_has_no_entry_for_carries_no_snapshots", () => {
-  config.value = offering("Night", ["Day", "Night", "Spare"]);
+  serve("Night", ["Day", "Night", "Spare"]);
   assert.deepEqual(station("Spare")?.snapshots, []);
 });
 

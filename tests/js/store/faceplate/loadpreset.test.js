@@ -18,6 +18,7 @@ import {
 } from "../../../../hqptuner/static/store/signals.js";
 import { loadPreset, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { ok } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
@@ -48,7 +49,8 @@ beforeEach(async () => {
   };
   engineState.value = {};
   matrixConfig.value = { fields: [] };
-  config.value = { fields: [], file: {}, active: "Day" };
+  config.value = { fields: [] };
+  seedReadings({ active_preset: { value: "Day", readonly: true } });
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();
