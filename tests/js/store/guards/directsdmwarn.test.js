@@ -71,7 +71,7 @@ async function reset(volume) {
     },
   });
   engineState.value = {};
-  config.value = { fields: volume.fields.map(({ name }) => ({ name })), profiles: null };
+  config.value = { fields: volume.fields.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };
   seedReadings({
     ...Object.fromEntries(volume.fields.map(({ name, value }) => [name, value])),

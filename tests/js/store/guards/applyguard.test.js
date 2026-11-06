@@ -114,7 +114,7 @@ async function fixture({ volume = LIVE_VOLUME } = {}) {
   engineState.value = {};
   enums.value = null;
   metadata.value = { settings: {}, filters: { filters: {}, aliases: {} }, shapers: { sdm_modulators: {} } };
-  config.value = { fields: volume.map(({ name }) => ({ name })), profiles: null };
+  config.value = { fields: volume.map(({ name }) => ({ name })) };
   matrixConfig.value = { fields: [] };
   seedReadings({
     ...Object.fromEntries(volume.map(({ name, value }) => [name, value])),
