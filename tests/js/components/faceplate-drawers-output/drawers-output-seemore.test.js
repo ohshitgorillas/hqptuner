@@ -122,7 +122,7 @@ beforeEach(async () => {
       { name: "alsa_period", type: "number" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     mode: "pcm",
     backend: "combo",
     defaults_samplerate: "192000",

@@ -79,7 +79,7 @@ async function load(mode) {
       { name: "net_period", type: "number" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     mode: mode,
     backend: "network",
     defaults_samplerate: "192000",

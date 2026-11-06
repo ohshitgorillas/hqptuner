@@ -113,7 +113,7 @@ let wire;
  *
  * @param {{ mode?: string }} [over]
  */
-function load({ mode = "pcm" } = {}) {
+async function load({ mode = "pcm" } = {}) {
   file = {
     defaults_samplerate: "192000",
     defaults_bitrate: "12288000",
@@ -134,7 +134,7 @@ function load({ mode = "pcm" } = {}) {
       { name: "channels", type: "number" },
     ],
   };
-  seedReadings(served(wire));
+  await seedReadings(served(wire));
 }
 
 /** @param {string} path @param {{ method?: string }} opts @param {StagingWire} w */
@@ -149,7 +149,7 @@ function routes(path, opts, w) {
 beforeEach(async () => {
   refreshes = [];
   wire = stagingWire({ routes });
-  load();
+  await load();
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;

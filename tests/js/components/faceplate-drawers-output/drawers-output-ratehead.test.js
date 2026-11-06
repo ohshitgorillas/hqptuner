@@ -47,7 +47,7 @@ beforeEach(async () => {
       { name: "net_period", type: "number" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     mode: "pcm",
     backend: "network",
     defaults_samplerate: "192000",
