@@ -34,8 +34,11 @@ const offering = (names) => ({
  * @param {string[]} names
  */
 function serve(active, names) {
-  config.value = offering(names);
-  seedReadings({ active_preset: { value: active, readonly: true } });
+  config.value = { fields: [] };
+  seedReadings({
+    active_preset: { value: active, readonly: true },
+    profiles: { value: offering(names).profiles, readonly: true },
+  });
 }
 
 /** A live snapshot record as the book holds it. */

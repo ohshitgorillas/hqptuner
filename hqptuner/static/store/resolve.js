@@ -1,5 +1,5 @@
 import { computed } from "@preact/signals";
-import { field, readings } from "./core/readings.js";
+import { field, readings, servedMetadata } from "./core/readings.js";
 import { config, matrixConfig } from "./signals.js";
 import { formFieldName } from "./schema.js";
 
@@ -71,8 +71,8 @@ export const effectivePipelines = computed(() => {
 });
 
 export const activePreset = computed(() => {
-  const reading = readings.value?.fields.active_preset;
-  return reading && "readonly" in reading && typeof reading.value === "string" ? reading.value : null;
+  const value = servedMetadata("active_preset");
+  return typeof value === "string" ? value : null;
 });
 
 /** @param {FormField[] | undefined} fields @returns {Record<string, FormField>} */

@@ -16,6 +16,17 @@ import { latest, op, STALE } from "./ops.js";
 
 export const readings = signal(/** @type {ConfigReading | null} */ (null));
 
+/**
+ * The value of the read-only metadata reading served under `name`, else null.
+ *
+ * @param {string} name
+ * @returns {unknown}
+ */
+export function servedMetadata(name) {
+  const reading = readings.value?.fields[name];
+  return reading && "readonly" in reading ? reading.value : null;
+}
+
 /** @type {Map<string, { readonly value: FieldView }>} */
 const fields = new Map();
 /** @typedef {{ value: unknown } | null} HeldDrag */

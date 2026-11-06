@@ -33,11 +33,8 @@ async function seed(fields, deviceCaps = null) {
   stagingWire();
   config.value = { fields: [] };
   await discardAll();
-  seedReadings(fields);
-  config.value = {
-    fields: Object.keys(fields).map((name) => ({ name })),
-    device_caps: deviceCaps,
-  };
+  seedReadings({ ...fields, device_caps: { value: deviceCaps, readonly: true } });
+  config.value = { fields: Object.keys(fields).map((name) => ({ name })) };
   await tick();
 }
 
