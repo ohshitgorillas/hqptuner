@@ -18,9 +18,10 @@ import assert from "node:assert/strict";
 import { stageStructural, removeStructural, structuralBlock } from "../../../../hqptuner/static/store/xfeed/mode.js";
 import { pairInfo } from "../../../../hqptuner/static/lib/binaural-setup.js";
 import { HEAD_RADIUS, SPEAKER_ANGLE } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/geometry.js";
-import { readings, refreshReadings } from "../../../../hqptuner/static/store/core/readings.js";
+import { refreshReadings } from "../../../../hqptuner/static/store/core/readings.js";
 import { effective, effectivePipelines, isDirty } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
 
 /**
@@ -107,16 +108,7 @@ async function reset(rows, values = {}) {
   /** @type {Record<string, FieldReading>} */
   const fields = {};
   for (const [key, value] of Object.entries({ matrix_pipelines: JSON.stringify(rows), ...values })) {
-    fields[key] = {
-      engine: null,
-      file: { value, generation: 1 },
-      staged: null,
-      lane: "form",
-      show: "file",
-      restarts: true,
-      diverges: false,
-      bounds: null,
-    };
+    fields[key] = fieldReading(value, { show: "file", restarts: true, generation: 1 });
   }
   wire = stagingWire({
     routes: (path, _opts, w) =>
@@ -135,7 +127,7 @@ async function reset(rows, values = {}) {
           })
         : undefined,
   });
-  readings.value = { generation: 1, fields };
+  seedReadings(fields, 1);
   await discardAll();
   await settle();
 }
