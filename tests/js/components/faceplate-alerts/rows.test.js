@@ -47,7 +47,7 @@ function poll(extra = {}) {
 beforeEach(async () => {
   stagingWire();
   config.value = { fields: [{ name: "pre_before_meter", type: "checkbox" }] };
-  seedReadings({ pre_before_meter: false });
+  await seedReadings({ pre_before_meter: false });
   engineState.value = { filter_junk: "0" };
   poll();
   enums.value = {

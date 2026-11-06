@@ -36,7 +36,7 @@ import { elements, attr, classes } from "../../support/markup.js";
  *
  * @param {{ min: number, max: number, fixed?: boolean }} form
  */
-function load({ min, max, fixed = false }) {
+async function load({ min, max, fixed = false }) {
   config.value = {
     fields: [
       { name: "volume_min", type: "number" },
@@ -46,7 +46,7 @@ function load({ min, max, fixed = false }) {
       { name: "alsa_bits", type: "number" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     volume_min: min,
     volume_max: max,
     fixed_volume_enabled: fixed,
@@ -57,7 +57,7 @@ function load({ min, max, fixed = false }) {
 
 beforeEach(async () => {
   stagingWire();
-  load({ min: 0, max: 0 });
+  await load({ min: 0, max: 0 });
   engineState.value = { state: "0", active_chain: "pcm", adaptive: 0 };
   enums.value = null;
   metadata.value = null;
@@ -137,13 +137,13 @@ test("test_a_gray_reason_on_another_tab_of_the_drawer_it_names_links_to_it", () 
   assert.equal(linkTo(drawerOf("volume", ADAPTIVE, "gain")), "volume-range");
 });
 
-test("test_the_fixed_volume_reason_on_the_gain_tab_links_the_level_tab", () => {
-  load({ min: -60, max: 0, fixed: true });
+test("test_the_fixed_volume_reason_on_the_gain_tab_links_the_level_tab", async () => {
+  await load({ min: -60, max: 0, fixed: true });
   assert.equal(reasonLinkOnTab(VOLUME_DRAWER, VOLUME_BLOCKS, "gain"), "volume-level");
 });
 
-test("test_the_fixed_volume_reason_on_the_range_tab_links_the_level_tab", () => {
-  load({ min: -60, max: 0, fixed: true });
+test("test_the_fixed_volume_reason_on_the_range_tab_links_the_level_tab", async () => {
+  await load({ min: -60, max: 0, fixed: true });
   assert.equal(reasonLinkOnTab(VOLUME_DRAWER, VOLUME_BLOCKS, "range"), "volume-level");
 });
 

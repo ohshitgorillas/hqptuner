@@ -73,7 +73,7 @@ function poll(fields = {}) {
 async function quiet(scenario = {}) {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X, ...scenario });
   matrixConfig.value = { fields: [{ name: "enabled" }] };
-  seedReadings({ ...readings.value?.fields, matrix_enabled: true });
+  await seedReadings({ ...readings.value?.fields, matrix_enabled: true });
   volume.value = "-20";
   hiddenStages.value = [];
   openStage.value = null;
