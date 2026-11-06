@@ -1,0 +1,8 @@
+sha: e50d73160aed1b0eca4fe27e446c2ba95f5651e0
+branch: rebuild/integrate (.claude/worktrees/integrate)
+command: PYTHONPATH=$(pwd) scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test --test-concurrency=8 tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
+exit: 0
+pass: 4883
+fail: 0
+tests: 4883
+log: /tmp/gate-node-OgThOwIx.log
