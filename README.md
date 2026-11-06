@@ -189,7 +189,7 @@ The packages need systemd and glibc 2.28 or newer: Debian 12, Ubuntu 22.04, RHEL
 
 Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries two dmgs: `HQPTuner-X.Y.Z-apple-silicon.dmg` for Apple silicon Macs and `HQPTuner-X.Y.Z-intel.dmg` for Intel Macs. Both need macOS 15 or later. Open the one for your Mac and drag HQPTuner into Applications.
 
-Launching HQPTuner puts an icon in the menu bar and opens the UI in your default browser, at `http://127.0.0.1:8090`. Phones, tablets and other computers on your network reach it at the Mac's address on port 8090. macOS asks once whether HQPTuner may find devices on your local network; choose Allow, since that is how it reaches HQPlayer. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
+Launching HQPTuner puts an icon in the menu bar and opens the UI in your default browser, at `http://127.0.0.1:8090`. Other devices on your LAN can connect to it at the Mac's address on port 8090. macOS asks once whether HQPTuner may find devices on your local network; choose Allow, since that is how it reaches HQPlayer. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
 
 The menu bar icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
@@ -201,7 +201,7 @@ Each [release](https://github.com/ohshitgorillas/hqptuner/releases) carries one 
 
 The installer is signed. Windows may still show a SmartScreen prompt until the installer has built a reputation with Microsoft; choose More info, then Run anyway.
 
-Launching HQPTuner from the Start Menu puts an icon in the notification area and opens the UI in your default browser, at `http://127.0.0.1:8090`. Phones, tablets and other computers on your network reach it at the PC's address on port 8090. The first time it starts, Windows Defender Firewall may ask whether to allow HQPTuner; allow it on Private networks. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
+Launching HQPTuner from the Start Menu puts an icon in the notification area and opens the UI in your default browser, at `http://127.0.0.1:8090`. Other devices on your LAN can connect to it at the PC's address on port 8090. The first time it starts, Windows Defender Firewall may ask whether to allow HQPTuner; allow it on Private networks. If HQPlayer runs on another machine, the Connection panel asks for its address and the management username and password.
 
 The icon has two items: Open HQPTuner and Quit HQPTuner. Closing the browser tab leaves HQPTuner running, and Quit stops it.
 
