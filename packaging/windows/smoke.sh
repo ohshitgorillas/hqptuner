@@ -4,6 +4,8 @@
 # must start the app, and that app, which the installer itself started, must
 # answer at the runner's own network address. So must the installed app when it
 # is started the way a Start Menu launch starts it.
+# Installing over the previous release, whose app was quit first, must leave an
+# app that starts and keeps running, and the uninstaller must still work after it.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -44,11 +46,16 @@ LISTEN_HOST=""
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"
 PID=""
 INSTALLED_PID=""
+PREV_PID=""
+UP_PID=""
+UPGRADE_APP=""
+UPGRADE_DATA=""
+UPGRADE_LOG=""
 WORK=$(mktemp -d)
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; fi
-  for WINPID in $INSTALLED_PID; do stop_windows_pid "$WINPID" || true; done
+  for WINPID in $INSTALLED_PID $PREV_PID $UP_PID; do stop_windows_pid "$WINPID" || true; done
   rm -rf "$WORK" || true
 }
 trap cleanup EXIT
@@ -97,18 +104,137 @@ stop_windows_pid() {
     'Stop-Process -Id ([int]$env:WIN_PID) -Force -ErrorAction SilentlyContinue'
 }
 
-# Run the uninstaller of the install at $APP and wait, at most 10 s, for it to
-# finish. The uninstaller hands off to a temp copy and returns at once; that copy
-# removes the exe and then the uninstaller itself, so both must be gone.
+# Run the uninstaller of the install at $2, by default $APP, and wait, at most
+# 10 s, for it to finish. The uninstaller hands off to a temp copy and returns at
+# once; that copy removes the exe and then the uninstaller itself, so both must
+# be gone.
 uninstall() {
-  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$APP/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
+  local dir=${2:-$APP}
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$dir/unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
     || die "$1: the uninstaller failed"
   for _ in $(seq 1 10); do
-    if [ ! -e "$BIN" ] && [ ! -e "$APP/unins000.exe" ]; then return 0; fi
+    if [ ! -e "$dir/HQPTuner.exe" ] && [ ! -e "$dir/unins000.exe" ]; then return 0; fi
     sleep 1
   done
-  [ ! -e "$BIN" ] || die "$1: $BIN still present 10 s after uninstall"
-  die "$1: $APP/unins000.exe still present 10 s after uninstall"
+  [ ! -e "$dir/HQPTuner.exe" ] || die "$1: $dir/HQPTuner.exe still present 10 s after uninstall"
+  die "$1: $dir/unins000.exe still present 10 s after uninstall"
+}
+
+# Fail an upgrade path. Setup's own log and the process lookup come first, so a
+# red run shows what Setup did with the old files.
+upgrade_die() {
+  if [ -f "$UPGRADE_LOG" ]; then
+    echo "--- Setup log $UPGRADE_LOG ---" >&2
+    cat "$UPGRADE_LOG" >&2
+    echo "--- end of Setup log ---" >&2
+  fi
+  describe_lookup "$UPGRADE_APP"
+  die "$*"
+}
+
+# Point the upgrade helpers at their own directories under $WORK.
+upgrade_begin() {
+  UPGRADE_APP="$WORK/$1/app"
+  UPGRADE_DATA="$WORK/$1/data"
+  UPGRADE_LOG="$WORK/$1/setup.log"
+  mkdir -p "$UPGRADE_DATA"
+}
+
+# Install the previous release into $UPGRADE_APP and start its app. That release
+# has no /LAUNCH, so the app is started here and tracked by its Windows PID. It
+# gets the stores and the BROWSER of step 3, and no listen host, so it is
+# loopback only. Returns once its health answers and its tray has been built.
+start_previous() {
+  [ "$(status "$BASE_URL/api/health")" = 000 ] || die "$1: something already answers on $BASE_URL"
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$PREVIOUS" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
+    "/DIR=$(cygpath -w "$UPGRADE_APP")" || die "$1: the previous installer failed"
+  env -u HQPTUNER_LISTEN_HOST LOCALAPPDATA="$(cygpath -w "$UPGRADE_DATA")" BROWSER="$(cygpath -w /usr/bin/true)" \
+    "$UPGRADE_APP/HQPTuner.exe" &
+  for _ in $(seq 1 10); do
+    PREV_PID=$(running_under "$UPGRADE_APP")
+    if [ -n "$PREV_PID" ]; then break; fi
+    sleep 1
+  done
+  case "$PREV_PID" in
+    ''|*[!0-9]*)
+      describe_lookup "$UPGRADE_APP"
+      die "$1: expected one previous-release HQPTuner.exe, found: '$PREV_PID'" ;;
+  esac
+  local code=000
+  for _ in $(seq 1 30); do
+    code=$(status "$BASE_URL/api/health")
+    if [ "$code" = 200 ]; then break; fi
+    windows_pid_alive "$PREV_PID" || die "$1: the previous-release app exited before GET /api/health answered"
+    sleep 1
+  done
+  [ "$code" = 200 ] || die "$1: GET /api/health answered $code after 30 tries on the previous-release app"
+  for _ in $(seq 1 5); do
+    windows_pid_alive "$PREV_PID" || die "$1: the previous-release app exited within 5 s of answering"
+    sleep 1
+  done
+}
+
+# Stop the process $2 by PID and wait, at most 10 s, for it to be gone.
+stop_and_wait() {
+  stop_windows_pid "$2"
+  for _ in $(seq 1 10); do
+    windows_pid_alive "$2" || return 0
+    sleep 1
+  done
+  die "$1: PID $2 still running 10 s after stop"
+}
+
+# Run the installer under test over $UPGRADE_APP, with the environment of step
+# 2a, so /LAUNCH starts the app the way a wizard upgrade that keeps its finish
+# page box ticked does. The previous release's stores are reused, as a user's are.
+install_over() {
+  env -u HQPTUNER_LISTEN_HOST LOCALAPPDATA="$(cygpath -w "$UPGRADE_DATA")" BROWSER="$(cygpath -w /usr/bin/true)" \
+    MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TARGET" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LAUNCH \
+    "/DIR=$(cygpath -w "$UPGRADE_APP")" "/LOG=$(cygpath -w "$UPGRADE_LOG")" \
+    || upgrade_die "$1: the installer failed over the previous release"
+}
+
+# The app the upgrade started must be the only one under $UPGRADE_APP, answer on
+# loopback, still be running after its tray is built, answer at the runner's
+# network address, and stop when asked.
+check_upgraded() {
+  for _ in $(seq 1 10); do
+    UP_PID=$(running_under "$UPGRADE_APP")
+    if [ -n "$UP_PID" ]; then break; fi
+    sleep 1
+  done
+  case "$UP_PID" in
+    ''|*[!0-9]*) upgrade_die "$1: expected one upgraded HQPTuner.exe, found: '$UP_PID'" ;;
+  esac
+  local code=000
+  for _ in $(seq 1 30); do
+    code=$(status "$BASE_URL/api/health")
+    if [ "$code" = 200 ]; then break; fi
+    windows_pid_alive "$UP_PID" || upgrade_die "$1: the upgraded app exited before GET /api/health answered"
+    sleep 1
+  done
+  [ "$code" = 200 ] || upgrade_die "$1: GET /api/health answered $code after 30 tries on the upgraded app"
+  for _ in $(seq 1 5); do
+    windows_pid_alive "$UP_PID" || upgrade_die "$1: the upgraded app exited within 5 s of answering"
+    sleep 1
+  done
+  ADDRESS=$(lan_address)
+  [ -n "$ADDRESS" ] || upgrade_die "$1: the runner has no network address besides loopback"
+  code=$(status "http://$ADDRESS:8090/api/health")
+  [ "$code" = 200 ] || upgrade_die "$1: address check: the upgraded app at $ADDRESS answered $code"
+  stop_and_wait "$1" "$UP_PID"
+  UP_PID=""
+}
+
+# The previous release, quit before the installer runs.
+upgrade_quit() {
+  upgrade_begin upgrade-quit
+  start_previous "step 8 (previous release quit)"
+  stop_and_wait "step 8 (previous release quit)" "$PREV_PID"
+  PREV_PID=""
+  install_over "step 8 (previous release quit)"
+  check_upgraded "step 8 (previous release quit)"
+  uninstall "step 8 (previous release quit)" "$UPGRADE_APP"
 }
 
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
@@ -267,6 +393,11 @@ if [ ! -d "$TARGET" ]; then
   [ ! -e "$SHORTCUT" ] || die "step 7: the Start Menu shortcut is still present"
   LEFT=$(user_env HQPTUNER_LISTEN_HOST)
   [ -z "$LEFT" ] || die "step 7: the user's HQPTUNER_LISTEN_HOST is still '$LEFT'"
+fi
+
+# ---- 8. upgrade over the previous release, unless the target is a bundle ----
+if [ ! -d "$TARGET" ]; then
+  upgrade_quit
 fi
 
 echo "smoke: OK"
