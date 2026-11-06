@@ -84,7 +84,7 @@ function routes(path, opts) {
 beforeEach(async () => {
   applies = [];
   stagingWire({ routes });
-  config.value = { fields: FIELDS, profiles: null };
+  config.value = { fields: FIELDS };
   matrixConfig.value = { fields: MATRIX_FIELDS };
   seedReadings(served(STATION));
   engineState.value = { adaptive: 0 };

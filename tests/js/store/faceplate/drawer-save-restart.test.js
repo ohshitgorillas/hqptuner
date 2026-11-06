@@ -53,7 +53,7 @@ function routes(path) {
 beforeEach(async () => {
   report = {};
   stagingWire({ routes });
-  config.value = { fields: FIELDS, profiles: null };
+  config.value = { fields: FIELDS };
   matrixConfig.value = { fields: [] };
   seedReadings({
     [RESTART_KEY]: fieldReading(-3, { show: "file", restarts: true }),
