@@ -30,6 +30,7 @@ import {
   liveOverride,
   staged,
 } from "../../../hqptuner/static/store/signals.js";
+import { seedReadings } from "../support/readings.js";
 import { loudnessApplied } from "../../../hqptuner/static/store/matrix/loudness.js";
 
 /**
@@ -61,22 +62,26 @@ const AUDIBLE = {
 function appliedWith(running = {}) {
   const { matrix, loudness, fixedVolume, directSdm, low, high, at, drag, override } = { ...AUDIBLE, ...running };
   config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: fixedVolume },
-      { name: "volume_fixed", value: false },
-      { name: "direct_sdm", value: directSdm },
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-    ],
+    fields: ["fixed_volume_enabled", "volume_fixed", "direct_sdm", "volume_min", "volume_max"].map((name) => ({
+      name,
+    })),
   };
   matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: matrix },
-      { name: "post_loudness_enabled", value: loudness },
-      { name: "post_loudness_rangelow", value: low },
-      { name: "post_loudness_rangehigh", value: high },
-    ],
+    fields: ["enabled", "post_loudness_enabled", "post_loudness_rangelow", "post_loudness_rangehigh"].map((name) => ({
+      name,
+    })),
   };
+  seedReadings({
+    fixed_volume_enabled: fixedVolume,
+    volume_fixed: false,
+    direct_sdm: directSdm,
+    volume_min: "-60",
+    volume_max: "0",
+    matrix_enabled: matrix,
+    post_loudness_enabled: loudness,
+    post_loudness_rangelow: low,
+    post_loudness_rangehigh: high,
+  });
   staged.value = { live: {}, http: {} };
   liveOverride.value = override;
   volume.value = at;

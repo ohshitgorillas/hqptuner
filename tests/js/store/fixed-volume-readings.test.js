@@ -19,6 +19,7 @@ import { config, matrixConfig, volume, volumeDrag, volumeRange } from "../../../
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { fixedMode } from "../../../hqptuner/static/store/faceplate/drawers/volume.js";
 import { quiesce, stagingWire } from "../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../support/readings.js";
 
 /** @typedef {import("../support/wire/wire.js").StagingWire} StagingWire */
 
@@ -39,16 +40,24 @@ let wire;
 function load(manual) {
   config.value = {
     fields: [
-      { name: "fixed_volume_enabled", value: manual },
-      { name: "fixed_volume", value: "-10" },
-      { name: "volume_fixed", value: true },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-      { name: "defaults_volume", value: "-20" },
-    ],
-    file: { volume_fixed: AUTO_HEADROOM, fixed_volume: "-10" },
+      "fixed_volume_enabled",
+      "fixed_volume",
+      "volume_fixed",
+      "direct_sdm",
+      "volume_min",
+      "volume_max",
+      "defaults_volume",
+    ].map((name) => ({ name })),
   };
+  seedReadings({
+    fixed_volume_enabled: manual,
+    fixed_volume: fieldReading("-10", { show: "file" }),
+    volume_fixed: fieldReading(AUTO_HEADROOM, { show: "file" }),
+    direct_sdm: false,
+    volume_min: "-60",
+    volume_max: "0",
+    defaults_volume: "-20",
+  });
   matrixConfig.value = { fields: [] };
   volume.value = "-12.5";
   volumeDrag.value = null;

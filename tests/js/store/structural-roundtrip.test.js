@@ -30,6 +30,8 @@ import assert from "node:assert/strict";
 import { config, matrixConfig, engineState } from "../../../hqptuner/static/store/signals.js";
 import { edit, stagePipelines, discardAll, previewPreset } from "../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire, quiesce } from "../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../support/readings.js";
+import { readings } from "../../../hqptuner/static/store/core/readings.js";
 
 /**
  * One /config form field, as `field()` below builds it. `value` is a union
@@ -87,11 +89,16 @@ const ROW = (patch) => ({ gain: "0", gainunit: "dB", mixdown: "0", process: "", 
  */
 async function trees({ fields = [], file = {}, rows = [], engine = {}, routes } = {}) {
   engineState.value = engine;
-  config.value = { fields, file, active: "" };
-  matrixConfig.value = { fields: [], rows, active: "[Default]" };
+  config.value = { fields: fields.map(({ name }) => ({ name })) };
+  matrixConfig.value = { fields: [] };
+  seedReadings({
+    ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
+    ...Object.fromEntries(Object.entries(file).map(([name, value]) => [name, fieldReading(value, { show: "file" })])),
+    ...(rows.length > 0 && { matrix_pipelines: rows }),
+  });
   const W = stagingWire({
     routes: (path, opts, w) => {
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return routes ? routes(path, opts, w) : undefined;
@@ -140,7 +147,7 @@ test("test_an_edit_that_still_differs_from_its_baseline_stays_in_the_server_buff
 test("test_editing_one_field_clears_an_unrelated_field_that_has_gone_clean", async () => {
   const W = await trees({ fields: [field("volume_max", "-3"), field("quick_pause", true)] });
   await edit("volume_max", "-6");
-  config.value = { fields: [field("volume_max", "-6"), field("quick_pause", true)], file: {}, active: "" };
+  seedReadings({ volume_max: "-6", quick_pause: true });
   await edit("quick_pause", "0");
   await quiesce(W);
   assert.equal(staged(W, "volume_max"), false);

@@ -25,6 +25,7 @@ import {
   setHardware,
 } from "../../../hqptuner/static/store/faceplate/settings/hardware.js";
 import { ok, stagingWire } from "../support/wire/wire.js";
+import { seedReadings } from "../support/readings.js";
 
 /** @typedef {Record<string, string>} EngineTable  the engine attributes as `GET /api/engine` carries them */
 
@@ -52,8 +53,9 @@ const SETTINGS = [
 async function reset(engine = ENGINE) {
   stagingWire({ routes: (path) => (path === "/api/engine" ? ok({ engine }) : undefined) });
   engineState.value = {};
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "" };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  matrixConfig.value = { fields: [] };
+  seedReadings({ direct_sdm: false });
   await discardAll();
   discardHardware();
   setAllStations(false);
