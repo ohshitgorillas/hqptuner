@@ -1,0 +1,99 @@
+{
+  "status": "gaps",
+  "score": "6/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Upgrade over a quit v1.20.1 leaves an app that is still running after its tray is built and answers /api/health at the non-loopback address (AC1)",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "packaging/windows/smoke.sh:287-295 (upgrade_quit: start_previous, stop_and_wait by PID, install_over same /DIR with /LAUNCH, check_upgraded), check_upgraded smoke.sh:246-273 (one PID under dir, loopback health, alive 5 s, health at lan_address :269-270). Wired: smoke.sh:472-475 runs it for installer targets; release.yml:365,370 pass --previous on both installer rows, release.yml:393-399 downloads v1.20.1 outside dist/. Behaves: CI run 42208798868 on 6010276d (contains d044116d), local logs /tmp/claude-1000/sw-42208798868/127863363108.log (x64) and 127863363097.log (arm64) both end the smoke step with 'smoke: OK' under set -euo pipefail, so every step 8 check passed."
+    },
+    {
+      "n": 2,
+      "truth": "Upgrade over a running v1.20.1 leaves no v1.20.1 process when the installer returns, and the upgraded app runs and answers at the non-loopback address (AC2)",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "packaging/windows/smoke.sh:300-311 (upgrade_running: PREV_PID left running, install_over, windows_pid_alive check before lookup at :305-307, then check_upgraded). The PID check is consistent with the lookup that found PREV_PID: start_previous smoke.sh:217-220 already required windows_pid_alive true for 5 s. Behaves: same run 42208798868, both installer rows 'smoke: OK' after step 9 (x64 at 11:20:18, arm64 at 11:23:48)."
+    },
+    {
+      "n": 3,
+      "truth": "A smoke-windows run with the upgrade steps against the pre-fix hqptuner.iss fails at an upgrade step (AC3)",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "Run 42205190797 checked out 7f773b94 (before d044116d, so pre-fix iss). /tmp/claude-1000/sw-42205190797/127851246550.log (x64) and 127851246495.log (arm64): Setup log 'Some applications could not be shut down.' / 'User canceled the installation process.' then 'FAIL: step 9 (previous release running): the installer failed over the previous release'. Not a download, fresh-install or timeout failure. Step 8 passed pre-fix, so the bite is on the running path only (SUMMARY open items agrees)."
+    },
+    {
+      "n": 4,
+      "truth": "After each upgrade, the uninstaller leaves no install directory (AC4)",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "packaging/windows/smoke.sh:277-284 (uninstall_upgraded: uninstall then bounded 10 s wait for $UPGRADE_APP gone, die otherwise), called at :294 and :310. [InstallDelete] names only {app}\\_internal (hqptuner.iss:44-45), so unins000.* survive for the uninstall. Behaves: both installer rows 'smoke: OK' in run 42208798868."
+    },
+    {
+      "n": 5,
+      "truth": "CHANGELOG.md [Unreleased] ### Fixed carries the owner-approved upgrade-fix entry verbatim (AC5)",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "CHANGELOG.md:10 '- **The Windows app now reinstalls cleanly.**' under [Unreleased] ### Fixed (CHANGELOG.md:5-10), landed in d044116d with the iss fix. Character-for-character match to the owner-approved wording recorded in .planning/phases/3/reports/plan-1.1.md:15. scripts/gates/check_changelog.py: '[ok] .../CHANGELOG.md reads clean under ## [Unreleased]'. The owner's approval message itself is not in the repo; the executor report is the record."
+    },
+    {
+      "n": 6,
+      "truth": "check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows all report success on the phase's last dev commit (AC6)",
+      "status": "UNCERTAIN",
+      "uat_item": 6,
+      "evidence": "CI-settled item, not a person's check: the CI jobs are its automated check. origin/dev is at 6010276d (last phase commit). Observed offline: only the two smoke-windows installer rows of run 42208798868, both 'smoke: OK'. Not observable without network: the windows-bundle-x64 row and the jobs check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos. Left to the CI settle; no pass and no gap filed. Steps 1-7 bodies unchanged by the phase (git diff cc50fd49^..HEAD on smoke.sh touches only helpers and adds step 8 at :471-475); bundle row in release.yml:372-375 carries no previous key and no download."
+    },
+    {
+      "n": 7,
+      "truth": "The installer closes a running HQPTuner.exe and clears {app}\\_internal before it copies files, with D-04/D-05 untouched",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "packaging/windows/hqptuner.iss:32 'CloseApplications=force', :44-45 '[InstallDelete] Type: filesandordirs; Name: \"{app}\\_internal\"'. git show d044116d adds only these 7 lines to the iss; AppId, DefaultDirName, PrivilegesRequired, [Files], [Registry], [Run], LaunchWanted, InitializeSetup unchanged. Compiled by package-windows (artifact windows-installer digest d987d0e5... consumed by run 42208798868) and exercised by step 9, which went from red (truth 3) to green (truth 2)."
+    },
+    {
+      "n": 8,
+      "truth": "ROADMAP criterion 1 / WIN-02: after an upgrade over v1.20.1 the app shows its tray icon and no 'Unhandled exception in script' dialog",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "No automated check exercises the tray icon or the dialog. check_upgraded (packaging/windows/smoke.sh:263-266) only requires the PID alive for 5 s after health. hqptuner.spec:81 builds windowed on Windows (console only on linux), and the tray runs on the main thread after the server's daemon thread starts (hqptuner/desktop.py:224-226,258-263), so a tray-load exception yields PyInstaller's windowed error dialog in a process that stays alive. .planning/phases/3/CONTEXT.md flagged assumptions names exactly this ('a windowed PyInstaller error dialog keeps the process alive, and AC1 or AC2 passes on a broken build'), and SUMMARY.md Goal check concedes 'no check looks for the tray icon or the \"Unhandled exception in script\" dialog'. The reported FileNotFoundError was never reproduced (step 8 passed pre-fix), so no run shows the proxy going red on that symptom."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Upgrade over a quit v1.20.1 starts cleanly",
+      "evidence": "smoke.sh:287-295 and check_upgraded :246-273, wired at :472-475 and release.yml:365,370,393-399; CI run 42208798868 on 6010276d, x64 and arm64 installer rows both 'smoke: OK' (/tmp/claude-1000/sw-42208798868/*.log)."
+    },
+    {
+      "k": 2,
+      "name": "Upgrade over a running v1.20.1 closes it and starts cleanly",
+      "evidence": "smoke.sh:300-311 (survivor check :305-307 before lookup); hqptuner.iss:32 CloseApplications=force; CI run 42208798868 both installer rows 'smoke: OK' after step 9."
+    },
+    {
+      "k": 3,
+      "name": "Upgrade steps run red against the pre-fix installer",
+      "evidence": "Run 42205190797 on 7f773b94 (pre-fix iss): both installer rows 'FAIL: step 9 (previous release running): the installer failed over the previous release', Setup log 'Some applications could not be shut down.' (/tmp/claude-1000/sw-42205190797/*.log)."
+    },
+    {
+      "k": 4,
+      "name": "Uninstall after upgrade removes the install",
+      "evidence": "smoke.sh:277-284 bounded wait for $UPGRADE_APP gone, called at :294 and :310; CI run 42208798868 both installer rows 'smoke: OK'."
+    },
+    {
+      "k": 5,
+      "name": "CHANGELOG has the approved Fixed entry",
+      "evidence": "CHANGELOG.md:10 '- **The Windows app now reinstalls cleanly.**' under [Unreleased] ### Fixed, verbatim match to the owner-approved wording in .planning/phases/3/reports/plan-1.1.md:15; check_changelog.py '[ok]'."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "After an upgrade over v1.20.1 the app shows its tray icon and no 'Unhandled exception in script' dialog (ROADMAP criterion 1, WIN-02)",
+      "reason": "behavior wrong - no automated check exercises it: the smoke checks a proxy (PID alive 5 s after health) that the phase's own CONTEXT says passes on a broken windowed build whose error dialog keeps the process alive",
+      "evidence": "packaging/windows/smoke.sh:263-266 is the only post-health check besides the LAN health call; hqptuner.spec:81 windowed on Windows; hqptuner/desktop.py:258-263 tray on main thread after server thread; CONTEXT.md flagged assumption 3; SUMMARY.md Goal check 'Criterion 1 is checked by proxy only'. Pre-fix step 8 passed, so the proxy has never gone red on the reported symptom.",
+      "severity": "major",
+      "missing": "The smallest check that closes it: in check_upgraded, after the 5 s window, fail when the upgraded PID owns a visible top-level window (e.g. PowerShell (Get-Process -Id <winpid>).MainWindowTitle non-empty, which is where the windowed PyInstaller error dialog shows; a healthy pystray app has none), printing the title. Its bite proof (docs/testing.md rule 8) is one red run of that check against a build whose tray load fails."
+    }
+  ],
+  "human_checks": []
+}
