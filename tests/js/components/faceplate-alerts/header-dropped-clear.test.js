@@ -122,7 +122,6 @@ beforeEach(async () => {
   matrixConfig.value = { fields: [] };
   config.value = {
     fields: [],
-    profiles: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
   };
   liveBook.value = {};
   livePresets.value = null;
@@ -130,7 +129,13 @@ beforeEach(async () => {
   pendingPreset.value = null;
   await discardAll();
   await quiesce(wire);
-  seedReadings({ active_preset: { value: "Day", readonly: true } });
+  seedReadings({
+    active_preset: { value: "Day", readonly: true },
+    profiles: {
+      value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) },
+      readonly: true,
+    },
+  });
   health.value = { ...HEALTHY };
   applying.value = false;
   engineBusy.value = false;
