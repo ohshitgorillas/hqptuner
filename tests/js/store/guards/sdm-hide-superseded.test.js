@@ -150,7 +150,7 @@ async function resetConfigPage({ sdmNx = KEPT, sdm1x = KEPT, pcmNx = KEPT, pcm1x
     oversampling: wire(sdmNx),
   };
   const fields = Object.keys(values).map((name) => ({ name, options }));
-  config.value = { fields, profiles: null };
+  config.value = { fields };
   seedReadings(values);
   favoriteFilters.value = new Set();
   favoritesError.value = "";
@@ -360,9 +360,8 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
       name,
       options: LISTS[name].map((i) => ({ value: i.value, label: i.name })),
     })),
-    profiles: null,
   };
-  matrixConfig.value = { fields: [], file_profiles: {}, live_profiles: [] };
+  matrixConfig.value = { fields: [], file_profiles: {} };
   seedReadings({ mode: chain, ...form });
   favoriteFilters.value = new Set();
   favoritesError.value = "";
