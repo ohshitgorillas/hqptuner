@@ -107,13 +107,13 @@ function wire({ f1x = "1", adaptive = "1" } = {}) {
   ];
   config.value = {
     fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
-    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
   };
   matrixConfig.value = { fields: [] };
   seedReadings({
     mode: "pcm",
     ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
     active_preset: { value: "Headphones", readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
     matrix_profile: "Room EQ",
   });
   metadata.value = overlays();
