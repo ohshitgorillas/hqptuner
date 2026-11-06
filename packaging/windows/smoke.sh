@@ -81,10 +81,14 @@ lan_address() {
   cat "$cache"
 }
 
-# Every running process as one "<Windows PID><TAB><image path>" line, from Git
-# Bash's ps -W, which is much quicker than WMI. The columns are fixed width and a
-# status letter may lead a line, so WINPID and COMMAND are cut at the header's
-# column positions, not by field number.
+# Every running process as one "<Windows PID><TAB><image>" line, from Git Bash's
+# ps -W, which is much quicker than WMI. The columns are fixed width and a status
+# letter may lead a line, so WINPID and COMMAND are cut at the header's column
+# positions, not by field number. A process this shell started is tracked by the
+# Cygwin runtime and listed by its program path, as a POSIX path and without
+# ".exe" (ps.cc strips the suffix); any other process shows its Windows image
+# path. An exited child not yet reaped carries " <defunct>" and is not running,
+# so it is dropped.
 windows_processes() {
   ps -W | awk '
     NR == 1 { pid_end = index($0, "WINPID") + 5; command = index($0, "COMMAND"); next }
@@ -93,33 +97,42 @@ windows_processes() {
       count = split(head, field, " ")
       image = substr($0, command)
       sub(/[ \t]+$/, "", image)
-      if (count > 0 && field[count] ~ /^[0-9]+$/ && image != "") print field[count] "\t" image
+      if (count > 0 && field[count] ~ /^[0-9]+$/ && image != "" && image !~ / <defunct>$/) print field[count] "\t" image
     }'
 }
 
-# The Windows PIDs of running HQPTuner.exe processes whose image lies under the
+# The Windows PIDs of running HQPTuner processes whose image lies under the
 # directory $1. Git Bash's kill and kill -0 do not address a Windows PID. A
 # process keeps the spelling of the path it was started with, long or 8.3 short,
-# and one this shell started may show a POSIX path, so the directory and each
-# candidate image are made absolute long Windows paths before they are compared,
-# without regard to case.
+# and one this shell started shows a POSIX path without ".exe". So the name is
+# matched with or without the suffix, and the directory of each candidate and the
+# directory $1 are made absolute long Windows paths before they are compared,
+# without regard to case. The directory exists, so it converts where a suffixless
+# file name might not.
 running_under() {
-  local dir image base winpid
+  local dir image base imagedir winpid
   dir=$(cygpath -awl "$1")
   dir="${dir,,}\\"
   while IFS=$'\t' read -r winpid image; do
     base=${image##*[\\/]}
-    [ "${base,,}" = hqptuner.exe ] || continue
-    image=$(cygpath -awl "$image")
-    image=${image,,}
-    if [ "${image#"$dir"}" != "$image" ]; then echo "$winpid"; fi
+    base=${base,,}
+    [ "${base%.exe}" = hqptuner ] || continue
+    case "$image" in
+      *[\\/]*) imagedir=$(cygpath -awl "${image%[\\/]*}") ;;
+      *) continue ;;
+    esac
+    imagedir="${imagedir,,}\\"
+    if [ "${imagedir#"$dir"}" != "$imagedir" ]; then echo "$winpid"; fi
   done < <(windows_processes)
 }
 
 # What running_under saw, for a log: the directory in each spelling it matched
-# on, and every process named like HQPTuner with its parent and image path.
+# on, the raw ps -W header and every ps -W line naming HQPTuner (what the lookup
+# parsed), and every process named like HQPTuner with its parent and image path
+# from CIM.
 describe_lookup() {
   echo "lookup under: $(cygpath -aw "$1") | $(cygpath -awl "$1") | $(cygpath -aws "$1")" >&2
+  ps -W | awk 'NR == 1 { print "ps -W header [" $0 "]"; next } tolower($0) ~ /hqptuner/ { print "ps -W line [" $0 "]" }' >&2 || true
   powershell -NoProfile -Command \
     'Get-CimInstance Win32_Process | Where-Object { $_.Name -like "*HQPTuner*" } | ForEach-Object { "process $($_.ProcessId) parent $($_.ParentProcessId) name $($_.Name) image [$($_.ExecutablePath)]" }' \
     | tr -d '\r' >&2 || true
