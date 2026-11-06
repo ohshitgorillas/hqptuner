@@ -111,7 +111,7 @@ const W = stagingWire({
 
 health.value = { ...PAYLOAD };
 config.value = { fields: FIELDS };
-seedReadings({ volume_max: "-3" });
+await seedReadings({ volume_max: "-3" });
 
 const { About } = await import("../../../../hqptuner/static/components/faceplate/settings/About.js");
 const { nPhase, nQuality } = await import("../../../../hqptuner/static/store/narrow/state.js");

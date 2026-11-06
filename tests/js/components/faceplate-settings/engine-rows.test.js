@@ -68,14 +68,14 @@ const FORM = {
  * @param {string} idle
  * @param {boolean} freewheel
  */
-function load(idle, freewheel) {
+async function load(idle, freewheel) {
   config.value = FORM;
-  seedReadings({ idle_time: idle, quick_pause: false, short_buffer: "0", upnp_freewheel: freewheel });
+  await seedReadings({ idle_time: idle, quick_pause: false, short_buffer: "0", upnp_freewheel: freewheel });
 }
 
 beforeEach(async () => {
   stagingWire();
-  load("0", false);
+  await load("0", false);
   engineState.value = {};
   engineStatus.value = { metering: true };
   enums.value = {};
@@ -133,8 +133,8 @@ test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
   assert.equal(allowPinnedRates.value, true);
 });
 
-test("test_a_readout_prints_the_label_of_the_running_option", () => {
-  load("10000", false);
+test("test_a_readout_prints_the_label_of_the_running_option", async () => {
+  await load("10000", false);
   assert.equal(railText(TIMING_READOUTS), "10");
 });
 
@@ -147,7 +147,7 @@ test("test_a_checkbox_readout_reads_its_running_false_as_the_off_option_value", 
   assert.equal(UPNP_READOUTS[0]?.value(), "0");
 });
 
-test("test_a_checkbox_readout_reads_its_running_true_as_the_on_option_value", () => {
-  load("0", true);
+test("test_a_checkbox_readout_reads_its_running_true_as_the_on_option_value", async () => {
+  await load("0", true);
   assert.equal(UPNP_READOUTS[0]?.value(), "1");
 });

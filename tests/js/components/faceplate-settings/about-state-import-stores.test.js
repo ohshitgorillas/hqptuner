@@ -156,7 +156,7 @@ config.value = { fields: FIELDS };
 matrixConfig.value = {
   fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }],
 };
-seedReadings(SERVED);
+await seedReadings(SERVED);
 
 const { About } = await import("../../../../hqptuner/static/components/faceplate/settings/About.js");
 const { toggleFavorite, hydrateFavorites } = await import("../../../../hqptuner/static/store/narrow/favorites.js");
@@ -223,7 +223,7 @@ test("test_the_live_snapshots_after_an_import_are_the_imported_ones", () => {
 });
 
 test("test_a_station_looked_at_after_an_import_takes_the_matrix_mode_the_import_recorded", async () => {
-  seedReadings({ ...SERVED, active_preset: { value: STATION, readonly: true } });
+  await seedReadings({ ...SERVED, active_preset: { value: STATION, readonly: true } });
   await quiesce(W);
   assert.equal(matrixMode.value, "headphones");
 });

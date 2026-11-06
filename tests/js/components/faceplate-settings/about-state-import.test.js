@@ -121,13 +121,13 @@ const page = () => text({ name: "", attrs: "", start: 0, html: render(html`<${Ab
 health.value = { ...PAYLOAD };
 const PAGE_BEFORE_ANY_IMPORT = page();
 
-beforeEach(() => {
+beforeEach(async () => {
   health.value = { ...PAYLOAD };
   bookWanted.value = false;
   liveBook.value = {};
   unfolded.value = null;
   serverStations = STATIONS_BEFORE;
-  seedReadings({ profiles: offering(STATIONS_BEFORE) });
+  await seedReadings({ profiles: offering(STATIONS_BEFORE) });
   importAnswer = async () => ok({ ok: true });
   inflight.clear();
   CALLS.length = 0;
