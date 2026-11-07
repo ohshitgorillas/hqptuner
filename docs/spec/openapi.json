@@ -711,26 +711,6 @@
         "title": "DropBody",
         "type": "object"
       },
-      "Dropped": {
-        "description": "A field the Engine ran before an outcome and does not run after it, and the value it held.\n\n``field`` is the config-form name, ``value`` the config-form value the Engine ran (an enum ID\nfor a filter or shaper), ``name`` the enumeration's name for it, the value itself where the\nenumeration names no item (a rate or a 0/1 flag).",
-        "properties": {
-          "field": {
-            "title": "Field",
-            "type": "string"
-          },
-          "name": {
-            "title": "Name",
-            "type": "string"
-          },
-          "value": {
-            "title": "Value",
-            "type": "string"
-          }
-        },
-        "required": ["field", "value", "name"],
-        "title": "Dropped",
-        "type": "object"
-      },
       "DroppedFields": {
         "description": "The ``dropped`` field of a ``stage`` record: the pending-buffer entries that request also reported clean.",
         "properties": {
@@ -1540,7 +1520,7 @@
         "type": "object"
       },
       "HealthReport": {
-        "description": "``GET /api/health``: the connection's phase, generation, age, recorded verdicts and dropped settings.",
+        "description": "``GET /api/health``: the connection's phase, generation, age and recorded verdicts.",
         "properties": {
           "address_found": {
             "anyOf": [
@@ -1575,13 +1555,6 @@
             ],
             "title": "Credentials Ok"
           },
-          "dropped_settings": {
-            "items": {
-              "$ref": "#/components/schemas/Dropped"
-            },
-            "title": "Dropped Settings",
-            "type": "array"
-          },
           "generation": {
             "title": "Generation",
             "type": "integer"
@@ -1591,7 +1564,7 @@
             "type": "string"
           }
         },
-        "required": ["phase", "generation", "connected_at", "credentials_ok", "address_found", "dropped_settings"],
+        "required": ["phase", "generation", "connected_at", "credentials_ok", "address_found"],
         "title": "HealthReport",
         "type": "object"
       },
@@ -4000,18 +3973,6 @@
           }
         },
         "summary": "Health"
-      }
-    },
-    "/api/health/dropped-settings": {
-      "delete": {
-        "description": "Empty the drop report ``GET /api/health`` carries.",
-        "operationId": "clear_dropped_settings_api_health_dropped_settings_delete",
-        "responses": {
-          "204": {
-            "description": "Successful Response"
-          }
-        },
-        "summary": "Clear Dropped Settings"
       }
     },
     "/api/livepresets": {

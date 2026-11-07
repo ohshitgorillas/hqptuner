@@ -1,14 +1,4 @@
-"""The pinned output rate: the LIVE field ``rate``, in Hz, that ``SetRate`` writes.
-
-``SetRate`` takes a ``RatesItem`` index of the running mode's list; index 0 is
-auto, so ``"0"`` clears the pin. ``[source]`` mode outputs at the source's own
-rate whatever the pin, the engine holds one pin, and ``SetMode`` drops it.
-``SetRate`` writes the fixed slot, which overrides automatic base-rate
-selection, so the pin is exactly the requested rate. After a mode switch clears
-a pin on the engine, the engine runs automatic base-rate selection until the
-user pins again. When a restart drops a confirmed pin, ``lanes/live/dropped``
-reports it, and the user re-pins.
-"""
+"""The pinned output rate: the LIVE field ``rate``, in Hz, that ``SetRate`` writes."""
 
 from __future__ import annotations
 

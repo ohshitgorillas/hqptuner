@@ -13,7 +13,6 @@ from hqptuner.clock import Clock
 from hqptuner.conf.httpauth import NoHttpClientError
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
-from hqptuner.core.dropledger import DropLedger
 from hqptuner.core.lifecycle import Fact, Lifecycle, Phase
 from hqptuner.core.readings import Readings
 from hqptuner.engine.controlerrors import ControlConnectionFailedError, ControlError
@@ -93,7 +92,6 @@ class ConnectionManager:
         self._retired: list[HttpConfigClient] = []
         self.clock = clock if clock is not None else Clock()
         self.readings = Readings()
-        self.dropped_settings = DropLedger(self.readings)
         self.audit = AuditLog(cfg.debug_log, now=self.clock.now)
         self.presetops = PresetOps(cfg, self)
         self.applyops = ApplyOps(self)
@@ -102,7 +100,7 @@ class ConnectionManager:
         self.metering: MeteringReader | None = None
         self.control: ControlClient | None = None
         self.dialing: ControlClient | None = None
-        self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic(), self.dropped_settings.hear)
+        self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic())
         self.changed = self.phase.changed
         self._supervisor = _Supervisor(self)
 
@@ -160,8 +158,6 @@ class ConnectionManager:
         self.readings.take_address(found=None)
         self.readings.take_file(credentials_ok=None)
         self.readings.break_engine()
-        self.readings.take_held()
-        self.dropped_settings.settle()
         control, self.control = self.control, None
         if control is not None:
             await control.close()

@@ -192,10 +192,7 @@ class LaneReadings(Protocol):
         """Return the current Engine view, or ``None`` when nothing was read since the last break."""
 
     def break_engine(self) -> None:
-        """End the Engine view, holding its last reading for the drop report."""
-
-    def take_held(self) -> LaneEngineSnapshot | None:
-        """Give up the reading held from before the last break, once."""
+        """End the Engine view; the next reading starts from nothing."""
 
 
 class LaneManager(Protocol):

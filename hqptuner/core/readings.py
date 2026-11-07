@@ -92,11 +92,6 @@ class EngineSnapshot:
     release: str | None = None  # engine, the installed release off the 8088 /about page as text, None until read
     info: dict[str, str] | None = None  # engine, GetInfo attributes as text
 
-    @property
-    def verified(self) -> bool:
-        """Whether it carries State and the enumerations, so every live field resolves against it."""
-        return self.state is not None and self.enums is not None
-
 
 @dataclass
 class Readings:
@@ -136,7 +131,6 @@ class Readings:
     caps_misses: int = 0
     last_volume_write: str | None = None
     engine_stamp: Stamp | None = None
-    held: EngineSnapshot | None = None
     on_change: Callable[[], None] = field(default=_unheard, repr=False, compare=False)
     _source_stamps: dict[tuple[Source, str], Stamp | None] = field(default_factory=dict, init=False, repr=False)
     _file_read_owners: dict[str, FileSourceOwner] = field(default_factory=dict, init=False, repr=False)
@@ -238,18 +232,11 @@ class Readings:
         )
 
     def break_engine(self) -> None:
-        """End the Engine view at Down or an outcome, holding its last verified reading for the drop report."""
+        """End the Engine view at Down or an outcome; the next reading starts from nothing."""
         snapshot = self.engine_snapshot()
-        if snapshot is not None and snapshot.verified:
-            self.held = snapshot
         for name in ENGINE_FIELDS:
             setattr(self, name, None)
             self._source_stamps.pop((Source.ENGINE, name), None)
         self.engine_stamp = None
         if snapshot is not None:
             self.on_change()
-
-    def take_held(self) -> EngineSnapshot | None:
-        """Give up the reading held from before the last break, once."""
-        held, self.held = self.held, None
-        return held

@@ -8,7 +8,7 @@ import contextlib
 from dataclasses import dataclass, replace
 
 import httpx
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request
 
 from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
@@ -19,7 +19,6 @@ from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
 from hqptuner.engine.view import EngineView
-from hqptuner.lanes.live.dropped import Dropped
 from hqptuner.metadata import MergedEnums, ModeInfo, StaticDb, StaticMetadata, merge_enumerations
 from hqptuner.presets.store.autopilot import AutopilotError
 
@@ -28,7 +27,7 @@ router = APIRouter(prefix="/api")
 
 @dataclass(frozen=True)
 class HealthReport:
-    """``GET /api/health``: the connection's phase, generation, age, recorded verdicts and dropped settings."""
+    """``GET /api/health``: the connection's phase, generation, age and recorded verdicts."""
 
     phase: str
     generation: int
@@ -40,7 +39,6 @@ class HealthReport:
     # the configured management credentials.
     credentials_ok: bool | None
     address_found: bool | None
-    dropped_settings: tuple[Dropped, ...]
 
 
 @dataclass(frozen=True)
@@ -69,15 +67,7 @@ def health(manager: Mgr) -> HealthReport:
         connected_at=_age(standing.connected_since, now=manager.clock.monotonic()),
         credentials_ok=readings.credentials_ok,
         address_found=readings.address_found,
-        dropped_settings=manager.dropped_settings.entries(),
     )
-
-
-@router.delete("/health/dropped-settings", status_code=204)
-def clear_dropped_settings(manager: Mgr) -> Response:
-    """Empty the drop report ``GET /api/health`` carries."""
-    manager.dropped_settings.clear()
-    return Response(status_code=204)
 
 
 def _age(since: float | None, *, now: float) -> float | None:

@@ -210,20 +210,6 @@ def outcome(standing: Standing) -> Outcome:
 _Holds = Callable[[Standing], bool]
 
 
-def _unheard(outcome: Outcome) -> None:
-    """Hear nothing: the listener of a lifecycle nobody asked for outcomes."""
-    del outcome
-
-
-def _named(before: Standing, after: Standing, fact: Fact) -> Outcome | None:
-    """Return the outcome ``fact`` names, ``NONE`` for a request accepted, or None for a fact that names none."""
-    if fact is Fact.REQUEST_ACCEPTED:
-        return Outcome.NONE
-    if after.ended is not Outcome.NONE and (after.ended is not before.ended or after.generation != before.generation):
-        return after.ended
-    return None
-
-
 class Lifecycle:
     """The one home of the standing, the window it runs under and the wake every transition sets.
 
@@ -232,14 +218,10 @@ class Lifecycle:
     it returns on the edge that satisfied it even if a later one has already moved on.
     """
 
-    def __init__(self, window: float, now: float, on_outcome: Callable[[Outcome], None] = _unheard) -> None:
-        """Stand Down since ``now`` under ``window``, the longest a restart may take before an outage.
-
-        ``on_outcome`` hears each outcome as a fact names it, and ``NONE`` when a request is accepted.
-        """
+    def __init__(self, window: float, now: float) -> None:
+        """Stand Down since ``now`` under ``window``, the longest a restart may take before an outage."""
         self._standing = Standing(down_since=now)
         self._window = window
-        self._on_outcome = on_outcome
         self._edges: dict[asyncio.Event, _Holds] = {}
         self.changed = asyncio.Event()
 
@@ -259,9 +241,6 @@ class Lifecycle:
         for edge, holds in self._edges.items():
             if holds(after):
                 edge.set()
-        named = _named(before, after, fact)
-        if named is not None:
-            self._on_outcome(named)
 
     def request_accepted(self, now: float) -> Stamp:
         """Stamp a restart request the daemon accepted at ``now`` and return the stamp to wait on."""

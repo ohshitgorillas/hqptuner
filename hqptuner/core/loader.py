@@ -30,7 +30,7 @@ from hqptuner.engine.controlerrors import (
 from hqptuner.engine.view import EngineView
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
-from hqptuner.lanes.live import dropped, lane
+from hqptuner.lanes.live import lane
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -221,16 +221,6 @@ async def _fill(mgr: ConnectionManager, client: ControlClient, cadence: Cadence,
     await engineread.refresh_device_caps(mgr, force=True)
 
 
-def _report_drops(mgr: ConnectionManager) -> None:
-    """Record the drop report a foreign departure owes, from the held reading and the first verified one after it."""
-    after = mgr.readings.engine_snapshot()
-    if after is None or not after.verified:
-        return
-    held, owed = mgr.readings.take_held(), mgr.dropped_settings.settle()
-    if held is not None and owed:
-        mgr.dropped_settings.record(dropped.report(held, after))
-
-
 async def _read_release(mgr: ConnectionManager, fields: EngineFields) -> None:
     """Write the installed release off the ungated ``/about`` page into ``fields`` once the page answers.
 
@@ -296,9 +286,8 @@ async def _matrix_profiles(client: ControlClient) -> list[str] | None:
 
 
 def _take(mgr: ConnectionManager, fields: EngineFields) -> None:
-    """Take one Engine reading, stamped with the generation the connection stands in, and report any drops it shows."""
+    """Take one Engine reading, stamped with the generation the connection stands in."""
     mgr.readings.take_engine(mgr.phase.standing.generation, **fields)
-    _report_drops(mgr)
 
 
 def _trace_volume(mgr: ConnectionManager, before: dict[str, str] | None) -> None:
