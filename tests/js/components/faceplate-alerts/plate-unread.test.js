@@ -7,7 +7,7 @@
 // The wire is the seam, as tests/js/components/faceplate-alerts/plate-dropped.test.js drives it: each area's own
 // exported verb runs over tests/js/support/wire/unreadwire.js, whose table answers a success or a failure in the
 // backend's real shapes (tests/js/support/unreadareas.js), and the rest of the plate's state is set the way that file
-// sets it, with no dropped setting reported. The region under the top bar is read through tests/js/support/plateline.js,
+// sets it. The region under the top bar is read through tests/js/support/plateline.js,
 // and taps are fired through the renderer's vnode seam, since render-to-string fires no events. The sentences are
 // owner copy and are nowhere in this file: a line is an element carrying a severity.
 //
@@ -57,7 +57,7 @@ const DESIGN_SIZE = { w: 1080, h: 810 };
 /** The severity the owner gave these lines, as a line carries it. */
 const WARN = "warn";
 
-/** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
+/** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** A tap event: the members a tap handler may call. */

@@ -49,7 +49,7 @@ const DESIGN_SIZE = { w: 1080, h: 810 };
 /** The severity a refused save's line carries. */
 const WARN = "warn";
 
-/** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
+/** A /api/health reading whose credentials the daemon accepted. */
 const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** A tap event: the members a tap handler may call. */
