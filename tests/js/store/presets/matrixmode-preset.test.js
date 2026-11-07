@@ -169,13 +169,13 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   pendingPreset.value = null;
   applied = active;
   config.value = { fields: FIELDS };
-  seedReadings(servedFields(active), GEN);
+  await seedReadings(servedFields(active), GEN);
   matrixConfig.value = { fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }] };
   await discardAll();
   pendingPreset.value = pending;
   matrixMode.value = mode;
   await quiesce(W);
-  seedReadings(servedFields(active), GEN);
+  await seedReadings(servedFields(active), GEN);
   PUTS.length = 0;
 }
 
@@ -193,9 +193,9 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
 async function lookAt(name) {
   applied = name;
   config.value = { fields: FIELDS };
-  seedReadings(servedFields(name), GEN);
+  await seedReadings(servedFields(name), GEN);
   await quiesce(W);
-  seedReadings(servedFields(name), GEN);
+  await seedReadings(servedFields(name), GEN);
 }
 
 // --- the preset carries the choice ------------------------------------------------

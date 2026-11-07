@@ -82,7 +82,7 @@ const field = (name, value) => ({ name, value });
 async function reset({ fields = [], active = "", routes = {} } = {}) {
   engineState.value = {};
   config.value = { fields: fields.map(({ name }) => ({ name })) };
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(fields.map(({ name, value }) => [name, value])),
     active_preset: { value: active, readonly: true },
   });
