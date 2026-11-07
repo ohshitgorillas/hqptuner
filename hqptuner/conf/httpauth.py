@@ -8,6 +8,7 @@ own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
 parsing an error page as if it were a form.
 """
 
+import enum
 from typing import TYPE_CHECKING
 
 import httpx
@@ -111,6 +112,43 @@ def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
     if mgr.readings.credentials_ok is False:
         return CredentialsRefusedError()
     return None
+
+
+# A read-only page: /config/refresh would rescan devices and stop the engine, /restore and /backup move state.
+_PAIR_PAGE = "/config"
+
+
+class PairVerdict(enum.Enum):
+    """What hqplayerd said about a username and password."""
+
+    ACCEPTED = "accepted"
+    REFUSED = "refused"
+    NOT_ANSWERED = "not_answered"
+
+
+async def check_pair(host: str, port: int, username: str, password: str, wait: float) -> PairVerdict:
+    """Ask the daemon at ``host:port`` whether ``username`` and ``password`` are accepted.
+
+    One Digest-authenticated read of a page the daemon guards, judged by its status alone: the body is never
+    parsed and nothing the daemon says is kept. Anything but the daemon's own 2xx or its credential refusal is
+    ``NOT_ANSWERED``: no connection, no answer within ``wait`` seconds, a 5xx (the 503 of a restarting daemon
+    among them), an address that is not a URL host.
+    """
+    accepted = refused = False
+    try:
+        async with httpx.AsyncClient(
+            base_url=f"http://{host}:{port}", auth=httpx.DigestAuth(username, password), timeout=wait
+        ) as client:
+            resp = await client.get(_PAIR_PAGE)
+        raise_for_status(resp)
+        accepted = True
+    except AuthRefused:
+        refused = True
+    except (httpx.HTTPError, httpx.InvalidURL):
+        pass
+    if refused:
+        return PairVerdict.REFUSED
+    return PairVerdict.ACCEPTED if accepted else PairVerdict.NOT_ANSWERED
 
 
 def raise_for_status(resp: httpx.Response) -> None:
