@@ -1,0 +1,39 @@
+sha: fe97fb16e367ba7b5b211053bf20aceb6617c46c
+start: e50d73160aed1b0eca4fe27e446c2ba95f5651e0
+branch: rebuild/integrate (.claude/worktrees/integrate)
+
+(1) D-07 full suite (AC5), 8 of 18 cores
+command: PYTHONPATH=$(pwd) scripts/gate.sh bash -c 'node --import ./tests/js/support/vendor-resolve.js --test --test-concurrency=8 tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js'
+exit=0 log=/tmp/gate-bash-5Yg9P7h5.log
+tests: 4880
+pass: 4880
+fail: 0
+
+(2) tests/api (AC6)
+command: PYTHONPATH=$(pwd) scripts/gate.sh .venv/bin/pytest -m "not live" -q tests/api
+exit=0 log=/tmp/gate-pytest-qfMy0Ben.log
+340 passed, 1 warning
+
+(3) AC1 searches under tests/js
+- grep -rn fileTruth tests/js: empty
+- grep -rn -E 'api/config.*data *:' tests/js: empty
+- grep -rn -E 'emit\("config"|event: "config"|secondEventMoves\("config"' tests/js: empty
+- grep -rn -E 'config\.value *=.*(profiles|device_caps)' tests/js: empty
+- config.value block scan (98 files with a `config.value = {` assignment; keys profiles, device_caps, file, active, rows to the closing brace): 0 hits
+- grep -rn -E 'live_(profiles|active)\s*:' tests/js: 7 hits, all `reset({ ... live_profiles: [...] })` / `reset({ live_active: "LiveName" })` call arguments in tests/js/store/presets/profiles.test.js lines 38, 43, 48, 76, 82, 115, 122 (kept by decision, Notes). No hit in support/profile-fixtures.js (its parameters are `=` defaults, not `:`).
+- grep -rn -E 'readings\.value *= *[^=]' tests/js: empty (no hit anywhere, including the two reading-model suites)
+
+(4) AC2 searches
+- grep -n '"config"' hqptuner/static/store/sync.js hqptuner/api/push.py: empty
+- grep -rn 'events(blocks, "config")' tests: empty
+
+(5) AC3: every one of the 61 commits in e50d7316..HEAD carries a `Pre-edit:` line with `exit=0` (git log check).
+
+(6) AC4: assert, `test(` and `beforeEach(` line changes in `git diff e50d7316 -- tests` (/tmp/assert-check.mjs, /tmp/await-only.mjs), by place:
+- deleted config push tests: tests/js/store/live/mirror.test.js (the two `test(` titles and their `secondEventMoves("config", ...)` assert lines), tests/api/test_push_config_reading.py (`assert FIRST_MINIMUM in _minimums_pushed(blocks)`).
+- Plan 1 Task 6 dropped `t` plus async: tests/js/store/live/polling.test.js `test("test_a_failed_readings_fetch_keeps_the_last_good_readings", async () => {`.
+- `async` gained on `test(`/`beforeEach(` lines in every other file. Two concise-body callbacks also gain the awaited call inside the same line: tests/js/components/faceplate-settings/hardware.test.js `beforeEach(async () => await load());` and tests/js/components/faceplate/page.test.js `beforeEach(async () => await run({}));` (Plan 8; the line has no assert).
+- owner-approved await-only assert lines, 56 across 7 files, each listed in its commit under `Await-only assert lines:` (41b357fa: 29 lines in store/loudness-applied, store/faceplate/drawers-volume, rail-pipelines, volume; 637923d3: 27 lines in components/faceplate/volume, faceplate-drawers/drawers-volume-range, faceplate-drawers-output/drawers-output-schema). /tmp/await-only.mjs: every listed line equals its START text once every `await ` and added parenthesis is removed.
+- no contract-mismatch route taken, no other assert line changed.
+
+(7) Await check (AST scan /tmp/await-scan.mjs over every .js file under tests/js, imports resolved relative to each file): CLEAN. grep for a `seedReadings(` call without `await` outside the import and the declaration: empty.
