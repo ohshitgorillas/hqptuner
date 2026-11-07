@@ -10,6 +10,7 @@ files:
   - .claude/worktrees/integrate/.filepawl.toml
   - .claude/worktrees/integrate/scripts/abuse.sh
   - .claude/worktrees/integrate/docs/spec/api.md
+  - .claude/worktrees/integrate/docs/spec/openapi.json
 ---
 
 # Phase 4: Integrate into v2 - Plan 2: Local e2e on integrate

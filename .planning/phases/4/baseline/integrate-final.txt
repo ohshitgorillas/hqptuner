@@ -1,0 +1,14 @@
+Phase 4 plan 2, Task 4: make check at integrate's final commit
+
+Command (in /home/atom/dev/hqptuner2/.claude/worktrees/integrate):
+  PYTHONPATH=$(pwd) nice -n 19 scripts/gate.sh make check
+Integrate commit: abe984ba4d945032b1d1723a80c748db791ecaff (rebuild/integrate); this is the last commit of the plan and the commit Task 3's green e2e run was made at.
+Footprint named before the run: pytest-offline on one full core for about 40 s, then test-js with up to 17 node test processes; both under nice -n 19.
+Result: exit=0 log=/tmp/gate-make-tQreN5Yr.log
+
+  Python half: "3682 passed, 143 deselected, 2 warnings in 39.20s"; "[ok] suite 39.2s, bar 37.0s (+2.2s)". Bar not raised; --accept not run.
+  JS half: "# tests 4882", "# pass 4882", "# fail 0"; "# all files | 97.18 | 91.74 | 90.99". Thresholds 95 / 90 / 85 met.
+  Worktree after the run: only "?? .planning/reads.jsonl" and "?? uv.lock".
+  Process check after the run: only the pre-existing `python -m hqptuner` PID 3388 is alive.
+
+The earlier record at 55d5a0d0 (exit=0, log /tmp/gate-make-BUIgbslv.log, 3672 passed) is superseded by this one.
