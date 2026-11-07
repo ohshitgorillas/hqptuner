@@ -301,8 +301,9 @@ jobs:
       - run: uv pip install . pyinstaller
 
       # Evidence only: it never changes this job's result, even when python.exe crashes or the step times out.
-      - name: Probe the app's tray registration
-        timeout-minutes: 2
+      # It records the app's tray registration and the runner's desktop around it.
+      - name: Probe the app's tray registration and the runner's desktop
+        timeout-minutes: 4
         continue-on-error: true
         run: .venv/Scripts/python.exe -X faulthandler scripts/probes/probe_tray_registration.py
 

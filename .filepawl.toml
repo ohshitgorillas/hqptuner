@@ -9,3 +9,4 @@ version = 1
 "hqptuner/static/store/ui/prefs.js" = { lines = 428 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }
 "scripts/junkcal/junkcal_fixture.py" = { lines = 655 }
+"scripts/probes/probe_tray_registration.py" = { lines = 494 }
