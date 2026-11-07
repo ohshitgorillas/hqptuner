@@ -49,6 +49,7 @@ function textRow(key, label, type, placeholder) {
       <span class="t-label">${label}</span>
       <span class="setup-input">
         <input
+          data-testid=${`setup-${key}`}
           type=${type}
           placeholder=${placeholder || ""}
           value=${/** @type {Record<string, string>} */ (form.value)[key]}
@@ -210,7 +211,7 @@ export function Setup() {
             ${rememberRow(false, "Ask every time HQPTuner starts")}
           </div>
           <div class="setup-buttons">
-            <button type="button" onClick=${() => submitConnection(true)}>Save</button>
+            <button type="button" data-testid="setup-save" onClick=${() => submitConnection(true)}>Save</button>
             ${loggedOut.value ? null : html`<button type="button" data-testid="setup-close" onClick=${closeSetup}>Close</button>`}
           </div>
         <//>
