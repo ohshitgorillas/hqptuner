@@ -30,12 +30,14 @@ import io
 import json
 import zipfile
 from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
+from apps import log_in, unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -86,24 +88,19 @@ def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], 
     HQPTuner version stamped and then open the app over it. Nothing here can
     reach hqplayerd — the control lane points at `closed_port`, which nothing
     listens on — so a route that answers at all answered without the daemon."""
-    clients: list[TestClient] = []
+    with ExitStack() as stack:
 
-    def build() -> TestClient:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            description_file=tmp_path / "descriptions.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock(now=STAMPED_AT)))
-        clients.append(client)
-        client.__enter__()
-        return client
+        def build() -> TestClient:
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=closed_port,
+                hqp_username="",
+                hqp_password="",
+                description_file=tmp_path / "descriptions.json",
+            )
+            return stack.enter_context(unserved_login(cfg, VirtualClock(now=STAMPED_AT)))
 
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+        yield build
 
 
 @pytest.fixture
@@ -131,6 +128,7 @@ def carriage_client(
         description_file=tmp_path / "descriptions.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as test_client:
+        log_in(test_client)
         yield test_client, DescriptionStore(tmp_path / "descriptions.json")
 
 

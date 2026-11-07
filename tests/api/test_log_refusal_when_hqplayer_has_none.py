@@ -9,7 +9,9 @@ reachable at all. Which identifier each case gets is HQPTuner's to choose; what
 is pinned is that the no-log case does not share one with the others.
 
 The 8088 daemon here is a table: one status for `/log`, 404 for every other
-page, served through `fake_http.spawn` so its teardown is the suite's own.
+page, served through `fake_http.spawn` so its teardown is the suite's own. It
+answers `/config` 200 for the login alone and drops that row before the app
+starts, so from the app's first read on every page but `/log` is 404.
 """
 
 from http.server import BaseHTTPRequestHandler
@@ -17,6 +19,7 @@ from pathlib import Path
 
 import fake_http
 import pytest
+from apps import log_in, unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -30,9 +33,8 @@ NO_LOG = 404
 ERRORING = (500, 503)
 
 
-def _log_page_answering(status: int) -> type[BaseHTTPRequestHandler]:
-    """An 8088 daemon that answers `/log` with ``status`` and every other page 404."""
-    table = {"/log": status}
+def _log_page_answering(table: dict[str, int]) -> type[BaseHTTPRequestHandler]:
+    """An 8088 daemon that answers each page in ``table`` with its status and every other page 404."""
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self) -> None:
@@ -46,9 +48,10 @@ def _log_page_answering(status: int) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
-def _log_refusal_code(http_port: int, control_port: int, tmp_path: Path) -> str:
+def _log_refusal_code(http_port: int, control_port: int, tmp_path: Path, pages: dict[str, int] | None = None) -> str:
     """The `code` `GET /api/log` refuses with, from an app whose 8088 lane is at
-    ``http_port``; the control lane is at a port nothing listens on."""
+    ``http_port``, a daemon serving ``pages`` (None: nothing serves it); the
+    control lane is at a port nothing listens on."""
     cfg = Config(
         hqp_host="127.0.0.1",
         hqp_control_port=control_port,
@@ -59,15 +62,26 @@ def _log_refusal_code(http_port: int, control_port: int, tmp_path: Path) -> str:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
-        code: str = client.get("/api/log").json().get("code", "")
+    if pages is None:
+        with unserved_login(cfg, VirtualClock()) as client:
+            return _refusal_code(client)
+    client = TestClient(create_app(cfg, VirtualClock()))
+    log_in(client)
+    del pages["/config"]
+    with client:
+        return _refusal_code(client)
+
+
+def _refusal_code(client: TestClient) -> str:
+    code: str = client.get("/api/log").json().get("code", "")
     return code
 
 
 def _code_when_log_page_answers(status: int, closed_port: int, tmp_path: Path) -> str:
-    daemon = fake_http.spawn({}, handler=_log_page_answering(status))
+    pages = {"/log": status, "/config": 200}
+    daemon = fake_http.spawn({}, handler=_log_page_answering(pages))
     st = next(daemon)
-    code = _log_refusal_code(int(st["_port"]), closed_port, tmp_path / str(status))
+    code = _log_refusal_code(int(st["_port"]), closed_port, tmp_path / str(status), pages)
     next(daemon, None)
     return code
 

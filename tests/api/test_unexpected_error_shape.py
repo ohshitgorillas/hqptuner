@@ -15,11 +15,12 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from apps import unserved_login
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import Response
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.logbuffer import RECENT
 
@@ -47,10 +48,12 @@ def faulting_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    app = create_app(cfg, VirtualClock())
-    app.add_api_route(FAULT_PATH, raise_a_fault_no_handler_maps, methods=["GET"])
+
+    def plant_the_fault(app: FastAPI) -> None:
+        app.add_api_route(FAULT_PATH, raise_a_fault_no_handler_maps, methods=["GET"])
+
     # the server's own re-raise is not the contract; the response is
-    with TestClient(app, raise_server_exceptions=False) as client:
+    with unserved_login(cfg, VirtualClock(), raise_server_exceptions=False, setup=plant_the_fault) as client:
         yield client
 
 

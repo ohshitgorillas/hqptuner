@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import log_in
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -40,6 +41,7 @@ def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | No
         debug_log=debug_log,
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
+        log_in(client)
         yield client
 
 

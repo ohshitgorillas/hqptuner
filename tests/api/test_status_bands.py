@@ -18,17 +18,17 @@ from typing import TYPE_CHECKING
 
 import fake_metering
 import pytest
-from apps import advance_app, app_manager, wait_for_api
+from apps import advance_app, app_manager, unserved_login, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
-from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterator
     from pathlib import Path
+
+    from fastapi.testclient import TestClient
 
 BINS = 1025
 CHANNELS = 2
@@ -94,7 +94,7 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
             autopilot_file=tmp_path / "autopilot.json",
             advisor_enabled=True,
         )
-        client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
+        client = closing.enter_context(unserved_login(cfg, VirtualClock()))
         wait_for_api(client, _status_served)
         return client
 

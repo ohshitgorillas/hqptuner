@@ -20,7 +20,7 @@ from pathlib import Path
 
 import fake_http
 import pytest
-from apps import closed_port
+from apps import closed_port, log_in
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -120,5 +120,7 @@ def test_a_start_dials_the_record_then_the_variable_and_falls_back_to_the_host_a
         autopilot_file=tmp_path / "autopilot.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
+        # Logged in once the start has resolved the host: the pair is checked at the address in force.
+        log_in(client)
         answered = served_title(client)
     assert answered == expected

@@ -21,12 +21,11 @@ from typing import Any
 
 import pytest
 from apps import closed_port as build_closed_port
+from apps import unserved_login
 from conftest import spawn_threaded_daemon
-from fastapi.testclient import TestClient
 from httpx import Response
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The container-host alias these cases use: the loopback address the control
@@ -83,6 +82,6 @@ def test_a_zero_search_window_still_serves_the_daemon_the_host_alias_names(
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         answered = served(client.get("/api/discover"))
     assert answered == expected

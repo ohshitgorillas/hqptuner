@@ -24,13 +24,14 @@ hand-writes one.
 
 import json
 from collections.abc import Callable, Iterator, Sequence
+from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
+from apps import unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
@@ -66,28 +67,23 @@ def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[C
     before the app opens — including nothing at all, over a preset store
     directory the case hand-wrote itself, or over a mode file another HQPTuner
     version stamped."""
-    clients: list[TestClient] = []
+    with ExitStack() as stack:
 
-    def build(names: Sequence[str] = ()) -> TestClient:
-        store = PresetStore(preset_dir)
-        for name in names:
-            store.save(name, PRESET_PAYLOAD)
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            matrix_mode_file=tmp_path / "matrixmodes.json",
-            preset_dir=preset_dir,
-        )
-        client = TestClient(create_app(cfg, VirtualClock()))
-        clients.append(client)
-        client.__enter__()
-        return client
+        def build(names: Sequence[str] = ()) -> TestClient:
+            store = PresetStore(preset_dir)
+            for name in names:
+                store.save(name, PRESET_PAYLOAD)
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=closed_port,
+                hqp_username="",
+                hqp_password="",
+                matrix_mode_file=tmp_path / "matrixmodes.json",
+                preset_dir=preset_dir,
+            )
+            return stack.enter_context(unserved_login(cfg, VirtualClock()))
 
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+        yield build
 
 
 @pytest.fixture

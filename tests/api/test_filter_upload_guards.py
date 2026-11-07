@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import log_in
 from conftest import minimal_wave
 from fastapi.testclient import TestClient
 from httpx import Response
@@ -69,6 +70,7 @@ def capped_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int)
         filter_max_bytes=FILE_LIMIT,
     )
     with TestClient(create_app(cfg, VirtualClock())) as test_client:
+        log_in(test_client)
         yield test_client
 
 

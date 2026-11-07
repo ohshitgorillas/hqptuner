@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 from apps import closed_port as build_closed_port
-from apps import live_app
+from apps import live_app, log_in, unserved_login
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -49,7 +49,7 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
         debug_log=debug_log,
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
-        yield client
+        yield log_in(client)
 
 
 @pytest.fixture
@@ -89,7 +89,7 @@ def api_client() -> Iterator[TestClient]:
     no credentials) — for the routes whose behavior is guards and buffering
     rather than daemon traffic."""
     cfg = Config(hqp_host="127.0.0.1", hqp_control_port=build_closed_port())
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with unserved_login(cfg, VirtualClock()) as test_client:
         yield test_client
 
 
@@ -124,4 +124,4 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
         hqp_home="/x/home",
     )
     with TestClient(create_app(cfg, VirtualClock())) as test_client:
-        yield test_client
+        yield log_in(test_client)

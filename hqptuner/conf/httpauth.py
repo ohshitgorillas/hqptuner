@@ -9,6 +9,7 @@ parsing an error page as if it were a form.
 """
 
 import enum
+import ssl
 from typing import TYPE_CHECKING
 
 import httpx
@@ -114,6 +115,9 @@ def decline_error(mgr: "ConnectionManager") -> HttpLaneDeclinedError | None:
     return None
 
 
+# Built once: the daemon's lane is plain HTTP and never uses it, but each client otherwise loads the CA bundle.
+_UNUSED_TLS = ssl.create_default_context()
+
 # A read-only page: /config/refresh would rescan devices and stop the engine, /restore and /backup move state.
 _PAIR_PAGE = "/config"
 
@@ -137,7 +141,10 @@ async def check_pair(host: str, port: int, username: str, password: str, wait: f
     accepted = refused = False
     try:
         async with httpx.AsyncClient(
-            base_url=f"http://{host}:{port}", auth=httpx.DigestAuth(username, password), timeout=wait
+            base_url=f"http://{host}:{port}",
+            auth=httpx.DigestAuth(username, password),
+            timeout=wait,
+            verify=_UNUSED_TLS,
         ) as client:
             resp = await client.get(_PAIR_PAGE)
         raise_for_status(resp)

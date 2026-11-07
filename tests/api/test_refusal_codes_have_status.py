@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import log_in
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -68,6 +69,7 @@ def client(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record
         preset_dir=tmp_path / "presets",
     )
     with TestClient(create_app(cfg, VirtualClock()), raise_server_exceptions=False) as test_client:
+        log_in(test_client)
         yield test_client
 
 

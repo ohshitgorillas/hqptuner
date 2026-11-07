@@ -25,7 +25,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import wait_for_api
+from apps import log_in, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, restart_into
 from fastapi.testclient import TestClient
@@ -94,6 +94,7 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         live_preset_file=tmp_path / "live-presets.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as test_client:
+        log_in(test_client)
         wait_for_api(test_client, _config_loaded)
         yield test_client
 

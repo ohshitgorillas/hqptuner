@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import log_in
 from fastapi.testclient import TestClient
 from narrow import FixtureError
 from virtual_clock import VirtualClock
@@ -62,7 +63,7 @@ def app_factory(
                     **overrides,
                 }
             )
-            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
+            return log_in(stack.enter_context(TestClient(create_app(cfg, VirtualClock()))))
 
         yield build
 

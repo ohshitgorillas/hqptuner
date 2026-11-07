@@ -14,7 +14,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import wait_for_api
+from apps import log_in, wait_for_api
 from conftest import ManagerFactory, StartManager
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -515,6 +515,7 @@ def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> 
         live_preset_file=tmp_path / "live-presets.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as test_client:
+        log_in(test_client)
         wait_for_api(test_client, _config_loaded)
         yield test_client
 

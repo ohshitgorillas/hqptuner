@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import log_in, unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -38,10 +39,11 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
 
     Keyword arguments override the Config: a case that needs a daemon to answer
     passes ``hqp_http_port``, and the default is the install that can reach
-    nothing at all."""
+    nothing at all. The client is logged in while its daemon answers; ``then`` runs after that login and before
+    the app starts, for a case whose daemon refuses from the app's first read on."""
     with ExitStack() as stack:
 
-        def build(**overrides: object) -> TestClient:
+        def build(*, then: Callable[[], None] | None = None, **overrides: object) -> TestClient:
             defaults: dict[str, Any] = {
                 "hqp_host": "127.0.0.1",
                 "hqp_control_port": closed_port,
@@ -53,7 +55,13 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
                 "preset_dir": tmp_path / "presets",
             }
             cfg = Config(**{**defaults, **overrides})
-            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
+            if cfg.hqp_http_port == closed_port:
+                return stack.enter_context(unserved_login(cfg, VirtualClock()))
+            client = TestClient(create_app(cfg, VirtualClock()))
+            log_in(client)
+            if then is not None:
+                then()
+            return stack.enter_context(client)
 
         yield build
 
@@ -77,10 +85,11 @@ def test_a_save_reports_the_lane_its_own_config_attempt_reached(
     # Four daemon states, four verdicts on the one field the panel reads back.
     # A route answering the refusal HQPTuner already held cannot tell the last
     # state from the second: the pair the daemon never saw was the rejected one.
-    if state == "daemon_refuses_the_pair":
+    def refuse() -> None:
         http_daemon["_refuse_auth"] = True
+
     port = closed_port if state == "nothing_on_the_port" else int(http_daemon["_port"])
-    client = app_factory(hqp_http_port=port)
+    client = app_factory(hqp_http_port=port, then=refuse if state == "daemon_refuses_the_pair" else None)
     pair = {"username": "", "password": ""} if state == "incomplete_pair" else {"username": "u", "password": "p"}
     body: dict[str, Any] = {"host": "127.0.0.1", "remember": False, **pair}
     assert client.post("/api/connection", json=body).json().get("lane") == lane

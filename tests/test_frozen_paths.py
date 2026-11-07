@@ -16,11 +16,10 @@ from pathlib import Path
 from types import MappingProxyType, ModuleType
 
 import pytest
+from apps import unserved_login
 from conftest import METADATA_MIN
-from fastapi.testclient import TestClient
 
 from hqptuner import config as hqp_config
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The installed package's own directory, the anchor an unfrozen `bundled()`
@@ -177,7 +176,7 @@ def test_a_frozen_build_serves_the_asset_bytes_that_sit_in_its_bundle(
     # app's own `Config` instead of calling `bundled()` bare.
     cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port, data_dir=METADATA_MIN, frozen=True, bundle=bundle)
 
-    with TestClient(create_app(cfg)) as client:
+    with unserved_login(cfg) as client:
         assert client.get(route).content == expected
 
 

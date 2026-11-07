@@ -3,11 +3,13 @@ nothing listens on. `live_app` is a plain generator function, so it serves both 
 fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
 
 import asyncio
+import contextlib
 import socket
 from collections.abc import Callable, Iterator
 from dataclasses import replace
 from pathlib import Path
 
+import fake_http
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from narrow import FixtureError
@@ -15,6 +17,7 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
+from hqptuner.core.clock import Clock
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 
@@ -101,6 +104,49 @@ def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], polls:
     raise FixtureError(reason="app never became ready against the fake daemons")
 
 
+def log_in(client: TestClient) -> TestClient:
+    """Log ``client`` in through the real login route with the pair its app holds, for a session only.
+
+    The pair in force is the pair typed, so the login writes no record and no secret file. The app's 8088 daemon
+    must be answering when this runs, because the route asks it whether the pair is right.
+    """
+    cfg = app_manager(client).cfg
+    response = client.post("/api/login", json={"username": cfg.hqp_username, "password": cfg.hqp_password})
+    if response.status_code != 200:
+        raise FixtureError(reason=f"the login was refused with HTTP {response.status_code}: {response.text}")
+    return client
+
+
+@contextlib.contextmanager
+def unserved_login(
+    cfg: Config,
+    clock: Clock | None = None,
+    *,
+    raise_server_exceptions: bool = True,
+    setup: Callable[[FastAPI], None] | None = None,
+) -> Iterator[TestClient]:
+    """Run the app for ``cfg`` with its client logged in, though no daemon serves its 8088 port.
+
+    A fake 8088 daemon answers for the login alone, on the port ``cfg`` is given, and is taken down before the app
+    starts, so the app's own 8088 lane and its ungated readers meet a refused connection from their first read.
+    ``setup`` gets the built app before it starts, for a case that adds a route of its own.
+    """
+    daemon = fake_http.spawn(fake_http.state())
+    state = next(daemon)
+    cfg.hqp_http_port = state["_port"]
+    app = create_app(cfg, clock)
+    if setup is not None:
+        setup(app)
+    client = TestClient(app, raise_server_exceptions=raise_server_exceptions)
+    try:
+        log_in(client)
+    finally:
+        state["_take_lane_down"]()
+        next(daemon, None)
+    with client:
+        yield client
+
+
 def live_app(
     control_port: int,
     tmp_path: Path,
@@ -134,7 +180,7 @@ def live_app(
         cfg = replace(cfg, request_timeout=request_timeout)
     if poll_interval is not None:
         cfg = replace(cfg, poll_interval=poll_interval)
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         wait_for_api(client, _reachable)
         yield client
 

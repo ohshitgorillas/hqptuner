@@ -18,13 +18,11 @@ from typing import TYPE_CHECKING, Any
 
 import fake_metering
 import pytest
-from apps import advance_app, wait_for_api
+from apps import advance_app, unserved_login, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
-from fastapi.testclient import TestClient
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK
 
@@ -32,6 +30,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterator, MutableMapping
     from pathlib import Path
 
+    from fastapi.testclient import TestClient
     from starlette.types import ASGIApp
 
 BINS = 1025
@@ -193,7 +192,7 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
             autopilot_file=tmp_path / "autopilot.json",
             advisor_enabled=True,
         )
-        client = closing.enter_context(TestClient(create_app(cfg, VirtualClock())))
+        client = closing.enter_context(unserved_login(cfg, VirtualClock()))
         # connected, then one idle recheck of the reader's, which is when it
         # sees the engine playing and dials the stream
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))

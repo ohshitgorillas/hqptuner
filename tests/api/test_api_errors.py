@@ -7,11 +7,10 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
-from apps import wait_for_api
+from apps import unserved_login, wait_for_api
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
@@ -30,7 +29,7 @@ def nocreds_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         yield client
 
 
@@ -48,7 +47,7 @@ def deaf_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         yield client
 
 
@@ -66,7 +65,7 @@ def half_wired_client(threaded_daemon_port: int, closed_port: int, tmp_path: Pat
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         # /speakers is the last form the connect sequence fetches — once it
         # reports the failed fetch, all three errors are recorded
         wait_for_api(client, lambda c: c.get("/api/speakers").status_code == 502)

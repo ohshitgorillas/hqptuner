@@ -23,7 +23,7 @@ import json
 from typing import TYPE_CHECKING, Any, Protocol
 
 import pytest
-from apps import wait_for_api
+from apps import log_in, wait_for_api
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -65,6 +65,7 @@ def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_p
             advisor_enabled=advisor,
         )
         client = TestClient(create_app(cfg, VirtualClock()))
+        log_in(client)
         client.__enter__()
         opened.append(client)
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))

@@ -18,12 +18,11 @@ from collections.abc import Callable, Iterator
 from pathlib import Path
 
 import pytest
-from apps import wait_for_api
+from apps import unserved_login, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 
@@ -42,7 +41,7 @@ def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with unserved_login(cfg, VirtualClock()) as client:
         wait_for_api(client, _reachable)
         yield client
 

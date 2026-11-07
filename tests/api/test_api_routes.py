@@ -10,7 +10,7 @@ from typing import Any
 
 import fake_control
 import pytest
-from apps import advance_app, app_manager, live_app, wait_for_api
+from apps import advance_app, app_manager, live_app, log_in, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -46,6 +46,7 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
         live_preset_file=tmp_path / "live-presets.json",
     )
     with TestClient(create_app(cfg, VirtualClock())) as client:
+        log_in(client)
         wait_for_api(client, _config_loaded)
         yield client
 

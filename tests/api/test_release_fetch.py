@@ -9,7 +9,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import wait_for_api
+from apps import log_in, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -55,6 +55,7 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
             live_preset_file=tmp_path / "live-presets.json",
         )
         client = TestClient(create_app(cfg, VirtualClock()))
+        log_in(client)
         client.__enter__()
         apps.append(client)
         return client

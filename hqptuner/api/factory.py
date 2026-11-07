@@ -86,6 +86,8 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     # past every route to the router's own 404. Their registration order carries
     # nothing: they differ by method, and a route whose path matches but whose
     # method does not is a partial match, never a full one.
+    # First, so a request to it matches before FastAPI has built the state of any route registered ahead of it.
+    app.include_router(login.router)
     app.include_router(status.router)
     app.include_router(config.router)
     app.include_router(apply.router)
@@ -101,7 +103,6 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     app.include_router(autopilot.router)
     app.include_router(discovery.router)
     app.include_router(connection.router)
-    app.include_router(login.router)
     app.include_router(meter.router)
     mount_spa(app, cfg)
     return app

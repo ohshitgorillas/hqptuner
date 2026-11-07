@@ -29,14 +29,15 @@ behind.
 import contextlib
 import json
 from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.narrowing import Facets, NarrowingError, NarrowingSchemaError, NarrowingStore
@@ -198,24 +199,19 @@ def narrowing_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], Tes
     no credentials and a control lane pointed at `closed_port`, a port nothing
     listens on: nothing here can reach hqplayerd, so a route that answers at all
     answered without it."""
-    clients: list[TestClient] = []
+    with ExitStack() as stack:
 
-    def build() -> TestClient:
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=closed_port,
-            hqp_username="",
-            hqp_password="",
-            narrowing_file=tmp_path / "narrowing.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock()))
-        clients.append(client)
-        client.__enter__()
-        return client
+        def build() -> TestClient:
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=closed_port,
+                hqp_username="",
+                hqp_password="",
+                narrowing_file=tmp_path / "narrowing.json",
+            )
+            return stack.enter_context(unserved_login(cfg, VirtualClock()))
 
-    yield build
-    for client in clients:
-        client.__exit__(None, None, None)
+        yield build
 
 
 @pytest.fixture

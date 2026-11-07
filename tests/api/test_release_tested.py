@@ -12,7 +12,7 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import METADATA_MIN, wait_for_api
+from apps import METADATA_MIN, log_in, wait_for_api
 from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -78,6 +78,7 @@ def tested_client(tmp_path: Path) -> Iterator[Build]:
             autopilot_file=tmp_path / "autopilot.json",
         )
         client = TestClient(create_app(cfg, VirtualClock()))
+        log_in(client)
         client.__enter__()
         apps.append(client)
         return client
