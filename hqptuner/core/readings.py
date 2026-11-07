@@ -92,6 +92,11 @@ class EngineSnapshot:
     release: str | None = None  # engine, the installed release off the 8088 /about page as text, None until read
     info: dict[str, str] | None = None  # engine, GetInfo attributes as text
 
+    @property
+    def verified(self) -> bool:
+        """Whether it carries State and the enumerations, so every live field resolves against it."""
+        return self.state is not None and self.enums is not None
+
 
 @dataclass
 class Readings:
@@ -233,9 +238,9 @@ class Readings:
         )
 
     def break_engine(self) -> None:
-        """End the Engine view at Down or an outcome, holding its last reading for the drop report."""
+        """End the Engine view at Down or an outcome, holding its last verified reading for the drop report."""
         snapshot = self.engine_snapshot()
-        if snapshot is not None and (snapshot.state is not None or self.held is None):
+        if snapshot is not None and snapshot.verified:
             self.held = snapshot
         for name in ENGINE_FIELDS:
             setattr(self, name, None)

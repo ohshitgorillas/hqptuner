@@ -245,3 +245,23 @@ def test_a_close_of_hqptuners_own_is_a_departure_once_the_next_dial_is_refused(
     _restarts(control_state, FROM_FILE)
     wait_for_api(api, lambda client: _reads(client, FROM_FILE))
     assert _dropped(api) == [REPORTED]
+
+
+async def _nothing() -> None:
+    await asyncio.sleep(0)
+
+
+@pytest.mark.parametrize(
+    ("asked", "listed"), [pytest.param(False, [REPORTED], id="nobody_asked"), pytest.param(True, [], id="asked_for")]
+)
+def test_a_departure_waiting_for_a_reading_is_not_reported_across_a_restart_of_our_own(
+    api: TestClient, control_state: dict[str, str], listed: list[dict[str, str]], *, asked: bool
+) -> None:
+    _run(api, control_state, RUNNING)
+    _departed_with_state_refused(api, control_state)
+    if asked:
+        _portal(api).call(settle.restart, app_manager(api), _nothing)
+    _departed_with_state_refused(api, control_state)
+    control_state["_error"] = ""
+    wait_for_api(api, lambda client: _reads(client, FROM_FILE))
+    assert _dropped(api) == listed

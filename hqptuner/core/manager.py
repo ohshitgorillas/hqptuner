@@ -102,7 +102,7 @@ class ConnectionManager:
         self.metering: MeteringReader | None = None
         self.control: ControlClient | None = None
         self.dialing: ControlClient | None = None
-        self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic())
+        self.phase = Lifecycle(cfg.alarm_threshold, self.clock.monotonic(), self.dropped_settings.hear)
         self.changed = self.phase.changed
         self._supervisor = _Supervisor(self)
 
@@ -161,6 +161,7 @@ class ConnectionManager:
         self.readings.take_file(credentials_ok=None)
         self.readings.break_engine()
         self.readings.take_held()
+        self.dropped_settings.settle()
         control, self.control = self.control, None
         if control is not None:
             await control.close()

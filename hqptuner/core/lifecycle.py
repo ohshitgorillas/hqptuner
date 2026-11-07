@@ -61,10 +61,8 @@ class Standing:
 
     ``stamp`` is the restart request still pending, if any. ``ended`` is how the last
     request or departure ended, and reads ``NONE`` while a request is pending.
-    ``connected_since`` is the reading of the manager's monotonic clock, in seconds, at
-    which the standing connection answered ``GetInfo``, and ``None`` while no connection
-    stands. ``foreign_generation`` is the generation the last departure no request explains
-    reached, ``0`` before any.
+    ``connected_since`` is when the standing connection answered ``GetInfo``, on the manager's
+    monotonic clock, and ``None`` while no connection stands.
     """
 
     phase: Phase = Phase.DOWN
@@ -74,7 +72,6 @@ class Standing:
     down_since: float | None = None  # the manager's monotonic clock, seconds: when the connection went down
     ended: Outcome = Outcome.NONE
     connected_since: float | None = None
-    foreign_generation: int = 0
 
 
 CONNECTED_PHASES = frozenset({Phase.REACHABLE, Phase.READY})
@@ -181,7 +178,7 @@ def _resolved(before: Standing, after: Standing) -> Standing:
     stamp = after.stamp
     if stamp is None:
         if after.generation > before.generation:
-            return replace(after, ended=Outcome.FOREIGN_DEPARTURE, foreign_generation=after.generation)
+            return replace(after, ended=Outcome.FOREIGN_DEPARTURE)
         return after
     if after.phase is Phase.READY and after.generation > stamp.generation:
         return replace(after, stamp=None, ended=Outcome.LANDED)
@@ -213,6 +210,20 @@ def outcome(standing: Standing) -> Outcome:
 _Holds = Callable[[Standing], bool]
 
 
+def _unheard(outcome: Outcome) -> None:
+    """Hear nothing: the listener of a lifecycle nobody asked for outcomes."""
+    del outcome
+
+
+def _named(before: Standing, after: Standing, fact: Fact) -> Outcome | None:
+    """Return the outcome ``fact`` names, ``NONE`` for a request accepted, or None for a fact that names none."""
+    if fact is Fact.REQUEST_ACCEPTED:
+        return Outcome.NONE
+    if after.ended is not Outcome.NONE and (after.ended is not before.ended or after.generation != before.generation):
+        return after.ended
+    return None
+
+
 class Lifecycle:
     """The one home of the standing, the window it runs under and the wake every transition sets.
 
@@ -221,10 +232,14 @@ class Lifecycle:
     it returns on the edge that satisfied it even if a later one has already moved on.
     """
 
-    def __init__(self, window: float, now: float) -> None:
-        """Stand Down since ``now`` under ``window``, the longest a restart may take before an outage."""
+    def __init__(self, window: float, now: float, on_outcome: Callable[[Outcome], None] = _unheard) -> None:
+        """Stand Down since ``now`` under ``window``, the longest a restart may take before an outage.
+
+        ``on_outcome`` hears each outcome as a fact names it, and ``NONE`` when a request is accepted.
+        """
         self._standing = Standing(down_since=now)
         self._window = window
+        self._on_outcome = on_outcome
         self._edges: dict[asyncio.Event, _Holds] = {}
         self.changed = asyncio.Event()
 
@@ -235,14 +250,18 @@ class Lifecycle:
 
     def report(self, fact: Fact, now: float) -> None:
         """Apply ``fact`` observed at ``now`` and, if it moved anything, wake every subscriber."""
-        after = transition(self._standing, fact, now, window=self._window)
-        if after == self._standing:
+        before = self._standing
+        after = transition(before, fact, now, window=self._window)
+        if after == before:
             return
         self._standing = after
         self.changed.set()
         for edge, holds in self._edges.items():
             if holds(after):
                 edge.set()
+        named = _named(before, after, fact)
+        if named is not None:
+            self._on_outcome(named)
 
     def request_accepted(self, now: float) -> Stamp:
         """Stamp a restart request the daemon accepted at ``now`` and return the stamp to wait on."""

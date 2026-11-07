@@ -341,3 +341,40 @@ def test_down_turns_alarm_only_once_the_window_has_run_since_down_was_entered(en
     early = transition(down, Fact.WINDOW_RAN, entered + WINDOW / 2, window=WINDOW)
     late = transition(down, Fact.WINDOW_RAN, entered + WINDOW, window=WINDOW)
     assert [early.phase, late.phase] == [Phase.DOWN, Phase.ALARM]
+
+
+#: Facts, and the outcomes a lifecycle hands to its listener for them, in order.
+NAMED = [
+    pytest.param([Fact.SOCKET_LOST], [Outcome.FOREIGN_DEPARTURE], id="a-departure"),
+    pytest.param(
+        [Fact.SOCKET_LOST, Fact.GETINFO_ANSWERED, Fact.SOCKET_LOST],
+        [Outcome.FOREIGN_DEPARTURE, Outcome.FOREIGN_DEPARTURE],
+        id="a-departure-again",
+    ),
+    pytest.param(
+        [Fact.SOCKET_LOST, Fact.GETINFO_ANSWERED, Fact.SOCKET_TAKEN],
+        [Outcome.FOREIGN_DEPARTURE],
+        id="a-taken-down-names-none",
+    ),
+    pytest.param(
+        [Fact.SOCKET_TAKEN, Fact.DIAL_REFUSED],
+        [Outcome.FOREIGN_DEPARTURE],
+        id="a-taken-down-a-refusal-proves",
+    ),
+    pytest.param(
+        [Fact.REQUEST_ACCEPTED, Fact.READBACK_CONFIRMED],
+        [Outcome.NONE, Outcome.SETTLED_IN_PLACE],
+        id="a-request-then-its-readback",
+    ),
+]
+
+
+@pytest.mark.parametrize(("facts", "heard"), NAMED)
+def test_the_outcome_a_fact_names_is_handed_to_whoever_listens(facts: list[Fact], heard: list[Outcome]) -> None:
+    named: list[Outcome] = []
+    lifecycle = Lifecycle(window=WINDOW, now=0.0, on_outcome=named.append)
+    lifecycle.report(Fact.GETINFO_ANSWERED, 0.0)
+    lifecycle.report(Fact.FORM_ANSWERED, 0.0)
+    for at, fact in enumerate(facts, start=1):
+        lifecycle.report(fact, float(at))
+    assert named == heard

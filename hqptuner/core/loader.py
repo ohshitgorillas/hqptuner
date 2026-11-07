@@ -222,12 +222,12 @@ async def _fill(mgr: ConnectionManager, client: ControlClient, cadence: Cadence,
 
 
 def _report_drops(mgr: ConnectionManager) -> None:
-    """Record the drop report of a foreign departure from the held reading and the first new one that has a State."""
+    """Record the drop report a foreign departure owes, from the held reading and the first verified one after it."""
     after = mgr.readings.engine_snapshot()
-    if after is None or after.state is None:
+    if after is None or not after.verified:
         return
-    held = mgr.readings.take_held()
-    if held is not None and held.stamp.generation < mgr.phase.standing.foreign_generation:
+    held, owed = mgr.readings.take_held(), mgr.dropped_settings.settle()
+    if held is not None and owed:
         mgr.dropped_settings.record(dropped.report(held, after))
 
 

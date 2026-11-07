@@ -140,3 +140,32 @@ def test_the_held_reading_is_given_up_once_it_is_taken() -> None:
     readings.break_engine()
     first = readings.take_held()
     assert readings.take_held() != first
+
+
+@pytest.mark.parametrize(
+    ("fields", "verified"),
+    [
+        pytest.param({"state": ENGINE_STATE}, False, id="state_without_enumerations"),
+        pytest.param({"enums": ENGINE_ENUMS}, False, id="enumerations_without_state"),
+        pytest.param({"state": ENGINE_STATE, "enums": ENGINE_ENUMS}, True, id="both"),
+    ],
+)
+def test_a_reading_is_verified_when_it_carries_state_and_the_enumerations(
+    fields: EngineFields, *, verified: bool
+) -> None:
+    readings = Readings()
+    readings.take_engine(FIRST_GENERATION, **fields)
+    snapshot = readings.engine_snapshot()
+    assert snapshot is not None
+    assert snapshot.verified is verified
+
+
+def test_a_reading_that_is_not_verified_never_replaces_the_one_held() -> None:
+    readings = file_backed_readings()
+    readings.take_engine(FIRST_GENERATION, **engine_fields(ENGINE_STATE))
+    readings.break_engine()
+    readings.take_engine(NEXT_GENERATION, state=OTHER_ENGINE_STATE)
+    readings.break_engine()
+    held = readings.take_held()
+    assert held is not None
+    assert held.state == ENGINE_STATE

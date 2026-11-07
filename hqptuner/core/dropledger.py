@@ -5,6 +5,8 @@ from __future__ import annotations
 import threading
 from typing import TYPE_CHECKING
 
+from hqptuner.core.lifecycle import Outcome
+
 if TYPE_CHECKING:
     from hqptuner.core.readings import Readings
     from hqptuner.lanes.live.dropped import Dropped
@@ -18,6 +20,18 @@ class DropLedger:
         self._readings = readings
         self._lock = threading.Lock()
         self._listed: dict[str, Dropped] = {}
+        self._owed = False
+
+    def hear(self, outcome: Outcome) -> None:
+        """Take the outcome the lifecycle names: a foreign departure owes a report, any other outcome owes none."""
+        with self._lock:
+            self._owed = outcome is Outcome.FOREIGN_DEPARTURE
+
+    def settle(self) -> bool:
+        """Answer whether a report is owed, and owe none from here on."""
+        with self._lock:
+            owed, self._owed = self._owed, False
+        return owed
 
     def entries(self) -> tuple[Dropped, ...]:
         """Return what is listed, in the order each field was first dropped."""
