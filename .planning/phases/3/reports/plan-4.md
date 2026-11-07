@@ -1,14 +1,14 @@
-PLAN CHECKPOINT: structural
+PLAN CHECKPOINT: human-verify
 
 Plan: .planning/phases/3/PLAN-4.md
 
-Tasks: 1 of 3 committed. Task 1 ran its CI record; the ESTABLISHED conditions do not hold, so Task 2 did not start and the record goes back to the owner.
+Tasks: 3 of 3 committed. Task 1 record: ESTABLISHED gate replaced by the owner-approved amendment (PLAN-4.md last Notes bullet, 28a04c3f). Tasks 2 and 3 done locally; the green run on an owner push of `dev` is pending.
 
 | Task | Commit | Note |
 |---|---|---|
 | 1 - CI record of the runner's desktop around the tray registration | 7e10ea57 | Probe rewritten, `release.yml` step renamed with `timeout-minutes: 4`, `.filepawl.toml` allowance entry (494 lines). `scripts/gate.sh make check` exit=0; `actionlint` prints only the `xcode-27` finding; lease-check ok:true. CI record read below. |
-| 2 - Smoke readiness step | not started | ESTABLISHED conditions fail (see Judgment) |
-| 3 - Remove the probe, green run | not started | |
+| 2 - Smoke readiness step | 68111587 | `packaging/windows/smoke.sh` only: new `taskbar_window`, `wwahost_pids`, `settle_desktop` beside `app_windows`; one call before `upgrade_quit` in step 8; header comment updated. Stops every `WWAHost.exe` by PID (`stop_windows_pid`), `sleep 10` only if one was found, then dies if any remains or no `Shell_TrayWnd`. Diff hunks: header comment, new helpers after `app_windows`, one line in step 8; no line in `judge_upgraded`, `tray_registered`, `app_windows`, `check_upgraded`, `broken_tray_control` or steps 1 to 7. `bash -n` 0; `shellcheck -S warning` 0; `scripts/gate.sh make check` exit=0; lease-check ok:true. Awk matcher checked on sample `ps -W` lines (matches `WWAHost.exe` and `wwahost`, not `NotWWAHost.exe`). |
+| 3 - Remove the probe | bf1b78af | `git revert --no-commit 7e10ea57 b2c33163`, one commit. `git diff faeca70d HEAD -- .github/workflows/release.yml scripts/probes .filepawl.toml` prints nothing. `actionlint` prints only the `xcode-27` finding. `scripts/gate.sh make check` exit=0. Green run: PENDING, owner push of `dev` (never pushed by the executor). |
 
 ## Run record
 
@@ -140,5 +140,15 @@ Result: the cause is NOT ESTABLISHED. Two of the plan's named outcomes apply: th
 
 Need for the owner: the plan's single remedy (stop first-logon windows) is refuted by this record. Task 2 as written (stop the three first-logon images, then judge) would not turn the arm64 row green, and stopping them is not what separates the rows. A new plan or a changed Task 2 needs a decision on what the next record should test (for example the arm64-only `Shell_OOBEProxy` 'Microsoft account' window).
 
-Deviations: [deviation] the plan asserted that Task 1's record would show the first-logon windows present on arm64 and absent on x64, and that stopping them would let an add succeed; the record shows the same window open on x64 where the add succeeds, and an add still returning 0 on arm64 after the window was stopped. Task 2 did not start.
-Open items: declined a rung-1 skip flag for x64 (`wait_for_add` returns at once when an add has succeeded, and on x64 it did: `rung1.waited_seconds=0.0`). Uncommitted and left alone: `.planning/phases/3/PLAN-4.md` (coordinator's), this report, `.idle-last.*.json`, `bug.png`. Nothing pushed.
+## Tasks 2 and 3 (this dispatch)
+
+Prediction before Task 2's checks: `bash -n` and `shellcheck -S warning` exit 0, diff touches only the three places named above. Observed as predicted. The runtime behavior (WWAHost stopped on arm64, nothing stopped on x64, healthy app accepted, broken-tray control rejecting on "Unhandled exception in script" on arm64) is CI-only and unobserved until the owner's push.
+
+What to read in the run for AC6 on `bf1b78af`:
+- Both installer rows print `step 8 (runner desktop): ...`: arm64 `stopping WWAHost.exe, PID <n>` then `taskbar window 0x...`; x64 `no WWAHost.exe running, nothing stopped`.
+- Arm64 healthy app report shows a `SystemTrayIcon` window at 0x00000000; step 8 control rejects the broken app on "Unhandled exception in script" on both rows; `smoke: OK`; bundle row passes; arm64 installer row inside 15 minutes.
+- `check`, `e2e`, `smoke`, `lifecycle-deb`, `lifecycle-rpm`, `smoke-macos`, `smoke-windows` all success.
+- If the healthy arm64 app still fails the tray half, or `settle_desktop` dies, stop and return to the owner with the lines; nothing is loosened.
+
+Deviations: [deviation] (Task 1, kept from the earlier checkpoint) the plan asserted that Task 1's record would show the first-logon windows present on arm64 and absent on x64, and that stopping them would let an add succeed; the record shows the same window open on x64 where the add succeeds, and an add still returning 0 on arm64 after the window was stopped. Resolved by the owner-approved amendment (28a04c3f): remedy is stopping `WWAHost.exe` by PID and waiting 10 s, backed by the outside DesktopClock record.
+Open items: (1) Green run id pending the owner's push of `dev` after `bf1b78af`. (2) The full suite (`make check`) ran green on each task commit and on the pre-commit hooks; the cadence final-suite step is the pending CI run, since the plan ends at the human-verify pause. (3) The arm64 outcome rests on the outside DesktopClock record, not on this repo's own CI; if the owner's run still fails the arm64 tray half, the cause is back open. (4) Ran `scripts/gate.sh make check | head -5` once before the Task 3 commit, against the repo's rule never to pipe a gate; the printed `exit=0` is gate.sh's own line, and the commit's pre-commit hooks ran the gates in full and passed. (5) Whether pystray's `_on_taskbarcreated` re-add matters for real users: not planned (Notes). (6) Uncommitted and left alone: `.idle-last.*.json`, `bug.png`. Nothing pushed.
