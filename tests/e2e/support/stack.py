@@ -229,13 +229,13 @@ def _log_in(listen_port: int, log_path: Path) -> str:
     return cookie[LOGIN_COOKIE].value
 
 
-def _answers(listen_port: int, path: str, cookie: str) -> bool:
-    """A 200 from the path with the login cookie sent, and on `/api/health` the app's own `ready` flag with
+def _answers(listen_port: int, path: str, login: str) -> bool:
+    """A 200 from the path with the login cookie ``login`` sent, and on `/api/health` the app's own `ready` flag with
     it: the route answers 200 from the moment the app is listening, while
     `ready` is the app saying both daemon lanes are up."""
     connection = http.client.HTTPConnection("127.0.0.1", listen_port, timeout=1.0)
     try:
-        connection.request("GET", path, headers={"Cookie": cookie})
+        connection.request("GET", path, headers={"Cookie": f"{LOGIN_COOKIE}={login}"})
         response = connection.getresponse()
         body = response.read()
     except OSError:

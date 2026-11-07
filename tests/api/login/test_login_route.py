@@ -8,18 +8,17 @@ import hashlib
 import re
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
-from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 from typing import Any
 
 import fake_http
 import httpx
 import pytest
+from apps import cookie_of
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
-from hqptuner.api.gate import LOGIN_COOKIE
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore
 from hqptuner.core.login import SAVED_LIFETIME
@@ -77,12 +76,6 @@ def build(tmp_path: Path, store_path: Path, closed_port: int) -> Iterator[Build]
 def log_in(client: TestClient, *, remember: bool = False, **fields: object) -> httpx.Response:
     response: httpx.Response = client.post("/api/login", json={**PAIR, "remember": remember, **fields})
     return response
-
-
-def cookie_of(response: httpx.Response) -> Morsel[str]:
-    jar: SimpleCookie = SimpleCookie()
-    jar.load(response.headers["set-cookie"])
-    return jar[LOGIN_COOKIE]
 
 
 def digest_built_from(header: str, password: str) -> bool:

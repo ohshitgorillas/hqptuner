@@ -201,14 +201,21 @@ def state(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 @pytest.fixture
-def app(state: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.Stack]:
+def app(state: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[stack_support.Stack]:
     """A server of this test's own, with the bracket's API knob pointed at it.
 
     Function-scoped rather than the session stack: what the first case pins is the
     state the stores are in when `open` runs, so nothing else may have written there.
+
+    The script's own `curl` calls reach the gated app with the stack's login: curl reads its default headers from
+    `$CURL_HOME/.curlrc`, so the script is run as an operator who is logged in would run it, unchanged.
     """
     for running in stack_support.stack(state):
         monkeypatch.setenv("HQPTUNER_ABUSE_API", running.base_url)
+        home = tmp_path / "curl-home"
+        home.mkdir()
+        (home / ".curlrc").write_text(f'header = "Cookie: {running.cookie_header}"\n')
+        monkeypatch.setenv("CURL_HOME", str(home))
         yield running
 
 

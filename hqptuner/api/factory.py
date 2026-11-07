@@ -5,6 +5,7 @@ import logging
 from fastapi import FastAPI
 
 from hqptuner.api import errors, login
+from hqptuner.api.gate import LoginGate
 from hqptuner.api.lifespan import make_lifespan
 from hqptuner.api.routes import (
     apply,
@@ -65,6 +66,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
 
     app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
     errors.install(app)
+    app.add_middleware(LoginGate)
     app.state.manager = manager
     app.state.config = cfg
     app.state.static = static

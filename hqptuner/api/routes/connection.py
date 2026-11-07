@@ -13,12 +13,14 @@ import contextlib
 from dataclasses import dataclass
 
 import httpx
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr, config_of
+from hqptuner.api.gate import login_of, set_login_cookie
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.core.login import LoginSecret, mint
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.forms import FormsOutcome
 
@@ -128,7 +130,9 @@ def read_connection(request: Request) -> ConnectionReport:
 
 
 @router.post("/connection")
-async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> ConnectionWriteReport:
+async def write_connection(
+    body: ConnectionBody, request: Request, response: Response, manager: Mgr
+) -> ConnectionWriteReport:
     """Save the connection, then move HQPTuner onto it without a restart.
 
     The record is saved whatever the daemon says: verifying first would mean refusing to record a host the user is
@@ -137,6 +141,8 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
     """
     cfg = config_of(request)
     store = store_of(request)
+    login = login_of(request)
+    pair_before = (cfg.hqp_username, cfg.hqp_password)
     record = ConnectionRecord(
         host=body.host if body.host is not None else cfg.hqp_host,
         username=body.username if body.username is not None else cfg.hqp_username,
@@ -146,6 +152,13 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
         remember=body.remember if body.remember is not None else remembered(store),
     )
     lane = await apply_connection(cfg, store, manager, record)
+    if login is not None and (cfg.hqp_username, cfg.hqp_password) != pair_before:
+        # A login is bound to the pair, so this save ends every login made under the old one, this browser's
+        # included. This browser's is replaced under the new pair, keeping its kind and issue time: a save
+        # never extends a login, and the save's `remember` is the install's record choice, not this login's.
+        secret: LoginSecret = request.app.state.login_secret
+        token = mint(secret, cfg.hqp_username, cfg.hqp_password, login.kind, login.issued)
+        set_login_cookie(response, token, login.kind)
     answer = connection_report(cfg, remembered=record.remember)
     return ConnectionWriteReport(
         host=answer.host,

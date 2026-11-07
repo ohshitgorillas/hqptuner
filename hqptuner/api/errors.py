@@ -34,6 +34,7 @@ if TYPE_CHECKING:
 # vocabulary is documented for clients in docs/architecture.md "API errors".
 STATUS: dict[str, int] = {
     "login_refused": 401,
+    "login_required": 401,
     "login_not_answered": 503,
     "no_credentials": 503,
     "no_http_client": 503,

@@ -23,6 +23,7 @@ from conftest import METADATA_MIN, spawn_threaded_daemon
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
+from hqptuner.api.gate import LOGIN_COOKIE
 from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK
 
@@ -98,8 +99,8 @@ def _first_complete_event(text: str) -> tuple[str, str]:
     return NO_EVENT
 
 
-async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, str]:
-    """GET the feed, read until its first event, hang up; ``NO_EVENT`` where the
+async def _read_first_event(app: ASGIApp, state: dict[str, Any], login: str) -> tuple[str, str]:
+    """GET the feed with the login cookie ``login``, read until its first event, hang up; ``NO_EVENT`` where the
     response ends without one."""
     sent: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
     hung_up = asyncio.Event()
@@ -126,7 +127,11 @@ async def _read_first_event(app: ASGIApp, state: dict[str, Any]) -> tuple[str, s
         "raw_path": PATH.encode(),
         "query_string": b"",
         "root_path": "",
-        "headers": [(b"host", b"testserver"), (b"accept", b"text/event-stream")],
+        "headers": [
+            (b"host", b"testserver"),
+            (b"accept", b"text/event-stream"),
+            (b"cookie", f"{LOGIN_COOKIE}={login}".encode()),
+        ],
         "client": ("127.0.0.1", 50000),
         "server": ("testserver", 80),
         "state": state,
@@ -155,7 +160,9 @@ def _first_event(client: TestClient) -> tuple[str, str]:
     portal = client.portal
     if portal is None:
         raise FixtureError(reason="the client is not running its app")
-    event: tuple[str, str] = portal.call(_read_first_event, client.app, dict(getattr(client, "app_state", {})))
+    event: tuple[str, str] = portal.call(
+        _read_first_event, client.app, dict(getattr(client, "app_state", {})), client.cookies.get(LOGIN_COOKIE, "")
+    )
     return event
 
 

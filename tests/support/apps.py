@@ -7,15 +7,18 @@ import contextlib
 import socket
 from collections.abc import Callable, Iterator
 from dataclasses import replace
+from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 
 import fake_http
+import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
+from hqptuner.api.gate import LOGIN_COOKIE
 from hqptuner.config import Config
 from hqptuner.core.clock import Clock
 from hqptuner.core.manager import ConnectionManager
@@ -47,11 +50,17 @@ class NotAVirtualAppError(TypeError):
     """The client is not serving an app built on a VirtualClock, or is not open."""
 
 
-def app_manager(client: TestClient) -> ConnectionManager:
-    """The manager of the app under ``client``."""
+def app_of(client: TestClient) -> FastAPI:
+    """The FastAPI app under ``client``."""
     app = client.app
     if not isinstance(app, FastAPI):
         raise NotAVirtualAppError
+    return app
+
+
+def app_manager(client: TestClient) -> ConnectionManager:
+    """The manager of the app under ``client``."""
+    app = app_of(client)
     manager: ConnectionManager = app.state.manager
     return manager
 
@@ -104,17 +113,26 @@ def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], polls:
     raise FixtureError(reason="app never became ready against the fake daemons")
 
 
-def log_in(client: TestClient) -> TestClient:
-    """Log ``client`` in through the real login route with the pair its app holds, for a session only.
+def log_in(client: TestClient, *, remember: bool = False) -> TestClient:
+    """Log ``client`` in through the real login route with the pair its app holds.
 
-    The pair in force is the pair typed, so the login writes no record and no secret file. The app's 8088 daemon
-    must be answering when this runs, because the route asks it whether the pair is right.
+    The pair in force is the pair typed, so the login writes no record. By default it is for a session only and
+    writes no secret file either; ``remember`` asks to stay logged in across restarts. The app's 8088 daemon must be
+    answering when this runs, because the route asks it whether the pair is right.
     """
     cfg = app_manager(client).cfg
-    response = client.post("/api/login", json={"username": cfg.hqp_username, "password": cfg.hqp_password})
+    body = {"username": cfg.hqp_username, "password": cfg.hqp_password, "remember": remember}
+    response = client.post("/api/login", json=body)
     if response.status_code != 200:
         raise FixtureError(reason=f"the login was refused with HTTP {response.status_code}: {response.text}")
     return client
+
+
+def cookie_of(response: httpx.Response) -> Morsel[str]:
+    """The login cookie a response sets."""
+    jar: SimpleCookie = SimpleCookie()
+    jar.load(response.headers["set-cookie"])
+    return jar[LOGIN_COOKIE]
 
 
 @contextlib.contextmanager

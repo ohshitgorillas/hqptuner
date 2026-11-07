@@ -3,6 +3,7 @@ app under test — daemonless, control-lane-only on the threaded fake, and http-
 lane on the fake 8088 daemon."""
 
 from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +82,41 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
         next(app, None)
     for daemon in daemons:
         next(daemon, None)
+
+
+@pytest.fixture
+def gated_app(http_daemon: dict[str, Any], closed_port: int, tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
+    """Build apps over ONE state directory, the pair admin/pw in force on the fake 8088 daemon.
+
+    Every app shares the connection record and the login secret under ``tmp_path``, so a second app is a restart of
+    the first. ``clock`` sets the instant the app reads, ``pair`` the username and password in force, ``audit`` turns
+    the audit log on so its router is registered. Nothing is logged in: the caller logs in, or sends a cookie.
+    """
+    with ExitStack() as stack:
+
+        def build(
+            clock: VirtualClock | None = None, *, pair: tuple[str, str] = ("admin", "pw"), audit: bool = False
+        ) -> TestClient:
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=closed_port,
+                hqp_http_port=http_daemon["_port"],
+                hqp_username=pair[0],
+                hqp_password=pair[1],
+                connection_file=tmp_path / "connection.json",
+                backup_dir=tmp_path,
+                preset_dir=tmp_path / "presets",
+                live_preset_file=tmp_path / "live-presets.json",
+                favorites_file=tmp_path / "favorites.json",
+                narrowing_file=tmp_path / "narrowing.json",
+                description_file=tmp_path / "descriptions.json",
+                matrix_mode_file=tmp_path / "matrixmodes.json",
+                autopilot_file=tmp_path / "autopilot.json",
+                debug_log=tmp_path / "audit.jsonl" if audit else None,
+            )
+            return stack.enter_context(TestClient(create_app(cfg, clock or VirtualClock())))
+
+        yield build
 
 
 @pytest.fixture
