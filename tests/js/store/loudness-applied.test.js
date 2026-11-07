@@ -57,9 +57,9 @@ const AUDIBLE = {
  * The applied percent for one running state.
  *
  * @param {Running} running
- * @returns {number}
+ * @returns {Promise<number>}
  */
-function appliedWith(running = {}) {
+async function appliedWith(running = {}) {
   const { matrix, loudness, fixedVolume, directSdm, low, high, at, drag, override } = { ...AUDIBLE, ...running };
   config.value = {
     fields: ["fixed_volume_enabled", "volume_fixed", "direct_sdm", "volume_min", "volume_max"].map((name) => ({
@@ -71,7 +71,7 @@ function appliedWith(running = {}) {
       name,
     })),
   };
-  seedReadings({
+  await seedReadings({
     fixed_volume_enabled: fixedVolume,
     volume_fixed: false,
     direct_sdm: directSdm,
@@ -91,40 +91,40 @@ function appliedWith(running = {}) {
 
 // --- the percent follows the shown volume across the running range ---------------
 
-test("test_a_volume_halfway_down_the_range_applies_half_the_shelving", () => {
-  assert.equal(appliedWith({ at: "-40" }), 50);
+test("test_a_volume_halfway_down_the_range_applies_half_the_shelving", async () => {
+  assert.equal(await appliedWith({ at: "-40" }), 50);
 });
 
-test("test_a_volume_three_quarters_down_the_range_applies_three_quarters", () => {
-  assert.equal(appliedWith({ at: "-50" }), 75);
+test("test_a_volume_three_quarters_down_the_range_applies_three_quarters", async () => {
+  assert.equal(await appliedWith({ at: "-50" }), 75);
 });
 
-test("test_a_dragged_volume_knob_moves_the_percent_before_the_engine_reports", () => {
-  assert.equal(appliedWith({ at: "-40", drag: -30 }), 25);
+test("test_a_dragged_volume_knob_moves_the_percent_before_the_engine_reports", async () => {
+  assert.equal(await appliedWith({ at: "-40", drag: -30 }), 25);
 });
 
-test("test_a_range_bound_being_dragged_does_not_move_the_percent", () => {
-  assert.equal(appliedWith({ override: { loudness_range_high: "0" } }), 50);
+test("test_a_range_bound_being_dragged_does_not_move_the_percent", async () => {
+  assert.equal(await appliedWith({ override: { loudness_range_high: "0" } }), 50);
 });
 
-test("test_loudness_switched_off_but_not_applied_does_not_move_the_percent", () => {
-  assert.equal(appliedWith({ override: { loudness_enabled: false } }), 50);
+test("test_loudness_switched_off_but_not_applied_does_not_move_the_percent", async () => {
+  assert.equal(await appliedWith({ override: { loudness_enabled: false } }), 50);
 });
 
 // --- nothing while loudness cannot reach the output ----------------------------------
 
-test("test_a_bypassed_matrix_engine_takes_the_whole_percent_away", () => {
-  assert.equal(appliedWith() - appliedWith({ matrix: false }), 50);
+test("test_a_bypassed_matrix_engine_takes_the_whole_percent_away", async () => {
+  assert.equal((await appliedWith()) - (await appliedWith({ matrix: false })), 50);
 });
 
-test("test_loudness_switched_off_takes_the_whole_percent_away", () => {
-  assert.equal(appliedWith() - appliedWith({ loudness: false }), 50);
+test("test_loudness_switched_off_takes_the_whole_percent_away", async () => {
+  assert.equal((await appliedWith()) - (await appliedWith({ loudness: false })), 50);
 });
 
-test("test_a_pinned_volume_takes_the_whole_percent_away", () => {
-  assert.equal(appliedWith() - appliedWith({ fixedVolume: true }), 50);
+test("test_a_pinned_volume_takes_the_whole_percent_away", async () => {
+  assert.equal((await appliedWith()) - (await appliedWith({ fixedVolume: true })), 50);
 });
 
-test("test_a_running_direct_sdm_takes_the_whole_percent_away", () => {
-  assert.equal(appliedWith() - appliedWith({ directSdm: true }), 50);
+test("test_a_running_direct_sdm_takes_the_whole_percent_away", async () => {
+  assert.equal((await appliedWith()) - (await appliedWith({ directSdm: true })), 50);
 });

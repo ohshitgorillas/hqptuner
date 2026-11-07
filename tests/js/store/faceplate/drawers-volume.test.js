@@ -53,7 +53,7 @@ const BASE = {
 let wire;
 
 /** @param {Running} r */
-function load(r = {}) {
+async function load(r = {}) {
   const s = { ...BASE, ...r };
   config.value = { fields: [] };
   matrixConfig.value = { fields: [] };
@@ -71,7 +71,7 @@ function load(r = {}) {
     loudness_range_low: "-45",
     loudness_range_high: "-15",
   };
-  seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
+  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
   volume.value = s.at;
   volumeDrag.value = null;
   volumeRange.value = s.report;
@@ -88,7 +88,7 @@ function fileReading(value) {
 
 beforeEach(async () => {
   wire = stagingWire();
-  load();
+  await load();
   await discardAll();
 });
 
@@ -97,7 +97,7 @@ beforeEach(async () => {
  *
  * @param {Running} r
  */
-const modeWith = (r) => (load(r), fixedMode());
+const modeWith = async (r) => (await load(r), fixedMode());
 
 /**
  * What a pick stages from one running state, as the pending buffer's http lane.
@@ -106,7 +106,7 @@ const modeWith = (r) => (load(r), fixedMode());
  * @param {string} v
  */
 async function pickFrom(r, v) {
-  load(r);
+  await load(r);
   await pickFixedMode(v);
   await quiesce(wire);
   return wire.staged.http;
@@ -120,7 +120,7 @@ async function pickFrom(r, v) {
  */
 async function stagesFor(r, v) {
   wire = stagingWire();
-  load(r);
+  await load(r);
   await pickFixedMode(v);
   await quiesce(wire);
   return wire.stages.length;
@@ -131,7 +131,7 @@ async function stagesFor(r, v) {
  *
  * @param {Running} r
  */
-const rangeWith = (r) => (load(r), volumeRangeNow());
+const rangeWith = async (r) => (await load(r), volumeRangeNow());
 
 /**
  * What a handle move stages, as the pending buffer's http lane.
@@ -147,8 +147,8 @@ async function moved(k, v) {
 
 // --- the Fixed volume line ---------------------------------------------------------------------------------------
 
-test("test_auto_headroom_wins_over_the_fixed_level", () => {
-  assert.equal(modeWith({ fixed: true, iso: "1" }), "auto");
+test("test_auto_headroom_wins_over_the_fixed_level", async () => {
+  assert.equal(await modeWith({ fixed: true, iso: "1" }), "auto");
 });
 
 test("test_fixed_mode_reads_off_with_the_fixed_level_and_auto_headroom_both_off", () => {
@@ -168,7 +168,7 @@ test("test_picking_manual_stages_the_fixed_level_on_and_auto_headroom_off", asyn
 });
 
 test("test_picking_auto_again_restores_the_running_headroom", async () => {
-  load({ iso: "2" });
+  await load({ iso: "2" });
   await pickFixedMode("off");
   await pickFixedMode("auto");
   await quiesce(wire);
@@ -184,7 +184,7 @@ test("test_picking_off_from_auto_stages_auto_headroom_off", async () => {
 });
 
 test("test_a_pick_moves_the_line_picked", async () => {
-  load({});
+  await load({});
   await pickFixedMode("manual");
   assert.equal(fixedMode(), "manual");
 });
@@ -197,13 +197,13 @@ test("test_picking_the_line_already_picked_stages_nothing", async () => {
 // --- the Range block ---------------------------------------------------------------------------------------------
 
 test("test_the_range_is_the_effective_min_startup_and_max", async () => {
-  load({ min: "-70", startup: "-25", max: "-3" });
+  await load({ min: "-70", startup: "-25", max: "-3" });
   await edit("startup_volume", "-30");
   assert.deepEqual(volumeRangeNow().cur, { min: -70, startup: -30, max: -3 });
 });
 
-test("test_an_absent_startup_sits_at_min", () => {
-  assert.equal(rangeWith({ min: "-70", startup: "" }).cur.startup, -70);
+test("test_an_absent_startup_sits_at_min", async () => {
+  assert.equal((await rangeWith({ min: "-70", startup: "" })).cur.startup, -70);
 });
 
 test("test_a_staged_handle_reads_dirty_and_the_others_do_not", async () => {
@@ -211,16 +211,16 @@ test("test_a_staged_handle_reads_dirty_and_the_others_do_not", async () => {
   assert.deepEqual(volumeRangeNow().dirty, { min: false, startup: false, max: true });
 });
 
-test("test_the_loudness_bounds_show_while_matrix_and_loudness_run", () => {
-  assert.deepEqual(rangeWith({ loudness: true }).loud, { low: -45, high: -15 });
+test("test_the_loudness_bounds_show_while_matrix_and_loudness_run", async () => {
+  assert.deepEqual((await rangeWith({ loudness: true })).loud, { low: -45, high: -15 });
 });
 
-test("test_the_needle_follows_the_live_level_while_the_engine_reports_the_control", () => {
-  assert.equal(rangeWith({}).level, -12.5);
+test("test_the_needle_follows_the_live_level_while_the_engine_reports_the_control", async () => {
+  assert.equal((await rangeWith({})).level, -12.5);
 });
 
-test("test_a_knob_drag_in_flight_moves_the_needle", () => {
-  load({});
+test("test_a_knob_drag_in_flight_moves_the_needle", async () => {
+  await load({});
   volumeDrag.value = -30;
   assert.equal(volumeRangeNow().level, -30);
 });
