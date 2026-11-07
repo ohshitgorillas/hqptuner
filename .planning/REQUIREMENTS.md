@@ -13,6 +13,18 @@ Committed scope. Each maps to exactly one roadmap phase.
 - [ ] **WIN-01**: A Windows user can open HQPTuner from another device on their network right after a fresh install, including the launch the installer starts itself.
 - [ ] **WIN-02**: A Windows user can install a new version over an existing one, and the app then starts with its tray icon and no error dialog.
 
+## Shipped
+
+Delivered and verified. Kept as rows for shipped-scope trace; git history
+holds the full requirement text. Archived out of `## Traceability` so a new
+milestone's audit starts clean (the audit seam parses only the Traceability
+table).
+
+| Requirement | Phase | Status | Milestone |
+|-------------|-------|--------|-----------|
+| WIN-01 | 2 | Complete | v1.20.2 |
+| WIN-02 | 3 | Complete | v1.20.2 |
+
 ## v2 Requirements
 
 Deferred. Tracked, not in the current roadmap.
@@ -31,8 +43,6 @@ Deferred. Tracked, not in the current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| WIN-01 | Phase 2 | Complete |
-| WIN-02 | Phase 3 | Complete |
 
 ---
 
