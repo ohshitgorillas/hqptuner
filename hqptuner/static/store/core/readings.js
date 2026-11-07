@@ -4,7 +4,7 @@ import { computed, effect, signal, untracked } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { isBlank, num } from "../../lib/coerce.js";
 import { fieldOf } from "../../model/store/reading.js";
-import { engineState, engineStatus, generation, staged } from "../signals.js";
+import { engineState, engineStatus, generation, health, staged } from "../signals.js";
 import { keyOf, schema, stagedSlot } from "../schema.js";
 import { playbackPath, transportNow } from "../faceplate/path.js";
 import { latest, op, STALE } from "./ops.js";
@@ -156,9 +156,13 @@ export const refreshReadings = readingsRefresher();
 
 const refresh = op("readings", { alert: null });
 let observedGeneration = generation.peek();
+let wasReady = false;
+// The readings are fetched when the lifecycle generation moves and when the connection comes to Ready.
 effect(() => {
   const next = generation.value;
-  if (next === observedGeneration) return;
+  const ready = health.value?.phase === "Ready";
+  const moved = next !== observedGeneration || (ready && !wasReady);
   observedGeneration = next;
-  untracked(() => void refresh.run(refreshReadings));
+  wasReady = ready;
+  if (moved) untracked(() => void refresh.run(refreshReadings));
 });

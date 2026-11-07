@@ -204,6 +204,17 @@ test("test_generation_move_keeps_the_value_until_refresh_replaces_it", async () 
   assert.deepEqual(seen, [ENGINE, NEXT]);
 });
 
+// Break: a page that loads against a daemon still at its first generation never fetches its readings.
+test("test_the_first_ready_health_fetches_the_readings_whatever_its_generation", async () => {
+  health.value = null;
+  await quiesce(wire);
+  readings.value = null;
+  response = body({ [KEY]: reading() });
+  health.value = { phase: "Ready", generation: 0 };
+  await quiesce(wire);
+  assert.deepEqual(readings.value, response);
+});
+
 // Break: acquisition stamps are used to blank a retained served value.
 test("test_older_acquisition_stamps_keep_the_served_value_visible", async () => {
   response = { generation: GEN, fields: { [KEY]: fieldReading(ENGINE) } };
