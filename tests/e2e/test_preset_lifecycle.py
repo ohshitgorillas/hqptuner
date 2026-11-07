@@ -48,7 +48,7 @@ def _post(page: Page, base_url: str, route: str, data: object) -> None:
 
 def _active(page: Page, base_url: str) -> object:
     """The station the server reports as loaded, as `/api/config` carries it."""
-    active: object = page.request.get(f"{base_url}/api/config").json()["data"]["active"]
+    active: object = page.request.get(f"{base_url}/api/config").json()["fields"]["active_preset"]["value"]
     return active
 
 
