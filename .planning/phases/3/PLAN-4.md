@@ -7,6 +7,7 @@ files:
   - scripts/probes/probe_tray_registration.py
   - .github/workflows/release.yml
   - packaging/windows/smoke.sh
+  - .filepawl.toml
 ---
 
 # Phase 3: Windows upgrade install - Plan 4: The Arm64 tray judgment runs on a desktop that has a taskbar
