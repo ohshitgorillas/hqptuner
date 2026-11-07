@@ -18,8 +18,7 @@ Policy notes:
 
 Both tests play on the session stack and put the engine's transport, track and
 metering stream back as they found them. The meter test plays one short
-passage per reading, a clump of frames the way the daemon sends them, and plays
-it again until the page shows it before moving to the next.
+passage per reading, a clump of frames, and plays it again until the page shows it before moving to the next.
 """
 
 import struct

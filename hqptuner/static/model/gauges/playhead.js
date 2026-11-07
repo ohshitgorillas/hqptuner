@@ -1,6 +1,6 @@
 // The one pacing decision a paint makes: which playback the paint shows, and where the
-// playhead stands. The daemon sends metering frames in clumps; the playhead takes its place from their stamps, so a
-// clump that arrives at once is shown at its own positions over the paints that reach them.
+// playhead stands. The playhead takes its place from the frames' stamps, so frames that arrive together are shown at
+// their own positions over the paints that reach them.
 //
 // The playhead is a stamp: the newest queued frame's end, less the delay. It moves only when a frame arrives and stands
 // still between arrivals. Each paint shows the playback from where the last paint ended up to the playhead, so the
