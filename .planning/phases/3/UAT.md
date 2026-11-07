@@ -3,8 +3,8 @@ status: testing
 phase: 3
 fields_version: 1
 started: 2026-11-06
-updated: 2026-11-06
-ci: 24fb2153623a3490e39589bac3701ed1a6988278
+updated: 2026-11-07
+ci: 0fecc686b41176690ce76a53df5d0d6324fd5fc5
 ---
 
 ## Items
@@ -64,20 +64,31 @@ fix: 24fb2153, retest
 ### 7. After an upgrade over v1.20.1 the app shows its tray icon and no 'Unhandled exception in script' dialog (ROADMAP criterion 1, WIN-02)
 expected: behavior wrong - no automated check exercises it: the smoke checks a proxy (PID alive 5 s after health) that the phase's own CONTEXT says passes on a broken windowed build whose error dialog keeps the process alive
 origin: verifier
-status: fail
+status: pass
+job: smoke-windows
+commit: e4d679fbac13308a23d6a2ce35aae5e29810d50d
 first_pass: fail
 source: model
-evidence: packaging/windows/smoke.sh:263-266 is the only post-health check besides the LAN health call; hqptuner.spec:81 windowed on Windows; hqptuner/desktop.py:258-263 tray on main thread after server thread; CONTEXT.md flagged assumption 3; SUMMARY.md Goal check 'Criterion 1 is checked by proxy only'. Pre-fix step 8 passed, so the proxy has never gone red on the reported symptom.
+evidence: smoke-windows concluded success at 0fecc686 (release run 42345897951); healthy upgraded app SystemTrayIcon 0x00000000 in steps 8 and 9 on x64 job 128324181855 and arm64 job 128324181883. Owner accepted 0fecc686 as the phase CI commit: HEAD e4d679fb changes .planning/ only, which release.yml paths never run on.
 reported: behavior wrong - no automated check exercises it: the smoke checks a proxy (PID alive 5 s after health) that the phase's own CONTEXT says passes on a broken windowed build whose error dialog keeps the process alive
 severity: major
 cause: No check looks for the error dialog. check_upgraded (packaging/windows/smoke.sh:262-266) only requires the PID alive 5 s after /api/health. The windowed PyInstaller build (hqptuner.spec:81) keeps the process alive behind an 'Unhandled exception in script' dialog, so a broken tray load passes. Pre-fix step 8 passed in run 42205190797, so this proxy has never gone red on the reported symptom.
-fix: routed to /cad-plan
+fix: plans 2-4 (3f47ab27, f476c720, 68111587, bf1b78af), retest
+
+### 8. Upgrade check rejects an upgraded app whose tray fails to load
+expected: smoke-windows step 8 broken-tray control: with tray.png removed from the upgraded install, the upgraded-app judgment rejects the app and names the "Unhandled exception in script" dialog, on both installer rows (ci: smoke-windows)
+status: pass
+job: smoke-windows
+commit: e4d679fbac13308a23d6a2ce35aae5e29810d50d
+first_pass: pass
+source: model
+evidence: smoke-windows concluded success at 0fecc686 (release run 42345897951); step 8 control on both installer rows rejected the app naming "Unhandled exception in script" (class #32770), no tray icon registered. Owner accepted 0fecc686 as the phase CI commit: HEAD e4d679fb changes .planning/ only, which release.yml paths never run on.
 
 ## Summary
 
-total: 7
-passed: 6
-failed: 1
+total: 8
+passed: 8
+failed: 0
 pending: 0
 skipped: 0
 blocked: 0

@@ -2,6 +2,6 @@
 
 Phase: 3 of 3 (Windows upgrade install)
 Plan: 2 of 4 (The upgraded app shows its tray icon and no error dialog)
-Status: executed
-Next: /cad-verify 3
+Status: phase complete
+Next: /cad-milestone - the audit gate precedes any ship
 Updated: 2026-11-07
