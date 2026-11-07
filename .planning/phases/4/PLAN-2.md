@@ -8,6 +8,8 @@ files:
   - .claude/worktrees/integrate/tests/
   - .claude/worktrees/integrate/hqptuner/
   - .claude/worktrees/integrate/.filepawl.toml
+  - .claude/worktrees/integrate/scripts/abuse.sh
+  - .claude/worktrees/integrate/docs/spec/api.md
 ---
 
 # Phase 4: Integrate into v2 - Plan 2: Local e2e on integrate
@@ -42,7 +44,7 @@ Before the merge, the browser suite passes on `rebuild/integrate` in one disclos
 
 ### Task 2: Fix each e2e failure on integrate
 
-- **Files:** .claude/worktrees/integrate/tests/, .claude/worktrees/integrate/hqptuner/, .claude/worktrees/integrate/.filepawl.toml
+- **Files:** .claude/worktrees/integrate/tests/, .claude/worktrees/integrate/hqptuner/, .claude/worktrees/integrate/.filepawl.toml, .claude/worktrees/integrate/scripts/abuse.sh, .claude/worktrees/integrate/docs/spec/api.md
 - **Action:** Run only if Task 1 recorded a failing or erroring test; otherwise this task writes nothing. Adjudicate each failure Task 1 recorded against the approved behavior through the 12a route in Context, and fix it on `rebuild/integrate`, one failure or one shared cause per commit, paths staged by name. Reproduce each with a single-module run, `PYTHONPATH=$(pwd) HQPTUNER_CHROMIUM=/usr/lib64/chromium-browser/headless_shell scripts/gate.sh .venv/bin/pytest -m e2e --no-cov -q <module>`, red before the fix and green after, both quoted in the commit. A fix that changes what the page shows is a visual change: hand it to the owner at the hand-back URL per the repo `hand-back` skill before Plan 3 starts. Run `filepawl accept` whenever filepawl prints it. No gate, threshold, marker, skip or exemption is changed to pass a test. Do the process-ownership check after every run.
 - **Verify:** For each failing test id in `.planning/phases/4/baseline/e2e.txt`, a commit in `git -C .claude/worktrees/integrate log` after Plan 1's last commit quotes its module run red before and green after; no line of any pre-existing assertion in a failing test changed (`git diff` over that range shows none). Testing scope: the outcomes are the recorded failing tests passing; the failing e2e tests themselves are the reproducers; the only added checks are lower-lane tests for a production defect a lower lane observes; testing stops when every recorded failure passes.
 
