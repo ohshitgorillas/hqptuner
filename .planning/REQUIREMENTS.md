@@ -16,6 +16,10 @@ Committed scope. Each maps to exactly one roadmap phase.
 - **INTG-04**: Owner can run `PYTHONPATH=$(pwd) scripts/gate.sh make check` in `.claude/worktrees/integrate` and read `exit=0`.
 - **INTG-05**: Owner can check out `v2` and find `rebuild/integrate` merged into it, with `scripts/gate.sh make check` exiting 0 on `v2`.
 
+### Metering
+
+- **METER-01**: User sees the meters, the spectrum and the spectrogram move smoothly in step with the music while metering frames reach the app in bursts.
+
 ## v2 Requirements
 
 Deferred. Tracked, not in the current roadmap.
@@ -74,6 +78,7 @@ Deferred. Tracked, not in the current roadmap.
 | INTG-03 | Phase 3 | Complete |
 | INTG-04 | Phase 4 | Pending |
 | INTG-05 | Phase 4 | Pending |
+| METER-01 | Phase 5 | Pending |
 
 Bare headers - `/cad-plan` seeds a row per requirement when its phase is planned (`references/req-traceability.md`).
 

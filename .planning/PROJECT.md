@@ -72,6 +72,7 @@ Milestone v2.0.0. This roadmap covers landing the rebuild-integrate design (`doc
 | v2 keeps the store, schema, lanes and API, and rebuilds the shell, components and CSS | The faceplate spec (`docs/spec/faceplate.md`) replaces v1's shell, not its backend | - pending |
 | Wire names `preset` and `livepresets` stay; Station and Snapshot are UI names | Renaming the wire would break stored records and the API | ✓ good |
 | Branches `dev` to `beta` to `main`, promotion by the owner through `scripts/ship.sh` | Each branch maps to a container tag (`:beta`, `:latest`) | ✓ good |
+| The meter playhead advances on the loop's `dt` between frames, capped at the newest stamp less the delay | Frames reach the reader in bursts, and no clock-free decision can move between arrivals; `dt` comes only through the injected `Clock` seam (owner approval, 2026-11-07) | - pending |
 
 ---
 
