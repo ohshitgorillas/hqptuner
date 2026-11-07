@@ -1,7 +1,6 @@
 # State
 
-Phase: 3 of 9 (Windows upgrade install)
-Plan: 2 of 4 (The upgraded app shows its tray icon and no error dialog)
-Status: phase complete
-Next: /cad-milestone - the audit gate precedes any ship
+Phase: 4 of 9 (API exposure and authentication)
+Status: context gathered
+Next: /cad-plan 4
 Updated: 2026-11-07
