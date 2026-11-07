@@ -170,7 +170,7 @@ export async function reset({
   control("mode", mode);
 
   const fields = Object.keys(values).map((name) => ({ name }));
-  seedReadings({ ...values, device_caps: { value: deviceCaps, readonly: true } });
+  await seedReadings({ ...values, device_caps: { value: deviceCaps, readonly: true } });
   config.value = { fields };
   await tick();
   return w;

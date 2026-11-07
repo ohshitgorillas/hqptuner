@@ -164,7 +164,7 @@ export async function reset({ fields = [], matrix = MATRIX_ENGAGED, meta = META,
   plainNames.value = plain;
   resetNarrowing();
   await discardAll();
-  seedReadings(
+  await seedReadings(
     Object.fromEntries([
       ...fields.map(({ name, value }) => [servedName(name, false), fieldReading(value, { show: "file" })]),
       ...matrix.map(({ name, value }) => [servedName(name, true), fieldReading(value, { show: "file" })]),

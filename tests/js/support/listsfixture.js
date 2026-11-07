@@ -155,7 +155,7 @@ export async function loadLists({ chain = "sdm", plain = false } = {}) {
   engineStatus.value = {};
   enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
   config.value = { fields: FORM.map(([, name, , items]) => formField(name, items)) };
-  seedReadings(
+  await seedReadings(
     Object.fromEntries(FORM.map(([on, name, value, items]) => [name, formReading(chain, on, value, items)])),
   );
   metadata.value = overlays();

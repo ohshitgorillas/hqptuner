@@ -279,7 +279,7 @@ export async function resetLive({
   };
   signals.config.value = configPayload(FORM(output, {}, engine));
   await discardAll();
-  seedReadings(
+  await seedReadings(
     Object.fromEntries(
       Object.entries({ mode: output, ...engineRows(engine) }).map(([name, value]) => [
         name,

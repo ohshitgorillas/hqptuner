@@ -64,7 +64,7 @@ export async function reset({ live_profiles = [], live_active = "", ...m } = {})
   config.value = { fields: [] };
   matrixConfig.value = { fields: [], ...m };
   enums.value = { matrix_profiles: live_profiles };
-  seedReadings({ matrix_profile: profileReading(live_active) }, 0);
+  await seedReadings({ matrix_profile: profileReading(live_active) }, 0);
   await discardAll();
   return wire;
 }
