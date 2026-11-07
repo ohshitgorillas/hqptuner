@@ -50,7 +50,7 @@ let wire;
 beforeEach(async () => {
   wire = stagingWire();
   metadata.value = META;
-  loadVolumeRange();
+  await loadVolumeRange();
   await discardAll();
 });
 
@@ -62,7 +62,7 @@ const markup = () => elements(render(html`<${VolumeRangeBody} schema=${SCHEMA} /
  *
  * @param {Running} r
  */
-const markupWith = (r) => (loadVolumeRange(r), markup());
+const markupWith = async (r) => (await loadVolumeRange(r), markup());
 
 /**
  * The element of `tag` carrying `data-k` = `key`.
@@ -103,25 +103,25 @@ test("test_each_box_holds_its_handles_effective_value", async () => {
  * @param {Running} r
  * @param {string} name
  */
-const startupAttr = (r, name) => {
-  const box = keyed(markupWith(r), "input", "startup_volume");
+const startupAttr = async (r, name) => {
+  const box = keyed(await markupWith(r), "input", "startup_volume");
   return box && attr(box, name);
 };
 
-test("test_startup_is_floored_by_the_running_min", () => {
-  assert.equal(startupAttr({}, "min"), "-60");
+test("test_startup_is_floored_by_the_running_min", async () => {
+  assert.equal(await startupAttr({}, "min"), "-60");
 });
 
-test("test_startup_is_floored_by_a_moved_min", () => {
-  assert.equal(startupAttr({ min: "-70", max: "-3" }, "min"), "-70");
+test("test_startup_is_floored_by_a_moved_min", async () => {
+  assert.equal(await startupAttr({ min: "-70", max: "-3" }, "min"), "-70");
 });
 
-test("test_startup_is_capped_by_the_running_max", () => {
-  assert.equal(startupAttr({}, "max"), "0");
+test("test_startup_is_capped_by_the_running_max", async () => {
+  assert.equal(await startupAttr({}, "max"), "0");
 });
 
-test("test_startup_is_capped_by_a_moved_max", () => {
-  assert.equal(startupAttr({ min: "-70", max: "-3" }, "max"), "-3");
+test("test_startup_is_capped_by_a_moved_max", async () => {
+  assert.equal(await startupAttr({ min: "-70", max: "-3" }, "max"), "-3");
 });
 
 test("test_a_typed_value_moves_its_handle_through_the_clamp", async () => {
@@ -152,45 +152,45 @@ test("test_a_staged_handle_marks_its_box_dirty", async () => {
 
 // --- gray --------------------------------------------------------------------------------------------------------
 
-test("test_the_block_grays_whole_while_fixed_volume_is_on", () => {
-  const grayed = (/** @type {Running} */ r) => {
-    const root = markupWith(r).find((el) => classes(el).includes("vrange"));
+test("test_the_block_grays_whole_while_fixed_volume_is_on", async () => {
+  const grayed = async (/** @type {Running} */ r) => {
+    const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
     return root && classes(root).includes("grayed-range");
   };
-  assert.equal(grayed({ fixed: true }), true);
+  assert.equal(await grayed({ fixed: true }), true);
 });
 
 for (const key of KEYS) {
-  test(`test_the_${key}_box_disables_while_the_block_is_grayed`, () => {
-    assert.equal(boxHas(markupWith({ fixed: true }), key, "disabled"), true);
+  test(`test_the_${key}_box_disables_while_the_block_is_grayed`, async () => {
+    assert.equal(boxHas(await markupWith({ fixed: true }), key, "disabled"), true);
   });
 }
 
 // --- the bar -----------------------------------------------------------------------------------------------------
 
-test("test_the_brackets_and_the_pin_sit_at_their_values", () => {
-  assert.deepEqual(marksAt(markupWith({ min: "-70", startup: "-25", max: "-3" }), KEYS), ["-70", "-25", "-3"]);
+test("test_the_brackets_and_the_pin_sit_at_their_values", async () => {
+  assert.deepEqual(marksAt(await markupWith({ min: "-70", startup: "-25", max: "-3" }), KEYS), ["-70", "-25", "-3"]);
 });
 
-test("test_the_loudness_low_bound_rides_the_bar_while_loudness_runs", () => {
-  assert.equal(marksAt(markupWith({ loudness: true }), ["loudness_range_low"])[0], "-45");
+test("test_the_loudness_low_bound_rides_the_bar_while_loudness_runs", async () => {
+  assert.equal(marksAt(await markupWith({ loudness: true }), ["loudness_range_low"])[0], "-45");
 });
 
-test("test_the_loudness_high_bound_rides_the_bar_while_loudness_runs", () => {
-  assert.equal(marksAt(markupWith({ loudness: true }), ["loudness_range_high"])[0], "-15");
+test("test_the_loudness_high_bound_rides_the_bar_while_loudness_runs", async () => {
+  assert.equal(marksAt(await markupWith({ loudness: true }), ["loudness_range_high"])[0], "-15");
 });
 
-test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control", () => {
-  const needle = (/** @type {Running} */ r) => marksAt(markupWith(r), ["needle"])[0];
-  assert.equal(needle({}), "-12.5");
+test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control", async () => {
+  const needle = async (/** @type {Running} */ r) => marksAt(await markupWith(r), ["needle"])[0];
+  assert.equal(await needle({}), "-12.5");
 });
 
 // --- the loudness readouts and the manual ------------------------------------------------------------------------
 
-test("test_the_loudness_readouts_hide_while_loudness_is_off", () => {
-  const hidden = (/** @type {Running} */ r) => {
-    const row = markupWith(r).find((el) => classes(el).includes("inl"));
+test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
+  const hidden = async (/** @type {Running} */ r) => {
+    const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
     return row && hasAttr(row, "hidden");
   };
-  assert.equal(hidden({}), true);
+  assert.equal(await hidden({}), true);
 });

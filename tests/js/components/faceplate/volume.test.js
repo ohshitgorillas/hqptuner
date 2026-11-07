@@ -42,7 +42,7 @@ import { fakeClock } from "../../support/clock.js";
  */
 
 /** @param {Level} l */
-function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness = false }) {
+async function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness = false }) {
   volume.value = at;
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min, max };
@@ -55,7 +55,7 @@ function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness =
       { name: "post_loudness_rangehigh" },
     ],
   };
-  seedReadings({
+  await seedReadings({
     direct_sdm: direct,
     matrix_enabled: loudness,
     post_loudness_enabled: loudness,
@@ -75,7 +75,7 @@ function play({ at = "-12.5", min = "-60", max = "0", direct = false, loudness =
  * @param {Level} [l]
  */
 async function gesture(id, holdFor, l = {}) {
-  play(l);
+  await play(l);
   const { clock, advance } = fakeClock();
   const { seen } = renderTree(html`<${Volume} clock=${clock} />`);
   const w = stagingWire({
@@ -107,8 +107,8 @@ async function gesture(id, holdFor, l = {}) {
  *
  * @param {Level} l
  */
-function drawn(l) {
-  play(l);
+async function drawn(l) {
+  await play(l);
   return elements(render(html`<${Volume} /><${VolumePopover} />`));
 }
 
@@ -146,8 +146,8 @@ const slider = (all) => all.find((e) => e.name === "input" && attr(e, "type") ==
  *
  * @param {Level} l
  */
-function marks(l) {
-  const scale = find(drawn(l), { cls: "scale" });
+async function marks(l) {
+  const scale = find(await drawn(l), { cls: "scale" });
   const spans = scale ? elements(scale.html).filter((e) => e.name === "span") : [];
   return spans.map((e) => Number((/left:\s*(-?[\d.]+)%/.exec(attr(e, "style") || "") || [])[1]));
 }
@@ -157,8 +157,8 @@ function marks(l) {
  *
  * @param {Level} l
  */
-function loudMarks(l) {
-  const all = drawn(l);
+async function loudMarks(l) {
+  const all = await drawn(l);
   const box = find(all, { cls: "lmk" });
   const band = find(all, { cls: "lband" });
   const style = (band && attr(band, "style")) || "";
@@ -184,84 +184,84 @@ test("test_a_click_with_no_press_steps_up_once", async () => {
 
 // --- the cluster -------------------------------------------------------------------------------------------------
 
-test("test_a_pinned_level_disables_the_step_down", () => {
-  assert.equal(disabled(drawn({ direct: true }), "volume-down"), true);
+test("test_a_pinned_level_disables_the_step_down", async () => {
+  assert.equal(disabled(await drawn({ direct: true }), "volume-down"), true);
 });
 
-test("test_a_pinned_level_disables_the_step_up", () => {
-  assert.equal(disabled(drawn({ direct: true }), "volume-up"), true);
+test("test_a_pinned_level_disables_the_step_up", async () => {
+  assert.equal(disabled(await drawn({ direct: true }), "volume-up"), true);
 });
 
-test("test_the_bottom_of_the_range_disables_the_step_down", () => {
-  const all = drawn({ at: "-60" });
+test("test_the_bottom_of_the_range_disables_the_step_down", async () => {
+  const all = await drawn({ at: "-60" });
   assert.equal(disabled(all, "volume-down"), true);
 });
 
-test("test_a_pinned_level_disables_the_readout", () => {
-  assert.equal(has(readout(drawn({ direct: true })), "disabled"), true);
+test("test_a_pinned_level_disables_the_readout", async () => {
+  assert.equal(has(readout(await drawn({ direct: true })), "disabled"), true);
 });
 
-test("test_the_readout_prints_the_level", () => {
-  const r = readout(drawn({ at: "-27.5" }));
+test("test_the_readout_prints_the_level", async () => {
+  const r = readout(await drawn({ at: "-27.5" }));
   assert.match(r ? text(r) : "", /27\.5/);
 });
 
 /** The readout's aria-expanded with `open` as the open popover. @param {string | null} open */
-const expanded = (open) => {
-  play({});
+const expanded = async (open) => {
+  await play({});
   openPopover.value = open;
   const r = readout(elements(render(html`<${Volume} />`)));
   return r ? attr(r, "aria-expanded") : undefined;
 };
 
-test("test_the_readout_reports_the_popover_closed", () => {
-  assert.equal(expanded(null), "false");
+test("test_the_readout_reports_the_popover_closed", async () => {
+  assert.equal(await expanded(null), "false");
 });
 
-test("test_the_readout_reports_the_popover_open", () => {
-  assert.equal(expanded("volume"), "true");
+test("test_the_readout_reports_the_popover_open", async () => {
+  assert.equal(await expanded("volume"), "true");
 });
 
 // --- the popover -------------------------------------------------------------------------------------------------
 
 /** Whether the popover panel is hidden with `open` as the open popover. @param {string | null} open */
-const hidden = (open) => {
-  play({});
+const hidden = async (open) => {
+  await play({});
   openPopover.value = open;
   return has(panel(elements(render(html`<${VolumePopover} />`))), "hidden");
 };
 
-test("test_the_popover_hides_while_closed", () => {
-  assert.equal(hidden(null), true);
+test("test_the_popover_hides_while_closed", async () => {
+  assert.equal(await hidden(null), true);
 });
 
-test("test_the_slider_spans_the_range_the_engine_reports", () => {
-  const s = slider(drawn({ min: "-40", max: "-3" }));
+test("test_the_slider_spans_the_range_the_engine_reports", async () => {
+  const s = slider(await drawn({ min: "-40", max: "-3" }));
   assert.deepEqual(s ? [attr(s, "min"), attr(s, "max")] : [], ["-40", "-3"]);
 });
 
-test("test_the_slider_sits_at_the_level", () => {
-  const s = slider(drawn({ at: "-27.5" }));
+test("test_the_slider_sits_at_the_level", async () => {
+  const s = slider(await drawn({ at: "-27.5" }));
   assert.equal(s ? attr(s, "value") : undefined, "-27.5");
 });
 
-test("test_a_pinned_level_disables_the_slider", () => {
-  assert.equal(has(slider(drawn({ direct: true })), "disabled"), true);
+test("test_a_pinned_level_disables_the_slider", async () => {
+  assert.equal(has(slider(await drawn({ direct: true })), "disabled"), true);
 });
 
-test("test_the_scale_ends_at_the_top_of_a_full_range", () => {
-  const at = marks({});
+test("test_the_scale_ends_at_the_top_of_a_full_range", async () => {
+  const at = await marks({});
   assert.equal(at[at.length - 1], 100);
 });
 
-test("test_the_loudness_strip_spans_its_bounds_along_the_range", () => {
-  assert.deepEqual(loudMarks(LOUD).band, [25, 50]);
+test("test_the_loudness_strip_spans_its_bounds_along_the_range", async () => {
+  assert.deepEqual((await loudMarks(LOUD)).band, [25, 50]);
 });
 
-test("test_loudness_off_hides_its_marks", () => {
-  assert.equal(loudMarks({}).hidden, true);
+test("test_loudness_off_hides_its_marks", async () => {
+  assert.equal((await loudMarks({})).hidden, true);
 });
 
-test("test_a_pinned_level_hides_the_loudness_marks", () => {
-  assert.equal(loudMarks({ ...LOUD, direct: true }).hidden, true);
+test("test_a_pinned_level_hides_the_loudness_marks", async () => {
+  assert.equal((await loudMarks({ ...LOUD, direct: true })).hidden, true);
 });

@@ -98,7 +98,7 @@ let wire;
  *
  * @param {string} backend
  */
-function load(backend) {
+async function load(backend) {
   file = {
     mode: "pcm",
     backend,
@@ -139,7 +139,7 @@ function load(backend) {
       { name: "alsa_period", type: "number" },
     ],
   };
-  seedReadings(served(wire));
+  await seedReadings(served(wire));
 }
 
 beforeEach(async () => {
@@ -149,7 +149,7 @@ beforeEach(async () => {
         ? ok({ generation: generation.value, fields: served(w) })
         : undefined,
   });
-  load("network");
+  await load("network");
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;
@@ -180,42 +180,42 @@ const tabDirty = (id) => {
   return el ? classes(el).includes("dirty") : null;
 };
 
-const shownGroups = (/** @type {string} */ backend) => {
-  load(backend);
+const shownGroups = async (/** @type {string} */ backend) => {
+  await load(backend);
   const groups = markup().filter((e) => attr(e, "data-be") !== undefined && !hasAttr(e, "hidden"));
   return [...new Set(groups.map((e) => attr(e, "data-be")))];
 };
 
-test("test_the_network_backend_shows_only_its_own_groups", () => {
-  assert.deepEqual(shownGroups("network"), ["network"]);
+test("test_the_network_backend_shows_only_its_own_groups", async () => {
+  assert.deepEqual(await shownGroups("network"), ["network"]);
 });
 
-test("test_the_alsa_backend_shows_only_its_own_groups", () => {
-  assert.deepEqual(shownGroups("alsa"), ["alsa"]);
+test("test_the_alsa_backend_shows_only_its_own_groups", async () => {
+  assert.deepEqual(await shownGroups("alsa"), ["alsa"]);
 });
 
-test("test_the_combo_backend_shows_every_group", () => {
-  assert.deepEqual(shownGroups("combo"), ["network", "alsa"]);
+test("test_the_combo_backend_shows_every_group", async () => {
+  assert.deepEqual(await shownGroups("combo"), ["network", "alsa"]);
 });
 
-const shownPickers = (/** @type {string} */ backend) => {
-  load(backend);
+const shownPickers = async (/** @type {string} */ backend) => {
+  await load(backend);
   return markup()
     .filter((e) => classes(e).includes("devpick"))
     .sort((a, b) => a.start - b.start)
     .map((e) => attr(e, "data-k"));
 };
 
-test("test_the_network_backend_shows_only_its_own_device_picker", () => {
-  assert.deepEqual(shownPickers("network"), ["net_device"]);
+test("test_the_network_backend_shows_only_its_own_device_picker", async () => {
+  assert.deepEqual(await shownPickers("network"), ["net_device"]);
 });
 
-test("test_the_alsa_backend_shows_only_its_own_device_picker", () => {
-  assert.deepEqual(shownPickers("alsa"), ["alsa_device"]);
+test("test_the_alsa_backend_shows_only_its_own_device_picker", async () => {
+  assert.deepEqual(await shownPickers("alsa"), ["alsa_device"]);
 });
 
-test("test_the_combo_backend_shows_both_device_pickers", () => {
-  assert.deepEqual(shownPickers("combo"), ["net_device", "alsa_device"]);
+test("test_the_combo_backend_shows_both_device_pickers", async () => {
+  assert.deepEqual(await shownPickers("combo"), ["net_device", "alsa_device"]);
 });
 
 test("test_the_mode_row_offers_pcm_and_sdm_only", () => {
