@@ -144,6 +144,9 @@ function openStream(doc) {
     es.addEventListener(name, (e) => assignChanged(sig, unwrap(JSON.parse(e.data))));
   }
   es.addEventListener("volume", (e) => landVolume(JSON.parse(e.data)));
+  // The served readings carry the engine's own value of each live setting, so each State push is followed by a fresh
+  // reading.
+  es.addEventListener("state", () => void safe(refreshReadings));
   stream = es;
 }
 

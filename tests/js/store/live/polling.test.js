@@ -133,6 +133,15 @@ for (const c of EVENTS) {
   });
 }
 
+// Break: a setting changed on the engine from outside the page never reaches the served readings the page shows.
+test("test_a_state_push_refetches_the_served_readings", async () => {
+  const served = { generation: 9, fields: {} };
+  wire({ "GET /api/config": ok(served) });
+  lastStream()?.emit("state", { stale: false, loaded_at: 2, data: { filter_junk: "1" } });
+  await drain();
+  assert.deepEqual(readings.value, served);
+});
+
 const VOLUME = { volume: "-20.5", min: -60, max: 0, enabled: true, adaptive: false };
 
 test("test_the_volume_event_feeds_the_level_signal", () => {
