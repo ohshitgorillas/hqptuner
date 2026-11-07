@@ -28,7 +28,7 @@
 // fault report.
 import { signal, effect } from "@preact/signals";
 import { health } from "./signals.js";
-import { api } from "../lib/api.js";
+import { api, onLoginRequired } from "../lib/api.js";
 
 // How long `reachable` false must hold, from the page's own clock, before the
 // panel treats it as an install that cannot reach its daemon.
@@ -36,6 +36,14 @@ const GRACE_MS = 3000;
 
 /** Whether the connection panel is showing. */
 export const setupOpen = signal(false);
+/**
+ * Whether this browser holds no valid login.
+ *
+ * Entered the moment any request is refused with the gate's `login_required` code, and left
+ * by a login the backend accepts. While it holds, the panel is the whole page and nothing
+ * gated is requested on a timer.
+ */
+export const loggedOut = signal(false);
 /** The host name the page was served from, written once at startup. */
 export const pageHost = signal("");
 /** Whether a discovery call is in flight. Its wait is the daemon's, up to `discovery_timeout`. */
@@ -56,7 +64,7 @@ export const form = signal({ host: "", username: "", password: "", remember: tru
  */
 export const hostTouched = signal(false);
 /**
- * What the panel has to say about the last press of Connect. Eight members:
+ * What the panel has to say about the last press of Connect. Nine members:
  *
  *   null          nothing pressed yet, or the panel has just been opened
  *   "no-host"     the address field was empty, so nothing was sent
@@ -66,8 +74,19 @@ export const hostTouched = signal(false);
  *   "no-8088"     saved with no management credentials to try
  *   "no-answer"   the daemon answered, its settings port at 8088 did not
  *   "unreachable" nothing answered at the address
+ *   "not-answered" a login could not be checked, because the daemon did not answer
+ *
+ * A login refused for the typed pair reads "refused".
  */
 export const verdict = signal(null);
+
+// A refused request that says the browser has no login puts the page at the login screen.
+// The panel's own routes (the saved record, discovery) are gated too, so it opens without
+// reading them: the host, username and password rows start as the user finds them.
+onLoginRequired(() => {
+  loggedOut.value = true;
+  setupOpen.value = true;
+});
 
 // The page's own clock, swapped by initSetup so a test can drive it.
 let clock = () => performance.now();
@@ -244,8 +263,42 @@ async function loadConnection() {
   }
 }
 
+// What a login the backend refused says, by the refusal's code.
+/** @type {Record<string, string>} */
+const LOGIN_VERDICTS = { login_refused: "refused", login_not_answered: "not-answered" };
+
+/**
+ * Log this browser in with the pair the panel holds.
+ *
+ * The password is always sent, blank included: the backend checks a blank as blank and never
+ * fills it from the pair it holds. The host rides only when the user typed one. A 200 leaves
+ * the logged-out state and reloads the page, so every request it makes is made with the login.
+ *
+ * @param {{ host: string, username: string, password: string, remember: boolean }} f
+ */
+async function logIn(f) {
+  /** @type {Record<string, unknown>} */
+  const body = { username: f.username, password: f.password, remember: f.remember };
+  const host = f.host.trim();
+  if (host) body.host = host;
+  try {
+    await api.login(body);
+  } catch (e) {
+    const next = LOGIN_VERDICTS[/** @type {{ code?: string }} */ (e).code || ""];
+    if (!next) throw e;
+    verdict.value = next;
+    return;
+  }
+  loggedOut.value = false;
+  setupOpen.value = false;
+  verdict.value = null;
+  globalThis.location?.reload();
+}
+
 /**
  * Save what the panel holds, then wait for the daemon's verdict.
+ *
+ * Logged out, the panel holds a login and not a save: the same rows are sent to /api/login.
  *
  * The password rides the body in both storage modes: `remember` false is a
  * request not to write it to disk, not a request to run without one, and the
@@ -258,6 +311,10 @@ async function loadConnection() {
  */
 export async function submitConnection(andClose = false) {
   const f = form.value;
+  if (loggedOut.value) {
+    await logIn(f);
+    return;
+  }
   const host = f.host.trim();
   closeOnSuccess = andClose;
   if (!host) {

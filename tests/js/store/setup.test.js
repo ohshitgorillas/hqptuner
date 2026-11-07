@@ -1,6 +1,9 @@
 // Behavioral suite for store/setup.js — the connection panel's own store: when
 // the panel throws itself open, what discovery is allowed to write into the
-// host field, what a save puts on the wire, and what closes the panel again.
+// host field, what a save puts on the wire, and what closes the panel again —
+// and, at the end, the page's logged-out state: what puts the page at the login
+// screen, what its timers ask the wire for while it sits there, and what Save
+// sends and concludes then.
 //
 // The seams are the ones the frontend policy names (docs/testing.md, Frontend):
 // the `health` signal is assigned the readings a poll would have delivered, the
@@ -13,24 +16,33 @@
 // Readings are fresh objects every time: writing the same reference to a signal
 // does not notify and the auto-open effect would never run.
 //
+// The logged-out cases also fake the timer: globalThis.setInterval is captured the way
+// live/pollgate.test.js captures it, so a tick is driven by the case and no scheduled callback
+// fires by itself. The fake stays for the file's life because startPolling registers an effect it
+// never disposes.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/setup.test.js
 
 import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
+import { startPolling } from "../../../hqptuner/static/store/sync.js";
+import { api } from "../../../hqptuner/static/lib/api.js";
 import {
   setupOpen,
   form,
   hostTouched,
+  loggedOut,
+  verdict,
   initSetup,
   runDiscovery,
   submitConnection,
 } from "../../../hqptuner/static/store/setup.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 
-/** The globals a wire fake installs a `fetch` on. */
-/** @type {{ fetch?: unknown }} */
+/** The globals a wire fake installs a `fetch` and a timer on. */
+/** @type {{ fetch?: unknown, setInterval?: unknown, clearInterval?: unknown }} */
 const env = globalThis;
 const REAL_FETCH = env.fetch;
 
@@ -58,6 +70,7 @@ let dispose;
 afterEach(() => {
   if (dispose) dispose();
   dispose = undefined;
+  loggedOut.value = false;
   env.fetch = REAL_FETCH;
 });
 
@@ -187,4 +200,213 @@ test("test_the_panel_stays_open_on_the_saves_own_200", async () => {
   form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember: true };
   await submitConnection();
   assert.equal(setupOpen.value, true);
+});
+
+// --- the logged-out state ---------------------------------------------------
+
+const INTERVAL = 2000;
+
+/** @typedef {{ ms: number, fn: () => unknown }} Registration */
+/** @type {Registration[]} */
+const intervals = [];
+env.setInterval = (/** @type {() => unknown} */ fn, /** @type {number} */ ms) => {
+  intervals.push({ ms, fn });
+  return intervals.length;
+};
+env.clearInterval = () => {};
+
+/** @typedef {{ ok: boolean, status: number, json: () => Promise<unknown> }} Answer */
+
+/** The gate's 401 as the wire carries it: the sentence and the code beside it. */
+/** @param {string} code @returns {Answer} */
+const refused = (code) => ({ ok: false, status: 401, json: async () => ({ detail: "a sentence", code }) });
+
+/** What each case wants the wire to say to `POST /api/login`. */
+/** @type {Answer} */
+let loginAnswer = ok({});
+/** @type {string[]} */
+const requested = [];
+/** @type {Record<string, unknown>[]} */
+const logins = [];
+
+/** The health frame the daemon serves, over a reachable and ready engine. */
+const REACHABLE = {
+  reachable: true,
+  ready: true,
+  credentials_ok: true,
+  alarm: false,
+  unreachable_since: null,
+  info: {},
+};
+
+/** The wire for the logged-out cases: health, the login, and an empty 200 for the rest. */
+function loginWire() {
+  env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
+    requested.push(`${opts.method || "GET"} ${path}`);
+    if (path === "/api/health") return ok(REACHABLE);
+    if (path === "/api/login") {
+      logins.push(JSON.parse(String(opts.body)));
+      return loginAnswer;
+    }
+    return ok({});
+  };
+}
+
+const settle = async () => {
+  for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => setImmediate(resolve));
+};
+
+loginWire();
+startPolling(INTERVAL);
+await settle();
+
+/** A page with the panel closed and a username typed, over a fresh login wire. */
+function loginPage() {
+  start();
+  loggedOut.value = false;
+  verdict.value = null;
+  form.value = { host: "", username: "tuner", password: "", remember: false, hasPassword: false };
+  loginAnswer = ok({});
+  requested.length = 0;
+  logins.length = 0;
+  loginWire();
+}
+
+/**
+ * Drive one tick of the lane at `ms` over a reachable, ready daemon, and answer with the paths it
+ * asked the wire for, deduplicated and sorted.
+ *
+ * @param {number} ms
+ * @returns {Promise<string[]>}
+ */
+async function tick(ms) {
+  health.value = { ...REACHABLE };
+  await settle();
+  const reg = intervals.filter((entry) => entry.ms === ms).at(-1);
+  if (reg === undefined) throw new Error(`no interval registered at ${ms} ms`);
+  requested.length = 0;
+  await reg.fn();
+  await settle();
+  return [...new Set(requested.map((r) => r.replace(/^GET /, "")))].sort();
+}
+
+/** Make one gated request that the wire refuses with `code`, and let it land. @param {string} code */
+async function refusedWith(code) {
+  const saved = env.fetch;
+  env.fetch = async () => refused(code);
+  await api.volume().catch(() => {});
+  env.fetch = saved;
+}
+
+// --- what puts the page at the login screen ---------------------------------
+
+test("test_a_request_refused_for_want_of_a_login_leaves_the_page_logged_out", async () => {
+  loginPage();
+  await refusedWith("login_required");
+  assert.equal(loggedOut.value, true);
+});
+
+test("test_a_request_refused_for_want_of_a_login_opens_the_panel", async () => {
+  loginPage();
+  await refusedWith("login_required");
+  assert.equal(setupOpen.value, true);
+});
+
+test("test_a_401_that_is_not_the_logins_leaves_the_page_logged_in", async () => {
+  loginPage();
+  await refusedWith("login_refused");
+  assert.equal(loggedOut.value, false);
+});
+
+// --- what the timers ask for while it sits there ----------------------------
+
+test("test_the_fast_tick_asks_only_for_health_while_logged_out", async () => {
+  loginPage();
+  loggedOut.value = true;
+  assert.deepEqual(await tick(INTERVAL), ["/api/health"]);
+});
+
+test("test_the_config_tick_asks_for_nothing_while_logged_out", async () => {
+  loginPage();
+  loggedOut.value = true;
+  assert.deepEqual(await tick(INTERVAL * 2), []);
+});
+
+test("test_the_fast_tick_asks_beyond_health_while_logged_in", async () => {
+  loginPage();
+  assert.notDeepEqual(await tick(INTERVAL), ["/api/health"]);
+});
+
+// --- what Save sends while logged out ---------------------------------------
+
+test("test_save_while_logged_out_sends_the_login_with_a_blank_password", async () => {
+  loginPage();
+  loggedOut.value = true;
+  await submitConnection(true);
+  assert.equal(logins[0]?.password, "");
+});
+
+test("test_save_while_logged_out_names_no_host_the_user_did_not_type", async () => {
+  loginPage();
+  loggedOut.value = true;
+  await submitConnection(true);
+  assert.deepEqual(
+    logins.map((l) => Object.hasOwn(l, "host")),
+    [false],
+  );
+});
+
+test("test_save_while_logged_out_sends_the_host_the_user_typed", async () => {
+  loginPage();
+  loggedOut.value = true;
+  form.value = { ...form.value, host: " 10.0.0.9 " };
+  await submitConnection(true);
+  assert.equal(logins[0]?.host, "10.0.0.9");
+});
+
+test("test_save_while_logged_out_never_saves_the_connection", async () => {
+  loginPage();
+  loggedOut.value = true;
+  form.value = { ...form.value, host: "10.0.0.9" };
+  await submitConnection(true);
+  assert.equal(requested.includes("POST /api/connection"), false);
+});
+
+test("test_save_while_logged_in_sends_no_login", async () => {
+  loginPage();
+  form.value = { ...form.value, host: "10.0.0.9" };
+  await submitConnection(true);
+  assert.equal(requested.includes("POST /api/login"), false);
+});
+
+// --- what the answer to the login does --------------------------------------
+
+test("test_a_login_the_backend_accepts_leaves_the_logged_out_state", async () => {
+  loginPage();
+  loggedOut.value = true;
+  await submitConnection(true);
+  assert.equal(loggedOut.value, false);
+});
+
+const REFUSALS = [
+  { code: "login_refused", verdict: "refused" },
+  { code: "login_not_answered", verdict: "not-answered" },
+];
+
+for (const r of REFUSALS) {
+  test(`test_a_login_refused_with_${r.code}_sets_the_${r.verdict}_verdict`, async () => {
+    loginPage();
+    loggedOut.value = true;
+    loginAnswer = { ok: false, status: 401, json: async () => ({ detail: "a sentence", code: r.code }) };
+    await submitConnection(true);
+    assert.equal(verdict.value, r.verdict);
+  });
+}
+
+test("test_a_refused_login_leaves_the_page_logged_out", async () => {
+  loginPage();
+  loggedOut.value = true;
+  loginAnswer = refused("login_refused");
+  await submitConnection(true);
+  assert.equal(loggedOut.value, true);
 });

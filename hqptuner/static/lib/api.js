@@ -120,6 +120,22 @@ class ApiFailure extends Error {
   }
 }
 
+// The code the backend's login gate answers 401 with when a request carries no
+// valid login. A 401 without it is some other refusal and says nothing about the
+// browser's login.
+const LOGIN_REQUIRED = "login_required";
+
+let loginRequired = () => {};
+
+/**
+ * Name what to do whenever a request is refused for want of a login.
+ *
+ * @param {() => void} handler
+ */
+export function onLoginRequired(handler) {
+  loginRequired = handler;
+}
+
 /**
  * @param {string} path
  * @param {Response} r
@@ -135,6 +151,7 @@ async function failure(path, r) {
   } catch {
     detail = "";
   }
+  if (r.status === 401 && code === LOGIN_REQUIRED) loginRequired();
   return new ApiFailure(detail || unexplained(path, r.status), r.status, code, detail !== "");
 }
 
@@ -225,6 +242,9 @@ export const api = {
   // password, only whether one is held; the write saves before it verifies, so
   // its 200 says the record landed and nothing about what the daemon makes of it.
   connection: () => getJSON("/api/connection"),
+  // The login: the typed pair is checked against hqplayerd itself, and a 200 sets the
+  // browser's login cookie. The password is always in the body, blank included.
+  login: (/** @type {unknown} */ body) => send("/api/login", "POST", body),
   saveConnection: (/** @type {unknown} */ body) => send("/api/connection", "POST", body),
   // Which hqplayerds answer discovery. On demand only: the call waits on the
   // daemons for `discovery_timeout`, plus one `request_timeout` where nobody

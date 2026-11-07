@@ -6,6 +6,7 @@ import { effect } from "@preact/signals";
 import { api } from "../lib/api.js";
 import { lastApply } from "./actions.js";
 import { fastPollMs } from "./ui/ui.js";
+import { loggedOut } from "./setup.js";
 import {
   health,
   engineState,
@@ -72,6 +73,9 @@ export async function refreshHealth() {
 
 async function refreshFast() {
   await refreshHealth();
+  // Health is open to a browser with no login and everything below is not, so a page at the
+  // login screen reads health only: asking for the rest would draw a refusal every poll.
+  if (loggedOut.value) return;
   // The health read above is never gated, and it is the only one on this timer, so it is
   // what un-gates everything below on the first reading that comes back reachable. The
   // three that follow are the control lane's loaded snapshot: a daemon that is not
@@ -138,6 +142,6 @@ export function startPolling(interval = 2000) {
   // for whether that lane answers (api/routes/status.py). The gate is written here rather
   // than inside `refreshConfig`, which the write paths call directly and must keep.
   setInterval(() => {
-    if (health.value && health.value.ready) refreshConfig();
+    if (health.value && health.value.ready && !loggedOut.value) refreshConfig();
   }, interval * 2);
 }
