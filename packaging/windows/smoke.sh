@@ -159,6 +159,43 @@ tray_registered() {
   printf '%s\n' "$1" | awk -F'\t' '$2 ~ /SystemTrayIcon$/ && $4 == "0x00000000" { found = 1 } END { exit !found }'
 }
 
+# Evidence only, never a verdict: every subkey of HKCU\Control Panel\NotifyIconSettings
+# whose ExecutablePath is the full path of the executable $1, compared without
+# case, with that subkey's IsPromoted value, or a line saying none matched. The
+# registry is only read. The script travels in a file and the path in the
+# environment, as in app_windows.
+notify_icon_settings() {
+  local script="$WORK/notify-icon-settings.ps1"
+  if [ ! -s "$script" ]; then
+    cat > "$script" <<'POWERSHELL'
+$ErrorActionPreference = "Stop"
+$exe = [IO.Path]::GetFullPath($env:SMOKE_EXE)
+"notify-icon-settings: executable $exe"
+$root = "Registry::HKEY_CURRENT_USER\Control Panel\NotifyIconSettings"
+$seen = 0
+$hits = 0
+if (Test-Path -LiteralPath $root) {
+  foreach ($key in Get-ChildItem -LiteralPath $root) {
+    $seen++
+    $path = [string]$key.GetValue("ExecutablePath")
+    if (-not $path) { continue }
+    $full = $path
+    try { $full = [IO.Path]::GetFullPath($path) } catch { }
+    if ($full -ieq $exe -or $path -ieq $exe) {
+      $hits++
+      $promoted = $key.GetValue("IsPromoted")
+      if ($null -eq $promoted) { $promoted = "(absent)" }
+      "notify-icon-settings: subkey $($key.PSChildName) IsPromoted=$promoted"
+    }
+  }
+}
+if ($hits -eq 0) { "notify-icon-settings: no subkey matched ($seen subkeys examined)" }
+POWERSHELL
+  fi
+  SMOKE_EXE="$(cygpath -w -l "$1")" SMOKE_SCRIPT="$(cygpath -w "$script")" powershell -NoProfile -Command \
+    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' | tr -d '\r'
+}
+
 # Every running process as one "<Windows PID><TAB><image>" line, from Git Bash's
 # ps -W, which is much quicker than WMI. The columns are fixed width and a status
 # letter may lead a line, so WINPID and COMMAND are cut at the header's column
@@ -328,6 +365,8 @@ visible_windows() {
 # The app must stay alive for 5 s, show no visible top-level window, and hold a
 # tray icon of its own. check_upgraded and the broken-tray control both call it,
 # so they cannot drift.
+# It also prints the app's NotifyIconSettings entries to stderr; they are evidence
+# and never change its result.
 judge_upgraded() {
   local report visible
   for _ in $(seq 1 5); do
@@ -337,6 +376,7 @@ judge_upgraded() {
     fi
     sleep 1
   done
+  notify_icon_settings "$UPGRADE_APP/HQPTuner.exe" >&2 || echo "notify-icon-settings: the registry query failed" >&2
   report=$(app_windows "$1") || { echo "the window report for the upgraded app failed"; return 1; }
   echo "judgment: windows of PID $1 (handle, class, visible, tray query, title):" >&2
   printf '%s\n' "$report" >&2
