@@ -4,7 +4,7 @@ import logging
 
 from fastapi import FastAPI
 
-from hqptuner.api import errors
+from hqptuner.api import errors, login
 from hqptuner.api.lifespan import make_lifespan
 from hqptuner.api.routes import (
     apply,
@@ -26,9 +26,10 @@ from hqptuner.api.routes.audit import audit_router
 from hqptuner.api.routes.matrix import matrix, matrixmodes
 from hqptuner.api.routes.pending import PendingStore
 from hqptuner.api.spa import mount_spa
-from hqptuner.config import Config
+from hqptuner.config import LOGIN_KEY_FILE, Config
 from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.core.login import LoginSecret
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
@@ -68,6 +69,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     app.state.config = cfg
     app.state.static = static
     app.state.connections = connections
+    app.state.login_secret = LoginSecret(cfg.connection_file.with_name(LOGIN_KEY_FILE))
     app.state.pending = PendingStore()
     app.state.audit = manager.audit
     if manager.audit.enabled:
@@ -99,6 +101,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     app.include_router(autopilot.router)
     app.include_router(discovery.router)
     app.include_router(connection.router)
+    app.include_router(login.router)
     app.include_router(meter.router)
     mount_spa(app, cfg)
     return app

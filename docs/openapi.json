@@ -1790,6 +1790,39 @@
         "title": "LogTail",
         "type": "object"
       },
+      "LoginBody": {
+        "description": "One login for ``POST /api/login``.\n\n``remember`` true is the \"save password\" choice: the cookie outlasts the browser session. An omitted username or\npassword is blank, never the one HQPTuner holds. ``host`` names the daemon to check against; omitted, the host in\nforce.",
+        "properties": {
+          "host": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Host"
+          },
+          "password": {
+            "default": "",
+            "title": "Password",
+            "type": "string"
+          },
+          "remember": {
+            "default": false,
+            "title": "Remember",
+            "type": "boolean"
+          },
+          "username": {
+            "default": "",
+            "title": "Username",
+            "type": "string"
+          }
+        },
+        "title": "LoginBody",
+        "type": "object"
+      },
       "MatrixModeBody": {
         "description": "One preset's Matrix-tab mode for ``PUT /api/matrixmodes``.\n\nA sibling surface keeps its own body (``models`` is the main surface's). The mode is validated by the store rather\nthan by the type, so an unknown value answers 422 naming what is storable instead of a schema complaint.",
         "properties": {
@@ -4328,6 +4361,45 @@
           }
         },
         "summary": "Log Tail"
+      }
+    },
+    "/api/login": {
+      "post": {
+        "description": "Check the typed pair against hqplayerd and answer with a login cookie, or refuse with no cookie.\n\nAn accepted pair or host that is not the one in force is applied as a Connection-panel save applies it, carrying\nthe stored ``remember`` choice, never this login's.",
+        "operationId": "login_api_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionReport"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Login"
       }
     },
     "/api/matrix": {

@@ -16,9 +16,10 @@ import httpx
 from fastapi import APIRouter, Request
 from pydantic import BaseModel
 
-from hqptuner.api.deps import Mgr
+from hqptuner.api.deps import Mgr, config_of
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.forms import FormsOutcome
 
 router = APIRouter(prefix="/api")
@@ -39,14 +40,10 @@ class ConnectionBody(BaseModel):
     remember: bool | None = None
 
 
-def _store(request: Request) -> ConnectionStore:
+def store_of(request: Request) -> ConnectionStore:
+    """Return the app's connection store."""
     store: ConnectionStore = request.app.state.connections
     return store
-
-
-def _config(request: Request) -> Config:
-    cfg: Config = request.app.state.config
-    return cfg
 
 
 @dataclass(frozen=True)
@@ -66,7 +63,7 @@ class ConnectionWriteReport(ConnectionReport):
     lane: FormsOutcome
 
 
-def _answer(cfg: Config, *, remembered: bool) -> ConnectionReport:
+def connection_report(cfg: Config, *, remembered: bool) -> ConnectionReport:
     """Return the connection as a client may see it: where we dial, who we are, and whether a password is held.
 
     ``has_password`` is whether one was CHOSEN, not whether the field is filled: the field carries hqplayerd's
@@ -81,7 +78,7 @@ def _answer(cfg: Config, *, remembered: bool) -> ConnectionReport:
     )
 
 
-def _remembered(store: ConnectionStore) -> bool:
+def remembered(store: ConnectionStore) -> bool:
     """Whether the stored record asks for the password to be kept; nothing saved yet reads as no.
 
     No is the default because storing a password is the choice with the consequence, and an install that
@@ -91,33 +88,13 @@ def _remembered(store: ConnectionStore) -> bool:
     return False if record is None else record.remember
 
 
-@router.get("/connection")
-def read_connection(request: Request) -> ConnectionReport:
-    """Answer with the daemon address and username in force, and whether a password is held.
+async def apply_connection(
+    cfg: Config, store: ConnectionStore, manager: ConnectionManager, record: ConnectionRecord
+) -> FormsOutcome:
+    """Save ``record`` and move HQPTuner onto it without a restart; answer what the 8088 refresh said.
 
-    Never the password itself: this surface is reachable by anything that reaches HQPTuner's own port.
+    Shared by the Connection panel's save and by a login that brings a pair or host other than the one in force.
     """
-    return _answer(_config(request), remembered=_remembered(_store(request)))
-
-
-@router.post("/connection")
-async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> ConnectionWriteReport:
-    """Save the connection, then move HQPTuner onto it without a restart.
-
-    The record is saved whatever the daemon says: verifying first would mean refusing to record a host the user is
-    about to switch on, and a credential that cannot be saved while the daemon is down is a credential the user
-    cannot fix an outage with.
-    """
-    cfg = _config(request)
-    store = _store(request)
-    record = ConnectionRecord(
-        host=body.host if body.host is not None else cfg.hqp_host,
-        username=body.username if body.username is not None else cfg.hqp_username,
-        password=body.password if body.password is not None else cfg.hqp_password,
-        # Silence about the choice is not a request to change it: a client correcting the address alone
-        # would otherwise flip an install that asked to be asked every time into one that stores the pair.
-        remember=body.remember if body.remember is not None else _remembered(store),
-    )
     store.write(record)
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
@@ -138,7 +115,38 @@ async def write_connection(body: ConnectionBody, request: Request, manager: Mgr)
         with contextlib.suppress(httpx.HTTPError, OSError, TimeoutError):
             lane = await manager.refresh_http_forms()
     manager.audit.connection_set(cfg.hqp_host, cfg.hqp_username, remember=record.remember)
-    answer = _answer(cfg, remembered=record.remember)
+    return lane
+
+
+@router.get("/connection")
+def read_connection(request: Request) -> ConnectionReport:
+    """Answer with the daemon address and username in force, and whether a password is held.
+
+    Never the password itself: this surface is reachable by anything that reaches HQPTuner's own port.
+    """
+    return connection_report(config_of(request), remembered=remembered(store_of(request)))
+
+
+@router.post("/connection")
+async def write_connection(body: ConnectionBody, request: Request, manager: Mgr) -> ConnectionWriteReport:
+    """Save the connection, then move HQPTuner onto it without a restart.
+
+    The record is saved whatever the daemon says: verifying first would mean refusing to record a host the user is
+    about to switch on, and a credential that cannot be saved while the daemon is down is a credential the user
+    cannot fix an outage with.
+    """
+    cfg = config_of(request)
+    store = store_of(request)
+    record = ConnectionRecord(
+        host=body.host if body.host is not None else cfg.hqp_host,
+        username=body.username if body.username is not None else cfg.hqp_username,
+        password=body.password if body.password is not None else cfg.hqp_password,
+        # Silence about the choice is not a request to change it: a client correcting the address alone
+        # would otherwise flip an install that asked to be asked every time into one that stores the pair.
+        remember=body.remember if body.remember is not None else remembered(store),
+    )
+    lane = await apply_connection(cfg, store, manager, record)
+    answer = connection_report(cfg, remembered=record.remember)
     return ConnectionWriteReport(
         host=answer.host,
         username=answer.username,

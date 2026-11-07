@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 # code -> HTTP status. Every code the API can answer with is here; the
 # vocabulary is documented for clients in docs/architecture.md "API errors".
 STATUS: dict[str, int] = {
+    "login_refused": 401,
+    "login_not_answered": 503,
     "no_credentials": 503,
     "no_http_client": 503,
     "backup_failed": 500,

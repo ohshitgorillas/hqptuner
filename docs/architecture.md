@@ -34,6 +34,8 @@ An install whose username or password is empty has no 8088 lane, so `ready` neve
 
 **A field's emptiness therefore does not say whether the install has been configured; `Config.hqp_password_chosen` does**: a password that is not the stock default. `GET /api/connection` reports it as `has_password`, so the connection panel can tell a stored credential from a defaulted one. A blank password field in that panel keeps whichever credential is in force and never clears one.
 
+**A browser logs in once, with the HQPlayer management pair, and the login is checked against hqplayerd.** `POST /api/login` (`hqptuner/api/login.py`) asks the daemon at the host the login names, or the host in force, whether the typed username and password are accepted (`hqptuner/conf/httpauth.py` `check_pair`, one Digest read of `/config`), and answers 401 `login_refused`, 503 `login_not_answered` or 200 with the login cookie. It fills no field from the pair HQPTuner holds: a blank password is checked as blank. The cookie is `HttpOnly`, `SameSite=Strict`, `Path=/` and not `Secure`, because every package serves plain HTTP. Its value is a token only HQPTuner can mint (`hqptuner/core/login.py`): an HMAC over the install's secret and a fingerprint of the username and password in force, with the login's kind, its issue time and a nonce. A change of username or password therefore ends every login made under the old pair. The choice "save password" (`remember` true) sets a cookie with an expiry of 30 days, which the server also enforces from the issue time inside the token; "log in every time" sets a session cookie, which the server refuses after 24 hours. The secret is random bytes held in memory and written beside the connection record only by a "save password" login, so that login survives a restart; a "log in every time" login writes no file. `remember` on a login decides that browser's cookie alone and never the stored connection record. A login whose pair or host differs from the one in force applies them as a Connection-panel save does.
+
 ## 3. Reading engine truth
 
 ### 3.1 The running engine is enumeration authority
@@ -241,6 +243,8 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 
 | code | status | meaning |
 |---|---|---|
+| `login_refused` | 401 | hqplayerd refused the username and password a login typed |
+| `login_not_answered` | 503 | hqplayerd did not answer the check a login asked of it |
 | `no_credentials` | 503 | app built without hqplayerd management credentials |
 | `no_http_client` | 503 | app built without HTTP management credentials for the 8088 config lane |
 | `backup_failed` | 500 | the settings backup taken before a destructive restore could not be written |
