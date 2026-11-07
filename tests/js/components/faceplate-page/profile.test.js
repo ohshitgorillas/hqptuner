@@ -66,14 +66,14 @@ let fields = {};
  * @param {Row[]} [rows]
  * @param {Record<string, { rows: Row[] }>} [stored]
  */
-function serve(live, active, rows = [], stored = {}) {
+async function serve(live, active, rows = [], stored = {}) {
   enums.value = { matrix_profiles: live };
   matrixConfig.value = { fields: [], file_profiles: stored };
   fields = {
     matrix_profile: profileReading(active),
     matrix_pipelines: fieldReading(rows, { show: "file", generation: 0, lane: "restore", restarts: true }),
   };
-  seedReadings(fields, 0);
+  await seedReadings(fields, 0);
 }
 
 /**
@@ -96,14 +96,14 @@ function answer(path, method, sent) {
   return ok({});
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   env.fetch = async (/** @type {string} */ path, /** @type {{ method?: string, body?: string }} */ opts = {}) => {
     const sent = opts.body ? JSON.parse(opts.body) : null;
     CALLS.push({ path, method: opts.method || "GET", body: sent });
     return answer(path, opts.method || "GET", sent);
   };
   config.value = { fields: [] };
-  serve(["Lounge"], "Lounge", [], { Desk: { rows: [] } });
+  await serve(["Lounge"], "Lounge", [], { Desk: { rows: [] } });
   descriptions.value = {};
   switchAnswer = undefined;
   body.value = "chain";
@@ -245,13 +245,16 @@ test("test_typing_in_the_well_then_leaving_it_writes_the_description", async () 
   );
 });
 
-test("test_rows_sharing_one_chain_draw_one_trace", () => {
+test("test_rows_sharing_one_chain_draw_one_trace", async () => {
   const eq = "iir:type=peak;f=1000;q=1;g=-3";
-  serve(["Lounge"], "Lounge", [row("0", eq), row("1", eq)]);
+  await serve(["Lounge"], "Lounge", [row("0", eq), row("1", eq)]);
   assert.equal(traces().length, 1);
 });
 
-test("test_rows_with_two_chains_draw_a_trace_each", () => {
-  serve(["Lounge"], "Lounge", [row("0", "iir:type=peak;f=1000;q=1;g=-3"), row("1", "iir:type=peak;f=200;q=1;g=4")]);
+test("test_rows_with_two_chains_draw_a_trace_each", async () => {
+  await serve(["Lounge"], "Lounge", [
+    row("0", "iir:type=peak;f=1000;q=1;g=-3"),
+    row("1", "iir:type=peak;f=200;q=1;g=4"),
+  ]);
   assert.equal(traces().length, 2);
 });

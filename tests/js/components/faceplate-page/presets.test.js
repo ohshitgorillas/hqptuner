@@ -295,7 +295,7 @@ const drawingOf = (mark) =>
 async function listMark(name) {
   const before = openList.value;
   resetLists();
-  loadLists();
+  await loadLists();
   openList.value = { key: LIST_KEY, stage: "1x", value: name, pick: () => undefined };
   const row = elements(render(html`<${OptionList} />`)).find(
     (e) => attr(e, "role") === "option" && attr(e, "data-v") === name,
