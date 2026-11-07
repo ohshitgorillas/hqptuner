@@ -83,6 +83,9 @@ class Store(NamedTuple):
     what: str
 
 
+# The file beside the connection record that holds the login secret once a login has asked to stay logged in. Not a
+# store in STORES: a state export would ship it, and it is a credential of this install alone.
+LOGIN_KEY_FILE = "login-secret.key"
 CONNECTION_STORE = Store("connection_file", "connection.json", is_dir=False, what="the connection")
 BACKUP_STORE = Store("backup_dir", "backups", is_dir=True, what="backups")
 PRESET_STORE = Store("preset_dir", "presets", is_dir=True, what="presets")
