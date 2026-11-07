@@ -10,6 +10,9 @@
 # app was quit first or left running; when it was left running, none of it may
 # remain once the installer returns. After either, the uninstaller must leave no
 # install directory.
+# The tray judgment runs on a desktop that has finished first logon: before the
+# upgrade, any WWAHost.exe the runner left running (the first-logon privacy
+# screen of the Arm64 image) is stopped by PID, and the taskbar must exist.
 # An upgraded app whose bundled tray image is missing must fail that same check:
 # a control starts one and requires the rejection to name the error dialog.
 # Given a bundle directory instead, run the app from it with no install around it.
@@ -145,6 +148,67 @@ POWERSHELL
     'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' | tr -d '\r') || return 1
   printf '%s\n' "$out" | tail -n 1 | grep -qx end || { printf '%s\n' "$out" >&2; return 1; }
   printf '%s\n' "$out"
+}
+
+# The handle of the runner's taskbar, the top-level window of class
+# Shell_TrayWnd, as hex, or "none" when there is no such window. A last line
+# "end" proves the whole script ran. The query only reads. It travels in a file
+# for the reasons app_windows gives.
+taskbar_window() {
+  local script="$WORK/taskbar-window.ps1" out
+  if [ ! -s "$script" ]; then
+    cat > "$script" <<'POWERSHELL'
+$ErrorActionPreference = "Stop"
+Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class SmokeTaskbar {
+  [DllImport("user32.dll", CharSet = CharSet.Unicode)] static extern IntPtr FindWindowW(string cls, string title);
+  public static string Handle() {
+    IntPtr h = FindWindowW("Shell_TrayWnd", null);
+    return h == IntPtr.Zero ? "none" : h.ToInt64().ToString("X");
+  }
+}
+'@
+[SmokeTaskbar]::Handle()
+"end"
+POWERSHELL
+  fi
+  out=$(SMOKE_SCRIPT="$(cygpath -w "$script")" powershell -NoProfile -Command \
+    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' | tr -d '\r') || return 1
+  printf '%s\n' "$out" | tail -n 1 | grep -qx end || { printf '%s\n' "$out" >&2; return 1; }
+  printf '%s\n' "$out" | sed -n 1p
+}
+
+# The Windows PIDs of every running WWAHost.exe, whether or not it owns a window.
+wwahost_pids() {
+  windows_processes | awk -F'\t' '{ n = split($2, part, /[\\\/]/); if (tolower(part[n]) ~ /^wwahost(\.exe)?$/) print $1 }'
+}
+
+# Bring the runner's desktop to a finished first logon before the tray is
+# judged. The Arm64 image starts jobs while WWAHost.exe, its first-logon privacy
+# screen, is still running. Each WWAHost.exe is stopped by PID and given 10 s to
+# go; Explorer is not restarted and no other image is stopped. Where none runs,
+# nothing is stopped and there is no wait. Then
+# no WWAHost.exe may remain and the taskbar must exist, or the row fails here,
+# naming the runner's desktop, so a red tray judgment later means the app failed.
+settle_desktop() {
+  local pids pid taskbar
+  pids=$(wwahost_pids)
+  if [ -n "$pids" ]; then
+    for pid in $pids; do
+      echo "step 8 (runner desktop): stopping WWAHost.exe, PID $pid"
+      stop_windows_pid "$pid"
+    done
+    sleep 10
+    pids=$(wwahost_pids)
+    [ -z "$pids" ] || die "step 8 (runner desktop): WWAHost.exe still running 10 s after stop, PID $(printf '%s ' $pids)"
+  else
+    echo "step 8 (runner desktop): no WWAHost.exe running, nothing stopped"
+  fi
+  taskbar=$(taskbar_window) || die "step 8 (runner desktop): the taskbar query failed"
+  [ "$taskbar" != none ] || die "step 8 (runner desktop): the runner's desktop has no taskbar (no Shell_TrayWnd window)"
+  echo "step 8 (runner desktop): taskbar window 0x$taskbar, no WWAHost.exe running"
 }
 
 # The query result for the first visible window titled $2 in the report $1, empty
@@ -621,6 +685,7 @@ fi
 
 # ---- 8. upgrade over the previous release, unless the target is a bundle ----
 if [ ! -d "$TARGET" ]; then
+  settle_desktop
   upgrade_quit
   upgrade_running
 fi
