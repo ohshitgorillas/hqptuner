@@ -1,27 +1,43 @@
-Phase 4 plan 1, Task 1: make check measured on rebuild/integrate
+Phase 4 plan 1, Tasks 1 and 3: make check measured on rebuild/integrate
 
-Command (run in /home/atom/dev/hqptuner2/.claude/worktrees/integrate):
-  PYTHONPATH=$(pwd) nice -n 19 scripts/gate.sh make check
-Integrate commit: fe97fb16e367ba7b5b211053bf20aceb6617c46c (rebuild/integrate, unchanged by the run)
-Result: exit=2 log=/tmp/gate-make-gdYbBNgJ.log
-Gate-wrapper failure line: 1330:make: *** [Makefile:114: test] Error 1
+Final run (the AC1 evidence)
+  Command (run in /home/atom/dev/hqptuner2/.claude/worktrees/integrate):
+    PYTHONPATH=$(pwd) nice -n 19 scripts/gate.sh make check
+  Integrate commit: fe97fb16e367ba7b5b211053bf20aceb6617c46c (rebuild/integrate, unchanged by the run)
+  Result: exit=0 log=/tmp/gate-make-NzJYWMzN.log
+  Footprint named before the run: pytest-offline on one full core for about 40 s, then test-js with up to 17 node test processes; both under nice -n 19; load average 4.4 before.
 
-Result of the Python half (the `lint`, `lint-js` and `test` targets, in the order make ran them):
-- lint: every gate passed (ruff, black, xenon, vulture, mypy, lint-imports, test-assertion gates, check_spelling.py, check_doc_refs.py, check_docs.py, triviajudge-archaeology, check_changelog.py, check_gates_wired.py, check_config_copies.py, check_openapi.py, filepawl check, jscpd).
-- lint-js: eslint, prettier, tsc (both projects), knip and the css gates (tokens, cards, classes, dead) passed.
-- test: pytest-offline "3672 passed, 143 deselected, 2 warnings in 42.99s"; check_fresh_reports.py ok; check_coverage_floor.py "[ok] all 124 files cover at least 90%"; TOTAL 96% lines-and-branches line of the pytest-cov table.
-- Failing gate: scripts/gates/testing/check_suite_time.py (the suite-time gate). Shortest decisive lines:
-    suite wall time 43.0s less 0.0s waiting for a CPU
-    suite 42.9s, bar 37.0s: +5.9s, escalate to owner (--accept)
-  The bar is /home/atom/dev/hqptuner/.suite-time.rebuild--integrate.json, {"seconds": 37.01230176}, last written Oct 27 22:28. The gate's own bands: ESCALATE 5.0 s (owner accept needed), REJECT 10.0 s (refused even with accept). The run is 5.9 s over the bar, inside the escalate band.
-  The record file was not edited, deleted or accepted. No --accept was run.
+  Python half
+    pytest-offline: "3672 passed, 143 deselected, 2 warnings in 40.69s"
+    check_coverage_floor.py: "[ok] all 124 files cover at least 90%"
+    check_suite_time.py: "suite wall time 40.6s less 0.0s waiting for a CPU" / "[ok] suite 40.6s, bar 37.0s (+3.6s)"
+    check_idle.py and check_clock_waits.py printed no failure.
+    Every lint and lint-js gate passed.
 
-JS half (`test-js`): NOT RUN. make stops at the first failing target, and `test` precedes `test-js` in `check: lint lint-js test test-js`. There is no node test summary (# tests, # pass, # fail), no `# all files` coverage row, no coverage gap and no per-file uncovered-range list from this run.
+  JS half (test-js, no failing gate)
+    # tests 4880
+    # pass 4880
+    # fail 0
+    # all files                       |  97.18 |    91.74 |   90.98 |
+    Thresholds lines 95 / branches 90 / functions 85: all three met. No gap, so there is no per-file shortfall list.
 
-Whether a coverage shortfall with every test passing makes `make test-js` exit non-zero (first flagged assumption in CONTEXT): not settled by this run, because test-js never started.
+  Task 2 (close the JS coverage shortfall): not run. No metric sat under its threshold, so no test was added and integrate carries no commit beyond fe97fb16.
+  Task 3: Task 1's run at the unchanged HEAD is the AC1 evidence; no further make check was run.
 
-Cause of the +5.9 s: unverified. Evidence on hand: my own action (a `make check` under `nice -n 19`) is the first candidate. The gate itself reports 0.0 s waiting for a CPU, which argues the suite did not lose time queuing for cores, but it does not prove the cause. Host load average was about 7 before the run and 11 after it, from other sessions. The Phase 1 note estimated "about 39 s"; this run was 43.0 s. Confidence in any cause: low.
+  Whether a coverage shortfall with every test passing makes `make test-js` exit non-zero (first flagged assumption in CONTEXT): not settled. Integrate has no shortfall, so the case never occurred.
 
-Worktree state after the run (git -C .claude/worktrees/integrate status --short): "?? .planning/reads.jsonl" and "?? uv.lock" only.
+  Record files: .suite-time.rebuild--integrate.json still reads {"seconds": 37.01230176} (Oct 27 22:28), not edited and not accepted. The gate rewrote .idle-last.rebuild--integrate.json as designed (D-06); no one touched it by hand.
+  Worktree state after the run (git -C .claude/worktrees/integrate status --short): "?? .planning/reads.jsonl" and "?? uv.lock" only.
 
-Halt: per Task 1, a gate other than the test-js coverage thresholds failed, so this plan stops after Task 1. Tasks 2 and 3 were not run. Decision needed from the owner: accept the 42.9 s run as the integrate bar (check_suite_time.py --accept, an owner action on a gate record file), or find why the suite is 5.9 s over the 37.0 s bar and rerun.
+Earlier run, same command, same commit (superseded, kept as history)
+  Result: exit=2 log=/tmp/gate-make-gdYbBNgJ.log
+  Failing gate: check_suite_time.py, "suite 42.9s, bar 37.0s: +5.9s, escalate to owner (--accept)". test-js did not run (make stops at `test`).
+  Lint, lint-js and the Python tests passed in that run too (3672 passed in 42.99s).
+
+Suite-time measurement by the orchestrator (owner declined a higher bar)
+  Each run `PYTHONPATH=$(pwd) nice -n 19 scripts/gate.sh make pytest-offline`, junit <testsuite time>, sequential, same session:
+    integrate fe97fb16:  40.675 s (3672 tests)
+    bar commit ce33247a: 37.170 s (2644 tests)
+    integrate fe97fb16:  40.696 s
+  Reading: the bar reproduces today. Integrate's +3.7 s is the 1028 tests added since the bar and sits inside the gate's 5.0 s escalate band. The first run's 42.9 s carried about 2.3 s of unexplained run-to-run variance; its cause is unverified. The bar stays at 37.01 s, and --accept was never run.
+  The final run above measured 40.6 s (+3.6 s), consistent with those figures.
