@@ -1,0 +1,35 @@
+{
+  "phase": "3",
+  "trigger": "plan",
+  "discriminator": "plan-462428b",
+  "round": 1,
+  "base": "25356a22",
+  "head": "462428b0",
+  "base_id": "25356a22c95ef6343b30165393aff0e28c8cad24",
+  "head_id": "462428b0098f02c7e820c1f3244e178a331b7fc9",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN-4.md",
+      "line": 47,
+      "severity": "medium",
+      "claim": "Task 2 says to stop every `StartMenuExperienceHost.exe` that owns a 'visible top-level window' and then require that no such window remains. Task 2 and Task 3 also expect x64 to stop nothing. Those two cannot both hold, because the plan's notion of visible (IsWindowVisible, as `app_windows` uses it) does not exclude DWM-cloaked UWP windows. On an ordinary desktop, the Start host's CoreWindow counts as visible even when the Start menu is closed. Task 1's x64 reference condition (line 42) even leaves StartMenuExperienceHost out of its 'no first-logon window' check.",
+      "failure_scenario": "x64 `windows-latest` row with a normal finished-logon desktop: the Start host's cloaked 'Start' CoreWindow reports IsWindowVisible=1. The readiness step taskkills it. Explorer may relaunch the host with the same window, so 'no such window remains' never holds and the row dies with the runner-desktop message. If the host does not come back, x64 shows a stop, which breaks Task 3's 'stopping ... nothing on x64' expectation and stops the plan. The same gap weakens Task 1's arm64 ESTABLISHED test: 'at least one visible window owned by one of the three first-logon images' can be met by the Start host alone, which x64 has as well. That condition then no longer separates the arm64 first-logon state from a normal desktop.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "462428b0",
+      "base_id": "25356a22c95ef6343b30165393aff0e28c8cad24",
+      "head_id": "462428b0098f02c7e820c1f3244e178a331b7fc9"
+    }
+  ]
+}
