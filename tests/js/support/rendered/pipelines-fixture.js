@@ -28,7 +28,7 @@ const fromFile = (value) => fieldReading(value, { show: "file" });
 export async function loadPipelines(rows, engaged = true) {
   config.value = { fields: [{ name: "channels", type: "number" }] };
   matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
-  seedReadings({
+  await seedReadings({
     channels: fromFile(2),
     matrix_pipelines: fieldReading(JSON.stringify(rows), { show: "file", restarts: true }),
     matrix_enabled: fromFile(engaged ? "1" : "0"),

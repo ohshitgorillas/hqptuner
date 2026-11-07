@@ -47,7 +47,7 @@ export async function loadVolumeRange(r = {}) {
     loudness_range_low: "-45",
     loudness_range_high: "-15",
   };
-  seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
+  await seedReadings(Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value)])));
   volume.value = "-12.5";
   volumeDrag.value = null;
   volumeRange.value = s.report;

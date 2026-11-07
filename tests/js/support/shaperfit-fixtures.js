@@ -178,7 +178,7 @@ export async function reset(scenario = {}) {
     ],
   };
   await discardAll();
-  seedReadings({
+  await seedReadings({
     mode: fieldReading(FILE_MODE[mode], {
       show: "file",
       lane: "restore",

@@ -74,7 +74,7 @@ export async function trees({ fields = [], file = {}, matrix = [], engine = {} }
   matrixConfig.value = { fields: matrix.map(({ name }) => ({ name })) };
   route();
   await discardAll();
-  seedReadings({
+  await seedReadings({
     ...Object.fromEntries(Object.entries(file).map(([name, value]) => [name, fromFile(value)])),
     ...Object.fromEntries(fields.map(({ name, value }) => [name, fromFile(value)])),
     ...Object.fromEntries(matrix.map(({ name, value }) => [`matrix_${name}`, fromFile(value)])),
