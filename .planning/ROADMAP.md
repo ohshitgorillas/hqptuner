@@ -9,6 +9,12 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [x] **Phase 1: Coverage gate in CI** - CI enforces the accepted testing policy and the suite meets it
 - [x] **Phase 2: Windows network access** - a fresh Windows install is reachable from other devices
 - [x] **Phase 3: Windows upgrade install** - installing over an existing version leaves a working app
+- [ ] **Phase 4: API exposure and authentication** - the API answers only callers it should, from the networks it should
+- [ ] **Phase 5: Connection host and stored credential** - the stored daemon credential reaches only the daemon the user chose
+- [ ] **Phase 6: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
+- [ ] **Phase 7: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
+- [ ] **Phase 8: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
+- [ ] **Phase 9: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
 
 ## Phase Details
 
@@ -54,3 +60,94 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 1. Installing the new installer over an installed v1.20.1, then launching, shows the tray icon and no "Unhandled exception in script" dialog.
 2. After that upgrade, the app answers `/api/health` at the machine's non-loopback address.
 3. `smoke-windows` installs the previous release, installs the new build over it, and fails when the upgraded app does not start.
+
+Phases 4 to 9 remediate findings F-001 to F-048 of the independent security review of v1.20.1 (reviewed commit `a942cfca`, dated 2026-11-06). Each phase owns the findings its goal lists.
+
+### Phase 4: API exposure and authentication
+
+**Goal:** Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 1
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+3. Each fixed finding has a test or check that fails against the pre-fix code.
+4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 5: Connection host and stored credential
+
+**Goal:** Findings F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 4
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+3. Each fixed finding has a test or check that fails against the pre-fix code.
+4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 6: Config write path and input validation
+
+**Goal:** Findings F-006, F-007, F-010, F-011, F-012, F-013, F-014, F-016, F-018, F-019, F-026, F-032 and F-033 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 4
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+3. Each fixed finding has a test or check that fails against the pre-fix code.
+4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 7: Apply and store integrity
+
+**Goal:** Findings F-029, F-030 and F-031 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 6
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Each fixed finding has a test or check that fails against the pre-fix code.
+3. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 8: Release pipeline supply chain
+
+**Goal:** Findings F-034, F-035, F-036, F-037, F-038, F-039, F-040, F-041 and F-042 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 1
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Every Critical and High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+3. Each fixed finding has a test or check that fails against the pre-fix code.
+4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 9: Agent tooling and repo guards
+
+**Goal:** Findings F-043, F-044, F-045, F-046, F-047 and F-048 are each fixed or carry an owner ruling
+
+**Depends on:** Phase 1
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. Each of this phase's findings has a recorded disposition: fixed, naming the commit, or declined or deferred, quoting the owner's ruling.
+2. Every High finding in this phase is fixed, or declined or deferred only by an owner ruling.
+3. Each fixed finding has a test or check that fails against the pre-fix code.
+4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
