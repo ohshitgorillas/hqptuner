@@ -1,0 +1,89 @@
+{
+  "status": "delivered",
+  "score": "7/7",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "No retired shape left under tests/js: no fileTruth, no /api/config or config-push fake with a data key, no profiles/device_caps key in a config.value fixture, no live_profiles/live_active key in a matrixConfig.value fixture, no readings.value = write",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "Worktree HEAD fe97fb16, no tracked changes. grep -rn fileTruth tests/js: rc=1. grep -rnE 'api/config.*data *:' tests/js: rc=1; grep -A3 '\"/api/config\"' finds data keys only on /api/matrix and /api/enumerations fakes (kept, D-03). grep -rnE 'readings\\.value *= *[^=]' tests/js: rc=1. Bracket-matching scan of every config.value= / matrixConfig.value= right-hand side (/tmp/verif-p3-scan.mjs): no profiles, device_caps, live_profiles or live_active key; the named trees (configTree, FORM, configPayload in support/easy/easyrate.js:66) carry fields only; the profiles: hits in builder suites (components/faceplate-builders/profile.test.js:136, store/faceplate-builders/profile.test.js:227, profile-steps.test.js:189) sit in seedReadings bodies. The 7 live_ hits in store/presets/profiles.test.js are reset() arguments; support/profile-fixtures.js:47-67 routes live_profiles to enums.value and live_active to a seeded matrix_profile reading, never into matrixConfig.value. support/easy/easytiles.js:188 answers /api/config with ok(readings.value) (a read); support/wire/unreadwire.js:134 answers ok(READINGS())."
+    },
+    {
+      "n": 2,
+      "truth": "Config push excised at both ends; no test subscribes to or asserts on a config push event",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "hqptuner/static/store/sync.js:114-121 ROUTES = health, state, status, enumerations, matrix, pending (config entry and import removed in 71821ac7); hqptuner/api/push.py:63-72 sources() lists seven events, no Source(\"config\") (f00698e8). grep '\"config\"' over tests/js and tests/api: only optionsFor(\"config\", ...) in store/guards/sdm-hide-superseded.test.js:168 and a preset JSON key in tests/api/test_api_config_ops.py, neither a push event; tests/api/test_push_*.py events() calls name pending, health, state only. Test-name diff between the start log /tmp/gate-node-OgThOwIx.log (4883) and the exit log /tmp/gate-bash-5Yg9P7h5.log (4880) removes exactly test_a_changed_config_event_notifies_the_config_signal_once, test_an_identical_config_event_leaves_the_config_signal_unnotified and test_a_push_event_lands_in_its_signal: config. Spot-check: scripts/gate.sh node --test on store/live/mirror, store/live/polling (plus three more) exit=0, 57/57 (/tmp/gate-node-v4cNVc3k.log); scripts/gate.sh pytest tests/api/test_push_route.py tests/api/test_push_feed.py exit=0, 5 passed (/tmp/gate-pytest-YCjgLokl.log)."
+    },
+    {
+      "n": 3,
+      "truth": "Every port commit quotes a pre-edit gate run on its files printing exit=0",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "All 61 commits in e50d7316..fe97fb16 carry a first 'Pre-edit:' line containing exit=0 and an 'After:' line. Each Pre-edit log path exists on disk (61/61); every node log ends '# fail 0', the one pytest log (f00698e8, /tmp/gate-pytest-03hv7KGq.log) ends '8 passed'; every log mtime predates its commit's commit time."
+    },
+    {
+      "n": 4,
+      "truth": "No unaccounted assert-line change in the phase's commits",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "Independent diff of git diff -U0 e50d7316 fe97fb16 -- tests (/tmp/verif-p3-assert.mjs): every removed assert line is matched by an added line equal once 'await ' and parentheses are stripped, except the deleted config-push asserts (mirror.test.js secondEventMoves(\"config\", ...) x2; tests/api/test_push_config_reading.py 'assert FIRST_MINIMUM in _minimums_pushed(blocks)'). 56 await-only assert lines, all in 41b357fa (29) and 637923d3 (27), and each of those commits carries an 'Await-only assert lines:' list (41b357fa list read, 29 entries). Acorn AST check over 131 modified tests/js files (/tmp/verif-p3-multi.mjs): 0 changed lines inside the body of a multi-line assert call, old or new side."
+    },
+    {
+      "n": 5,
+      "truth": "D-07 whole JS suite prints exit=0 with zero failures in the integrate worktree after the last port",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "Saved output of the phase's one full-suite run, not re-run: /tmp/gate-bash-5Yg9P7h5.log (D-07 glob command per baseline/exit.txt) reads '# tests 4880', '# pass 4880', '# fail 0', '# canceled 0', 0 'not ok' lines; log mtime 1794013735 is after fe97fb16's commit time 1794013628 and the worktree has no tracked modifications. The 3-test drop from 4883 is exactly the three config-push tests (truth 2)."
+    },
+    {
+      "n": 6,
+      "truth": "tests/api green after the push excision",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "Saved log /tmp/gate-pytest-qfMy0Ben.log (scripts/gate.sh .venv/bin/pytest -m \"not live\" -q tests/api, per baseline/exit.txt): '340 passed, 1 warning in 11.95s', mtime after fe97fb16. Named re-run of the push route and feed files exit=0 (/tmp/gate-pytest-YCjgLokl.log)."
+    },
+    {
+      "n": 7,
+      "truth": "seedReadings loads readings through the production load path (no signal write), and every call is awaited",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "tests/js/support/readings.js:50-64 builds {generation, fields}, swaps globalThis.fetch for one call, calls refreshReadings and awaits it; value traced: hqptuner/static/store/core/readings.js:131-148 refreshReadings -> api.config() -> hqptuner/static/lib/api.js:213 getJSON -> :149-151 reach calls fetch synchronously before its first await, so the one-shot answer is consumed -> readings.js:146 readings.value = result.body. Carried by store/loudness-applied.test.js (passes in /tmp/gate-node-v4cNVc3k.log; commit fe97fb16 records it fails 9/9 with an empty fake body). grep for a seedReadings( call without await under tests/js: none."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "No retired shape left under tests/js",
+      "evidence": "fileTruth, /api/config data fake and readings.value= greps empty; bracket scan of every config.value/matrixConfig.value fixture finds no profiles, device_caps, live_profiles or live_active key; profile-fixtures.js:47-67 sends live_* to enums and a seeded reading."
+    },
+    {
+      "k": 2,
+      "name": "Config push excised at both ends",
+      "evidence": "sync.js:114-121 and push.py:63-72 carry no config route or source; no test names a config push event; start-to-exit test-name diff removes exactly the three config-push tests; mirror/polling and push_route/push_feed re-runs exit=0."
+    },
+    {
+      "k": 3,
+      "name": "Every port commit quotes a pre-edit exit=0 run",
+      "evidence": "61/61 commits in e50d7316..fe97fb16 have a 'Pre-edit:' exit=0 line; each cited log exists, shows zero failures and predates its commit."
+    },
+    {
+      "k": 4,
+      "name": "No unaccounted assert-line change",
+      "evidence": "Independent line diff plus AST check: only config-push assert deletions and 56 await-only lines, all listed under 'Await-only assert lines:' in 41b357fa and 637923d3; 0 inner multi-line assert changes."
+    },
+    {
+      "k": 5,
+      "name": "Whole JS suite green after last port",
+      "evidence": "/tmp/gate-bash-5Yg9P7h5.log: tests 4880, pass 4880, fail 0, written after fe97fb16 on a clean tracked tree."
+    },
+    {
+      "k": 6,
+      "name": "tests/api green after push excision",
+      "evidence": "/tmp/gate-pytest-qfMy0Ben.log: 340 passed, after fe97fb16; push files re-run exit=0."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}
