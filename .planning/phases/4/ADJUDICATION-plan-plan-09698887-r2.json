@@ -1,0 +1,20 @@
+{
+  "phase": "4",
+  "trigger": "plan",
+  "discriminator": "plan-09698887",
+  "round": 2,
+  "base": "09698887",
+  "head": "09698887",
+  "base_id": "09698887c860aabac9ef5a40869f9d554ea54995",
+  "head_id": "09698887c860aabac9ef5a40869f9d554ea54995",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": []
+}
