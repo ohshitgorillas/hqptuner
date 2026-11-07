@@ -37,8 +37,6 @@ import fake_http
 import fake_metering
 from fake_control import DEFAULTS, CommandLog, serve_shared
 
-from hqptuner.core.lifecycle import Phase
-
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
 #: from here so that a source checkout's `hqptuner` package is importable.
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -253,7 +251,7 @@ def _answers(url: str) -> bool:
                 return False
             if not url.endswith("/api/health"):
                 return True
-            return bool(json.loads(response.read()).get("phase") == Phase.READY.value)
+            return bool(json.loads(response.read()).get("phase") == "Ready")
     except OSError:
         return False
 

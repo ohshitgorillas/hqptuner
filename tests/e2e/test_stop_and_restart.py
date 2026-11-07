@@ -40,7 +40,6 @@ from playwright.sync_api import Page, Response
 
 from e2e.support import stack as stack_support
 from hqptuner.config import Config
-from hqptuner.core.lifecycle import Phase
 
 #: Ceiling on the app answering with daemon-derived state after a start, s.
 READY_TIMEOUT = 30.0
@@ -133,7 +132,7 @@ def _answers(port: int, path: str) -> bool:
         response = conn.getresponse()
         if response.status != HTTP_OK:
             return False
-        return path != "/api/health" or json.loads(response.read()).get("phase") == Phase.READY.value
+        return path != "/api/health" or json.loads(response.read()).get("phase") == "Ready"
     except OSError:
         return False
     finally:
