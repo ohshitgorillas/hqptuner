@@ -235,7 +235,7 @@ class Readings:
     def break_engine(self) -> None:
         """End the Engine view at Down or an outcome, holding its last reading for the drop report."""
         snapshot = self.engine_snapshot()
-        if snapshot is not None:
+        if snapshot is not None and (snapshot.state is not None or self.held is None):
             self.held = snapshot
         for name in ENGINE_FIELDS:
             setattr(self, name, None)

@@ -205,3 +205,43 @@ def test_a_departure_is_reported_from_the_first_reading_that_carries_state(
     control_state["_error"] = ""
     wait_for_api(api, lambda client: _reads(client, FROM_FILE))
     assert _dropped(api) == [REPORTED]
+
+
+def _departed_with_state_refused(api: TestClient, control_state: dict[str, str]) -> None:
+    """The engine restarts by itself and the app stands on the new connection, whose State reads are refused."""
+    before = api.get(HEALTH).json()["generation"]
+    control_state["_error"] = "State"
+    _restarts(control_state, FROM_FILE)
+    wait_for_api(api, lambda client: connection_stands(client) and client.get(HEALTH).json()["generation"] > before)
+
+
+def test_a_departure_is_reported_when_another_follows_before_any_reading_carries_state(
+    api: TestClient, control_state: dict[str, str]
+) -> None:
+    _run(api, control_state, RUNNING)
+    _departed_with_state_refused(api, control_state)
+    _departed_with_state_refused(api, control_state)
+    control_state["_error"] = ""
+    wait_for_api(api, lambda client: _reads(client, FROM_FILE))
+    assert _dropped(api) == [REPORTED]
+
+
+def test_a_departure_is_reported_when_hqptuner_closes_the_socket_before_any_reading_carries_state(
+    api: TestClient, control_state: dict[str, str]
+) -> None:
+    _run(api, control_state, RUNNING)
+    _departed_with_state_refused(api, control_state)
+    _portal(api).call(app_manager(api).take_control_down, "test")
+    control_state["_error"] = ""
+    wait_for_api(api, lambda client: _reads(client, FROM_FILE))
+    assert _dropped(api) == [REPORTED]
+
+
+def test_a_close_of_hqptuners_own_is_a_departure_once_the_next_dial_is_refused(
+    api: TestClient, control_state: dict[str, str]
+) -> None:
+    _run(api, control_state, RUNNING)
+    _portal(api).call(app_manager(api).take_control_down, "test")
+    _restarts(control_state, FROM_FILE)
+    wait_for_api(api, lambda client: _reads(client, FROM_FILE))
+    assert _dropped(api) == [REPORTED]

@@ -63,7 +63,8 @@ class Standing:
     request or departure ended, and reads ``NONE`` while a request is pending.
     ``connected_since`` is the reading of the manager's monotonic clock, in seconds, at
     which the standing connection answered ``GetInfo``, and ``None`` while no connection
-    stands.
+    stands. ``foreign_generation`` is the generation the last departure no request explains
+    reached, ``0`` before any.
     """
 
     phase: Phase = Phase.DOWN
@@ -73,6 +74,7 @@ class Standing:
     down_since: float | None = None  # the manager's monotonic clock, seconds: when the connection went down
     ended: Outcome = Outcome.NONE
     connected_since: float | None = None
+    foreign_generation: int = 0
 
 
 CONNECTED_PHASES = frozenset({Phase.REACHABLE, Phase.READY})
@@ -179,7 +181,7 @@ def _resolved(before: Standing, after: Standing) -> Standing:
     stamp = after.stamp
     if stamp is None:
         if after.generation > before.generation:
-            return replace(after, ended=Outcome.FOREIGN_DEPARTURE)
+            return replace(after, ended=Outcome.FOREIGN_DEPARTURE, foreign_generation=after.generation)
         return after
     if after.phase is Phase.READY and after.generation > stamp.generation:
         return replace(after, stamp=None, ended=Outcome.LANDED)

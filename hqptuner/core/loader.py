@@ -18,7 +18,7 @@ import httpx
 from hqptuner import voltrace
 from hqptuner.conf import engineconf
 from hqptuner.core import engineread
-from hqptuner.core.lifecycle import Fact, Outcome
+from hqptuner.core.lifecycle import Fact
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import (
@@ -227,7 +227,7 @@ def _report_drops(mgr: ConnectionManager) -> None:
     if after is None or after.state is None:
         return
     held = mgr.readings.take_held()
-    if held is not None and mgr.phase.outcome() is Outcome.FOREIGN_DEPARTURE:
+    if held is not None and held.stamp.generation < mgr.phase.standing.foreign_generation:
         mgr.dropped_settings.record(dropped.report(held, after))
 
 
