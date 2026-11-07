@@ -49,7 +49,7 @@ const env = globalThis;
 const REAL_FETCH = env.fetch;
 
 /** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {}, dropped_settings: [] };
+const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** @type {StagingWire} */
 let wire;

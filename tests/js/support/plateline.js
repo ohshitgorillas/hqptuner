@@ -81,18 +81,6 @@ export function readPlate() {
 }
 
 /**
- * What a reader sees in shown markup: tags stripped, whitespace collapsed.
- *
- * @param {string} markup
- * @returns {string}
- */
-export const shownText = (markup) =>
-  markup
-    .replace(/<[^<>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
-/**
  * The alert lines in shown markup: the elements carrying a severity.
  *
  * @param {string} markup

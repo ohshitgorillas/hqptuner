@@ -58,7 +58,7 @@ const DESIGN_SIZE = { w: 1080, h: 810 };
 const WARN = "warn";
 
 /** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {}, dropped_settings: [] };
+const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** A tap event: the members a tap handler may call. */
 const TAP = { preventDefault() {}, stopPropagation() {}, target: {}, currentTarget: {} };

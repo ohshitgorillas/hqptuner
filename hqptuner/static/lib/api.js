@@ -201,8 +201,6 @@ const stationQuery = (station) => (station === undefined ? "" : `?station=${enco
 
 export const api = {
   health: () => getJSON("/api/health"),
-  // forgets the settings a daemon restart dropped, which /api/health reports until cleared
-  clearDroppedSettings: () => send("/api/health/dropped-settings", "DELETE"),
   engine: () => getJSON("/api/engine"),
   applyEngine: (/** @type {unknown} */ body) => send("/api/engine", "POST", body),
   restore: (/** @type {File} */ file) => upload("/api/restore", "cfgfile", file),
