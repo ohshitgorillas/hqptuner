@@ -5,6 +5,7 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { html, observeSize } from "../../lib/dom.js";
 import { ON_PLATE, clampToPlate } from "../../model/shell/place.js";
+import { alertsNow } from "../../store/faceplate/alerts.js";
 import { body, openPopover, togglePopover } from "../../store/faceplate/view.js";
 
 /** @typedef {import("../../model/shell/place.js").Side} Side */
@@ -66,6 +67,9 @@ export function originOf(panel, face) {
  * watches the body the plate shows, moving to the new one when the body swaps, and stops when the caller unmounts. Where
  * there is no ResizeObserver it runs `fn` once, when it mounts or the body swaps, and watches nothing after.
  *
+ * The observer reports on the next frame, so `fn` also runs once the render of a changed plate line has finished. That
+ * keeps the caller on the body's top in the same task as the line.
+ *
  * @param {{ current: Element | null }} ref  an element on the plate
  * @param {() => void} fn  re-places the caller; the latest one passed runs
  */
@@ -73,6 +77,10 @@ export function useBodyResize(ref, fn) {
   const latest = useRef(fn);
   latest.current = fn;
   const shown = body.value;
+  const lines = alertsNow.value.plate;
+  useLayoutEffect(() => {
+    queueMicrotask(() => latest.current());
+  }, [lines]);
   useLayoutEffect(() => {
     const b = ref.current?.closest(".plate")?.querySelector(".body");
     if (!b) return undefined;
