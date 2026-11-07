@@ -300,6 +300,12 @@ jobs:
       - run: uv venv --python ${{ matrix.python }} .venv
       - run: uv pip install . pyinstaller
 
+      # Evidence only: it never changes this job's result, even when python.exe crashes or the step times out.
+      - name: Probe the app's tray registration
+        timeout-minutes: 2
+        continue-on-error: true
+        run: .venv/Scripts/python.exe -X faulthandler scripts/probes/probe_tray_registration.py
+
       - run: scripts/package-windows.sh
 
       - uses: actions/upload-artifact@v7
