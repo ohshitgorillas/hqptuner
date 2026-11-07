@@ -3,8 +3,8 @@
 // disjoint sets of controls (manual §4.4, §4.5, §4.6), and Direct SDM takes a DSD source to an SDM output with no
 // processing at all.
 
-import { engineStatus, PAUSED, PLAYING, ready } from "../signals.js";
-import { runningValue } from "../resolve.js";
+import { engineStatus, enginePlaying, PAUSED, phase } from "../signals.js";
+import { field } from "../core/readings.js";
 import { loadedChain } from "../live/rates.js";
 import { truthy } from "../../lib/coerce.js";
 import { familyOf, isDsdRate } from "../../model/family.js";
@@ -31,11 +31,11 @@ export const outputIsSdm = (/** @type {Status} */ st) => isDsdRate(st.active_rat
  */
 export function playbackPath() {
   const s = engineStatus.value || {};
-  if (Number((s.status || {}).state) !== PLAYING) return "idle";
+  if (!enginePlaying.value) return "idle";
   const sdmOut = outputIsSdm(s.status || {});
   if (!sourceIsDsd(s.metadata || {})) return sdmOut ? "pcm-sdm" : "pcm-pcm";
   if (!sdmOut) return "dsd-pcm";
-  return truthy(runningValue("direct_sdm")) ? "direct" : "sdm-sdm";
+  return truthy(field("direct_sdm").value.running) ? "direct" : "sdm-sdm";
 }
 
 /**
@@ -58,8 +58,8 @@ export function runningChain() {
  * @returns {Transport}
  */
 export function transportNow() {
-  if (!ready.value) return "off";
+  if (phase.value !== "Ready") return "off";
+  if (enginePlaying.value) return "playing";
   const state = Number(((engineStatus.value || {}).status || {}).state);
-  if (state === PLAYING) return "playing";
   return state === PAUSED ? "paused" : "off";
 }

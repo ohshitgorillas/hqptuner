@@ -8,7 +8,6 @@ import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
-import "../../support/domseam.js";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Faceplate } from "../../../../hqptuner/static/app.js";
 import { body, openStage, openPopover, showBody } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -17,16 +16,18 @@ import { TARGETS, setSwitcherTarget } from "../../../../hqptuner/static/store/fa
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { elements, attr, hasAttr, classes } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
-beforeEach(() => {
+beforeEach(async () => {
   body.value = "chain";
   openStage.value = null;
   openPopover.value = null;
   setBottomBar(BOTTOM_BARS[0]);
   setSwitcherTarget(TARGETS[0]);
   config.value = null;
+  await seedReadings({});
   liveBook.value = null;
 });
 
@@ -52,13 +53,12 @@ test("test_no_drawer_is_open_until_a_stage_is_tapped", () => {
   assert.deepEqual(openDrawers(), []);
 });
 
-test("test_the_snapshot_builder_body_holds_the_option_list", () => {
-  config.value = {
-    fields: [],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Desk" }] },
-    active: "Desk",
-  };
+test("test_the_snapshot_builder_body_holds_the_option_list", async () => {
+  config.value = { fields: [] };
+  await seedReadings({
+    active_preset: { value: "Desk", readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: "Desk" }] }, readonly: true },
+  });
   liveBook.value = { Desk: { Near: { chain: "pcm", fields: { mode: "pcm" }, names: {} } } };
   showBody("snapshots");
   const shown = frame().find((e) => e.name === "div" && attr(e, "data-body") === "snapshots");

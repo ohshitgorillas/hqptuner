@@ -2,8 +2,7 @@
 // numbered page buttons under them. A crossfeed block folds to one line naming it, its row count and its summary; its
 // twisty unfolds it, and a tap elsewhere on it picks its first row.
 
-import { html } from "../../../../lib/dom.js";
-import { classNames } from "../../../../model/shell/format.js";
+import { classNames, html } from "../../../../lib/dom.js";
 import { PAGE, chipText, rowText } from "../../../../model/shell/pipelines.js";
 import { effectivePipelines } from "../../../../store/resolve.js";
 import { chName } from "../../../../store/faceplate/drawers/pipelines.js";

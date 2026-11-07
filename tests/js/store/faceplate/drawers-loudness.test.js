@@ -24,25 +24,36 @@ import {
   sideDots,
 } from "../../../../hqptuner/static/store/faceplate/drawers/loudness.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @type {import("../../support/wire/wire.js").StagingWire} */
 let wire;
 
 beforeEach(async () => {
   wire = stagingWire({ fallback: (w) => ok(w.staged) });
-  config.value = { fields: [], file: {} };
+  config.value = { fields: [] };
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: true },
-      { name: "post_loudness_enabled", value: true },
-      { name: "post_loudness_rangelow", value: "-60" },
-      { name: "post_loudness_rangehigh", value: "-20" },
-      { name: "post_loudness_lowfreq", value: "80" },
-      { name: "post_loudness_lowlevel", value: "20" },
-      { name: "post_loudness_highfreq", value: "5000" },
-      { name: "post_loudness_highlevel", value: "10" },
+      { name: "enabled" },
+      { name: "post_loudness_enabled" },
+      { name: "post_loudness_rangelow" },
+      { name: "post_loudness_rangehigh" },
+      { name: "post_loudness_lowfreq" },
+      { name: "post_loudness_lowlevel" },
+      { name: "post_loudness_highfreq" },
+      { name: "post_loudness_highlevel" },
     ],
   };
+  await seedReadings({
+    enabled: true,
+    post_loudness_enabled: true,
+    post_loudness_rangelow: "-60",
+    post_loudness_rangehigh: "-20",
+    post_loudness_lowfreq: "80",
+    post_loudness_lowlevel: "20",
+    post_loudness_highfreq: "5000",
+    post_loudness_highlevel: "10",
+  });
   liveOverride.value = {};
   volume.value = "-40";
   volumeDrag.value = null;

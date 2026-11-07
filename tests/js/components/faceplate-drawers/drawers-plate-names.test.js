@@ -32,7 +32,7 @@ const PICKED = "poly-sinc-gauss-long";
 
 beforeEach(async () => {
   stagingWire();
-  loadLists({ chain: "sdm", plain: false });
+  await loadLists({ chain: "sdm", plain: false });
   resetLists();
   pendingPreset.value = null;
   openStage.value = RESAMPLING_DRAWER.id;

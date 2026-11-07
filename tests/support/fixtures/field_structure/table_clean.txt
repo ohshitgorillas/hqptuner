@@ -1,0 +1,8 @@
+"""A module that asks the register and keeps no table of its own."""
+
+COLORS = {"amber": "warn", "teal": "ok"}
+
+
+def color(level: str) -> str:
+    """The color for ``level``."""
+    return COLORS[level]

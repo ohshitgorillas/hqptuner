@@ -3,7 +3,8 @@
 // staged edit.
 //
 // The wire is the seam: /api/state into `engineState`, the enumerations into `enums`, the Status frame into
-// `engineStatus`, the /config and /matrix forms into `config` and `matrixConfig`, the /speakers form into `speakers`.
+// `engineStatus`, the /config and /matrix forms' names and options into `config` and `matrixConfig` and their values
+// into the served readings, the /speakers form through its load.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/rail-now.test.js
 
@@ -22,9 +23,11 @@ import {
   volumeDrag,
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { railNow } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { seedReadings } from "../../support/readings.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 
 /**
  * One enumeration item as the daemon sends it: every attribute a string.
@@ -38,13 +41,11 @@ const item = (name, i) => ({ index: String(i), value: String(100 + i), name });
  * A select field of a daemon form, its options valued apart from their labels.
  *
  * @param {string} name
- * @param {string} value
  * @param {string[]} labels
  */
-const select = (name, value, labels) => ({
+const select = (name, labels) => ({
   name,
   type: "select",
-  value,
   options: labels.map((label, i) => ({ value: `v${i}`, label })),
 });
 
@@ -53,7 +54,7 @@ const select = (name, value, labels) => ({
  *
  * @param {{ junk?: string, filterNx?: string, shaper?: string }} [o]
  */
-function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
+async function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
   engineState.value = { active_chain: "pcm", filter_junk: junk, filter1x: "0", filterNx, shaper };
   enums.value = {
     junk_filters: ["none", "20k", "2x"].map(item),
@@ -62,35 +63,48 @@ function wire({ junk = "1", filterNx = "2", shaper = "1" } = {}) {
   };
   engineStatus.value = { status: { state: "2", active_rate: "352800" }, metadata: { samplerate: "96000", bits: "24" } };
   config.value = {
-    fields: [{ name: "direct_sdm", value: true }, select("noise_filter", "v1", ["standard", "low", "high"])],
+    fields: [{ name: "direct_sdm" }, select("noise_filter", ["standard", "low", "high"])],
   };
   matrixConfig.value = {
     fields: [
-      { name: "enabled", value: true },
-      { name: "post_bauer_enabled", value: true },
-      { name: "post_correction_enabled", value: true },
-      select("post_correction_dac0", "v2", ["AK4499", "ES9038", "PCM1704"]),
+      { name: "enabled" },
+      { name: "post_bauer_enabled" },
+      { name: "post_correction_enabled" },
+      select("post_correction_dac0", ["AK4499", "ES9038", "PCM1704"]),
     ],
-    live_active: "Desk nearfield",
-    rows: [{ source: "0" }, { source: "1" }, { source: "2" }],
   };
+  await seedReadings({
+    direct_sdm: true,
+    noise_filter: "v1",
+    matrix_enabled: true,
+    post_bauer_enabled: true,
+    post_correction_enabled: true,
+    post_correction_dac0: "v2",
+    matrix_profile: "Desk nearfield",
+    matrix_pipelines: JSON.stringify([{ source: "0" }, { source: "1" }, { source: "2" }]),
+  });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
-  speakers.value = { enabled: true, channels: [] };
   hiddenStages.value = ["crossfeed"];
   volume.value = "-12.5";
   volumeDrag.value = null;
   volumeRange.value = null;
 }
 
-beforeEach(() => wire());
+beforeEach(async () => {
+  stagingWire({
+    routes: (path) => (path === "/api/speakers" ? ok({ data: { enabled: true, channels: [] } }) : undefined),
+  });
+  await loadSpeakers();
+  await wire();
+});
 
 test("test_the_hf_filter_is_the_junk_filter_named_at_the_index_the_engine_reports", () => {
   assert.equal(railNow().hf, "20k");
 });
 
-test("test_the_hf_filter_follows_the_index_the_engine_reports", () => {
-  wire({ junk: "0" });
+test("test_the_hf_filter_follows_the_index_the_engine_reports", async () => {
+  await wire({ junk: "0" });
   assert.equal(railNow().hf, "none");
 });
 
@@ -98,8 +112,8 @@ test("test_the_nx_filter_is_the_filter_named_at_the_index_the_engine_reports", (
   assert.equal(railNow().conv.filterNx, "sinc-Mx");
 });
 
-test("test_the_shaper_is_the_shaper_named_at_the_index_the_engine_reports", () => {
-  wire({ shaper: "2" });
+test("test_the_shaper_is_the_shaper_named_at_the_index_the_engine_reports", async () => {
+  await wire({ shaper: "2" });
   assert.equal(railNow().conv.shaper, "LNS15");
 });
 

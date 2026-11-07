@@ -34,7 +34,7 @@ beforeEach(async () => {
   engineState.value = {};
   openPopover.value = null;
   openStage.value = "pipelines";
-  loadPipelines([plain(0, 0), plain(1, 1)]);
+  await loadPipelines([plain(0, 0), plain(1, 1)]);
   await discardAll();
   showTab(PIPELINES_DRAWER.id, "overview");
 });
@@ -45,8 +45,8 @@ const tabs = () =>
     (e) => attr(e, "role") === "tab",
   );
 
-test("test_the_tabs_follow_the_outputs_the_pipeline_set_feeds", () => {
-  loadPipelines([plain(0, 0), plain(1, 3), plain(0, 3)]);
+test("test_the_tabs_follow_the_outputs_the_pipeline_set_feeds", async () => {
+  await loadPipelines([plain(0, 0), plain(1, 3), plain(0, 3)]);
   assert.deepEqual(
     tabs().map((e) => attr(e, "data-tab")),
     ["overview", "out0", "out3"],

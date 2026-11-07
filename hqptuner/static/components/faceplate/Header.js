@@ -4,14 +4,13 @@
 // another station's snapshots wait for it to be loaded. An alert homed on the knob or the gear blinks it in the alert's
 // color. The knob's tap opens the connection panel, with a popover of the alert lines homed there over it when any are.
 
-import { html } from "../../lib/dom.js";
+import { html, isElement } from "../../lib/dom.js";
 import { connState } from "../../store/faceplate/conn.js";
 import { stationTree, toggleStation } from "../../store/faceplate/stations.js";
 import { snapshotTip } from "../../store/faceplate/builders/rows.js";
 import { body, showBody, openPopover } from "../../store/faceplate/view.js";
 import { activePreset } from "../../store/resolve.js";
 import { loadPreset } from "../../store/actions.js";
-import { openPanel } from "../../store/connpanel.js";
 import { applyLivePreset } from "../../store/live/presets.js";
 import { alertsNow, alertNotes } from "../../store/faceplate/alerts.js";
 import { Popover, parkAgainst, triggerProps } from "./Popover.js";
@@ -75,12 +74,12 @@ export function AlertNote({ el }) {
  * The brand knob: its ring lights the connection state, which is also its name and its tooltip's lead. Its tap opens the
  * connection panel. An alert homed on it blinks the ring, and the tap then also opens the alert lines over the panel.
  */
-function Knob() {
+function Knob(/** @type {{ panel: import("../../store/connpanel.js").ConnPanelStore }} */ { panel }) {
   const s = connState();
   const alert = alertsNow.value.blinks.el.get("conn");
   const note = alert ? triggerProps(noteId("conn"), "dialog") : null;
   const onTap = () => {
-    openPanel();
+    panel.openPanel();
     note?.onClick();
   };
   return html`
@@ -110,8 +109,9 @@ function Knob() {
  * @param {HTMLElement} panel
  */
 function park(panel) {
-  const trigger = panel.parentElement?.querySelector(`button[data-pop="${TREE}"]`);
-  if (!(trigger instanceof HTMLElement)) return;
+  const found = panel.parentElement?.querySelector(`button[data-pop="${TREE}"]`);
+  if (!isElement(found)) return;
+  const trigger = /** @type {HTMLElement} */ (found);
   panel.style.left = `${trigger.offsetLeft}px`;
   panel.style.width = `${Math.max(MIN_WIDTH, trigger.offsetWidth)}px`;
 }
@@ -208,10 +208,10 @@ const bodyProps = (name) => ({
 });
 
 /** The header row. */
-export function Header() {
+export function Header(/** @type {{ panel: import("../../store/connpanel.js").ConnPanelStore }} */ { panel }) {
   return html`
     <header class="hdr">
-      <${Knob} />
+      <${Knob} panel=${panel} />
       <${AlertNote} el="conn" />
       <div class="mark">HQPTUNER</div>
       <div class="station">

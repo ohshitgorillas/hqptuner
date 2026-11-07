@@ -38,6 +38,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { useStorage } from "../../support/storage.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
@@ -45,13 +46,26 @@ const STATION = "Living room";
 
 /** The /config form fields the rows read their baselines from. */
 const FIELDS = [
-  { name: "volume_max", type: "number", value: -3 },
-  { name: "quick_pause", type: "checkbox", value: false },
-  { name: "mode", type: "select", value: "pcm" },
+  { name: "volume_max", type: "number" },
+  { name: "quick_pause", type: "checkbox" },
+  { name: "mode", type: "select" },
 ];
 
 /** The /matrix form field the matrix family's crossfeed_enabled reads its baseline from. */
-const MATRIX_FIELDS = [{ name: "post_bauer_enabled", type: "checkbox", value: false }];
+const MATRIX_FIELDS = [{ name: "post_bauer_enabled", type: "checkbox" }];
+
+/**
+ * The values the daemon serves for both forms, with `station` the loaded one; Max volume restarts the engine.
+ *
+ * @param {string} station
+ */
+const served = (station) => ({
+  volume_max: fieldReading(-3, { show: "file", restarts: true }),
+  quick_pause: false,
+  mode: "pcm",
+  post_bauer_enabled: false,
+  active_preset: { value: station, readonly: true },
+});
 
 /** The family the store names, and a key it holds that no fixture drawer holds. */
 const FAMILY = "matrix";
@@ -70,8 +84,9 @@ function routes(path, opts) {
 beforeEach(async () => {
   applies = [];
   stagingWire({ routes });
-  config.value = { fields: FIELDS, file: {}, active: STATION, profiles: null };
-  matrixConfig.value = { fields: MATRIX_FIELDS, rows: [] };
+  config.value = { fields: FIELDS };
+  matrixConfig.value = { fields: MATRIX_FIELDS };
+  await seedReadings(served(STATION));
   engineState.value = { adaptive: 0 };
   enums.value = null;
   metadata.value = null;
@@ -225,7 +240,7 @@ test("test_the_save_mode_saves_into_the_loaded_station", async () => {
 test("test_the_save_mode_sends_nothing_with_no_loaded_station", async () => {
   await edit("volume_max", "-6");
   pickApplyMode("save");
-  config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+  await seedReadings(served(""));
   await runApply();
   pickApplyMode("apply");
   await runApply();

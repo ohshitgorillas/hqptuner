@@ -6,7 +6,7 @@
 // popover or a picker. The sheet's height, the panel's parking and the outside tap are browser-only.
 
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
-import { html } from "../../../lib/dom.js";
+import { html, isElement, pageOf } from "../../../lib/dom.js";
 import { parkAt } from "../../../model/shell/option-list.js";
 import { schema } from "../../../store/schema.js";
 import { plainNames } from "../../../store/ui/prefs.js";
@@ -80,14 +80,20 @@ function place(el, req) {
 function outside(e) {
   const req = openList.value;
   const t = e.target;
-  if (!req || !isPanel(kindOf(req.key)) || !(t instanceof Element) || !t.isConnected) return;
+  if (!req || !isPanel(kindOf(req.key)) || !isElement(t) || !t.isConnected) return;
   if (!t.closest(".osheet, [data-pop], [data-list]")) closeOptionList();
 }
 
-/** Follow the document's taps for as long as the list is mounted. */
-function listen() {
-  document.addEventListener("click", outside);
-  return () => document.removeEventListener("click", outside);
+/**
+ * Follow the taps of the document the list lives in for as long as it is mounted.
+ *
+ * @param {HTMLElement | null} el
+ */
+function listen(el) {
+  if (!el) return undefined;
+  const { doc } = pageOf(el);
+  doc.addEventListener("click", outside);
+  return () => doc.removeEventListener("click", outside);
 }
 
 /**
@@ -150,7 +156,7 @@ export function OptionList() {
   const fit = plate.value;
   useLayoutEffect(() => place(ref.current, req), [req, std, view.n, fit]);
   useBodyResize(ref, () => place(ref.current, req));
-  useEffect(listen, []);
+  useEffect(() => listen(ref.current), []);
   return html`
     <aside
       ref=${ref}

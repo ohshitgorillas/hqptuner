@@ -20,6 +20,7 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { askWarn, question } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -28,6 +29,7 @@ import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
@@ -35,21 +37,37 @@ import { elements, attr, classes, hasAttr, text } from "../../support/markup.js"
 
 const STATION = "Living room";
 
+/** The /config form's metadata for the drawer's rows: types and options, no values. */
 const FIELDS = [
-  { name: "volume_max", type: "number", value: -3 },
-  { name: "fixed_volume_enabled", type: "checkbox", value: false },
-  { name: "quick_pause", type: "checkbox", value: true },
+  { name: "volume_max", type: "number" },
+  { name: "fixed_volume_enabled", type: "checkbox" },
+  { name: "quick_pause", type: "checkbox" },
   {
     name: "idle_time",
     type: "select",
-    value: "30",
     options: [
       { value: "30", label: "30" },
       { value: "60", label: "60" },
     ],
   },
-  { name: "mode", type: "select", value: "pcm" },
+  { name: "mode", type: "select" },
 ];
+
+/**
+ * A /config form field's served reading, read from the File on the restore lane, restarting the engine.
+ *
+ * @param {unknown} value
+ */
+const formReading = (value) => fieldReading(value, { show: "file", lane: "restore", restarts: true });
+
+/** Each row's running value, by catalog key; the output mode is a live setting. */
+const RUNNING = {
+  volume_max: formReading(-3),
+  fixed_volume_enabled: formReading(false),
+  quick_pause: formReading(true),
+  idle_time: formReading("30"),
+  output_mode: fieldReading("pcm", { show: "file", lane: "live" }),
+};
 
 /** @type {string[]} */
 let applies = [];
@@ -63,15 +81,21 @@ function routes(path, opts) {
   return ok({ report: {} });
 }
 
-/** @param {string} active */
-const loadConfig = (active) => {
-  config.value = { fields: FIELDS, file: {}, active, profiles: null };
+/**
+ * Serve `active` as the loaded station, keeping every other served reading.
+ *
+ * @param {string} active
+ */
+const loadConfig = async (active) => {
+  config.value = { fields: FIELDS };
+  await seedReadings({ ...RUNNING, ...readings.value?.fields, active_preset: { value: active, readonly: true } });
 };
 
 beforeEach(async () => {
   applies = [];
   wire = stagingWire({ routes });
-  loadConfig(STATION);
+  await seedReadings(RUNNING);
+  await loadConfig(STATION);
   await resetDrawerStore();
   pickApplyMode("apply");
   showTab("vol", "range");
@@ -415,7 +439,7 @@ test("test_the_split_body_in_save_mode_is_live_with_a_loaded_station", async () 
 test("test_the_split_body_in_save_mode_is_disabled_without_a_loaded_station", async () => {
   await edit("volume_max", "-6");
   pickApplyMode("save");
-  loadConfig("");
+  await loadConfig("");
   assert.equal(splitBodyDisabled(), true);
 });
 
@@ -428,8 +452,8 @@ test("test_the_save_choice_in_the_mode_menu_is_live_with_a_loaded_station", () =
   assert.equal(saveChoiceDisabled(), false);
 });
 
-test("test_the_save_choice_in_the_mode_menu_is_disabled_without_a_loaded_station", () => {
-  loadConfig("");
+test("test_the_save_choice_in_the_mode_menu_is_disabled_without_a_loaded_station", async () => {
+  await loadConfig("");
   assert.equal(saveChoiceDisabled(), true);
 });
 

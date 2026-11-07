@@ -2,9 +2,8 @@
 // ready, and a ready idle engine. A write started on any page restarts the same daemon, so it reads busy whatever the
 // readiness reads under it.
 
-import { ready } from "../signals.js";
-import { applying } from "../actions.js";
-import { engineBusy } from "../enginewrite.js";
+import { phase } from "../signals.js";
+import { inFlight } from "../core/ops.js";
 
 /** @typedef {"ok" | "busy" | "lost"} ConnState */
 
@@ -14,6 +13,6 @@ import { engineBusy } from "../enginewrite.js";
  * @returns {ConnState}
  */
 export function connState() {
-  if (applying.value || engineBusy.value) return "busy";
-  return ready.value ? "ok" : "lost";
+  if (inFlight.value) return "busy";
+  return phase.value === "Ready" ? "ok" : "lost";
 }

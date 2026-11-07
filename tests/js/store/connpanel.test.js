@@ -5,7 +5,7 @@
 // The `health` signal is assigned the readings a poll would have delivered, the
 // panel's own exported signals are assigned to state the situation, and `fetch` is
 // faked at the real REST paths with the real response shapes.
-// The suite's fake clock (tests/js/support/clock.js) is handed in through `initPanel`,
+// The suite's fake clock (tests/js/support/clock.js) is handed in through `createConnPanel`,
 // so every "at N ms" below is a reading of that clock and never a duration this
 // suite spends.
 //
@@ -18,13 +18,7 @@ import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { health } from "../../../hqptuner/static/store/signals.js";
-import {
-  form,
-  hostTouched,
-  initPanel,
-  runDiscovery,
-  submitConnection,
-} from "../../../hqptuner/static/store/connpanel.js";
+import { createConnPanel } from "../../../hqptuner/static/store/connpanel.js";
 import { panelOpen } from "../../../hqptuner/static/store/faceplate/view.js";
 import { staticWire, ok } from "../support/wire/wire.js";
 import { fakeClock } from "../support/clock.js";
@@ -37,14 +31,14 @@ const REAL_FETCH = env.fetch;
 /** @typedef {Record<string, unknown>} Reading */
 
 // The three health readings this suite drives with, in the shape
-// /api/health serves (reachable, ready, connected, credentials_ok — the last
-// tri-state: null is the 8088 lane's silence, false its refusal).
+// /api/health serves (phase, credentials_ok, address_found — the verdicts are
+// tri-state: null is no conclusive dial, false is rejection).
 /** @type {Reading} */
-const NEVER = { reachable: false, ready: false, connected: false, credentials_ok: null };
+const NEVER = { phase: "Down", credentials_ok: null, address_found: null };
 /** @type {Reading} */
-const REFUSED = { reachable: true, ready: false, connected: false, credentials_ok: false };
+const REFUSED = { phase: "Reachable", credentials_ok: false, address_found: true };
 /** @type {Reading} */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
+const HEALTHY = { phase: "Ready", credentials_ok: true, address_found: true };
 
 // One daemon, in the shape /api/discover serves: address, name, version,
 // product, platform.
@@ -52,6 +46,7 @@ const FOUND = [{ address: "10.0.0.9", name: "hqplayerd", version: "5.10.0", prod
 
 /** The fake clock the page reads, in milliseconds since the page loaded. */
 let fake = fakeClock();
+let panel = createConnPanel({ clock: fake.clock });
 /** @type {(() => void) | undefined} */
 let dispose;
 
@@ -72,12 +67,13 @@ afterEach(() => {
 /** @param {number} [at] */
 function start(at = 0) {
   fake = fakeClock();
+  panel = createConnPanel({ clock: fake.clock });
   moveTo(at);
   health.value = null;
   panelOpen.value = false;
-  hostTouched.value = false;
-  form.value = { host: "127.0.0.1", username: "", password: "", remember: false };
-  dispose = initPanel(fake.clock);
+  panel.hostTouched.value = false;
+  panel.form.value = { host: "127.0.0.1", username: "", password: "", remember: false, hasPassword: false };
+  dispose = panel.initPanel();
 }
 
 // One health poll landing at `at` ms, answered with what the panel then shows.
@@ -143,6 +139,7 @@ const AUTO = [
 for (const kase of AUTO) {
   test(kase.name, () => {
     start();
+    wire();
     let open = panelOpen.value;
     for (const [fields, at] of kase.readings) open = reading(fields, at);
     assert.equal(open, kase.open);
@@ -154,17 +151,17 @@ for (const kase of AUTO) {
 test("test_discovery_fills_a_host_field_the_user_has_not_touched", async () => {
   start();
   wire();
-  await runDiscovery();
-  assert.equal(form.value.host, "10.0.0.9");
+  await panel.runDiscovery();
+  assert.equal(panel.form.value.host, "10.0.0.9");
 });
 
 test("test_discovery_leaves_a_host_the_user_typed_alone", async () => {
   start();
   wire();
-  form.value = { ...form.value, host: "192.168.1.5" };
-  hostTouched.value = true;
-  await runDiscovery();
-  assert.equal(form.value.host, "192.168.1.5");
+  panel.form.value = { ...panel.form.value, host: "192.168.1.5" };
+  panel.hostTouched.value = true;
+  await panel.runDiscovery();
+  assert.equal(panel.form.value.host, "192.168.1.5");
 });
 
 // --- what closes the panel again --------------------------------------------
@@ -173,7 +170,7 @@ test("test_the_panel_stays_open_on_the_saves_own_200", async () => {
   start(10000);
   wire();
   panelOpen.value = true;
-  form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember: true };
-  await submitConnection();
+  panel.form.value = { host: "10.0.0.9", username: "tuner", password: "s3cret", remember: true, hasPassword: false };
+  await panel.submitConnection();
   assert.equal(panelOpen.value, true);
 });

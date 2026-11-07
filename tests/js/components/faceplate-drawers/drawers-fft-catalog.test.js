@@ -19,6 +19,7 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes } from "../../support/markup.js";
 
@@ -57,20 +58,17 @@ const BARE = {
  *
  * @param {{ pcm1x?: string, pcmnx?: string, sdm1x?: string, sdmnx?: string }} [f]
  */
-function load({ pcm1x = PLAIN, pcmnx = PLAIN, sdm1x = PLAIN, sdmnx = PLAIN } = {}) {
+async function load({ pcm1x = PLAIN, pcmnx = PLAIN, sdm1x = PLAIN, sdmnx = PLAIN } = {}) {
+  const filters = filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS);
   config.value = {
-    fields: [
-      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
-      { name: "fft_size", type: "select", value: "16384", options: FFT_LENGTHS },
-    ],
-    file: {},
-    active: "",
+    fields: [...filters.fields, { name: "fft_size", type: "select", options: FFT_LENGTHS }],
   };
+  await seedReadings({ ...filters.values, fft_size: "16384" });
 }
 
 beforeEach(async () => {
   stagingWire();
-  load();
+  await load();
   engineState.value = { state: "0", active_chain: "sdm" };
   enums.value = null;
   metadata.value = null;
@@ -96,13 +94,13 @@ function fftShownOn() {
   return [shown("pcm"), shown("sdm")];
 }
 
-test("test_a_bare_fft_length_row_shows_only_on_the_tab_whose_nx_filter_is_fft_family", () => {
-  load({ sdmnx: FFT });
+test("test_a_bare_fft_length_row_shows_only_on_the_tab_whose_nx_filter_is_fft_family", async () => {
+  await load({ sdmnx: FFT });
   assert.deepEqual(fftShownOn(), [false, true]);
 });
 
-test("test_a_bare_fft_length_row_shows_only_on_the_tab_whose_1x_filter_is_fft_family", () => {
-  load({ pcm1x: FFT });
+test("test_a_bare_fft_length_row_shows_only_on_the_tab_whose_1x_filter_is_fft_family", async () => {
+  await load({ pcm1x: FFT });
   assert.deepEqual(fftShownOn(), [true, false]);
 });
 

@@ -5,7 +5,6 @@
 import { computed } from "@preact/signals";
 import { alertPlan, alertsAt } from "../../model/shell/alerts.js";
 import { credentialsAlert } from "../alerts/credentials.js";
-import { droppedAlert } from "../alerts/dropped.js";
 import { failureAlerts } from "../alerts/failures.js";
 import { engineAlerts } from "../health.js";
 import { shaperAlerts } from "../alerts/shaperfit.js";
@@ -57,20 +56,18 @@ const SHAPER_KIND = {
 const raised = (kind, sev, text) => ({ kind, sev: /** @type {Sev} */ (sev), text });
 
 /**
- * The alerts the faceplate raises, in this order: credentials, the settings a daemon restart dropped, the failed calls
- * (an apply, a live write, a live snapshot, a profile description, a favorite, the narrowing facets), engine health,
- * the shaper fit, Roon, the junk advice.
+ * The alerts the faceplate raises, in this order: credentials, the failed calls (an apply, a live write, a live
+ * snapshot, a profile description, a favorite, the narrowing facets), engine health, the shaper fit, Roon, the junk
+ * advice.
  *
  * @returns {Alert[]}
  */
 export function faceplateAlerts() {
   const creds = credentialsAlert.value;
-  const dropped = droppedAlert.value;
   const roon = roonIdleAlert.value;
   const junk = junkAdvice.value;
   return [
     ...(creds ? [raised("credentials", creds.sev, creds.text)] : []),
-    ...(dropped ? [{ ...raised("engine", dropped.sev, dropped.text), items: dropped.items, act: dropped.act }] : []),
     ...failureAlerts.value.map((a) => ({ ...raised("engine", a.sev, a.text), act: a.act })),
     ...engineAlerts.value.map((/** @type {SourceAlert} */ a) => raised(ENGINE_KIND[a.kind], a.sev, a.text)),
     ...shaperAlerts.value.map((/** @type {SourceAlert} */ a) => ({

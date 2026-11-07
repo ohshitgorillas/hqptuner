@@ -16,8 +16,10 @@ from hqptuner.api import deps
 from hqptuner.api.deps import Cfg, HttpMgr, Mgr
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.conf.httpforms import FormField, MatrixRow, ProfileSelect, SpeakersForm
-from hqptuner.conf.matrixprofiles import MATRIX_PROFILES, StoredProfile
+from hqptuner.conf.matrixprofiles import StoredProfile
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyResult
@@ -117,7 +119,9 @@ def matrix(manager: HttpMgr) -> deps.Snapshot[MatrixReport]:
             active=form["active"],
             live_profiles=manager.readings.matrix_profiles or [],
             live_active=(manager.readings.state or {}).get("matrix_profile", ""),
-            file_profiles=_parse_file_profiles((manager.readings.file_config or {}).get(MATRIX_PROFILES) or ""),
+            file_profiles=_parse_file_profiles(
+                (manager.readings.file_config or {}).get(query.kept_at(Codec.PROFILES)) or ""
+            ),
             # each stored preset's profile names — the save/delete target pickers'
             # read model, computed from the store at request time (pure filesystem)
             preset_profiles=manager.presetops.preset_profiles(),

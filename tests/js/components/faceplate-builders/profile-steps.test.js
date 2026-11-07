@@ -5,10 +5,10 @@
 // model rows; Loudness's gate row, its settings lines while engaged, the defaults staged or the block shown; and the
 // Advanced settings page's three matrix engine rows and its way back to the overview.
 //
-// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: the stations and Fixed volume on
-// `config`, the post-process form (the Bauer presets, the DAC models, the three gates, the loudness fields) on
-// `matrixConfig`, staging through `stagingWire`'s real /api/config/stage path. The listening, the settings path each
-// step takes and the page showing are the store's `meta`, `known` and `page`. Taps and changes are fired through the
+// Driven at the wire, as tests/js/store/faceplate-builders/profile.test.js is: Fixed volume on `config`, the stations
+// a read-only `profiles` reading, the post-process form (the Bauer presets, the DAC models, the three gates, the
+// loudness fields) on `matrixConfig`, staging through `stagingWire`'s real /api/config/stage path. The listening, the
+// settings path each step takes and the page showing are the store's `meta`, `known` and `page`. Taps and changes are fired through the
 // renderer's vnode seam, since render-to-string fires no events; every copy string asserted is read from the
 // profile-data.js tables, every option the fixture's own.
 //
@@ -21,6 +21,8 @@ import { render } from "preact-render-to-string";
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { StepPage, AdvancedPage } from "../../../../hqptuner/static/components/faceplate/builders/ProfileSteps.js";
 import { config, matrixConfig, engineState } from "../../../../hqptuner/static/store/signals.js";
+import { isDeepStrictEqual } from "node:util";
+
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { schema } from "../../../../hqptuner/static/store/schema.js";
@@ -35,7 +37,8 @@ import {
   openProfileBuilder,
   setListen,
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
-import { stagingWire, quiesce } from "../../support/wire/wire.js";
+import { stagingWire, ok, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { elements, attr, hasAttr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
@@ -74,48 +77,134 @@ const XF = ["off", "bauer", "structural"];
 /** The settings paths, as the store names them. */
 const PATHS = ["preset", "values"];
 
-/** A fresh /api/matrix payload: the post-process form with every gate off. */
+/** A fresh /api/matrix payload: the post-process form's options. */
 const matrixTree = () => ({
   fields: [
-    { name: "post_bauer_enabled", value: "0", options: [] },
-    { name: "post_bauer_preset", value: "cmoy", options: BAUER },
-    { name: "post_correction_enabled", value: "0", options: [] },
-    { name: "post_correction_dac0", value: "fx-dac-a", options: MODELS },
-    { name: "post_loudness_enabled", value: "0", options: [] },
-    { name: "post_loudness_lowlevel", value: LOW_LEVEL, options: [] },
-    { name: "post_loudness_rangelow", value: "-40", options: [] },
-    { name: "post_loudness_rangehigh", value: "-10", options: [] },
-  ],
-  rows: [
-    { gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0" },
-    { gain: "0", gainunit: "dB", mixdown: "1", process: "", source: "1" },
+    { name: "post_bauer_enabled", options: [] },
+    { name: "post_bauer_preset", options: BAUER },
+    { name: "post_correction_enabled", options: [] },
+    { name: "post_correction_dac0", options: MODELS },
+    { name: "post_loudness_enabled", options: [] },
+    { name: "post_loudness_lowlevel", options: [] },
+    { name: "post_loudness_rangelow", options: [] },
+    { name: "post_loudness_rangehigh", options: [] },
   ],
   file_profiles: {},
-  live_profiles: [],
   preset_profiles: { [LOADED]: [] },
-  live_active: "",
+});
+
+/** A fresh /config form: Fixed volume. */
+const configTree = () => ({
+  fields: [{ name: "fixed_volume_enabled", options: [] }],
 });
 
 /**
- * A fresh /config form: the stations, Day loaded, and Fixed volume.
+ * The File values the wire serves, by schema key: the post-process form with every gate off, the pipeline rows and
+ * Fixed volume.
  *
  * @param {{ fixed?: string }} [o]
+ * @returns {Record<string, unknown>}
  */
-const configTree = ({ fixed = "0" } = {}) => ({
-  fields: [{ name: "fixed_volume_enabled", value: fixed, options: [] }],
-  file: {},
-  profiles: { options: [{ value: "" }, { value: LOADED }, { value: "Night" }] },
-  active: LOADED,
+const fileTree = ({ fixed = "0" } = {}) => ({
+  crossfeed_enabled: "0",
+  crossfeed_preset: "cmoy",
+  dac_correction_enabled: "0",
+  dac_correction_profile: "fx-dac-a",
+  loudness_enabled: "0",
+  loudness_low_level: LOW_LEVEL,
+  loudness_range_low: "-40",
+  loudness_range_high: "-10",
+  matrix_pipelines: [
+    { gain: "0", gainunit: "dB", mixdown: "0", process: "", source: "0" },
+    { gain: "0", gainunit: "dB", mixdown: "1", process: "", source: "1" },
+  ],
+  fixed_volume_enabled: fixed,
 });
+
+/** The File values the wire serves now; `beforeEach` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/**
+ * Each served schema key's `/config` form field name, as the field register names the post-process plugin fields and
+ * the codec fields; the staging buffer's http lane is keyed by these.
+ *
+ * @type {Record<string, string>}
+ */
+const FORM_NAME = {
+  crossfeed_enabled: "post_bauer_enabled",
+  crossfeed_preset: "post_bauer_preset",
+  dac_correction_enabled: "post_correction_enabled",
+  dac_correction_profile: "post_correction_dac0",
+  loudness_enabled: "post_loudness_enabled",
+  loudness_low_level: "post_loudness_lowlevel",
+  loudness_range_low: "post_loudness_rangelow",
+  loudness_range_high: "post_loudness_rangehigh",
+  matrix_pipelines: "matrix_pipelines",
+  fixed_volume_enabled: "fixed_volume_enabled",
+};
+
+/**
+ * What the staging buffer holds for the field at schema key `key`, by its form field name; null when it holds nothing,
+ * and null when the File already holds that value, compared in the File's domain: a
+ * JSON-encoded staged value against a File value that is not a string is compared decoded.
+ *
+ * @param {Record<string, unknown>} pending
+ * @param {string} key
+ * @param {unknown} held  the File value
+ * @returns {unknown}
+ */
+function pendingOf(pending, key, held) {
+  const name = FORM_NAME[key];
+  if (!(name in pending)) return null;
+  const value = pending[name];
+  const asFile = typeof value === "string" && typeof held !== "string" ? JSON.parse(value) : value;
+  return isDeepStrictEqual(asFile, held) ? null : value;
+}
+
+/**
+ * The served config reading: each File value read from the File on the restore lane and restarting the engine,
+ * carrying what the staging wire holds for it; no live profile, the stations a read-only reading and Day the loaded
+ * station.
+ *
+ * @param {StagingWire | undefined} at
+ * @returns {Record<string, unknown>}
+ */
+function served(at) {
+  const pending = at ? at.staged.http : {};
+  return {
+    ...Object.fromEntries(
+      Object.entries(file).map(([key, value]) => [
+        key,
+        fieldReading(value, {
+          show: "file",
+          generation: 0,
+          lane: "restore",
+          restarts: true,
+          staged: pendingOf(pending, key, value),
+        }),
+      ]),
+    ),
+    matrix_profile: fieldReading("", { name: "", generation: 0, lane: "matrix" }),
+    active_preset: { value: LOADED, readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: LOADED }, { value: "Night" }] }, readonly: true },
+  };
+}
 
 /** @type {StagingWire} */
 let w;
 
 beforeEach(async () => {
-  w = stagingWire();
+  w = stagingWire({
+    routes: (at, opts, wire) =>
+      at === "/api/config" && (opts.method ?? "GET") === "GET"
+        ? ok({ generation: 0, fields: served(wire) })
+        : undefined,
+  });
   engineState.value = {};
   config.value = configTree();
   matrixConfig.value = matrixTree();
+  file = fileTree();
+  await seedReadings(served(w), 0);
   descriptions.value = {};
   await discardAll();
   staged.value = new Map();

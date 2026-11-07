@@ -20,6 +20,7 @@ import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 import { every, inside, first, vcls, fire } from "../../support/rendered/treewalk.js";
 import { formField } from "../../support/chainenums.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -92,25 +93,29 @@ const book = () => ({
  *
  * @param {{ f1x?: string, adaptive?: string }} [r]
  */
-function wire({ f1x = "1", adaptive = "1" } = {}) {
+async function wire({ f1x = "1", adaptive = "1" } = {}) {
   engineState.value = { state: "0", active_chain: "pcm", filter1x: f1x, filterNx: "2", shaper: "0", adaptive };
   engineStatus.value = {};
   enums.value = { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
+  const chain = [
+    formField("filter1x", "40", PCM_FILTERS),
+    formField("filter", "41", PCM_FILTERS),
+    formField("dither", "6", PCM_SHAPERS),
+    formField("oversampling1x", "38", SDM_FILTERS),
+    formField("oversampling", "39", SDM_FILTERS),
+    formField("modulator", "4", SDM_SHAPERS),
+  ];
   config.value = {
-    fields: [
-      { name: "mode", value: "pcm", options: [] },
-      formField("filter1x", "40", PCM_FILTERS),
-      formField("filter", "41", PCM_FILTERS),
-      formField("dither", "6", PCM_SHAPERS),
-      formField("oversampling1x", "38", SDM_FILTERS),
-      formField("oversampling", "39", SDM_FILTERS),
-      formField("modulator", "4", SDM_SHAPERS),
-    ],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
-    active: "Headphones",
+    fields: [{ name: "mode", options: [] }, ...chain.map(({ name, options }) => ({ name, options }))],
   };
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Room EQ", "Desk"], live_active: "Room EQ" };
+  matrixConfig.value = { fields: [] };
+  await seedReadings({
+    mode: "pcm",
+    ...Object.fromEntries(chain.map(({ name, value }) => [name, value])),
+    active_preset: { value: "Headphones", readonly: true },
+    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
+    matrix_profile: "Room EQ",
+  });
   metadata.value = overlays();
   plainNames.value = false;
 }
@@ -126,8 +131,8 @@ function editing(st, name) {
   cur.value = { st, name };
 }
 
-beforeEach(() => {
-  wire();
+beforeEach(async () => {
+  await wire();
   liveBook.value = book();
   openList.value = null;
   openPopover.value = null;
@@ -317,8 +322,8 @@ test("test_tapping_the_take_button_writes_the_live_value_into_the_edit", async (
 
 // --- the live cell -----------------------------------------------------------------------------------------------
 
-test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_from", () => {
-  wire({ f1x: "0", adaptive: "0" });
+test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_from", async () => {
+  await wire({ f1x: "0", adaptive: "0" });
   editing("Headphones", "Bed");
   const diff = byId((r) => {
     const live = first(r, "div", "vfd", "blive");

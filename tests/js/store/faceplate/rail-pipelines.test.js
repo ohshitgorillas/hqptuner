@@ -5,8 +5,8 @@
 // running pipelines do work: a set where every pipeline copies a channel to that same channel at unity gain with an
 // empty process chain does none.
 //
-// The wire is the seam: the /matrix form into `matrixConfig`, its rows the running pipelines in the form's own shape
-// (source, mixdown, gain, gainunit dB or Lin, process). The structural block is built with the real compiler, so it is
+// The wire is the seam: the /matrix form's pipeline rows, the running pipelines in the form's own shape (source,
+// mixdown, gain, gainunit dB or Lin, process), reach the served readings as the `matrix_pipelines` field. The structural block is built with the real compiler, so it is
 // the serialization the install writes, not a fixture.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/rail-pipelines.test.js
@@ -26,9 +26,11 @@ import {
   volumeDrag,
   volumeRange,
 } from "../../../../hqptuner/static/store/signals.js";
-import { speakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
+import { seedReadings } from "../../support/readings.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { compileRows } from "../../../../hqptuner/static/vendor/eqlab/core/binaural/compile.js";
 
 /** @typedef {import("../../../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -73,23 +75,24 @@ const structuralBlock = () =>
  *
  * @param {{ rows?: PipelineRow[], bauer?: boolean }} [o]
  */
-function wire({ rows = passthrough(STEREO), bauer = false } = {}) {
+async function wire({ rows = passthrough(STEREO), bauer = false } = {}) {
   engineState.value = { active_chain: "pcm", filter_junk: "0", filter1x: "0", filterNx: "0", shaper: "0" };
   enums.value = { junk_filters: [], filters: [], shapers: [] };
   engineStatus.value = { status: { state: "2", active_rate: "352800" }, metadata: { samplerate: "44100", bits: "16" } };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
   matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: true },
-      { name: "post_bauer_enabled", value: bauer },
-      { name: "post_correction_enabled", value: false },
-    ],
-    live_active: "Desk nearfield",
-    rows,
+    fields: [{ name: "enabled" }, { name: "post_bauer_enabled" }, { name: "post_correction_enabled" }],
   };
+  await seedReadings({
+    direct_sdm: false,
+    matrix_enabled: true,
+    post_bauer_enabled: bauer,
+    post_correction_enabled: false,
+    matrix_profile: "Desk nearfield",
+    matrix_pipelines: JSON.stringify(rows),
+  });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
-  speakers.value = { enabled: false, channels: [] };
   hiddenStages.value = [];
   volume.value = "-20";
   volumeDrag.value = null;
@@ -108,10 +111,10 @@ const lit = (id) => railStages(railNow()).find((s) => s.id === id)?.on ?? null;
  * The DSP pipelines lamp over a set of running pipelines.
  *
  * @param {PipelineRow[]} rows
- * @returns {boolean | null}
+ * @returns {Promise<boolean | null>}
  */
-function pipelinesLit(rows) {
-  wire({ rows });
+async function pipelinesLit(rows) {
+  await wire({ rows });
   return lit("pipelines");
 }
 
@@ -119,41 +122,47 @@ function pipelinesLit(rows) {
  * The Crossfeed lamp over a set of running pipelines, the Bauer switch off.
  *
  * @param {PipelineRow[]} rows
- * @returns {boolean | null}
+ * @returns {Promise<boolean | null>}
  */
-function crossfeedLit(rows) {
-  wire({ rows, bauer: false });
+async function crossfeedLit(rows) {
+  await wire({ rows, bauer: false });
   return lit("crossfeed");
 }
 
-beforeEach(() => wire());
+beforeEach(async () => {
+  stagingWire({
+    routes: (path) => (path === "/api/speakers" ? ok({ data: { enabled: false, channels: [] } }) : undefined),
+  });
+  await loadSpeakers();
+  await wire();
+});
 
 // --- crossfeed: either kind engages it ---------------------------------------
 
-test("test_a_running_structural_crossfeed_block_lights_crossfeed_with_the_bauer_switch_off", () => {
-  assert.equal(crossfeedLit(structuralBlock()), true);
+test("test_a_running_structural_crossfeed_block_lights_crossfeed_with_the_bauer_switch_off", async () => {
+  assert.equal(await crossfeedLit(structuralBlock()), true);
 });
 
-test("test_a_structural_block_lights_crossfeed_where_a_plain_cross_routed_set_does_not", () => {
-  const block = crossfeedLit(structuralBlock());
-  const crossRouted = crossfeedLit([row(0, 0), row(1, 1), row(0, 1, { gain: "-6" }), row(1, 0, { gain: "-6" })]);
+test("test_a_structural_block_lights_crossfeed_where_a_plain_cross_routed_set_does_not", async () => {
+  const block = await crossfeedLit(structuralBlock());
+  const crossRouted = await crossfeedLit([row(0, 0), row(1, 1), row(0, 1, { gain: "-6" }), row(1, 0, { gain: "-6" })]);
   assert.notEqual(block, crossRouted);
 });
 
 // --- crossfeed: the running picture names the kind that runs -----------------
 
-test("test_a_running_structural_block_with_the_bauer_switch_off_reads_as_the_structural_crossfeed", () => {
-  wire({ rows: structuralBlock(), bauer: false });
+test("test_a_running_structural_block_with_the_bauer_switch_off_reads_as_the_structural_crossfeed", async () => {
+  await wire({ rows: structuralBlock(), bauer: false });
   assert.equal(railNow().crossfeed, "structural");
 });
 
-test("test_the_bauer_switch_on_over_passthrough_pipelines_reads_as_the_bauer_crossfeed", () => {
-  wire({ rows: passthrough(STEREO), bauer: true });
+test("test_the_bauer_switch_on_over_passthrough_pipelines_reads_as_the_bauer_crossfeed", async () => {
+  await wire({ rows: passthrough(STEREO), bauer: true });
   assert.equal(railNow().crossfeed, "bauer");
 });
 
-test("test_the_bauer_switch_off_over_passthrough_pipelines_reads_as_no_crossfeed", () => {
-  wire({ rows: passthrough(STEREO), bauer: false });
+test("test_the_bauer_switch_off_over_passthrough_pipelines_reads_as_no_crossfeed", async () => {
+  await wire({ rows: passthrough(STEREO), bauer: false });
   assert.equal(railNow().crossfeed, null);
 });
 
@@ -167,8 +176,8 @@ const PASSTHROUGH = [
 ];
 
 for (const [name, rows] of PASSTHROUGH) {
-  test(`test_${name}_leaves_dsp_pipelines_unlit_under_a_running_matrix_engine`, () => {
-    assert.equal(pipelinesLit(rows), false);
+  test(`test_${name}_leaves_dsp_pipelines_unlit_under_a_running_matrix_engine`, async () => {
+    assert.equal(await pipelinesLit(rows), false);
   });
 }
 
@@ -183,8 +192,8 @@ const WORK = [
 ];
 
 for (const [name, changed] of WORK) {
-  test(`test_one_pipeline_with_${name}_lights_dsp_pipelines_where_passthrough_leaves_them_unlit`, () => {
-    const plain = pipelinesLit(passthrough(STEREO));
-    assert.notEqual(pipelinesLit([row(0, 0), changed]), plain);
+  test(`test_one_pipeline_with_${name}_lights_dsp_pipelines_where_passthrough_leaves_them_unlit`, async () => {
+    const plain = await pipelinesLit(passthrough(STEREO));
+    assert.notEqual(await pipelinesLit([row(0, 0), changed]), plain);
   });
 }

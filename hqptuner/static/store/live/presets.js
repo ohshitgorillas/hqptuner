@@ -16,7 +16,7 @@
 // after each save or delete.
 import { signal, effect } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { failText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 import { activePreset } from "../resolve.js";
 import { reportError } from "./state.js";
 import { remirrorLive } from "./write.js";
@@ -36,13 +36,11 @@ export const livePresetStation = signal(/** @type {string | null} */ (null));
 // for the whole card, latest wins — the same rule the live controls follow,
 // because the card has one place to put it and the user has one thing in mind.
 export const livePresetsBusy = signal("");
-export const livePresetError = signal("");
+const snapshots = op("snapshot");
+export const livePresetError = opErrorText(snapshots);
 // Whether something shows the book (the faceplate's station tree). Nothing is
 // read off the wire until it is.
 export const bookWanted = signal(false);
-
-/** The sentence a failed snapshot call opens with. */
-const SNAPSHOT_LEAD = "Snapshot failed: ";
 
 /**
  * Put a failed snapshot call's sentence in `livePresetError`.
@@ -50,7 +48,9 @@ const SNAPSHOT_LEAD = "Snapshot failed: ";
  * @returns {void}
  */
 export function snapshotFailed(e) {
-  livePresetError.value = failText(SNAPSHOT_LEAD, e);
+  void snapshots.run(() => {
+    throw e;
+  });
 }
 
 // Nothing here judges a preset against the chain the engine has loaded. A preset
@@ -64,16 +64,14 @@ export function snapshotFailed(e) {
  * @returns {Promise<void>}
  */
 export async function refreshLivePresets() {
-  try {
+  const result = await snapshots.run(async () => {
     const body = await api.livePresets();
     livePresets.value = body.presets || [];
     liveBook.value = body.stations || {};
     livePresetStation.value = typeof body.station === "string" ? body.station : null;
     livePresetError.value = "";
-  } catch (e) {
-    livePresets.value = [];
-    snapshotFailed(e);
-  }
+  });
+  if (result === FAILED) livePresets.value = [];
 }
 
 // One preset's stored batch, for deciding what a successful apply invalidated.
@@ -103,20 +101,19 @@ const fieldsOf = (/** @type {string} */ name) => {
  * @template T
  * @param {string} name
  * @param {() => Promise<T>} call
- * @param {(result: T) => Promise<void> | void} [after]
+ * @param {(result: T) => Promise<string>} after
  * @returns {Promise<void>}
  */
 async function run(name, call, after) {
   livePresetsBusy.value = name;
   livePresetError.value = "";
-  try {
+  const outcome = await snapshots.run(async () => {
     const result = await call();
-    if (after) await after(result);
-  } catch (e) {
-    snapshotFailed(e);
-  } finally {
-    livePresetsBusy.value = "";
-  }
+    const error = await after(result);
+    if (error) throw { message: error, fromBackend: true };
+  });
+  if (outcome !== FAILED) livePresetError.value = "";
+  livePresetsBusy.value = "";
 }
 
 // Apply is the live lane's own batch: readback-verified by the backend, and
@@ -135,7 +132,7 @@ export async function applyLivePreset(name) {
     () => api.applyLivePreset(name, listed()),
     async (/** @type {import("./state.js").LiveAnswer} */ answer) => {
       await remirrorLive(fields, answer.report);
-      livePresetError.value = reportError(answer.report);
+      return reportError(answer.report);
     },
   );
 }

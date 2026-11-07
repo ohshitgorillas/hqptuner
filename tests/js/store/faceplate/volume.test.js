@@ -3,8 +3,8 @@
 // marks.
 //
 // The wire is the seam: each case writes the engine's reported level and VolumeRange into `volume` and `volumeRange`,
-// the daemon's /config and /matrix form fields (and the config file's values) into `config` and `matrixConfig`, and a
-// knob drag into `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set,
+// each running field's value into the served readings (tests/js/support/readings.js), and a knob drag into
+// `volumeDrag`. Writes ride the real `POST /api/volume`, answered by a fake echoing the level it set,
 // and pace on a fake Clock that moves only when a case advances it, so nothing waits on the wall. Every source signal
 // is reset on every case.
 //
@@ -29,6 +29,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/volume.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { fakeClock } from "../../support/clock.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /**
  * @typedef {object} Running
@@ -69,31 +70,43 @@ const HELD = { enabled: "0", min: "-12", max: "0" };
 const ZERO = { report: HELD, min: "0", max: "0" };
 
 /** @param {Running} r */
-function run(r = {}) {
+async function run(r = {}) {
   const s = { ...FREE, ...r };
   volume.value = s.at;
   volumeDrag.value = s.drag;
   volumeRange.value = s.report;
-  config.value = {
-    fields: [
-      { name: "fixed_volume_enabled", value: s.fixed },
-      { name: "fixed_volume", value: s.level },
-      { name: "volume_fixed", value: s.iso !== "0" },
-      { name: "direct_sdm", value: s.direct },
-      { name: "volume_min", value: s.min },
-      { name: "volume_max", value: s.max },
-    ],
-    file: { volume_fixed: s.iso, fixed_volume: s.level },
+  config.value = { fields: [] };
+  matrixConfig.value = { fields: [] };
+  /** @type {Record<string, unknown>} */
+  const running = {
+    fixed_volume_enabled: s.fixed,
+    fixed_volume: s.level,
+    optimal_iso: s.iso,
+    direct_sdm: s.direct,
+    volume_min: s.min,
+    volume_max: s.max,
+    matrix_enabled: s.matrix,
+    loudness_enabled: s.loudness,
+    loudness_range_low: "-45",
+    loudness_range_high: "-15",
   };
-  matrixConfig.value = {
-    fields: [
-      { name: "enabled", value: s.matrix },
-      { name: "post_loudness_enabled", value: s.loudness },
-      { name: "post_loudness_rangelow", value: "-45" },
-      { name: "post_loudness_rangehigh", value: "-15" },
-    ],
-  };
+  /** @type {Record<string, unknown>} */
+  const pending = s.stagedHttp;
+  await seedReadings(
+    Object.fromEntries(Object.entries(running).map(([key, value]) => [key, fileReading(value, pending[key] ?? null)])),
+  );
   staged.value = { live: {}, http: s.stagedHttp };
+}
+
+/**
+ * A File field's served reading: read from the File on the restore lane, restarting the engine,
+ * carrying the edit staged for it or null.
+ *
+ * @param {unknown} value
+ * @param {unknown} pending
+ */
+function fileReading(value, pending) {
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, staged: pending });
 }
 
 /**
@@ -101,8 +114,8 @@ function run(r = {}) {
  *
  * @param {Running} r
  */
-function levelWith(r) {
-  run(r);
+async function levelWith(r) {
+  await run(r);
   return volumeNow().level;
 }
 
@@ -125,7 +138,7 @@ function volumeWire() {
  * @param {number} request  dB
  */
 async function sent(r, request) {
-  run(r);
+  await run(r);
   const w = volumeWire();
   writeVolume(request, fakeClock().clock);
   await quiesce(w);
@@ -137,8 +150,8 @@ async function sent(r, request) {
  *
  * @param {Running} r
  */
-function marksWith(r) {
-  run(r);
+async function marksWith(r) {
+  await run(r);
   const m = loudnessMarks();
   return m ? [m.lo, m.hi] : null;
 }
@@ -147,39 +160,39 @@ const LOUD = { matrix: true, loudness: true };
 
 // --- the level ---------------------------------------------------------------------------------------------------
 
-test("test_the_level_is_the_engines_reported_volume", () => {
-  assert.equal(levelWith({ at: "-12.5" }), -12.5);
+test("test_the_level_is_the_engines_reported_volume", async () => {
+  assert.equal(await levelWith({ at: "-12.5" }), -12.5);
 });
 
-test("test_a_knob_drag_in_flight_wins_over_the_reported_volume", () => {
-  assert.equal(levelWith({ drag: -30 }), -30);
+test("test_a_knob_drag_in_flight_wins_over_the_reported_volume", async () => {
+  assert.equal(await levelWith({ drag: -30 }), -30);
 });
 
-test("test_the_level_lands_on_the_half_db_step", () => {
-  assert.equal(levelWith({ at: "-12.3" }), -12.5);
+test("test_the_level_lands_on_the_half_db_step", async () => {
+  assert.equal(await levelWith({ at: "-12.3" }), -12.5);
 });
 
 // --- the range ---------------------------------------------------------------------------------------------------
 
-test("test_the_engines_own_range_bounds_the_level_while_it_reports_the_control_enabled", () => {
-  assert.equal(levelWith({ at: "-50", report: { enabled: "1", min: "-40", max: "-3" } }), -40);
+test("test_the_engines_own_range_bounds_the_level_while_it_reports_the_control_enabled", async () => {
+  assert.equal(await levelWith({ at: "-50", report: { enabled: "1", min: "-40", max: "-3" } }), -40);
 });
 
-test("test_the_running_config_range_bounds_the_level_while_the_engine_holds_the_control", () => {
-  assert.equal(levelWith({ at: "-50", report: HELD, min: "-60", max: "-3" }), -50);
+test("test_the_running_config_range_bounds_the_level_while_the_engine_holds_the_control", async () => {
+  assert.equal(await levelWith({ at: "-50", report: HELD, min: "-60", max: "-3" }), -50);
 });
 
-test("test_the_engines_range_stands_when_the_running_config_has_none", () => {
-  assert.equal(levelWith({ at: "-50", report: HELD, min: "" }), -12);
+test("test_the_engines_range_stands_when_the_running_config_has_none", async () => {
+  assert.equal(await levelWith({ at: "-50", report: HELD, min: "" }), -12);
 });
 
-test("test_a_collapsed_running_range_draws_down_to_the_daemons_full_range_floor", () => {
-  run({ at: "-50", ...ZERO });
+test("test_a_collapsed_running_range_draws_down_to_the_daemons_full_range_floor", async () => {
+  await run({ at: "-50", ...ZERO });
   assert.equal(volumeGrid().min, -60);
 });
 
-test("test_a_collapsed_running_range_pins_the_level_at_0_db", () => {
-  assert.equal(levelWith({ at: "-50", ...ZERO }), 0);
+test("test_a_collapsed_running_range_pins_the_level_at_0_db", async () => {
+  assert.equal(await levelWith({ at: "-50", ...ZERO }), 0);
 });
 
 /** @type {[string, Running, boolean][]} */
@@ -189,8 +202,8 @@ const COLLAPSE_READS = [
 ];
 
 for (const [name, r, want] of COLLAPSE_READS) {
-  test(`test_${name}`, () => {
-    run(r);
+  test(`test_${name}`, async () => {
+    await run(r);
     assert.equal(volumeNow().fixed, want);
   });
 }
@@ -204,16 +217,16 @@ const RANGE_EDGES = [
 ];
 
 for (const [name, at, side, want] of RANGE_EDGES) {
-  test(`test_${name}`, () => {
-    run({ at });
+  test(`test_${name}`, async () => {
+    await run({ at });
     assert.equal(volumeNow().off[side], want);
   });
 }
 
 // --- the pins ----------------------------------------------------------------------------------------------------
 
-test("test_a_running_fixed_volume_pins_the_level_at_its_own", () => {
-  assert.equal(levelWith({ fixed: true, level: "-10" }), -10);
+test("test_a_running_fixed_volume_pins_the_level_at_its_own", async () => {
+  assert.equal(await levelWith({ fixed: true, level: "-10" }), -10);
 });
 
 /** @type {[string, string, number][]} */
@@ -223,17 +236,17 @@ const AUTO_HEADROOM = [
 ];
 
 for (const [name, iso, level] of AUTO_HEADROOM) {
-  test(`test_${name}`, () => {
-    assert.equal(levelWith({ iso }), level);
+  test(`test_${name}`, async () => {
+    assert.equal(await levelWith({ iso }), level);
   });
 }
 
-test("test_auto_headroom_wins_over_the_fixed_level", () => {
-  assert.equal(levelWith({ fixed: true, level: "-10", iso: "2" }), -6);
+test("test_auto_headroom_wins_over_the_fixed_level", async () => {
+  assert.equal(await levelWith({ fixed: true, level: "-10", iso: "2" }), -6);
 });
 
-test("test_a_running_direct_sdm_pins_the_level_over_a_fixed_volume", () => {
-  assert.equal(levelWith({ fixed: true, level: "-10", direct: true }), -3);
+test("test_a_running_direct_sdm_pins_the_level_over_a_fixed_volume", async () => {
+  assert.equal(await levelWith({ fixed: true, level: "-10", direct: true }), -3);
 });
 
 /** @type {[string, Running, boolean][]} */
@@ -244,8 +257,8 @@ const PIN_READS = [
 ];
 
 for (const [name, r, want] of PIN_READS) {
-  test(`test_${name}`, () => {
-    run(r);
+  test(`test_${name}`, async () => {
+    await run(r);
     assert.equal(volumeNow().fixed, want);
   });
 }
@@ -261,7 +274,7 @@ test("test_a_write_past_the_top_sends_the_top", async () => {
 });
 
 test("test_a_write_shows_its_level_before_the_engine_answers", async () => {
-  run({});
+  await run({});
   const w = volumeWire();
   writeVolume(-20, fakeClock().clock);
   const level = volumeNow().level;
@@ -293,7 +306,7 @@ test("test_a_write_under_a_collapsed_running_range_is_not_sent", async () => {
  * @param {({ level: number } | { ms: number })[]} steps
  */
 async function paced(steps) {
-  run({});
+  await run({});
   const w = volumeWire();
   const { clock, advance } = fakeClock();
   for (const step of steps) {
@@ -309,7 +322,7 @@ test("test_writes_inside_100_ms_of_a_send_are_held", async () => {
 });
 
 test("test_a_held_write_shows_its_level_while_the_first_is_answered", async () => {
-  run({});
+  await run({});
   const w = volumeWire();
   const { clock } = fakeClock();
   writeVolume(-20, clock);
@@ -320,8 +333,8 @@ test("test_a_held_write_shows_its_level_while_the_first_is_answered", async () =
 
 // --- the loudness bounds -----------------------------------------------------------------------------------------
 
-test("test_the_loudness_bounds_sit_along_the_range_while_matrix_and_loudness_run", () => {
-  assert.deepEqual(marksWith(LOUD), [25, 75]);
+test("test_the_loudness_bounds_sit_along_the_range_while_matrix_and_loudness_run", async () => {
+  assert.deepEqual(await marksWith(LOUD), [25, 75]);
 });
 
 /** @type {[string, Running][]} */
@@ -332,7 +345,7 @@ const UNMARKED = [
 ];
 
 for (const [name, r] of UNMARKED) {
-  test(`test_${name}`, () => {
-    assert.equal(marksWith(r), null);
+  test(`test_${name}`, async () => {
+    assert.equal(await marksWith(r), null);
   });
 }

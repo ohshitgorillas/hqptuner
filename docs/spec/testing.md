@@ -32,9 +32,9 @@ Violations rejected in review even if tests pass.
 
      `scripts/pytest_plugins/suite_deadline.py` holds a run to that 10 s bar while it is still going, extended by the run's CPU-wait: past it, every thread's stack is dumped and the run exits 1, so a hung suite fails instead of hanging.
 
-     `scripts/clock_probe.py` records each real-clock timeout that ran out during a test, as the timeout the code asked for, and `scripts/gates/check_clock_waits.py` refuses any test with one, on every machine.
+     `scripts/clock_probe.py` records each real-clock timeout that ran out during a test, as the timeout the code asked for, and `scripts/gates/testing/check_clock_waits.py` refuses any test with one, on every machine.
 
-     `scripts/idle_probe.py` records each test's wall time less its CPU time less the seconds every thread of the process waited for a CPU, summed across the test from samples at its start, either side of its call and at its end so a fixture's thread alive across the call is counted, and `scripts/gates/check_idle.py` keeps each test's latest passing reading per branch, a refused reading not recorded, and refuses any test whose reading rises more than 40 ms over its previous one or, with no previous one, exceeds 40 ms.
+     `scripts/idle_probe.py` records each test's wall time less its CPU time less the seconds every thread of the process waited for a CPU, summed across the test from samples at its start, either side of its call and at its end so a fixture's thread alive across the call is counted, and `scripts/gates/testing/check_idle.py` keeps each test's latest passing reading per branch, a refused reading not recorded, and refuses any test whose reading rises more than 40 ms over its previous one or, with no previous one, exceeds 40 ms.
 
      That reading counts every delay a shared runner adds, so it gates on the development host only (CI runs `make check IDLE_GATE=off`), where it catches the waits the clock probe cannot see.
 

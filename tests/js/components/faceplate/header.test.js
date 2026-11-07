@@ -27,8 +27,10 @@ import {
   matrixConfig,
   lastApply,
 } from "../../../../hqptuner/static/store/signals.js";
-import { applying, discardAll } from "../../../../hqptuner/static/store/actions.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
+import { applying, applyOp, discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { engineBusy } from "../../../../hqptuner/static/store/enginewrite.js";
+import { createConnPanel } from "../../../../hqptuner/static/store/connpanel.js";
 import {
   liveBook,
   livePresets,
@@ -41,6 +43,7 @@ import { body, openPopover } from "../../../../hqptuner/static/store/faceplate/v
 import { panelOpen } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { elements, attr, text, hasAttr } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 import { ok } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -49,6 +52,8 @@ import { ok } from "../../support/wire/wire.js";
 /** @type {{ fetch?: unknown }} */
 const env = globalThis;
 const REAL_FETCH = env.fetch;
+
+const panel = createConnPanel();
 
 /** @type {{ path: string, method: string, body: Record<string, unknown> | null }[]} */
 const CALLS = [];
@@ -60,7 +65,7 @@ const CALLS = [];
  */
 function answer(path) {
   if (path === "/api/preset/Night") return ok({ name: "Night", config: { volume_max: "-9" } });
-  if (path === "/api/config") return ok({ data: config.value });
+  if (path === "/api/config") return ok(readings.value);
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
   if (path === "/api/config/apply") return ok({ report: {} });
   if (path === "/api/livepresets") return ok({ presets: [], stations: {} });
@@ -68,6 +73,36 @@ function answer(path) {
   if (path === "/api/connection") return ok({ host: "", username: "", remember: true, has_password: false });
   if (path === "/api/discover") return ok([]);
   return ok({ report: {} });
+}
+
+/**
+ * Serve the station the engine has loaded, the `active_preset` reading.
+ *
+ * @param {string} name
+ */
+const loadStation = async (name) =>
+  await seedReadings({
+    active_preset: { value: name, readonly: true },
+    profiles: { value: { options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) }, readonly: true },
+  });
+
+/**
+ * Lets the apply `holdApply` holds finish; a no-op while none is held.
+ *
+ * @type {() => Promise<void>}
+ */
+let releaseApply = async () => {};
+
+/** Hold an apply in flight through the real engine-operation lifecycle; `afterEach` lets it finish. */
+function holdApply() {
+  /** @type {() => void} */
+  let finish = () => {};
+  const running = applyOp.run(() => new Promise((resolve) => (finish = () => resolve(undefined))));
+  releaseApply = async () => {
+    finish();
+    await running;
+    releaseApply = async () => {};
+  };
 }
 
 /** A live snapshot record as the book holds it. */
@@ -81,12 +116,7 @@ beforeEach(async () => {
   };
   engineState.value = {};
   matrixConfig.value = { fields: [] };
-  config.value = {
-    fields: [],
-    file: {},
-    active: "Day",
-    profiles: { value: "Day", options: ["", "Day", "Night"].map((n) => ({ value: n, label: n })) },
-  };
+  config.value = { fields: [] };
   liveBook.value = { Day: { Warm: snap() }, Night: { Quiet: snap() } };
   livePresets.value = null;
   livePresetStation.value = null;
@@ -95,6 +125,7 @@ beforeEach(async () => {
   lastApply.value = null;
   pendingPreset.value = null;
   await discardAll();
+  await loadStation("Day");
   health.value = { reachable: true, ready: true, info: {} };
   applying.value = false;
   engineBusy.value = false;
@@ -104,14 +135,15 @@ beforeEach(async () => {
   CALLS.length = 0;
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await releaseApply();
   env.fetch = REAL_FETCH;
   panelOpen.value = false;
 });
 
 /** Every element of the rendered header carrying a test id, optionally for one station. */
 const marked = (/** @type {string} */ testid, /** @type {string} */ station = "") =>
-  elements(render(html`<${Header} />`)).filter(
+  elements(render(html`<${Header} panel=${panel} />`)).filter(
     (e) => attr(e, "data-testid") === testid && (station === "" || attr(e, "data-station") === station),
   );
 
@@ -135,7 +167,7 @@ const groupHidden = (/** @type {string} */ station) => {
  * @param {string} [name]
  */
 async function tap(testid, name) {
-  const { seen } = renderTree(html`<${Header} />`);
+  const { seen } = renderTree(html`<${Header} panel=${panel} />`);
   const hit = seen.find((v) => v.props["data-testid"] === testid && (name === undefined || textOf(v) === name));
   const onClick = /** @type {(() => unknown) | undefined} */ (hit?.props.onClick);
   if (typeof onClick === "function") await onClick();
@@ -151,7 +183,7 @@ test("test_the_knob_reads_lost_while_the_engine_is_not_ready", () => {
 });
 
 test("test_the_knob_reads_busy_while_an_apply_is_in_flight", () => {
-  applying.value = true;
+  holdApply();
   assert.equal(attrOf("conn", "data-state"), "busy");
 });
 
@@ -160,8 +192,8 @@ test("test_tapping_the_knob_with_no_alert_opens_the_connection_settings", async 
   assert.equal(panelOpen.value, true);
 });
 
-test("test_the_tree_trigger_names_the_loaded_station_alone", () => {
-  config.value = { ...config.value, active: "Night" };
+test("test_the_tree_trigger_names_the_loaded_station_alone", async () => {
+  await loadStation("Night");
   const [trigger] = marked("stations");
   assert.deepEqual(
     ["Day", "Night"].filter((n) => trigger !== undefined && text(trigger).includes(n)),
@@ -207,7 +239,7 @@ test("test_a_folded_station_hides_its_snapshots", () => {
 });
 
 test("test_tapping_a_station_chevron_unfolds_its_snapshots", async () => {
-  const { seen } = renderTree(html`<${Header} />`);
+  const { seen } = renderTree(html`<${Header} panel=${panel} />`);
   const chev = seen.find((v) => v.props["data-testid"] === "unfold" && v.props["data-station"] === "Night");
   const onClick = /** @type {(() => unknown) | undefined} */ (chev?.props.onClick);
   if (typeof onClick === "function") onClick();
@@ -268,7 +300,7 @@ const MARK = "restart-mark";
  * @returns {{ station: string | undefined, mark: MarkupElement }[]}
  */
 function stationMarks() {
-  const all = elements(render(html`<${Header} />`));
+  const all = elements(render(html`<${Header} panel=${panel} />`));
   const names = all.filter((e) => attr(e, "data-testid") === "station-name");
   const owner = (/** @type {MarkupElement} */ mark) => {
     const row = all
@@ -298,19 +330,19 @@ const markTips = (station) =>
     .filter((m) => m.station === station)
     .map((m) => (attr(m.mark, TIP) ?? "") !== "");
 
-test("test_with_day_loaded_only_night_carries_the_restart_mark", () => {
-  config.value = { ...config.value, active: "Day" };
+test("test_with_day_loaded_only_night_carries_the_restart_mark", async () => {
+  await loadStation("Day");
   assert.deepEqual(marksByStation(), [false, true]);
 });
 
-test("test_with_night_loaded_only_day_carries_the_restart_mark", () => {
-  config.value = { ...config.value, active: "Night" };
+test("test_with_night_loaded_only_day_carries_the_restart_mark", async () => {
+  await loadStation("Night");
   assert.deepEqual(marksByStation(), [true, false]);
 });
 
 for (const [loaded, other] of [STATIONS, [...STATIONS].reverse()]) {
-  test(`test_with_${loaded.toLowerCase()}_loaded_the_restart_mark_on_${other.toLowerCase()}_carries_a_hover_tip`, () => {
-    config.value = { ...config.value, active: loaded };
+  test(`test_with_${loaded.toLowerCase()}_loaded_the_restart_mark_on_${other.toLowerCase()}_carries_a_hover_tip`, async () => {
+    await loadStation(loaded);
     assert.deepEqual(markTips(other), [true]);
   });
 }

@@ -5,8 +5,9 @@
 // that stands in for the slots under Volume.
 //
 // Driven at the wire, as the store suite is: the engine's enumerations, State and /config form come from
-// tests/js/support/listsfixture.js (SDM chain loaded, Simplified names on), the /matrix form goes into `matrixConfig`,
-// the level into the volume signals, and a fetch fake answers the real REST paths and records every request body. Taps
+// tests/js/support/listsfixture.js (SDM chain loaded, Simplified names on), the profiles the engine loaded are its
+// `matrix_profiles` enumeration and the running one its `matrix_profile` reading, seeded through
+// tests/js/support/readings.js, the level goes into the volume signals, and a fetch fake answers the real REST paths and records every request body. Taps
 // and keys are fired through the renderer's vnode seam, since render-to-string fires no events. Every engine and
 // profile name asserted is the fixture's own.
 //
@@ -31,11 +32,14 @@ import { propsOf } from "../../support/wheel.js";
 useStorage();
 
 const { html } = await import("../../../../hqptuner/static/lib/dom.js");
-const { config, engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
+const { engineState, engineStatus, enums, matrixConfig, volume, volumeDrag, volumeRange } =
   await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar, setPlainNames } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
+const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
+const { seedReadings } = await import("../../support/readings.js");
+const { profileReading } = await import("../../support/profile-fixtures.js");
 const { setSwitcherTarget, switcherView, setSlot } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 const { Switcher } = await import("../../../../hqptuner/static/components/faceplate/bottom/Switcher.js");
@@ -52,7 +56,7 @@ let posts = [];
 const READS = {
   "/api/state": () => ok({ data: { ...engineState.value } }),
   "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ data: { ...config.value } }),
+  "/api/config": () => ok({ ...readings.value }),
   "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };
@@ -93,12 +97,14 @@ function tracked(path, opts) {
   return req;
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   useStorage();
   env.fetch = tracked;
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Desk", "Lounge"], live_active: "Lounge" };
+  matrixConfig.value = { fields: [] };
+  enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
+  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
   volume.value = "-27.5";
   volumeDrag.value = null;
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };

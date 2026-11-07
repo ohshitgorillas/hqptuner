@@ -242,16 +242,16 @@ def _startup_failure(reason: str, log_path: Path) -> str:
 
 
 def _answers(url: str) -> bool:
-    """A 200 from the URL, and on `/api/health` the app's own `ready` flag with
-    it: the route answers 200 from the moment the app is listening, while
-    `ready` is the app saying both daemon lanes are up."""
+    """A 200 from the URL, and on `/api/health` the phase Ready with it: the
+    route answers 200 from the moment the app is listening, while Ready is the
+    app saying both daemon lanes are up."""
     try:
         with urllib.request.urlopen(url, timeout=1.0) as response:  # noqa: S310 — literal loopback http URL
             if response.status != 200:
                 return False
             if not url.endswith("/api/health"):
                 return True
-            return bool(json.loads(response.read()).get("ready"))
+            return bool(json.loads(response.read()).get("phase") == "Ready")
     except OSError:
         return False
 

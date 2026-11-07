@@ -16,11 +16,13 @@
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { listOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { seedReadings } from "../../support/readings.js";
 
 const OPEN = new URL("../../../../hqptuner/static/store/faceplate/lists/open.js", import.meta.url).href;
 const open = await import(`${OPEN}`);
@@ -49,6 +51,14 @@ const NOISE_PROSE = {
   7: "Prose fixture for value 7.",
 };
 
+/** The integrator's options on the /config form: value, engine name. */
+/** @type {[string, string][]} */
+const INTEGRATOR_OPTIONS = [
+  ["0", "IIR"],
+  ["1", "FIR"],
+  ["2", "CIC"],
+];
+
 /**
  * One /config form select field.
  *
@@ -58,25 +68,21 @@ const NOISE_PROSE = {
 const selectField = (name, options) => ({
   name,
   type: "select",
-  value: options[0][0],
   options: options.map(([value, label]) => ({ value, label })),
 });
 
 /** Add the daemon's noise filter and integrator fields, and the noise filter's plain-names section, to the wire. */
-function loadDsd() {
+async function loadDsd() {
   const form = /** @type {{ fields: unknown[] }} */ (config.value);
   config.value = {
     ...form,
-    fields: [
-      ...form.fields,
-      selectField("noise_filter", NOISE_OPTIONS),
-      selectField("integrator", [
-        ["0", "IIR"],
-        ["1", "FIR"],
-        ["2", "CIC"],
-      ]),
-    ],
+    fields: [...form.fields, selectField("noise_filter", NOISE_OPTIONS), selectField("integrator", INTEGRATOR_OPTIONS)],
   };
+  await seedReadings({
+    ...readings.value?.fields,
+    noise_filter: NOISE_OPTIONS[0][0],
+    integrator: INTEGRATOR_OPTIONS[0][0],
+  });
   const meta = /** @type {{ plain_names: Record<string, unknown> }} */ (metadata.value);
   const entries = Object.fromEntries(
     Object.entries(NOISE_FAMILIES).map(([name, family]) => [name, { family, variant: null, leaf: name, short: name }]),
@@ -89,11 +95,11 @@ function loadDsd() {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
-  loadDsd();
+  await loadLists();
+  await loadDsd();
 });
 
 afterEach(async () => {
@@ -113,9 +119,9 @@ test("test_a_filter_list_has_favorites", () => {
   assert.equal(open.hasFavorites?.("filters"), true);
 });
 
-test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", () => {
-  loadLists({ plain: true });
-  loadDsd();
+test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", async () => {
+  await loadLists({ plain: true });
+  await loadDsd();
   const fams = Object.fromEntries(listOptions("noise_filter").map((o) => [o.v, o.fam]));
   assert.deepEqual(fams, NOISE_FAMILIES);
 });

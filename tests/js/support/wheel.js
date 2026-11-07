@@ -38,12 +38,14 @@
 // `wheelAt` throws on such a control rather than dispatching over it, the same
 // way a case throws on a render with no control at all.
 //
-// `document` and `window` are environment seams the guard reads (activeElement,
-// scrollBy). They exist in a browser and not under `node --test`, so they are
-// installed for the duration of one dispatch and restored afterwards, whatever
-// happens. The control is made the ACTIVE element: a focused control is the
-// case the contract is hardest on, since it is the one a browser will happily
-// let the wheel edit.
+// The guard reaches the page through the control: its `ownerDocument` for
+// focus and that document's `defaultView` for the scroll, which the caller's
+// element carries. For the length of one dispatch the global `document` and
+// `window` are stand-ins that throw on any member read, restored afterwards
+// whatever happens, so a guard that reads focus from, or scrolls, a global page
+// instead of its control's own fails here. The control is made the ACTIVE
+// element: a focused control is the case the contract is hardest on, since it
+// is the one a browser will happily let the wheel edit.
 
 /**
  * A vnode's props, as the harnesses read them.
@@ -90,3 +92,116 @@ export const propsOf = (v) => v.props || {};
  *
  * @typedef {{ node: VNode, label: string, movable: boolean }} WheelControl
  */
+
+/**
+ * A DOM event as a handler receives it: `el` is both target and current target, and `preventDefault` marks it canceled.
+ *
+ * @param {string} type
+ * @param {unknown} el
+ * @param {Record<string, unknown>} [extra]
+ */
+export function domEvent(type, el, extra = {}) {
+  const ev = {
+    type,
+    target: el,
+    currentTarget: el,
+    defaultPrevented: false,
+    cancelable: true,
+    preventDefault() {
+      ev.defaultPrevented = true;
+    },
+    stopPropagation() {},
+    ...extra,
+  };
+  return ev;
+}
+
+/**
+ * Calls one handler prop with an event, when the vnode carries it.
+ *
+ * @param {VNode} node
+ * @param {string} name
+ * @param {unknown} ev
+ */
+export function fire(node, name, ev) {
+  const fn = propsOf(node)[name];
+  if (typeof fn === "function") fn(ev);
+}
+
+/**
+ * Hands an element to a vnode's ref, object or callback, as mounting would.
+ *
+ * @param {VNode} box
+ * @param {unknown} el
+ */
+export function attach(box, el) {
+  const ref = /** @type {{ ref?: unknown }} */ (/** @type {unknown} */ (box)).ref;
+  if (typeof ref === "function") ref(el);
+  else if (ref && typeof ref === "object") /** @type {{ current: unknown }} */ (ref).current = el;
+}
+
+/**
+ * A global no code may read during a dispatch: every member read throws, naming the global and the member.
+ *
+ * @param {string} name
+ */
+const unreadable = (name) =>
+  new Proxy(
+    {},
+    {
+      get(_target, key) {
+        throw new Error(`the global ${name} was read: ${String(key)}`);
+      },
+    },
+  );
+
+/**
+ * The vnodes from `node` out to the outermost element of the same render: the chain a wheel bubbles along.
+ *
+ * @param {VNode[]} seen
+ * @param {VNode} node
+ * @returns {VNode[]}
+ */
+function ancestry(seen, node) {
+  /** @param {unknown} kids */
+  const flat = (kids) => (Array.isArray(kids) ? kids.flat(Infinity) : [kids]);
+  /** @type {VNode[]} */
+  const chain = [node];
+  let at = node;
+  for (;;) {
+    const here = at;
+    const parent = seen.find((v) => flat(propsOf(v).children).includes(here));
+    if (!parent) return chain;
+    chain.push(parent);
+    at = parent;
+  }
+}
+
+/**
+ * One wheel over a control, as a browser delivers it: the event bubbles from the control's vnode outwards through every
+ * wheel listener of the same render, then, unless canceled or the control is not the document's active element, the
+ * default action runs. The global `document` and `window` throw on any read for the dispatch.
+ *
+ * @param {{ seen: VNode[], node: VNode, el: unknown, doc: { activeElement: unknown } }} at every vnode of the render,
+ *   the control's vnode and element (the event's target), and the document, whose active element decides the default
+ *   action
+ * @param {number} deltaY the wheel's vertical delta
+ * @param {() => void} byDefault the default action: what the browser does to a focused control the wheel was not stopped on
+ */
+export function wheelAt({ seen, node, el, doc }, deltaY, byDefault) {
+  const g = /** @type {Record<string, unknown>} */ (globalThis);
+  const had = { document: "document" in g, window: "window" in g };
+  const before = { document: g.document, window: g.window };
+  g.document = unreadable("document");
+  g.window = unreadable("window");
+  try {
+    const ev = domEvent("wheel", el, { deltaY, deltaX: 0, deltaMode: 0 });
+    for (const on of ancestry(seen, node)) fire(on, "onWheel", ev);
+    if (!ev.defaultPrevented && doc.activeElement === el) byDefault();
+  } finally {
+    if (had.document) g.document = before.document;
+    else delete g.document;
+    if (had.window) g.window = before.window;
+    else delete g.window;
+  }
+}

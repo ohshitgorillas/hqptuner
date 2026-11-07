@@ -29,6 +29,7 @@ import {
   applyLivePreset,
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { rec, STATE, presetWire, settle } from "../../support/wire/livepresetwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/live/presets.js").LivePreset} LivePreset */
 
@@ -64,11 +65,12 @@ afterEach(() => {
 // sequence.
 /**
  * @param {Fixture} [fixture]
- * @returns {import("../../support/wire/livepresetwire.js").PresetWire}
+ * @returns {Promise<import("../../support/wire/livepresetwire.js").PresetWire>}
  */
-function reset({ state, ...wire } = {}) {
+async function reset({ state, ...wire } = {}) {
   engineState.value = state === undefined ? STATE("pcm") : state;
   config.value = null;
+  await seedReadings({});
   livePresets.value = null;
   liveBook.value = null;
   livePresetStation.value = null;
@@ -93,7 +95,7 @@ test("test_the_preset_list_is_unknown_before_the_first_read", () => {
 });
 
 test("test_a_failed_read_leaves_the_list_empty", async () => {
-  reset({ listStatus: 500, listDetail: "the preset store is unreadable" });
+  await reset({ listStatus: 500, listDetail: "the preset store is unreadable" });
   bookWanted.value = true;
   await settle();
   assert.deepEqual(livePresets.value, []);
@@ -102,13 +104,13 @@ test("test_a_failed_read_leaves_the_list_empty", async () => {
 // --- applying -----------------------------------------------------------------
 
 test("test_applying_a_preset_posts_to_its_apply_endpoint", async () => {
-  const w = reset({ presets: [rec("Den", "pcm")] });
+  const w = await reset({ presets: [rec("Den", "pcm")] });
   await applyLivePreset("Den");
   assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Den/apply" && c.method === "POST").length, 1);
 });
 
 test("test_applying_a_preset_whose_name_has_a_space_escapes_the_path", async () => {
-  const w = reset({ presets: [rec("Living Room", "pcm")] });
+  const w = await reset({ presets: [rec("Living Room", "pcm")] });
   await applyLivePreset("Living Room");
   assert.equal(w.calls.filter((c) => c.path === "/api/livepresets/Living%20Room/apply").length, 1);
 });
@@ -118,7 +120,7 @@ test("test_an_apply_whose_settings_all_verified_reports_nothing", async () => {
   // rather than never written: an empty signal is also what the reset wrote, and
   // a lane that only ever appends failures would leave last time's sentence on
   // the card under a write that just succeeded.
-  reset({
+  await reset({
     presets: [rec("Den", "pcm")],
     report: { live: [{ setting: "filter1x", ok: true }], stored: {} },
   });
@@ -132,7 +134,7 @@ test("test_a_successful_apply_re_reads_the_engines_state", async () => {
   // the new values appear. Asserting the state SIGNAL moved, not just that the
   // call went out: a lane that fetched and dropped the answer would show the
   // user stale values.
-  reset({
+  await reset({
     presets: [rec("Den", "pcm")],
     report: { live: [{ setting: "rate", ok: true }], stored: {} },
     mirrored: STATE("pcm", "2"),
@@ -142,7 +144,7 @@ test("test_a_successful_apply_re_reads_the_engines_state", async () => {
 });
 
 test("test_a_refused_apply_does_not_re_read_the_engines_state", async () => {
-  const w = reset({
+  const w = await reset({
     presets: [rec("Den", "pcm")],
     applyStatus: 409,
     applyDetail: { filter1x: "the pcm chain is not loaded (engine chain: sdm)" },
@@ -156,7 +158,7 @@ test("test_a_refused_apply_does_not_re_read_the_engines_state", async () => {
 // release would pass on a lane that never touched the signal at all — the reset
 // already wrote the empty string the release leaves behind.
 test("test_a_preset_in_flight_is_marked_busy_by_name", async () => {
-  reset({ presets: [rec("Den", "pcm")] });
+  await reset({ presets: [rec("Den", "pcm")] });
   const applying = applyLivePreset("Den");
   const marked = livePresetsBusy.value;
   await applying;
@@ -164,14 +166,14 @@ test("test_a_preset_in_flight_is_marked_busy_by_name", async () => {
 });
 
 test("test_a_settled_apply_releases_the_busy_mark", async () => {
-  reset({ presets: [rec("Den", "pcm")] });
+  await reset({ presets: [rec("Den", "pcm")] });
   livePresetsBusy.value = "Den";
   await applyLivePreset("Den");
   assert.equal(livePresetsBusy.value, "");
 });
 
 test("test_a_refused_apply_releases_the_busy_mark_too", async () => {
-  reset({
+  await reset({
     presets: [rec("Den", "pcm")],
     applyStatus: 409,
     applyDetail: { filter1x: "the pcm chain is not loaded (engine chain: sdm)" },
@@ -211,7 +213,7 @@ const stalledSetter = (setting) => ({ setting, ok: false, code: "daemon_unavaila
  */
 async function failedApply(live) {
   const den = { ...rec("Den", "pcm"), fields: { mode: "pcm", [PCM_1X]: "40", [PCM_NX]: "40", rate: "0" } };
-  reset({ presets: [den], report: { live, stored: {} } });
+  await reset({ presets: [den], report: { live, stored: {} } });
   await applyLivePreset("Den");
   return livePresetError.value;
 }
@@ -254,25 +256,25 @@ test("test_a_preset_setting_the_daemon_stopped_answering_on_does_not_show_the_se
 // pick from the list reaches the snapshot the list showed.
 
 test("test_a_read_holds_every_stations_snapshots_in_the_book", async () => {
-  reset({ presets: [rec("Den", "pcm")], station: "Office", others: { "": [rec("Hall", "pcm")] } });
+  await reset({ presets: [rec("Den", "pcm")], station: "Office", others: { "": [rec("Hall", "pcm")] } });
   bookWanted.value = true;
   await settle();
   assert.deepEqual(Object.keys((liveBook.value || {})[""] || {}), ["Hall"]);
 });
 
 test("test_a_change_of_loaded_station_re_reads_the_list", async () => {
-  const w = reset({ presets: [rec("Hall", "pcm")] });
+  const w = await reset({ presets: [rec("Hall", "pcm")] });
   bookWanted.value = true;
   await settle();
   w.station = "Den";
   w.presets = [rec("Warm", "pcm")];
-  config.value = { active: "Den" };
+  await seedReadings({ active_preset: { value: "Den", readonly: true } });
   await settle();
   assert.deepEqual(names(), ["Warm"]);
 });
 
 test("test_an_apply_names_the_station_its_list_was_read_for", async () => {
-  const w = reset({ presets: [rec("Warm", "pcm")], station: "Den" });
+  const w = await reset({ presets: [rec("Warm", "pcm")], station: "Den" });
   bookWanted.value = true;
   await settle();
   await applyLivePreset("Warm");

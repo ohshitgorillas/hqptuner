@@ -20,10 +20,10 @@ function pick(mode) {
   return mode === "speakers" ? "🔊" : "🎧";
 }
 
-/** Keep the browser-tab icon following the listening mode for the life of the page. */
-export function initFavicon() {
+/** Keep the browser-tab icon of `doc` following the listening mode for the life of the page. @param {Document} doc */
+export function initFavicon(doc) {
   effect(() => {
-    const link = document.getElementById("favicon");
-    if (link instanceof HTMLLinkElement) link.href = svg(pick(matrixMode.value));
+    const link = doc.getElementById("favicon");
+    if (link?.localName === "link") /** @type {HTMLLinkElement} */ (link).href = svg(pick(matrixMode.value));
   });
 }

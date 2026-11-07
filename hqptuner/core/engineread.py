@@ -12,6 +12,8 @@ import httpx
 
 from hqptuner.core.readings import Readings
 from hqptuner.engine import devicecaps, logtail
+from hqptuner.engine.view import EngineView
+from hqptuner.fields import query
 from hqptuner.lanes import settle
 
 if TYPE_CHECKING:
@@ -117,17 +119,20 @@ async def refresh_devices(mgr: "ConnectionManager") -> None:
     which never learned a live-routed setting; nothing puts those back.
     No idle gate: interrupting playback is the user's call to spend.
     """
-    await settle.own_restart(mgr, mgr.require_http().refresh_devices, settle.mark_connect(mgr))
+    mark = await settle.restart(mgr, mgr.require_http().refresh_devices, file_sources=("config_form", "matrix_form"))
+    await settle.await_ready(mgr, mark)
     await mgr.refresh_http_forms()
 
 
-def current_mode_name(mgr: "ConnectionManager") -> str:
-    """Return the name the engine's mode enumeration gives State's mode index, or "" if either is missing."""
-    readings = mgr.readings
-    if not readings.state or not readings.enums:
+def current_mode_index(view: EngineView) -> str | None:
+    """Return ``view``'s State mode index, read under the register's State key for mode, or None if unread."""
+    return (view.state or {}).get(query.live("mode").state)
+
+
+def current_mode_name(view: EngineView) -> str:
+    """Return the name ``view``'s mode enumeration gives its State mode index, or "" if either is missing."""
+    live = query.live("mode")
+    index = current_mode_index(view)
+    if index is None or live.enumeration is None:
         return ""
-    idx = readings.state.get("mode", "")
-    for item in readings.enums.get("modes", []):
-        if item.get("index") == idx:
-            return item.get("name", "")
-    return ""
+    return view.name_at(live.enumeration, index) or ""

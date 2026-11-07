@@ -42,6 +42,7 @@ import {
 import { snapshotRows } from "../../../../hqptuner/static/store/faceplate/builders/rows.js";
 import { railView } from "../../../../hqptuner/static/store/faceplate/builders/rail.js";
 import { profileChoices } from "../../../../hqptuner/static/store/faceplate/page/profile.js";
+import { seedReadings } from "../../support/readings.js";
 
 const SHELL = "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 
@@ -159,12 +160,33 @@ const book = () => ({
  */
 
 /**
- * Write the matrix forms with two engine-loaded profiles, the one given running.
+ * Serve the /config form and the readings the engine reports: the Output mode, the chain fields at their running
+ * values, the loaded station and the running matrix profile.
  *
+ * @param {string} mode
+ * @param {string} active
  * @param {string} [profile]
  */
-function wireMatrix(profile = "") {
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Room EQ", "Desk"], live_active: profile };
+async function serve(mode, active, profile = "") {
+  const formFields = [
+    formField("filter1x", "40", PCM_FILTERS),
+    formField("filter", "41", PCM_FILTERS),
+    formField("dither", "6", PCM_SHAPERS),
+    formField("oversampling1x", "38", SDM_FILTERS),
+    formField("oversampling", "39", SDM_FILTERS),
+    formField("modulator", "4", SDM_SHAPERS),
+  ];
+  config.value = {
+    fields: [{ name: "mode", options: [] }, ...formFields.map(({ name, options }) => ({ name, options }))],
+  };
+  matrixConfig.value = { fields: [] };
+  await seedReadings({
+    profiles: { value: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] }, readonly: true },
+    mode,
+    ...Object.fromEntries(formFields.map(({ name, value }) => [name, value])),
+    active_preset: { value: active, readonly: true },
+    matrix_profile: profile,
+  });
 }
 
 /**
@@ -173,7 +195,7 @@ function wireMatrix(profile = "") {
  *
  * @param {Running} [r]
  */
-function wire({
+async function wire({
   chain = "pcm",
   f1x = "1",
   fnx = "2",
@@ -187,27 +209,13 @@ function wire({
   engineState.value = { state: "0", active_chain: chain, filter1x: f1x, filterNx: fnx, shaper, adaptive };
   engineStatus.value = {};
   enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  config.value = {
-    fields: [
-      { name: "mode", value: mode, options: [] },
-      formField("filter1x", "40", PCM_FILTERS),
-      formField("filter", "41", PCM_FILTERS),
-      formField("dither", "6", PCM_SHAPERS),
-      formField("oversampling1x", "38", SDM_FILTERS),
-      formField("oversampling", "39", SDM_FILTERS),
-      formField("modulator", "4", SDM_SHAPERS),
-    ],
-    file: {},
-    profiles: { options: [{ value: "" }, { value: "Speakers" }, { value: "Headphones" }] },
-    active,
-  };
+  await serve(mode, active, profile);
   metadata.value = overlays();
-  wireMatrix(profile);
   plainNames.value = false;
 }
 
-beforeEach(() => {
-  wire();
+beforeEach(async () => {
+  await wire();
   liveBook.value = book();
 });
 
@@ -266,8 +274,8 @@ test("test_live_mode_reads_the_config_forms_pcm", () => {
   assert.equal(liveNow()?.mode, "pcm");
 });
 
-test("test_live_mode_reads_the_config_forms_auto", () => {
-  wire({ mode: "auto" });
+test("test_live_mode_reads_the_config_forms_auto", async () => {
+  await wire({ mode: "auto" });
   assert.equal(liveNow()?.mode, "auto");
 });
 
@@ -275,8 +283,8 @@ test("test_an_idle_engine_runs_the_pcm_chain_it_has_loaded", () => {
   assert.equal(liveNow()?.run, "pcm");
 });
 
-test("test_an_idle_engine_runs_the_sdm_chain_it_has_loaded", () => {
-  wire({ chain: "sdm" });
+test("test_an_idle_engine_runs_the_sdm_chain_it_has_loaded", async () => {
+  await wire({ chain: "sdm" });
   assert.equal(liveNow()?.run, "sdm");
 });
 
@@ -284,8 +292,8 @@ test("test_the_loaded_chains_1x_filter_reads_the_enum_id_at_the_index_the_engine
   assert.equal(liveNow()?.pcm?.["1x"], "41");
 });
 
-test("test_the_loaded_chains_shaper_reads_the_enum_id_at_the_index_the_engine_reports", () => {
-  wire({ shaper: "1" });
+test("test_the_loaded_chains_shaper_reads_the_enum_id_at_the_index_the_engine_reports", async () => {
+  await wire({ shaper: "1" });
   assert.equal(liveNow()?.pcm?.sh, "6");
 });
 
@@ -297,13 +305,13 @@ test("test_live_adaptive_volume_reads_the_engines_flag_on", () => {
   assert.equal(liveNow()?.adaptive, "1");
 });
 
-test("test_live_adaptive_volume_reads_the_engines_flag_off", () => {
-  wire({ adaptive: "0" });
+test("test_live_adaptive_volume_reads_the_engines_flag_off", async () => {
+  await wire({ adaptive: "0" });
   assert.equal(liveNow()?.adaptive, "0");
 });
 
-test("test_live_profile_reads_the_engines_named_matrix_profile", () => {
-  wire({ profile: "Room EQ" });
+test("test_live_profile_reads_the_engines_named_matrix_profile", async () => {
+  await wire({ profile: "Room EQ" });
   assert.equal(liveNow()?.profile, "Room EQ");
 });
 
@@ -330,8 +338,8 @@ test("test_home_is_the_loaded_headphones", () => {
   assert.equal(home(), "Headphones");
 });
 
-test("test_home_is_the_loaded_speakers", () => {
-  wire({ active: "Speakers" });
+test("test_home_is_the_loaded_speakers", async () => {
+  await wire({ active: "Speakers" });
   assert.equal(home(), "Speakers");
 });
 
@@ -341,8 +349,8 @@ test("test_a_new_snapshot_holds_every_row", () => {
   assert.deepEqual([...(fromRecord(null)?.inc ?? [])].sort(), ["1x", "adaptive", "mode", "nx", "profile", "sh"]);
 });
 
-test("test_a_new_snapshot_takes_the_chain_the_engine_runs", () => {
-  wire({ chain: "sdm" });
+test("test_a_new_snapshot_takes_the_chain_the_engine_runs", async () => {
+  await wire({ chain: "sdm" });
   assert.equal(fromRecord(null)?.vals?.mode, "sdm");
 });
 
@@ -362,8 +370,8 @@ test("test_a_record_holds_the_rows_its_fields_carry", () => {
   assert.deepEqual([...(fromRecord(rec("Headphones", "Bed"))?.inc ?? [])].sort(), ["1x", "adaptive"]);
 });
 
-test("test_a_row_the_record_leaves_out_reads_the_engine", () => {
-  wire({ chain: "sdm" });
+test("test_a_row_the_record_leaves_out_reads_the_engine", async () => {
+  await wire({ chain: "sdm" });
   assert.equal(fromRecord(rec("Speakers", "S01"))?.vals?.adaptive, "1");
 });
 
@@ -408,22 +416,22 @@ test("test_taking_all_fills_a_held_chain_row_from_the_engine", () => {
   assert.equal(e?.vals?.pcm?.["1x"], "41");
 });
 
-test("test_taking_all_moves_a_held_mode_to_the_chain_the_engine_runs", () => {
-  wire({ chain: "sdm" });
+test("test_taking_all_moves_a_held_mode_to_the_chain_the_engine_runs", async () => {
+  await wire({ chain: "sdm" });
   const e = fromRecord(rec("Headphones", "Desk"));
   takeAll(e);
   assert.equal(e?.vals?.mode, "sdm");
 });
 
-test("test_taking_all_fills_the_new_chains_rows_after_mode_moves", () => {
-  wire({ chain: "sdm", f1x: "1" });
+test("test_taking_all_fills_the_new_chains_rows_after_mode_moves", async () => {
+  await wire({ chain: "sdm", f1x: "1" });
   const e = fromRecord(rec("Headphones", "Desk"));
   takeAll(e);
   assert.equal(e?.vals?.sdm?.["1x"], "39");
 });
 
-test("test_taking_all_leaves_a_row_the_snapshot_does_not_hold", () => {
-  wire({ chain: "sdm" });
+test("test_taking_all_leaves_a_row_the_snapshot_does_not_hold", async () => {
+  await wire({ chain: "sdm" });
   const e = fromRecord(rec("Headphones", "Bed"));
   takeAll(e);
   assert.equal(e?.vals?.mode, "pcm");

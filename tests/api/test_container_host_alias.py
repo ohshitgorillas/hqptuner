@@ -76,8 +76,9 @@ def served_title(client: TestClient) -> str:
         resp = client.get("/api/config")
         status = resp.status_code
         if status == 200:
-            fields = {field["name"]: field for field in resp.json()["data"]["fields"]}
-            return str(fields["title"]["value"])
+            title = resp.json()["fields"]["title"]["file"]
+            if title is not None:
+                return str(title["value"])
     return f"HTTP {status}"
 
 

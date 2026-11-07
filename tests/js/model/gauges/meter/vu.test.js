@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { restVu, stepVu } from "../../../../../hqptuner/static/model/gauges/meter/vu.js";
+import * as vuModel from "../../../../../hqptuner/static/model/gauges/meter/vu.js";
 import { near } from "../../../support/near.js";
 
 /** @typedef {{ vu: number[] }} VuState */
@@ -82,7 +83,28 @@ const FRAMING_EPS = 0.1;
 const END_EPS = 1e-9;
 
 /**
- * The state after `frames` steps of `dt` seconds each, every step holding the same per-channel levels, from rest.
+ * The readings after each of `frames` steps of `dt` seconds, every step holding the same per-channel levels, from
+ * `start`. Each step's readings are copied out, so a step that moves the state it is handed leaves the record intact.
+ *
+ * @param {ReturnType<typeof restVu>} start
+ * @param {number[]} rms
+ * @param {number} reference
+ * @param {{ dt: number, frames: number }} steps
+ * @returns {VuState[]}
+ */
+function trajectoryFrom(start, rms, reference, { dt, frames }) {
+  /** @type {VuState[]} */
+  const states = [];
+  let state = start;
+  for (let k = 0; k < frames; k++) {
+    state = stepVu(state, rms, dt, reference);
+    states.push({ vu: [...state.vu] });
+  }
+  return states;
+}
+
+/**
+ * The readings after each of `frames` steps of `dt` seconds, every step holding the same per-channel levels, from rest.
  *
  * @param {number[]} rms
  * @param {number} reference
@@ -90,16 +112,7 @@ const END_EPS = 1e-9;
  * @param {number} frames
  * @returns {VuState[]}
  */
-function trajectory(rms, reference, dt, frames) {
-  /** @type {VuState[]} */
-  const states = [];
-  let state = restVu(rms.length);
-  for (let k = 0; k < frames; k++) {
-    state = stepVu(state, rms, dt, reference);
-    states.push(state);
-  }
-  return states;
-}
+const trajectory = (rms, reference, dt, frames) => trajectoryFrom(restVu(rms.length), rms, reference, { dt, frames });
 
 /**
  * Channel 0's reading after one level is held from rest for `ms`, in frames of `dt` seconds.
@@ -120,6 +133,69 @@ const readingAfter = (rms, reference, ms, dt = FINE_S) =>
  */
 const peakReading = (rms, reference) =>
   Math.max(...trajectory([rms], reference, FINE_S, SETTLE_MS).map((s) => s.vu[0] ?? NaN));
+
+//: The fine frames in a settle.
+const SETTLE_FRAMES = Math.round(SETTLE_MS / 1000 / FINE_S);
+
+/**
+ * Channel 0's reading after each fine step of a settle from rest, read off the needle array taken from the state
+ * before the first step, while that one state is stepped and every step's return is dropped, as a paint does.
+ *
+ * @param {number} rms
+ * @param {number} reference
+ */
+function readingsHeldInPlace(rms, reference) {
+  const state = restVu(1);
+  const needles = state.vu;
+  /** @type {number[]} */
+  const readings = [];
+  for (let k = 0; k < SETTLE_FRAMES; k++) {
+    stepVu(state, [rms], FINE_S, reference);
+    readings.push(needles[0] ?? NaN);
+  }
+  return readings;
+}
+
+/**
+ * The state a one-channel needle reaches after one level is held from rest for a settle, in fine frames.
+ *
+ * @param {number} rms
+ * @param {number} reference
+ */
+function settledAt(rms, reference) {
+  let state = restVu(1);
+  for (let k = 0; k < SETTLE_FRAMES; k++) state = stepVu(state, [rms], FINE_S, reference);
+  return state;
+}
+
+/**
+ * The readings that follow the needle's arrival at a stop its level drives it past, found as the first reading after
+ * which the needle travels back away from the stop rather than on toward it; none when the needle never turns back.
+ * A strike may fall anywhere inside a step, so arrival is read off the needle's direction, not off a reading that lies
+ * on the stop.
+ *
+ * @param {number[]} readings
+ * @param {number} stop
+ */
+function readingsAfterReaching(readings, stop) {
+  const toward = Math.sign(stop - (readings[0] ?? stop));
+  const turn = readings.findIndex((r, k) => ((readings[k + 1] ?? r) - r) * toward < 0);
+  return turn < 0 ? [] : readings.slice(turn + 1);
+}
+
+/**
+ * Channel 0's readings after it first reaches a stop and turns back, while one level is held for a settle from `start`.
+ *
+ * @param {ReturnType<typeof restVu>} start
+ * @param {number} rms
+ * @param {number} reference
+ * @param {number} stop
+ */
+const readingsAfterTheStop = (start, rms, reference, stop) =>
+  readingsAfterReaching(
+    trajectoryFrom(start, [rms], reference, { dt: FINE_S, frames: SETTLE_FRAMES }).map((s) => s.vu[0] ?? NaN),
+    stop,
+  );
 
 test("test_a_level_at_the_reference_is_short_of_99_percent_deflection_before_the_earliest_response_time", () => {
   assert.ok(readingAfter(REF, REF, RESPONSE_EARLIEST_MS) < RESPONSE_VU);
@@ -176,4 +252,29 @@ test("test_a_step_handed_no_elapsed_time_leaves_the_needle_where_it_was", () => 
 test("test_the_same_elapsed_time_moves_the_needle_as_far_in_long_frames_as_in_short_ones", () => {
   const gap = readingAfter(REF, REF, MID_RISE_MS, LONG_FRAME_S) - readingAfter(REF, REF, MID_RISE_MS, FRAME_S);
   assert.ok(...near(gap, 0, FRAMING_EPS));
+});
+
+test("test_a_state_stepped_in_place_carries_its_needle_past_reference_deflection", () => {
+  const peak = Math.max(...readingsHeldInPlace(REF, REF));
+  assert.ok(peak >= OVERSHOOT_MIN_VU, `peak read off the held needles ${peak} VU, want at least ${OVERSHOOT_MIN_VU}`);
+});
+
+test("test_the_bottom_of_the_dial_scale_is_exported_at_the_bottom_of_the_vu_scale", () => {
+  assert.equal(vuModel.SCALE_MIN_VU, IEC.scaleMinVu);
+});
+
+test("test_the_top_of_the_dial_scale_is_exported_at_the_top_of_the_vu_scale", () => {
+  assert.equal(vuModel.SCALE_MAX_VU, IEC.scaleMaxVu);
+});
+
+test("test_a_needle_overshooting_onto_the_top_stop_rebounds_back_down_the_scale", () => {
+  const after = readingsAfterTheStop(restVu(1), REF + IEC.scaleMaxVu, REF, IEC.scaleMaxVu);
+  const lowest = Math.min(...after);
+  assert.ok(lowest < IEC.scaleMaxVu - STEADY_EPS, `lowest of ${after.length} readings after the stop ${lowest} VU`);
+});
+
+test("test_a_needle_falling_onto_the_bottom_stop_rebounds_back_up_the_scale", () => {
+  const after = readingsAfterTheStop(settledAt(REF, REF), REF - BEYOND_DB, REF, IEC.scaleMinVu);
+  const highest = Math.max(...after);
+  assert.ok(highest > IEC.scaleMinVu + STEADY_EPS, `highest of ${after.length} readings after the stop ${highest} VU`);
 });

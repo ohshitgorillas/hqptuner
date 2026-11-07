@@ -20,6 +20,7 @@ import {
   liveOverride,
 } from "../../../../hqptuner/static/store/signals.js";
 import { playbackPath, runningChain, transportNow } from "../../../../hqptuner/static/store/faceplate/path.js";
+import { seedReadings } from "../../support/readings.js";
 
 const CD = "44100";
 const DSD64 = "2822400";
@@ -45,10 +46,11 @@ const PLAYING = "2";
  *
  * @param {Playing} p
  */
-function play({ state = "2", source = CD, output = PCM_8X, direct = false, chain = "", edited = {} }) {
+async function play({ state = "2", source = CD, output = PCM_8X, direct = false, chain = "", edited = {} }) {
   engineState.value = { active_chain: chain };
   engineStatus.value = { status: { state, active_rate: output }, metadata: { samplerate: source } };
-  config.value = { fields: [{ name: "direct_sdm", value: direct }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: direct });
   staged.value = { live: {}, http: {} };
   liveOverride.value = edited;
 }
@@ -70,8 +72,8 @@ const PATHS = [
 ];
 
 for (const [name, playing, path] of PATHS) {
-  test(`test_${name}_takes_its_path`, () => {
-    play(playing);
+  test(`test_${name}_takes_its_path`, async () => {
+    await play(playing);
     assert.equal(playbackPath(), path);
   });
 }
@@ -85,8 +87,8 @@ const CHAINS = [
 ];
 
 for (const [name, playing, chain] of CHAINS) {
-  test(`test_${name}_runs_that_chain`, () => {
-    play(playing);
+  test(`test_${name}_runs_that_chain`, async () => {
+    await play(playing);
     assert.equal(runningChain(), chain);
   });
 }
@@ -101,9 +103,9 @@ const TRANSPORTS = [
 ];
 
 for (const [name, isReady, state, now] of TRANSPORTS) {
-  test(`test_${name}_reads_${now}`, () => {
-    play({ state });
-    health.value = { ready: isReady };
+  test(`test_${name}_reads_${now}`, async () => {
+    await play({ state });
+    health.value = { phase: isReady ? "Ready" : "Reachable" };
     assert.equal(transportNow(), now);
   });
 }
@@ -114,36 +116,37 @@ for (const [name, isReady, state, now] of TRANSPORTS) {
  *
  * @param {{ status: string, state: string | null }} r
  */
-function report({ status, state }) {
+async function report({ status, state }) {
   engineState.value = state === null ? null : { state, active_chain: "pcm" };
   engineStatus.value = { status: { state: status, active_rate: DSD256 }, metadata: { samplerate: CD } };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
-  health.value = { ready: true };
+  health.value = { phase: "Ready" };
 }
 
-test("test_the_path_lights_when_status_reports_playing_while_state_still_reads_stopped", () => {
-  report({ status: PLAYING, state: STOPPED });
+test("test_the_path_lights_when_status_reports_playing_while_state_still_reads_stopped", async () => {
+  await report({ status: PLAYING, state: STOPPED });
   assert.equal(playbackPath(), "pcm-sdm");
 });
 
-test("test_the_path_goes_idle_when_status_reports_stopped_while_state_still_reads_playing", () => {
-  report({ status: STOPPED, state: PLAYING });
+test("test_the_path_goes_idle_when_status_reports_stopped_while_state_still_reads_playing", async () => {
+  await report({ status: STOPPED, state: PLAYING });
   assert.equal(playbackPath(), "idle");
 });
 
-test("test_the_path_stays_lit_through_an_apply_that_clears_the_state_report", () => {
-  report({ status: PLAYING, state: null });
+test("test_the_path_stays_lit_through_an_apply_that_clears_the_state_report", async () => {
+  await report({ status: PLAYING, state: null });
   assert.equal(playbackPath(), "pcm-sdm");
 });
 
-test("test_the_transport_reads_playing_when_status_reports_playing_while_state_still_reads_stopped", () => {
-  report({ status: PLAYING, state: STOPPED });
+test("test_the_transport_reads_playing_when_status_reports_playing_while_state_still_reads_stopped", async () => {
+  await report({ status: PLAYING, state: STOPPED });
   assert.equal(transportNow(), "playing");
 });
 
-test("test_the_transport_reads_paused_when_status_reports_paused_while_state_still_reads_playing", () => {
-  report({ status: PAUSED, state: PLAYING });
+test("test_the_transport_reads_paused_when_status_reports_paused_while_state_still_reads_playing", async () => {
+  await report({ status: PAUSED, state: PLAYING });
   assert.equal(transportNow(), "paused");
 });

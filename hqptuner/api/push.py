@@ -1,14 +1,14 @@
 """The page's push stream: the read snapshots it would otherwise poll, as server-sent events sent again on change.
 
 Each event is named for its route and carries that route's JSON body: ``health``, ``state``, ``status``, ``volume``,
-``enumerations``, ``config``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves;
+``enumerations``, ``matrix`` and ``pending``. A body is sent once, then again only when its content moves;
 every event's content is its whole body. A body its route would refuse is withheld, and the text held for
 it forgotten, so the next body that route answers goes out however it compares with the last one sent.
 
-While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``) and whenever the
-staging buffer is written, and never asks the daemon anything itself; with none, it reads nothing. A keepalive interval
-with nothing to send writes an SSE comment instead, which is how a client gone without hanging up is found: the write
-to its dead socket ends its stream.
+While it has a subscriber, the feed recomputes whenever the manager reports an edge (``changed``), whenever a reading
+moves the manager's Engine view or File readings and whenever the staging buffer is written, and never asks the daemon
+anything itself; with none, it reads nothing. A keepalive interval with nothing to send writes an SSE comment instead,
+which is how a client gone without hanging up is found: the write to its dead socket ends its stream.
 
 Each event's text is written once and that same string is queued for every subscriber. A subscriber attaching first
 has the feed recompute, so the subscribers already attached get whatever moved, then gets every held text at once, in
@@ -27,7 +27,7 @@ from fastapi.responses import StreamingResponse
 
 from hqptuner.api.deps import credentialed
 from hqptuner.api.errors import ApiError
-from hqptuner.api.routes import config, status, volume
+from hqptuner.api.routes import status, volume
 from hqptuner.api.routes.matrix import matrix
 from hqptuner.clock import Clock
 from hqptuner.core.manager import ConnectionManager
@@ -61,14 +61,13 @@ class Held:
 
 
 def sources(manager: ConnectionManager, static: StaticMetadata, store: PendingStore) -> list[Source]:
-    """Return the eight events in the order a new subscriber receives them, each read through its route's body."""
+    """Return the seven events in the order a new subscriber receives them, each read through its route's body."""
     return [
         Source("health", lambda: status.health(manager)),
         Source("state", lambda: status.state(manager)),
         Source("status", lambda: status.status(manager)),
         Source("volume", lambda: volume.volume_get(manager)),
         Source("enumerations", lambda: status.merged_enumerations(manager, static)),
-        Source("config", lambda: config.config(credentialed(manager))),
         Source("matrix", lambda: matrix.matrix(credentialed(manager))),
         Source("pending", store.snapshot),
     ]
@@ -123,7 +122,7 @@ class PushFeed:
         return sent
 
     def poke(self) -> None:
-        """Recompute on the feed's own loop, from whatever thread wrote the staging buffer; before ``run``, nothing."""
+        """Recompute on the feed's own loop, from whatever thread moved what it relays; before ``run``, nothing."""
         if self._loop is not None:
             self._loop.call_soon_threadsafe(self._publish_watched)
 
@@ -137,6 +136,7 @@ class PushFeed:
         while True:
             woke = await clock.pace(changed, KEEPALIVE)
             changed.clear()
+            # The fallback: a recompute at each keepalive interval carries out any move no edge or hook reported.
             if not self._publish_watched() and not woke:
                 self._send(KEEPALIVE_TEXT)
 

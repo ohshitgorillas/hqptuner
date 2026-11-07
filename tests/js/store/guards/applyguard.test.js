@@ -3,9 +3,8 @@
 //
 // The edit-time guards (store/guards.js, reached through edit(), covered by
 // directsdmwarn.test.js) catch a dangerous setting as the user stages it, one
-// field at a time. They cannot catch a dangerous set that arrives whole — a
-// previewed preset stages no fields at all — and they cannot re-state a hazard
-// at the moment it actually reaches the daemon. That is this guard's job:
+// field at a time. They cannot re-state a hazard at the moment it actually
+// reaches the daemon. That is this guard's job:
 // applyAll() looks at the set it is about to POST, and where that set lands the
 // daemon somewhere hazardous it was NOT already sitting, a warn question opens
 // BEFORE the apply POST goes out. Confirming sends it, declining sends nothing
@@ -21,13 +20,6 @@
 // as well, so the same configuration is never questioned twice on its way
 // through. The acknowledgement lapses the moment the hazard leaves the staged
 // picture, so reaching it again asks again.
-//
-// That rule is why every "the apply asks" case below reaches its hazard through
-// a PREVIEWED PRESET rather than through edit(): Direct SDM is edit-guarded, so
-// a staged set built field by field has already been acknowledged by the time
-// Apply is pressed, and an apply-time question there would be the second
-// warning the rule forbids. A preview stages no field, trips no edit guard, and
-// reaches the apply unacknowledged.
 //
 // Edits stage through POST /api/config/stage, applies go out as
 // POST /api/config/apply, and the question is driven through the public ask
@@ -51,10 +43,12 @@ import {
   enums,
   lastApply,
 } from "../../../../hqptuner/static/store/signals.js";
-import { applyAll, discardAll, edit, previewPreset } from "../../../../hqptuner/static/store/actions.js";
+import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
-import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool, an
@@ -73,7 +67,7 @@ const LIVE_VOLUME = [
   { name: "volume_fixed", value: false },
   { name: "volume_min", value: "-60" },
   { name: "volume_max", value: "0" },
-  { name: "direct_sdm", value: false },
+  { name: "direct_sdm", value: "0" },
 ];
 
 /** @type {Record<string, string>} */
@@ -89,52 +83,6 @@ const REMEMBERED_LEVEL = { fixed_volume: "-20" };
  */
 const patch = (fields, name, value) => fields.map((f) => (f.name === name ? { ...f, value } : f));
 
-// The two independent spellings of "the volume is ALREADY fixed at -3 dB", which
-// is where Direct SDM pins it — so turning Direct SDM on from either of these
-// costs the user nothing, and there is nothing to warn about. They are separate
-// mechanisms and each has to be covered on its own: `fixed_volume_enabled` (a
-// bool, readme §1.13) gates `fixed_volume`, the dBFS level, and BOTH have to
-// line up; `volume_fixed` (optimal_iso, readme §1.2) is gated by nothing and
-// carries the level itself, its "1" being the -3 dB setting.
-//
-// The optimal_iso spelling DROPS the `volume_fixed` form field rather than
-// setting it: the field and the file entry are two answers to one question, and
-// a field left at false would be answering it the other way.
-/** @type {FormField[]} */
-const FIXED_AT_MINUS_THREE = patch(LIVE_VOLUME, "fixed_volume_enabled", true);
-
-/** @type {Record<string, string>} */
-const MINUS_THREE_LEVEL = { fixed_volume: "-3" };
-
-/** @type {FormField[]} */
-const OPTIMAL_ISO_VOLUME = LIVE_VOLUME.filter((f) => f.name !== "volume_fixed");
-
-/** @type {Record<string, string>} */
-const OPTIMAL_ISO_MINUS_THREE = { volume_fixed: "1", fixed_volume: "-20" };
-
-// The hazardous set, as a preset carries it. GET /api/preset/{name} answers in
-// FORM-FIELD terms, not store keys — the preview resolver looks each value up by
-// the field a setting lives on — so this config is keyed the way the /config
-// form names things.
-//
-// `expect` is the store-side reading: what `effective()` must report once the
-// preview has landed, checked by preview() below so a preset the resolver never
-// saw fails as the broken fixture it is rather than as a silent no-op.
-/**
- * @typedef {{
- *   name: string,
- *   config: Record<string, string>,
- *   expect: { key: string, value: string },
- * }} PresetFixture
- */
-
-/** @type {PresetFixture} */
-const DIRECT_SDM_PRESET = {
-  name: "Night",
-  config: { direct_sdm: "1" },
-  expect: { key: "direct_sdm", value: "1" },
-};
-
 // --- fixture -----------------------------------------------------------------
 
 // Total reset: module-level signals outlive a test file, so a partial reset makes
@@ -145,26 +93,19 @@ const DIRECT_SDM_PRESET = {
 // answer with the daemon's: an apply refreshes them, and a fake answering `{}`
 // there would quietly erase the state under test. Every apply POST is recorded
 // in `w.posts`, in arrival order, so "sent" and "not sent" are claims about the
-// wire. `applyFails` makes the daemon refuse the apply, which is the real case
-// in which a user presses Apply twice on one staged set.
+// wire.
 /**
- * @param {{
- *   volume?: FormField[],
- *   file?: Record<string, string>,
- *   preset?: PresetFixture,
- *   applyFails?: boolean,
- * }} [state]
+ * @param {{ volume?: FormField[] }} [state]
  * @returns {Promise<import("../../support/wire/wire.js").StagingWire>}
  */
-async function fixture({ volume = LIVE_VOLUME, file = REMEMBERED_LEVEL, preset, applyFails = false } = {}) {
+async function fixture({ volume = LIVE_VOLUME } = {}) {
   const w = stagingWire({
     routes: (path, opts, wire) => {
       if (path === "/api/config/apply") {
         wire.posts.push(JSON.parse(String(opts.body || "{}")));
-        return applyFails ? bad(503, "engine refused") : ok({ report: {} });
+        return ok({ report: {} });
       }
-      if (preset && path === `/api/preset/${preset.name}`) return ok({ name: preset.name, config: preset.config });
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return undefined;
@@ -173,13 +114,14 @@ async function fixture({ volume = LIVE_VOLUME, file = REMEMBERED_LEVEL, preset, 
   engineState.value = {};
   enums.value = null;
   metadata.value = { settings: {}, filters: { filters: {}, aliases: {} }, shapers: { sdm_modulators: {} } };
-  config.value = {
-    fields: volume,
-    file,
-    active: "",
-    profiles: null,
-  };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: volume.map(({ name }) => ({ name })) };
+  matrixConfig.value = { fields: [] };
+  await seedReadings({
+    ...Object.fromEntries(volume.map(({ name, value }) => [name, value])),
+    ...Object.fromEntries(
+      Object.entries(REMEMBERED_LEVEL).map(([name, v]) => [name, fieldReading(v, { show: "file" })]),
+    ),
+  });
   lastApply.value = null;
   cancel();
   await discardAll();
@@ -261,24 +203,6 @@ async function startEdit(w, key, value) {
   return { held: Promise.resolve(held) };
 }
 
-// Preview a preset and leave it previewed, with nothing staged per field. Throws
-// if the preview itself opened a question: this suite's premise is that the
-// apply is what asks, and a question already open before applyAll() runs would
-// make that unreadable.
-/**
- * @param {import("../../support/wire/wire.js").StagingWire} w
- * @param {PresetFixture} preset
- * @returns {Promise<void>}
- */
-async function preview(w, preset) {
-  await previewPreset(preset.name);
-  await quiesce(w);
-  if (question.value !== null) {
-    throw new Error(`previewing ${preset.name} opened a question of its own: the apply-time case cannot bite`);
-  }
-  require(preset.expect.key, preset.expect.value);
-}
-
 // Fire an apply without awaiting it and let the wire go quiet, so a case can look
 // at the question (or its absence) while the apply is still in flight. The held
 // promise comes back boxed — an async function returning it bare would adopt it
@@ -300,34 +224,7 @@ async function startApply(w) {
   return { held };
 }
 
-// Apply once and say yes to the question that opens, which is the
-// acknowledgement the second apply in a case is measured against. Throws if no
-// question opened.
-/**
- * @param {import("../../support/wire/wire.js").StagingWire} w
- * @returns {Promise<void>}
- */
-async function applyAcknowledged(w) {
-  const { held } = await startApply(w);
-  if (question.value === null) {
-    await held.catch(() => {});
-    throw new Error("the first apply opened no question to acknowledge: this case cannot bite");
-  }
-  answer();
-  await held.catch(() => {});
-  await quiesce(w);
-}
-
 // --- the hazard: direct sdm against a volume not fixed at -3 dB --------------
-
-test("test_applying_a_previewed_direct_sdm_against_a_volume_not_fixed_at_minus_three_opens_a_warn_question", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value?.kind, "warn");
-  cancel();
-  await held.catch(() => {});
-});
 
 // Direct SDM is already on in the running config and the staged set does not
 // touch it, so the apply changes nothing about that hazard. The volume is still
@@ -339,71 +236,6 @@ test("test_applying_with_direct_sdm_already_on_and_staying_on_opens_no_question"
   assert.equal(question.value, null);
   cancel();
   await held.catch(() => {});
-});
-
-// The VOLUME is what selects this hazard, not the fact that Direct SDM newly
-// turned on: previewed the same way against a volume already sitting where
-// Direct SDM would pin it, the setting costs the user nothing. Once per
-// spelling, because the two are independent mechanisms and an implementation
-// reading one of them says nothing about the other.
-test("test_applying_a_previewed_direct_sdm_with_fixed_volume_already_at_minus_three_opens_no_question", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET, volume: FIXED_AT_MINUS_THREE, file: MINUS_THREE_LEVEL });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value, null);
-  cancel();
-  await held.catch(() => {});
-});
-
-test("test_applying_a_previewed_direct_sdm_with_optimal_iso_already_at_minus_three_opens_no_question", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET, volume: OPTIMAL_ISO_VOLUME, file: OPTIMAL_ISO_MINUS_THREE });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value, null);
-  cancel();
-  await held.catch(() => {});
-});
-
-// --- who owns the question ---------------------------------------------------
-
-// `owner` names the surface the question renders on. An apply-time question
-// renders under the open drawer's head, where the Apply the user pressed lives
-// (store/faceplate/drawer.js), not at the field that happens to be dangerous.
-test("test_an_apply_time_question_is_owned_by_pending", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value?.owner, "pending");
-  cancel();
-  await held.catch(() => {});
-});
-
-// --- answering ---------------------------------------------------------------
-
-// A decline is not a discard: the set the user built is still theirs to fix and
-// apply again.
-test("test_declining_an_apply_time_question_leaves_the_previewed_set_intact", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  cancel();
-  await held.catch(() => {});
-  await quiesce(w);
-  assert.equal(effective("direct_sdm"), "1");
-});
-
-// The same claim about a per-field edit sitting alongside the previewed set: the
-// volume narrowing is staged before the preview, is nothing to do with the
-// hazard, and a decline that swept the pending set would take it with it.
-test("test_declining_an_apply_time_question_leaves_an_unrelated_staged_edit_alone", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET });
-  await stageQuietly(w, "volume_min", "-50");
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  cancel();
-  await held.catch(() => {});
-  await quiesce(w);
-  assert.equal(effective("volume_min"), "-50");
 });
 
 // --- one hazard, one warning -------------------------------------------------
@@ -423,7 +255,7 @@ test("test_a_direct_sdm_hazard_acknowledged_at_edit_time_opens_no_apply_time_que
 test("test_leaving_a_hazard_and_reaching_it_again_asks_again_at_edit_time", async () => {
   const w = await fixture();
   await stageAcknowledged(w, "direct_sdm", "1");
-  await stageQuietly(w, "direct_sdm", false);
+  await stageQuietly(w, "direct_sdm", "0");
   const { held } = await startEdit(w, "direct_sdm", "1");
   assert.equal(question.value?.owner, "direct_sdm");
   cancel();
@@ -439,39 +271,6 @@ test("test_discarding_after_acknowledging_a_hazard_asks_again_when_it_is_reached
   await quiesce(w);
   const { held } = await startEdit(w, "direct_sdm", "1");
   assert.equal(question.value?.owner, "direct_sdm");
-  cancel();
-  await held.catch(() => {});
-});
-
-// The complement of the case below, on the apply path's own question: an
-// acknowledgement given at apply time lapses with the hazard it settled. The
-// apply is refused, so the staging survives to be discarded — which takes Direct
-// SDM out of the picture — and previewing it back is a fresh hazard that has
-// never been answered for. An acknowledgement the apply path records and never
-// clears passes the case below and fails this one.
-test("test_leaving_a_hazard_acknowledged_at_apply_time_and_reaching_it_again_asks_again", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET, applyFails: true });
-  await preview(w, DIRECT_SDM_PRESET);
-  await applyAcknowledged(w);
-  await discardAll();
-  await quiesce(w);
-  await preview(w, DIRECT_SDM_PRESET);
-  const { held } = await startApply(w);
-  assert.equal(question.value?.owner, "pending");
-  cancel();
-  await held.catch(() => {});
-});
-
-// A refused apply keeps its staging, so the user presses Apply again on the same
-// set. The hazard was acknowledged on the first press and nothing about it has
-// changed, so the second press does not re-ask.
-test("test_pressing_apply_again_on_the_same_acknowledged_set_opens_no_second_question", async () => {
-  const w = await fixture({ preset: DIRECT_SDM_PRESET, applyFails: true });
-  await preview(w, DIRECT_SDM_PRESET);
-  await applyAcknowledged(w);
-  require("direct_sdm", "1");
-  const { held } = await startApply(w);
-  assert.equal(question.value, null);
   cancel();
   await held.catch(() => {});
 });

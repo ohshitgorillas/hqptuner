@@ -3,7 +3,10 @@ version = 1
 
 [allowance]
 ".claude/hooks/change-budget.py" = { lines = 420 }
-"hqptuner/lanes/live/lane.py" = { lines = 406 }
+"hqptuner/fields/register.py" = { lines = 425 }
+"hqptuner/lanes/http/restore.py" = { lines = 401 }
+"hqptuner/static/components/faceplate/page/spectrumfx.js" = { lines = 496, reason = "owner ruling 28 Oct: lib/dom.js import; no split" }
+"hqptuner/static/lib/spectroraster.js" = { lines = 422 }
 "scripts/budget/budget_miner.py" = { lines = 470 }
 "scripts/fuzz/fuzz.py" = { lines = 433 }
 "scripts/junkburst/views/jblayers.py" = { lines = 470 }

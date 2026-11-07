@@ -1,0 +1,5 @@
+"""A module with a routing table and a set of live settings."""
+
+ROUTES = {"@A@": "live", "@B@": "restore"}
+
+LIVE = {"@A@", "@B@"}

@@ -31,6 +31,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, elements } from "../../support/markup.js";
 import { TRIGGER, popoverTexts, triggersInSight, wordsAfter, wordsOf } from "../../support/seemore.js";
@@ -57,25 +58,30 @@ const DESIGN = { w: 1080, h: 810 };
 const tip = (key) => ({ label: `${key} fixture label`, tooltip: `Whole ${key} fixture paragraph` });
 
 /**
- * Load the /config form with the PCM 1x filter at `pcm1x`.
+ * Load the /config form with the PCM 1x filter at `pcm1x`: each field's value as a served reading from the File, and
+ * the form's options as its metadata.
  *
  * @param {string} pcm1x
  */
-function load(pcm1x) {
+async function load(pcm1x) {
+  const filters = filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS);
   config.value = {
-    fields: [
-      ...filterFields({ pcm1x, pcmnx: SINGLE_STAGE, sdm1x: SINGLE_STAGE, sdmnx: SINGLE_STAGE }, FILTERS),
-      { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
-    ],
-    file: {},
-    active: "",
+    fields: [...filters.fields, { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] }],
   };
+  await seedReadings(
+    Object.fromEntries(
+      Object.entries({ ...filters.values, sdm_conversion: "0" }).map(([name, value]) => [
+        name,
+        fieldReading(value, { show: "file" }),
+      ]),
+    ),
+  );
 }
 
 beforeEach(async () => {
   stagingWire();
   viewport.value = DESIGN;
-  load(TWO_STAGE);
+  await load(TWO_STAGE);
   engineState.value = { state: "0", active_chain: "pcm" };
   engineStatus.value = {};
   enums.value = null;
@@ -100,10 +106,10 @@ function row() {
   return found ? found.html : "";
 }
 
-test("test_a_two_stage_filter_row_shows_one_more_see_more_trigger_than_its_single_stage_twin", () => {
-  load(SINGLE_STAGE);
+test("test_a_two_stage_filter_row_shows_one_more_see_more_trigger_than_its_single_stage_twin", async () => {
+  await load(SINGLE_STAGE);
   const single = triggersInSight(row());
-  load(TWO_STAGE);
+  await load(TWO_STAGE);
   assert.equal(triggersInSight(row()), single + 1);
 });
 

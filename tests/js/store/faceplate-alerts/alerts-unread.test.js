@@ -35,7 +35,8 @@ import {
 } from "../../../../hqptuner/static/store/live/presets.js";
 import { faceplateAlerts } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { quiesce } from "../../support/wire/wire.js";
-import { unreadWire, STATE, ENUMS, CONFIG, BOOK } from "../../support/wire/unreadwire.js";
+import { unreadWire, STATE, ENUMS, BOOK } from "../../support/wire/unreadwire.js";
+import { seedReadings } from "../../support/readings.js";
 import { fail, succeed, succeedEverywhere } from "../../support/unreadareas.js";
 import { fakeClock } from "../../support/clock.js";
 
@@ -47,8 +48,8 @@ initHealth(fakeClock().clock);
 const env = globalThis;
 const REAL_FETCH = env.fetch;
 
-/** A /api/health reading whose credentials the daemon accepted and which lists no dropped setting. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {}, dropped_settings: [] };
+/** A /api/health reading whose credentials the daemon accepted. */
+const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true, info: {} };
 
 /** @type {StagingWire} */
 let wire;
@@ -59,7 +60,7 @@ beforeEach(async () => {
   engineStatus.value = null;
   engineState.value = STATE();
   enums.value = ENUMS();
-  config.value = CONFIG();
+  config.value = { fields: [] };
   matrixConfig.value = { fields: [] };
   liveBook.value = BOOK();
   livePresets.value = null;
@@ -70,6 +71,10 @@ beforeEach(async () => {
   await discardAll();
   await quiesce(wire);
   await succeedEverywhere(wire);
+  await seedReadings({
+    active_preset: { value: "Day", readonly: true },
+    profiles: { value: { options: ["", "Day"].map((n) => ({ value: n, label: n })) }, readonly: true },
+  });
 });
 
 afterEach(() => {

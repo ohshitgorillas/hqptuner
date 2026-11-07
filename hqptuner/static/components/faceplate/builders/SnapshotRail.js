@@ -5,11 +5,10 @@
 import { signal } from "@preact/signals";
 import { Fragment } from "preact";
 import { useLayoutEffect, useRef } from "preact/hooks";
-import { html } from "../../../lib/dom.js";
+import { classNames, html } from "../../../lib/dom.js";
 import { NEW, keyOf } from "../../../model/builders/builder.js";
 import { litEntry } from "../../../model/builders/snapshot.js";
 import { paging, stepPage } from "../../../model/builders/pager.js";
-import { classNames } from "../../../model/shell/format.js";
 import { home, editNow } from "../../../store/faceplate/builders/snapshot.js";
 import { railView } from "../../../store/faceplate/builders/rail.js";
 import { cur, staged, go } from "../../../store/faceplate/builders/shell.js";

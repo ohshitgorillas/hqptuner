@@ -28,6 +28,7 @@
 import { config, enums, engineState, engineStatus, metadata } from "../../../hqptuner/static/store/signals.js";
 import { discardAll } from "../../../hqptuner/static/store/actions.js";
 import { staticWire } from "./wire/wire.js";
+import { fieldReading, seedReadings } from "./readings.js";
 import { PCM_FILTERS, PCM_SHAPERS, SDM_FILTERS, SDM_SHAPERS, JUNK, formField, FORM, LISTS } from "./chainenums.js";
 
 // Tier menu members, 48k side — a menu value names the TIER, never the
@@ -162,23 +163,62 @@ export async function reset(scenario = {}) {
     mode: { name: MODE_NAME[mode] },
   };
   metadata.value = META(floors);
+  /** @type {Record<string, string>} */
+  const running = { ...FORM, ...picked };
   config.value = {
     fields: [
-      ...Object.entries({ ...FORM, ...picked }).map(([name, value]) => formField(name, value, LISTS[name])),
+      ...Object.keys(running).map((name) => {
+        const { options } = formField(name, running[name], LISTS[name]);
+        return { name, options };
+      }),
       // The two rate LIMITS, as the daemon's own form carries them: the PCM
       // family's is `defaults_samplerate`, the SDM family's `defaults_bitrate`.
-      { name: "defaults_samplerate", value: pcmRate },
-      { name: "defaults_bitrate", value: sdmRate },
+      { name: "defaults_samplerate" },
+      { name: "defaults_bitrate" },
     ],
-    file: {
-      mode: FILE_MODE[mode],
-      ...FORM,
-      ...picked,
-      defaults_samplerate: pcmRate,
-      defaults_bitrate: sdmRate,
-    },
-    active: "",
-    profiles: null,
   };
   await discardAll();
+  await seedReadings({
+    mode: fieldReading(FILE_MODE[mode], {
+      show: "file",
+      lane: "restore",
+      engine: fieldReading(mode, { name: MODE_NAME[mode] }).engine,
+    }),
+    ...Object.fromEntries(
+      Object.entries(running).map(([name, id]) => [name, chainReading(name, id, chain, engineState.value)]),
+    ),
+    defaults_samplerate: fieldReading(pcmRate, { show: "file", lane: "restore" }),
+    defaults_bitrate: fieldReading(sdmRate, { show: "file", lane: "restore" }),
+  });
+}
+
+/** Which State attribute reports each chain field, and the chain it sits on. */
+/** @type {Record<string, { attr: string, chain: "pcm" | "sdm" }>} */
+const CHAIN_FIELDS = {
+  filter1x: { attr: "filter1x", chain: "pcm" },
+  filter: { attr: "filterNx", chain: "pcm" },
+  dither: { attr: "shaper", chain: "pcm" },
+  oversampling1x: { attr: "filter1x", chain: "sdm" },
+  oversampling: { attr: "filterNx", chain: "sdm" },
+  modulator: { attr: "shaper", chain: "sdm" },
+};
+
+/**
+ * One chain field's served reading: on the loaded chain the
+ * engine's list index under its enumerated name is shown beside the file's enum
+ * ID; off it, the engine half is null and the file's enum ID is shown.
+ *
+ * @param {string} name
+ * @param {string} id the running configuration's enum ID
+ * @param {"pcm" | "sdm" | null} loadedChain
+ * @param {Record<string, unknown>} state
+ */
+function chainReading(name, id, loadedChain, state) {
+  const { attr, chain } = CHAIN_FIELDS[name];
+  const file = fieldReading(id, { show: "file" }).file;
+  if (chain !== loadedChain) return fieldReading(id, { show: "file", lane: "live" });
+  const index = String(state[attr]);
+  const list = LISTS[name];
+  const item = list.find((i) => i.index === index);
+  return fieldReading(index, { name: item ? item.name : index, lane: "live", file });
 }

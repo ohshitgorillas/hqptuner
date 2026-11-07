@@ -7,10 +7,10 @@ on has no ``<matrix>`` body. So "the target is absent" is not an edge case, it i
 the ordinary state of a config for every feature its owner has not used yet — and
 the write path has to place the element, not refuse the edit.
 
-The parametrization is driven straight off ``FIELD_MAP``/``PLUGIN_MAP``/``PARENT``
+The parametrization is driven straight off the field register's ``located()``
 rather than a hand-written list of fields. That is the point of this file: it is
 derived from the same data the feature is, so it cannot drift out of sync with it.
-Add a field to a map and it is covered without anyone remembering to; reintroduce
+Add a field to the register and it is covered without anyone remembering to; reintroduce
 a refusal for any class of absent target and the whole suite goes red at once.
 """
 

@@ -55,6 +55,7 @@ from typing import TYPE_CHECKING, TypedDict
 from hqptuner import __version__
 from hqptuner.config import LIVE_PRESET_STORE
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
 from hqptuner.presets import names
 from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
@@ -74,10 +75,6 @@ _MATRIX_PROFILE_SCHEMA = 6
 
 #: The unnamed default station: the one loaded while no config preset is.
 DEFAULT_STATION = ""
-
-#: Record keys no snapshot holds, dropped from a stored record's ``fields`` and ``names`` on read.
-_DROPPED = frozenset({"junk_filter"})
-
 
 #: A live record's settings: each live setting's key to the value its setter sends.
 LiveFields = dict[str, str]
@@ -103,13 +100,14 @@ class LiveFile(TypedDict, total=False):
 
 
 def _strings(stored: object) -> dict[str, str]:
-    """Return a stored map's string entries, less the ``_DROPPED`` keys; an absent or non-map member is empty."""
+    """Return a stored map's retained string entries; an absent or non-map member is empty."""
     if not isinstance(stored, dict):
         return {}
+    dropped = query.dropped_snapshot_fields()
     return {
         key: value
         for key, value in stored.items()
-        if isinstance(key, str) and isinstance(value, str) and key not in _DROPPED
+        if isinstance(key, str) and isinstance(value, str) and key not in dropped
     }
 
 

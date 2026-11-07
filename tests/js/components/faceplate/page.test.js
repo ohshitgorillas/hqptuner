@@ -4,7 +4,7 @@
 // body; and a section's fields, one open and every other folded to a line that opens it.
 //
 // The wire is the seam for the page: each case writes the engine's state and Status frame into `engineState` and
-// `engineStatus`, the daemon's /config and /matrix form fields into `config` and `matrixConfig`, and the preferences
+// `engineStatus`, the daemon's /config and /matrix form fields into `config` and `matrixConfig` and their running values into the served readings, and the preferences
 // into `topOfPage` and `allowPinnedRates`. Sections are told apart by `data-stage`, the rail's stage id; their titles
 // are copy and named nowhere here. Section and Fields are rendered with the test's own titles, names and bodies.
 //
@@ -34,6 +34,7 @@ import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -64,7 +65,7 @@ const RATES = [{ index: "0", rate: "0" }, ...PCM_RATES.map((r, n) => ({ index: S
  *
  * @param {Running} r
  */
-function run({
+async function run({
   source = CD,
   output = PCM_8X,
   direct = false,
@@ -77,15 +78,16 @@ function run({
   engineState.value = { mode: "1", active_chain: "pcm", rate: "0" };
   enums.value = { rates: RATES };
   engineStatus.value = { status: { state: "2", active_rate: output }, metadata: { samplerate: source } };
-  config.value = { fields: [{ name: "direct_sdm", value: direct }] };
-  matrixConfig.value = { fields: [{ name: "enabled", value: matrix }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  matrixConfig.value = { fields: [{ name: "enabled" }] };
+  await seedReadings({ direct_sdm: direct, matrix_enabled: matrix });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   topOfPage.value = top;
   allowPinnedRates.value = pins;
 }
 
-beforeEach(() => run({}));
+beforeEach(async () => await run({}));
 
 /** Every element of the rendered page, in document order. */
 const pageEls = () => elements(render(html`<${Page} />`)).sort((a, b) => a.start - b.start);
@@ -133,8 +135,8 @@ test("test_a_folded_matrix_section_has_no_body", () => {
   assert.equal(bodiesIn("matrix"), 0);
 });
 
-test("test_an_unfolded_matrix_section_has_its_body", () => {
-  run({ top: "profile" });
+test("test_an_unfolded_matrix_section_has_its_body", async () => {
+  await run({ top: "profile" });
   assert.equal(bodiesIn("matrix"), 1);
 });
 
@@ -173,8 +175,8 @@ test("test_the_source_section_is_slim_on_a_small_plate", () => {
   assert.deepEqual(stagesWith("slim"), ["source"]);
 });
 
-test("test_the_source_section_is_full_on_a_13_inch_plate", () => {
-  run({ win: { w: 1366, h: 1024 } });
+test("test_the_source_section_is_full_on_a_13_inch_plate", async () => {
+  await run({ win: { w: 1366, h: 1024 } });
   assert.deepEqual(stagesWith("slim"), []);
 });
 
@@ -185,8 +187,8 @@ test("test_a_folded_matrix_section_carries_the_profile_select_on_its_header_line
   );
 });
 
-test("test_an_unfolded_matrix_section_keeps_the_profile_select_in_its_body", () => {
-  run({ top: "profile" });
+test("test_an_unfolded_matrix_section_keeps_the_profile_select_in_its_body", async () => {
+  await run({ top: "profile" });
   assert.equal(
     headHolds("matrix", (e) => e.name === "select"),
     false,

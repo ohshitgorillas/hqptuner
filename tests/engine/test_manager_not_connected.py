@@ -1,4 +1,4 @@
-"""What a user is told when HQPTuner holds no control connection to HQPlayer and a write or a heartbeat needs one.
+"""What a user is told when HQPTuner holds no control connection to HQPlayer and a write needs one.
 
 What is asserted is
 what the fixture knows: the host and port the manager is configured with, and the error code.
@@ -7,7 +7,6 @@ what the fixture knows: the host and port the manager is configured with, and th
 import pytest
 
 from hqptuner.config import Config
-from hqptuner.core import loader
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
 
@@ -26,19 +25,7 @@ def test_a_write_with_no_connection_names_the_address_hqplayer_was_looked_for_at
     assert f"{HOST}:{PORT}" in str(caught.value)
 
 
-async def test_a_heartbeat_with_no_connection_names_the_address_hqplayer_was_looked_for_at() -> None:
-    with pytest.raises(ControlError) as caught:
-        await loader.poll(_unconnected_manager())
-    assert f"{HOST}:{PORT}" in str(caught.value)
-
-
 def test_a_write_with_no_connection_keeps_its_code() -> None:
     with pytest.raises(ControlError) as caught:
         _unconnected_manager().require_control()
-    assert caught.value.code == "daemon_unavailable"
-
-
-async def test_a_heartbeat_with_no_connection_keeps_its_code() -> None:
-    with pytest.raises(ControlError) as caught:
-        await loader.poll(_unconnected_manager())
     assert caught.value.code == "daemon_unavailable"

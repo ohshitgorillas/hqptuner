@@ -9,13 +9,21 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import { config, engineState, engineStatus, enums, metadata } from "../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  generation,
+  metadata,
+} from "../../../hqptuner/static/store/signals.js";
 import { resetNarrowing } from "../../../hqptuner/static/store/narrow/state.js";
 import { favoriteFilters, favoriteModulators, nFavOnly } from "../../../hqptuner/static/store/narrow/favorites.js";
 import { collapsedGroups, setDacChip, setDacType, setPlainNames } from "../../../hqptuner/static/store/ui/prefs.js";
 import { openList, openPopover } from "../../../hqptuner/static/store/faceplate/view.js";
 import { ditherRate, modTier } from "../../../hqptuner/static/store/faceplate/lists/shapers.js";
 import { hoverTip } from "../../../hqptuner/static/store/faceplate/lists/open.js";
+import { fieldReading, seedReadings } from "./readings.js";
 
 /** @typedef {{ index: string, value: string, name: string, description?: string, arg?: string, apodizing?: boolean }} EnumItem */
 
@@ -57,18 +65,42 @@ const PCM_SHAPERS = [
 /** The manual prose the filter overlay writes for one filter. */
 export const SINC_PROSE = "Prose the overlay writes for sinc-M.";
 
+/** The /config form fields: the chain each belongs to, the enum ID it holds, and the list it quotes in that domain. */
+const FORM = /** @type {["pcm" | "sdm", string, string, EnumItem[]][]} */ ([
+  ["pcm", "filter1x", "40", PCM_FILTERS],
+  ["pcm", "filter", "40", PCM_FILTERS],
+  ["pcm", "dither", "5", PCM_SHAPERS],
+  ["sdm", "oversampling1x", "38", SDM_FILTERS],
+  ["sdm", "oversampling", "38", SDM_FILTERS],
+  ["sdm", "modulator", "3", SDM_SHAPERS],
+]);
+
 /**
- * One /config form field quoting a list in the enum-ID domain.
+ * One /config form field's metadata: the list it quotes, as options.
  *
  * @param {string} name
+ * @param {EnumItem[]} items
+ */
+const formField = (name, items) => ({
+  name,
+  options: items.map((i) => ({ value: i.value, label: i.name })),
+});
+
+/**
+ * One /config form field's served reading, a FieldReading. On the loaded chain the Engine shows it: `engine.value` is
+ * the list index of the item carrying the enum ID, under that item's name, and `file.value` keeps the enum ID. Off the
+ * loaded chain the field has no Engine value: `engine` is null and the File shows the enum ID.
+ *
+ * @param {"pcm" | "sdm"} loaded
+ * @param {"pcm" | "sdm"} chain
  * @param {string} value
  * @param {EnumItem[]} items
  */
-const formField = (name, value, items) => ({
-  name,
-  value,
-  options: items.map((i) => ({ value: i.value, label: i.name })),
-});
+function formReading(loaded, chain, value, items) {
+  if (chain !== loaded) return fieldReading(value, { show: "file" });
+  const item = items.find((i) => i.value === value);
+  return fieldReading(item?.index, { name: item?.name, file: { value, generation: generation.value } });
+}
 
 /** A fresh /api/metadata payload: writing the same object to a signal does not notify. */
 const overlays = () => ({
@@ -111,26 +143,21 @@ const overlays = () => ({
 
 /**
  * Put the engine on the wire with one chain loaded (the other dormant, read off the /config form), the overlays
- * served, and the option style set.
+ * served, and the option style set. The returned promise resolves once the readings are seeded.
  *
  * @param {{ chain?: "sdm" | "pcm", plain?: boolean }} [o]
  */
-export function loadLists({ chain = "sdm", plain = false } = {}) {
+export async function loadLists({ chain = "sdm", plain = false } = {}) {
   const sdm = chain === "sdm";
-  engineState.value = { state: "0", active_chain: chain, filter1x: "0", filterNx: "0", shaper: "1" };
+  // State holds the list indices of the loaded chain's form values: SDM 38, 38, 3 and PCM 40, 40, 5.
+  const held = sdm ? { filter1x: "0", filterNx: "0", shaper: "1" } : { filter1x: "1", filterNx: "1", shaper: "1" };
+  engineState.value = { state: "0", active_chain: chain, ...held };
   engineStatus.value = {};
   enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
-  config.value = {
-    fields: [
-      formField("filter1x", "40", PCM_FILTERS),
-      formField("filter", "40", PCM_FILTERS),
-      formField("dither", "5", PCM_SHAPERS),
-      formField("oversampling1x", "38", SDM_FILTERS),
-      formField("oversampling", "38", SDM_FILTERS),
-      formField("modulator", "3", SDM_SHAPERS),
-    ],
-    file: {},
-  };
+  config.value = { fields: FORM.map(([, name, , items]) => formField(name, items)) };
+  await seedReadings(
+    Object.fromEntries(FORM.map(([on, name, value, items]) => [name, formReading(chain, on, value, items)])),
+  );
   metadata.value = overlays();
   setPlainNames(plain);
 }

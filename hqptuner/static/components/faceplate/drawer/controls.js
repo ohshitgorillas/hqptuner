@@ -109,6 +109,14 @@ export const labelHead = (label, { sub, band, tail, restarts = false } = {}) => 
  */
 export const grayLine = (why, here) => (why ? html`<span class="gr">${withXref(why, here)}</span>` : null);
 
+/**
+ * A drawer row's class: `drow`, with `stale` while its values are marked stale. Rows and stacks take it, as does a
+ * block a drawer mounts that draws drawer rows.
+ *
+ * @param {boolean} stale
+ */
+export const drowClass = (stale) => (stale ? "drow stale" : "drow");
+
 /** @param {KeyCtl} c */
 const segment = (c) =>
   segButtons({
@@ -159,8 +167,8 @@ function nameplate({ key, label, off }) {
 }
 
 /**
- * A select over the key's options, the effective one selected; a key with a plain-names overlay draws its nameplate
- * instead.
+ * A select over the key's options, the effective one selected; a key with a plain-names overlay draws its nameplate in
+ * the select's place.
  *
  * @param {KeyCtl} c
  */

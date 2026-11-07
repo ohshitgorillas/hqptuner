@@ -19,6 +19,7 @@ import { config } from "../../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { pickApplyMode, showTab } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { resetDrawerStore } from "../../support/rendered/drawer-stage.js";
+import { seedReadings } from "../../support/readings.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
@@ -28,8 +29,8 @@ import { elements, attr, classes, hasAttr, text } from "../../support/markup.js"
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").BodyItem} BodyItem */
 
 const FIELDS = [
-  { name: "volume_max", type: "number", value: -3 },
-  { name: "mode", type: "select", value: "pcm" },
+  { name: "volume_max", type: "number" },
+  { name: "mode", type: "select" },
 ];
 
 /** @param {string} path */
@@ -40,7 +41,8 @@ function routes(path) {
 
 beforeEach(async () => {
   stagingWire({ routes });
-  config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+  config.value = { fields: FIELDS };
+  await seedReadings({ volume_max: -3, mode: "pcm" });
   await resetDrawerStore();
   pickApplyMode("apply");
 });

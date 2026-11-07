@@ -15,23 +15,25 @@
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/live/polling.test.js
 
-import test, { afterEach } from "node:test";
+import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
   volume,
   volumeRange,
-  config,
   matrixConfig,
   engineState,
   engineStatus,
   enums,
   staged,
 } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { startSync, refreshConfig, refreshDevices } from "../../../../hqptuner/static/store/sync.js";
 import { setVolume } from "../../../../hqptuner/static/store/actions.js";
+import { fakeClock } from "../../support/clock.js";
+import { seedReadings } from "../../support/readings.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
-import { usePage } from "../../support/page.js";
+import { fakePage, hostPage } from "../../support/page.js";
 import { ok, bad } from "../../support/wire/wire.js";
 
 // --- the wire ------------------------------------------------------------------
@@ -55,7 +57,7 @@ afterEach(() => {
 const DEFAULTS = {
   "GET /api/metadata": ok({ filters: [] }),
   "GET /api/enumerations": ok({ data: null }),
-  "GET /api/config": ok({ data: { fields: [], file: {}, active: "" } }),
+  "GET /api/config": ok({ generation: 0, fields: {} }),
   "GET /api/matrix": ok({ data: { fields: [] } }),
   "GET /api/config/pending": ok({ live: {}, http: {} }),
 };
@@ -72,10 +74,12 @@ function wire(routes = {}) {
 // whole await chain — no wall-clock wait anywhere.
 const drain = () => new Promise((resolve) => setImmediate(resolve));
 
+const page = fakePage({ clock: fakeClock().clock });
+
 useEventSource();
-usePage();
+after(hostPage(page));
 wire();
-startSync();
+startSync(page.doc);
 await drain();
 
 // --- what startSync opens and primes ---------------------------------------------
@@ -85,7 +89,7 @@ test("test_sync_opens_its_stream_on_the_push_route", () => {
 });
 
 // --- each push event lands in its signal ------------------------------------------
-// The state, status, enumerations, config and matrix events arrive wrapped as
+// The state, status, enumerations and matrix events arrive wrapped as
 // {stale, loaded_at, data} and land as their `data`; the pending and volume events
 // arrive unwrapped. The volume event feeds both the level and the range signal.
 
@@ -109,12 +113,6 @@ const EVENTS = [
     want: "PCM",
   },
   {
-    event: "config",
-    body: { stale: false, loaded_at: 1, data: { fields: [], file: {}, active: "Desk" } },
-    read: () => config.value?.active,
-    want: "Desk",
-  },
-  {
     event: "matrix",
     body: { stale: false, loaded_at: 1, data: { fields: [], active: "Room" } },
     read: () => matrixConfig.value?.active,
@@ -135,6 +133,15 @@ for (const c of EVENTS) {
   });
 }
 
+// Break: a setting changed on the engine from outside the page never reaches the served readings the page shows.
+test("test_a_state_push_refetches_the_served_readings", async () => {
+  const served = { generation: 9, fields: {} };
+  wire({ "GET /api/config": ok(served) });
+  lastStream()?.emit("state", { stale: false, loaded_at: 2, data: { filter_junk: "1" } });
+  await drain();
+  assert.deepEqual(readings.value, served);
+});
+
 const VOLUME = { volume: "-20.5", min: -60, max: 0, enabled: true, adaptive: false };
 
 test("test_the_volume_event_feeds_the_level_signal", () => {
@@ -149,25 +156,20 @@ test("test_the_volume_event_feeds_the_range_signal_from_the_same_body", () => {
 
 // --- the mirror: a failed fetch keeps the last good value -------------------------
 
-test("test_a_failed_config_fetch_keeps_the_last_good_snapshot", async () => {
-  config.value = { fields: [], file: {}, active: "LastGood" };
-  wire({ "GET /api/config": bad(503, "daemon down") });
-  await refreshConfig();
-  assert.equal(config.value.active, "LastGood");
-});
-
-test("test_the_next_successful_fetch_replaces_the_held_snapshot", async () => {
-  config.value = { fields: [], file: {}, active: "LastGood" };
-  wire({ "GET /api/config": ok({ data: { fields: [], file: {}, active: "Fresh" } }) });
-  await refreshConfig();
-  assert.equal(config.value.active, "Fresh");
-});
-
 test("test_a_failed_matrix_fetch_keeps_the_last_good_form", async () => {
-  matrixConfig.value = { fields: [], active: "Kept" };
+  const kept = { fields: [{ name: "kept_field" }] };
+  matrixConfig.value = kept;
   wire({ "GET /api/matrix": bad(503, "daemon down") });
   await refreshConfig();
-  assert.equal(matrixConfig.value.active, "Kept");
+  assert.equal(matrixConfig.value, kept);
+});
+
+test("test_a_failed_readings_fetch_keeps_the_last_good_readings", async () => {
+  await seedReadings({ kept_field: "kept" });
+  const kept = readings.value;
+  wire({ "GET /api/config": bad(503, "daemon down") });
+  await refreshConfig();
+  assert.equal(readings.value, kept);
 });
 
 // --- setVolume: the immediate write's readback echo -------------------------------
@@ -204,11 +206,4 @@ test("test_refresh_devices_triggers_a_daemon_rescan", async () => {
   };
   await refreshDevices();
   assert.deepEqual(posts, ["/api/config/refresh"]);
-});
-
-test("test_refresh_devices_repulls_the_config_forms", async () => {
-  config.value = { fields: [], file: {}, active: "Stale" };
-  wire({ "GET /api/config": ok({ data: { fields: [], file: {}, active: "AfterRescan" } }) });
-  await refreshDevices();
-  assert.equal(config.value.active, "AfterRescan");
 });

@@ -1,8 +1,29 @@
 """Control API (TCP 4321) failure types, each carrying the ``code`` the API reports it under."""
 
-from hqptuner.conf.httpauth import NO_HTTP_CLIENT_MESSAGE
+import errno
+import socket
+from dataclasses import dataclass
+
 from hqptuner.conf.noanswer import no_answer_message
 from hqptuner.errors import HQPTunerError
+
+
+@dataclass(frozen=True)
+class DialOutcome:
+    """Address evidence from a TCP dial; None means the attempt proved neither verdict."""
+
+    address_found: bool | None
+
+
+def dial_outcome(error: OSError | None) -> DialOutcome:
+    """Classify a completed TCP dial, with None representing a successful connection."""
+    if error is None:
+        return DialOutcome(address_found=True)
+    if isinstance(error, socket.gaierror) or error.errno in (errno.EHOSTUNREACH, errno.ENETUNREACH):
+        return DialOutcome(address_found=False)
+    if isinstance(error, ConnectionRefusedError) or error.errno == errno.ECONNREFUSED:
+        return DialOutcome(address_found=True)
+    return DialOutcome(address_found=None)
 
 
 class ControlError(HQPTunerError):
@@ -18,7 +39,7 @@ class CommandError(ControlError):
 
 
 class ControlTimeoutError(ControlError):
-    """A command got no reply within its timeout — the daemon may have restarted mid-command."""
+    """A command got no reply within its timeout (wall time, seconds) — the daemon may have restarted mid-command."""
 
     def __init__(self, *, timeout: float) -> None:
         """Render the no-answer sentence for ``timeout``, shared with the 8088 lane."""
@@ -39,14 +60,6 @@ class UnparseableResponseError(ControlError):
     def __init__(self, *, command: str, parser_error: str) -> None:
         """Render the not-readable sentence naming the command answered and the XML parser's own error text."""
         super().__init__(f"HQPlayer's answer to {command} is not readable XML: {parser_error}.")
-
-
-class HttpCredentialsMissingError(ControlError):
-    """The 8088 config client accessor was used with no management credentials configured."""
-
-    def __init__(self) -> None:
-        """Render the fixed no-credentials wording; this template carries no interpolated fact."""
-        super().__init__(NO_HTTP_CLIENT_MESSAGE)
 
 
 class ConnectionClosedError(ControlError):

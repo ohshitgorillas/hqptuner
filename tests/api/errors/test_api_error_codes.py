@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import wait_for_api
+from apps import connection_stands, wait_for_api
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -66,8 +66,8 @@ def test_a_refused_live_preset_delete_is_a_client_error(
     assert _delete_live_preset(live_api, tmp_path, name, store).status_code // 100 == 4
 
 
-def test_config_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
-    assert live_api.get("/api/config").json()["code"] == "no_credentials"
+def test_config_refresh_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
+    assert live_api.post("/api/config/refresh").json()["code"] == "no_credentials"
 
 
 def test_a_live_batch_the_lane_refuses_carries_code_route_refused(live_api: TestClient) -> None:
@@ -213,7 +213,7 @@ def stamped_client(
 ) -> Iterator[TestClient]:
     """The app over an auto-pilot store holding ``request.param``."""
     with _client(http_daemon, threaded_daemon_port, tmp_path, request.param) as client:
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        wait_for_api(client, connection_stands)
         yield client
 
 

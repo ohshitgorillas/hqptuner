@@ -141,8 +141,6 @@ export default [
   // is invoked as `eslint .`, so without this it lints the copy — 83 no-undef
   // errors from a second, unconfigured root. knip and tsc are scoped by explicit
   // globs and are unaffected.
-  // `**/*.mjs` is gitignored scratch — throwaway node scripts from tuning
-  // sessions, never shipped and never a gate's business.
   {
     ignores: [
       "hqptuner/static/vendor/**",
@@ -157,6 +155,7 @@ export default [
       // an older commit — never a finding about this tree's source.
       ".claude/worktrees/**",
       "**/*.mjs",
+      "!.github/cadence/coverage-report-check.mjs",
     ],
   },
   js.configs.recommended,
@@ -165,6 +164,10 @@ export default [
     languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.browser },
     plugins: { ...PLUGINS, hqptuner: { rules: { "no-hand-rolled-card": noHandRolledCard } } },
     rules: { ...RULES, "hqptuner/no-hand-rolled-card": "error" },
+  },
+  {
+    files: [".github/cadence/**/*.mjs"],
+    languageOptions: { ecmaVersion: 2022, sourceType: "module", globals: globals.node },
   },
   {
     // Test suite runs under node's built-in runner, not in the browser. The

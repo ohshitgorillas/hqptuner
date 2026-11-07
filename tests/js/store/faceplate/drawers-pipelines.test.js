@@ -26,6 +26,7 @@ import {
   setStages,
 } from "../../../../hqptuner/static/store/faceplate/drawers/pipelines.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} Row */
 
@@ -46,19 +47,23 @@ const EQ_TEXT = "Preamp: -6.4 dB\nFilter 1: ON PK Fc 100 Hz Gain -3.0 dB Q 1.41\
 /** @type {ReturnType<typeof stagingWire>} */
 let wire;
 
+/** A served reading showing `value` from the config file. @param {unknown} value */
+const fromFile = (value) => fieldReading(value, { show: "file" });
+
 /**
  * Load a pipeline set as the config file's, with the engine's output channel count and the matrix engine's switch.
  *
  * @param {Row[]} rows
  * @param {{ channels?: number, engaged?: boolean }} [opts]
  */
-function load(rows, { channels = 2, engaged = true } = {}) {
-  config.value = {
-    fields: [{ name: "channels", type: "number", value: channels }],
-    file: { matrix_pipelines: JSON.stringify(rows) },
-    active: "",
-  };
-  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox", value: engaged }], rows: [] };
+async function load(rows, { channels = 2, engaged = true } = {}) {
+  config.value = { fields: [{ name: "channels", type: "number" }] };
+  matrixConfig.value = { fields: [{ name: "enabled", type: "checkbox" }] };
+  await seedReadings({
+    channels: fromFile(channels),
+    matrix_pipelines: fromFile(JSON.stringify(rows)),
+    matrix_enabled: fromFile(engaged ? "1" : "0"),
+  });
 }
 
 /** The pipeline set the server's buffer holds, or null when none is staged. @returns {Row[] | null} */
@@ -70,7 +75,7 @@ function stagedRows() {
 beforeEach(async () => {
   wire = stagingWire();
   engineState.value = {};
-  load(STEREO);
+  await load(STEREO);
   await discardAll();
 });
 
@@ -81,26 +86,26 @@ const STRUCTURAL = /** @type {Row[]} */ (
   compileRows({ lambda: 1, angle: 30, headRadius: 0.0875, srcA: 0, srcB: 1, preampDb: 0, eqProcess: "" })
 );
 
-test("test_the_output_tabs_are_the_outputs_the_set_feeds", () => {
-  load([plain(0, 0), plain(1, 3), plain(0, 3)]);
+test("test_the_output_tabs_are_the_outputs_the_set_feeds", async () => {
+  await load([plain(0, 0), plain(1, 3), plain(0, 3)]);
   assert.deepEqual(
     pipelinesView().outputs.map((t) => t.id),
     ["out0", "out3"],
   );
 });
 
-test("test_the_grid_spans_the_engines_output_channels", () => {
-  load(STEREO, { channels: 6 });
+test("test_the_grid_spans_the_engines_output_channels", async () => {
+  await load(STEREO, { channels: 6 });
   assert.equal(pipelinesView().nOut, 6);
 });
 
-test("test_a_crossfeed_block_marks_its_crosspoints", () => {
-  load(STRUCTURAL);
+test("test_a_crossfeed_block_marks_its_crosspoints", async () => {
+  await load(STRUCTURAL);
   assert.equal(pipelinesView().grid[0]?.[0]?.gen, "structural");
 });
 
-test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", () => {
-  load(STRUCTURAL);
+test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", async () => {
+  await load(STRUCTURAL);
   const flags = new Set(pipelinesView().pipes.flatMap((p) => p.stages.map((st) => st.blk === true)));
   assert.deepEqual([...flags], [true]);
 });

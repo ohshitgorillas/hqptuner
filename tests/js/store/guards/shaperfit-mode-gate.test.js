@@ -4,7 +4,7 @@
 // The engine answers for the chain it has LOADED and nothing else,
 // but the settings about to be applied are
 // the ones the user is being warned about — so the family judged follows the
-// EFFECTIVE output mode: a staged or previewed edit when there is one, the
+// EFFECTIVE output mode: a staged edit when there is one, the
 // running configuration otherwise. `[source]` (auto) names no family at all
 // (HQPlayer manual §4.4), so there the loaded chain is the only thing that
 // does, and with nothing loaded either family may be next.
@@ -26,8 +26,7 @@
 //
 // The scenario arrives through the exported signals carrying the
 // /api/state, /api/enumerations, /api/config and /api/metadata shapes, the
-// staged edit rides the real REST staging path, and a previewed preset arrives
-// as the preview signals a preset click leaves behind.
+// staged edit rides the real REST staging path.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/guards/shaperfit-mode-gate.test.js
 
@@ -35,20 +34,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { shaperAlerts } from "../../../../hqptuner/static/store/alerts/shaperfit.js";
-import { previewConfig, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
+import { pendingPreset } from "../../../../hqptuner/static/store/signals.js";
 import { edit } from "../../../../hqptuner/static/store/actions.js";
 import { stagingWire, quiesce } from "../../support/wire/wire.js";
-import { PCM_SHAPERS, SDM_SHAPERS } from "../../support/chainenums.js";
-import {
-  reset,
-  DSD512,
-  DSD1024,
-  PCM_4X,
-  PCM_8X,
-  MODULATOR,
-  DITHER,
-  SELECTS,
-} from "../../support/shaperfit-fixtures.js";
+import { reset, DSD512, DSD1024, PCM_4X, PCM_8X, MODULATOR, DITHER } from "../../support/shaperfit-fixtures.js";
 
 /**
  * One alert row.
@@ -80,16 +69,15 @@ const PCM_CONFLICTS = { sdmRate: DSD1024, pcmRate: PCM_4X, floors: FLOORS };
 const BOTH_CONFLICT = { sdmRate: DSD512, pcmRate: PCM_4X, floors: FLOORS };
 
 /**
- * A scenario at the wire with the preview signals cleared too — they are
- * module-level and outlive a test file, so a suite that stages preview state
- * must clear it itself or its cases pass alone and fail in sequence.
+ * A scenario at the wire with the pending preset cleared too — it is
+ * module-level and outlives a test file, so a suite must clear it itself or its
+ * cases pass alone and fail in sequence.
  *
  * @param {import("../../support/shaperfit-fixtures.js").Scenario} scenario
  * @returns {Promise<void>}
  */
 async function scene(scenario) {
   await reset(scenario);
-  previewConfig.value = null;
   pendingPreset.value = null;
 }
 
@@ -104,27 +92,6 @@ async function stageEdit(key, value) {
   const w = stagingWire();
   await edit(key, value);
   await quiesce(w);
-}
-
-/**
- * A previewed preset, as one click on a preset leaves the store: its field
- * values keyed by the daemon's own form-field names, and its name pending. The
- * rates and shapers restate the running configuration, so the preset moves the
- * output mode and nothing else.
- *
- * @param {string} mode
- * @param {{ sdmRate: string, pcmRate: string }} rates
- * @returns {void}
- */
-function previewMode(mode, { sdmRate, pcmRate }) {
-  previewConfig.value = {
-    mode,
-    defaults_bitrate: sdmRate,
-    defaults_samplerate: pcmRate,
-    modulator: SDM_SHAPERS[Number(SELECTS.MAIN)].value,
-    dither: PCM_SHAPERS[Number(SELECTS.MAIN)].value,
-  };
-  pendingPreset.value = "Night";
 }
 
 // --- a staged mode overrides the loaded chain ---------------------------------
@@ -194,41 +161,6 @@ test("test_staged_auto_mode_with_no_chain_loaded_reports_both_families", async (
   await scene({ chain: null, mode: "1", ...BOTH_CONFLICT });
   await stageEdit("output_mode", "auto");
   assert.deepEqual(sevs(), ["crit", "warn"]);
-});
-
-// --- a previewed preset stages the same way ------------------------------------
-
-test("test_a_previewed_sdm_preset_reports_the_sdm_conflict_while_the_engine_runs_pcm", async () => {
-  await scene({ chain: "pcm", mode: "1", ...SDM_CONFLICTS });
-  previewMode("sdm", SDM_CONFLICTS);
-  assert.deepEqual(sevs(), ["crit"]);
-});
-
-test("test_a_previewed_sdm_preset_silences_the_pcm_conflict", async () => {
-  await scene({ chain: "pcm", mode: "1", ...PCM_CONFLICTS });
-  previewMode("sdm", PCM_CONFLICTS);
-  assert.deepEqual(alerts(), []);
-});
-
-test("test_a_previewed_pcm_preset_reports_the_pcm_conflict_while_the_engine_runs_sdm", async () => {
-  await scene({ chain: "sdm", mode: "2", ...PCM_CONFLICTS });
-  previewMode("pcm", PCM_CONFLICTS);
-  assert.deepEqual(sevs(), ["warn"]);
-});
-
-test("test_a_previewed_pcm_preset_silences_the_sdm_conflict", async () => {
-  await scene({ chain: "sdm", mode: "2", ...SDM_CONFLICTS });
-  previewMode("pcm", SDM_CONFLICTS);
-  assert.deepEqual(alerts(), []);
-});
-
-test("test_a_previewed_sdm_mode_reports_the_sdm_conflict_alone_when_both_families_conflict", async () => {
-  // Both families are below their floors and the engine runs PCM, so a preview
-  // route that is ignored shows the PCM row and one that judges the loaded
-  // chain shows it too: only the previewed mode leaves the SDM row alone.
-  await scene({ chain: "pcm", mode: "1", ...BOTH_CONFLICT });
-  previewMode("sdm", BOTH_CONFLICT);
-  assert.deepEqual(sevs(), ["crit"]);
 });
 
 // --- nothing staged, nothing previewed: the engine is the answer ---------------

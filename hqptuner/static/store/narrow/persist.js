@@ -1,5 +1,5 @@
-// Writing the narrow bar's facets to the server, and reading them back at load
-// — its own module because it is the only part of narrowing that talks to the
+// Writing the narrow bar's facets to the server, and reading them back when boot
+// starts narrowing — its own module because it is the only part of narrowing that talks to the
 // backend, and the state it mirrors has no business knowing that.
 //
 // The facets are stored for the INSTALL, in state/narrowing.json, the way stars
@@ -8,9 +8,9 @@
 // with. Nothing polls — a tab picks up another tab's narrowing on reload, and
 // two browsers racing is last-write-wins. The favorites-only switch is NOT part
 // of that store: it lives in favorites.js and stays session state.
-import { signal, effect, batch } from "@preact/signals";
+import { effect, batch } from "@preact/signals";
 import { api } from "../../lib/api.js";
-import { failText } from "../../lib/errtext.js";
+import { op, opErrorText, FAILED } from "../core/ops.js";
 import { PLATFORM, quietWindow } from "../../lib/clock.js";
 import { sameJson } from "../../lib/samejson.js";
 import {
@@ -69,10 +69,8 @@ const QUIET_MS = 400;
 /** @typedef {import("../../lib/clock.js").Clock} Clock */
 
 /** The last failed narrowing read or write's sentence, "" once one succeeds. */
-export const narrowingError = signal("");
-
-/** The sentence a failed narrowing call opens with. */
-const NARROWING_LEAD = "Narrow filters failed: ";
+const narrowingOp = op("narrowing");
+export const narrowingError = opErrorText(narrowingOp);
 
 /** The quiet window a facet move restarts; it writes the facets out when it closes. */
 let quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), PLATFORM);
@@ -91,6 +89,21 @@ let applying = false;
 export function initNarrowing(next = PLATFORM) {
   quiet.cancel();
   quiet = quietWindow(QUIET_MS, () => void flushNarrowing(), next);
+}
+
+/**
+ * Start persisting on ``doc``: pace the quiet window on ``clock``, flush when the tab is hidden or closed inside the
+ * quiet window (nothing to restore on failure, the page is going away), and read the stored facets once.
+ * @param {Document} doc
+ * @param {Clock} clock
+ * @returns {void}
+ */
+export function startNarrowing(doc, clock) {
+  initNarrowing(clock);
+  doc.addEventListener("visibilitychange", () => {
+    if (doc.visibilityState === "hidden") void flushNarrowing();
+  });
+  void hydrateNarrowing();
 }
 
 /**
@@ -121,7 +134,7 @@ function changedKeys(snap) {
  * @returns {Promise<void>}
  */
 export async function hydrateNarrowing() {
-  try {
+  await narrowingOp.run(async () => {
     const body = await api.narrowing();
     const facets = body.facets || {};
     applying = true;
@@ -136,9 +149,7 @@ export async function hydrateNarrowing() {
       applying = false;
     }
     narrowingError.value = "";
-  } catch (e) {
-    narrowingError.value = failText(NARROWING_LEAD, e);
-  }
+  });
 }
 
 /**
@@ -153,14 +164,14 @@ export async function flushNarrowing() {
   if (!touched.size) return;
   const snap = snapshot();
   touched.clear();
-  try {
+  const result = await narrowingOp.run(async () => {
     const body = await api.saveNarrowing(snap);
     lastSent = body.facets || snap;
     narrowingError.value = "";
-  } catch (e) {
+  });
+  if (result === FAILED) {
     // Still owed: the next facet the user moves, or the next flush, retries it.
     for (const key of changedKeys(snap)) touched.add(key);
-    narrowingError.value = failText(NARROWING_LEAD, e);
   }
 }
 
@@ -190,14 +201,3 @@ effect(() => {
   for (const key of changed) touched.add(key);
   quiet.arm();
 });
-
-// Read the stored facets once, at load. Guarded on `fetch` because this module
-// is imported by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateNarrowing();
-// A tab hidden or closed inside the quiet window would otherwise drop the last
-// toggle. Nothing to restore on failure here — the page is going away.
-if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "hidden") void flushNarrowing();
-  });
-}

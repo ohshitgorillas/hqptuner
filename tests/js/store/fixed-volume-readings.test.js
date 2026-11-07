@@ -19,6 +19,7 @@ import { config, matrixConfig, volume, volumeDrag, volumeRange } from "../../../
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
 import { fixedMode } from "../../../hqptuner/static/store/faceplate/drawers/volume.js";
 import { quiesce, stagingWire } from "../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../support/readings.js";
 
 /** @typedef {import("../support/wire/wire.js").StagingWire} StagingWire */
 
@@ -36,19 +37,27 @@ let wire;
  *
  * @param {boolean} manual  running fixed_volume_enabled, as the form's checkbox
  */
-function load(manual) {
+async function load(manual) {
   config.value = {
     fields: [
-      { name: "fixed_volume_enabled", value: manual },
-      { name: "fixed_volume", value: "-10" },
-      { name: "volume_fixed", value: true },
-      { name: "direct_sdm", value: false },
-      { name: "volume_min", value: "-60" },
-      { name: "volume_max", value: "0" },
-      { name: "defaults_volume", value: "-20" },
-    ],
-    file: { volume_fixed: AUTO_HEADROOM, fixed_volume: "-10" },
+      "fixed_volume_enabled",
+      "fixed_volume",
+      "volume_fixed",
+      "direct_sdm",
+      "volume_min",
+      "volume_max",
+      "defaults_volume",
+    ].map((name) => ({ name })),
   };
+  await seedReadings({
+    fixed_volume_enabled: manual,
+    fixed_volume: fieldReading("-10", { show: "file" }),
+    volume_fixed: fieldReading(AUTO_HEADROOM, { show: "file" }),
+    direct_sdm: false,
+    volume_min: "-60",
+    volume_max: "0",
+    defaults_volume: "-20",
+  });
   matrixConfig.value = { fields: [] };
   volume.value = "-12.5";
   volumeDrag.value = null;
@@ -57,7 +66,7 @@ function load(manual) {
 
 beforeEach(async () => {
   wire = stagingWire();
-  load(false);
+  await load(false);
   await discardAll();
 });
 
@@ -68,13 +77,13 @@ beforeEach(async () => {
  */
 async function uncheckAutoHeadroom(manual) {
   await discardAll();
-  load(manual);
+  await load(manual);
   await edit("optimal_iso", UNCHECKED);
   await quiesce(wire);
 }
 
 test("test_unchecking_auto_headroom_over_a_running_manual_moves_the_drawers_line_to_manual", async () => {
-  load(true);
+  await load(true);
   fixedMode(); // read under Auto headroom, so the uncheck has to reach a line already read
   await uncheckAutoHeadroom(true);
   assert.equal(fixedMode(), "manual");

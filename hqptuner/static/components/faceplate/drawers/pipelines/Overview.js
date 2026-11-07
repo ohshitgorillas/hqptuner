@@ -6,9 +6,8 @@
 // pipeline there and shows it. The whole tab grays, its reason legible, while the matrix engine is bypassed. The
 // decisions are store/faceplate/drawers/pipelines.js's and model/shell/pipelines.js's.
 
-import { html } from "../../../../lib/dom.js";
+import { classNames, html } from "../../../../lib/dom.js";
 import { downloadText } from "../../../../lib/download.js";
-import { classNames } from "../../../../model/shell/format.js";
 import { MAXP, range } from "../../../../model/shell/pipelines.js";
 import { showTab } from "../../../../store/faceplate/drawer.js";
 import { addPipeline, chName, chShort, pipelinesView } from "../../../../store/faceplate/drawers/pipelines.js";

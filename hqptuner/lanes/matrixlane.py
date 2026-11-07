@@ -37,6 +37,7 @@ async def switch_profile(mgr: LaneManager, name: str) -> MatrixProfileSwitch:
     """Live switch + State readback + form resync. Empty name = ``[Default]``."""
     client = mgr.require_control()
     await client.set_matrix_profile(name)
-    mgr.readings.state = await client.get_state()
+    state = await client.get_state()
+    mgr.readings.take_engine(mgr.phase.standing.generation, state=state)
     await mgr.refresh_http_forms()
-    return MatrixProfileSwitch(active=mgr.readings.state.get("matrix_profile", ""))
+    return MatrixProfileSwitch(active=state.get("matrix_profile", ""))

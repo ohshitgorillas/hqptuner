@@ -2,9 +2,9 @@
 // stage. store/faceplate/drawer.js decides over these shapes and re-exports them; components/faceplate/drawer/ draws
 // them.
 //
-// A row names one key, a stack its rows' keys, a backend group its rows' and stacks' keys, a choice its lines' detail keys, a block the keys it says it
-// stages; a field, a header, a note and an intro stage none. A row its `when` or its catalog entry leaves out, and the
-// rows of a group its backend hides, stay staged but are not shown.
+// A row stages its one key, a stack its rows' keys, a backend group its rows' and stacks' keys, a choice its lines'
+// detail keys, a block the keys it says it stages; a field, a header, a note and an intro stage none. A row its `when`
+// or its catalog entry leaves out, and the rows of a group its backend hides, are staged but not shown.
 
 import { schema as catalog } from "../../schema.js";
 import { rowOptions, rowValue } from "./rows.js";
@@ -160,6 +160,8 @@ import { rowOptions, rowValue } from "./rows.js";
  * @property {() => boolean} staged  whether the form holds edits
  * @property {() => unknown} apply
  * @property {() => unknown} discard
+ * @property {() => boolean} [stale]  whether the form's values are marked stale: true while the form waits on its
+ *   readback after a write, or after its last read failed; a form without it is never stale
  */
 
 /**

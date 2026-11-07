@@ -31,7 +31,7 @@ let wire;
 beforeEach(async () => {
   wire = narrowingWire();
   resetLists();
-  loadLists();
+  await loadLists();
   await flushNarrowing();
 });
 
@@ -76,9 +76,9 @@ test("test_preview_counts_count_the_sdm_chains_filter_lists_while_the_engine_has
   assert.deepEqual(previewCounts({}), { "1x": 3, nx: 3 });
 });
 
-test("test_preview_counts_follow_the_engine_to_the_pcm_chain_once_it_loads_it", () => {
+test("test_preview_counts_follow_the_engine_to_the_pcm_chain_once_it_loads_it", async () => {
   previewCounts({});
-  loadLists({ chain: "pcm" });
+  await loadLists({ chain: "pcm" });
   assert.deepEqual(previewCounts({}), { "1x": 2, nx: 2 });
 });
 

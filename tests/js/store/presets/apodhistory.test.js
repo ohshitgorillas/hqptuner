@@ -34,12 +34,16 @@
 // still running. The fixture advances it on every poll; the stall() cases below
 // hold it still, and the restartPosition() cases send it backwards.
 //
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection,
+// and the phase cases move it away mid-track.
+//
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/presets/apodhistory.test.js
 
-import test from "node:test";
+import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { initApodHistory, apodBins } from "../../../../hqptuner/static/store/apodhistory.js";
+import { health } from "../../../../hqptuner/static/store/signals.js";
 import {
   STOPPED,
   PAUSED,
@@ -56,6 +60,15 @@ import {
 
 // The width of one bin at the default poll step.
 const STEP_MS = 1000;
+
+/** The lifecycle generation every /api/health reply below carries. */
+const GEN = 3;
+/** The lifecycle phases in which the connection is not Ready. */
+const NOT_READY = ["Down", "Reachable", "Alarm"];
+
+beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
+});
 
 initApodHistory();
 
@@ -195,6 +208,18 @@ test("test_a_paused_poll_appends_no_bin_to_a_history_already_running", () => {
   append([20], { state: PAUSED });
   assert.deepEqual(counts(apodBins.value), deltas);
 });
+
+// While the connection is not Ready the engine counts as not playing, though every poll still says it plays.
+for (const phase of NOT_READY) {
+  // Break: the history reads playing off the Status state alone and ignores the connection phase.
+  test(`test_a_playing_poll_on_a_connection_that_is_not_ready_appends_no_bin: ${phase}`, () => {
+    setPollStep(1);
+    const deltas = feed([1, 2]);
+    health.value = { phase, generation: GEN };
+    append([20]);
+    assert.deepEqual(counts(apodBins.value), deltas);
+  });
+}
 
 // --- the width a bin carries -----------------------------------------------------
 // A bin is as wide as the playback it observed, whatever the page's poll cadence:

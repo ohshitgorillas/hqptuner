@@ -23,9 +23,9 @@ import { renderTree } from "../../support/vnodeseam.js";
 import { attr, elements, hasAttr, text } from "../../support/markup.js";
 import { SINC_PROSE, loadLists, resetLists } from "../../support/listsfixture.js";
 
-beforeEach(() => {
+beforeEach(async () => {
   resetLists();
-  loadLists({ plain: true });
+  await loadLists({ plain: true });
   openList.value = { key: "sdm_filter_1x", stage: "1x", value: "IIR", pick: () => undefined };
 });
 

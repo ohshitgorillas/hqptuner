@@ -40,7 +40,11 @@
         }
       }
     </script>
-    <script type="module" src="/app.js"></script>
+    <script type="module">
+      import { PLATFORM } from "/lib/clock.js";
+      import { boot } from "/app.js";
+      boot(document, PLATFORM);
+    </script>
   </head>
   <body>
     <div id="app"></div>

@@ -8,7 +8,6 @@
 //
 // Not a *.test.js file on purpose: the runner glob would execute it.
 
-import "./domseam.js";
 import { h, cloneElement } from "preact";
 import { render } from "preact-render-to-string";
 
@@ -80,18 +79,6 @@ export function readPlate() {
   const outermost = inside.filter((e) => !inside.some((o) => o !== e && o.start <= e.start && end(o) >= end(e)));
   return { seen, under: outermost.map(shownMarkup).join("") };
 }
-
-/**
- * What a reader sees in shown markup: tags stripped, whitespace collapsed.
- *
- * @param {string} markup
- * @returns {string}
- */
-export const shownText = (markup) =>
-  markup
-    .replace(/<[^<>]*>/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
 
 /**
  * The alert lines in shown markup: the elements carrying a severity.

@@ -27,6 +27,7 @@ import { render } from "preact-render-to-string";
 import { useStorage } from "../../support/storage.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { attr, classes, elements } from "../../support/markup.js";
 
 useStorage();
@@ -90,21 +91,25 @@ function routes(path, opts) {
 }
 
 /** Load the /config payload: limits at PCM 4x and SDM 256x, both inside the device's reach. */
-function load() {
+async function load() {
   config.value = {
     fields: [
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "mode", type: "select", value: "pcm" },
-      { name: "backend", type: "select", value: "network" },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_device", type: "select", value: STANDA, options: [{ value: STANDA, label: STANDA }] },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_device", type: "select", options: [{ value: STANDA, label: STANDA }] },
     ],
-    file: {},
-    active: "",
-    profiles: null,
-    device_caps: null,
   };
+  await seedReadings({
+    defaults_samplerate: fieldReading("192000", { show: "file", restarts: true }),
+    defaults_bitrate: fieldReading("12288000", { show: "file", restarts: true }),
+    mode: "pcm",
+    backend: "network",
+    net_dop: false,
+    net_device: STANDA,
+  });
 }
 
 /**
@@ -128,7 +133,7 @@ function reopen() {
 
 beforeEach(async () => {
   wire = stagingWire({ routes });
-  load();
+  await load();
   run();
   metadata.value = null;
   openPopover.value = null;

@@ -19,6 +19,8 @@ import { engineState, enums, config } from "../../../../hqptuner/static/store/si
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
 import { bad, ok } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * The globals a fake wire installs a `fetch` on, viewed as an optional
@@ -142,10 +144,15 @@ const STATE = () => ({
   active_chain: "pcm",
 });
 
-// `file` is the config XML overlaid with the engine's live settings, keyed by
-// FORM FIELD name: the PCM rate limit is `defaults_samplerate`, the SDM one
-// `defaults_bitrate` (store/schema.js pcm_rate / sdm_rate, both fileTruth).
+// `FILE()` is the overlay as field readings shown from file, keyed by FORM FIELD
+// name (`fileFields` builds them): the PCM rate limit is `defaults_samplerate`,
+// the SDM one `defaults_bitrate` (store/schema/output.js pcm_rate / sdm_rate).
 const FILE = () => ({ mode: "pcm" });
+
+// The overlay as the served readings carry it: each key one field reading showing its file value.
+/** @param {FileOverlay} file */
+const fileFields = (file) =>
+  Object.fromEntries(Object.entries(file).map(([k, v]) => [k, fieldReading(v, { show: "file" })]));
 
 // A live-lane server: the write path, plus the three endpoints a successful
 // write re-mirrors from. `report` is what /api/config/live answers on 200;
@@ -163,7 +170,7 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
   const reads = {
     "/api/state": () => ok({ data: mirrored || STATE() }),
     "/api/enumerations": () => ok({ data: fresh || ENUMS() }),
-    "/api/config": () => ok({ data: { fields: [], file: refreshed || file, active: "", profiles: null } }),
+    "/api/config": () => ok({ generation: readings.value?.generation, fields: fileFields(refreshed || file) }),
     "/api/config/pending": () => ok({ live: {}, http: {} }),
   };
   env.fetch = async (/** @type {string} */ path, /** @type {{ body?: string }} */ opts = {}) => {
@@ -181,23 +188,24 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
 // pass alone and fail in sequence. `state` / `lists` / `file` seed the three
 // source signals a rate control reads; the rest goes to the wire.
 /** @param {ResetSeams} [seams] */
-function reset({ state, lists, file = FILE(), ...wire } = {}) {
+async function reset({ state, lists, file = FILE(), ...wire } = {}) {
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
-  config.value = { fields: [], file, active: "", profiles: null };
+  config.value = { fields: [] };
+  await seedReadings(fileFields(file));
   return liveWire({ mirrored: state, file, ...wire });
 }
 
 /** @param {string} field */
 const control = (field) => [...liveModel.value.pcmChain, ...liveModel.value.sdmChain].find((c) => c.field === field);
 
-test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", () => {
-  reset();
+test("test_the_filter_control_reads_the_enum_id_the_engine_is_using", async () => {
+  await reset();
   assert.equal(control("filter").value, "25");
 });
 
 test("test_writing_a_control_posts_one_field_to_the_live_lane", async () => {
-  const w = reset();
+  const w = await reset();
   await writeLive("filter", "40");
   assert.deepEqual(w.posts, [{ fields: { filter: "40" } }]);
 });
@@ -219,7 +227,7 @@ const STALL_DETAIL = "State: no reply within 5.0s (the daemon may have restarted
 const REFUSED = () => ({ status: 503, detail: STALL_DETAIL, mirrored: { ...STATE(), filterNx: "0" } });
 
 test("test_a_write_the_backend_refused_re_reads_the_engines_state", async () => {
-  reset(REFUSED());
+  await reset(REFUSED());
   await writeLive("filter", "40");
   assert.equal(control("filter").value, "0");
 });

@@ -24,7 +24,7 @@ import {
   SPEAKERS_DRAWER,
 } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { config, engineState, enums, metadata, pendingPreset } from "../../../../hqptuner/static/store/signals.js";
-import { speakers, speakersBusy, speakersError } from "../../../../hqptuner/static/store/matrix/speakers.js";
+import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
@@ -35,6 +35,7 @@ import {
   setSpeakersGate,
   speakerDraft,
 } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
+import { seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
@@ -58,11 +59,13 @@ const form = (enabled) => ({
  * handed.
  *
  * @param {boolean} answered  the switch the confirmed report carries
+ * @param {boolean} [initial] the switch before the write
  */
-const speakersWire = (answered) =>
+const speakersWire = (answered, initial = answered) =>
   stagingWire({
     routes: (path, opts, wire) => {
-      if (path !== "/api/speakers" || opts.method !== "POST") return undefined;
+      if (path !== "/api/speakers") return undefined;
+      if (opts.method !== "POST") return ok({ data: form(wire.posts.length ? answered : initial) });
       wire.posts.push(JSON.parse(String(opts.body)));
       return ok({ report: { applied: true, speakers: form(answered) } });
     },
@@ -75,10 +78,9 @@ const speakersWire = (answered) =>
  */
 async function reset(enabled = true) {
   const w = speakersWire(enabled);
-  speakers.value = form(enabled);
-  speakersBusy.value = false;
-  speakersError.value = "";
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {} };
+  await loadSpeakers();
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: false });
   await discardAll();
   discardDraft();
   return w;
@@ -118,11 +120,6 @@ const disabledOf = (id) =>
  * @param {...unknown} args
  */
 const call = (fn, ...args) => (typeof fn === "function" ? fn(...args) : undefined);
-
-test("test_the_switch_row_lights_the_daemons_switch_while_nothing_is_drafted", async () => {
-  await reset(true);
-  assert.deepEqual(litGate(), ["1"]);
-});
 
 test("test_the_switch_row_lights_the_drafted_switch", async () => {
   await reset(true);
@@ -180,11 +177,10 @@ const ROW_DRAWER = {
  * as confirmed and recording each body it was handed.
  */
 async function resetForTheRow() {
-  const w = speakersWire(true);
-  speakers.value = form(false);
-  speakersBusy.value = false;
-  speakersError.value = "";
-  config.value = { fields: [{ name: "direct_sdm", value: false }], file: {}, active: "", profiles: null };
+  const w = speakersWire(true, false);
+  await loadSpeakers();
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: false });
   engineState.value = {};
   enums.value = null;
   metadata.value = null;

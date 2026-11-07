@@ -31,15 +31,24 @@ import { RateDial } from "../../../../hqptuner/static/components/faceplate/drawe
 import { DevicePicker } from "../../../../hqptuner/static/components/faceplate/drawers/output/DevicePicker.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { OUTPUT_BLOCKS, OUTPUT_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/output.js";
-import { config, engineState, engineStatus, enums, metadata } from "../../../../hqptuner/static/store/signals.js";
+import {
+  config,
+  engineState,
+  engineStatus,
+  enums,
+  generation,
+  metadata,
+} from "../../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { attr, classes, elements, hasAttr } from "../../support/markup.js";
 
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
+/** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const STANDA = "naa-7bdbb6cb/hw:CARD=Standa,DEV=0";
@@ -53,30 +62,85 @@ const NET_OPTIONS = [
 /** @type {string[]} */
 let refreshes = [];
 
+/** The values the wire serves, by field name; `load` sets them. @type {Record<string, unknown>} */
+let file = {};
+
+/** The Engine's list index of each output mode. */
+const MODE_INDEX = { auto: 0, pcm: 1, sdm: 2 };
+
+/** The daemon's limits of each numeric field here. */
+const BOUNDS = { channels: { min: 2, max: 32, step: 1 } };
+
 /**
- * Load the /config payload.
+ * One field's served reading: the output mode from the Engine on the live lane with no restart of its own; every
+ * other field here from the File on the restore lane, restarting the engine; each carrying what the staging wire
+ * holds for it.
  *
- * @param {{ mode?: string, caps?: object | null }} [over]
+ * @param {string} name
+ * @param {unknown} value
+ * @param {Record<string, unknown>} staged
  */
-function load({ mode = "pcm", caps = null } = {}) {
-  config.value = {
-    fields: [
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "mode", type: "select", value: mode },
-      { name: "backend", type: "select", value: "network" },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_device", type: "select", value: STANDA, options: NET_OPTIONS },
-    ],
-    file: {},
-    active: "",
-    profiles: null,
-    device_caps: caps,
-  };
+function served1(name, value, staged) {
+  const held = name in staged && staged[name] !== value ? staged[name] : null;
+  if (name === "mode") {
+    const index = MODE_INDEX[/** @type {keyof typeof MODE_INDEX} */ (value)];
+    return fieldReading(index, {
+      name: String(value),
+      lane: "live",
+      file: { value, generation: generation.value },
+      staged: held,
+    });
+  }
+  const bounds = BOUNDS[/** @type {keyof typeof BOUNDS} */ (name)] ?? null;
+  return fieldReading(value, { show: "file", lane: "restore", restarts: true, bounds, staged: held });
 }
 
-/** @param {string} path @param {{ method?: string }} opts */
-function routes(path, opts) {
+/**
+ * The served field readings of every value `load` set.
+ *
+ * @param {StagingWire | undefined} w
+ */
+function served(w) {
+  const staged = w ? w.staged.http : {};
+  return Object.fromEntries(Object.entries(file).map(([name, value]) => [name, served1(name, value, staged)]));
+}
+
+/** @type {StagingWire} */
+let wire;
+
+/**
+ * Load the /config payload: the values as served readings, and the form's options as its metadata.
+ *
+ * @param {{ mode?: string }} [over]
+ */
+async function load({ mode = "pcm" } = {}) {
+  file = {
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    mode,
+    backend: "network",
+    net_dop: false,
+    net_device: STANDA,
+    channels: 2,
+  };
+  config.value = {
+    fields: [
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_device", type: "select", options: NET_OPTIONS },
+      { name: "channels", type: "number" },
+    ],
+  };
+  await seedReadings(served(wire));
+}
+
+/** @param {string} path @param {{ method?: string }} opts @param {StagingWire} w */
+function routes(path, opts, w) {
+  if (path === "/api/config" && (opts.method ?? "GET") === "GET")
+    return ok({ generation: generation.value, fields: served(w) });
   if (path !== "/api/config/refresh") return undefined;
   refreshes.push(String(opts.method));
   return ok(null);
@@ -84,8 +148,8 @@ function routes(path, opts) {
 
 beforeEach(async () => {
   refreshes = [];
-  stagingWire({ routes });
-  load();
+  wire = stagingWire({ routes });
+  await load();
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;

@@ -111,12 +111,12 @@ interface GrayCtx {
 // One control's entry in the schema catalog (store/schema.js).
 //
 // Field meanings are specified in that file's header block, which is the
-// authority; the optionality below follows it. Only label/group/widget/lane are
+// authority; the optionality below follows it. Only label/group/widget are
 // present on every entry — the lane-specific fields (stateField/liveKey/arg for
 // live, field for http) are by definition present on one lane's entries only,
 // so they cannot be required.
 //
-// Deliberately NOT narrowed to string-literal unions (e.g. lane: 'live'|'http')
+// Deliberately NOT narrowed to string-literal unions
 // even though the header enumerates the legal values. Under `noImplicitAny`
 // alone, tsc does not narrow the object literal's inferred property types to
 // those unions, so declaring them here would report conflicts that describe the
@@ -126,7 +126,6 @@ interface SchemaField {
   label: string;
   group: string;
   widget: string;
-  lane: string;
 
   // live lane
   stateField?: string;

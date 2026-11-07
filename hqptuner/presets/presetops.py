@@ -15,7 +15,8 @@ from typing import TYPE_CHECKING
 
 from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
 from hqptuner.errors import HQPTunerError
-from hqptuner.lanes import settle
+from hqptuner.fields import query
+from hqptuner.fields.model import Codec
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
 from hqptuner.presets.store import stateimport
 from hqptuner.presets.store.autopilot import AutopilotStore
@@ -101,7 +102,7 @@ class PresetAftermath:
     fanout: dict[str, str]
 
 
-async def after_restore(
+def after_restore(
     mgr: "PresetManager", persistent: RestoreResult | None, http_fields: dict[str, str]
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
@@ -115,7 +116,6 @@ async def after_restore(
     """
     if persistent is None or persistent.outcome is not RestoreOutcome.APPLIED:
         return PresetAftermath({})
-    await settle.resync_engine_state(mgr)
     ops = mgr.presetops
     ops.clear_parked_filters()
     ops.backfill_profiles()
@@ -198,8 +198,8 @@ class PresetOps:
         target never blocks another. Delete runs before save per preset, the
         same rename ordering the config edit uses.
         """
-        save_value = edits.get(matrixprofiles.MATRIX_PROFILE_SAVE)
-        delete_value = edits.get(matrixprofiles.MATRIX_PROFILE_DELETE)
+        save_value = edits.get(query.kept_at(Codec.PROFILE_SAVE))
+        delete_value = edits.get(query.kept_at(Codec.PROFILE_DELETE))
         save_to = matrixprofiles.save_targets(save_value) if save_value else []
         delete_name, delete_from = matrixpayload.parse_delete(delete_value) if delete_value else ("", [])
         results: dict[str, str] = {}

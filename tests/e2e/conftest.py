@@ -158,13 +158,13 @@ def _server_state(base_url: str) -> tuple[set[str], set[str]]:
     config = _call(f"{base_url}/api/config", "GET")
     if not isinstance(config, dict):
         return empty
-    data = config["data"]
-    if not isinstance(data, dict):
+    fields = config["fields"]
+    if not isinstance(fields, dict):
         return empty
-    profiles = data.get("profiles")
+    profiles = fields.get("profiles")
     if not isinstance(profiles, dict):
         return empty
-    options = profiles["options"]
+    options = profiles["value"]["options"]
     livepresets = _call(f"{base_url}/api/livepresets", "GET")
     if not isinstance(livepresets, dict):
         return empty

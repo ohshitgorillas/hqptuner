@@ -28,6 +28,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
@@ -45,7 +46,8 @@ function poll(extra = {}) {
 
 beforeEach(async () => {
   stagingWire();
-  config.value = { fields: [{ name: "pre_before_meter", type: "checkbox", value: false }], file: {}, active: "" };
+  config.value = { fields: [{ name: "pre_before_meter", type: "checkbox" }] };
+  await seedReadings({ pre_before_meter: false });
   engineState.value = { filter_junk: "0" };
   poll();
   enums.value = {

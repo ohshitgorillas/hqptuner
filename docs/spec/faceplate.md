@@ -70,7 +70,7 @@ The control set is **not enumerated in prose**.
 - **Switch** (segmented): one button per option, lit on the option equal to the value its owner holds. A click on any button, the lit one included, reaches the owner, which decides whether it does anything (every hand click on the speakers/headphones switch records, `matrix.md`). Off grays the whole switch and no button takes a tap. An option its list marks unavailable shows grayed and takes no tap; whether a list grays, hides or offers an option is that list's own rule. An option holding a staged edit carries the accent dot. A screen reader hears a radio group under the switch's name, each option a radio, checked when lit; each option is its own tab stop.
 - **Number box:** typing is never overwritten by a poll; the box takes its owner's value again only while it is not being edited. A value commits on Enter or when the box loses focus, never per keystroke. A blank or non-numeric box commits nothing and shows the owner's value again. A number outside the bounds commits as the nearest bound. After a commit the box shows the value that landed. The mouse wheel never changes it.
   - Open: whether the DSP pipelines response plot, which "updates live while a stage field changes" (`matrix.md`), follows each keystroke or each commit.
-  - Open: the one source of a box's minimum, maximum, step and unit. The daemon's form carries min, max and step for its own fields (`protocol.md`), `VolumeRange` bounds the volume slider, and no wire field carries a unit.
+  - A box's minimum, maximum and step come from the field's reading `bounds` (`api.md` "Field readings"), which the server fills from the daemon form's own limits (`protocol.md`) and from `VolumeRange`. The unit is display copy kept in the schema entry, since no wire field carries one. HQPlayer bounds every value, so every control takes the daemon's bounds, and no client default stands in for one.
 - **Select:** shows the value its owner holds, so a pick the owner does not take snaps back. An option its list marks unavailable shows grayed and cannot be picked. A value matching no option shows no option picked. The mouse wheel never changes it.
 - **Slider:** a track and a number box showing one value. The thumb moves only under a held pointer or a key pressed while it has focus, never under the wheel or a pointer passing over it. Each move and the release are reported, and the lane decides what a move writes (the compensation strength previews while dragging and commits on release, `crossfeed-compensation.md`).
 - **Staged row:** a row whose setting holds a staged edit carries the accent dot on its label, as its tab or title does for the drawer.
@@ -108,7 +108,7 @@ The control set is **not enumerated in prose**.
 
 ## Alerts
 - No strip. Each alert lives where it belongs.
-- These lines show directly under the header on every view, with no tap. Settings a daemon restart dropped (warn): its line has one row per setting, stays until tapped, and the tap clears the report. Six failure lines, each warn: a failed apply, a failed live write, a failed snapshot, a failed profile description, a failed favorite, a failed narrowing. Each failure line clears when its area next succeeds or when tapped. The brand knob shows connection status only and never carries it.
+- These lines show directly under the header on every view, with no tap. Six failure lines, each warn: a failed apply, a failed live write, a failed snapshot, a failed profile description, a failed favorite, a failed narrowing. Each failure line clears when its area next succeeds or when tapped. The brand knob shows connection status only and never carries it.
 - v1's alerts and copy, verbatim, each where v1's would fire:
   - Credentials rejected (crit) → brand knob, blinking red (steady red stays Unreachable).
   - DSP speed (crit / warn) → engine-row speed figure.
@@ -161,7 +161,7 @@ The control set is **not enumerated in prose**.
 - Filters and shapers are live, with two homes (page and drawer) in sync: the drawer shows them too. Everything else stages.
 ## Matrix engine family (Matrix engine, Crossfeed, Loudness, DAC correction, DSP pipelines)
 - **Profile-wide:** one value store. An edit anywhere lights every member's apply group; Apply in any member applies all.
-- Nothing is live; the rail follows on Apply. Matrix bypassed grays every child.
+- Nothing is live; the rail follows staged edits. Matrix bypassed grays every child.
 - **Matrix engine:** tabs Basic (Matrix processing, Expand HF) | Advanced (Engine, IIR to FIR); enum options listed with their manual lines.
   - Basic opens on an intro (DRAFT, the `intro` of the Basic tab of `MATRIX_DRAWER` in `hqptuner/static/components/faceplate/drawers/matrix.js`): what the matrix engine runs, each part a link to its drawer (`DSP pipelines ›`, `Crossfeed ›`, `Loudness ›`, `DAC correction ›`), and what bypassing does to them. The one cross-reference that isn't a cause or a fix: a family index.
 - **Crossfeed:** gate, then a Bauer / Structural choice. The pick is a view choice and never engages crossfeed. The unpicked line folds to a summary.

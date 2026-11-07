@@ -8,7 +8,7 @@
 // its box measures, in plate px.
 
 import { useEffect, useRef, useState } from "preact/hooks";
-import { html } from "../../../../lib/dom.js";
+import { html, observeSize } from "../../../../lib/dom.js";
 import { AXIS } from "../../../../lib/volume.js";
 import {
   barValueAt,
@@ -134,13 +134,10 @@ function useWidth(ref) {
   const [w, setW] = useState(FIRST_W);
   useEffect(() => {
     const el = ref.current;
-    if (!el || typeof ResizeObserver !== "function") return undefined;
-    const ro = new ResizeObserver((entries) => {
-      const box = entries[0];
-      if (box && box.contentRect.width > 0) setW(box.contentRect.width);
+    if (!el) return undefined;
+    return observeSize(el, (rect) => {
+      if (rect.width > 0) setW(rect.width);
     });
-    ro.observe(el);
-    return () => ro.disconnect();
   }, [ref]);
   return w;
 }

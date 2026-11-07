@@ -5,7 +5,7 @@
 // `ghost` trace is a reference curve kept in its muted CSS look.
 
 import { signal } from "@preact/signals";
-import { html } from "../lib/dom.js";
+import { html, pageOf } from "../lib/dom.js";
 import { F0, F1 } from "../vendor/eqlab/core/dsp/curves.js";
 import { clamp } from "../lib/coerce.js";
 import { dbOffset } from "../lib/units.js";
@@ -242,6 +242,7 @@ function dragStarter({ yMin, yMax, height, plotH }) {
     if (h.onSelect) h.onSelect(); // grabbing a dot selects its band
     const svg = e.target.ownerSVGElement;
     if (!svg) return; // the handle is an SVG child; nothing to measure against otherwise
+    const { win } = pageOf(svg);
     const rect = svg.getBoundingClientRect();
     const x0 = e.clientX;
     const y0 = e.clientY;
@@ -273,14 +274,14 @@ function dragStarter({ yMin, yMax, height, plotH }) {
       h.onDrag(q.f, q.db);
     };
     const up = (/** @type {PointerEvent} */ ev) => {
-      window.removeEventListener("pointermove", move);
+      win.removeEventListener("pointermove", move);
       dragHud.value = null;
       if (!live) return;
       const q = pt(ev);
       h.onEnd(q.f, q.db);
     };
-    window.addEventListener("pointermove", move);
-    window.addEventListener("pointerup", up, { once: true });
+    win.addEventListener("pointermove", move);
+    win.addEventListener("pointerup", up, { once: true });
     e.preventDefault();
   };
 }

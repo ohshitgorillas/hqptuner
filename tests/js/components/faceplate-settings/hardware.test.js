@@ -34,6 +34,7 @@ import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settin
 import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { readoutOf } from "../../../../hqptuner/static/model/shell/settings.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { attr, classes, elements } from "../../support/markup.js";
 import { ok, stagingWire } from "../../support/wire/wire.js";
 
@@ -45,18 +46,24 @@ import { ok, stagingWire } from "../../support/wire/wire.js";
 const ENGINE = { cuda: "convolution", multicore: "0", ecores: "pool", nblocks: "4", cuda_dev: "0", cuda_cdev: "1" };
 
 /**
- * Load the engine a fake daemon reports, over a draft and switch reset.
+ * Load the engine a fake daemon reports, over a draft and switch reset; each catalog setting is served as the engine's
+ * reading with the restart class.
  *
  * @param {EngineTable} [engine]
  */
 async function load(engine = ENGINE) {
+  await seedReadings(
+    Object.fromEntries(
+      ["multicore", "ecores", "cuda"].map((key) => [key, fieldReading(engine[key], { restarts: true })]),
+    ),
+  );
   stagingWire({ routes: (path) => (path === "/api/engine" ? ok({ engine }) : undefined) });
   discardHardware();
   setAllStations(false);
   await loadHardware();
 }
 
-beforeEach(() => load());
+beforeEach(async () => await load());
 
 /**
  * Each catalog setting of the drawer with a second value of its engine attribute, different from the one ENGINE reports.

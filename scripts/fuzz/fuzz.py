@@ -100,8 +100,8 @@ class ProbeResult:
     """The health probe sent after every attack: whether the app answered and is well."""
 
     status: int | None = None
-    reachable: bool | None = None
-    alarm: bool | None = None
+    phase: str | None = None
+    generation: int | None = None
     error: str | None = None
 
 
@@ -132,7 +132,7 @@ def probe(client: httpx.Client) -> ProbeResult:
         body = response.json()
     except (httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
         raise ProbeFailedError(exc) from exc
-    return ProbeResult(response.status_code, body.get("reachable"), body.get("alarm"))
+    return ProbeResult(response.status_code, body.get("phase"), body.get("generation"))
 
 
 class StateUnavailableError(Exception):

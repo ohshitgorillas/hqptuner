@@ -6,17 +6,7 @@ import { html } from "../../lib/dom.js";
 import { plate } from "../../store/faceplate/plate.js";
 import { panelOpen } from "../../store/faceplate/view.js";
 import { useBodyResize } from "./Popover.js";
-import {
-  discovering,
-  form,
-  hostTouched,
-  pageHost,
-  verdict,
-  closePanel,
-  detectHosts,
-  fillHost,
-  submitConnection,
-} from "../../store/connpanel.js";
+/** @typedef {import("../../store/connpanel.js").ConnPanelStore} ConnPanelStore */
 
 /** @type {Record<string, string>} */
 const VERDICTS = {
@@ -39,8 +29,8 @@ const SERVER_SIDE_ONLY = ["127.0.0.1", "localhost", "::1", "host.docker.internal
  * @param {string} key the form field to write
  * @param {string | boolean} value
  */
-function setField(key, value) {
-  form.value = { ...form.value, [key]: value };
+function setField(/** @type {ConnPanelStore} */ panel, key, value) {
+  panel.form.value = { ...panel.form.value, [key]: value };
 }
 
 /**
@@ -48,87 +38,87 @@ function setField(key, value) {
  *
  * @param {string} key
  * @param {string} label
- * @param {string} type
- * @param {string} [placeholder]
+ * @param {{ type: string, placeholder?: string }} options
  */
-function field(key, label, type, placeholder) {
+function field(/** @type {ConnPanelStore} */ panel, key, label, options) {
+  const { type, placeholder } = options;
   return html`
-    <label class="vfd bname">
-      <span class="l">${label}</span>
-      <input
-        type=${type}
-        class="bnin"
-        placeholder=${placeholder || ""}
-        value=${/** @type {Record<string, string>} */ (form.value)[key]}
-        onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => {
-          if (key === "host") hostTouched.value = true;
-          setField(key, e.target.value);
-        }}
-      />
-    </label>
-  `;
+  <label class="vfd bname">
+    <span class="l">${label}</span>
+    <input
+      type=${type}
+      class="bnin"
+      placeholder=${placeholder || ""}
+      value=${/** @type {Record<string, string>} */ (panel.form.value)[key]}
+      onInput=${(/** @type {{ target: HTMLInputElement }} */ e) => {
+        if (key === "host") panel.hostTouched.value = true;
+        setField(panel, key, e.target.value);
+      }}
+    />
+  </label>
+`;
 }
 
 /** The host field with Detect and Connect beside it. */
-function hostRow() {
+function hostRow(/** @type {ConnPanelStore} */ panel) {
   return html`
-    <div class="crow">
-      ${field("host", "Host", "text")}
-      <button type="button" class="btn sm" data-testid="conn-detect" disabled=${discovering.value} onClick=${detectHosts}>
-        Detect
-      </button>
-      <button type="button" class="btn sm" data-testid="conn-connect" onClick=${() => submitConnection()}>Connect</button>
-    </div>
-  `;
+  <div class="crow">
+    ${field(panel, "host", "Host", { type: "text" })}
+    <button type="button" class="btn sm" data-testid="conn-detect" disabled=${panel.discovering.value} onClick=${panel.detectHosts}>
+      Detect
+    </button>
+    <button type="button" class="btn sm" data-testid="conn-connect" onClick=${() => panel.submitConnection()}>Connect</button>
+  </div>
+`;
 }
 
 /** One "(enter it for me)" link: the address it names goes straight into the host field. */
-function hostLink(/** @type {string} */ address) {
-  return html`<button type="button" class="cfill" data-host=${address} onClick=${() => fillHost(address)}>
-    ${"(enter it for me)"}
-  </button>`;
+function hostLink(/** @type {ConnPanelStore} */ panel, /** @type {string} */ address) {
+  return html`<button type="button" class="cfill" data-host=${address} onClick=${() => panel.fillHost(address)}>
+  ${"(enter it for me)"}
+</button>`;
 }
 
 /** What to put in the address field, with the two same-machine fills. */
-function hostHelp() {
+function hostHelp(/** @type {ConnPanelStore} */ panel) {
   return html`
-    <p class="man">${"Enter the address of your HQPlayer Embedded machine. If HQPlayer is running on the same machine you're using now..."}</p>
-    <ul class="copts">
-      <li class="man">${'If running HQPTuner in Docker, enter "host.docker.internal" '}${hostLink("host.docker.internal")}</li>
-      <li class="man">${'Otherwise, enter "127.0.0.1" '}${hostLink("127.0.0.1")}</li>
-    </ul>
-  `;
+  <p class="man">${"Enter the address of your HQPlayer Embedded machine. If HQPlayer is running on the same machine you're using now..."}</p>
+  <ul class="copts">
+    <li class="man">${'If running HQPTuner in Docker, enter "host.docker.internal" '}${hostLink(panel, "host.docker.internal")}</li>
+    <li class="man">${'Otherwise, enter "127.0.0.1" '}${hostLink(panel, "127.0.0.1")}</li>
+  </ul>
+`;
 }
 
 /** The daemon's own page, built from an address the browser can reach. */
-function authLink() {
-  const host = form.value.host.trim();
-  const reachable = !host || SERVER_SIDE_ONLY.includes(host) ? pageHost.value : host;
+function authLink(/** @type {ConnPanelStore} */ panel) {
+  const host = panel.form.value.host.trim();
+  const reachable = !host || SERVER_SIDE_ONLY.includes(host) ? panel.pageHost.value : host;
   return html`<a href=${`http://${reachable}:8088/auth`} target="_blank" rel="noreferrer" data-testid="daemon-auth-link">
-    ${"default web page at port 8088"}
-  </a>`;
+  ${"default web page at port 8088"}
+</a>`;
 }
 
 /** The report on the last press of Connect, or nothing before the first one. */
-function report() {
-  const v = verdict.value;
+function report(/** @type {ConnPanelStore} */ panel) {
+  const v = panel.verdict.value;
   if (!v) return null;
   return html`<p class="man">${VERDICTS[v] || ""}</p>`;
 }
 
 /** @param {boolean} remember which option this radio is */
-function rememberRow(remember, /** @type {string} */ label) {
+function rememberRow(/** @type {ConnPanelStore} */ panel, remember, /** @type {string} */ label) {
   return html`
-    <label class="chk">
-      <input
-        type="radio"
-        name="setup-remember"
-        checked=${form.value.remember === remember}
-        onChange=${() => setField("remember", remember)}
-      />
-      <span>${label}</span>
-    </label>
-  `;
+  <label class="chk">
+    <input
+      type="radio"
+      name="setup-remember"
+      checked=${panel.form.value.remember === remember}
+      onChange=${() => setField(panel, "remember", remember)}
+    />
+    <span>${label}</span>
+  </label>
+`;
 }
 
 /**
@@ -143,8 +133,10 @@ function place(el) {
   el.style.top = `${b?.offsetTop ?? 0}px`;
 }
 
-/** The connection panel, always drawn; closed, it carries `data-closed`. Its top follows the body's. */
-export function ConnPanel() {
+/** The connection panel sheet.
+ * @param {{ panel: ConnPanelStore }} props
+ */
+export function ConnPanel({ panel }) {
   const open = panelOpen.value;
   const fit = plate.value;
   const ref = useRef(/** @type {HTMLElement | null} */ (null));
@@ -160,7 +152,7 @@ export function ConnPanel() {
       role="dialog"
       aria-label="Connection"
       data-testid="conn-panel"
-      data-verdict=${verdict.value || ""}
+      data-verdict=${panel.verdict.value || ""}
       data-closed=${open ? undefined : ""}
       inert=${!open}
     >
@@ -169,23 +161,23 @@ export function ConnPanel() {
         <p class="man">${"HQPTuner needs two things to run: the address of your HQPlayer Embedded daemon, and its credentials."}</p>
         <p class="man">
           ${"If you haven't set the credentials already, do that by running "}
-          <code>${"hqplayerd -u <username> <password>"}</code>${" on the HQPlayer machine, or change it from the "}${authLink()}${
+          <code>${"hqplayerd -u <username> <password>"}</code>${" on the HQPlayer machine, or change it from the "}${authLink(panel)}${
             ". The " + 'defaults are "hqplayer" and "password"; if they don\'t work, changing them usually will.'
           }
         </p>
-        ${hostRow()} ${report()} ${hostHelp()} ${field("username", "Username", "text")}
-        ${field(
-          "password",
-          "Password",
-          "password",
-          form.value.hasPassword ? "Leave blank to keep the stored password" : "Leave empty to keep the default",
-        )}
+        ${hostRow(panel)} ${report(panel)} ${hostHelp(panel)} ${field(panel, "username", "Username", { type: "text" })}
+        ${field(panel, "password", "Password", {
+          type: "password",
+          placeholder: panel.form.value.hasPassword
+            ? "Leave blank to keep the stored password"
+            : "Leave empty to keep the default",
+        })}
         <div class="crem">
-          ${rememberRow(true, "Let HQPTuner store my password")} ${rememberRow(false, "Ask every time HQPTuner starts")}
+          ${rememberRow(panel, true, "Let HQPTuner store my password")} ${rememberRow(panel, false, "Ask every time HQPTuner starts")}
         </div>
         <div class="cbtns">
-          <button type="button" class="btn" data-testid="conn-save" onClick=${() => submitConnection(true)}>Save</button>
-          <button type="button" class="btn" data-testid="conn-close" onClick=${closePanel}>Close</button>
+          <button type="button" class="btn" data-testid="conn-save" onClick=${() => panel.submitConnection(true)}>Save</button>
+          <button type="button" class="btn" data-testid="conn-close" onClick=${panel.closePanel}>Close</button>
         </div>
       </div>
     </aside>

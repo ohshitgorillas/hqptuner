@@ -34,6 +34,7 @@ import { pickApplyMode, showTab, shownTab } from "../../../../hqptuner/static/st
 import { dacChip, dacType, setDacChip, setDacType } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { dottedTabs, drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
 import { filterFields } from "../../support/rendered/filter-fields.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 
@@ -46,22 +47,35 @@ const FILTERS = [
 ];
 
 /**
+ * A served reading showing `value` from the config file, a field the engine restarts for.
+ *
+ * @param {unknown} value
+ */
+const restartReading = (value) => fieldReading(value, { show: "file", restarts: true });
+
+/**
  * Load the /config form: each chain's 1x and Nx filter by value, the backend and its DAC bits.
  *
  * @param {{ pcm1x?: string, pcmnx?: string, sdm1x?: string, sdmnx?: string, bits?: number }} [f]
  */
-function load({ pcm1x = "1", pcmnx = "1", sdm1x = "1", sdmnx = "1", bits = 0 } = {}) {
+async function load({ pcm1x = "1", pcmnx = "1", sdm1x = "1", sdmnx = "1", bits = 0 } = {}) {
+  const filters = filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS);
   config.value = {
     fields: [
-      ...filterFields({ pcm1x, pcmnx, sdm1x, sdmnx }, FILTERS),
-      { name: "dsd_6db", type: "checkbox", value: false },
-      { name: "sdm_conversion", type: "select", value: "0", options: [{ value: "0", label: "0" }] },
-      { name: "backend", type: "select", value: "alsa" },
-      { name: "alsa_bits", type: "number", value: bits },
+      ...filters.fields,
+      { name: "dsd_6db", type: "checkbox" },
+      { name: "sdm_conversion", type: "select", options: [{ value: "0", label: "0" }] },
+      { name: "backend", type: "select" },
+      { name: "alsa_bits", type: "number" },
     ],
-    file: {},
-    active: "",
   };
+  await seedReadings({
+    ...filters.values,
+    dsd_6db: restartReading(false),
+    sdm_conversion: restartReading("0"),
+    backend: "alsa",
+    alsa_bits: bits,
+  });
 }
 
 /** The mode drawers, each opened and closed once so no tab picked by an earlier case holds. */
@@ -69,7 +83,7 @@ const MODE_DRAWERS = [DSD_DRAWER, RESAMPLING_DRAWER, SHAPING_DRAWER];
 
 beforeEach(async () => {
   stagingWire();
-  load();
+  await load();
   engineState.value = { state: "0", active_chain: "sdm" };
   engineStatus.value = {};
   enums.value = null;
@@ -125,8 +139,8 @@ function inField(id) {
  */
 const tapField = (id, value) => tapFieldOption(SHAPING_DRAWER, id, value);
 
-test("test_the_fft_length_row_shows_on_the_tab_whose_filter_is_fft_family", () => {
-  load({ sdmnx: "2" });
+test("test_the_fft_length_row_shows_on_the_tab_whose_filter_is_fft_family", async () => {
+  await load({ sdmnx: "2" });
   const tabs = itemsByTab(RESAMPLING_DRAWER);
   const fft = (/** @type {string} */ tab) => (tabs[tab] ?? []).includes("fft_size");
   assert.equal(fft("sdm"), true);
@@ -187,8 +201,8 @@ test("test_the_dac_type_field_lights_the_type_held", () => {
   assert.equal(on ? attr(on, "data-v") : undefined, "r2r");
 });
 
-test("test_shapings_pcm_tab_notes_the_dac_bits_the_output_holds", () => {
-  load({ bits: 24 });
+test("test_shapings_pcm_tab_notes_the_dac_bits_the_output_holds", async () => {
+  await load({ bits: 24 });
   const panel = drawerMarkup(SHAPING_DRAWER).find(
     (e) => classes(e).includes("dpanel") && attr(e, "data-tab") === "pcm",
   );

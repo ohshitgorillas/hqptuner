@@ -35,6 +35,7 @@ import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/wheel.js").VNode} VNode */
@@ -59,14 +60,15 @@ const item = (name, i) => ({ index: String(i), value: String(200 + i), name });
  *
  * @param {{ rate?: string, playing?: boolean }} [r]
  */
-function play({ rate = "48000", playing = true } = {}) {
+async function play({ rate = "48000", playing = true } = {}) {
   engineState.value = { active_chain: "pcm", filter1x: "0", filterNx: "1", shaper: "0" };
   enums.value = { filters: ["minphaseFIR", "sinc-L"].map(item), shapers: ["RPDF", "NS1"].map(item) };
   engineStatus.value = {
     status: { state: playing ? "2" : "0", active_rate: "384000" },
     metadata: { samplerate: rate },
   };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   metadata.value = {
@@ -87,9 +89,9 @@ function play({ rate = "48000", playing = true } = {}) {
 }
 
 // Each case starts from a playback of its own, so no field a case before it opened stays open.
-beforeEach(() => {
-  play({ playing: false });
-  play();
+beforeEach(async () => {
+  await play({ playing: false });
+  await play();
 });
 
 /**
@@ -149,8 +151,8 @@ test("test_resampling_shows_one_nameplate_on_the_open_filter", () => {
   assert.deepEqual(plates("resampling"), ["pcm_filter_1x"]);
 });
 
-test("test_a_high_rate_source_shows_the_nameplate_on_the_nx_filter", () => {
-  play({ rate: "192000" });
+test("test_a_high_rate_source_shows_the_nameplate_on_the_nx_filter", async () => {
+  await play({ rate: "192000" });
   assert.deepEqual(plates("resampling"), ["pcm_filter_nx"]);
 });
 
@@ -192,8 +194,8 @@ test("test_a_field_the_path_runs_has_a_lit_nameplate", () => {
   assert.equal(plateDim(), false);
 });
 
-test("test_a_field_the_path_does_not_run_has_a_dimmed_nameplate", () => {
-  play({ playing: false });
+test("test_a_field_the_path_does_not_run_has_a_dimmed_nameplate", async () => {
+  await play({ playing: false });
   assert.equal(plateDim(), true);
 });
 
@@ -263,8 +265,8 @@ test("test_the_list_opens_on_the_running_option", () => {
   assert.equal(openList.value?.value, "minphaseFIR");
 });
 
-test("test_the_nx_filters_list_narrows_on_the_nx_stage", () => {
-  play({ rate: "192000" });
+test("test_the_nx_filters_list_narrows_on_the_nx_stage", async () => {
+  await play({ rate: "192000" });
   tapPlate();
   assert.equal(openList.value?.stage, "nx");
 });

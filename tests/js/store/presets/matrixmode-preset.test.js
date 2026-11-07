@@ -37,6 +37,7 @@ import { config, matrixConfig, pendingPreset } from "../../../../hqptuner/static
 import { stagedCount } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { useStorage, dropStorage } from "../../support/storage.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -49,7 +50,56 @@ const UNRECORDED = "Attic"; // in the picker, absent from the map
 
 // One ordinary daemon field, carried by every config this file assigns so that
 // an edit staged against it keeps its baseline across a change of preset.
-const FIELDS = [{ name: "volume_max", value: "-3" }];
+const FIELDS = [{ name: "volume_max" }];
+
+/** The lifecycle generation every config reading in this file is stamped with. */
+const GEN = 1;
+
+/**
+ * Every value the staging wire holds, by field name, whichever lane it went to.
+ *
+ * @returns {Record<string, unknown>}
+ */
+function stagedByName() {
+  /** @type {Record<string, unknown>} */
+  const flat = { ...W.staged.http };
+  for (const [name, value] of Object.entries(W.staged.live)) {
+    if (value && typeof value === "object" && !Array.isArray(value)) Object.assign(flat, value);
+    else flat[name] = value;
+  }
+  return flat;
+}
+
+/**
+ * The config reading's fields as the backend serves them: the
+ * ordinary field and the matrix config's crossfeed fields, each carrying
+ * whatever the staging wire holds for it, every other staged name besides, and
+ * the applied preset as the read-only `active_preset` field.
+ *
+ * @param {string} active
+ */
+function servedFields(active) {
+  const staged = stagedByName();
+  const base = { volume_max: -3, post_bauer_enabled: "1", post_bauer_preset: "default" };
+  /** @type {Record<string, unknown>} */
+  const fields = {};
+  for (const name of new Set([...Object.keys(base), ...Object.keys(staged)])) {
+    const value = name in base ? base[/** @type {keyof typeof base} */ (name)] : null;
+    fields[name] = fieldReading(value, {
+      generation: GEN,
+      staged: name in staged ? staged[name] : null,
+      lane: "restore",
+      show: "file",
+      restarts: true,
+      bounds: typeof value === "number" ? { min: -40, max: 0, step: 1 } : null,
+    });
+  }
+  fields.active_preset = { value: active, readonly: true };
+  return fields;
+}
+
+/** The applied preset the backend reports; `reset()` and `lookAt()` move it. */
+let applied = "";
 
 /** The map as the backend holds it before anything in this file writes. @type {Record<string, string>} */
 const PRISTINE = { [SPK]: "speakers", [HP]: "headphones" };
@@ -74,6 +124,7 @@ const GETS = [];
 /** @type {StagingWire} */
 const W = stagingWire({
   routes: (path, opts) => {
+    if (path === "/api/config") return ok({ generation: GEN, fields: servedFields(applied) });
     if (path !== PATH) return undefined;
     const method = opts.method || "GET";
     if (method !== "PUT") {
@@ -87,7 +138,12 @@ const W = stagingWire({
   },
 });
 
-const { matrixMode } = await import("../../../../hqptuner/static/store/matrix/mode.js");
+const { matrixMode, hydrateMatrixModes } = await import("../../../../hqptuner/static/store/matrix/mode.js");
+
+// The load-time read is the app's boot calling the module's hydrate, the way
+// the favorites suites hydrate theirs; it runs once, here, for the whole file.
+await hydrateMatrixModes();
+await quiesce(W);
 
 /**
  * Put the module back to a stated starting state: the config naming the applied
@@ -111,32 +167,35 @@ async function reset({ mode = "headphones", active = "", pending = null } = {}) 
   for (const name of Object.keys(MODES)) delete MODES[name];
   Object.assign(MODES, PRISTINE);
   pendingPreset.value = null;
-  config.value = { fields: FIELDS, file: {}, active, profiles: null };
-  matrixConfig.value = {
-    fields: [
-      { name: "post_bauer_enabled", value: "1" },
-      { name: "post_bauer_preset", value: "default" },
-    ],
-    rows: [],
-  };
+  applied = active;
+  config.value = { fields: FIELDS };
+  await seedReadings(servedFields(active), GEN);
+  matrixConfig.value = { fields: [{ name: "post_bauer_enabled" }, { name: "post_bauer_preset" }] };
   await discardAll();
   pendingPreset.value = pending;
   matrixMode.value = mode;
   await quiesce(W);
+  await seedReadings(servedFields(active), GEN);
   PUTS.length = 0;
 }
 
 /**
  * Make `name` the applied preset the view follows, the way the app does — a
  * FRESH config object, since writing the same reference to a signal does not
- * notify.
+ * notify — and the config reading that names it as `active_preset`.
+ *
+ * Once the wire is quiet the reading is served again, as the backend re-reads
+ * after an accepted write, so anything the switch staged shows in the count.
  *
  * @param {string} name
  * @returns {Promise<void>}
  */
 async function lookAt(name) {
-  config.value = { fields: FIELDS, file: {}, active: name, profiles: null };
+  applied = name;
+  config.value = { fields: FIELDS };
+  await seedReadings(servedFields(name), GEN);
   await quiesce(W);
+  await seedReadings(servedFields(name), GEN);
 }
 
 // --- the preset carries the choice ------------------------------------------------
@@ -250,6 +309,7 @@ async function loadCopy(tag, fetchImpl) {
   env.fetch = fetchImpl;
   const copy = new URL(`../../../../hqptuner/static/store/matrix/mode.fresh-${tag}.js`, import.meta.url).href;
   const loaded = await import(copy);
+  await loaded.hydrateMatrixModes();
   await quiesce(W);
   env.fetch = saved;
   return loaded;

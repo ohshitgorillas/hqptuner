@@ -19,10 +19,12 @@ import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { health, config } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { renderTree } from "../../support/vnodeseam.js";
 import { ok, bad, stagingWire, quiesce } from "../../support/wire/wire.js";
 import { STATE } from "../../support/wire/livepresetwire.js";
 import { NARROWING_DEFAULTS } from "../../support/wire/narrowingwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
 
@@ -35,7 +37,7 @@ const PAYLOAD = {
 
 const PROFILE = "Night";
 const STAMP = "2026-02-03T04:05:06+00:00";
-const FIELDS = [{ name: "volume_max", value: "-3" }];
+const FIELDS = [{ name: "volume_max" }];
 
 const PHASE_OWED = ["linear"];
 const PHASE_IMPORTED = ["minimum"];
@@ -98,7 +100,7 @@ const W = stagingWire({
     }
     if (bare === "/api/health") return ok({ ...PAYLOAD });
     if (bare === "/api/state") return ok({ stale: false, loaded_at: 1, data: STATE("pcm") });
-    if (bare === "/api/config") return ok({ data: { fields: FIELDS, file: {}, active: "", profiles: null } });
+    if (bare === "/api/config") return ok(readings.value);
     if (!STORE_ROUTES.has(bare)) return undefined;
     if (method !== "PUT") return ok(read(bare));
     if (refusing) return bad(500, READ_ONLY);
@@ -108,7 +110,8 @@ const W = stagingWire({
 });
 
 health.value = { ...PAYLOAD };
-config.value = { fields: FIELDS, file: {}, active: "", profiles: null };
+config.value = { fields: FIELDS };
+await seedReadings({ volume_max: "-3" });
 
 const { About } = await import("../../../../hqptuner/static/components/faceplate/settings/About.js");
 const { nPhase, nQuality } = await import("../../../../hqptuner/static/store/narrow/state.js");

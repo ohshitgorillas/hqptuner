@@ -14,6 +14,7 @@
 //
 // Not reachable here: the trace's path geometry against the plot's own box, which the store's points carry and the
 // stylesheet stretches; a browser run closes it.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/meter.test.js
 
@@ -23,7 +24,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { METER_RANGES, setPageRange, setSpectrumStyle } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
@@ -37,6 +38,10 @@ import { accent, accentHex } from "../../../../hqptuner/static/store/ui/theme.js
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
 const FULL = { w: 1366, h: 1024 };
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
+
 //: A spectrum style other than the trace, so the grid's data-style shows the pick.
 const RIDGES = "ridges";
 
@@ -99,6 +104,7 @@ const withClass = (cls) => draw().filter((e) => classes(e).includes(cls));
 const num = (el) => (el ? parseFloat(text(el).replace("−", "-")) : NaN);
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   setPageRange(FIRST);
   pickFloor(SHALLOW);

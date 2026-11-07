@@ -400,39 +400,31 @@ test("test_a_raster_from_the_newest_slices_first_column_is_the_full_rasters_colu
 const FULL = { full: true, shift: 0, from: 0, carry: 0 };
 
 test("test_a_first_plan_repaints_in_full", () => {
-  assert.deepEqual(scrollPlan(null, { key: "a", edge: 5000, span: SPAN }), FULL);
-});
-
-test("test_a_changed_key_repaints_in_full", () => {
-  const plan = scrollPlan({ key: "a", edge: 4000, carry: 0 }, { key: "b", edge: 4200, span: SPAN });
-  assert.deepEqual(plan, FULL);
+  assert.deepEqual(scrollPlan(null, { edge: 5000, span: SPAN }), FULL);
 });
 
 test("test_an_edge_that_went_backwards_repaints_in_full", () => {
-  const plan = scrollPlan({ key: "a", edge: 4000, carry: 0 }, { key: "a", edge: 3800, span: SPAN });
+  const plan = scrollPlan({ edge: 4000, carry: 0 }, { edge: 3800, span: SPAN });
   assert.deepEqual(plan, FULL);
 });
 
 test("test_a_paint_with_the_same_edge_scrolls_nothing", () => {
-  const plan = scrollPlan({ key: "a", edge: 4000, carry: 0 }, { key: "a", edge: 4000, span: SPAN });
+  const plan = scrollPlan({ edge: 4000, carry: 0 }, { edge: 4000, span: SPAN });
   assert.deepEqual({ full: plan.full, shift: plan.shift }, { full: false, shift: 0 });
 });
 
 test("test_a_shift_of_the_whole_width_repaints_in_full", () => {
-  const plan = scrollPlan({ key: "a", edge: 1000, carry: 0 }, { key: "a", edge: 1000 + W, span: MS_PER_COLUMN_SPAN });
+  const plan = scrollPlan({ edge: 1000, carry: 0 }, { edge: 1000 + W, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, FULL);
 });
 
 test("test_a_carry_that_brings_the_shift_to_the_whole_width_repaints_in_full", () => {
-  const plan = scrollPlan(
-    { key: "a", edge: 1000, carry: 0.5 },
-    { key: "a", edge: 999.5 + W, span: MS_PER_COLUMN_SPAN },
-  );
+  const plan = scrollPlan({ edge: 1000, carry: 0.5 }, { edge: 999.5 + W, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, FULL);
 });
 
 test("test_a_shift_one_column_short_of_the_width_scrolls_and_repaints_from_the_left_edge", () => {
-  const plan = scrollPlan({ key: "a", edge: 1000, carry: 0 }, { key: "a", edge: 999 + W, span: MS_PER_COLUMN_SPAN });
+  const plan = scrollPlan({ edge: 1000, carry: 0 }, { edge: 999 + W, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, { full: false, shift: W - 1, from: 0, carry: 0 });
 });
 
@@ -443,7 +435,7 @@ for (const [span, cols] of [
   [8000, 30],
 ]) {
   test(`test_an_edge_moving_200_ms_in_a_${span}_ms_span_scrolls_${cols}_columns`, () => {
-    assert.equal(scrollPlan({ key: "a", edge: 4000, carry: 0 }, { key: "a", edge: 4200, span }).shift, cols);
+    assert.equal(scrollPlan({ edge: 4000, carry: 0 }, { edge: 4200, span }).shift, cols);
   });
 }
 
@@ -451,10 +443,7 @@ for (const [span, cols] of [
 // quarters of the way through a column: both scroll 200 columns.
 for (const from of [4000, 7000.75]) {
   test(`test_an_edge_moving_200_5_ms_from_${from}_scrolls_200_columns`, () => {
-    const plan = scrollPlan(
-      { key: "a", edge: from, carry: 0 },
-      { key: "a", edge: from + 200.5, span: MS_PER_COLUMN_SPAN },
-    );
+    const plan = scrollPlan({ edge: from, carry: 0 }, { edge: from + 200.5, span: MS_PER_COLUMN_SPAN });
     assert.equal(plan.shift, 200);
   });
 }
@@ -462,21 +451,18 @@ for (const from of [4000, 7000.75]) {
 // 60 new columns are 1140 to 1199; the repaint starts one before them, at the
 // seam they blend across.
 test("test_a_scroll_repaints_from_the_column_before_the_new_ones", () => {
-  assert.equal(scrollPlan({ key: "a", edge: 4000, carry: 0 }, { key: "a", edge: 4200, span: SPAN }).from, 1139);
+  assert.equal(scrollPlan({ edge: 4000, carry: 0 }, { edge: 4200, span: SPAN }).from, 1139);
 });
 
 test("test_a_fraction_of_a_column_is_carried_without_a_shift", () => {
-  const plan = scrollPlan({ key: "a", edge: 1000, carry: 0 }, { key: "a", edge: 1000.5, span: MS_PER_COLUMN_SPAN });
+  const plan = scrollPlan({ edge: 1000, carry: 0 }, { edge: 1000.5, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, { full: false, shift: 0, from: W - 1, carry: 0.5 });
 });
 
 // Half a column carried, then three quarters more: one whole column, a quarter
 // carried on.
 test("test_a_carried_fraction_shifts_once_it_makes_a_whole_column", () => {
-  const first = scrollPlan({ key: "a", edge: 1000, carry: 0 }, { key: "a", edge: 1000.5, span: MS_PER_COLUMN_SPAN });
-  const plan = scrollPlan(
-    { key: "a", edge: 1000.5, carry: first.carry },
-    { key: "a", edge: 1001.25, span: MS_PER_COLUMN_SPAN },
-  );
+  const first = scrollPlan({ edge: 1000, carry: 0 }, { edge: 1000.5, span: MS_PER_COLUMN_SPAN });
+  const plan = scrollPlan({ edge: 1000.5, carry: first.carry }, { edge: 1001.25, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, { full: false, shift: 1, from: W - 2, carry: 0.25 });
 });

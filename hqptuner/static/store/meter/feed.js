@@ -13,9 +13,9 @@
 // and `n`, the samples it covers. The store tests each event against the one
 // before it in samples, before any conversion: an event whose `at` is not the
 // previous `at + n` begins a break, and so does the first event of a newly
-// opened feed. So does the first event after any
-// `geometry` event, even when its `at` follows on: the sample count runs on
-// across a geometry change, so a count at one rate is not a time at another.
+// opened feed. So does the first event after any `geometry` event, even when
+// its `at` follows on: the sample count runs on across a geometry change, so a
+// count at one rate is not a time at another.
 // It then converts both to ms at the rate, once, so every queued frame carries
 // `at` and `ms` in playback ms. The end of the last frame queued since the feed
 // opened is the feed's edge (feedEdge), the playback stamp data arriving on
@@ -25,18 +25,18 @@
 // since the feed opened, playback started, or the last frame, whichever is
 // latest. The clock is the Clock openMeterFeed() is handed (lib/clock.js), read
 // through its monotonic `now`, since it measures an interval and nothing else.
-import { signal, effect } from "@preact/signals";
+import { signal, effect, untracked } from "@preact/signals";
 import { PLATFORM } from "../../lib/clock.js";
 import { decodeBins } from "../../model/gauges/meter/meter.js";
-import { engineStatus, PLAYING } from "../signals.js";
+import { playback } from "../core/readings.js";
 import { metering } from "../actions.js";
 import { addSpectrumFrame } from "./spectrogram.js";
 
 const FEED = "/api/meter/feed";
 // Wall time, ms, the open feed may send nothing while the engine plays before it counts as silent.
 const QUIET_MS = 2000;
-// Playback the queue holds for a loop that has not drained it, ms: the longest
-// delay the loop paces at, and a second past it.
+// Playback the queue holds for a loop that has not drained it, ms: a pacing
+// delay of up to 5 s, and a second past it.
 const MAX_PENDING_MS = 6000;
 const MS_PER_S = 1000;
 
@@ -88,8 +88,6 @@ let regeometried = false;
  * @type {number | null}
  */
 let edge = null;
-
-const playing = () => Number(((engineStatus.value || {}).status || {}).state) === PLAYING;
 
 /**
  * A wire frame with its bins decoded to dBFS and its stamp converted to playback ms at the geometry's rate, marked as
@@ -164,9 +162,9 @@ export function openMeterFeed(next = PLATFORM) {
     trim();
   });
   source = es;
-  let was = Number(((engineStatus.peek() || {}).status || {}).state) === PLAYING;
+  let was = untracked(() => playback.value.playing);
   unwatch = effect(() => {
-    const on = playing();
+    const on = playback.value.playing;
     if (on && !was) since = clock.now();
     if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
@@ -195,7 +193,7 @@ export function feedEdge() {
 }
 
 /**
- * The frames that arrived since the last call, oldest first; the queue is left empty.
+ * The frames still queued, oldest first; the queue is left empty.
  *
  * @returns {MeterFrame[]}
  */
@@ -224,5 +222,5 @@ export function initMeterFeed(next = PLATFORM) {
 
 /** Whether the engine plays and the open feed has sent nothing for too long. @returns {boolean} */
 export function meterSilent() {
-  return source !== null && playing() && clock.now() - since >= QUIET_MS;
+  return source !== null && playback.value.playing && clock.now() - since >= QUIET_MS;
 }

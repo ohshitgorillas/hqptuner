@@ -35,6 +35,8 @@ import { applyAll, discardAll, edit } from "../../../../hqptuner/static/store/ac
 import { question, answer, cancel } from "../../../../hqptuner/static/store/ask.js";
 import { atFixedMinusThree } from "../../../../hqptuner/static/store/schema/gray.js";
 import { ok, stagingWire, quiesce } from "../../support/wire/wire.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 
 /**
  * One /config form field: the form answers a checkbox with a real bool and
@@ -62,15 +64,19 @@ async function reset(volume) {
   // answered `{}` there would quietly erase the volume state under test.
   const w = stagingWire({
     routes: (path) => {
-      if (path === "/api/config") return ok({ data: config.value });
+      if (path === "/api/config") return ok(readings.value);
       if (path === "/api/matrix") return ok({ data: matrixConfig.value });
       if (path === "/api/enumerations") return ok({ data: null });
       return undefined;
     },
   });
   engineState.value = {};
-  config.value = { fields: volume.fields, file: volume.file, active: "", profiles: null };
-  matrixConfig.value = { fields: [], active: "[Default]" };
+  config.value = { fields: volume.fields.map(({ name }) => ({ name })) };
+  matrixConfig.value = { fields: [] };
+  await seedReadings({
+    ...Object.fromEntries(volume.fields.map(({ name, value }) => [name, value])),
+    ...Object.fromEntries(Object.entries(volume.file).map(([name, v]) => [name, fieldReading(v, { show: "file" })])),
+  });
   lastApply.value = null;
   cancel();
   await discardAll();

@@ -24,6 +24,9 @@ lint:
 	$(VENV)/python scripts/gates/check_openapi.py
 	$(VENV)/python scripts/gates/check_container_env.py
 	$(VENV)/python scripts/gates/check_metadata.py
+	$(VENV)/python scripts/gates/check_lifecycle_names.py $$(git ls-files 'hqptuner/*.py' 'tests/*.py')
+	$(VENV)/python scripts/gates/check_field_structure.py $$(git ls-files 'hqptuner/*.py')
+	$(VENV)/python scripts/gates/check_store_flags.py $$(git ls-files 'hqptuner/static/*.js')
 	$(VENV)/filepawl check
 
 # Frontend gates, one-for-one with the Python ones above: eslint (ruff),
@@ -75,12 +78,12 @@ E2E_MARKERS := e2e
 LIVE_MARKERS := not $(E2E_MARKERS)
 OFFLINE_MARKERS := not live and $(LIVE_MARKERS)
 
-# The offline suite, the one place its command is written. `test` runs it
-# before the gates that read its reports. The pytest-offline pre-commit hook
-# runs this target alone, since pre-commit runs each of those gates as a hook of
-# its own.
+# The offline suite. Its command is written here and copied into the check job
+# of .github/workflows/check.yml. `test` runs it before the gates that read its
+# reports. The pytest-offline pre-commit hook runs this target alone, since
+# pre-commit runs each of those gates as a hook of its own.
 pytest-offline:
-	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov=hqptuner --cov-branch --cov-report=term-missing --cov-report=json:.coverage.json --junitxml=.pytest-junit.xml
+	PYTHONPATH=scripts:scripts/pytest_plugins:$$PYTHONPATH $(VENV)/pytest -m "$(OFFLINE_MARKERS)" -q --cov=hqptuner --cov-branch --cov-report=json:.coverage.json -p idle_probe -p clock_probe -p run_stamp -p suite_deadline --cov-report=term-missing --junitxml=.pytest-junit.xml
 
 # The run stamp records when the run started, and the first recipe line of
 # `test` refuses any report older than it or missing
@@ -97,11 +100,11 @@ pytest-offline:
 # test's start, either side of its call and at its end, and writes a second
 # report; the fourth line fails any test whose reading rises more than 40 ms
 # over its previous one on the branch, or exceeds 40 ms with none, and records
-# only the readings that passed (scripts/gates/check_idle.py).
+# only the readings that passed (scripts/gates/testing/check_idle.py).
 # That reading counts every delay a shared runner adds, so CI sets
 # IDLE_GATE=off. The clock probe records each real-clock timeout that ran out,
 # a reading the same on any machine, and the fifth line refuses any test with
-# one (scripts/gates/check_clock_waits.py). The suite deadline aborts a run
+# one (scripts/gates/testing/check_clock_waits.py). The suite deadline aborts a run
 # still going at the third line's bar, so a hung suite fails instead of hanging.
 IDLE_GATE ?= on
 
@@ -109,8 +112,8 @@ test: pytest-offline
 	$(VENV)/python scripts/gates/testing/check_fresh_reports.py
 	$(VENV)/python scripts/gates/testing/check_coverage_floor.py
 	$(VENV)/python scripts/gates/testing/check_suite_time.py
-	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/check_idle.py)
-	$(VENV)/python scripts/gates/check_clock_waits.py
+	$(if $(filter off,$(IDLE_GATE)),,$(VENV)/python scripts/gates/testing/check_idle.py)
+	$(VENV)/python scripts/gates/testing/check_clock_waits.py
 
 test-live:
 	$(VENV)/pytest -m "$(LIVE_MARKERS)" -q

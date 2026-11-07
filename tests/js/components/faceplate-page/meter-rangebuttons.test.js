@@ -5,6 +5,7 @@
 // Renders through preact-render-to-string. The stream reaches the store at the wire, as in meter.test.js: meter feed
 // events through the EventSource fake, playback through a fresh /api/status object. The preference is driven by
 // assigning its exported signal; the buttons are found by `data-testid`.
+// The engine plays only while /api/health reports the connection Ready, so every case starts on a Ready connection.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/components/faceplate-page/meter-rangebuttons.test.js
 
@@ -14,7 +15,7 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SourceMeter } from "../../../../hqptuner/static/components/faceplate/page/SourceMeter.js";
-import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
+import { engineStatus, health } from "../../../../hqptuner/static/store/signals.js";
 import { closeMeterFeed, openMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { METER_RANGES, rangeButtons, setPageRange } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { viewport } from "../../../../hqptuner/static/store/faceplate/plate.js";
@@ -24,6 +25,9 @@ import { fakeClock } from "../../support/clock.js";
 import { attr, elements } from "../../support/markup.js";
 
 const FULL = { w: 1366, h: 1024 };
+
+/** The lifecycle generation of the Ready connection every case starts on. */
+const GEN = 3;
 
 // The Ranges the page offers are the owner's: the case starts from the second, so neither button sits at an end stop.
 const [, MIDDLE = ""] = METER_RANGES;
@@ -45,6 +49,7 @@ const rangeButtonCount = () =>
   elements(render(html`<${SourceMeter} />`)).filter((e) => BUTTONS.includes(attr(e, "data-testid") ?? "")).length;
 
 beforeEach(() => {
+  health.value = { phase: "Ready", generation: GEN };
   useStorage();
   rangeButtons.value = true;
   setPageRange(MIDDLE);

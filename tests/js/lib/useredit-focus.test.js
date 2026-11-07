@@ -11,34 +11,28 @@
 // tests/js/lib/useredit.test.js owns the rest of the provenance policy — held
 // pointer, release arm, one-shot consumption, the refusals — and this file adds
 // only the focus gate on the key arm, driven through the same seam: the fake
-// document tests/js/support/useredit-dom.js installs BEFORE importing dom.js,
-// which registers its capture listeners at module load, with events replayed to
-// those listeners the way the capture phase delivers them.
+// document tests/js/support/useredit-dom.js hands to watchGestures, which
+// attaches dom.js's capture listeners to it with no global installed, with
+// events delivered through the page's capture, target and bubble phases.
 //
-// A browser announces a focus change twice, and a document-level capture
-// listener sees both: `focus`/`blur` (which do not bubble but are capturable)
-// and `focusin`/`focusout` (which bubble). Both are delivered here, in the order
-// a browser fires them, so a case states "the element was focused" rather than
-// which of the two spellings the implementation chose to listen for.
-//
-// `document.activeElement` is not used and not asserted on anywhere: on the
-// engine this behavior exists for it reports BODY for a keydown the slider is
-// the target of, so it cannot answer the question.
+// Focus and blur move the page's `activeElement` and fire `focus`/`focusin` or
+// `blur`/`focusout` in the order a browser fires them, so a case states "the
+// element was focused" rather than which signal the implementation chose to
+// read. No case asserts on `document.activeElement` itself.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/lib/useredit-focus.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { documentSees, focus, keydown, setup, fire } from "../support/useredit-dom.js";
+import { focus, keydown, setup, fire } from "../support/useredit-dom.js";
 
 /** @typedef {import("../support/useredit-dom.js").ControlSeam} ControlSeam */
 
+// The page moves its `activeElement` off the slider and fires the browser's
+// `blur` and `focusout` at it.
 /** @param {ControlSeam} el */
-const blur = (el) => {
-  documentSees("blur", el, { relatedTarget: null });
-  documentSees("focusout", el, { relatedTarget: null });
-};
+const blur = (el) => /** @type {any} */ (el).blur();
 
 const ARROWS = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
 

@@ -27,6 +27,7 @@ import { openPopover, openStage } from "../../../../hqptuner/static/store/facepl
 import { pickChannelLayout } from "../../../../hqptuner/static/store/faceplate/drawers/output.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { attr, classes, elements } from "../../support/markup.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -65,23 +66,32 @@ async function load(mode) {
   stagingWire();
   config.value = {
     fields: [
-      { name: "mode", type: "select", value: mode },
-      { name: "backend", type: "select", value: "network" },
-      { name: "defaults_samplerate", type: "select", value: "192000" },
-      { name: "defaults_bitrate", type: "select", value: "12288000" },
-      { name: "channels", type: "number", value: 2 },
-      { name: "net_device", type: "select", value: NET, options: [{ value: NET, label: "naa-office: card: iface" }] },
-      { name: "net_dop", type: "checkbox", value: false },
-      { name: "net_anydsd", type: "checkbox", value: true },
-      { name: "net_bits", type: "number", value: 20 },
-      { name: "net_ipv6", type: "checkbox", value: true },
-      { name: "net_period", type: "number", value: 0 },
+      { name: "mode", type: "select" },
+      { name: "backend", type: "select" },
+      { name: "defaults_samplerate", type: "select" },
+      { name: "defaults_bitrate", type: "select" },
+      { name: "channels", type: "number" },
+      { name: "net_device", type: "select", options: [{ value: NET, label: "naa-office: card: iface" }] },
+      { name: "net_dop", type: "checkbox" },
+      { name: "net_anydsd", type: "checkbox" },
+      { name: "net_bits", type: "number" },
+      { name: "net_ipv6", type: "checkbox" },
+      { name: "net_period", type: "number" },
     ],
-    file: {},
-    active: "",
-    profiles: null,
-    device_caps: null,
   };
+  await seedReadings({
+    mode: mode,
+    backend: "network",
+    defaults_samplerate: "192000",
+    defaults_bitrate: "12288000",
+    channels: 2,
+    net_device: NET,
+    net_dop: false,
+    net_anydsd: true,
+    net_bits: 20,
+    net_ipv6: true,
+    net_period: 0,
+  });
   engineState.value = { state: "0" };
   engineStatus.value = { status: {}, metadata: {} };
   enums.value = null;

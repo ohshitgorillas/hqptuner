@@ -19,6 +19,7 @@ import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { config, engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { elements, attr, classes, text } from "../../support/markup.js";
 import { renderTree } from "../../support/vnodeseam.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 
@@ -65,18 +66,19 @@ let serial = 0;
  * @param {string} idleTime
  * @param {string} song
  */
-function playing(idleTime, song) {
+async function playing(idleTime, song) {
   serial += 1;
-  config.value = { fields: [{ name: "idle_time", value: idleTime }], file: {}, active: "", profiles: null };
+  config.value = { fields: [{ name: "idle_time" }] };
+  await seedReadings({ idle_time: idleTime });
   engineStatus.value = {
     status: { state: "2", track_serial: String(serial), process_speed: "1.5", clips: "0" },
     metadata: { song },
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   openStage.value = null;
-  playing("10000", "Track");
+  await playing("10000", "Track");
 });
 
 /** Every element of the rendered rail. */
@@ -146,7 +148,7 @@ test("test_only_the_readout_set_wide_is_wide", () => {
   );
 });
 
-test("test_a_raised_alert_blinks_its_category", () => {
-  playing("0", "Roon");
+test("test_a_raised_alert_blinks_its_category", async () => {
+  await playing("0", "Roon");
   assert.equal(attr(button("timing"), "data-alert"), "warn");
 });

@@ -93,7 +93,10 @@ state_of()   { get /api/state | jq -r '.data.state'; }
 pending_of() { get /api/config/pending | jq -c '{http, live}'; }
 top_seq()    { get "/api/audit?limit=1" | jq -r '.records[-1].seq // 0'; }
 # The config form as {field: value}, the shape open snapshots and close reads back.
-form_of() { get /api/config | jq -c '[.data.fields[] | {key: .name, value: .value}] | from_entries'; }
+# The value is the File reading: the bracket compares the daemon's persisted
+# config before the run against what a restore puts back, and the Engine reading
+# is a live list index that a reload resets and a restore does not carry.
+form_of() { get /api/config | jq -c '[.fields | to_entries[] | select(.value | has("file")) | {key, value: .value.file.value}] | from_entries'; }
 # The live State fields a live write can move and the restore reload resets.
 # The snapshot is wider than this list: volume and the matrix profile are taken
 # too, and both are kept OUT of LIVE_KEYS because nothing puts them back before
@@ -296,7 +299,7 @@ case "$CMD" in
     done
     say "readback"
     echo "  pending: $(pending_of)"
-    echo "  health:  $(get /api/health | jq -c '{reachable, connected_at}')"
+    echo "  health:  $(get /api/health | jq -c '{phase, generation, connected_at}')"
     rm -f "$CURRENT"
     ;;
   status)

@@ -82,6 +82,7 @@ import { discardAll } from "../../../../hqptuner/static/store/actions.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { staticWire } from "../../support/wire/wire.js";
 import { resetFilterFacets } from "../../support/filterfacets.js";
+import { seedReadings } from "../../support/readings.js";
 
 // --- the fixture --------------------------------------------------------------
 // The same list on both chains. Descriptions are the engine's own format,
@@ -148,8 +149,9 @@ async function resetConfigPage({ sdmNx = KEPT, sdm1x = KEPT, pcmNx = KEPT, pcm1x
     oversampling1x: wire(sdm1x),
     oversampling: wire(sdmNx),
   };
-  const fields = Object.entries(values).map(([name, value]) => ({ name, value, options }));
-  config.value = { fields, file: { ...values }, active: "", profiles: null };
+  const fields = Object.keys(values).map((name) => ({ name, options }));
+  config.value = { fields };
+  await seedReadings(values);
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;
@@ -354,16 +356,13 @@ async function resetLivePage({ chain, mode, nx = KEPT }) {
   volume.value = "-10.0";
   volumeRange.value = { enabled: "1", min: "-60", max: "0" };
   config.value = {
-    fields: Object.entries(form).map(([name, value]) => ({
+    fields: Object.keys(form).map((name) => ({
       name,
-      value,
       options: LISTS[name].map((i) => ({ value: i.value, label: i.name })),
     })),
-    file: { mode: chain, ...form },
-    active: "",
-    profiles: null,
   };
-  matrixConfig.value = { fields: [], file_profiles: {}, live_profiles: [] };
+  matrixConfig.value = { fields: [], file_profiles: {} };
+  await seedReadings({ mode: chain, ...form });
   favoriteFilters.value = new Set();
   favoritesError.value = "";
   nFavOnly.value = false;

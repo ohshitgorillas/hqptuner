@@ -5,6 +5,7 @@
 import { truthy } from "../../../lib/coerce.js";
 import { schema as catalog } from "../../schema.js";
 import { describe, idFor, optionDescription, optionProse } from "../../prose.js";
+import { field } from "../../core/readings.js";
 import { effective, formFieldName } from "../../resolve.js";
 import { setControl } from "../../actions.js";
 import { enumOptions, optionsFor } from "../../ui/options.js";
@@ -63,14 +64,14 @@ export function rowValue(key) {
 }
 
 /**
- * The nameplate of a row's staged option: its plain family, variant and leaf, as the page's nameplates break it down.
+ * The nameplate of the option a row shows, the engine's own name for it when the row shows the engine's current reading: its plain family, variant and leaf, as the page's nameplates break it down.
  *
  * @param {string} key
  * @returns {{ fam: string, variant: string | null, leaf: string }}
  */
 export function drawerPlate(key) {
   const value = rowValue(key);
-  const name = rowOptions(key).find((o) => String(o.value) === value)?.label ?? "";
+  const name = field(key).value.name ?? rowOptions(key).find((o) => String(o.value) === value)?.label ?? "";
   return plainOf(catalog[key]?.plainNames ?? "", name);
 }
 

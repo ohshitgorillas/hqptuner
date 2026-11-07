@@ -1,13 +1,12 @@
 // The entry, served at /: the faceplate's root, mounted where the page has a mount point.
-// Header and engine row stay, with the plate's alert lines between them on every view; under them the chain body
+// Header and engine row show on every view, with the plate's alert lines between them; under them the chain body
 // (rail, page, one drawer per rail stage over the page, each drawn from its registered schema, the page's plate-level
 // popovers, and the option list a chain picker opens over the body with its hover tip), the Settings body the gear
 // swaps in, the Snapshot builder's body with the same option list and tip for its list pickers, the Profile builder's
 // body, or the empty body any other builder swaps in. Under the body, a hairline and the bottom bar. The connection
 // panel the brand knob opens is a sheet over the body. The faceplate theme is stamped on the document root before the
 // first render.
-import { render } from "preact";
-import { html } from "./lib/dom.js";
+import { html, mount, watchGestures } from "./lib/dom.js";
 import { Plate } from "./components/faceplate/Plate.js";
 import { Header } from "./components/faceplate/Header.js";
 import { EngineRow } from "./components/faceplate/EngineRow.js";
@@ -38,9 +37,15 @@ import { initMeterFeed } from "./store/meter/feed.js";
 import { initMeterLoop } from "./store/meter/loop.js";
 import { bookWanted } from "./store/live/presets.js";
 import { loadSpeakers } from "./store/matrix/speakers.js";
-import { initPanel, pageHost } from "./store/connpanel.js";
+import { startNarrowing } from "./store/narrow/persist.js";
+import { hydrateFavorites } from "./store/narrow/favorites.js";
+import { hydrateMatrixModes } from "./store/matrix/mode.js";
+import { hydrateDescriptions } from "./store/matrix/descriptions.js";
+import { createConnPanel } from "./store/connpanel.js";
 
-/** The chain body: rail, hairline, page, and the stage drawers over the page. */
+const panel = createConnPanel();
+
+/** The chain body: rail, hairline, page, the stage drawers over the page, its popovers, and the option list and tip. */
 function ChainBody() {
   const stages = railStages(railNow());
   return html`
@@ -92,13 +97,13 @@ function PlateAlerts() {
   `;
 }
 
-/** The faceplate: header, the plate's alert lines and engine row over the body that shows. */
+/** The faceplate: header, the plate's alert lines and engine row over the body that shows, the bottom bar under it. */
 export function Faceplate() {
   return html`
     <${Plate}>
-      <${Header} />
+      <${Header} panel=${panel} />
       <${PlateAlerts} />
-      <${ConnPanel} />
+      <${ConnPanel} panel=${panel} />
       <div class="rule"></div>
       <${EngineRow} />
       <div class="rule"></div>
@@ -109,19 +114,26 @@ export function Faceplate() {
   `;
 }
 
-const root = globalThis.document?.getElementById?.("app");
-if (root) {
-  initFavicon();
-  initHealth();
+/** Start the app on `doc`: favicon, health, APOD history, spectrogram, meter feed and loop, speakers, narrowing, favorites, matrix modes, descriptions, panel, sync, theme and gesture watch, then render the Faceplate into `doc`'s `#app`. Host name from `doc.defaultView.location`; every timer from `clock`. A document with no `#app` boots nothing. @param {Document} doc @param {typeof import("./lib/clock.js").PLATFORM} clock */
+export function boot(doc, clock) {
+  const root = doc.getElementById("app");
+  if (!root) return;
+  initFavicon(doc);
+  initHealth(clock);
   initApodHistory();
   initSpectrogram();
-  initMeterFeed();
-  initMeterLoop();
+  startSync(doc);
+  initMeterFeed(clock);
+  initMeterLoop(clock);
   bookWanted.value = true;
   loadSpeakers();
-  initPanel();
-  pageHost.value = location.hostname;
-  startSync();
-  watchFaceplateTheme(document.documentElement);
-  render(html`<${Faceplate} />`, root);
+  startNarrowing(doc, clock);
+  void hydrateFavorites();
+  void hydrateMatrixModes();
+  void hydrateDescriptions();
+  panel.initPanel();
+  panel.pageHost.value = doc.defaultView?.location.hostname ?? "";
+  watchFaceplateTheme(doc.documentElement);
+  watchGestures(doc);
+  mount(html`<${Faceplate} />`, root);
 }

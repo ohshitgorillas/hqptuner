@@ -11,25 +11,20 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.view import Cause, EngineView, Reading, Refusal, is_mode, says
 from hqptuner.errors import HQPTunerError
+from hqptuner.fields import query
+from hqptuner.fields.chain import PCM, SDM
+from hqptuner.fields.model import Enumeration
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.live import lane, routing, snapshot
-from hqptuner.lanes.live.chain import PCM, SDM
 from hqptuner.lanes.live.lane import LiveApplyReport
-from hqptuner.lanes.live.snapshot import DEFAULT_PROFILE_NAME, MATRIX_PROFILE
+from hqptuner.lanes.live.snapshot import MATRIX_PROFILE
 from hqptuner.presets.store.live import DEFAULT_STATION, LiveRecord, canonical_name
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from hqptuner.lanes.live.snapshot import LiveSnapshot
     from hqptuner.presets import PresetManager
-
-# Chain-scoped fields index the enumerations of one chain, so a preset carrying
-# any of them has to say which chain to be on — mode rides along unasked.
-_CHAIN_SCOPED = frozenset(field for field, spec in routing.ROUTABLE.items() if spec.chain is not None)
-
-_FLAGS = frozenset({"0", "1"})
 
 
 class NotLiveSnapshotSettingsError(HQPTunerError):
@@ -84,81 +79,50 @@ def _selected(wanted: list[str] | None) -> set[str] | None:
     """
     if wanted is None:
         return None
-    known = set(snapshot.SNAPSHOT_FIELDS)
+    known = set(query.snapshot_fields())
     unknown = [key for key in wanted if key not in known]
     if unknown:
         raise NotLiveSnapshotSettingsError(unknown=unknown)
     keys = set(wanted)
-    if keys & _CHAIN_SCOPED:
-        keys.add("mode")
+    if keys & query.chain_scoped():
+        keys.update(field for field in known if is_mode(field))
     return keys
 
 
-def _mode_name(manager: PresetManager, value: str) -> str | None:
-    """Return the display name of a given output mode, or None when it is not pcm or sdm."""
+def _mode_name(view: EngineView, field: str, value: str) -> str | Refusal:
+    """Return the display name of a given output mode, or the refusal when it is not pcm or sdm."""
     if value not in (PCM, SDM):
-        return None
-    want = routing.MODE_NAMES[value]
-    items = (manager.readings.enums or {}).get("modes") or []
-    return next((str(item["name"]) for item in items if str(item.get("name") or "").startswith(want)), want)
+        return Refusal(field, value, Cause.NOT_MODE)
+    index = view.index_of(field, value)
+    name = None if index is None else view.name_at(Enumeration.MODES, index)
+    return value.upper() if name is None else name
 
 
-def _profile_name(manager: PresetManager, value: str) -> str | None:
-    """Return DEFAULT_PROFILE_NAME for ``""``, the name itself when the engine lists it, else None."""
-    if value == "":
-        return DEFAULT_PROFILE_NAME
-    return value if value in (manager.readings.matrix_profiles or []) else None
+def _given_name(view: EngineView, field: str, value: str) -> str | Refusal:
+    """Return the display name a given value is stored under, or its refusal."""
+    if is_mode(field):
+        return _mode_name(view, field, value)
+    resolved = view.resolve(field, value)
+    if isinstance(resolved, Refusal):
+        return value if resolved.cause is Cause.OFF_CHAIN else resolved
+    live = query.live(field)
+    return value if live.enumeration is None else view.name_at(live.enumeration, resolved) or value
 
 
-def _profile_unlisted(value: str) -> str:
-    """Why a matrix profile cannot be stored or applied: the engine does not list it."""
-    return f"{value!r} is not a matrix profile the engine lists"
-
-
-_NAMERS: dict[str, Callable[[PresetManager, str], str | None]] = {"mode": _mode_name, MATRIX_PROFILE: _profile_name}
-
-
-def _given_name(manager: PresetManager, loaded_chain: str, field: str, value: str) -> str | None:
-    """Return the display name a given value is stored under, or None when the record cannot hold it.
-
-    A field of the chain the engine has not loaded has no enumeration to join through, so it is its own name.
-    """
-    if (namer := _NAMERS.get(field)) is not None:
-        return namer(manager, value)
-    if field in routing.DIRECT:
-        return value if value in _FLAGS else None
-    spec = routing.ROUTABLE[field]
-    if spec.chain != loaded_chain:
-        return value
-    items = (manager.readings.enums or {}).get(spec.enum) or []
-    return next((str(item.get("name") or value) for item in items if str(item.get("value")) == value), None)
-
-
-def _why_refused(field: str, value: str) -> str:
-    """Why a given value of a kept field cannot be stored, in terms the save popover can show."""
-    if field == "mode":
-        return f"{value!r} is not pcm or sdm"
-    if field in routing.DIRECT:
-        return f"{value!r} is not a 0/1 flag"
-    if field == MATRIX_PROFILE:
-        return _profile_unlisted(value)
-    return f"{value} is not in the engine's live {routing.ROUTABLE[field].enum} list"
-
-
-def _given(
-    manager: PresetManager, loaded_chain: str, keys: set[str] | None, values: dict[str, str]
-) -> dict[str, dict[str, str]]:
+def _given(view: EngineView, keys: set[str] | None, values: dict[str, str]) -> dict[str, dict[str, str]]:
     """Return each given value as ``{value, name}``; ``ValuesUnknownError`` naming each value the record cannot hold."""
-    allowed = set(snapshot.SNAPSHOT_FIELDS) if keys is None else keys
+    allowed = set(query.snapshot_fields()) if keys is None else keys
     given: dict[str, dict[str, str]] = {}
     reasons: dict[str, str] = {}
     for field, value in values.items():
         if field not in allowed:
             reasons[field] = "not a setting this save keeps"
-        elif (name := _given_name(manager, loaded_chain, field, value)) is None:
-            reasons[field] = _why_refused(field, value)
+            continue
+        name = _given_name(view, field, value)
+        if isinstance(name, Refusal):
+            reasons[field] = says(name)
         else:
-            given[field] = {"value": value, "name": name}
+            given[field] = snapshot.shown(field, Reading(value, name))
     if reasons:
         raise ValuesUnknownError(reasons=reasons)
     return given
@@ -169,7 +133,7 @@ def _kept(taken: LiveSnapshot, keys: set[str] | None, chain: str) -> dict[str, d
     return {
         field: item
         for field, item in taken.fields.items()
-        if (keys is None or field in keys) and (chain == taken.chain or field not in _CHAIN_SCOPED)
+        if (keys is None or field in keys) and (chain == taken.chain or field not in query.chain_scoped())
     }
 
 
@@ -180,8 +144,8 @@ def _record(manager: PresetManager, keys: set[str] | None, values: dict[str, str
     ``ChainUnknownError`` as the snapshot raises it.
     """
     taken = snapshot.live_snapshot(manager)
-    given = _given(manager, taken.chain, keys, values or {})
-    chain = given["mode"]["value"] if "mode" in given else taken.chain
+    given = _given(EngineView.of(manager.readings), keys, values or {})
+    chain = next((item["value"] for field, item in given.items() if is_mode(field)), taken.chain)
     kept = _kept(taken, keys, chain) | given
     return LiveRecord(
         chain=chain,
@@ -213,13 +177,17 @@ async def record(
 
 def _check_profile(manager: PresetManager, profile: str | None) -> None:
     """``LiveRouteError`` when a preset's matrix profile is one the engine does not list, before anything applies."""
-    if profile is not None and _profile_name(manager, profile) is None:
-        raise routing.LiveRouteError({MATRIX_PROFILE: _profile_unlisted(profile)})
+    if profile is None:
+        return
+    resolved = EngineView.of(manager.readings).resolve(MATRIX_PROFILE, profile)
+    if isinstance(resolved, Refusal):
+        raise routing.LiveRouteError({MATRIX_PROFILE: says(resolved)})
 
 
 async def _switch_profile(manager: PresetManager, profile: str | None) -> None:
     """Switch the engine to a preset's matrix profile when it is on another; a daemon refusal is wrapped."""
-    if profile is None or (manager.readings.state or {}).get(MATRIX_PROFILE, "") == profile:
+    current = EngineView.of(manager.readings).read(MATRIX_PROFILE)
+    if profile is None or ("" if current is None else current.value) == profile:
         return
     try:
         await matrixlane.switch_profile(manager, profile)

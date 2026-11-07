@@ -125,14 +125,14 @@ def _app_env(control_port: int, http_port: int, metering_port: int, state: Path)
 
 
 def _answers(port: int, path: str) -> bool:
-    """A 200 from `path` on the app, and on `/api/health` the app's own `ready` flag with it."""
+    """A 200 from `path` on the app, and on `/api/health` the phase Ready with it."""
     conn = http.client.HTTPConnection("127.0.0.1", port, timeout=PROBE_TIMEOUT)
     try:
         conn.request("GET", path)
         response = conn.getresponse()
         if response.status != HTTP_OK:
             return False
-        return path != "/api/health" or bool(json.loads(response.read()).get("ready"))
+        return path != "/api/health" or json.loads(response.read()).get("phase") == "Ready"
     except OSError:
         return False
     finally:

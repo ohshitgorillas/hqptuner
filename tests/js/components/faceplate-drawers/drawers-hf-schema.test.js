@@ -25,6 +25,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { drawerMarkup, tapFieldOption } from "../../support/rendered/drawer-render.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr } from "../../support/markup.js";
 
@@ -45,7 +46,8 @@ function routes(path, opts) {
 beforeEach(async () => {
   autopilotPosts = [];
   wire = stagingWire({ routes });
-  config.value = { fields: [{ name: "pre_before_meter", type: "checkbox", value: false }], file: {}, active: "" };
+  config.value = { fields: [{ name: "pre_before_meter", type: "checkbox" }] };
+  await seedReadings({ pre_before_meter: fieldReading(false, { show: "file", restarts: true }) });
   engineState.value = { filter_junk: "0" };
   engineStatus.value = { autopilot: false, metering: true };
   enums.value = {

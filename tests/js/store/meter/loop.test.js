@@ -3,7 +3,9 @@
 //
 // The playhead stands at the end of the newest frame the feed has queued, less
 // the effective delay: it moves when a frame arrives, stands still between arrivals, and is null while the feed is
-// closed. A break restarts it with no slew. Every frame reaches the spectrogram's history once and in order, and the
+// closed. A break restarts it with no slew. The loop runs, asking for animation frames, only while the feed is open
+// and the engine plays: while the engine is stopped it asks for none, and the playhead is null
+// (docs/superpowers/specs/meter-loop-idle-design.md, Modules). Every frame reaches the spectrogram's history once and in order, and the
 // frames a restart leaves behind go before the break frame, so the history runs from the break on.
 //
 // Metering and playback reach the stores at the wire, through fresh /api/status objects on engineStatus written by
@@ -33,11 +35,27 @@ import { engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { setApodWindow } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
-import { newTrack, poll } from "../../support/apodpolls.js";
+import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
 import { AN_HOUR_ON_44K, CONTIGUOUS_44K, DROPPED_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
 
-const { clock, advance } = fakeClock();
+const fake = fakeClock();
+const advance = fake.advance;
+
+/** How many animation frames the loop has asked the clock for since a case last set it to 0. */
+let asked = 0;
+
+/** @type {import("../../../../hqptuner/static/lib/clock.js").Clock} */
+const clock = {
+  ...fake.clock,
+  requestAnimationFrame: (fn) => {
+    asked += 1;
+    return fake.clock.requestAnimationFrame(fn);
+  },
+};
+
+/** Wall time, ms, a stopped engine stays stopped: far more than several animation frames. */
+const IDLE_MS = 60000;
 
 /** Wall time, ms, one settle runs the fake clock on: several animation frames. */
 const SETTLE_MS = 100;
@@ -130,7 +148,7 @@ test("test_closing_the_feed_leaves_the_playhead_null", () => {
   settle();
   const before = playhead.value;
   const edge = (feedEdge() ?? NaN) - DELAY_S * SECOND_MS;
-  engineStatus.value = { metering: false };
+  engineStatus.value = { ...engineStatus.value, metering: false };
   settle();
   assert.deepEqual([before, playhead.value], [edge, null]);
 });
@@ -162,4 +180,36 @@ test("test_after_a_break_the_spectrogram_history_runs_from_the_break_frame_on", 
   settle();
   const from = same((DROPPED_44K[BREAK_ROW].at * SECOND_MS) / RATE_44K);
   assert.deepEqual(history(), { from, to: same(feedEdge() ?? NaN), joins: 0 });
+});
+
+test("test_while_the_engine_is_not_playing_the_loop_asks_for_no_animation_frame", () => {
+  feed(CONTIGUOUS_44K);
+  settle();
+  poll({ state: STOPPED });
+  asked = 0;
+  advance(IDLE_MS);
+  assert.equal(asked, 0);
+});
+
+test("test_a_status_poll_that_leaves_the_engine_stopped_asks_for_no_animation_frame", () => {
+  feed(CONTIGUOUS_44K);
+  settle();
+  poll({ state: STOPPED });
+  settle();
+  asked = 0;
+  for (let i = 0; i < 3; i++) {
+    poll({ state: STOPPED });
+    advance(IDLE_MS);
+  }
+  assert.equal(asked, 0);
+});
+
+test("test_when_the_engine_stops_playing_the_playhead_goes_null", () => {
+  feed(CONTIGUOUS_44K);
+  settle();
+  const before = playhead.value;
+  const edge = (feedEdge() ?? NaN) - DELAY_S * SECOND_MS;
+  poll({ state: STOPPED });
+  settle();
+  assert.deepEqual([before, playhead.value], [edge, null]);
 });

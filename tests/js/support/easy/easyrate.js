@@ -56,20 +56,15 @@ export const engineRows = ({ backend = "alsa", anydsd = "1" } = {}) => {
 };
 
 /**
- * The /api/config payload: the daemon's form as rows, and the `file` half — the
- * settings as the daemon's own XML holds them. Both halves carry the same
- * backend and switches, because a payload whose halves disagree is one the
- * daemon never serves.
+ * The /api/config payload: the daemon's form as rows carrying form metadata
+ * alone, name and options. The values those rows would
+ * carry reach `readings.value` through the one `seedReadings` of the harness
+ * that assigns this.
  *
  * @param {Record<string, unknown>} form
- * @param {string} mode
- * @param {Engine} [engine]
  */
-export const configPayload = (form, mode, engine) => ({
-  fields: formFields(/** @type {never} */ (form)),
-  file: { mode, ...engineRows(engine) },
-  active: "",
-  profiles: null,
+export const configPayload = (form) => ({
+  fields: formFields(/** @type {never} */ (form)).map(({ value: _value, ...metadata }) => metadata),
 });
 
 // The tails the engine spells a filter's ratio class with, by the class name a

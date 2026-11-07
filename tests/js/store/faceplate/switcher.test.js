@@ -5,9 +5,10 @@
 //
 // Driven at the wire: the engine's enumerations, State and /config form come from tests/js/support/listsfixture.js
 // (SDM chain loaded unless a case loads PCM, Simplified names on so a slot's label differs from its engine name), the
-// /matrix form goes into `matrixConfig`, and a fetch fake answers the real REST paths and records every request body:
-// POST /api/config/live for a live write, POST /api/matrix/profile for a profile switch. Every engine and profile name
-// asserted is the fixture's own.
+// profiles the engine loaded are its `matrix_profiles` enumeration and the running one its `matrix_profile` reading,
+// seeded through tests/js/support/readings.js, and a fetch fake answers the real REST paths and records every request
+// body: POST /api/config/live for a live write, POST /api/matrix/profile for a profile switch. Every engine and profile
+// name asserted is the fixture's own.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/store/faceplate/switcher.test.js
 
@@ -20,11 +21,13 @@ import { settle } from "../../support/wire/livepresetwire.js";
 
 let storage = useStorage();
 
-const { config, engineState, engineStatus, enums, matrixConfig } =
-  await import("../../../../hqptuner/static/store/signals.js");
+const { engineState, engineStatus, enums, matrixConfig } = await import("../../../../hqptuner/static/store/signals.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
 const { openList } = await import("../../../../hqptuner/static/store/faceplate/view.js");
 const { loadLists, resetLists } = await import("../../support/listsfixture.js");
+const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
+const { seedReadings } = await import("../../support/readings.js");
+const { profileReading } = await import("../../support/profile-fixtures.js");
 const { setSwitcherTarget, switcherView, setSlot, slotLive, slotList, plateBottom } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 
@@ -43,7 +46,7 @@ let posts = [];
 const READS = {
   "/api/state": () => ok({ data: { ...engineState.value } }),
   "/api/enumerations": () => ok({ data: { ...enums.value } }),
-  "/api/config": () => ok({ data: { ...config.value } }),
+  "/api/config": () => ok({ ...readings.value }),
   "/api/matrix": () => ok({ data: { ...matrixConfig.value } }),
   "/api/config/pending": () => ok({ live: {}, http: {} }),
 };
@@ -78,12 +81,14 @@ async function answer(path, opts = {}) {
 /** The bodies posted to one path. @param {string} path */
 const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
 
-beforeEach(() => {
+beforeEach(async () => {
   storage = useStorage();
   env.fetch = answer;
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
-  matrixConfig.value = { fields: [], rows: [], live_profiles: ["Desk", "Lounge"], live_active: "Lounge" };
+  matrixConfig.value = { fields: [] };
+  enums.value = { ...enums.value, matrix_profiles: ["Desk", "Lounge"] };
+  await seedReadings({ ...readings.value?.fields, matrix_profile: profileReading("Lounge") });
   setBottomBar("switcher");
   for (const t of ALL) {
     setSwitcherTarget(t);
@@ -127,8 +132,8 @@ test("test_on_the_sdm_chain_each_list_target_reads_its_sdm_key", () => {
   assert.deepEqual(underEach("key"), ["sdm_filter_1x", "sdm_filter_nx", "sdm_modulator", null, null, null]);
 });
 
-test("test_on_the_pcm_chain_each_list_target_reads_its_pcm_key", () => {
-  loadLists({ chain: "pcm", plain: true });
+test("test_on_the_pcm_chain_each_list_target_reads_its_pcm_key", async () => {
+  await loadLists({ chain: "pcm", plain: true });
   assert.deepEqual(underEach("key"), ["pcm_filter_1x", "pcm_filter_nx", "pcm_dither", null, null, null]);
 });
 
@@ -217,9 +222,9 @@ test("test_output_mode_marks_its_sdm_slot_on_while_the_sdm_chain_runs", () => {
   assert.equal(slotField("on")?.[1], true);
 });
 
-test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", () => {
+test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", async () => {
   setSwitcherTarget("Output mode");
-  loadLists({ chain: "pcm", plain: true });
+  await loadLists({ chain: "pcm", plain: true });
   assert.equal(slotField("on")?.[0], true);
 });
 

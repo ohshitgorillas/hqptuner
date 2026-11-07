@@ -77,7 +77,7 @@ def half_wired_client(threaded_daemon_port: int, closed_port: int, tmp_path: Pat
 
 @pytest.mark.parametrize(
     "path",
-    ["/api/config", "/api/matrix", "/api/speakers", "/api/engine", "/api/backup", "/api/preset/Kept"],
+    ["/api/matrix", "/api/speakers", "/api/engine", "/api/backup", "/api/preset/Kept"],
 )
 def test_config_routes_without_credentials_are_unavailable(nocreds_client: TestClient, path: str) -> None:
     assert nocreds_client.get(path).status_code == 503
@@ -108,16 +108,15 @@ def test_snapshot_routes_before_first_daemon_load_are_unavailable(api_client: Te
 # --- forms: not-yet-loaded vs fetch-failed (deps.ensure_form) --------------------
 
 
-@pytest.mark.parametrize("path", ["/api/config", "/api/matrix", "/api/speakers"])
+@pytest.mark.parametrize("path", ["/api/matrix", "/api/speakers"])
 def test_form_routes_before_any_fetch_are_unavailable(http_client: TestClient, path: str) -> None:
     # daemon healthy and credentials present, but the manager never completed a
     # connect (control lane closed), so no form fetch was ever attempted
     assert http_client.get(path).status_code == 503
 
 
-@pytest.mark.parametrize("path", ["/api/config", "/api/matrix"])
-def test_form_routes_after_a_failed_fetch_are_bad_gateway(half_wired_client: TestClient, path: str) -> None:
-    assert half_wired_client.get(path).status_code == 502
+def test_matrix_after_a_failed_fetch_is_bad_gateway(half_wired_client: TestClient) -> None:
+    assert half_wired_client.get("/api/matrix").status_code == 502
 
 
 # --- live routes without a connected daemon --------------------------------------

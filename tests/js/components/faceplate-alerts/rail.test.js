@@ -23,19 +23,24 @@ import { Rail } from "../../../../hqptuner/static/components/faceplate/Rail.js";
 import { openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { hiddenStages } from "../../../../hqptuner/static/store/ui/prefs.js";
 import { engineStatus, health, matrixConfig, volume } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { alertsNow } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { elements, attr, classes } from "../../support/markup.js";
 import { reset, DSD512, DSD1024, PCM_8X } from "../../support/shaperfit-fixtures.js";
 import { fakeClock } from "../../support/clock.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
 
 initHealth(fakeClock().clock);
 
-/** A /api/health reading whose credentials the daemon accepted. */
-const HEALTHY = { reachable: true, ready: true, connected: true, credentials_ok: true };
+/** The daemon generation the suite runs at. */
+const GEN = 1;
+
+/** A /api/health reading as served: the connection Ready and the credentials the daemon accepted. */
+const HEALTHY = { phase: "Ready", generation: GEN, credentials_ok: true };
 
 let serial = 0;
 
@@ -67,7 +72,8 @@ function poll(fields = {}) {
  */
 async function quiet(scenario = {}) {
   await reset({ chain: "sdm", mode: "2", sdmRate: DSD1024, pcmRate: PCM_8X, ...scenario });
-  matrixConfig.value = { fields: [{ name: "enabled", value: true }] };
+  matrixConfig.value = { fields: [{ name: "enabled" }] };
+  await seedReadings({ ...readings.value?.fields, matrix_enabled: true });
   volume.value = "-20";
   hiddenStages.value = [];
   openStage.value = null;

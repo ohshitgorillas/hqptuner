@@ -1,0 +1,13 @@
+"""A module that reads enumeration lists, loops over other things, and walks one list once."""
+
+
+def summary(reading, view):
+    filters = reading.enums["filters"]
+    count = len(reading.enums["rates"])
+    known = "modes" in reading.enums
+    chosen = view.index_of(reading.enums["shapers"], "5")
+    state = {key: value for key, value in reading.state.items()}
+    for word in ("filter1x", "filterNx"):
+        state.pop(word, None)
+    junk = [item["name"] for item in reading.enums["junk_filters"]]
+    return filters, count, known, chosen, state, junk

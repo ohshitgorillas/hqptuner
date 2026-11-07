@@ -31,6 +31,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/page/conversion.js";
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
+import { seedReadings } from "../../support/readings.js";
 
 const CD = "44100";
 const HIRES = "96000";
@@ -96,7 +97,7 @@ const META = {
  *
  * @param {Running} [r]
  */
-function wire({
+async function wire({
   source = CD,
   output = PCM_8X,
   playing = true,
@@ -111,7 +112,8 @@ function wire({
     status: { state: playing ? "2" : "0", active_rate: output },
     metadata: { samplerate: source },
   };
-  config.value = { fields: [{ name: "direct_sdm", value: false }] };
+  config.value = { fields: [{ name: "direct_sdm" }] };
+  await seedReadings({ direct_sdm: false });
   staged.value = { live: {}, http: {} };
   liveOverride.value = {};
   metadata.value = META;
@@ -120,7 +122,7 @@ function wire({
 }
 
 /** The same engine playing to an SDM rate, the SDM chain loaded. */
-const sdm = () => wire({ output: DSD256, chain: "sdm" });
+const sdm = async () => await wire({ output: DSD256, chain: "sdm" });
 
 // A live-lane server: every POST /api/config/live body is recorded and answered verified, once `held` resolves where a
 // case passes one, and the re-mirror reads answer the State and enumerations the case seeded.
@@ -142,9 +144,9 @@ function liveWire(/** @type {Promise<void> | null} */ held = null) {
 
 // Each case starts from a playback of its own: the engine stops before it plays, so no open field a case before it
 // picked survives.
-beforeEach(() => {
-  wire({ playing: false });
-  wire();
+beforeEach(async () => {
+  await wire({ playing: false });
+  await wire();
 });
 
 /** The keys of one section's fields. @param {"resampling" | "shaping"} s */
@@ -170,8 +172,8 @@ test("test_resampling_holds_the_pcm_chains_filters_on_a_pcm_output", () => {
   assert.deepEqual(keys("resampling"), ["pcm_filter_1x", "pcm_filter_nx"]);
 });
 
-test("test_resampling_holds_the_sdm_chains_filters_on_an_sdm_output", () => {
-  sdm();
+test("test_resampling_holds_the_sdm_chains_filters_on_an_sdm_output", async () => {
+  await sdm();
   assert.deepEqual(keys("resampling"), ["sdm_filter_1x", "sdm_filter_nx"]);
 });
 
@@ -179,8 +181,8 @@ test("test_shaping_holds_the_dither_on_a_pcm_output", () => {
   assert.deepEqual(keys("shaping"), ["pcm_dither"]);
 });
 
-test("test_shaping_holds_the_modulator_on_an_sdm_output", () => {
-  sdm();
+test("test_shaping_holds_the_modulator_on_an_sdm_output", async () => {
+  await sdm();
   assert.deepEqual(keys("shaping"), ["sdm_modulator"]);
 });
 
@@ -190,8 +192,8 @@ test("test_the_1x_filter_reads_the_engine_name_at_the_index_the_engine_reports",
   assert.equal(fieldOf("resampling", "1x")?.value, "poly-sinc-long");
 });
 
-test("test_the_shaper_reads_the_engine_name_at_the_index_the_engine_reports", () => {
-  wire({ shaper: "2" });
+test("test_the_shaper_reads_the_engine_name_at_the_index_the_engine_reports", async () => {
+  await wire({ shaper: "2" });
   assert.equal(fieldOf("shaping", "sh")?.value, "LNS15");
 });
 
@@ -228,18 +230,18 @@ test("test_a_base_rate_source_runs_the_1x_filter_and_the_shaper", () => {
   assert.deepEqual(idles(), [false, true, false]);
 });
 
-test("test_a_high_rate_source_runs_the_nx_filter_and_the_shaper", () => {
-  wire({ source: HIRES });
+test("test_a_high_rate_source_runs_the_nx_filter_and_the_shaper", async () => {
+  await wire({ source: HIRES });
   assert.deepEqual(idles(), [true, false, false]);
 });
 
-test("test_nothing_playing_runs_no_field", () => {
-  wire({ playing: false });
+test("test_nothing_playing_runs_no_field", async () => {
+  await wire({ playing: false });
   assert.deepEqual(idles(), [true, true, true]);
 });
 
-test("test_a_remodulated_dsd_source_runs_the_shaper_alone", () => {
-  wire({ source: DSD64, output: DSD256, chain: "sdm" });
+test("test_a_remodulated_dsd_source_runs_the_shaper_alone", async () => {
+  await wire({ source: DSD64, output: DSD256, chain: "sdm" });
   assert.deepEqual(idles(), [true, true, false]);
 });
 
@@ -249,13 +251,13 @@ test("test_a_base_rate_source_opens_the_1x_filter", () => {
   assert.deepEqual(conversionSections().resampling.open, ["1x"]);
 });
 
-test("test_a_high_rate_source_opens_the_nx_filter", () => {
-  wire({ source: HIRES });
+test("test_a_high_rate_source_opens_the_nx_filter", async () => {
+  await wire({ source: HIRES });
   assert.deepEqual(conversionSections().resampling.open, ["nx"]);
 });
 
-test("test_a_dsd_source_to_pcm_opens_the_nx_filter", () => {
-  wire({ source: DSD64 });
+test("test_a_dsd_source_to_pcm_opens_the_nx_filter", async () => {
+  await wire({ source: DSD64 });
   assert.deepEqual(conversionSections().resampling.open, ["nx"]);
 });
 
@@ -268,9 +270,9 @@ test("test_opening_a_folded_field_opens_it", () => {
   assert.deepEqual(conversionSections().resampling.open, ["nx"]);
 });
 
-test("test_a_new_output_reopens_on_the_running_filter", () => {
+test("test_a_new_output_reopens_on_the_running_filter", async () => {
   openField("resampling", "nx");
-  sdm();
+  await sdm();
   assert.deepEqual(conversionSections().resampling.open, ["1x"]);
 });
 
@@ -288,7 +290,7 @@ test("test_picking_a_filter_writes_its_enum_id_live", async () => {
 });
 
 test("test_picking_a_modulator_writes_its_enum_id_live", async () => {
-  sdm();
+  await sdm();
   const posts = liveWire();
   await pickOption("sdm_modulator", "TPDF");
   assert.deepEqual(posts, [{ fields: { modulator: "100" } }]);

@@ -15,7 +15,7 @@ import { PRESETS } from "../../../lib/binaural-setup.js";
 import { uncompensatedRows, BAUER_PRESETS } from "../../../vendor/eqlab/core/xfeed.js";
 import { crossfeedOff, matrixBypassed } from "../../schema/gray.js";
 import { modeName } from "../../signals.js";
-import { effective, effectivePipelines, pipelineBaseline } from "../../resolve.js";
+import { effective, effectivePipelines, runningValue, canonPipelines } from "../../resolve.js";
 import { edit } from "../../actions.js";
 import {
   PIPELINE_WRITES,
@@ -198,6 +198,10 @@ const crossfeedIn = (rows) => JSON.stringify([structuralBlock(rows), xfeedBlock(
  * @param {string} key
  * @returns {boolean}
  */
-export const crossfeedMarks = (key) =>
-  BAUER_KEYS.includes(key) ||
-  (PIPELINE_WRITES.includes(key) && crossfeedIn(effectivePipelines.value) !== crossfeedIn(pipelineBaseline.value));
+export const crossfeedMarks = (key) => {
+  if (BAUER_KEYS.includes(key)) return true;
+  if (!PIPELINE_WRITES.includes(key)) return false;
+  const running = runningValue("matrix_pipelines");
+  const rows = typeof running === "string" ? JSON.parse(running) : running;
+  return crossfeedIn(effectivePipelines.value) !== crossfeedIn(JSON.parse(canonPipelines(rows)));
+};

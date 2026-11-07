@@ -80,10 +80,10 @@ function serveHigherDither() {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   favoritesWire();
   resetLists();
-  loadLists();
+  await loadLists();
 });
 
 afterEach(async () => {

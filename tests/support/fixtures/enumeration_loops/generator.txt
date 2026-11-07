@@ -1,0 +1,12 @@
+"""A module that walks one enumeration list with a generator expression."""
+
+import logging
+
+LOG = logging.getLogger(__name__)
+MISSING = None
+
+
+def item_at(readings, index):
+    found = next((item for item in readings.enums["@NAME@"] if item["index"] == index), MISSING)
+    LOG.debug("item at %s: %s", index, found)
+    return found

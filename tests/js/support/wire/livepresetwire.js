@@ -182,7 +182,7 @@ function ambient(path, c) {
   // `stale` must see the real field rather than undefined
   if (path === "/api/state") return ok({ stale: false, loaded_at: 1, data: c.mirrored || STATE(c.chain) });
   if (path === "/api/enumerations") return ok({ data: ENUMS });
-  if (path === "/api/config") return ok({ data: { fields: [], file: {}, active: "", profiles: null } });
+  if (path === "/api/config") return ok({ generation: 0, fields: {} });
   if (path === "/api/matrix") return ok({ data: { fields: [] } });
   if (path === "/api/config/pending" || path === "/api/config/stage") return ok({ live: {}, http: {} });
   return ok({});

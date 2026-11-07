@@ -15,10 +15,12 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { config, staged } from "../../../../hqptuner/static/store/signals.js";
+import { staged } from "../../../../hqptuner/static/store/signals.js";
+import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { rowOptions } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
+import { seedReadings } from "../../support/readings.js";
 import { quiesce, stagingWire } from "../../support/wire/wire.js";
 import { useStorage } from "../../support/storage.js";
 
@@ -45,7 +47,7 @@ let w = stagingWire();
 beforeEach(async () => {
   useStorage();
   w = stagingWire();
-  loadLists({ chain: "sdm", plain: true });
+  await loadLists({ chain: "sdm", plain: true });
   resetLists();
   await discardAll();
 });
@@ -59,17 +61,12 @@ beforeEach(async () => {
 const idOf = (name) => String(rowOptions(KEY).find((/** @type {{ label: string }} */ o) => o.label === name)?.value);
 
 /**
- * Put the 1x PCM filter on the /config form at one engine name, so a pick of the other is a change.
+ * Serve the 1x PCM filter running at one engine name, so a pick of the other is a change.
  *
  * @param {string} name
  */
-function runningOn(name) {
-  const id = idOf(name);
-  const form = config.value ?? { fields: [], file: {} };
-  config.value = {
-    ...form,
-    fields: form.fields.map((/** @type {{ name: string }} */ f) => (f.name === FORM_FIELD ? { ...f, value: id } : f)),
-  };
+async function runningOn(name) {
+  await seedReadings({ ...readings.value?.fields, [FORM_FIELD]: idOf(name) });
 }
 
 // --- the plate -----------------------------------------------------------------------------------------------------
@@ -80,7 +77,7 @@ test("test_the_plate_carries_the_plain_family_variant_and_leaf_of_the_staged_fil
 });
 
 test("test_the_plate_carries_the_variant_of_a_staged_filter_whose_family_has_one", async () => {
-  runningOn(NONE);
+  await runningOn(NONE);
   await edit(KEY, idOf(GAUSS));
   assert.deepEqual(drawer.drawerPlate?.(KEY), PLATE[GAUSS]);
 });
@@ -88,7 +85,7 @@ test("test_the_plate_carries_the_variant_of_a_staged_filter_whose_family_has_one
 // --- the pick ------------------------------------------------------------------------------------------------------
 
 test("test_a_pick_stages_the_picked_names_config_form_enum_id", async () => {
-  runningOn(NONE);
+  await runningOn(NONE);
   await drawer.drawerPick?.(KEY, GAUSS);
   await quiesce(w);
   assert.equal(staged.value.http[FORM_FIELD], idOf(GAUSS));

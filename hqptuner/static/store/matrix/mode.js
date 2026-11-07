@@ -76,7 +76,3 @@ function rememberLast(mode) {
   // storage disabled — in-memory value drives the session
   setStored(KEY, mode);
 }
-
-// Read the map once, at load. Guarded on `fetch` because this module is imported
-// by the SSR harness, where there is no backend to ask.
-if (typeof fetch === "function") void hydrateMatrixModes();

@@ -26,6 +26,7 @@ import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { drawerHead, pickApplyMode } from "../../../../hqptuner/static/store/faceplate/drawer.js";
 import { stagingWire } from "../../support/wire/wire.js";
+import { seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 /** @typedef {{ gain: string, gainunit: string, mixdown: string, process: string, source: string }} PipelineRow */
@@ -50,21 +51,27 @@ beforeEach(async () => {
   stagingWire();
   config.value = {
     fields: [
-      { name: "volume_max", type: "number", value: -3 },
-      { name: "channels", type: "number", value: 2 },
+      { name: "volume_max", type: "number" },
+      { name: "channels", type: "number" },
     ],
-    file: { matrix_pipelines: JSON.stringify(LOADED_PIPELINES) },
-    active: "",
   };
   matrixConfig.value = {
     fields: [
-      { name: "enabled", type: "checkbox", value: true },
-      { name: "engine", value: "1", options: opts("1", "0") },
-      { name: "post_correction_enabled", type: "checkbox", value: false },
-      { name: "post_correction_dac0", value: "", options: opts("", "m1") },
+      { name: "enabled", type: "checkbox" },
+      { name: "engine", options: opts("1", "0") },
+      { name: "post_correction_enabled", type: "checkbox" },
+      { name: "post_correction_dac0", options: opts("", "m1") },
     ],
-    rows: [],
   };
+  await seedReadings({
+    volume_max: -3,
+    channels: 2,
+    enabled: true,
+    engine: "1",
+    post_correction_enabled: false,
+    post_correction_dac0: "",
+    matrix_pipelines: JSON.stringify(LOADED_PIPELINES),
+  });
   engineState.value = {};
   enums.value = null;
   metadata.value = null;
