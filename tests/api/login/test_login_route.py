@@ -188,3 +188,66 @@ def test_a_new_pair_over_an_ask_every_time_record_is_stored_without_a_password(
 def test_a_login_that_changes_nothing_writes_no_record(serve: Serve, build: Build, store_path: Path) -> None:
     response = log_in(build(serve()["_port"]), remember=True)
     assert (response.status_code, store_path.exists()) == (200, False)
+
+
+PINS = {"host": "HQPTUNER_HQP_HOST", "username": "HQPTUNER_HQP_USERNAME", "password": "HQPTUNER_HQP_PASSWORD"}
+PINNED_TO = {"host": "127.0.0.1", "username": "admin", "password": "pw"}
+OTHER = {"host": ALIAS, "username": "other", "password": "new"}
+
+
+def pin(monkeypatch: pytest.MonkeyPatch, **values: str) -> None:
+    """Pin the named fields in the environment, as the Docker install does; the rest are unset."""
+    for field, name in PINS.items():
+        monkeypatch.delenv(name, raising=False)
+        if field in values:
+            monkeypatch.setenv(name, values[field])
+
+
+@pytest.mark.parametrize("field", ["host", "username", "password"])
+def test_a_login_naming_a_value_the_environment_pins_differently_is_forbidden_before_anything_is_sent_or_written(
+    monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build, store_path: Path, field: str
+) -> None:
+    pin(monkeypatch, **PINNED_TO)
+    daemon = serve()
+    serve(host=ALIAS, port=daemon["_port"])
+    client = build(daemon["_port"])
+    sent = daemon["_requests"]
+    response = client.post("/api/login", json={**PAIR, field: OTHER[field]})
+    assert (
+        response.status_code,
+        response.json()["code"],
+        "set-cookie" in response.headers,
+        store_path.exists(),
+        daemon["_requests"] - sent,
+    ) == (403, "login_values_pinned", False, False, 0)
+
+
+def test_a_login_naming_exactly_the_pinned_values_logs_in(
+    monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build
+) -> None:
+    pin(monkeypatch, **PINNED_TO)
+    response = log_in(build(serve()["_port"]), host=PINNED_TO["host"])
+    assert (response.status_code, "set-cookie" in response.headers) == (200, True)
+
+
+def test_a_login_naming_no_host_under_a_pinned_host_uses_the_pinned_host(
+    monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build
+) -> None:
+    pin(monkeypatch, **PINNED_TO)
+    assert log_in(build(serve()["_port"])).status_code == 200
+
+
+def test_a_login_may_change_every_field_the_environment_does_not_pin(
+    monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build
+) -> None:
+    pin(monkeypatch, password="pw")
+    client = build(serve()["_port"])
+    log_in(client, username="other", password="pw")
+    assert client.get("/api/connection").json()["username"] == "other"
+
+
+def test_an_empty_pin_is_no_pin(monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build) -> None:
+    pin(monkeypatch, host="", username="", password="")
+    refusing = serve(_refuse_auth=True)
+    serve(host=ALIAS, port=refusing["_port"])
+    assert log_in(build(refusing["_port"]), host=ALIAS).status_code == 200

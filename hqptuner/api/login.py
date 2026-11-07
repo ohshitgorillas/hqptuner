@@ -20,7 +20,7 @@ from hqptuner.api.routes.connection import (
 )
 from hqptuner.conf.httpauth import PairVerdict, check_pair
 from hqptuner.config import Config
-from hqptuner.core.connection import ConnectionRecord
+from hqptuner.core.connection import ConnectionRecord, pinned_differs
 from hqptuner.core.login import LoginKind, LoginSecret, mint
 
 router = APIRouter(prefix="/api")
@@ -60,6 +60,20 @@ class LoginNotAnsweredError(ErrorBody):
         super().__init__("HQPlayer did not answer.")
 
 
+class LoginValuesPinnedError(ErrorBody):
+    """The login names a host, username or password the environment pins to something else."""
+
+    code = "login_values_pinned"
+
+    def __init__(self) -> None:
+        """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
+        super().__init__(
+            "Changing the address, username, and password this way is forbidden; the values are set in Docker's "
+            "environment. To change these, either remove or update the environment variables in Docker (likely set "
+            "in compose.yaml in the HQPTuner folder), then restart the container."
+        )
+
+
 def secret_of(request: Request) -> LoginSecret:
     """Return the app's login secret."""
     secret: LoginSecret = request.app.state.login_secret
@@ -75,12 +89,17 @@ def _differs(cfg: Config, host: str, username: str, password: str) -> bool:
 async def login(body: LoginBody, request: Request, response: Response, manager: Mgr) -> ConnectionReport:
     """Check the typed pair against hqplayerd and answer with a login cookie, or refuse with no cookie.
 
+    A host, username or password that the environment pins to another value is refused before anything is sent or
+    written: the cookie is bound to the pair in force, which a pin keeps out of the login's reach.
+
     An accepted pair or host that is not the one in force is applied as a Connection-panel save applies it, carrying
     the stored ``remember`` choice, never this login's.
     """
     cfg = config_of(request)
     store = store_of(request)
     host = (body.host or "").strip() or cfg.hqp_host
+    if pinned_differs(host, body.username, body.password):
+        raise refuse(LoginValuesPinnedError())
     verdict = await check_pair(host, cfg.hqp_http_port, body.username, body.password, cfg.request_timeout)
     if verdict is PairVerdict.REFUSED:
         raise refuse(LoginRefusedError())

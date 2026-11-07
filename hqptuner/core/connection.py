@@ -122,6 +122,15 @@ def _pinned(name: str) -> bool:
     return bool(os.environ.get(name, "").strip())
 
 
+def pinned_differs(host: str, username: str, password: str) -> bool:
+    """Report whether any of the three values differs from the one the environment pins.
+
+    A field the environment leaves unpinned, an empty value counting as unpinned, never differs.
+    """
+    typed = {_ENV_HOST: host, _ENV_USERNAME: username, _ENV_CREDENTIAL: password}
+    return any(_pinned(name) and os.environ[name] != value for name, value in typed.items())
+
+
 def host_is_unchosen(record: ConnectionRecord | None) -> bool:
     """Report whether nothing has named the daemon's host: no saved record, and no variable pinning it.
 

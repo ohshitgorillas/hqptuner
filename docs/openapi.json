@@ -4365,7 +4365,7 @@
     },
     "/api/login": {
       "post": {
-        "description": "Check the typed pair against hqplayerd and answer with a login cookie, or refuse with no cookie.\n\nAn accepted pair or host that is not the one in force is applied as a Connection-panel save applies it, carrying\nthe stored ``remember`` choice, never this login's.",
+        "description": "Check the typed pair against hqplayerd and answer with a login cookie, or refuse with no cookie.\n\nA host, username or password that the environment pins to another value is refused before anything is sent or\nwritten: the cookie is bound to the pair in force, which a pin keeps out of the login's reach.\n\nAn accepted pair or host that is not the one in force is applied as a Connection-panel save applies it, carrying\nthe stored ``remember`` choice, never this login's.",
         "operationId": "login_api_login_post",
         "requestBody": {
           "content": {
