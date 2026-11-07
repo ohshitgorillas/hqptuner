@@ -64,8 +64,9 @@ Tests rarely need it directly — take `page` instead.
 ------------------------------------------------------------
 
 A fresh browser context and a fresh page for each test, both closed at
-teardown, so cookies, storage and console state never leak between tests. The
-page starts blank: navigate with `page.goto(stack.base_url)`.
+teardown, so storage and console state never leak between tests. The context
+starts with the stack's login cookie, so the page is logged in. The page
+starts blank: navigate with `page.goto(stack.base_url)`.
 
 Typical use
 -----------
@@ -95,6 +96,7 @@ pytest.importorskip("playwright.sync_api", reason="playwright is required for th
 from playwright.sync_api import Browser, Page, sync_playwright
 
 from e2e.support import stack as stack_support
+from hqptuner.api.gate import LOGIN_COOKIE
 
 HERE = Path(__file__).parent
 
@@ -120,17 +122,20 @@ def stack(tmp_path_factory: pytest.TempPathFactory) -> Iterator[stack_support.St
     yield from stack_support.stack(tmp_path_factory.mktemp("e2e"))
 
 
-def _call(url: str, method: str, payload: dict[str, object] | None = None) -> object:
-    """Send one JSON call to the running stack and return the decoded body, or None for an empty one."""
+def _call(stack: stack_support.Stack, path: str, method: str, payload: dict[str, object] | None = None) -> object:
+    """Send one JSON call, logged in, to the running stack and return the decoded body, or None for an empty one."""
+    url = f"{stack.base_url}{path}"
     data = None if payload is None else json.dumps(payload).encode()
-    headers = {"Content-Type": "application/json"} if data is not None else {}
+    headers = {"Cookie": stack.cookie_header}
+    if data is not None:
+        headers["Content-Type"] = "application/json"
     request = urllib.request.Request(url, data=data, headers=headers, method=method)  # noqa: S310 — loopback stack URL
     with urllib.request.urlopen(request, timeout=RESET_TIMEOUT) as response:  # noqa: S310 — same
         body = response.read()
     return json.loads(body) if body else None
 
 
-def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
+def _server_state(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]:
     """The pieces of server state a test can leave behind: named presets, auto-save, and live snapshots.
 
     Config presets and auto-save read from `/api/config` because that is the
@@ -140,7 +145,7 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     from there — a live snapshot a test saves never shows up under `/api/config`.
     """
     empty: tuple[set[str], bool, set[str]] = (set(), False, set())
-    config = _call(f"{base_url}/api/config", "GET")
+    config = _call(stack, "/api/config", "GET")
     if not isinstance(config, dict):
         return empty
     data = config["data"]
@@ -150,7 +155,7 @@ def _server_state(base_url: str) -> tuple[set[str], bool, set[str]]:
     if not isinstance(profiles, dict):
         return empty
     options = profiles["options"]
-    livepresets = _call(f"{base_url}/api/livepresets", "GET")
+    livepresets = _call(stack, "/api/livepresets", "GET")
     if not isinstance(livepresets, dict):
         return empty
     live = livepresets["presets"]
@@ -170,23 +175,22 @@ def session_start(stack: stack_support.Stack) -> tuple[set[str], bool, set[str]]
     Captured rather than assumed empty: the app imports the daemon's own presets
     at startup, and those are the stack's furniture, not a test's leavings.
     """
-    return _server_state(stack.base_url)
+    return _server_state(stack)
 
 
 @pytest.fixture(autouse=True)
 def clean_slate(stack: stack_support.Stack, session_start: tuple[set[str], bool, set[str]]) -> None:
     """Put the server back to its session-start state, so no test inherits another's leavings."""
-    base = stack.base_url
     # Also releases the filter uploads parked against those staged edits.
-    _call(f"{base}/api/config/pending", "DELETE")
-    presets, autosave, live = _server_state(base)
+    _call(stack, "/api/config/pending", "DELETE")
+    presets, autosave, live = _server_state(stack)
     started_with, autosave_at_start, live_at_start = session_start
     if autosave != autosave_at_start:
-        _call(f"{base}/api/autosave", "POST", {"enabled": autosave_at_start})
+        _call(stack, "/api/autosave", "POST", {"enabled": autosave_at_start})
     for name in sorted(presets - started_with):
-        _call(f"{base}/api/preset/{urllib.parse.quote(name, safe='')}", "DELETE")
+        _call(stack, f"/api/preset/{urllib.parse.quote(name, safe='')}", "DELETE")
     for name in sorted(live - live_at_start):
-        _call(f"{base}/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
+        _call(stack, f"/api/livepresets/{urllib.parse.quote(name, safe='')}", "DELETE")
 
 
 @pytest.fixture(scope="module")
@@ -202,9 +206,12 @@ def browser() -> Iterator[Browser]:
 
 
 @pytest.fixture
-def page(browser: Browser) -> Iterator[Page]:
-    """A fresh context and page per test, closed at teardown."""
+def page(browser: Browser, stack: stack_support.Stack) -> Iterator[Page]:
+    """A fresh context and page per test, logged in, closed at teardown."""
     context = browser.new_context()
+    context.add_cookies(
+        [{"name": LOGIN_COOKIE, "value": stack.login, "url": stack.base_url, "httpOnly": True, "sameSite": "Strict"}]
+    )
     try:
         yield context.new_page()
     finally:

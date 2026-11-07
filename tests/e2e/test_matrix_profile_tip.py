@@ -87,7 +87,7 @@ def _put_description(stack: Stack, name: str, text: str) -> None:
     request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
         f"{stack.base_url}/api/descriptions",
         data=payload,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Cookie": stack.cookie_header},
         method="PUT",
     )
     with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL

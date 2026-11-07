@@ -16,17 +16,22 @@ after both `/api/health` and `/api/config` have answered 200 — woken by the
 app's own traffic to the two fakes, never a fixed sleep — and on the way out
 terminates the app and drains the three fake generators so each runs its own
 teardown.
+
+The app is gated: every `/api` route but `/api/health` and the login refuses a caller with no login cookie. The
+stack logs in once for real, over the wire, with the pair it gave the app, and carries the cookie value on the
+`Stack` for every caller to send.
 """
 
 import asyncio
 import functools
+import http.client
+import http.cookies
 import json
 import os
 import socket
 import subprocess
 import sys
 import threading
-import urllib.request
 from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -36,9 +41,14 @@ from typing import Any
 import fake_http
 from fake_control import DEFAULTS, CommandLog, serve_shared
 
+from hqptuner.api.gate import LOGIN_COOKIE
+
 #: Repo root — tests/e2e/support/stack.py, so three parents up. The app is run
 #: from here so that a source checkout's `hqptuner` package is importable.
 REPO_ROOT = Path(__file__).resolve().parents[3]
+
+#: The pair the app is given and the stack logs in with.
+APP_PAIR = ("hqplayer", "password")
 
 #: Hard deadline on app startup.
 READY_TIMEOUT = 30.0
@@ -98,6 +108,13 @@ class Stack:
     control_state: dict[str, str]
     #: The HTTP config fake's live state (``fake_http.state()``), plus ``_port``. Notifies on write.
     http_state: NotifyingState
+    #: The value of the login cookie the stack's own login earned; send it as ``cookie_header``.
+    login: str
+
+    @property
+    def cookie_header(self) -> str:
+        """The ``Cookie`` header value that carries the stack's login."""
+        return f"{LOGIN_COOKIE}={self.login}"
 
     def wait_for_command(self, predicate: Callable[[], bool], timeout: float) -> bool:
         """Block until `predicate()` holds or `timeout` seconds pass, woken by every command the fake logs.
@@ -172,8 +189,8 @@ def _app_env(listen_port: int, control_port: int, http_port: int, metering_port:
         "HQPTUNER_HQP_CONTROL_PORT": str(control_port),
         "HQPTUNER_HQP_HTTP_PORT": str(http_port),
         "HQPTUNER_HQP_METERING_PORT": str(metering_port),
-        "HQPTUNER_HQP_USERNAME": "hqplayer",
-        "HQPTUNER_HQP_PASSWORD": "password",
+        "HQPTUNER_HQP_USERNAME": APP_PAIR[0],
+        "HQPTUNER_HQP_PASSWORD": APP_PAIR[1],
         "HQPTUNER_PRESET_DIR": str(tmp / "presets"),
         "HQPTUNER_BACKUP_DIR": str(tmp / "backups"),
         "HQPTUNER_LIVE_PRESET_FILE": str(tmp / "live-presets.json"),
@@ -193,19 +210,41 @@ def _startup_failure(reason: str, log_path: Path) -> str:
     return f"e2e stack failed to start: {reason}\n--- app stdout/stderr ---\n{output}"
 
 
-def _answers(url: str) -> bool:
-    """A 200 from the URL, and on `/api/health` the app's own `ready` flag with
+def _log_in(listen_port: int, log_path: Path) -> str:
+    """Log in with the app's pair and return the login cookie's value, or fail loudly with the app's output.
+
+    Session-only, so the login writes no file into the stack's state area.
+    """
+    body = json.dumps({"username": APP_PAIR[0], "password": APP_PAIR[1], "remember": False})
+    connection = http.client.HTTPConnection("127.0.0.1", listen_port, timeout=READY_TIMEOUT)
+    try:
+        connection.request("POST", "/api/login", body, {"Content-Type": "application/json"})
+        response = connection.getresponse()
+        response.read()
+        cookie = http.cookies.SimpleCookie(response.getheader("Set-Cookie", ""))
+    finally:
+        connection.close()
+    if response.status != http.HTTPStatus.OK or LOGIN_COOKIE not in cookie:
+        raise RuntimeError(_startup_failure(f"the app answered the login with HTTP {response.status}", log_path))
+    return cookie[LOGIN_COOKIE].value
+
+
+def _answers(listen_port: int, path: str, cookie: str) -> bool:
+    """A 200 from the path with the login cookie sent, and on `/api/health` the app's own `ready` flag with
     it: the route answers 200 from the moment the app is listening, while
     `ready` is the app saying both daemon lanes are up."""
+    connection = http.client.HTTPConnection("127.0.0.1", listen_port, timeout=1.0)
     try:
-        with urllib.request.urlopen(url, timeout=1.0) as response:  # noqa: S310 — literal loopback http URL
-            if response.status != 200:
-                return False
-            if not url.endswith("/api/health"):
-                return True
-            return bool(json.loads(response.read()).get("ready"))
+        connection.request("GET", path, headers={"Cookie": cookie})
+        response = connection.getresponse()
+        body = response.read()
     except OSError:
         return False
+    finally:
+        connection.close()
+    if response.status != 200:
+        return False
+    return bool(json.loads(body).get("ready")) if path == "/api/health" else True
 
 
 def _watch_condition(
@@ -217,39 +256,39 @@ def _watch_condition(
             mark()
 
 
-def _wait_for_ready(
-    base_url: str,
+def _listening(listen_port: int) -> bool:
+    """Whether something accepts connections on the app's port; it sends nothing, so it costs the fakes no traffic."""
+    try:
+        socket.create_connection(("127.0.0.1", listen_port), timeout=1.0).close()
+    except OSError:
+        return False
+    return True
+
+
+def _wait_until(
+    predicate: Callable[[], bool],
+    what: str,
+    *,
     proc: "subprocess.Popen[bytes]",
     log_path: Path,
     control_log: NotifyingLog,
     http_state: NotifyingState,
 ) -> None:
-    """Wait until the app serves daemon-derived state, or fail loudly with the app's output.
-
-    `/api/health` alone is not readiness. It reports on the connection manager
-    and answers 200 before any lane has loaded anything (api/routes/status.py), while
-    `/api/config` answers 503, refusing because nothing has been read from the
-    daemon yet, until the first 8088 poll lands (api/deps.py). A stack yielded
-    between those two moments hands the session its first fixture call in that
-    window, and every test in the run
-    errors in setup rather than failing on anything it asserts. So readiness is
-    both: the app is up AND it has something from the daemon to serve.
+    """Wait until `predicate` holds, or fail loudly with the app's output.
 
     Nothing here sleeps or reads the clock. The app's own traffic is the
     wake-up: every control command it sends notifies `control_log`, and every
     request that reaches the 8088 fake notifies `http_state` (`_count_request`
     writes `_requests` through `NotifyingState.__setitem__`), so a thread
     blocked on either condition wakes the moment the app has done something
-    that could have made it ready, and re-checks the two routes itself. A
+    that could have made it ready, and re-checks the predicate itself. A
     third thread blocks on `proc.wait()` — a real OS wait, not a poll — so an
     app that exits during startup is noticed as soon as it happens rather than
     only at the deadline.
+
+    The predicate runs under the condition's lock, so it must not make a request that reaches a fake:
+    that request would wait on the lock the predicate holds.
     """
-    urls = [f"{base_url}/api/health", f"{base_url}/api/config"]
-
-    def _ready() -> bool:
-        return all(_answers(url) for url in urls)
-
     signaled = threading.Event()
     outcome: dict[str, bool] = {}
 
@@ -266,10 +305,10 @@ def _wait_for_ready(
 
     watchers = [
         threading.Thread(
-            target=_watch_condition, args=(control_log.condition, _ready, READY_TIMEOUT, _mark_ready), daemon=True
+            target=_watch_condition, args=(control_log.condition, predicate, READY_TIMEOUT, _mark_ready), daemon=True
         ),
         threading.Thread(
-            target=_watch_condition, args=(http_state.condition, _ready, READY_TIMEOUT, _mark_ready), daemon=True
+            target=_watch_condition, args=(http_state.condition, predicate, READY_TIMEOUT, _mark_ready), daemon=True
         ),
         threading.Thread(target=_watch_process, daemon=True),
     ]
@@ -278,11 +317,37 @@ def _wait_for_ready(
     signaled.wait(timeout=READY_TIMEOUT)
     if outcome.get("crashed"):
         raise RuntimeError(_startup_failure(f"app exited with status {proc.returncode}", log_path))
-    if outcome.get("ready"):
-        return
-    still = [url for url in urls if not _answers(url)]
-    refusing = still[0] if still else urls[0]
-    raise RuntimeError(_startup_failure(f"{refusing} never answered within {READY_TIMEOUT:.0f}s", log_path))
+    if not outcome.get("ready"):
+        raise RuntimeError(_startup_failure(f"{what} never happened within {READY_TIMEOUT:.0f}s", log_path))
+
+
+def _wait_for_ready(
+    listen_port: int,
+    proc: "subprocess.Popen[bytes]",
+    log_path: Path,
+    control_log: NotifyingLog,
+    http_state: NotifyingState,
+) -> str:
+    """Log in once the app listens, wait until it serves daemon-derived state, and return the login cookie's value.
+
+    `/api/health` alone is not readiness. It reports on the connection manager
+    and answers 200 before any lane has loaded anything (api/routes/status.py), while
+    `/api/config` answers 503, refusing because nothing has been read from the
+    daemon yet, until the first 8088 poll lands (api/deps.py). A stack yielded
+    between those two moments hands the session its first fixture call in that
+    window, and every test in the run
+    errors in setup rather than failing on anything it asserts. So readiness is
+    both: the app is up AND it has something from the daemon to serve.
+
+    The login is made between the two waits, outside any lock: the app asks the 8088 fake whether the pair is
+    right, and a wait's predicate holds the lock that fake's every request needs.
+    """
+    wait = functools.partial(_wait_until, proc=proc, log_path=log_path, control_log=control_log, http_state=http_state)
+    wait(lambda: _listening(listen_port), "the app accepting connections")
+    login = _log_in(listen_port, log_path)
+    paths = ("/api/health", "/api/config")
+    wait(lambda: all(_answers(listen_port, path, login) for path in paths), "the app serving the daemon")
+    return login
 
 
 def _launch_app(env: dict[str, str], log_path: Path) -> "subprocess.Popen[bytes]":
@@ -328,12 +393,13 @@ def stack(tmp: Path) -> Iterator[Stack]:
         env = _app_env(listen_port, control_port, int(http_state["_port"]), metering_port, tmp)
         proc = _launch_app(env, log_path)
         base_url = f"http://127.0.0.1:{listen_port}"
-        _wait_for_ready(base_url, proc, log_path, control_log, http_state)
+        login = _wait_for_ready(listen_port, proc, log_path, control_log, http_state)
         yield Stack(
             base_url=base_url,
             control_log=control_log,
             control_state=control_state,
             http_state=http_state,
+            login=login,
         )
     finally:
         if proc is not None:

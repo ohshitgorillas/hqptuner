@@ -104,7 +104,7 @@ def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, An
     request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
         f"{stack.base_url}{path}",
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Cookie": stack.cookie_header},
         method=method,
     )
     with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
@@ -113,7 +113,9 @@ def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, An
 
 def _live_active(app: stack_support.Stack) -> str:
     """The active matrix profile as the app serves it, `.data.live_active` of `GET /api/matrix`."""
-    request = urllib.request.Request(f"{app.base_url}/api/matrix", method="GET")  # noqa: S310 — loopback http URL
+    request = urllib.request.Request(  # noqa: S310 — loopback http URL
+        f"{app.base_url}/api/matrix", headers={"Cookie": app.cookie_header}, method="GET"
+    )
     with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
         payload = json.loads(response.read())
     return str(payload["data"]["live_active"])
