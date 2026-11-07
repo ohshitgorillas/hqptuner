@@ -58,5 +58,5 @@ Findings F-001, F-002, F-003, F-008, F-009, F-024, F-025, F-027 and F-028 are ea
 
 ## Notes
 
-- **Copy needing owner approval before Task 1 runs (D-15; proposal, no em dashes).** Cross-site refusal (`detail`, 403): "HQPTuner refused a change sent from another website." Owner ruling e asks for an approved string first: searched `hqptuner/static`, the `hqptuner/api` refusal sentences and `docs/copy-before-after.md`, and none covers it. The nearest, the router's "This HQPTuner cannot {method} {path}. Reload the page." (`hqptuner/api/errors.py`), says the route does not exist and that reloading fixes it, both false for a refused cross-site request.
+- **Copy (D-15, owner-approved).** Cross-site refusal (`detail`, 403): "HQPTuner refused a change sent from another website."
 - A reverse proxy that rewrites `Host` without rewriting `Origin` would have its browser's writes refused by Task 1. Nothing in the repo ships such a proxy (F-024 declined TLS), so no allowance is planned.
