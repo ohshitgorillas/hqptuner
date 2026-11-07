@@ -1,0 +1,14 @@
+v2 check, Plan 4-3 Task 3
+
+Command: nice -n 19 scripts/gate.sh make check
+Directory: /home/atom/dev/hqptuner2, branch v2, no PYTHONPATH
+v2 commit: 0258e453100663e976a74999d06c2d785488d055 (merge d1fbfb2b plus the planning-files commit 0258e453)
+Result: exit=0 log=/tmp/gate-make-NMy3t3HZ.log
+Log exists: yes (1088028 bytes)
+
+pytest: 3657 passed, 138 deselected, 2 warnings in 38.38s
+node: tests 4856, pass 4856, fail 0, canceled 0, skipped 0, todo 0
+JS coverage, all files row: # all files | 97.16 | 91.62 | 90.94 (lines | branches | functions; thresholds 95 / 90 / 85)
+
+Failing gates: none.
+The idle and suite-time gate records are in /home/atom/dev/hqptuner/ and were not edited.
