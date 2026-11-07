@@ -50,13 +50,20 @@ The registered read-only fields are `profiles`, `active_preset`, `device_caps`, 
   generation,
   connected_at,
   credentials_ok: true | false | null,
-  address_found: true | false | null
+  address_found: true | false | null,
+  dropped_settings: [{ field, value, name }]
 }
 ```
 
 `phase` and `generation` belong to the lifecycle. `connected_at` is elapsed seconds since the standing connection became Reachable, or null without a connection; it is not a timestamp. `credentials_ok` reports learned credential acceptance or rejection, and is null without conclusive evidence. Credential rejection does not change the lifecycle phase.
 
 `address_found` is false for name resolution failure or host/network unreachable, true after a successful TCP connection or an explicit connection refusal, and null before the first dial or after an inconclusive dial timeout. An authentication or application-handshake failure does not erase evidence that the host was found. Address and credential evidence reset when their target or credentials change. Health serialization performs no dial or independent phase inference.
+
+`dropped_settings` lists the live settings the Engine ran before a departure no request of HQPTuner's explains and does not run after it. `field` is the config-form name, `value` the config-form value the Engine ran (an enum ID for a filter or shaper), and `name` the enumeration's name for it, or the value itself where the enumeration names none (a rate or a 0/1 flag). The server compares the last Engine reading before the departure with the first one after it, so a field the restarted Engine does not answer for, such as one of a chain it has not loaded, is not listed.
+
+A restart HQPTuner requested lists nothing. A later departure adds to the list, and a field dropped again takes its newer value. The list is empty without a departure, and it stays until cleared, whatever the Engine reads later.
+
+`DELETE /api/health/dropped-settings` empties the list and answers 204 with no body. It touches nothing on the daemon and is never refused.
 
 ## Pipeline staging
 

@@ -18,7 +18,7 @@ import httpx
 from hqptuner import voltrace
 from hqptuner.conf import engineconf
 from hqptuner.core import engineread
-from hqptuner.core.lifecycle import Fact
+from hqptuner.core.lifecycle import Fact, Outcome
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import (
@@ -30,7 +30,7 @@ from hqptuner.engine.controlerrors import (
 from hqptuner.engine.view import EngineView
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
-from hqptuner.lanes.live import lane
+from hqptuner.lanes.live import dropped, lane
 from hqptuner.presets import fileconfig, presetlane
 from hqptuner.presets.store.presets import PresetError
 
@@ -217,8 +217,16 @@ async def _fill(mgr: ConnectionManager, client: ControlClient, cadence: Cadence,
     if not still_stands(mgr.control, client):
         return
     _take(mgr, fields)
+    _report_drops(mgr)
     await _configuration(mgr, cadence)
     await engineread.refresh_device_caps(mgr, force=True)
+
+
+def _report_drops(mgr: ConnectionManager) -> None:
+    """Record the drop report of a foreign departure from the held reading and the first new one."""
+    held, after = mgr.readings.take_held(), mgr.readings.engine_snapshot()
+    if held is not None and after is not None and mgr.phase.outcome() is Outcome.FOREIGN_DEPARTURE:
+        mgr.dropped_settings.record(dropped.report(held, after))
 
 
 async def _read_release(mgr: ConnectionManager, fields: EngineFields) -> None:

@@ -16,7 +16,7 @@ from hqptuner.core.manager import ConnectionManager
 
 HEALTH = "/api/health"
 WINDOW = 15.0
-HEALTH_KEYS = {"phase", "generation", "connected_at", "credentials_ok", "address_found"}
+HEALTH_KEYS = {"phase", "generation", "connected_at", "credentials_ok", "address_found", "dropped_settings"}
 
 
 @dataclass
