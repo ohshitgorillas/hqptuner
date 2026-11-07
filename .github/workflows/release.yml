@@ -131,7 +131,22 @@ jobs:
           name: linux-${{ matrix.arch }}
           path: dist
 
+      - name: Start the daemon stand-in
+        run: |
+          nohup python3 scripts/ci/daemon_standin.py 127.0.0.1 8088 > "$RUNNER_TEMP/standin.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/standin.pid"
+          for _ in $(seq 30); do
+            curl -s -o /dev/null --max-time 1 http://127.0.0.1:8088/ && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/standin.log"
+          exit 1
+
       - run: sudo GITHUB_ACTIONS=true bash packaging/linux/lifecycle.sh dist/*.deb
+
+      - name: Stop the daemon stand-in
+        if: always()
+        run: kill "$(cat "$RUNNER_TEMP/standin.pid")"
 
   # The rpm lifecycle needs systemd as PID 1 in an rpm distro, which a
   # `container:` job cannot give, so it boots one with docker.
@@ -155,9 +170,21 @@ jobs:
           name: linux-${{ matrix.arch }}
           path: dist
 
+      - name: Start the daemon stand-in
+        run: |
+          nohup python3 scripts/ci/daemon_standin.py 127.0.0.1 8088 > "$RUNNER_TEMP/standin.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/standin.pid"
+          for _ in $(seq 30); do
+            curl -s -o /dev/null --max-time 1 http://127.0.0.1:8088/ && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/standin.log"
+          exit 1
+
+      # The host network lets the app inside dial 127.0.0.1:8088 and reach the stand-in on the runner.
       - name: Start AlmaLinux 8 with systemd
         run: |
-          docker run -d --name alma --privileged --cgroupns=host \
+          docker run -d --name alma --privileged --cgroupns=host --network host \
             -v /sys/fs/cgroup:/sys/fs/cgroup:rw almalinux/8-init
           rpm=(dist/*.rpm)
           docker cp "${rpm[0]}" alma:/tmp/hqptuner.rpm
@@ -168,6 +195,10 @@ jobs:
 
       - if: always()
         run: docker rm -f alma
+
+      - name: Stop the daemon stand-in
+        if: always()
+        run: kill "$(cat "$RUNNER_TEMP/standin.pid")"
 
   # PyInstaller does not cross-compile, so each architecture freezes on its own
   # runner. The dmgs are signed with the Developer ID certificate and notarized,
