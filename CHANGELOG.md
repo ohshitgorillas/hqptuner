@@ -9,6 +9,10 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 - **The Windows app now allows connections from other devices on LAN.**
 - **The Windows app now reinstalls cleanly.**
 
+### Security
+
+- **Every browser now has to enter HQPlayer's username and password in the Connection panel before it can use HQPTuner.**
+
 ## [1.20.1] — 2026-11-03
 
 ### Fixed

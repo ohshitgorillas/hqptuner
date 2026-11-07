@@ -12,6 +12,7 @@ import { html } from "../lib/dom.js";
 import { Card } from "./common.js";
 import {
   setupOpen,
+  loggedOut,
   discovering,
   form,
   hostTouched,
@@ -40,7 +41,9 @@ function setField(key, value) {
 function textRow(key, label, type, placeholder) {
   // The host row carries Connect, beside the address it dials: the daemon coming up
   // later is answered by trying this address again, with nothing else to restate.
-  const trailing = key === "host";
+  // Detect and Connect call routes the login gate guards, so a browser that has not logged in
+  // has neither: the panel it sees is the login screen.
+  const trailing = key === "host" && !loggedOut.value;
   return html`
     <label class="setup-row">
       <span class="t-label">${label}</span>
@@ -56,8 +59,10 @@ function textRow(key, label, type, placeholder) {
         />
         ${
           trailing &&
-          html`<button type="button" disabled=${discovering.value} onClick=${detectHosts}>Detect</button>
-          <button type="button" onClick=${() => submitConnection()}>Connect</button>`
+          html`<button type="button" data-testid="setup-detect" disabled=${discovering.value} onClick=${detectHosts}>
+            Detect
+          </button>
+          <button type="button" data-testid="setup-connect" onClick=${() => submitConnection()}>Connect</button>`
         }
       </span>
     </label>
@@ -79,6 +84,7 @@ const VERDICTS = {
     "Set them with hqplayerd -u <username> <password>, or on HQPlayer's own web page at port 8088.",
   "no-answer":
     "HQPlayer answered, but its settings page at port 8088 did not. Restart HQPlayer Embedded, then press Connect again.",
+  "not-answered": "HQPlayer did not answer.",
 };
 
 /** One "(enter it for me)" link: the address it names goes straight into the host field. */
@@ -180,7 +186,7 @@ export function Setup() {
       <!-- What the readings after a save said, as an attribute rather than a
            sentence: the sentence is copy and copy is the owner's, and until
            there is one this is what a reader of the DOM has to go on. -->
-      <div class="setup-panel" data-verdict=${verdict.value || ""}>
+      <div class="setup-panel" data-testid="setup-panel" data-verdict=${verdict.value || ""}>
         <${Card} title="Connection" cardClass="setup-card">
           <p class="t-caption">
             HQPTuner needs two things to run: the address of your HQPlayer Embedded daemon, and its credentials.
@@ -205,7 +211,7 @@ export function Setup() {
           </div>
           <div class="setup-buttons">
             <button type="button" onClick=${() => submitConnection(true)}>Save</button>
-            <button type="button" onClick=${closeSetup}>Close</button>
+            ${loggedOut.value ? null : html`<button type="button" data-testid="setup-close" onClick=${closeSetup}>Close</button>`}
           </div>
         <//>
       </div>

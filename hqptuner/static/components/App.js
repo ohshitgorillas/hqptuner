@@ -20,7 +20,7 @@ import { LiveView } from "./live/View.js";
 import { MeterView } from "./meter/View.js";
 import { PendingBar } from "./PendingBar.js";
 import { Setup } from "./Setup.js";
-import { setupOpen } from "../store/setup.js";
+import { setupOpen, loggedOut } from "../store/setup.js";
 import { ready } from "../store/signals.js";
 import { engineRestarting } from "../store/enginewrite.js";
 import { liveMode, meterMode } from "../store/ui/prefs.js";
@@ -36,6 +36,9 @@ function page(live, meter) {
 
 /** Root layout: header, signal path and alert strip over the tab bar and body, the LIVE page or the METER page, with the pending bar below outside LIVE. */
 export function App() {
+  // A browser with no login gets the login screen and nothing behind it: `inert` alone would
+  // still render the page's controls and data.
+  if (loggedOut.value) return html`<${Setup} />`;
   const live = liveMode.value;
   const meter = meterMode.value;
   return html`
@@ -46,7 +49,7 @@ export function App() {
     <!-- inert while the panel is up: without it the keyboard walks straight
          out of the panel into the page behind, where Enter lands on a control
          the user cannot see. -->
-    <div inert=${setupOpen.value || null} class="app ${ready.value && !engineRestarting.value ? "" : "offline"}">
+    <div data-testid="app" inert=${setupOpen.value || null} class="app ${ready.value && !engineRestarting.value ? "" : "offline"}">
       <div class="chrome-top">
         <${Header} />
         <${SignalPath} />

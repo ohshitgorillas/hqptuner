@@ -14,7 +14,7 @@
 //
 // Run: node --import ./tests/js/vendor-resolve.js --test tests/js/app.test.js
 
-import test from "node:test";
+import test, { afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
@@ -28,6 +28,13 @@ import {
   matrixConfig,
   enums,
 } from "../../../../hqptuner/static/store/signals.js";
+import { loggedOut, setupOpen } from "../../../../hqptuner/static/store/setup.js";
+import { attr, elements } from "../../support/markup.js";
+
+afterEach(() => {
+  loggedOut.value = false;
+  setupOpen.value = false;
+});
 
 // Full reset on every call: module signals outlive a test, and every child of
 // App reads the store, so each case states the whole world it renders in.
@@ -67,4 +74,38 @@ test("test_the_tab_bar_still_stands_while_offline", () => {
 
 test("test_the_tab_body_renders_inside_main", () => {
   assert.ok(app(true).includes("<main>"));
+});
+
+// --- a browser with no login gets the login screen and nothing behind it ---
+
+/**
+ * Whether the rendered app holds the element with this test id.
+ *
+ * @param {string} out
+ * @param {string} id
+ * @returns {boolean}
+ */
+const has = (out, id) => elements(out).some((el) => attr(el, "data-testid") === id);
+
+/** The app as a browser with no login renders it, over a daemon that is up. */
+function loggedOutApp() {
+  loggedOut.value = true;
+  setupOpen.value = true;
+  return app(true);
+}
+
+test("test_a_logged_out_browser_renders_the_panel", () => {
+  assert.equal(has(loggedOutApp(), "setup-panel"), true);
+});
+
+test("test_a_logged_out_browser_renders_none_of_the_app", () => {
+  assert.equal(has(loggedOutApp(), "app"), false);
+});
+
+test("test_a_logged_in_browser_renders_the_app", () => {
+  assert.equal(has(app(true), "app"), true);
+});
+
+test("test_a_logged_in_browser_with_the_panel_shut_renders_no_panel", () => {
+  assert.equal(has(app(true), "setup-panel"), false);
 });

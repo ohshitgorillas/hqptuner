@@ -36,6 +36,7 @@ import {
   loggedOut,
   verdict,
   initSetup,
+  closeSetup,
   runDiscovery,
   submitConnection,
 } from "../../../hqptuner/static/store/setup.js";
@@ -409,4 +410,21 @@ test("test_a_refused_login_leaves_the_page_logged_out", async () => {
   loginAnswer = refused("login_refused");
   await submitConnection(true);
   assert.equal(loggedOut.value, true);
+});
+
+// --- closing the panel ------------------------------------------------------
+
+test("test_closing_the_panel_while_logged_out_leaves_it_open", () => {
+  loginPage();
+  loggedOut.value = true;
+  setupOpen.value = true;
+  closeSetup();
+  assert.equal(setupOpen.value, true);
+});
+
+test("test_closing_the_panel_while_logged_in_shuts_it", () => {
+  loginPage();
+  setupOpen.value = true;
+  closeSetup();
+  assert.equal(setupOpen.value, false);
 });

@@ -129,8 +129,14 @@ export function openSetup() {
   loadConnection().then(runDiscovery);
 }
 
-/** Close the panel and forget the save it was reporting on. */
+/**
+ * Close the panel and forget the save it was reporting on.
+ *
+ * Logged out, the panel is the whole page and there is nothing to close to, so every way of
+ * closing it (Escape, a click on the scrim) leaves it open.
+ */
 export function closeSetup() {
+  if (loggedOut.value) return;
   setupOpen.value = false;
   awaitingVerdict = false;
 }
