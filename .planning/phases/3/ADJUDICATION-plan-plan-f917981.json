@@ -1,0 +1,35 @@
+{
+  "phase": "3",
+  "trigger": "plan",
+  "discriminator": "plan-f917981",
+  "round": 1,
+  "base": "b96a5a7f",
+  "head": "f9179817",
+  "base_id": "b96a5a7f84c136ded7b799e7a8b6f181d9a70763",
+  "head_id": "f9179817047616a31ced48a7b814615014503119",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/3/PLAN-3.md",
+      "line": 50,
+      "severity": "medium",
+      "claim": "Task 2 says the probe step 'never changes a job's result on its own', but its only safeguard is exiting 0 from Python. It gives the step `timeout-minutes: 2` and no `continue-on-error: true`. In GitHub Actions a step that times out, or a process that crashes natively, fails `build-windows`, and `package-windows` (`needs: build-windows`, release.yml:315) and `smoke-windows` then never run.",
+      "failure_scenario": "The plan's own hypothesis is a wrong NOTIFYICONDATAW layout, so the probe hands hand-built buffers to Shell_NotifyIconW. On the arm64 row this can end in an access violation that kills python.exe, which no try/except catches, or in a pystray message loop hang that the 30 s watchdog cannot stop. Either way the step fails or hits its 2-minute timeout, and the `build-windows` arm64 row fails. No bundle is uploaded, so `package-windows` and all three `smoke-windows` rows are skipped. Task 2's Verify needs `smoke-windows` to fail again on the arm64 row with x64 and the bundle row passing, and the executor must record 'the smoke rows' results'. That run then has neither the reproducer nor the x64 reference. The 'evidence only' promise breaks on the very outcome (probe crash, hang or timeout) the plan lists as one to report.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "f9179817",
+      "base_id": "b96a5a7f84c136ded7b799e7a8b6f181d9a70763",
+      "head_id": "f9179817047616a31ced48a7b814615014503119"
+    }
+  ]
+}
