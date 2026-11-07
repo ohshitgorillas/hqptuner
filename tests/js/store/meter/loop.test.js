@@ -1,9 +1,9 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the meter loop paces the frames the feed queues out to the
 // one playhead and the spectrogram's history, one paint per animation frame of the Clock it is handed.
 //
-// The playhead stands at the end of the newest frame the feed has queued, less
-// the effective delay: it moves when a frame arrives, stands still between arrivals, and is null while the feed is
-// closed. A break restarts it with no slew. The loop runs, asking for animation frames, only while the feed is open
+// The playhead's target is the end of the newest frame the feed has queued, less the effective delay: the playhead
+// stands there when the feed opens and at a break, moves toward it at every paint that finds it behind, never passes
+// it, and is null while the feed is closed. The loop runs, asking for animation frames, only while the feed is open
 // and the engine plays: while the engine is stopped it asks for none, and the playhead is null
 // (docs/superpowers/specs/meter-loop-idle-design.md, Modules). Every frame reaches the spectrogram's history once and in order, and the
 // frames a restart leaves behind go before the break frame, so the history runs from the break on.
@@ -37,7 +37,7 @@ import { lastStream, useEventSource } from "../../support/eventsource.js";
 import { useStorage } from "../../support/storage.js";
 import { STOPPED, newTrack, poll } from "../../support/apodpolls.js";
 import { fakeClock } from "../../support/clock.js";
-import { AN_HOUR_ON_44K, CONTIGUOUS_44K, DROPPED_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
+import { CONTIGUOUS_44K, DROPPED_44K, RATE_44K, geometry, play } from "../../support/meterfeed.js";
 
 const fake = fakeClock();
 const advance = fake.advance;
@@ -122,24 +122,57 @@ beforeEach(() => {
   settle();
 });
 
+/** Wall time, ms, of one animation frame on the fake clock. */
+const PAINT_MS = 16;
+
+/** How many paints the playhead is read over after a burst arrives: far more than it needs to reach its target. */
+const PAINTS = 12;
+
+/**
+ * Feed the first burst of CONTIGUOUS_44K, let the loop paint it, feed the rest, then read the playhead and its target
+ * (the feed's edge less `delay`) after each paint, none of which has a frame arrive.
+ *
+ * @param {number} delay  s
+ * @returns {Array<{ at: number | null, target: number }>}  playback, ms
+ */
+function afterABurst(delay) {
+  setSpectrumOffset(String(delay));
+  feed(CONTIGUOUS_44K.slice(0, 5));
+  settle();
+  play(CONTIGUOUS_44K.slice(5));
+  return Array.from({ length: PAINTS }, () => {
+    advance(PAINT_MS);
+    return { at: playhead.value, target: (feedEdge() ?? NaN) - delay * SECOND_MS };
+  });
+}
+
 for (const delay of DELAYS_S) {
-  test(`test_at_every_paint_the_playhead_stands_at_the_feed_edge_less_a_${delay}_s_delay`, () => {
-    setSpectrumOffset(String(delay));
-    /** @type {Array<number | null>} */
-    const seen = [];
-    /** @type {Array<number | null>} */
-    const want = [];
-    const read = () => {
-      settle();
-      seen.push(playhead.value);
-      want.push((feedEdge() ?? NaN) - delay * SECOND_MS);
-    };
-    for (const burst of [CONTIGUOUS_44K.slice(0, 5), CONTIGUOUS_44K.slice(5), AN_HOUR_ON_44K.slice(2)]) {
-      feed(burst);
-      read();
-      read();
-    }
-    assert.deepEqual(seen, want);
+  test(`test_the_playhead_moves_at_every_paint_that_finds_it_behind_the_feed_edge_less_a_${delay}_s_delay`, () => {
+    const seen = afterABurst(delay);
+    assert.deepEqual(
+      seen.filter((s, i) => i > 0 && (seen[i - 1].at ?? NaN) < s.target && s.at === seen[i - 1].at),
+      [],
+    );
+  });
+
+  test(`test_the_playhead_moves_at_a_paint_no_frame_arrived_before_when_the_feed_edge_less_a_${delay}_s_delay_is_ahead`, () => {
+    const seen = afterABurst(delay);
+    assert.equal(
+      seen.slice(1).some((s, i) => s.at !== seen[i].at),
+      true,
+    );
+  });
+
+  test(`test_the_playhead_never_passes_the_feed_edge_less_a_${delay}_s_delay`, () => {
+    assert.deepEqual(
+      afterABurst(delay).filter((s) => (s.at ?? NaN) > s.target),
+      [],
+    );
+  });
+
+  test(`test_the_playhead_reaches_the_feed_edge_less_a_${delay}_s_delay`, () => {
+    const seen = afterABurst(delay);
+    assert.equal(seen[PAINTS - 1].at, seen[PAINTS - 1].target);
   });
 }
 

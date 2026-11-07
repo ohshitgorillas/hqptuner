@@ -245,8 +245,10 @@ test("test_a_scene_folds_the_frames_a_paint_shows_alike_whatever_order_they_arri
   follow([QUIET], LENGTHS[2]);
   settle();
   const mark = paints.length;
-  follow([QUIET], LENGTHS[4]);
-  follow([LOUD], LENGTHS[6]);
+  // The second pair is a break, so the paint that restarts at it shows both frames at once.
+  const stream = lastStream();
+  stream?.emit("frame", { channels: [QUIET], at: AN_HOUR_ON, n: LENGTHS[4] });
+  stream?.emit("frame", { channels: [LOUD], at: AN_HOUR_ON + LENGTHS[4], n: LENGTHS[6] });
   settle();
   const shown = (/** @type {Painted | undefined} */ p, /** @type {string} */ none) => (p ? [p.peak, p.rms] : none);
   assert.deepEqual(shown(paints[0], "no paint after the first pair"), shown(paints[mark], "no paint after the second"));

@@ -1,34 +1,50 @@
 // Timing suite for hqptuner/static/model/gauges/playhead.js: the one pacing decision a paint makes. Each paint shows
-// the playback from where the last one ended up to the playhead, with no gap and no overlap; the playhead stands the
-// delay behind the newest queued frame's end, moves only when frames arrive and stands still between arrivals; every
+// the playback from where the last one ended up to the playhead, with no gap and no overlap; the playhead's target is
+// the newest queued frame's end less the delay, and the playhead moves toward it on the paint's `dt`: faster than wall
+// time while behind it, slower while ahead of it, never past it from behind, never backward outside a break; every
 // frame a paint passes is shown once, in full, across the paints that cross it, and leaves the queue once passed; a
-// break restarts the paint at the break frame's stamp and leaves the frames before it behind.
+// break restarts the paint at the break frame's stamp, the playhead at the target, and leaves the frames before it
+// behind.
 //
-// The test plays the store's part on a schedule it writes: frames arrive in bursts of BURST, the measured clump, and
-// QUIET paints run between bursts with nothing arriving, as at a 30 Hz paint rate through the measured gaps. After
-// each paint the test drops the frames the decision consumed and hands the paint's end to the next one, with whether
-// the frame left at the front of the queue was queued when that paint decided. No clock is read: the schedule is the
-// order of arrivals and paints, and nothing else moves time.
+// The test plays the store's part on a wall-time schedule it writes: frames arrive in bursts of BURST, the measured
+// clump, every GAP_MS, and paints run every `dt` ms between them, as at a 60 Hz or 30 Hz paint rate through the measured
+// gaps; an arrival is seen by the first paint after it. After each paint the test drops the frames the decision
+// consumed and hands the paint's end and playhead to the next one, with whether the frame left at the front of the
+// queue was queued when that paint decided. No clock is read: the schedule is the order of arrivals and paints, and
+// the `dt` each paint is handed is the only time there is.
 //
 // Frame lengths are playback ms inside the measured feed event range, 17.3 to 23.2 ms: the first half of every feed
 // cycles through SHORT and the second half runs at LONG, a change of length mid-feed. Every length and delay is a
-// whole number of eighths of a ms, so every stamp and span is exact.
+// whole number of eighths of a ms, so every stamp and span is exact. The delay changes mid-feed in two runs.
 //
 // Run: node --import ./tests/js/support/vendor-resolve.js --test tests/js/model/gauges/playhead.test.js
 
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { pacePaint } from "../../../../hqptuner/static/model/gauges/playhead.js";
+import { CATCH_UP_MS, pacePaint } from "../../../../hqptuner/static/model/gauges/playhead.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/gauges/meter/meter.js").MeterFrame} MeterFrame */
 /** @typedef {import("../../../../hqptuner/static/model/gauges/playhead.js").PaintDecision} PaintDecision */
-/** @typedef {{ arrive: MeterFrame[] } | { paint: true }} Step */
+/**
+ * One step of a schedule: frames arrive, the delay becomes `delay` (playback, ms), or a paint runs `paint` wall ms
+ * after the one before it.
+ *
+ * @typedef {{ arrive: MeterFrame[] } | { delay: number } | { paint: number }} Step
+ */
 /**
  * One paint as the test saw it: the queue handed in, the decision, whether any frame arrived since the paint before
- * it, and whether a break frame did.
+ * it, and whether a break frame did; the delay it ran at (playback, ms), the playhead the paint before it left (null
+ * on the first), its `dt` (wall, ms) and the wall time it ran at (ms from the schedule's start).
  *
- * @typedef {{ queue: MeterFrame[], d: PaintDecision, arrived: boolean, broke: boolean }} Paint
+ * @typedef {{ queue: MeterFrame[], d: PaintDecision, arrived: boolean, broke: boolean, delay: number,
+ *   before: number | null, dt: number, wall: number }} Paint
+ */
+/**
+ * One paint that carried on from the playhead the paint before it left, with the target it moved toward: the newest
+ * queued frame's end less the delay, all playback ms.
+ *
+ * @typedef {{ before: number, after: number, target: number, newest: number, dt: number }} Move
  */
 
 //: Where every feed's first frame starts, playback ms.
@@ -41,8 +57,13 @@ const LONG = 23.125;
 const BURST = 5;
 //: Bursts per feed half.
 const HALF = 4;
-//: Paints between two arrivals.
-const QUIET = 7;
+//: Wall ms between two arrivals, and the wall ms after the schedule's start the first one lands at: a time no paint
+//: rate here paints at, so every paint rate sees an arrival at its next paint.
+const GAP_MS = 128;
+const ARRIVE_MS = 5;
+//: The paint intervals the tests run at, wall ms: 60 Hz, then a slower paint that holds two of the faster one.
+const PAINT_MS = 16;
+const SLOWER_PAINT_MS = 32;
 //: A delay that leaves the playhead inside a LONG frame after a burst of them, playback ms.
 const SPLIT = (BURST - 1) * LONG + 10;
 //: The delays the feed tests run at, playback ms: none, a frame split, and the default.
@@ -84,19 +105,38 @@ function frames(at, count, lengths, brk) {
 const endOf = (f) => (f.at ?? NaN) + f.ms;
 
 /**
- * `list` in bursts of BURST, each followed by QUIET paints.
+ * `list` in bursts of BURST, one every GAP_MS of wall time, with a paint every `dt` ms through one GAP_MS more than the
+ * last burst needs.
  *
  * @param {MeterFrame[]} list
+ * @param {number} [dt]  wall, ms
  * @returns {Step[]}
  */
-function bursts(list) {
+function bursts(list, dt = PAINT_MS) {
+  /** @type {MeterFrame[][]} */
+  const groups = [];
+  for (let i = 0; i < list.length; i += BURST) groups.push(list.slice(i, i + BURST));
   /** @type {Step[]} */
   const out = [];
-  for (let i = 0; i < list.length; i += BURST) {
-    out.push({ arrive: list.slice(i, i + BURST) });
-    for (let p = 0; p < QUIET; p++) out.push({ paint: true });
+  let next = 0;
+  for (let wall = dt; wall <= (groups.length + 1) * GAP_MS; wall += dt) {
+    while (next < groups.length && next * GAP_MS + ARRIVE_MS <= wall) out.push({ arrive: groups[next++] });
+    out.push({ paint: dt });
   }
   return out;
+}
+
+/**
+ * `steps` with the delay becoming `delay` just before burst number `burst` arrives.
+ *
+ * @param {Step[]} steps
+ * @param {number} burst
+ * @param {number} delay  playback, ms
+ * @returns {Step[]}
+ */
+function delayedAt(steps, burst, delay) {
+  let seen = 0;
+  return steps.flatMap((step) => ("arrive" in step && seen++ === burst ? [{ delay }, step] : [step]));
 }
 
 //: One unbroken feed: HALF bursts of SHORT frames, then HALF of LONG ones.
@@ -121,9 +161,9 @@ function seeked(seek) {
 }
 
 /**
- * Run `steps` against the decision at `delay`, playing the store: queue arrivals, hand each paint the queue, the
- * last paint's end and whether the frame at the queue's front was queued when the last paint decided, drop what it
- * consumed.
+ * Run `steps` against the decision from `delay`, playing the store: queue arrivals, hand each paint the queue, the last
+ * paint's end and playhead and whether the frame at the queue's front was queued when the last paint decided, drop
+ * what it consumed.
  *
  * @param {Step[]} steps
  * @param {number} delay  playback, ms
@@ -134,25 +174,33 @@ function play(steps, delay) {
   let queue = [];
   /** @type {number | null} */
   let end = null;
+  /** @type {number | null} */
+  let before = null;
   let started = false;
   let arrived = false;
   let broke = false;
+  let wall = 0;
+  let now = delay;
   /** @type {Paint[]} */
   const paints = [];
   for (const step of steps) {
-    if ("arrive" in step) {
+    if ("delay" in step) {
+      now = step.delay;
+    } else if ("arrive" in step) {
       queue = [...queue, ...step.arrive];
       arrived = true;
       broke = broke || step.arrive.some((f) => f.break);
-      continue;
+    } else {
+      wall += step.paint;
+      const d = pacePaint({ end, playhead: before, started, frames: queue, delay: now, dt: step.paint });
+      paints.push({ queue, d, arrived, broke, delay: now, before, dt: step.paint, wall });
+      queue = queue.slice(d.consumed);
+      end = d.to;
+      before = Number.isNaN(d.playhead) ? null : d.playhead;
+      started = queue.length > 0;
+      arrived = false;
+      broke = false;
     }
-    const d = pacePaint({ end, started, frames: queue, delay });
-    paints.push({ queue, d, arrived, broke });
-    queue = queue.slice(d.consumed);
-    end = d.to;
-    started = queue.length > 0;
-    arrived = false;
-    broke = false;
   }
   return { paints, queue };
 }
@@ -213,12 +261,11 @@ for (const delay of DELAYS) {
     );
   });
 
-  test(`test_the_playhead_at_a_${delay}_ms_delay_moves_at_each_paint_after_an_arrival_and_at_no_other`, () => {
+  test(`test_the_playhead_at_a_${delay}_ms_delay_moves_at_a_paint_no_frame_arrived_before`, () => {
     const { paints } = play(bursts(FEED), delay);
-    const moved = paints.slice(1).map((p, i) => p.d.playhead !== paints[i].d.playhead);
-    assert.deepEqual(
-      moved,
-      paints.slice(1).map((p) => p.arrived),
+    assert.equal(
+      paints.some((p) => !p.arrived && p.before !== null && p.d.playhead !== p.before),
+      true,
     );
   });
 
@@ -262,4 +309,139 @@ for (const seek of [...SEEKS, REJOIN]) {
     const first = paints.find((p) => p.queue.includes(brk));
     assert.equal(first?.queue.slice(first.d.consumed)[0], brk);
   });
+
+  test(`test_the_paint_after_a_seek_to_${seek}_ms_stands_the_playhead_the_delay_behind_the_newest_end`, () => {
+    const { list, brk } = seeked(seek);
+    const { paints } = play(bursts(list), 250);
+    const first = paints.find((p) => p.queue.includes(brk));
+    assert.equal((first?.d.playhead ?? NaN) + 250, endOf(first?.queue.at(-1) ?? brk));
+  });
 }
+
+/**
+ * A run the movement tests read: its paints, and the name that says what was fed.
+ *
+ * @typedef {{ name: string, paints: Paint[] }} Run
+ */
+
+/** @type {Run[]} */
+const RUNS = [];
+for (const dt of [PAINT_MS, SLOWER_PAINT_MS]) {
+  for (const delay of DELAYS) {
+    RUNS.push({ name: `a_${delay}_ms_delay_at_${dt}_ms_paints`, paints: play(bursts(FEED, dt), delay).paints });
+  }
+  const lowered = delayedAt(bursts(FEED, dt), HALF, 0);
+  RUNS.push({ name: `a_delay_lowered_mid_feed_at_${dt}_ms_paints`, paints: play(lowered, 250).paints });
+  const raised = delayedAt(bursts(FEED, dt), HALF, 250);
+  RUNS.push({ name: `a_delay_raised_mid_feed_at_${dt}_ms_paints`, paints: play(raised, 0).paints });
+  const deeper = delayedAt(bursts(FEED, dt), HALF, 2 * CATCH_UP_MS);
+  RUNS.push({ name: `a_delay_raised_past_the_time_constant_at_${dt}_ms_paints`, paints: play(deeper, 0).paints });
+}
+
+/**
+ * The moves `paints` made from a playhead the paint before left, without the restarts.
+ *
+ * @param {Paint[]} paints
+ * @returns {Move[]}
+ */
+function movesOf(paints) {
+  return paints.flatMap((p) => {
+    const newest = p.queue.length ? endOf(p.queue[p.queue.length - 1]) : NaN;
+    if (Number.isNaN(newest) || p.d.restart || p.before === null) return [];
+    return [{ before: p.before, after: p.d.playhead, target: newest - p.delay, newest, dt: p.dt }];
+  });
+}
+
+//: What each run's moves must never do, as the move that does it.
+const BREACHES = {
+  stands_still_at_a_paint_while_behind_the_target: (/** @type {Move} */ m) =>
+    m.before < m.target && m.dt > 0 && m.after === m.before,
+  moves_at_wall_time_or_slower_while_behind_the_target_and_short_of_it: (/** @type {Move} */ m) =>
+    m.before < m.target && m.after < m.target && m.after - m.before <= m.dt,
+  moves_past_the_target_from_at_or_behind_it: (/** @type {Move} */ m) => m.before <= m.target && m.after > m.target,
+  moves_backward: (/** @type {Move} */ m) => m.after < m.before,
+  jumps_further_than_its_speed_allows: (/** @type {Move} */ m) =>
+    m.after - m.before > m.dt * (1 + Math.max(0, m.target - m.before) / CATCH_UP_MS) + 1e-9,
+  moves_past_the_newest_queued_end: (/** @type {Move} */ m) => m.after > m.newest,
+  moves_faster_than_wall_time_while_ahead_of_the_target: (/** @type {Move} */ m) =>
+    m.before > m.target && m.after - m.before > m.dt + 1e-9,
+  moves_while_a_whole_time_constant_or_more_ahead_of_the_target: (/** @type {Move} */ m) =>
+    m.before - m.target >= CATCH_UP_MS && m.after !== m.before,
+};
+
+for (const run of RUNS) {
+  for (const [breach, happens] of Object.entries(BREACHES)) {
+    test(`test_in_${run.name}_the_playhead_never_${breach}`, () => {
+      assert.deepEqual(movesOf(run.paints).filter(happens), []);
+    });
+  }
+
+  test(`test_in_${run.name}_no_paint_after_the_first_restarts`, () => {
+    assert.deepEqual(
+      run.paints.slice(1).filter((p) => p.d.restart),
+      [],
+    );
+  });
+}
+
+test("test_a_delay_lowered_mid_feed_leaves_the_playhead_at_the_new_target_once_the_feed_has_gone_on", () => {
+  const { paints } = play(delayedAt(bursts(FEED), HALF, 0), 250);
+  assert.equal(paints[paints.length - 1].d.playhead, EDGE);
+});
+
+test("test_a_delay_raised_mid_feed_leaves_the_playhead_at_the_new_target_once_the_feed_has_gone_on", () => {
+  const { paints } = play(delayedAt(bursts(FEED), 1, 100), 0);
+  assert.equal(paints[paints.length - 1].d.playhead, EDGE - 100);
+});
+
+/**
+ * The playheads of the paints that ran at the wall times `walls` (ms), in order.
+ *
+ * @param {Paint[]} paints
+ * @param {number[]} walls
+ */
+const playheadsAt = (paints, walls) => walls.map((w) => paints.find((p) => p.wall === w)?.d.playhead);
+
+/**
+ * Wall times, ms, every `every` ms from `every` to the end of the schedule bursts() writes for FEED.
+ *
+ * @param {number} every
+ */
+const walls = (every) =>
+  Array.from({ length: Math.round(((FEED.length / BURST + 1) * GAP_MS) / every) }, (_, i) => (i + 1) * every);
+
+for (const delay of DELAYS) {
+  test(`test_two_paint_rates_at_a_${delay}_ms_delay_stand_at_the_same_playhead_at_the_end_of_every_gap`, () => {
+    const faster = play(bursts(FEED, PAINT_MS), delay).paints;
+    const slower = play(bursts(FEED, SLOWER_PAINT_MS), delay).paints;
+    const ends = walls(GAP_MS);
+    assert.deepEqual(playheadsAt(faster, ends), playheadsAt(slower, ends));
+  });
+
+  test(`test_two_paint_rates_at_a_${delay}_ms_delay_never_differ_by_more_than_the_slower_ones_interval_of_movement`, () => {
+    const faster = play(bursts(FEED, PAINT_MS), delay).paints;
+    const slower = play(bursts(FEED, SLOWER_PAINT_MS), delay).paints;
+    const both = walls(SLOWER_PAINT_MS);
+    const a = playheadsAt(faster, both);
+    const b = playheadsAt(slower, both);
+    const bound = SLOWER_PAINT_MS * (1 + (BURST * LONG) / CATCH_UP_MS);
+    assert.deepEqual(
+      both.filter((_, i) => Math.abs((a[i] ?? NaN) - (b[i] ?? NaN)) > bound),
+      [],
+    );
+  });
+}
+
+test("test_the_same_wall_time_moves_the_playhead_the_same_distance_whatever_the_paint_rate_while_the_target_stands", () => {
+  const to = (/** @type {number[]} */ paints) =>
+    play(
+      [
+        { arrive: FEED.slice(0, BURST) },
+        { paint: PAINT_MS },
+        { arrive: FEED.slice(BURST, 2 * BURST) },
+        ...paints.map((paint) => ({ paint })),
+      ],
+      250,
+    ).paints.at(-1)?.d.playhead ?? NaN;
+  assert.equal(Math.abs(to([PAINT_MS, PAINT_MS]) - to([SLOWER_PAINT_MS])) < 1e-9, true);
+});
