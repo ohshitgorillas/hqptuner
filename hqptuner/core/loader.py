@@ -217,15 +217,17 @@ async def _fill(mgr: ConnectionManager, client: ControlClient, cadence: Cadence,
     if not still_stands(mgr.control, client):
         return
     _take(mgr, fields)
-    _report_drops(mgr)
     await _configuration(mgr, cadence)
     await engineread.refresh_device_caps(mgr, force=True)
 
 
 def _report_drops(mgr: ConnectionManager) -> None:
-    """Record the drop report of a foreign departure from the held reading and the first new one."""
-    held, after = mgr.readings.take_held(), mgr.readings.engine_snapshot()
-    if held is not None and after is not None and mgr.phase.outcome() is Outcome.FOREIGN_DEPARTURE:
+    """Record the drop report of a foreign departure from the held reading and the first new one that has a State."""
+    after = mgr.readings.engine_snapshot()
+    if after is None or after.state is None:
+        return
+    held = mgr.readings.take_held()
+    if held is not None and mgr.phase.outcome() is Outcome.FOREIGN_DEPARTURE:
         mgr.dropped_settings.record(dropped.report(held, after))
 
 
@@ -294,8 +296,9 @@ async def _matrix_profiles(client: ControlClient) -> list[str] | None:
 
 
 def _take(mgr: ConnectionManager, fields: EngineFields) -> None:
-    """Take one Engine reading, stamped with the generation the connection stands in."""
+    """Take one Engine reading, stamped with the generation the connection stands in, and report any drops it shows."""
     mgr.readings.take_engine(mgr.phase.standing.generation, **fields)
+    _report_drops(mgr)
 
 
 def _trace_volume(mgr: ConnectionManager, before: dict[str, str] | None) -> None:

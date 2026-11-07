@@ -208,6 +208,16 @@ FOREIGN = [
         id="systemctl-restart",
     ),
     pytest.param(
+        [
+            (0.0, Fact.SOCKET_LOST),
+            (1.0, Fact.GETINFO_ANSWERED),
+            (2.0, Fact.FORM_ANSWERED),
+            (3.0, Fact.SOCKET_CLOSED),
+            (4.0, Fact.DIAL_REFUSED),
+        ],
+        id="a-taken-down-the-next-dial-then-refuses",
+    ),
+    pytest.param(
         [(0.0, Fact.REQUEST_ACCEPTED), (1.0, Fact.READBACK_CONFIRMED), (40.0, Fact.SOCKET_LOST)],
         id="after-an-own-restart-settled-by-readback",
     ),
@@ -290,6 +300,19 @@ OWN = [
         [(0.0, Fact.REQUEST_ACCEPTED), (1.0, Fact.SOCKET_LOST), (15.0, Fact.WINDOW_RAN)],
         Outcome.NONE,
         id="departed-and-not-back-when-the-window-ran",
+    ),
+    *(
+        pytest.param(
+            [
+                (0.0, Fact.SOCKET_LOST),
+                (1.0, Fact.GETINFO_ANSWERED),
+                (2.0, Fact.FORM_ANSWERED),
+                (3.0, taken),
+            ],
+            Outcome.NONE,
+            id=f"{taken.value}-after-a-departure-is-not-that-departure",
+        )
+        for taken in (Fact.SOCKET_TAKEN, Fact.SOCKET_CLOSED)
     ),
     pytest.param(
         [

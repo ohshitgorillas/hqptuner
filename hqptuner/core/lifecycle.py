@@ -109,7 +109,7 @@ def _lost(standing: Standing, now: float) -> Standing:
 
 def _taken(standing: Standing, now: float) -> Standing:
     """Go Down taken when HQPTuner closes the control socket itself, leaving the generation where it stood."""
-    return replace(standing, phase=Phase.DOWN, taken=True, down_since=now, connected_since=None)
+    return replace(standing, phase=Phase.DOWN, taken=True, down_since=now, connected_since=None, ended=Outcome.NONE)
 
 
 def _refused(standing: Standing, now: float) -> Standing:

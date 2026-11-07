@@ -81,12 +81,17 @@ def _run(api: TestClient, control_state: dict[str, str], settings: dict[str, str
     wait_for_api(api, lambda client: _reads(client, settings))
 
 
-def _restart(api: TestClient, control_state: dict[str, str], settings: dict[str, str]) -> None:
-    """The engine restarts by itself onto its config file, and the app reads the restarted engine."""
-    before = api.get(HEALTH).json()["generation"]
+def _restarts(control_state: dict[str, str], settings: dict[str, str]) -> None:
+    """The engine restarts by itself onto its config file: the open connection is severed and the first dial refused."""
     control_state.update(settings)
     control_state["_generation"] = str(int(control_state.get("_generation", "0")) + 1)
     control_state["_refuse_connects"] = "1"
+
+
+def _restart(api: TestClient, control_state: dict[str, str], settings: dict[str, str]) -> None:
+    """The engine restarts by itself onto its config file, and the app reads the restarted engine."""
+    before = api.get(HEALTH).json()["generation"]
+    _restarts(control_state, settings)
     wait_for_api(
         api,
         lambda client: client.get(HEALTH).json()["generation"] > before and _reads(client, settings),
@@ -97,6 +102,13 @@ def _retarget(api: TestClient, control_state: dict[str, str], settings: dict[str
     """The app is pointed at an engine running `settings`, and reads it."""
     control_state.update(settings)
     _portal(api).call(app_manager(api).retarget)
+    wait_for_api(api, lambda client: connection_stands(client) and _reads(client, settings))
+
+
+def _taken_down(api: TestClient, control_state: dict[str, str], settings: dict[str, str]) -> None:
+    """HQPTuner closes its own control socket, and the redial finds an engine running `settings`."""
+    control_state.update(settings)
+    _portal(api).call(app_manager(api).take_control_down, "test")
     wait_for_api(api, lambda client: connection_stands(client) and _reads(client, settings))
 
 
@@ -162,7 +174,11 @@ def test_a_cleared_report_lists_nothing(
 
 @pytest.mark.parametrize(
     ("move", "listed"),
-    [pytest.param(_restart, [REPORTED], id="restart"), pytest.param(_retarget, [], id="retarget")],
+    [
+        pytest.param(_restart, [REPORTED], id="restart"),
+        pytest.param(_retarget, [], id="retarget"),
+        pytest.param(_taken_down, [], id="taken_down"),
+    ],
 )
 def test_only_a_restart_lists_what_the_engine_read_before_it_is_gone(
     api: TestClient,
@@ -176,3 +192,16 @@ def test_only_a_restart_lists_what_the_engine_read_before_it_is_gone(
     _run(api, control_state, RUNNING)
     move(api, control_state, FROM_FILE)
     assert _dropped(api) == listed
+
+
+def test_a_departure_is_reported_from_the_first_reading_that_carries_state(
+    api: TestClient, control_state: dict[str, str]
+) -> None:
+    _run(api, control_state, RUNNING)
+    before = api.get(HEALTH).json()["generation"]
+    control_state["_error"] = "State"
+    _restarts(control_state, FROM_FILE)
+    wait_for_api(api, lambda client: connection_stands(client) and client.get(HEALTH).json()["generation"] > before)
+    control_state["_error"] = ""
+    wait_for_api(api, lambda client: _reads(client, FROM_FILE))
+    assert _dropped(api) == [REPORTED]
