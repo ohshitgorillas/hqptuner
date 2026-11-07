@@ -1,0 +1,63 @@
+{
+  "phase": "4",
+  "trigger": "plan",
+  "discriminator": "plan-eb290159",
+  "round": 1,
+  "base": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+  "head": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+  "base_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+  "head_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/4/PLAN-3.md",
+      "line": 178,
+      "severity": "medium",
+      "claim": "Task 2 says to keep `.planning/config.json`'s working-tree content as it is and commit it with full pre-commit. After the merge, the `prettier` hook (integrate `.pre-commit-config.yaml:158-163`, `npx prettier --write`, files `\\.(js|json)$`) rewrites that file, so the commit cannot land as the plan specifies.",
+      "failure_scenario": "The working-tree config.json has its arrays expanded across lines (`\"protected_branches\": [\\n \"main\", ...]`). `npx prettier --check .planning/config.json` in the main checkout today gives `[warn] Code style issues found` with rc=1. At commit, prettier --write collapses the arrays and the hook fails with 'files were modified'. The executor then has to either re-stage content that differs from the working tree, which breaks 'keep as it is', or fail Task 2. Task 3 requires the D-08 commit to land before the v2 check, so it is blocked too.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+      "head_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/4/PLAN-1.md",
+      "line": 29,
+      "severity": "medium",
+      "claim": "The plans only disclose the footprint of the four full `make check` runs (Plan 1 Tasks 1 and 3, Plan 2 Task 4, Plan 3 Task 3). Each runs `test-js` at node's default concurrency, up to 17 test processes on this 18-core host, alongside live production hqplayerd. Nothing caps or deprioritizes it, but `~/dev/CLAUDE.md` 3.1 says both disclose and never saturate.",
+      "failure_scenario": "During the JS phase of each `make check`, node starts about 17 CPU-bound workers, so 17 of the host's 18 cores are busy for the suite's full duration while hqplayerd is playing. The plan states the footprint but adds no `nice` or `taskset` cap. It only uses `--test-concurrency=8` for interim runs, so the AC runs themselves still saturate the host.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+      "head_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/4/PLAN-3.md",
+      "line": 196,
+      "severity": "medium",
+      "claim": "The merge puts 168 changed `hqptuner/` files and the rebuilt frontend onto `v2`. The repo rules require `/task-check`, a hand-back URL and the owner's eyes on every visual change before it is called done. No task schedules this. The Notes only say it is 'raised to the orchestrator', which leaves an open question inside a plan the phase depends on.",
+      "failure_scenario": "Plan 3 runs as written: merge, D-08 commit, `make check` green, audit. The phase reports done. But `hqptuner:dev` was never rebuilt from `v2` and the owner never saw the merged frontend at :8090. That breaks the repo hard rules 'After any edit to `hqptuner/` ... run `/task-check` before reporting done' and 'Every visual change goes in front of the user at the hand-back URL before it is called done'.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f",
+      "head_id": "eb290159b6ecda3185adbe6fd4482edefdd2605f"
+    }
+  ]
+}
