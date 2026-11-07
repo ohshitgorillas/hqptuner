@@ -4,11 +4,12 @@
 # must start the app, and that app, which the installer itself started, must
 # answer at the runner's own network address. So must the installed app when it
 # is started the way a Start Menu launch starts it.
-# Installing over the previous release must leave an app that starts and keeps
-# running, and the uninstaller must still work after it. That holds whether the
-# previous release's app was quit first or left running; when it was left
-# running, none of it may remain once the installer returns. After either, the
-# uninstaller must leave no install directory.
+# Installing over the previous release must leave an app that starts, keeps
+# running, shows no visible window and holds a tray icon of its own, and the
+# uninstaller must still work after it. That holds whether the previous release's
+# app was quit first or left running; when it was left running, none of it may
+# remain once the installer returns. After either, the uninstaller must leave no
+# install directory.
 # An upgraded app whose bundled tray image is missing must fail that same check:
 # a control starts one and requires the rejection to name the error dialog.
 # Given a bundle directory instead, run the app from it with no install around it.
@@ -317,10 +318,18 @@ install_over() {
     || upgrade_die "$1: the installer failed over the previous release"
 }
 
+# The visible windows in the report $1 as one line: each title and class.
+visible_windows() {
+  printf '%s\n' "$1" | awk -F'\t' '$3 == "1" { printf "%s\"%s\" (class %s)", sep, $5, $2; sep = ", " }'
+}
+
 # The judgment on an upgraded app with Windows PID $1 that has answered
 # /api/health. It prints one finding per line and succeeds when there are none.
-# check_upgraded and the broken-tray control both call it, so they cannot drift.
+# The app must stay alive for 5 s, show no visible top-level window, and hold a
+# tray icon of its own. check_upgraded and the broken-tray control both call it,
+# so they cannot drift.
 judge_upgraded() {
+  local report visible
   for _ in $(seq 1 5); do
     if ! windows_pid_alive "$1"; then
       echo "the upgraded app exited within 5 s of answering"
@@ -328,6 +337,13 @@ judge_upgraded() {
     fi
     sleep 1
   done
+  report=$(app_windows "$1") || { echo "the window report for the upgraded app failed"; return 1; }
+  echo "judgment: windows of PID $1 (handle, class, visible, tray query, title):" >&2
+  printf '%s\n' "$report" >&2
+  visible=$(visible_windows "$report")
+  [ -z "$visible" ] || echo "the upgraded app shows a visible window: $visible"
+  tray_registered "$report" || echo "no tray icon is registered for the upgraded app"
+  [ -z "$visible" ] && tray_registered "$report"
 }
 
 # The app the upgrade started must be the only one under $UPGRADE_APP, answer on
