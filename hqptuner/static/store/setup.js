@@ -64,7 +64,7 @@ export const form = signal({ host: "", username: "", password: "", remember: tru
  */
 export const hostTouched = signal(false);
 /**
- * What the panel has to say about the last press of Connect. Nine members:
+ * What the panel has to say about the last press of Connect. Ten members:
  *
  *   null          nothing pressed yet, or the panel has just been opened
  *   "no-host"     the address field was empty, so nothing was sent
@@ -75,10 +75,17 @@ export const hostTouched = signal(false);
  *   "no-answer"   the daemon answered, its settings port at 8088 did not
  *   "unreachable" nothing answered at the address
  *   "not-answered" a login could not be checked, because the daemon did not answer
+ *   "pinned"      a login named a host, username or password the environment pins
  *
  * A login refused for the typed pair reads "refused".
  */
 export const verdict = signal(null);
+
+/**
+ * The backend's own sentence for the "pinned" verdict, shown as it arrived: the refusal names
+ * what is set in the environment, and the wording is the server's.
+ */
+export const loginSentence = signal("");
 
 // A refused request that says the browser has no login puts the page at the login screen.
 // The panel's own routes (the saved record, discovery) are gated too, so it opens without
@@ -271,7 +278,7 @@ async function loadConnection() {
 
 // What a login the backend refused says, by the refusal's code.
 /** @type {Record<string, string>} */
-const LOGIN_VERDICTS = { login_refused: "refused", login_not_answered: "not-answered" };
+const LOGIN_VERDICTS = { login_refused: "refused", login_not_answered: "not-answered", login_values_pinned: "pinned" };
 
 /**
  * Log this browser in with the pair the panel holds.
@@ -292,6 +299,7 @@ async function logIn(f) {
   } catch (e) {
     const next = LOGIN_VERDICTS[/** @type {{ code?: string }} */ (e).code || ""];
     if (!next) throw e;
+    if (next === "pinned") loginSentence.value = /** @type {Error} */ (e).message;
     verdict.value = next;
     return;
   }

@@ -35,6 +35,7 @@ import {
   hostTouched,
   loggedOut,
   verdict,
+  loginSentence,
   initSetup,
   closeSetup,
   runDiscovery,
@@ -403,6 +404,35 @@ for (const r of REFUSALS) {
     assert.equal(verdict.value, r.verdict);
   });
 }
+
+/** A login refused because the environment pins a value, answered with the backend's own sentence. */
+function pinnedLogin() {
+  loginPage();
+  loggedOut.value = true;
+  loginAnswer = {
+    ok: false,
+    status: 403,
+    json: async () => ({ detail: "the backend's sentence", code: "login_values_pinned" }),
+  };
+}
+
+test("test_a_login_refused_with_login_values_pinned_sets_the_pinned_verdict", async () => {
+  pinnedLogin();
+  await submitConnection(true);
+  assert.equal(verdict.value, "pinned");
+});
+
+test("test_a_login_refused_with_login_values_pinned_carries_the_backends_sentence_unchanged", async () => {
+  pinnedLogin();
+  await submitConnection(true);
+  assert.equal(loginSentence.value, "the backend's sentence");
+});
+
+test("test_a_login_refused_with_login_values_pinned_leaves_the_page_logged_out", async () => {
+  pinnedLogin();
+  await submitConnection(true);
+  assert.equal(loggedOut.value, true);
+});
 
 test("test_a_refused_login_leaves_the_page_logged_out", async () => {
   loginPage();

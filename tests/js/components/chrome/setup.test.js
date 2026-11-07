@@ -7,17 +7,26 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Setup } from "../../../../hqptuner/static/components/Setup.js";
-import { setupOpen, loggedOut, verdict, form, pageHost } from "../../../../hqptuner/static/store/setup.js";
+import {
+  setupOpen,
+  loggedOut,
+  verdict,
+  loginSentence,
+  form,
+  pageHost,
+} from "../../../../hqptuner/static/store/setup.js";
 import { attr, elements } from "../../support/markup.js";
 
 const OPEN = setupOpen.value;
 const FORM = form.value;
 const PAGE_HOST = pageHost.value;
 const VERDICT = verdict.value;
+const SENTENCE = loginSentence.value;
 
 afterEach(() => {
   loggedOut.value = false;
   verdict.value = VERDICT;
+  loginSentence.value = SENTENCE;
   setupOpen.value = OPEN;
   form.value = FORM;
   pageHost.value = PAGE_HOST;
@@ -89,4 +98,10 @@ test("test_the_login_screen_keeps_the_host_username_and_password_rows", () => {
 test("test_a_login_that_could_not_be_checked_gets_a_report_under_the_panel", () => {
   verdict.value = "not-answered";
   assert.equal(loggedOutPanel().includes('<p class="t-caption"></p>'), false);
+});
+
+test("test_a_login_refused_for_a_pinned_value_shows_the_sentence_the_backend_sent", () => {
+  verdict.value = "pinned";
+  loginSentence.value = "sentinel-from-the-backend";
+  assert.equal(loggedOutPanel().includes("sentinel-from-the-backend"), true);
 });
