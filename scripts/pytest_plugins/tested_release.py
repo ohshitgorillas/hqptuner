@@ -13,6 +13,11 @@ plugin is configured, before any suite fixture re-points it. Run state lives on
 the run's own config, so a suite that runs pytest in-process with this plugin
 loaded does not disturb the outer run.
 
+``/about`` is read over the real network unless a plugin object implements the
+``pytest_tested_release_network`` hook this module adds, answering a
+``hqptuner.core.network.Network``; that is how a test of this plugin reads a fake
+in process. ``make test-live`` loads no such object.
+
 Loaded by ``-p tested_release`` with ``scripts/pytest_plugins`` on ``PYTHONPATH``;
 the Makefile's ``test-live`` recipe is the command line that does so.
 """
@@ -29,6 +34,7 @@ import httpx
 import pytest
 
 from hqptuner.config import Config
+from hqptuner.core.network import Network
 from hqptuner.engine.release import fetch_about, parse_release
 from hqptuner.metadata_json import str_list
 
@@ -37,7 +43,7 @@ if TYPE_CHECKING:
 
 #: pytest finds the hooks below by name, never by reference; naming them here is
 #: what tells a static dead-code sweep they are live.
-__all__ = ["pytest_configure", "pytest_runtest_makereport", "pytest_sessionfinish"]
+__all__ = ["pytest_addhooks", "pytest_configure", "pytest_runtest_makereport", "pytest_sessionfinish"]
 
 #: Where the record sits relative to the rootdir of the run that keeps it.
 RECORD = Path("hqptuner") / "data" / "tested-releases.json"
@@ -47,6 +53,8 @@ RECORD = Path("hqptuner") / "data" / "tested-releases.json"
 class _Run:
     """The daemon address the run started with and its live tests' outcomes so far."""
 
+    host: str
+    port: int
     base_url: str
     passed: int = 0
     skipped: int = 0
@@ -55,9 +63,23 @@ class _Run:
 _RUN = pytest.StashKey[_Run]()
 
 
+class _Hooks:
+    """The hook specifications this plugin adds."""
+
+    @pytest.hookspec(firstresult=True)
+    def pytest_tested_release_network(self, config: pytest.Config) -> Network | None:
+        """Answer the network ``/about`` is read over, or None for the real one."""
+
+
+def pytest_addhooks(pluginmanager: pytest.PytestPluginManager) -> None:
+    """Add the ``pytest_tested_release_network`` hook."""
+    pluginmanager.add_hookspecs(_Hooks)
+
+
 def pytest_configure(config: pytest.Config) -> None:
     """Start the run with the daemon address the shell names right now."""
-    config.stash[_RUN] = _Run(Config().hqp_http_base_url)
+    cfg = Config()
+    config.stash[_RUN] = _Run(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_http_base_url)
 
 
 @pytest.hookimpl(wrapper=True)
@@ -78,8 +100,9 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     run = session.config.stash[_RUN]
     if exitstatus != 0 or not run.passed or run.skipped:
         return
+    network = session.config.hook.pytest_tested_release_network(config=session.config) or Network()
     try:
-        release = parse_release(asyncio.run(fetch_about(run.base_url)))
+        release = parse_release(asyncio.run(fetch_about(run.base_url, network.http_options(run.host, run.port))))
     except httpx.HTTPError as err:
         print(f"\ntested_release: reading {run.base_url}/about failed ({err}); record unchanged")
         return

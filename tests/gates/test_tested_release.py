@@ -12,9 +12,11 @@ record as it was, and a release already recorded is not added twice.
 
 Each case runs pytest in-process through ``pytester`` with the plugin loaded,
 over a throwaway rootdir holding its own record and its own suite, against the
-fake 8088 daemon plus the threaded 4321 fake. The shell's daemon address is set
-to those fakes, so no case reaches the host's hqplayerd, and the record every
-case reads and writes lives under the throwaway rootdir.
+fake 8088 daemon plus the 4321 fake, both served on the suite's in-process
+network, which the case hands the plugin through its
+``pytest_tested_release_network`` hook. The shell's daemon address is set to
+those fakes, so no case reaches the host's hqplayerd, and the record every case
+reads and writes lives under the throwaway rootdir.
 """
 
 import json
@@ -25,7 +27,10 @@ from typing import Any
 import fake_http
 import pytest
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from narrow import FixtureError
+
+from hqptuner.core.network import Network
 
 pytest_plugins = ["pytester"]
 
@@ -113,6 +118,14 @@ markers =
 """
 
 
+class _InProcessNetwork:
+    """A plugin object that answers the suite's in-process network for the plugin's ``/about`` read."""
+
+    @staticmethod
+    def pytest_tested_release_network() -> Network:
+        return NETWORK
+
+
 @pytest.fixture(autouse=True)
 def _real_record_untouched() -> Iterator[None]:
     """Refuses a case that changed the repository's own record."""
@@ -125,13 +138,13 @@ def _real_record_untouched() -> Iterator[None]:
 
 @pytest.fixture
 def daemon(monkeypatch: pytest.MonkeyPatch) -> Iterator[dict[str, Any]]:
-    """The fake 8088 daemon plus the threaded 4321 fake, named by the shell's
+    """The fake 8088 daemon plus the 4321 fake, both in process, named by the shell's
     ``HQPTUNER_*`` daemon address. Yields the 8088 state; its ``release`` is
     what ``/about`` prints, and a case changes it between runs. The 4321 fake's
     GetInfo answers with engine build 6.0.4 (docs/protocol.md section 6), which no
     case gives the 8088 fake as its release."""
     control = spawn_threaded_daemon()
-    http = fake_http.spawn(fake_http.state(release=RECORDED_RELEASE))
+    http = fake_http.spawn(fake_http.state(release=RECORDED_RELEASE), in_process=True)
     st = next(http)
     monkeypatch.setenv("HQPTUNER_HQP_HOST", "127.0.0.1")
     monkeypatch.setenv("HQPTUNER_HQP_CONTROL_PORT", str(next(control)))
@@ -154,7 +167,7 @@ def rootdir(pytester: pytest.Pytester) -> Path:
 def _run(pytester: pytest.Pytester, suite: str, *args: str) -> None:
     """Runs ``suite`` with the plugin loaded, the way ``make test-live`` would."""
     path = pytester.makepyfile(test_suite=suite)
-    pytester.runpytest_inprocess("-p", "tested_release", *args, str(path))
+    pytester.runpytest_inprocess("-p", "tested_release", *args, str(path), plugins=[_InProcessNetwork()])
 
 
 def _recorded(rootdir: Path) -> list[str]:
@@ -202,7 +215,7 @@ def test_a_run_not_green_with_its_live_tests_run_adds_nothing_to_the_record(
 def test_the_release_is_read_from_the_daemon_the_shell_names_not_one_the_suite_points_at(
     pytester: pytest.Pytester, rootdir: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    session_http = fake_http.spawn(fake_http.state(release=UNRECORDED_RELEASE))
+    session_http = fake_http.spawn(fake_http.state(release=UNRECORDED_RELEASE), in_process=True)
     monkeypatch.setenv("SESSION_HTTP_PORT", str(next(session_http)["_port"]))
     pytester.makeconftest(REPOINTING_CONFTEST)
     try:
