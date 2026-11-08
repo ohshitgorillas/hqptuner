@@ -1,0 +1,36 @@
+{
+  "phase": "5",
+  "trigger": "plan",
+  "discriminator": "plan-176f8a9",
+  "round": 2,
+  "base": "176f8a9",
+  "head": "176f8a9",
+  "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+  "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/5/PLAN-4.md",
+      "line": 104,
+      "severity": "low",
+      "claim": "The F3 edit tells the owner to arrange a run of all seven required jobs at the phase's last dev commit. But .github/workflows/release.yml has no workflow_dispatch trigger. Its only triggers are a dev push filtered to paths the phase does not touch, and a v* tag push, which also fires the publish job (release.yml:435-436). So the plan never says how the five release.yml jobs can run at that exact commit without cutting a release.",
+      "failure_scenario": "The owner pushes dev at the phase's last commit. check.yml runs check and e2e. release.yml does not fire, because no listed path changed and there is no manual trigger. To get smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows at that commit, the owner must push a v* tag on it, which publishes a release. Or the owner commits a change to a listed path, which makes a different commit. /cad-verify's ci-status read of 'all seven at that commit' then cannot be met without a release, and the plan does not name this cost.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "91b8b19e",
+      "citation_missing": true,
+      "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+      "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd"
+    }
+  ]
+}

@@ -1,0 +1,81 @@
+{
+  "phase": "5",
+  "trigger": "plan",
+  "discriminator": "plan-176f8a9",
+  "round": 1,
+  "base": "176f8a9",
+  "head": "176f8a9",
+  "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+  "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/5/PLAN-2.md",
+      "line": 83,
+      "severity": "high",
+      "claim": "Plan 2 task 4 moves the shared helpers (http_manager_factory, apps.live_app, apps.unserved_login) onto network-only dialing while plan-3 files that still hand those helpers their own TCP-only fakes are not yet migrated, so `make check` goes red at this task. The transition rule (Context line 33) dual-serves only the shared fixtures' fakes, not a test file's own fakes.",
+      "failure_scenario": "Four cases. (1) tests/apply/test_http_apply.py:36-45: the file-local `once_refusing_http_daemon` is `fake_http.spawn` on TCP and goes to `http_manager_factory`, which now builds its HttpConfigClient on the network transport. Nothing is registered at that port, so the client gets httpx.ConnectError and `restore.apply` does not converge. (2) tests/api/test_control_failure_reads.py:98-130: `_resetting_daemon` is its own asyncio.start_server on a thread, and its port goes to `live_app`. That app now dials the network and is never reachable, so wait_for_api raises FixtureError. (3) tests/api/test_status_bands.py:81-98: `fake_metering.spawn` (TCP) goes through `unserved_login`. The lifespan's MeteringReader now uses the manager's opener (plan 1 task 7), so no frames arrive and wait_for_api fails. (4) tests/api/test_meter_feed_route.py:~190-205 fails the same way. All four stay red until plan 3 tasks 4 and 5, which breaks plan 2's 'make check green after every task'. Task 4's whole-suite guard check would also report them as red outright, not as guard errors.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "91b8b19e",
+      "citation_missing": true,
+      "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+      "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/5/PLAN-3.md",
+      "line": 201,
+      "severity": "high",
+      "claim": "Moving tests/api/test_control_failure_reads.py to a socketpair-backed in-process fake silently removes the TCP reset it tests. A zero-second SO_LINGER close on an AF_UNIX socketpair gives the peer a clean EOF, not ECONNRESET, so the test's premise is gone while its assertions stay green. The plan's stop-and-report trigger only fires when an assertion cannot be kept, so it does not catch this.",
+      "failure_scenario": "Checked on this host: on a socketpair, peer.setsockopt(SO_LINGER, pack('ii',1,0)), then read the command and close(), then the other end's recv() returns b'' with no error. `_serve_resetting` (test_control_failure_reads.py:90-95) works exactly that way under the `_close` knob. After migration the client sees a lost connection (EOF), never a reset. `test_a_reset_control_connection_does_not_show_the_user_the_socket_text` asserts `os.strerror(ECONNRESET) not in failure.text`, so it passes even against code that shows the user raw socket text. The test can no longer fail for the behavior it is named for, and this contradicts plan 1's Context claim (line 60) that the client's stream code runs 'unchanged over a real kernel stream'.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "91b8b19e",
+      "citation_missing": true,
+      "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+      "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/5/PLAN-4.md",
+      "line": 328,
+      "severity": "medium",
+      "claim": "Plan 4 task 4 checks only `check` and `e2e` against Success Criterion 6 ('the required CI jobs pass'). The roadmap's required set (Phase 1 SC4) also includes smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows, and this phase changes production code (hqptuner/desktop.py `answers`, every daemon-lane constructor) that those jobs run.",
+      "failure_scenario": "Plan 1 task 8 changes desktop.answers' socket factory, and plan 1 tasks 1-7 add network parameters to ControlClient, create_app, MeteringReader and discover. If one of those breaks the frozen desktop launch on macOS or Windows, or the lifecycle jobs against scripts/ci/daemon_standin.py, the phase's final check still passes because it reads only `check` and `e2e`. SC6 is then claimed met while a required job is red.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "91b8b19e",
+      "citation_missing": true,
+      "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+      "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/5/PLAN-1.md",
+      "line": 77,
+      "severity": "low",
+      "claim": "The port-uniqueness guarantee in plan 1 task 1 ('can never equal one apps.closed_port() returns ... by construction') is not met by the mechanism the plan gives as an example. apps.closed_port() binds, reads the number and closes its socket, so that number is free for a reservation socket bound later to take.",
+      "failure_scenario": "A test takes the `closed_port` fixture first (tests/support/apps.py:206-212 releases the port), then registers a portless fake. The network's reservation socket binds port 0 and the kernel can return the just-released number. The address the test expects to refuse is now registered and answers, so a refusal test reads a served fake. This is rare, but the plan says 'guaranteed by construction' and its example only guarantees the reverse order (reservation first, closed_port second).",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "91b8b19e",
+      "citation_missing": true,
+      "base_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd",
+      "head_id": "176f8a902ae40d966610cf4bf145fb0bfb46c5bd"
+    }
+  ]
+}
