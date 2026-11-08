@@ -1,9 +1,9 @@
 // Store suite for hqptuner/static/store/meter/loop.js: the meter loop paces the frames the feed queues out to the
 // one playhead and the spectrogram's history, one paint per animation frame of the Clock it is handed.
 //
-// The playhead's target is the end of the newest frame the feed has queued, less the effective delay: the playhead
-// stands there when the feed opens and at a break, moves toward it at every paint that finds it behind, never passes
-// it, and is null while the feed is closed. The loop runs, asking for animation frames, only while the feed is open
+// The playhead stands at the end of the newest frame the feed has queued, less the effective delay, when the feed opens
+// and at a break, moves on the paint's wall time at every paint after that, never passes the feed's edge, jumps by a
+// changed delay (a spectrum offset typed while frames are queued), and is null while the feed is closed. The loop runs, asking for animation frames, only while the feed is open
 // and the engine plays: while the engine is stopped it asks for none, and the playhead is null
 // (docs/superpowers/specs/meter-loop-idle-design.md, Modules). Every frame reaches the spectrogram's history once and in order, and the
 // frames a restart leaves behind go before the break frame, so the history runs from the break on.
@@ -163,16 +163,31 @@ for (const delay of DELAYS_S) {
     );
   });
 
-  test(`test_the_playhead_never_passes_the_feed_edge_less_a_${delay}_s_delay`, () => {
+  test(`test_after_a_burst_each_paint_moves_the_playhead_its_wall_time_at_a_${delay}_s_delay`, () => {
+    const seen = afterABurst(delay);
     assert.deepEqual(
-      afterABurst(delay).filter((s) => (s.at ?? NaN) > s.target),
+      seen.filter((s, i) => i > 0 && Math.abs((s.at ?? NaN) - (seen[i - 1].at ?? NaN) - PAINT_MS) > 1e-6),
       [],
     );
   });
+}
 
-  test(`test_the_playhead_reaches_the_feed_edge_less_a_${delay}_s_delay`, () => {
-    const seen = afterABurst(delay);
-    assert.equal(seen[PAINTS - 1].at, seen[PAINTS - 1].target);
+/** Spectrum offsets, s, a typed change runs from and to: a drop, then a raise, each larger than a paint. */
+const CHANGES_S = [
+  [0.3, 0.15],
+  [0.15, 0.3],
+];
+
+for (const [from, to] of CHANGES_S) {
+  test(`test_a_spectrum_offset_changed_from_${from}_s_to_${to}_s_moves_the_playhead_its_wall_time_and_the_change`, () => {
+    setSpectrumOffset(String(from));
+    feed(CONTIGUOUS_44K.slice(0, 5));
+    settle();
+    const before = playhead.value ?? NaN;
+    setSpectrumOffset(String(to));
+    advance(PAINT_MS);
+    const want = Math.min(before + PAINT_MS + (from - to) * SECOND_MS, feedEdge() ?? NaN);
+    assert.equal(same(playhead.value ?? NaN), same(want));
   });
 }
 
@@ -180,10 +195,9 @@ test("test_closing_the_feed_leaves_the_playhead_null", () => {
   feed(CONTIGUOUS_44K);
   settle();
   const before = playhead.value;
-  const edge = (feedEdge() ?? NaN) - DELAY_S * SECOND_MS;
   engineStatus.value = { ...engineStatus.value, metering: false };
   settle();
-  assert.deepEqual([before, playhead.value], [edge, null]);
+  assert.deepEqual([before !== null, playhead.value], [true, null]);
 });
 
 test("test_a_feed_opened_after_one_closed_moves_the_playhead_again", () => {
@@ -193,7 +207,7 @@ test("test_a_feed_opened_after_one_closed_moves_the_playhead_again", () => {
   settle();
   feed(CONTIGUOUS_44K);
   settle();
-  assert.equal(playhead.value, (feedEdge() ?? NaN) - DELAY_S * SECOND_MS);
+  assert.equal(playhead.value === null, false);
 });
 
 test("test_every_frame_reaches_the_spectrogram_history_once_and_in_order", () => {
@@ -241,8 +255,7 @@ test("test_when_the_engine_stops_playing_the_playhead_goes_null", () => {
   feed(CONTIGUOUS_44K);
   settle();
   const before = playhead.value;
-  const edge = (feedEdge() ?? NaN) - DELAY_S * SECOND_MS;
   poll({ state: STOPPED });
   settle();
-  assert.deepEqual([before, playhead.value], [edge, null]);
+  assert.deepEqual([before !== null, playhead.value], [true, null]);
 });

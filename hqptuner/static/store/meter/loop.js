@@ -9,12 +9,12 @@
 // frame was queued when the last paint decided, and the effective delay in playback ms; and applies it: the playhead
 // signal (store/meter/playhead.js) becomes the decision's playhead, the frames it consumed leave the queue, and its `to`
 // is where the next paint starts. A decision that restarts at a break carries `restart` out, so every view of playback
-// starts again there; nothing is smoothed across one. The decision is also handed where the playhead stood and the
-// wall time since the last paint, in ms.
+// starts again there; nothing is smoothed across one. The decision is also handed where the playhead stood, the delay
+// the last paint ran at and the wall time since the last paint, in ms.
 //
-// The playhead moves toward its target, the newest queued frame's end less the delay, on the loop's `dt`: wall time
-// sets how fast it moves and never where it stands. The loop reads wall time for one thing, the time since the last
-// paint, handed to the decision and kept for the painters as `dt`. A paint takes one decision whatever its lateness,
+// The playhead moves at wall speed, on the loop's `dt`, and jumps by a changed delay; it never passes the newest queued
+// frame's end. The loop reads wall time for one thing, the time since the last paint, handed to the decision and kept
+// for the painters as `dt`. A paint takes one decision whatever its lateness,
 // and drops consumed frames in place, so its work and its allocations do not grow with how late it is.
 //
 // The painters' side: before the consumed frames leave the queue, the paint folds the frames its
@@ -70,6 +70,8 @@ const queue = [];
 let end = /** @type {number | null} */ (null);
 /** Whether the queue's front frame was queued when the last paint decided. */
 let started = false;
+/** Playback, ms: the delay the last paint ran at; null when no paint has run since the feed opened. */
+let delayed = /** @type {number | null} */ (null);
 /**
  * The last paint, as the painters read it: its decision, null when no paint has run since the feed opened, whose
  * `first` and `last` index `queue` as it stood before the decision's `consumed` frames left it; `at`, wall time, ms on
@@ -116,6 +118,7 @@ function reset() {
   queue.length = 0;
   end = null;
   started = false;
+  delayed = null;
   painted.decision = null;
   painted.at = null;
   painted.dt = 0;
@@ -188,14 +191,9 @@ function paint(mine, now) {
   painted.dt = painted.at === null ? 0 : now - painted.at;
   painted.at = now;
   takeArrivals();
-  const d = pacePaint({
-    end,
-    playhead: playhead.peek(),
-    started,
-    frames: queue,
-    delay: effectiveDelay.peek() * MS_PER_S,
-    dt: painted.dt,
-  });
+  const delay = effectiveDelay.peek() * MS_PER_S;
+  const d = pacePaint({ end, playhead: playhead.peek(), delayed, started, frames: queue, delay, dt: painted.dt });
+  delayed = delay;
   show(d);
   apply(d);
   request(mine);

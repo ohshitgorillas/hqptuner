@@ -63,6 +63,12 @@ const SECOND_MS = 1000;
 /** The delay the cases run at unless they set none, in seconds: shorter than a run of LENGTHS sent three times. */
 const DELAY_S = 0.25;
 
+/** The delay, s, the held-back cases run at: past what one settle covers, so the playhead cannot reach the newest frame. */
+const HELD_BACK_S = 3.5;
+
+/** How many times LENGTHS is sent ahead of the held-back frame: music enough that the delay's playhead starts inside it. */
+const AHEAD = 40;
+
 /** Event lengths, samples at 44.1 kHz, in turn: 22.7, 17.3, 19.3 and 23.1 ms, two of each. */
 const LENGTHS = [1000, 1000, 765, 765, 850, 850, 1020, 1020];
 
@@ -220,16 +226,18 @@ test("test_while_the_feed_is_closed_no_painter_is_called", () => {
 });
 
 test("test_a_frame_the_delay_still_holds_back_stays_out_of_the_scene", () => {
+  setSpectrumOffset(String(HELD_BACK_S));
   const paints = subscribe();
-  run(QUIET, 3);
+  run(QUIET, AHEAD);
   follow([LOUD], LENGTHS[0]);
   settle();
   assert.equal(Math.max(...paints.map((p) => p.peak)), QUIET.peak);
 });
 
 test("test_a_held_back_frame_reaches_the_scene_once_a_paint_reaches_it", () => {
+  setSpectrumOffset(String(HELD_BACK_S));
   const paints = subscribe();
-  run(QUIET, 3);
+  run(QUIET, AHEAD);
   follow([LOUD], LENGTHS[0]);
   settle();
   const mark = paints.length;
