@@ -7,6 +7,9 @@ state machine and a measurement blob every run.
   set -a; source hqpcreds; set +a
   .venv/bin/python scripts/sweep.py http://127.0.0.1:8090 OUTDIR [--viewport WxH]...
 
+It logs in first with that pair, before any browser starts, and stops naming the login when it is refused or
+unanswered. Both browser contexts carry the login cookie, so the screenshots are of the app.
+
 Tabs come from the DOM (``.tab-nav button``), accents from ``/store/ui/theme.js``
 and hero MODE positions from the ``output_mode`` segment, so a dimension that
 grows in the app grows here without an edit. ``--viewport`` is repeatable and
@@ -59,6 +62,9 @@ from typing import Any
 from playwright.sync_api import Browser, Page, Playwright, sync_playwright
 from sweepplots import PLOTS_JS, derive_plots
 from sweepslide import SETTLE_MS, PlotPass, attach_console, slider_pass
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "ci"))
+from apilogin import LOGIN_COOKIE, LoginFailedError, login_cookie
 
 DEFAULT_VIEWPORT = "1280x900"
 MODE_SEL = '[data-k="output_mode"] .segment button'
@@ -341,10 +347,12 @@ def plan_modes(page: Page, *, dirty: bool) -> tuple[list[dict[str, Any] | None],
     return modes, start
 
 
-def sweep(browser: Browser, args: argparse.Namespace) -> None:
-    """Open the app once, sweep every state, run the plot pass, put the hero MODE back, and print the staged buffer."""
+def sweep(browser: Browser, args: argparse.Namespace, login: str) -> None:
+    """Log the browser in with ``login``, sweep every state, run the plot pass, restore the MODE, print the buffer."""
     width, height = parse_viewport(args.viewport[0])
-    page = browser.new_page(viewport={"width": width, "height": height})
+    context = browser.new_context(viewport={"width": width, "height": height})
+    context.add_cookies([{"name": LOGIN_COOKIE, "value": login, "url": args.url}])
+    page = context.new_page()
     run = Run(page=page, outdir=args.outdir, tabs=[])
     attach_console(page, run.console)
     page.goto(args.url, wait_until="networkidle")
@@ -359,7 +367,7 @@ def sweep(browser: Browser, args: argparse.Namespace) -> None:
         sweep_viewport(run, accents, modes, viewport)
     if start:
         select_mode(page, start)
-    plan = PlotPass(url=args.url, tabs=run.tabs, outdir=args.outdir, dirty=dirty)
+    plan = PlotPass(url=args.url, tabs=run.tabs, outdir=args.outdir, dirty=dirty, login=login)
     for viewport in args.viewport:
         print(f"plot pass at {viewport}, device scale factor 3:")
         slider_pass(browser, plan, parse_viewport(viewport))
@@ -370,15 +378,16 @@ def main(argv: list[str]) -> int:
     """Parse arguments, run one sweep in one browser session, and close the browser after."""
     args = parse_args(argv)
     args.outdir.mkdir(parents=True, exist_ok=True)
-    errors: list[CliError] = []
+    errors: list[CliError | LoginFailedError] = []
     try:
+        login = login_cookie(args.url)
         with sync_playwright() as pw:
             browser = launch(pw)
             try:
-                sweep(browser, args)
+                sweep(browser, args, login)
             finally:
                 browser.close()
-    except CliError as exc:
+    except (CliError, LoginFailedError) as exc:
         errors.append(exc)
     if errors:
         print(errors[0], file=sys.stderr)

@@ -26,15 +26,18 @@ from __future__ import annotations
 
 import json
 import math
+import sys
 from dataclasses import dataclass
 from itertools import product
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from sweepplots import PLOTS_JS, derive_plots, frame_deltas
 
-if TYPE_CHECKING:
-    from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent / "ci"))
+from apilogin import LOGIN_COOKIE
 
+if TYPE_CHECKING:
     from playwright.sync_api import Browser, ConsoleMessage, ElementHandle, Error, Page, Request, Response
 
 # Status at or above which a response counts as a failed request rather than a served one.
@@ -71,12 +74,16 @@ CARD_JS = "el => el.closest('[data-card]') || el.closest('.primer-graph') || el.
 
 @dataclass(frozen=True)
 class PlotPass:
-    """One plot pass's inputs beyond browser and viewport: URL, tabs, output directory, whether staging is refused."""
+    """One plot pass's inputs beyond browser and viewport: URL, tabs, output directory, whether staging is refused.
+
+    ``login`` is the login cookie's value; the pass's own browser context shares no cookies with the sweep's.
+    """
 
     url: str
     tabs: list[dict[str, str]]
     outdir: Path
     dirty: bool
+    login: str
 
 
 @dataclass(frozen=True)
@@ -257,6 +264,7 @@ def slider_pass(browser: Browser, plan: PlotPass, viewport: tuple[int, int]) -> 
     context = browser.new_context(
         viewport={"width": viewport[0], "height": viewport[1]}, device_scale_factor=CROP_SCALE
     )
+    context.add_cookies([{"name": LOGIN_COOKIE, "value": plan.login, "url": plan.url}])
     page = context.new_page()
     console: list[dict[str, Any]] = []
     attach_console(page, console)
