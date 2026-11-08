@@ -190,7 +190,7 @@ def _ops() -> Ops:
 
 # Wide by necessity: the probe body needs both daemon handles plus all three
 # config snapshots it compares against, which share no identity to bundle under.
-async def _probe(  # noqa: PLR0913
+async def _probe(
     http: HttpConfigClient,
     raw: httpx.AsyncClient,
     *,

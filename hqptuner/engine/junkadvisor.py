@@ -142,7 +142,7 @@ class SpurHolder:
 
 # Owner-approved for this site: the junk run is a sixth argument beside the window curve, its geometry and the
 # held spur set, and none of the five folds into another.
-def classify(  # noqa: PLR0913
+def classify(
     min_levels_db: list[float],
     bandwidth: float,
     *,
@@ -169,7 +169,7 @@ def classify(  # noqa: PLR0913
 
 
 # Owner-approved for this site: the same six arguments ``classify`` forwards, the junk run among them.
-def verdicts(  # noqa: PLR0913
+def verdicts(
     min_levels_db: list[float],
     bandwidth: float,
     *,
