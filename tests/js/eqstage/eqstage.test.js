@@ -491,6 +491,20 @@ test("test_a_refused_login_rejects", async () => {
   await assert.rejects(loggedInFetch(URL_BASE, PAIR, gate.fetch), /login at .* failed: 401/);
 });
 
+test("test_an_unanswered_login_rejects_naming_the_login_url", async () => {
+  const unanswered = /** @type {FetchImpl} */ (
+    /** @type {unknown} */ (
+      async () => {
+        throw new TypeError("fetch failed");
+      }
+    )
+  );
+  await assert.rejects(loggedInFetch(URL_BASE, PAIR, unanswered), (err) => {
+    assert.match(String(/** @type {Error} */ (err).message), new RegExp(`login at ${URL_BASE}/api/login failed`));
+    return true;
+  });
+});
+
 test("test_a_refused_login_sends_no_request_but_the_login", async () => {
   const gate = gatedWire(stageWire(), { refuse: true });
   await rejected(loggedInFetch(URL_BASE, PAIR, gate.fetch));

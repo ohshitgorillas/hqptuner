@@ -104,11 +104,17 @@ export function credentialsFromEnv(env) {
  */
 export async function loggedInFetch(base, credentials, fetchImpl) {
   const url = `${base}/api/login`;
-  const res = await fetchImpl(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ ...credentials, remember: false }),
-  });
+  let res;
+  try {
+    res = await fetchImpl(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...credentials, remember: false }),
+    });
+  } catch (cause) {
+    const reason = cause instanceof Error ? cause.message : String(cause);
+    throw new Error(`login at ${url} failed: no answer (${reason})`, { cause });
+  }
   if (!res.ok) throw new Error(`login at ${url} failed: ${res.status} ${res.statusText}`);
   const header = res.headers.getSetCookie().find((c) => c.startsWith(`${LOGIN_COOKIE}=`));
   if (!header) throw new Error(`login at ${url} failed: answered ${res.status} with no ${LOGIN_COOKIE} cookie`);
