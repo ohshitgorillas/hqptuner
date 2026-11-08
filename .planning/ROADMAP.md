@@ -10,7 +10,7 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [x] **Phase 2: Windows network access** - a fresh Windows install is reachable from other devices
 - [x] **Phase 3: Windows upgrade install** - installing over an existing version leaves a working app
 - [ ] **Phase 4: API exposure and authentication** - the API answers only callers it should, from the networks it should
-- [ ] **Phase 5: Offline tests reach their fake daemons in-process** - no offline test opens a real network connection to a fake daemon
+- [x] **Phase 5: Offline tests reach their fake daemons in-process** - no offline test opens a real network connection to a fake daemon
 - [ ] **Phase 6: Connection host and stored credential** - the stored daemon credential reaches only the daemon the user chose
 - [ ] **Phase 7: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
 - [ ] **Phase 8: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole

@@ -123,7 +123,7 @@ severity: major
 
 ### 13. CI job smoke-windows passes
 expected: Required job `smoke-windows` concludes success on the phase's last dev commit (ci: smoke-windows)
-status: fail
+status: skipped
 job: smoke-windows
 commit: cc21530c32fd3dff3633e378a46a488eb10503a3
 first_pass: fail
@@ -133,6 +133,7 @@ reported: missing - release.yml job not run on the phase's last commit
 severity: major
 cause: smoke-windows concluded failure at cc21530c: "FAIL: step 4: GET /api/discover answered 401" (packaging/windows/smoke.sh:648). Pre-existing, not phase 5: a666a057 (phase 4 plan 1) put every /api route but health and login behind the login gate, and the same failure is on 1f585b05 before phase 5. The fix is already planned as phase 4 PLAN-2 task 5 ("smoke-windows logs in before it asks for discovery"), which the roadmap runs after phase 5.
 fix: routed to phase 4 PLAN-2 task 5
+reason: Owner decision (2026-11-07): set aside so phase 5 completes. The failure (GET /api/discover answered 401) comes from phase 4 plan 1's login gate, not phase 5; its fix stays planned as phase 4 PLAN-2 task 5. Not CI-verified on Windows.
 
 ### 14. The clock gate's reading no longer depends on how busy the machine running the suite is
 expected: missing - the goal names this outcome but no automated check exercises it; SUMMARY concedes no load comparison was run
@@ -162,8 +163,8 @@ fix: 68e63490, retest
 
 total: 15
 passed: 13
-failed: 1
+failed: 0
 pending: 0
-skipped: 1
+skipped: 2
 blocked: 0
 reworked: 10
