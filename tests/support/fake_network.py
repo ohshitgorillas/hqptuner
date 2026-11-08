@@ -16,6 +16,8 @@ import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
 
+from hqptuner.core.network import Network
+
 #: The shape of a stream fake, as ``asyncio.start_server`` takes it.
 StreamCallback = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
@@ -97,3 +99,7 @@ async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, async
     _RUNNING.add(task)
     task.add_done_callback(_RUNNING.discard)
     return await asyncio.open_connection(sock=ours)
+
+
+#: The network the suite hands the manager and the app: every dial it makes is answered by a fake registered here.
+NETWORK = Network(open_stream=open_stream)

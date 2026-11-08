@@ -32,6 +32,7 @@ from hqptuner.core.clock import Clock
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.login import LoginSecret
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.network import Network
 from hqptuner.metadata import StaticMetadata
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
@@ -42,11 +43,12 @@ from hqptuner.presets.store.narrowing import NarrowingStore
 log = logging.getLogger(__name__)
 
 
-def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI:
+def create_app(cfg: Config | None = None, clock: Clock | None = None, network: Network | None = None) -> FastAPI:
     """Build the FastAPI app: shared state, the poll and metering background tasks, every router, and the SPA mount.
 
     Missing hqplayerd credentials are not fatal — the 8088 client is simply absent and the routes needing it 503.
-    ``clock`` is what the manager and its lanes pace on; production takes the default.
+    ``clock`` is what the manager and its lanes pace on and ``network`` is how they open a connection to the daemon;
+    production takes the defaults.
     """
     cfg = cfg or Config()
     static = StaticMetadata(cfg.data_dir)
@@ -62,7 +64,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None) -> FastAPI
     http_client = build_http_client(cfg)
     if http_client is None:
         log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
-    manager = ConnectionManager(cfg, http_client, clock)
+    manager = ConnectionManager(cfg, http_client, clock, network)
 
     app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
     errors.install(app)

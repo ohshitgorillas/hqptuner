@@ -27,6 +27,7 @@ from hqptuner.config import Config
 from hqptuner.core import engineread, loader
 from hqptuner.core.applyops import ApplyOps
 from hqptuner.core.clock import Clock
+from hqptuner.core.network import Network
 from hqptuner.core.readings import Readings
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import (
@@ -70,11 +71,19 @@ def _bug(stage: str) -> None:
 class ConnectionManager:
     """Hold the daemon connection and the last loaded snapshot every API read and write lane serves from."""
 
-    def __init__(self, cfg: Config, http_client: HttpConfigClient | None = None, clock: Clock | None = None) -> None:
+    def __init__(
+        self,
+        cfg: Config,
+        http_client: HttpConfigClient | None = None,
+        clock: Clock | None = None,
+        network: Network | None = None,
+    ) -> None:
         """Build the audit log, preset and apply collaborators, and start unreachable with every snapshot empty."""
         self.cfg = cfg
         # What every wait here and in the lanes paces on; the suite hands in one it advances.
         self.clock = clock or Clock()
+        # How every connection to the daemon is opened; the suite hands in one whose fakes answer in process.
+        self.network = network or Network()
         self._http = http_client
         # 8088 clients a runtime credential change replaced, closed at shutdown. See the `http_client` setter.
         self._retired: list[HttpConfigClient] = []

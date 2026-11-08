@@ -40,7 +40,13 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     once this body has run to its end and the 8088 configuration lane answered inside it.
     """
     cfg = mgr.cfg
-    client = ControlClient(cfg.hqp_host, cfg.hqp_control_port, cfg.request_timeout, deadline=mgr.clock)
+    client = ControlClient(
+        cfg.hqp_host,
+        cfg.hqp_control_port,
+        cfg.request_timeout,
+        deadline=mgr.clock,
+        opener=mgr.network.open_stream,
+    )
     await client.connect()
     try:
         info = await _handshake(mgr, client)

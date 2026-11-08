@@ -337,7 +337,7 @@ With it on, auto-pilot moves the junk filter to what the playing track's signatu
 
 ### 11.2 `core/manager.py` is the composition root
 
-It holds construction, the lifecycle flags, the supervisor loop, the clock seams and the client accessors, and nothing that fills a reading on demand. Connect and poll steps go to `core/loader.py`, post-restart resyncs and waits to `lanes/settle.py`, backup-archive readers to `presets/fileconfig.py`, engine readers to `core/engineread.py`, and anything a lane can own to that lane. An addition to the manager names which of those it could not live in and why.
+It holds construction, the lifecycle flags, the supervisor loop, the clock and network seams and the client accessors, and nothing that fills a reading on demand. Connect and poll steps go to `core/loader.py`, post-restart resyncs and waits to `lanes/settle.py`, backup-archive readers to `presets/fileconfig.py`, engine readers to `core/engineread.py`, and anything a lane can own to that lane. An addition to the manager names which of those it could not live in and why.
 
 ## 12. Provenance
 
