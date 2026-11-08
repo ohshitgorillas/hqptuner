@@ -7,6 +7,7 @@ Policy: docs/testing.md — one condition per test, behavior only.
 import asyncio
 from collections.abc import AsyncIterator
 
+import fake_network
 import pytest
 from narrow import present
 
@@ -41,14 +42,11 @@ async def _serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> 
 
 @pytest.fixture
 async def client() -> AsyncIterator[ControlClient]:
-    server = await asyncio.start_server(_serve, "127.0.0.1", 0)
-    port = server.sockets[0].getsockname()[1]
-    c = ControlClient("127.0.0.1", port, timeout=2.0)
-    await c.connect()
-    yield c
-    await c.close()
-    server.close()
-    await server.wait_closed()
+    with fake_network.serving(_serve) as port:
+        c = ControlClient("127.0.0.1", port, timeout=2.0, opener=fake_network.open_stream)
+        await c.connect()
+        yield c
+        await c.close()
 
 
 async def test_get_info_returns_daemon_identity(client: ControlClient) -> None:

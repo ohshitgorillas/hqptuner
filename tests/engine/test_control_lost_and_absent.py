@@ -14,6 +14,7 @@ pointed at a port nothing listens on and never connected.
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -32,7 +33,7 @@ COMMAND = "GetInfo"
 async def _closed_under_command_text(daemon: DaemonFactory) -> str:
     """The error a command gets when the daemon closes the connection under it."""
     port, _log, _state = await daemon(_close=COMMAND)
-    client = ControlClient(HOST, port, timeout=COMMAND_TIMEOUT)
+    client = ControlClient(HOST, port, timeout=COMMAND_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         with pytest.raises(ControlError) as caught:
@@ -44,7 +45,7 @@ async def _closed_under_command_text(daemon: DaemonFactory) -> str:
 
 async def _no_connection_text(port: int) -> str:
     """The error a command gets from a client that has no connection to HQPlayer."""
-    client = ControlClient(HOST, port, timeout=COMMAND_TIMEOUT)
+    client = ControlClient(HOST, port, timeout=COMMAND_TIMEOUT, opener=NETWORK.open_stream)
     with pytest.raises(ControlError) as caught:
         await client.get_info()
     return str(caught.value)

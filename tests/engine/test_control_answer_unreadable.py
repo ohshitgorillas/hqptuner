@@ -17,6 +17,7 @@ recognising either answer reads the close and fails at once rather than waiting 
 import asyncio
 from collections.abc import Awaitable, Callable
 
+import fake_network
 import pytest
 from virtual_deadline import VirtualDeadline
 
@@ -77,18 +78,15 @@ async def _answer_endlessly(reader: asyncio.StreamReader, writer: asyncio.Stream
 
 async def _report(handler: Handler, command: str) -> str:
     """The text of the error the client raises when ``handler``'s daemon answers ``command``; empty if none."""
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
-    port = int(server.sockets[0].getsockname()[1])
-    client = ControlClient("127.0.0.1", port, TIMEOUT, deadline=VirtualDeadline())
-    try:
-        await client.connect()
-        await client.request(f"<{command}/>")
-    except ControlError as exc:
-        return str(exc)
-    finally:
-        await client.close()
-        server.close()
-        await server.wait_closed()
+    with fake_network.serving(handler) as port:
+        client = ControlClient("127.0.0.1", port, TIMEOUT, deadline=VirtualDeadline(), opener=fake_network.open_stream)
+        try:
+            await client.connect()
+            await client.request(f"<{command}/>")
+        except ControlError as exc:
+            return str(exc)
+        finally:
+            await client.close()
     return ""
 
 

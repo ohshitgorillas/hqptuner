@@ -18,6 +18,7 @@ import asyncio
 import pytest
 from conftest import DaemonFactory
 from fake_control import DEFAULTS
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -49,7 +50,7 @@ async def test_a_state_read_queued_behind_one_the_daemon_dropped_fails_as_contro
     daemon: DaemonFactory, knobs: dict[str, str], expected: list[object]
 ) -> None:
     port, _log, _state = await daemon(**knobs)
-    client = ControlClient("127.0.0.1", port, timeout=READ_TIMEOUT)
+    client = ControlClient("127.0.0.1", port, timeout=READ_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         results = await asyncio.gather(client.get_state(), client.get_state(), return_exceptions=True)

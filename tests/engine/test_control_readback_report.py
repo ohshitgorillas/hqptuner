@@ -14,6 +14,7 @@ import re
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -36,7 +37,7 @@ async def _mismatch_report(daemon: DaemonFactory) -> str | None:
         _deaf=" ".join(setter for _attribute, setter, _sent, _kept in SETTINGS),
         **{attribute: kept for attribute, _setter, _sent, kept in SETTINGS},
     )
-    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT)
+    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         for _attribute, setter, sent, _kept in SETTINGS:

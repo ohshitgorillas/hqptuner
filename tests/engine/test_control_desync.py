@@ -19,6 +19,7 @@ from contextlib import suppress
 import pytest
 from conftest import DaemonFactory
 from fake_control import CommandLog
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -50,7 +51,7 @@ async def test_a_state_read_reaches_the_daemon_after_a_refusal_but_not_after_a_s
     # The failed command is produced by the daemon's knob, not asserted here: the
     # question is only what the daemon receives NEXT on that same connection.
     port, log, _state = await daemon(**{knob: FAULT_COMMAND})
-    client = ControlClient("127.0.0.1", port, timeout=STALL_TIMEOUT)
+    client = ControlClient("127.0.0.1", port, timeout=STALL_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         with suppress(ControlError):

@@ -13,6 +13,7 @@ import re
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 from virtual_deadline import VirtualDeadline
 
 from hqptuner.engine.control import ControlClient
@@ -34,7 +35,7 @@ async def _unanswered_report(daemon: DaemonFactory, command: str, seconds: float
     """The text of the error a client with a ``seconds`` timeout raises when HQPlayer never answers ``command``."""
     port, _log, _state = await daemon(_stall=command)
     deadline = VirtualDeadline()
-    client = ControlClient("127.0.0.1", port, seconds, deadline=deadline)
+    client = ControlClient("127.0.0.1", port, seconds, deadline=deadline, opener=NETWORK.open_stream)
     await client.connect()
     deadline.fall_silent()
     try:
