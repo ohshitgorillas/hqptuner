@@ -1,9 +1,10 @@
 """Fixture plugin (registered from conftest.py): fake daemons themselves.
 
-The Control API fakes served in the test's own event loop, their pre-baked
-variants (split filter slots, garbled metadata, disabled volume), the threaded
-ports built on conftest's `spawn_threaded_daemon`, the port-8088 HTTP config
-fakes from `fake_http`, and the fake 4322 metering streams."""
+The Control API fakes registered on the in-process network (`fake_network`), their
+pre-baked variants (split filter slots, garbled metadata, disabled volume), the
+ports conftest's `spawn_threaded_daemon` registers for tests whose app runs in a
+`TestClient`, and the port-8088 HTTP config fakes from `fake_http`. None holds a
+listener or a thread."""
 
 import asyncio
 import contextlib
@@ -22,17 +23,13 @@ from hqptuner.engine.control import ControlClient
 
 
 @pytest.fixture
-async def live_daemon_port() -> AsyncIterator[int]:
-    server = await asyncio.start_server(serve, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    with fake_network.serving(serve, "127.0.0.1", port):
+def live_daemon_port() -> Iterator[int]:
+    with fake_network.serving(serve) as port:
         yield port
-    server.close()
-    await server.wait_closed()
 
 
 @pytest.fixture
-async def daemon() -> AsyncIterator[DaemonFactory]:
+def daemon() -> Iterator[DaemonFactory]:
     """Fake daemons on demand, each with its own recorded traffic and its own
     State. Keyword arguments are the State overrides the fixtures above bake in
     one apiece: ``daemon(rate="2", _deaf="SetMode")`` pins index 2 and never lands
@@ -42,23 +39,17 @@ async def daemon() -> AsyncIterator[DaemonFactory]:
     live State, shared across its connections — writing to it is how a test says
     something changed on the daemon's side of the wire that no command caused,
     which is the only way to express a source change under ``[source]`` mode."""
-    servers: list[asyncio.Server] = []
     with contextlib.ExitStack() as registered:
 
-        async def spawn(**overrides: str) -> tuple[int, CommandLog, dict[str, str]]:
+        def spawn(**overrides: str) -> Awaitable[tuple[int, CommandLog, dict[str, str]]]:
+            # Registered before it is returned; the awaitable only hands the result over, which is the shape every
+            # caller awaits.
             log: CommandLog = []
             state = {**DEFAULTS, **overrides}
             handler = functools.partial(serve_shared, log=log, state=state)
-            server = await asyncio.start_server(handler, "127.0.0.1", 0)
-            servers.append(server)
-            port = int(server.sockets[0].getsockname()[1])
-            registered.enter_context(fake_network.serving(handler, "127.0.0.1", port))
-            return port, log, state
+            return asyncio.sleep(0, (registered.enter_context(fake_network.serving(handler)), log, state))
 
         yield spawn
-    for server in servers:
-        server.close()
-        await server.wait_closed()
 
 
 @pytest.fixture
@@ -77,15 +68,11 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
     active_* must be recovered by dropping the child."""
     bad = '<metadata artist="A&B" album="Foo <Bar> Baz"/>'
     handler = functools.partial(serve, overrides={"_metadata": bad})
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    with fake_network.serving(handler, "127.0.0.1", port):
+    with fake_network.serving(handler) as port:
         client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
         await client.connect()
         yield client
         await client.close()
-    server.close()
-    await server.wait_closed()
 
 
 @pytest.fixture
@@ -93,15 +80,11 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     """A fake daemon with volume control disabled (VolumeRange enabled=0), so a
     Volume write is rejected — the live-slider gray/error case."""
     handler = functools.partial(serve, overrides={"_vol_enabled": "0"})
-    server = await asyncio.start_server(handler, "127.0.0.1", 0)
-    port: int = server.sockets[0].getsockname()[1]
-    with fake_network.serving(handler, "127.0.0.1", port):
+    with fake_network.serving(handler) as port:
         client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
         await client.connect()
         yield client
         await client.close()
-    server.close()
-    await server.wait_closed()
 
 
 #: Build a client whose daemon reports the given level back from `State`, or, for
@@ -144,7 +127,7 @@ def threaded_daemon_port() -> Iterator[int]:
 
 @pytest.fixture
 def threaded_disabled_volume_port() -> Iterator[int]:
-    """Threaded daemon with volume control disabled — a Volume write is refused."""
+    """Registered daemon with volume control disabled — a Volume write is refused."""
     yield from spawn_threaded_daemon({"_vol_enabled": "0"})
 
 
@@ -153,37 +136,37 @@ def threaded_disabled_volume_port() -> Iterator[int]:
 
 @pytest.fixture
 def http_daemon() -> Iterator[dict[str, Any]]:
-    yield from fake_http.spawn(fake_http.state(), networked=True)
+    yield from fake_http.spawn(fake_http.state(), in_process=True)
 
 
 @pytest.fixture
 def stale_http_daemon() -> Iterator[dict[str, Any]]:
     # serves the pre-restart archive for one backup read before catching up
-    yield from fake_http.spawn(fake_http.state(_lag=1), networked=True)
+    yield from fake_http.spawn(fake_http.state(_lag=1), in_process=True)
 
 
 @pytest.fixture
 def clamping_http_daemon() -> Iterator[dict[str, Any]]:
     # rewrites the startup volume into the volume range on every restore, so a
     # field no apply ever stages comes back different from what was uploaded
-    yield from fake_http.spawn(fake_http.state(_clamps=True, defaults_volume="-60", volume_min="-40"), networked=True)
+    yield from fake_http.spawn(fake_http.state(_clamps=True, defaults_volume="-60", volume_min="-40"), in_process=True)
 
 
 @pytest.fixture
 def dying_http_daemon() -> Iterator[dict[str, Any]]:
     # accepts the restore, then goes unreachable and never returns
-    yield from fake_http.spawn(fake_http.state(_die=True), networked=True)
+    yield from fake_http.spawn(fake_http.state(_die=True), in_process=True)
 
 
 @pytest.fixture
 def restore_refusing_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses every POST /restore: the daemon that is still restarting when a
     # write lands on it and never recovers inside the deadline
-    yield from fake_http.spawn(fake_http.state(_restore_refusals=99), networked=True)
+    yield from fake_http.spawn(fake_http.state(_restore_refusals=99), in_process=True)
 
 
 @pytest.fixture
 def restore_recovering_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses the first two POST /restore arrivals, then accepts — the restart
     # window a retrying lane is supposed to ride through
-    yield from fake_http.spawn(fake_http.state(_restore_refusals=2), networked=True)
+    yield from fake_http.spawn(fake_http.state(_restore_refusals=2), in_process=True)

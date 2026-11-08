@@ -1,5 +1,5 @@
 """Shared fixtures over the two fake daemons (docs/testing.md — fakes speak the
-wire protocol, over a real socket).
+wire protocol, over the in-process network).
 
 The Control API fake itself is `fake_control`; the port-8088 HTTP fake is
 `fake_http`. The fixture families over them live in the plugin modules
@@ -11,17 +11,15 @@ the type aliases) — `live_app`/`closed_port`/`wait_for_api`/`advance_app`/
 fixture below) live in `apps` now, imported from there directly by every test
 module that wants one — and the manager fixtures built on them."""
 
-import asyncio
 import contextlib
 import functools
 import os
 import socket
 import struct
-import threading
 from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator, Mapping
 from pathlib import Path
 from types import MappingProxyType
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import apps
 import fake_network
@@ -35,6 +33,9 @@ from virtual_clock import VirtualClock
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+
+if TYPE_CHECKING:
+    import asyncio
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
@@ -243,12 +244,12 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
         await http.aclose()
 
 
-# --- the same control-daemon fake, served from a background thread ----------
+# --- the same control-daemon fake, registered for a sync test --------------
 # `TestClient` runs the app (and its ConnectionManager) inside its own thread's
-# event loop, where the in-loop asyncio fakes above are unreachable: their
-# server only accepts while the test's loop is running, and it is parked for
-# the duration of a sync test body. These serve the identical `serve` protocol
-# from a dedicated thread over real TCP, reachable from any loop.
+# event loop, where the in-loop fakes above are unreachable from a sync test
+# body. `spawn_threaded_daemon` registers the identical `serve` protocol on the
+# in-process network at a port number of its own; the fake answers on whichever
+# loop dials it, so it needs no thread and no listener.
 
 
 def spawn_threaded_daemon(
@@ -263,24 +264,14 @@ def spawn_threaded_daemon(
     # likewise, so a sync test can watch the daemon's side of the wire.
     # `host`/`bind_port` put daemons at two loopback ADDRESSES on one port number,
     # which is what a test of which address the app dials needs; the defaults
-    # keep every existing caller on an ephemeral 127.0.0.1 port.
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_forever, daemon=True)
-    thread.start()
+    # keep every existing caller on a port the network draws at 127.0.0.1.
     handler = (
         functools.partial(serve, overrides=overrides, log=log)
         if state is None
         else functools.partial(serve_shared, state=state, log=log)
     )
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
-    port: int = server.sockets[0].getsockname()[1]
-    with fake_network.serving(handler, host, port):
+    with fake_network.serving(handler, host, bind_port) as port:
         yield port
-    loop.call_soon_threadsafe(server.close)
-    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
-    loop.call_soon_threadsafe(loop.stop)
-    thread.join()
-    loop.close()
 
 
 # --- a manager wired to the fake HTTP config daemon -------------------------

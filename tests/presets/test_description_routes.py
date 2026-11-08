@@ -38,7 +38,7 @@ from typing import Any
 import httpx
 import pytest
 from apps import log_in, unserved_login
-from fake_network import NETWORK
+from fake_network import NETWORK, http_transport
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -283,7 +283,8 @@ def daemon_backup(http_daemon: dict[str, Any]) -> dict[str, bytes]:
     daemon, not from another trip through HQPTuner: a backup that mangled a
     member on every call would agree with itself while the user's
     `data/library.xml` came back wrong."""
-    with httpx.Client(base_url=f"http://127.0.0.1:{http_daemon['_port']}") as raw:
+    transport = http_transport("127.0.0.1", http_daemon["_port"])
+    with httpx.Client(base_url=f"http://127.0.0.1:{http_daemon['_port']}", transport=transport) as raw:
         return members(raw.get("/backup/settings.zip").content)
 
 

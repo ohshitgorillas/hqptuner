@@ -17,12 +17,6 @@ responder up at the address it sends to and queues that table's reply for the ex
 address as the sender, so a search reads it on its next pass. A target nobody answers at, the multicast group
 included, is silent.
 
-A fake that listens on a real TCP port announces its loopback address here for as long as it listens. A dial of an
-announced address that nothing in process is registered at goes over real TCP, in the stream opener and in the async
-HTTP transport, per dial and per request; an address in process wins over an announced one. The knock, the
-synchronous HTTP transport and the datagram endpoint never forward. An address neither registered nor announced is
-refused in process.
-
 The 8088 half has no socket at all. A fake is a function from the request bytes to the response bytes, and the
 network's transport turns each ``httpx.Request`` into those bytes, hands them over and reads the answer back into an
 ``httpx.Response``, inline on the thread that sent the request. An address nothing serves, or one withdrawn, raises
@@ -43,7 +37,7 @@ import httpx
 
 from hqptuner.core.network import Network
 
-#: The shape of a stream fake, as ``asyncio.start_server`` takes it.
+#: The shape of a stream fake: the callback an asyncio server runs for each connection.
 StreamCallback = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
 #: The shape of an 8088 fake: the bytes of one HTTP/1.1 request in, the bytes the daemon writes back out.
@@ -57,7 +51,6 @@ _STREAMS: dict[tuple[str, int], StreamCallback] = {}
 _HTTP: dict[tuple[str, int], HttpFake] = {}
 _DATAGRAMS: dict[tuple[str, int], Mapping[bytes, bytes]] = {}
 _CLOSED_PORTS: set[int] = set()
-_ANNOUNCED: set[tuple[str, int]] = set()
 #: For each live fake end, by file descriptor, the caller's end of its pair.
 _PEERS: dict[int, socket.socket] = {}
 #: Fake ends still running, held so the loop does not drop a task mid-flight.
@@ -132,18 +125,6 @@ def responding(
     return _registered(_DATAGRAMS, replies, host, port)
 
 
-def announce(host: str, port: int) -> None:
-    """Say a fake listens on real TCP at ``host`` and ``port``, so a dial nothing in process answers is forwarded."""
-    with _LOCK:
-        _ANNOUNCED.add((host, port))
-
-
-def withdraw(host: str, port: int) -> None:
-    """Say the TCP fake at ``host`` and ``port`` has stopped listening."""
-    with _LOCK:
-        _ANNOUNCED.discard((host, port))
-
-
 def withdraw_http(host: str, port: int) -> None:
     """Take the 8088 fake at ``host`` and ``port`` away, so every later request meets a refused connection."""
     with _LOCK:
@@ -183,9 +164,6 @@ async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, async
     """Dial ``host`` and ``port`` in process: the streams of the caller's end of a fresh connected pair."""
     with _LOCK:
         callback = _STREAMS.get((host, port))
-        forwarded = (host, port) in _ANNOUNCED
-    if callback is None and forwarded:
-        return await asyncio.open_connection(host, port)
     if callback is None:
         raise ConnectionRefusedError(111, "Connection refused")
     ours, theirs = socket.socketpair()
@@ -281,31 +259,9 @@ def _answer(host: str, port: int, request: httpx.Request) -> httpx.Response:
     return _response(fake(_request_bytes(request)), request)
 
 
-class _Transport(httpx.MockTransport):
-    """Answers from the 8088 registry for a sync and an async client; an async request to an announced address that
-    nothing in process serves goes over real TCP instead."""
-
-    def __init__(self, host: str, port: int) -> None:
-        super().__init__(functools.partial(_answer, host, port))
-        self._address = (host, port)
-        self._tcp: httpx.AsyncHTTPTransport | None = None
-
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
-        with _LOCK:
-            forwarded = self._address in _ANNOUNCED and self._address not in _HTTP
-        if not forwarded:
-            return await super().handle_async_request(request)
-        self._tcp = self._tcp or httpx.AsyncHTTPTransport()
-        return await self._tcp.handle_async_request(request)
-
-    async def aclose(self) -> None:
-        if self._tcp is not None:
-            await self._tcp.aclose()
-
-
 def http_transport(host: str, port: int) -> httpx.MockTransport:
     """A fresh transport for the 8088 address, answering both an async and a sync client."""
-    return _Transport(host, port)
+    return httpx.MockTransport(functools.partial(_answer, host, port))
 
 
 #: The network the suite hands the manager and the app: every dial it makes is answered by a fake registered here.
