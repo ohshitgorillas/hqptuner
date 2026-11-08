@@ -6,6 +6,7 @@ hands it and appends what was asked of it to one shared log, so a test reads the
 
 from __future__ import annotations
 
+import functools
 import inspect
 import io
 import ipaddress
@@ -16,6 +17,7 @@ from typing import TYPE_CHECKING
 from urllib.parse import urlsplit
 
 import fake_http
+import fake_network
 import httpx
 import pytest
 from fastapi import FastAPI
@@ -460,9 +462,22 @@ def speaking(raw: bytes) -> type[BaseHTTPRequestHandler]:
     return Handler
 
 
+def over_the_network(url: str, *, timeout: float) -> httpx.Response:
+    """``httpx.get`` on the suite's in-process network: the request reaches the fake served at the URL's address."""
+    host, _, port = urlsplit(url).netloc.rpartition(":")
+    transport = fake_network.http_transport(host, int(port))
+    with httpx.Client(transport=transport) as client:
+        return client.get(url, timeout=timeout)
+
+
+#: The port knock over the network's stand-in socket, and the occupant check over that knock and that ``get``.
+knock = functools.partial(desktop.answers, sockets=fake_network.Knock)
+occupant_of = functools.partial(desktop.occupant, get=over_the_network, knock=knock)
+
+
 def served[T](handler: type[BaseHTTPRequestHandler], probe: Callable[[str], T]) -> T:
-    """Serve ``handler`` on a loopback port and return what ``probe`` says about that port's URL."""
-    server = fake_http.spawn({}, handler=handler)
+    """Serve ``handler`` in process and return what ``probe`` says about the URL it is served at."""
+    server = fake_http.spawn({}, handler=handler, in_process=True)
     port = next(server)["_port"]
     try:
         return probe(f"http://{HOST}:{port}")
@@ -490,12 +505,12 @@ class Get:
 
 
 def test_occupant_calls_a_refused_connection_nobody(closed_port: int) -> None:
-    assert desktop.occupant(f"http://{HOST}:{closed_port}") is Occupant.NOBODY
+    assert occupant_of(f"http://{HOST}:{closed_port}") is Occupant.NOBODY
 
 
 def test_occupant_calls_a_json_object_carrying_app_version_hqptuner() -> None:
     answer = answering(200, b'{"reachable": false, "app_version": "1.16.0"}')
-    assert served(answer, desktop.occupant) is Occupant.HQPTUNER
+    assert served(answer, occupant_of) is Occupant.HQPTUNER
 
 
 @pytest.mark.parametrize(
@@ -507,12 +522,12 @@ def test_occupant_calls_a_json_object_carrying_app_version_hqptuner() -> None:
     ],
 )
 def test_occupant_calls_any_other_answer_a_stranger(handler: type[BaseHTTPRequestHandler]) -> None:
-    assert served(handler, desktop.occupant) is Occupant.STRANGER
+    assert served(handler, occupant_of) is Occupant.STRANGER
 
 
 def test_occupant_raises_when_the_holder_does_not_speak_http() -> None:
     with pytest.raises(httpx.RemoteProtocolError):
-        served(speaking(b"SSH-2.0-OpenSSH_9.9\r\n"), desktop.occupant)
+        served(speaking(b"SSH-2.0-OpenSSH_9.9\r\n"), occupant_of)
 
 
 @pytest.mark.parametrize("raised", [httpx.ConnectTimeout, httpx.ReadTimeout], ids=["connect", "read"])
@@ -528,8 +543,20 @@ def test_occupant_asks_once_with_the_probe_timeout() -> None:
 
 
 def test_answers_only_where_something_listens(closed_port: int) -> None:
-    closed = desktop.answers(f"http://{HOST}:{closed_port}")
-    assert (closed, served(answering(200, b""), desktop.answers)) == (False, True)
+    closed = knock(f"http://{HOST}:{closed_port}")
+    assert (closed, served(answering(200, b""), knock)) == (False, True)
+
+
+@pytest.mark.parametrize(("given", "carried"), [((), desktop.PROBE_TIMEOUT), ((0.25,), 0.25)], ids=["default", "given"])
+def test_answers_knocks_with_the_timeout_it_was_given(given: tuple[float, ...], carried: float) -> None:
+    made: list[fake_network.Knock] = []
+
+    def sockets(family: int, kind: int, proto: int) -> fake_network.Knock:
+        made.append(fake_network.Knock(family, kind, proto))
+        return made[-1]
+
+    desktop.answers(f"http://{HOST}:{PORT}", *given, sockets=sockets)
+    assert [sock.timeout for sock in made] == [carried]
 
 
 # --- the production parts ---------------------------------------------------------------------------------------

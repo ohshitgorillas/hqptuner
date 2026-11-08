@@ -23,7 +23,7 @@ import webbrowser
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, TextIO, cast
+from typing import TYPE_CHECKING, Any, Protocol, Self, TextIO, cast
 from urllib.parse import urlsplit
 
 import httpx
@@ -149,11 +149,36 @@ def ui_url(host: str, port: int) -> str:
     return f"http://[{name}]:{port}" if ":" in name else f"http://{name}:{port}"
 
 
-def answers(url: str, timeout: float = PROBE_TIMEOUT) -> bool:
-    """Return whether something accepts a TCP connection on ``url``'s host and port within ``timeout`` seconds."""
+class KnockSocket(Protocol):
+    """What the port knock does with the socket it knocks with. ``socket.socket`` is one, and the production default."""
+
+    def __enter__(self) -> Self:
+        """Open the socket for the block."""
+        ...
+
+    def __exit__(self, *exc: object) -> None:
+        """Close the socket."""
+        ...
+
+    def settimeout(self, value: float | None, /) -> None:
+        """Bound the connect to ``value`` seconds."""
+        ...
+
+    def connect_ex(self, address: tuple[Any, ...], /) -> int:
+        """Try the connection and answer 0 where it is taken, an error number where it is not."""
+        ...
+
+
+def answers(
+    url: str, timeout: float = PROBE_TIMEOUT, *, sockets: Callable[[int, int, int], KnockSocket] = socket.socket
+) -> bool:
+    """Return whether something accepts a TCP connection on ``url``'s host and port within ``timeout`` seconds.
+
+    ``sockets`` makes the socket it knocks with from the address family, kind and protocol.
+    """
     parts = urlsplit(url)
     family, kind, proto, _, address = socket.getaddrinfo(parts.hostname, parts.port, type=socket.SOCK_STREAM)[0]
-    with socket.socket(family, kind, proto) as sock:
+    with sockets(family, kind, proto) as sock:
         sock.settimeout(timeout)
         return sock.connect_ex(address) == 0
 

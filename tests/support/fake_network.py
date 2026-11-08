@@ -9,6 +9,9 @@ dialing, so the fake answers on a test's loop or on a ``TestClient``'s app loop 
 pair is AF_UNIX and never leaves the process, and the client's own asyncio stream code runs unchanged over a real
 kernel stream. Dialing an address nothing is registered at is refused, which is what a closed TCP port gives.
 
+The desktop launcher's port knock gets a stand-in socket: it connects (answers 0) where any fake is served, stream
+or 8088, and is refused anywhere else.
+
 A discovery responder is a table from the exact request bytes to a reply. The network's datagram socket looks the
 responder up at the address it sends to and queues that table's reply for the exact bytes, with the responder's own
 address as the sender, so a search reads it on its next pass. A target nobody answers at, the multicast group
@@ -22,6 +25,7 @@ network's transport turns each ``httpx.Request`` into those bytes, hands them ov
 
 import asyncio
 import contextlib
+import errno
 import functools
 import re
 import socket
@@ -173,6 +177,30 @@ class _Datagrams:
 
     def close(self) -> None:
         self._replies.clear()
+
+
+class Knock:
+    """The socket the desktop launcher's port knock uses: it keeps the timeout it was given and answers from the
+    registry. Made the way ``socket.socket`` is, from a family, a kind and a protocol it has no use for."""
+
+    def __init__(self, _family: int = 0, _kind: int = 0, _proto: int = 0) -> None:
+        self.timeout: float | None = None
+        self.asked: list[tuple[object, ...]] = []
+
+    def __enter__(self) -> "Knock":
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        return None
+
+    def settimeout(self, value: float | None, /) -> None:
+        self.timeout = value
+
+    def connect_ex(self, address: tuple[object, ...], /) -> int:
+        self.asked.append(address)
+        with _LOCK:
+            served = address[:2] in _STREAMS or address[:2] in _HTTP
+        return 0 if served else errno.ECONNREFUSED
 
 
 _NO_RESPONSE = "Server disconnected without sending a response."
