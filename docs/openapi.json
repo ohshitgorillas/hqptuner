@@ -1760,8 +1760,8 @@
         "title": "LiveWriteOk",
         "type": "object"
       },
-      "LogTail": {
-        "description": "A log-tail read: the daemon's configured log file, whether it logs to it, and the last lines. Wire keys.",
+      "LogTailReport": {
+        "description": "``GET /api/log``: whether the daemon logs, and the last lines of its log.",
         "properties": {
           "enabled": {
             "title": "Enabled",
@@ -1773,21 +1773,10 @@
             },
             "title": "Lines",
             "type": "array"
-          },
-          "path": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Path"
           }
         },
-        "required": ["path", "enabled", "lines"],
-        "title": "LogTail",
+        "required": ["enabled", "lines"],
+        "title": "LogTailReport",
         "type": "object"
       },
       "LoginBody": {
@@ -4343,7 +4332,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LogTail"
+                  "$ref": "#/components/schemas/LogTailReport"
                 }
               }
             },

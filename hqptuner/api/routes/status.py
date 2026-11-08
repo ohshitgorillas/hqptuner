@@ -14,7 +14,6 @@ from hqptuner.api import deps
 from hqptuner.api.deps import Mgr, Static
 from hqptuner.api.errors import DaemonReadFailedError, ErrorBody, NotLoadedError, refuse
 from hqptuner.core import engineread
-from hqptuner.core.engineread import LogTail
 from hqptuner.engine.junkadvisor import JunkVerdict
 from hqptuner.engine.logtail import NoLogError
 from hqptuner.lanes.live import chain
@@ -194,8 +193,16 @@ class DaemonHasNoLogError(ErrorBody):
         super().__init__(str(error))
 
 
-@router.get("/log", response_model_exclude_none=True)
-async def log_tail(manager: Mgr, lines: int = 50) -> LogTail:
+@dataclass(frozen=True)
+class LogTailReport:
+    """``GET /api/log``: whether the daemon logs, and the last lines of its log."""
+
+    enabled: bool
+    lines: list[str]
+
+
+@router.get("/log")
+async def log_tail(manager: Mgr, lines: int = 50) -> LogTailReport:
     """Return a static tail of the daemon's log file (System-tab live view).
 
     Read-only, no daemon socket. A daemon that cannot be reached, or answers the read with an error, is refused;
@@ -203,8 +210,9 @@ async def log_tail(manager: Mgr, lines: int = 50) -> LogTail:
     """
     n = max(1, min(lines, 500))
     try:
-        return await engineread.read_log_tail(manager, n)
+        tail = await engineread.read_log_tail(manager, n)
     except NoLogError as exc:
         raise refuse(DaemonHasNoLogError(error=exc)) from exc
     except httpx.HTTPError as exc:
         raise refuse(DaemonReadFailedError(error=exc)) from exc
+    return LogTailReport(enabled=tail.enabled, lines=tail.lines)
