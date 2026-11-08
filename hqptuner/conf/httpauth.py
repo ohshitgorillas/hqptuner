@@ -17,6 +17,7 @@ import httpx
 from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest layer
+    from hqptuner.conf.httpconf import HttpOptions
     from hqptuner.core.manager import ConnectionManager
 
 # The one sentence every surface reports a refused credential with — the alert
@@ -130,21 +131,26 @@ class PairVerdict(enum.Enum):
     NOT_ANSWERED = "not_answered"
 
 
-async def check_pair(host: str, port: int, username: str, password: str, wait: float) -> PairVerdict:
+async def check_pair(host: str, port: int, username: str, password: str, wait: "float | HttpOptions") -> PairVerdict:
     """Ask the daemon at ``host:port`` whether ``username`` and ``password`` are accepted.
 
     One Digest-authenticated read of a page the daemon guards, judged by its status alone: the body is never
     parsed and nothing the daemon says is kept. Anything but the daemon's own 2xx or its credential refusal is
     ``NOT_ANSWERED``: no connection, no answer within ``wait`` seconds, a 5xx (the 503 of a restarting daemon
     among them), an address that is not a URL host.
+
+    ``wait`` is the request timeout in seconds, or the ``HttpOptions`` that carry the timeout and the transport the
+    request goes over, as they do for ``logtail.fetch_log`` and ``HttpConfigClient``.
     """
+    timeout, transport = (wait, None) if isinstance(wait, int | float) else (wait.timeout, wait.transport)
     accepted = refused = False
     try:
         async with httpx.AsyncClient(
             base_url=f"http://{host}:{port}",
             auth=httpx.DigestAuth(username, password),
-            timeout=wait,
+            timeout=timeout,
             verify=_UNUSED_TLS,
+            transport=transport,
         ) as client:
             resp = await client.get(_PAIR_PAGE)
         raise_for_status(resp)
