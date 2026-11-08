@@ -118,4 +118,4 @@ def test_log_tail_carries_no_log_file_path(closed_port: int, tmp_path: Path) -> 
         client.post("/api/config/refresh")
         body = client.get("/api/log").json()
     next(daemon, None)
-    assert "path" not in body
+    assert body == {"enabled": True, "lines": PAGES["/log"].decode().splitlines()}
