@@ -10,6 +10,7 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
+from fake_network import NETWORK
 from narrow import present
 from virtual_clock import VirtualClock
 
@@ -57,7 +58,7 @@ async def test_reading_the_default_preset_serves_the_running_config(http_manager
 
 
 async def test_apply_engine_without_credentials_declines_the_http_lane() -> None:
-    manager = ConnectionManager(Config(), clock=VirtualClock())
+    manager = ConnectionManager(Config(), clock=VirtualClock(), network=NETWORK)
     with pytest.raises(HttpLaneDeclinedError):
         await manager.applyops.apply_engine({"cuda": "0"})
 
@@ -65,9 +66,12 @@ async def test_apply_engine_without_credentials_declines_the_http_lane() -> None
 @pytest.fixture
 async def dead_lane_manager(closed_port: int, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
     """A manager whose 8088 lane points at a port nothing serves."""
-    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p")
+    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p", NETWORK.http_options("127.0.0.1", closed_port))
     manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"), http, VirtualClock()
+        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"),
+        http,
+        VirtualClock(),
+        NETWORK,
     )
     yield manager
     await http.aclose()
@@ -89,7 +93,7 @@ async def test_a_save_that_cannot_reach_the_daemon_reports_its_failure(dead_lane
 
 def test_persist_backup_writes_the_archive_to_disk(tmp_path: Path) -> None:
     manager = ConnectionManager(
-        Config(backup_dir=tmp_path / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock()
+        Config(backup_dir=tmp_path / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
     )
     path = manager.presetops.persist_backup_for_apply(b"archive-bytes")
     assert present(path).read_bytes() == b"archive-bytes"
@@ -99,7 +103,7 @@ def test_persist_backup_raises_when_the_directory_is_unwritable(tmp_path: Path) 
     blocker = tmp_path / "blocker"
     blocker.write_text("a file where the backup dir should be")
     manager = ConnectionManager(
-        Config(backup_dir=blocker / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock()
+        Config(backup_dir=blocker / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
     )
     with pytest.raises(BackupFailedError):
         manager.presetops.persist_backup_for_apply(b"archive-bytes")

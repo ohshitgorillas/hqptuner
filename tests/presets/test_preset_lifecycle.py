@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
+from fake_network import NETWORK
 from fixtures_clients import app
 from virtual_clock import VirtualClock
 
@@ -98,9 +99,9 @@ def test_snapshot_members_extracts_preset_names() -> None:
 
 
 def _pmgr(daemon: dict[str, Any], tmp_path: Path) -> tuple[ConnectionManager, HttpConfigClient]:
-    http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
+    http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"]))
     cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    return ConnectionManager(cfg, http, VirtualClock()), http
+    return ConnectionManager(cfg, http, VirtualClock(), NETWORK), http
 
 
 async def test_saved_preset_is_listed_and_marked_active(http_daemon: dict[str, Any], tmp_path: Path) -> None:

@@ -29,6 +29,7 @@ import pytest
 from apps import log_in, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, restart_into
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -56,7 +57,7 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     """The 8088 fake whose config file says PCM. An adopted restore self-restarts
     the daemon (docs/architecture.md §2.2 lane 2), modeled by moving the control
     fake's State onto the config just adopted, the way one real daemon would."""
-    server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"))
+    server = fake_http.spawn(fake_http.state(mode="pcm", dither="0", modulator="0"), in_process=True)
     daemon = next(server)
     daemon["_on_restore"] = lambda: restart_into(control_state, daemon["mode"], daemon["dither"], daemon["modulator"])
     yield daemon
@@ -82,7 +83,7 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
         log_in(test_client)
         wait_for_api(test_client, _config_loaded)
         yield test_client

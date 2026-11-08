@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 from apps import log_in, wait_for_api
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -168,7 +169,7 @@ def _dual_lane_client(control_port: int, http_daemon: dict[str, Any], tmp_path: 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
         log_in(client)
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield client

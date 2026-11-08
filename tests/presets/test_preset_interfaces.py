@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 from defusedxml.ElementTree import fromstring
+from fake_network import NETWORK
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -88,9 +89,14 @@ async def test_loading_a_preset_uploads_the_interface_the_daemon_runs_on(
 ) -> None:
     """The preset was saved with another interface; the archive the load restores keeps the running one."""
     http_daemon["upnp_interface"] = RUNNING_INTERFACE
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
+    http = HttpConfigClient(
+        "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
+    )
     manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"), http, VirtualClock()
+        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"),
+        http,
+        VirtualClock(),
+        NETWORK,
     )
     store = PresetStore(tmp_path / "presets")
     try:

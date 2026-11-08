@@ -26,6 +26,7 @@ from typing import Any
 
 import pytest
 from apps import log_in, wait_for_api
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -52,7 +53,7 @@ def stamp_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_pat
         advisor_enabled=True,
         hqp_home="/x/home",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
         log_in(client)
         wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         yield client

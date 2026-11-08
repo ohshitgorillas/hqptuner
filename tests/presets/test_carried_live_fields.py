@@ -10,7 +10,7 @@ config from somewhere. ``carried_live_fields`` answers where from: the RUNNING
 ENGINE first, because that is what the user is hearing, and the active preset's
 stored snapshot only for the fields the engine cannot answer for.
 
-The engine's half arrives off the real-socket control fake (``fake_control``):
+The engine's half arrives off the control fake (``fake_control``):
 its State starts on the PCM chain (mode="1"), and ``mode="2"`` starts it on SDM,
 which is reported in the configuration form's own domain (``auto`` / ``pcm`` /
 ``sdm``, hqplayerd-readme.txt §1.7) by joining the modes enumeration BY NAME —
@@ -33,6 +33,7 @@ import pytest
 from conftest import DaemonFactory
 from fake_config_xml import cfg_xml
 from fake_http import state
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetconf
@@ -66,6 +67,7 @@ async def engine_manager(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator
                 preset_dir=tmp_path / "presets",
             ),
             clock=VirtualClock(),
+            network=NETWORK,
         )
         task = manager.clock.spawn(manager.run())
         started.append((manager, task))
@@ -133,7 +135,9 @@ async def test_a_stored_field_outside_the_live_domain_is_not_carried(
 
 def _cold(_connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:
     """A manager that never connected, over a preset directory with no active preset."""
-    return ConnectionManager(Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock())
+    return ConnectionManager(
+        Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
+    )
 
 
 def _with_a_store(connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:

@@ -38,6 +38,7 @@ from typing import Any
 import httpx
 import pytest
 from apps import log_in, unserved_login
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -127,7 +128,7 @@ def carriage_client(
         preset_dir=tmp_path / "presets",
         description_file=tmp_path / "descriptions.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
         log_in(test_client)
         yield test_client, DescriptionStore(tmp_path / "descriptions.json")
 

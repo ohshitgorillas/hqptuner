@@ -26,6 +26,7 @@ from typing import TYPE_CHECKING, Any
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 from narrow import FixtureError, present
 from virtual_clock import VirtualClock
 
@@ -67,7 +68,9 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
 
     async def build(**overrides: str) -> tuple[ConnectionManager, dict[str, str]]:
         port, _log, state = await daemon(**overrides)
-        http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
+        http = HttpConfigClient(
+            "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
+        )
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=port,
@@ -76,7 +79,7 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
         )
-        manager = ConnectionManager(cfg, http, VirtualClock())
+        manager = ConnectionManager(cfg, http, VirtualClock(), NETWORK)
         task = manager.clock.spawn(manager.run())
         built.append((manager, task, http))
         return manager, state
@@ -119,9 +122,11 @@ def _filter_nx(manager: ConnectionManager) -> str:
 async def _preset_load_with_no_control_connection(
     http_daemon: dict[str, Any], tmp_path: Path, _dual_lane: DualLane
 ) -> ConnectionManager:
-    http = HttpConfigClient("127.0.0.1", http_daemon["_port"], "u", "p")
+    http = HttpConfigClient(
+        "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
+    )
     cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    manager = ConnectionManager(cfg, http, VirtualClock())
+    manager = ConnectionManager(cfg, http, VirtualClock(), NETWORK)
     try:
         await manager.presetops.save_preset("Stored")
         await presetlane.load(manager, "Stored")
