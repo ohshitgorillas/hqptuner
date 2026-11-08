@@ -35,7 +35,7 @@ def apply_via(http_manager: ConnectionManager) -> tuple[ConnectionManager, HttpC
 @pytest.fixture
 def once_refusing_http_daemon() -> Iterator[dict[str, Any]]:
     # refuses the first POST /restore with 5xx, then accepts on the retry
-    yield from fake_http.spawn(fake_http.state(_restore_refusals=1))
+    yield from fake_http.spawn(fake_http.state(_restore_refusals=1), in_process=True)
 
 
 async def test_apply_converges_after_one_5xx_restore_refusal(

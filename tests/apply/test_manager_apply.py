@@ -1,6 +1,6 @@
 """ConnectionManager write path through its public API (docs/testing.md).
 
-The happy path runs the manager against the real-socket fake daemon: it
+The happy path runs the manager against the fake daemon: it
 connects on its own, applies a live edit, and the report reflects the
 State readback the daemon actually returns."""
 
@@ -9,6 +9,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 from conftest import LiveManager
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -18,7 +19,9 @@ from hqptuner.lanes.live import overrides, routing
 
 @pytest.fixture
 async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionManager]:
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port), clock=VirtualClock())
+    manager = ConnectionManager(
+        Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port), clock=VirtualClock(), network=NETWORK
+    )
     task = manager.clock.spawn(manager.run())
     yield manager
     manager.stop()
@@ -27,7 +30,7 @@ async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionMana
 
 
 async def test_http_edit_without_credentials_reports_error() -> None:
-    manager = ConnectionManager(Config(), clock=VirtualClock())  # no http client configured
+    manager = ConnectionManager(Config(), clock=VirtualClock(), network=NETWORK)  # no http client configured
     report = await manager.applyops.apply({}, {"channels": "2"})
     assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"
 

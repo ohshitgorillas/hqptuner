@@ -27,6 +27,7 @@ from typing import Any
 
 import pytest
 from conftest import ManagerFactory, StartManager
+from fake_network import NETWORK
 from narrow import present
 from virtual_clock import VirtualClock
 
@@ -202,7 +203,9 @@ async def faulting_matrix(
     fault. Built by hand rather than from ``start_manager``: that fixture builds
     its own client and waits for a completed poll, which a client that always
     raises never delivers."""
-    client = FaultingMatrixClient("127.0.0.1", http_daemon["_port"], "u", "p")
+    client = FaultingMatrixClient(
+        "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
+    )
     manager = ConnectionManager(
         Config(
             hqp_host="127.0.0.1",
@@ -212,6 +215,7 @@ async def faulting_matrix(
         ),
         client,
         VirtualClock(),
+        NETWORK,
     )
     yield manager, client
     await manager.aclose()

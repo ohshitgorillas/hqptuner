@@ -1,5 +1,5 @@
 """HTTP config write side (POST /config, profile CRUD, backup) against a real
-HTTP server on a real socket — no transport injection, no mock of our client
+HTTP server on the suite's in-process network — no mock of our client
 (docs/testing.md rule 4). The server records each request so tests can assert
 what actually went over the wire."""
 
@@ -9,6 +9,7 @@ from typing import Any
 
 import fake_http
 import pytest
+from fake_network import NETWORK
 
 from hqptuner.conf.httpconf import HttpConfigClient
 
@@ -44,7 +45,7 @@ def _handler(captured: list[tuple[str, str]]) -> type[BaseHTTPRequestHandler]:
 def http_server() -> Iterator[tuple[int, list[tuple[str, str]]]]:
     captured: list[tuple[str, str]] = []
     st: dict[str, Any] = {}
-    server = fake_http.spawn(st, handler=_handler(captured))
+    server = fake_http.spawn(st, handler=_handler(captured), in_process=True)
     port = next(server)["_port"]
     yield port, captured
     next(server, None)
@@ -55,7 +56,7 @@ async def http_client(
     http_server: tuple[int, list[tuple[str, str]]],
 ) -> AsyncIterator[tuple[HttpConfigClient, list[tuple[str, str]]]]:
     port, captured = http_server
-    client = HttpConfigClient("127.0.0.1", port, "u", "p")
+    client = HttpConfigClient("127.0.0.1", port, "u", "p", NETWORK.http_options("127.0.0.1", port))
     yield client, captured
     await client.aclose()
 

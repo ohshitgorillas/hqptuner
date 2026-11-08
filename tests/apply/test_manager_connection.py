@@ -4,6 +4,7 @@ and the mode name is a join of the engine's State onto the modes enumeration."""
 
 import pytest
 from conftest import LiveManager
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -20,7 +21,7 @@ from hqptuner.core.manager import ConnectionManager
 )
 async def test_the_alarm_trips_only_once_unreachable_past_the_threshold(threshold: float, *, expected: bool) -> None:
     # a never-connected manager; the wait is paid in virtual time
-    manager = ConnectionManager(Config(alarm_threshold=threshold), clock=VirtualClock())
+    manager = ConnectionManager(Config(alarm_threshold=threshold), clock=VirtualClock(), network=NETWORK)
     await manager.clock.sleep(2.0)
     assert manager.alarm is expected
 
@@ -31,7 +32,7 @@ async def test_the_alarm_trips_only_once_unreachable_past_the_threshold(threshol
 async def _manager(live_manager: LiveManager, state: dict[str, str] | None) -> ConnectionManager:
     """A never-connected manager for ``None``, else one connected on that State."""
     if state is None:
-        return ConnectionManager(Config())
+        return ConnectionManager(Config(), network=NETWORK)
     manager, _, _ = await live_manager(**state)
     return manager
 
