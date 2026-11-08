@@ -565,6 +565,7 @@ def spawn(
     handler: type[BaseHTTPRequestHandler] | None = None,
     *,
     in_process: bool = False,
+    networked: bool = False,
 ) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly.
@@ -590,16 +591,24 @@ def spawn(
     network (`fake_network`) and no socket, listener or thread exists: each
     request is answered whole, inline, before the transport returns, so the lane
     going down leaves no connection to sever and every later request meets a
-    refused connection. `bind_port` zero draws a port of the network's own."""
+    refused connection. `bind_port` zero draws a port of the network's own.
+
+    With `networked` the fake listens on TCP and is also registered at the same `(host, port)` on the network, over
+    the same `st`, so a client built on the network and one that dials the port see one daemon. Taking the lane down
+    stops both listeners and severs the connections of both."""
+    handler = handler or _http_handler(st)
     if in_process:
-        yield from _spawn_in_process(st, host, bind_port, handler or _http_handler(st))
+        yield from _spawn_in_process(st, host, bind_port, handler)
         return
-    server = _Server((host, bind_port), handler or _http_handler(st))
+    server = _Server((host, bind_port), handler)
     server.st = st
     server.timeout = None  # `handle_request` blocks in `select` rather than polling
     st["_port"] = server.server_address[1]
     st["_listening"] = True  # set before the thread starts: it reads this flag on every pass
     fake_network.announce(host, st["_port"])
+    registration = contextlib.ExitStack()
+    if networked:
+        registration.enter_context(fake_network.serving_http(functools.partial(answer, handler), host, st["_port"]))
 
     def serve() -> None:
         while st.get("_listening"):
@@ -610,6 +619,7 @@ def spawn(
 
     def take_lane_down() -> None:
         fake_network.withdraw(host, st["_port"])
+        registration.close()
         if st.get("_listening"):
             st["_listening"] = False
             # `handle_request` is parked in `select` on the listening socket, not

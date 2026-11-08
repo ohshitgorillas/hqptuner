@@ -35,7 +35,6 @@ from virtual_clock import VirtualClock
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-from hqptuner.core.network import Network
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
@@ -223,14 +222,14 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
     started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
 
     async def start(http_port: int, **overrides: object) -> ConnectionManager:
-        http = HttpConfigClient("127.0.0.1", http_port, "u", "p")
+        http = HttpConfigClient("127.0.0.1", http_port, "u", "p", NETWORK.http_options("127.0.0.1", http_port))
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
             "hqp_control_port": live_daemon_port,
             "backup_dir": tmp_path / "backups",
             "preset_dir": tmp_path / "presets",
         }
-        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock, Network(NETWORK.open_stream))
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock, NETWORK)
         task = clock.spawn(manager.run())
         started.append((manager, task, http))
         await settled(clock)
@@ -306,14 +305,16 @@ async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIter
     clients: list[HttpConfigClient] = []
 
     def build(daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
-        http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
+        http = HttpConfigClient(
+            "127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"])
+        )
         clients.append(http)
         defaults: dict[str, Any] = {
             "alarm_threshold": 1.0,
             "backup_dir": tmp_path,
             "preset_dir": tmp_path / "presets",
         }
-        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock, NETWORK)
 
     yield build
     for http in clients:

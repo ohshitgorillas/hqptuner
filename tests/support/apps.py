@@ -150,10 +150,10 @@ def unserved_login(
     starts, so the app's own 8088 lane and its ungated readers meet a refused connection from their first read.
     ``setup`` gets the built app before it starts, for a case that adds a route of its own.
     """
-    daemon = fake_http.spawn(fake_http.state())
+    daemon = fake_http.spawn(fake_http.state(), in_process=True)
     state = next(daemon)
     cfg.hqp_http_port = state["_port"]
-    app = create_app(cfg, clock)
+    app = create_app(cfg, clock, fake_network.NETWORK)
     if setup is not None:
         setup(app)
     client = TestClient(app, raise_server_exceptions=raise_server_exceptions)

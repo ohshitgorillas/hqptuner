@@ -11,6 +11,7 @@ import pytest
 from apps import closed_port as build_closed_port
 from apps import live_app, log_in, unserved_login
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -49,7 +50,7 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
         hqp_home="/x/home",
         debug_log=debug_log,
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
         yield log_in(client)
 
 
@@ -114,7 +115,7 @@ def gated_app(http_daemon: dict[str, Any], closed_port: int, tmp_path: Path) -> 
                 autopilot_file=tmp_path / "autopilot.json",
                 debug_log=tmp_path / "audit.jsonl" if audit else None,
             )
-            return stack.enter_context(TestClient(create_app(cfg, clock or VirtualClock())))
+            return stack.enter_context(TestClient(create_app(cfg, clock or VirtualClock(), NETWORK)))
 
         yield build
 
@@ -159,5 +160,5 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
         autopilot_file=tmp_path / "autopilot.json",
         hqp_home="/x/home",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
         yield log_in(test_client)
