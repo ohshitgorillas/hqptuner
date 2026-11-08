@@ -85,6 +85,10 @@ ROW_STRIDE = 8
 MOST_COLUMNS = 8
 SEAM_COLUMNS = 3
 
+#: Distinct columns the probed strip holds once the music fills it. A column shows one slice whole and a slice spans
+#: one to two columns, so a strip of music holds about one distinct column in 1.4 to 1.8, and a glass strip holds one.
+TEXTURED_COLUMNS = PROBE_COLUMNS // 3
+
 #: The reader the page carries. `window.__scroll()` returns null while no spectrogram is on show or on its first read;
 #: else `[columns, distinct]`: how many columns the image moved left since the read before (-1 where no shift matches,
 #: as when it was painted whole), and how many different columns the probed strip holds (a glass strip holds one).
@@ -279,7 +283,7 @@ class Replays:
             columns, distinct = read
             if textured:
                 scrolls.append(COLUMNS if columns < 0 else columns)
-            textured = textured or distinct >= PROBE_COLUMNS * 3 // 4
+            textured = textured or distinct >= TEXTURED_COLUMNS
         if len(scrolls) < MIN_PAINTS:
             raise ShortReplayError(feed.name, len(scrolls))
         return scrolls
