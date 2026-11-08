@@ -2,6 +2,9 @@
 //
 //   node scripts/eqstage/eqstage.js < job.json    # JSON on stdout, table on stderr
 //
+// The CLI logs in first with the pair `hqpcreds` exports (HQPTUNER_HQP_USERNAME,
+// HQPTUNER_HQP_PASSWORD) and stops, naming the login, when it is refused.
+//
 // The buffer is server-side (api/routes/pending.py), so anything staged here shows
 // up in the user's open browser tab within a poll tick and arms Apply. Nothing
 // reaches the daemon until the user clicks it — this tool never applies.
@@ -11,7 +14,7 @@
 import { parseProcess, serializeProcess } from "../../hqptuner/static/vendor/eqlab/core/matrixspec.js";
 import { isEq } from "../../hqptuner/static/vendor/eqlab/src/chain.js";
 import { curveOf, preampDb, round } from "../../hqptuner/static/vendor/eqlab/src/curve.js";
-import { postStage, verifyPending } from "./post.js";
+import { credentialsFromEnv, loggedInFetch, postStage, verifyPending } from "./post.js";
 import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows } from "./rows.js";
 
 /** @typedef {import("../../hqptuner/static/vendor/eqlab/core/matrixspec.js").PipelineRow} PipelineRow */
@@ -66,6 +69,14 @@ import { canonPipelines, editRow, lintRow, readBaseline, resolveEq, selectRows }
 const DEFAULT_URL = "http://127.0.0.1:8090";
 const DEFAULT_FS = 44100;
 
+/**
+ * The app's base URL for a job, without a trailing slash.
+ *
+ * @param {Job} job
+ * @returns {string}
+ */
+const baseOf = (job) => String(job.url || DEFAULT_URL).replace(/\/$/, "");
+
 // Parametric-EQ stages only. A crossfeed `lp1` is an `iir:` stage too, and
 // counting it as a band makes a decomposed row look like it lost EQ it never had.
 const bandCount = (/** @type {string | null | undefined} */ process) => parseProcess(process || "").filter(isEq).length;
@@ -111,7 +122,7 @@ function preampOf(spec, stages, fs) {
  */
 export async function runJob(job, deps = {}) {
   const fetchImpl = deps.fetch || globalThis.fetch;
-  const base = String(job.url || DEFAULT_URL).replace(/\/$/, "");
+  const base = baseOf(job);
   const fs = job.fs || DEFAULT_FS;
 
   const stages = await resolveEq(job.eq);
@@ -185,7 +196,9 @@ async function readStdin() {
 async function main() {
   const text = await readStdin();
   if (!text.trim()) throw new Error("eqstage: no job on stdin");
-  const report = await runJob(JSON.parse(text));
+  const job = JSON.parse(text);
+  const fetchImpl = await loggedInFetch(baseOf(job), credentialsFromEnv(process.env), globalThis.fetch);
+  const report = await runJob(job, { fetch: fetchImpl });
   process.stderr.write(`${table(report)}\n`);
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
 }

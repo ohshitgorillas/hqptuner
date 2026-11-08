@@ -31,7 +31,9 @@
 #           re-run.
 #
 # Everything goes through HQPTuner's own routes on 127.0.0.1:8090, never
-# hqplayerd directly. The pre-apply zip HQPTuner writes on every apply is not
+# hqplayerd directly. open and close log in first with the pair hqpcreds exports
+# (set -a; source hqpcreds; set +a), as a session login, and send its cookie from
+# a jar under the scratch directory that is removed when the script exits. The pre-apply zip HQPTuner writes on every apply is not
 # the baseline: two applies in one run would overwrite it.
 #
 # Exit status: 0 done, 2 usage, 3 refused (a precondition the operator has to
@@ -56,7 +58,25 @@ say()  { echo; echo "== $* =="; }
 die()  { echo "FAIL: $*" >&2; exit 1; }
 refuse() { echo "REFUSED: $*" >&2; exit 3; }
 usage() { echo "usage: scripts/abuse.sh open | close | status" >&2; exit 2; }
-get()  { curl -sf "$API$1"; }
+# Every request to the app goes through api, so each carries the login cookie in $JAR.
+api()  { curl -sf -b "$JAR" "$@"; }
+get()  { api "$API$1"; }
+# Log in with the hqpcreds pair, a session login that writes nothing to the app's
+# store, into a jar under $DIR; the jar is removed on every exit. The password goes
+# in on stdin, so it is on no command line.
+login() {
+  local name code
+  for name in HQPTUNER_HQP_USERNAME HQPTUNER_HQP_PASSWORD; do
+    [ -n "${!name+x}" ] || die "login at $API/api/login: $name is not set; source hqpcreds first"
+  done
+  mkdir -p "$DIR"
+  JAR=$(mktemp "$DIR/login.XXXXXX")
+  trap 'rm -f "$JAR"' EXIT
+  code=$(jq -nc --arg u "$HQPTUNER_HQP_USERNAME" --arg p "$HQPTUNER_HQP_PASSWORD" '{username: $u, password: $p, remember: false}' \
+    | curl -s -o /dev/null -w '%{http_code}' -c "$JAR" -X POST -H 'Content-Type: application/json' -d @- "$API/api/login") \
+    || die "login at $API/api/login: no answer"
+  [ "$code" = "200" ] || die "login at $API/api/login failed: answered $code"
+}
 
 [ $# -eq 1 ] || usage
 CMD=$1
@@ -96,6 +116,7 @@ idle_or_die() {
 case "$CMD" in
   open)
     [ ! -e "$CURRENT" ] || refuse "a run is already open ($(cat "$CURRENT")); close it first"
+    login
     idle_or_die
     pend=$(pending_of) || die "GET /api/config/pending failed"
     [ "$pend" = '{"http":{},"live":{}}' ] || refuse "staged buffer is not empty: $pend"
@@ -141,8 +162,9 @@ case "$CMD" in
     [ -s "$zip" ] || refuse "baseline missing: $zip"
     [ -s "$base" ] || refuse "form snapshot missing: $base"
     [ -s "$livebase" ] || refuse "live snapshot missing: $livebase"
+    login
     say "discard"
-    curl -sf -X DELETE "$API/api/config/pending" | jq -c . || die "DELETE /api/config/pending failed"
+    api -X DELETE "$API/api/config/pending" | jq -c . || die "DELETE /api/config/pending failed"
     say "audit since seq $since"
     records=$(get "/api/audit?limit=100000" | jq -c --argjson s "$since" '[.records[] | select(.seq > $s)]') \
       || die "GET /api/audit failed"
@@ -173,7 +195,7 @@ case "$CMD" in
       echo "  fields to read back: $keys"
       uploaded=""
       for _ in $(seq "$TRIES"); do
-        if out=$(curl -sf -F "cfgfile=@$zip" "$API/api/restore"); then uploaded=$out; break; fi
+        if out=$(api -F "cfgfile=@$zip" "$API/api/restore"); then uploaded=$out; break; fi
         sleep 2
       done
       [ -n "$uploaded" ] || die "POST /api/restore refused for ${TRIES} tries; baseline kept at $zip"
@@ -183,7 +205,7 @@ case "$CMD" in
       for _ in $(seq "$TRIES"); do
         # The polled form is the copy taken at connect; refresh refetches it
         # from the daemon (and rescans devices, which is what the route is for).
-        curl -sf -X POST "$API/api/config/refresh" >/dev/null 2>&1 || true
+        api -X POST "$API/api/config/refresh" >/dev/null 2>&1 || true
         if now=$(form_of) && livenow=$(live_of) \
           && [ "$(jq -n --argjson k "$keys" --argjson b "$baseline" --argjson n "$now" '[$k[] | $b[.] == $n[.]] | all')" = "true" ] \
           && [ "$(jq -n --argjson k "$LIVE_KEYS" --argjson b "$(cat "$livebase")" --argjson n "$livenow" '[$k[] | $b[.] == $n[.]] | all')" = "true" ]; then
@@ -196,7 +218,7 @@ case "$CMD" in
       echo "  live:     $livenow"
       want=$(jq -r .volume "$livebase"); have=$(echo "$livenow" | jq -r .volume)
       if [ "$want" != "$have" ]; then
-        curl -sf -X POST -H 'Content-Type: application/json' -d "{\"level\":\"$want\"}" "$API/api/volume" >/dev/null || die "POST /api/volume failed; volume left at $have, was $want"
+        api -X POST -H 'Content-Type: application/json' -d "{\"level\":\"$want\"}" "$API/api/volume" >/dev/null || die "POST /api/volume failed; volume left at $have, was $want"
         echo "  volume:   $have -> $want"
       fi
     fi
@@ -225,7 +247,7 @@ case "$CMD" in
         if [ -n "$pwant" ] && [ "$(echo "$known" | jq -r --arg w "$pwant" 'index($w) != null')" != "true" ]; then
           refuse "open recorded profile \"$pwant\", which the daemon no longer has ($known); switching to it would leave the engine resetting on its next reinit. Put that profile back or switch by hand, then re-run close"
         fi
-        curl -sf -X POST -H 'Content-Type: application/json' -d "$(jq -nc --arg n "$pwant" '{action: "switch", name: $n}')" "$API/api/matrix/profile" >/dev/null \
+        api -X POST -H 'Content-Type: application/json' -d "$(jq -nc --arg n "$pwant" '{action: "switch", name: $n}')" "$API/api/matrix/profile" >/dev/null \
           || die "POST /api/matrix/profile failed; profile left at ${phave:-[Default]}, was ${pwant:-[Default]}"
         pback=$(get /api/state | jq -r '.data.matrix_profile')
         [ "$pback" = "$pwant" ] || die "matrix profile reads \"$pback\" after the switch, wanted \"$pwant\""
@@ -249,7 +271,7 @@ case "$CMD" in
       if [ "$now" = "$want" ]; then
         echo "  $s: unchanged"
       elif [ "$want" = "null" ]; then
-        rm -rf "$STATE/$s"
+        rm -rf "${STATE:?}/$s"
         echo "  $s: deleted (absent at open)"
       else
         # Build beside the store and swap it in: an interrupted close leaves

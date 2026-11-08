@@ -17,6 +17,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { runJob } from "../../../scripts/eqstage/eqstage.js";
+import { credentialsFromEnv, loggedInFetch } from "../../../scripts/eqstage/post.js";
 import { near } from "../support/near.js";
 
 // --- fixtures -------------------------------------------------------------------
@@ -433,4 +434,72 @@ test("test_selecting_all_rows_applies_the_eq_to_every_baseline_row", async () =>
     stagedRows(answer).map((r) => hasStage(r.process, "peak", 5000)),
     [true, true],
   );
+});
+
+// --- the login ------------------------------------------------------------------
+
+const PAIR = { username: "u", password: "p" };
+const COOKIE = "hqptuner_login=tok";
+
+/**
+ * The gate in front of a stage wire: the login route answers with the cookie
+ * (or a 401 when `refuse` is set), and every other route answers 401 unless the
+ * request carries that cookie.
+ *
+ * @param {Wire} inner
+ * @param {{ refuse?: boolean }} [options]
+ * @returns {{ log: { path: string, method: string, body: unknown, cookie: string | undefined }[], fetch: FetchImpl }}
+ */
+function gatedWire(inner, { refuse = false } = {}) {
+  /** @type {{ path: string, method: string, body: unknown, cookie: string | undefined }[]} */
+  const log = [];
+  const fetch = async (/** @type {string} */ url, /** @type {RequestInit} */ init = {}) => {
+    const path = new globalThis.URL(String(url)).pathname;
+    const method = (init.method || "GET").toUpperCase();
+    const cookie = /** @type {Record<string, string>} */ (init.headers || {}).Cookie;
+    log.push({ path, method, body: init.body, cookie });
+    if (path === "/api/login") {
+      return refuse
+        ? { ok: false, status: 401, statusText: "Unauthorized", headers: { getSetCookie: () => [] } }
+        : { ok: true, status: 200, statusText: "OK", headers: { getSetCookie: () => [`${COOKIE}; HttpOnly; Path=/`] } };
+    }
+    return cookie === COOKIE ? inner.fetch(url, init) : bad(401);
+  };
+  return { log, fetch: /** @type {FetchImpl} */ (/** @type {unknown} */ (fetch)) };
+}
+
+test("test_the_login_posts_the_pair_as_a_session_login", async () => {
+  const gate = gatedWire(stageWire());
+  await loggedInFetch(URL_BASE, PAIR, gate.fetch);
+  assert.deepEqual(JSON.parse(String(gate.log[0].body)), { username: "u", password: "p", remember: false });
+});
+
+test("test_every_request_after_the_login_carries_the_cookie_it_set", async () => {
+  const gate = gatedWire(stageWire());
+  await runJob({ url: URL_BASE, eq: EQ }, { fetch: await loggedInFetch(URL_BASE, PAIR, gate.fetch) });
+  assert.ok(gate.log.slice(1).every((c) => c.cookie === COOKIE));
+});
+
+test("test_a_job_run_with_the_login_fetch_reaches_the_buffer_through_the_gate", async () => {
+  const gate = gatedWire(stageWire());
+  const answer = await runJob({ url: URL_BASE, eq: EQ }, { fetch: await loggedInFetch(URL_BASE, PAIR, gate.fetch) });
+  assert.equal(answer.verified, true);
+});
+
+test("test_a_refused_login_rejects", async () => {
+  const gate = gatedWire(stageWire(), { refuse: true });
+  await assert.rejects(loggedInFetch(URL_BASE, PAIR, gate.fetch), /login at .* failed: 401/);
+});
+
+test("test_a_refused_login_sends_no_request_but_the_login", async () => {
+  const gate = gatedWire(stageWire(), { refuse: true });
+  await rejected(loggedInFetch(URL_BASE, PAIR, gate.fetch));
+  assert.deepEqual(
+    gate.log.map((c) => c.path),
+    ["/api/login"],
+  );
+});
+
+test("test_an_unset_password_variable_is_named_when_the_pair_is_read", () => {
+  assert.throws(() => credentialsFromEnv({ HQPTUNER_HQP_USERNAME: "u" }), /HQPTUNER_HQP_PASSWORD/);
 });

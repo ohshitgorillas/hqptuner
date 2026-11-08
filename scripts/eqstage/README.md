@@ -10,6 +10,15 @@ node scripts/eqstage/eqstage.js < job.json    # JSON on stdout, table on stderr
 
 This tool has no code path to `POST /api/config/apply`, `POST /api/config/live`, or `DELETE /api/config/pending`, and none gets added. Flushing the buffer to the daemon is the user's click. If a job cannot express what you need, say so and ask — never route around the tool with raw `curl` writes.
 
+## Login
+
+Every route the tool reads or writes sits behind the app's login. The CLI logs in first, as a session login that writes nothing to the app's store, with the pair `hqpcreds` exports (`set -a; source hqpcreds; set +a`):
+
+- `HQPTUNER_HQP_USERNAME` — the HQPlayer username.
+- `HQPTUNER_HQP_PASSWORD` — the HQPlayer password.
+
+A variable that is not set, or a login the app refuses or does not answer, stops the run naming the login, before any request to the buffer.
+
 ## Job shape
 
 ```json
