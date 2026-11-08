@@ -10,6 +10,11 @@
 // says it restarted. While the feed is closed no painter is called, and a painter that subscribes or unsubscribes
 // during a paint costs no painter that paint.
 //
+// Over generated bursty feeds inside the buffer, at two delays and steady and uneven paint waits, and over the committed
+// capture at its delay, every frame carrying a reading that names it: the playhead moves each paint's wall time, the
+// scene is never handed as it stood for longer than a frame lasts, and no paint is handed more music than its wall time
+// and one frame cover.
+//
 // The loop paints only while the feed is open and the engine plays (docs/superpowers/specs/meter-loop-idle-design.md,
 // Modules). When either stops holding, every painter still subscribed is handed the scene once, restarted, with
 // nothing heard and `dt` 0, so the meters clear, and is called no more until both hold again; then the loop starts
@@ -30,10 +35,12 @@
 
 import test, { afterEach, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { signal } from "@preact/signals-core";
 
 import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
+import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
 import { initSpectrogram } from "../../../../hqptuner/static/store/meter/spectrogram.js";
 import { initApodHistory } from "../../../../hqptuner/static/store/apodhistory.js";
@@ -50,6 +57,9 @@ import { MONO_BINS, RATE_44K, follow, geometry } from "../../support/meterfeed.j
 
 /** Wall time, ms, from one animation frame being asked for to its running, in turn. */
 const FRAME_GAPS_MS = [16, 33, 17, 250, 41, 1000, 16.7];
+
+/** The waits the clock runs animation frames after, in turn: FRAME_GAPS_MS unless a case sets its own. */
+let frameGaps = FRAME_GAPS_MS;
 
 /** Wall time, ms, one settle runs the clock on: several animation frames, however long each waits. */
 const SETTLE_MS = 2500;
@@ -91,7 +101,7 @@ let gapAt = 0;
 const clock = {
   ...fake.clock,
   requestAnimationFrame: (fn) => {
-    const wait = FRAME_GAPS_MS[gapAt % FRAME_GAPS_MS.length];
+    const wait = frameGaps[gapAt % frameGaps.length];
     gapAt += 1;
     return fake.clock.setTimeout(() => {
       const now = fake.clock.now();
@@ -133,6 +143,7 @@ function jump() {
  * @property {number} peak  dBFS: the scene's first channel; NaN when it has none
  * @property {number} rms  dBFS: the scene's first channel; NaN when it has none
  * @property {boolean} restart
+ * @property {number | null} head  playback, ms: the playhead signal when the painter was called
  * @property {Array<{ peak: number, rms: number, bins: number[] }>} channels  every channel of the scene: dBFS, bins
  *   copied when the painter was called
  */
@@ -157,6 +168,7 @@ function subscribe() {
       peak: ch ? ch.peak : NaN,
       rms: ch ? ch.rms : NaN,
       restart: scene.restart,
+      head: playhead.value,
       channels,
     });
   });
@@ -179,6 +191,7 @@ beforeEach(() => {
   settle();
   lastStream()?.emit("geometry", geometry(RATE_44K));
   framesRun = [];
+  frameGaps = FRAME_GAPS_MS;
 });
 
 afterEach(() => {
@@ -476,3 +489,158 @@ test("test_a_signal_a_painter_reads_changing_while_the_engine_plays_again_restar
     [],
   );
 });
+
+/**
+ * A feed to send: wall ms after the case starts, and the frames that land together then.
+ *
+ * @typedef {{ wall: number, frames: Array<{ at: number, n: number }> }} Landing
+ */
+
+/** The reading the first frame sent carries, dBFS: each frame after it carries STEP_DB more, so a scene names the newest frame it shows. */
+const FIRST_DB = -90;
+const STEP_DB = 0.25;
+
+/** Burst sizes in turn, and how far each burst lands off the schedule its music sets, wall ms, early and late. */
+const BURST_SIZES = { short: [3, 5, 2, 4], long: [5, 7, 4, 6] };
+const OFF_SCHEDULE_MS = [0, -20, 25, -10, 30, -25, 15, -5, 20, -30];
+
+/** Bursts per generated feed. */
+const BURSTS = 30;
+
+/** Paint waits, wall ms, in turn: steady at 60 Hz, then uneven with late paints. */
+const PAINTS = { steady: [16], uneven: [16, 33, 17, 41, 16.7] };
+
+/** The capture's paint wait, wall ms: 60 Hz. */
+const CAPTURE_PAINT_MS = SECOND_MS / 60;
+
+/** The committed capture of the dev container's feed, read, never written. */
+const CAPTURE_FILE = new URL("../../../support/fixtures/meter_feed_capture.json", import.meta.url);
+
+/**
+ * A feed of `BURSTS` bursts of `sizes` frames in turn at 44.1 kHz, LENGTHS in turn; a burst lands where the music before
+ * it would have ended on the wall, off by OFF_SCHEDULE_MS in turn, never before the burst before it.
+ *
+ * @param {number[]} sizes
+ * @returns {{ rate: number, landings: Landing[] }}
+ */
+function generatedFeed(sizes) {
+  /** @type {Landing[]} */
+  const landings = [];
+  let at = 0;
+  let sent = 0;
+  let wall = 0;
+  for (let k = 0; k < BURSTS; k++) {
+    const frames = Array.from({ length: sizes[k % sizes.length] }, () => ({ at, n: LENGTHS[sent++ % LENGTHS.length] }));
+    wall = Math.max(wall, k ? (at * SECOND_MS) / RATE_44K + OFF_SCHEDULE_MS[k % OFF_SCHEDULE_MS.length] : 0);
+    landings.push({ wall, frames });
+    for (const f of frames) {
+      f.at = at;
+      at += f.n;
+    }
+  }
+  return { rate: RATE_44K, landings };
+}
+
+/**
+ * The committed capture as a feed: each frame lands at its own recorded time, at the geometry's rate.
+ *
+ * @returns {{ rate: number, landings: Landing[], delay: number }}  delay: engine output delay plus the owner's offset, s
+ */
+function capturedFeed() {
+  const raw = JSON.parse(readFileSync(CAPTURE_FILE, "utf8"));
+  const rate = JSON.parse(raw.events.find((/** @type {{ event: string }} */ ev) => ev.event === "geometry").data).rate;
+  const landings = raw.events
+    .filter((/** @type {{ event: string }} */ ev) => ev.event === "frame")
+    .map((/** @type {{ t_ms: number, data: string }} */ ev) => {
+      const { at, n } = JSON.parse(ev.data);
+      return { wall: ev.t_ms, frames: [{ at, n }] };
+    });
+  return { rate, landings, delay: Number(raw.engine_output_delay) / 1e6 + raw.owner_spectrum_offset_s };
+}
+
+/**
+ * Send `feed` on the stream open now, each landing at its wall time on the clock, and run the clock on to the last.
+ *
+ * @param {{ rate: number, landings: Landing[] }} feed
+ * @returns {{ paints: Painted[], starts: number[], longest: number }}  the paints the painter was handed until the last
+ *   landing was sent; where each frame starts and how long the longest is, playback ms
+ */
+function replay(feed) {
+  const paints = subscribe();
+  const t0 = fake.clock.now();
+  const starts = feed.landings.flatMap((l) => l.frames.map((f) => (f.at * SECOND_MS) / feed.rate));
+  const lengths = feed.landings.flatMap((l) => l.frames.map((f) => (f.n * SECOND_MS) / feed.rate));
+  lastStream()?.emit("geometry", geometry(feed.rate));
+  let i = 0;
+  for (const { wall, frames } of feed.landings) {
+    fake.advance(Math.max(0, t0 + wall - fake.clock.now()));
+    for (const { at, n } of frames) {
+      const reading = { peak: FIRST_DB + STEP_DB * i++, rms: QUIET.rms, bins: MONO_BINS };
+      lastStream()?.emit("frame", { channels: [reading], at, n });
+    }
+  }
+  const last = fake.clock.now();
+  return { paints: paints.filter((p) => p.now <= last), starts, longest: Math.max(...lengths) };
+}
+
+/**
+ * Which frame of the feed a paint's scene names: the newest one it folded; NaN when the scene holds none.
+ *
+ * @param {Painted} p
+ */
+const frameOf = (p) => Math.round((p.peak - FIRST_DB) / STEP_DB);
+
+/** @type {Array<{ name: string, delay: number, gaps: number[], feed: { rate: number, landings: Landing[] } }>} */
+const FEEDS = [];
+for (const [length, sizes] of Object.entries(BURST_SIZES)) {
+  for (const [rate, gaps] of Object.entries(PAINTS)) {
+    FEEDS.push({
+      name: `${length}_bursts_at_${rate}_paints`,
+      delay: length === "short" ? 0.3 : 0.6,
+      gaps,
+      feed: generatedFeed(sizes),
+    });
+  }
+}
+const CAPTURE = capturedFeed();
+FEEDS.push({ name: "the_capture_at_60_hz", delay: CAPTURE.delay, gaps: [CAPTURE_PAINT_MS], feed: CAPTURE });
+
+for (const { name, delay, gaps, feed } of FEEDS) {
+  /** Replay the feed at its delay and paint waits. */
+  const played = () => {
+    setSpectrumOffset(String(delay));
+    frameGaps = gaps;
+    gapAt = 0;
+    return replay(feed);
+  };
+
+  test(`test_${name}_moves_the_playhead_exactly_its_wall_time_at_every_paint`, () => {
+    const { paints } = played();
+    const moves = paints.flatMap((p, i) => {
+      const before = i > 0 ? paints[i - 1].head : null;
+      return p.head !== null && before !== null ? [{ by: p.head - before, wall: p.dt * SECOND_MS }] : [];
+    });
+    const off = moves.filter((m) => Math.abs(m.by - m.wall) > 1e-6);
+    assert.deepEqual({ some: moves.length > 0, off: off.length }, { some: true, off: 0 });
+  });
+
+  test(`test_${name}_never_hands_the_scene_as_it_stood_for_longer_than_a_frame_lasts`, () => {
+    const { paints, longest } = played();
+    const shown = paints.filter((p) => Number.isFinite(p.peak));
+    const stuck = shown.filter((p, i) => {
+      let first = i;
+      while (first > 0 && frameOf(shown[first - 1]) === frameOf(p)) first--;
+      return p.now - shown[first].now > longest;
+    });
+    assert.deepEqual({ some: shown.length > 0, stuck: stuck.length }, { some: true, stuck: 0 });
+  });
+
+  test(`test_${name}_never_hands_a_paint_more_music_than_its_wall_time_and_one_frame_cover`, () => {
+    const { paints, starts, longest } = played();
+    const shown = paints.filter((p) => Number.isFinite(p.peak));
+    const burst = shown.filter(
+      (p, i) => i > 0 && starts[frameOf(p)] - starts[frameOf(shown[i - 1])] >= p.dt * SECOND_MS + longest,
+    );
+    assert.deepEqual({ some: shown.length > 0, burst: burst.length }, { some: true, burst: 0 });
+  });
+}
