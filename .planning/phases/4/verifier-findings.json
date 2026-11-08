@@ -1,0 +1,144 @@
+{
+  "status": "gaps",
+  "score": "8/11",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Without a login cookie every /api route except /api/health (and /api/login) answers 401; with a login cookie a gated route answers as before",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "hqptuner/api/gate.py:78-91 decide() denies every /api path outside OPEN_PATHS without a valid login; LoginGate installed in hqptuner/api/factory.py:76 for every router. Seam traced: token minted in hqptuner/api/login.py (set_login_cookie) lands in gate.login_of -> core.login.check; tests/api/login/test_login_gate.py::test_a_login_cookie_opens_the_gate carries that token (200 with it, 401 without). Every offline API fixture logs in first (tests/support/fixtures_clients.py:54,164; tests/support/apps.py:117), so the existing route tests are the 'answers as before' half. Spot-run: test_every_api_route_but_health_and_login_refuses_a_caller_with_no_login passed (scripts/gate.sh, 70 passed, exit=0, log /tmp/gate-pytest-LxhFyYkX.log)."
+    },
+    {
+      "n": 2,
+      "truth": "Login checks the typed pair against hqplayerd: wrong pair 401 with no Set-Cookie, correct pair sets an HttpOnly SameSite=Strict cookie; 'log in every time' has no expiry, 'save password' carries Max-Age",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/api/login.py login() -> conf/httpauth.check_pair, refuses login_refused/login_not_answered before set_login_cookie; gate.py:43-60 max_age only for LoginKind.SAVED. SPA sends remember from the Connection panel (hqptuner/static/store/setup.js:294, api.js:247). Spot-run passed: tests/api/login/test_login_route.py::test_a_wrong_pair_is_refused_and_sets_no_cookie and ::test_the_cookie_lasts_as_long_as_the_choice_the_login_made (both ids)."
+    },
+    {
+      "n": 3,
+      "truth": "A logged-in POST/PUT/DELETE with a foreign Origin or Sec-Fetch-Site cross-site answers 403",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "hqptuner/api/crosssite.py:41-56 decide(), CrossSiteGuard added outermost at hqptuner/api/factory.py:78. Spot-run passed: tests/api/surface/test_cross_site_refused.py::test_a_logged_in_write_sent_from_another_site_is_refused (15 cases: PUT/POST/DELETE x foreign Origin, Origin null, Sec-Fetch-Site cross-site/same-site), asserting (403, cross_site_refused)."
+    },
+    {
+      "n": 4,
+      "truth": "/api/health has no license name or fingerprint, /api/status metadata has no uri, /api/log has no path, and a state export holds no password from a connection.json under the preset or backup directory",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "hqptuner/api/routes/status.py:26 _LICENSE_PRIVATE applied at :104; :29 _METADATA_SERVED applied at :82-85,152; :196-218 LogTailReport has only enabled and lines. hqptuner/presets/store/export.py:51-72 _dir_members withholds CONNECTION_STORE.name, LOGIN_KEY_FILE and cfg.connection_file.name. SPA reads none of the removed fields (grep of hqptuner/static for fingerprint, license.name, .uri found none outside vendor). Spot-run passed: all of tests/api/test_api_health.py and tests/presets/test_state_export.py (WHERE covers preset_dir, backup_dir and a subdir of each). Bite records: .planning/phases/4/reports/plan-4.md rows 1-4."
+    },
+    {
+      "n": 5,
+      "truth": "Page responses carry frame-ancestors 'none' and X-Content-Type-Options nosniff with a CSP allowing the import map by hash; /docs, /redoc and /openapi.json answer 404",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "hqptuner/api/spa.py page_policy() and NoCacheStaticFiles.get_response stamp both headers, 404 included; factory.py docs_url=None, redoc_url=None, openapi_url=None. Spot-run passed: all of tests/api/surface/test_page_headers.py and tests/api/surface/test_docs_routes_off.py (/docs, /redoc, /openapi.json, /docs/oauth2-redirect each 404). Not passed as UAT 6 on its own because that item also needs the browser half (truth 6)."
+    },
+    {
+      "n": 6,
+      "truth": "Page headers, docs routes off, UI loads logged in (ci: e2e)",
+      "status": "FAILED",
+      "uat_item": 6,
+      "evidence": "Tests exist: tests/e2e/test_login.py (no gated 401 on load, meter feed answered, /api/backup and /api/state-export each deliver a zip) and tests/e2e/test_content_policy.py. No run at HEAD is observed: the only recorded e2e pass (106 passed, .planning/phases/4/reports/plan-3.md) predates plan 4, whose commits 2b163fd3, e046dafa and 6f040843 change hqptuner/api/routes/status.py and hqptuner/presets/store/export.py, both on this journey's path (status polls, state-export download). The e2e CI job has not run on the phase's commits (truth 11)."
+    },
+    {
+      "n": 7,
+      "truth": "Clean start boots and serves (ci: e2e)",
+      "status": "FAILED",
+      "uat_item": 1,
+      "evidence": "tests/e2e/support/stack.py:213-221 logs the stack in through /api/login before its first gated query. Same as truth 6: the last recorded e2e pass predates plan 4's status.py and export.py changes, and no e2e run on HEAD a24eded0 (or e2ccb49f) is observed, locally or in CI."
+    },
+    {
+      "n": 8,
+      "truth": "DISPOSITIONS.md lists all 9 findings",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": ".planning/security/DISPOSITIONS.md: grep -c '^### F-' = 9 (F-001, 002, 003, 008, 009, 024, 025, 027, 028). Every named commit resolves on dev (git cat-file -e: dcc76891, a666a057, f15feb97, 6f040843, fc9803f5, 307c3e41, 2b163fd3, e046dafa, 2e9fd4bd, dfd5eb54, c4967603). Rulings match CONTEXT D-10 ('asinine') and D-12 ('why the fuck would it ever do that') verbatim. Every proof test id named in the file exists: pytest --collect-only over them collected 39 tests, no id missing."
+    },
+    {
+      "n": 9,
+      "truth": "Every Critical and High finding in this phase is fixed, or declined only by owner ruling",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": ".planning/security/REPORT.md severity table: Critical F-001, F-009; High F-003; the two declines F-024 (Medium) and F-028 (Low) carry quoted owner rulings. F-001/F-003/F-009 are Fixed in DISPOSITIONS.md, fixed by the gate (truth 1); F-003 proof test_a_caller_on_the_loopback_address_is_refused_like_any_other exists."
+    },
+    {
+      "n": 10,
+      "truth": "Each fixed finding has a test or check that fails against the pre-fix code",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "Recorded red runs: .planning/phases/4/reports/plan-1.md (gate: 16 gate tests fail with LoginGate commented out; pinned-values fix 3 red), plan-3.md (cross-site 21 of 32 red without the factory line; headers 11 of 12 red on old spa.py; docs routes 4 red before), plan-4.md (health 2 red, metadata 2 red, log 1 red, export 9 of 9 red). The login-route proofs were discharged statically; pre-fix code at a942cfca has no /api/login route, so test_a_wrong_pair_is_refused_and_sets_no_cookie cannot pass there (response.json()['code'] has no login_refused)."
+    },
+    {
+      "n": 11,
+      "truth": "Required CI jobs pass on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)",
+      "status": "FAILED",
+      "uat_item": 8,
+      "evidence": "Local ref origin/dev = f3fe8c95; git merge-base --is-ancestor e2ccb49f origin/dev reports not an ancestor, so 8850b6ff through a24eded0 (plan 2 tasks 6-7, all of plans 3 and 4, DISPOSITIONS.md) have not been pushed and no CI run on the phase's last commit can exist. SUMMARY.md Open items states the same. The ref was read locally without a fetch (no network allowed). The make check half of ROADMAP criterion 4 is not observed here; the main session's single suite run settles it."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "Login gate on every /api route",
+      "evidence": "hqptuner/api/gate.py:78-108 LoginGate, installed in hqptuner/api/factory.py:76; tests/api/login/test_login_gate.py::test_every_api_route_but_health_and_login_refuses_a_caller_with_no_login and ::test_a_login_cookie_opens_the_gate; spot-run passed (exit=0, /tmp/gate-pytest-LxhFyYkX.log). Offline fixtures log in first, so existing route tests are the logged-in 'as before' half."
+    },
+    {
+      "k": 3,
+      "name": "Login checks the HQPlayer pair and sets the right cookie",
+      "evidence": "hqptuner/api/login.py login(), hqptuner/api/gate.py:43-60 set_login_cookie; tests/api/login/test_login_route.py::test_a_wrong_pair_is_refused_and_sets_no_cookie and ::test_the_cookie_lasts_as_long_as_the_choice_the_login_made passed in spot-run."
+    },
+    {
+      "k": 4,
+      "name": "Cross-site state-changing requests refused",
+      "evidence": "hqptuner/api/crosssite.py:41-56, outermost in factory.py:78; tests/api/surface/test_cross_site_refused.py::test_a_logged_in_write_sent_from_another_site_is_refused (15 cases) passed in spot-run."
+    },
+    {
+      "k": 5,
+      "name": "Exposed fields removed",
+      "evidence": "hqptuner/api/routes/status.py:26,29,82-85,104,152,196-218; hqptuner/presets/store/export.py:51-72; tests/api/test_api_health.py and tests/presets/test_state_export.py passed in spot-run."
+    },
+    {
+      "k": 7,
+      "name": "DISPOSITIONS.md lists all 9 findings",
+      "evidence": ".planning/security/DISPOSITIONS.md: 9 '### F-' headings, every named commit resolves on dev, both rulings verbatim per CONTEXT D-10/D-12, all named proof tests collected (39)."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 1,
+      "name": "Clean start boots and serves (ci: e2e)",
+      "reason": "behavior not observed at HEAD: no e2e run covers the phase's last commit",
+      "evidence": "tests/e2e/support/stack.py:213-221 logs in, but the only recorded e2e pass (.planning/phases/4/reports/plan-3.md, 106 passed) predates plan 4 commits 2b163fd3, e046dafa, 6f040843, which change hqptuner/api/routes/status.py and hqptuner/presets/store/export.py. origin/dev is f3fe8c95, so CI e2e has not run on these commits either.",
+      "severity": "major",
+      "missing": "A green e2e run at the phase's last dev commit: the CI e2e job after the owner pushes dev, or make test-e2e with HQPTUNER_CHROMIUM set."
+    },
+    {
+      "k": 6,
+      "name": "Page headers, docs routes off, UI loads logged in (ci: e2e)",
+      "reason": "behavior not observed at HEAD: the browser half (UI loads logged in, meter feed, both downloads) has no e2e run after plan 4",
+      "evidence": "Offline half verified (tests/api/surface/test_page_headers.py, test_docs_routes_off.py passed in spot-run). tests/e2e/test_login.py::test_a_download_link_delivers_a_zip_archive[/api/state-export] and ::test_a_logged_in_page_loads_with_no_gated_response_refused exercise export.py and status.py, which plan 4 changed after the last recorded e2e pass (plan-3 report).",
+      "severity": "major",
+      "missing": "A green e2e run at the phase's last dev commit covering tests/e2e/test_login.py and tests/e2e/test_content_policy.py."
+    },
+    {
+      "k": 8,
+      "name": "Required CI jobs pass on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)",
+      "reason": "missing: the seven required jobs have not run on the phase's last dev commit, because it is not pushed",
+      "evidence": "Local origin/dev = f3fe8c95; e2ccb49f is not an ancestor of origin/dev (git merge-base --is-ancestor). SUMMARY.md Open items confirms no run on e2ccb49f and the windows-11-arm smoke-windows legs after f3fe8c95 unread. Ref read without fetch.",
+      "severity": "blocker",
+      "missing": "Owner pushes dev at the phase's last commit; check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows all conclude success on it, windows-11-arm legs included."
+    },
+    {
+      "name": "The /api/log path test also holds that the log lines are served",
+      "reason": "behavior under-tested: plan 4 task 3 Verify requires 'a log read answers without path and with its lines', but the test asserts only the absence of path, so a log read refused with {detail, code} would also pass it",
+      "evidence": "tests/api/test_api_health.py:104-122 test_log_tail_carries_no_log_file_path ends in `assert \"path\" not in body` and asserts nothing about lines or status; .planning/phases/4/PLAN-4.md Task 3 Verify line. Its pre-fix red run (plan-4 report) shows it is not vacuous today.",
+      "severity": "minor",
+      "missing": "A case (or a companion assertion in its own test, docs/testing.md one-assert rule) that the same log read answers with the served lines, so the no-path case cannot pass on a refused read."
+    }
+  ],
+  "human_checks": []
+}
