@@ -562,15 +562,6 @@ def test_answers_knocks_with_the_timeout_it_was_given(given: tuple[float, ...], 
 # --- the production parts ---------------------------------------------------------------------------------------
 
 
-def accepts(port: int) -> bool:
-    """Whether a TCP connection to ``port`` on loopback is taken."""
-    try:
-        socket.create_connection((HOST, port), timeout=5).close()
-    except OSError:
-        return False
-    return True
-
-
 @pytest.fixture
 def listening(closed_port: int) -> Iterator[desktop.Listening]:
     """A ``Listening`` on a free loopback port, never run, its socket closed afterwards."""
@@ -580,10 +571,8 @@ def listening(closed_port: int) -> Iterator[desktop.Listening]:
         sock.close()
 
 
-def test_a_listener_takes_connections_before_it_runs(closed_port: int, request: pytest.FixtureRequest) -> None:
-    before = accepts(closed_port)
-    request.getfixturevalue("listening")
-    assert (before, accepts(closed_port)) == (False, True)
+def test_a_listener_takes_connections_before_it_runs(listening: desktop.Listening) -> None:
+    assert listening.sockets[0].getsockopt(socket.SOL_SOCKET, socket.SO_ACCEPTCONN) == 1
 
 
 def test_exit_asks_the_bound_server_to_stop(listening: desktop.Listening) -> None:
