@@ -3,8 +3,10 @@
 Every store ``Config`` drives is archived under that store's name, and every file inside a store directory under
 ``<store name>/<relative path>``. A store missing from disk is skipped. Parked filter uploads under the backup
 directory are left out. The saved connection record ships with its password blanked; a record that does not parse as
-a JSON object is left out, since a password in a shape this module cannot read is one it cannot blank. The debug log
-and its rolled sibling ship under their own basenames, and the in-memory log lines as ``hqptuner.log``.
+a JSON object is left out, since a password in a shape this module cannot read is one it cannot blank. A file inside
+a store directory named as the connection record is, or as the login secret is, ships nowhere, at any depth: a
+file this module did not write is one it cannot promise to blank. The debug log and its rolled sibling ship under
+their own basenames, and the in-memory log lines as ``hqptuner.log``.
 """
 
 from __future__ import annotations
@@ -15,7 +17,7 @@ import zipfile
 from typing import TYPE_CHECKING
 
 from hqptuner import audit
-from hqptuner.config import Config
+from hqptuner.config import CONNECTION_STORE, LOGIN_KEY_FILE, Config
 from hqptuner.presets.store.filterpark import PARK_DIR
 from hqptuner.unwritable import reading
 
@@ -44,15 +46,18 @@ def _connection_members(path: Path, store: Store) -> Iterator[tuple[str, bytes]]
         yield store.name, json.dumps(record, indent=2).encode()
 
 
-def _dir_members(root: Path, store: Store, park: Path) -> Iterator[tuple[str, bytes]]:
-    """Yield every file under ``root``, recursive and sorted, as ``<name>/<relative path>``; nothing under ``park``."""
+def _dir_members(root: Path, store: Store, park: Path, withheld: frozenset[str]) -> Iterator[tuple[str, bytes]]:
+    """Yield every file under ``root``, recursive and sorted, as ``<name>/<relative path>``.
+
+    Nothing under ``park``, and no file whose name is in ``withheld``.
+    """
     with reading(store.what, root):
         if not root.is_dir():
             return
         members = [
             (f"{store.name}/{path.relative_to(root).as_posix()}", path.read_bytes())
             for path in sorted(root.rglob("*"))
-            if path.is_file() and not path.is_relative_to(park)
+            if path.is_file() and not path.is_relative_to(park) and path.name not in withheld
         ]
     yield from members
 
@@ -60,10 +65,11 @@ def _dir_members(root: Path, store: Store, park: Path) -> Iterator[tuple[str, by
 def _store_members(cfg: Config) -> Iterator[tuple[str, bytes]]:
     """Yield every store present on disk as archive members, the connection record blanked or left out."""
     park = cfg.backup_dir / PARK_DIR
+    withheld = frozenset({CONNECTION_STORE.name, LOGIN_KEY_FILE, cfg.connection_file.name})
     for store in Config.STORES:
         path: Path = getattr(cfg, store.attr)
         if store.is_dir:
-            yield from _dir_members(path, store, park)
+            yield from _dir_members(path, store, park, withheld)
             continue
         if not path.is_file():
             continue

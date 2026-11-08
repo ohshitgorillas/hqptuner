@@ -15,7 +15,7 @@ from typing import Any
 
 import pytest
 
-from hqptuner.config import Config
+from hqptuner.config import LOGIN_KEY_FILE, Config
 from hqptuner.presets.store.export import state_archive
 
 #: Each single-file store: its `Config` field and the name it is archived under.
@@ -70,6 +70,18 @@ def store_member_names(archive: bytes) -> set[str]:
     return {name for name in members(archive) if name.split("/")[0] in STORE_NAMES}
 
 
+#: Where a credential file can sit under a store directory the operator pointed at the install's own state:
+#: the directory's top, and a subdirectory of it, for each of the two directory stores.
+WHERE = ["preset_dir", "backup_dir", "preset_dir/sub", "backup_dir/sub"]
+
+
+def placed_at(cfg: Config, where: str) -> Path:
+    """The directory ``where`` names under ``cfg``'s stores."""
+    attr, _, sub = where.partition("/")
+    root: Path = getattr(cfg, attr)
+    return root / sub
+
+
 def write(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
@@ -103,6 +115,30 @@ def test_the_archived_connection_record_survives_with_its_password_blanked(tmp_p
     cfg = config_at(tmp_path / "state")
     write(cfg.connection_file, json.dumps(CONNECTION_RECORD).encode())
     assert json_member(state_archive(cfg, []), "connection.json") == {**CONNECTION_RECORD, "password": ""}
+
+
+@pytest.mark.parametrize("where", WHERE)
+def test_a_connection_record_found_in_a_store_directory_ships_no_password(tmp_path: Path, where: str) -> None:
+    cfg = config_at(tmp_path / "state")
+    write(
+        placed_at(cfg, where) / "connection.json",
+        json.dumps({**CONNECTION_RECORD, "password": "found-in-dir"}).encode(),
+    )
+    assert b"found-in-dir" not in b"".join(members(state_archive(cfg, [])).values())
+
+
+@pytest.mark.parametrize("where", WHERE)
+def test_a_login_secret_found_in_a_store_directory_ships_nowhere(tmp_path: Path, where: str) -> None:
+    cfg = config_at(tmp_path / "state")
+    write(placed_at(cfg, where) / LOGIN_KEY_FILE, b"found-secret")
+    assert LOGIN_KEY_FILE not in {name.rsplit("/", 1)[-1] for name in members(state_archive(cfg, []))}
+
+
+def test_a_connection_record_under_another_name_found_in_a_store_directory_ships_no_password(tmp_path: Path) -> None:
+    cfg = config_at(tmp_path / "state")
+    cfg.connection_file = cfg.preset_dir / "creds.json"
+    write(cfg.connection_file, json.dumps({**CONNECTION_RECORD, "password": "found-in-dir"}).encode())
+    assert b"found-in-dir" not in b"".join(members(state_archive(cfg, [])).values())
 
 
 def test_parked_filter_uploads_are_left_out_of_the_backups(tmp_path: Path) -> None:
