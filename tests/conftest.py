@@ -37,7 +37,7 @@ from hqptuner.core.manager import ConnectionManager
 if TYPE_CHECKING:
     import asyncio
 
-pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
+pytest_plugins = ["fixtures_daemons", "fixtures_clients", "socket_guard"]
 
 #: Every Config field whose default points into the repo checkout — the state/
 #: files the dev container bind-mounts, plus the backup and preset dirs. Env
