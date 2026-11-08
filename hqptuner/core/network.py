@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 import httpx
 
+from hqptuner.conf.httpconf import HttpOptions
 from hqptuner.engine.control import Opener
 
 #: What carries an 8088 request to a host and a port: a transport that answers it, or None for httpx's own.
@@ -30,3 +31,7 @@ class Network:
 
     open_stream: Opener = asyncio.open_connection
     http_transport: HttpTransportFor = own_transport
+
+    def http_options(self, host: str, port: int) -> HttpOptions:
+        """Answer the options an 8088 request to ``host:port`` goes under: default timeout, this network's transport."""
+        return HttpOptions(transport=self.http_transport(host, port))

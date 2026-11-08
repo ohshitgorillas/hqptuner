@@ -26,7 +26,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
+from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import CONNECTION_STORE
 from hqptuner.core.network import Network
 from hqptuner.presets.store.jsonfile import StoreCorruptError
@@ -165,5 +165,5 @@ def build_http_client(cfg: Config, network: Network | None) -> HttpConfigClient 
     """
     if not cfg.hqp_username or not cfg.hqp_password:
         return None
-    options = HttpOptions(transport=(network or Network()).http_transport(cfg.hqp_host, cfg.hqp_http_port))
+    options = (network or Network()).http_options(cfg.hqp_host, cfg.hqp_http_port)
     return HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password, options)

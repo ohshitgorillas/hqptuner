@@ -59,7 +59,9 @@ async def connect_and_load(mgr: "ConnectionManager") -> None:
     # rather than failing the connect.
     mgr.readings.release = ""
     try:
-        mgr.readings.release = release.parse_release(await release.fetch_about(mgr.http_base_url))
+        mgr.readings.release = release.parse_release(
+            await release.fetch_about(mgr.http_base_url, mgr.network.http_options(cfg.hqp_host, cfg.hqp_http_port))
+        )
     except httpx.HTTPError as exc:
         log.debug("release lookup failed: %s", exc)
     if mgr.http_client is not None:

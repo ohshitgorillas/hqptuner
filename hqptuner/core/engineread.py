@@ -24,6 +24,12 @@ log = logging.getLogger(__name__)
 _CAPS_RETRY = 30.0
 
 
+async def _fetch_log(mgr: "ConnectionManager") -> str:
+    """Return the daemon's log text, read over the transport the manager's network hands out."""
+    host, port = mgr.cfg.hqp_host, mgr.cfg.hqp_http_port
+    return await logtail.fetch_log(host, port, mgr.network.http_options(host, port))
+
+
 async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) -> None:
     """Re-learn what the selected output device can carry (engine/devicecaps).
 
@@ -50,7 +56,7 @@ async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) 
         readings.device_caps = None
         return
     try:
-        text = await logtail.fetch_log(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port)
+        text = await _fetch_log(mgr)
     except httpx.HTTPError as exc:
         # No log, no capability, no narrowing — the menus stay whole, which is
         # the correct answer to "the device has not told us anything".
@@ -85,7 +91,7 @@ async def read_log_tail(mgr: "ConnectionManager", lines: int = 50) -> LogTail:
     or answers with an error status, raises ``httpx.HTTPError``: a failed read, not an absent log.
     """
     path, enabled = logtail.log_file_field(mgr.readings.config_form)
-    text = await logtail.fetch_log(mgr.cfg.hqp_host, mgr.cfg.hqp_http_port)
+    text = await _fetch_log(mgr)
     return LogTail(path, enabled, logtail.tail_text(text, lines))
 
 
