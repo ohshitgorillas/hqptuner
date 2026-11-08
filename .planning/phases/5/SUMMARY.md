@@ -30,6 +30,9 @@ Every daemon lane (4321 and 4322 control streams, 8088 HTTP, discovery UDP, mete
 | 1 | 6 | cb38f86b | Network.open_datagram; discovery Search gains opener and datagrams |
 | 1 | 7 | 131ba82c | MeteringReader dials through the network's opener |
 | 1 | 8 | eb2834a8 | desktop.answers takes a sockets factory; occupant and knock tests in process |
+| - | - | d2025f73 | ruff ignores PLR0911, PLR0912, PLR0913 and PLR0915 project-wide, by owner instruction |
+| 1 | - | eb54bd46 | check_pair, MeteringReader and discover take the transport and openers as plain arguments |
+| - | - | 34ff3147 | ruff ignores PLR0917 too |
 | 2 | 1 | 740b9499 | socket_guard plugin and its test |
 | 2 | 3 | 40fc4d56 | junkcal rig serves metering in process |
 | 2 | 2 | 85d35084 | control fakes register on the network; clients and managers use it |
@@ -52,7 +55,7 @@ Every daemon lane (4321 and 4322 control streams, 8088 HTTP, discovery UDP, mete
 ## Deviations
 
 - [deviation] Plan 1 tasks 5 and 7: new test files would have pushed `tests/engine` past its 30-file directory cap, so by owner checkpoint they moved to `tests/api` (`test_ungated_readers_network.py`, `test_metering_network.py`). fe18ecaa, 131ba82c
-- [deviation] Plan 1 task 4: `check_pair` takes the transport as `wait: float | HttpOptions` rather than a sixth parameter (ruff max-args 5). Task 6 put the new seams on `Search` rather than `discover` for the same reason. db360156, cb38f86b
+- [deviation] Success Criterion 4 (no gate changed): by owner instruction, ruff no longer enforces PLR0911, PLR0912, PLR0913, PLR0915 or PLR0917 (`pyproject.toml` `ignore`). `check_pair` takes the transport as a keyword-only argument, `MeteringReader` takes its opener in the constructor, and `discover` takes the opener and datagram factory as arguments. d2025f73, eb54bd46, 34ff3147
 - [deviation] Plan 2 task 3 committed before task 2: with `live_manager` in process, `tests/test_junkcal.py` failed in 6 of 8 runs until its rig moved too. 40fc4d56, 85d35084
 - [deviation] Plan 2 task 5: `fake_http.spawn` gained a `networked` keyword the plan did not list. Plan 4 task 3 removed it again. a47199af, 5cbd0c2f
 - [deviation] Plan 4 task 3: `daemon_backup` in `tests/presets/test_description_routes.py` still dialed `http_daemon` over TCP ("Connection refused" once the fakes went in-process). The owner approved adding the file to the plan's lease, and it now uses `fake_network.http_transport`. 5cbd0c2f
