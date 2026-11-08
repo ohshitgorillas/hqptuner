@@ -101,8 +101,8 @@ def make_lifespan(
                 lambda: context_from(manager),
                 pace=manager.clock.pace,
                 monotonic=manager.clock.monotonic,
+                opener=manager.network.open_stream,
             )
-            reader.opener = manager.network.open_stream
             manager.metering = reader
             metering_task = manager.clock.spawn(reader.run())
             autopilot_task = manager.clock.spawn(autopilotops.run(manager, cfg.poll_interval))

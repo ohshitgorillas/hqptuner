@@ -219,17 +219,12 @@ async def _collect(
 
 @dataclass(frozen=True)
 class Search:
-    """Where the sweep looks, who it asks, and how it reaches them.
-
-    ``opener`` connects to a daemon's control port and ``datagrams`` makes the socket the datagram goes out on.
-    """
+    """Where the sweep looks and who it asks."""
 
     target: str = GROUP
     alias: str = ALIAS
     control_port: int = PORT
     request_timeout: float = 5.0
-    opener: Opener = asyncio.open_connection
-    datagrams: DatagramFactory = UDP_SOCKET
 
 
 async def discover(
@@ -239,6 +234,8 @@ async def discover(
     clock: Callable[[], float] = time.monotonic,
     sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     deadline: Deadline = asyncio,
+    opener: Opener = asyncio.open_connection,
+    datagrams: DatagramFactory = UDP_SOCKET,
 ) -> list[Daemon]:
     """Send one discovery datagram to the target, collect replies until the wait is up, return the records.
 
@@ -251,9 +248,10 @@ async def discover(
     container's own host is one connection away. Only that case, because a daemon answering both would be
     listed twice, once by the address its datagram came from and once by the alias.
 
-    ``deadline`` is what every connect, send and read of the daemons it then asks waits under.
+    ``deadline`` is what every connect, send and read of the daemons it then asks waits under. ``opener`` connects
+    to a daemon's control port and ``datagrams`` makes the socket the datagram goes out on.
     """
-    sock = search.datagrams()
+    sock = datagrams()
     sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
     try:
         # The socket's own call, not the loop's: uvloop does not provide ``sock_sendto``, and one datagram
@@ -271,13 +269,11 @@ async def discover(
     if not found:
         with contextlib.suppress(OSError, ControlError):
             found.append(
-                await probe(
-                    search.alias, search.control_port, search.request_timeout, deadline=deadline, opener=search.opener
-                )
+                await probe(search.alias, search.control_port, search.request_timeout, deadline=deadline, opener=opener)
             )
         return found
 
     async def describe(address: str) -> dict[str, str]:
-        return await _describe(address, search.control_port, search.request_timeout, deadline, search.opener)
+        return await _describe(address, search.control_port, search.request_timeout, deadline, opener)
 
     return await enrich(dedupe(found), describe)

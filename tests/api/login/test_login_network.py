@@ -16,7 +16,6 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.conf.httpauth import PairVerdict, check_pair
-from hqptuner.conf.httpconf import HttpOptions
 from hqptuner.config import Config
 
 #: A ceiling on a request the fake answers at once, never a duration anything is expected to take.
@@ -29,8 +28,8 @@ async def test_the_pair_check_reaches_the_in_process_daemon_over_the_transport_i
 ) -> None:
     daemon = fake_http.spawn(fake_http.state(_refuse_auth=refuses), in_process=True)
     port = next(daemon)["_port"]
-    options = HttpOptions(CEILING, fake_network.http_transport("127.0.0.1", port))
-    assert await check_pair("127.0.0.1", port, "admin", "pw", options) is verdict
+    transport = fake_network.http_transport("127.0.0.1", port)
+    assert await check_pair("127.0.0.1", port, "admin", "pw", CEILING, transport=transport) is verdict
     next(daemon, None)
 
 

@@ -48,8 +48,14 @@ def _stream_port(*, served: bool) -> Iterator[int]:
 async def test_a_reader_handed_the_opener_reads_bands_where_a_stream_is_served(*, served: bool) -> None:
     clock = VirtualClock()
     with _stream_port(served=served) as port:
-        reader = MeteringReader("127.0.0.1", port, lambda: PLAYING, pace=clock.pace, monotonic=clock.monotonic)
-        reader.opener = fake_network.NETWORK.open_stream
+        reader = MeteringReader(
+            "127.0.0.1",
+            port,
+            lambda: PLAYING,
+            pace=clock.pace,
+            monotonic=clock.monotonic,
+            opener=fake_network.NETWORK.open_stream,
+        )
         task = clock.spawn(reader.run())
         read = False
         for _ in range(POLLS):

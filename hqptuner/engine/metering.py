@@ -23,16 +23,13 @@ import math
 import struct
 from collections import deque
 from collections.abc import Awaitable, Callable
-from typing import TYPE_CHECKING
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, band_levels, frame_power, frame_silent
+from hqptuner.engine.control import Opener
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed
 from hqptuner.engine.trackcontext import TrackContext
-
-if TYPE_CHECKING:
-    from hqptuner.engine.control import Opener
 
 #: the reader's public surface, the band level and its ring included
 __all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "band_levels"]
@@ -149,12 +146,14 @@ class MeteringReader:
         *,
         pace: Callable[[asyncio.Event, float], Awaitable[bool]],
         monotonic: Callable[[], float],
+        opener: Opener = asyncio.open_connection,
     ) -> None:
         """Record where the metering port is and how to read track context; nothing connects until ``run``.
 
         ``pace`` and ``monotonic`` are the manager's clock: ``pace`` idles the reader for a number of
         seconds or until the event it is given is set, and ``monotonic`` is what the band readout ages on, since a
         stream that goes quiet without stopping leaves the ring standing and only a clock says it is stale.
+        ``opener`` is how the stream is dialed: the network's, where one is handed.
         """
         self._host = host
         self._port = port
@@ -164,7 +163,7 @@ class MeteringReader:
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
         self._monotonic = monotonic
-        self.opener: Opener = asyncio.open_connection  #: how the stream is dialed; the network's, where one is handed
+        self._opener = opener
         self._ring = BandRing()
         self._ring_at: float | None = None
         self.feed = MeterFeed()
@@ -275,7 +274,7 @@ class MeteringReader:
         still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
         as long as the daemon stays silent.
         """
-        reader, writer = await self.opener(self._host, self._port)
+        reader, writer = await self._opener(self._host, self._port)
         self.feed.reset()  # a resume never mixes frames from before the pause
         log.info("metering stream connected (%s:%s)", self._host, self._port)
         read: asyncio.Task[tuple[tuple[float, ...], bytes]] | None = None

@@ -19,7 +19,6 @@ from hqptuner.api.routes.connection import (
     store_of,
 )
 from hqptuner.conf.httpauth import PairVerdict, check_pair
-from hqptuner.conf.httpconf import HttpOptions
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, pinned_differs
 from hqptuner.core.login import LoginKind, LoginSecret, mint
@@ -101,8 +100,10 @@ async def login(body: LoginBody, request: Request, response: Response, manager: 
     host = (body.host or "").strip() or cfg.hqp_host
     if pinned_differs(host, body.username, body.password):
         raise refuse(LoginValuesPinnedError())
-    options = HttpOptions(cfg.request_timeout, manager.network.http_transport(host, cfg.hqp_http_port))
-    verdict = await check_pair(host, cfg.hqp_http_port, body.username, body.password, options)
+    transport = manager.network.http_transport(host, cfg.hqp_http_port)
+    verdict = await check_pair(
+        host, cfg.hqp_http_port, body.username, body.password, cfg.request_timeout, transport=transport
+    )
     if verdict is PairVerdict.REFUSED:
         raise refuse(LoginRefusedError())
     if verdict is PairVerdict.NOT_ANSWERED:

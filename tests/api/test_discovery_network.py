@@ -50,14 +50,16 @@ async def test_a_search_handed_the_network_lists_the_daemon_the_responder_names(
         fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), host=DAEMON_HOST) as control,
         fake_discovery.in_process({REQUEST: REPLY}, host=DAEMON_HOST) as port,
     ):
-        search = Search(
-            target=f"{DAEMON_HOST}:{port}",
-            alias="127.0.0.9",
-            control_port=control,
+        search = Search(target=f"{DAEMON_HOST}:{port}", alias="127.0.0.9", control_port=control)
+        found = await discover(
+            search,
+            3.0,
+            clock=clock.monotonic,
+            sleep=clock.sleep,
+            deadline=clock,
             opener=fake_network.NETWORK.open_stream,
             datagrams=fake_network.NETWORK.open_datagram,
         )
-        found = await discover(search, 3.0, clock=clock.monotonic, sleep=clock.sleep, deadline=clock)
     assert [(daemon.address, daemon.product, daemon.platform) for daemon in found] == [(DAEMON_HOST, *IDENTITY)]
 
 
