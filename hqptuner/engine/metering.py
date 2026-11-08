@@ -23,12 +23,16 @@ import math
 import struct
 from collections import deque
 from collections.abc import Awaitable, Callable
+from typing import TYPE_CHECKING
 
 from hqptuner.engine import blockstats, junkadvisor, junkrun
 from hqptuner.engine.bands import BAND_WINDOW_SECONDS, BandRing, band_levels, frame_power, frame_silent
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.meterfeed import MeterFeed
 from hqptuner.engine.trackcontext import TrackContext
+
+if TYPE_CHECKING:
+    from hqptuner.engine.control import Opener
 
 #: the reader's public surface, the band level and its ring included
 __all__ = ["BandRing", "MeteringReader", "SpectralAggregate", "band_levels"]
@@ -160,6 +164,7 @@ class MeteringReader:
         self._agg: SpectralAggregate | None = None
         self._holder = junkadvisor.SpurHolder()
         self._monotonic = monotonic
+        self.opener: Opener = asyncio.open_connection  #: how the stream is dialed; the network's, where one is handed
         self._ring = BandRing()
         self._ring_at: float | None = None
         self.feed = MeterFeed()
@@ -270,7 +275,7 @@ class MeteringReader:
         still be let go, and blocking in ``readexactly`` until the next frame arrives would hold the socket open for
         as long as the daemon stays silent.
         """
-        reader, writer = await asyncio.open_connection(self._host, self._port)
+        reader, writer = await self.opener(self._host, self._port)
         self.feed.reset()  # a resume never mixes frames from before the pause
         log.info("metering stream connected (%s:%s)", self._host, self._port)
         read: asyncio.Task[tuple[tuple[float, ...], bytes]] | None = None

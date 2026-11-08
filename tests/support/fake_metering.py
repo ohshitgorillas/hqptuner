@@ -8,11 +8,15 @@ never spins: once the reader's buffer is full the send blocks, and once the
 frames are out the connection parks on a read that returns when the reader
 hangs up.
 
-The server runs in its own thread over real TCP, like `conftest`'s
+`serve` is the same fake as an asyncio stream callback, for the suite's in-process network (`fake_network`): it
+needs no thread and no port, and answers on the loop of whoever dialed it.
+
+`spawn`'s server runs in its own thread over real TCP, like `conftest`'s
 `spawn_threaded_daemon`: the app under test runs its own event loop inside
 `TestClient`'s thread, where an in-loop asyncio fake is unreachable.
 """
 
+import asyncio
 import contextlib
 import socket
 import threading
@@ -56,3 +60,11 @@ def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[
         socket.create_connection((host, port)).close()
     listener.close()
     thread.join(JOIN_SECONDS)
+
+
+async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, frame: bytes, frames: int = 100) -> None:
+    """Send `frames` copies of `frame`, then park until the reader hangs up. Derives nothing from the frame."""
+    for _ in range(frames):
+        writer.write(frame)
+        await writer.drain()
+    await reader.read(1)  # park: returns at end of file once the reader hangs up
