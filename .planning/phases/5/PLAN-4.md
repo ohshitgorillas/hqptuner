@@ -14,6 +14,7 @@ files:
   - tests/support/fake_http.py
   - tests/e2e/support/stack.py
   - tests/test_desktop.py
+  - tests/presets/test_description_routes.py
   - docs/testing.md
   - .filepawl.toml
 ---

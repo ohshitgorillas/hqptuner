@@ -1,0 +1,20 @@
+PLAN CHECKPOINT: blocked
+
+Plan: .planning/phases/5/PLAN-4.md
+
+Tasks: 2 of 5
+
+| Task | Commit | Note |
+|---|---|---|
+| 1 | 38c470b2 | Plugin adds hook `pytest_tested_release_network(config) -> Network \| None` (firstresult, via `pytest_addhooks`); sessionfinish reads `/about` through `network.http_options(host, port)` of the shell-named address, `Network()` (real) when no object answers. Test hands `NETWORK` via `runpytest_inprocess(plugins=[_InProcessNetwork()])`; daemon and repointing fakes `in_process=True`. Green with `-p socket_guard`: 7 passed. Bite: plugin ignoring the hook (`network = Network()`): 7 failed + 7 errors, first case fails by assertion (record unchanged), real dial flagged. Restored. make check green. Rule 8 exemption: scaffolding refactor. |
+| 2 | 409fa539 | `test_a_listener_takes_connections_before_it_runs` now asserts `listening.sockets[0].getsockopt(SOL_SOCKET, SO_ACCEPTCONN) == 1`; `accepts` deleted. Green with `-p socket_guard`: 71 passed. Bite: `Listening.__init__` with `sock.listen(...)` replaced by `pass`: test FAILED `assert 0 == 1`; `hqptuner/desktop.py` restored (git diff empty). make check green. |
+| 3 | uncommitted | Working-tree edits, not committed (see below): `spawn_threaded_daemon` only registers (`fake_network.serving`), thread and loop gone; `live_daemon_port`, `daemon`, `garbled_metadata_client`, `disabled_volume_client` register only (no `asyncio.start_server`); six 8088 fixtures `in_process=True`; `fake_http.spawn` loses `networked` and its announce/withdraw; `fake_network` loses `announce`, `withdraw`, `_ANNOUNCED`, the TCP forward in `open_stream` and the `_Transport` class (`http_transport` is a plain `httpx.MockTransport`); conftest block comment and module docstring, `fixtures_daemons` docstring, `fake_http.spawn` docstring, `spawn_control` docstring in e2e `stack.py` rewritten. `fake_metering.spawn` and `fake_discovery.responder` were already gone (plan 3). Greps: `start_server\|SOCK_DGRAM\|\.listen(\|create_connection` shows only `fake_http.py:621` (teardown wake) ; `open_connection\|AsyncHTTPTransport` in fake_network shows only `sock=` calls; no `announce`/`withdraw(` left in tests. `make lint` green. Whole-suite guard run `PYTHONPATH=tests/support scripts/gate.sh .venv/bin/pytest -m "not live and not e2e" -p socket_guard -q`: 2769 passed, 1 failed, 1 error, both for `tests/presets/test_description_routes.py::test_a_backup_leaves_the_daemons_own_members_byte_identical` (see Blocker). With the fix below applied temporarily the same run was 2770 passed, no error; fix then reverted. `make test-e2e` not run (no browser check made; CI `e2e` carries it). |
+
+Blocker: `tests/presets/test_description_routes.py` is outside this plan's `files:` lease. Its helper `daemon_backup` (line 286) opens `httpx.Client(base_url=f"http://127.0.0.1:{http_daemon['_port']}")` and GETs `/backup/settings.zip` over real TCP to the `http_daemon` fixture's port. With the 8088 fixtures in-process only, that dial is refused (`httpx.ConnectError: [Errno 111] Connection refused`), and with the guard it was already a real TCP connect (plan 3's whole-suite run counted it among the "teardown-only" errors by closure, since the test holds `http_daemon`). Same-cause instance of the dialers plans 1 to 3 migrated. Fix (verified): pass `transport=fake_network.http_transport("127.0.0.1", http_daemon["_port"])` to that `httpx.Client` and add `import fake_network`. Lease needs `tests/presets/test_description_routes.py` added. Task 3 cannot be committed until then (pre-commit runs the offline suite; 11.4).
+
+Deviations: none
+
+Open items:
+- Task 5 needs the owner's approval of the rule 18 wording and the rule 7 bullet wording before its commit (human-verify per the plan).
+- `fixtures_daemons.daemon`'s `spawn` is a plain function returning `asyncio.sleep(0, result)` instead of an `async def`: its 20 `await daemon(...)` callers in 17 files stay as they are (outside the lease); ruff `unused-async` rejects an `async def` with no await. A later plan can make the factory synchronous and drop the `await`s.
+- Task 4 (socket guard registration) and the CI-job human-verify are not started.
