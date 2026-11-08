@@ -67,7 +67,10 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None, network: N
         log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
     manager = ConnectionManager(cfg, http_client, clock, network)
 
-    app = FastAPI(title="HQPTuner", lifespan=make_lifespan(cfg, manager))
+    # No docs pages: `docs/openapi.json` is the API reference, and `app.openapi()` builds it whatever `openapi_url` is.
+    app = FastAPI(
+        title="HQPTuner", lifespan=make_lifespan(cfg, manager), docs_url=None, redoc_url=None, openapi_url=None
+    )
     errors.install(app)
     app.add_middleware(LoginGate)
     # Outermost, so a cross-site request is refused whatever cookie it carries.
