@@ -80,6 +80,12 @@ def _without(attrs: dict[str, str], dropped: frozenset[str]) -> dict[str, str]:
     return {key: value for key, value in attrs.items() if key not in dropped}
 
 
+def _served_metadata(metadata: dict[str, str] | None) -> dict[str, str] | None:
+    if metadata is None:
+        return None
+    return {key: metadata[key] for key in _METADATA_SERVED if key in metadata}
+
+
 @router.get("/health")
 def health(manager: Mgr, static: Static) -> HealthReport:
     """Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.
@@ -144,7 +150,7 @@ def status(manager: Mgr) -> deps.Snapshot[StatusReport]:
             autopilot = manager.presetops.autopilot.enabled
     report = StatusReport(
         status=frame,
-        metadata=manager.readings.status_metadata,
+        metadata=_served_metadata(manager.readings.status_metadata),
         junk=junk,
         bands=bands,
         autopilot=autopilot,

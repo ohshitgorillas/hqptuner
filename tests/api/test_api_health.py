@@ -1,6 +1,11 @@
-"""The /api/health surface (docs/testing.md). The manager is pointed at a closed
-local port, so these cases cover what the route reports without a daemon."""
+"""The read-only status surface (docs/testing.md): what /api/health and /api/status
+serve. The health cases point the manager at a closed local port and cover what
+the route reports without a daemon; the status cases run on the fake control
+daemon."""
 
+from collections.abc import Callable
+
+import pytest
 from apps import app_manager, app_static
 from fastapi.testclient import TestClient
 
@@ -39,3 +44,24 @@ def test_health_license_carries_no_fingerprint(live_api: TestClient) -> None:
 
 def test_health_license_keeps_valid(live_api: TestClient) -> None:
     assert _license(live_api)["valid"] == "1"
+
+
+TRACK = '<metadata samplerate="96000" song="Intro" uri="file:///music/private/intro.flac" other="x"/>'
+
+
+def _served_metadata(chain_api: Callable[..., TestClient]) -> dict[str, str]:
+    served = chain_api(_metadata=TRACK).get("/api/status").json()["data"]["metadata"]
+    if not isinstance(served, dict):
+        raise TypeError
+    return served
+
+
+@pytest.mark.parametrize("attribute", ["uri", "other"])
+def test_status_metadata_leaves_out_an_attribute_the_page_does_not_read(
+    attribute: str, chain_api: Callable[..., TestClient]
+) -> None:
+    assert attribute not in _served_metadata(chain_api)
+
+
+def test_status_metadata_keeps_an_attribute_the_page_reads(chain_api: Callable[..., TestClient]) -> None:
+    assert _served_metadata(chain_api)["samplerate"] == "96000"
