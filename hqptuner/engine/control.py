@@ -14,7 +14,7 @@ import logging
 import re
 import socket
 import xml.etree.ElementTree as ET
-from collections.abc import Awaitable, Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -50,6 +50,11 @@ class Deadline(Protocol):
     def wait_for[T](self, fut: Awaitable[T], timeout: float, /) -> Awaitable[T]:
         """Answer ``fut``'s own result, or raise ``TimeoutError`` when ``timeout`` seconds pass first."""
         ...
+
+
+#: How the client opens its stream to the daemon: a host and a port in, the reader and writer of the connection out,
+#: or ``OSError``. ``asyncio.open_connection`` is one, and the production default.
+Opener = Callable[[str, int], Awaitable[tuple[asyncio.StreamReader, asyncio.StreamWriter]]]
 
 
 @dataclass(frozen=True)
@@ -99,15 +104,18 @@ class ControlClient:
         timeout: float = 5.0,
         *,
         deadline: Deadline = asyncio,
+        opener: Opener = asyncio.open_connection,
     ):
         """Record where to dial and how long to wait; no socket is opened until ``connect``.
 
-        ``deadline`` is what every connect, send and read waits under (docs/testing.md rule 7).
+        ``deadline`` is what every connect, send and read waits under (docs/testing.md rule 7). ``opener`` is
+        what ``connect`` dials through.
         """
         self._host = host
         self._port = port
         self._timeout = timeout
         self._deadline = deadline
+        self._opener = opener
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._lock = asyncio.Lock()
@@ -117,9 +125,7 @@ class ControlClient:
         # a refused reconnect repeats every poll while HQPlayer is down, and the
         # manager already logs the drop once
         with self._as_control_error("connect", level=logging.DEBUG):
-            reader, writer = await self._deadline.wait_for(
-                asyncio.open_connection(self._host, self._port), self._timeout
-            )
+            reader, writer = await self._deadline.wait_for(self._opener(self._host, self._port), self._timeout)
         self._reader, self._writer = reader, writer
         sock = writer.get_extra_info("socket")
         if sock is not None:

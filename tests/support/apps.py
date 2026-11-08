@@ -11,6 +11,7 @@ from http.cookies import Morsel, SimpleCookie
 from pathlib import Path
 
 import fake_http
+import fake_network
 import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -209,4 +210,5 @@ def closed_port() -> int:
     sock.bind(("127.0.0.1", 0))
     port: int = sock.getsockname()[1]
     sock.close()
+    fake_network.record_closed_port(port)
     return port
