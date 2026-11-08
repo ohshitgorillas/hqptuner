@@ -54,6 +54,7 @@ BASE_URL="http://127.0.0.1:8090"
 LISTEN_HOST=""
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"
 PID=""
+STANDIN_PID=""
 INSTALLED_PID=""
 PREV_PID=""
 UP_PID=""
@@ -65,6 +66,7 @@ WORK=$(mktemp -d)
 
 cleanup() {
   if [ -n "$PID" ]; then kill "$PID" 2>/dev/null || true; fi
+  if [ -n "$STANDIN_PID" ]; then kill "$STANDIN_PID" 2>/dev/null || true; fi
   for WINPID in $INSTALLED_PID $PREV_PID $UP_PID $BROKEN_PID; do stop_windows_pid "$WINPID" || true; done
   rm -rf "$WORK" || true
 }
@@ -525,7 +527,72 @@ upgrade_running() {
   uninstall_upgraded "$label"
 }
 
-status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
+status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "${@:3}" "$1" || true; }
+
+# The address hqplayerd's 8088 would have, as step 3 pins the app to it.
+STANDIN_ADDRESS=127.0.0.2
+STANDIN_PORT=8088
+
+# Answer the credential wire where the app dials: 401 and a Digest challenge to a
+# request with no Authorization header, 200 to one with it, on every path. The
+# job has no Python, so this is an HttpListener. It never checks a digest, so it
+# proves the app is logged in before it asks for discovery, not that a pair is
+# right. The script travels in a file for the reasons app_windows gives.
+start_standin() {
+  local script="$WORK/standin.ps1"
+  [ "$(status "http://$STANDIN_ADDRESS:$STANDIN_PORT/")" = 000 ] || die "step 4: something already answers on $STANDIN_ADDRESS:$STANDIN_PORT"
+  cat > "$script" <<'POWERSHELL'
+$ErrorActionPreference = "Stop"
+$challenge = 'Digest realm="com.signalyst.hqplayer.embedded", qop="auth", algorithm=MD5, nonce="1f3a9c2b4d5e6f70", opaque="0a1b2c3d4e5f6071", charset=UTF-8'
+$listener = New-Object System.Net.HttpListener
+$listener.Prefixes.Add("http://$($env:STANDIN_ADDRESS):$($env:STANDIN_PORT)/")
+$listener.Start()
+while ($true) {
+  $context = $listener.GetContext()
+  $response = $context.Response
+  if ($context.Request.Headers["Authorization"]) {
+    $response.StatusCode = 200
+  } else {
+    $response.StatusCode = 401
+    $response.AddHeader("WWW-Authenticate", $challenge)
+  }
+  $response.ContentLength64 = 0
+  $response.Close()
+}
+POWERSHELL
+  STANDIN_ADDRESS=$STANDIN_ADDRESS STANDIN_PORT=$STANDIN_PORT SMOKE_SCRIPT="$(cygpath -w "$script")" powershell -NoProfile -Command \
+    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' &
+  STANDIN_PID=$!
+  for _ in $(seq 1 10); do
+    if [ "$(status "http://$STANDIN_ADDRESS:$STANDIN_PORT/")" = 401 ]; then return 0; fi
+    kill -0 "$STANDIN_PID" 2>/dev/null || die "step 4: the daemon stand-in exited before it answered"
+    sleep 1
+  done
+  die "step 4: the daemon stand-in did not answer 401 within 10 s"
+}
+
+# Stop the stand-in by PID and wait, at most 10 s, for it to be gone.
+stop_standin() {
+  kill "$STANDIN_PID" 2>/dev/null || true
+  for _ in $(seq 1 10); do
+    kill -0 "$STANDIN_PID" 2>/dev/null || break
+    sleep 1
+  done
+  if kill -0 "$STANDIN_PID" 2>/dev/null; then die "step 4: daemon stand-in PID $STANDIN_PID still running 10 s after kill"; fi
+  wait "$STANDIN_PID" || true
+  STANDIN_PID=""
+}
+
+# A session login with the app's stock pair, naming no host; the cookie goes into
+# $WORK/cookies. A login that asked to be saved would write a record and a secret
+# under the app's data directory.
+login_app() {
+  local code
+  code=$(curl -s -o /dev/null --max-time 10 -c "$WORK/cookies" -w '%{http_code}' -X POST \
+    -H 'Content-Type: application/json' \
+    -d '{"username": "hqplayer", "password": "password", "remember": false}' "$BASE_URL/api/login" || true)
+  [ "$code" = 200 ] || die "step 4: POST /api/login answered $code"
+}
 
 # The machine field of a PE file's header, as four hex digits.
 machine() {
@@ -643,10 +710,17 @@ if [ -z "$FOUND" ]; then describe_lookup "$APP"; fi
 [ -n "$FOUND" ] || die "step 4: the process lookup does not find the running $BIN"
 CODE=$(status "$BASE_URL/")
 [ "$CODE" = 200 ] || die "step 4: GET / answered $CODE"
+# Discovery is behind the login. The job has no hqplayerd, so a stand-in answers
+# the credential wire at the address step 3 pinned the app to (a login naming
+# another host is refused as pinned), and the app is logged in for the session
+# only, with its stock pair.
+start_standin
+login_app
 # A sweep nobody answers is still an answer: this is discovery's socket calls
 # on the Windows event loop.
-CODE=$(status "$BASE_URL/api/discover" 30)
+CODE=$(status "$BASE_URL/api/discover" 30 -b "$WORK/cookies")
 [ "$CODE" = 200 ] || die "step 4: GET /api/discover answered $CODE"
+stop_standin
 # The bundle carries no environment of its own; the installer supplies it.
 if [ -n "$LISTEN_HOST" ]; then
   ADDRESS=$(lan_address)
