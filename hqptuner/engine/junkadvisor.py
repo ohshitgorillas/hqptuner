@@ -140,8 +140,6 @@ class SpurHolder:
         return held
 
 
-# Owner-approved for this site: the junk run is a sixth argument beside the window curve, its geometry and the
-# held spur set, and none of the five folds into another.
 def classify(
     min_levels_db: list[float],
     bandwidth: float,
@@ -168,7 +166,6 @@ def classify(
     return min(found, key=lambda v: CORNER_KHZ[v.filter]) if found else None
 
 
-# Owner-approved for this site: the same six arguments ``classify`` forwards, the junk run among them.
 def verdicts(
     min_levels_db: list[float],
     bandwidth: float,

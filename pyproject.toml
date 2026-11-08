@@ -230,7 +230,7 @@ select = [
     # restates the name.
     "D",
 ]
-ignore = ["PLR0911", "PLR0912", "PLR0913", "PLR0915"]
+ignore = ["PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "pep257"
