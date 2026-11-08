@@ -12,6 +12,7 @@ on:
       - hqptuner.spec
       - pyproject.toml
       - .github/workflows/release.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
