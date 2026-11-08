@@ -5,7 +5,6 @@
   },
   "workflow": {
     "research": false,
-    "plan_check": false,
     "verifier": true,
     "skip_discuss": false,
     "inline_plan_threshold": 3,
