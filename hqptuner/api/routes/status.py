@@ -23,6 +23,12 @@ from hqptuner.presets.store.autopilot import AutopilotError
 
 router = APIRouter(prefix="/api")
 
+# The licensee's identity: served to nobody, since the one open route would otherwise hand it to any caller.
+_LICENSE_PRIVATE = frozenset({"name", "fingerprint"})
+
+# The track attributes the page reads. A kept list, so an attribute a later hqplayerd adds is not served by default.
+_METADATA_SERVED = ("samplerate", "bits", "sdm", "filters", "shapers", "song")
+
 
 @dataclass(frozen=True)
 class HealthReport:
@@ -70,6 +76,10 @@ class StatusReport:
     advisor: bool
 
 
+def _without(attrs: dict[str, str], dropped: frozenset[str]) -> dict[str, str]:
+    return {key: value for key, value in attrs.items() if key not in dropped}
+
+
 @router.get("/health")
 def health(manager: Mgr, static: Static) -> HealthReport:
     """Return daemon reachability, connection age, info/license, HQPTuner's version, and the credential verdict.
@@ -86,7 +96,7 @@ def health(manager: Mgr, static: Static) -> HealthReport:
         info=readings.info,
         release=readings.release,
         release_tested=static.release_tested(readings.release),
-        license=readings.license,
+        license=None if readings.license is None else _without(readings.license, _LICENSE_PRIVATE),
         app_version=__version__,
         credentials_ok=readings.credentials_ok,
     )
