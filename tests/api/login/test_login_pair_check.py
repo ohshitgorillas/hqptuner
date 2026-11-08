@@ -9,6 +9,7 @@ from collections.abc import Callable, Iterator
 from typing import Any
 
 import fake_http
+import fake_network
 import pytest
 
 from hqptuner.conf.httpauth import PairVerdict, check_pair
@@ -19,13 +20,19 @@ CEILING = 5.0
 Daemon = Callable[..., dict[str, Any]]
 
 
+async def _verdict(port: int) -> PairVerdict:
+    """The pair check against the daemon at ``port`` of the in-process network."""
+    transport = fake_network.http_transport("127.0.0.1", port)
+    return await check_pair("127.0.0.1", port, "admin", "pw", CEILING, transport=transport)
+
+
 @pytest.fixture
 def daemon() -> Iterator[Daemon]:
     """Serve a fake 8088 daemon with the given state overrides; every one is taken down at teardown."""
     servers: list[Iterator[dict[str, Any]]] = []
 
     def serve(**overrides: object) -> dict[str, Any]:
-        server = fake_http.spawn(fake_http.state(**overrides))
+        server = fake_http.spawn(fake_http.state(**overrides), in_process=True)
         servers.append(server)
         return next(server)
 
@@ -37,18 +44,18 @@ def daemon() -> Iterator[Daemon]:
 @pytest.mark.parametrize("overrides", [{}, {"_challenge_auth": True}], ids=["default", "challenged"])
 async def test_a_daemon_that_serves_the_digest_accepts_the_pair(daemon: Daemon, overrides: dict[str, Any]) -> None:
     state = daemon(**overrides)
-    assert await check_pair("127.0.0.1", state["_port"], "admin", "pw", CEILING) is PairVerdict.ACCEPTED
+    assert await _verdict(state["_port"]) is PairVerdict.ACCEPTED
 
 
 async def test_a_daemon_that_refuses_the_digest_refuses_the_pair(daemon: Daemon) -> None:
     state = daemon(_refuse_auth=True)
-    assert await check_pair("127.0.0.1", state["_port"], "admin", "pw", CEILING) is PairVerdict.REFUSED
+    assert await _verdict(state["_port"]) is PairVerdict.REFUSED
 
 
 async def test_a_daemon_that_is_down_does_not_answer(daemon: Daemon) -> None:
     state = daemon(_down=True)
-    assert await check_pair("127.0.0.1", state["_port"], "admin", "pw", CEILING) is PairVerdict.NOT_ANSWERED
+    assert await _verdict(state["_port"]) is PairVerdict.NOT_ANSWERED
 
 
 async def test_a_port_nothing_listens_on_does_not_answer(closed_port: int) -> None:
-    assert await check_pair("127.0.0.1", closed_port, "admin", "pw", CEILING) is PairVerdict.NOT_ANSWERED
+    assert await _verdict(closed_port) is PairVerdict.NOT_ANSWERED

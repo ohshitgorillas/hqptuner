@@ -11,6 +11,7 @@ import fake_http
 import pytest
 from apps import log_in, wait_for_api
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -42,7 +43,7 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
     def build(**overrides: object) -> TestClient:
         daemon = spawn_threaded_daemon()
         daemons.append(daemon)
-        http = fake_http.spawn(fake_http.state(**overrides))
+        http = fake_http.spawn(fake_http.state(**overrides), in_process=True)
         https.append(http)
         cfg = Config(
             hqp_host="127.0.0.1",
@@ -54,7 +55,7 @@ def dual_client(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
         )
-        client = TestClient(create_app(cfg, VirtualClock()))
+        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
         log_in(client)
         client.__enter__()
         apps.append(client)

@@ -19,6 +19,7 @@ from typing import Any
 
 import pytest
 from apps import log_in, unserved_login
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -57,7 +58,7 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
             cfg = Config(**{**defaults, **overrides})
             if cfg.hqp_http_port == closed_port:
                 return stack.enter_context(unserved_login(cfg, VirtualClock()))
-            client = TestClient(create_app(cfg, VirtualClock()))
+            client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
             log_in(client)
             if then is not None:
                 then()

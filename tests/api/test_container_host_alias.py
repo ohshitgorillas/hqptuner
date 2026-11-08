@@ -22,6 +22,7 @@ import fake_http
 import pytest
 from apps import closed_port, log_in
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -60,7 +61,7 @@ def daemon_pairs() -> Iterator[tuple[int, int]]:
         control = spawn_threaded_daemon(host=address, bind_port=control_port)
         next(control)
         running.append(control)
-        http = fake_http.spawn(fake_http.state(title=marker), host=address, bind_port=http_port)
+        http = fake_http.spawn(fake_http.state(title=marker), host=address, bind_port=http_port, in_process=True)
         next(http)
         running.append(http)
     yield control_port, http_port
@@ -119,7 +120,7 @@ def test_a_start_dials_the_record_then_the_variable_and_falls_back_to_the_host_a
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
         # Logged in once the start has resolved the host: the pair is checked at the address in force.
         log_in(client)
         answered = served_title(client)

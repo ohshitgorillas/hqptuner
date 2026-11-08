@@ -21,6 +21,7 @@ import fake_http
 import pytest
 from apps import advance_app, app_manager, log_in, wait_for_api
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -54,7 +55,7 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
         daemons.append(daemon)
         # The daemon accepts at the login and takes on the state the case asks for after it, before the app
         # starts and makes its first read.
-        http = fake_http.spawn(fake_http.state())
+        http = fake_http.spawn(fake_http.state(), in_process=True)
         https.append(http)
         state = next(http)
         # Every store this app owns lands under a directory of this client's own
@@ -81,7 +82,7 @@ def credential_client(tmp_path: Path) -> Iterator[CredClient]:
         )
         if poll_interval is not None:
             cfg = replace(cfg, poll_interval=poll_interval)
-        client = TestClient(create_app(cfg, VirtualClock()))
+        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
         log_in(client)
         state.update(overrides)
         client.__enter__()

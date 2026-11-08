@@ -14,6 +14,7 @@ import fake_http
 import pytest
 from apps import METADATA_MIN, log_in, wait_for_api
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -63,7 +64,7 @@ def tested_client(tmp_path: Path) -> Iterator[Build]:
         (data_dir / RECORD_FILE).write_text(json.dumps(record))
         daemon = spawn_threaded_daemon()
         daemons.append(daemon)
-        http = fake_http.spawn(fake_http.state(**overrides))
+        http = fake_http.spawn(fake_http.state(**overrides), in_process=True)
         https.append(http)
         cfg = Config(
             hqp_host="127.0.0.1",
@@ -77,7 +78,7 @@ def tested_client(tmp_path: Path) -> Iterator[Build]:
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
         )
-        client = TestClient(create_app(cfg, VirtualClock()))
+        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
         log_in(client)
         client.__enter__()
         apps.append(client)

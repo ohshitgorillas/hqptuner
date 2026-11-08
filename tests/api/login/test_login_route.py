@@ -15,6 +15,7 @@ import fake_http
 import httpx
 import pytest
 from apps import cookie_of
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -41,7 +42,7 @@ def serve() -> Iterator[Serve]:
     servers: list[Iterator[dict[str, Any]]] = []
 
     def start(host: str = "127.0.0.1", port: int = 0, **overrides: object) -> dict[str, Any]:
-        server = fake_http.spawn(fake_http.state(**overrides), host=host, bind_port=port)
+        server = fake_http.spawn(fake_http.state(**overrides), host=host, bind_port=port, in_process=True)
         servers.append(server)
         return next(server)
 
@@ -68,7 +69,7 @@ def build(tmp_path: Path, store_path: Path, closed_port: int) -> Iterator[Build]
                 backup_dir=tmp_path,
                 preset_dir=tmp_path / "presets",
             )
-            return stack.enter_context(TestClient(create_app(cfg, VirtualClock())))
+            return stack.enter_context(TestClient(create_app(cfg, VirtualClock(), NETWORK)))
 
         yield make
 
