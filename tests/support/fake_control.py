@@ -67,6 +67,11 @@ DEFAULTS = {
     "_vol_max": "0",
     "_vol_enabled": "1",
     "_metadata": "",  # optional <metadata> child injected into the Status frame
+    # The daemon's own `output_delay`, `position` and `apod` Status attributes, each carried on the Status frame
+    # verbatim while the knob holds a value, and left off it while the knob is empty.
+    "_output_delay": "",
+    "_position": "",
+    "_apod": "",
     # Space-separated commands answered `result="OK"` without applying: the
     # `value="999"` caveat above, keyed by command instead.
     "_deaf": "",
@@ -373,6 +378,15 @@ def _enumeration(name: str, state: dict[str, str]) -> str | None:
     return None
 
 
+#: The Status attributes the fake carries from its state, by attribute name: the knob that holds each.
+_STATUS_EXTRAS = (("output_delay", "_output_delay"), ("position", "_position"), ("apod", "_apod"))
+
+
+def _status_extras(state: dict[str, str]) -> str:
+    """The Status root's `output_delay`, `position` and `apod` attributes for the knobs that hold a value."""
+    return "".join(f' {attr}="{state[knob]}"' for attr, knob in _STATUS_EXTRAS if state.get(knob))
+
+
 def _query(name: str, state: dict[str, str]) -> str | None:
     """Read-only commands answered from state; None for setters."""
     enumerated = _enumeration(name, state)
@@ -382,8 +396,7 @@ def _query(name: str, state: dict[str, str]) -> str | None:
         # The full attribute set, in the order the
         # verified 6.0.4 response carries them.
         return (
-            '<GetInfo engine="6.0.4" name="Fake" platform="Linux"'
-            ' product="Signalyst HQPlayer Embedded" version="6"/>'
+            '<GetInfo engine="6.0.4" name="Fake" platform="Linux" product="Signalyst HQPlayer Embedded" version="6"/>'
         )
     if name == "GetLicense":
         return '<GetLicense valid="1" name="Fake Licensee" fingerprint="AAAA"/>'
@@ -405,8 +418,8 @@ def _query(name: str, state: dict[str, str]) -> str | None:
         return (
             f'<Status state="{state["state"]}" active_mode="{_reported_mode(state)}" '
             'active_filter="poly-sinc-gauss-long" active_shaper="NS9" '
-            f'active_rate="{_loaded(state).active_rate}" volume="{state["volume"]}">'
-            f'{state["_metadata"]}</Status>'
+            f'active_rate="{_loaded(state).active_rate}" volume="{state["volume"]}"{_status_extras(state)}>'
+            f"{state['_metadata']}</Status>"
         )
     return None
 
