@@ -4,6 +4,7 @@ Policy: docs/testing.md. The responder, the control fakes and the 8088 fake are 
 no socket answers on, so a search or a start that ignored the network it was handed would find nobody.
 """
 
+import dataclasses
 import functools
 from pathlib import Path
 
@@ -31,7 +32,7 @@ REPLY = b'<?xml version="1.0" encoding="UTF-8"?><discover name="Studio" version=
 IDENTITY = ("Signalyst HQPlayer Embedded", "Linux")
 
 
-def _config(tmp_path: Path, **fields: object) -> Config:
+def _config(tmp_path: Path) -> Config:
     return Config(
         metering_enabled=False,
         data_dir=METADATA_MIN,
@@ -40,7 +41,6 @@ def _config(tmp_path: Path, **fields: object) -> Config:
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
         connection_file=tmp_path / "connection.json",
-        **fields,  # type: ignore[arg-type]
     )
 
 
@@ -70,8 +70,8 @@ def test_the_discover_route_on_an_app_handed_the_network_lists_the_same(tmp_path
         fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), host=DAEMON_HOST) as control,
         fake_discovery.in_process({REQUEST: REPLY}, host=DAEMON_HOST) as port,
     ):
-        cfg = _config(
-            tmp_path,
+        cfg = dataclasses.replace(
+            _config(tmp_path),
             hqp_host="127.0.0.1",
             hqp_http_port=http["_port"],
             hqp_username="u",
@@ -96,8 +96,8 @@ def test_a_start_with_no_host_adopts_the_alias_served_in_process(
     daemon = fake_http.spawn(fake_http.state(_refuse_auth=refuses), host=ALIAS_HOST, in_process=True)
     http = next(daemon)
     with fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), host=ALIAS_HOST) as control:
-        cfg = _config(
-            tmp_path,
+        cfg = dataclasses.replace(
+            _config(tmp_path),
             hqp_control_port=control,
             hqp_http_port=http["_port"],
             hqp_username="u",
