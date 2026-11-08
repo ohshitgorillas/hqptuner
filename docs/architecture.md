@@ -38,6 +38,8 @@ An install whose username or password is empty has no 8088 lane, so `ready` neve
 
 **Every `/api` route but `/api/health` and `/api/login` needs a valid login cookie, and the gate is installed once.** `hqptuner/api/gate.py` is a pure ASGI wrapper added in `create_app`, so it covers every route registered on the app, the conditional audit router, an unknown `/api` path and any route added later; it passes the meter feed's event stream through unchanged. A request without a valid cookie is answered 401 `login_required` in the shared error shape. There is no exemption for a loopback caller: a local browser that never logged in is refused like any LAN peer. Paths outside `/api`, the page's own files, are not gated. A cookie is valid when its token verifies for the pair in force at the instant the app's clock reads, so a login ends with its lifetime, with a change of the pair, and with a restart that leaves no password. A Connection-panel save that changes the username or password sets a fresh cookie for the new pair on its own response, keeping the kind and issue time of the login it replaces, so the browser that saved stays logged in and every other browser logged in under the old pair does not.
 
+**A state-changing request from another website is refused, whatever cookie it carries.** `hqptuner/api/crosssite.py` is a second pure ASGI wrapper added in `create_app` after the gate, so it runs first. It covers every POST, PUT, PATCH and DELETE to `/api` or under it, the login route included, and answers 403 `cross_site_refused` when `Sec-Fetch-Site` is present and is neither `same-origin` nor `none`, or when `Origin` is present and is `null` or names a host and port other than the request's own `Host` header. It compares a request with itself, so it needs no configured host list. A request that carries neither header (curl, the dev scripts, the packaged smokes) passes it and meets the gate. GET and HEAD are not checked. The cookie's `SameSite=Strict` is the other half: a browser does not send the login on a cross-site request in the first place. `upload()` in `static/lib/api.js` sends no `Content-Type` of its own and carries no token header.
+
 ## 3. Reading engine truth
 
 ### 3.1 The running engine is enumeration authority
@@ -249,6 +251,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `login_required` | 401 | a request to a gated `/api` route carried no valid login cookie |
 | `login_not_answered` | 503 | hqplayerd did not answer the check a login asked of it |
 | `login_values_pinned` | 403 | a login named a host, username or password that the environment pins to another value |
+| `cross_site_refused` | 403 | a state-changing request to `/api` carried a `Sec-Fetch-Site` naming another site, or an `Origin` that is `null` or not the request's own `Host` |
 | `no_credentials` | 503 | app built without hqplayerd management credentials |
 | `no_http_client` | 503 | app built without HTTP management credentials for the 8088 config lane |
 | `backup_failed` | 500 | the settings backup taken before a destructive restore could not be written |
