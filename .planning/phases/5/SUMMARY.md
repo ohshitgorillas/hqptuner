@@ -27,12 +27,11 @@ The meter playhead now advances on the paint loop's `dt` toward the stamped targ
 
 ## Deviations
 
-- [deviation] Task 1 Verify expected `scripts/gate.sh make trivia` to print `exit=0`; observed exit=2, all 11 flagged lines in `.planning/phases/5/CONTEXT.md` and `PLAN.md`, none in `docs/spec/timing.md`. Left as is: those files were outside the plan's lease.
+- [deviation] Task 1 Verify expected `scripts/gate.sh make trivia` to print `exit=0`; observed exit=2, all 11 flagged lines in `.planning/phases/5/CONTEXT.md` and `PLAN.md`, none in `docs/spec/timing.md`. `.planning/` is exempt from the trivia judges; `make trivia` judges it only because `md_skip` matches exact paths.
 - [deviation] Task 2 Verify named `scripts/gate.sh npm test`; observed "Missing script: test" (exit=1). The JS suite runs as `make test-js` inside `make check`, which was green.
 
 ## Open items
 
-- `make trivia` flags 11 lines in `.planning/phases/5/CONTEXT.md` and `PLAN.md`; not addressed in this phase.
 - The plan listed the `loop.test.js` close, reopen and stop cases as needing repair; they pass unchanged (a restart paint stands at the target), so they were left alone.
 - Declined: no separate private `playhead` state in `loop.js`; the loop reads its own `playhead` signal, which only the loop writes.
 - Browser meter tests need `HQPTUNER_CHROMIUM` set on this host; unset, they error at setup (chromium not found under `~/.cache/ms-playwright`).
