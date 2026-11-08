@@ -10,12 +10,24 @@
 // drawer repaints the spectrogram whole. Colors come from the tokens the painter is handed, read once when it is
 // created: the spectrogram's --spec-* ramp, the glass where no slice lies, and the strip's events from the glass toward
 // --bad. Each canvas's pixels are one image the painter holds and paints into, never made anew for a paint: a scroll
-// paints the columns it repaints into the image's left part and puts only that part.
+// paints the columns it repaints into the image's left part and puts only that part. The spectrogram canvas always
+// equals one whole paint of the same history, edge and settings. Its edge is a whole column of the raster's grid
+// (lib/spectroraster.js), and an edge that went back repaints it whole.
 
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { styleOf } from "../../../../lib/dom.js";
-import { H, W, endOf, landedColumn, rasterTarget, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
+import {
+  H,
+  W,
+  edgeColumn,
+  endOf,
+  landedColumn,
+  rasterTarget,
+  rasterize,
+  rgb,
+  scrollPlan,
+} from "../../../../lib/spectroraster.js";
 import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
@@ -73,18 +85,18 @@ function put(data, p, c) {
 /**
  * @typedef {object} Spectrogram
  *   One painter's spectrogram canvas and what it keeps from paint to paint: the canvas-sized pixels every paint
- *   writes into, the raster target written through, the view handed to it, and the edge, the end of the newest slice
- *   drawn, the plan and whether the canvas shows the view's history, span, range, top and channel.
+ *   writes into, the raster target written through, the view handed to it, and the grid column of the edge, the end of
+ *   the newest slice drawn, the plan and whether the canvas shows the view's history, span, range, top and channel.
  * @property {HTMLCanvasElement} canvas
  * @property {CanvasRenderingContext2D} ctx
  * @property {Colors} colors
  * @property {ImageData} img
  * @property {RasterTarget} target
  * @property {RasterView} view
- * @property {{ edge: number, carry: number, drawn: number }} painted  edge, and where the newest slice drawn ended,
- *   playback, ms
- * @property {{ edge: number, span: number, landed: number }} next  edge and span, playback, ms, and the first column a
- *   slice landed since the last paint covers
+ * @property {{ edge: number, carry: number, drawn: number }} painted  edge, a grid column, and where the newest slice
+ *   drawn ended, playback, ms
+ * @property {{ edge: number, span: number, landed: number }} next  edge, a grid column, span, W columns, and the first
+ *   column a slice landed since the last paint covers
  * @property {ScrollPlan} plan
  * @property {boolean} shown
  */
@@ -108,8 +120,22 @@ function paintSpectrogram(sg, from) {
 }
 
 /**
- * Point the held view at what the spectrogram shows now, and say whether the canvas still shows its history, span,
- * range, top and channel.
+ * The first index, from `view.lo` back, of the slices that end after the picture's first column: a slice that starts
+ * before the window and ends in it shows in the columns it covers.
+ *
+ * @param {RasterView} view
+ * @returns {number}
+ */
+function overhang({ slices, lo, edge, span }) {
+  const left = ((edgeColumn({ edge, span }) - W) * span) / W;
+  let i = lo;
+  while (i > 0 && endOf(/** @type {Cell} */ (slices[i - 1])) > left) i--;
+  return i;
+}
+
+/**
+ * Point the held view at what the spectrogram shows now, the slices that overhang the window's start among them, and
+ * say whether the canvas still shows its history, span, range, top and channel.
  *
  * @param {Spectrogram} sg
  * @returns {boolean}
@@ -120,6 +146,7 @@ function readView(sg) {
   const view = sg.view;
   const same =
     sg.shown &&
+    (edge ?? 0) >= view.edge &&
     view.slices === slices &&
     view.span === span &&
     view.range === range &&
@@ -133,6 +160,7 @@ function readView(sg) {
   view.span = span;
   view.range = range;
   view.top = top;
+  view.lo = overhang(view);
   return same;
 }
 
@@ -145,11 +173,10 @@ function readView(sg) {
 function paintView(sg) {
   const same = readView(sg);
   const { view, next, painted } = sg;
-  next.edge = view.edge;
-  next.span = view.span;
+  next.edge = edgeColumn(view);
   next.landed = same ? landedColumn(view, painted.drawn) : W;
   const plan = scrollPlan(same ? painted : null, next, sg.plan);
-  painted.edge = view.edge;
+  painted.edge = next.edge;
   painted.carry = plan.carry;
   painted.drawn = view.hi > view.lo ? endOf(/** @type {Cell} */ (view.slices[view.hi - 1])) : -Infinity;
   sg.shown = true;
@@ -176,7 +203,7 @@ function spectrogramPaint(canvas, ctx, colors) {
     target: rasterTarget(img),
     view: { slices: [], lo: 0, hi: 0, pick: "sum", edge: 0, span: 0, range: 0, top: 0 },
     painted: { edge: 0, carry: 0, drawn: -Infinity },
-    next: { edge: 0, span: 0, landed: W },
+    next: { edge: 0, span: W, landed: W },
     plan: { full: true, shift: 0, from: 0, carry: 0 },
     shown: false,
   };

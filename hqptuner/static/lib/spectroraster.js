@@ -6,9 +6,13 @@
 //
 // A slice is a column of rows from 0 Hz to its own Nyquist, one byte a row at ROW_STEP_DB below full
 // scale, the step defined here that store/meter/spectrogram.js encodes its rows at. Each stands where its own stamp
-// says, against the window's right edge, the playhead. Nothing interpolates: a pixel column shows exactly the one slice
-// that covers it, and a pixel row the one row of that slice nearest its frequency. Playback no slice covers is left
-// unpainted.
+// says, against the window's right edge, the playhead. Nothing interpolates: a pixel column shows exactly one slice,
+// the one covering most of its playback (the earlier of two covering it equally), and a pixel row exactly one row of
+// that slice, the one nearest its frequency. A column no slice covers is left unpainted.
+//
+// The pixel columns lie on one grid of playback, a column a span / W wide from playback 0 on, and the window's right edge
+// is held down to a column of it: a column shows the same playback whatever the edge, so a picture scrolled by whole
+// columns is the picture painted whole at the new edge, pixel for pixel.
 //
 // A paint reads the history by index and allocates nothing whose size grows
 // with it: the slices it draws are found by binary search, and walked
@@ -234,22 +238,31 @@ function firstEndingAfter({ slices, lo, hi }, t) {
   return a;
 }
 
-/**
- * Playback at the center of pixel column `x` of a view.
- *
- * @param {RasterView} view
- * @param {number} x
- * @returns {number} playback, ms
- */
-const timeAt = ({ edge, span }, x) => edge - span + ((x + 0.5) * span) / W;
+// Columns: the overlap below which two stamps that meet are taken to meet, and two overlaps are taken to be equal.
+const COLUMN_EPS = 1e-9;
+
+/** The grid columns behind a view's right edge; its column 0 is this many less W. @param {{ edge: number, span: number }} view */
+export const edgeColumn = ({ edge, span }) => Math.floor((edge * W) / span);
+
+/** The index among `slices[i..hi)` of the slice covering most of grid column `k`, the earlier of two equally, or -1. @param {RasterView} view @param {number} i @param {number} k */
+function mostCovering({ slices, hi, span }, i, k) {
+  const scale = W / span;
+  let best = -1;
+  let most = 0;
+  for (let j = i; j < hi; j++) {
+    const s = /** @type {Cell} */ (slices[j]);
+    if (s.at * scale >= k + 1 - COLUMN_EPS) break;
+    const overlap = Math.min(endOf(s) * scale, k + 1) - Math.max(s.at * scale, k);
+    if (overlap > COLUMN_EPS && (best < 0 || overlap > most + COLUMN_EPS)) [best, most] = [j, overlap];
+  }
+  return best;
+}
 
 /**
- * The spectrogram's pixels for one view from pixel column `from` to the right
- * edge, RGBA row by row from the top, written into `into`'s pixels. A pixel a
- * slice covers is written opaque; any other keeps what it held, so a target
- * made by this call leaves it transparent black. Column x of the pixels is
- * column `from + x` of the whole view, whose left edge is playback
- * `edge - span`.
+ * The spectrogram's pixels for one view from pixel column `from` to the right edge, RGBA row by row from the top, written
+ * into `into`'s pixels. A pixel a slice covers is written opaque; any other keeps what it held, so a target made by this
+ * call leaves it transparent black. Column x of the pixels is column `from + x` of the whole view, whose column 0 is
+ * `edgeColumn(view) - W` on the grid.
  *
  * @param {Triple[]} ramp floor first, as `rampFrom` returns it
  * @param {RasterView} view
@@ -258,16 +271,17 @@ const timeAt = ({ edge, span }, x) => edge - span + ((x + 0.5) * span) / W;
  * @returns {Pixels} `into`'s pixels
  */
 export function rasterize(ramp, view, from = 0, into = rasterTarget(blankPixels(W - from))) {
-  const { slices, hi, top } = view;
+  const { slices, hi, top, span } = view;
   readTop(into.reader, top);
-  let i = firstEndingAfter(view, timeAt(view, from));
+  const scale = W / span;
+  const left = edgeColumn(view) - W;
+  let i = firstEndingAfter(view, (left + from) / scale);
   for (let x = from; x < W && i < hi; x++) {
-    const t = timeAt(view, x);
-    i = nextEndingAfter(view, i, t);
-    if (i >= hi) break;
-    const slice = /** @type {Cell} */ (slices[i]);
-    if (t >= slice.at) {
-      readSlice(into.reader, slice, view.pick);
+    const k = left + x;
+    while (i < hi && endOf(/** @type {Cell} */ (slices[i])) * scale <= k + COLUMN_EPS) i++;
+    const j = mostCovering(view, i, k);
+    if (j >= 0) {
+      readSlice(into.reader, /** @type {Cell} */ (slices[j]), view.pick);
       paintColumn(into, x - from, ramp, view.range);
     }
   }
@@ -281,20 +295,6 @@ export function rasterize(ramp, view, from = 0, into = rasterTarget(blankPixels(
  * @returns {Pixels}
  */
 const blankPixels = (width) => ({ width, height: H, data: new Uint8ClampedArray(width * H * 4) });
-
-/**
- * The first index from `i` on, below `hi`, whose slice ends after `t`, or `hi`
- * when none does.
- *
- * @param {RasterView} view
- * @param {number} i
- * @param {number} t  playback, ms
- */
-function nextEndingAfter({ slices, hi }, i, t) {
-  let k = i;
-  while (k < hi && endOf(/** @type {Cell} */ (slices[k])) <= t) k++;
-  return k;
-}
 
 /**
  * @typedef {{ full: boolean, shift: number, from: number, carry: number }} ScrollPlan
@@ -333,7 +333,7 @@ export function landedColumn(view, since) {
   const i = firstEndingAfter(view, since);
   if (i >= view.hi) return W;
   const { at } = /** @type {Cell} */ (view.slices[i]);
-  return clamp(Math.floor(((at - (view.edge - view.span)) * W) / view.span), 0, W);
+  return clamp(Math.floor((at * W) / view.span) - (edgeColumn(view) - W), 0, W);
 }
 
 /**
@@ -343,11 +343,11 @@ export function landedColumn(view, since) {
  * movement pushes in from the right, and the seam column before them, and from
  * the column `next.landed` names where a slice landed further left. A landed
  * slice is painted under an edge that did not move too. The plan is written
- * into `into`.
+ * into `into`. Edges and span share a unit: whole grid columns and W, for whole-column moves.
  *
- * @param {{ edge: number, carry: number } | null} prev  edge, playback, ms
- * @param {{ edge: number, span: number, landed?: number }} next  edge and span, playback, ms, and the first column a
- *   landed slice covers, as landedColumn gives it; none by default
+ * @param {{ edge: number, carry: number } | null} prev  edge
+ * @param {{ edge: number, span: number, landed?: number }} next  edge and span, and the first column a landed slice
+ *   covers, as landedColumn gives it; none by default
  * @param {ScrollPlan} [into]  a new plan when none is handed
  * @returns {ScrollPlan} `into`
  */
