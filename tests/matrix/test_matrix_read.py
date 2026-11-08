@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 from conftest import StartManager
+from fake_network import NETWORK
 from narrow import present
 
 from hqptuner.api.routes.matrix.matrix import matrix as matrix_report
@@ -33,7 +34,9 @@ DATALIST = ["", "Default", "Mch-to-Stereo mixdown"]
 
 @pytest.fixture
 async def matrix_client(http_daemon: dict[str, Any]) -> AsyncIterator[HttpConfigClient]:
-    client = HttpConfigClient("127.0.0.1", http_daemon["_port"], "user", "pw")
+    client = HttpConfigClient(
+        "127.0.0.1", http_daemon["_port"], "user", "pw", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
+    )
     yield client
     await client.aclose()
 

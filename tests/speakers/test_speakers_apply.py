@@ -1,4 +1,4 @@
-"""Speaker-processing apply (readme §1.9) over a real socket: the POST body the
+"""Speaker-processing apply (readme §1.9) over the in-process network: the POST body the
 daemon would receive is captured and asserted (docs/testing.md rule 4 — a real
 server, never a stub of our client). The apply overlays the desired state onto a
 fresh GET of the complete form, so the fixture is served on every GET."""
@@ -11,6 +11,7 @@ from urllib.parse import parse_qs
 
 import fake_http
 import pytest
+from fake_network import NETWORK
 
 from hqptuner.conf.httpconf import HttpConfigClient
 
@@ -41,7 +42,7 @@ def _handler(posts: list[dict[str, list[str]]]) -> type[BaseHTTPRequestHandler]:
 def server() -> Iterator[tuple[int, list[dict[str, list[str]]]]]:
     posts: list[dict[str, list[str]]] = []
     st: dict[str, Any] = {}
-    srv = fake_http.spawn(st, handler=_handler(posts))
+    srv = fake_http.spawn(st, handler=_handler(posts), in_process=True)
     port = next(srv)["_port"]
     yield port, posts
     next(srv, None)
@@ -52,7 +53,7 @@ async def client(
     server: tuple[int, list[dict[str, list[str]]]],
 ) -> AsyncIterator[tuple[HttpConfigClient, list[dict[str, list[str]]]]]:
     port, posts = server
-    c = HttpConfigClient("127.0.0.1", port, "u", "p")
+    c = HttpConfigClient("127.0.0.1", port, "u", "p", NETWORK.http_options("127.0.0.1", port))
     yield c, posts
     await c.aclose()
 

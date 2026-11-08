@@ -15,6 +15,7 @@ from urllib.parse import parse_qs
 
 import fake_http
 import pytest
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
@@ -80,7 +81,7 @@ def _spawn(reload_window: int) -> Iterator[dict[str, Any]]:
     for i in range(len(_CHANNELS)):
         st[f"level_{i}"] = "0"
         st[f"distance_{i}"] = "0"
-    yield from fake_http.spawn(st, handler=_handler(st))
+    yield from fake_http.spawn(st, handler=_handler(st), in_process=True)
 
 
 @pytest.fixture
@@ -100,10 +101,12 @@ async def speakers_manager(tmp_path: Path) -> AsyncIterator[ManagerBuilder]:
     clients: list[HttpConfigClient] = []
 
     def build(daemon: dict[str, Any], alarm_threshold: float = 5.0) -> ConnectionManager:
-        http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p")
+        http = HttpConfigClient(
+            "127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"])
+        )
         clients.append(http)
         cfg = Config(alarm_threshold=alarm_threshold, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-        return ConnectionManager(cfg, http, VirtualClock())
+        return ConnectionManager(cfg, http, VirtualClock(), NETWORK)
 
     yield build
     for http in clients:

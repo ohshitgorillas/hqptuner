@@ -6,7 +6,7 @@ wire).
 The matrix-scope helpers take config bytes and hand back bytes or a span; the
 rescan replay, the live lane's chain memory and the live snapshot run on a
 manager connected to the fake daemon; the control client is driven against a
-raw socket where the fake's framing is the thing under test.
+stream fake where the fake's framing is the thing under test.
 """
 
 import asyncio
@@ -16,6 +16,7 @@ from xml.etree import ElementTree as ET
 
 import pytest
 from conftest import DaemonFactory, LiveManager
+from fake_network import NETWORK, serving
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
@@ -128,7 +129,9 @@ def test_find_matrix_body_span_locates_the_body_and_answers_absent_without_raisi
 @pytest.fixture
 async def dead_manager(closed_port: int, clock: VirtualClock) -> AsyncIterator[ConnectionManager]:
     """A running manager whose control lane points at a port nothing listens on."""
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=closed_port), clock=clock)
+    manager = ConnectionManager(
+        Config(hqp_host="127.0.0.1", hqp_control_port=closed_port), clock=clock, network=NETWORK
+    )
     task = clock.spawn(manager.run())
     yield manager
     manager.stop()
@@ -236,9 +239,9 @@ async def manager_and_client(
     that same daemon (its State is shared across connections), for the lane
     entry points that take the client to write through as an argument."""
     port, _log, _state = await daemon()
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
+    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock, network=NETWORK)
     task = clock.spawn(manager.run())
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     yield manager, client
     await client.close()
@@ -357,7 +360,7 @@ async def _request_error_code(client: ControlClient) -> str:
 
 
 async def test_a_request_before_connect_is_refused_as_daemon_unavailable(closed_port: int) -> None:
-    client = ControlClient("127.0.0.1", closed_port)
+    client = ControlClient("127.0.0.1", closed_port, opener=NETWORK.open_stream)
     assert await _request_error_code(client) == "daemon_unavailable"
 
 
@@ -372,14 +375,11 @@ async def _serve_split(reader: asyncio.StreamReader, writer: asyncio.StreamWrite
 
 @pytest.fixture
 async def split_reply_client() -> AsyncIterator[ControlClient]:
-    server = await asyncio.start_server(_serve_split, "127.0.0.1", 0)
-    port = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
-    server.close()
-    await server.wait_closed()
+    with serving(_serve_split) as port:
+        client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
+        await client.connect()
+        yield client
+        await client.close()
 
 
 async def test_a_reply_cut_mid_tag_is_read_to_its_end_before_parsing(split_reply_client: ControlClient) -> None:
