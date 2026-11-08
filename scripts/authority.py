@@ -25,7 +25,8 @@ says so and exits when it is absent.
 
 ``enum`` prints the lists ``GET /api/enumerations`` serves, in wire order, as
 names alone — the running engine is the authority for what things are called
-and what order they come in, and nothing else here is.
+and what order they come in, and nothing else here is. It logs in first with the pair ``hqpcreds`` exports
+(``set -a; source hqpcreds; set +a``) and stops naming the login when that is refused or unanswered.
 """
 
 import argparse
@@ -35,6 +36,9 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+sys.path.insert(0, str(Path(__file__).resolve().parent / "ci"))
+from apilogin import LOGIN_COOKIE, LoginFailedError, login_cookie
 
 if TYPE_CHECKING:
     import httpx
@@ -270,11 +274,12 @@ class EnumerationRequestFailedError(EnumerationFetchError):
 
 
 def fetch_enumerations(url: str) -> dict[str, Any]:
-    """GET /api/enumerations, returning the decoded body or raising why it failed."""
+    """Log in, then GET /api/enumerations, returning the decoded body or raising why either failed."""
     if httpx is None:
         raise HttpxNotInstalledError()
+    cookie = login_cookie(url)
     try:
-        response = httpx.get(f"{url}/api/enumerations", timeout=10.0)
+        response = httpx.get(f"{url}/api/enumerations", cookies={LOGIN_COOKIE: cookie}, timeout=10.0)
         response.raise_for_status()
         body: dict[str, Any] = response.json()
     except (httpx.HTTPError, OSError, json.JSONDecodeError) as exc:
@@ -328,11 +333,11 @@ def main(argv: list[str]) -> int:
     args = parse_args(argv)
     if args.command == "find":
         return cmd_find(args.term, args.cap)
-    errors: list[EnumerationFetchError] = []
+    errors: list[EnumerationFetchError | LoginFailedError] = []
     result = 0
     try:
         result = cmd_enum(args.url)
-    except EnumerationFetchError as exc:
+    except (EnumerationFetchError, LoginFailedError) as exc:
         errors.append(exc)
     if errors:
         print(errors[0], file=sys.stderr)

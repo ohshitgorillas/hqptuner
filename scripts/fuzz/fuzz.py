@@ -22,6 +22,9 @@ but puts nothing back in HQPTuner's own store:
           after, and name-taking routes get only names this script invented.
   never   backup, restore and autosave are not sent at all.
 
+The run logs in first with the pair ``hqpcreds`` exports (``set -a; source hqpcreds; set +a``) and stops naming the
+login when it is refused or unanswered.
+
 Rails: at most 8 requests in flight, every loop over a list built before the
 first request, a timeout on every one. The daemon's own port is never addressed.
 Refuses to run at all unless a bracket is open.
@@ -38,6 +41,9 @@ from typing import Any, TextIO
 
 import httpx
 from fuzzgen import RACE_CATEGORY, Attack, generate
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "ci"))
+from apilogin import LOGIN_COOKIE, LoginFailedError, login_cookie
 
 ROOT = Path(__file__).resolve().parents[2]
 SPEC = ROOT / "docs" / "openapi.json"
@@ -322,8 +328,13 @@ def report(run: Run, attacks: list[Attack], out: Path) -> None:
 
 
 def execute(url: str, attacks: list[Attack], out: Path) -> int:
-    """Run every attack against the live app, restoring the store around the whole run."""
+    """Log in, then run every attack against the live app, restoring the store around the whole run.
+
+    A login that is refused or unanswered raises ``LoginFailedError`` before the first attack is sent.
+    """
+    cookie = login_cookie(url)
     with httpx.Client(base_url=url, timeout=TIMEOUT) as client, out.open("w", encoding="utf-8") as handle:
+        client.cookies.set(LOGIN_COOKIE, cookie)
         before = snapshot(client, STORE_PATHS)
         run = Run(client, handle)
         try:
@@ -369,7 +380,16 @@ def main(argv: list[str]) -> int:
     outdir = Path(args.outdir)
     outdir.mkdir(parents=True, exist_ok=True)
     out = outdir / "attacks.jsonl"
-    return dry(attacks, out) if args.dry_run else execute(args.url, attacks, out)
+    errors: list[LoginFailedError] = []
+    result = 0
+    try:
+        result = dry(attacks, out) if args.dry_run else execute(args.url, attacks, out)
+    except LoginFailedError as exc:
+        errors.append(exc)
+    if errors:
+        print(errors[0], file=sys.stderr)
+        return 1
+    return result
 
 
 if __name__ == "__main__":
