@@ -533,6 +533,26 @@ status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "${@:3}" 
 STANDIN_ADDRESS=127.0.0.2
 STANDIN_PORT=8088
 
+# What the host says about the stand-in's listener, grouped under one heading
+# each. No command here can end the script.
+standin_diagnostics() {
+  echo "::group::stand-in diagnostics"
+  echo "--- stand-in output ($WORK/standin.log)"
+  cat "$WORK/standin.log" || true
+  echo "--- whoami /groups"
+  MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' whoami /groups || true
+  echo "--- netsh http show urlacl"
+  netsh http show urlacl || true
+  echo "--- netsh http show iplisten"
+  netsh http show iplisten || true
+  echo "--- curl -v http://$STANDIN_ADDRESS:$STANDIN_PORT/"
+  curl -v --max-time 2 "http://$STANDIN_ADDRESS:$STANDIN_PORT/" 2>&1 || true
+  echo "--- Get-MpComputerStatus"
+  powershell -NoProfile -Command \
+    'Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, AMServiceEnabled, IsTamperProtected | Format-List' 2>&1 || true
+  echo "::endgroup::"
+}
+
 # Answer the credential wire where the app dials: 401 and a Digest challenge to a
 # request with no Authorization header, 200 to one with it, on every path. The
 # job has no Python, so this is an HttpListener. It never checks a digest, so it
@@ -545,8 +565,15 @@ start_standin() {
 $ErrorActionPreference = "Stop"
 $challenge = 'Digest realm="com.signalyst.hqplayer.embedded", qop="auth", algorithm=MD5, nonce="1f3a9c2b4d5e6f70", opaque="0a1b2c3d4e5f6071", charset=UTF-8'
 $listener = New-Object System.Net.HttpListener
-$listener.Prefixes.Add("http://$($env:STANDIN_ADDRESS):$($env:STANDIN_PORT)/")
-$listener.Start()
+try {
+  $listener.Prefixes.Add("http://$($env:STANDIN_ADDRESS):$($env:STANDIN_PORT)/")
+  Write-Output "standin: before Start()"
+  $listener.Start()
+  Write-Output "standin: Start() returned"
+} catch {
+  $_ | Out-String | Write-Output
+  exit 1
+}
 while ($true) {
   $context = $listener.GetContext()
   $response = $context.Response
@@ -561,13 +588,17 @@ while ($true) {
 }
 POWERSHELL
   STANDIN_ADDRESS=$STANDIN_ADDRESS STANDIN_PORT=$STANDIN_PORT SMOKE_SCRIPT="$(cygpath -w "$script")" powershell -NoProfile -Command \
-    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' &
+    'Get-Content -Raw -LiteralPath $env:SMOKE_SCRIPT | Invoke-Expression' > "$WORK/standin.log" 2>&1 &
   STANDIN_PID=$!
   for _ in $(seq 1 10); do
     if [ "$(status "http://$STANDIN_ADDRESS:$STANDIN_PORT/")" = 401 ]; then return 0; fi
-    kill -0 "$STANDIN_PID" 2>/dev/null || die "step 4: the daemon stand-in exited before it answered"
+    if ! kill -0 "$STANDIN_PID" 2>/dev/null; then
+      standin_diagnostics
+      die "step 4: the daemon stand-in exited before it answered"
+    fi
     sleep 1
   done
+  standin_diagnostics
   die "step 4: the daemon stand-in did not answer 401 within 10 s"
 }
 
