@@ -8,24 +8,37 @@ gives the caller one end as asyncio streams and starts the callback on the other
 dialing, so the fake answers on a test's loop or on a ``TestClient``'s app loop with no thread and no listener. The
 pair is AF_UNIX and never leaves the process, and the client's own asyncio stream code runs unchanged over a real
 kernel stream. Dialing an address nothing is registered at is refused, which is what a closed TCP port gives.
+
+The 8088 half has no socket at all. A fake is a function from the request bytes to the response bytes, and the
+network's transport turns each ``httpx.Request`` into those bytes, hands them over and reads the answer back into an
+``httpx.Response``, inline on the thread that sent the request. An address nothing serves, or one withdrawn, raises
+``httpx.ConnectError``; an answer that is no HTTP response raises ``httpx.RemoteProtocolError``, as httpcore does.
 """
 
 import asyncio
 import contextlib
+import functools
+import re
 import socket
 import threading
 from collections.abc import Awaitable, Callable, Iterator
+
+import httpx
 
 from hqptuner.core.network import Network
 
 #: The shape of a stream fake, as ``asyncio.start_server`` takes it.
 StreamCallback = Callable[[asyncio.StreamReader, asyncio.StreamWriter], Awaitable[None]]
 
+#: The shape of an 8088 fake: the bytes of one HTTP/1.1 request in, the bytes the daemon writes back out.
+HttpFake = Callable[[bytes], bytes]
+
 #: Where a fake is registered when the test names no host.
 LOOPBACK = "127.0.0.1"
 
 _LOCK = threading.Lock()
 _STREAMS: dict[tuple[str, int], StreamCallback] = {}
+_HTTP: dict[tuple[str, int], HttpFake] = {}
 _CLOSED_PORTS: set[int] = set()
 #: Fake ends still running, held so the loop does not drop a task mid-flight.
 _RUNNING: set[asyncio.Task[None]] = set()
@@ -57,25 +70,45 @@ def _hold_port() -> tuple[socket.socket, int]:
 
 
 @contextlib.contextmanager
-def serving(callback: StreamCallback, host: str = LOOPBACK, port: int | None = None) -> Iterator[int]:
-    """Serve ``callback`` at ``host`` and ``port`` for the block, yielding the port.
+def _registered[F](table: dict[tuple[str, int], F], fake: F, host: str, port: int | None) -> Iterator[int]:
+    """Put ``fake`` in ``table`` at ``host`` and ``port`` for the block, yielding the port.
 
-    With no port the number is drawn so that it can never equal one ``closed_port`` returned or one the session
-    holds: a bound socket that never listens keeps it for as long as the registration lasts.
+    With no port (None or 0) the number is drawn so that it can never equal one ``closed_port`` returned or one the
+    session holds: a bound socket that never listens keeps it for as long as the registration lasts.
     """
     holder: socket.socket | None = None
-    if port is None:
+    if not port:
         holder, port = _hold_port()
     address = (host, port)
     with _LOCK:
-        _STREAMS[address] = callback
+        table[address] = fake
     try:
         yield port
     finally:
         with _LOCK:
-            _STREAMS.pop(address, None)
+            table.pop(address, None)
         if holder is not None:
             holder.close()
+
+
+def serving(
+    callback: StreamCallback, host: str = LOOPBACK, port: int | None = None
+) -> contextlib.AbstractContextManager[int]:
+    """Serve the stream fake ``callback`` at ``host`` and ``port`` for the block, yielding the port."""
+    return _registered(_STREAMS, callback, host, port)
+
+
+def serving_http(
+    fake: HttpFake, host: str = LOOPBACK, port: int | None = None
+) -> contextlib.AbstractContextManager[int]:
+    """Serve the 8088 fake ``fake`` at ``host`` and ``port`` for the block, yielding the port."""
+    return _registered(_HTTP, fake, host, port)
+
+
+def withdraw_http(host: str, port: int) -> None:
+    """Take the 8088 fake at ``host`` and ``port`` away, so every later request meets a refused connection."""
+    with _LOCK:
+        _HTTP.pop((host, port), None)
 
 
 async def _run_fake(callback: StreamCallback, sock: socket.socket) -> None:
@@ -101,5 +134,45 @@ async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, async
     return await asyncio.open_connection(sock=ours)
 
 
+_NO_RESPONSE = "Server disconnected without sending a response."
+_SHORT_BODY = "peer closed connection without sending complete message body"
+_NOBODY_HOME = "All connection attempts failed"
+_STATUS_LINE = re.compile(rb"HTTP/1\.[01] (\d{3})(?: [^\r\n]*)?")
+
+
+def _request_bytes(request: httpx.Request) -> bytes:
+    head = [f"{request.method} {request.url.raw_path.decode()} HTTP/1.1".encode()]
+    head += [name + b": " + value for name, value in request.headers.raw]
+    return b"\r\n".join(head) + b"\r\n\r\n" + request.content
+
+
+def _response(raw: bytes, request: httpx.Request) -> httpx.Response:
+    """Read what a daemon wrote as an ``httpx.Response``: a body bounded by its Content-Length, else by the close."""
+    head, separator, body = raw.partition(b"\r\n\r\n")
+    lines = head.split(b"\r\n")
+    status = _STATUS_LINE.fullmatch(lines[0])
+    if not separator or status is None:
+        raise httpx.RemoteProtocolError(_NO_RESPONSE, request=request)
+    headers = [(name.strip(), value.strip()) for name, _, value in (line.partition(b":") for line in lines[1:])]
+    lengths = [int(value) for name, value in headers if name.lower() == b"content-length"]
+    if lengths and len(body) < lengths[0]:
+        raise httpx.RemoteProtocolError(_SHORT_BODY, request=request)
+    kept = [(name, value) for name, value in headers if name.lower() != b"content-length"]
+    return httpx.Response(int(status.group(1)), headers=kept, content=body[: lengths[0]] if lengths else body)
+
+
+def _answer(host: str, port: int, request: httpx.Request) -> httpx.Response:
+    with _LOCK:
+        fake = _HTTP.get((host, port))
+    if fake is None:
+        raise httpx.ConnectError(_NOBODY_HOME, request=request)
+    return _response(fake(_request_bytes(request)), request)
+
+
+def http_transport(host: str, port: int) -> httpx.MockTransport:
+    """A fresh transport for the 8088 address, answering both an async and a sync client."""
+    return httpx.MockTransport(functools.partial(_answer, host, port))
+
+
 #: The network the suite hands the manager and the app: every dial it makes is answered by a fake registered here.
-NETWORK = Network(open_stream=open_stream)
+NETWORK = Network(open_stream=open_stream, http_transport=http_transport)

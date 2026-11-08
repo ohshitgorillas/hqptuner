@@ -26,8 +26,9 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.conf.httpconf import HttpConfigClient
+from hqptuner.conf.httpconf import HttpConfigClient, HttpOptions
 from hqptuner.config import CONNECTION_STORE
+from hqptuner.core.network import Network
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.unwritable import reading, saving
 
@@ -156,12 +157,13 @@ def layer_onto_config(cfg: Config, record: ConnectionRecord | None) -> None:
         cfg.hqp_password = record.password
 
 
-def build_http_client(cfg: Config) -> HttpConfigClient | None:
-    """Build the 8088 configuration client for ``cfg``, or None when either credential is missing.
+def build_http_client(cfg: Config, network: Network | None) -> HttpConfigClient | None:
+    """Build the 8088 configuration client for ``cfg`` on ``network``, or None when either credential is missing.
 
     One builder for both paths — app construction and a runtime save — so the rule "no credentials, no 8088 lane"
     (architecture section 3) is stated once.
     """
     if not cfg.hqp_username or not cfg.hqp_password:
         return None
-    return HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password)
+    options = HttpOptions(transport=(network or Network()).http_transport(cfg.hqp_host, cfg.hqp_http_port))
+    return HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password, options)

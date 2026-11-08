@@ -47,7 +47,7 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
     except (OSError, ControlError):
         return
     cfg.hqp_host = answered.address
-    manager.http_client = build_http_client(cfg)
+    manager.http_client = build_http_client(cfg, manager.network)
 
 
 async def _finish(task: asyncio.Task[None], grace: float, clock: Clock) -> None:

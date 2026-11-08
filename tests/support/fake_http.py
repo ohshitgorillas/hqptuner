@@ -12,9 +12,11 @@ restore archive the real daemon would accept.
 """
 
 import contextlib
+import functools
 import io
 import re
 import socket
+import socketserver
 import threading
 import zipfile
 from collections.abc import Iterator
@@ -22,6 +24,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 from urllib.parse import parse_qs
 
+import fake_network
 from fake_config_xml import adopt_cfg, cfg_xml, elem_attr
 
 #: Guards every read-modify-write of a served state dict. Handlers run on their
@@ -528,11 +531,40 @@ class _Server(ThreadingHTTPServer):
                 self.st.get("_open_connections", set()).discard(request)
 
 
+def answer(handler: type[BaseHTTPRequestHandler], request: bytes) -> bytes:
+    """The bytes ``handler`` writes for one HTTP/1.1 request, handed to it as bytes over an in-memory connection.
+
+    No socket, no listener, no thread: the handler runs inline on the calling thread. Its client address is
+    loopback-shaped, so its logging and ``address_string`` behave as on TCP. A handler that must wait is not served
+    this way.
+    """
+    answering = handler.__new__(handler)
+    answering.rfile = io.BytesIO(request)
+    answering.wfile = out = io.BytesIO()
+    answering.client_address = ("127.0.0.1", 0)
+    answering.server = socketserver.BaseServer(("127.0.0.1", 0), handler)
+    answering.handle()
+    return out.getvalue()
+
+
+def _spawn_in_process(
+    st: dict[str, Any], host: str, bind_port: int, handler: type[BaseHTTPRequestHandler]
+) -> Iterator[dict[str, Any]]:
+    """Serve `st` at an in-process network address until the generator is closed; see `spawn`."""
+    with fake_network.serving_http(functools.partial(answer, handler), host, bind_port) as port:
+        st["_port"] = port
+        st["_take_lane_down"] = functools.partial(fake_network.withdraw_http, host, port)
+        yield st
+        fake_network.withdraw_http(host, port)
+
+
 def spawn(
     st: dict[str, Any],
     host: str = "127.0.0.1",
     bind_port: int = 0,
     handler: type[BaseHTTPRequestHandler] | None = None,
+    *,
+    in_process: bool = False,
 ) -> Iterator[dict[str, Any]]:
     """Serve `st` on a loopback port until the generator is closed. Yields the
     state dict with `_port` filled in — tests read and mutate it directly.
@@ -552,7 +584,16 @@ def spawn(
     `_take_lane_down` is the whole 8088 lane going away: the listener stops
     accepting, so a new connection is refused, and every connection the fake was
     holding is severed. It is idempotent and teardown calls it, so a case that
-    takes the lane down mid-test costs nothing extra at the end."""
+    takes the lane down mid-test costs nothing extra at the end.
+
+    With `in_process` the fake is served at an address of the suite's in-process
+    network (`fake_network`) and no socket, listener or thread exists: each
+    request is answered whole, inline, before the transport returns, so the lane
+    going down leaves no connection to sever and every later request meets a
+    refused connection. `bind_port` zero draws a port of the network's own."""
+    if in_process:
+        yield from _spawn_in_process(st, host, bind_port, handler or _http_handler(st))
+        return
     server = _Server((host, bind_port), handler or _http_handler(st))
     server.st = st
     server.timeout = None  # `handle_request` blocks in `select` rather than polling
