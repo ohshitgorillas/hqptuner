@@ -18,6 +18,7 @@ from typing import Any
 
 import pytest
 from apps import log_in
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -40,7 +41,7 @@ def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | No
         hqp_home="/x/home",
         debug_log=debug_log,
     )
-    with TestClient(create_app(cfg, VirtualClock())) as client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
         log_in(client)
         yield client
 

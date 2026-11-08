@@ -12,6 +12,7 @@ a readback mismatch has no way to carry.
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.lanes.writer import LiveWriteFailed, apply_live
@@ -37,7 +38,7 @@ async def _refused_volume_readback_error(daemon: DaemonFactory, refusal: str) ->
     `Volume` write `result="Error"` with ``refusal`` as its text; None when the row is not a failure, or when no
     `State` was read after `Volume` went out."""
     port, log, _state = await daemon(_error=READBACK, _error_text=refusal)
-    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT)
+    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         report = await apply_live(client, {SETTING: {"value": SENT}})

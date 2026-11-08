@@ -11,6 +11,7 @@ level never reaches the daemon at all (an error with no code of its own)."""
 
 import pytest
 from conftest import DaemonFactory
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -30,7 +31,7 @@ async def test_a_failed_live_setter_reports_the_raised_errors_own_code_transport
     # a dead transport under the setter is not readback-verifiable at all: it
     # raises rather than landing a coded report row
     port, _log, _state = await daemon(_close="Volume")
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     try:
         with pytest.raises(ControlError):
@@ -44,7 +45,7 @@ async def test_a_failed_live_setter_reports_the_raised_errors_own_code(
     daemon: DaemonFactory, overrides: dict[str, str], edit: dict[str, str], code: str
 ) -> None:
     port, _log, _state = await daemon(**overrides)
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     try:
         report = await apply_live(client, {"volume": edit})
@@ -57,7 +58,7 @@ async def test_a_failed_live_setter_reports_the_raised_errors_own_code(
 async def test_apply_live_yields_a_live_write_result_the_daemon_refused(daemon: DaemonFactory) -> None:
     # a bare refusal on the wire (`_error`), read straight off the yielded report
     port, _log, _state = await daemon(_error="Volume")
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
+    client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     try:
         report = await apply_live(client, {"volume": {"value": "-20.0"}})

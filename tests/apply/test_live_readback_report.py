@@ -12,6 +12,7 @@ not the way Python prints a dict or a tuple.
 import re
 
 from conftest import DaemonFactory
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 from hqptuner.lanes.writer import LiveWriteFailed, apply_live
@@ -30,7 +31,7 @@ async def _mismatch_error(daemon: DaemonFactory) -> str | None:
     """The `error` of the row `apply_live` reports for ``SETTING`` when HQPlayer keeps ``KEPT`` after being sent
     ``SENT``; None when the row is not a failure."""
     port, _log, _state = await daemon(_deaf=SETTER, **{SETTING: KEPT})
-    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT)
+    client = ControlClient("127.0.0.1", port, timeout=REPLY_TIMEOUT, opener=NETWORK.open_stream)
     await client.connect()
     try:
         report = await apply_live(client, {SETTING: {"value": SENT}})

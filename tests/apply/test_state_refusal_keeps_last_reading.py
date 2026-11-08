@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING
 import pytest
 from apps import advanced, settled
 from conftest import DaemonFactory
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -48,7 +49,7 @@ async def started(daemon: DaemonFactory, clock: VirtualClock) -> AsyncIterator[S
         cfg = Config(hqp_host="127.0.0.1", hqp_control_port=port)
         if poll_interval is not None:
             cfg = replace(cfg, poll_interval=poll_interval)
-        manager = ConnectionManager(cfg, clock=clock)
+        manager = ConnectionManager(cfg, clock=clock, network=NETWORK)
         task = clock.spawn(manager.run())
         runs.append((manager, task))
         await settled(clock)
