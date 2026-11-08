@@ -6,14 +6,17 @@ ports built on conftest's `spawn_threaded_daemon`, the port-8088 HTTP config
 fakes from `fake_http`, and the fake 4322 metering streams."""
 
 import asyncio
+import contextlib
 import functools
 from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from typing import Any
 
 import fake_http
+import fake_network
 import pytest
 from conftest import DaemonFactory, spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, serve, serve_shared
+from fake_network import NETWORK
 
 from hqptuner.engine.control import ControlClient
 
@@ -22,7 +25,8 @@ from hqptuner.engine.control import ControlClient
 async def live_daemon_port() -> AsyncIterator[int]:
     server = await asyncio.start_server(serve, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
-    yield port
+    with fake_network.serving(serve, "127.0.0.1", port):
+        yield port
     server.close()
     await server.wait_closed()
 
@@ -39,16 +43,19 @@ async def daemon() -> AsyncIterator[DaemonFactory]:
     something changed on the daemon's side of the wire that no command caused,
     which is the only way to express a source change under ``[source]`` mode."""
     servers: list[asyncio.Server] = []
+    with contextlib.ExitStack() as registered:
 
-    async def spawn(**overrides: str) -> tuple[int, CommandLog, dict[str, str]]:
-        log: CommandLog = []
-        state = {**DEFAULTS, **overrides}
-        handler = functools.partial(serve_shared, log=log, state=state)
-        server = await asyncio.start_server(handler, "127.0.0.1", 0)
-        servers.append(server)
-        return int(server.sockets[0].getsockname()[1]), log, state
+        async def spawn(**overrides: str) -> tuple[int, CommandLog, dict[str, str]]:
+            log: CommandLog = []
+            state = {**DEFAULTS, **overrides}
+            handler = functools.partial(serve_shared, log=log, state=state)
+            server = await asyncio.start_server(handler, "127.0.0.1", 0)
+            servers.append(server)
+            port = int(server.sockets[0].getsockname()[1])
+            registered.enter_context(fake_network.serving(handler, "127.0.0.1", port))
+            return port, log, state
 
-    yield spawn
+        yield spawn
     for server in servers:
         server.close()
         await server.wait_closed()
@@ -56,7 +63,7 @@ async def daemon() -> AsyncIterator[DaemonFactory]:
 
 @pytest.fixture
 async def live_client(live_daemon_port: int) -> AsyncIterator[ControlClient]:
-    client = ControlClient("127.0.0.1", live_daemon_port, timeout=2.0)
+    client = ControlClient("127.0.0.1", live_daemon_port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     yield client
     await client.close()
@@ -72,10 +79,11 @@ async def garbled_metadata_client() -> AsyncIterator[ControlClient]:
     handler = functools.partial(serve, overrides={"_metadata": bad})
     server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
+    with fake_network.serving(handler, "127.0.0.1", port):
+        client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
+        await client.connect()
+        yield client
+        await client.close()
     server.close()
     await server.wait_closed()
 
@@ -87,10 +95,11 @@ async def disabled_volume_client() -> AsyncIterator[ControlClient]:
     handler = functools.partial(serve, overrides={"_vol_enabled": "0"})
     server = await asyncio.start_server(handler, "127.0.0.1", 0)
     port: int = server.sockets[0].getsockname()[1]
-    client = ControlClient("127.0.0.1", port, timeout=2.0)
-    await client.connect()
-    yield client
-    await client.close()
+    with fake_network.serving(handler, "127.0.0.1", port):
+        client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
+        await client.connect()
+        yield client
+        await client.close()
     server.close()
     await server.wait_closed()
 
@@ -118,7 +127,7 @@ async def deaf_volume_client(daemon: DaemonFactory) -> AsyncIterator[DeafVolumeC
             del state["volume"]
         else:
             port, _log, state = await daemon(_deaf="Volume", volume=reported)
-        client = ControlClient("127.0.0.1", port, timeout=2.0)
+        client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
         await client.connect()
         clients.append(client)
         return client

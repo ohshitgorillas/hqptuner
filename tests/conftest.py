@@ -24,15 +24,18 @@ from types import MappingProxyType
 from typing import Any
 
 import apps
+import fake_network
 import pytest
 from apps import settled
 from fake_control import CommandLog, serve, serve_shared
+from fake_network import NETWORK
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.core.network import Network
 
 pytest_plugins = ["fixtures_daemons", "fixtures_clients"]
 
@@ -192,7 +195,7 @@ async def live_manager(daemon: DaemonFactory, clock: VirtualClock) -> AsyncItera
 
     async def build(**overrides: str) -> LiveBuilt:
         port, log, state = await daemon(**overrides)
-        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock)
+        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock, network=NETWORK)
         task = clock.spawn(manager.run())
         started.append((manager, task))
         await settled(clock)
@@ -227,7 +230,7 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
             "backup_dir": tmp_path / "backups",
             "preset_dir": tmp_path / "presets",
         }
-        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock)
+        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock, Network(NETWORK.open_stream))
         task = clock.spawn(manager.run())
         started.append((manager, task, http))
         await settled(clock)
@@ -272,7 +275,8 @@ def spawn_threaded_daemon(
     )
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, host, bind_port), loop).result()
     port: int = server.sockets[0].getsockname()[1]
-    yield port
+    with fake_network.serving(handler, host, port):
+        yield port
     loop.call_soon_threadsafe(server.close)
     asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
     loop.call_soon_threadsafe(loop.stop)
