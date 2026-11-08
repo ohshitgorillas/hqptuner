@@ -6,6 +6,7 @@ from typing import Any
 
 import httpx
 import pytest
+from fake_network import NETWORK
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpforms import ConfigForm
@@ -46,7 +47,7 @@ def test_log_file_field_reads_the_configured_path_and_state_and_nothing_with_no_
 
 async def test_read_log_tail_returns_the_last_lines_of_the_daemon_log(http_daemon: dict[str, Any]) -> None:
     cfg = Config(hqp_host="127.0.0.1", hqp_http_port=http_daemon["_port"])
-    manager = ConnectionManager(cfg, clock=VirtualClock())
+    manager = ConnectionManager(cfg, clock=VirtualClock(), network=NETWORK)
     result = await engineread.read_log_tail(manager, 3)
     await manager.aclose()
     # the tail reaches the daemon's most recent log line — proves it fetched /log
@@ -55,7 +56,7 @@ async def test_read_log_tail_returns_the_last_lines_of_the_daemon_log(http_daemo
 
 async def test_read_log_tail_raises_when_the_daemon_is_unreachable() -> None:
     cfg = Config(hqp_host="127.0.0.1", hqp_http_port=1)  # nothing listening
-    manager = ConnectionManager(cfg, clock=VirtualClock())
+    manager = ConnectionManager(cfg, clock=VirtualClock(), network=NETWORK)
     with pytest.raises(httpx.HTTPError):
         await engineread.read_log_tail(manager)
     await manager.aclose()
@@ -64,7 +65,7 @@ async def test_read_log_tail_raises_when_the_daemon_is_unreachable() -> None:
 async def test_read_log_tail_raises_when_the_daemon_answers_a_server_error(http_daemon: dict[str, Any]) -> None:
     http_daemon["_fail_paths"] = ["/log"]
     cfg = Config(hqp_host="127.0.0.1", hqp_http_port=http_daemon["_port"])
-    manager = ConnectionManager(cfg, clock=VirtualClock())
+    manager = ConnectionManager(cfg, clock=VirtualClock(), network=NETWORK)
     with pytest.raises(httpx.HTTPError):
         await engineread.read_log_tail(manager)
     await manager.aclose()

@@ -26,13 +26,14 @@ the comparison rather than the run.
 """
 
 import asyncio
-from collections.abc import AsyncIterator, Awaitable, Callable, Coroutine, Iterator
+from collections.abc import Awaitable, Callable, Coroutine, Iterator
 from contextvars import Context
 
 import fake_discovery
 import pytest
 from apps import closed_port
 from conftest import spawn_threaded_daemon
+from fake_network import NETWORK
 from virtual_deadline import VirtualDeadline
 
 from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
@@ -171,9 +172,9 @@ def alias_control_port() -> Iterator[int]:
 
 
 @pytest.fixture
-async def answering_port() -> AsyncIterator[int]:
+def answering_port() -> Iterator[int]:
     """A daemon answering the discovery datagram at the other address."""
-    async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as port:
+    with fake_discovery.in_process({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as port:
         yield port
 
 
@@ -194,18 +195,22 @@ async def test_the_host_alias_is_listed_only_where_no_datagram_was_answered(
     target = f"{SEARCH_HOST}:{answering_port}" if datagram_answered else f"127.0.0.1:{closed_port()}"
     clock, sleep = virtual_time()
     search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-    found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+    found = await discover(
+        search, WAIT, clock=clock, sleep=sleep, opener=NETWORK.open_stream, datagrams=NETWORK.open_datagram
+    )
     assert [daemon.address for daemon in found] == expected
 
 
 async def search_addresses(alias_control_port: int, *, datagram_answered: bool) -> list[str]:
     """The addresses one search lists, with the answering daemon served from the
     loop the search itself runs on."""
-    async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
+    with fake_discovery.in_process({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
         target = f"{SEARCH_HOST}:{answering}" if datagram_answered else f"127.0.0.1:{closed_port()}"
         clock, sleep = virtual_time()
         search = Search(target=target, alias=ALIAS_HOST, control_port=alias_control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep)
+        found = await discover(
+            search, WAIT, clock=clock, sleep=sleep, opener=NETWORK.open_stream, datagrams=NETWORK.open_datagram
+        )
     return [daemon.address for daemon in found]
 
 
@@ -285,10 +290,18 @@ async def silent_search(control_port: int) -> list[str]:
     handed, paced on a clock of the test's own."""
     deadline = VirtualDeadline()
     deadline.fall_silent()
-    async with fake_discovery.responder({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
+    with fake_discovery.in_process({REQUEST: SAPPHIRE_DATAGRAM}, host=SEARCH_HOST) as answering:
         clock, sleep = virtual_time()
         search = Search(target=f"{SEARCH_HOST}:{answering}", alias=ALIAS_HOST, control_port=control_port)
-        found = await discover(search, wait_seconds=WAIT, clock=clock, sleep=sleep, deadline=deadline)
+        found = await discover(
+            search,
+            WAIT,
+            clock=clock,
+            sleep=sleep,
+            deadline=deadline,
+            opener=NETWORK.open_stream,
+            datagrams=NETWORK.open_datagram,
+        )
     return [daemon.address for daemon in found]
 
 

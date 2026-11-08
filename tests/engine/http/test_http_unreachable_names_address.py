@@ -11,6 +11,7 @@ from collections.abc import Awaitable, Callable
 
 import httpx
 import pytest
+from fake_network import NETWORK
 
 from hqptuner.conf.httpconf import HttpConfigClient
 
@@ -38,7 +39,7 @@ async def _backup(client: HttpConfigClient) -> object:
 
 async def _report(host: str, port: int, operation: Operation) -> str:
     """The text of the error ``operation`` raises on a client pointed at ``host``:``port``, or ``NO_ERROR``."""
-    client = HttpConfigClient(host, port, "u", "p")
+    client = HttpConfigClient(host, port, "u", "p", NETWORK.http_options(host, port))
     try:
         await operation(client)
     except httpx.HTTPError as exc:

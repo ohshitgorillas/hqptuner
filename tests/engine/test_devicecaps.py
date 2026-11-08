@@ -16,6 +16,7 @@ import fake_http
 import pytest
 from apps import log_in, wait_for_api
 from conftest import ManagerFactory, StartManager
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -336,7 +337,7 @@ def test_the_combo_backend_agrees_on_no_device_and_a_named_backend_agrees_on_it(
 def announcing_daemon() -> Iterator[dict[str, Any]]:
     """The fake 8088 daemon whose log announces the device its config form has
     selected — the ordinary case, a daemon playing out of the picked device."""
-    yield from fake_http.spawn(fake_http.state(_log=SELECTED_LOG))
+    yield from fake_http.spawn(fake_http.state(_log=SELECTED_LOG), in_process=True)
 
 
 def _manager(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
@@ -420,7 +421,7 @@ def disagreeing_daemon() -> Iterator[dict[str, Any]]:
     """The daemon mid preset-load: the config file already carries the new
     preset's device, while GET /config still renders the previous one — which is
     the device the engine still has open, and the one its log announces."""
-    yield from fake_http.spawn(fake_http.state(_log=OTHER_LOG, _form_net_device=OTHER))
+    yield from fake_http.spawn(fake_http.state(_log=OTHER_LOG, _form_net_device=OTHER), in_process=True)
 
 
 @pytest.fixture
@@ -437,7 +438,8 @@ def backupless_daemon() -> Iterator[dict[str, Any]]:
             net_device=OTHER,
             _form_net_device=SELECTED,
             _fail_paths=["/backup/settings.zip"],
-        )
+        ),
+        in_process=True,
     )
 
 
@@ -514,7 +516,7 @@ def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
         log_in(test_client)
         wait_for_api(test_client, _config_loaded)
         yield test_client
