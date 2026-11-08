@@ -599,6 +599,7 @@ def spawn(
     server.timeout = None  # `handle_request` blocks in `select` rather than polling
     st["_port"] = server.server_address[1]
     st["_listening"] = True  # set before the thread starts: it reads this flag on every pass
+    fake_network.announce(host, st["_port"])
 
     def serve() -> None:
         while st.get("_listening"):
@@ -608,6 +609,7 @@ def spawn(
     thread.start()
 
     def take_lane_down() -> None:
+        fake_network.withdraw(host, st["_port"])
         if st.get("_listening"):
             st["_listening"] = False
             # `handle_request` is parked in `select` on the listening socket, not

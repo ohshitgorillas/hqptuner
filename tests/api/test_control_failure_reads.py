@@ -34,6 +34,7 @@ from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
 
+import fake_network
 import pytest
 from apps import live_app, wait_for_api
 from fake_control import DEFAULTS, CommandLog, serve_shared
@@ -104,7 +105,9 @@ def _resetting_daemon(state: dict[str, str], log: CommandLog) -> Iterator[int]:
     handler = functools.partial(_serve_resetting, state=state, log=log)
     server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, HOST, 0), loop).result()
     port: int = server.sockets[0].getsockname()[1]
+    fake_network.announce(HOST, port)
     yield port
+    fake_network.withdraw(HOST, port)
     loop.call_soon_threadsafe(server.close)
     asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
     loop.call_soon_threadsafe(loop.stop)

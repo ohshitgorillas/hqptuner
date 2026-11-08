@@ -22,6 +22,8 @@ import socket
 import threading
 from collections.abc import Iterator
 
+import fake_network
+
 #: How long a torn-down server thread gets to notice, in seconds. Only a
 #: deadlock reaches it; the shutdown below is by socket, not by waiting.
 JOIN_SECONDS = 5.0
@@ -34,6 +36,7 @@ def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[
     listener.bind((host, 0))
     listener.listen(1)
     port: int = listener.getsockname()[1]
+    fake_network.announce(host, port)
     stopping = threading.Event()
     live: list[socket.socket] = []
 
@@ -52,6 +55,7 @@ def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[
     thread = threading.Thread(target=serve, daemon=True)
     thread.start()
     yield port
+    fake_network.withdraw(host, port)
     stopping.set()
     for connection in live:
         with contextlib.suppress(OSError):
