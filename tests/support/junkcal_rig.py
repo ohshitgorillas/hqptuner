@@ -8,13 +8,15 @@ returns what it finds; every assertion stays in the test.
 
 import asyncio
 import contextlib
+import functools
 import json
 import struct
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import fake_metering
+import fake_network
 from apps import advanced
 from narrow import FixtureError
 from virtual_clock import VirtualClock
@@ -81,7 +83,7 @@ class Rig:
         self.mgr = mgr
         self.clock: VirtualClock = mgr.clock
         self.state = state
-        self._streams: list[Iterator[int]] = []
+        self._streams = contextlib.ExitStack()
         self._tasks: list[asyncio.Task[None]] = []
         self._readers: list[MeteringReader] = []
 
@@ -95,12 +97,17 @@ class Rig:
 
     async def attach(self, wire_frame: bytes) -> None:
         """Point the manager's reader at a fresh stream of ``wire_frame`` and wait until it has an aggregate."""
-        stream = fake_metering.spawn(wire_frame)
-        port = next(stream)
-        self._streams.append(stream)
+        port = self._streams.enter_context(
+            fake_network.serving(functools.partial(fake_metering.serve, frame=wire_frame))
+        )
         mgr = self.mgr
         reader = MeteringReader(
-            "127.0.0.1", port, lambda: context_from(mgr), pace=mgr.clock.pace, monotonic=mgr.clock.monotonic
+            "127.0.0.1",
+            port,
+            lambda: context_from(mgr),
+            pace=mgr.clock.pace,
+            monotonic=mgr.clock.monotonic,
+            opener=fake_network.NETWORK.open_stream,
         )
         mgr.metering = reader
         self._readers.append(reader)
@@ -132,5 +139,4 @@ class Rig:
         for task in self._tasks:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
-        for stream in self._streams:
-            next(stream, None)
+        self._streams.close()
