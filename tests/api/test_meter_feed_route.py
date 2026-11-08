@@ -12,11 +12,13 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import functools
 import json
 import struct
 from typing import TYPE_CHECKING, Any
 
 import fake_metering
+import fake_network
 import pytest
 from apps import advance_app, unserved_login, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
@@ -183,12 +185,12 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
 
     def build(channels: int) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING})
-        stream = fake_metering.spawn(_frame(channels), frames=FRAMES)
-        fakes.extend([daemon, stream])
+        stream = fake_network.serving(functools.partial(fake_metering.serve, frame=_frame(channels), frames=FRAMES))
+        fakes.append(daemon)
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=next(daemon),
-            hqp_metering_port=next(stream),
+            hqp_metering_port=closing.enter_context(stream),
             metering_enabled=True,
             hqp_username="",
             hqp_password="",

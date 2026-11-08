@@ -13,6 +13,7 @@ from typing import Any
 import pytest
 from apps import log_in
 from conftest import minimal_wave
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from httpx import Response
 from virtual_clock import VirtualClock
@@ -69,7 +70,7 @@ def capped_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int)
         hqp_home="/x/home",
         filter_max_bytes=FILE_LIMIT,
     )
-    with TestClient(create_app(cfg, VirtualClock())) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
         log_in(test_client)
         yield test_client
 

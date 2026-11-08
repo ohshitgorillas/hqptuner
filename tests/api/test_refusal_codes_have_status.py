@@ -16,6 +16,7 @@ from typing import Any
 
 import pytest
 from apps import log_in
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -68,7 +69,7 @@ def client(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock()), raise_server_exceptions=False) as test_client:
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK), raise_server_exceptions=False) as test_client:
         log_in(test_client)
         yield test_client
 

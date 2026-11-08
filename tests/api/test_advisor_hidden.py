@@ -24,6 +24,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import pytest
 from apps import log_in, wait_for_api
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -64,7 +65,7 @@ def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_p
             hqp_home="/x/home",
             advisor_enabled=advisor,
         )
-        client = TestClient(create_app(cfg, VirtualClock()))
+        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
         log_in(client)
         client.__enter__()
         opened.append(client)

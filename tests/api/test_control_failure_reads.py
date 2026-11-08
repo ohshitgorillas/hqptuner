@@ -14,10 +14,9 @@ which the sentence carries as `host:port`; the wire name of the command, which
 it no longer carries; and the operating system's own text for a reset
 connection, which it no longer carries either.
 
-The daemon is the repository's control fake, served on sockets that linger for
-zero seconds, so the fake's `_close` knob resets the connection (RST) instead of
-closing it (FIN): the client's read fails in the socket layer, the way a daemon
-that went away under a command fails it. Nothing here waits on a deadline.
+The daemon is the repository's control fake, served in process and closed through `fake_network.reset`, so the
+fake's `_close` knob resets the connection instead of closing it cleanly: the client's read fails in the socket layer
+with `ECONNRESET`, the way a daemon that went away under a command fails it. Nothing here waits on a deadline.
 
 Two surfaces carry the failure to the user: a matrix profile switch, refused
 with a `detail`, and a live write, whose report entry carries an `error`.
@@ -27,9 +26,6 @@ import asyncio
 import errno
 import functools
 import os
-import socket
-import struct
-import threading
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from pathlib import Path
@@ -43,9 +39,6 @@ from fastapi.testclient import TestClient
 #: The address the app is configured to reach HQPlayer at, and the one the fake
 #: daemon listens on.
 HOST = "127.0.0.1"
-
-#: `SO_LINGER` on, for zero seconds: closing such a socket resets the connection.
-RESET_ON_CLOSE = struct.pack("ii", 1, 0)
 
 #: The operating system's own words for a reset connection: socket text, never
 #: HQPTuner's.
@@ -92,27 +85,16 @@ async def _serve_resetting(
     reader: asyncio.StreamReader, writer: asyncio.StreamWriter, state: dict[str, str], log: CommandLog
 ) -> None:
     """The repository's control fake on a socket whose close is a reset."""
-    writer.get_extra_info("socket").setsockopt(socket.SOL_SOCKET, socket.SO_LINGER, RESET_ON_CLOSE)
     await serve_shared(reader, writer, state, log)
+    fake_network.reset(writer)
 
 
 def _resetting_daemon(state: dict[str, str], log: CommandLog) -> Iterator[int]:
-    """Serve the fake from its own thread, as the suite's threaded daemon does,
-    so the app's loop inside `TestClient` can reach it. Yields the port."""
-    loop = asyncio.new_event_loop()
-    thread = threading.Thread(target=loop.run_forever, daemon=True)
-    thread.start()
+    """Serve the fake on the suite's in-process network, so the app's loop inside `TestClient` can reach it. Yields
+    the port."""
     handler = functools.partial(_serve_resetting, state=state, log=log)
-    server = asyncio.run_coroutine_threadsafe(asyncio.start_server(handler, HOST, 0), loop).result()
-    port: int = server.sockets[0].getsockname()[1]
-    fake_network.announce(HOST, port)
-    yield port
-    fake_network.withdraw(HOST, port)
-    loop.call_soon_threadsafe(server.close)
-    asyncio.run_coroutine_threadsafe(server.wait_closed(), loop).result()
-    loop.call_soon_threadsafe(loop.stop)
-    thread.join()
-    loop.close()
+    with fake_network.serving(handler, HOST) as port:
+        yield port
 
 
 def _await_first_poll(client: TestClient, log: CommandLog) -> None:

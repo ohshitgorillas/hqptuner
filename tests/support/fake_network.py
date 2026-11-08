@@ -58,6 +58,8 @@ _HTTP: dict[tuple[str, int], HttpFake] = {}
 _DATAGRAMS: dict[tuple[str, int], Mapping[bytes, bytes]] = {}
 _CLOSED_PORTS: set[int] = set()
 _ANNOUNCED: set[tuple[str, int]] = set()
+#: For each live fake end, by file descriptor, the caller's end of its pair.
+_PEERS: dict[int, socket.socket] = {}
 #: Fake ends still running, held so the loop does not drop a task mid-flight.
 _RUNNING: set[asyncio.Task[None]] = set()
 
@@ -148,7 +150,10 @@ def withdraw_http(host: str, port: int) -> None:
         _HTTP.pop((host, port), None)
 
 
-async def _run_fake(callback: StreamCallback, sock: socket.socket) -> None:
+async def _run_fake(callback: StreamCallback, sock: socket.socket, caller: socket.socket) -> None:
+    key = sock.fileno()
+    with _LOCK:
+        _PEERS[key] = caller
     reader, writer = await asyncio.open_connection(sock=sock)
     try:
         await callback(reader, writer)
@@ -156,6 +161,22 @@ async def _run_fake(callback: StreamCallback, sock: socket.socket) -> None:
         writer.close()
         with contextlib.suppress(OSError):
             await writer.wait_closed()
+        with _LOCK:
+            _PEERS.pop(key, None)
+
+
+def reset(writer: asyncio.StreamWriter) -> None:
+    """Close the fake's end of a connection so that the caller's next read fails with ``ECONNRESET``, which is what a
+    TCP close with unread data gives. A byte the caller never sent is left unread on the fake's end, and the kernel
+    answers a close of an end that holds unread bytes with a reset to the other end: the caller's own transport meets
+    the error as it meets a TCP reset. Call it from the fake's callback, once its last read is done."""
+    key = writer.get_extra_info("socket").fileno()
+    writer.close()
+    with _LOCK:
+        caller = _PEERS.get(key)
+    if caller is not None:
+        with contextlib.suppress(OSError):
+            caller.send(b"\0")
 
 
 async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
@@ -168,7 +189,7 @@ async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, async
     if callback is None:
         raise ConnectionRefusedError(111, "Connection refused")
     ours, theirs = socket.socketpair()
-    task = asyncio.get_running_loop().create_task(_run_fake(callback, theirs))
+    task = asyncio.get_running_loop().create_task(_run_fake(callback, theirs, ours))
     _RUNNING.add(task)
     task.add_done_callback(_RUNNING.discard)
     return await asyncio.open_connection(sock=ours)

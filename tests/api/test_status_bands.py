@@ -13,10 +13,12 @@ the bin nearest one tone, and the case reads the low bar back.
 from __future__ import annotations
 
 import contextlib
+import functools
 import struct
 from typing import TYPE_CHECKING
 
 import fake_metering
+import fake_network
 import pytest
 from apps import advance_app, app_manager, unserved_login, wait_for_api
 from conftest import METADATA_MIN, spawn_threaded_daemon
@@ -79,12 +81,12 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
 
     def build(tone_hz: float) -> TestClient:
         daemon = spawn_threaded_daemon({"state": PLAYING})
-        stream = fake_metering.spawn(_frame(tone_hz))
-        fakes.extend([daemon, stream])
+        stream = fake_network.serving(functools.partial(fake_metering.serve, frame=_frame(tone_hz)))
+        fakes.append(daemon)
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=next(daemon),
-            hqp_metering_port=next(stream),
+            hqp_metering_port=closing.enter_context(stream),
             hqp_username="",
             hqp_password="",
             data_dir=METADATA_MIN,

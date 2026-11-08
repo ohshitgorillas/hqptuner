@@ -20,6 +20,7 @@ from pathlib import Path
 import fake_http
 import pytest
 from apps import log_in, unserved_login
+from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -65,7 +66,7 @@ def _log_refusal_code(http_port: int, control_port: int, tmp_path: Path, pages: 
     if pages is None:
         with unserved_login(cfg, VirtualClock()) as client:
             return _refusal_code(client)
-    client = TestClient(create_app(cfg, VirtualClock()))
+    client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
     log_in(client)
     del pages["/config"]
     with client:
@@ -79,7 +80,7 @@ def _refusal_code(client: TestClient) -> str:
 
 def _code_when_log_page_answers(status: int, closed_port: int, tmp_path: Path) -> str:
     pages = {"/log": status, "/config": 200}
-    daemon = fake_http.spawn({}, handler=_log_page_answering(pages))
+    daemon = fake_http.spawn({}, handler=_log_page_answering(pages), in_process=True)
     st = next(daemon)
     code = _log_refusal_code(int(st["_port"]), closed_port, tmp_path / str(status), pages)
     next(daemon, None)

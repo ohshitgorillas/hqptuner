@@ -1,4 +1,4 @@
-"""The fake hqplayerd metering side channel (4322) — real frames over a real socket.
+"""The fake hqplayerd metering side channel (4322) — real frames over an in-process stream.
 
 The frames are the caller's: this module packs no spectrum and derives nothing,
 it streams the bytes it was handed (docs/testing.md rule 13). A client that
@@ -8,62 +8,11 @@ never spins: once the reader's buffer is full the send blocks, and once the
 frames are out the connection parks on a read that returns when the reader
 hangs up.
 
-`serve` is the same fake as an asyncio stream callback, for the suite's in-process network (`fake_network`): it
-needs no thread and no port, and answers on the loop of whoever dialed it.
-
-`spawn`'s server runs in its own thread over real TCP, like `conftest`'s
-`spawn_threaded_daemon`: the app under test runs its own event loop inside
-`TestClient`'s thread, where an in-loop asyncio fake is unreachable.
+`serve` is the fake as an asyncio stream callback, for the suite's in-process network (`fake_network`): it needs no
+thread and no port, and answers on the loop of whoever dialed it.
 """
 
 import asyncio
-import contextlib
-import socket
-import threading
-from collections.abc import Iterator
-
-import fake_network
-
-#: How long a torn-down server thread gets to notice, in seconds. Only a
-#: deadlock reaches it; the shutdown below is by socket, not by waiting.
-JOIN_SECONDS = 5.0
-
-
-def spawn(frame: bytes, frames: int = 100, host: str = "127.0.0.1") -> Iterator[int]:
-    """Serve the 4322 stream on an ephemeral port; shaped for a yield fixture."""
-    listener = socket.socket()
-    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    listener.bind((host, 0))
-    listener.listen(1)
-    port: int = listener.getsockname()[1]
-    fake_network.announce(host, port)
-    stopping = threading.Event()
-    live: list[socket.socket] = []
-
-    def serve() -> None:
-        while not stopping.is_set():
-            try:
-                connection, _peer = listener.accept()
-            except OSError:
-                return
-            live.append(connection)
-            with connection, contextlib.suppress(OSError):
-                for _ in range(frames):
-                    connection.sendall(frame)
-                connection.recv(1)  # park until the reader hangs up
-
-    thread = threading.Thread(target=serve, daemon=True)
-    thread.start()
-    yield port
-    fake_network.withdraw(host, port)
-    stopping.set()
-    for connection in live:
-        with contextlib.suppress(OSError):
-            connection.shutdown(socket.SHUT_RDWR)
-    with contextlib.suppress(OSError):  # unblock a thread parked in accept()
-        socket.create_connection((host, port)).close()
-    listener.close()
-    thread.join(JOIN_SECONDS)
 
 
 async def serve(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, frame: bytes, frames: int = 100) -> None:
