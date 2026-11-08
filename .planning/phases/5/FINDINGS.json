@@ -1,0 +1,21 @@
+{
+  "auto_passed": 4,
+  "gaps": 10,
+  "added": 2,
+  "skipped": 1,
+  "rejected": 0,
+  "rejected_entries": [],
+  "skipped_entries": [
+    {
+      "list": "passes",
+      "reason": "already-recorded",
+      "item": 7,
+      "status": "pass",
+      "entry": {
+        "k": 7,
+        "name": "make check green at the phase's last commit",
+        "evidence": "/tmp/gate-make-VSwBvQdV.log: 2770 passed, no make error, through the JS coverage step, at 64ffd36d; 0e6c1a47 differs only in .planning/."
+      }
+    }
+  ]
+}

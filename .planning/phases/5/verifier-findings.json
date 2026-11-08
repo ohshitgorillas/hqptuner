@@ -1,0 +1,219 @@
+{
+  "status": "gaps",
+  "score": "6/15",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "The socket guard is registered for every offline test and records any IPv4/IPv6 connect or sendto outside live and e2e",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "tests/conftest.py:40 pytest_plugins = [\"fixtures_daemons\", \"fixtures_clients\", \"socket_guard\"]; tests/support/socket_guard.py:41-43 flagged(), :62-69 audit hook, :115-123 refusing autouse fixture. Spot-check (python -I, hook imported, window set to an offline call): connect_ex 127.0.0.1:1 and sendto 127.0.0.1:9 recorded as [('call','127.0.0.1:1'),('call','127.0.0.1:9')]; socketpair not recorded; same connect under a live-marked window recorded nothing. tests/test_socket_guard.py 10 cases green."
+    },
+    {
+      "n": 2,
+      "truth": "Every offline test reaches the 8088, 4321/4322, metering and discovery fakes in-process, and the whole not-live-not-e2e suite passes under the guard",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "tests/support/fake_network.py: stream half over socket.socketpair (:162-173), 8088 half over httpx.MockTransport (:254-256), datagram registry (:176-200), NETWORK (:260). Recorded make check log /tmp/gate-make-VSwBvQdV.log:1155 '2770 passed, 175 deselected' at 64ffd36d (guard registered since b6e93b13); .clock-probe.json (2026-11-07 23:30) exitstatus 0 over 2770 tests. Targeted run here: scripts/gate.sh .venv/bin/pytest on test_socket_guard, test_desktop, gates/test_tested_release, presets/test_description_routes, api/test_discovery_network, api/test_metering_network, api/login/test_login_network: exit=0, 139 passed, guard active via conftest. grep of tests/ outside e2e for start_server|.listen(|create_connection|open_connection(|connect_ex|SOCK_DGRAM|HTTPServer finds only fake_http.py's TCP path and fake_network's sock= calls."
+    },
+    {
+      "n": 3,
+      "truth": "App code reaches the daemon through the same request path in tests as in production; only the Network transport differs",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/core/network.py:27-40 Network defaults asyncio.open_connection, own_transport (None = httpx's own), UDP_SOCKET. hqptuner/core/manager.py:86 self.network = network or Network(); hqptuner/__main__.py:39 create_app(cfg) builds the real one. Lanes consume it: core/loader.py:48 (ControlClient opener) and :63 (fetch_about), core/engineread.py:30 (log), core/connection.py:168 + conf/httpconf.py:164-169 (same AsyncClient, transport swapped), api/login.py:103-105 (check_pair transport), api/routes/discovery.py:35-36, api/lifespan.py:49,54,104 (probe, 8088 client, MeteringReader), desktop.py:172-181 (sockets factory default socket.socket). Value traced: test_http_client_network, test_login_network, test_discovery_network, test_metering_network pass through these entry points with fake_network.NETWORK."
+    },
+    {
+      "n": 4,
+      "truth": "Real daemon connections remain only in CI lifecycle jobs against daemon_standin, and in live- and e2e-marked tests",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "scripts/ci/daemon_standin.py exists. tests/support/fake_http.py:561-626 TCP listener only when in_process is False; tests/e2e/support/stack.py:385 fake_http.spawn(http_state) is its live caller; every other offline spawn passes in_process=True except dead fixtures (see the separate gap). fake_metering.spawn and fake_discovery.responder gone. tested_release.py:103 reads through the hook's network or Network() for make test-live. Only live-marked offline-dir files: tests/gates/test_tested_release.py, tests/live/test_live_forms.py."
+    },
+    {
+      "n": 5,
+      "truth": "No gate is changed and no exemption is added",
+      "status": "FAILED",
+      "uat_item": 5,
+      "evidence": "pyproject.toml:233 ignore = [\"PLR0911\", \"PLR0912\", \"PLR0913\", \"PLR0915\", \"PLR0917\"] added inside the phase range by d2025f73 and 34ff3147; tests/api/test_discovery_network.py:43 '# type: ignore[arg-type]' added by cb38f86b (5-1 task 6). No owner ruling for either found under .planning/phases/5."
+    },
+    {
+      "n": 6,
+      "truth": "Each changed behavior has a test that fails against the pre-change code",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": ".planning/phases/5/reports/plan-1.md rows 1-8, plan-2.md row 1, plan-4.md rows 1-2 record red runs by assertion against null stubs. Reproduced one here without edits: desktop.Listening on 127.0.0.1:0 reads SO_ACCEPTCONN 1; with socket.socket.listen stubbed to a no-op it reads 0, so tests/test_desktop.py:574-575 fails against the stub. The named tests exist and pass (targeted run, 139 passed)."
+    },
+    {
+      "n": 7,
+      "truth": "scripts/gate.sh make check is green at the phase's last commit",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "/tmp/gate-make-VSwBvQdV.log (written 23:20, after 64ffd36d at 23:17): 2770 passed, no 'make: ***' line, ends in the JS coverage report (last make check step). git diff --stat 64ffd36d 0e6c1a47 touches only .planning/ files. Verifier did not run make check (per brief); the main session's full-suite run is the fresh check."
+    },
+    {
+      "n": 8,
+      "truth": "The clock gate's reading no longer depends on how busy the machine running the suite is",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "SUMMARY.md Goal check: 'Not shown here: that the clock gate's reading no longer depends on machine load ... no load comparison was run.' .clock-probe.json shows one idle-host reading (0 expired timeouts over 2770 tests); no check compares readings across load."
+    },
+    {
+      "n": 9,
+      "truth": "Service starts clean from scratch (CI smoke)",
+      "status": "FAILED",
+      "uat_item": 1,
+      "evidence": "smoke job lives in .github/workflows/release.yml:75; local origin/dev is 1f585b05 (pre-phase), 'git merge-base --is-ancestor 0e6c1a47 origin/dev' fails; SUMMARY Open items: jobs not yet run."
+    },
+    {
+      "n": 10,
+      "truth": "CI job check passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 8,
+      "evidence": "Phase commits not on origin/dev (local ref 1f585b05); SUMMARY Open items lists check as not run."
+    },
+    {
+      "n": 11,
+      "truth": "CI job e2e passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 9,
+      "evidence": "Phase commits not on origin/dev; make test-e2e never run locally (SUMMARY Open items), so the TCP e2e stack after 5cbd0c2f is unexercised anywhere."
+    },
+    {
+      "n": 12,
+      "truth": "CI job lifecycle-deb passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 10,
+      "evidence": "release.yml job; needs a push plus a v* tag (PLAN-4 task 4); phase commits not on origin/dev."
+    },
+    {
+      "n": 13,
+      "truth": "CI job lifecycle-rpm passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 11,
+      "evidence": "release.yml job; needs a push plus a v* tag; phase commits not on origin/dev."
+    },
+    {
+      "n": 14,
+      "truth": "CI job smoke-macos passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 12,
+      "evidence": "release.yml:274; needs a push plus a v* tag; phase commits not on origin/dev."
+    },
+    {
+      "n": 15,
+      "truth": "CI job smoke-windows passes on the phase's last dev commit",
+      "status": "FAILED",
+      "uat_item": 13,
+      "evidence": "release.yml:385; needs a push plus a v* tag; phase commits not on origin/dev."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "No offline test opens a TCP or UDP socket",
+      "evidence": "Guard registered at tests/conftest.py:40; audit-hook spot-check records loopback connect and sendto in an offline window and nothing under live; recorded make check at 64ffd36d 2770 passed with the guard loaded (/tmp/gate-make-VSwBvQdV.log:1155); targeted 7-file run exit=0, 139 passed; no listener or dialer left in offline tests/ except fake_http.py's TCP path."
+    },
+    {
+      "k": 3,
+      "name": "App code uses the production request path in tests",
+      "evidence": "Network taken at construction by ConnectionManager (manager.py:86), create_app (factory.py:46,64,67), and every lane reads manager.network (loader.py:48,63; engineread.py:30; login.py:103; routes/discovery.py:35-36; lifespan.py:49,54,104; routes/connection.py:104); desktop.answers takes sockets (desktop.py:172). Production __main__.py:39 passes none, so Network() defaults to asyncio/httpx/UDP."
+    },
+    {
+      "k": 4,
+      "name": "Real daemon connections remain only in CI lifecycle, live and e2e",
+      "evidence": "Only TCP serving in tests/support is fake_http.py:600-626, reached by tests/e2e/support/stack.py:385; fake_network binds a never-listening holder only (:63-80); daemon_standin.py present; live markers only in gates/test_tested_release.py and live/test_live_forms.py."
+    },
+    {
+      "k": 6,
+      "name": "Each changed behavior has a bite-proof test",
+      "evidence": "Red-by-assertion runs recorded per task in reports/plan-1.md, plan-2.md, plan-4.md; listener bite reproduced here (SO_ACCEPTCONN 1 real, 0 with listen stubbed)."
+    },
+    {
+      "k": 7,
+      "name": "make check green at the phase's last commit",
+      "evidence": "/tmp/gate-make-VSwBvQdV.log: 2770 passed, no make error, through the JS coverage step, at 64ffd36d; 0e6c1a47 differs only in .planning/."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 5,
+      "name": "No gate changed and no exemption added",
+      "reason": "behavior wrong - the phase's diff loosens the ruff lint gate project-wide and adds an inline type: ignore, with no owner ruling recorded",
+      "evidence": "pyproject.toml:233 'ignore = [\"PLR0911\", \"PLR0912\", \"PLR0913\", \"PLR0915\", \"PLR0917\"]' added by d2025f73 ('chore: stop ruff capping arguments, returns, branches and statements') and 34ff3147 ('chore: stop ruff capping positional arguments'), both between eb2834a8 and 740b9499; eb54bd46 then reshapes check_pair, MeteringReader and discover on the loosened gate. tests/api/test_discovery_network.py:43 '**fields,  # type: ignore[arg-type]' added by cb38f86b; mypy covers tests (pyproject.toml:261). grep of .planning/phases/5 finds no approval of either. SUMMARY.md omits d2025f73, eb54bd46 and 34ff3147 from its commit table, and its deviations still describe check_pair as 'wait: float | HttpOptions' and the seams as Search fields, which eb54bd46 replaced (httpauth.py:133-141 takes transport= keyword; discovery.py:237-238 takes opener/datagrams).",
+      "severity": "major",
+      "missing": "Either an owner ruling recorded for the project-wide ruff ignore (or revert it) and for the type: ignore at tests/api/test_discovery_network.py:43 (or type _config's **fields so mypy accepts it without the ignore); update SUMMARY.md's commit table and deviations to include d2025f73, eb54bd46, 34ff3147."
+    },
+    {
+      "k": 1,
+      "name": "Service starts clean from scratch",
+      "reason": "missing - CI smoke job has not run on the phase's last dev commit; no automated check of it exists locally",
+      "evidence": "smoke is a release.yml job (:75); local origin/dev at 1f585b05 does not contain 0e6c1a47.",
+      "severity": "major",
+      "missing": "Owner pushes dev and tags a release at the phase's last commit (or records the job open until the next tag); read the result with ci-status."
+    },
+    {
+      "k": 8,
+      "name": "CI job check passes",
+      "reason": "missing - not run on the phase's last dev commit",
+      "evidence": "0e6c1a47 not on local origin/dev (1f585b05); SUMMARY Open items.",
+      "severity": "major",
+      "missing": "Owner push of dev; read check with ci-status."
+    },
+    {
+      "k": 9,
+      "name": "CI job e2e passes",
+      "reason": "missing - not run on the phase's last dev commit, and make test-e2e was never run locally after the TCP paths were reduced to the e2e stack",
+      "evidence": "SUMMARY Open items: 'make test-e2e not run locally for any plan'; 0e6c1a47 not on origin/dev.",
+      "severity": "major",
+      "missing": "Owner push of dev; read e2e with ci-status."
+    },
+    {
+      "k": 10,
+      "name": "CI job lifecycle-deb passes",
+      "reason": "missing - release.yml job not run on the phase's last commit",
+      "evidence": "release.yml triggers on listed paths the phase does not touch or on a v* tag (PLAN-4 task 4); no push yet.",
+      "severity": "major",
+      "missing": "Owner tags the phase commit or records the criterion open until the next release tag."
+    },
+    {
+      "k": 11,
+      "name": "CI job lifecycle-rpm passes",
+      "reason": "missing - release.yml job not run on the phase's last commit",
+      "evidence": "Same trigger constraint as lifecycle-deb; no push yet.",
+      "severity": "major",
+      "missing": "Owner tags the phase commit or records the criterion open until the next release tag."
+    },
+    {
+      "k": 12,
+      "name": "CI job smoke-macos passes",
+      "reason": "missing - release.yml job not run on the phase's last commit",
+      "evidence": "release.yml:274; no push or tag.",
+      "severity": "major",
+      "missing": "Owner tags the phase commit or records the criterion open until the next release tag."
+    },
+    {
+      "k": 13,
+      "name": "CI job smoke-windows passes",
+      "reason": "missing - release.yml job not run on the phase's last commit",
+      "evidence": "release.yml:385; no push or tag.",
+      "severity": "major",
+      "missing": "Owner tags the phase commit or records the criterion open until the next release tag."
+    },
+    {
+      "name": "The clock gate's reading no longer depends on how busy the machine running the suite is",
+      "reason": "missing - the goal names this outcome but no automated check exercises it; SUMMARY concedes no load comparison was run",
+      "evidence": "SUMMARY.md Goal check 'Not shown here'; scripts/gates/check_clock_waits.py judges one run's expired timeouts, and .clock-probe.json holds one idle-host reading (0 expired over 2770 tests).",
+      "severity": "minor",
+      "missing": "The smallest check that closes it: a recorded clock-probe reading under a bounded, disclosed CPU load (or CI's shared runner reading from the check job) showing zero expired real-clock timeouts, or an owner ruling that the in-process structure stands in for it."
+    },
+    {
+      "name": "Dead fixtures in an offline test file still serve fake_http over TCP",
+      "reason": "stub - tests/presets/test_switch_drops_profile.py holds zero tests but keeps fixtures that call fake_http.spawn's TCP default and build a ConnectionManager without the network",
+      "evidence": "tests/presets/test_switch_drops_profile.py:83 and :89 'fake_http.spawn(night_cfg())' / 'fake_http.spawn(state())' without in_process=True; :61 ConnectionManager(...) with no network; grep -c 'def test_' gives 0. Unreachable today, so no connection opens, but PLAN-4 task 3 keeps the TCP default 'for tests/e2e/support/stack.py alone'.",
+      "severity": "minor",
+      "missing": "Delete the test-less module, or move its fixtures to in_process=True and NETWORK."
+    }
+  ],
+  "human_checks": []
+}
