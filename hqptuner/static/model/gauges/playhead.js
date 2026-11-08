@@ -10,7 +10,8 @@
 // break or a raised delay. The delay's worth of queued music is what carries it through a gap between arrivals. At a
 // break it restarts one delay behind the newest frame's end.
 // Each paint shows the playback from where the last paint ended up to the playhead, so the paints lay end to end with
-// no gap and no overlap; a paint whose playhead has not passed where the last one ended shows nothing and consumes
+// no gap and no overlap. Of the frames a paint shows, the decision names the lead, the one that covers most of the
+// paint's span, the earlier of two that cover it equally; a paint whose playhead has not passed where the last one ended shows nothing and consumes
 // nothing. A frame leaves the queue once a paint has shown all of it; a frame the playhead stands inside stays queued,
 // and the next paint shows the rest of it.
 //
@@ -56,6 +57,8 @@
  * @property {number} first  index into `frames` of the oldest frame the span shows any of
  * @property {number} last  index into `frames` one past the newest frame the span shows any of; equal to `first`
  *   when the span is empty
+ * @property {number} lead  index into `frames` of the frame that covers most of the span, the earlier of two that cover
+ *   it equally; `first` when the span is empty
  * @property {number} consumed  how many of the oldest `frames` leave the queue: every frame before a restart, and
  *   every frame the span ends at or past
  * @property {boolean} restart  whether the paint starts again at a break, or at the queue's first frame when no paint
@@ -75,6 +78,15 @@ const startOf = (f) => f.at ?? NaN;
  * @param {MeterFrame} f
  */
 const endOf = (f) => startOf(f) + f.ms;
+
+/**
+ * How much of the span `[from, to)` frame `f` covers, playback ms.
+ *
+ * @param {MeterFrame} f
+ * @param {number} from
+ * @param {number} to
+ */
+const coverage = (f, from, to) => Math.min(endOf(f), to) - Math.max(startOf(f), from);
 
 /**
  * The index the paint starts from: the newest break frame no paint has started in, or the first frame when no paint
@@ -100,7 +112,7 @@ function restartAt(frames, end, started) {
  */
 export function pacePaint({ end, playhead, delayed, started, frames, delay, dt }) {
   if (end === null && !frames.length) {
-    return { from: NaN, to: NaN, playhead: NaN, first: 0, last: 0, consumed: 0, restart: false };
+    return { from: NaN, to: NaN, playhead: NaN, first: 0, last: 0, lead: 0, consumed: 0, restart: false };
   }
   const re = frames.length ? restartAt(frames, end, started) : -1;
   const start = Math.max(re, 0);
@@ -112,20 +124,22 @@ export function pacePaint({ end, playhead, delayed, started, frames, delay, dt }
 }
 
 /**
- * The frames from `start` the span `[from, to)` shows any of, as `[first, last)`, and how many of the oldest frames
- * leave the queue: all before `start`, and every one ending by `to`.
+ * The frames from `start` the span `[from, to)` shows any of, as `[first, last)`, the one of them that covers most of
+ * the span, and how many of the oldest frames leave the queue: all before `start`, and every one ending by `to`.
  *
  * @param {MeterFrame[]} frames
  * @param {number} start
  * @param {{ from: number, to: number }} span  both playback, ms
- * @returns {{ first: number, last: number, consumed: number }}
+ * @returns {{ first: number, last: number, lead: number, consumed: number }}
  */
 function walk(frames, start, { from, to }) {
   let first = start;
   while (first < frames.length && endOf(frames[first]) <= from) first++;
   let last = first;
   while (to > from && last < frames.length && startOf(frames[last]) < to) last++;
+  let lead = first;
+  for (let i = first + 1; i < last; i++) if (coverage(frames[i], from, to) > coverage(frames[lead], from, to)) lead = i;
   let consumed = first;
   while (consumed < frames.length && endOf(frames[consumed]) <= to) consumed++;
-  return { first, last, consumed };
+  return { first, last, lead, consumed };
 }

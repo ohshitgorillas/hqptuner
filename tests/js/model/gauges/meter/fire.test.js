@@ -103,3 +103,51 @@ test("test_a_paint_after_a_long_gap_burns_no_more_than_a_full_grid_and_shows_onl
   for (let k = 0; k < SETTLE_STEPS; k++) steady = stepFire(steady, quiet, SIZE, () => STEADY_DRAW);
   assert.deepEqual(after, steady);
 });
+
+//: A paint that takes no whole step: a third of one at 30 Hz, s.
+const PART_S = 1 / 90;
+//: Whole steps, one per paint at 30 Hz, s.
+const STEP_S = 1 / 30;
+//: Steps a run takes before the grids are read.
+const WARM_STEPS = 6;
+
+/**
+ * The flames after `dts` from a cold grid, lit afresh by the same draws every time.
+ *
+ * @param {number[]} dts
+ */
+function flamesAfter(dts) {
+  const rand = drawsFrom(cycled(STRETCH_GRIDS * CELLS));
+  const source = sourceAt(LOUD_FRAC);
+  return dts.reduce((s, dt) => stepFlames(s, source, dt, rand), freshFlames(SIZE));
+}
+
+// The picture is drawn from the grid before the last step toward the grid that step made, by the part of the next step
+// the paint has covered, so a paint that takes no step still moves it.
+test("test_the_flames_keep_the_grid_before_their_last_step_to_draw_from", () => {
+  const steps = new Array(WARM_STEPS).fill(STEP_S);
+  assert.deepEqual(flamesAfter(steps).prev, flamesAfter(steps.slice(1)).heat);
+});
+
+test("test_the_part_of_a_step_a_paint_leaves_owed_is_how_far_the_picture_stands_toward_the_newest_grid", () => {
+  const steps = new Array(WARM_STEPS).fill(STEP_S);
+  const state = flamesAfter([...steps, PART_S, PART_S]);
+  assert.ok(Math.abs(state.mix - (2 * PART_S) / STEP_S) < 1e-9, `mix ${state.mix}`);
+});
+
+test("test_the_flames_draw_a_picture_that_changes_at_every_paint_even_when_no_paint_takes_a_step", () => {
+  const rand = drawsFrom(cycled(STRETCH_GRIDS * CELLS));
+  const source = sourceAt(LOUD_FRAC);
+  const state = flamesAfter(new Array(WARM_STEPS).fill(STEP_S));
+  const drawn = () =>
+    Array.from(state.heat, (h, i) => (state.prev ? Math.round(state.prev[i] + (h - state.prev[i]) * state.mix) : h));
+  let before = drawn();
+  let stood = 0;
+  for (let k = 0; k < 2; k++) {
+    stepFlames(state, source, PART_S, rand);
+    const now = drawn();
+    if (now.every((v, i) => v === before[i])) stood++;
+    before = now;
+  }
+  assert.equal(stood, 0);
+});

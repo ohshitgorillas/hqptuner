@@ -160,6 +160,9 @@ export function stepFire(prev, source, size, rand) {
  * @property {Uint16Array} heat  the heat grid, row by row from the top, as stepFire gives it
  * @property {FireSize} size  the grid's shape
  * @property {import("./steps.js").Pace} pace  the part step carried to the next paint
+ * @property {Uint16Array} prev  the heat grid one step behind `heat`, same shape as it
+ * @property {number} mix  how far the picture stands from `prev` toward `heat`, 0 up to but not including 1: the part
+ *   step still owed, so a picture drawn between the two grids moves on every paint
  */
 
 /**
@@ -169,7 +172,8 @@ export function stepFire(prev, source, size, rand) {
  * @returns {FlamesState}
  */
 export function freshFlames(size) {
-  return { heat: new Uint16Array(size.cols * size.rows), size, pace: freshPace() };
+  const cells = size.cols * size.rows;
+  return { heat: new Uint16Array(cells), size, pace: freshPace(), prev: new Uint16Array(cells), mix: 0 };
 }
 
 /**
@@ -177,7 +181,8 @@ export function freshFlames(size) {
  * stepFire handing in `source`. Each pass, the oldest heat any row still reads climbs one row, so a grid's rows of
  * passes leave nothing of the grid before them. However many steps a paint owes, it burns at most the steps that make
  * a grid's rows of passes, so a long gap costs no more than a full grid and shows the flames the last of its steps
- * leave.
+ * leave. The grid one step behind is kept in `prev`, and `mix` is the part step still owed, so the picture can be
+ * drawn between the two.
  *
  * @param {FlamesState} state  written in place
  * @param {ArrayLike<number>} source  top heat per column, as fireSource gives it
@@ -188,8 +193,25 @@ export function freshFlames(size) {
 export function stepFlames(state, source, dt, rand) {
   const { size } = state;
   const steps = Math.min(stepPace(state.pace, dt), Math.ceil(size.rows / size.passes));
-  for (let s = 0; s < steps; s++) state.heat = stepFire(state.heat, source, size, rand);
+  for (let s = 0; s < steps; s++) {
+    if (s === steps - 1) state.prev.set(state.heat);
+    state.heat = stepFire(state.heat, source, size, rand);
+  }
+  state.mix = state.pace.owed;
   return state;
+}
+
+/**
+ * Write the flames' picture into `cells`, one word a cell: each cell in the color `ink` holds for its heat as it stands
+ * between its heat one step behind and its heat now, by the part step still owed. The picture so moves
+ * on every paint, not only on a paint that takes a step.
+ *
+ * @param {FlamesState} state
+ * @param {Uint32Array} ink  one word per heat up to the grid's top heat
+ * @param {Uint32Array} cells  one word per cell of the grid
+ */
+export function blaze({ heat, prev, mix }, ink, cells) {
+  for (let i = 0; i < heat.length; i++) cells[i] = ink[Math.round(prev[i] + (heat[i] - prev[i]) * mix)];
 }
 
 /**

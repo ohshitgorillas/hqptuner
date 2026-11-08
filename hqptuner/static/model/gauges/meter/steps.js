@@ -6,7 +6,8 @@
 // caller starts from it again after a break in playback or a change of size.
 //
 // Ridges, and any other style that moves in whole steps, take them at STEP_HZ through a pace: each paint takes the
-// whole steps its `dt` owes and carries the part step on.
+// whole steps its `dt` owes and carries the part step on. A style draws between its steps by the part step carried, so
+// its picture moves on every paint, not only on a paint that takes a step.
 
 import { dbToPower, powerToDb } from "../../../lib/units.js";
 
@@ -280,6 +281,8 @@ export function stepGravity(state, bands, dt) {
  * @property {number} count  rows kept, up to `rows.length`
  * @property {number} phase  whole steps taken since the last row, below RIDGE_EVERY
  * @property {Pace} pace     the part step carried to the next paint
+ * @property {number} slide  how far the rows have slid toward the next row's place, as a share of the way from one row
+ *   to the next, 0 up to but not including 1: the time since the newest row was born, over the time a row takes
  */
 
 /**
@@ -295,6 +298,7 @@ export function freshRidges(width) {
     count: 0,
     phase: 0,
     pace: freshPace(),
+    slide: 0,
   };
 }
 
@@ -302,7 +306,8 @@ export function freshRidges(width) {
  * The ridges after a paint `dt` seconds after the last: the whole steps the paint owes at STEP_HZ, a copy of `row`
  * going first every RIDGE_EVERY steps, the oldest past the ring's length dropping off. However many rows the steps
  * owe, a paint copies at most the ring's length of them, so a long gap costs no more than a full ring. A row wider than
- * the ridges is cut to their width; a narrower one leaves the columns past it at 0.
+ * the ridges is cut to their width; a narrower one leaves the columns past it at 0. The `slide` is how far the rows
+ * have moved on from the newest row's birth, part steps included, so it moves by the time each paint covers.
  *
  * @param {RidgeState} state  written in place
  * @param {ArrayLike<number>} row  plot fractions per column
@@ -313,6 +318,7 @@ export function stepRidges(state, row, dt) {
   const steps = stepPace(state.pace, dt);
   const rows = Math.ceil((state.phase + steps) / RIDGE_EVERY) - Math.ceil(state.phase / RIDGE_EVERY);
   state.phase = (state.phase + steps) % RIDGE_EVERY;
+  state.slide = (((state.phase + RIDGE_EVERY - 1) % RIDGE_EVERY) + state.pace.owed) / RIDGE_EVERY;
   const ring = state.rows.length;
   for (let r = Math.min(rows, ring); r > 0; r--) {
     state.head = (state.head + 1) % ring;

@@ -19,7 +19,7 @@ import {
   suiteHaloStops,
   suiteLineStops,
 } from "../../../model/gauges/meter/spectrumfx.js";
-import { fireColors, fireSize, fireSource, freshFlames, stepFlames } from "../../../model/gauges/meter/fire.js";
+import { blaze, fireColors, fireSize, fireSource, freshFlames, stepFlames } from "../../../model/gauges/meter/fire.js";
 import {
   freshCaps,
   freshHalo,
@@ -207,8 +207,8 @@ function bars(f, bands) {
 /**
  * Ridges: oldest first, highest up; each row a line colored by level over its baseline, filled down to it so the rows
  * behind hide. The baselines spread from a line's width above the floor to RIDGE_OVER of a step past the top, so the
- * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge. Each row's
- * gradient is built once for its baseline and held in the palette.
+ * stack fills the plot, the back rows' ridges run off its top, and no baseline lies on the top edge. The stack slides
+ * up between rows, so it moves on every paint. Each row's gradient is built once for its baseline and held in the palette.
  *
  * @param {Frame} f
  * @param {FxColors} colors
@@ -226,6 +226,8 @@ function ridges(f, colors) {
     pal.ridges = ring.rows.map((_, k) => vertical(ctx, baseOf(k), baseOf(k) - h * RIDGE_AMP, stops));
   }
   ctx.clearRect(0, 0, w, h);
+  ctx.save();
+  ctx.translate(0, -ring.slide * step);
   ctx.fillStyle = colors.glass;
   ctx.lineWidth = RIDGE_LINE;
   for (let k = ring.count - 1; k >= 0; k--) {
@@ -239,6 +241,7 @@ function ridges(f, colors) {
     ctx.fill();
     ctx.stroke();
   }
+  ctx.restore();
 }
 
 /**
@@ -402,10 +405,7 @@ function fire(f) {
   const sheet = (held.fire = fireSheet(held.fire, held.makeCanvas, size.cols, size.rows));
   ctx.clearRect(0, 0, w, h);
   if (!sheet) return;
-  const { heat } = flames.state;
-  const { cells } = sheet;
-  const { ink } = pal;
-  for (let i = 0; i < heat.length; i++) cells[i] = ink[heat[i]];
+  blaze(flames.state, pal.ink, sheet.cells);
   sheet.ctx.putImageData(sheet.img, 0, 0);
   ctx.drawImage(sheet.ctx.canvas, 0, 0, w, h);
 }

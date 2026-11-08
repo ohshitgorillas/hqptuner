@@ -1,8 +1,10 @@
 // The Source meter's two canvases, painted outside preact's render by one painter per mount, each canvas by a signals
 // effect of its own. The spectrogram scrolls by the playhead's movement: its right edge is the playhead
 // (store/meter/spectrogram.js spectrogramRange), and a move of it shifts the painted pixels left by the columns that
-// playback covers and paints only those columns and the seam before them (lib/spectroraster.js scrollPlan); a change of
-// channel, range, window, frequency span or the source's geometry repaints it whole. The apodizing strip's right edge is
+// playback covers and paints those columns and the seam before them (lib/spectroraster.js scrollPlan). Every slice is
+// painted in all the columns it covers, those scrolled in before it could be drawn included: each paint draws the
+// columns of the slices the paint before it could not draw, whether or not the playhead moved. A different channel,
+// range, window, frequency span, source geometry or history repaints it whole. The apodizing strip's right edge is
 // the same playhead (stripEnd), so the two scroll together; it repaints whole when its events, the window or that edge
 // change. Neither is painted while the Source drawer is closed, nor subscribed to what it paints, and reopening the
 // drawer repaints the spectrogram whole. Colors come from the tokens the painter is handed, read once when it is
@@ -13,7 +15,7 @@
 import { useEffect } from "preact/hooks";
 import { effect } from "@preact/signals";
 import { styleOf } from "../../../../lib/dom.js";
-import { H, W, rasterTarget, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
+import { H, W, endOf, landedColumn, rasterTarget, rasterize, rgb, scrollPlan } from "../../../../lib/spectroraster.js";
 import { apodRamp } from "../../../../model/gauges/meter/meter-plot.js";
 import { apodBins } from "../../../../store/apodhistory.js";
 import { sourceMeter, stripEvents } from "../../../../store/faceplate/drawers/source.js";
@@ -22,6 +24,7 @@ import { spectrogramRange, stripEnd } from "../../../../store/meter/spectrogram.
 import { specRamp } from "../../tokencolors.js";
 
 /** @typedef {[number, number, number]} Triple */
+/** @typedef {import("../../../../lib/spectroraster.js").Cell} Cell */
 /** @typedef {import("../../../../lib/spectroraster.js").RasterView} RasterView */
 /** @typedef {import("../../../../lib/spectroraster.js").RasterTarget} RasterTarget */
 /** @typedef {import("../../../../lib/spectroraster.js").ScrollPlan} ScrollPlan */
@@ -70,16 +73,18 @@ function put(data, p, c) {
 /**
  * @typedef {object} Spectrogram
  *   One painter's spectrogram canvas and what it keeps from paint to paint: the canvas-sized pixels every paint
- *   writes into, the raster target written through, the view handed to it, and the edge, the plan and whether the
- *   canvas shows the view's span, range, top and channel.
+ *   writes into, the raster target written through, the view handed to it, and the edge, the end of the newest slice
+ *   drawn, the plan and whether the canvas shows the view's history, span, range, top and channel.
  * @property {HTMLCanvasElement} canvas
  * @property {CanvasRenderingContext2D} ctx
  * @property {Colors} colors
  * @property {ImageData} img
  * @property {RasterTarget} target
  * @property {RasterView} view
- * @property {{ edge: number, carry: number }} painted  edge, playback, ms
- * @property {{ edge: number, span: number }} next  edge and span, playback, ms
+ * @property {{ edge: number, carry: number, drawn: number }} painted  edge, and where the newest slice drawn ended,
+ *   playback, ms
+ * @property {{ edge: number, span: number, landed: number }} next  edge and span, playback, ms, and the first column a
+ *   slice landed since the last paint covers
  * @property {ScrollPlan} plan
  * @property {boolean} shown
  */
@@ -103,8 +108,8 @@ function paintSpectrogram(sg, from) {
 }
 
 /**
- * Point the held view at what the spectrogram shows now, and say whether the canvas still shows its span, range, top
- * and channel.
+ * Point the held view at what the spectrogram shows now, and say whether the canvas still shows its history, span,
+ * range, top and channel.
  *
  * @param {Spectrogram} sg
  * @returns {boolean}
@@ -113,7 +118,13 @@ function readView(sg) {
   const { span, range, top, channel } = sourceMeter();
   const { slices, lo, hi, edge } = spectrogramRange.value;
   const view = sg.view;
-  const same = sg.shown && view.span === span && view.range === range && view.top === top && view.pick === channel;
+  const same =
+    sg.shown &&
+    view.slices === slices &&
+    view.span === span &&
+    view.range === range &&
+    view.top === top &&
+    view.pick === channel;
   view.slices = slices;
   view.lo = lo;
   view.hi = hi;
@@ -126,24 +137,24 @@ function readView(sg) {
 }
 
 /**
- * Bring the spectrogram up to date with the view: whole when it changed, else by scrolling the playhead's movement.
+ * Bring the spectrogram up to date with the view: whole when it changed, else by scrolling the playhead's movement and
+ * painting the columns of any slice that landed since the last paint.
  *
  * @param {Spectrogram} sg
  */
 function paintView(sg) {
   const same = readView(sg);
-  sg.next.edge = sg.view.edge;
-  sg.next.span = sg.view.span;
-  const plan = scrollPlan(same ? sg.painted : null, sg.next, sg.plan);
-  sg.painted.edge = sg.view.edge;
-  sg.painted.carry = plan.carry;
+  const { view, next, painted } = sg;
+  next.edge = view.edge;
+  next.span = view.span;
+  next.landed = same ? landedColumn(view, painted.drawn) : W;
+  const plan = scrollPlan(same ? painted : null, next, sg.plan);
+  painted.edge = view.edge;
+  painted.carry = plan.carry;
+  painted.drawn = view.hi > view.lo ? endOf(/** @type {Cell} */ (view.slices[view.hi - 1])) : -Infinity;
   sg.shown = true;
-  if (plan.full) {
-    paintSpectrogram(sg, 0);
-  } else if (plan.shift) {
-    sg.ctx.drawImage(sg.canvas, plan.shift, 0, W - plan.shift, H, 0, 0, W - plan.shift, H);
-    paintSpectrogram(sg, plan.from);
-  }
+  if (plan.shift) sg.ctx.drawImage(sg.canvas, plan.shift, 0, W - plan.shift, H, 0, 0, W - plan.shift, H);
+  if (plan.full || plan.shift || next.landed < W) paintSpectrogram(sg, plan.from);
 }
 
 /**
@@ -164,8 +175,8 @@ function spectrogramPaint(canvas, ctx, colors) {
     img,
     target: rasterTarget(img),
     view: { slices: [], lo: 0, hi: 0, pick: "sum", edge: 0, span: 0, range: 0, top: 0 },
-    painted: { edge: 0, carry: 0 },
-    next: { edge: 0, span: 0 },
+    painted: { edge: 0, carry: 0, drawn: -Infinity },
+    next: { edge: 0, span: 0, landed: W },
     plan: { full: true, shift: 0, from: 0, carry: 0 },
     shown: false,
   };

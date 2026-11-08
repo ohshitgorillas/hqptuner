@@ -11,7 +11,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
-import { W, rampFrom, rasterize, scrollPlan } from "../../../hqptuner/static/lib/spectroraster.js";
+import { W, landedColumn, rampFrom, rasterize, scrollPlan } from "../../../hqptuner/static/lib/spectroraster.js";
 
 // Floor a dark blue, top a warm yellow: apart from each other and from black,
 // with a steep last segment so a neighboring step reads as a different color.
@@ -167,19 +167,21 @@ test("test_a_view_topped_at_the_nyquist_reads_one_slice_row_per_pixel_row", () =
 });
 
 // Topped at half a 44.1 kHz slice's Nyquist, pixel row 0 sits a quarter of the
-// way from slice row 239 to 240, and row 1 three quarters of the way from 238.
-test("test_a_pixel_row_between_two_slice_rows_blends_them", () => {
-  const levels = rows((r) => ({ 239: 100, 240: 200 })[r] ?? 0);
+// way from slice row 239 to 240, row 1 three quarters of the way from 238 to 239,
+// row 2 a quarter of the way from 238 to 239 and row 3 three quarters of the way
+// from 237 to 238: each shows the one slice row nearest it, with no blend between.
+test("test_a_pixel_row_between_two_slice_rows_shows_the_nearest_one", () => {
+  const levels = rows((r) => ({ 238: 50, 239: 100, 240: 200 })[r] ?? 0);
   const raster = rasterize(STEPS, view([cell(LEFT, SPAN, levels, { nyquist: 44100 })]));
-  assert.deepEqual(stepsDown(raster, 600, [0, 1]), [130, 180]);
+  assert.deepEqual(stepsDown(raster, 600, [0, 1, 2, 3]), [155, 155, 205, 205]);
 });
 
 // The bottom pixel row sits a quarter row below slice row 0, the one above it
-// a quarter of the way from row 0 to row 1.
-test("test_a_pixel_row_below_the_first_slice_row_reads_the_first", () => {
+// a quarter of the way from row 0 to row 1: both show row 0.
+test("test_the_pixel_rows_nearest_the_first_slice_row_read_the_first", () => {
   const levels = rows((r) => ({ 0: 40, 1: 140 })[r] ?? 0);
   const raster = rasterize(STEPS, view([cell(LEFT, SPAN, levels, { nyquist: 44100 })]));
-  assert.deepEqual(stepsDown(raster, 600, [478, 479]), [190, 215]);
+  assert.deepEqual(stepsDown(raster, 600, [478, 479]), [215, 215]);
 });
 
 // Topped at twice the slice's Nyquist, the slice reaches pixel row 240.
@@ -220,16 +222,16 @@ test("test_a_slice_stamped_at_the_edge_paints_nothing", () => {
   assert.deepEqual(fingerprint(ahead), fingerprint(raster));
 });
 
-// Two slices of two seconds each: a column blends toward the neighbor on its
-// side of the slice's center, nearly halfway at the shared edge.
-test("test_a_column_blends_toward_the_neighboring_slice", () => {
+// Two slices of two seconds each: every column shows the one slice that covers
+// it, whatever its distance from the shared edge.
+test("test_a_column_shows_the_slice_that_covers_it_and_nothing_of_its_neighbor", () => {
   const raster = rasterize(STEPS, view([cell(LEFT, 2000, flat(0)), cell(LEFT + 2000, 2000, flat(240))]));
-  assert.deepEqual(stepsAcross(raster, [299, 449, 599, 900], 240), [255, 195, 135, 15]);
+  assert.deepEqual(stepsAcross(raster, [299, 449, 599, 600, 900], 240), [255, 255, 255, 15, 15]);
 });
 
 // A second of playback with no slice between two that are stamped either side
 // of it.
-test("test_an_interval_no_stamp_covers_stays_unpainted_and_its_neighbors_do_not_blend_across_it", () => {
+test("test_an_interval_no_stamp_covers_stays_unpainted", () => {
   const slices = [cell(LEFT, 1000, flat(0)), cell(LEFT + 2000, 2000, flat(200))];
   assert.deepEqual(stepsAcross(rasterize(STEPS, view(slices)), [299, 300, 599, 600], 240), [255, null, null, 55]);
 });
@@ -256,7 +258,7 @@ test("test_a_picked_channel_the_slice_lacks_paints_the_sum", () => {
 });
 
 // The slice outside [lo, hi) is stamped inside the window, a gap away from
-// the drawn ones so no column blends toward it.
+// the drawn ones.
 const OUTSIDE = cell(LEFT, 500, flat(10));
 const DRAWN = [cell(LEFT + 1000, 1500, flat(90)), cell(LEFT + 2500, 1500, flat(170))];
 
@@ -381,8 +383,6 @@ const BANDED = view([
   ),
 ]);
 
-// Column 700 lies left of its slice's center, so it blends toward a slice that
-// ends before it.
 for (const from of [1, 700, W - 1]) {
   test(`test_a_raster_from_column_${from}_is_the_full_rasters_columns_from_there_to_the_right_edge`, () => {
     assert.deepEqual(fingerprint(rasterize(STEPS, BANDED, from)), fingerprint(columns(rasterize(STEPS, BANDED), from)));
@@ -390,8 +390,7 @@ for (const from of [1, 700, W - 1]) {
 }
 
 // Forty slices of a tenth of a second and 30 columns apiece, the newest
-// spanning columns 1170 to 1199. Column 1170 lies left of the newest slice's
-// center, so it blends toward the slice before it.
+// spanning columns 1170 to 1199.
 test("test_a_raster_from_the_newest_slices_first_column_is_the_full_rasters_columns_from_there", () => {
   const forty = view(watchedHistory(40, new Set()));
   assert.deepEqual(fingerprint(rasterize(STEPS, forty, W - 30)), fingerprint(columns(rasterize(STEPS, forty), W - 30)));
@@ -449,7 +448,7 @@ for (const from of [4000, 7000.75]) {
 }
 
 // 60 new columns are 1140 to 1199; the repaint starts one before them, at the
-// seam they blend across.
+// seam column.
 test("test_a_scroll_repaints_from_the_column_before_the_new_ones", () => {
   assert.equal(scrollPlan({ edge: 4000, carry: 0 }, { edge: 4200, span: SPAN }).from, 1139);
 });
@@ -457,6 +456,40 @@ test("test_a_scroll_repaints_from_the_column_before_the_new_ones", () => {
 test("test_a_fraction_of_a_column_is_carried_without_a_shift", () => {
   const plan = scrollPlan({ edge: 1000, carry: 0 }, { edge: 1000.5, span: MS_PER_COLUMN_SPAN });
   assert.deepEqual(plan, { full: false, shift: 0, from: W - 1, carry: 0.5 });
+});
+
+// A slice that landed under an edge that did not move is drawn from the column it starts at, with nothing scrolled.
+test("test_a_slice_landed_under_an_unmoved_edge_repaints_from_its_first_column", () => {
+  const plan = scrollPlan({ edge: 1000, carry: 0 }, { edge: 1000, span: MS_PER_COLUMN_SPAN, landed: 800 });
+  assert.deepEqual(plan, { full: false, shift: 0, from: 800, carry: 0 });
+});
+
+// The scroll's own columns start at 1139; a slice landed further left is drawn from there.
+test("test_a_slice_landed_left_of_the_scrolled_in_columns_repaints_from_its_first_column", () => {
+  const plan = scrollPlan({ edge: 4000, carry: 0 }, { edge: 4200, span: SPAN, landed: 900 });
+  assert.deepEqual({ shift: plan.shift, from: plan.from }, { shift: 60, from: 900 });
+});
+
+test("test_a_slice_landed_among_the_scrolled_in_columns_leaves_the_scrolls_repaint_alone", () => {
+  const plan = scrollPlan({ edge: 4000, carry: 0 }, { edge: 4200, span: SPAN, landed: 1190 });
+  assert.equal(plan.from, 1139);
+});
+
+// The edge at 1500 with one column a millisecond: the window starts at 300, and the sixth slice starts at 1225.25.
+test("test_a_slice_ending_after_the_playback_painted_starts_a_repaint_at_its_first_column", () => {
+  const fresh = view(FEED, { edge: 1500, span: MS_PER_COLUMN_SPAN });
+  assert.equal(landedColumn(fresh, 1225.25), 925);
+});
+
+test("test_no_slice_ending_after_the_playback_painted_leaves_no_column_to_repaint", () => {
+  const fresh = view(FEED, { edge: 1500, span: MS_PER_COLUMN_SPAN });
+  assert.equal(landedColumn(fresh, 1500), W);
+});
+
+// Only the slices the view draws count: one past hi has not been reached by the edge.
+test("test_a_slice_past_the_views_range_is_not_one_that_landed", () => {
+  const fresh = view(FEED, { edge: 1500, span: MS_PER_COLUMN_SPAN, hi: 5 });
+  assert.equal(landedColumn(fresh, 1225.25), W);
 });
 
 // Half a column carried, then three quarters more: one whole column, a quarter

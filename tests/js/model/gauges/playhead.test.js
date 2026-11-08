@@ -570,6 +570,18 @@ for (const run of RUNS) {
   });
 }
 
+for (const run of RUNS) {
+  test(`test_in_${run.name}_the_lead_frame_is_the_one_frame_covering_most_of_each_paints_span`, () => {
+    const off = run.paints.filter(({ queue, d }) => {
+      if (d.last === d.first) return false;
+      const leads = d.lead >= d.first && d.lead < d.last;
+      const mine = leads ? inside(queue[d.lead], d) : Infinity;
+      return !leads || queue.slice(d.first, d.last).some((f) => inside(f, d) > mine);
+    });
+    assert.deepEqual({ shown: run.paints.some((p) => p.d.last > p.d.first), off: off.length }, { shown: true, off: 0 });
+  });
+}
+
 for (const run of RUNS.filter((r) => r.until !== null)) {
   test(`test_in_${run.name}_the_playhead_moves_exactly_its_wall_time_at_every_paint_while_the_feed_lands`, () => {
     const until = run.until ?? NaN;

@@ -223,6 +223,38 @@ for (const d of STEPS.filter((s) => HOLDING.has(s.name))) {
   });
 }
 
+//: How long a ridge row takes to give way to the next, s.
+const ROW_S = 0.2;
+//: How close a slide's movement must come to the time it covers, as a share of a row.
+const SLIDE = 1e-9;
+
+// A ridge row slides up the plot as the time since it was born passes, a whole row's height by the time the next is
+// born: however short a paint is, and whether or not it brings a new row, it moves the rows by its time.
+test("test_the_ridge_rows_slide_by_the_time_each_paint_covers_whatever_rows_it_brings", () => {
+  const ridges = freshRidges(1);
+  let slide = ridges.slide;
+  const off = PAINTS.concat(PAINTS, PAINTS).filter((dt) => {
+    stepRidges(ridges, [LOUD_FRAC], dt);
+    const slid = ridges.slide - slide + 1 - dt / ROW_S;
+    slide = ridges.slide;
+    return !(Math.abs(slid - Math.round(slid)) <= SLIDE && ridges.slide >= 0 && ridges.slide < 1);
+  });
+  assert.deepEqual({ rows: ridges.count > 0, off: off.length }, { rows: true, off: 0 });
+});
+
+test("test_the_ridge_rows_slide_on_every_paint_that_brings_no_row", () => {
+  const ridges = freshRidges(1);
+  stepRidges(ridges, [LOUD_FRAC], PAINT);
+  const slides = Array.from({ length: 5 }, () => {
+    stepRidges(ridges, [LOUD_FRAC], PAINT / 4);
+    return ridges.slide;
+  });
+  assert.equal(
+    slides.every((v, k) => k === 0 || v > slides[k - 1]),
+    true,
+  );
+});
+
 test("test_a_pace_hands_out_as_many_whole_steps_over_a_stretch_whether_it_comes_as_one_paint_or_many", () => {
   const paints = stretch(3);
   const one = freshPace();

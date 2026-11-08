@@ -40,19 +40,6 @@ const LOUD_HALF_POWER = -13.0103;
 const LOUD_THIRD_POWER = -14.7712;
 
 /**
- * [ok, message] for spreading into ONE assert.ok: as many values as written, each within `tol` of its own.
- *
- * @param {ArrayLike<number>} actual
- * @param {number[]} expected
- * @param {number} tol
- * @returns {[boolean, string]}
- */
-const nearEach = (actual, expected, tol) => [
-  actual.length === expected.length && expected.every((e, i) => Math.abs(actual[i] - e) <= tol),
-  `expected [${expected}] ± ${tol}, got [${Array.from(actual)}]`,
-];
-
-/**
  * The base64 string the feed sends for these bytes.
  *
  * @param {number[]} bytes
@@ -130,9 +117,22 @@ test("test_a_folded_rms_takes_no_power_from_another_channel", () => {
   assert.ok(...near(folded.channels[1].rms, -40, DB_EPS));
 });
 
-test("test_each_folded_bin_is_the_power_average_of_that_bin_alone", () => {
-  const folded = foldFrames([frame([channel(LOUD, LOUD, [LOUD, -40])]), frame([channel(LOUD, LOUD, [SILENT, -40])])]);
-  assert.ok(...nearEach(folded.channels[0].bins, [LOUD_HALF_POWER, -40], DB_EPS));
+test("test_a_fold_takes_each_channels_bins_from_the_lead_frame_alone", () => {
+  const folded = foldFrames(
+    [frame([channel(LOUD, LOUD, [LOUD, -40])]), frame([channel(LOUD, LOUD, [SILENT, -50])])],
+    undefined,
+    1,
+  );
+  assert.deepEqual(Array.from(folded.channels[0].bins), [SILENT, -50]);
+});
+
+test("test_a_fold_takes_no_bin_from_a_frame_that_is_not_the_lead", () => {
+  const folded = foldFrames(
+    [frame([channel(LOUD, LOUD, [LOUD, -40])]), frame([channel(LOUD, LOUD, [SILENT, -50])])],
+    undefined,
+    0,
+  );
+  assert.deepEqual(Array.from(folded.channels[0].bins), [LOUD, -40]);
 });
 
 test("test_a_fold_carries_no_peak_from_the_fold_before_it", () => {

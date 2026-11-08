@@ -31,7 +31,6 @@ import { bufferOf } from "./spectrumfx.js";
  *
  * @typedef {object} FoldScene
  * @property {MeterChannel[]} channels
- * @property {Float64Array[]} power  per channel, per bin, the power sum the fold carries
  */
 
 /**
@@ -126,50 +125,48 @@ function fits(scene, frame) {
  * @returns {FoldScene}
  */
 function sceneFor(frame) {
-  return {
-    channels: frame.channels.map((ch) => ({ peak: 0, rms: 0, bins: new Float32Array(ch.bins.length) })),
-    power: frame.channels.map((ch) => new Float64Array(ch.bins.length)),
-  };
+  return { channels: frame.channels.map((ch) => ({ peak: 0, rms: 0, bins: new Float32Array(ch.bins.length) })) };
 }
 
 /**
- * Fold channel `c` of every frame into the scene: the loudest peak, the RMS and each bin power-averaged.
+ * Fold channel `c` of every frame into the scene: the loudest peak and the RMS over all of them, and the bins of the
+ * lead frame alone.
  *
  * @param {MeterFrame[]} frames
  * @param {FoldScene} scene
  * @param {number} c
+ * @param {number} lead  index into `frames`
  */
-function foldChannel(frames, scene, c) {
+function foldChannel(frames, scene, c, lead) {
   const out = scene.channels[c];
-  const sums = scene.power[c];
-  sums.fill(0);
   let peak = -Infinity;
   let rms = 0;
   for (const f of frames) {
     const ch = f.channels[c];
     if (ch.peak > peak) peak = ch.peak;
     rms += power(ch.rms);
-    for (let b = 0; b < sums.length; b++) sums[b] += power(ch.bins[b]);
   }
   out.peak = peak;
   out.rms = level(rms / frames.length);
-  for (let b = 0; b < sums.length; b++) out.bins[b] = level(sums[b] / frames.length);
+  out.bins.set(frames[lead].channels[c].bins);
 }
 
 /**
- * The frames of a stride folded into one: per channel the loudest peak, the RMS and each bin power-averaged, each
- * frame once. The scene handed in is refilled in place and returned; a fresh one is made only when none is handed in
- * or the frames' channel or bin count differs from it. Every frame holds the first frame's channel and bin counts.
+ * The frames of a stride folded into one: per channel the loudest peak and the RMS, power-averaged, over every frame,
+ * each frame once, and the bins of one frame, the lead, whole. The scene handed in is refilled in place and returned; a
+ * fresh one is made only when none is handed in or the frames' channel or bin count differs from it. Every frame holds
+ * the first frame's channel and bin counts.
  *
  * @param {MeterFrame[]} frames
  * @param {FoldScene} [into]
+ * @param {number} [lead]  index into `frames` of the frame whose bins the scene takes; the first by default
  * @returns {FoldScene}
  */
-export function foldFrames(frames, into) {
+export function foldFrames(frames, into, lead = 0) {
   const first = frames[0];
-  if (!first) return into ?? { channels: [], power: [] };
+  if (!first) return into ?? { channels: [] };
   const scene = into && fits(into, first) ? into : sceneFor(first);
-  for (let c = 0; c < scene.channels.length; c++) foldChannel(frames, scene, c);
+  for (let c = 0; c < scene.channels.length; c++) foldChannel(frames, scene, c, lead);
   return scene;
 }
 

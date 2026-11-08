@@ -18,7 +18,8 @@
 // and drops consumed frames in place, so its work and its allocations do not grow with how late it is.
 //
 // The painters' side: before the consumed frames leave the queue, the paint folds the frames its
-// decision shows, `[first, last)`, into the one scene the loop fills in place (MeterScene), then hands every painter
+// decision shows, `[first, last)`, into the one scene the loop fills in place (MeterScene), the meters' peak and RMS from
+// all of them and the spectrum's bins from the decision's lead frame alone, then hands every painter
 // subscribed through onMeterPaint that scene and `dt`, the wall time since the last paint in seconds, uncapped. A
 // painter draws what it is handed and decides nothing about time.
 //
@@ -42,7 +43,8 @@ const MS_PER_S = 1000;
 /** @typedef {import("../../model/gauges/meter/meter.js").FoldScene} FoldScene */
 /**
  * What one paint shows, as every painter is handed it: the frames the paint's decision shows folded the way the feed
- * folds a stride (foldFrames: per channel the loudest peak, the RMS and each bin power-averaged, each frame once), and
+ * folds a stride (foldFrames: per channel the loudest peak and the RMS power-averaged over each frame once, and the
+ * bins of the one frame that covers most of the paint, whole, never an average of the frames the paint reached), and
  * `restart`, whether the paint started again at a break or at the first frame since the feed opened, so a painter
  * starts its own state again. A paint that shows no frame hands the scene as it stood; one that restarts and shows no
  * frame hands it with nothing heard, every peak, RMS and bin at -Infinity dBFS. It holds no channel until a paint has
@@ -84,7 +86,7 @@ const painted = { decision: null, at: null, dt: 0 };
 /** Counts each start and stop of the loop, so an animation frame requested before one is not painted after it. */
 let run = 0;
 /** @type {MeterScene} */
-let scene = { channels: [], power: [], restart: false };
+let scene = { channels: [], restart: false };
 /**
  * The frames one paint shows, refilled in place each paint that shows any.
  *
@@ -137,7 +139,7 @@ function show(d) {
   if (d.last > d.first) {
     shown.length = d.last - d.first;
     for (let i = d.first; i < d.last; i++) shown[i - d.first] = queue[i];
-    scene = /** @type {MeterScene} */ (foldFrames(shown, scene));
+    scene = /** @type {MeterScene} */ (foldFrames(shown, scene, d.lead - d.first));
   } else if (d.restart) {
     silence();
   }
