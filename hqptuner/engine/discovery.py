@@ -8,14 +8,16 @@ more: the product string names the major but never the operating system, so each
 
 import asyncio
 import contextlib
+import functools
 import logging
 import socket
 import time
 from collections.abc import Awaitable, Callable, Iterable
 from dataclasses import dataclass, replace
+from typing import Protocol
 from xml.etree import ElementTree
 
-from hqptuner.engine.control import ControlClient, Deadline
+from hqptuner.engine.control import ControlClient, Deadline, Opener
 from hqptuner.engine.controlerrors import ControlError
 
 log = logging.getLogger(__name__)
@@ -38,6 +40,33 @@ REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 #: it. Settable through ``Config.container_host_alias`` because the name resolves
 #: inside a container only, so nothing outside one can be pointed at it.
 ALIAS = "host.docker.internal"
+
+
+class DatagramSocket(Protocol):
+    """The socket calls the sweep makes. ``socket.socket`` is one, and the production default."""
+
+    def settimeout(self, value: float | None, /) -> None:
+        """Set the socket's timeout; zero makes it non-blocking."""
+        ...
+
+    def sendto(self, data: bytes, address: tuple[str, int], /) -> int:
+        """Send one datagram to ``address``."""
+        ...
+
+    def recvfrom(self, _bufsize: int, /) -> tuple[bytes, tuple[str, int]]:
+        """Read the next datagram and its sender, raising ``BlockingIOError`` when none waits."""
+        ...
+
+    def close(self) -> None:
+        """Release the socket."""
+        ...
+
+
+#: How the sweep gets its datagram socket: nothing in, a socket out.
+DatagramFactory = Callable[[], DatagramSocket]
+
+#: The production datagram socket: an IPv4 UDP socket, unbound.
+UDP_SOCKET: DatagramFactory = functools.partial(socket.socket, socket.AF_INET, socket.SOCK_DGRAM)
 
 
 @dataclass(frozen=True)
@@ -124,9 +153,11 @@ async def enrich(
     return filled
 
 
-async def _describe(address: str, port: int, request_timeout: float, deadline: Deadline) -> dict[str, str]:
+async def _describe(
+    address: str, port: int, request_timeout: float, deadline: Deadline, opener: Opener
+) -> dict[str, str]:
     """Ask one daemon what it is, over its own control port, and hang up."""
-    client = ControlClient(address, port, request_timeout, deadline=deadline)
+    client = ControlClient(address, port, request_timeout, deadline=deadline, opener=opener)
     await client.connect()
     try:
         return await client.get_info()
@@ -134,13 +165,20 @@ async def _describe(address: str, port: int, request_timeout: float, deadline: D
         await client.close()
 
 
-async def probe(address: str, control_port: int, request_timeout: float, *, deadline: Deadline = asyncio) -> Daemon:
+async def probe(
+    address: str,
+    control_port: int,
+    request_timeout: float,
+    *,
+    deadline: Deadline = asyncio,
+    opener: Opener = asyncio.open_connection,
+) -> Daemon:
     """Answer the record for one address, raising ``OSError`` or ``ControlError`` where nothing answers there.
 
     The one path that names an address instead of waiting for a datagram. Whether "nothing there" is worth
     reporting is the caller's call, not this function's: a silent sweep decides differently from a one-shot dial.
     """
-    info = await _describe(address, control_port, request_timeout, deadline)
+    info = await _describe(address, control_port, request_timeout, deadline, opener)
     return Daemon(
         address=address,
         name=info.get("name", ""),
@@ -157,7 +195,7 @@ def _endpoint(target: str) -> tuple[str, int]:
 
 
 async def _collect(
-    sock: socket.socket,
+    sock: DatagramSocket,
     deadline: float,
     clock: Callable[[], float],
     sleep: Callable[[float], Awaitable[None]],
@@ -181,12 +219,17 @@ async def _collect(
 
 @dataclass(frozen=True)
 class Search:
-    """Where the sweep looks and who it asks."""
+    """Where the sweep looks, who it asks, and how it reaches them.
+
+    ``opener`` connects to a daemon's control port and ``datagrams`` makes the socket the datagram goes out on.
+    """
 
     target: str = GROUP
     alias: str = ALIAS
     control_port: int = PORT
     request_timeout: float = 5.0
+    opener: Opener = asyncio.open_connection
+    datagrams: DatagramFactory = UDP_SOCKET
 
 
 async def discover(
@@ -210,7 +253,7 @@ async def discover(
 
     ``deadline`` is what every connect, send and read of the daemons it then asks waits under.
     """
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock = search.datagrams()
     sock.settimeout(0)  # non-blocking, so the sweep owns the waiting
     try:
         # The socket's own call, not the loop's: uvloop does not provide ``sock_sendto``, and one datagram
@@ -227,10 +270,14 @@ async def discover(
             continue
     if not found:
         with contextlib.suppress(OSError, ControlError):
-            found.append(await probe(search.alias, search.control_port, search.request_timeout, deadline=deadline))
+            found.append(
+                await probe(
+                    search.alias, search.control_port, search.request_timeout, deadline=deadline, opener=search.opener
+                )
+            )
         return found
 
     async def describe(address: str) -> dict[str, str]:
-        return await _describe(address, search.control_port, search.request_timeout, deadline)
+        return await _describe(address, search.control_port, search.request_timeout, deadline, search.opener)
 
     return await enrich(dedupe(found), describe)

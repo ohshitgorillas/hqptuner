@@ -12,6 +12,7 @@ import httpx
 
 from hqptuner.conf.httpconf import HttpOptions
 from hqptuner.engine.control import Opener
+from hqptuner.engine.discovery import UDP_SOCKET, DatagramFactory
 
 #: What carries an 8088 request to a host and a port: a transport that answers it, or None for httpx's own.
 HttpTransportFor = Callable[[str, int], httpx.AsyncBaseTransport | None]
@@ -31,6 +32,7 @@ class Network:
 
     open_stream: Opener = asyncio.open_connection
     http_transport: HttpTransportFor = own_transport
+    open_datagram: DatagramFactory = UDP_SOCKET
 
     def http_options(self, host: str, port: int) -> HttpOptions:
         """Answer the options an 8088 request to ``host:port`` goes under: default timeout, this network's transport."""

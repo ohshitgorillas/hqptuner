@@ -24,6 +24,8 @@ async def discover_daemons(request: Request, manager: Mgr) -> list[Daemon]:
         alias=cfg.container_host_alias,
         control_port=cfg.hqp_control_port,
         request_timeout=cfg.request_timeout,
+        opener=manager.network.open_stream,
+        datagrams=manager.network.open_datagram,
     )
     clock = manager.clock
     return await discover(search, cfg.discovery_timeout, clock=clock.monotonic, sleep=clock.sleep, deadline=clock)

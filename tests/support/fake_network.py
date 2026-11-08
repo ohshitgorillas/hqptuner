@@ -9,6 +9,11 @@ dialing, so the fake answers on a test's loop or on a ``TestClient``'s app loop 
 pair is AF_UNIX and never leaves the process, and the client's own asyncio stream code runs unchanged over a real
 kernel stream. Dialing an address nothing is registered at is refused, which is what a closed TCP port gives.
 
+A discovery responder is a table from the exact request bytes to a reply. The network's datagram socket looks the
+responder up at the address it sends to and queues that table's reply for the exact bytes, with the responder's own
+address as the sender, so a search reads it on its next pass. A target nobody answers at, the multicast group
+included, is silent.
+
 The 8088 half has no socket at all. A fake is a function from the request bytes to the response bytes, and the
 network's transport turns each ``httpx.Request`` into those bytes, hands them over and reads the answer back into an
 ``httpx.Response``, inline on the thread that sent the request. An address nothing serves, or one withdrawn, raises
@@ -21,7 +26,8 @@ import functools
 import re
 import socket
 import threading
-from collections.abc import Awaitable, Callable, Iterator
+from collections import deque
+from collections.abc import Awaitable, Callable, Iterator, Mapping
 
 import httpx
 
@@ -39,6 +45,7 @@ LOOPBACK = "127.0.0.1"
 _LOCK = threading.Lock()
 _STREAMS: dict[tuple[str, int], StreamCallback] = {}
 _HTTP: dict[tuple[str, int], HttpFake] = {}
+_DATAGRAMS: dict[tuple[str, int], Mapping[bytes, bytes]] = {}
 _CLOSED_PORTS: set[int] = set()
 #: Fake ends still running, held so the loop does not drop a task mid-flight.
 _RUNNING: set[asyncio.Task[None]] = set()
@@ -105,6 +112,13 @@ def serving_http(
     return _registered(_HTTP, fake, host, port)
 
 
+def responding(
+    replies: Mapping[bytes, bytes], host: str = LOOPBACK, port: int | None = None
+) -> contextlib.AbstractContextManager[int]:
+    """Answer the discovery datagrams ``replies`` names at ``host`` and ``port`` for the block, yielding the port."""
+    return _registered(_DATAGRAMS, replies, host, port)
+
+
 def withdraw_http(host: str, port: int) -> None:
     """Take the 8088 fake at ``host`` and ``port`` away, so every later request meets a refused connection."""
     with _LOCK:
@@ -132,6 +146,33 @@ async def open_stream(host: str, port: int) -> tuple[asyncio.StreamReader, async
     _RUNNING.add(task)
     task.add_done_callback(_RUNNING.discard)
     return await asyncio.open_connection(sock=ours)
+
+
+class _Datagrams:
+    """A datagram socket that reaches the registered responders: a send queues the reply, a receive pops it."""
+
+    def __init__(self) -> None:
+        self.timeout: float | None = None
+        self._replies: deque[tuple[bytes, tuple[str, int]]] = deque()
+
+    def settimeout(self, value: float | None, /) -> None:
+        self.timeout = value
+
+    def sendto(self, data: bytes, address: tuple[str, int], /) -> int:
+        with _LOCK:
+            table = _DATAGRAMS.get(address)
+        reply = None if table is None else table.get(data)
+        if reply is not None:
+            self._replies.append((reply, address))
+        return len(data)
+
+    def recvfrom(self, _bufsize: int, /) -> tuple[bytes, tuple[str, int]]:
+        if not self._replies:
+            raise BlockingIOError
+        return self._replies.popleft()
+
+    def close(self) -> None:
+        self._replies.clear()
 
 
 _NO_RESPONSE = "Server disconnected without sending a response."
@@ -175,4 +216,4 @@ def http_transport(host: str, port: int) -> httpx.MockTransport:
 
 
 #: The network the suite hands the manager and the app: every dial it makes is answered by a fake registered here.
-NETWORK = Network(open_stream=open_stream, http_transport=http_transport)
+NETWORK = Network(open_stream=open_stream, http_transport=http_transport, open_datagram=_Datagrams)

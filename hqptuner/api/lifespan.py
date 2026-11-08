@@ -42,7 +42,11 @@ async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: Conne
         return
     try:
         answered = await probe(
-            cfg.container_host_alias, cfg.hqp_control_port, cfg.request_timeout, deadline=manager.clock
+            cfg.container_host_alias,
+            cfg.hqp_control_port,
+            cfg.request_timeout,
+            deadline=manager.clock,
+            opener=manager.network.open_stream,
         )
     except (OSError, ControlError):
         return

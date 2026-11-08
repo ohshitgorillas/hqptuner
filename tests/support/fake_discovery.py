@@ -15,8 +15,10 @@ uvloop, which does not provide ``sock_recvfrom`` or ``sock_sendto``.
 
 import asyncio
 import socket
-from collections.abc import AsyncIterator, Mapping
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Iterator, Mapping
+from contextlib import asynccontextmanager, contextmanager
+
+import fake_network
 
 
 def _answer(sock: socket.socket, replies: Mapping[bytes, bytes]) -> None:
@@ -43,3 +45,13 @@ async def responder(replies: Mapping[bytes, bytes], host: str = "127.0.0.2") -> 
     finally:
         loop.remove_reader(sock.fileno())
         sock.close()
+
+
+@contextmanager
+def in_process(replies: Mapping[bytes, bytes], host: str = "127.0.0.2") -> Iterator[int]:
+    """Answer `replies` at `host` on a port of the in-process network (`fake_network`), yielding the port.
+
+    No socket exists: the network's datagram socket looks the table up at the address a search sends to, so the same
+    table answers on any loop. A request the table does not hold is answered with silence."""
+    with fake_network.responding(replies, host) as port:
+        yield port
