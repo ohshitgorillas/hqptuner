@@ -10,6 +10,7 @@ import { engineAlerts } from "../health.js";
 import { shaperAlerts } from "../alerts/shaperfit.js";
 import { roonIdleAlert } from "../alerts/roonidle.js";
 import { junkAdvice } from "../alerts/junkadvice.js";
+import { stable } from "../signals.js";
 import { AFTER_SHAPING } from "./chain.js";
 
 /** @typedef {import("../../model/shell/alerts.js").Alert} Alert */
@@ -79,12 +80,15 @@ export function faceplateAlerts() {
   ];
 }
 
+/** The alerts raised now. */
+const raisedNow = stable(faceplateAlerts);
+
 /**
  * Where the raised alerts land now.
  *
  * @type {{ readonly value: AlertPlan }}
  */
-export const alertsNow = computed(() => alertPlan(faceplateAlerts(), HOMES));
+export const alertsNow = computed(() => alertPlan(raisedNow.value, HOMES));
 
 /**
  * The alerts a header home's popover shows: those homed on it, in raised order.
@@ -92,4 +96,4 @@ export const alertsNow = computed(() => alertPlan(faceplateAlerts(), HOMES));
  * @param {string} el  the header element's name
  * @returns {Alert[]}
  */
-export const alertNotes = (el) => alertsAt(faceplateAlerts(), HOMES, el);
+export const alertNotes = (el) => alertsAt(raisedNow.value, HOMES, el);

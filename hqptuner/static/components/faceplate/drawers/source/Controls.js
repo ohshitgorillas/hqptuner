@@ -3,16 +3,17 @@
 
 import { html } from "../../../../lib/dom.js";
 import { FREQ_SPANS } from "../../../../model/gauges/meter/meter.js";
-import { setSpectrogramSpan } from "../../../../store/faceplate/drawers/source.js";
+import { meterChoice, setSpectrogramSpan, spectrogramSpan } from "../../../../store/faceplate/drawers/source.js";
 import {
   APOD_WINDOWS,
   METER_RANGES,
+  apodWindow,
+  meterRange,
   setApodWindow,
   setMeterChannel,
   setMeterRange,
 } from "../../../../store/ui/prefs.js";
 
-/** @typedef {import("../../../../store/faceplate/drawers/source.js").SourceMeterView} SourceMeterView */
 /** @typedef {{ v: string, label: string }} SegOption */
 
 const STEREO = 2;
@@ -22,6 +23,13 @@ const WINDOW_LABELS = { 30: "30 s", 60: "1 min", 120: "2 min", 300: "5 min" };
 
 /** @type {Record<string, string>} */
 const SPAN_LABELS = { full: "Full", half: "1/2", quarter: "1/4" };
+
+/** @type {SegOption[]} */
+const RANGE_OPTIONS = METER_RANGES.map((v) => ({ v, label: v }));
+/** @type {SegOption[]} */
+const WINDOW_OPTIONS = APOD_WINDOWS.map((v) => ({ v, label: WINDOW_LABELS[v] }));
+/** @type {SegOption[]} */
+const SPAN_OPTIONS = FREQ_SPANS.map((v) => ({ v, label: SPAN_LABELS[v] }));
 
 /**
  * A segmented switch, the option matching `value` lit; tapping another reports it.
@@ -68,53 +76,73 @@ function channelLabel(v, count) {
   return count === STEREO ? ["Left", "Right"][Number(v)] : String(Number(v) + 1);
 }
 
-/**
- * The spectrogram head's Range, Channel, Window and Span switches.
- *
- * @param {{ view: SourceMeterView }} props
- */
-export function SpectrogramControls({ view }) {
-  const count = view.channels.length - 1;
+/** The Range switch: the color span in dB. */
+function RangeCtl() {
   return html`
     <${Ctl} label="Range" unit="dB">
       <${Seg}
         testid="meter-range"
         aria="Range, dB"
         cls="view"
-        value=${String(view.range)}
-        options=${METER_RANGES.map((v) => ({ v, label: v }))}
+        value=${String(Number(meterRange.value))}
+        options=${RANGE_OPTIONS}
         pick=${setMeterRange}
       />
     <//>
+  `;
+}
+
+/** The Channel switch: the sum and each channel the source carries. */
+function ChannelCtl() {
+  const { channels, channel } = meterChoice.value;
+  const count = channels.length - 1;
+  return html`
     <${Ctl} label="Channel">
       <${Seg}
         testid="meter-channel"
         aria="Channel"
         cls="view"
-        value=${view.channel}
-        options=${view.channels.map((v) => ({ v, label: channelLabel(v, count) }))}
+        value=${channel}
+        options=${channels.map((v) => ({ v, label: channelLabel(v, count) }))}
         pick=${setMeterChannel}
       />
     <//>
+  `;
+}
+
+/** The Window switch: the playback the charts span. */
+function WindowCtl() {
+  return html`
     <${Ctl} label="Window">
       <${Seg}
         testid="meter-window"
         aria="Time window"
         cls="lc view"
-        value=${view.window}
-        options=${APOD_WINDOWS.map((v) => ({ v, label: WINDOW_LABELS[v] }))}
+        value=${apodWindow.value}
+        options=${WINDOW_OPTIONS}
         pick=${setApodWindow}
       />
     <//>
+  `;
+}
+
+/** The Span switch: the share of the band in view. */
+function SpanCtl() {
+  return html`
     <${Ctl} label="Span">
       <${Seg}
         testid="meter-span"
         aria="Span"
         cls="view"
-        value=${view.freqSpan}
-        options=${FREQ_SPANS.map((v) => ({ v, label: SPAN_LABELS[v] }))}
+        value=${spectrogramSpan.value}
+        options=${SPAN_OPTIONS}
         pick=${setSpectrogramSpan}
       />
     <//>
   `;
+}
+
+/** The spectrogram head's Range, Channel, Window and Span switches, each reading only its own setting. */
+export function SpectrogramControls() {
+  return html`<${RangeCtl} /><${ChannelCtl} /><${WindowCtl} /><${SpanCtl} />`;
 }

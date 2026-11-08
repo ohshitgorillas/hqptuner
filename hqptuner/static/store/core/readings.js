@@ -4,7 +4,7 @@ import { computed, effect, signal, untracked } from "@preact/signals";
 import { api } from "../../lib/api.js";
 import { isBlank, num } from "../../lib/coerce.js";
 import { fieldOf } from "../../model/store/reading.js";
-import { engineState, engineStatus, generation, health, staged } from "../signals.js";
+import { engineState, engineStatus, generation, health, stable, staged } from "../signals.js";
 import { keyOf, schema, stagedSlot } from "../schema.js";
 import { playbackPath, transportNow } from "../faceplate/path.js";
 import { latest, op, STALE } from "./ops.js";
@@ -109,7 +109,7 @@ export const dropDrag = (key) => {
 const rate = (value) => (isBlank(value) ? null : num(value, null));
 
 /** @type {{ readonly value: { state: string | null, playing: boolean, path: string | null, chain: unknown, srcRate: number | null, outRate: number | null } }} */
-export const playback = computed(() => {
+export const playback = stable(() => {
   const state = transportNow();
   return {
     state,

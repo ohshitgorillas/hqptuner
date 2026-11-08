@@ -16,7 +16,7 @@ import { freqTicks, timeTicks } from "../../../model/gauges/meter/meter-plot.js"
 import { metering } from "../../actions.js";
 import { meterGeometry, meterSilent } from "../../meter/feed.js";
 import { runningValue } from "../../resolve.js";
-import { engineStatus } from "../../signals.js";
+import { engineStatus, stable } from "../../signals.js";
 import { playback } from "../../core/readings.js";
 import { apodWindow, meterChannel, meterRange } from "../../ui/prefs.js";
 import { sourceIsDsd } from "../path.js";
@@ -72,17 +72,19 @@ export function setSpectrogramSpan(v) {
  * @property {string} window  the window picked, seconds
  */
 
+/** Whether the engine reports a DSD source. */
+const dsdSource = computed(() => sourceIsDsd((engineStatus.value || {}).metadata || {}));
+
 /**
  * Which state the block is in.
  *
  * @returns {MeterState}
  */
-function stateOf() {
-  const status = engineStatus.value || {};
+export function meterState() {
   if (!metering.value) return "off";
   if (!playback.value.playing) return "idle";
   if (!meterSilent()) return "live";
-  return sourceIsDsd(status.metadata || {}) && !truthy(runningValue("matrix_enabled")) ? "matrix" : "silent";
+  return dsdSource.value && !truthy(runningValue("matrix_enabled")) ? "matrix" : "silent";
 }
 
 /**
@@ -93,29 +95,38 @@ function stateOf() {
  */
 const channelChoices = (count) => ["sum", ...Array.from({ length: count }, (_, i) => String(i))];
 
-/** The meter's view without its state: built anew only when a signal it reads changes. */
-const meterAxes = computed(() => {
+/** The plot's grid: the axes' ticks and the span they run over, held to one object while they read the same. */
+export const meterGrid = stable(() => {
   const geo = meterGeometry.value;
   const nyquist = geo ? geo.nyquist : CD_NYQUIST;
-  const channels = channelChoices(geo ? geo.channels : STEREO);
-  const window = apodWindow.value;
-  const span = windowSpan(window);
+  const span = windowSpan(apodWindow.value);
   const share = spanShare(spectrogramSpan.value);
   const top = nyquist * share;
   return {
     nyquist,
     top,
     edgeIsNyquist: share === 1,
-    freqSpan: spectrogramSpan.value,
     freq: freqTicks(top, (f) => 1 - f / top),
     span,
     time: timeTicks(span, MS_PER_S),
-    range: Number(meterRange.value),
-    channel: channels.includes(meterChannel.value) ? meterChannel.value : "sum",
-    channels,
-    window,
   };
 });
+
+/** The channel switch's choices and the channel drawn, held to one object while they read the same. */
+export const meterChoice = stable(() => {
+  const geo = meterGeometry.value;
+  const channels = channelChoices(geo ? geo.channels : STEREO);
+  return { channels, channel: channels.includes(meterChannel.value) ? meterChannel.value : "sum" };
+});
+
+/** The meter's view without its state: built anew only when a signal it reads changes. */
+const meterAxes = computed(() => ({
+  ...meterGrid.value,
+  ...meterChoice.value,
+  freqSpan: spectrogramSpan.value,
+  range: Number(meterRange.value),
+  window: apodWindow.value,
+}));
 
 /**
  * The view sourceMeter() handed out last and the axes it was built on. Its state is read on every call, since a feed
@@ -133,7 +144,7 @@ const held = { axes: null, view: null };
  */
 export function sourceMeter() {
   const axes = meterAxes.value;
-  const state = stateOf();
+  const state = meterState();
   if (held.view && held.axes === axes && held.view.state === state) return held.view;
   const view = { state, ...axes };
   held.axes = axes;

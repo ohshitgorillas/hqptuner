@@ -16,6 +16,7 @@
 // same setting — that divergence is why these are separate trees.
 
 import { signal, computed } from "@preact/signals";
+import { sameJson } from "../lib/samejson.js";
 
 export const PAUSED = 1;
 const PLAYING = 2; // Status state: 0 Stopped, 1 Paused, 2 Playing, 3 Stopping
@@ -57,3 +58,22 @@ export function isPlaying(st) {
 
 /** Whether the engine is playing, as /api/status last reported it: isPlaying of engineStatus's `status` block. */
 export const enginePlaying = computed(() => isPlaying((engineStatus.value || {}).status));
+
+/**
+ * The computed over `read` that answers the object it answered last while the new one reads the same, so a component
+ * reading it renders when the content moves. `read` must be plain data.
+ *
+ * @template T
+ * @param {() => T} read  a pure reading of signals
+ * @returns {{ readonly value: T }}
+ */
+export function stable(read) {
+  /** @type {{ held: T } | null} */
+  let last = null;
+  return computed(() => {
+    const next = read();
+    if (last && sameJson(last.held, next)) return last.held;
+    last = { held: next };
+    return next;
+  });
+}

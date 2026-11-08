@@ -8,6 +8,7 @@
 // no request is made — which is why the chain controls (./chains.js) and the view
 // model can all sit on top of it without depending on each other.
 
+import { computed } from "@preact/signals";
 import { engineState, engineStatus, enums, modeName } from "../signals.js";
 import { schema } from "../schema.js";
 import { modeOfName } from "../../model/family.js";
@@ -101,7 +102,6 @@ export function modeValue() {
 const NX_FLOOR = 50000;
 
 /** Whether the playing source's rate puts playback on the Nx side of the filter split. */
-export function sourceIsNx() {
-  const md = (engineStatus.value || {}).metadata || {};
-  return Number(md.samplerate) >= NX_FLOOR;
-}
+export const sourceIsNx = () => nx.value;
+
+const nx = computed(() => Number(((engineStatus.value || {}).metadata || {}).samplerate) >= NX_FLOOR);

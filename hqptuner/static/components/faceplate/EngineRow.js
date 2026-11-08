@@ -12,7 +12,7 @@
 import { html } from "../../lib/dom.js";
 import { PLATFORM } from "../../lib/clock.js";
 import { gaugeReading, zone } from "../../model/shell/frame.js";
-import { engineStatus } from "../../store/signals.js";
+import { engineStatus, stable } from "../../store/signals.js";
 import { playback } from "../../store/core/readings.js";
 import { clipFlash, outputBufferApplies, trackCounters } from "../../store/health.js";
 import { apodLampLevel } from "../../store/meter/apodlamp.js";
@@ -93,18 +93,23 @@ const Counter = ({ k, label, count, level, seq }) => html`
   </div>
 `;
 
+/** The engine row's readings. */
+const readings = stable(() =>
+  engineReadings(
+    (engineStatus.value || {}).status,
+    trackCounters.value,
+    outputBufferApplies.value,
+    playback.value.playing,
+  ),
+);
+
 /**
  * The engine row, with the HF filter's menu and the volume's slider popover beside it.
  *
  * @param {{ clock?: Clock }} props  the clock the volume's held ± repeats on
  */
 export function EngineRow({ clock = PLATFORM }) {
-  const r = engineReadings(
-    (engineStatus.value || {}).status,
-    trackCounters.value,
-    outputBufferApplies.value,
-    playback.value.playing,
-  );
+  const r = readings.value;
   return html`
     <div class="engine">
       <${Gauge} speed=${r.speed} />

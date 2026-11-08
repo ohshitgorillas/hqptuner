@@ -6,22 +6,20 @@
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
-import { METER_NOTES as NOTES, sourceMeter } from "../../../store/faceplate/drawers/source.js";
+import { METER_NOTES as NOTES, meterGrid, meterState } from "../../../store/faceplate/drawers/source.js";
 import { FreqAxis, TimeAxis } from "./source/Axes.js";
 import { SpectrogramControls } from "./source/Controls.js";
 import { SPEC_SIZE, useMeterPaint } from "./source/paint.js";
 import { withXref } from "../Xref.js";
 
 /** @typedef {import("../../../store/faceplate/xref.js").XrefHere} XrefHere */
-/** @typedef {import("../../../store/faceplate/drawers/source.js").SourceMeterView} SourceMeterView */
 /** @typedef {import("../../../store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
 
 /**
  * The strip, the spectrogram and their two axes on one grid: gutter beside plot, strip above spectrogram above time.
- *
- * @param {{ view: SourceMeterView }} props
  */
-function Plot({ view }) {
+function Plot() {
+  const view = meterGrid.value;
   const spec = useRef(/** @type {HTMLCanvasElement | null} */ (null));
   const strip = useRef(/** @type {HTMLCanvasElement | null} */ (null));
   useMeterPaint(spec, strip);
@@ -57,17 +55,17 @@ function Plot({ view }) {
  * @param {{ schema: DrawerSchema, here: XrefHere }} props  here: where it is drawn, which the no-stream line reads
  */
 export function SourceMeter({ here }) {
-  const view = sourceMeter();
-  if (view.state !== "live") {
-    return html`<div class="mnone" data-meter=${view.state}><p>${withXref(NOTES[view.state], here)}</p></div>`;
+  const state = meterState();
+  if (state !== "live") {
+    return html`<div class="mnone" data-meter=${state}><p>${withXref(NOTES[state], here)}</p></div>`;
   }
   return html`
-    <div class="mblk" data-meter=${view.state}>
+    <div class="mblk" data-meter=${state}>
       <div class="mhead">
         <b class="mt">Spectrogram</b>
-        <${SpectrogramControls} view=${view} />
+        <${SpectrogramControls} />
       </div>
-      <${Plot} view=${view} />
+      <${Plot} />
     </div>
   `;
 }

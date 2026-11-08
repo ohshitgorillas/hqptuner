@@ -3,6 +3,7 @@
 // list.
 
 import { signal } from "@preact/signals";
+import { stable } from "../../signals.js";
 import { getStored, setStored } from "../../../lib/browser/storage.js";
 import { schema } from "../../schema.js";
 import { bottomBar, enumPref, warnStorage } from "../../ui/prefs.js";
@@ -221,17 +222,13 @@ function slotsOf(t, key) {
   return [];
 }
 
-/**
- * The bar for the current target.
- *
- * @returns {SwitcherView}
- */
-function view() {
+/** The bar for the current target. */
+const bar = stable(() => {
   const t = switcherTarget.value;
   const keys = LIST_KEYS[t];
   const key = keys ? keys[runningChain()] : null;
-  return { target: t, layout: LAYOUTS[t] ?? "slots", key, slots: slotsOf(t, key) };
-}
+  return /** @type {SwitcherView} */ ({ target: t, layout: LAYOUTS[t] ?? "slots", key, slots: slotsOf(t, key) });
+});
 
 /**
  * The bar for the current target.
@@ -239,7 +236,7 @@ function view() {
  * @returns {SwitcherView | null}
  */
 export function switcherView() {
-  return view();
+  return bar.value;
 }
 
 /**
@@ -268,7 +265,7 @@ const unsettled = (t) => (t === "Matrix profile" ? profileUnsettled() : liveUnse
  * @returns {Promise<void> | null}
  */
 export function slotLive(i) {
-  const v = view();
+  const v = bar.value;
   const s = v.slots[i];
   if (!s || (s.on && !unsettled(v.target))) return null;
   if (v.layout === "mode") return writeLive("mode", MODES[i].wire);
@@ -292,7 +289,7 @@ export const pickId = (i) => `swlist-${i}`;
  * @returns {{ value: string, label: string, disabled: boolean, reason: string }[] | null}
  */
 export function slotList(i) {
-  const v = view();
+  const v = bar.value;
   const t = v.target;
   const key = v.key;
   if (key) {

@@ -13,7 +13,7 @@ import { freqTicks, levelTicks, rangeSteps, spectrumAxes } from "../../../model/
 import { metersShown } from "../../../model/gauges/meter/meters.js";
 import { meterGeometry } from "../../meter/feed.js";
 import { METER_RANGES, meterFloor, meters, pageRange } from "../../ui/prefs.js";
-import { sourceMeter } from "../drawers/source.js";
+import { meterState } from "../drawers/source.js";
 import { plate } from "../plate.js";
 import { freqSpan } from "../view.js";
 
@@ -73,7 +73,7 @@ export function pageMeter() {
   const share = spanShare(freqSpan.value);
   const top = nyquist * share;
   return {
-    state: sourceMeter().state,
+    state: meterState(),
     range,
     ...rangeSteps(METER_RANGES, pageRange.value),
     slim: isSlim(),

@@ -6,7 +6,7 @@
 // and Shaping leave the chain while it plays.
 
 import { computed } from "@preact/signals";
-import { engineStatus, volumeShown } from "../signals.js";
+import { engineStatus, stable, volumeShown } from "../signals.js";
 import { runningValue, formFieldName, effectivePipelines } from "../resolve.js";
 import { schema } from "../schema.js";
 import { optionsFor } from "../ui/options.js";
@@ -333,7 +333,24 @@ function crossfeedNow() {
  *
  * @returns {Running}
  */
-export function railNow() {
+export const railNow = () => running.value;
+
+/** The Status and metadata attributes the rail prints. */
+const SHOWN_METADATA = ["samplerate", "bits", "channels"];
+const SHOWN_STATUS = ["active_rate", "active_bits", "active_channels"];
+
+/**
+ * The listed attributes of a Status or metadata block, those it carries.
+ *
+ * @param {Record<string, string> | undefined} block
+ * @param {string[]} names
+ * @returns {Record<string, string>}
+ */
+const attributes = (block, names) =>
+  Object.fromEntries(names.filter((n) => block?.[n] !== undefined).map((n) => [n, /** @type {string} */ (block?.[n])]));
+
+/** What runs now, held to one object while the rail would print the same. @type {{ readonly value: Running }} */
+const running = stable(() => {
   const s = engineStatus.value || {};
   const spk = /** @type {{ enabled?: boolean } | null} */ (speakers.value);
   return {
@@ -341,8 +358,8 @@ export function railNow() {
     chain: runningChain(),
     stage: sourceIsNx() ? "nx" : "1x",
     direct: truthy(runningValue("direct_sdm")),
-    metadata: s.metadata || {},
-    status: s.status || {},
+    metadata: attributes(s.metadata, SHOWN_METADATA),
+    status: attributes(s.status, SHOWN_STATUS),
     hf: nameAt("junk_filters", "filter_junk"),
     conv: {
       filter1x: nameAt("filters", "filter1x"),
@@ -366,4 +383,4 @@ export function railNow() {
     speakers: !!(spk && spk.enabled),
     hidden: hiddenStages.value,
   };
-}
+});

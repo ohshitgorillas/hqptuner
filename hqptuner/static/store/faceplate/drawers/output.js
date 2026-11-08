@@ -17,7 +17,7 @@
 // Rate row's label carries the restart mark while a tap moves a limit: under Auto, or with no picker, and never under
 // a family, where a tap on the running band pins live.
 
-import { effect, signal } from "@preact/signals";
+import { computed, effect, signal } from "@preact/signals";
 import { engineStatus } from "../../signals.js";
 import { effective, isDirty } from "../../resolve.js";
 import { edit } from "../../actions.js";
@@ -181,6 +181,9 @@ function pinPick(tiers) {
 /** The family the glass sets apart under each family pick: the other one. @type {Record<Fam, Fam>} */
 const OTHER_FAM = { f44: "f48", f48: "f44" };
 
+/** The rate the engine reports it is putting out. */
+const activeRate = computed(() => ((engineStatus.value || {}).status || {}).active_rate);
+
 /**
  * The dial's tiers with each band's needle, the hatch, the playing lamp, the dirty bands, the pin picker's pick, the
  * pin, the family set apart on the glass, and the restart mark on the Rate row's label.
@@ -189,13 +192,12 @@ const OTHER_FAM = { f44: "f48", f48: "f44" };
  */
 export function dialView() {
   const tiers = [...familyTiers(PCM_RATES, "pcm"), ...familyTiers(DSD_RATES, "sdm")];
-  const status = (engineStatus.value || {}).status || {};
   const picker = pinPick(tiers);
   const auto = picker === null || picker === "auto";
   return {
     tiers,
     limits: { pcm: tierOf(tiers, effective(RATE_KEYS.pcm)), sdm: tierOf(tiers, effective(RATE_KEYS.sdm)) },
-    playing: tierOf(tiers, status.active_rate),
+    playing: tierOf(tiers, activeRate.value),
     dirty: { pcm: isDirty(RATE_KEYS.pcm), sdm: isDirty(RATE_KEYS.sdm) },
     picker,
     pin: picker === null ? null : placeOf(tiers, pinnedRate.value),
