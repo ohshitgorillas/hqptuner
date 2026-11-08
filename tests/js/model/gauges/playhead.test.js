@@ -12,7 +12,9 @@
 // generated feeds send bursts of varied music at varied gaps, later bursts landing early and late against one another,
 // at the delays in FEEDS: inside the buffer, a playhead at wall speed never reaches the newest end on them; past it, a
 // gap outlasts the delay's queued music. The capture is the committed real feed, every frame that arrived by a paint
-// taken at that paint. Paints run at steady and at uneven intervals, with a late and a dropped paint. After each paint
+// taken at that paint. Paints run at steady and at uneven intervals, with a late and a dropped paint, one long stall and runs of slow paints. The owner's
+// Safari capture (tests/support/fixtures/safari_paint_schedule.json) is one more feed, its frames at their own arrival times and
+// its paints at their own times. After each paint
 // the test drops the frames the decision consumed and hands the paint's end, playhead and delay to the next one, with
 // whether the frame left at the front of the queue was queued when that paint decided. No clock is read: the schedule
 // is the order of arrivals and paints, and the `dt` each paint is handed is the only time there is.
@@ -95,7 +97,13 @@ const TAIL_MS = 300;
 //: The most a float sum of wall times may differ from the whole, ms.
 const EPS = 1e-9;
 //: Paint intervals in turn, wall ms: 60 Hz, 30 Hz, and uneven with late paints and one dropped.
-const PATTERNS = { steady_60hz: [PAINT_MS], steady_30hz: [SLOWER_PAINT_MS], uneven: [16, 16, 48, 16, 33] };
+const PATTERNS = {
+  steady_60hz: [PAINT_MS],
+  steady_30hz: [SLOWER_PAINT_MS],
+  uneven: [16, 16, 48, 16, 33],
+  a_long_stall: [...Array(40).fill(PAINT_MS), 640],
+  runs_of_slow_paints: [...Array(25).fill(PAINT_MS), ...Array(7).fill(72)],
+};
 //: How far later bursts land against the schedule they were generated on, wall ms, in turn: early and late.
 const SHIFTS = [-40, 55, -15, 35, 60, -30];
 //: The committed capture of the dev container's feed, read, never written.
@@ -261,6 +269,36 @@ function capture() {
   }
   const delay = Number(raw.engine_output_delay) / US_PER_MS + raw.owner_spectrum_offset_s * MS_PER_S;
   return { arrivals, last: arrivals[arrivals.length - 1].wall, delay };
+}
+
+//: The owner's Safari capture of paint and arrival times, read, never written, and the lengths its frames take in turn.
+const SAFARI_FILE = new URL("../../../support/fixtures/safari_paint_schedule.json", import.meta.url);
+const SAFARI_LENGTHS = [20, 64 / 3, 68 / 3];
+
+/**
+ * The Safari capture as a feed painted at its own paint times from the paint its first frame reaches: each frame at its
+ * own arrival time, laid end to end in lengths that change from one frame to the next.
+ *
+ * @returns {Feed & { delay: number, intervals: number[] }}  delay: the owner's spectrum offset, playback, ms
+ */
+function safari() {
+  const raw = JSON.parse(readFileSync(SAFARI_FILE, "utf8"));
+  const first = raw.raf.findIndex((/** @type {number} */ t) => t >= raw.feed[0]);
+  const start = raw.raf[first - 1];
+  let at = START;
+  const arrivals = raw.feed.map((/** @type {number} */ t, /** @type {number} */ i) => {
+    const ms = SAFARI_LENGTHS[i % SAFARI_LENGTHS.length];
+    const frame = { channels: [], at, ms, break: i === 0 };
+    at += ms;
+    return { wall: t - start, frames: [frame] };
+  });
+  const paints = raw.raf.slice(first - 1);
+  return {
+    arrivals,
+    last: arrivals[arrivals.length - 1].wall,
+    delay: Number(raw.store["hqptuner.spectrumOffset"]) * MS_PER_S,
+    intervals: paints.slice(1).map((/** @type {number} */ t, /** @type {number} */ i) => t - paints[i]),
+  };
 }
 
 //: One unbroken feed: HALF bursts of SHORT frames, then HALF of LONG ones.
@@ -526,6 +564,12 @@ for (const [rate, intervals] of Object.entries(PATTERNS)) {
   });
 }
 const CAPTURE = capture();
+const SAFARI = safari();
+RUNS.push({
+  name: "the_safari_capture_at_its_own_paints",
+  paints: play(scheduled(SAFARI.arrivals, SAFARI.intervals, SAFARI.last + TAIL_MS), SAFARI.delay).paints,
+  until: SAFARI.last,
+});
 RUNS.push({
   name: "the_capture_at_its_delay_at_60_hz",
   paints: play(scheduled(CAPTURE.arrivals, [CAPTURE_PAINT_MS], CAPTURE.last), CAPTURE.delay).paints,
