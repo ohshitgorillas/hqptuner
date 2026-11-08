@@ -162,7 +162,13 @@ def _put_daemon_on(app: stack_support.Stack, name: str) -> None:
 
 def _abuse(command: str, state: Path) -> subprocess.CompletedProcess[str]:
     """Run `scripts/abuse.sh <command>` against the stack, the way an operator runs it."""
-    env = {**os.environ, "HQPTUNER_ABUSE_STATE": str(state)}
+    # The session scrubs every HQPTUNER_* name from os.environ, and the script logs in with the pair.
+    env = {
+        **os.environ,
+        "HQPTUNER_ABUSE_STATE": str(state),
+        "HQPTUNER_HQP_USERNAME": stack_support.APP_PAIR[0],
+        "HQPTUNER_HQP_PASSWORD": stack_support.APP_PAIR[1],
+    }
     return subprocess.run(  # noqa: S603 — fixed argv, the script under test
         [str(REPO_ROOT / "scripts" / "abuse.sh"), command],
         capture_output=True,
