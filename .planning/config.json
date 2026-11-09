@@ -10,7 +10,10 @@
     "inline_plan_threshold": 3,
     "max_plan_tasks": 8,
     "test_command": null,
-    "lint_command": null
+    "lint_command": null,
+    "execute_workflows": true,
+    "use_workflows": true,
+    "config_menu": true
   },
   "parallelization": {
     "enabled": true,
@@ -33,7 +36,9 @@
     "forge_host": null
   },
   "planning": {
-    "commit_docs": true
+    "commit_docs": true,
+    "workflow_plans": true,
+    "code_map": true
   },
   "memory": {
     "backend": "builtin"
