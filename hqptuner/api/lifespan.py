@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from hqptuner.config import Config
 from hqptuner.core import autopilotops, junkcal
 from hqptuner.core.clock import Clock
-from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, host_is_unchosen
+from hqptuner.core.connection import ConnectionStore, build_http_client, host_is_unchosen
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
 from hqptuner.engine.discovery import probe
@@ -27,17 +27,18 @@ log = logging.getLogger(__name__)
 async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: ConnectionManager) -> None:
     """Point an install that has chosen no host at the daemon on the container's own host, where one answers.
 
-    Only where nothing else named a host, so a saved record and a pinned variable both keep their meaning.
+    Only where nothing else named a host, so a saved record and a pinned variable both keep their meaning. A record
+    the store refuses, corrupt or naming an invalid host, was a host the user chose: no probe follows it.
     The address is written to the config and to no store: nobody chose it, so it is asked again next start,
     and the first host the user saves replaces it. The 8088 client is rebuilt because the one ``create_app``
     built captured the address it was constructed with, which would leave the config lane on the old host
     while the control lane runs against the new one.
     """
-    record: ConnectionRecord | None = None
     try:
         record = connections.read()
     except StoreCorruptError as exc:
         log.warning("%s — starting unconfigured", exc)
+        return
     if not host_is_unchosen(record):
         return
     try:
