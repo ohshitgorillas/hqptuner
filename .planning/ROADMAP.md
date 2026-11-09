@@ -12,11 +12,11 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [x] **Phase 4: API exposure and authentication** - the API answers only callers it should, from the networks it should
 - [x] **Phase 5: Offline tests reach their fake daemons in-process** - no offline test opens a real network connection to a fake daemon
 - [x] **Phase 6: Connection host and stored credential** - the stored daemon credential reaches only the daemon the user chose
-- [ ] **Phase 7: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
-- [ ] **Phase 8: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
-- [ ] **Phase 9: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
-- [ ] **Phase 10: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
-- [ ] **Phase 11: Remove the 4321-only mode** - with the 8088 lane logged out, refused or down, the app does not work, and no code pretends it does
+- [ ] **Phase 7: Remove the 4321-only mode** - with the 8088 lane logged out, refused or down, the app does not work, and no code pretends it does
+- [ ] **Phase 8: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
+- [ ] **Phase 9: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
+- [ ] **Phase 10: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
+- [ ] **Phase 11: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
 
 ## Phase Details
 
@@ -112,11 +112,27 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
-### Phase 7: Config write path and input validation
+### Phase 7: Remove the 4321-only mode
+
+**Goal:** HQPTuner requires both the 4321 control lane and the 8088 config lane. With the 8088 lane logged out, its credentials refused, or the page or daemon down, the app does not work, and no code path, fixture or UI branch keeps LIVE, playback or any other feature working over 4321 alone (owner ruling, 2026-11-09).
+
+**Depends on:** Phase 6
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. No route, store or component serves a feature over 4321 alone; a missing, refused or failed 8088 lane reads as the app not working, not as a reduced mode.
+2. Every test app, shared fixture or per-file builder, is built as the supported install with both lanes answering and the 8088 forms loaded; no test builds a 4321-only or closed-control-port app as a working install, and tests that pinned the 4321-only behavior are removed.
+3. The fake 8088 `/config` page renders each setting as the real 6.0.4 page does, a `select` with its options where the real page has one, so a test's choices come from the page.
+4. No documentation, comment or docstring describes a 4321-only mode as supported.
+5. `make check` is green on the phase's last `dev` commit.
+
+### Phase 8: Config write path and input validation
 
 **Goal:** Findings F-006, F-007, F-010, F-011, F-012, F-013, F-014, F-016, F-018, F-019, F-026, F-032 and F-033 are each fixed or carry an owner ruling
 
-**Depends on:** Phase 4
+**Depends on:** Phase 7
 
 **Requirements:** None
 
@@ -127,11 +143,11 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
-### Phase 8: Apply and store integrity
+### Phase 9: Apply and store integrity
 
 **Goal:** Findings F-029, F-030 and F-031 are each fixed or carry an owner ruling
 
-**Depends on:** Phase 7
+**Depends on:** Phase 8
 
 **Requirements:** None
 
@@ -141,7 +157,7 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 2. Each fixed finding has a test or check that fails against the pre-fix code.
 3. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
-### Phase 9: Release pipeline supply chain
+### Phase 10: Release pipeline supply chain
 
 **Goal:** Findings F-034, F-035, F-036, F-037, F-038, F-039, F-040, F-041 and F-042 are each fixed or carry an owner ruling
 
@@ -156,7 +172,7 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
-### Phase 10: Agent tooling and repo guards
+### Phase 11: Agent tooling and repo guards
 
 **Goal:** Findings F-043, F-044, F-045, F-046, F-047 and F-048 are each fixed or carry an owner ruling
 
@@ -171,17 +187,3 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
 
-### Phase 11: Remove the 4321-only mode
-
-**Goal:** HQPTuner requires both the 4321 control lane and the 8088 config lane. With the 8088 lane logged out, its credentials refused, or the page or daemon down, the app does not work, and no code path, fixture or UI branch keeps LIVE, playback or any other feature working over 4321 alone (owner ruling, 2026-11-09).
-
-**Depends on:** Phase 7
-
-**Requirements:** None
-
-**Success Criteria:**
-
-1. No route, store or component serves a feature over 4321 alone; a missing, refused or failed 8088 lane reads as the app not working, not as a reduced mode.
-2. No test fixture builds a 4321-only app as a supported install; tests that pinned the 4321-only behavior are removed.
-3. No documentation, comment or docstring describes a 4321-only mode as supported.
-4. `make check` is green on the phase's last `dev` commit.
