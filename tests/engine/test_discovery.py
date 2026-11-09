@@ -107,8 +107,17 @@ def test_a_reply_reads_as_the_sender_address_beside_the_bodys_name_and_version(
         b'<other name="Opal">hqplayer</other>',
         b'<!DOCTYPE discover [<!ENTITY name "Opal">]><discover name="&name;">hqplayer</discover>',
         b'<?xml version="1.0" encoding="x-bogus"?><discover name="Opal">hqplayer</discover>',
+        b'<?xml version="1.0" encoding="shift_jis"?><discover name="Opal">hqplayer</discover>',
+        b'<?xml version="1.0" encoding="idna"?><discover name="Opal">hqplayer</discover>',
     ],
-    ids=["unparseable body", "wrong root tag", "entity declaration", "encoding no codec reads"],
+    ids=[
+        "unparseable body",
+        "wrong root tag",
+        "entity declaration",
+        "encoding no codec reads",
+        "multi-byte encoding the parser refuses",
+        "encoding that is no text codec",
+    ],
 )
 def test_a_non_reply_datagram_raises_notareply(payload: bytes) -> None:
     with pytest.raises(NotAReplyError):
