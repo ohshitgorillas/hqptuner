@@ -1,35 +1,31 @@
-PLAN PARTIAL
+PLAN COMPLETE
 
 Plan: .planning/phases/5/PLAN-2.md
 
-Tasks: 2 of 7
+Tasks: 3 of 3
 
 | Task | Commit | Note |
 |---|---|---|
-| 1 - bursty capture | 7593f50f | Probe `scripts/probes/capture_meter_feed.py` and fixture `tests/support/fixtures/meter_feed_capture.json` committed. Ran once, 6 s, owner offset 0.747 s, engine `output_delay` '500682' us. 282 events, first `geometry`, 281 `frame`, 14 gaps over 100 ms, longest 211.9 ms. Effective delay 500.682 + 747 = 1247.682 ms. Probe ran foreground, exited rc=0, `ps` shows no capture process. Prettier reformatted the fixture JSON at pre-commit (content unchanged, re-read and rechecked after). |
-| 2 - owner limits | none (owner decision) | Recorded below, verbatim. |
+| 1 - bursty capture | 7593f50f | Earlier run. Probe and fixture committed. Effective delay 1247.682 ms, longest gap 211.9 ms, 14 gaps over 100 ms. |
+| 2 - owner ruling | none (owner decision) | Earlier run. Messages 1 and 2 verbatim in `plan-2.2.md` (rotated copy of an earlier report); message 3 verbatim in PLAN-2.md Task 2. |
+| 3 - timing spec states the playhead's rule | none (already applied in 7c7265b9) | HEAD 7c7265b9 (`docs(5): a delay change jumps the playhead by the change`) already holds the owner's rule in `docs/spec/timing.md`: the two-clocks paragraph, rule 1, rule 2. Working tree has no diff for the file, nothing to stage or commit. |
 
-## Task 2: owner answers (verbatim)
+## Task 3 Verify
 
-Owner answer 1: "Uhhh well I'm a human being not a robot so I'm not sure how you expect me to answer those questions lol. In either case, the answer is "it doesn't stutter, it's smooth". that isn't a "how much stutter can we have"? it's a "how do we eliminate the possibility of stutter"?"
+Prediction: forbidden-phrase grep prints nothing; "Arrivals do not steer it" count 1; "jumps by the change" count 2; softwrap check exits 0. Observed: grep printed nothing; counts 1 and 2; `md-softwrap.py --check docs/spec/timing.md` rc=0; `git diff HEAD -- docs/spec/timing.md` empty. `git show HEAD -- docs/spec/timing.md` shows exactly three changed lines (two-clocks paragraph, rule 1, rule 2); rule 2's list ends "the animation step rate. None of them stands in for a measurement." with no playhead constant. Not as written: `git show --stat HEAD` lists more than `docs/spec/timing.md`, because the orchestrator's commit 7c7265b9 carried CONTEXT, PLAN and review files with it. The timing.md change itself is the one the task describes.
 
-Owner answer 2: "...what??? the fucking delay should be goddamn irrelevant because we're usign teh output delay as a buffer right??"
+## Verify clause accepted on the pre-commit run
 
-### Orchestrator's reading (not the owner's words)
+`scripts/gate.sh make trivia` was not run. Checkpoint outcome, the owner's answer: "Accept pre-commit run". The triviajudge pass at pre-commit on 7c7265b9 is the accepted evidence for the trivia Verify clause.
 
-The orchestrator stated this reading of those answers to the owner; the owner did not object to the limits, only to treating the delay as relevant:
+## Full suite
 
-- Stand-still limit: 0 wall ms. While music plays through the replayed capture, the spectrogram's scroll never stands still between paints.
-- Jump limit: no paint moves the scroll further than the wall time elapsed since the previous paint, rounded up to the next whole column (one column = 25 ms at the 30 s window); i.e. at most one column of quantization slack over wall speed.
-- The spectrogram's scroll stands for "smooth spectrum playback".
-- The delay is the buffer: the test asserts smoothness at the captured effective delay (1247.682 ms), and the limits hold whatever the delay, so long as the buffer exceeds the longest arrival gap. No limit depends on the delay value.
+`workflow.test_command` is null; ran the Makefile target `make check` once, through `scripts/gate.sh make check`. Result: `exit=0 log=/tmp/gate-make-fytKqJhu.log`. Coverage line: all files 97.17 stmts / 91.63 branch / 90.94 funcs. No repair round needed. No leftover processes from the run.
 
 Deviations: none
 
 Open items:
 
-- Effective delay is nonzero (1247.682 ms) so Task 1's stop-and-ask does not fire. Longest gap 211.9 ms is below the delay, so by D-01 every captured gap runs at wall speed throughout and none reaches the newest frame's end.
-- Fixture is 6 s (14 gaps over 100 ms, the plan needs 5); about 1.6 MB before prettier. A 2 s prefix would still hold 5 gaps. Left at full capture, not trimmed.
-- Skills `live-daemon` and `opal-hqptuner` not loaded (no Skill tool); the probe is GET-only against the dev container.
-- Tasks 3 to 7 not started yet; work order kept (10.1).
-- Prior report rotated to `plan-2.1.md` (continuation dispatch).
+- Task 3 had nothing to commit: the spec text was committed by 7c7265b9 before this dispatch. Task 3's "dispatch by the `pacer` agent" did not happen; executors spawn no agents and the work was already done.
+- Untracked `.planning/phases/2/baseline/failures.log` is not mine and is left alone.
+- Prior reports rotated: an earlier run's `plan-2.md` moved to `plan-2.2.md` (`plan-2.1.md` was already there).
