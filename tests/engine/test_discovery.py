@@ -36,7 +36,17 @@ from conftest import spawn_threaded_daemon
 from fake_network import NETWORK
 from virtual_deadline import VirtualDeadline
 
-from hqptuner.engine.discovery import Daemon, NotAReplyError, Search, dedupe, discover, enrich, parse_reply
+from hqptuner.engine.discovery import (
+    MAX_BYTES,
+    MAX_REPLIES,
+    Daemon,
+    NotAReplyError,
+    Search,
+    dedupe,
+    discover,
+    enrich,
+    parse_reply,
+)
 
 OPAL_REPLY = b'<discover name="Opal" result="OK" version="Signalyst HQPlayer Embedded 6">hqplayer</discover>'
 SAPPHIRE_REPLY = (
@@ -328,3 +338,79 @@ def test_a_search_whose_found_hqplayer_falls_silent_ends_on_the_handed_deadline_
     silent_control_port: int,
 ) -> None:
     assert listed_without_real_time(silent_control_port) == [SEARCH_HOST]
+
+
+class FloodSocket:
+    """A datagram socket that answers every receive with a valid reply from a sender not heard before. Each
+    receive advances the clock a millisecond, so a sweep with no other limit ends on its deadline."""
+
+    def __init__(self, padding: int) -> None:
+        self.padding = padding
+        self.now = 0.0
+        self.reads = 0
+        self.timeout: float | None = None
+        self.sent: list[tuple[bytes, tuple[str, int]]] = []
+        self.closed = False
+
+    def settimeout(self, value: float | None, /) -> None:
+        self.timeout = value
+
+    def sendto(self, data: bytes, address: tuple[str, int], /) -> int:
+        self.sent.append((data, address))
+        return len(data)
+
+    def recvfrom(self, _bufsize: int, /) -> tuple[bytes, tuple[str, int]]:
+        self.reads += 1
+        self.now += 0.001
+        name = "x" * self.padding
+        payload = f'<discover name="{name}" version="6">hqplayer</discover>'.encode()
+        return payload, (f"10.1.{self.reads // 256}.{self.reads % 256}", 4321)
+
+    def close(self) -> None:
+        self.closed = True
+
+
+class SweepUnderFlood:
+    """What one sweep did against a flood: the daemons it listed, the dials it made, and the passes it waited."""
+
+    def __init__(self, padding: int) -> None:
+        self.flood = FloodSocket(padding)
+        self.found: list[Daemon] = []
+        self.dials = 0
+        self.waits = 0
+
+    async def run(self) -> "SweepUnderFlood":
+        async def sleep(_seconds: float) -> None:
+            self.waits += 1
+            await asyncio.sleep(0)
+
+        async def refusing_opener(_host: str, _port: int) -> tuple[asyncio.StreamReader, asyncio.StreamWriter]:
+            self.dials += 1
+            await asyncio.sleep(0)
+            raise ConnectionRefusedError(111, "Connection refused")
+
+        self.found = await discover(
+            Search(target="239.192.0.199", alias=None),
+            WAIT,
+            clock=lambda: self.flood.now,
+            sleep=sleep,
+            opener=refusing_opener,
+            datagrams=lambda: self.flood,
+        )
+        return self
+
+
+async def test_a_sweep_against_a_flood_of_senders_keeps_and_dials_at_most_the_reply_cap() -> None:
+    swept = await SweepUnderFlood(padding=0).run()
+    assert (len(swept.found), swept.dials) == (MAX_REPLIES, MAX_REPLIES)
+
+
+async def test_a_sweep_waits_on_the_sleep_it_was_handed_once_per_datagram_it_reads() -> None:
+    swept = await SweepUnderFlood(padding=0).run()
+    assert swept.waits >= swept.flood.reads
+
+
+async def test_a_sweep_against_large_replies_stops_at_the_byte_cap() -> None:
+    padding = MAX_BYTES // 4
+    swept = await SweepUnderFlood(padding=padding).run()
+    assert len(swept.found) == 4

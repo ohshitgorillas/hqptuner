@@ -36,6 +36,14 @@ PORT = 4321
 #: a real clock.
 POLL = 0.05
 
+#: Replies one sweep keeps, and so daemons it dials: a machine runs one hqplayerd and a LAN a handful, so 32 is
+#: several times any real answer. Every kept sender is dialled on 4321 in turn, so the cap bounds that too.
+MAX_REPLIES = 32
+
+#: Bytes of reply one sweep keeps. A real reply is about 110 bytes, so 64 KiB is 500 times the cap's worth of
+#: them, and still stops a handful of near-maximal datagrams from filling memory.
+MAX_BYTES = 64 * 1024
+
 #: The request datagram, byte for byte as protocol.md §2 gives it.
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
@@ -210,8 +218,13 @@ async def _collect(
     There is no count to wait for: a daemon that is not there sends nothing, so the deadline is the only thing
     that ends the read. The deadline is tested after every pass, on both arms, so the last thing this does
     before it ends is read the buffer, and a socket answering without pause still ends on time.
+
+    Keeping stops at ``MAX_REPLIES`` replies or ``MAX_BYTES`` bytes, so a flood of senders neither fills memory
+    nor lengthens the list of daemons dialled after. Every pass awaits ``sleep``, a zero-length one after a
+    datagram, so a socket that never runs dry still hands the event loop back between reads.
     """
     replies: list[tuple[bytes, str]] = []
+    kept = 0
     while clock() < deadline:
         try:
             data, addr = sock.recvfrom(65535)
@@ -219,6 +232,10 @@ async def _collect(
             await sleep(POLL)
             continue
         replies.append((data, addr[0]))
+        kept += len(data)
+        await sleep(0)
+        if len(replies) >= MAX_REPLIES or kept >= MAX_BYTES:
+            break
     return replies
 
 
