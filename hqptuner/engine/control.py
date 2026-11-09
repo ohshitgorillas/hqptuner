@@ -18,6 +18,7 @@ from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 from typing import Protocol
 
+from hqptuner.conf.noanswer import TOTAL_TIMEOUTS
 from hqptuner.engine.controlerrors import (
     CommandError,
     CommandRefusedError,
@@ -203,12 +204,25 @@ class ControlClient:
                     raise
 
     async def _recv_document(self, command: str) -> ET.Element:
+        """Read one response document: the first chunk under the per-read wait, the rest under a total deadline too.
+
+        A daemon that sends one byte just inside the per-read wait would otherwise hold a document open without end.
+        The total is ``TOTAL_TIMEOUTS`` per-read waits, counted from the first chunk, so a daemon that never answers
+        is still given up on by the first wait alone and reports that wait's seconds.
+        """
         reader = self._reader
         if reader is None:
             raise self._unreachable()
+        first = await self._deadline.wait_for(reader.read(65536), self._timeout)
+        total = self._timeout * TOTAL_TIMEOUTS
+        try:
+            return await self._deadline.wait_for(self._accumulate(reader, first, command), total)
+        except TimeoutError as exc:
+            raise ControlTimeoutError(timeout=total) from exc
+
+    async def _accumulate(self, reader: asyncio.StreamReader, chunk: bytes, command: str) -> ET.Element:
         data = b""
         while True:
-            chunk = await self._deadline.wait_for(reader.read(65536), self._timeout)
             if not chunk:
                 raise ConnectionClosedError()
             data += chunk
@@ -220,6 +234,11 @@ class ControlClient:
                     return frame
             if len(data) > MAX_RESPONSE:
                 raise ResponseTooLargeError(command=command, limit=MAX_RESPONSE)
+            try:
+                chunk = await self._deadline.wait_for(reader.read(65536), self._timeout)
+            except TimeoutError as exc:
+                # Not the total deadline's: that one is the outer wait, and this read ran out its own.
+                raise ControlTimeoutError(timeout=self._timeout) from exc
 
     # --- typed helpers -------------------------------------------------
 

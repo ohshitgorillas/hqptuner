@@ -16,6 +16,8 @@ HQPTuner is a configuration interface for HQPlayer Embedded. It replaces the sto
 
 XML messages, unauthenticated. Carries the runtime-switchable settings (filters, dither/modulator, mode, rate, matrix profile) and all status and metering, with no restart. Changes are **memory-only, never persisted** (§3.6). Wire reference: `docs/protocol.md`.
 
+A response document is bounded twice. Each read waits at most the request timeout, and a document still incomplete six request timeouts after its first chunk arrives is given up on as no answer, naming the total's seconds, with the connection dropped as for any timeout. A document over 4 MiB without ending is refused.
+
 ### 2.2 HTTP lane and the restore path (TCP 8088)
 
 Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope=system`), on which the daemon self-restarts in about 5.6 s.

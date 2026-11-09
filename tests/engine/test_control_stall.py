@@ -13,15 +13,24 @@ per-command deadline runs on the app's virtual clock (docs/testing.md §7), and
 the cases assert on what came back, never on how long it took.
 """
 
+import asyncio
 import logging
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
+import fake_network
 import pytest
 from apps import live_app, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog
+from fake_network import TotalDeadline
 from fastapi.testclient import TestClient
+from virtual_clock import VirtualClock
+
+from hqptuner.conf.noanswer import TOTAL_TIMEOUTS
+from hqptuner.engine.control import ControlClient
+from hqptuner.engine.controlerrors import ControlError, ControlTimeoutError
 
 #: The per-command deadline the app is built with, in virtual seconds. The cases
 #: here end on a dropped connection, never on this deadline running out.
@@ -201,3 +210,68 @@ def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
 def test_a_write_with_no_control_connection_is_unavailable(api_client: TestClient) -> None:
     resp = api_client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
     assert resp.status_code == 503
+
+
+# --- a document that arrives a byte at a time -----------------------------------
+# A daemon that sends a byte just inside the per-read wait never trips it, and never finishes its document either.
+# The fake takes a command and drips one byte every `DRIP_GAP` virtual seconds for longer than the client's total
+# deadline, then closes the connection. A client with no total deadline reads the close and reports that; one with it
+# gives up first, on the timeout.
+
+#: The per-read wait the client is built with, and two production-sized values of it.
+READ_WAITS = [5.0, 12.0]
+
+#: Virtual seconds between the bytes. Below every read wait, and dividing no total, so no byte falls due at the
+#: instant a deadline does.
+DRIP_GAP = 1.7
+
+#: Bytes dripped: enough to outlast the longest total here (12 * 6 = 72 s) at `DRIP_GAP`.
+DRIP_BYTES = 60
+
+
+def _dripping(clock: VirtualClock) -> fake_network.StreamCallback:
+    async def drip(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        await reader.read(4096)
+        try:
+            for _ in range(DRIP_BYTES):
+                writer.write(b"x")
+                await writer.drain()
+                await clock.sleep(DRIP_GAP)
+        except ConnectionError:
+            return
+        writer.close()
+
+    return drip
+
+
+async def _dripped_document(read_wait: float) -> None:
+    clock = VirtualClock()
+    with fake_network.serving(_dripping(clock)) as port:
+        client = ControlClient(
+            "127.0.0.1", port, read_wait, deadline=TotalDeadline(clock.sleep), opener=fake_network.open_stream
+        )
+        try:
+            await client.connect()
+            await client.request("<GetInfo/>")
+        finally:
+            await client.close()
+
+
+async def _failure_of_a_dripped_document(read_wait: float) -> str:
+    try:
+        await _dripped_document(read_wait)
+    except ControlError as exc:
+        return str(exc)
+    return ""
+
+
+@pytest.mark.parametrize("read_wait", READ_WAITS)
+async def test_a_document_still_dripping_past_the_total_deadline_is_given_up_on(read_wait: float) -> None:
+    with pytest.raises(ControlTimeoutError):
+        await _dripped_document(read_wait)
+
+
+@pytest.mark.parametrize("read_wait", READ_WAITS)
+async def test_the_give_up_on_a_dripped_document_reports_the_total_deadline_in_seconds(read_wait: float) -> None:
+    report = await _failure_of_a_dripped_document(read_wait)
+    assert [float(n) for n in re.findall(r"\d+(?:\.\d+)?", report)] == [read_wait * TOTAL_TIMEOUTS]

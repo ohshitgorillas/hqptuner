@@ -12,11 +12,12 @@ from typing import Any, Protocol
 
 import httpx
 
-#: How many of an 8088 request's own timeouts a whole exchange may take: the Digest challenge round trip and every
-#: read of the body together. httpx's timeout restarts at every read, so a daemon that sends one byte just inside it
-#: holds the exchange open for as long as it likes. Six is 60 s at the default 10 s, in which the largest body, an
-#: 8.7 MB settings backup, arrives over any link of 1.2 Mbit/s or faster; a silent daemon is still given up on by the
-#: first timeout, not the sixth.
+#: How many of a request's own timeouts a whole exchange may take: for an 8088 request, the Digest challenge round
+#: trip and every read of the body together; for a Control API command, every read of its answer after the first.
+#: httpx's timeout restarts at every read, so a daemon that sends one byte just inside it holds the exchange open for
+#: as long as it likes. Six is 60 s at the default 10 s, in which the largest 8088 body, an 8.7 MB settings backup,
+#: arrives over any link of 1.2 Mbit/s or faster; a silent daemon is still given up on by the first timeout, not the
+#: sixth.
 TOTAL_TIMEOUTS = 6
 
 
