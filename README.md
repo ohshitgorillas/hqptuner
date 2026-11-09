@@ -241,7 +241,8 @@ All knobs are environment variables (see `hqptuner/config.py`):
 | `HQPTUNER_ALARM_THRESHOLD` | `15.0` | Seconds unreachable before alarm |
 | `HQPTUNER_REQUEST_TIMEOUT` | `5.0` | Per-request timeout (s) |
 | `HQPTUNER_DISCOVERY_TIMEOUT` | `3.0` | How long `GET /api/discover` waits for daemons to answer (s) |
-| `HQPTUNER_CONTAINER_HOST_ALIAS` | `host.docker.internal` | Address tried at startup and by discovery when nothing else has named the daemon's host |
+| `HQPTUNER_CONTAINER_HOST_ALIAS` | `host.docker.internal` | Docker only: address tried at startup and by discovery when nothing else has named the daemon's host |
+| `HQPTUNER_IN_IMAGE` | unset | Set to `1` by the Docker image. Marks the process as running in the image, which is the only place the host alias is tried |
 | `HQPTUNER_DISCOVERY_TARGET` | `239.192.0.199` | Where discovery sends its datagram; HQPlayer's multicast group by default, or a host address on a network that drops multicast. `host:port` overrides the port |
 | `HQPTUNER_DATA_DIR` | packaged `hqptuner/data/` | Static metadata JSON |
 | `HQPTUNER_BACKUP_DIR` | `backups/` | Pre-apply config backups |
