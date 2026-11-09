@@ -37,8 +37,8 @@ POLL = 0.05
 REQUEST = b'<?xml version="1.0" encoding="UTF-8"?><discover>hqplayer</discover>'
 
 #: The address a container reaches its own host on, where the deployment provides
-#: it. Settable through ``Config.container_host_alias`` because the name resolves
-#: inside a container only, so nothing outside one can be pointed at it.
+#: it. The name resolves inside a container only, so it is asked only in the image
+#: (``Config.in_image``), and settable through ``Config.container_host_alias``.
 ALIAS = "host.docker.internal"
 
 
