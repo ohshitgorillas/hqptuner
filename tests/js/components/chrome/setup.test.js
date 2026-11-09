@@ -50,6 +50,36 @@ function authLinkHostname(out) {
   return href ? new URL(href).hostname : undefined;
 }
 
+/** @param {string} out */
+function authLinkHref(out) {
+  const link = elements(out).find((el) => attr(el, "data-testid") === "daemon-auth-link");
+  return link && attr(link, "href");
+}
+
+for (const kase of [
+  { name: "an IPv6 host field", host: "2001:db8::5", page: "", href: "http://[2001:db8::5]:8088/auth" },
+  { name: "an IPv4 host field", host: "10.0.0.9", page: "", href: "http://10.0.0.9:8088/auth" },
+  {
+    name: "a server-side address with a bare IPv6 page host",
+    host: "::1",
+    page: "2001:db8::7",
+    href: "http://[2001:db8::7]:8088/auth",
+  },
+  {
+    name: "a server-side address with a bracketed IPv6 page host",
+    host: "::1",
+    page: "[2001:db8::7]",
+    href: "http://[2001:db8::7]:8088/auth",
+  },
+]) {
+  test(`test_the_daemon_link_for_${kase.name.replaceAll(" ", "_")}_is_the_url_the_browser_follows`, () => {
+    setupOpen.value = true;
+    form.value = { ...FORM, host: kase.host };
+    pageHost.value = kase.page;
+    assert.equal(authLinkHref(render(html`<${Setup} />`)), kase.href);
+  });
+}
+
 test("a host field naming the server's own machine links the daemon page through the host the page was served from", () => {
   const served = "192.168.1.40";
   setupOpen.value = true;

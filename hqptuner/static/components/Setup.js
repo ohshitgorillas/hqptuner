@@ -114,6 +114,9 @@ function hostHelp() {
 // inside the container.
 const SERVER_SIDE_ONLY = ["127.0.0.1", "localhost", "::1", "host.docker.internal"];
 
+/** @param {string} address the address without the brackets an IPv6 literal may arrive in */
+const unbracketed = (address) => address.replace(/^\[(.*)\]$/, "$1");
+
 // The daemon's own page, always a link, built from an address the browser can reach.
 //
 // The host field is what HQPTuner dials from where HQPTuner runs, and this link is
@@ -124,9 +127,11 @@ const SERVER_SIDE_ONLY = ["127.0.0.1", "localhost", "::1", "host.docker.internal
 // It opens in its own tab: this panel is where the credentials are typed, so
 // navigating away from it would lose them.
 function eightyEightyEight() {
-  const host = form.value.host.trim();
-  const reachable = !host || SERVER_SIDE_ONLY.includes(host) ? pageHost.value : host;
-  return html`<a href=${`http://${reachable}:8088/auth`} target="_blank" rel="noreferrer" data-testid="daemon-auth-link">
+  const host = unbracketed(form.value.host.trim());
+  const reachable = unbracketed(!host || SERVER_SIDE_ONLY.includes(host) ? pageHost.value : host);
+  // An IPv6 literal is bracketed in a URL; the brackets are stripped first so they are added once.
+  const authority = reachable.includes(":") ? `[${reachable}]` : reachable;
+  return html`<a href=${`http://${authority}:8088/auth`} target="_blank" rel="noreferrer" data-testid="daemon-auth-link">
     ${"default web page at port 8088"}
   </a>`;
 }
