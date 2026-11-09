@@ -32,9 +32,9 @@ Discovery (UDP 4321 multicast, `239.192.0.199`) is unauthenticated and read-only
 
 ### 2.4 Credentials
 
-HQPTuner takes the HQPlayer management username and password from `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`, or from the install's saved connection record when the variables are unset or empty (`hqptuner/core/connection.py`; `POST /api/connection` rebuilds the 8088 client in place rather than waiting for a restart). It uses them for HTTP Digest auth against 8088 (realm `com.signalyst.hqplayer.embedded`) and holds the credential server-side. Read-only use and all live (4321) settings work without them; only persistent writes and preset switching require them. The 4321 `SessionAuthentication` crypto handshake is **not** used, and the daemon rejects self-generated client keys anyway (`docs/protocol.md` §3.5–§3.6).
+HQPTuner takes the HQPlayer management username and password from `HQPTUNER_HQP_USERNAME` / `HQPTUNER_HQP_PASSWORD`, or from the install's saved connection record when the variables are unset or empty (`hqptuner/core/connection.py`; `POST /api/connection` rebuilds the 8088 client in place rather than waiting for a restart). It uses them for HTTP Digest auth against 8088 (realm `com.signalyst.hqplayer.embedded`) and holds the credential server-side. HQPTuner requires both lanes: with the credential missing or refused, or the 8088 page or the daemon down, the app does not work, and no feature runs over 4321 alone. The 4321 `SessionAuthentication` crypto handshake is **not** used, and the daemon rejects self-generated client keys anyway (`docs/protocol.md` §3.5–§3.6).
 
-An install whose username or password is empty has no 8088 lane, so `ready` never turns true: the status pill reads Unreachable and the page runs dimmed, the same reading a refused credential gets. Neither field is empty by default: both fall back to hqplayerd's published stock pair (`config.STOCK_CREDENTIAL`), so an install that has configured nothing connects outright against a daemon still on that pair.
+An install whose username or password is empty has no 8088 lane, so `ready` never turns true: the status pill reads Unreachable and the app does not work, the same reading a refused credential gets. Neither field is empty by default: both fall back to hqplayerd's published stock pair (`config.STOCK_CREDENTIAL`), so an install that has configured nothing connects outright against a daemon still on that pair.
 
 **A field's emptiness therefore does not say whether the install has been configured; `Config.hqp_password_chosen` does**: a password that is not the stock default. `GET /api/connection` reports it as `has_password`, so the connection panel can tell a stored credential from a defaulted one. A blank password field in that panel keeps whichever credential is in force and never clears one.
 
@@ -90,7 +90,7 @@ Chain fields a staged apply does route live are recorded per chain (`lanes/live/
 
 ### 4.3 Two write paths share no staging state
 
-The tabs view stages into the shared `PendingStore`, and Apply flushes **everything** in it (`api/routes/pending.py`, apply route in `api/routes/apply.py`). LIVE writes one batch on the spot, readback-verified, and touches neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a LIVE control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
+The tabs view stages into the shared `PendingStore`, and Apply flushes **everything** in it (`api/routes/pending.py`, apply route in `api/routes/apply.py`). LIVE writes one batch on the spot, readback-verified, and writes through neither the pending store nor the 8088 lane, so it can never restart the daemon (`POST /api/config/live` → `lanes/live/lane.apply_now`). The rule binds in both directions: a LIVE control routed through stage and apply would apply edits the user staged elsewhere and never asked for.
 
 ### 4.4 Mode rides alone, then the rest re-resolves
 

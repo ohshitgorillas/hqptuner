@@ -98,7 +98,7 @@ Descriptions, tooltips, and constraint data (e.g. each modulator's minimum rate)
 ## Requirements
 
 * A running HQPlayer **Embedded** daemon
-* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required for persistent-config writes and presets. Without it the configuration lane never answers, so HQPTuner reads Unreachable and runs dimmed; reads and live settings still work
+* The hqplayerd management credential (set via `hqplayerd -u/-s` or the `/auth` page) — required. Without it the configuration lane never answers, and HQPTuner reads Unreachable and does not work
 * Docker with Compose v2, OR a Linux system that installs deb or rpm packages, OR a Mac running macOS 15 or later, OR a PC running Windows on x64 or Arm64, OR Python v3.12+
 
 ## Install & run
