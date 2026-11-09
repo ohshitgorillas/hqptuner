@@ -62,7 +62,7 @@ Each finding of `.planning/security/REPORT.md` has one entry: its disposition, t
 ### F-020 · Discovery trusts spoofed UDP replies and parses them with the stdlib XML parser on the event loop
 
 - Disposition: Fixed
-- Commits: `1342e893` (a reply is parsed with defusedxml, and an entity declaration or an unknown encoding is a datagram that is not a reply), `eb260c54` (one sweep keeps and dials at most 32 replies and 64 KiB, and yields on every pass)
+- Commits: `1342e893` (a reply is parsed with defusedxml, and an entity declaration or an unknown encoding is a datagram that is not a reply), `eb260c54` (one sweep keeps and dials at most 32 replies and 64 KiB, and yields on every pass), `a87efb10` (a datagram declaring an encoding the parser refuses, such as shift_jis or idna, is not a reply)
 - Proof: `tests/engine/test_discovery.py::test_a_non_reply_datagram_raises_notareply`, `tests/engine/test_discovery.py::test_a_sweep_against_a_flood_of_senders_keeps_and_dials_at_most_the_reply_cap`, `tests/engine/test_discovery.py::test_a_sweep_waits_on_the_sleep_it_was_handed_once_per_datagram_it_reads`, `tests/engine/test_discovery.py::test_a_sweep_against_large_replies_stops_at_the_byte_cap`
 
 ### F-021 · A LAN discovery impostor can fill the host field, then receive the stored password's Digest response and supply a phishing link
