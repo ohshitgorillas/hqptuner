@@ -84,7 +84,7 @@ hqpcreds
 # Host-specific knowledge never lands here; it lives in a host skill.
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
-# analyzer output over this machine's session transcripts (scripts/budget_miner.py)
+# agent session logs
 .claude/logs/
 # per-session agent worktrees
 .claude/worktrees/

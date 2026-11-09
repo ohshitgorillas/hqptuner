@@ -3,9 +3,8 @@
 #
 #   scripts/ship.sh <dev|beta|main> [--dry-run]
 #
-# The whole promotion is one shell invocation on purpose: the change-budget
-# hook meters tool calls, not work, so a five-step promotion run as five Bash
-# calls trips the leash before it finishes. Chained here it costs one.
+# The whole promotion is one shell invocation on purpose, so it cannot stop
+# half-done between steps.
 #
 # It does NOT commit. Authoring the release commit — version bump in
 # pyproject.toml + hqptuner/__init__.py, the CHANGELOG entry, the message —

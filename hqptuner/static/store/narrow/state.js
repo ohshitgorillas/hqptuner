@@ -1,5 +1,5 @@
 // Client-side filter narrowing — HQPTuner's own feature (no daemon field): the
-// filter menus are 60-77 entries, so the narrow bar filters which options show
+// filter menus are 60-80 entries, so the narrow bar filters which options show
 // by facet. Purely presentational: it never changes a staged value, only what
 // the dropdown offers. The current selection gets no exemption: it lists only
 // when it passes the facets, so what the menu shows is exactly the batch the

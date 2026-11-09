@@ -109,6 +109,9 @@ if sys.platform == "darwin":
             # A frozen bundle supports the macOS it was built on and later, and
             # .github/workflows/release.yml builds on macOS 15.
             "LSMinimumSystemVersion": "15.0",
+            # The app listens on every address, as the Linux service and the
+            # container do. LaunchServices supplies it on a launch from Finder.
+            "LSEnvironment": {"HQPTUNER_LISTEN_HOST": "0.0.0.0"},
             # The text of the system's local network alert, which the daemon
             # connection and discovery both raise on a launch from Finder.
             "NSLocalNetworkUsageDescription": (

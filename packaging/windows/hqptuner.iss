@@ -25,6 +25,7 @@ UninstallDisplayIcon={app}\HQPTuner.exe
 WizardStyle=modern
 Compression=lzma2
 SolidCompression=yes
+ChangesEnvironment=yes
 ; Paths below are relative to the repository root.
 SourceDir=..\..
 OutputDir=dist
@@ -37,6 +38,10 @@ SignedUninstaller=yes
 [Files]
 Source: "dist\windows\arm64\HQPTuner\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; Check: PreferArm64Files
 Source: "dist\windows\x64\HQPTuner\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion solidbreak; Check: PreferX64Files
+
+[Registry]
+; The app listens on every address, as the Linux service and the container do.
+Root: HKCU; Subkey: "Environment"; ValueType: string; ValueName: "HQPTUNER_LISTEN_HOST"; ValueData: "0.0.0.0"; Flags: uninsdeletevalue
 
 [Icons]
 Name: "{autoprograms}\HQPTuner"; Filename: "{app}\HQPTuner.exe"

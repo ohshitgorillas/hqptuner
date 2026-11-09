@@ -324,7 +324,7 @@ Mode switching is **live**. While stopped it takes effect immediately, resets `r
   Both numbers are **list indices** (see "Response conventions" above). The reference client writes `value1x` only when the 1x argument is ≥ 0.
 - `<GetFilters/>` → `<FiltersItem index name value arg description/>`*. `arg` is a flags bitfield: bit 0 (`0x00000001`) = apodizing. `description` is the engine's own description string, carrying quality/focus/ratio facets (e.g. `"5/5 timbre ⥣ Any"`) — merge with static metadata by `name`.
 
-`GetFilters` returns the list for the **current mode** (SDM mode → 77 filters, PCM mode → 67 filters including a leading "none" entry; indices shift between modes, so re-enumerate on mode switch).
+`GetFilters` returns the list for the **current mode** (SDM mode → 80 filters, PCM mode → 70 filters including a leading "none" entry; indices shift between modes, so re-enumerate on mode switch).
 
 ### SetShaping / GetShapers
 

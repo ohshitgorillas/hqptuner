@@ -71,7 +71,6 @@ pythonpath = [
     "scripts",
     "scripts/gates",
     "scripts/pytest_plugins",
-    "scripts/budget",
     "scripts/junkcal",
     "scripts/junkburst",
     "scripts/junkburst/features",
@@ -286,10 +285,6 @@ ban-relative-imports = "all"
 "tests/gates/test_release_preflight.py" = ["S603"]
 "scripts/*" = ["S101"]
 "scripts/probes/**/*.py" = ["PLR0915"]  # probes are linear capture sequences, read top to bottom rather than decomposed
-"scripts/budget/**/*.py" = [
-    "SLF001",   # budget tooling reuses the change-budget hook's own classifiers so its accounting matches the hook's
-    "PLR2004",  # the remaining literals are self_checks() expectations: the number asserted IS the expectation
-]
 "scripts/build_autoeq_db.py" = ["S101", "S603"]  # build-time git invocations with developer-supplied ref, resolved binary
 
 [tool.mypy]
@@ -297,9 +292,9 @@ python_version = "3.12"
 strict = true
 files = ["hqptuner", "tests", "scripts"]
 # Equal to the pytest `pythonpath` above, root for root, held so by
-# scripts/gates/check_config_copies.py: the support modules and the budget
-# analyzers are imported by bare name, not by package path.
-mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/pytest_plugins", "scripts/budget", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
+# scripts/gates/check_config_copies.py: the support modules are imported by
+# bare name, not by package path.
+mypy_path = ["tests", "tests/support", "scripts", "scripts/gates", "scripts/pytest_plugins", "scripts/junkcal", "scripts/junkburst", "scripts/junkburst/features", "scripts/junkburst/views"]
 
 [[tool.mypy.overrides]]
 module = "defusedxml.*"

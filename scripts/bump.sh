@@ -3,12 +3,8 @@
 #
 #   scripts/bump.sh <--major|--minor|--patch> [body] [--dry-run]
 #
-# The bump is one shell invocation for the same reason ship.sh is: the
-# change-budget hook meters tool calls, not work, and `git` is not on its
-# read-only allowlist — so a hand-authored release commit costs two git recon
-# calls plus the commit itself, and the ship it exists to enable then trips the
-# leash. Chained here the whole thing costs one action, leaving the budget for
-# the ship.
+# The bump is one shell invocation, like ship.sh, so the version files, the
+# CHANGELOG heading and the commit land together or not at all.
 #
 # Where the version comes from: pyproject.toml, incremented. There is no
 # explicit-number argument, so there is exactly one way to bump and the two

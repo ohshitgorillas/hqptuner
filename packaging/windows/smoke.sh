@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Install a built installer silently, run the app once, stop it, then uninstall.
+# An installed app must also answer at the runner's own network address.
 # Given a bundle directory instead, run the app from it with no install around it.
 # With --signed, Windows must also accept the signature on the installer, the
 # executable and the uninstaller, each with a timestamp.
@@ -20,6 +21,7 @@ case "$2" in
 esac
 SIGNED=${3:-}
 BASE_URL="http://127.0.0.1:8090"
+LISTEN_HOST=""
 SHORTCUT="$APPDATA/Microsoft/Windows/Start Menu/Programs/HQPTuner.lnk"
 PID=""
 WORK=$(mktemp -d)
@@ -29,6 +31,18 @@ cleanup() {
   rm -rf "$WORK" || true
 }
 trap cleanup EXIT
+
+# A variable from the user's environment in the registry, empty when unset.
+user_env() {
+  powershell -NoProfile -Command "[Environment]::GetEnvironmentVariable('$1', 'User')" | tr -d '\r'
+}
+
+# The runner's first IPv4 address that is neither loopback nor link-local.
+lan_address() {
+  powershell -NoProfile -Command \
+    'Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.IPAddress -notmatch "^(127|169\.254)\." } | Select-Object -First 1 -ExpandProperty IPAddress' \
+    | tr -d '\r'
+}
 
 status() { curl -s -o /dev/null --max-time "${2:-2}" -w '%{http_code}' "$1" || true; }
 
@@ -61,6 +75,8 @@ else
   MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*' "$TARGET" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART \
     "/DIR=$(cygpath -w "$APP")" || die "step 1: the installer failed"
   [ -f "$SHORTCUT" ] || die "step 1: no Start Menu shortcut at $SHORTCUT"
+  LISTEN_HOST=$(user_env HQPTUNER_LISTEN_HOST)
+  [ "$LISTEN_HOST" = 0.0.0.0 ] || die "step 1: the user's HQPTUNER_LISTEN_HOST is '$LISTEN_HOST', not '0.0.0.0'"
 fi
 BIN="$APP/HQPTuner.exe"
 
@@ -73,9 +89,11 @@ if [ ! -d "$TARGET" ]; then signed "$APP/unins000.exe" "step 2"; fi
 
 # ---- 3. start the binary ----------------------------------------------------
 # The stores go under LOCALAPPDATA, so the run gets its own. BROWSER keeps the
-# launch from opening a real browser.
+# launch from opening a real browser. A launch from the Start Menu gets the
+# user's environment the installer wrote, so this one gets it too.
 [ "$(status "$BASE_URL/api/health")" = 000 ] || die "step 3: something already answers on $BASE_URL"
 mkdir "$WORK/data"
+if [ -n "$LISTEN_HOST" ]; then export HQPTUNER_LISTEN_HOST=$LISTEN_HOST; fi
 LOCALAPPDATA="$(cygpath -w "$WORK/data")" BROWSER="$(cygpath -w /usr/bin/true)" HQPTUNER_HQP_HOST=127.0.0.2 "$BIN" &
 PID=$!
 
@@ -94,6 +112,15 @@ CODE=$(status "$BASE_URL/")
 # on the Windows event loop.
 CODE=$(status "$BASE_URL/api/discover" 30)
 [ "$CODE" = 200 ] || die "step 4: GET /api/discover answered $CODE"
+# The bundle carries no environment of its own; the installer supplies it.
+if [ -n "$LISTEN_HOST" ]; then
+  ADDRESS=$(lan_address)
+  [ -n "$ADDRESS" ] || die "step 4: the runner has no network address besides loopback"
+  CODE=$(status "http://$ADDRESS:8090/api/health")
+  [ "$CODE" = 200 ] || die "step 4: GET /api/health at $ADDRESS answered $CODE"
+else
+  echo "step 4: a bundle run, so no check at the runner's network address"
+fi
 
 # ---- 5. still running -------------------------------------------------------
 # The tray icon is built after the server answers, and a launch that cannot
@@ -123,6 +150,8 @@ if [ ! -d "$TARGET" ]; then
   done
   [ ! -e "$BIN" ] || die "step 7: $BIN still present 10 s after uninstall"
   [ ! -e "$SHORTCUT" ] || die "step 7: the Start Menu shortcut is still present"
+  LEFT=$(user_env HQPTUNER_LISTEN_HOST)
+  [ -z "$LEFT" ] || die "step 7: the user's HQPTUNER_LISTEN_HOST is still '$LEFT'"
 fi
 
 echo "smoke: OK"

@@ -1,10 +1,25 @@
 #!/usr/bin/env bash
 # Mount a built dmg, copy the app out, run it once, then stop it. With
-# --notarized, Gatekeeper must also accept the dmg.
+# --notarized, Gatekeeper must also accept the dmg. The app must also answer at
+# the runner's own network address.
 # usage: packaging/macos/smoke.sh <package.dmg> [--notarized]
 set -euo pipefail
 
 die() { echo "FAIL: $*" >&2; exit 1; }
+
+# stapler exits 68 when it cannot reach Apple's ticket service, which some
+# hosted runners drop often; any other exit is a verdict on the dmg.
+stapler() {
+  local rc try
+  for try in 1 2 3 4 5; do
+    rc=0
+    xcrun stapler "$@" || rc=$?
+    [ "$rc" -eq 68 ] || return "$rc"
+    echo "  stapler $1: Apple's ticket service unreachable (68), try $try of 5"
+    [ "$try" -eq 5 ] || sleep 15
+  done
+  return 68
+}
 
 USAGE="usage: smoke.sh <package.dmg> [--notarized]"
 [ $# -eq 1 ] || [ $# -eq 2 ] || die "$USAGE"
@@ -31,7 +46,7 @@ status() { curl -s -o /dev/null --max-time 2 -w '%{http_code}' "$1" || true; }
 # ---- 1. Gatekeeper, then mount, copy the app out, unmount -------------------
 if [ -n "$NOTARIZED" ]; then
   spctl --assess --type open --context context:primary-signature -v "$DMG" || die "step 1: Gatekeeper rejects the dmg"
-  xcrun stapler validate "$DMG" || die "step 1: no notarization ticket stapled to the dmg"
+  stapler validate "$DMG" || die "step 1: no notarization ticket stapled to the dmg"
 fi
 mkdir "$MOUNT"
 hdiutil attach "$DMG" -nobrowse -readonly -mountpoint "$MOUNT" || die "step 1: hdiutil attach failed"
@@ -43,16 +58,20 @@ hdiutil detach "$MOUNT" || die "step 1: hdiutil detach failed"
 [ -x "$BIN" ] || die "step 2: $BIN missing or not executable"
 UI_ELEMENT=$(plutil -extract LSUIElement raw "$APP/Contents/Info.plist") || die "step 2: no LSUIElement in Info.plist"
 [ "$UI_ELEMENT" = true ] || die "step 2: LSUIElement is '$UI_ELEMENT'"
+LISTEN_HOST=$(plutil -extract LSEnvironment.HQPTUNER_LISTEN_HOST raw "$APP/Contents/Info.plist") \
+  || die "step 2: no LSEnvironment.HQPTUNER_LISTEN_HOST in Info.plist"
+[ "$LISTEN_HOST" = 0.0.0.0 ] || die "step 2: LSEnvironment.HQPTUNER_LISTEN_HOST is '$LISTEN_HOST'"
 codesign --verify --deep --strict "$APP" || die "step 2: the signature does not verify"
 ARCHS=$(lipo -archs "$BIN")
 [ "$ARCHS" = "$(uname -m)" ] || die "step 2: the executable is '$ARCHS' on a $(uname -m) machine"
 
 # ---- 3. start the binary ----------------------------------------------------
 # The stores go under HOME, so the run gets its own. BROWSER keeps the launch
-# from opening a real browser.
+# from opening a real browser. LaunchServices supplies LSEnvironment on a launch
+# from Finder and a direct run gets none, so this one supplies it.
 [ "$(status "$BASE_URL/api/health")" = 000 ] || die "step 3: something already answers on $BASE_URL"
 mkdir "$WORK/home"
-HOME="$WORK/home" BROWSER=/usr/bin/true HQPTUNER_HQP_HOST=127.0.0.2 "$BIN" &
+HOME="$WORK/home" BROWSER=/usr/bin/true HQPTUNER_HQP_HOST=127.0.0.2 HQPTUNER_LISTEN_HOST="$LISTEN_HOST" "$BIN" &
 PID=$!
 
 # ---- 4. health, at most 30 tries --------------------------------------------
@@ -66,6 +85,10 @@ done
 [ "$CODE" = 200 ] || die "step 4: GET /api/health answered $CODE after 30 tries"
 CODE=$(status "$BASE_URL/")
 [ "$CODE" = 200 ] || die "step 4: GET / answered $CODE"
+ADDRESS=$(ifconfig | awk '$1 == "inet" && $2 !~ /^(127|169\.254)\./ && !found { found = $2 } END { print found }')
+[ -n "$ADDRESS" ] || die "step 4: the runner has no network address besides loopback"
+CODE=$(status "http://$ADDRESS:8090/api/health")
+[ "$CODE" = 200 ] || die "step 4: GET /api/health at $ADDRESS answered $CODE"
 
 # ---- 5. still running -------------------------------------------------------
 # The tray icon is built after the server answers, and a launch that cannot

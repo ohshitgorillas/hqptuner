@@ -48,5 +48,4 @@ Background studies.
 Working notes for contributors.
 
 - [copy-before-after](internal/copy-before-after.md): copy that differs from the manual text it derives from.
-- [gate-notes](internal/gate-notes.md): read-only commands the change budget meters.
 - [v2-roadmap](internal/v2-roadmap.md): the v2 implementation roadmap.
