@@ -1,0 +1,133 @@
+{
+  "phase": "7",
+  "trigger": "plan",
+  "discriminator": "plan-d432d338",
+  "round": 1,
+  "base": "d432d338",
+  "head": "d432d338",
+  "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+  "head_id": "d432d338ab61555bd226326171eb62323c788d93",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 29,
+      "severity": "medium",
+      "claim": "The must-be-true 'a malformed upload answers a 4xx, never a 500' is not delivered: Task 2 widens the exception catch only around opening and listing the archive, while `presetzip.take_descriptions` (hqptuner/conf/presetzip.py:169-175) still decompresses members inside `except (zipfile.BadZipFile, OSError)` alone.",
+      "failure_scenario": "Upload an archive with an intact central directory whose `hqptuner/descriptions.json` member has a corrupt deflate stream, is encrypted, or uses an unsupported compression method. Every declared size is under the new ceilings and every name passes D-11. `zin.read` then raises `zlib.error`, `RuntimeError` or `NotImplementedError`, none of which is caught, so the route answers 500. `snapshot_members` has the same gap at first connect (loader.py:143 catches only HTTPError, PresetError, OSError and BadZipFile).",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-2.md",
+      "line": 52,
+      "severity": "medium",
+      "claim": "The bite claim for the malformed-archive case is false: before the change, every upload that `is_archive` accepts already goes through `take_descriptions`, which turns BadZipFile into `ArchiveUnreadableError`, code `archive_unreadable`, a 4xx. The claim that the old code 'forwards an archive without the descriptions member unread' holds only for the two size cases.",
+      "failure_scenario": "Zip magic plus a broken central directory with an intact EOCD record: `ZipFile()` raises BadZipFile and the old code already refuses it with a 4xx, so the test is green before the change. If the EOCD is broken too, `is_zipfile` is False and the upload is forwarded as bare XML both before and after the change, so the test stays red after it. In neither case does the bite run show red-then-green.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 92,
+      "severity": "medium",
+      "claim": "Task 7's second bite case (`filter` = an unlisted ID while in PCM) cannot be red before the change. The value sits on the loaded chain, so `routing._resolve` already resolves it against the live `filters` enumeration and refuses it with `route_refused` (routing.py:116-127, 345-352).",
+      "failure_scenario": "The fake's /config filter options and its GetFilters list carry the same filter set. An ID absent from the page is then also absent from the enumeration, so the old code already answers `route_refused` with no setter sent. The test passes against the commit before Task 7, the stated 'both red' bite proof is not produced, and the executor has to go back to the owner.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-1.md",
+      "line": 61,
+      "severity": "medium",
+      "claim": "Escaping the level does not make the parked fixed-volume comment safe. XML forbids `--` inside a comment, entity escaping cannot encode `-`, and the plan adds no value check, so a level containing `--` still writes a comment that is not well-formed XML into hqplayerd.xml.",
+      "failure_scenario": "Stage `fixed_volume_enabled`=0 and `fixed_volume`=`1--x` (or the plan's own `1-->`). `_remember_fixed` writes `<!--<fixed volume=\"1--&gt;\"/>-->`, which contains `--` inside the comment. A strict XML parser (libxml2 reports a double hyphen inside a comment as an error) rejects the config that the restore then restarts the daemon onto. That is the F-006 config-breaking impact the task claims to close, and its Verify passes anyway because it counts only `-->`.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-5.md",
+      "line": 33,
+      "severity": "medium",
+      "claim": "All the changelog work is moved into a final separate commit, which contradicts the repo rule that every user-visible change lands with its `CHANGELOG.md` `[Unreleased]` entry in the same commit. Phases 2, 3, 4 and 6 followed that rule (for example `de918df3`, `23244ee9`).",
+      "failure_scenario": "Plans 1 to 4 commit user-visible refusals (new 422s on stage, live, restore, volume, profile switch and preset names) with no changelog line. Every one of those commits breaks CLAUDE.md's 'Changelog binding ... same commit', and if the run stops before Plan 5, the shipped changes have no changelog entry at all.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-5.md",
+      "line": 48,
+      "severity": "medium",
+      "claim": "The F-018 disposition 'Fixed by bounds' leaves one clause of the finding with neither a fix nor an owner ruling: REPORT.md says `/api/state-export` reads all stores into memory per request. No plan task bounds it, and D-06's declined clause covers only moving archive and XML work onto threads.",
+      "failure_scenario": "DISPOSITIONS.md records F-018 as fixed with the thread move declined and the discovery item closed under F-020. The state-export memory-per-request item is silently dropped, so Success Criterion 1 ('each finding fixed or carrying an owner ruling') is met only by omission.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-4.md",
+      "line": 42,
+      "severity": "medium",
+      "claim": "Putting the Windows `:` and device-name refusals into the shared `validate_name` also applies them to reads and deletes. Live snapshots are JSON keys, never paths, and `live.canonical_name` runs on `read` and `delete` (live.py:267, 284), so on Windows an existing snapshot that was saved legitimately becomes unreadable and undeletable.",
+      "failure_scenario": "A Windows user holds a live snapshot named `A:B` or `CON`, saved before this phase, which is valid as a JSON key. After the upgrade, `DELETE /api/livepresets/A:B` and `POST /api/livepresets/A:B/apply` both raise `name_invalid`, so the user cannot remove or apply their own data. That breaks the 'User actions always proceed' product rule, and no task handles names that already exist.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/7/PLAN-3.md",
+      "line": 45,
+      "severity": "low",
+      "claim": "Task 1 needs a `ControlError` subclass for a value containing `\"`, but no class in hqptuner/engine/controlerrors.py fits: each one names a connection, timeout, parse or daemon-refusal failure, and the base carries code `daemon_unavailable`. Yet the plan's `files:` list leaves out controlerrors.py.",
+      "failure_scenario": "The executor either edits a file outside the plan's declared files, which the overlap and scope checks do not see, or reuses an unfitting class. Reusing one means the refusal goes out as `daemon_unavailable` or `daemon_refused`, blaming the daemon for a value HQPTuner refused.",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "d432d338ab61555bd226326171eb62323c788d93",
+      "head_id": "d432d338ab61555bd226326171eb62323c788d93"
+    }
+  ]
+}
