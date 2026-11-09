@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import ClassVar, NamedTuple
 
+from hqptuner.conf.httpauth import url_host
 from hqptuner.paths import bundled, user_data_dir
 
 
@@ -244,7 +245,7 @@ class Config:
     @property
     def hqp_http_base_url(self) -> str:
         """Return the daemon's 8088 web root, which the ungated readers (/about, /log) fetch from."""
-        return f"http://{self.hqp_host}:{self.hqp_http_port}"
+        return f"http://{url_host(self.hqp_host)}:{self.hqp_http_port}"
 
     @property
     def hqp_password_chosen(self) -> bool:

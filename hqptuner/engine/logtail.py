@@ -10,7 +10,7 @@ before login, like the rest of the read-only surface.
 
 import httpx
 
-from hqptuner.conf.httpauth import HttpRefusedError
+from hqptuner.conf.httpauth import HttpRefusedError, url_host
 from hqptuner.conf.httpconf import HttpOptions, hqplayer_request
 from hqptuner.conf.httpforms import ConfigForm
 
@@ -48,7 +48,7 @@ async def fetch_log(host: str, port: int, options: HttpOptions | None = None) ->
     """
     options = options or HttpOptions()
     async with httpx.AsyncClient(
-        base_url=f"http://{host}:{port}", timeout=options.timeout, transport=options.transport
+        base_url=f"http://{url_host(host)}:{port}", timeout=options.timeout, transport=options.transport
     ) as client:
         with hqplayer_request(host, port, options.timeout):
             resp = await client.get("/log")

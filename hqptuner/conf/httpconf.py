@@ -14,7 +14,7 @@ import httpx
 from bs4 import BeautifulSoup, Tag
 
 from hqptuner.conf.formparse import attr, parse_config_form, parse_matrix_form, parse_speakers_form
-from hqptuner.conf.httpauth import AuthRefused, raise_for_status
+from hqptuner.conf.httpauth import AuthRefused, raise_for_status, url_host
 from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
 from hqptuner.conf.noanswer import http_deadline
 
@@ -162,7 +162,7 @@ class HttpConfigClient:
         options = options or HttpOptions()
         self._host, self._port, self._timeout = host, port, options.timeout
         self._client = httpx.AsyncClient(
-            base_url=f"http://{host}:{port}",
+            base_url=f"http://{url_host(host)}:{port}",
             auth=httpx.DigestAuth(username, password),
             timeout=options.timeout,
             transport=options.transport,

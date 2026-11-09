@@ -210,7 +210,7 @@ async def check_pair(
     accepted = refused = False
     try:
         async with httpx.AsyncClient(
-            base_url=f"http://{host}:{port}",
+            base_url=f"http://{url_host(host)}:{port}",
             auth=httpx.DigestAuth(username, password),
             timeout=wait,
             verify=_UNUSED_TLS,
