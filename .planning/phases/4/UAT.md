@@ -11,11 +11,13 @@ updated: 2026-11-09
 ### 1. Clean-start boot in CI
 expected: The e2e job starts the service from clean state and its suite passes (ci: e2e)
 origin: smoke
-status: pending_ci
+status: fail
 job: e2e
-commit: 121b2164f9c7bc85501d7f464ff0a7c3807fc013
+commit: 0c2ff910c3cbd31352aa8b7797a34383a5b15fe3
+first_pass: fail
 source: model
-evidence: Runs on PR #5 from v2; pushed through verify-publish with the owner authorization of this turn
+evidence: Runs on PR #5 at 0c2ff910, the CI timeouts reverted
+cause: Run 42589075729 at 0c2ff910: check concluded success; e2e concluded failure, '9 failed, 140 passed ... in 2475.07s'. All 9 in tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py (phase 5), each 'ShortReplayError: <feed> was read over 0 paints, fewer than the 100 that count as evidence'.
 
 ### 2. make check green on rebuild/integrate
 expected: PYTHONPATH=$(pwd) scripts/gate.sh make check in .claude/worktrees/integrate prints exit=0
@@ -62,11 +64,13 @@ evidence: Independent re-audit of fe97fb16..5c2e3007 and of first-parent, non-me
 ### 7. CI green on the owner's pull request from v2
 expected: The check and e2e jobs are green on the owner's pull request from v2 (ci: check, e2e)
 criterion: AC6
-status: pending_ci
+status: fail
 job: check
-commit: 121b2164f9c7bc85501d7f464ff0a7c3807fc013
+commit: 0c2ff910c3cbd31352aa8b7797a34383a5b15fe3
+first_pass: fail
 source: model
-evidence: Runs on PR #5 from v2; the e2e job is required too
+evidence: Runs on PR #5 at 0c2ff910, the CI timeouts reverted
+cause: Run 42589075729 at 0c2ff910: check concluded success; e2e concluded failure, '9 failed, 140 passed ... in 2475.07s'. All 9 in tests/e2e/test_spectrogram_scrolls_smoothly_through_bursty_feeds.py (phase 5), each 'ShortReplayError: <feed> was read over 0 paints, fewer than the 100 that count as evidence'.
 
 ### 8. The phase's production fix abe984ba (useBodyResize re-places the sheet after a changed plate line) is still exercised by a test
 expected: unwired test coverage. The fix ships on v2, but the excision deleted its only reproducer, so no automated check exercises the behavior.
@@ -95,9 +99,8 @@ cause: Repo hand-back rule: the owner looks at every visual change before it is 
 
 total: 9
 passed: 6
-failed: 1
+failed: 3
 pending: 0
-pending_ci: 2
 skipped: 0
 blocked: 0
-reworked: 3
+reworked: 5
