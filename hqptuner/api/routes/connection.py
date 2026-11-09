@@ -25,8 +25,10 @@ from hqptuner.core.connection import (
     ConnectionRecord,
     ConnectionStore,
     build_http_client,
+    held_record,
     layer_onto_config,
     pinned_differs,
+    stored_form,
 )
 from hqptuner.core.login import LoginSecret, mint
 from hqptuner.core.manager import ConnectionManager
@@ -148,13 +150,20 @@ def remembered(store: ConnectionStore) -> bool:
 
 
 async def apply_connection(
-    cfg: Config, store: ConnectionStore, manager: ConnectionManager, record: ConnectionRecord
+    cfg: Config,
+    store: ConnectionStore,
+    manager: ConnectionManager,
+    record: ConnectionRecord,
+    *,
+    password_carried: bool = True,
 ) -> FormsOutcome:
     """Save ``record`` and move HQPTuner onto it without a restart; answer what the 8088 refresh said.
 
     Shared by the Connection panel's save and by a login that brings a pair or host other than the one in force.
+    ``password_carried`` is whether the request itself brought the password in ``record``: when it did not, the file
+    keeps the password it held and the in-memory one lives for this run only. The file never takes a pinned field.
     """
-    store.write(record)
+    store.write(stored_form(record, held_record(store), password_carried=password_carried))
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
     layer_onto_config(cfg, record)
@@ -183,6 +192,7 @@ def record_from(body: ConnectionBody, cfg: Config, store: ConnectionStore) -> Co
     Every field the body omits is the one in force. Nothing is written or sent here: a refusal leaves the live
     config, the stored record and every daemon as they were.
     """
+    held = held_record(store)
     host = checked_host(body.host if body.host is not None else cfg.hqp_host)
     username = body.username if body.username is not None else cfg.hqp_username
     password = body.password if body.password is not None else cfg.hqp_password
@@ -198,7 +208,7 @@ def record_from(body: ConnectionBody, cfg: Config, store: ConnectionStore) -> Co
         password=password,
         # Silence about the choice is not a request to change it: a client correcting the address alone
         # would otherwise flip an install that asked to be asked every time into one that stores the pair.
-        remember=body.remember if body.remember is not None else remembered(store),
+        remember=body.remember if body.remember is not None else bool(held and held.remember),
     )
 
 
@@ -226,7 +236,7 @@ async def write_connection(
     login = login_of(request)
     pair_before = (cfg.hqp_username, cfg.hqp_password)
     record = record_from(body, cfg, store)
-    lane = await apply_connection(cfg, store, manager, record)
+    lane = await apply_connection(cfg, store, manager, record, password_carried=body.password is not None)
     if login is not None and (cfg.hqp_username, cfg.hqp_password) != pair_before:
         # A login is bound to the pair, so this save ends every login made under the old one, this browser's
         # included. This browser's is replaced under the new pair, keeping its kind and issue time: a save

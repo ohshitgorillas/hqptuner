@@ -19,6 +19,11 @@ def _env(name: str, default: str) -> str:
 # nobody chose: an install running on it has configured nothing.
 STOCK_CREDENTIAL = "password"
 
+# Where hqplayerd is and who HQPTuner is to it when nothing says otherwise. The fields' defaults below, and what a
+# saved connection record carries for a field the environment pins.
+DEFAULT_HQP_HOST = "127.0.0.1"
+DEFAULT_HQP_USERNAME = "hqplayer"
+
 
 def _store(name: str, *, frozen: bool | None = None) -> Path:
     """Default location of one store file: the user's data directory when frozen, the repo's ``state/`` otherwise.
@@ -106,7 +111,7 @@ class Config:
     below, so a bare ``Config()`` is a complete, working configuration.
     """
 
-    hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", "127.0.0.1"))
+    hqp_host: str = field(default_factory=lambda: _env("HQP_HOST", DEFAULT_HQP_HOST))
     hqp_control_port: int = field(default_factory=lambda: int(_env("HQP_CONTROL_PORT", "4321")))
     hqp_http_port: int = field(default_factory=lambda: int(_env("HQP_HTTP_PORT", "8088")))
     # metering side channel (protocol.md §7) — control port + 1 on a stock daemon
@@ -126,7 +131,7 @@ class Config:
     # above, so a container's pins keep their meaning and an install with no variables at all still has somewhere to
     # keep what the user typed.
     connection_file: Path = field(default_factory=lambda: Path(_env("CONNECTION_FILE", str(_UNSET_PATH))))
-    hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", "hqplayer"))
+    hqp_username: str = field(default_factory=lambda: _env("HQP_USERNAME", DEFAULT_HQP_USERNAME))
     hqp_password: str = field(default_factory=lambda: _env("HQP_PASSWORD", STOCK_CREDENTIAL))
     listen_host: str = field(default_factory=lambda: _env("LISTEN_HOST", "127.0.0.1"))
     listen_port: int = field(default_factory=lambda: int(_env("LISTEN_PORT", "8090")))

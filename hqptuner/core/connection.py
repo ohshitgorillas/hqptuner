@@ -15,19 +15,28 @@ Layering, in order, per start:
    falling back to the stock pair at ``config.py`` would hand a configured install a credential it never chose
 3. otherwise the defaults in ``config.py`` stand, which is a fresh install with nothing configured
 
+The record on disk is what the user chose to store, never what the environment dictated or what only lives in memory.
+A field the environment pins is written as the value the file already held for it, or as the field's default when the
+file held none (the password: empty), so the file always reads as a whole record and takes the pin's place once the pin
+is removed. The password is written only when the request carried one or the file already held one; a pair typed for
+this run alone stays in the live config and is not copied to disk. A file that cannot be read as a record, or that
+names an invalid host, holds nothing: a save replaces it.
+
 An empty variable counts as absent, on the reading ``_optional_path`` already takes in ``config.py``: an empty value
 is not a value, it is the absence of one.
 """
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from hqptuner.conf.httpauth import InvalidHostError, check_host
 from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import CONNECTION_STORE
+from hqptuner.config import CONNECTION_STORE, DEFAULT_HQP_HOST, DEFAULT_HQP_USERNAME
 from hqptuner.core.network import Network
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.unwritable import reading, saving
@@ -130,6 +139,42 @@ def pinned_differs(host: str, username: str, password: str) -> bool:
     """
     typed = {_ENV_HOST: host, _ENV_USERNAME: username, _ENV_CREDENTIAL: password}
     return any(_pinned(name) and os.environ[name] != value for name, value in typed.items())
+
+
+def held_record(store: ConnectionStore) -> ConnectionRecord | None:
+    """Return the record the file holds, or None when it holds nothing usable.
+
+    Nothing saved, a file that does not read as a record and a record whose host fails the host rule all hold no
+    record and no password: the next save replaces the file, which is what lets a user recover from a corrupt one.
+    """
+    record: ConnectionRecord | None = None
+    with contextlib.suppress(StoreCorruptError):
+        record = store.read()
+    usable = False
+    if record is not None:
+        with contextlib.suppress(InvalidHostError):
+            check_host(record.host)
+            usable = True
+    return record if usable else None
+
+
+def stored_form(record: ConnectionRecord, held: ConnectionRecord | None, *, password_carried: bool) -> ConnectionRecord:
+    """Return what ``record`` is written to disk as, given the record the file holds.
+
+    A pinned field takes the file's own value, or its default when the file held none, never the pinned value. The
+    password is ``record``'s when the request carried one and it is not pinned, otherwise the file's own, otherwise
+    empty. The live config keeps ``record`` itself: this binds the file only.
+    """
+    host = held.host if held else DEFAULT_HQP_HOST
+    username = held.username if held else DEFAULT_HQP_USERNAME
+    password = held.password if held else ""
+    carried = password_carried and not _pinned(_ENV_CREDENTIAL)
+    return ConnectionRecord(
+        host=host if _pinned(_ENV_HOST) else record.host,
+        username=username if _pinned(_ENV_USERNAME) else record.username,
+        password=record.password if carried else password,
+        remember=record.remember,
+    )
 
 
 def host_is_unchosen(record: ConnectionRecord | None) -> bool:

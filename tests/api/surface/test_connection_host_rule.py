@@ -7,7 +7,8 @@ for reaches the test as the answer a browser would get, not as an exception out 
 """
 
 import json
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
@@ -44,21 +45,34 @@ def alias_daemon(http_daemon: dict[str, Any]) -> Iterator[dict[str, Any]]:
     next(server, None)
 
 
+Build = Callable[..., TestClient]
+
+
 @pytest.fixture
-def client(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Iterator[TestClient]:
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        connection_file=record_path,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-    )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK), raise_server_exceptions=False) as test_client:
-        log_in(test_client)
-        yield test_client
+def build(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Iterator[Build]:
+    """Build the REST app, logged in, on the fake 8088 daemon; the host in force is the named one."""
+    with ExitStack() as stack:
+
+        def make(host: str = "127.0.0.1") -> TestClient:
+            cfg = Config(
+                hqp_host=host,
+                hqp_control_port=closed_port,
+                hqp_http_port=http_daemon["_port"],
+                hqp_username="u",
+                hqp_password="p",
+                connection_file=record_path,
+                backup_dir=tmp_path,
+                preset_dir=tmp_path / "presets",
+            )
+            app = create_app(cfg, VirtualClock(), NETWORK)
+            return log_in(stack.enter_context(TestClient(app, raise_server_exceptions=False)))
+
+        yield make
+
+
+@pytest.fixture
+def client(build: Build) -> TestClient:
+    return build()
 
 
 @pytest.mark.parametrize("host", INVALID_HOSTS)
@@ -108,6 +122,7 @@ def test_a_save_changing_the_host_with_both_credentials_is_accepted(client: Test
 
 
 def test_a_save_to_the_same_host_with_no_password_keeps_the_stored_one(client: TestClient, record_path: Path) -> None:
+    client.post("/api/connection", json={"username": "u", "password": "p", "remember": True})
     client.post("/api/connection", json={"host": "127.0.0.1", "username": "v", "remember": True})
     stored = json.loads(record_path.read_text(encoding="utf-8"))
     assert (stored["username"], stored["password"]) == ("v", "p")
@@ -157,3 +172,64 @@ def test_a_save_naming_exactly_the_pinned_values_is_accepted(
 ) -> None:
     pin(monkeypatch, "host", "password")
     assert client.post("/api/connection", json={**PINNED_TO, "remember": False}).status_code == 200
+
+
+def _pair(record_path: Path) -> tuple[str, str]:
+    """The username and password the record file holds."""
+    stored = _stored(record_path)
+    return stored["username"], stored["password"]
+
+
+def _stored(record_path: Path) -> dict[str, Any]:
+    """The record file, parsed."""
+    stored: dict[str, Any] = json.loads(record_path.read_text(encoding="utf-8"))
+    return stored
+
+
+def test_a_remembering_save_over_a_pinned_password_leaves_it_out_of_the_file(
+    monkeypatch: pytest.MonkeyPatch, client: TestClient, record_path: Path
+) -> None:
+    pin(monkeypatch, "password")
+    client.post("/api/connection", json={"username": "v", "remember": True})
+    assert _pair(record_path) == ("v", "")
+
+
+def test_a_remembering_save_with_no_password_does_not_store_one_typed_in_an_earlier_save(
+    client: TestClient, record_path: Path
+) -> None:
+    client.post("/api/connection", json={"username": "v", "password": "typed", "remember": False})
+    client.post("/api/connection", json={"username": "v", "remember": True})
+    assert _pair(record_path) == ("v", "")
+
+
+@pytest.mark.usefixtures("alias_daemon")
+def test_a_save_over_a_pinned_host_leaves_it_out_of_the_file(
+    monkeypatch: pytest.MonkeyPatch, build: Build, record_path: Path
+) -> None:
+    monkeypatch.setenv(PINS["host"], ALIAS)
+    build(ALIAS).post("/api/connection", json={"username": "v"})
+    assert _stored(record_path)["host"] != ALIAS
+
+
+def test_a_file_written_under_a_pin_starts_the_app_once_the_pin_is_gone(
+    monkeypatch: pytest.MonkeyPatch, build: Build, record_path: Path, closed_port: int, tmp_path: Path
+) -> None:
+    pin(monkeypatch, "host", "password")
+    build().post("/api/connection", json={"username": "v", "remember": True})
+    pin(monkeypatch)
+    cfg = Config(hqp_control_port=closed_port, connection_file=record_path, backup_dir=tmp_path)
+    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as fresh:
+        assert fresh.get("/api/health").status_code == 200
+
+
+@pytest.mark.parametrize(
+    "held",
+    ["{not json", json.dumps({"schema": 1, "host": "a:b", "username": "u", "password": "held", "remember": True})],
+    ids=["corrupt", "invalid-host"],
+)
+def test_a_remembering_save_over_an_unusable_record_succeeds_and_holds_no_password(
+    client: TestClient, record_path: Path, held: str
+) -> None:
+    record_path.write_text(held, encoding="utf-8")
+    client.post("/api/connection", json={"username": "v", "remember": True})
+    assert _pair(record_path) == ("v", "")
