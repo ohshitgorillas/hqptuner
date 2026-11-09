@@ -63,3 +63,10 @@ Run 3 (Task 3): `scripts/gate.sh make test-e2e` at abe984ba4d945032b1d1723a80c74
   "143 passed, 3682 deselected, 1 warning in 589.64s (0:09:49)". Passed 143, failed 0, errors 0.
   Process check after the run: only the pre-existing `python -m hqptuner` PID 3388 (ppid 3003, up 1 day, not started by this plan) is alive; no headless_shell, app or pytest process of the run survives. Nothing was killed.
   Watchdog note: the run ended 10.4 s inside the 600 s command watchdog (a green run is not shorter than the failing one; the time is the suite's own).
+
+Run 4 (/cad-verify 4, item 3): `scripts/gate.sh make test-e2e` at 5c2e3007d8091cdb6733a6ef70e46d34f6c4e95b, the merged second parent, after the excision; run in the background under nice -n 19
+  Environment: PYTHONPATH=$(pwd) HQPTUNER_CHROMIUM=/usr/lib64/chromium-browser/headless_shell, in /home/atom/dev/hqptuner2/.claude/worktrees/integrate
+  Result: exit=0 log=/tmp/gate-make-FqzVfA1u.log
+  "138 passed, 3657 deselected, 1 warning in 605.40s (0:10:05)". The 5 fewer tests are the deleted tests/e2e/test_sheet_top_tracks_plate_line.py.
+  Process check after the run: no headless_shell or pytest process survives; the two live `python -m hqptuner` processes predate the run.
+  Watchdog note: 605.40 s is past the 600 s command watchdog; only the background run, with no watchdog, completes.

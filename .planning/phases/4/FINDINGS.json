@@ -1,0 +1,38 @@
+{
+  "auto_passed": 4,
+  "gaps": 3,
+  "added": 2,
+  "skipped": 2,
+  "rejected": 0,
+  "rejected_entries": [],
+  "skipped_entries": [
+    {
+      "list": "gaps",
+      "reason": "already-recorded",
+      "item": 7,
+      "status": "pending_ci",
+      "entry": {
+        "k": 7,
+        "name": "CI green on the owner's pull request from v2",
+        "reason": "missing. No CI run of the merged tree exists, and no automated check has exercised the check or e2e job on it. ROADMAP Phase 4 success criterion 4 is unmet.",
+        "evidence": "The local ref origin/v2 = c986cedb does not contain d1fbfb2b (`git merge-base --is-ancestor d1fbfb2b origin/v2` exits 1). .github/workflows/check.yml:7-9 triggers on push to dev and on pull_request only. SUMMARY: 'complete locally, not CI-verified'.",
+        "severity": "blocker",
+        "missing": "The owner pushes v2 and opens the pull request (D-10; agents never push). The check and e2e jobs on that pull request then report green."
+      }
+    },
+    {
+      "list": "gaps",
+      "reason": "already-recorded",
+      "item": 1,
+      "status": "pending_ci",
+      "entry": {
+        "k": 1,
+        "name": "Clean-start boot in CI",
+        "reason": "missing. The CI e2e job has not run on any commit containing the merge, so no automated check shows the service starting from a clean state in CI with the suite passing.",
+        "evidence": ".github/workflows/check.yml:74 defines e2e, and :104-105 run 'make test-e2e'. origin/v2 (c986cedb) lacks d1fbfb2b. Local e2e evidence exists only at abe984ba (gap k 3).",
+        "severity": "blocker",
+        "missing": "A green e2e job on the owner's pull request from v2, the same run that closes item 7."
+      }
+    }
+  ]
+}
