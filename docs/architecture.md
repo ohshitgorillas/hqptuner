@@ -251,6 +251,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `login_required` | 401 | a request to a gated `/api` route carried no valid login cookie |
 | `login_not_answered` | 503 | hqplayerd did not answer the check a login asked of it |
 | `login_values_pinned` | 403 | a login named a host, username or password that the environment pins to another value |
+| `host_invalid` | 422 | a Connection save or a login named a host that is not a hostname, an IPv4 literal or a bare IPv6 literal (a port, path, query, userinfo, space, zone ID or bracketed form); nothing was saved or sent |
 | `cross_site_refused` | 403 | a state-changing request to `/api` carried a `Sec-Fetch-Site` naming another site, or an `Origin` that is `null` or not the request's own `Host` |
 | `no_credentials` | 503 | app built without hqplayerd management credentials |
 | `no_http_client` | 503 | app built without HTTP management credentials for the 8088 config lane |

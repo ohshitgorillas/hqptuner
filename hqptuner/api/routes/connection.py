@@ -17,7 +17,9 @@ from fastapi import APIRouter, Request, Response
 from pydantic import BaseModel
 
 from hqptuner.api.deps import Mgr, config_of
+from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.gate import login_of, set_login_cookie
+from hqptuner.conf.httpauth import InvalidHostError, check_host
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
 from hqptuner.core.login import LoginSecret, mint
@@ -40,6 +42,26 @@ class ConnectionBody(BaseModel):
     username: str | None = None
     password: str | None = None
     remember: bool | None = None
+
+
+class HostInvalidError(ErrorBody):
+    """The host a save or a login names is not a hostname, an IPv4 literal or a bare IPv6 literal."""
+
+    code = "host_invalid"
+
+    def __init__(self) -> None:
+        """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
+        super().__init__(
+            "The host address was invalid; enter an IP address or hostname only without ports, paths, or spaces."
+        )
+
+
+def checked_host(host: str) -> str:
+    """Return ``host`` when it is a valid daemon host; refuse with ``host_invalid`` before anything is saved or sent."""
+    try:
+        return check_host(host)
+    except InvalidHostError:
+        raise refuse(HostInvalidError()) from None
 
 
 def store_of(request: Request) -> ConnectionStore:
@@ -144,7 +166,7 @@ async def write_connection(
     login = login_of(request)
     pair_before = (cfg.hqp_username, cfg.hqp_password)
     record = ConnectionRecord(
-        host=body.host if body.host is not None else cfg.hqp_host,
+        host=checked_host(body.host if body.host is not None else cfg.hqp_host),
         username=body.username if body.username is not None else cfg.hqp_username,
         password=body.password if body.password is not None else cfg.hqp_password,
         # Silence about the choice is not a request to change it: a client correcting the address alone

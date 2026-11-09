@@ -14,6 +14,7 @@ from hqptuner.api.gate import set_login_cookie
 from hqptuner.api.routes.connection import (
     ConnectionReport,
     apply_connection,
+    checked_host,
     connection_report,
     remembered,
     store_of,
@@ -89,15 +90,16 @@ def _differs(cfg: Config, host: str, username: str, password: str) -> bool:
 async def login(body: LoginBody, request: Request, response: Response, manager: Mgr) -> ConnectionReport:
     """Check the typed pair against hqplayerd and answer with a login cookie, or refuse with no cookie.
 
-    A host, username or password that the environment pins to another value is refused before anything is sent or
-    written: the cookie is bound to the pair in force, which a pin keeps out of the login's reach.
+    A host that is not a daemon address is refused with ``host_invalid`` before anything else. A host, username or
+    password that the environment pins to another value is refused before anything is sent or written: the cookie is
+    bound to the pair in force, which a pin keeps out of the login's reach.
 
     An accepted pair or host that is not the one in force is applied as a Connection-panel save applies it, carrying
     the stored ``remember`` choice, never this login's.
     """
     cfg = config_of(request)
     store = store_of(request)
-    host = (body.host or "").strip() or cfg.hqp_host
+    host = checked_host((body.host or "").strip() or cfg.hqp_host)
     if pinned_differs(host, body.username, body.password):
         raise refuse(LoginValuesPinnedError())
     transport = manager.network.http_transport(host, cfg.hqp_http_port)
