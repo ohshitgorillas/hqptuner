@@ -34,7 +34,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from hqptuner.conf.httpauth import InvalidHostError, check_host
+from hqptuner.conf.httpauth import check_host
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import CONNECTION_STORE, DEFAULT_HQP_HOST, DEFAULT_HQP_USERNAME
 from hqptuner.core.network import Network
@@ -88,9 +88,11 @@ class ConnectionStore:
     def read(self) -> ConnectionRecord | None:
         """Return the stored record, or None when nothing has been saved.
 
-        Raises ``StoreCorruptError`` when the file exists but cannot be read as a connection record: a saved
-        connection is a host and credentials the user typed, and losing that quietly would strand them on the wrong
-        daemon with no card saying why. Raises ``StoreUnwritableError`` when the filesystem refuses the read.
+        Raises ``StoreCorruptError`` when the file exists but cannot be read as a connection record, or names a host
+        that is not a daemon address: a saved connection is a host and credentials the user typed, and losing that
+        quietly would strand them on the wrong daemon with no card saying why. A host the 8088 client cannot build a
+        URL from is as unreadable as a file that does not parse, and is handled the same way. Raises
+        ``StoreUnwritableError`` when the filesystem refuses the read.
         """
         if not self._path.is_file():
             return None
@@ -99,7 +101,7 @@ class ConnectionStore:
         try:
             data = json.loads(text)
             return ConnectionRecord(
-                host=str(data["host"]),
+                host=check_host(str(data["host"])),
                 username=str(data["username"]),
                 password=str(data.get("password", "")),
                 remember=bool(data.get("remember")),
@@ -144,18 +146,14 @@ def pinned_differs(host: str, username: str, password: str) -> bool:
 def held_record(store: ConnectionStore) -> ConnectionRecord | None:
     """Return the record the file holds, or None when it holds nothing usable.
 
-    Nothing saved, a file that does not read as a record and a record whose host fails the host rule all hold no
-    record and no password: the next save replaces the file, which is what lets a user recover from a corrupt one.
+    Nothing saved, a file that does not read as a record and a record whose host fails the host rule (``read``
+    refuses it) all hold no record and no password: the next save replaces the file, which is what lets a user
+    recover from a corrupt one.
     """
     record: ConnectionRecord | None = None
     with contextlib.suppress(StoreCorruptError):
         record = store.read()
-    usable = False
-    if record is not None:
-        with contextlib.suppress(InvalidHostError):
-            check_host(record.host)
-            usable = True
-    return record if usable else None
+    return record
 
 
 def stored_form(record: ConnectionRecord, held: ConnectionRecord | None, *, password_carried: bool) -> ConnectionRecord:

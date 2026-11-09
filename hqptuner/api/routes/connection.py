@@ -142,10 +142,12 @@ def connection_report(cfg: Config, *, remembered: bool) -> ConnectionReport:
 def remembered(store: ConnectionStore) -> bool:
     """Whether the stored record asks for the password to be kept; nothing saved yet reads as no.
 
-    No is the default because storing a password is the choice with the consequence, and an install that
-    has never made it has not asked for it.
+    No is the default because storing a password is the choice with the consequence, and an install holding no
+    record has not asked for it. A record the store refuses, corrupt or naming an invalid host, is no choice made
+    and reads as no: the login that follows a start without it must not fail on the file the save that replaces it
+    is meant to fix.
     """
-    record = store.read()
+    record = held_record(store)
     return False if record is None else record.remember
 
 
