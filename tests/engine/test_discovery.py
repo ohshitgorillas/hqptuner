@@ -92,8 +92,13 @@ def test_a_reply_reads_as_the_sender_address_beside_the_bodys_name_and_version(
 
 @pytest.mark.parametrize(
     "payload",
-    [b"not xml at all", b'<other name="Opal">hqplayer</other>'],
-    ids=["unparseable body", "wrong root tag"],
+    [
+        b"not xml at all",
+        b'<other name="Opal">hqplayer</other>',
+        b'<!DOCTYPE discover [<!ENTITY name "Opal">]><discover name="&name;">hqplayer</discover>',
+        b'<?xml version="1.0" encoding="x-bogus"?><discover name="Opal">hqplayer</discover>',
+    ],
+    ids=["unparseable body", "wrong root tag", "entity declaration", "encoding no codec reads"],
 )
 def test_a_non_reply_datagram_raises_notareply(payload: bytes) -> None:
     with pytest.raises(NotAReplyError):

@@ -17,6 +17,9 @@ from dataclasses import dataclass, replace
 from typing import Protocol
 from xml.etree import ElementTree
 
+from defusedxml import DefusedXmlException
+from defusedxml.ElementTree import fromstring
+
 from hqptuner.engine.control import ControlClient, Deadline, Opener
 from hqptuner.engine.controlerrors import ControlError
 
@@ -87,7 +90,7 @@ class NotAReplyError(ValueError):
 class NotXmlError(NotAReplyError):
     """A discovery datagram that would not parse as XML at all."""
 
-    def __init__(self, *, error: ElementTree.ParseError) -> None:
+    def __init__(self, *, error: ElementTree.ParseError | DefusedXmlException | LookupError) -> None:
         """Render the wording naming the underlying XML parse error."""
         super().__init__(f"not XML: {error}")
 
@@ -107,8 +110,10 @@ def parse_reply(payload: bytes, address: str) -> Daemon:
     documented to carry an address at all, and a daemon behind any kind of forwarding would name the wrong one.
     """
     try:
-        root = ElementTree.fromstring(payload)  # noqa: S314 - LAN datagram, attributes only, no entities read
-    except ElementTree.ParseError as exc:
+        root = fromstring(payload)
+    except (ElementTree.ParseError, DefusedXmlException, LookupError) as exc:
+        # An entity or DTD declaration is refused by defusedxml, and a declared encoding Python has no codec for
+        # raises ``LookupError``; either way the datagram is not a reply, and none may end the sweep.
         raise NotXmlError(error=exc) from exc
     if root.tag != "discover":
         raise UnexpectedRootTagError(tag=root.tag)
