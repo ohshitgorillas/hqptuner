@@ -275,3 +275,33 @@ async def test_a_document_still_dripping_past_the_total_deadline_is_given_up_on(
 async def test_the_give_up_on_a_dripped_document_reports_the_total_deadline_in_seconds(read_wait: float) -> None:
     report = await _failure_of_a_dripped_document(read_wait)
     assert [float(n) for n in re.findall(r"\d+(?:\.\d+)?", report)] == [read_wait * TOTAL_TIMEOUTS]
+
+
+# --- a document split inside a character -----------------------------------------
+# The scan decodes each chunk once, so a multibyte character cut between two chunks has to come out whole.
+
+#: A name with a two-byte character in it, and the byte at which the document is cut: inside that character.
+SPLIT_NAME = "Caf\u00e9"
+SPLIT_AT = len(b'<?xml version="1.0" encoding="UTF-8"?><GetInfo name="Caf') + 1
+
+
+async def _answer_split_inside_a_character(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+    await reader.read(4096)
+    document = f'<?xml version="1.0" encoding="UTF-8"?><GetInfo name="{SPLIT_NAME}"/>\n'.encode()
+    writer.write(document[:SPLIT_AT])
+    await writer.drain()
+    for _ in range(10):
+        await asyncio.sleep(0)
+    writer.write(document[SPLIT_AT:])
+    await writer.drain()
+
+
+async def test_a_document_cut_inside_a_multibyte_character_is_read_whole() -> None:
+    with fake_network.serving(_answer_split_inside_a_character) as port:
+        client = ControlClient("127.0.0.1", port, 5.0, opener=fake_network.open_stream)
+        try:
+            await client.connect()
+            info = await client.get_info()
+        finally:
+            await client.close()
+    assert info["name"] == SPLIT_NAME

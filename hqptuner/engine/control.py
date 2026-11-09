@@ -9,6 +9,7 @@ values are unescaped once more after parsing (reference-client behavior).
 """
 
 import asyncio
+import codecs
 import contextlib
 import logging
 import re
@@ -204,11 +205,9 @@ class ControlClient:
                     raise
 
     async def _recv_document(self, command: str) -> ET.Element:
-        """Read one response document: the first chunk under the per-read wait, the rest under a total deadline too.
+        """Read one response document: the first chunk under a per-read wait, the rest under ``TOTAL_TIMEOUTS`` of them.
 
-        A daemon that sends one byte just inside the per-read wait would otherwise hold a document open without end.
-        The total is ``TOTAL_TIMEOUTS`` per-read waits, counted from the first chunk, so a daemon that never answers
-        is still given up on by the first wait alone and reports that wait's seconds.
+        A silent daemon is still given up on by the first wait alone, which reports its own seconds.
         """
         reader = self._reader
         if reader is None:
@@ -221,23 +220,24 @@ class ControlClient:
             raise ControlTimeoutError(timeout=total) from exc
 
     async def _accumulate(self, reader: asyncio.StreamReader, chunk: bytes, command: str) -> ET.Element:
-        data = b""
+        # Each chunk is decoded once; a parse waits for a chunk ending in ``>``, where a document's root closes.
+        decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
+        parts: list[str] = []
+        received = 0
         while True:
             if not chunk:
                 raise ConnectionClosedError()
-            data += chunk
-            text = data.decode("utf-8", errors="replace")
-            body = text.split("?>", 1)[-1].strip() if "?>" in text else text.strip()
-            if body:
-                frame = parse_frame(body, command)
-                if frame is not None:
+            received += len(chunk)
+            parts.append(decoder.decode(chunk))
+            if chunk.rstrip().endswith(b">"):
+                body = "".join(parts).split("?>", 1)[-1].strip()
+                if body and (frame := parse_frame(body, command)) is not None:
                     return frame
-            if len(data) > MAX_RESPONSE:
+            if received > MAX_RESPONSE:
                 raise ResponseTooLargeError(command=command, limit=MAX_RESPONSE)
             try:
                 chunk = await self._deadline.wait_for(reader.read(65536), self._timeout)
             except TimeoutError as exc:
-                # Not the total deadline's: that one is the outer wait, and this read ran out its own.
                 raise ControlTimeoutError(timeout=self._timeout) from exc
 
     # --- typed helpers -------------------------------------------------
