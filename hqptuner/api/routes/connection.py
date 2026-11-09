@@ -32,8 +32,10 @@ router = APIRouter(prefix="/api")
 class ConnectionBody(BaseModel):
     """One saved connection for ``POST /api/connection``.
 
-    Every field is optional and defaults to what HQPTuner is using now, so a client changing the host alone need not
-    send the credentials back. ``remember`` false saves the host and the username and stores no password, which is the
+    Every field is optional and defaults to what HQPTuner is using now, so a client keeping the host need not send the
+    password back: a blank or absent password keeps the stored one. A save that changes the host must carry a
+    non-empty username and password, because the stored pair is never sent to a host the user did not choose with it.
+    ``remember`` false saves the host and the username and stores no password, which is the
     "log in every time" the user asked for: the pair lives in this process until it stops. Omitting ``remember``
     keeps the choice the stored record holds, and an install that has never made one is not asked to store anything.
     """
@@ -53,6 +55,19 @@ class HostInvalidError(ErrorBody):
         """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
         super().__init__(
             "The host address was invalid; enter an IP address or hostname only without ports, paths, or spaces."
+        )
+
+
+class CredentialsRequiredError(ErrorBody):
+    """A save moves the connection to another host without carrying both a username and a password."""
+
+    code = "credentials_required"
+
+    def __init__(self) -> None:
+        """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
+        super().__init__(
+            "HQPTuner requires a new username and password when switching host addresses for security; "
+            "please re-enter your credentials."
         )
 
 
@@ -165,8 +180,11 @@ async def write_connection(
     store = store_of(request)
     login = login_of(request)
     pair_before = (cfg.hqp_username, cfg.hqp_password)
+    host = checked_host(body.host if body.host is not None else cfg.hqp_host)
+    if host != cfg.hqp_host and not (body.username and body.password):
+        raise refuse(CredentialsRequiredError())
     record = ConnectionRecord(
-        host=checked_host(body.host if body.host is not None else cfg.hqp_host),
+        host=host,
         username=body.username if body.username is not None else cfg.hqp_username,
         password=body.password if body.password is not None else cfg.hqp_password,
         # Silence about the choice is not a request to change it: a client correcting the address alone

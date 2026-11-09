@@ -38,6 +38,7 @@ STATUS: dict[str, int] = {
     "login_not_answered": 503,
     "login_values_pinned": 403,
     "host_invalid": 422,
+    "credentials_required": 422,
     "cross_site_refused": 403,
     "no_credentials": 503,
     "no_http_client": 503,
