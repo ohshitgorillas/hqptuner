@@ -1,0 +1,128 @@
+{
+  "status": "delivered",
+  "score": "9/9",
+  "not_assessed": [
+    {
+      "uat_item": 1,
+      "reason": "Tagged (ci: smoke). Cannot run locally, so it was not run here. No CI run exists for the phase head yet: HEAD 25adaa78 is not an ancestor of origin/dev (7097145f), checked with `git merge-base --is-ancestor HEAD origin/dev`."
+    },
+    {
+      "uat_item": 9,
+      "reason": "Tagged (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows). Not run, same reason as item 1. SUMMARY says the same: 'Phase CI checkpoint (AC7 CI half) is the owner's ... Not run.'"
+    }
+  ],
+  "truths": [
+    {
+      "n": 1,
+      "truth": "A login naming another host sends that host only the typed pair and, when accepted, replaces the saved record with that host and pair. A save that changes the host without both a username and a password is refused with credentials_required, saves nothing and sends nothing to the new host.",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "Code: hqptuner/api/routes/connection.py record_from runs `if host != cfg.hqp_host and not (body.username and body.password): raise refuse(CredentialsRequiredError())` before apply_connection, with the owner sentence verbatim. hqptuner/api/login.py passes only body.username and body.password to check_pair, then calls apply_connection(record(host, body pair)). Tests pass: tests/api/surface/test_connection_host_rule.py 19 passed, which includes 4 cases of test_a_save_changing_the_host_without_both_credentials_is_refused_and_sends_nothing (code, record absent, host unchanged, alias fake 0 requests). tests/api/login/test_login_route.py 20 passed. The login tests use a typed pair equal to the stored pair, so they cannot tell the two apart. A separate spot-check did: stored admin/pw, login to 127.0.0.2 as newu/newpw. Every Authorization at the new host was built from 'newpw' (True) and none from 'pw' (False). The record became {host:127.0.0.2, username:newu, password:newpw}. A later host-changing save with no credentials answered 422 credentials_required."
+    },
+    {
+      "n": 2,
+      "truth": "The hosts a:b, target:9000/path?x= and fe80::1%eth0 are refused at the save and at login with nothing saved. ::1 is accepted, and the 8088 lane requests http://[::1]:8088/...",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "hqptuner/conf/httpauth.py check_host checks with ipaddress plus a positive label rule plus an httpx.URL probe. url_host brackets IPv6 for the 4 URL builders (HttpConfigClient, check_pair, fetch_log, Config.hqp_http_base_url). Spot-check: check_host refused all three bad hosts, and url_host(check_host('::1')) gave '[::1]'. Tests pass: test_host_address.py 24 passed; test_ipv6_urls.py 4 passed (config client, pair check, log, about each saw http://[::1]:8088); test_connection_host_rule.py::test_a_save_naming_an_invalid_host_is_refused_and_writes_nothing[3 hosts] and test_a_save_naming_the_ipv6_loopback_stores_it_bare; test_login_host.py 3 passed (no cookie, no record, 0 requests)."
+    },
+    {
+      "n": 3,
+      "truth": "With connection.json holding host a:b at start, the app starts, /api/health answers 200, and the SPA shows the Connection panel.",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "hqptuner/core/connection.py ConnectionStore.read runs check_host on the stored host, so a bad host raises StoreCorruptError. create_app and _adopt_alias already catch that and start unconfigured. remembered() now reads through held_record, so neither login nor GET /api/connection hits a 500. tests/api/surface/test_startup_bad_host.py 6 passed: health 200, login 200, file still on disk, alias not asked. The panel opening is the JS chain tests/js/store/setup.test.js 'test_a_request_refused_for_want_of_a_login_opens_the_panel' (13/13 pass). One SUMMARY open item is stale: it says GET /api/connection and the login still raise on a corrupt record through remembered(store), but remembered now calls held_record (routes/connection.py:142-151)."
+    },
+    {
+      "n": 4,
+      "truth": "Without the image marker, a start with no saved host and an empty /api/discover sweep send no request to the alias. With the marker and no saved host, a start still adopts an answering alias (owner ruling 2026-11-08).",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "Dockerfile ENV adds HQPTUNER_IN_IMAGE=1. Config.in_image reads it: spot-check gave False when unset, False for '0', True for '1'. lifespan._adopt_alias returns early when not cfg.in_image. routes/discovery.py passes alias=None outside the image, and engine/discovery.discover skips the probe when alias is None. Tests pass: test_alias_marker.py 3 passed (outside-the-image 0 dials, in-the-image dialed); test_discovery_route.py 3 passed (outside-the-image with a listening alias answers []); test_discovery_network.py::test_a_start_in_the_image_with_no_host_adopts_the_alias_served_in_process and test_container_host_alias.py (in_image=True) cover adoption."
+    },
+    {
+      "n": 5,
+      "truth": "An 8088 response over its path's ceiling is refused. An 8088 or 4321 response still dripping past its total deadline on the test clock is abandoned. After a Connection save, the replaced 8088 client is closed once its in-flight requests finish.",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "Code: noanswer.reply_ceiling event hook plus under_total on the injected clock in HttpConfigClient, check_pair, fetch_log and fetch_about. engine/control.py _recv_document has a total deadline. ConnectionManager.holding_http is taken in api/deps (Mgr/HttpMgr) and in run() passes. The http_client setter closes the replaced client at once, or when its last holder ends; _retired is gone. apply_connection sets manager.http_client, which is the save's seam. Tests pass: test_http_ceiling.py 8, test_http_deadline.py 5, test_ungated_reader_bounds.py 6, test_login_pair_check.py 7, test_retired_client_closed.py 5 (idle replace closes at once; held replace closes only after the request; held request finishes with its own client's answer; ten replacements all closed), test_control_stall.py 13 (4321 drip raises ControlTimeoutError). Known limit the owner declined: an open METER SSE tab holds a replaced client (SUMMARY open items)."
+    },
+    {
+      "n": 6,
+      "truth": "A discovery reply carrying an XML entity declaration is rejected, and one sweep keeps and dials at most the reply cap however many senders answer.",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "hqptuner/engine/discovery.py parse_reply uses defusedxml fromstring and the noqa S314 is gone. ParseError, ValueError and LookupError all become NotXmlError, a NotAReplyError that discover skips. _collect stops at MAX_REPLIES=32 or MAX_BYTES=64 KiB and awaits sleep(0) on every datagram. tests/engine/test_discovery.py 20 passed, including test_a_non_reply_datagram_raises_notareply (entity, x-bogus, shift_jis, idna), test_a_sweep_against_a_flood_of_senders_keeps_and_dials_at_most_the_reply_cap (found == dials == MAX_REPLIES), test_a_sweep_waits_on_the_sleep_it_was_handed_once_per_datagram_it_reads and test_a_sweep_against_large_replies_stops_at_the_byte_cap. Known limit the owner declined: the cap counts unparsed datagrams."
+    },
+    {
+      "n": 7,
+      "truth": ".planning/security/DISPOSITIONS.md lists all eight findings. Each names its fixing commit and a proof test that fails against the pre-fix code, or carries the owner's ruling.",
+      "status": "VERIFIED",
+      "uat_item": 8,
+      "evidence": "DISPOSITIONS.md:23-87 has entries F-004, F-005, F-015, F-017, F-020, F-021, F-022 and F-023, and the headings match REPORT.md:281-1107. All 26 cited commits resolve and are ancestors of HEAD (`git cat-file -e` plus `git merge-base --is-ancestor`, none bad). Every cited Python proof node collects: `pytest --collect-only` gave 66 tests collected, no errors. The cited JS titles exist and passed in this run (setup.test.js:167, setup-verdict.test.js:264, chrome/setup.test.js:60 and :145). F-021 is Declined with an owner ruling quoted from PLAN-2 Task 1. F-004 and F-005 quote the D-01 residual verbatim. Bite: proofs for new surfaces fail at import against the pre-fix code, and rule 8 counts that as no evidence. The bite for those is recorded by mutation in .planning/phases/6/reports/plan-4.md (hook or deadline removed, assertions go red) and by a null-stub discharge for the new validator module. F-022's outside-the-image cases are real assertion reds against the pre-fix code, since the marker=None case builds no new field. SUMMARY flags that the F-021 and F-022 ruling quotes come from the planning records and were not re-typed by the owner."
+    },
+    {
+      "n": 8,
+      "truth": "ConnectionStore.write creates connection.json with mode 0600 on POSIX, also when a wider-mode temp file was left over.",
+      "status": "VERIFIED",
+      "uat_item": 10,
+      "evidence": "hqptuner/core/connection.py ConnectionStore.write unlinks the leftover tmp file, opens with os.open(O_WRONLY|O_CREAT|O_EXCL, 0o600), replaces the record, and unlinks the tmp file in a finally. tests/api/login/test_connection_file_mode.py 2 passed under a fixture-set umask of 022 (both cases assert mode 0o600, one with a 0644 leftover)."
+    },
+    {
+      "n": 9,
+      "truth": "The Connection panel shows the note that the stored password is unencrypted, and a refused save or login shows the backend's refusal sentence.",
+      "status": "VERIFIED",
+      "uat_item": 11,
+      "evidence": "hqptuner/static/components/Setup.js adds <p class=\"t-caption\" data-testid=\"setup-remember-note\">Stored as plain text on this computer.</p> in the remember block. report() shows loginSentence for the pinned and rejected verdicts. store/setup.js SAVE_VERDICTS covers host_invalid, credentials_required and login_values_pinned, and LOGIN_VERDICTS gains host_invalid. Both store e.message through showSentence. JS tests pass: setup-verdict.test.js 30/30 (three save codes, sentence unchanged, panel stays open, unrelated code rethrows, login host_invalid sentence) and components/chrome/setup.test.js 17/17 (test_the_remember_choice_carries_a_caption). Owner approval of the wording rests on commit 0bbc6dc4's message ('in the owner-approved wording'). This pass cannot confirm that approval beyond the record."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "A login or save to a new host never carries the stored pair",
+      "evidence": "Save refusal tested in test_connection_host_rule.py (4 incomplete-credential cases, 0 requests to the new host). Login-to-new-host spot-check: every Digest at 127.0.0.1 was built from the typed newpw and none from the stored pw, and the record was replaced with {127.0.0.2, newu, newpw}."
+    },
+    {
+      "k": 3,
+      "name": "Invalid hosts are refused, IPv6 is bracketed",
+      "evidence": "check_host and url_host in conf/httpauth.py. test_host_address.py 24, test_ipv6_urls.py 4, test_login_host.py 3, and the host-rule save cases all pass."
+    },
+    {
+      "k": 4,
+      "name": "A bad saved host does not stop the start",
+      "evidence": "ConnectionStore.read validates the host and raises StoreCorruptError. test_startup_bad_host.py 6 passed (health 200, login 200, file kept). The panel opens through setup.test.js test_a_request_refused_for_want_of_a_login_opens_the_panel."
+    },
+    {
+      "k": 5,
+      "name": "The container alias is probed only in the image",
+      "evidence": "Dockerfile HQPTUNER_IN_IMAGE=1. _adopt_alias and the discover route are gated on cfg.in_image. test_alias_marker.py, test_discovery_route.py (outside-the-image answers []) and the in-image adoption tests pass."
+    },
+    {
+      "k": 6,
+      "name": "8088 and Control API reads are bounded and replaced clients close",
+      "evidence": "test_http_ceiling.py 8, test_http_deadline.py 5, test_ungated_reader_bounds.py 6, test_login_pair_check.py 7, test_retired_client_closed.py 5 and test_control_stall.py 13 all pass. holding_http is wired in api/deps and ConnectionManager.run."
+    },
+    {
+      "k": 7,
+      "name": "Discovery rejects entities and caps replies",
+      "evidence": "defusedxml parse plus MAX_REPLIES/MAX_BYTES in engine/discovery.py. test_discovery.py 20 passed, including the entity case and flood/byte-cap/yield cases."
+    },
+    {
+      "k": 8,
+      "name": "Dispositions record all eight findings",
+      "evidence": "DISPOSITIONS.md:23-87 has all eight entries. 26 commits resolve as HEAD ancestors. 66 proof nodes collect with no error. The JS proof titles exist and pass. F-021 carries the owner ruling, and F-004/F-005 carry the D-01 residual."
+    },
+    {
+      "k": 10,
+      "name": "connection.json is created owner-only",
+      "evidence": "os.open(..., 0o600) with an O_EXCL create after unlinking the leftover. test_connection_file_mode.py 2 passed under umask 022."
+    },
+    {
+      "k": 11,
+      "name": "The Connection panel says the stored password is plain text",
+      "evidence": "Setup.js data-testid setup-remember-note caption. SAVE_VERDICTS/LOGIN_VERDICTS show the backend's sentence. setup-verdict.test.js 30/30 and chrome/setup.test.js 17/17 pass."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}
