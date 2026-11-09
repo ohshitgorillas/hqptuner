@@ -210,6 +210,7 @@ export function Setup() {
           <div class="setup-remember">
             ${rememberRow(true, "Let HQPTuner store my password")}
             ${rememberRow(false, "Ask every time HQPTuner starts")}
+            <p class="t-caption" data-testid="setup-remember-note">Stored as plain text on this computer.</p>
           </div>
           <div class="setup-buttons">
             <button type="button" data-testid="setup-save" onClick=${() => submitConnection(true)}>Save</button>

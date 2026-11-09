@@ -111,3 +111,11 @@ test("test_a_save_or_login_refused_for_its_host_shows_the_sentence_the_backend_s
   loginSentence.value = "sentinel-from-the-backend";
   assert.equal(loggedOutPanel().includes("sentinel-from-the-backend"), true);
 });
+
+test("test_the_remember_choice_carries_a_caption", () => {
+  const notes = elements(openPanel()).filter((el) => attr(el, "data-testid") === "setup-remember-note");
+  assert.deepEqual(
+    notes.map((el) => attr(el, "class")),
+    ["t-caption"],
+  );
+});
