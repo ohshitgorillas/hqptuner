@@ -11,10 +11,15 @@ before login, like the rest of the read-only surface.
 import httpx
 
 from hqptuner.conf.httpauth import HttpRefusedError, url_host
-from hqptuner.conf.httpconf import HttpOptions, hqplayer_request
+from hqptuner.conf.httpconf import HttpOptions, hqplayer_exchange
 from hqptuner.conf.httpforms import ConfigForm
+from hqptuner.conf.noanswer import IDENTITY_ONLY, reply_ceiling
 
-_TAIL_CAP = 256 * 1024  # only decode the last 256 KiB — a large log never blows up memory
+# The most of the log that is read, a refusal past it. The daemon never rotates its log, and 32 MiB is far more than a
+# running daemon writes in a year.
+LOG_CEILING = 32 * 2**20
+# The lines are cut from the last 256 KiB of the text. The whole body is read first, up to LOG_CEILING.
+_TAIL_CAP = 256 * 1024
 _NO_LOG = 404  # HQPlayer's answer on /log when it has no log to serve
 
 
@@ -43,15 +48,18 @@ def log_file_field(config_form: ConfigForm | None) -> tuple[str | None, bool]:
 async def fetch_log(host: str, port: int, options: HttpOptions | None = None) -> str:
     """Return the daemon's full log text from GET /log on the 8088 web interface at ``host:port``.
 
-    Unauthenticated — the log page is not credential-gated. Sent on ``options``, or the defaults. A 404 raises
-    ``NoLogError``, any other error status ``HttpRefusedError``.
+    Unauthenticated — the log page is not credential-gated. Sent on ``options``, or the defaults, and read up to
+    ``LOG_CEILING``. A 404 raises ``NoLogError``, any other error status ``HttpRefusedError``.
     """
     options = options or HttpOptions()
     async with httpx.AsyncClient(
-        base_url=f"http://{url_host(host)}:{port}", timeout=options.timeout, transport=options.transport
+        base_url=f"http://{url_host(host)}:{port}",
+        timeout=options.timeout,
+        transport=options.transport,
+        headers=IDENTITY_ONLY,
+        event_hooks=reply_ceiling(lambda _path: LOG_CEILING),
     ) as client:
-        with hqplayer_request(host, port, options.timeout):
-            resp = await client.get("/log")
+        resp = await hqplayer_exchange(host, port, options, lambda: client.get("/log"))
         if resp.status_code == _NO_LOG:
             raise NoLogError(response=resp)
         if not resp.is_success:

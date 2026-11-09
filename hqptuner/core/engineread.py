@@ -25,9 +25,9 @@ _CAPS_RETRY = 30.0
 
 
 async def _fetch_log(mgr: "ConnectionManager") -> str:
-    """Return the daemon's log text, read over the transport the manager's network hands out."""
+    """Return the daemon's log text, read over the transport the manager's network hands out, on the manager's clock."""
     host, port = mgr.cfg.hqp_host, mgr.cfg.hqp_http_port
-    return await logtail.fetch_log(host, port, mgr.network.http_options(host, port))
+    return await logtail.fetch_log(host, port, mgr.network.http_options(host, port, mgr.clock))
 
 
 async def refresh_device_caps(mgr: "ConnectionManager", *, force: bool = False) -> None:
