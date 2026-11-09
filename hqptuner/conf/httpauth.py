@@ -6,9 +6,19 @@ the one sentence the whole app reports it with lives here.
 ``raise_for_status`` is the lane's single choke point — ``HttpConfigClient``'s
 own ``_get`` and ``_post`` both end in it, so no route can answer a refusal by
 parsing an error page as if it were a form.
+
+It also decides what counts as the address of an hqplayerd host (``check_host``) and how a host is written into an
+8088 URL (``url_host``). A host is a DNS hostname, an IPv4 literal or a bare IPv6 literal, and nothing else: no port,
+path, query, userinfo, whitespace, IPv6 zone ID or bracketed form. It is stored bare (``::1``) and kept bare for the
+4321 socket; only an 8088 URL brackets an IPv6 literal. The check is positive, not a deny-list: a hostname is
+dot-separated labels of 1 to 63 ASCII letters, digits and hyphens, none starting or ending with a hyphen, at most 253
+characters in all, and the two literal forms are decided by the standard library's ``ipaddress``.
 """
 
+import contextlib
 import enum
+import ipaddress
+import re
 import ssl
 from typing import TYPE_CHECKING
 
@@ -40,6 +50,55 @@ NO_HTTP_CLIENT_MESSAGE = (
 # password actually produces (verified on 6.0.4: body "Authentication is
 # required for this page"). Both mean the same thing to every caller.
 _REFUSED = (401, 403)
+
+# One DNS label: 1 to 63 ASCII letters, digits and hyphens, neither first nor last a hyphen.
+_LABEL = re.compile(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?")
+
+# The longest hostname DNS allows, dots included.
+_MAX_HOSTNAME = 253
+
+# A port to render a probe URL with; the value is irrelevant, the URL only has to parse.
+_PROBE_PORT = 8088
+
+
+class InvalidHostError(ValueError):
+    """A string offered as an hqplayerd host is not a hostname, an IPv4 literal or a bare IPv6 literal."""
+
+
+def url_host(host: str) -> str:
+    """Return ``host`` as it is written inside an 8088 URL: an IPv6 literal bracketed, anything else unchanged."""
+    return f"[{host}]" if ":" in host else host
+
+
+def _is_literal(host: str) -> bool:
+    """Whether ``host`` is an IPv4 literal or a bare IPv6 literal without a zone ID."""
+    parsed = False
+    with contextlib.suppress(ValueError):
+        ipaddress.ip_address(host)
+        parsed = "%" not in host
+    return parsed
+
+
+def _is_hostname(host: str) -> bool:
+    """Whether ``host`` is a DNS hostname by the label rule."""
+    if len(host) > _MAX_HOSTNAME:
+        return False
+    return all(_LABEL.fullmatch(label) for label in host.split("."))
+
+
+def check_host(host: str) -> str:
+    """Return ``host`` unchanged when it is a valid daemon host; raise ``InvalidHostError`` when it is not.
+
+    A host the label rule or the literal parser accepts is still refused if the HTTP client cannot build the 8088 URL
+    from it, so a host that passes here never fails later inside a request.
+    """
+    if not (_is_literal(host) or _is_hostname(host)):
+        raise InvalidHostError(host)
+    try:
+        httpx.URL(f"http://{url_host(host)}:{_PROBE_PORT}/")
+    except httpx.InvalidURL as exc:
+        raise InvalidHostError(host) from exc
+    return host
 
 
 class AuthRefused(httpx.HTTPStatusError):
