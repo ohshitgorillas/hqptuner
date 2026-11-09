@@ -62,7 +62,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None, network: N
     except StoreCorruptError as exc:
         log.warning("%s — starting unconfigured", exc)
     layer_onto_config(cfg, record)
-    http_client = build_http_client(cfg, network)
+    http_client = build_http_client(cfg, network, clock)
     if http_client is None:
         log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
     manager = ConnectionManager(cfg, http_client, clock, network)

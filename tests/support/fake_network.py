@@ -31,7 +31,7 @@ import re
 import socket
 import threading
 from collections import deque
-from collections.abc import Awaitable, Callable, Iterator, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterable, Iterator, Mapping
 
 import httpx
 
@@ -262,6 +262,68 @@ def _answer(host: str, port: int, request: httpx.Request) -> httpx.Response:
 def http_transport(host: str, port: int) -> httpx.MockTransport:
     """A fresh transport for the 8088 address, answering both an async and a sync client."""
     return httpx.MockTransport(functools.partial(_answer, host, port))
+
+
+class Drip(httpx.AsyncByteStream):
+    """A response body that arrives a chunk at a time, ``pause`` awaited before each chunk."""
+
+    def __init__(self, chunks: Iterable[bytes], pause: Callable[[], Awaitable[None]]) -> None:
+        self._chunks = list(chunks)
+        self._pause = pause
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        for chunk in self._chunks:
+            await self._pause()
+            yield chunk
+
+
+#: What a Digest daemon says to a request that carries no credentials.
+_CHALLENGE = 'Digest realm="hqplayer", nonce="0123456789abcdef", qop="auth"'
+
+
+class ChallengingDaemon:
+    """An 8088 daemon that wants Digest credentials: a request without them is answered 401 with a challenge whose body
+    is ``challenge_body``, and a request with them is answered by ``reply``. Every request it is sent is kept."""
+
+    def __init__(
+        self,
+        reply: Callable[[], httpx.Response],
+        challenge_body: Callable[[], httpx.AsyncByteStream] = lambda: httpx.ByteStream(b""),
+    ) -> None:
+        self.requests: list[httpx.Request] = []
+        self.transport = httpx.MockTransport(self._answer)
+        self._reply = reply
+        self._challenge_body = challenge_body
+
+    def _answer(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        if "authorization" in request.headers:
+            return self._reply()
+        return httpx.Response(401, headers={"WWW-Authenticate": _CHALLENGE}, stream=self._challenge_body())
+
+
+class TotalDeadline:
+    """A ``wait_for`` that runs the deadline on the suite's virtual time: ``sleep`` is the virtual clock's, so the
+    operation and the timer both wait on it, and whichever is due first ends the wait, the way a real deadline does.
+
+    Unlike ``VirtualClock.wait_for``, which hands the operation's own result until the test silences HQPlayer, this
+    one ends an operation still running when its seconds are up, which is what a body dripping forever needs.
+    """
+
+    def __init__(self, sleep: Callable[[float], Awaitable[None]]) -> None:
+        self._sleep = sleep
+
+    async def wait_for[T](self, fut: Awaitable[T], seconds: float, /) -> T:
+        work = asyncio.ensure_future(fut)
+        timer = asyncio.ensure_future(self._sleep(seconds))
+        await asyncio.wait({work, timer}, return_when=asyncio.FIRST_COMPLETED)
+        timer.cancel()
+        if work.done():
+            return work.result()
+        work.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await work
+        raise TimeoutError(seconds)
 
 
 #: The network the suite hands the manager and the app: every dial it makes is answered by a fake registered here.

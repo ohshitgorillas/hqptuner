@@ -45,6 +45,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from hqptuner.config import Config
+    from hqptuner.core.clock import Clock
 
 # The record's on-disk layout version — what the file MEANS, not which HQPTuner wrote it. Stamped on every write so a
 # later layout can tell the shapes apart.
@@ -200,13 +201,15 @@ def layer_onto_config(cfg: Config, record: ConnectionRecord | None) -> None:
         cfg.hqp_password = record.password
 
 
-def build_http_client(cfg: Config, network: Network | None) -> HttpConfigClient | None:
+def build_http_client(cfg: Config, network: Network | None, clock: Clock | None = None) -> HttpConfigClient | None:
     """Build the 8088 configuration client for ``cfg`` on ``network``, or None when either credential is missing.
+
+    Its exchanges end at their total deadline on ``clock``.
 
     One builder for both paths — app construction and a runtime save — so the rule "no credentials, no 8088 lane"
     (architecture section 3) is stated once.
     """
     if not cfg.hqp_username or not cfg.hqp_password:
         return None
-    options = (network or Network()).http_options(cfg.hqp_host, cfg.hqp_http_port)
+    options = (network or Network()).http_options(cfg.hqp_host, cfg.hqp_http_port, clock)
     return HttpConfigClient(cfg.hqp_host, cfg.hqp_http_port, cfg.hqp_username, cfg.hqp_password, options)

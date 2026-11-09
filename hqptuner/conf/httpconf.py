@@ -6,8 +6,9 @@ write serializes a complete form (the daemon silently ignores a partial POST)
 with the daemon's checkbox and range-validation contracts.
 """
 
+import asyncio
 import contextlib
-from collections.abc import Iterator
+from collections.abc import Awaitable, Callable, Iterator
 from dataclasses import dataclass
 
 import httpx
@@ -16,7 +17,7 @@ from bs4 import BeautifulSoup, Tag
 from hqptuner.conf.formparse import attr, parse_config_form, parse_matrix_form, parse_speakers_form
 from hqptuner.conf.httpauth import AuthRefused, raise_for_status, url_host
 from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
-from hqptuner.conf.noanswer import http_deadline
+from hqptuner.conf.noanswer import WaitFor, http_deadline, under_total
 
 # readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
 _SPK_LEVEL = (-60.0, 0.0)
@@ -120,11 +121,13 @@ class UnknownProfileActionError(ValueError):
 class HttpOptions:
     """How long each 8088 request waits for HQPlayer, and what carries it.
 
-    ``transport`` replaces httpx's own socket transport; left out, requests go over the network.
+    ``transport`` replaces httpx's own socket transport; left out, requests go over the network. ``deadline`` is what
+    a whole exchange waits under (``noanswer.TOTAL_TIMEOUTS`` timeouts in all): the app's clock, so a suite advances it.
     """
 
     timeout: float = 10.0
     transport: httpx.AsyncBaseTransport | None = None
+    deadline: WaitFor = asyncio
 
 
 class HttpUnreachableError(httpx.TransportError):
@@ -150,6 +153,20 @@ def hqplayer_request(host: str, port: int, timeout: float) -> Iterator[None]:
             raise HttpUnreachableError(host=host, port=port, request=exc.request) from exc
 
 
+async def _reported[T](host: str, port: int, wait: float, request: Callable[[], Awaitable[T]]) -> T:
+    with hqplayer_request(host, port, wait):
+        return await request()
+
+
+async def hqplayer_exchange[T](host: str, port: int, options: HttpOptions, request: Callable[[], Awaitable[T]]) -> T:
+    """Send ``request`` to the 8088 interface at ``host:port`` and report a failure in HQPTuner's words.
+
+    The whole exchange, the Digest challenge round trip and the body included, ends at the total deadline on
+    ``options.deadline``, on top of httpx's own timeout at each read.
+    """
+    return await under_total(options.deadline, options.timeout, _reported(host, port, options.timeout, request))
+
+
 class HttpConfigClient:
     """Async client for hqplayerd's HTTP configuration interface — the /config, /matrix, /speakers and /backup forms.
 
@@ -160,7 +177,7 @@ class HttpConfigClient:
     def __init__(self, host: str, port: int, username: str, password: str, options: HttpOptions | None = None):
         """Open the Digest-authenticated connection pool against ``host:port``, on ``options`` or the defaults."""
         options = options or HttpOptions()
-        self._host, self._port, self._timeout = host, port, options.timeout
+        self._host, self._port, self._options = host, port, options
         self._client = httpx.AsyncClient(
             base_url=f"http://{url_host(host)}:{port}",
             auth=httpx.DigestAuth(username, password),
@@ -195,8 +212,7 @@ class HttpConfigClient:
         Every read on this lane goes through here so no route can forget to check
         the status and parse an error page as if it were a form.
         """
-        with hqplayer_request(self._host, self._port, self._timeout):
-            resp = await self._client.get(path)
+        resp = await hqplayer_exchange(self._host, self._port, self._options, lambda: self._client.get(path))
         self._mark(resp)
         return resp
 
@@ -213,8 +229,9 @@ class HttpConfigClient:
         page, and what actually landed is established by readback, never by the
         response.
         """
-        with hqplayer_request(self._host, self._port, self._timeout):
-            resp = await self._client.post(path, data=data, files=files)
+        resp = await hqplayer_exchange(
+            self._host, self._port, self._options, lambda: self._client.post(path, data=data, files=files)
+        )
         self._mark(resp)
 
     async def get_config(self) -> ConfigForm:

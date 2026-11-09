@@ -11,6 +11,7 @@ from dataclasses import dataclass
 import httpx
 
 from hqptuner.conf.httpconf import HttpOptions
+from hqptuner.core.clock import Clock
 from hqptuner.engine.control import Opener
 from hqptuner.engine.discovery import UDP_SOCKET, DatagramFactory
 
@@ -34,6 +35,10 @@ class Network:
     http_transport: HttpTransportFor = own_transport
     open_datagram: DatagramFactory = UDP_SOCKET
 
-    def http_options(self, host: str, port: int) -> HttpOptions:
-        """Answer the options an 8088 request to ``host:port`` goes under: default timeout, this network's transport."""
-        return HttpOptions(transport=self.http_transport(host, port))
+    def http_options(self, host: str, port: int, clock: Clock | None = None) -> HttpOptions:
+        """Answer the options an 8088 request to ``host:port`` goes under: default timeout, this network's transport.
+
+        The total deadline of an exchange runs on ``clock``'s ``wait_for``, or on asyncio's own where none is given.
+        """
+        transport = self.http_transport(host, port)
+        return HttpOptions(transport=transport) if clock is None else HttpOptions(transport=transport, deadline=clock)

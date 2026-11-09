@@ -169,7 +169,7 @@ async def apply_connection(
     # The request's record, not the stored one: `remember` false stores no password, and the pair is meant to work
     # for the rest of this run — "log in every time" is every HQPTuner restart, not every request.
     layer_onto_config(cfg, record)
-    manager.http_client = build_http_client(cfg, manager.network)
+    manager.http_client = build_http_client(cfg, manager.network, manager.clock)
     await manager.retarget()
     lane = FormsOutcome.NO_CREDENTIALS
     if manager.http_client is not None:
