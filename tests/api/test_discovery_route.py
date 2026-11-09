@@ -2,12 +2,14 @@
 
 A deployment that shortens `DISCOVERY_TIMEOUT` to nothing still has one daemon
 it can reach without waiting for a datagram: the host the container-host alias
-names, asked directly over its control port. So both cases here set the search
-window to zero and point the search at a UDP port nothing is bound to, and the
-only thing that differs between them is whether a control daemon is listening
-at the alias: one answers with that daemon's record, the other with an empty
-list. A route that spends the search window on the control exchange as well
-answers empty in both.
+names, asked directly over its control port, and only inside the image, the one
+place the name resolves. So every case here sets the search window to zero and
+points the search at a UDP port nothing is bound to, and what differs between
+them is whether the process runs in the image and whether a control daemon is
+listening at the alias: in the image one answers with that daemon's record and
+the other with an empty list, and outside the image a listening daemon is not
+asked. A route that spends the search window on the control exchange as well
+answers empty in every case.
 
 The alias is `127.0.0.1` and the fake control daemon the record comes from is
 the suite's own (tests/support/fake_control.py), so the four identity values
@@ -56,17 +58,20 @@ def served(resp: Response) -> list[tuple[str, ...]] | str:
 
 
 @pytest.mark.parametrize(
-    ("alias_is_listening", "expected"),
+    ("in_image", "alias_is_listening", "expected"),
     [
-        (True, [(ALIAS, *FAKE_IDENTITY)]),
-        (False, []),
+        (True, True, [(ALIAS, *FAKE_IDENTITY)]),
+        (True, False, []),
+        (False, True, []),
     ],
+    ids=["in-the-image", "in-the-image-nobody-listening", "outside-the-image"],
 )
-def test_a_zero_search_window_still_serves_the_daemon_the_host_alias_names(
+def test_a_zero_search_window_serves_the_daemon_the_host_alias_names_only_in_the_image(
     tmp_path: Path,
     control_port: int,
     closed_port: int,
     *,
+    in_image: bool,
     alias_is_listening: bool,
     expected: list[tuple[str, ...]],
 ) -> None:
@@ -74,6 +79,7 @@ def test_a_zero_search_window_still_serves_the_daemon_the_host_alias_names(
         discovery_timeout=0.0,
         discovery_target=f"{ALIAS}:{build_closed_port()}",
         container_host_alias=ALIAS,
+        in_image=in_image,
         hqp_control_port=control_port if alias_is_listening else closed_port,
         metering_enabled=False,
         connection_file=tmp_path / "connection.json",

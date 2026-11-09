@@ -222,7 +222,7 @@ class Search:
     """Where the sweep looks and who it asks."""
 
     target: str = GROUP
-    alias: str = ALIAS
+    alias: str | None = ALIAS
     control_port: int = PORT
     request_timeout: float = 5.0
 
@@ -246,7 +246,8 @@ async def discover(
     A sweep that nothing answers asks the container-host alias directly, which is the case of a bridged
     container: the bridge carries no multicast, so the datagram reaches nobody while the daemon on the
     container's own host is one connection away. Only that case, because a daemon answering both would be
-    listed twice, once by the address its datagram came from and once by the alias.
+    listed twice, once by the address its datagram came from and once by the alias. A search that names no
+    alias asks nobody.
 
     ``deadline`` is what every connect, send and read of the daemons it then asks waits under. ``opener`` connects
     to a daemon's control port and ``datagrams`` makes the socket the datagram goes out on.
@@ -267,10 +268,13 @@ async def discover(
         except NotAReplyError:
             continue
     if not found:
-        with contextlib.suppress(OSError, ControlError):
-            found.append(
-                await probe(search.alias, search.control_port, search.request_timeout, deadline=deadline, opener=opener)
-            )
+        if search.alias is not None:
+            with contextlib.suppress(OSError, ControlError):
+                found.append(
+                    await probe(
+                        search.alias, search.control_port, search.request_timeout, deadline=deadline, opener=opener
+                    )
+                )
         return found
 
     async def describe(address: str) -> dict[str, str]:
