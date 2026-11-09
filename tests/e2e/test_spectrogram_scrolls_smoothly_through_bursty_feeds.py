@@ -262,7 +262,8 @@ class Replays:
             page.goto(self._stack.base_url)
             page.locator(SOURCE_STAGE).click(timeout=LOAD_TIMEOUT_MS)
             page.wait_for_function("window.__feedOpened === true", timeout=LOAD_TIMEOUT_MS)
-            page.clock.pause_at(int(page.evaluate("Date.now()")) + PAINT_MS)
+            # An ISO instant, since a number here is read as seconds and truncated to whole ms.
+            page.clock.pause_at(str(page.evaluate(f"new Date(Date.now() + {PAINT_MS}).toISOString()")))
             page.evaluate("window.__feedGo()")
             return self._paints(page, feed)
         finally:

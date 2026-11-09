@@ -128,21 +128,11 @@ const meterAxes = computed(() => ({
   window: apodWindow.value,
 }));
 
-/**
- * The view sourceMeter() handed out last and the axes it was built on. Its state is read on every call, since a feed
- * going quiet is a clock read and no signal (store/meter/feed.js meterSilent).
- *
- * @type {{ axes: object | null, view: SourceMeterView | null }}
- */
+/** @type {{ axes: object | null, view: SourceMeterView | null }} the view handed out last and the axes it was built on */
 const held = { axes: null, view: null };
 
-/**
- * What the Source drawer's meter shows now: the view handed out last while neither its state nor a signal behind it
- * has changed.
- *
- * @returns {SourceMeterView}
- */
-export function sourceMeter() {
+/** The meter's view: recomputed when a signal behind it changes, the same object while its state and axes read the same. */
+const meterView = computed(() => {
   const axes = meterAxes.value;
   const state = meterState();
   if (held.view && held.axes === axes && held.view.state === state) return held.view;
@@ -150,6 +140,15 @@ export function sourceMeter() {
   held.axes = axes;
   held.view = view;
   return view;
+});
+
+/**
+ * What the Source drawer's meter shows now.
+ *
+ * @returns {SourceMeterView}
+ */
+export function sourceMeter() {
+  return meterView.value;
 }
 
 /** stripEvents' events per column, reused across calls and made anew only when the strip's length changes. */

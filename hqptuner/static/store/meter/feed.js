@@ -23,10 +23,11 @@
 //
 // The feed is silent when the engine plays and no frame has come for QUIET_MS
 // since the feed opened, playback started, or the last frame, whichever is
-// latest. The clock is the Clock openMeterFeed() is handed (lib/clock.js), read
-// through its monotonic `now`, since it measures an interval and nothing else.
+// latest. The quiet window runs on the Clock openMeterFeed() is handed
+// (lib/clock.js), and its end is a signal, so whatever shows the silence redraws
+// when the feed goes quiet or a frame comes again.
 import { signal, effect, untracked } from "@preact/signals";
-import { PLATFORM } from "../../lib/clock.js";
+import { PLATFORM, quietWindow } from "../../lib/clock.js";
 import { decodeBins } from "../../model/gauges/meter/meter.js";
 import { playback } from "../core/readings.js";
 import { metering } from "../actions.js";
@@ -68,10 +69,16 @@ export const meterFeedOpen = signal(false);
 let source = null;
 /** @type {(() => void) | null} */
 let unwatch = null;
-/** @type {Clock} */
-let clock = PLATFORM;
-/** Wall time, ms on `clock`: when the feed opened, playback started or the last frame came, whichever is latest. */
-let since = 0;
+/** Whether QUIET_MS has passed on the open feed's clock since it opened, playback started or the last frame came. */
+const quiet = signal(false);
+/** The open feed's quiet window, restarted whenever `quiet` is cleared. */
+let quietFor = quietWindow(QUIET_MS, () => (quiet.value = true), PLATFORM);
+
+/** Clear the feed's silence and restart its quiet window. */
+function hush() {
+  quiet.value = false;
+  quietFor.arm();
+}
 /** @type {MeterFrame[]} */
 let pending = [];
 /**
@@ -142,8 +149,8 @@ function trim() {
  */
 export function openMeterFeed(next = PLATFORM) {
   closeMeterFeed();
-  clock = next;
-  since = clock.now();
+  quietFor = quietWindow(QUIET_MS, () => (quiet.value = true), next);
+  hush();
   meterGeometry.value = null;
   pending = [];
   prev = null;
@@ -155,7 +162,7 @@ export function openMeterFeed(next = PLATFORM) {
     regeometried = true;
   });
   es.addEventListener("frame", (e) => {
-    since = clock.now();
+    hush();
     const frame = decode(JSON.parse(e.data));
     edge = (frame.at ?? NaN) + frame.ms;
     pending.push(frame);
@@ -165,7 +172,7 @@ export function openMeterFeed(next = PLATFORM) {
   let was = untracked(() => playback.value.playing);
   unwatch = effect(() => {
     const on = playback.value.playing;
-    if (on && !was) since = clock.now();
+    if (on && !was) hush();
     if (!on && pending.length) toSpectrogram(takeMeterFrames());
     was = on;
   });
@@ -178,6 +185,8 @@ export function closeMeterFeed() {
   source = null;
   if (unwatch) unwatch();
   unwatch = null;
+  quietFor.cancel();
+  quiet.value = false;
   edge = null;
   meterFeedOpen.value = false;
 }
@@ -222,5 +231,5 @@ export function initMeterFeed(next = PLATFORM) {
 
 /** Whether the engine plays and the open feed has sent nothing for too long. @returns {boolean} */
 export function meterSilent() {
-  return source !== null && playback.value.playing && clock.now() - since >= QUIET_MS;
+  return quiet.value && source !== null && playback.value.playing;
 }

@@ -19,6 +19,7 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { effect } from "@preact/signals";
 
 import * as sourceStore from "../../../../../hqptuner/static/store/faceplate/drawers/source.js";
 import { setFreqSpan } from "../../../../../hqptuner/static/store/faceplate/view.js";
@@ -127,6 +128,67 @@ test("test_a_quiet_dsd_source_with_the_matrix_engaged_shows_the_silent_line", as
   stream({ metadata: { sdm: "1", samplerate: "2822400" } });
   feed.advance(QUIET_MS);
   assert.equal(sourceMeter().state, "silent");
+});
+
+// --- a reader's view follows the feed going quiet and coming back ---------------------------------------------------
+
+/** A geometry with a metering rate, so a frame's stamps convert to playback ms. */
+const FRAME_GEO = { rate: 44100, nyquist: 22050, channels: 1, bins: 4 };
+
+/** Send one meter frame on the open feed. @param {number} at  whole samples */
+const frame = (at) =>
+  lastStream()?.emit("frame", { channels: [{ peak: -3, rms: -9, bins: "AQAGADwAWAI=" }], at, n: 1000 });
+
+/**
+ * Register a reader of the drawer's state, as a rendered drawer is one, run `act`, and hand back every state the reader
+ * was shown, in order. Nothing else is read or redrawn between.
+ *
+ * @param {() => void} act
+ * @returns {string[]}
+ */
+function shown(act) {
+  /** @type {string[]} */
+  const seen = [];
+  const dispose = effect(() => {
+    seen.push(sourceMeter().state);
+  });
+  try {
+    act();
+  } finally {
+    dispose();
+  }
+  return seen;
+}
+
+// Break: the silent line is read once, when the drawer drew, and frames arriving again redraw nothing.
+test("test_a_drawer_showing_the_silent_line_shows_the_meter_once_frames_arrive_again", () => {
+  stream({ geometry: FRAME_GEO });
+  feed.advance(QUIET_MS);
+  assert.deepEqual(
+    shown(() => frame(0)),
+    ["silent", "live"],
+  );
+});
+
+// Break: the quiet window is a clock read made only when something else redraws the drawer.
+test("test_a_drawer_showing_the_meter_shows_the_silent_line_once_the_feed_stays_quiet", () => {
+  assert.deepEqual(
+    shown(() => feed.advance(QUIET_MS)),
+    ["live", "silent"],
+  );
+});
+
+// Break: the quiet window runs from the feed opening alone, so a frame inside it does not hold it off.
+test("test_a_frame_inside_the_quiet_window_holds_the_meter_up_for_another_whole_window", () => {
+  stream({ geometry: FRAME_GEO });
+  assert.deepEqual(
+    shown(() => {
+      feed.advance(QUIET_MS - 1);
+      frame(0);
+      feed.advance(QUIET_MS - 1);
+    }),
+    ["live"],
+  );
 });
 
 // While the connection is not Ready the engine counts as not playing, though the last Status still says it plays.
