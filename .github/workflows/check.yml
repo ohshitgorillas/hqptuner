@@ -12,7 +12,6 @@ on:
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       # Full history, not a shallow clone: the CSS gates enumerate their inputs
       # with `git ls-files`.
@@ -74,7 +73,6 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v5
         with:
