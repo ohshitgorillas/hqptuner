@@ -105,3 +105,9 @@ test("test_a_login_refused_for_a_pinned_value_shows_the_sentence_the_backend_sen
   loginSentence.value = "sentinel-from-the-backend";
   assert.equal(loggedOutPanel().includes("sentinel-from-the-backend"), true);
 });
+
+test("test_a_save_or_login_refused_for_its_host_shows_the_sentence_the_backend_sent", () => {
+  verdict.value = "rejected";
+  loginSentence.value = "sentinel-from-the-backend";
+  assert.equal(loggedOutPanel().includes("sentinel-from-the-backend"), true);
+});

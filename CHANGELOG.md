@@ -12,6 +12,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 ### Security
 
 - **Every browser now has to enter HQPlayer's username and password in the Connection panel before it can use HQPTuner.**
+- **Changing HQPlayer's address asks for the username and password again** to prevent credential leaks.
 
 ## [1.20.1] — 2026-11-03
 

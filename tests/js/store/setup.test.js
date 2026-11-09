@@ -434,6 +434,18 @@ test("test_a_login_refused_with_login_values_pinned_leaves_the_page_logged_out",
   assert.equal(loggedOut.value, true);
 });
 
+test("test_a_login_refused_with_host_invalid_carries_the_backends_sentence_unchanged", async () => {
+  loginPage();
+  loggedOut.value = true;
+  loginAnswer = {
+    ok: false,
+    status: 422,
+    json: async () => ({ detail: "the backend's sentence", code: "host_invalid" }),
+  };
+  await submitConnection(true);
+  assert.equal(loginSentence.value, "the backend's sentence");
+});
+
 test("test_a_refused_login_leaves_the_page_logged_out", async () => {
   loginPage();
   loggedOut.value = true;

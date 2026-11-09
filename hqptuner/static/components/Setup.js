@@ -135,7 +135,7 @@ function eightyEightyEight() {
 function report() {
   const v = verdict.value;
   if (!v) return null;
-  return html`<div class="setup-report"><p class="t-caption">${v === "pinned" ? loginSentence.value : VERDICTS[v] || ""}</p></div>`;
+  return html`<div class="setup-report"><p class="t-caption">${v === "pinned" || v === "rejected" ? loginSentence.value : VERDICTS[v] || ""}</p></div>`;
 }
 
 /** @param {boolean} remember which option this radio is */

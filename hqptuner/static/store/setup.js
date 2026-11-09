@@ -64,7 +64,7 @@ export const form = signal({ host: "", username: "", password: "", remember: tru
  */
 export const hostTouched = signal(false);
 /**
- * What the panel has to say about the last press of Connect. Ten members:
+ * What the panel has to say about the last press of Connect. Eleven members:
  *
  *   null          nothing pressed yet, or the panel has just been opened
  *   "no-host"     the address field was empty, so nothing was sent
@@ -75,15 +75,16 @@ export const hostTouched = signal(false);
  *   "no-answer"   the daemon answered, its settings port at 8088 did not
  *   "unreachable" nothing answered at the address
  *   "not-answered" a login could not be checked, because the daemon did not answer
- *   "pinned"      a login named a host, username or password the environment pins
+ *   "pinned"      a save or login named a host, username or password the environment pins
+ *   "rejected"    a save or login was refused for its host or its missing credentials
  *
  * A login refused for the typed pair reads "refused".
  */
 export const verdict = signal(null);
 
 /**
- * The backend's own sentence for the "pinned" verdict, shown as it arrived: the refusal names
- * what is set in the environment, and the wording is the server's.
+ * The backend's own sentence for the "pinned" and "rejected" verdicts, shown as it arrived: the
+ * refusal names what is wrong, and the wording is the server's.
  */
 export const loginSentence = signal("");
 
@@ -278,7 +279,28 @@ async function loadConnection() {
 
 // What a login the backend refused says, by the refusal's code.
 /** @type {Record<string, string>} */
-const LOGIN_VERDICTS = { login_refused: "refused", login_not_answered: "not-answered", login_values_pinned: "pinned" };
+const LOGIN_VERDICTS = {
+  login_refused: "refused",
+  login_not_answered: "not-answered",
+  login_values_pinned: "pinned",
+  host_invalid: "rejected",
+};
+
+// What a save the backend refused before writing anything says, by the refusal's code. Both
+// verdicts carry the backend's own sentence.
+/** @type {Record<string, string>} */
+const SAVE_VERDICTS = { login_values_pinned: "pinned", host_invalid: "rejected", credentials_required: "rejected" };
+
+/**
+ * Show the backend's sentence for a refusal that carries its own, under the verdict `next` names.
+ *
+ * @param {unknown} e the failure the request rejected with
+ * @param {string} next a verdict from `LOGIN_VERDICTS` or `SAVE_VERDICTS`
+ */
+function showSentence(e, next) {
+  if (next === "pinned" || next === "rejected") loginSentence.value = /** @type {Error} */ (e).message;
+  verdict.value = next;
+}
 
 /**
  * Log this browser in with the pair the panel holds.
@@ -299,8 +321,7 @@ async function logIn(f) {
   } catch (e) {
     const next = LOGIN_VERDICTS[/** @type {{ code?: string }} */ (e).code || ""];
     if (!next) throw e;
-    if (next === "pinned") loginSentence.value = /** @type {Error} */ (e).message;
-    verdict.value = next;
+    showSentence(e, next);
     return;
   }
   loggedOut.value = false;
@@ -343,7 +364,16 @@ export async function submitConnection(andClose = false) {
   // stored, or the daemon's published default — so the key is omitted and the route
   // keeps what it has. Clearing a password is not something this panel does.
   if (f.password) body.password = f.password;
-  const answer = await api.saveConnection(body);
+  let answer;
+  try {
+    answer = await api.saveConnection(body);
+  } catch (e) {
+    const next = SAVE_VERDICTS[/** @type {{ code?: string }} */ (e).code || ""];
+    if (!next) throw e;
+    awaitingVerdict = false;
+    showSentence(e, next);
+    return;
+  }
   savedAt = clock();
   savedLane = answer && answer.lane;
   // Judge the reading already in hand rather than waiting for the next poll: the

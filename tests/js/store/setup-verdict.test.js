@@ -25,6 +25,7 @@ import {
   form,
   hostTouched,
   verdict,
+  loginSentence,
   initSetup,
   openSetup,
   submitConnection,
@@ -218,3 +219,61 @@ for (const kase of SAID) {
     assert.equal(verdict.value, kase.verdict);
   });
 }
+
+// --- a save the backend refuses before writing anything ----------------------
+
+/**
+ * Fake the saved-record GET and a POST the backend refuses with `code`, carrying `sentence`.
+ *
+ * @param {string} code
+ * @param {string} sentence
+ */
+function refusedWire(code, sentence) {
+  staticWire(undefined, (path, opts) => {
+    if (path === "/api/discover") return ok([]);
+    if (path === "/api/connection" && opts.method === "POST") {
+      return { ok: false, status: 422, json: async () => ({ detail: sentence, code }) };
+    }
+    if (path === "/api/connection")
+      return ok({ host: "10.0.0.9", username: "tuner", remember: false, has_password: true });
+    return undefined;
+  });
+}
+
+/** The panel opened over a held record, the user having typed a host, and Save pressed. */
+async function pressSave() {
+  start();
+  openSetup();
+  await settle();
+  form.value = { ...form.value, host: "10.0.0.9", username: "tuner", password: "" };
+  await submitConnection(true);
+}
+
+for (const refusal of [
+  { code: "host_invalid", verdict: "rejected" },
+  { code: "credentials_required", verdict: "rejected" },
+  { code: "login_values_pinned", verdict: "pinned" },
+]) {
+  test(`test_a_save_refused_with_${refusal.code}_sets_the_${refusal.verdict}_verdict`, async () => {
+    refusedWire(refusal.code, "sentinel-from-the-backend");
+    await pressSave();
+    assert.equal(verdict.value, refusal.verdict);
+  });
+}
+
+test("test_a_refused_save_carries_the_backends_sentence_unchanged", async () => {
+  refusedWire("credentials_required", "sentinel-from-the-backend");
+  await pressSave();
+  assert.equal(loginSentence.value, "sentinel-from-the-backend");
+});
+
+test("test_a_refused_save_leaves_the_panel_open", async () => {
+  refusedWire("host_invalid", "sentinel-from-the-backend");
+  await pressSave();
+  assert.equal(setupOpen.value, true);
+});
+
+test("test_a_save_refused_with_an_unrelated_code_still_rejects", async () => {
+  refusedWire("backup_failed", "sentinel-from-the-backend");
+  await assert.rejects(pressSave());
+});
