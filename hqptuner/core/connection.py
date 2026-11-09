@@ -126,8 +126,17 @@ class ConnectionStore:
         tmp = self._path.with_suffix(self._path.suffix + ".tmp")
         with saving(CONNECTION_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-            tmp.replace(self._path)
+            # A leftover from a crash is removed, not reopened: reopening keeps its mode, and an exclusive create
+            # refuses a link planted at the name. Mode 0600 is the protection on POSIX; on Windows ``os.open``'s
+            # mode sets only the read-only bit, so there the per-user data directory's ACL is the protection.
+            tmp.unlink(missing_ok=True)
+            try:
+                descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+                with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
+                    handle.write(json.dumps(payload, indent=2) + "\n")
+                tmp.replace(self._path)
+            finally:
+                tmp.unlink(missing_ok=True)
 
 
 def _pinned(name: str) -> bool:
