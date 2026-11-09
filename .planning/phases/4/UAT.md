@@ -4,6 +4,7 @@ phase: 4
 fields_version: 1
 started: 2026-11-09
 updated: 2026-11-09
+ci: a14bb2c94bc56f09553c41fee41415e7f73255ff
 ---
 
 ## Items
@@ -11,12 +12,12 @@ updated: 2026-11-09
 ### 1. Clean-start boot in CI
 expected: The e2e job starts the service from clean state and its suite passes (ci: e2e)
 origin: smoke
-status: pending
+status: pass
 job: e2e
-commit: 0c2ff910c3cbd31352aa8b7797a34383a5b15fe3
+commit: a14bb2c94bc56f09553c41fee41415e7f73255ff
 first_pass: fail
 source: model
-evidence: Runs on PR #5 at 0c2ff910, the CI timeouts reverted
+evidence: e2e concluded success at a14bb2c9 (run 42714974398): '149 passed, 3655 deselected, 1 warning in 2663.41s'
 cause: The Source drawer's quiet state (meterState 'silent', hqptuner/static/store/faceplate/drawers/source.js:83-88, from meterSilent at hqptuner/static/store/meter/feed.js:224-226, QUIET_MS 2000) is a clock read no signal backs. Since 8fc34281 nothing re-renders the drawer when frames resume, so a drawer first rendered 2 s or more after the feed opened stays on 'No metering available.' with no canvas.spec. On the CI runner the installed Playwright page clock runs at real time until pause_at, and the Source click lands 2.3 s (5.8 s after the suite) of page time after the feed opens. Reproduced on Opal: a 2.5 s real wait before the click gives data-meter=silent, canvas.spec 0 of 381 paints and '9 failed', each 'ShortReplayError ... 0 paints'; 1.0 s gives 381 of 381; 8fc34281^ with the same wait gives '9 passed' (/tmp/spike-20261109T220634/out2, out4, out5a, out5b). Separate defect in the same module: page.clock.pause_at() takes Unix seconds (playwright/_impl/_clock.py:95 'int(time * 1_000)'), the module passes Date.now() in ms.
 fix: b43601be, retest
 
@@ -65,12 +66,12 @@ evidence: Independent re-audit of fe97fb16..5c2e3007 and of first-parent, non-me
 ### 7. CI green on the owner's pull request from v2
 expected: The check and e2e jobs are green on the owner's pull request from v2 (ci: check, e2e)
 criterion: AC6
-status: pending
+status: pass
 job: check
-commit: 0c2ff910c3cbd31352aa8b7797a34383a5b15fe3
+commit: a14bb2c94bc56f09553c41fee41415e7f73255ff
 first_pass: fail
 source: model
-evidence: Runs on PR #5 at 0c2ff910, the CI timeouts reverted
+evidence: check and e2e concluded success at a14bb2c9 (run 42714974398, PR #5)
 cause: The Source drawer's quiet state (meterState 'silent', hqptuner/static/store/faceplate/drawers/source.js:83-88, from meterSilent at hqptuner/static/store/meter/feed.js:224-226, QUIET_MS 2000) is a clock read no signal backs. Since 8fc34281 nothing re-renders the drawer when frames resume, so a drawer first rendered 2 s or more after the feed opened stays on 'No metering available.' with no canvas.spec. On the CI runner the installed Playwright page clock runs at real time until pause_at, and the Source click lands 2.3 s (5.8 s after the suite) of page time after the feed opens. Reproduced on Opal: a 2.5 s real wait before the click gives data-meter=silent, canvas.spec 0 of 381 paints and '9 failed', each 'ShortReplayError ... 0 paints'; 1.0 s gives 381 of 381; 8fc34281^ with the same wait gives '9 passed' (/tmp/spike-20261109T220634/out2, out4, out5a, out5b). Separate defect in the same module: page.clock.pause_at() takes Unix seconds (playwright/_impl/_clock.py:95 'int(time * 1_000)'), the module passes Date.now() in ms.
 fix: b43601be, retest
 
@@ -100,9 +101,9 @@ cause: Repo hand-back rule: the owner looks at every visual change before it is 
 ## Summary
 
 total: 9
-passed: 6
+passed: 8
 failed: 1
-pending: 2
+pending: 0
 skipped: 0
 blocked: 0
 reworked: 5
