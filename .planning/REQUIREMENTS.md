@@ -78,7 +78,7 @@ Deferred. Tracked, not in the current roadmap.
 | INTG-03 | Phase 3 | Complete |
 | INTG-04 | Phase 4 | Pending |
 | INTG-05 | Phase 4 | Pending |
-| METER-01 | Phase 5 | Pending |
+| METER-01 | Phase 5 | Complete |
 
 Bare headers - `/cad-plan` seeds a row per requirement when its phase is planned (`references/req-traceability.md`).
 
