@@ -16,6 +16,7 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [ ] **Phase 8: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
 - [ ] **Phase 9: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
 - [ ] **Phase 10: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
+- [ ] **Phase 11: Remove the 4321-only mode** - with the 8088 lane logged out, refused or down, the app does not work, and no code pretends it does
 
 ## Phase Details
 
@@ -169,3 +170,18 @@ Phases 4 to 9 remediate findings F-001 to F-048 of the independent security revi
 2. Every High finding in this phase is fixed, or declined or deferred only by an owner ruling.
 3. Each fixed finding has a test or check that fails against the pre-fix code.
 4. `make check` is green and the required CI jobs pass on the phase's last `dev` commit.
+
+### Phase 11: Remove the 4321-only mode
+
+**Goal:** HQPTuner requires both the 4321 control lane and the 8088 config lane. With the 8088 lane logged out, its credentials refused, or the page or daemon down, the app does not work, and no code path, fixture or UI branch keeps LIVE, playback or any other feature working over 4321 alone (owner ruling, 2026-11-09).
+
+**Depends on:** Phase 7
+
+**Requirements:** None
+
+**Success Criteria:**
+
+1. No route, store or component serves a feature over 4321 alone; a missing, refused or failed 8088 lane reads as the app not working, not as a reduced mode.
+2. No test fixture builds a 4321-only app as a supported install; tests that pinned the 4321-only behavior are removed.
+3. No documentation, comment or docstring describes a 4321-only mode as supported.
+4. `make check` is green on the phase's last `dev` commit.
