@@ -147,10 +147,13 @@ class Config:
     # default; a plain host address for a network that drops multicast, which
     # takes the same path and answers the same way.
     discovery_target: str = field(default_factory=lambda: _env("DISCOVERY_TARGET", "239.192.0.199"))
+    # Whether this process runs in the HQPTuner image, which sets HQPTUNER_IN_IMAGE
+    # in its Dockerfile. The container-host alias is asked only where this is on.
+    in_image: bool = field(default_factory=lambda: _env_flag("IN_IMAGE", "0"))
     # The address a container reaches its own host on. Asked directly when a
     # discovery sweep finds nothing, and at startup when neither a saved record
-    # nor HQPTUNER_HQP_HOST has named a daemon. Settable because the name
-    # resolves inside a container only.
+    # nor HQPTUNER_HQP_HOST has named a daemon, and in the image only. Settable
+    # because the name resolves inside a container only.
     container_host_alias: str = field(default_factory=lambda: _env("CONTAINER_HOST_ALIAS", "host.docker.internal"))
     # Whether this install resolves its bundled assets and per-user stores as a frozen
     # build would, and where its unpacked bundle sits — the two facts PyInstaller's

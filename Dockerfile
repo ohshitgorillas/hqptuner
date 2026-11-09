@@ -22,7 +22,8 @@ ENV HQPTUNER_BACKUP_DIR=/state/backups \
     HQPTUNER_MATRIX_MODE_FILE=/state/matrixmodes.json \
     HQPTUNER_AUTOPILOT_FILE=/state/autopilot.json \
     HQPTUNER_CONNECTION_FILE=/state/connection.json \
-    HQPTUNER_LISTEN_HOST=0.0.0.0
+    HQPTUNER_LISTEN_HOST=0.0.0.0 \
+    HQPTUNER_IN_IMAGE=1
 
 USER hqptuner
 EXPOSE 8090

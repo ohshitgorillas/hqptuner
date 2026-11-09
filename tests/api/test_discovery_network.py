@@ -89,7 +89,7 @@ def test_the_discover_route_on_an_app_handed_the_network_lists_the_same(tmp_path
 
 
 @pytest.mark.parametrize(("refuses", "verdict"), [(False, True), (True, False)])
-def test_a_start_with_no_host_adopts_the_alias_served_in_process(
+def test_a_start_in_the_image_with_no_host_adopts_the_alias_served_in_process(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, refuses: bool, verdict: bool
 ) -> None:
     monkeypatch.delenv("HQPTUNER_HQP_HOST", raising=False)
@@ -103,6 +103,7 @@ def test_a_start_with_no_host_adopts_the_alias_served_in_process(
             hqp_username="u",
             hqp_password="p",
             container_host_alias=ALIAS_HOST,
+            in_image=True,
         )
         with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
             settle_app(client)

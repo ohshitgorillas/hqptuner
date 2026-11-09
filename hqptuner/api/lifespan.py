@@ -27,13 +27,16 @@ log = logging.getLogger(__name__)
 async def _adopt_alias(cfg: Config, connections: ConnectionStore, manager: ConnectionManager) -> None:
     """Point an install that has chosen no host at the daemon on the container's own host, where one answers.
 
-    Only where nothing else named a host, so a saved record and a pinned variable both keep their meaning. A record
-    the store refuses, corrupt or naming an invalid host, was a host the user chose: no probe follows it.
+    Only in the image, where the alias name resolves, and only where nothing else named a host, so a saved record
+    and a pinned variable both keep their meaning. A record the store refuses, corrupt or naming an invalid host, was
+    a host the user chose: no probe follows it.
     The address is written to the config and to no store: nobody chose it, so it is asked again next start,
     and the first host the user saves replaces it. The 8088 client is rebuilt because the one ``create_app``
     built captured the address it was constructed with, which would leave the config lane on the old host
     while the control lane runs against the new one.
     """
+    if not cfg.in_image:
+        return
     try:
         record = connections.read()
     except StoreCorruptError as exc:

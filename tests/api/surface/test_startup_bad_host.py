@@ -90,10 +90,10 @@ async def _count_dial(_reader: asyncio.StreamReader, writer: asyncio.StreamWrite
 
 
 def alias_asked(cfg: Config) -> bool:
-    """Whether a start of ``cfg`` dials the container alias, whose control port is a counting fake."""
+    """Whether a start of ``cfg`` inside the image dials the container alias, whose control port is a counting fake."""
     dials: list[None] = []
     with fake_network.serving(functools.partial(_count_dial, dials=dials), host=ALIAS_HOST) as control:
-        aliased = dataclasses.replace(cfg, hqp_control_port=control, container_host_alias=ALIAS_HOST)
+        aliased = dataclasses.replace(cfg, hqp_control_port=control, container_host_alias=ALIAS_HOST, in_image=True)
         after_start(aliased, lambda client: client.get("/api/health").status_code)
     return bool(dials)
 

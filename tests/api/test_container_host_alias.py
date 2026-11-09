@@ -13,6 +13,9 @@ there by this test and read back off the wire (docs/testing.md rule 9), so the
 three cases are told apart by the daemon that answered rather than by a status
 code. Nothing answers at the `config.py` default 127.0.0.1: an install that
 never resolves an address reaches no daemon at all.
+
+The alias is asked only where the process says it runs in the HQPTuner image
+(`Config.in_image`), so every case here is a start inside the image.
 """
 
 from collections.abc import Iterator
@@ -114,6 +117,7 @@ def test_a_start_dials_the_record_then_the_variable_and_falls_back_to_the_host_a
         hqp_username="u",
         hqp_password="p",
         container_host_alias=ALIAS_ADDRESS,
+        in_image=True,
         connection_file=store_path,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
