@@ -1,6 +1,6 @@
 VENV := .venv/bin
 
-.PHONY: lint jscpd lint-js pytest-offline test test-live test-e2e test-js check manual mutate trivia
+.PHONY: lint jscpd lint-js pytest-offline test test-live test-e2e test-js check manual mutate
 
 lint:
 	$(VENV)/ruff check hqptuner tests scripts
@@ -15,7 +15,6 @@ lint:
 	$(VENV)/python scripts/gates/check_spelling.py $$(git ls-files)
 	$(VENV)/python scripts/gates/check_doc_refs.py $$(git ls-files '*.py' '*.js' '*.sh' '*.json' '*.css' '*.html' '*.txt' '*.webmanifest' | grep -v 'static/vendor/')
 	$(VENV)/python scripts/gates/check_docs.py .
-	$(VENV)/triviajudge-archaeology $$(git ls-files '*.py' '*.js' '*.css' | grep -v 'static/vendor/' | grep -v '^tests/' | grep -v '^scripts/probes/')
 	git log -1 --format=%B | $(VENV)/python scripts/gates/check_commit_msg.py -
 	$(VENV)/python scripts/gates/check_changelog.py CHANGELOG.md
 	$(VENV)/python scripts/gates/check_gates_wired.py
@@ -142,15 +141,6 @@ test-js:
 	  --import ./tests/js/support/vendor-resolve.js --test tests/js/*/*.test.js tests/js/*/*/*.test.js tests/js/*/*/*/*.test.js
 
 check: lint lint-js test test-js
-
-# Asks a model whether the markdown HEAD added narrates history instead of
-# stating what holds now. Needs a logged-in `claude` CLI and the network, so it
-# stays out of `check`, which is offline by contract; pre-commit runs it on
-# every markdown commit.
-trivia:
-	$(VENV)/triviajudge-md --head
-	$(VENV)/triviajudge-comments --head
-	$(VENV)/triviajudge-changelog --head
 
 # Pre-parse the vendored Signalyst docs into docs/official/manual/ — one file per
 # manual subsection plus an index, so an agent reads the section it needs

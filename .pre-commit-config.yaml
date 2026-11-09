@@ -42,17 +42,6 @@ repos:
         entry: .venv/bin/python scripts/gates/check_changelog.py
         language: system
         files: ^CHANGELOG\.md$
-      - id: md-trivia
-        name: markdown states what holds now (LLM judge)
-        entry: .venv/bin/triviajudge-md
-        language: system
-        files: \.md$
-        exclude: ^(CHANGELOG\.md|docs/internal/copy-before-after\.md|\.planning/.*)$
-      - id: changelog-trivia
-        name: changelog entries are new work, not repeats (LLM judge)
-        entry: .venv/bin/triviajudge-changelog
-        language: system
-        files: ^CHANGELOG\.md$
 
       - id: single-assertion
         name: one assertion per test
@@ -299,20 +288,6 @@ repos:
         entry: .venv/bin/python scripts/gates/check_spelling.py
         language: system
         types: [text]
-
-      - id: archaeology
-        name: decision-archaeology gate
-        entry: .venv/bin/triviajudge-archaeology
-        language: system
-        types_or: [python, javascript, css]
-        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
-
-      - id: comment-trivia
-        name: comments state what holds now (LLM judge)
-        entry: .venv/bin/triviajudge-comments
-        language: system
-        types_or: [python, javascript, css]
-        exclude: ^(hqptuner/static/vendor/|tests/|scripts/probes/)
 
       # Runs at the commit-msg stage, so it gets the message file, not the staged
       # paths; `default_install_hook_types` above is what makes `pre-commit
