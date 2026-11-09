@@ -15,8 +15,10 @@ every lane reaches the daemon through. Nothing here fills a reading on demand.
 """
 
 import asyncio
+import contextlib
 import logging
 import time
+from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 import httpx
@@ -85,8 +87,10 @@ class ConnectionManager:
         # How every connection to the daemon is opened; the suite hands in one whose fakes answer in process.
         self.network = network or Network()
         self._http = http_client
-        # 8088 clients a runtime credential change replaced, closed at shutdown. See the `http_client` setter.
-        self._retired: list[HttpConfigClient] = []
+        # How many requests and supervisor passes hold each 8088 client right now, and the closes of replaced
+        # clients still running. See `holding_http` and the `http_client` setter.
+        self._holders: dict[HttpConfigClient, int] = {}
+        self._closing: set[asyncio.Task[None]] = set()
         self._client: ControlClient | None = None
         self._stop = asyncio.Event()
         # `_wake` pulls the poll loop out of its wait early (see `restarting`);
@@ -161,14 +165,13 @@ class ConnectionManager:
     async def aclose(self) -> None:
         """Shut down cleanly: stop the loop and close the control connection so no socket dangles.
 
-        The caller awaits the run() task separately.
+        The caller awaits the run() task separately. A replaced 8088 client whose close is still running is waited for.
         """
         self.stop()
         if self._client is not None:
             await self._client.close()
             self._client = None
-        while self._retired:
-            await self._retired.pop().aclose()
+        await asyncio.gather(*self._closing)
 
     async def run(self) -> None:
         """Run the connect-load-poll loop until stopped, dropping the connection and retrying on any failure.
@@ -178,7 +181,8 @@ class ConnectionManager:
         while not self._stop.is_set():
             if self._client is None:
                 try:
-                    await loader.connect_and_load(self)
+                    async with self.holding_http():
+                        await loader.connect_and_load(self)
                 except _WIRE_FAULTS as exc:
                     await self._drop(f"connect/load failed: {exc}")
                     await self._idle(self._reconnect_delay())
@@ -188,7 +192,8 @@ class ConnectionManager:
                     await self._idle(self._reconnect_delay())
                     continue
             try:
-                await loader.poll(self)
+                async with self.holding_http():
+                    await loader.poll(self)
             except _WIRE_FAULTS as exc:
                 await self._drop(f"poll failed: {exc}")
                 continue
@@ -265,17 +270,41 @@ class ConnectionManager:
 
     @http_client.setter
     def http_client(self, client: HttpConfigClient | None) -> None:
-        """Attach the 8088 client built for the credentials just saved, retiring the one it replaces.
+        """Attach the 8088 client built for the credentials just saved, and close the one it replaces.
 
-        Retired, not closed: five write lanes hold the client across an await (``lanes/settle``,
-        ``presets/presetops``, ``lanes/http/restore``), so closing it here would abort a restore in flight. The
-        retired clients are closed at shutdown, where nothing is mid-request.
+        The replaced client is closed at once when nothing holds it, else by whoever holds it last (see
+        ``holding_http``): lanes keep the client across an await (``lanes/settle``, ``presets/presetops``,
+        ``lanes/http/restore``), so closing it under them would abort a restore in flight. Needs a running loop, as
+        the close does.
         """
-        if client is self._http:
+        replaced, self._http = self._http, client
+        if replaced is None or replaced is client or replaced in self._holders:
             return
-        if self._http is not None:
-            self._retired.append(self._http)
-        self._http = client
+        closing = asyncio.get_running_loop().create_task(replaced.aclose())
+        self._closing.add(closing)
+        closing.add_done_callback(self._closing.discard)
+
+    @contextlib.asynccontextmanager
+    async def holding_http(self) -> AsyncIterator[None]:
+        """Hold the 8088 client in service now for the block, so replacing it meanwhile does not close it.
+
+        Taken once at each entry point that reaches the client, a request (``api/deps``) and a pass of ``run``, and
+        not at the lanes below them. The block finishes on the client it began with; a client replaced meanwhile is
+        closed when the last block holding it ends. A lane that asks ``require_http`` again after a replacement gets
+        the new client, which is in service and stays open.
+        """
+        held = self._http
+        if held is not None:
+            self._holders[held] = self._holders.get(held, 0) + 1
+        try:
+            yield
+        finally:
+            if held is not None:
+                self._holders[held] -= 1
+                if not self._holders[held]:
+                    del self._holders[held]
+                    if held is not self._http:
+                        await held.aclose()
 
     @property
     def http_base_url(self) -> str:

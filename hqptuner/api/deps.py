@@ -13,7 +13,7 @@ user action).
 """
 
 import contextlib
-from collections.abc import Iterator, Mapping
+from collections.abc import AsyncIterator, Iterator, Mapping
 from dataclasses import dataclass
 from typing import Annotated
 
@@ -82,13 +82,23 @@ def require_credentials(request: Request) -> None:
         raise refuse(NoCredentialsConfiguredError())
 
 
-def _http_manager(request: Request) -> ConnectionManager:
+async def _held_manager(request: Request) -> AsyncIterator[ConnectionManager]:
+    """Resolve the manager for the length of the request, holding the 8088 client the request began with."""
+    mgr = manager_of(request)
+    async with mgr.holding_http():
+        yield mgr
+
+
+async def _held_http_manager(request: Request) -> AsyncIterator[ConnectionManager]:
+    """Resolve the manager as ``_held_manager`` does, after a 503 unless there are credentials."""
     require_credentials(request)
-    return manager_of(request)
+    mgr = manager_of(request)
+    async with mgr.holding_http():
+        yield mgr
 
 
-Mgr = Annotated[ConnectionManager, Depends(manager_of)]
-HttpMgr = Annotated[ConnectionManager, Depends(_http_manager)]
+Mgr = Annotated[ConnectionManager, Depends(_held_manager)]
+HttpMgr = Annotated[ConnectionManager, Depends(_held_http_manager)]
 Cfg = Annotated[Config, Depends(config_of)]
 Static = Annotated[StaticMetadata, Depends(static_of)]
 

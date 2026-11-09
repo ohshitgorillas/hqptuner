@@ -125,7 +125,7 @@ def make_lifespan(
             await _finish(metering_task, 0, manager.clock)
         await _finish(task, SHUTDOWN_GRACE, manager.clock)
         live = manager.http_client
-        # `aclose` closes the control lane and every retired 8088 client; the one still in service is ours.
+        # `aclose` closes the control lane and awaits any close of a replaced 8088 client; the one in service is ours.
         await manager.aclose()
         if live is not None:
             await live.aclose()
