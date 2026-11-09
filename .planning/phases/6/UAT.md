@@ -4,6 +4,7 @@ phase: 6
 fields_version: 1
 started: 2026-11-09
 updated: 2026-11-09
+ci: bc91ccefdbeba48b9a827edfb9e4c1f84570f45a
 ---
 
 ## Items
@@ -11,11 +12,12 @@ updated: 2026-11-09
 ### 1. Clean start from a fresh image
 expected: The image builds and starts from clean state, /api/health answers 200 (ci: smoke)
 origin: smoke
-status: pending_ci
+status: pass
 job: smoke
-commit: 25adaa78d92c5e1709235d8d26d6c8a210e1ece7
+commit: bc91ccefdbeba48b9a827edfb9e4c1f84570f45a
+first_pass: pass
 source: model
-evidence: smoke builds the image and starts it from clean state in CI; no image build or container start from this checkout (CLAUDE.local.md: no container here)
+evidence: smoke concluded success at bc91ccefdbeba48b9a827edfb9e4c1f84570f45a (8 of 8 legs, release.yml run 42593591372)
 
 ### 2. A login or save to a new host never carries the stored pair
 expected: A login naming a new host sends that host only the typed pair and, when accepted, replaces the saved record with that host and pair; a Connection save changing the host without both username and password answers "HQPTuner requires a new username and password when switching host addresses for security; please re-enter your credentials.", saves nothing and sends no request to the new host
@@ -76,11 +78,12 @@ evidence: DISPOSITIONS.md:23-87 has all eight entries. 26 commits resolve as HEA
 ### 9. Required CI jobs pass on the phase's last dev commit
 expected: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows pass on the phase's last dev commit (ci: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos, smoke-windows)
 criterion: AC7
-status: pending_ci
+status: pass
 job: check,e2e,smoke,lifecycle-deb,lifecycle-rpm,smoke-macos,smoke-windows
-commit: 25adaa78d92c5e1709235d8d26d6c8a210e1ece7
+commit: bc91ccefdbeba48b9a827edfb9e4c1f84570f45a
+first_pass: pass
 source: model
-evidence: required CI jobs run only on GitHub; local make check is green at this commit (2934 pytest passed, 4898 JS pass), which settles nothing for the CI jobs
+evidence: check, e2e, smoke, lifecycle-deb, lifecycle-rpm, smoke-macos and smoke-windows concluded success at bc91ccefdbeba48b9a827edfb9e4c1f84570f45a (check.yml push run; release.yml run 42593591372)
 
 ### 10. connection.json is created owner-only
 expected: ConnectionStore.write creates connection.json with mode 0600 on POSIX, also when a wider-mode temp file was left over
@@ -99,10 +102,9 @@ evidence: Setup.js data-testid setup-remember-note caption. SAVE_VERDICTS/LOGIN_
 ## Summary
 
 total: 11
-passed: 9
+passed: 11
 failed: 0
 pending: 0
-pending_ci: 2
 skipped: 0
 blocked: 0
 reworked: 0
