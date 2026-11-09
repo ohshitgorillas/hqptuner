@@ -15,6 +15,7 @@ dot-separated labels of 1 to 63 ASCII letters, digits and hyphens, none starting
 characters in all, and the two literal forms are decided by the standard library's ``ipaddress``.
 """
 
+import asyncio
 import contextlib
 import enum
 import ipaddress
@@ -24,6 +25,7 @@ from typing import TYPE_CHECKING
 
 import httpx
 
+from hqptuner.conf.noanswer import IDENTITY_ONLY, PAGE_CEILING, WaitFor, reply_ceiling, under_total
 from hqptuner.errors import HQPTunerError
 
 if TYPE_CHECKING:  # avoid a circular import at runtime — conf is the lowest layer
@@ -197,15 +199,16 @@ async def check_pair(
     wait: float,
     *,
     transport: httpx.AsyncBaseTransport | None = None,
+    deadline: WaitFor = asyncio,
 ) -> PairVerdict:
     """Ask the daemon at ``host:port`` whether ``username`` and ``password`` are accepted.
 
     One Digest-authenticated read of a page the daemon guards, judged by its status alone: the body is never
     parsed and nothing the daemon says is kept. Anything but the daemon's own 2xx or its credential refusal is
-    ``NOT_ANSWERED``: no connection, no answer within ``wait`` seconds, a 5xx (the 503 of a restarting daemon
-    among them), an address that is not a URL host.
+    ``NOT_ANSWERED``: no connection, no answer within ``wait`` seconds, a body still arriving at the total deadline
+    or past ``PAGE_CEILING``, a 5xx (the 503 of a restarting daemon among them), an address that is not a URL host.
 
-    ``transport`` is what the request goes over, None for httpx's own.
+    ``transport`` is what the request goes over, None for httpx's own. ``deadline`` is what the exchange waits under.
     """
     accepted = refused = False
     try:
@@ -215,8 +218,10 @@ async def check_pair(
             timeout=wait,
             verify=_UNUSED_TLS,
             transport=transport,
+            headers=IDENTITY_ONLY,
+            event_hooks=reply_ceiling(lambda _path: PAGE_CEILING),
         ) as client:
-            resp = await client.get(_PAIR_PAGE)
+            resp = await under_total(deadline, wait, client.get(_PAIR_PAGE))
         raise_for_status(resp)
         accepted = True
     except AuthRefused:

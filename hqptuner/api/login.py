@@ -91,7 +91,13 @@ async def login(body: LoginBody, request: Request, response: Response, manager: 
         raise refuse(LoginValuesPinnedError())
     transport = manager.network.http_transport(host, cfg.hqp_http_port)
     verdict = await check_pair(
-        host, cfg.hqp_http_port, body.username, body.password, cfg.request_timeout, transport=transport
+        host,
+        cfg.hqp_http_port,
+        body.username,
+        body.password,
+        cfg.request_timeout,
+        transport=transport,
+        deadline=manager.clock,
     )
     if verdict is PairVerdict.REFUSED:
         raise refuse(LoginRefusedError())

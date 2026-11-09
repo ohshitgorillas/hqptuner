@@ -77,6 +77,10 @@ class HttpReplyTooLargeError(httpx.RequestError):
         super().__init__("HQPlayer's reply was too large.", request=request)
 
 
+#: The most a form page or a write's answer is read up to, a refusal past it. A form page is the largest of these at
+#: 29.5 KB, so 256 KiB is almost nine times that.
+PAGE_CEILING = 256 * 1024
+
 #: Asked of every 8088 server, so an honest one sends its body as it is and the count below is the size that arrives.
 IDENTITY_ONLY = {"Accept-Encoding": "identity"}
 

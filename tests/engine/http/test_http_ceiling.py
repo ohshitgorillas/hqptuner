@@ -15,8 +15,8 @@ import httpx
 import pytest
 from fake_network import ChallengingDaemon
 
-from hqptuner.conf.httpconf import BACKUP_CEILING, PAGE_CEILING, HttpConfigClient, HttpOptions
-from hqptuner.conf.noanswer import HttpReplyTooLargeError
+from hqptuner.conf.httpconf import BACKUP_CEILING, HttpConfigClient, HttpOptions
+from hqptuner.conf.noanswer import PAGE_CEILING, HttpReplyTooLargeError
 
 HOST = "hqplayer.invalid"
 
