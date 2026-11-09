@@ -17,7 +17,7 @@ from bs4 import BeautifulSoup, Tag
 from hqptuner.conf.formparse import attr, parse_config_form, parse_matrix_form, parse_speakers_form
 from hqptuner.conf.httpauth import AuthRefused, raise_for_status, url_host
 from hqptuner.conf.httpforms import ConfigForm, MatrixForm, SpeakersForm
-from hqptuner.conf.noanswer import WaitFor, http_deadline, under_total
+from hqptuner.conf.noanswer import IDENTITY_ONLY, WaitFor, http_deadline, reply_ceiling, under_total
 
 # readme §1.9.1: level is dBFS, distance is cm. Ranges from the live form inputs.
 _SPK_LEVEL = (-60.0, 0.0)
@@ -117,6 +117,19 @@ class UnknownProfileActionError(ValueError):
         super().__init__(f"unknown profile action: {action}")
 
 
+# The most a reply is read up to, by path: a refusal past it, however the daemon came to send so much.
+# A form page is the largest at 29.5 KB, so 256 KiB is almost nine times that; a settings backup is the
+# largest body at 8.7 MB, so 32 MiB is almost four times that.
+PAGE_CEILING = 256 * 1024
+BACKUP_CEILING = 32 * 2**20
+_BACKUP_PATH = "/backup/settings.zip"
+
+
+def reply_ceiling_of(path: str) -> int:
+    """Answer the most bytes a reply to a request for ``path`` on the authenticated 8088 interface may carry."""
+    return BACKUP_CEILING if path == _BACKUP_PATH else PAGE_CEILING
+
+
 @dataclass(frozen=True)
 class HttpOptions:
     """How long each 8088 request waits for HQPlayer, and what carries it.
@@ -183,6 +196,8 @@ class HttpConfigClient:
             auth=httpx.DigestAuth(username, password),
             timeout=options.timeout,
             transport=options.transport,
+            headers=IDENTITY_ONLY,
+            event_hooks=reply_ceiling(reply_ceiling_of),
         )
         #: What this client's own requests have proven about the credentials it was
         #: built with — None until the first response lands, then True or False.

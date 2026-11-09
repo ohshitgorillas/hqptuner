@@ -248,7 +248,10 @@ def _response(raw: bytes, request: httpx.Request) -> httpx.Response:
     if lengths and len(body) < lengths[0]:
         raise httpx.RemoteProtocolError(_SHORT_BODY, request=request)
     kept = [(name, value) for name, value in headers if name.lower() != b"content-length"]
-    return httpx.Response(int(status.group(1)), headers=kept, content=body[: lengths[0]] if lengths else body)
+    # A stream, not ``content=``: a response built from content is already read, so nothing the client does while it
+    # reads the body (a size ceiling among it) would meet the bytes the way it meets a daemon's.
+    answer = body[: lengths[0]] if lengths else body
+    return httpx.Response(int(status.group(1)), headers=kept, stream=httpx.ByteStream(answer))
 
 
 def _answer(host: str, port: int, request: httpx.Request) -> httpx.Response:

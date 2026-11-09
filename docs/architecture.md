@@ -20,6 +20,8 @@ XML messages, unauthenticated. Carries the runtime-switchable settings (filters,
 
 Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope=system`), on which the daemon self-restarts in about 5.6 s.
 
+**Every 8088 exchange is bounded.** A whole exchange, the Digest challenge round trip and the body together, ends at a total deadline of six of its request's timeouts (60 s at the default 10 s), on the app's clock (`noanswer.under_total`, carried by `HttpOptions.deadline`); httpx's own timeout restarts at every read and stays beside it. A reply is read up to a ceiling set by its path, the 401 challenge body included, and a reply over it is refused: 256 KiB for the form pages and every write answer, 32 MiB for `/backup/settings.zip` (`noanswer.reply_ceiling`). The request asks for an identity encoding and a reply in any other is refused, because a compressed body has no size until it is decoded.
+
 **There is no `POST /config`.** `/config` is GET-only. The genuine form POSTs are `POST /matrix`, `POST /matrix/{load,save,delete}` and `POST /speakers` (about 3 s engine reload each), plus `POST /config/profile/delete` for removing a preset mirror. Per-field lane assignments and the evidence base live in `docs/settings-classification.md`.
 
 ### 2.3 Discovery is not a lane

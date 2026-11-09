@@ -1,12 +1,14 @@
 """What HQPTuner reports when HQPlayer does not answer a request in time, on either lane it talks to HQPlayer over.
 
 The 8088 web interface and the 4321 Control API give up on a silent HQPlayer in the same words, so the one
-sentence lives here, below both.
+sentence lives here, below both. So do the bounds on an 8088 answer that does arrive: the total deadline an exchange
+runs under and the size ceiling a reply is read up to.
 """
 
+import asyncio
 import contextlib
-from collections.abc import Awaitable, Iterator
-from typing import Protocol
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
+from typing import Any, Protocol
 
 import httpx
 
@@ -61,3 +63,62 @@ async def under_total[T](deadline: WaitFor, wait: float, exchange: Awaitable[T])
         return await deadline.wait_for(exchange, total)
     except TimeoutError as exc:
         raise HttpNoAnswerError(timeout=total) from exc
+
+
+class HttpReplyTooLargeError(httpx.RequestError):
+    """An 8088 reply grew past the ceiling of its path, or came in an encoding whose size cannot be bounded.
+
+    Subclasses ``httpx.RequestError`` so every site that catches ``httpx.HTTPError`` handles it unchanged. It is no
+    ``TransportError``, so ``hqplayer_request`` leaves it as it is.
+    """
+
+    def __init__(self, *, request: httpx.Request) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("HQPlayer's reply was too large.", request=request)
+
+
+#: Asked of every 8088 server, so an honest one sends its body as it is and the count below is the size that arrives.
+IDENTITY_ONLY = {"Accept-Encoding": "identity"}
+
+
+class _Capped(httpx.AsyncByteStream):
+    """The bytes of one reply, up to a ceiling: the byte after the last one allowed raises instead of arriving."""
+
+    def __init__(self, inner: httpx.AsyncByteStream, limit: int, request: httpx.Request) -> None:
+        self._inner = inner
+        self._limit = limit
+        self._request = request
+
+    async def __aiter__(self) -> AsyncIterator[bytes]:
+        seen = 0
+        async for chunk in self._inner:
+            seen += len(chunk)
+            if seen > self._limit:
+                raise HttpReplyTooLargeError(request=self._request)
+            yield chunk
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
+
+
+def reply_ceiling(limit_of: Callable[[str], int]) -> dict[str, list[Callable[..., Any]]]:
+    """Answer the ``event_hooks`` that hold every reply of an ``httpx.AsyncClient`` to the ceiling of its path.
+
+    The hook runs on each response before its body is read, the 401 of a Digest challenge included, because httpx
+    reads that body whole before it sends the answer. A reply in any encoding but identity is refused as if it were
+    over the ceiling: a compressed body is small on the wire and unbounded once decoded. Pair it with ``IDENTITY_ONLY``.
+    """
+
+    def hold(response: httpx.Response) -> Awaitable[None]:
+        request = response.request
+        stream = response.stream
+        if response.headers.get("content-encoding", "identity").lower() != "identity":
+            raise HttpReplyTooLargeError(request=request)
+        if isinstance(stream, httpx.AsyncByteStream):
+            response.stream = _Capped(stream, limit_of(request.url.path), request)
+        # httpx awaits a hook; this one has nothing to wait for, so what it hands back is already done.
+        done = asyncio.get_running_loop().create_future()
+        done.set_result(None)
+        return done
+
+    return {"response": [hold]}
