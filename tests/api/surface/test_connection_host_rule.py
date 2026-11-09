@@ -111,3 +111,49 @@ def test_a_save_to_the_same_host_with_no_password_keeps_the_stored_one(client: T
     client.post("/api/connection", json={"host": "127.0.0.1", "username": "v", "remember": True})
     stored = json.loads(record_path.read_text(encoding="utf-8"))
     assert (stored["username"], stored["password"]) == ("v", "p")
+
+
+LOGIN_VALUES_PINNED = "login_values_pinned"
+
+#: The environment variable that pins each field, and the value this app's own config already holds for it.
+PINS = {"host": "HQPTUNER_HQP_HOST", "username": "HQPTUNER_HQP_USERNAME", "password": "HQPTUNER_HQP_PASSWORD"}
+PINNED_TO = {"host": "127.0.0.1", "username": "u", "password": "p"}
+
+
+def pin(monkeypatch: pytest.MonkeyPatch, *fields: str) -> None:
+    """Pin the named fields in the environment to the values the app holds, as the Docker install does."""
+    for field, name in PINS.items():
+        monkeypatch.delenv(name, raising=False)
+        if field in fields:
+            monkeypatch.setenv(name, PINNED_TO[field])
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        {"host": ALIAS, "username": "u", "password": "p"},
+        {"host": "127.0.0.1", "username": "u", "password": "other"},
+    ],
+    ids=["host", "password"],
+)
+def test_a_save_naming_a_value_the_environment_pins_differently_is_forbidden_and_writes_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+    client: TestClient,
+    record_path: Path,
+    alias_daemon: dict[str, Any],
+    body: dict[str, str],
+) -> None:
+    pin(monkeypatch, "host", "password")
+    response = client.post("/api/connection", json=body)
+    assert (response.json().get("code"), record_path.exists(), alias_daemon["_requests"]) == (
+        LOGIN_VALUES_PINNED,
+        False,
+        0,
+    )
+
+
+def test_a_save_naming_exactly_the_pinned_values_is_accepted(
+    monkeypatch: pytest.MonkeyPatch, client: TestClient
+) -> None:
+    pin(monkeypatch, "host", "password")
+    assert client.post("/api/connection", json={**PINNED_TO, "remember": False}).status_code == 200

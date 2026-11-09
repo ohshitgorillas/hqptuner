@@ -13,6 +13,7 @@ from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.gate import set_login_cookie
 from hqptuner.api.routes.connection import (
     ConnectionReport,
+    LoginValuesPinnedError,
     apply_connection,
     checked_host,
     connection_report,
@@ -59,20 +60,6 @@ class LoginNotAnsweredError(ErrorBody):
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__("HQPlayer did not answer.")
-
-
-class LoginValuesPinnedError(ErrorBody):
-    """The login names a host, username or password the environment pins to something else."""
-
-    code = "login_values_pinned"
-
-    def __init__(self) -> None:
-        """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
-        super().__init__(
-            "Changing the address, username, and password this way is forbidden; the values are set in Docker's "
-            "environment. To change these, either remove or update the environment variables in Docker (likely set "
-            "in compose.yaml in the HQPTuner folder), then restart the container."
-        )
 
 
 def secret_of(request: Request) -> LoginSecret:

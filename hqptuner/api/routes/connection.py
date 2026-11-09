@@ -21,7 +21,13 @@ from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.gate import login_of, set_login_cookie
 from hqptuner.conf.httpauth import InvalidHostError, check_host
 from hqptuner.config import Config
-from hqptuner.core.connection import ConnectionRecord, ConnectionStore, build_http_client, layer_onto_config
+from hqptuner.core.connection import (
+    ConnectionRecord,
+    ConnectionStore,
+    build_http_client,
+    layer_onto_config,
+    pinned_differs,
+)
 from hqptuner.core.login import LoginSecret, mint
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.forms import FormsOutcome
@@ -55,6 +61,20 @@ class HostInvalidError(ErrorBody):
         """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
         super().__init__(
             "The host address was invalid; enter an IP address or hostname only without ports, paths, or spaces."
+        )
+
+
+class LoginValuesPinnedError(ErrorBody):
+    """The login names a host, username or password the environment pins to something else."""
+
+    code = "login_values_pinned"
+
+    def __init__(self) -> None:
+        """Render the fixed, owner-approved wording; this template carries no interpolated fact."""
+        super().__init__(
+            "Changing the address, username, and password this way is forbidden; the values are set in Docker's "
+            "environment. To change these, either remove or update the environment variables in Docker (likely set "
+            "in compose.yaml in the HQPTuner folder), then restart the container."
         )
 
 
@@ -157,6 +177,31 @@ async def apply_connection(
     return lane
 
 
+def record_from(body: ConnectionBody, cfg: Config, store: ConnectionStore) -> ConnectionRecord:
+    """Return the record ``body`` asks to save, or raise the refusal that keeps it from being saved.
+
+    Every field the body omits is the one in force. Nothing is written or sent here: a refusal leaves the live
+    config, the stored record and every daemon as they were.
+    """
+    host = checked_host(body.host if body.host is not None else cfg.hqp_host)
+    username = body.username if body.username is not None else cfg.hqp_username
+    password = body.password if body.password is not None else cfg.hqp_password
+    # The login's rule: a value the environment pins to something else is not this surface's to change, and an
+    # omitted field is the one in force, which a pin already holds.
+    if pinned_differs(host, username, password):
+        raise refuse(LoginValuesPinnedError())
+    if host != cfg.hqp_host and not (body.username and body.password):
+        raise refuse(CredentialsRequiredError())
+    return ConnectionRecord(
+        host=host,
+        username=username,
+        password=password,
+        # Silence about the choice is not a request to change it: a client correcting the address alone
+        # would otherwise flip an install that asked to be asked every time into one that stores the pair.
+        remember=body.remember if body.remember is not None else remembered(store),
+    )
+
+
 @router.get("/connection")
 def read_connection(request: Request) -> ConnectionReport:
     """Answer with the daemon address and username in force, and whether a password is held.
@@ -180,17 +225,7 @@ async def write_connection(
     store = store_of(request)
     login = login_of(request)
     pair_before = (cfg.hqp_username, cfg.hqp_password)
-    host = checked_host(body.host if body.host is not None else cfg.hqp_host)
-    if host != cfg.hqp_host and not (body.username and body.password):
-        raise refuse(CredentialsRequiredError())
-    record = ConnectionRecord(
-        host=host,
-        username=body.username if body.username is not None else cfg.hqp_username,
-        password=body.password if body.password is not None else cfg.hqp_password,
-        # Silence about the choice is not a request to change it: a client correcting the address alone
-        # would otherwise flip an install that asked to be asked every time into one that stores the pair.
-        remember=body.remember if body.remember is not None else remembered(store),
-    )
+    record = record_from(body, cfg, store)
     lane = await apply_connection(cfg, store, manager, record)
     if login is not None and (cfg.hqp_username, cfg.hqp_password) != pair_before:
         # A login is bound to the pair, so this save ends every login made under the old one, this browser's
