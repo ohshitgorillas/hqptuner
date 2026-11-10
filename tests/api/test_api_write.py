@@ -38,12 +38,12 @@ def test_apply_with_nothing_staged_is_rejected(api_client: TestClient) -> None:
     assert api_client.post("/api/config/apply").status_code == 400
 
 
-def test_failed_apply_preserves_the_staged_edits(api_client: TestClient) -> None:
-    # daemon unreachable (closed port) → apply fails; staging must survive so
+def test_failed_apply_preserves_the_staged_edits(daemonless_client: TestClient) -> None:
+    # daemon unreachable (its lane gone) → apply fails; staging must survive so
     # the user does not silently lose the edit
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    api_client.post("/api/config/apply")
-    assert api_client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
+    daemonless_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    daemonless_client.post("/api/config/apply")
+    assert daemonless_client.get("/api/config/pending").json()["live"]["shaper"]["value"] == "5"
 
 
 def test_soft_failed_http_apply_preserves_staging(http_client: TestClient) -> None:

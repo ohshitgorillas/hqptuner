@@ -72,6 +72,21 @@ def half_wired_client(threaded_daemon_port: int, closed_port: int, tmp_path: Pat
         yield client
 
 
+@pytest.fixture
+def unloaded_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+    """An app started with neither lane answering, so no daemon reading was ever taken."""
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=closed_port,
+        hqp_username="u",
+        hqp_password="p",
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+    )
+    with unserved_login(cfg, VirtualClock()) as client:
+        yield client
+
+
 # --- the no-credentials contract (deps.require_credentials) ---------------------
 
 
@@ -101,8 +116,8 @@ def test_profile_load_without_credentials_is_unavailable(nocreds_client: TestCli
 
 
 @pytest.mark.parametrize("path", ["/api/state", "/api/status", "/api/enumerations"])
-def test_snapshot_routes_before_first_daemon_load_are_unavailable(api_client: TestClient, path: str) -> None:
-    assert api_client.get(path).status_code == 503
+def test_snapshot_routes_before_first_daemon_load_are_unavailable(unloaded_client: TestClient, path: str) -> None:
+    assert unloaded_client.get(path).status_code == 503
 
 
 # --- forms: not-yet-loaded vs fetch-failed (deps.ensure_form) --------------------
@@ -123,21 +138,21 @@ def test_form_routes_after_a_failed_fetch_are_bad_gateway(half_wired_client: Tes
 # --- live routes without a connected daemon --------------------------------------
 
 
-def test_volume_write_without_a_daemon_is_unavailable(api_client: TestClient) -> None:
-    assert api_client.post("/api/volume", json={"level": "-20"}).status_code == 503
+def test_volume_write_without_a_daemon_is_unavailable(daemonless_client: TestClient) -> None:
+    assert daemonless_client.post("/api/volume", json={"level": "-20"}).status_code == 503
 
 
-def test_matrix_profile_switch_without_a_daemon_is_unavailable(api_client: TestClient) -> None:
-    assert api_client.post("/api/matrix/profile", json={"action": "switch", "name": ""}).status_code == 503
+def test_matrix_profile_switch_without_a_daemon_is_unavailable(daemonless_client: TestClient) -> None:
+    assert daemonless_client.post("/api/matrix/profile", json={"action": "switch", "name": ""}).status_code == 503
 
 
 def test_unknown_matrix_profile_action_is_not_found(api_client: TestClient) -> None:
     assert api_client.post("/api/matrix/profile", json={"action": "save", "name": "x"}).status_code == 404
 
 
-def test_apply_of_a_live_edit_without_a_daemon_is_unavailable(api_client: TestClient) -> None:
-    api_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
-    assert api_client.post("/api/config/apply").status_code == 503
+def test_apply_of_a_live_edit_without_a_daemon_is_unavailable(daemonless_client: TestClient) -> None:
+    daemonless_client.post("/api/config/stage", json={"live": {"shaper": {"value": "5"}}})
+    assert daemonless_client.post("/api/config/apply").status_code == 503
 
 
 # --- wire failures on the config lane (502 family) --------------------------------

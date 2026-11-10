@@ -8,9 +8,9 @@ from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
+import fake_control
 import pytest
-from apps import closed_port as build_closed_port
-from apps import live_app, log_in, unserved_login
+from apps import live_app, log_in
 from conftest import spawn_threaded_daemon
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
@@ -59,6 +59,19 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
 def live_api(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
     """The REST surface on the threaded fake 4321 daemon and an 8088 fake of its own, ready and logged in."""
     yield from live_app(threaded_daemon_port, tmp_path)
+
+
+@pytest.fixture
+def daemonless_client(tmp_path: Path) -> Iterator[TestClient]:
+    """An app ready on both lanes whose 4321 lane then goes away for good."""
+    control_state = dict(fake_control.DEFAULTS)
+    daemon = spawn_threaded_daemon(state=control_state)
+    app = live_app(next(daemon), tmp_path)
+    client = next(app)
+    fake_control.take_lane_down(control_state)
+    yield client
+    next(app, None)
+    next(daemon, None)
 
 
 @pytest.fixture
@@ -123,13 +136,10 @@ def gated_app(http_daemon: dict[str, Any], closed_port: int, tmp_path: Path) -> 
 
 
 @pytest.fixture
-def api_client() -> Iterator[TestClient]:
-    """The REST surface with no daemon behind it (control lane at a closed port,
-    no credentials) — for the routes whose behavior is guards and buffering
+def api_client(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    """The REST surface on both lanes, ready and logged in — for the routes whose behavior is guards and buffering
     rather than daemon traffic."""
-    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=build_closed_port())
-    with unserved_login(cfg, VirtualClock()) as test_client:
-        yield test_client
+    yield from live_app(threaded_daemon_port, tmp_path)
 
 
 @pytest.fixture

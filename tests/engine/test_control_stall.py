@@ -50,7 +50,7 @@ PARKED_POLL_INTERVAL = 3600.0
 STALLED_FIELD = "junk_filter"
 
 #: The last Control API command of both `loader.connect_and_load` and `loader.poll` in a
-#: control-only app (the 8088 refreshes that follow never touch this wire), so
+#: two-lane app (the 8088 refreshes that follow never touch this wire), so
 #: its SECOND appearance in the daemon's log is the first background poll
 #: finishing. The fixtures that flip a `_stall`/`_close` knob on a healthy
 #: daemon wait for it first: the app reports reachable after connect-and-load
@@ -96,7 +96,7 @@ CLOSING_STATE_VALUE = "54"
 
 
 def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:
-    """The control-only app on a daemon that answers everything until the app has
+    """The two-lane app on a control daemon that answers everything until the app has
     loaded, then drops the connection on `GetShapers` and answers nothing else.
 
     Healthy first so the app can connect and enumerate; the knob goes on through
@@ -203,12 +203,12 @@ def test_a_housekeeping_failure_after_a_write_is_logged_at_warning(
 
 # --- nothing written at all ----------------------------------------------------
 # The other side of the line: housekeeping failing after a write landed is a
-# success, but a write that never reached a daemon is not. `api_client` points
-# the control lane at a port nothing listens on.
+# success, but a write that never reached a daemon is not. `daemonless_client`
+# takes the control lane away once the app is ready.
 
 
-def test_a_write_with_no_control_connection_is_unavailable(api_client: TestClient) -> None:
-    resp = api_client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
+def test_a_write_with_no_control_connection_is_unavailable(daemonless_client: TestClient) -> None:
+    resp = daemonless_client.post("/api/config/live", json={"fields": {STALLED_FIELD: "1"}})
     assert resp.status_code == 503
 
 
