@@ -3,20 +3,15 @@
 public API against the faithful fake daemon (docs/testing.md)."""
 
 import contextlib
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
 import httpx
 import pytest
 from conftest import ManagerFactory
-from fake_network import NETWORK
 from narrow import present
-from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets import presetlane
 from hqptuner.presets.presetops import BackupFailedError
@@ -57,24 +52,17 @@ async def test_reading_the_default_preset_serves_the_running_config(http_manager
 # --- apply_engine error returns ------------------------------------------------
 
 
-async def test_apply_engine_without_credentials_declines_the_http_lane() -> None:
-    manager = ConnectionManager(Config(), clock=VirtualClock(), network=NETWORK)
+async def test_apply_engine_without_credentials_declines_the_http_lane(http_manager: ConnectionManager) -> None:
+    http_manager.http_client = None
     with pytest.raises(HttpLaneDeclinedError):
-        await manager.applyops.apply_engine({"cuda": "0"})
+        await http_manager.applyops.apply_engine({"cuda": "0"})
 
 
 @pytest.fixture
-async def dead_lane_manager(closed_port: int, tmp_path: Path) -> AsyncIterator[ConnectionManager]:
-    """A manager whose 8088 lane points at a port nothing serves."""
-    http = HttpConfigClient("127.0.0.1", closed_port, "u", "p", NETWORK.http_options("127.0.0.1", closed_port))
-    manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"),
-        http,
-        VirtualClock(),
-        NETWORK,
-    )
-    yield manager
-    await http.aclose()
+def dead_lane_manager(http_daemon: dict[str, Any], http_manager: ConnectionManager) -> ConnectionManager:
+    """A ready manager whose 8088 lane is then taken away."""
+    http_daemon["_take_lane_down"]()
+    return http_manager
 
 
 async def test_apply_engine_reports_an_unreachable_http_lane(dead_lane_manager: ConnectionManager) -> None:
@@ -91,20 +79,17 @@ async def test_a_save_that_cannot_reach_the_daemon_reports_its_failure(dead_lane
 # --- failed write must abort rather than let the restore proceed uncovered --
 
 
-def test_persist_backup_writes_the_archive_to_disk(tmp_path: Path) -> None:
-    manager = ConnectionManager(
-        Config(backup_dir=tmp_path / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
-    )
-    path = manager.presetops.persist_backup_for_apply(b"archive-bytes")
+def test_persist_backup_writes_the_archive_to_disk(http_manager: ConnectionManager) -> None:
+    path = http_manager.presetops.persist_backup_for_apply(b"archive-bytes")
     assert present(path).read_bytes() == b"archive-bytes"
 
 
-def test_persist_backup_raises_when_the_directory_is_unwritable(tmp_path: Path) -> None:
+async def test_persist_backup_raises_when_the_directory_is_unwritable(
+    http_daemon: dict[str, Any], http_manager_factory: ManagerFactory, tmp_path: Path
+) -> None:
     blocker = tmp_path / "blocker"
     blocker.write_text("a file where the backup dir should be")
-    manager = ConnectionManager(
-        Config(backup_dir=blocker / "backups", preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
-    )
+    manager = await http_manager_factory(http_daemon, backup_dir=blocker / "backups")
     with pytest.raises(BackupFailedError):
         manager.presetops.persist_backup_for_apply(b"archive-bytes")
 

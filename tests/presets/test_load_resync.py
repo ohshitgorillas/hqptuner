@@ -22,23 +22,19 @@ the load itself put there.
 
 from collections.abc import AsyncIterator, Awaitable, Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
-from conftest import DaemonFactory
-from fake_network import NETWORK
+from apps import closed_port, settled
+from conftest import DaemonFactory, Runs, http_client_of
 from narrow import FixtureError, present
 from virtual_clock import VirtualClock
 
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import Config
 from hqptuner.core.applyops import ApplyReport, EngineApplyResult
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.presets import presetlane
-
-if TYPE_CHECKING:
-    import asyncio
 
 #: What the 4321 fake is moved to when the restore lands: the engine that comes
 #: back after the restart. SDM loaded, its chain enumerated, its own filter slot
@@ -57,20 +53,19 @@ DualLane = Callable[..., Awaitable[tuple[ConnectionManager, dict[str, str]]]]
 
 
 @pytest.fixture
-async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path: Path) -> AsyncIterator[DualLane]:
-    """A connected manager on both lanes — 4321 for the engine picture, 8088 for
+async def dual_lane(
+    daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path: Path, clock: VirtualClock
+) -> AsyncIterator[DualLane]:
+    """A ready manager on both lanes — 4321 for the engine picture, 8088 for
     the restore a preset load rides — settled before it comes back.
 
     Keyword arguments are the control fake's State overrides. The poll interval
     is left at the production pacing deliberately: the manager's own poll would
     otherwise refresh the picture the load is supposed to refresh."""
-    built: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+    runs = Runs(clock)
 
     async def build(**overrides: str) -> tuple[ConnectionManager, dict[str, str]]:
         port, _log, state = await daemon(**overrides)
-        http = HttpConfigClient(
-            "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
-        )
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=port,
@@ -79,17 +74,10 @@ async def dual_lane(daemon: DaemonFactory, http_daemon: dict[str, Any], tmp_path
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
         )
-        manager = ConnectionManager(cfg, http, VirtualClock(), NETWORK)
-        task = manager.clock.spawn(manager.run())
-        built.append((manager, task, http))
-        return manager, state
+        return await runs.start(cfg, http_client_of(http_daemon["_port"])), state
 
     yield build
-    for manager, task, http in built:
-        manager.stop()
-        await task
-        await manager.aclose()
-        await http.aclose()
+    await runs.close()
 
 
 def _applied(report: ApplyReport) -> None:
@@ -120,22 +108,20 @@ def _filter_nx(manager: ConnectionManager) -> str:
 
 
 async def _preset_load_with_no_control_connection(
-    http_daemon: dict[str, Any], tmp_path: Path, _dual_lane: DualLane
+    _http_daemon: dict[str, Any], _tmp_path: Path, dual_lane: DualLane, clock: VirtualClock
 ) -> ConnectionManager:
-    http = HttpConfigClient(
-        "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
-    )
-    cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    manager = ConnectionManager(cfg, http, VirtualClock(), NETWORK)
-    try:
-        await manager.presetops.save_preset("Stored")
-        await presetlane.load(manager, "Stored")
-    finally:
-        await http.aclose()
+    manager, _state = await dual_lane()
+    manager.cfg.hqp_control_port = closed_port()
+    await manager.retarget()
+    await settled(clock)
+    await manager.presetops.save_preset("Stored")
+    await presetlane.load(manager, "Stored")
     return manager
 
 
-async def _staged_apply(http_daemon: dict[str, Any], _tmp_path: Path, dual_lane: DualLane) -> ConnectionManager:
+async def _staged_apply(
+    http_daemon: dict[str, Any], _tmp_path: Path, dual_lane: DualLane, _clock: VirtualClock
+) -> ConnectionManager:
     manager, state = await dual_lane()
     http_daemon["_on_restore"] = lambda: state.update(RESTARTED_INTO_SDM)
     _applied(await manager.applyops.apply({}, {"title": "Renamed"}))
@@ -153,10 +139,11 @@ async def test_a_preset_load_with_no_control_connection_leaves_no_state_but_stag
     http_daemon: dict[str, Any],
     tmp_path: Path,
     dual_lane: DualLane,
-    write: Callable[[dict[str, Any], Path, DualLane], Awaitable[ConnectionManager]],
+    clock: VirtualClock,
+    write: Callable[[dict[str, Any], Path, DualLane, VirtualClock], Awaitable[ConnectionManager]],
     expected: str,
 ) -> None:
-    assert _filter_nx(await write(http_daemon, tmp_path, dual_lane)) == expected
+    assert _filter_nx(await write(http_daemon, tmp_path, dual_lane, clock)) == expected
 
 
 # --- the other two restart-shaped writes -------------------------------------

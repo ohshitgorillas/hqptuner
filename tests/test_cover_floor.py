@@ -15,14 +15,14 @@ from typing import Any
 from xml.etree import ElementTree as ET
 
 import pytest
-from conftest import DaemonFactory, LiveManager
+from apps import settled
+from conftest import LiveManager
 from fake_network import NETWORK, serving
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
 from hqptuner.conf.matrixscope import find_matrix_body_span, has_profile, matrix_body_span, matrix_scope
 from hqptuner.conf.xmledit import GroundingError
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.control import ControlClient
 from hqptuner.engine.controlerrors import ControlError
@@ -127,16 +127,13 @@ def test_find_matrix_body_span_locates_the_body_and_answers_absent_without_raisi
 
 
 @pytest.fixture
-async def dead_manager(closed_port: int, clock: VirtualClock) -> AsyncIterator[ConnectionManager]:
-    """A running manager whose control lane points at a port nothing listens on."""
-    manager = ConnectionManager(
-        Config(hqp_host="127.0.0.1", hqp_control_port=closed_port), clock=clock, network=NETWORK
-    )
-    task = clock.spawn(manager.run())
-    yield manager
-    manager.stop()
-    await task
-    await manager.aclose()
+async def dead_manager(live_manager: LiveManager, closed_port: int, clock: VirtualClock) -> ConnectionManager:
+    """A ready manager whose control lane is then pointed at a port nothing listens on."""
+    manager, _log, _state = await live_manager()
+    manager.cfg.hqp_control_port = closed_port
+    await manager.retarget()
+    await settled(clock)
+    return manager
 
 
 async def _loaded(manager: ConnectionManager) -> dict[str, Any]:
@@ -232,22 +229,16 @@ async def test_a_mode_the_engine_already_runs_is_skipped_and_the_rest_is_split(
 
 
 @pytest.fixture
-async def manager_and_client(
-    daemon: DaemonFactory, clock: VirtualClock
-) -> AsyncIterator[tuple[ConnectionManager, ControlClient]]:
-    """A running manager on a fake daemon, plus a second control connection to
+async def manager_and_client(live_manager: LiveManager) -> AsyncIterator[tuple[ConnectionManager, ControlClient]]:
+    """A ready manager on a fake daemon, plus a second control connection to
     that same daemon (its State is shared across connections), for the lane
     entry points that take the client to write through as an argument."""
-    port, _log, _state = await daemon()
-    manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock, network=NETWORK)
-    task = clock.spawn(manager.run())
+    manager, _log, _state = await live_manager()
+    port = manager.cfg.hqp_control_port
     client = ControlClient("127.0.0.1", port, timeout=2.0, opener=NETWORK.open_stream)
     await client.connect()
     yield manager, client
     await client.close()
-    manager.stop()
-    await task
-    await manager.aclose()
 
 
 async def _reasserted(

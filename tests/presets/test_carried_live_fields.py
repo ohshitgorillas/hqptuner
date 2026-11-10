@@ -25,59 +25,35 @@ it, and ``PresetStore`` makes it the active preset — the same shape
 The apply path over the same contract is `test_restore_carries_the_engine.py`.
 """
 
-from collections.abc import AsyncIterator, Callable, Coroutine
+from collections.abc import Callable, Coroutine
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
-from conftest import DaemonFactory
+from conftest import LiveManager
 from fake_config_xml import cfg_xml
 from fake_http import state
-from fake_network import NETWORK
-from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetconf
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-
-if TYPE_CHECKING:
-    import asyncio
 from hqptuner.lanes.presetfields import carried_live_fields
 from hqptuner.presets.store.presets import PresetStore
 
-#: Build a manager on a control fake started with the given State overrides.
+#: Build a ready manager on a control fake started with the given State overrides.
 EngineManager = Callable[..., Coroutine[Any, Any, ConnectionManager]]
 
 
 @pytest.fixture
-async def engine_manager(daemon: DaemonFactory, tmp_path: Path) -> AsyncIterator[EngineManager]:
-    """A manager on the control fake alone, with its preset directory under
-    ``tmp_path``. The poll interval is parked far out so nothing observed here
-    is the background poll's doing."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
+def engine_manager(live_manager: LiveManager) -> EngineManager:
+    """A ready two-lane manager, its preset directory under ``tmp_path``. The poll
+    interval is parked far out so nothing observed here is the background poll's
+    doing."""
 
     async def build(**overrides: str) -> ConnectionManager:
-        port, _, _ = await daemon(**overrides)
-        manager = ConnectionManager(
-            Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=port,
-                poll_interval=30.0,
-                backup_dir=tmp_path / "backups",
-                preset_dir=tmp_path / "presets",
-            ),
-            clock=VirtualClock(),
-            network=NETWORK,
-        )
-        task = manager.clock.spawn(manager.run())
-        started.append((manager, task))
+        manager, _log, _state = await live_manager(config={"poll_interval": 30.0}, **overrides)
         return manager
 
-    yield build
-    for manager, task in started:
-        manager.stop()
-        await task
-        await manager.aclose()
+    return build
 
 
 def _active_preset_holding(preset_dir: Path, edits: dict[str, str], name: str = "Kept") -> None:
@@ -133,11 +109,10 @@ async def test_a_stored_field_outside_the_live_domain_is_not_carried(
 # --- nothing to carry ---------------------------------------------------------
 
 
-def _cold(_connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:
-    """A manager that never connected, over a preset directory with no active preset."""
-    return ConnectionManager(
-        Config(backup_dir=tmp_path, preset_dir=tmp_path / "presets"), clock=VirtualClock(), network=NETWORK
-    )
+def _cold(connected: ConnectionManager, _tmp_path: Path) -> ConnectionManager:
+    """The ready manager with no State reading of the engine, over a preset directory with no active preset."""
+    connected.readings.state = None
+    return connected
 
 
 def _with_a_store(connected: ConnectionManager, tmp_path: Path) -> ConnectionManager:
@@ -157,8 +132,8 @@ async def test_a_manager_with_neither_source_answers_empty_but_a_connected_one_d
     *,
     connected: bool,
 ) -> None:
-    # a no-crash guard, not a coverage claim: a manager that never connected has
-    # no State to read the engine off and its empty preset directory has no
+    # a no-crash guard, not a coverage claim: a manager holding
+    # no State reading has nothing to read the engine off and its empty preset directory has no
     # active preset, so the only contract left is that the call still answers —
     # a restore on a cold manager must not die on the way to the push. Pinned
     # beside a manager with both sources, so the empty case cannot be an

@@ -13,13 +13,9 @@ from typing import Any
 import httpx
 import pytest
 from conftest import ManagerFactory
-from fake_network import NETWORK
 from fixtures_clients import app
-from virtual_clock import VirtualClock
 
 from hqptuner.conf import presetconf, presetzip
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets.presetlane import MirrorOutcome
 
@@ -98,44 +94,25 @@ def test_snapshot_members_extracts_preset_names() -> None:
 # --- manager preset lifecycle against the fake daemon ----------------------
 
 
-def _pmgr(daemon: dict[str, Any], tmp_path: Path) -> tuple[ConnectionManager, HttpConfigClient]:
-    http = HttpConfigClient("127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"]))
-    cfg = Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-    return ConnectionManager(cfg, http, VirtualClock(), NETWORK), http
+async def test_saved_preset_is_listed_and_marked_active(http_manager: ConnectionManager) -> None:
+    await http_manager.presetops.save_preset("Studio")
+    assert http_manager.presetops.presets().active == "Studio"
 
 
-async def test_saved_preset_is_listed_and_marked_active(http_daemon: dict[str, Any], tmp_path: Path) -> None:
-    manager, http = _pmgr(http_daemon, tmp_path)
-    try:
-        await manager.presetops.save_preset("Studio")
-        presets = manager.presetops.presets()
-    finally:
-        await http.aclose()
-    assert presets.active == "Studio"
-
-
-async def test_load_preset_restores_its_saved_config(http_daemon: dict[str, Any], tmp_path: Path) -> None:
+async def test_load_preset_restores_its_saved_config(http_manager: ConnectionManager) -> None:
     # save captures the running config, a later edit drifts it, and loading the
     # preset restores it — proving load drives the daemon back to the saved state
-    manager, http = _pmgr(http_daemon, tmp_path)
-    try:
-        await manager.presetops.save_preset("Base")
-        await manager.applyops.apply({}, {"title": "Drift"})
-        await manager.presetops.load_preset("Base")
-        title = {f["name"]: f["value"] for f in (await http.get_config())["fields"]}["title"]
-    finally:
-        await http.aclose()
+    await http_manager.presetops.save_preset("Base")
+    await http_manager.applyops.apply({}, {"title": "Drift"})
+    await http_manager.presetops.load_preset("Base")
+    title = {f["name"]: f["value"] for f in (await http_manager.require_http().get_config())["fields"]}["title"]
     assert title == "Opal"
 
 
-async def test_delete_preset_removes_it_from_the_list(http_daemon: dict[str, Any], tmp_path: Path) -> None:
-    manager, http = _pmgr(http_daemon, tmp_path)
-    try:
-        await manager.presetops.save_preset("Temp")
-        await manager.presetops.delete_preset("Temp")
-        names = [o.value for o in manager.presetops.presets().options]
-    finally:
-        await http.aclose()
+async def test_delete_preset_removes_it_from_the_list(http_manager: ConnectionManager) -> None:
+    await http_manager.presetops.save_preset("Temp")
+    await http_manager.presetops.delete_preset("Temp")
+    names = [o.value for o in http_manager.presetops.presets().options]
     assert "Temp" not in names
 
 

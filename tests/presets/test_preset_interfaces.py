@@ -13,13 +13,9 @@ from typing import Any
 
 import pytest
 from defusedxml.ElementTree import fromstring
-from fake_network import NETWORK
 from narrow import FixtureError
-from virtual_clock import VirtualClock
 
-from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.presetiface import keep_interfaces
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.presets.store.presets import PresetStore
 
@@ -85,28 +81,16 @@ def _uploaded_upnp_interface(archive: bytes) -> str:
 
 
 async def test_loading_a_preset_uploads_the_interface_the_daemon_runs_on(
-    http_daemon: dict[str, Any], tmp_path: Path
+    http_daemon: dict[str, Any], http_manager: ConnectionManager, tmp_path: Path
 ) -> None:
     """The preset was saved with another interface; the archive the load restores keeps the running one."""
     http_daemon["upnp_interface"] = RUNNING_INTERFACE
-    http = HttpConfigClient(
-        "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
-    )
-    manager = ConnectionManager(
-        Config(alarm_threshold=1.0, backup_dir=tmp_path, preset_dir=tmp_path / "presets"),
-        http,
-        VirtualClock(),
-        NETWORK,
-    )
     store = PresetStore(tmp_path / "presets")
-    try:
-        await manager.presetops.save_preset("Elsewhere")
-        saved = store.read("Elsewhere")
-        store.save(
-            "Elsewhere",
-            saved.replace(f'interface="{RUNNING_INTERFACE}"'.encode(), f'interface="{SAVED_INTERFACE}"'.encode()),
-        )
-        await manager.presetops.load_preset("Elsewhere")
-    finally:
-        await http.aclose()
+    await http_manager.presetops.save_preset("Elsewhere")
+    saved = store.read("Elsewhere")
+    store.save(
+        "Elsewhere",
+        saved.replace(f'interface="{RUNNING_INTERFACE}"'.encode(), f'interface="{SAVED_INTERFACE}"'.encode()),
+    )
+    await http_manager.presetops.load_preset("Elsewhere")
     assert _uploaded_upnp_interface(http_daemon["_restore_bytes"]) == RUNNING_INTERFACE

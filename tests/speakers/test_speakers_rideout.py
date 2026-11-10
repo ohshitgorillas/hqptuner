@@ -7,27 +7,26 @@ The fake is a stateful /speakers daemon at the wire (docs/testing.md rule 4): a
 GET renders the current state as the real 6.0.4 form markup, a POST adopts the
 fields and opens the reload window, during which every GET answers 502."""
 
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Awaitable, Callable, Iterator
 from http.server import BaseHTTPRequestHandler
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import parse_qs
 
 import fake_http
 import pytest
-from fake_network import NETWORK
-from virtual_clock import VirtualClock
+from conftest import StartManager, http_client_of
 
-from hqptuner.conf.httpconf import HttpConfigClient
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyOutcome
 
+if TYPE_CHECKING:
+    from hqptuner.conf.httpconf import HttpConfigClient
+
 _CHANNELS = ("Left", "Right")
 _NO_FORM: dict[str, object] = {}
 
-ManagerBuilder = Callable[..., ConnectionManager]
+ManagerBuilder = Callable[..., Awaitable[ConnectionManager]]
 
 
 def _render(st: dict[str, Any]) -> bytes:
@@ -97,16 +96,17 @@ def dead_after_write_daemon() -> Iterator[dict[str, Any]]:
 
 
 @pytest.fixture
-async def speakers_manager(tmp_path: Path) -> AsyncIterator[ManagerBuilder]:
+async def speakers_manager(start_manager: StartManager, http_daemon: dict[str, Any]) -> AsyncIterator[ManagerBuilder]:
+    """Builds a ready manager on the healthy fake, then puts its 8088 lane on ``daemon``, the one whose speaker
+    form reloads. The poll is parked far out so only the apply under test reaches ``daemon``."""
     clients: list[HttpConfigClient] = []
 
-    def build(daemon: dict[str, Any], alarm_threshold: float = 5.0) -> ConnectionManager:
-        http = HttpConfigClient(
-            "127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"])
-        )
+    async def build(daemon: dict[str, Any], alarm_threshold: float = 5.0) -> ConnectionManager:
+        manager = await start_manager(http_daemon["_port"], alarm_threshold=alarm_threshold, poll_interval=3600.0)
+        http = http_client_of(daemon["_port"])
         clients.append(http)
-        cfg = Config(alarm_threshold=alarm_threshold, backup_dir=tmp_path, preset_dir=tmp_path / "presets")
-        return ConnectionManager(cfg, http, VirtualClock(), NETWORK)
+        manager.http_client = http
+        return manager
 
     yield build
     for http in clients:
@@ -116,7 +116,7 @@ async def speakers_manager(tmp_path: Path) -> AsyncIterator[ManagerBuilder]:
 async def test_apply_rides_out_the_reload_window_and_confirms(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
-    manager = speakers_manager(reloading_daemon)
+    manager = await speakers_manager(reloading_daemon)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result.outcome is SpeakerApplyOutcome.CONFIRMED
 
@@ -124,7 +124,7 @@ async def test_apply_rides_out_the_reload_window_and_confirms(
 async def test_the_applied_level_lands_on_the_daemon(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
-    manager = speakers_manager(reloading_daemon)
+    manager = await speakers_manager(reloading_daemon)
     await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert reloading_daemon["level_0"] == "-3"
 
@@ -132,7 +132,7 @@ async def test_the_applied_level_lands_on_the_daemon(
 async def test_a_confirmed_apply_reports_the_refreshed_form(
     speakers_manager: ManagerBuilder, reloading_daemon: dict[str, Any]
 ) -> None:
-    manager = speakers_manager(reloading_daemon)
+    manager = await speakers_manager(reloading_daemon)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert (result.speakers or _NO_FORM)["enabled"] is True
 
@@ -141,6 +141,6 @@ async def test_apply_gives_up_honestly_when_the_daemon_never_returns(
     speakers_manager: ManagerBuilder, dead_after_write_daemon: dict[str, Any]
 ) -> None:
     # the deadline passes with only 502s: report unconfirmed, never claim success
-    manager = speakers_manager(dead_after_write_daemon, alarm_threshold=2.0)
+    manager = await speakers_manager(dead_after_write_daemon, alarm_threshold=2.0)
     result = await speakerprocessing.apply(manager, {"0": {"level": "-3"}}, enabled=True)
     assert result.outcome is SpeakerApplyOutcome.UNCONFIRMED
