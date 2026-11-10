@@ -47,7 +47,7 @@ PI = ["44100/32/2 [pcm]", "192000/32/2 [pcm]", "2822400/1/2 [dsd]", "3072000/1/2
 #: The endpoint/device the fake 8088 daemon's config form has selected.
 SELECTED = "S26/hw:CARD=Output,DEV=0"
 SELECTED_LOG = PREAMBLE + announcement("S26", "hw:CARD=Output,DEV=0", PI)
-OTHER_LOG = PREAMBLE + announcement("S30", "hw:CARD=Other,DEV=0", PI)
+OTHER_LOG = PREAMBLE + announcement("naa-7bdbb6cb", "hw:CARD=RED,DEV=0", PI)
 
 
 def form(**fields: str) -> ConfigForm:
@@ -272,7 +272,7 @@ def test_caps_for_is_none_with_no_device_selected_and_serves_it_when_one_is(
 # `net_device`, `alsa_device`), which is what makes the two comparable.
 
 ALSA = "hw:CARD=NVidia,DEV=3"
-OTHER = "S30/hw:CARD=Other,DEV=0"
+OTHER = "naa-7bdbb6cb/hw:CARD=RED,DEV=0"
 FORM = form(backend="network", net_device=SELECTED, alsa_device=ALSA)
 FILE: dict[str, str] = {"backend": "network", "net_device": SELECTED, "alsa_device": ALSA}
 

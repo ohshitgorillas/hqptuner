@@ -13,6 +13,7 @@ restore archive the real daemon would accept.
 
 import contextlib
 import functools
+import html
 import io
 import re
 import socket
@@ -21,6 +22,7 @@ import threading
 import zipfile
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import Any
 from urllib.parse import parse_qs
 
@@ -120,37 +122,61 @@ def _empty_backup_zip() -> bytes:
     return out.getvalue()
 
 
-def _http_render(st: dict[str, Any]) -> str:
-    """GET /config form — the read side, rendered from state."""
-    opts = "".join(
-        f'<option value="{v}"{" selected" if st["backend"] == v else ""}>{v}</option>' for v in ("alsa", "network")
-    )
-    with _STATE:  # a rescan on another handler thread may be rewriting the list
-        endpoints = tuple(st["_net_endpoints"])
-    # `_form_net_device` is the lag window: the config file already carries the
-    # device a just-loaded preset picked, while this page still renders the one
-    # the engine has open. Unset (the usual state) means both routes agree.
-    form_device = st.get("_form_net_device") or st["net_device"]
-    dev_opts = "".join(f'<option value="{v}"{" selected" if form_device == v else ""}>{v}</option>' for v in endpoints)
-    rows = [
-        f'<input type="text" name="title" value="{st["title"]}"/>',
-        f'<select name="backend">{opts}</select>',
-        f'<select name="net_device">{dev_opts}</select>',
-        f'<input type="text" name="filter" value="{st["filter"]}"/>',
-        f'<input type="text" name="samplerate" value="{st["samplerate"]}"/>',
-        f'<input type="text" name="bitrate" value="{st["bitrate"]}"/>',
-        f'<input type="text" name="channels" value="{st["channels"]}"/>',
-        # the startup volume, as the real 6.0.4 page renders it
-        # (tests/support/fixtures/config-form-6.0.4.html: a number input bounded
-        # by the volume range) — the form carries it as well as the config file
-        f'<input type="number" name="defaults_volume" value="{st["defaults_volume"]}" min="-60" max="0"/>',
-        f'<input type="checkbox" name="auto_family" value="1"{" checked" if st["auto_family"] else ""}/>',
-        f'<input type="checkbox" name="net_ipv6" value="1"{" checked" if st["net_ipv6"] else ""}/>',
+#: The captured 6.0.4 `/config` page, served whole. Only the fake's current values move into it.
+_CONFIG_PAGE = (Path(__file__).parent / "fixtures" / "config-form-6.0.4.html").read_text()
+
+_SELECT = re.compile(r'<select name="(?P<name>\w+)">(?P<options>.*?)</select>', re.DOTALL)
+_OPTION = re.compile(r'<option value="(?P<value>[^"]*)"(?: selected)?>(?P<label>[^<]*)</option>')
+_INPUT = re.compile(
+    r'<input type="(?P<kind>text|number|checkbox)" name="(?P<name>\w+)" value="(?P<value>[^"]*)"(?P<rest>[^>]*?)/>'
+)
+_LABELS = {option["value"]: option["label"] for option in _OPTION.finditer(_CONFIG_PAGE)}
+
+
+def _option(value: str, label: str, *, selected: bool) -> str:
+    return f'<option value="{value}"{" selected" if selected else ""}>{label}</option>'
+
+
+def _select_html(st: dict[str, Any], match: re.Match[str]) -> str:
+    """One `<select>` of the capture with its `selected` option moved to the fake's value for the same name.
+
+    `net_device` is the one list that follows state: it offers the endpoints the daemon can bind right now."""
+    name = match["name"]
+    if name == "net_device":
+        with _STATE:  # a rescan on another handler thread may be rewriting the list
+            endpoints = tuple(st["_net_endpoints"])
+        # `_form_net_device` is the lag window: the config file already carries the
+        # device a just-loaded preset picked, while this page still renders the one
+        # the engine has open. Unset (the usual state) means both routes agree.
+        chosen = st.get("_form_net_device") or st["net_device"]
+        options = "\n".join(_option(v, _LABELS.get(v, html.escape(v)), selected=v == chosen) for v in endpoints)
+        return f'<select name="net_device">\n{options}\n</select>'
+    if name not in st:
+        return match[0]
+    chosen = str(st[name])
+    options = _OPTION.sub(lambda o: _option(o["value"], o["label"], selected=o["value"] == chosen), match["options"])
+    return f'<select name="{name}">{options}</select>'
+
+
+def _input_html(st: dict[str, Any], match: re.Match[str]) -> str:
+    """One `<input>` of the capture with its value, or its checked box, set from the fake's key of the same name."""
+    name = match["name"]
+    if name not in st:
+        return match[0]
+    rest = match["rest"]
+    if match["kind"] == "checkbox":
         # the daemon renders 0/1/2 as a bare checkbox: -3 dB and -6 dB are
         # indistinguishable here, which is why the file lane carries the truth
-        f'<input type="checkbox" name="volume_fixed" value="1"{" checked" if st["volume_fixed"] != "0" else ""}/>',
-    ]
-    return '<form method="post">' + "".join(rows) + "</form>"
+        on = st[name] != "0" if name == "volume_fixed" else bool(st[name])
+        rest = " checked" if on else ""
+        return f'<input type="checkbox" name="{name}" value="{match["value"]}"{rest}/>'
+    return f'<input type="{match["kind"]}" name="{name}" value="{html.escape(str(st[name]))}"{rest}/>'
+
+
+def _http_render(st: dict[str, Any]) -> str:
+    """GET /config form — the capture of the real page, current values from state."""
+    page = _SELECT.sub(functools.partial(_select_html, st), _CONFIG_PAGE)
+    return _INPUT.sub(functools.partial(_input_html, st), page)
 
 
 def _speakers_render(st: dict[str, Any]) -> str:
@@ -666,7 +692,12 @@ def state(**extra: object) -> dict[str, Any]:
         "_form_net_device": None,
         # endpoints the daemon can bind; a net_device outside this set is refused
         # on restore (endpoint gone) — the unfixable-divergence case
-        "_net_endpoints": ["S26/hw:CARD=Output,DEV=0", "S30/hw:CARD=Other,DEV=0"],
+        "_net_endpoints": [
+            "S26/hw:CARD=Output,DEV=0",
+            "naa-7bdbb6cb/hw:CARD=RED,DEV=0",
+            "naa-7bdbb6cb/hw:CARD=Standa,DEV=0",
+            "naa-office/hw:CARD=sndrpihifiberry,DEV=0",
+        ],
         # powered-off endpoints a /config/refresh rescan makes bindable
         "_hidden_endpoints": [],
         "_saved": {},

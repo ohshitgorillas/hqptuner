@@ -142,7 +142,10 @@ async def test_save_as_new_persists_the_applied_config_under_a_new_preset(
 
 @pytest.mark.parametrize(
     ("device", "outcome"),
-    [("GHOST/hw:CARD=Gone,DEV=0", RestoreOutcome.UNAVAILABLE), ("S30/hw:CARD=Other,DEV=0", RestoreOutcome.APPLIED)],
+    [
+        ("GHOST/hw:CARD=Gone,DEV=0", RestoreOutcome.UNAVAILABLE),
+        ("naa-7bdbb6cb/hw:CARD=RED,DEV=0", RestoreOutcome.APPLIED),
+    ],
     ids=["no longer offered", "offered, not running"],
 )
 async def test_a_net_device_converges_only_when_the_daemon_offers_it(
