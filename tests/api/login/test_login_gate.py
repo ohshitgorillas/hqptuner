@@ -7,11 +7,13 @@ a restart of the first, and the clock each app reads is the one it is built on: 
 import re
 from collections.abc import Callable
 from datetime import timedelta
+from pathlib import Path
 
 import pytest
-from apps import app_of, log_in
+from apps import app_of, log_in, unserved_login
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from fixtures_clients import gated_config
 from virtual_clock import DEFAULT_INSTANT, VirtualClock
 
 from hqptuner.api.gate import LOGIN_COOKIE, OPEN_PATHS
@@ -99,8 +101,7 @@ def test_a_cookie_minted_under_another_pair_is_refused(gated_app: GatedApp) -> N
 def test_a_cookie_minted_before_a_pair_change_is_refused_after_it(gated_app: GatedApp) -> None:
     client = gated_app()
     before = login_token(client, remember=False)
-    changer = TestClient(client.app)
-    log_in(changer)
+    changer = log_in(client)
     changer.post("/api/connection", json={"password": "changed"})
     assert (changer.get("/api/connection").status_code, served_by(client, before)) == (200, 401)
 
@@ -110,9 +111,13 @@ def test_a_save_password_login_outlives_a_restart(gated_app: GatedApp) -> None:
     assert served_by(gated_app(), token) == 200
 
 
-def test_a_restart_that_leaves_no_password_ends_every_login(gated_app: GatedApp) -> None:
+def test_a_restart_that_leaves_no_password_ends_every_login(
+    gated_app: GatedApp, tmp_path: Path, closed_port: int
+) -> None:
     token = login_token(gated_app(), remember=True)
-    assert (served_by(gated_app(), token), served_by(gated_app(pair=("admin", "")), token)) == (200, 401)
+    # a restart with no password cannot reach the daemon's 8088 lane, so it starts with neither lane answering
+    with unserved_login(gated_config(tmp_path, closed_port, closed_port, pair=("admin", ""))) as restarted:
+        assert (served_by(gated_app(), token), served_by(restarted, token)) == (200, 401)
 
 
 def test_a_log_in_every_time_login_does_not_outlive_a_restart(gated_app: GatedApp) -> None:

@@ -63,8 +63,7 @@ def test_the_reissued_cookie_lasts_as_long_as_the_login_it_replaces(
 def test_a_save_does_not_extend_the_login_it_reissues(gated_app: GatedApp) -> None:
     first = gated_app()
     token = log_in(TestClient(first.app), remember=True).cookies[LOGIN_COOKIE]
-    later = gated_app(VirtualClock(now=DEFAULT_INSTANT + TEN_DAYS))
-    saver = TestClient(later.app)
+    saver = gated_app(VirtualClock(now=DEFAULT_INSTANT + TEN_DAYS))
     reissued = cookie_of(
         saver.post(
             "/api/connection",

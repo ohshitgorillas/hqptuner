@@ -12,11 +12,9 @@ import fake_control
 import pytest
 from apps import live_app, log_in, ready_app
 from conftest import spawn_threaded_daemon
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The daemon credential ``app`` builds with — distinctive enough that finding it
@@ -100,9 +98,36 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
         next(daemon, None)
 
 
+def gated_config(
+    tmp_path: Path, control_port: int, http_port: int, *, pair: tuple[str, str] = ("admin", "pw"), audit: bool = False
+) -> Config:
+    """The config of an app over the one state directory ``gated_app`` shares: its connection record, login secret and
+    stores sit under ``tmp_path``."""
+    return Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=control_port,
+        hqp_http_port=http_port,
+        hqp_username=pair[0],
+        hqp_password=pair[1],
+        connection_file=tmp_path / "connection.json",
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        live_preset_file=tmp_path / "live-presets.json",
+        favorites_file=tmp_path / "favorites.json",
+        narrowing_file=tmp_path / "narrowing.json",
+        description_file=tmp_path / "descriptions.json",
+        matrix_mode_file=tmp_path / "matrixmodes.json",
+        autopilot_file=tmp_path / "autopilot.json",
+        debug_log=tmp_path / "audit.jsonl" if audit else None,
+    )
+
+
 @pytest.fixture
-def gated_app(http_daemon: dict[str, Any], closed_port: int, tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
-    """Build apps over ONE state directory, the pair admin/pw in force on the fake 8088 daemon.
+def gated_app(
+    http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path
+) -> Iterator[Callable[..., TestClient]]:
+    """Build apps over ONE state directory, the pair admin/pw in force on the fake 8088 daemon and the fake 4321
+    daemon answering, each handed over once it reads `ready`.
 
     Every app shares the connection record and the login secret under ``tmp_path``, so a second app is a restart of
     the first. ``clock`` sets the instant the app reads, ``pair`` the username and password in force, ``audit`` turns
@@ -113,24 +138,8 @@ def gated_app(http_daemon: dict[str, Any], closed_port: int, tmp_path: Path) -> 
         def build(
             clock: VirtualClock | None = None, *, pair: tuple[str, str] = ("admin", "pw"), audit: bool = False
         ) -> TestClient:
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
-                hqp_http_port=http_daemon["_port"],
-                hqp_username=pair[0],
-                hqp_password=pair[1],
-                connection_file=tmp_path / "connection.json",
-                backup_dir=tmp_path,
-                preset_dir=tmp_path / "presets",
-                live_preset_file=tmp_path / "live-presets.json",
-                favorites_file=tmp_path / "favorites.json",
-                narrowing_file=tmp_path / "narrowing.json",
-                description_file=tmp_path / "descriptions.json",
-                matrix_mode_file=tmp_path / "matrixmodes.json",
-                autopilot_file=tmp_path / "autopilot.json",
-                debug_log=tmp_path / "audit.jsonl" if audit else None,
-            )
-            return stack.enter_context(TestClient(create_app(cfg, clock or VirtualClock(), NETWORK)))
+            cfg = gated_config(tmp_path, threaded_daemon_port, http_daemon["_port"], pair=pair, audit=audit)
+            return stack.enter_context(ready_app(cfg, clock))
 
         yield build
 
