@@ -1,6 +1,7 @@
 """Fixture plugin (registered from conftest.py): `TestClient`s over the REST
-app under test — daemonless, control-lane-only on the threaded fake, and http-
-lane on the fake 8088 daemon."""
+app under test, each on the two lanes a working install needs: a fake 4321 daemon
+and a fake 8088 daemon, answering, with `/api/health` reading `ready` before the
+case gets the client."""
 
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
@@ -56,12 +57,13 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
 
 @pytest.fixture
 def live_api(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    """The REST surface on the threaded fake 4321 daemon and an 8088 fake of its own, ready and logged in."""
     yield from live_app(threaded_daemon_port, tmp_path)
 
 
 @pytest.fixture
 def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
-    """Build the control-only app on a fake daemon carrying the given State and
+    """Build the two-lane app on a fake control daemon carrying the given State and
     Status overrides. A factory rather than a fixture per case: which chain the
     engine has loaded is four different daemon situations, and a fixture pair for
     each would be six near-identical fixtures for four one-line tests.

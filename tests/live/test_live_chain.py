@@ -14,59 +14,10 @@ reached it, and on what the config side is told, never on how any of it was
 produced (docs/testing.md).
 """
 
-from collections.abc import Callable, Iterator
-from pathlib import Path
+from collections.abc import Callable
 
 import pytest
-from apps import unserved_login, wait_for_api
-from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
-
-from hqptuner.config import Config
-
-
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
-def _live_app(control_port: int, tmp_path: Path) -> Iterator[TestClient]:
-    """Control lane only — no credentials, so the app talks 4321 alone."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_username="",
-        hqp_password="",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-    )
-    with unserved_login(cfg, VirtualClock()) as client:
-        wait_for_api(client, _reachable)
-        yield client
-
-
-@pytest.fixture
-def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
-    """Build the control-only app on a fake daemon carrying the given State and
-    Status overrides (the pattern in test_api_routes.py): which chain the engine
-    has loaded is a different daemon situation per case."""
-    daemons: list[Iterator[int]] = []
-    apps: list[Iterator[TestClient]] = []
-
-    def build(**values: str) -> TestClient:
-        daemon = spawn_threaded_daemon(values)
-        daemons.append(daemon)
-        app = _live_app(next(daemon), tmp_path)
-        apps.append(app)
-        return next(app)
-
-    yield build
-    for app in apps:
-        next(app, None)
-    for daemon in daemons:
-        next(daemon, None)
-
 
 # --- an edit to the chain the engine has not loaded ---------------------------
 # The engine cannot be told about it, so it is held rather than refused: the LIVE

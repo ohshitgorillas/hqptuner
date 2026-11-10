@@ -2,8 +2,9 @@
 FastAPI's `detail`, so a client can branch on the cause without parsing prose.
 
 Written blind from the spec block, against the fakes alone: the app is built the
-way `live_api` builds it (control lane on the threaded fake daemon, no hqplayerd
-credentials, a live-snapshot store that is a real file under tmp_path). No route
+way `live_api` builds it (control lane on the threaded fake daemon and the 8088
+lane on a fake of its own, both ready, a live-snapshot store that is a real file
+under tmp_path). No route
 handler is stubbed and no `detail` text is asserted anywhere (docs/testing.md
 rule 9): `code` values are wire identifiers, `detail` is copy.
 """
@@ -13,6 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
+from apps import lose_http_client
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -56,10 +58,12 @@ def test_a_refused_live_preset_delete_is_a_client_error(
 
 
 def test_config_without_credentials_is_unavailable(live_api: TestClient) -> None:
+    lose_http_client(live_api)
     assert live_api.get("/api/config").status_code == 503
 
 
 def test_config_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
+    lose_http_client(live_api)
     assert live_api.get("/api/config").json()["code"] == "no_credentials"
 
 

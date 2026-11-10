@@ -1,6 +1,6 @@
-"""Two things built directly, outside pytest's fixture graph: a control-only REST app on a live daemon, and a port
-nothing listens on. `live_app` is a plain generator function, so it serves both `yield from live_app(...)` inside a
-fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
+"""Two things built directly, outside pytest's fixture graph: a REST app on a control daemon and its own 8088 daemon,
+both lanes standing, and a port nothing listens on. `live_app` is a plain generator function, so it serves both
+`yield from live_app(...)` inside a fixture and `next(app)`/`next(app, None)` by hand around a manually built daemon."""
 
 import asyncio
 import contextlib
@@ -32,8 +32,8 @@ METADATA_MIN = Path(__file__).parent / "fixtures" / "metadata_min"
 READY_CEILING = 30.0
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
+def _ready(client: TestClient) -> bool:
+    return bool(client.get("/api/health").json()["ready"])
 
 
 async def settled(clock: VirtualClock) -> None:
@@ -114,6 +114,44 @@ def wait_for_api(client: TestClient, ready: Callable[[TestClient], bool], polls:
     raise FixtureError(reason="app never became ready against the fake daemons")
 
 
+@contextlib.contextmanager
+def ready_app(
+    cfg: Config,
+    clock: VirtualClock | None = None,
+    *,
+    raise_server_exceptions: bool = True,
+    setup: Callable[[FastAPI], None] | None = None,
+) -> Iterator[TestClient]:
+    """Run the app for ``cfg``, handed over once ``/api/health`` reads ``ready``.
+
+    Both daemons must be answering at the ports ``cfg`` names. The builder raises ``FixtureError`` when the app never
+    gets there, so no case acts on an app that is not working. ``setup`` gets the built app before it starts, for a
+    case that adds a route of its own. Nothing is logged in.
+    """
+    app = create_app(cfg, clock or VirtualClock(), fake_network.NETWORK)
+    if setup is not None:
+        setup(app)
+    with TestClient(app, raise_server_exceptions=raise_server_exceptions) as client:
+        wait_for_api(client, _ready)
+        yield client
+
+
+def lose_http_client(client: TestClient) -> None:
+    """Take the 8088 client away from the app under ``client``, the state of an app that holds no credentials.
+
+    The app has started and read both lanes; this is the lane going missing mid-run, on the app's own event loop.
+    """
+    portal = client.portal
+    if portal is None:
+        raise NotAVirtualAppError
+    manager = app_manager(client)
+
+    def lose() -> None:
+        manager.http_client = None
+
+    portal.call(lose)
+
+
 def log_in(client: TestClient, *, remember: bool = False) -> TestClient:
     """Log ``client`` in through the real login route with the pair its app holds.
 
@@ -172,36 +210,40 @@ def live_app(
     request_timeout: float | None = None,
     poll_interval: float | None = None,
 ) -> Iterator[TestClient]:
-    """Control lane only — no credentials, so the app talks 4321 alone.
+    """Both lanes standing: the control daemon at ``control_port`` and a fake 8088 daemon of its own, answering for the
+    app's whole life and torn down after the client.
 
-    ``poll_interval`` reshapes the manager's background poll the same way
-    ``request_timeout`` reshapes the per-command deadline. Passing nothing keeps
-    the production pacing."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=control_port,
-        hqp_username="",
-        hqp_password="",
-        data_dir=METADATA_MIN,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        # never the repo's own state/ — a live-snapshot write in a test would land
-        # in the dev container's bind mount and outlive the run
-        live_preset_file=tmp_path / "live-presets.json",
-        # the auto-pilot switch lands beside it for the same reason: a preset
-        # test that flips the switch must not stamp the dev container's store
-        autopilot_file=tmp_path / "autopilot.json",
-        # ADVISOR_ENABLED is off in every build; the suite keeps it on so the
-        # preset and snapshot cases still exercise the switch it carries
-        advisor_enabled=True,
-    )
-    if request_timeout is not None:
-        cfg = replace(cfg, request_timeout=request_timeout)
-    if poll_interval is not None:
-        cfg = replace(cfg, poll_interval=poll_interval)
-    with unserved_login(cfg, VirtualClock()) as client:
-        wait_for_api(client, _reachable)
-        yield client
+    The app holds credentials and is logged in, and the client is handed over once ``/api/health`` reads ``ready``.
+    ``poll_interval`` reshapes the manager's background poll the same way ``request_timeout`` reshapes the per-command
+    deadline. Passing nothing keeps the production pacing.
+    """
+    with contextlib.ExitStack() as served:
+        http = served.enter_context(contextlib.contextmanager(fake_http.spawn)(fake_http.state(), in_process=True))
+        cfg = Config(
+            hqp_host="127.0.0.1",
+            hqp_control_port=control_port,
+            hqp_http_port=http["_port"],
+            hqp_username="u",
+            hqp_password="p",
+            data_dir=METADATA_MIN,
+            backup_dir=tmp_path,
+            preset_dir=tmp_path / "presets",
+            # never the repo's own state/ — a live-snapshot write in a test would land
+            # in the dev container's bind mount and outlive the run
+            live_preset_file=tmp_path / "live-presets.json",
+            # the auto-pilot switch lands beside it for the same reason: a preset
+            # test that flips the switch must not stamp the dev container's store
+            autopilot_file=tmp_path / "autopilot.json",
+            # ADVISOR_ENABLED is off in every build; the suite keeps it on so the
+            # preset and snapshot cases still exercise the switch it carries
+            advisor_enabled=True,
+        )
+        if request_timeout is not None:
+            cfg = replace(cfg, request_timeout=request_timeout)
+        if poll_interval is not None:
+            cfg = replace(cfg, poll_interval=poll_interval)
+        with ready_app(cfg) as client:
+            yield log_in(client)
 
 
 def closed_port() -> int:
