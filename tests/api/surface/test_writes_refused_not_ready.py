@@ -5,21 +5,14 @@ it. The cause-to-code mapping belongs to ``test_ready_refusal``; these cases ass
 which refusal. ``detail`` is copy and is never asserted (rule 9).
 """
 
-from collections.abc import Callable, Iterator
-from dataclasses import dataclass
-from pathlib import Path
+from collections.abc import Callable
 from typing import Any
 
-import fake_http
 import pytest
-from apps import app_manager, log_in, ready_app, wait_for_api
-from conftest import spawn_threaded_daemon
-from fake_control import DEFAULTS, CommandLog
+from apps import app_manager, wait_for_api
 from fastapi.testclient import TestClient
-from httpx import Response
+from fixtures_clients import Lanes
 from narrow import FixtureError
-
-from hqptuner.config import Config
 
 #: The routes the readiness gate holds, each with a body the route would act on were the app ready.
 ENGINE_WRITES: list[tuple[str, dict[str, Any]]] = [
@@ -33,56 +26,6 @@ ENGINE_WRITES: list[tuple[str, dict[str, Any]]] = [
 
 #: The codes a not-ready app refuses under, one per cause.
 REFUSAL_CODES = {"no_http_client", "no_credentials", "daemon_unavailable", "daemon_read_failed"}
-
-
-@dataclass
-class Lanes:
-    """A ready, logged-in app and the state of the two fakes it runs on."""
-
-    client: TestClient
-    control_log: CommandLog
-    control: dict[str, str]
-    http: dict[str, Any]
-
-    def post(self, path: str, body: dict[str, Any]) -> Response:
-        answer: Response = self.client.post(path, json=body)
-        return answer
-
-    def commands_sent_by(self, path: str, body: dict[str, Any]) -> int:
-        """How many commands the 4321 fake logged while the request ran."""
-        before = len(self.control_log)
-        self.post(path, body)
-        return len(self.control_log) - before
-
-
-@pytest.fixture
-def lanes(tmp_path: Path) -> Iterator[Lanes]:
-    log: CommandLog = []
-    control = {**DEFAULTS}
-    served = spawn_threaded_daemon(state=control, log=log)
-    http_state = fake_http.spawn(fake_http.state(), in_process=True)
-    http = next(http_state)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(served),
-        hqp_http_port=http["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        favorites_file=tmp_path / "favorites.json",
-        narrowing_file=tmp_path / "narrowing.json",
-        description_file=tmp_path / "descriptions.json",
-        matrix_mode_file=tmp_path / "matrixmodes.json",
-        autopilot_file=tmp_path / "autopilot.json",
-    )
-    with ready_app(cfg) as client:
-        log_in(client)
-        client.put("/api/livepresets/warm")
-        yield Lanes(client, log, control, http)
-    next(served, None)
-    next(http_state, None)
 
 
 def _not_ready(client: TestClient) -> bool:

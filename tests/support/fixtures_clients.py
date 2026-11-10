@@ -10,11 +10,13 @@ from pathlib import Path
 from typing import Any
 
 import fake_control
+import fake_http
 import pytest
 from apps import live_app, log_in, ready_app
 from conftest import spawn_threaded_daemon
 from fake_control import CommandLog
 from fastapi.testclient import TestClient
+from httpx import Response
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -227,3 +229,60 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_por
     )
     with ready_app(cfg) as test_client:
         yield log_in(test_client)
+
+
+@dataclass
+class Lanes:
+    """A ready, logged-in app and the live state of the two fakes it runs on.
+
+    ``control`` is the 4321 fake's State, shared across its connections, and ``http`` the 8088 fake's: writing to either
+    is how a case says a lane changed with no request from the app. ``control_log`` is every command the 4321 fake has
+    received.
+    """
+
+    client: TestClient
+    control_log: CommandLog
+    control: dict[str, str]
+    http: dict[str, Any]
+
+    def post(self, path: str, body: dict[str, Any]) -> Response:
+        answer: Response = self.client.post(path, json=body)
+        return answer
+
+    def commands_sent_by(self, path: str, body: dict[str, Any]) -> int:
+        """How many commands the 4321 fake logged while the request ran."""
+        before = len(self.control_log)
+        self.post(path, body)
+        return len(self.control_log) - before
+
+
+@pytest.fixture
+def lanes(tmp_path: Path) -> Iterator[Lanes]:
+    """The real app on both fakes, ready and logged in, with a live preset ``warm`` saved and every store under
+    ``tmp_path``."""
+    log: CommandLog = []
+    control = {**fake_control.DEFAULTS}
+    served = spawn_threaded_daemon(state=control, log=log)
+    http_state = fake_http.spawn(fake_http.state(), in_process=True)
+    http = next(http_state)
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=next(served),
+        hqp_http_port=http["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+        live_preset_file=tmp_path / "live-presets.json",
+        favorites_file=tmp_path / "favorites.json",
+        narrowing_file=tmp_path / "narrowing.json",
+        description_file=tmp_path / "descriptions.json",
+        matrix_mode_file=tmp_path / "matrixmodes.json",
+        autopilot_file=tmp_path / "autopilot.json",
+    )
+    with ready_app(cfg) as client:
+        log_in(client)
+        client.put("/api/livepresets/warm")
+        yield Lanes(client, log, control, http)
+    next(served, None)
+    next(http_state, None)
