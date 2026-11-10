@@ -14,13 +14,10 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import log_in, wait_for_api
+from apps import log_in, ready_app
 from conftest import ManagerFactory, StartManager
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.httpforms import ConfigForm
 from hqptuner.config import Config
 from hqptuner.core import engineread
@@ -477,13 +474,6 @@ async def test_manager_serves_the_capability_when_the_archive_read_failed(
 # --- the REST surface -------------------------------------------------------
 
 
-def _config_loaded(client: TestClient) -> bool:
-    """The connect-and-load sequence has finished: the form is served and the
-    file view is grounded (same readiness gate as the `wired_api` suite)."""
-    resp = client.get("/api/config")
-    return resp.status_code == 200 and "title" in resp.json()["data"]["file"]
-
-
 def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> Iterator[TestClient]:
     """The app with both lanes live against the given 8088 fake, ready once its
     connect-and-load sequence has finished."""
@@ -498,10 +488,8 @@ def _wired_client(daemon: dict[str, Any], control_port: int, tmp_path: Path) -> 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
-        log_in(test_client)
-        wait_for_api(test_client, _config_loaded)
-        yield test_client
+    with ready_app(cfg) as test_client:
+        yield log_in(test_client)
 
 
 @pytest.fixture

@@ -182,11 +182,13 @@ def unserved_login(
     raise_server_exceptions: bool = True,
     setup: Callable[[FastAPI], None] | None = None,
 ) -> Iterator[TestClient]:
-    """Run the app for ``cfg`` with its client logged in, though no daemon serves its 8088 port.
+    """Build the not-working app: ``cfg``'s client is logged in, and no daemon serves its 8088 port.
 
     A fake 8088 daemon answers for the login alone, on the port ``cfg`` is given, and is taken down before the app
-    starts, so the app's own 8088 lane and its ungated readers meet a refused connection from their first read.
-    ``setup`` gets the built app before it starts, for a case that adds a route of its own.
+    starts, so the app's own 8088 lane and its ungated readers meet a refused connection from their first read. Only
+    a case whose subject is that answer, or a start with neither lane answering, builds on this; ``ready_app`` and
+    ``live_app`` build the working install. ``setup`` gets the built app before it starts, for a case that adds a
+    route of its own.
     """
     daemon = fake_http.spawn(fake_http.state(), in_process=True)
     state = next(daemon)

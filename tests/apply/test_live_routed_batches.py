@@ -25,14 +25,11 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import log_in, wait_for_api
+from apps import log_in, ready_app, wait_for_api
 from conftest import spawn_threaded_daemon
 from fake_control import DEFAULTS, CommandLog, restart_into
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 
@@ -75,12 +72,6 @@ def pcm_file_daemon(control_state: dict[str, str]) -> Iterator[dict[str, Any]]:
     next(server, None)
 
 
-def _config_loaded(client: TestClient) -> bool:
-    """Connect-and-load finished: the /config file view is grounded."""
-    resp = client.get("/api/config")
-    return resp.status_code == 200 and "title" in resp.json()["data"]["file"]
-
-
 @pytest.fixture
 def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -> Iterator[TestClient]:
     """Both lanes live: control on the threaded fake, config on the fake 8088."""
@@ -94,10 +85,8 @@ def client(control_port: int, pcm_file_daemon: dict[str, Any], tmp_path: Path) -
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
-        log_in(test_client)
-        wait_for_api(test_client, _config_loaded)
-        yield test_client
+    with ready_app(cfg) as test_client:
+        yield log_in(test_client)
 
 
 def _sent(log: CommandLog, name: str) -> list[dict[str, str]]:

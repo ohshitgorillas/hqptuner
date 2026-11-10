@@ -13,13 +13,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in, lose_http_client, wait_for_api
-from fake_network import NETWORK
+from apps import log_in, lose_http_client, ready_app
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
 from hqptuner.api.deps import SavedPreset, WithAutosave
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
@@ -172,10 +169,8 @@ def _dual_lane_client(control_port: int, http_daemon: dict[str, Any], tmp_path: 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
-        log_in(client)
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
-        yield client
+    with ready_app(cfg) as client:
+        yield log_in(client)
 
 
 def test_autosaved_live_write_sends_no_restore_to_the_daemon(

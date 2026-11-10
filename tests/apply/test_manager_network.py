@@ -4,32 +4,18 @@ Policy: docs/testing.md. The fake answers only in process, on no TCP port, so a 
 network it was handed would be refused.
 """
 
-import contextlib
 import functools
-from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import fake_network
 import pytest
-from apps import METADATA_MIN, closed_port, settle_app, settled
+from apps import METADATA_MIN, advance_app, app_manager, closed_port, ready_app, settled
 from conftest import StartManager
-from fake_control import DEFAULTS, serve_shared
-from fastapi.testclient import TestClient
+from fake_control import DEFAULTS, serve_shared, take_lane_down
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-
-
-@contextlib.contextmanager
-def _control_port(*, served: bool) -> Iterator[int]:
-    """A control port with a fake in process behind it, or one with nothing behind it."""
-    if not served:
-        yield closed_port()
-        return
-    with fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS))) as port:
-        yield port
 
 
 @pytest.mark.parametrize("served", [True, False])
@@ -45,19 +31,25 @@ async def test_a_manager_handed_the_network_is_reachable_where_a_daemon_is_serve
 
 
 @pytest.mark.parametrize("served", [True, False])
-def test_an_app_handed_the_network_reports_reachable_where_a_daemon_is_served(tmp_path: Path, *, served: bool) -> None:
-    with _control_port(served=served) as port:
+def test_an_app_handed_the_network_reports_reachable_where_a_daemon_is_served(
+    tmp_path: Path, http_daemon: dict[str, Any], *, served: bool
+) -> None:
+    control_state = dict(DEFAULTS)
+    with fake_network.serving(functools.partial(serve_shared, state=control_state)) as port:
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=port,
-            hqp_username="",
-            hqp_password="",
+            hqp_http_port=http_daemon["_port"],
+            hqp_username="u",
+            hqp_password="p",
             data_dir=METADATA_MIN,
             backup_dir=tmp_path,
             preset_dir=tmp_path / "presets",
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
-            settle_app(client)
+        with ready_app(cfg) as client:
+            if not served:
+                take_lane_down(control_state)
+                advance_app(client, app_manager(client).cfg.poll_interval)
             assert client.get("/api/health").json()["reachable"] is served

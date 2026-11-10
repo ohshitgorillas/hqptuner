@@ -17,17 +17,14 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in
-from fake_network import NETWORK
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 
 def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | None) -> Iterator[TestClient]:
-    """The REST surface on the fake 8088 daemon (the `http_client` shape), with
+    """The REST surface on both fake daemons (the `http_client` shape), with
     the audit log pointed wherever the case wants it — or disabled."""
     cfg = Config(
         hqp_host="127.0.0.1",
@@ -41,9 +38,8 @@ def _app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | No
         hqp_home="/x/home",
         debug_log=debug_log,
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
-        log_in(client)
-        yield client
+    with ready_app(cfg) as client:
+        yield log_in(client)
 
 
 @pytest.fixture
@@ -53,15 +49,15 @@ def audit_log(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
+    http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int, audit_log: Path
 ) -> Iterator[TestClient]:
-    yield from _app(http_daemon, tmp_path, closed_port, audit_log)
+    yield from _app(http_daemon, tmp_path, threaded_daemon_port, audit_log)
 
 
 @pytest.fixture
-def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int) -> Iterator[TestClient]:
     """The same app with the audit log unset — the disabled case."""
-    yield from _app(http_daemon, tmp_path, closed_port, None)
+    yield from _app(http_daemon, tmp_path, threaded_daemon_port, None)
 
 
 # --- driving the write paths, and reading them back over the route ------------
@@ -121,9 +117,11 @@ def discard_pending(client: TestClient) -> None:
 def test_the_audit_route_returns_the_records_the_activity_produced(
     audit_client: TestClient, activity: list[Callable[[TestClient], None]], events: list[str]
 ) -> None:
+    # a ready app has already recorded its own start (the volume it read, the preset it imported)
+    already = len(fetched(audit_client))
     for act in activity:
         act(audit_client)
-    assert [record["event"] for record in fetched(audit_client)] == events
+    assert [record["event"] for record in fetched(audit_client)[already:]] == events
 
 
 def test_a_returned_record_carries_the_event_key(audit_client: TestClient) -> None:

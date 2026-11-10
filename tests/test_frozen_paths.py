@@ -14,9 +14,10 @@ import sys
 from collections.abc import Iterator, Mapping
 from pathlib import Path
 from types import MappingProxyType, ModuleType
+from typing import Any
 
 import pytest
-from apps import unserved_login
+from apps import log_in, ready_app
 from conftest import METADATA_MIN
 
 from hqptuner import config as hqp_config
@@ -170,13 +171,23 @@ def test_a_frozen_path_takes_the_environments_value_and_falls_back_to_the_user_d
 
 @pytest.mark.parametrize(("route", "expected"), [("/", INDEX_BYTES), ("/api/autoeq", AUTOEQ_BYTES)])
 def test_a_frozen_build_serves_the_asset_bytes_that_sit_in_its_bundle(
-    bundle: Path, closed_port: int, route: str, expected: bytes
+    bundle: Path, threaded_daemon_port: int, http_daemon: dict[str, Any], route: str, expected: bytes
 ) -> None:
     # api/spa.py and api/routes/matrix/matrix.py now read the bundle root off the
     # app's own `Config` instead of calling `bundled()` bare.
-    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=closed_port, data_dir=METADATA_MIN, frozen=True, bundle=bundle)
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=threaded_daemon_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
+        data_dir=METADATA_MIN,
+        frozen=True,
+        bundle=bundle,
+    )
 
-    with unserved_login(cfg) as client:
+    with ready_app(cfg) as client:
+        log_in(client)
         assert client.get(route).content == expected
 
 
