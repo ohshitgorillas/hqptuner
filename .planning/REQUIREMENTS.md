@@ -10,15 +10,25 @@ Committed scope. Each maps to exactly one roadmap phase.
 
 ### Integration
 
-- **INTG-01**: Owner can run every test file of the retained 12a affected baseline together in `.claude/worktrees/integrate`, including every consumer of a repaired shared helper, and see zero failures.
-- **INTG-02**: Owner can find no test or support under `tests/js/` that seeds a field value through `config.value` or `matrixConfig.value`; field values are seeded through `seedReadings`, and those signals carry form metadata only.
-- **INTG-03**: Owner can find no test or support under `tests/js/` still using a retired shape (such as `fileTruth`), with each port's pre-edit baseline recorded as passing.
-- **INTG-04**: Owner can run `PYTHONPATH=$(pwd) scripts/gate.sh make check` in `.claude/worktrees/integrate` and read `exit=0`.
-- **INTG-05**: Owner can check out `v2` and find `rebuild/integrate` merged into it, with `scripts/gate.sh make check` exiting 0 on `v2`.
 
 ### Metering
 
-- **METER-01**: User sees the meters, the spectrum and the spectrogram move smoothly in step with the music while metering frames reach the app in bursts.
+
+## Shipped
+
+Delivered and verified. Kept as rows for shipped-scope trace; git history
+holds the full requirement text. Archived out of `## Traceability` so a new
+milestone's audit starts clean (the audit seam parses only the Traceability
+table).
+
+| Requirement | Phase | Status | Milestone |
+|-------------|-------|--------|-----------|
+| INTG-01 (Owner can run every test file of the retained 12a affected baseline together in `.claude/worktrees/integrate`, including every consumer of a repaired shared helper, and see zero failures.) | 2 | Complete | v2.0.0 |
+| INTG-02 (Owner can find no test or support under `tests/js/` that seeds a field value through `config.value` or `matrixConfig.value`; field values are seeded through `seedReadings`, and those signals carry form metadata only.) | 2 | Complete | v2.0.0 |
+| INTG-03 (Owner can find no test or support under `tests/js/` still using a retired shape (such as `fileTruth`), with each port's pre-edit baseline recorded as passing.) | 3 | Complete | v2.0.0 |
+| INTG-04 (Owner can run `PYTHONPATH=$(pwd) scripts/gate.sh make check` in `.claude/worktrees/integrate` and read `exit=0`.) | 4 | Complete | v2.0.0 |
+| INTG-05 (Owner can check out `v2` and find `rebuild/integrate` merged into it, with `scripts/gate.sh make check` exiting 0 on `v2`.) | 4 | Complete | v2.0.0 |
+| METER-01 (User sees the meters, the spectrum and the spectrogram move smoothly in step with the music while metering frames reach the app in bursts.) | 5 | Complete | v2.0.0 |
 
 ## v2 Requirements
 
@@ -73,12 +83,6 @@ Deferred. Tracked, not in the current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INTG-01 | Phase 2 | Complete |
-| INTG-02 | Phase 2 | Complete |
-| INTG-03 | Phase 3 | Complete |
-| INTG-04 | Phase 4 | Complete |
-| INTG-05 | Phase 4 | Complete |
-| METER-01 | Phase 5 | Complete |
 
 Bare headers - `/cad-plan` seeds a row per requirement when its phase is planned (`references/req-traceability.md`).
 
