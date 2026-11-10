@@ -12,22 +12,22 @@ Poll cycles are counted at the fake rather than waited for on the wall clock
 three cycles' worth of arrivals have landed is a fresh /config verdict whatever
 the ordering."""
 
+import contextlib
 from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
-from apps import advance_app, app_manager, log_in, wait_for_api
+from apps import advance_app, app_manager, log_in, ready_app, unserved_login
 from conftest import spawn_threaded_daemon
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: Arrivals at the 8088 lane per poll cycle, measured against the fake: /config,
@@ -39,67 +39,49 @@ CredClient = Callable[..., tuple[TestClient, dict[str, Any]]]
 
 @pytest.fixture
 def credential_client(tmp_path: Path) -> Iterator[CredClient]:
-    """Build the REST app on both fakes at once, handing back the client and the
+    """Build the REST app on both fakes at once, ready, handing back the client and the
     8088 daemon's live state dict — assigning `_refuse_auth` or `_down` on it is
     how a case says the daemon's answer changed with no request from the app.
 
     ``poll_interval`` is the caller's: a case that must be the only traffic on
     the lane parks the background poll out past itself; the rest keep the
     production pacing and advance the clock through the cycles they need."""
-    daemons: list[Iterator[int]] = []
-    https: list[Iterator[dict[str, Any]]] = []
-    apps: list[TestClient] = []
+    built = 0
+    with ExitStack() as served:
 
-    def build(poll_interval: float | None = None, **overrides: object) -> tuple[TestClient, dict[str, Any]]:
-        daemon = spawn_threaded_daemon()
-        daemons.append(daemon)
-        # The daemon accepts at the login and takes on the state the case asks for after it, before the app
-        # starts and makes its first read.
-        http = fake_http.spawn(fake_http.state(), in_process=True)
-        https.append(http)
-        state = next(http)
-        # Every store this app owns lands under a directory of this client's own
-        # inside the test's tmp_path — never the session-wide area conftest's
-        # `_state_never_touches_the_repo` hands a bare Config, which outlives the
-        # test and is read by everything after it.
-        area = tmp_path / f"app{len(apps)}"
-        area.mkdir()
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=next(daemon),
-            hqp_http_port=state["_port"],
-            hqp_username="u",
-            hqp_password="p",
-            alarm_threshold=1.0,
-            backup_dir=area / "backups",
-            preset_dir=area / "presets",
-            live_preset_file=area / "live-presets.json",
-            favorites_file=area / "favorites.json",
-            narrowing_file=area / "narrowing.json",
-            description_file=area / "descriptions.json",
-            matrix_mode_file=area / "matrixmodes.json",
-            autopilot_file=area / "autopilot.json",
-        )
-        if poll_interval is not None:
-            cfg = replace(cfg, poll_interval=poll_interval)
-        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
-        log_in(client)
-        state.update(overrides)
-        client.__enter__()
-        apps.append(client)
-        return client, state
+        def build(poll_interval: float | None = None) -> tuple[TestClient, dict[str, Any]]:
+            port = served.enter_context(contextlib.contextmanager(spawn_threaded_daemon)())
+            state = served.enter_context(contextlib.contextmanager(fake_http.spawn)(fake_http.state(), in_process=True))
+            # Every store this app owns lands under a directory of this client's own
+            # inside the test's tmp_path — never the session-wide area conftest's
+            # `_state_never_touches_the_repo` hands a bare Config, which outlives the
+            # test and is read by everything after it.
+            nonlocal built
+            area = tmp_path / f"app{built}"
+            built += 1
+            area.mkdir()
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=port,
+                hqp_http_port=state["_port"],
+                hqp_username="u",
+                hqp_password="p",
+                alarm_threshold=1.0,
+                backup_dir=area / "backups",
+                preset_dir=area / "presets",
+                live_preset_file=area / "live-presets.json",
+                favorites_file=area / "favorites.json",
+                narrowing_file=area / "narrowing.json",
+                description_file=area / "descriptions.json",
+                matrix_mode_file=area / "matrixmodes.json",
+                autopilot_file=area / "autopilot.json",
+            )
+            if poll_interval is not None:
+                cfg = replace(cfg, poll_interval=poll_interval)
+            client = served.enter_context(ready_app(cfg))
+            return log_in(client), state
 
-    yield build
-    for client in apps:
-        client.__exit__(None, None, None)
-    for http in https:
-        next(http, None)
-    for daemon in daemons:
-        next(daemon, None)
-
-
-def _connected(client: TestClient) -> None:
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
+        yield build
 
 
 def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: int = 20) -> None:
@@ -117,17 +99,6 @@ def _settle(client: TestClient, state: dict[str, Any], cycles: int = 2, polls: i
             return
         advance_app(client, interval)
     raise FixtureError(reason="the 8088 lane took no further polls")
-
-
-def _loaded(client: TestClient) -> None:
-    """Return once the app's startup load has finished: `ready` says the app has
-    loaded what a caller reads off it, and the settle `wait_for_api` starts with
-    leaves no load in flight, so no archive read of its own is still arriving.
-
-    `reachable` is the 4321 handshake, which turns true before the 8088 lane's
-    loads have run, so a case that counts archive fetches off its own request
-    has to wait for `ready`."""
-    wait_for_api(client, lambda c: bool(c.get("/api/health").json()["ready"]))
 
 
 def _require_recorded_refusal(client: TestClient) -> None:
@@ -152,27 +123,38 @@ def _credentials_ok(client: TestClient) -> bool | str:
 #: The daemon's answers in the order one app meets them, each settled before
 #: the next, and the verdict reported once the last has landed.
 VERDICTS = [
-    pytest.param([], UNREAD, id="unread"),
-    pytest.param([("_down", False)], True, id="accepted"),
-    pytest.param([("_down", False), ("_refuse_auth", True)], False, id="refused"),
+    pytest.param([], True, id="accepted"),
+    pytest.param([("_refuse_auth", True)], False, id="refused"),
 ]
 
 
 @pytest.mark.parametrize(("changes", "verdict"), VERDICTS)
-def test_health_credentials_ok_reports_unknown_then_accepted_then_refused(
-    credential_client: CredClient, changes: list[tuple[str, bool]], *, verdict: bool | str
+def test_health_credentials_ok_reports_accepted_then_refused(
+    credential_client: CredClient, changes: list[tuple[str, bool]], *, verdict: bool
 ) -> None:
-    # Three verdicts along one app's history: nothing read yet, a read that
-    # succeeded, a read the daemon answered 403. The control lane carries no
-    # authentication and is up the whole way through, so a report sourced from
-    # reachability cannot tell the last two apart.
-    client, state = credential_client(_down=True)
-    _connected(client)
-    _settle(client, state)
+    # Two verdicts along one ready app's history: a read that succeeded, a read
+    # the daemon answered 403. The control lane carries no authentication and is
+    # up the whole way through, so a report sourced from reachability cannot tell
+    # them apart.
+    client, state = credential_client()
     for key, value in changes:
         state[key] = value
         _settle(client, state)
     assert _credentials_ok(client) == verdict
+
+
+def test_health_credentials_ok_is_unknown_before_the_8088_lane_has_answered(tmp_path: Path, closed_port: int) -> None:
+    # the start itself is the subject: neither daemon answers, so nothing has been read
+    cfg = Config(
+        hqp_host="127.0.0.1",
+        hqp_control_port=closed_port,
+        hqp_username="u",
+        hqp_password="p",
+        backup_dir=tmp_path,
+        preset_dir=tmp_path / "presets",
+    )
+    with unserved_login(cfg, VirtualClock()) as client:
+        assert _credentials_ok(client) == UNREAD
 
 
 @pytest.mark.parametrize(
@@ -187,7 +169,6 @@ def test_a_recorded_credential_verdict_outlives_the_daemon_going_down(
     # already recorded must survive it rather than being cleared by the poll
     # that could not ask.
     client, state = credential_client()
-    _connected(client)
     _settle(client, state)
     if _credentials_ok(client) is not True:
         raise FixtureError(reason="the lane never accepted the credentials it started with")
@@ -219,7 +200,6 @@ def test_a_persistent_apply_fetches_the_archive_once_at_most_when_credentials_ar
     # its reads as well as the apply's.
     recorded = case == "recorded"
     client, state = credential_client() if recorded else credential_client(poll_interval=30.0)
-    _loaded(client)
     if recorded:
         state["_refuse_auth"] = True
         _settle(client, state)
@@ -240,7 +220,6 @@ def _apply_refused_mid_pass(credential_client: CredClient) -> tuple[TestClient, 
     Nothing on the lane has recorded the refusal yet, so the apply's own fetch
     is what meets it."""
     client, state = credential_client(poll_interval=30.0)
-    _loaded(client)
     client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
     state["_refuse_auth"] = True
     return client, client.post("/api/config/apply")

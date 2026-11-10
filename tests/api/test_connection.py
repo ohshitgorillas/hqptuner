@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in
+from apps import log_in, ready_app
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from narrow import FixtureError
@@ -40,21 +40,22 @@ def store_path(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def app_factory(
-    store_path: Path, closed_port: int, http_daemon: dict[str, Any], tmp_path: Path
+    store_path: Path, threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
 ) -> Iterator[AppFactory]:
-    """The REST app with its record file in tmp and its 8088 lane pointed at the
-    fake daemon, so credentials posted mid-run have something faithful to reach.
+    """The REST app with its record file in tmp, on both fake daemons, so credentials posted mid-run have something
+    faithful to reach.
 
     Keyword arguments override the Config the app starts on: a case that needs an
-    install which already holds credentials passes them here, and the default is
-    the install with none."""
+    install which already holds credentials passes them here, and the app is
+    handed over ready. The default is the first-run install with none, which has
+    no 8088 client and so cannot read ready: it is handed over as it started."""
     with ExitStack() as stack:
 
         def build(**overrides: object) -> TestClient:
             cfg = Config(
                 **{
                     "hqp_host": "127.0.0.1",
-                    "hqp_control_port": closed_port,
+                    "hqp_control_port": threaded_daemon_port,
                     "hqp_http_port": http_daemon["_port"],
                     "hqp_username": "",
                     "hqp_password": "",
@@ -64,7 +65,9 @@ def app_factory(
                     **overrides,
                 }
             )
-            return log_in(stack.enter_context(TestClient(create_app(cfg, VirtualClock(), NETWORK))))
+            if not cfg.hqp_password:
+                return log_in(stack.enter_context(TestClient(create_app(cfg, VirtualClock(), NETWORK))))
+            return log_in(stack.enter_context(ready_app(cfg)))
 
         yield build
 

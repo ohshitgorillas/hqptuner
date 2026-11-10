@@ -14,7 +14,7 @@ from typing import Any
 import fake_http
 import httpx
 import pytest
-from apps import cookie_of
+from apps import cookie_of, ready_app
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -52,16 +52,18 @@ def serve() -> Iterator[Serve]:
 
 
 @pytest.fixture
-def build(tmp_path: Path, store_path: Path, closed_port: int) -> Iterator[Build]:
-    """Build the app with the pair admin/pw in force and its 8088 lane on ``port``; ``record`` is stored first."""
+def build(tmp_path: Path, store_path: Path, threaded_daemon_port: int) -> Iterator[Build]:
+    """Build the app with the pair admin/pw in force and its 8088 lane on ``port``, handed over ready; ``record`` is
+    stored first. ``ready=False`` is for a case whose subject is a start that cannot reach ready, a record that leaves
+    no password: both daemons answer and the app is handed over as it started."""
     with ExitStack() as stack:
 
-        def make(port: int, *, record: ConnectionRecord | None = None) -> TestClient:
+        def make(port: int, *, record: ConnectionRecord | None = None, ready: bool = True) -> TestClient:
             if record is not None:
                 ConnectionStore(store_path).write(record)
             cfg = Config(
                 hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
+                hqp_control_port=threaded_daemon_port,
                 hqp_http_port=port,
                 hqp_username="admin",
                 hqp_password="pw",
@@ -69,6 +71,8 @@ def build(tmp_path: Path, store_path: Path, closed_port: int) -> Iterator[Build]
                 backup_dir=tmp_path,
                 preset_dir=tmp_path / "presets",
             )
+            if ready:
+                return stack.enter_context(ready_app(cfg))
             return stack.enter_context(TestClient(create_app(cfg, VirtualClock(), NETWORK)))
 
         yield make
@@ -92,7 +96,10 @@ def digest_built_from(header: str, password: str) -> bool:
 
 
 def test_a_wrong_pair_is_refused_and_sets_no_cookie(serve: Serve, build: Build) -> None:
-    response = log_in(build(serve(_refuse_auth=True)["_port"]))
+    daemon = serve()
+    client = build(daemon["_port"])
+    daemon["_refuse_auth"] = True
+    response = log_in(client)
     assert (response.status_code, response.json()["code"], "set-cookie" in response.headers) == (
         401,
         "login_refused",
@@ -124,8 +131,11 @@ def test_the_cookie_lasts_as_long_as_the_choice_the_login_made(
     assert (morsel["max-age"], morsel["expires"]) == (max_age, "")
 
 
-def test_a_daemon_that_does_not_answer_is_not_a_refusal_and_sets_no_cookie(build: Build, closed_port: int) -> None:
-    response = log_in(build(closed_port))
+def test_a_daemon_that_does_not_answer_is_not_a_refusal_and_sets_no_cookie(serve: Serve, build: Build) -> None:
+    daemon = serve()
+    client = build(daemon["_port"])
+    daemon["_take_lane_down"]()
+    response = log_in(client)
     assert (response.status_code, response.json()["code"], "set-cookie" in response.headers) == (
         503,
         "login_not_answered",
@@ -141,16 +151,18 @@ def test_a_blank_password_is_checked_as_blank_never_filled_from_the_pair_in_forc
 
 
 def test_a_login_naming_another_host_is_checked_against_that_host(serve: Serve, build: Build) -> None:
-    refusing = serve(_refuse_auth=True)
+    refusing = serve()
     serve(host=ALIAS, port=refusing["_port"])
     client = build(refusing["_port"], record=ConnectionRecord("127.0.0.1", "admin", "pw", remember=True))
+    refusing["_refuse_auth"] = True
     assert log_in(client, host=ALIAS).status_code == 200
 
 
 def test_an_accepted_login_naming_another_host_retargets_to_it(serve: Serve, build: Build) -> None:
-    refusing = serve(_refuse_auth=True)
+    refusing = serve()
     serve(host=ALIAS, port=refusing["_port"])
     client = build(refusing["_port"], record=ConnectionRecord("127.0.0.1", "admin", "pw", remember=True))
+    refusing["_refuse_auth"] = True
     log_in(client, host=ALIAS)
     assert client.get("/api/connection").json()["host"] == ALIAS
 
@@ -172,7 +184,8 @@ def test_an_accepted_login_with_a_new_pair_becomes_the_pair_in_force(serve: Serv
 def test_a_login_never_changes_the_stored_remember_choice(
     serve: Serve, build: Build, store_path: Path, stored: ConnectionRecord, *, remember: bool
 ) -> None:
-    client = build(serve()["_port"], record=stored)
+    # a record that holds no password leaves the app without an 8088 client, so it cannot read ready
+    client = build(serve()["_port"], record=stored, ready=stored.password != "")
     before = store_path.read_bytes()
     response = log_in(client, remember=remember, password=stored.password)
     assert (response.status_code, store_path.read_bytes() == before) == (200, True)
@@ -181,7 +194,7 @@ def test_a_login_never_changes_the_stored_remember_choice(
 def test_a_new_pair_over_an_ask_every_time_record_is_stored_without_a_password(
     serve: Serve, build: Build, store_path: Path
 ) -> None:
-    client = build(serve()["_port"], record=ConnectionRecord("127.0.0.1", "admin", "", remember=False))
+    client = build(serve()["_port"], record=ConnectionRecord("127.0.0.1", "admin", "", remember=False), ready=False)
     log_in(client, remember=True, username="other", password="new")
     assert ConnectionStore(store_path).read() == ConnectionRecord("127.0.0.1", "other", "", remember=False)
 
@@ -249,6 +262,8 @@ def test_a_login_may_change_every_field_the_environment_does_not_pin(
 
 def test_an_empty_pin_is_no_pin(monkeypatch: pytest.MonkeyPatch, serve: Serve, build: Build) -> None:
     pin(monkeypatch, host="", username="", password="")
-    refusing = serve(_refuse_auth=True)
+    refusing = serve()
     serve(host=ALIAS, port=refusing["_port"])
-    assert log_in(build(refusing["_port"]), host=ALIAS).status_code == 200
+    client = build(refusing["_port"])
+    refusing["_refuse_auth"] = True
+    assert log_in(client, host=ALIAS).status_code == 200

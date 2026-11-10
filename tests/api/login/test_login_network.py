@@ -9,12 +9,9 @@ from pathlib import Path
 import fake_http
 import fake_network
 import pytest
-from apps import METADATA_MIN, settle_app
+from apps import METADATA_MIN, ready_app
 from fake_control import DEFAULTS, serve_shared
-from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.httpauth import PairVerdict, check_pair
 from hqptuner.config import Config
 
@@ -49,8 +46,7 @@ def test_a_login_on_an_app_handed_the_network_is_accepted(tmp_path: Path) -> Non
             autopilot_file=tmp_path / "autopilot.json",
             connection_file=tmp_path / "connection.json",
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
-            settle_app(client)
+        with ready_app(cfg) as client:
             login = client.post("/api/login", json={"username": "admin", "password": "pw", "remember": False})
             assert login.status_code == 200
         next(daemon, None)

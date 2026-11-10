@@ -12,12 +12,10 @@ import fake_discovery
 import fake_http
 import fake_network
 import pytest
-from apps import METADATA_MIN, log_in, settle_app
+from apps import METADATA_MIN, advance_app, app_manager, log_in, ready_app
 from fake_control import DEFAULTS, serve_shared
-from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.engine.discovery import REQUEST, Search, discover
 
@@ -68,6 +66,8 @@ def test_the_discover_route_on_an_app_handed_the_network_lists_the_same(tmp_path
     http = next(daemon)
     with (
         fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), host=DAEMON_HOST) as control,
+        # the app's own 4321, at its host and on the port the daemon discovery names answers on
+        fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), port=control),
         fake_discovery.in_process({REQUEST: REPLY}, host=DAEMON_HOST) as port,
     ):
         cfg = dataclasses.replace(
@@ -81,7 +81,7 @@ def test_the_discover_route_on_an_app_handed_the_network_lists_the_same(tmp_path
             discovery_target=f"{DAEMON_HOST}:{port}",
             discovery_timeout=1.0,
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
+        with ready_app(cfg) as client:
             log_in(client)
             body = client.get("/api/discover").json()
     next(daemon, None)
@@ -93,7 +93,7 @@ def test_a_start_in_the_image_with_no_host_adopts_the_alias_served_in_process(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, refuses: bool, verdict: bool
 ) -> None:
     monkeypatch.delenv("HQPTUNER_HQP_HOST", raising=False)
-    daemon = fake_http.spawn(fake_http.state(_refuse_auth=refuses), host=ALIAS_HOST, in_process=True)
+    daemon = fake_http.spawn(fake_http.state(), host=ALIAS_HOST, in_process=True)
     http = next(daemon)
     with fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS)), host=ALIAS_HOST) as control:
         cfg = dataclasses.replace(
@@ -105,8 +105,9 @@ def test_a_start_in_the_image_with_no_host_adopts_the_alias_served_in_process(
             container_host_alias=ALIAS_HOST,
             in_image=True,
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
-            settle_app(client)
+        with ready_app(cfg) as client:
+            http["_refuse_auth"] = refuses
+            advance_app(client, app_manager(client).cfg.poll_interval)
             health = client.get("/api/health").json()
     next(daemon, None)
     assert (health["reachable"], health["credentials_ok"]) == (True, verdict)

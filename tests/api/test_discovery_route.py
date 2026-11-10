@@ -11,7 +11,7 @@ the other with an empty list, and outside the image a listening daemon is not
 asked. A route that spends the search window on the control exchange as well
 answers empty in every case.
 
-The alias is `127.0.0.1` and the fake control daemon the record comes from is
+The alias is `127.0.0.2` and the fake control daemon the record comes from is
 the suite's own (tests/support/fake_control.py), so the four identity values
 asserted are what this test's fixture answered `GetInfo` with, not the app's
 copy, and the address is the one this test configured.
@@ -31,8 +31,9 @@ from virtual_clock import VirtualClock
 from hqptuner.config import Config
 
 #: The container-host alias these cases use: the loopback address the control
-#: fake is spawned on, so the alias resolves to a daemon this test controls.
-ALIAS = "127.0.0.1"
+#: fake is spawned on, so the alias resolves to a daemon this test controls. It
+#: is not the host the app itself dials, so neither of the app's own lanes works.
+ALIAS = "127.0.0.2"
 
 #: The identity `tests/support/fake_control.py` answers `GetInfo` with: name,
 #: version, product, platform, in the order the record declares them.
@@ -76,6 +77,7 @@ def test_a_zero_search_window_serves_the_daemon_the_host_alias_names_only_in_the
     expected: list[tuple[str, ...]],
 ) -> None:
     cfg = Config(
+        hqp_host="127.0.0.1",
         discovery_timeout=0.0,
         discovery_target=f"{ALIAS}:{build_closed_port()}",
         container_host_alias=ALIAS,

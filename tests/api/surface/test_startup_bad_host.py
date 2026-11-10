@@ -18,6 +18,7 @@ from typing import Any
 import fake_network
 import httpx
 import pytest
+from apps import closed_port, ready_app
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -44,11 +45,11 @@ def record_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def cfg(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Config:
-    """The config the app starts with: the daemon at the host in force, and the record file at ``record_path``."""
+def cfg(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Config:
+    """The config the app starts with: both daemons at the host in force, and the record file at ``record_path``."""
     return Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
+        hqp_control_port=threaded_daemon_port,
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
@@ -59,13 +60,12 @@ def cfg(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_pa
 
 
 def after_start(cfg: Config, ask: Callable[[TestClient], int]) -> int | str:
-    """What ``ask`` answers on the started app, or the name of the exception the build raised."""
+    """What ``ask`` answers on the started app once it reads ready, or the name of the exception the build raised."""
     try:
-        app = create_app(cfg, VirtualClock(), NETWORK)
+        with ready_app(cfg, raise_server_exceptions=False) as client:
+            return ask(client)
     except httpx.InvalidURL as exc:
         return type(exc).__name__
-    with TestClient(app, raise_server_exceptions=False) as client:
-        return ask(client)
 
 
 def test_a_start_over_a_record_naming_an_invalid_host_serves_the_health_read(cfg: Config) -> None:
@@ -90,11 +90,17 @@ async def _count_dial(_reader: asyncio.StreamReader, writer: asyncio.StreamWrite
 
 
 def alias_asked(cfg: Config) -> bool:
-    """Whether a start of ``cfg`` inside the image dials the container alias, whose control port is a counting fake."""
+    """Whether a start of ``cfg`` inside the image dials the container alias, whose control port is a counting fake.
+
+    The start is the subject, and neither lane works at it: the counting fake speaks no protocol and the 8088 port
+    is one nothing listens on."""
     dials: list[None] = []
     with fake_network.serving(functools.partial(_count_dial, dials=dials), host=ALIAS_HOST) as control:
-        aliased = dataclasses.replace(cfg, hqp_control_port=control, container_host_alias=ALIAS_HOST, in_image=True)
-        after_start(aliased, lambda client: client.get("/api/health").status_code)
+        aliased = dataclasses.replace(
+            cfg, hqp_control_port=control, hqp_http_port=closed_port(), container_host_alias=ALIAS_HOST, in_image=True
+        )
+        with TestClient(create_app(aliased, VirtualClock(), NETWORK), raise_server_exceptions=False) as client:
+            client.get("/api/health")
     return bool(dials)
 
 

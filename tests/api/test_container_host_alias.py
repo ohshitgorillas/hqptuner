@@ -23,13 +23,10 @@ from pathlib import Path
 
 import fake_http
 import pytest
-from apps import closed_port, log_in
+from apps import closed_port, log_in, ready_app
 from conftest import spawn_threaded_daemon
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore
 
@@ -46,12 +43,6 @@ MARKERS = {
     RECORD_ADDRESS: "PAIR-B-RECORD",
     ENV_ADDRESS: "PAIR-C-ENV",
 }
-
-#: Requests spent waiting for the manager's connect-and-load to come round. The
-#: client's loop progresses between requests, so a reachable daemon converges in
-#: a handful; the bound turns "never loads" into a failed assertion carrying the
-#: status instead of a hang.
-TRIES = 500
 
 
 @pytest.fixture
@@ -73,16 +64,12 @@ def daemon_pairs() -> Iterator[tuple[int, int]]:
 
 
 def served_title(client: TestClient) -> str:
-    """The `title` the daemon behind this app serves, or the status `/api/config`
-    was still answering when the tries ran out."""
-    status = 0
-    for _ in range(TRIES):
-        resp = client.get("/api/config")
-        status = resp.status_code
-        if status == 200:
-            fields = {field["name"]: field for field in resp.json()["data"]["fields"]}
-            return str(fields["title"]["value"])
-    return f"HTTP {status}"
+    """The `title` the daemon behind this app serves, or the status `/api/config` answered."""
+    resp = client.get("/api/config")
+    if resp.status_code != 200:
+        return f"HTTP {resp.status_code}"
+    fields = {field["name"]: field for field in resp.json()["data"]["fields"]}
+    return str(fields["title"]["value"])
 
 
 @pytest.mark.parametrize(
@@ -124,8 +111,8 @@ def test_a_start_dials_the_record_then_the_variable_and_falls_back_to_the_host_a
         live_preset_file=tmp_path / "live-presets.json",
         autopilot_file=tmp_path / "autopilot.json",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
-        # Logged in once the start has resolved the host: the pair is checked at the address in force.
+    with ready_app(cfg) as client:
+        # Logged in once the start has resolved the host and read ready: the pair is checked at the address in force.
         log_in(client)
         answered = served_title(client)
     assert answered == expected

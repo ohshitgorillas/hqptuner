@@ -5,11 +5,11 @@ at the running install's own state, and conftest's guard covers the stores it
 knows by name, so the override in `app_factory` below is the only thing between
 a POST here and the install's real credentials.
 
-The 8088 port is a hole by default and the fake daemon's where a case needs an
-answer, never the default: the default on this host is the production daemon.
-The four lane states are stated at the wire and nowhere else — an incomplete
-pair, a daemon answering /config, one refusing the pair with 403
-(`fake_http._auth_refusal`, verified on 6.0.4), and a port nothing listens on.
+The app starts ready on both fake daemons and the 8088 daemon's answer is moved
+mid-run, never the default port: the default on this host is the production
+daemon. The four lane states are stated at the wire and nowhere else — an
+incomplete pair, a daemon answering /config, one refusing the pair with 403
+(`fake_http._auth_refusal`, verified on 6.0.4), and a daemon that has gone away.
 """
 
 from collections.abc import Callable, Iterator
@@ -18,12 +18,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in, unserved_login
-from fake_network import NETWORK
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 AppFactory = Callable[..., TestClient]
@@ -35,34 +32,24 @@ def store_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[AppFactory]:
-    """The REST app with its record file in tmp and its lanes pointed at holes.
-
-    Keyword arguments override the Config: a case that needs a daemon to answer
-    passes ``hqp_http_port``, and the default is the install that can reach
-    nothing at all. The client is logged in while its daemon answers; ``then`` runs after that login and before
-    the app starts, for a case whose daemon refuses from the app's first read on."""
+def app_factory(
+    store_path: Path, threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
+) -> Iterator[AppFactory]:
+    """The REST app with its record file in tmp, on both fake daemons, ready and logged in."""
     with ExitStack() as stack:
 
-        def build(*, then: Callable[[], None] | None = None, **overrides: object) -> TestClient:
-            defaults: dict[str, Any] = {
-                "hqp_host": "127.0.0.1",
-                "hqp_control_port": closed_port,
-                "hqp_http_port": closed_port,
-                "hqp_username": "",
-                "hqp_password": "",
-                "connection_file": store_path,
-                "backup_dir": tmp_path,
-                "preset_dir": tmp_path / "presets",
-            }
-            cfg = Config(**{**defaults, **overrides})
-            if cfg.hqp_http_port == closed_port:
-                return stack.enter_context(unserved_login(cfg, VirtualClock()))
-            client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
-            log_in(client)
-            if then is not None:
-                then()
-            return stack.enter_context(client)
+        def build() -> TestClient:
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=threaded_daemon_port,
+                hqp_http_port=http_daemon["_port"],
+                hqp_username="u",
+                hqp_password="p",
+                connection_file=store_path,
+                backup_dir=tmp_path,
+                preset_dir=tmp_path / "presets",
+            )
+            return log_in(stack.enter_context(ready_app(cfg)))
 
         yield build
 
@@ -73,24 +60,20 @@ def app_factory(store_path: Path, closed_port: int, tmp_path: Path) -> Iterator[
         ("incomplete_pair", "no_credentials"),
         ("daemon_refuses_the_pair", "refused"),
         ("daemon_answers_config", "ok"),
-        ("nothing_on_the_port", "no_answer"),
+        ("daemon_gone", "no_answer"),
     ],
 )
 def test_a_save_reports_the_lane_its_own_config_attempt_reached(
-    app_factory: AppFactory,
-    http_daemon: dict[str, Any],
-    closed_port: int,
-    state: str,
-    lane: str,
+    app_factory: AppFactory, http_daemon: dict[str, Any], state: str, lane: str
 ) -> None:
     # Four daemon states, four verdicts on the one field the panel reads back.
     # A route answering the refusal HQPTuner already held cannot tell the last
     # state from the second: the pair the daemon never saw was the rejected one.
-    def refuse() -> None:
+    client = app_factory()
+    if state == "daemon_refuses_the_pair":
         http_daemon["_refuse_auth"] = True
-
-    port = closed_port if state == "nothing_on_the_port" else int(http_daemon["_port"])
-    client = app_factory(hqp_http_port=port, then=refuse if state == "daemon_refuses_the_pair" else None)
+    if state == "daemon_gone":
+        http_daemon["_take_lane_down"]()
     pair = {"username": "", "password": ""} if state == "incomplete_pair" else {"username": "u", "password": "p"}
     body: dict[str, Any] = {"host": "127.0.0.1", "remember": False, **pair}
     assert client.post("/api/connection", json=body).json().get("lane") == lane

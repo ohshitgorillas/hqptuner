@@ -14,7 +14,8 @@ from typing import Any
 
 import fake_http
 import pytest
-from apps import log_in
+from apps import log_in, ready_app
+from conftest import spawn_threaded_daemon
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
@@ -38,25 +39,29 @@ def record_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def alias_daemon(http_daemon: dict[str, Any]) -> Iterator[dict[str, Any]]:
-    """A fake 8088 at ``ALIAS`` on the port the app dials, standing for the host a save would switch to."""
+def alias_daemon(http_daemon: dict[str, Any], threaded_daemon_port: int) -> Iterator[dict[str, Any]]:
+    """A fake 8088 and a fake 4321 at ``ALIAS`` on the ports the app dials, standing for the host a save would switch
+    to."""
+    control = spawn_threaded_daemon(host=ALIAS, bind_port=threaded_daemon_port)
+    next(control)
     server = fake_http.spawn(fake_http.state(), host=ALIAS, bind_port=http_daemon["_port"], in_process=True)
     yield next(server)
     next(server, None)
+    next(control, None)
 
 
 Build = Callable[..., TestClient]
 
 
 @pytest.fixture
-def build(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Iterator[Build]:
-    """Build the REST app, logged in, on the fake 8088 daemon; the host in force is the named one."""
+def build(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Iterator[Build]:
+    """Build the REST app, ready and logged in, on both fake daemons; the host in force is the named one."""
     with ExitStack() as stack:
 
         def make(host: str = "127.0.0.1") -> TestClient:
             cfg = Config(
                 hqp_host=host,
-                hqp_control_port=closed_port,
+                hqp_control_port=threaded_daemon_port,
                 hqp_http_port=http_daemon["_port"],
                 hqp_username="u",
                 hqp_password="p",
@@ -64,8 +69,7 @@ def build(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_
                 backup_dir=tmp_path,
                 preset_dir=tmp_path / "presets",
             )
-            app = create_app(cfg, VirtualClock(), NETWORK)
-            return log_in(stack.enter_context(TestClient(app, raise_server_exceptions=False)))
+            return log_in(stack.enter_context(ready_app(cfg, raise_server_exceptions=False)))
 
         yield make
 

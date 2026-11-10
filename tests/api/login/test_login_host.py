@@ -8,11 +8,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from fake_network import NETWORK
+from apps import ready_app
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 HOST_INVALID = "host_invalid"
@@ -26,10 +24,12 @@ def record_path(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def client(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path) -> Iterator[TestClient]:
+def client(
+    threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path, record_path: Path
+) -> Iterator[TestClient]:
     cfg = Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
+        hqp_control_port=threaded_daemon_port,
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
@@ -37,7 +37,7 @@ def client(closed_port: int, http_daemon: dict[str, Any], tmp_path: Path, record
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK), raise_server_exceptions=False) as test_client:
+    with ready_app(cfg, raise_server_exceptions=False) as test_client:
         yield test_client
 
 
