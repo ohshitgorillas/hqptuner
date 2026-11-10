@@ -99,7 +99,7 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 
 ## Lane reports in a 200 body
 
-Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`). A preset save that fails is a refusal like load and delete, the save an apply asks for included.
+Lane reports returned inside a 200 body carry the same vocabulary per item: a failed setter is `{"ok": false, "error": ..., "code": ...}`, its `code` the raised error's own (`daemon_unavailable`, `daemon_refused`, `invalid_input`). A preset save that fails is a refusal like load and delete, the save an apply asks for included. A live report also says whether playback stopped under the batch (`playback_stopped`), and a client reports that as a failed apply.
 
 ## Connection
 

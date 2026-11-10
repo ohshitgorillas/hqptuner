@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, NamedTuple
 
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.engine.trackcontext import PLAYING
 from hqptuner.engine.view import EngineView
 from hqptuner.fields import query
 from hqptuner.lanes.live import routing
@@ -39,10 +40,15 @@ log = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class LiveApplyReport:
-    """One LIVE batch's answer: each setter's readback verdict, and whether it moved an enumeration."""
+    """One LIVE batch's answer: each setter's verdict, and whether it moved an enumeration or stopped playback."""
 
     live: list[LiveWriteResult] = dataclasses.field(default_factory=list)
     reenumerated: bool = False
+    playback_stopped: bool = False
+
+
+#: `State.state` values after which playback is down: stopped, and stop requested.
+_STOPPED_STATES = frozenset({0, 3})
 
 
 class SplitPlan(NamedTuple):
@@ -126,6 +132,12 @@ async def _refresh_quietly(mgr: LaneManager, client: ControlClient, edits: dict[
         log.warning("post-apply refresh failed: %s", exc)
 
 
+def _playback(mgr: LaneManager) -> int | None:
+    """Return the engine's `State.state` as last read, or None when none is held or it is not a whole number."""
+    held = (mgr.readings.state or {}).get("state", "")
+    return int(held) if held.isdigit() else None
+
+
 async def _after_mode(mgr: LaneManager, client: ControlClient) -> None:
     """Re-read State after a verified mode write, once the re-enumeration has run.
 
@@ -155,14 +167,21 @@ async def _apply_batch(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
     can drop the connection under the refresh that follows; raising turned a change
     the user watched land into an error on the control they just touched. The loader
     redials and refills the readings (`core/loader.run`).
+
+    Playback stopped under the batch when `State.state` was playing before it and is stopped
+    or stop requested in the re-read `refresh_after_live` makes; a refused re-read keeps the
+    last reading, so it reports no stop.
     """
     client = mgr.require_control()
     edits = routing.resolve_live(mgr, fields)
+    before = _playback(mgr)
     report = await write_live(mgr, client, edits)
     await _refresh_quietly(mgr, client, edits)
+    after = _playback(mgr)
+    stopped = before == PLAYING and after in _STOPPED_STATES
     if _applied(report, "mode"):
         await _after_mode(mgr, client)
-    return LiveApplyReport(report, _reenumerates(edits))
+    return LiveApplyReport(report, _reenumerates(edits), stopped)
 
 
 def mode_already_running(mgr: LaneManager, want: str) -> bool:
@@ -194,7 +213,11 @@ async def apply_preset(mgr: LaneManager, fields: dict[str, str]) -> LiveApplyRep
             return await _apply_batch(mgr, fields)
         first = LiveApplyReport() if mode_already_running(mgr, mode) else await _apply_batch(mgr, {"mode": mode})
         second = await _apply_batch(mgr, rest)
-        return LiveApplyReport([*first.live, *second.live], first.reenumerated or second.reenumerated)
+        return LiveApplyReport(
+            [*first.live, *second.live],
+            first.reenumerated or second.reenumerated,
+            first.playback_stopped or second.playback_stopped,
+        )
 
 
 async def apply_mode_first(mgr: LaneManager, mode: str) -> list[LiveWriteResult] | None:

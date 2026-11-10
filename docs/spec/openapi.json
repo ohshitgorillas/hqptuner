@@ -1627,7 +1627,7 @@
         "type": "object"
       },
       "LiveApplyReport": {
-        "description": "One LIVE batch's answer: each setter's readback verdict, and whether it moved an enumeration.",
+        "description": "One LIVE batch's answer: each setter's verdict, and whether it moved an enumeration or stopped playback.",
         "properties": {
           "live": {
             "items": {
@@ -1642,6 +1642,11 @@
             },
             "title": "Live",
             "type": "array"
+          },
+          "playback_stopped": {
+            "default": false,
+            "title": "Playback Stopped",
+            "type": "boolean"
           },
           "reenumerated": {
             "default": false,
