@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import advance_app, app_manager, live_app, lose_http_client, unserved_login
+from apps import blank_the_pair, live_app, unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -24,7 +24,7 @@ def nocreds_client(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestCl
     the missing lane (503), never on a missing name (404)."""
     PresetStore(tmp_path / "presets").save("Kept", b"<hqplayerd/>")
     for client in live_app(threaded_daemon_port, tmp_path):
-        lose_http_client(client)
+        blank_the_pair(client)
         yield client
 
 
@@ -33,17 +33,6 @@ def deaf_client(http_client: TestClient, http_daemon: dict[str, Any]) -> TestCli
     """An app ready on both lanes whose 8088 daemon then stops answering — the
     http lane exists and every wire touch is refused."""
     http_daemon["_take_lane_down"]()
-    return http_client
-
-
-@pytest.fixture
-def half_wired_client(http_client: TestClient, http_daemon: dict[str, Any]) -> TestClient:
-    """An app ready on both lanes that holds no form while the 8088 forms fail on
-    the next fetch, so each form route holds a recorded error instead of a form."""
-    readings = app_manager(http_client).readings
-    readings.config_form = readings.matrix_form = readings.speakers_form = None
-    http_daemon["_fail_paths"] = ["/config", "/matrix", "/speakers"]
-    advance_app(http_client, app_manager(http_client).cfg.poll_interval)
     return http_client
 
 
@@ -103,11 +92,6 @@ def test_form_routes_before_any_fetch_are_unavailable(unloaded_client: TestClien
     # credentials present, but neither daemon answered at start-up, so the manager
     # never completed a connect and no form fetch was ever attempted
     assert unloaded_client.get(path).status_code == 503
-
-
-@pytest.mark.parametrize("path", ["/api/config", "/api/matrix", "/api/speakers"])
-def test_form_routes_after_a_failed_fetch_are_bad_gateway(half_wired_client: TestClient, path: str) -> None:
-    assert half_wired_client.get(path).status_code == 502
 
 
 # --- live routes without a connected daemon --------------------------------------

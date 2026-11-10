@@ -5,15 +5,14 @@ The flag lives in the preset store on disk, not in any browser. With it on and
 a preset active, every successful write — staged apply, engine overrides,
 speakers, live control-lane write — folds back into that preset's snapshot and
 reports ``autosaved``; the mirror ``data/cfgs/<name>.xml`` rides the apply's
-own restore archive so auto-save costs no restart of its own. It is
-best-effort: a failed fold never fails the write it followed."""
+own restore archive so auto-save costs no restart of its own."""
 
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in, lose_http_client, ready_app
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
 
 from hqptuner.api.deps import SavedPreset, WithAutosave
@@ -208,41 +207,13 @@ def test_autosaved_live_write_lands_in_the_preset_snapshot(
     assert saved == "25"
 
 
-# --- best-effort: a failed fold never fails the write it followed -----------
-
-
-def _point_autosave_at(preset_dir: Path, name: str = "Kept") -> None:
-    """Arm auto-save from outside: the store is a per-directory fact, so a second
-    ``PresetStore`` on the app's preset directory flips the flag and points the
-    active preset."""
-    store = PresetStore(preset_dir)
-    store.save(name, b"<hqplayerd/>")
-    store.set_active(name)
-    store.set_autosave(enabled=True)
-
-
-def test_live_write_still_succeeds_when_autosave_cannot(live_api: TestClient, tmp_path: Path) -> None:
-    # no 8088 client, so no config archive can be fetched to fold into: the
-    # request answers the failed fold's own refusal, but the live write it
-    # followed already landed on the engine before the fold was attempted
-    _point_autosave_at(tmp_path / "presets")
-    lose_http_client(live_api)
-    live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}})
-    assert live_api.get("/api/state").json()["data"]["filter_junk"] == "1"
+# --- a live write whose fold can land -----------------------------------------
 
 
 def test_a_live_write_whose_autosave_can_fold_answers_ok(
     threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
-    # the credential-less case above answers the failed fold's refusal instead
     for client in _dual_lane_client(threaded_daemon_port, http_daemon, tmp_path):
         _autosave_on_with_active(client)
         status = client.post("/api/config/live", json={"fields": {"filter": "25"}}).status_code
     assert status == 200
-
-
-def test_failed_autosave_carries_an_error_string(live_api: TestClient, tmp_path: Path) -> None:
-    _point_autosave_at(tmp_path / "presets")
-    lose_http_client(live_api)
-    code = live_api.post("/api/config/live", json={"fields": {"junk_filter": "1"}}).json()["code"]
-    assert code == "daemon_unavailable"

@@ -136,20 +136,16 @@ def ready_app(
         yield client
 
 
-def lose_http_client(client: TestClient) -> None:
-    """Take the 8088 client away from the app under ``client``, the state of an app that holds no credentials.
+def blank_the_pair(client: TestClient) -> None:
+    """Save a blank username and password through ``POST /api/connection``, the way an operator clears the pair.
 
-    The app has started and read both lanes; this is the lane going missing mid-run, on the app's own event loop.
+    The route installs no 8088 client, and the next lifecycle refresh finds the configuration lane unanswered, so
+    the app reads unready. Returns once ``/api/health`` says so.
     """
-    portal = client.portal
-    if portal is None:
-        raise NotAVirtualAppError
-    manager = app_manager(client)
-
-    def lose() -> None:
-        manager.http_client = None
-
-    portal.call(lose)
+    response = client.post("/api/connection", json={"username": "", "password": "", "remember": False})
+    if response.status_code != 200:
+        raise FixtureError(reason=f"the blank pair was refused with HTTP {response.status_code}: {response.text}")
+    wait_for_api(client, lambda c: not _ready(c))
 
 
 def log_in(client: TestClient, *, remember: bool = False) -> TestClient:
@@ -227,6 +223,8 @@ def live_app(
             hqp_http_port=http["_port"],
             hqp_username="u",
             hqp_password="p",
+            # a save through POST /api/connection lands here, never in the repo's own state/
+            connection_file=tmp_path / "connection.json",
             data_dir=METADATA_MIN,
             backup_dir=tmp_path,
             preset_dir=tmp_path / "presets",

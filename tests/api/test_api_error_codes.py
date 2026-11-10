@@ -14,7 +14,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 import pytest
-from apps import lose_http_client
+from apps import blank_the_pair
 from fastapi.testclient import TestClient
 from httpx import Response
 from narrow import FixtureError
@@ -58,12 +58,12 @@ def test_a_refused_live_preset_delete_is_a_client_error(
 
 
 def test_config_without_credentials_is_unavailable(live_api: TestClient) -> None:
-    lose_http_client(live_api)
+    blank_the_pair(live_api)
     assert live_api.get("/api/config").status_code == 503
 
 
 def test_config_without_credentials_carries_code_no_credentials(live_api: TestClient) -> None:
-    lose_http_client(live_api)
+    blank_the_pair(live_api)
     assert live_api.get("/api/config").json()["code"] == "no_credentials"
 
 
