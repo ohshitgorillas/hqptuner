@@ -3,10 +3,11 @@ app under test, each on the two lanes a working install needs: a fake 4321 daemo
 and a fake 8088 daemon, answering, with `/api/health` reading `ready` before the
 case gets the client."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import fake_control
@@ -256,33 +257,40 @@ class Lanes:
         return len(self.control_log) - before
 
 
-@pytest.fixture
-def lanes(tmp_path: Path) -> Iterator[Lanes]:
+def serve_lanes(
+    tmp_path: Path, control_state: Mapping[str, str] = MappingProxyType({}), **config: object
+) -> Iterator[Lanes]:
     """The real app on both fakes, ready and logged in, with a live preset ``warm`` saved and every store under
-    ``tmp_path``."""
+    ``tmp_path``. ``control_state`` overrides the 4321 fake's State and ``config`` the app's ``Config``."""
     log: CommandLog = []
-    control = {**fake_control.DEFAULTS}
+    control = {**fake_control.DEFAULTS, **control_state}
     served = spawn_threaded_daemon(state=control, log=log)
     http_state = fake_http.spawn(fake_http.state(), in_process=True)
     http = next(http_state)
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=next(served),
-        hqp_http_port=http["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        live_preset_file=tmp_path / "live-presets.json",
-        favorites_file=tmp_path / "favorites.json",
-        narrowing_file=tmp_path / "narrowing.json",
-        description_file=tmp_path / "descriptions.json",
-        matrix_mode_file=tmp_path / "matrixmodes.json",
-        autopilot_file=tmp_path / "autopilot.json",
-    )
-    with ready_app(cfg) as client:
+    fields: dict[str, Any] = {
+        "hqp_host": "127.0.0.1",
+        "hqp_control_port": next(served),
+        "hqp_http_port": http["_port"],
+        "hqp_username": "u",
+        "hqp_password": "p",
+        "backup_dir": tmp_path,
+        "preset_dir": tmp_path / "presets",
+        "live_preset_file": tmp_path / "live-presets.json",
+        "favorites_file": tmp_path / "favorites.json",
+        "narrowing_file": tmp_path / "narrowing.json",
+        "description_file": tmp_path / "descriptions.json",
+        "matrix_mode_file": tmp_path / "matrixmodes.json",
+        "autopilot_file": tmp_path / "autopilot.json",
+    }
+    with ready_app(Config(**{**fields, **config})) as client:
         log_in(client)
         client.put("/api/livepresets/warm")
         yield Lanes(client, log, control, http)
     next(served, None)
     next(http_state, None)
+
+
+@pytest.fixture
+def lanes(tmp_path: Path) -> Iterator[Lanes]:
+    """The app of ``serve_lanes`` with nothing overridden."""
+    yield from serve_lanes(tmp_path)

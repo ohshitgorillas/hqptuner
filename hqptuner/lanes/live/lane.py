@@ -74,6 +74,8 @@ class LiveMemory:
     def __init__(self) -> None:
         """Start out remembering nothing — no setting held for any chain."""
         self.chain: dict[str, dict[str, str]] = {}
+        # Set when a chain change found a lane down, so the memory for the chain entered is sent once both are up.
+        self.reassert_pending = False
 
     def forget(self) -> None:
         """Drop everything — a LIVE setting lasts only until the daemon restarts.
@@ -82,6 +84,7 @@ class LiveMemory:
         re-assert, a setting nothing is playing any more.
         """
         self.chain.clear()
+        self.reassert_pending = False
 
 
 def _applied(report: list[LiveWriteResult], setting: str) -> bool:
@@ -161,7 +164,8 @@ async def chain_entered(
 ) -> None:
     """Handle the engine having loaded a different filter/shaper chain.
 
-    Refresh the lists it enumerates, then put back what LIVE set on the chain it entered.
+    Refresh the lists it enumerates, then put back what LIVE set on the chain it entered. While either lane is down
+    nothing is sent and the memory stands as it is; the put-back runs on the first poll that finds both up.
 
     The chain can change with the configured mode standing still. In `[source]`
     mode the engine follows the source (readme §1.7), so a DSD track after a PCM
@@ -171,12 +175,16 @@ async def chain_entered(
     fresh lists for a mode change, so this does not pull them twice.
     """
     after = active_chain(mgr)
-    if after is None or after == before:
+    changed = after is not None and after != before
+    if not changed and not mgr.readings.live.reassert_pending:
         return
-    log.info("chain changed (%s -> %s)", before or "unknown", after)
-    if not reenumerated:
-        mgr.readings.enums = await client.get_all_enumerations()
-    if await reassert_chain(mgr, client):
+    if changed:
+        log.info("chain changed (%s -> %s)", before or "unknown", after)
+        if not reenumerated:
+            mgr.readings.enums = await client.get_all_enumerations()
+    # An engine write waits for both lanes: the memory for the chain entered stays as it stands until they are up.
+    mgr.readings.live.reassert_pending = not mgr.ready
+    if mgr.ready and await reassert_chain(mgr, client):
         await _reread_state(mgr, client)
 
 

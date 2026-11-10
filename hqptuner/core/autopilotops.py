@@ -43,11 +43,11 @@ def _move(mgr: ConnectionManager) -> tuple[str, str | None] | None:
     """Return the junk filter auto-pilot wants and the one engaged, or None when there is no move to make.
 
     None covers every reason to do nothing at all: auto-pilot off, no metering reader (``HQPTUNER_METERING_ENABLED=0``,
-    or no stream to read), an engine that is not answering, a state file that cannot be read, and the ordinary case of
-    the engaged filter already being the wanted one.
+    or no stream to read), an engine that is not answering, a lane that is down (an engine write waits for both lanes),
+    a state file that cannot be read, and the ordinary case of the engaged filter already being the wanted one.
     """
     reader = mgr.metering
-    if reader is None or not _enabled(mgr):
+    if reader is None or not mgr.ready or not _enabled(mgr):
         return None
     ctx = context_from(mgr)
     if ctx is None:
