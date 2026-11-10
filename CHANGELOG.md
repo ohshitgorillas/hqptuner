@@ -8,6 +8,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **The Windows app now allows connections from other devices on LAN.**
 - **The Windows app now reinstalls cleanly.**
+- **The app is unavailable when either the daemon or web UI are down.**
 
 ### Security
 
