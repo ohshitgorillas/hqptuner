@@ -114,7 +114,7 @@ async def test_a_failed_backup_aborts_a_load_before_any_restore(
 ) -> None:
     blocker = tmp_path / "blocker"
     blocker.write_text("a file where the backup dir should be")
-    manager = http_manager_factory(http_daemon, backup_dir=blocker / "backups", preset_dir=tmp_path / "presets")
+    manager = await http_manager_factory(http_daemon, backup_dir=blocker / "backups", preset_dir=tmp_path / "presets")
     await manager.presetops.save_preset("Base")  # its own daemon mirror already posts one /restore
     before = http_daemon.get("_restore_attempts", 0)
     with contextlib.suppress(BackupFailedError):

@@ -340,34 +340,20 @@ def announcing_daemon() -> Iterator[dict[str, Any]]:
     yield from fake_http.spawn(fake_http.state(_log=SELECTED_LOG), in_process=True)
 
 
-def _manager(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
-    return factory(daemon, hqp_host="127.0.0.1", hqp_http_port=daemon["_port"])
-
-
-async def _loaded(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
-    """A manager that has loaded the daemon's config forms — and nothing else.
-    Learning the device capability is part of that load, so no test below asks
-    for it to be LEARNED separately: a manager that only learns caps when told
-    to fails here. The re-read tests do call the refresh again by hand, on a
-    manager already holding the capability — a different question, whether a
-    second read of the log is paid for at all."""
-    manager = _manager(factory, daemon)
-    await engineread.refresh_devices(manager)
-    return manager
+async def _manager(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
+    return await factory(daemon)
 
 
 @pytest.mark.parametrize(
-    ("daemon", "overrides", "load", "expected"),
+    ("daemon", "overrides", "expected"),
     [
-        # the announcing daemon unread: loading is all that separates this from the loaded case
-        pytest.param("announcing_daemon", {}, False, None, id="fresh"),
-        pytest.param("http_daemon", {"_log": OTHER_LOG}, True, None, id="another device's log"),
-        pytest.param("http_daemon", {}, True, None, id="no announcement"),
+        pytest.param("http_daemon", {"_log": OTHER_LOG}, None, id="another device's log"),
+        pytest.param("http_daemon", {}, None, id="no announcement"),
         # this daemon's config form has selected the device its log announces, so a
         # readable log narrows the menus — what stops it is the 8088 lane refusing
         # GET /log, which leaves nothing known about the device
-        pytest.param("announcing_daemon", {"_fail_paths": ["/log"]}, True, None, id="log refused"),
-        pytest.param("announcing_daemon", {}, True, [44100, 192000], id="loaded"),
+        pytest.param("announcing_daemon", {"_fail_paths": ["/log"]}, None, id="log refused"),
+        pytest.param("announcing_daemon", {}, [44100, 192000], id="loaded"),
     ],
 )
 async def test_a_manager_reports_the_capability_only_once_it_has_read_its_own_devices_announcement(
@@ -375,15 +361,11 @@ async def test_a_manager_reports_the_capability_only_once_it_has_read_its_own_de
     http_manager_factory: ManagerFactory,
     daemon: str,
     overrides: dict[str, Any],
-    *,
-    load: bool,
     expected: list[int] | None,
 ) -> None:
     served: dict[str, Any] = request.getfixturevalue(daemon)
     served.update(overrides)
-    manager = _manager(http_manager_factory, served)
-    if load:
-        await engineread.refresh_devices(manager)
+    manager = await _manager(http_manager_factory, served)
     assert _pcm_rates(manager.readings.device_caps) == expected
 
 
@@ -396,7 +378,7 @@ async def test_a_refresh_reads_no_log_while_the_held_capability_still_stands(
 ) -> None:
     # the capability is held and the selected device has not moved, so a second
     # read could only announce the same device again
-    manager = await _loaded(http_manager_factory, announcing_daemon)
+    manager = await _manager(http_manager_factory, announcing_daemon)
     already_read = announcing_daemon["_log_reads"]
     await engineread.refresh_device_caps(manager)
     assert announcing_daemon["_log_reads"] == already_read
@@ -407,7 +389,7 @@ async def test_a_forced_refresh_reads_the_log_again(
 ) -> None:
     # what a fresh connection does: the held capability describes whatever the
     # daemon had open before, so the log is read again on its own account
-    manager = await _loaded(http_manager_factory, announcing_daemon)
+    manager = await _manager(http_manager_factory, announcing_daemon)
     already_read = announcing_daemon["_log_reads"]
     await engineread.refresh_device_caps(manager, force=True)
     assert announcing_daemon["_log_reads"] == already_read + 1
@@ -446,7 +428,7 @@ def backupless_daemon() -> Iterator[dict[str, Any]]:
 async def _both_views(factory: ManagerFactory, daemon: dict[str, Any]) -> ConnectionManager:
     """A manager holding both config views: the file read and the forms loaded,
     which is the state every ordinary poll leaves it in."""
-    manager = _manager(factory, daemon)
+    manager = await _manager(factory, daemon)
     await fileconfig.load_file_config(manager)
     await engineread.refresh_devices(manager)
     return manager

@@ -5,7 +5,9 @@ injected at the wire or via constructor inputs)."""
 from typing import Any
 
 import pytest
+from apps import settled
 from conftest import StartManager
+from virtual_clock import VirtualClock
 
 from hqptuner.core.manager import ConnectionManager
 
@@ -21,12 +23,36 @@ def _file_title(manager: ConnectionManager) -> str | None:
 # --- 8088 faults must not fail the 4321 connect -------------------------------
 
 
-@pytest.mark.parametrize(("lane", "title"), [("dead", None), ("live", TITLE)])
-async def test_file_config_is_grounded_only_from_a_live_http_lane(
-    start_manager: StartManager, closed_port: int, http_daemon: dict[str, Any], lane: str, title: str | None
+async def test_file_config_is_grounded_from_the_live_http_lane(
+    start_manager: StartManager, http_daemon: dict[str, Any]
 ) -> None:
-    # the failed read is tolerated and leaves no fabricated file truth behind, while
-    # an ordinary live 8088 lane grounds file_config from the real file
     http_daemon["title"] = TITLE
-    manager = await start_manager(closed_port if lane == "dead" else http_daemon["_port"])
-    assert _file_title(manager) == title
+    manager = await start_manager(http_daemon["_port"])
+    assert _file_title(manager) == TITLE
+
+
+async def _reconnected(
+    start_manager: StartManager, http_daemon: dict[str, Any], clock: VirtualClock, *, lane_down: bool
+) -> ConnectionManager:
+    """A manager that started ready, then made a fresh 4321 connect, with the 8088 lane taken down first or left up."""
+    manager = await start_manager(http_daemon["_port"])
+    if lane_down:
+        http_daemon["_take_lane_down"]()
+    await manager.restarting()
+    await settled(clock)
+    return manager
+
+
+async def test_a_connect_made_with_the_8088_lane_down_still_completes_the_4321_connect(
+    start_manager: StartManager, http_daemon: dict[str, Any], clock: VirtualClock
+) -> None:
+    manager = await _reconnected(start_manager, http_daemon, clock, lane_down=True)
+    assert manager.connected.is_set()
+
+
+@pytest.mark.parametrize(("lane_down", "ready"), [(False, True), (True, False)], ids=["8088 stands", "8088 down"])
+async def test_a_fresh_connect_leaves_the_manager_ready_only_while_the_8088_lane_stands(
+    start_manager: StartManager, http_daemon: dict[str, Any], clock: VirtualClock, *, lane_down: bool, ready: bool
+) -> None:
+    manager = await _reconnected(start_manager, http_daemon, clock, lane_down=lane_down)
+    assert manager.ready is ready

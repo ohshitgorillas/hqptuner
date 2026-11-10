@@ -152,7 +152,7 @@ async def test_a_save_whose_mirror_never_lands_still_reports_ok(
     restore_refusing_http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
 ) -> None:
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    manager = await http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     result = await manager.presetops.save_preset("Studio")
     assert result.name == "Studio"
 
@@ -161,7 +161,7 @@ async def test_a_save_whose_mirror_never_lands_still_stores_the_preset(
     restore_refusing_http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
 ) -> None:
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    manager = await http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     await manager.presetops.save_preset("Studio")
     assert "Studio" in [o.value for o in manager.presetops.presets().options]
 
@@ -172,7 +172,7 @@ async def test_a_save_whose_mirror_never_lands_still_marks_it_active(
 ) -> None:
     # the active pointer moved with the store write, not with the daemon: a save
     # that reached disk is the active preset even when the mirror is behind
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    manager = await http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     await manager.presetops.save_preset("Studio")
     assert manager.presetops.presets().active == "Studio"
 
@@ -191,7 +191,7 @@ MIRROR_CASES = [
 async def test_a_mirror_lands_unless_the_daemon_refuses_it_past_the_deadline(
     request: pytest.FixtureRequest, http_manager_factory: ManagerFactory, daemon: str, mirror: MirrorOutcome
 ) -> None:
-    manager = http_manager_factory(request.getfixturevalue(daemon), alarm_threshold=3.0)
+    manager = await http_manager_factory(request.getfixturevalue(daemon), alarm_threshold=3.0)
     assert (await manager.presetops.save_preset("Studio")).mirror is mirror
 
 
@@ -218,7 +218,7 @@ async def test_a_mirror_stops_retrying_at_the_deadline(
 ) -> None:
     # three passes fit a 3 s deadline at a 1 s interval, then the loop concludes —
     # the retry is bounded, not an unbounded hammer on a daemon that is gone
-    manager = http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
+    manager = await http_manager_factory(restore_refusing_http_daemon, alarm_threshold=3.0)
     await manager.presetops.save_preset("Studio")
     assert restore_refusing_http_daemon["_restore_attempts"] == 3
 

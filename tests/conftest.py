@@ -205,6 +205,33 @@ def ready_or_raise(manager: ConnectionManager) -> ConnectionManager:
     return manager
 
 
+class Runs:
+    """The managers a builder has set running on the clock, each with the 8088 client it reads through."""
+
+    def __init__(self, clock: VirtualClock) -> None:
+        self._clock = clock
+        self._started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+
+    async def start(self, cfg: Config, http: HttpConfigClient) -> ConnectionManager:
+        """Run a manager for ``cfg`` over ``http``; handed over ready, idle on the clock."""
+        manager = ConnectionManager(cfg, http, self._clock, NETWORK)
+        self._started.append((manager, self._clock.spawn(manager.run()), http))
+        await settled(self._clock)
+        return ready_or_raise(manager)
+
+    async def close(self) -> None:
+        for manager, task, http in self._started:
+            manager.stop()
+            await task
+            await manager.aclose()
+            await http.aclose()
+
+
+def http_client_of(port: int) -> HttpConfigClient:
+    """An 8088 client for the fake daemon at ``port`` on the in-process network."""
+    return HttpConfigClient("127.0.0.1", port, "u", "p", NETWORK.http_options("127.0.0.1", port))
+
+
 @pytest.fixture
 async def live_manager(
     daemon: DaemonFactory, clock: VirtualClock, tmp_path: Path, http_lanes: HttpLanes
@@ -220,34 +247,25 @@ async def live_manager(
     A case that waits on the manager's own poll loop advances the clock by a
     ``poll_interval``.
     """
-    started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+    runs = Runs(clock)
     with contextlib.ExitStack() as served:
 
         async def build(**overrides: str) -> LiveBuilt:
             port, log, state = await daemon(**overrides)
             http_state = serve_http_lane(served)
-            http_port = http_state["_port"]
-            http = HttpConfigClient("127.0.0.1", http_port, "u", "p", NETWORK.http_options("127.0.0.1", http_port))
             cfg = Config(
                 hqp_host="127.0.0.1",
                 hqp_control_port=port,
-                hqp_http_port=http_port,
+                hqp_http_port=http_state["_port"],
                 backup_dir=tmp_path / "backups",
                 preset_dir=tmp_path / "presets",
             )
-            manager = ConnectionManager(cfg, http, clock, NETWORK)
-            task = clock.spawn(manager.run())
-            started.append((manager, task, http))
-            await settled(clock)
+            manager = await runs.start(cfg, http_client_of(http_state["_port"]))
             http_lanes[manager] = http_state
-            return ready_or_raise(manager), log, state
+            return manager, log, state
 
         yield build
-        for manager, task, http in started:
-            manager.stop()
-            await task
-            await manager.aclose()
-            await http.aclose()
+        await runs.close()
 
 
 # --- a manager running BOTH lanes, 4321 and 8088 ----------------------------
@@ -262,28 +280,19 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
     """Run a manager against the 4321 fake plus an 8088 lane at ``http_port``,
     handed over once its first connect has run and it idles on the clock;
     everything is torn down at exit."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+    runs = Runs(clock)
 
     async def start(http_port: int, **overrides: object) -> ConnectionManager:
-        http = HttpConfigClient("127.0.0.1", http_port, "u", "p", NETWORK.http_options("127.0.0.1", http_port))
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
             "hqp_control_port": live_daemon_port,
             "backup_dir": tmp_path / "backups",
             "preset_dir": tmp_path / "presets",
         }
-        manager = ConnectionManager(Config(**{**defaults, **overrides}), http, clock, NETWORK)
-        task = clock.spawn(manager.run())
-        started.append((manager, task, http))
-        await settled(clock)
-        return manager
+        return await runs.start(Config(**{**defaults, **overrides}), http_client_of(http_port))
 
     yield start
-    for manager, task, http in started:
-        manager.stop()
-        await task
-        await manager.aclose()
-        await http.aclose()
+    await runs.close()
 
 
 # --- the same control-daemon fake, registered for a sync test --------------
@@ -318,52 +327,53 @@ def spawn_threaded_daemon(
 
 # --- a manager wired to the fake HTTP config daemon -------------------------
 
-ManagerFactory = Callable[..., ConnectionManager]
+ManagerFactory = Callable[..., Awaitable[ConnectionManager]]
 
 
 @pytest.fixture
 async def http_manager_factory(tmp_path: Path, clock: VirtualClock) -> AsyncIterator[ManagerFactory]:
-    """Build managers on a fake 8088 daemon, closing every client at teardown.
+    """Build managers on a fake 4321 daemon of their own and a fake 8088 daemon, each
+    running on the clock and handed over ready, closing every client at teardown.
 
-    Six write-lane suites each hand-rolled this. The daemon is an argument
-    because the outage suites want the ``dying``/``stale`` variants; keyword
-    arguments override the Config for the suites that need a different one (a
-    longer ``alarm_threshold`` for the stale-readback case, ``hqp_home`` for the
-    filter-upload path assertions).
+    The 8088 daemon is an argument because the outage suites want the
+    ``dying``/``stale`` variants; keyword arguments override the Config for the
+    suites that need a different one (a longer ``alarm_threshold`` for the
+    stale-readback case, ``hqp_home`` for the filter-upload path assertions).
 
     ``alarm_threshold`` defaults to 1.0 so a rejected apply gives up after a
     couple of virtual polls rather than the production 15 s window; the backup
     and preset directories land in ``tmp_path``, never in the repo.
     """
-    clients: list[HttpConfigClient] = []
+    runs = Runs(clock)
+    with contextlib.ExitStack() as served:
 
-    def build(daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
-        http = HttpConfigClient(
-            "127.0.0.1", daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", daemon["_port"])
-        )
-        clients.append(http)
-        defaults: dict[str, Any] = {
-            "alarm_threshold": 1.0,
-            "backup_dir": tmp_path,
-            "preset_dir": tmp_path / "presets",
-        }
-        return ConnectionManager(Config(**{**defaults, **overrides}), http, clock, NETWORK)
+        async def build(http_daemon: dict[str, Any], **overrides: object) -> ConnectionManager:
+            defaults: dict[str, Any] = {
+                "hqp_host": "127.0.0.1",
+                "hqp_control_port": served.enter_context(fake_network.serving(serve)),
+                "hqp_http_port": http_daemon["_port"],
+                "alarm_threshold": 1.0,
+                "backup_dir": tmp_path,
+                "preset_dir": tmp_path / "presets",
+            }
+            return await runs.start(Config(**{**defaults, **overrides}), http_client_of(http_daemon["_port"]))
 
-    yield build
-    for http in clients:
-        await http.aclose()
+        yield build
+        await runs.close()
 
 
 @pytest.fixture
-def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
+async def http_manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
     """The common case: one manager on the healthy fake daemon."""
-    return http_manager_factory(http_daemon)
+    return await http_manager_factory(http_daemon)
 
 
 @pytest.fixture
-def clamping_manager(http_manager_factory: ManagerFactory, clamping_http_daemon: dict[str, Any]) -> ConnectionManager:
+async def clamping_manager(
+    http_manager_factory: ManagerFactory, clamping_http_daemon: dict[str, Any]
+) -> ConnectionManager:
     """A manager whose daemon rewrites a setting the user never staged."""
-    return http_manager_factory(clamping_http_daemon)
+    return await http_manager_factory(clamping_http_daemon)
 
 
 # --- ports and guards for the REST app under test ---------------------------

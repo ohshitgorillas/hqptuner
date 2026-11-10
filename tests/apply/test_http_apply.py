@@ -42,7 +42,7 @@ async def test_apply_converges_after_one_5xx_restore_refusal(
     once_refusing_http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
 ) -> None:
-    manager = http_manager_factory(once_refusing_http_daemon)
+    manager = await http_manager_factory(once_refusing_http_daemon)
     result = await restore.apply(manager, {"title": "Renamed"})
     assert isinstance(result, RestoreConverged)
     assert result.attempts == 2
@@ -102,7 +102,7 @@ async def test_a_daemon_that_never_returns_reports_not_applied(
 ) -> None:
     # the daemon accepts the restore then never comes back; the apply must report
     # not-applied so the caller keeps the staging, not a false success
-    manager = http_manager_factory(dying_http_daemon)
+    manager = await http_manager_factory(dying_http_daemon)
     result = await restore.apply(manager, {"title": "Renamed"})
     assert result.outcome is RestoreOutcome.UNCONVERGED
 
@@ -124,7 +124,7 @@ async def test_apply_verifies_through_the_post_restart_stale_window(
 ) -> None:
     # the daemon serves the old form for a read after the POST; a single-GET
     # verify would false-negative here — the poll must ride through the stale read
-    manager = http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
+    manager = await http_manager_factory(stale_http_daemon, alarm_threshold=3.0)
     result = await restore.apply(manager, {"title": "Renamed"})
     assert result.outcome is RestoreOutcome.APPLIED
 

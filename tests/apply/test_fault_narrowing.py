@@ -167,7 +167,7 @@ async def test_a_healthy_pass_records_no_error_but_a_refusing_route_does(
     refusing: bool,
     expected: str,
 ) -> None:
-    manager = http_manager_factory(http_daemon)
+    manager = await http_manager_factory(http_daemon)
     http_daemon["_fail_paths"] = [f"/{form}"] if refusing else []
     await forms.refresh(manager)
     assert _recorded_error(manager, form) == expected

@@ -41,9 +41,9 @@ def _park_outcome(manager: ConnectionManager, name: str) -> str | type[ValueErro
 
 
 @pytest.fixture
-def manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
+async def manager(http_manager_factory: ManagerFactory, http_daemon: dict[str, Any]) -> ConnectionManager:
     """A daemon home the parked-filter path assertions can be read verbatim."""
-    return http_manager_factory(http_daemon, hqp_home="/x/home")
+    return await http_manager_factory(http_daemon, hqp_home="/x/home")
 
 
 async def test_parked_filter_rides_the_restore_archive(manager: ConnectionManager, http_daemon: dict[str, Any]) -> None:

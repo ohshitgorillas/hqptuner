@@ -12,8 +12,8 @@ its own adopter. The live rows are read back off the fake's adopted state, at a
 gain no default in either fake produces.
 """
 
-from collections.abc import AsyncIterator, Awaitable, Callable
-from typing import TYPE_CHECKING, Any
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import pytest
 from conftest import DaemonFactory, ManagerFactory
@@ -22,9 +22,6 @@ from fake_control import CommandLog
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import restore
 from hqptuner.lanes.http.restore import RestoreOutcome
-
-if TYPE_CHECKING:
-    import asyncio
 
 #: The rows "Night" stores in the config file: one row, at a gain neither fake's
 #: default pipeline carries, so an unmaterialized apply cannot read as a pass.
@@ -44,31 +41,18 @@ RunningProfile = Callable[[str], Awaitable[Built]]
 
 
 @pytest.fixture
-async def running_profile(
+def running_profile(
     daemon: DaemonFactory,
     http_daemon: dict[str, Any],
     http_manager_factory: ManagerFactory,
-) -> AsyncIterator[RunningProfile]:
+) -> RunningProfile:
     """A manager on both fakes, the 4321 one reporting the named profile active."""
-    started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
 
     async def build(active: str) -> Built:
         port, log, _state = await daemon(matrix_profile=active, _profile_names=active)
-        manager = http_manager_factory(
-            http_daemon,
-            hqp_host="127.0.0.1",
-            hqp_control_port=port,
-            hqp_http_port=http_daemon["_port"],
-        )
-        task = manager.clock.spawn(manager.run())
-        started.append((manager, task))
-        return manager, log
+        return await http_manager_factory(http_daemon, hqp_control_port=port), log
 
-    yield build
-    for manager, task in started:
-        manager.stop()
-        await task
-        await manager.aclose()
+    return build
 
 
 def with_night(http_daemon: dict[str, Any]) -> None:
