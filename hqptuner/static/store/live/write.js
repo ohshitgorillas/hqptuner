@@ -16,10 +16,15 @@
 //
 // No control here is ever refused because playback is running (CLAUDE.md): what
 // a live change costs mid-stream is the user's to spend, and the captions say so.
+//
+// The app works only with both daemon lanes up. While it is not ready, an edit is
+// held here, in memory, the newest value per setting, and goes out once it is.
 
 import { api } from "../../lib/api.js";
 import { errText } from "../../lib/errtext.js";
-import { engineState, enums } from "../signals.js";
+import { effect, untracked } from "@preact/signals";
+import { engineState, enums, ready } from "../signals.js";
+import { engineRestarting } from "../enginewrite.js";
 import { refreshConfig } from "../sync.js";
 import { liveBusy, setError, reportError, REENUMERATES, RATE_MIRRORED } from "./state.js";
 
@@ -58,8 +63,15 @@ export async function remirrorLive(fields, report) {
   if (held || fields.some((f) => RATE_MIRRORED.has(f))) await refreshConfig();
 }
 
-// Write one live control. Returns nothing on purpose: the outcome lives on the
-// signals above, so no control has to hold a second copy of it.
+// Whether a write can go out now. `ready` alone is not enough: during HQPTuner's own
+// apply restart the last health reading still says ready until the next poll, while
+// the server's gate already refuses.
+const sendable = () => ready.value && !engineRestarting.value;
+
+// field -> the newest value edited while not ready.
+/** @type {Map<string, string | number | boolean>} */
+const held = new Map();
+
 /**
  * Write one live control and re-mirror behind it, leaving the outcome on the lane's
  * busy and error signals.
@@ -67,7 +79,7 @@ export async function remirrorLive(fields, report) {
  * @param {string | number | boolean} value
  * @returns {Promise<void>}
  */
-export async function writeLive(field, value) {
+async function sendLive(field, value) {
   liveBusy.value = field;
   setError(field, "");
   try {
@@ -85,4 +97,32 @@ export async function writeLive(field, value) {
   } finally {
     liveBusy.value = "";
   }
+}
+
+// Send what was held, one write per setting, and empty the set first so an edit made
+// meanwhile is held afresh rather than lost.
+async function flushHeld() {
+  const batch = [...held];
+  held.clear();
+  for (const [field, value] of batch) await sendLive(field, value);
+}
+
+effect(() => {
+  if (sendable()) untracked(flushHeld);
+});
+
+// Write one live control. Returns nothing on purpose: the outcome lives on the
+// signals above, so no control has to hold a second copy of it.
+/**
+ * Write one live control, or hold it until both lanes are ready.
+ * @param {string} field
+ * @param {string | number | boolean} value
+ * @returns {Promise<void>}
+ */
+export async function writeLive(field, value) {
+  if (!untracked(sendable)) {
+    held.set(field, value);
+    return;
+  }
+  await sendLive(field, value);
 }

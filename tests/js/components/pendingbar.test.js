@@ -348,18 +348,13 @@ test("test_apply_is_disabled_with_nothing_pending", async () => {
   assert.equal(disabled(bar(), APPLY), true);
 });
 
-// Apply rides the CONTROL lane, so it is gated on that lane's connection and
-// not on both lanes being up: a configuration lane that is down still leaves
-// every live setting the control lane would take, and refusing them would be a
-// dead button with a working daemon behind it. The health readings are written
-// here rather than through `reset`, whose helper cannot separate the two lanes.
-test("test_apply_is_enabled_with_the_configuration_lane_down_and_disabled_with_no_connection", async () => {
+// Both lanes are required: with the configuration lane down and the control lane
+// up the app is not ready, and Apply is inert.
+test("test_apply_is_inert_with_the_configuration_lane_down_and_the_control_lane_up", async () => {
   await reset();
   await stageOne();
   health.value = { reachable: true, ready: false, connected: true };
-  const withTheConfigurationLaneDown = disabled(bar(), APPLY);
-  health.value = { reachable: false, ready: false, connected: false };
-  assert.deepEqual([withTheConfigurationLaneDown, disabled(bar(), APPLY)], [false, true]);
+  assert.equal(disabled(bar(), APPLY), true);
 });
 
 test("test_apply_is_disabled_while_the_daemon_is_unreachable", async () => {

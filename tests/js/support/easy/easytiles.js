@@ -476,6 +476,8 @@ export async function resetLive({
   // wire, and what a description RENDERS is read on the tabs lane
   // (tests/js/components/easytiles-desc.test.js).
   common(keepKnobs, false, {});
+  // A LIVE write goes out only once both daemon lanes are ready (store/live/write.js).
+  signals.health.value = { reachable: true, ready: true, connected: true };
   signals.enums.value = enumerations(VOCAB, mode, ratios);
   signals.engineState.value = {
     mode: "1",

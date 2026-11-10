@@ -62,10 +62,6 @@ export const liveOverride = signal({});
 // yet. `ready` is that whole connect having finished, which is the fact every
 // reader here actually wants.
 export const ready = computed(() => !!(health.value && health.value.ready));
-// The control connection alone, without the 8088 configuration lane `ready` also
-// waits for. The write buttons read this: an install whose configuration lane is
-// down still applies a live setting over the control lane.
-export const connected = computed(() => !!(health.value && health.value.connected));
 export const modeName = computed(() => (enums.value && enums.value.mode && enums.value.mode.name) || "");
 // Whether the junk-filter advisor, auto-pilot and the METER page are offered at
 // all (Config.advisor_enabled, on /api/status as `advisor`). Off, their controls
