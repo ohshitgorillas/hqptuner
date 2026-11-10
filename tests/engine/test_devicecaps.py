@@ -469,7 +469,7 @@ async def test_manager_serves_the_capability_when_the_archive_read_failed(
     # exists to agree or disagree with: the form is the sole authority on the
     # selected device, exactly as before
     port = backupless_daemon["_port"]
-    manager = await start_manager(port, hqp_http_port=port)
+    manager = await start_manager(port)
     await engineread.refresh_devices(manager)
     assert (manager.readings.device_caps or NO_CAPS).pcm_rates == [44100, 192000]
 

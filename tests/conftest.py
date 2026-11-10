@@ -286,6 +286,7 @@ async def start_manager(live_daemon_port: int, tmp_path: Path, clock: VirtualClo
         defaults: dict[str, Any] = {
             "hqp_host": "127.0.0.1",
             "hqp_control_port": live_daemon_port,
+            "hqp_http_port": http_port,
             "backup_dir": tmp_path / "backups",
             "preset_dir": tmp_path / "presets",
         }
