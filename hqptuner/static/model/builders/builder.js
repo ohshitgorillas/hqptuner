@@ -168,20 +168,18 @@ export function savePlan(book, cur, name, to) {
 /**
  * The book after Save writes `rec` as `name` to each station in `to`, and the record then edited. A record whose own
  * station stays ticked is edited in place (a rename keeps its place in the list); one whose own station is unticked
- * moves out of it, unless `keep` holds it there.
+ * stays there, and is then edited in the first station ticked.
  *
  * @template T
  * @param {Book<T>} book
  * @param {Ref} cur
- * @param {{ name: string, to: string[], rec: T, keep: boolean }} save  to: non-empty; keep: the record stays in its
- *   own station even when unticked
+ * @param {{ name: string, to: string[], rec: T }} save  to: non-empty
  * @returns {{ book: Book<T>, cur: Ref }}
  */
-export function savedTo(book, cur, { name, to, rec, keep }) {
+export function savedTo(book, cur, { name, to, rec }) {
   const own = cur.name !== NEW && to.includes(cur.st);
   /** @type {Book<T>} */
   const out = { ...book };
-  if (cur.name !== NEW && !own && !keep) out[cur.st] = without(out[cur.st], cur.name);
   for (const st of to) {
     const list = out[st];
     if (own && st === cur.st && name !== cur.name) {

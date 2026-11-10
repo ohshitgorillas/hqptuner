@@ -128,7 +128,7 @@ export function isDirty(ref, dirtyNow) {
  */
 async function write({ book, name, to, fields, values }) {
   const from = cur.value;
-  const landed = savedTo(book, from, { name, to, rec: /** @type {unknown} */ (null), keep: false }).cur;
+  const landed = savedTo(book, from, { name, to, rec: /** @type {unknown} */ (null) }).cur;
   const gone = from.name !== NEW && from.name !== name && to.includes(from.st);
   try {
     await api.saveLivePreset(name, fields, to, values);

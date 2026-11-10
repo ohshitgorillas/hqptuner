@@ -245,7 +245,7 @@ async function write(name) {
   const h = home();
   const { desc, stations: ticked } = meta.value;
   const to = [h, ...ticked.filter((/** @type {string} */ st) => st !== h)];
-  const landed = savedTo(saveBook(), cur.value, { name, to, rec: null, keep: true }).cur;
+  const landed = savedTo(saveBook(), cur.value, { name, to, rec: null }).cur;
   const live = isLiveProfile(name);
   const old = cur.value.name;
   if (old !== NEW && old !== name)
