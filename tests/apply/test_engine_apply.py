@@ -47,6 +47,13 @@ async def test_apply_engine_preserves_unrelated_attribute(http_manager: Connecti
     assert (await fileconfig.read_engine(http_manager))["multicore"] == "1"
 
 
+async def test_an_engine_apply_lands_when_the_engine_has_reported_no_state(http_manager: ConnectionManager) -> None:
+    # nothing to carry from the engine and nothing stored: the override is all the restore writes
+    http_manager.readings.state = None
+    await http_manager.applyops.apply_engine({"cuda": "0"})
+    assert (await fileconfig.read_engine(http_manager))["cuda"] == "0"
+
+
 async def test_applied_cuda_device_id_is_reflected_in_readback(http_manager: ConnectionManager) -> None:
     await http_manager.applyops.apply_engine({"cuda_dev": "1"})
     assert (await fileconfig.read_engine(http_manager))["cuda_dev"] == "1"

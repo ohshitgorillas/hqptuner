@@ -1,13 +1,15 @@
 """REST error contracts: the guards and status mappings the frontend keys off.
-Every error is driven through app construction (no credentials configured) or
-through the wire (a daemon that is absent, down, or refusing) — never by
-patching our own code (docs/testing.md)."""
+Every app starts ready on both lanes, and each error is driven by taking a lane
+or the 8088 client away mid-run (a daemon that is down, or refusing) — or by an
+app started with neither lane answering — never by patching our own code
+(docs/testing.md)."""
 
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from apps import unserved_login, wait_for_api
+from apps import advance_app, app_manager, live_app, lose_http_client, unserved_login
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -16,60 +18,33 @@ from hqptuner.presets.store.presets import PresetStore
 
 
 @pytest.fixture
-def nocreds_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
-    """App built with no hqplayerd credentials — no http client exists at all.
+def nocreds_client(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient]:
+    """An app ready on both lanes that then loses its 8088 client — no http client exists at all.
     The store is pre-seeded with one preset so preset-shaped requests fail on
     the missing lane (503), never on a missing name (404)."""
     PresetStore(tmp_path / "presets").save("Kept", b"<hqplayerd/>")
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_username="",
-        hqp_password="",
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-    )
-    with unserved_login(cfg, VirtualClock()) as client:
+    for client in live_app(threaded_daemon_port, tmp_path):
+        lose_http_client(client)
         yield client
 
 
 @pytest.fixture
-def deaf_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
-    """Credentials configured, but nothing listens on either daemon port — the
+def deaf_client(http_client: TestClient, http_daemon: dict[str, Any]) -> TestClient:
+    """An app ready on both lanes whose 8088 daemon then stops answering — the
     http lane exists and every wire touch is refused."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_http_port=closed_port,
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-    )
-    with unserved_login(cfg, VirtualClock()) as client:
-        yield client
+    http_daemon["_take_lane_down"]()
+    return http_client
 
 
 @pytest.fixture
-def half_wired_client(threaded_daemon_port: int, closed_port: int, tmp_path: Path) -> Iterator[TestClient]:
-    """Control lane live, config lane dead: the connect-time form fetches fail,
-    so each form route holds a recorded error instead of a form."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=threaded_daemon_port,
-        hqp_http_port=closed_port,
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-    )
-    with unserved_login(cfg, VirtualClock()) as client:
-        # /speakers is the last form the connect sequence fetches — once it
-        # reports the failed fetch, all three errors are recorded
-        wait_for_api(client, lambda c: c.get("/api/speakers").status_code == 502)
-        yield client
+def half_wired_client(http_client: TestClient, http_daemon: dict[str, Any]) -> TestClient:
+    """An app ready on both lanes that holds no form while the 8088 forms fail on
+    the next fetch, so each form route holds a recorded error instead of a form."""
+    readings = app_manager(http_client).readings
+    readings.config_form = readings.matrix_form = readings.speakers_form = None
+    http_daemon["_fail_paths"] = ["/config", "/matrix", "/speakers"]
+    advance_app(http_client, app_manager(http_client).cfg.poll_interval)
+    return http_client
 
 
 @pytest.fixture
@@ -124,10 +99,10 @@ def test_snapshot_routes_before_first_daemon_load_are_unavailable(unloaded_clien
 
 
 @pytest.mark.parametrize("path", ["/api/config", "/api/matrix", "/api/speakers"])
-def test_form_routes_before_any_fetch_are_unavailable(http_client: TestClient, path: str) -> None:
-    # daemon healthy and credentials present, but the manager never completed a
-    # connect (control lane closed), so no form fetch was ever attempted
-    assert http_client.get(path).status_code == 503
+def test_form_routes_before_any_fetch_are_unavailable(unloaded_client: TestClient, path: str) -> None:
+    # credentials present, but neither daemon answered at start-up, so the manager
+    # never completed a connect and no form fetch was ever attempted
+    assert unloaded_client.get(path).status_code == 503
 
 
 @pytest.mark.parametrize("path", ["/api/config", "/api/matrix", "/api/speakers"])

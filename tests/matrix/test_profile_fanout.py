@@ -288,10 +288,15 @@ def seed_presets(preset_dir: Path, presets: Mapping[str, Mapping[str, list[dict[
         store.save(name, preset_xml(profiles))
 
 
+#: The preset the fake 8088 daemon carries in its own data/cfgs, which the app imports into the store when it connects.
+DAEMON_PRESET = {"Test": ["Stock"]}
+
 PRESET_PROFILES = [
-    pytest.param({}, {}, id="empty-store"),
+    pytest.param({}, DAEMON_PRESET, id="empty-store"),
     pytest.param(
-        {"Office": {"Zeta": [FILE_ROW], "Alpha": [FILE_ROW]}}, {"Office": ["Alpha", "Zeta"]}, id="one-stored-preset"
+        {"Office": {"Zeta": [FILE_ROW], "Alpha": [FILE_ROW]}},
+        {"Office": ["Alpha", "Zeta"], **DAEMON_PRESET},
+        id="one-stored-preset",
     ),
 ]
 

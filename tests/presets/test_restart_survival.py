@@ -7,25 +7,31 @@ per-family rate limits are applied over the 4321 control lane and never reach
 hqplayerd's config file. hqplayerd boots from that file, so any write that
 restarts it — every persistent apply, which is a ``POST /restore`` by
 construction (protocol.md §3.6) — boots the daemon onto a file that never
-learned them. The contract asserted here: while a preset is active, a
-restore-lane write pushes a config carrying THAT preset's stored values for
-exactly those settings, so the daemon comes back running what the user thinks
-they saved.
+learned them. The contract asserted here: a restore-lane write pushes a config
+carrying the running engine's values for exactly those settings, and while a preset
+is active it carries THAT preset's stored values for the ones the engine cannot
+answer for (a dormant chain, the rate limits), so the daemon comes back running
+what the user thinks they saved.
 
 Everything is read back off the fake 8088 daemon, which adopts the uploaded
 ``hqplayerd.xml`` as its running config — so ``GET /api/config``'s ``file`` view
 is the daemon's own truth about what it booted on, not a claim by the lane that
-wrote it. The control lane is at a closed port under ``http_client``, so no live
-overlay colors that view.
+wrote it. The engine answers under ``http_client``, and ``GET /api/config`` colors
+that view with what it is running, so the stored-value cases read settings it
+cannot answer for.
 
 The auto-save checkbox is deliberately absent from this file: it decides whether
 the store is UPDATED, never whether the store is HONORED.
 """
 
+import contextlib
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
+import fixtures_clients
 import pytest
+from conftest import spawn_threaded_daemon
 from fastapi.testclient import TestClient
 
 from hqptuner.conf import presetconf
@@ -39,16 +45,29 @@ RUNNING_VOLUME_MIN = "-60"
 
 #: Stored value per live-routed setting, each distinct from the running config's.
 STORED_LIVE_ROUTED = [
-    ("filter1x", "5"),
-    ("filter", "25"),
-    ("dither", "5"),
     ("oversampling1x", "38"),
     ("oversampling", "23"),
     ("modulator", "3"),
-    ("adaptive_volume", "1"),
     ("defaults_samplerate", "384000"),
     ("defaults_bitrate", "49152000"),
 ]
+
+
+@pytest.fixture
+def engine_client(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
+    """Build the app on both lanes over a control daemon whose State carries the given overrides."""
+    with contextlib.ExitStack() as closing:
+
+        def build(**state: str) -> TestClient:
+            daemon = spawn_threaded_daemon(state)
+            port = next(daemon)
+            closing.callback(next, daemon, None)
+            served = fixtures_clients.app(http_daemon, tmp_path, port, None)
+            client = next(served)
+            closing.callback(next, served, None)
+            return client
+
+        yield build
 
 
 def _active_preset_carrying(client: TestClient, preset_dir: Path, edits: dict[str, str], name: str = "Kept") -> None:
@@ -73,15 +92,6 @@ def _booted_config(client: TestClient) -> dict[str, Any]:
 # --- a stored setting the config file never learned rides the restore --------
 
 
-def test_a_stored_output_mode_is_what_the_daemon_boots_on(http_client: TestClient, tmp_path: Path) -> None:
-    # nobody staged a mode and the running file said sdm; the active preset says
-    # pcm, and the daemon boots on the preset's answer
-    _active_preset_carrying(http_client, tmp_path / "presets", {"mode": "pcm"})
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    http_client.post("/api/config/apply")
-    assert _booted_config(http_client)["mode"] == "pcm"
-
-
 @pytest.mark.parametrize(("field", "stored"), STORED_LIVE_ROUTED)
 def test_a_stored_live_routed_setting_is_what_the_daemon_boots_on(
     http_client: TestClient, tmp_path: Path, field: str, stored: str
@@ -98,7 +108,6 @@ def test_a_stored_live_routed_setting_is_what_the_daemon_boots_on(
 #: be read back by accident. ``mode``'s third value is ``auto`` (readme §1.7:
 #: pcm / sdm / auto), running ``sdm``.
 STAGED_BEATS_STORED = [
-    ("filter", "25", "17"),  # <pcm filter>, running 40
     ("modulator", "3", "7"),  # <sdm modulator>, running 12
     ("mode", "auto", "pcm"),  # <mode value>, running sdm
     ("defaults_samplerate", "384000", "705600"),  # <defaults samplerate>, running 192000
@@ -129,17 +138,21 @@ def test_a_stored_setting_outside_the_set_does_not_overwrite_the_running_one(
 # --- nothing to fold: no preset, or an active one with no snapshot ----------
 
 
-def test_with_no_active_preset_the_running_value_is_what_boots(http_client: TestClient) -> None:
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    http_client.post("/api/config/apply")
-    assert _booted_config(http_client)["mode"] == RUNNING_MODE
+def test_with_no_active_preset_the_running_value_is_what_boots(engine_client: Callable[..., TestClient]) -> None:
+    client = engine_client(mode="2")
+    client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    client.post("/api/config/apply")
+    assert _booted_config(client)["mode"] == RUNNING_MODE
 
 
-def test_an_active_preset_with_no_stored_snapshot_folds_nothing(http_client: TestClient, tmp_path: Path) -> None:
+def test_an_active_preset_with_no_stored_snapshot_folds_nothing(
+    engine_client: Callable[..., TestClient], tmp_path: Path
+) -> None:
+    client = engine_client(mode="2")
     PresetStore(tmp_path / "presets").set_active("Ghost")
-    http_client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
-    http_client.post("/api/config/apply")
-    assert _booted_config(http_client)["mode"] == RUNNING_MODE
+    client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    client.post("/api/config/apply")
+    assert _booted_config(client)["mode"] == RUNNING_MODE
 
 
 def test_an_active_preset_with_no_stored_snapshot_still_applies(http_client: TestClient, tmp_path: Path) -> None:
@@ -158,14 +171,6 @@ def test_an_active_preset_with_no_stored_snapshot_still_applies(http_client: Tes
 # what it booted on is the only reading that is not a race.
 
 
-def test_an_engine_apply_boots_the_daemon_on_the_stored_mode(
-    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
-) -> None:
-    _active_preset_carrying(http_client, tmp_path / "presets", {"mode": "pcm"})
-    http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
-    assert http_daemon["mode"] == "pcm"
-
-
 def test_an_engine_apply_boots_the_daemon_on_the_stored_modulator(
     http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
 ) -> None:
@@ -177,24 +182,23 @@ def test_an_engine_apply_boots_the_daemon_on_the_stored_modulator(
 # adaptive_volume is the collision-prone case: it is an attribute of the very
 # <engine> element POST /api/engine is editing (XML volume_adaptive, readme
 # §1.6), so a writer that rebuilds that element from its overrides drops the
-# stored value while mode and modulator — in elements of their own — survive.
+# value the engine is running while mode and modulator — in elements of their
+# own — survive.
 
 
-def test_an_engine_apply_boots_the_daemon_on_the_stored_adaptive_volume(
-    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
+def test_an_engine_apply_boots_the_daemon_on_the_running_adaptive_volume(
+    engine_client: Callable[..., TestClient], http_daemon: dict[str, Any]
 ) -> None:
-    _active_preset_carrying(http_client, tmp_path / "presets", {"adaptive_volume": "1"})
-    http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
+    engine_client(adaptive="1").post("/api/engine", json={"overrides": {"cuda": "0"}})
     assert http_daemon["volume_adaptive"] == "1"
 
 
-def test_an_engine_override_still_lands_beside_the_stored_engine_attribute(
-    http_client: TestClient, http_daemon: dict[str, Any], tmp_path: Path
+def test_an_engine_override_still_lands_beside_the_running_engine_attribute(
+    engine_client: Callable[..., TestClient], http_daemon: dict[str, Any]
 ) -> None:
-    # the mirror of the case above: folding a stored sibling attribute must not
+    # the mirror of the case above: carrying a sibling attribute must not
     # cost the override the caller actually asked for (running cuda is 1)
-    _active_preset_carrying(http_client, tmp_path / "presets", {"adaptive_volume": "1"})
-    http_client.post("/api/engine", json={"overrides": {"cuda": "0"}})
+    engine_client(adaptive="1").post("/api/engine", json={"overrides": {"cuda": "0"}})
     assert http_daemon["cuda"] == "0"
 
 

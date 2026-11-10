@@ -48,15 +48,15 @@ def audit_log(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
+    http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int, audit_log: Path
 ) -> Iterator[TestClient]:
-    yield from app(http_daemon, tmp_path, closed_port, audit_log)
+    yield from app(http_daemon, tmp_path, threaded_daemon_port, audit_log)
 
 
 @pytest.fixture
-def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def unlogged_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int) -> Iterator[TestClient]:
     """The same app with the audit log unset — the disabled case."""
-    yield from app(http_daemon, tmp_path, closed_port, None)
+    yield from app(http_daemon, tmp_path, threaded_daemon_port, None)
 
 
 @pytest.fixture

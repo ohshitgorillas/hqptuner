@@ -85,11 +85,14 @@ def test_an_apply_reports_a_fold_only_with_autosave_on_and_a_preset_active(
     assert _folded_name(_apply_under(http_client, autosave=autosave, active=active)) == folded
 
 
-@pytest.mark.parametrize(("active", "files"), [(False, []), (True, ["Kept"])], ids=["no active preset", "active"])
+@pytest.mark.parametrize(
+    ("active", "files"), [(False, ["Test"]), (True, ["Kept", "Test"])], ids=["no active preset", "active"]
+)
 def test_an_autosaving_apply_leaves_only_the_saved_presets_on_disk(
     http_client: TestClient, tmp_path: Path, files: list[str], *, active: bool
 ) -> None:
     # with nothing active there is nowhere to fold, so no preset file is invented
+    # beside the one the app imported from the daemon's own data/cfgs when it connected
     _apply_under(http_client, autosave=True, active=active)
     assert PresetStore(tmp_path / "presets").names() == files
 

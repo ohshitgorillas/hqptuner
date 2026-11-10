@@ -10,7 +10,7 @@ from typing import Any
 
 import fake_control
 import pytest
-from apps import live_app, log_in
+from apps import live_app, log_in, ready_app
 from conftest import spawn_threaded_daemon
 from fake_network import NETWORK
 from fastapi.testclient import TestClient
@@ -25,8 +25,8 @@ CREDENTIAL = "s3cr3t-hqp-passphrase"
 
 
 def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | None) -> Iterator[TestClient]:
-    """The REST surface on the fake 8088 daemon (the `http_client` shape), with
-    the audit log pointed wherever the case wants it — or disabled."""
+    """The REST surface on the fake 8088 daemon and the fake 4321 daemon at ``port`` (the `http_client` shape),
+    ready and logged in, with the audit log pointed wherever the case wants it — or disabled."""
     cfg = Config(
         hqp_host="127.0.0.1",
         hqp_control_port=port,
@@ -51,7 +51,7 @@ def app(daemon: dict[str, Any], tmp_path: Path, port: int, debug_log: Path | Non
         hqp_home="/x/home",
         debug_log=debug_log,
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
+    with ready_app(cfg) as client:
         yield log_in(client)
 
 
@@ -143,15 +143,15 @@ def api_client(threaded_daemon_port: int, tmp_path: Path) -> Iterator[TestClient
 
 
 @pytest.fixture
-def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def http_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int) -> Iterator[TestClient]:
     """The REST surface with its http lane wired to the faithful fake 8088
-    daemon; control lane at a closed port (http-only operations never touch it).
-    Small alarm so a rejected apply times out fast; backups, presets, and parked
+    daemon and its control lane to the threaded fake 4321 daemon, ready and logged
+    in. Small alarm so a rejected apply times out fast; backups, presets, and parked
     filters land in tmp, never in the repo; `hqp_home` is pinned so filter-upload
     path assertions read verbatim."""
     cfg = Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
+        hqp_control_port=threaded_daemon_port,
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
@@ -172,5 +172,5 @@ def http_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -
         autopilot_file=tmp_path / "autopilot.json",
         hqp_home="/x/home",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
+    with ready_app(cfg) as test_client:
         yield log_in(test_client)

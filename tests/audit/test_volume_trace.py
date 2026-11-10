@@ -99,18 +99,18 @@ def unwritable_log(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def audit_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, audit_log: Path
+    http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int, audit_log: Path
 ) -> Iterator[TestClient]:
     """The REST surface on the fake 8088 daemon with the audit log enabled."""
-    yield from app(http_daemon, tmp_path, closed_port, audit_log)
+    yield from app(http_daemon, tmp_path, threaded_daemon_port, audit_log)
 
 
 @pytest.fixture
 def blocked_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int, unwritable_log: Path
+    http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int, unwritable_log: Path
 ) -> Iterator[TestClient]:
     """The same app pointed at a debug log that cannot be written."""
-    yield from app(http_daemon, tmp_path, closed_port, unwritable_log)
+    yield from app(http_daemon, tmp_path, threaded_daemon_port, unwritable_log)
 
 
 #: Build an app on a fresh threaded 4321 fake — ``overrides`` bakes State

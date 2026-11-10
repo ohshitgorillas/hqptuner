@@ -29,9 +29,9 @@ ATTACHMENT = ("attachment", "hqptuner-state.zip")
 
 
 @pytest.fixture
-def export_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def export_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int) -> Iterator[TestClient]:
     (tmp_path / FAVORITES_MEMBER).write_text(json.dumps(FAVORITES))
-    yield from app(http_daemon, tmp_path, closed_port, None)
+    yield from app(http_daemon, tmp_path, threaded_daemon_port, None)
 
 
 def zip_member(body: bytes, name: str) -> object:

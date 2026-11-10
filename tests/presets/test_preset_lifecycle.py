@@ -178,9 +178,9 @@ async def test_a_mirror_lands_unless_the_daemon_refuses_it_past_the_deadline(
     ids=["landed", "not landed"],
 )
 def test_a_save_answers_a_warning_only_when_its_mirror_did_not_land(
-    request: pytest.FixtureRequest, tmp_path: Path, closed_port: int, daemon: str, *, warned: bool
+    request: pytest.FixtureRequest, tmp_path: Path, threaded_daemon_port: int, daemon: str, *, warned: bool
 ) -> None:
-    served = app(request.getfixturevalue(daemon), tmp_path, closed_port, None)
+    served = app(request.getfixturevalue(daemon), tmp_path, threaded_daemon_port, None)
     client = next(served)
     try:
         body = client.post("/api/profile/save", json={"name": "Studio"}).json()
