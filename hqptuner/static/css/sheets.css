@@ -61,7 +61,10 @@
 .orow .mk{display:flex;align-items:center;justify-content:center}
 .orow[aria-disabled="true"]{cursor:default}
 .orow[aria-disabled="true"] .nm{flex:0 0 auto;color:var(--ink-3)}
-.orow .rsn{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-1);line-height:var(--orow-h);color:var(--ink-2)}
+.rsn{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-1);line-height:var(--lh-text);color:var(--ink-2)}   /* why a row or a Switcher slot is disabled */
+.orow .rsn{line-height:var(--orow-h)}
+.sbody[aria-disabled="true"]{cursor:default}
+.sbody[aria-disabled="true"] .sface{opacity:var(--op-1)}
 /* The name's cell: the name, then ⌂ on the factory default's row one gap after it (never the name's own spacing), the
    cell's trailing space before the marks. ⌂ never clips while a Standard name ellipsizes. */
 .orow .onm{display:flex;align-items:center;gap:var(--sp-3);min-width:0;padding-right:var(--sp-3)}

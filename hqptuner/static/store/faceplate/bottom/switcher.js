@@ -12,6 +12,8 @@ import { liveUnsettled } from "../../live/state.js";
 import { writeLive } from "../../live/write.js";
 import { matrixActiveProfile } from "../../matrix/profiles.js";
 import { runningChain } from "../path.js";
+import { kindOf } from "../lists/open.js";
+import { listOptions } from "../lists/options.js";
 import { openOptionList } from "../view.js";
 import { fieldRunsNow, pickOption, plainOf } from "../page/conversion.js";
 import { profileChoices, profileUnsettled, switchProfile } from "../page/profile.js";
@@ -19,7 +21,8 @@ import { profileChoices, profileUnsettled, switchProfile } from "../page/profile
 /**
  * One slot of the bar: the name it sends, what it shows (a list target's plain family, variant and leaf, any other
  * target's label), the name it is also known by, whether it is the one running, whether it is lit (running, and on
- * this track's path), and whether nothing is remembered for it.
+ * this track's path), whether nothing is remembered for it, and, on a list target, whether its list marks the name
+ * disabled (a modulator the SDM output rate in force cannot run) and why.
  *
  * @typedef {object} Slot
  * @property {string} name
@@ -32,6 +35,8 @@ import { profileChoices, profileUnsettled, switchProfile } from "../page/profile
  * @property {boolean} on
  * @property {boolean} lit
  * @property {boolean} empty
+ * @property {boolean} [disabled]
+ * @property {string} [reason]
  */
 
 /**
@@ -159,8 +164,10 @@ function listSlots(t, key, names) {
   const runs = fieldRunsNow(LIST_KEYS[t].field);
   const shown = names[0] || names[1] ? names : [run, ""];
   const kind = schema[key].plainNames ?? "";
+  const marks = kindOf(key) === "modulators" ? listOptions(key) : [];
   return shown.map((name, i) => {
     const on = name !== "" && name === run;
+    const mark = marks.find((o) => o.v === name);
     return {
       name,
       ...(name === "" ? { fam: "", variant: null, leaf: "" } : plainOf(kind, name)),
@@ -168,6 +175,8 @@ function listSlots(t, key, names) {
       on,
       lit: on && runs,
       empty: names[i] === "",
+      disabled: mark?.disabled === true,
+      ...(mark?.reason ? { reason: mark.reason } : {}),
     };
   });
 }
@@ -259,7 +268,7 @@ const unsettled = (t) => (t === "Matrix profile" ? profileUnsettled() : liveUnse
 
 /**
  * A slot's tap: its name sent live to the target. An empty slot sends nothing, nor does the one running while no write
- * on its path is unsettled.
+ * on its path is unsettled, nor one its list marks disabled.
  *
  * @param {number} i
  * @returns {Promise<void> | null}
@@ -267,7 +276,7 @@ const unsettled = (t) => (t === "Matrix profile" ? profileUnsettled() : liveUnse
 export function slotLive(i) {
   const v = bar.value;
   const s = v.slots[i];
-  if (!s || (s.on && !unsettled(v.target))) return null;
+  if (!s || s.disabled || (s.on && !unsettled(v.target))) return null;
   if (v.layout === "mode") return writeLive("mode", MODES[i].wire);
   if (s.empty) return null;
   return v.key ? pickOption(v.key, s.name) : switchProfile(s.name);

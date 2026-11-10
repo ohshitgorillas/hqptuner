@@ -1,8 +1,9 @@
 // The Setting Switcher bar at the foot of the plate: the target button with its menu of the targets, and the target's
 // two slots, or the volume bar while the target is Volume. A slot's body sends it live unless it already runs and no
-// write to it is still settling, an arrow key sends the other one live, and its ▾ opens its list; under Matrix profile
-// that list is a menu of the profiles, under Output mode the two slots are the fixed modes with no ▾. Every menu is the
-// plate's own, parked at its button and flipped above it when the foot is too near.
+// write to it is still settling, or its list marks it disabled, which its face says with the reason; an arrow key sends
+// the other one live, and its ▾ opens its list; under Matrix profile that list is a menu of the profiles, under Output
+// mode the two slots are the fixed modes with no ▾. Every menu is the plate's own, parked at its button and flipped
+// above it when the foot is too near.
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
@@ -115,7 +116,14 @@ function arrow(e, i, bodies) {
 }
 
 /**
- * A list target's slot body: the name face of its name.
+ * What a slot body carries while its list marks the name disabled: the state and the reason as its description.
+ *
+ * @param {Slot} s
+ */
+const disabledProps = (s) => (s.disabled ? { "aria-disabled": "true", "aria-description": s.reason } : {});
+
+/**
+ * A list target's slot body: the name face of its name, and the reason beside it while the name is disabled.
  *
  * @param {Slot} s
  */
@@ -123,6 +131,7 @@ const listFace = (s) => html`
   <span class="sface"
     ><${NameFace} fam=${s.fam ?? ""} variant=${s.variant ?? null} leaf=${s.leaf ?? ""} tier=${s.tier ?? ""}
   /></span>
+  ${s.disabled ? html`<span class="rsn" aria-hidden="true">${s.reason}</span>` : null}
 `;
 
 /**
@@ -148,6 +157,7 @@ const slot = ({ s, i, mode, menu, key, tab, bodies }) => html`
       type="button"
       role="radio"
       aria-checked=${String(s.on)}
+      ...${disabledProps(s)}
       tabindex=${tab ? 0 : -1}
       ref=${(/** @type {HTMLElement | null} */ el) => (bodies.current[i] = el)}
       onClick=${() => slotLive(i)}
