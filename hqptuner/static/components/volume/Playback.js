@@ -75,7 +75,7 @@ function disabledReason() {
 // sits at an arbitrary fraction of a range the user never set. The running
 // config's own range is what the reported level means something against.
 //
-// Returns null when the running config has no usable range — no credentials, no
+// Returns null when the running config has no usable range — config not loaded, no
 // /config form — so the caller keeps the engine's report rather than inventing
 // an axis.
 /** @returns {{ min: number, max: number, pin: number | null } | null} */

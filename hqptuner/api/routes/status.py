@@ -38,9 +38,8 @@ class HealthReport:
     # connect has run. `ready` is that whole load having finished with the 8088
     # configuration lane answering inside it.
     ready: bool
-    # The control connection the connect body completed on, still standing. An
-    # install whose configuration lane is down can still apply a live setting the
-    # control lane takes.
+    # The control connection the connect body completed on, still standing. Only the
+    # Connection panel's latch reads it; the app works when `ready`.
     connected: bool
     unreachable_since: float | None
     # When the CURRENT control connection was established. A brief drop can be

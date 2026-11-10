@@ -48,7 +48,8 @@ log = logging.getLogger(__name__)
 def create_app(cfg: Config | None = None, clock: Clock | None = None, network: Network | None = None) -> FastAPI:
     """Build the FastAPI app: shared state, the poll and metering background tasks, every router, and the SPA mount.
 
-    Missing hqplayerd credentials are not fatal — the 8088 client is simply absent and the routes needing it 503.
+    Missing hqplayerd credentials leave the 8088 client absent: the app is not ready until a pair is saved, and the
+    routes needing the client 503.
     ``clock`` is what the manager and its lanes pace on and ``network`` is how they open a connection to the daemon;
     production takes the defaults.
     """
@@ -65,7 +66,7 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None, network: N
     layer_onto_config(cfg, record)
     http_client = build_http_client(cfg, network, clock)
     if http_client is None:
-        log.warning("no hqplayerd credentials — /api/config unavailable until POST /api/connection carries a pair")
+        log.warning("no hqplayerd credentials — HQPTuner is not ready until POST /api/connection carries a pair")
     manager = ConnectionManager(cfg, http_client, clock, network)
 
     # No docs pages: `docs/openapi.json` is the API reference, and `app.openapi()` builds it whatever `openapi_url` is.

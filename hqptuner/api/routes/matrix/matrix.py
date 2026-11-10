@@ -176,8 +176,8 @@ class MatrixProfileBody(BaseModel):
 async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfileSwitch:
     """Load a saved matrix profile into the running matrix (matrix-spec.md "Profiles").
 
-    4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. Needs no
-    credentials — the Control API lane is unauthenticated.
+    4321 ``MatrixSetProfile``, live, no engine reload, playback undisturbed, post-process untouched. It writes over
+    the Control API lane.
 
     Saving and deleting a profile are NOT here: they are staged
     ``<matrix_profile>`` config edits and ride ``/api/config/stage`` +

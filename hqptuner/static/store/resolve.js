@@ -185,8 +185,8 @@ function fileValue(entry) {
   return fv !== undefined ? { value: fv } : null;
 }
 
-// The daemon's own form, last. No file truth available (no credentials, or the
-// backup read failed) means falling back to the form's boolean, normalized into
+// The daemon's own form, last. No file truth available (the config is not loaded,
+// or the backup read failed) means falling back to the form's boolean, normalized into
 // the field's own domain so a staged "1" doesn't read as dirty against `true`.
 /**
  * @param {SchemaField} entry
