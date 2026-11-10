@@ -1,0 +1,79 @@
+{
+  "status": "delivered",
+  "score": "7/7",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "Saving a snapshot opened on station A with A unticked and B ticked sends no DELETE, and A still holds the snapshot after the re-read",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/static/store/faceplate/builders/shell.js:132 `gone = from.name !== NEW && from.name !== name && to.includes(from.st)` is false when A is unticked, so line 135 issues no DELETE. Test tests/js/store/faceplate-builders/shell.test.js:272 test_saving_to_another_station_leaves_the_record_on_its_own passes (ok 143, gate log /tmp/gate-node-oUxo54TN.log, 163/163 pass); the wire fake (tests/js/support/wire/livepresetwire.js storeSave/storeDelete) now holds per-station lists like LivePresetStore. Executor bite proof recorded in .planning/phases/1/reports/plan-1.md (failed against old write, 'Warm' missing from Day). 'As it was': the PUT names only ticked stations and LivePresetStore.save (hqptuner/presets/store/live.py:330-347) writes only its targets; pinned by tests/presets/stores/test_live_preset_stations.py test_a_record_saved_to_one_station_is_held_by_that_station_alone[not-saved-to], 12 passed (/tmp/gate-pytest-A0nlnIRs.log)."
+    },
+    {
+      "n": 2,
+      "truth": "After any snapshot save, every snapshot an unticked station held before the save is still on that station",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "shell.js write issues at most one DELETE, only for from.st when from.st is in `to` (shell.js:132,135); grep shows deleteLivePreset otherwise only in remove (shell.js:180). Test shell.test.js:296 test_a_save_leaves_a_station_it_was_not_ticked_for_as_it_was passes (ok 147); backend delete is per-station: live.py:349-357 and test_deleting_a_record_from_one_station_leaves_it_under_another[kept-by] passes."
+    },
+    {
+      "n": 3,
+      "truth": "The saved snapshot is on every station ticked for the save",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "Entry: SnapshotBuilder.js:50 `save({ book: snapshotBook(), name: e.name, to: e.stations, ... })` passes the ticked stations; shell.js:134 api.saveLivePreset(name, fields, to, values); api.js:230-241 puts `stations` in the PUT body; route livepreset.py:115 passes body stations to livesnapshots.record (livesnapshots.py:173-174) and LivePresetStore.save writes each target (live.py:345-346). Tests passing: test_the_put_names_every_ticked_station (ok 140), test_saving_to_another_station_puts_the_record_on_it (ok 144), backend test_one_save_writes_the_record_to_every_station_it_names. Spot-check (node --eval through the wire fake, Warm on Day saved to [Night, Spare]): re-read book {\"Day\":[\"Warm\",\"Bright\"],\"Night\":[\"Quiet\",\"Warm\"],\"Spare\":[\"Warm\"]}, DELETEs: 0."
+    },
+    {
+      "n": 4,
+      "truth": "Saving from A under a new name with A unticked and B ticked leaves A holding the old name and B holding the new name",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "shell.js:132 `to.includes(from.st)` false for unticked A, so the rename sends no DELETE. Tests shell.test.js:284 test_renaming_while_saving_to_another_station_keeps_the_old_name_on_its_own (ok 145, Day stays [Warm, Bright]) and shell.test.js:290 test_renaming_while_saving_to_another_station_puts_the_new_name_on_it (ok 146, Night [Quiet, Cosy]) pass; bite proof in reports/plan-1.md."
+    },
+    {
+      "n": 5,
+      "truth": "Renaming a snapshot on its own station with that station still ticked removes the old name there and leaves the new one",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "shell.js:132 `gone` true for a rename with from.st ticked; shell.js:135 DELETEs from.name at from.st. Test shell.test.js:266 test_renaming_a_saved_record_deletes_the_old_name_in_its_station passes unedited (ok 142, DELETE /api/livepresets/Warm?station=Day once). Spot-check through the wire fake (Warm on Day renamed Cosy, to [Day]): re-read book {\"Day\":[\"Bright\",\"Cosy\"],\"Night\":[\"Quiet\"]}, cur {\"st\":\"Day\",\"name\":\"Cosy\"}."
+    },
+    {
+      "n": 6,
+      "truth": "The builders' save model states the same no-move rule: savedTo has no move branch and no keep option, and no caller passes keep",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "hqptuner/static/model/builders/builder.js:168-179 doc comment says the record 'stays there', signature `{ name, to, rec }`, the `without(out[cur.st], cur.name)` move line is gone (git diff 435ab740..HEAD). `grep -nw keep` over builder.js, shell.js, profile-save.js prints nothing (rc=1). Callers shell.js:131 and profile-save.js:248 pass no keep. Test builder.test.js test_unticking_its_own_station_leaves_the_record_there passes (ok 52); profile.test.js green in the same run."
+    },
+    {
+      "n": 7,
+      "truth": "The fixed save path is reachable from the Snapshot builder's Save and the re-read book feeds the station tree",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "SnapshotBuilder.js:30 imports from store/faceplate/builders/shell.js and :50 calls save with to: e.stations; shell.js write calls refreshLivePresets() after the writes, and the shell tests read the result through liveBook (store/live/presets.js), which snapshot.js:11 consumes. Anti-pattern scan of the four phase-touched source files (builder.js, shell.js, profile-save.js, livepresetwire.js): no TODO/FIXME/XXX/HACK/placeholder/not implemented (grep rc=1), no stub returns on the goal path."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Unticked stations keep their snapshots",
+      "evidence": "shell.js:132 gone requires to.includes(from.st); tests test_saving_to_another_station_leaves_the_record_on_its_own and test_a_save_leaves_a_station_it_was_not_ticked_for_as_it_was pass (/tmp/gate-node-oUxo54TN.log, 163/163); backend per-station pins pass (/tmp/gate-pytest-A0nlnIRs.log, 12 passed)."
+    },
+    {
+      "k": 2,
+      "name": "Saved snapshot lands on every ticked station",
+      "evidence": "SnapshotBuilder.js:50 to: e.stations -> shell.js:134 -> api.js PUT body stations -> live.py:345-346 writes each target; test_the_put_names_every_ticked_station and test_saving_to_another_station_puts_the_record_on_it pass; spot-check save to [Night, Spare] re-read shows Warm on both, Day unchanged, 0 DELETEs."
+    },
+    {
+      "k": 3,
+      "name": "Rename to another station leaves the old name in place",
+      "evidence": "test_renaming_while_saving_to_another_station_keeps_the_old_name_on_its_own (Day [Warm, Bright]) and test_renaming_while_saving_to_another_station_puts_the_new_name_on_it (Night [Quiet, Cosy]) pass."
+    },
+    {
+      "k": 4,
+      "name": "Rename on its own ticked station replaces the old name",
+      "evidence": "test_renaming_a_saved_record_deletes_the_old_name_in_its_station passes unedited; spot-check rename Warm->Cosy on ticked Day re-reads Day [Bright, Cosy]."
+    }
+  ],
+  "gaps": [],
+  "human_checks": []
+}
