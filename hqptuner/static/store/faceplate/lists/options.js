@@ -21,6 +21,10 @@ import {
 import { decorateOptions } from "../../plainnames.js";
 import { describe, optionDescription } from "../../prose.js";
 import { modulatorTier } from "../../ui/options.js";
+import { isDsdRate } from "../../../model/family.js";
+import { pinnedRate } from "../../live/pin.js";
+import { runningValue } from "../../resolve.js";
+import { runningChain } from "../path.js";
 import { rowOptions } from "../drawer/rows.js";
 import { kindOf } from "./open.js";
 import { ditherRate, modTier, shaperKeeps } from "./shapers.js";
@@ -79,6 +83,33 @@ function shaperMarks(name) {
   return { ...(tier ? { tier } : {}), ...(gen ? { gen } : {}) };
 }
 
+const RATE_FLOOR_REASON = "Needs DSD512 or higher";
+
+/**
+ * The SDM output rate in force, in Hz, 0 when none is: the pin when it names an SDM rate, else the SDM rate limit the
+ * engine runs while the chain that runs is SDM. A staged limit is not in force until Apply restarts the engine, and the
+ * device's announced rates cap the output rates, never the modulators.
+ *
+ * @returns {number}
+ */
+function sdmRateInForce() {
+  if (isDsdRate(pinnedRate.value)) return pinnedRate.value;
+  return runningChain() === "sdm" ? Number(runningValue("sdm_rate")) || 0 : 0;
+}
+
+/**
+ * The disabled mark of a modulator whose rate floor is above the rate in force; nothing when the rate is at or above
+ * the floor, the overlay records none, or no rate is in force.
+ *
+ * @param {string} name
+ * @param {number} rate  the SDM output rate in force, 0 when none
+ * @returns {{ disabled: true, reason: string } | {}}
+ */
+function floorMark(name, rate) {
+  const floor = metadata.value?.shapers?.sdm_modulators?.[name]?.min_rate_hz;
+  return rate > 0 && floor > rate ? { disabled: true, reason: RATE_FLOOR_REASON } : {};
+}
+
 /**
  * The options a key's list holds, in the overlay's order while Simplified groups them and the engine's otherwise.
  *
@@ -92,6 +123,7 @@ export function listOptions(key) {
   const meta = describe(entry, key);
   /** @type {Decorated[]} */
   const listed = decorateOptions(rawOptions(key), entry.plainNames ?? "");
+  const rate = kind === "modulators" ? sdmRateInForce() : 0;
   return listed.map((o) => ({
     v: o.label,
     fam: o.group ?? "",
@@ -99,7 +131,7 @@ export function listOptions(key) {
     leaf: o.display ?? o.label,
     d: optionDescription(entry, o, meta),
     ...(kind === "filters" ? { f: facetsOf(facets[o.label]) } : {}),
-    ...(kind === "modulators" ? shaperMarks(o.label) : {}),
+    ...(kind === "modulators" ? { ...shaperMarks(o.label), ...floorMark(o.label, rate) } : {}),
     ...(meta.default !== undefined && o.label === meta.default ? { def: true } : {}),
   }));
 }

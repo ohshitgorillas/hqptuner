@@ -37,6 +37,8 @@ import { ON_PLATE } from "./place.js";
  * @property {number} [gen]
  * @property {string} [tier]
  * @property {boolean} [def]  HQPlayer's factory default for the setting
+ * @property {boolean} [disabled]  a modulator the SDM output rate in force cannot run: listed, never picked
+ * @property {string} [reason]  why a disabled option is, shown on its row
  */
 
 /** A mark a window's key explains: apodizing, half apodizing, quality, favorite, factory default. @typedef {"apod" | "half" | "quality" | "fav" | "default"} KeyMark */

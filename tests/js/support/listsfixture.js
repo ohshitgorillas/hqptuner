@@ -145,19 +145,27 @@ const overlays = () => ({
  * Put the engine on the wire with one chain loaded (the other dormant, read off the /config form), the overlays
  * served, and the option style set. The returned promise resolves once the readings are seeded.
  *
- * @param {{ chain?: "sdm" | "pcm", plain?: boolean }} [o]
+ * `readings` adds served fields beyond the chain lists (a value or a FieldReading each, keyed by form field name, for
+ * example `defaults_bitrate` the SDM rate limit), and `pin` pins the engine's output rate, in Hz. Both default to none, so a
+ * suite that names neither runs with no output rate in force.
+ *
+ * @param {{ chain?: "sdm" | "pcm", plain?: boolean, readings?: Record<string, unknown>, pin?: number }} [o]
  */
-export async function loadLists({ chain = "sdm", plain = false } = {}) {
+export async function loadLists({ chain = "sdm", plain = false, readings = {}, pin = 0 } = {}) {
   const sdm = chain === "sdm";
   // State holds the list indices of the loaded chain's form values: SDM 38, 38, 3 and PCM 40, 40, 5.
   const held = sdm ? { filter1x: "0", filterNx: "0", shaper: "1" } : { filter1x: "1", filterNx: "1", shaper: "1" };
-  engineState.value = { state: "0", active_chain: chain, ...held };
+  engineState.value = { state: "0", active_chain: chain, ...held, ...(pin ? { rate: "9" } : {}) };
   engineStatus.value = {};
-  enums.value = sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS };
+  enums.value = {
+    ...(sdm ? { filters: SDM_FILTERS, shapers: SDM_SHAPERS } : { filters: PCM_FILTERS, shapers: PCM_SHAPERS }),
+    ...(pin ? { rates: [{ index: "9", rate: String(pin) }] } : {}),
+  };
   config.value = { fields: FORM.map(([, name, , items]) => formField(name, items)) };
-  await seedReadings(
-    Object.fromEntries(FORM.map(([on, name, value, items]) => [name, formReading(chain, on, value, items)])),
-  );
+  await seedReadings({
+    ...Object.fromEntries(FORM.map(([on, name, value, items]) => [name, formReading(chain, on, value, items)])),
+    ...readings,
+  });
   metadata.value = overlays();
   setPlainNames(plain);
 }
