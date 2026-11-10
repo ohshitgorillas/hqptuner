@@ -3,20 +3,12 @@
 Policy: docs/testing.md. The 8088 fake is served only in process, at an address no socket answers on.
 """
 
-import functools
-from collections.abc import Iterator
 from typing import Any
 
-import fake_http
-import fake_network
 import pytest
-from apps import settled
-from fake_control import DEFAULTS, serve_shared
-from virtual_clock import VirtualClock
+from conftest import StartManager
 
-from hqptuner.config import Config
 from hqptuner.core import engineread
-from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.devicecaps import DeviceCaps
 
 SELECTED = "S26/hw:CARD=Output,DEV=0"
@@ -27,19 +19,6 @@ ANNOUNCED = (
 )
 
 
-@pytest.fixture
-def daemon() -> Iterator[dict[str, Any]]:
-    """An 8088 fake served only in process; the test sets what it prints."""
-    served = fake_http.spawn(fake_http.state(), in_process=True)
-    yield next(served)
-    next(served, None)
-
-
-def _manager(http: dict[str, Any], clock: VirtualClock | None = None, control_port: int = 0) -> ConnectionManager:
-    cfg = Config(hqp_host="127.0.0.1", hqp_control_port=control_port, hqp_http_port=http["_port"])
-    return ConnectionManager(cfg, clock=clock, network=fake_network.NETWORK)
-
-
 def _pcm_rates(caps: DeviceCaps | None) -> list[int] | None:
     """The PCM rates a capability holds, or None where no capability is known."""
     return None if caps is None else caps.pcm_rates
@@ -47,30 +26,27 @@ def _pcm_rates(caps: DeviceCaps | None) -> list[int] | None:
 
 @pytest.mark.parametrize("release", ["6.0.4", "7.2.1"])
 async def test_a_manager_connecting_holds_the_release_the_in_process_about_page_prints(
-    daemon: dict[str, Any], release: str
+    start_manager: StartManager, http_daemon: dict[str, Any], release: str
 ) -> None:
-    daemon["release"] = release
-    clock = VirtualClock()
-    with fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS))) as control_port:
-        manager = _manager(daemon, clock, control_port)
-        task = clock.spawn(manager.run())
-        await settled(clock)
-        held = manager.readings.release
-        manager.stop()
-        await task
-        await manager.aclose()
-    assert held == release
+    http_daemon["release"] = release
+    manager = await start_manager(http_daemon["_port"])
+    assert manager.readings.release == release
 
 
-async def test_the_log_tail_is_the_last_lines_of_the_in_process_log(daemon: dict[str, Any]) -> None:
-    daemon["_log"] = "\n".join(f"entry {i}" for i in range(1, 8))
-    tail = await engineread.read_log_tail(_manager(daemon), 3)
+async def test_the_log_tail_is_the_last_lines_of_the_in_process_log(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_log"] = "\n".join(f"entry {i}" for i in range(1, 8))
+    manager = await start_manager(http_daemon["_port"])
+    tail = await engineread.read_log_tail(manager, 3)
     assert tail.lines == ["entry 5", "entry 6", "entry 7"]
 
 
-async def test_the_selected_devices_capability_is_read_from_the_in_process_log(daemon: dict[str, Any]) -> None:
-    daemon["_log"] = ANNOUNCED
-    manager = _manager(daemon)
+async def test_the_selected_devices_capability_is_read_from_the_in_process_log(
+    start_manager: StartManager, http_daemon: dict[str, Any]
+) -> None:
+    http_daemon["_log"] = ANNOUNCED
+    manager = await start_manager(http_daemon["_port"])
     manager.readings.config_form = {
         "fields": [{"name": "backend", "value": "network"}, {"name": "net_device", "value": SELECTED}],
         "profiles": None,

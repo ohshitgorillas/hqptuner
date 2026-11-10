@@ -5,40 +5,56 @@ what the fixture knows: the host and port the manager is configured with, and th
 """
 
 import pytest
+from apps import closed_port, settled
+from conftest import LiveManager
+from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.core import loader
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.engine.controlerrors import ControlError
 
-#: Where the manager is configured to look for HQPlayer; nothing is ever dialled.
-HOST = "192.0.2.7"
-PORT = 4999
+
+async def _manager_without_control(live_manager: LiveManager, clock: VirtualClock) -> ConnectionManager:
+    """A ready two-lane manager whose 4321 address is retargeted at a port nothing answers on, so its control
+    connection is gone and every reconnect is refused."""
+    manager, _log, _state = await live_manager()
+    manager.cfg.hqp_control_port = closed_port()
+    await manager.retarget()
+    await settled(clock)
+    return manager
 
 
-def _unconnected_manager() -> ConnectionManager:
-    return ConnectionManager(Config(hqp_host=HOST, hqp_control_port=PORT))
+def _looked_for_at(manager: ConnectionManager) -> str:
+    return f"{manager.cfg.hqp_host}:{manager.cfg.hqp_control_port}"
 
 
-def test_a_write_with_no_connection_names_the_address_hqplayer_was_looked_for_at() -> None:
+async def test_a_write_with_no_connection_names_the_address_hqplayer_was_looked_for_at(
+    live_manager: LiveManager, clock: VirtualClock
+) -> None:
+    manager = await _manager_without_control(live_manager, clock)
     with pytest.raises(ControlError) as caught:
-        _unconnected_manager().require_control()
-    assert f"{HOST}:{PORT}" in str(caught.value)
+        manager.require_control()
+    assert _looked_for_at(manager) in str(caught.value)
 
 
-async def test_a_heartbeat_with_no_connection_names_the_address_hqplayer_was_looked_for_at() -> None:
+async def test_a_heartbeat_with_no_connection_names_the_address_hqplayer_was_looked_for_at(
+    live_manager: LiveManager, clock: VirtualClock
+) -> None:
+    manager = await _manager_without_control(live_manager, clock)
     with pytest.raises(ControlError) as caught:
-        await loader.poll(_unconnected_manager())
-    assert f"{HOST}:{PORT}" in str(caught.value)
+        await loader.poll(manager)
+    assert _looked_for_at(manager) in str(caught.value)
 
 
-def test_a_write_with_no_connection_keeps_its_code() -> None:
+async def test_a_write_with_no_connection_keeps_its_code(live_manager: LiveManager, clock: VirtualClock) -> None:
+    manager = await _manager_without_control(live_manager, clock)
     with pytest.raises(ControlError) as caught:
-        _unconnected_manager().require_control()
+        manager.require_control()
     assert caught.value.code == "daemon_unavailable"
 
 
-async def test_a_heartbeat_with_no_connection_keeps_its_code() -> None:
+async def test_a_heartbeat_with_no_connection_keeps_its_code(live_manager: LiveManager, clock: VirtualClock) -> None:
+    manager = await _manager_without_control(live_manager, clock)
     with pytest.raises(ControlError) as caught:
-        await loader.poll(_unconnected_manager())
+        await loader.poll(manager)
     assert caught.value.code == "daemon_unavailable"
