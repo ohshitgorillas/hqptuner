@@ -1,6 +1,6 @@
 # State
 
-Phase: 5 of 5 (Meter playhead on the loop's dt)
+Phase: 4 of 5 (Integrate into v2)
 Status: phase complete
-Next: /cad-milestone - the audit gate precedes any ship
-Updated: 2026-11-09
+Next: /cad-milestone (audit gate precedes any ship)
+Updated: 2026-11-10

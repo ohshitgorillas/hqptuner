@@ -9,7 +9,7 @@ Milestone v2.0.0 lands the rebuild-integrate design on `v2`. The accepted testin
 - [x] **Phase 1: Coverage gate in CI** - the accepted coverage commands run in `check.yml` at lines 95 / branches 90, and the policy file is tracked
 - [x] **Phase 2: Baseline recovery** - the integration worktree's affected JS baseline runs with zero failures, with field values seeded through `seedReadings`
 - [x] **Phase 3: Retired-shape ports** - every remaining test and support under `tests/js/` uses the approved interfaces
-- [ ] **Phase 4: Integrate into v2** - `make check` green on `rebuild/integrate`, which then merges into `v2`
+- [x] **Phase 4: Integrate into v2** - `make check` green on `rebuild/integrate`, which then merges into `v2`
 - [x] **Phase 5: Meter playhead on the loop's dt** - the meters, spectrum and spectrogram move smoothly while frames reach the metering reader in bursts
 
 ## Phase Details
