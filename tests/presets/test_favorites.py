@@ -4,8 +4,9 @@ Two surfaces, one behavior: `FavoriteStore` over a JSON file, and the
 GET/PUT `/api/favorites` pair over that store. Neither touches hqplayerd —
 favorites are HQPTuner's own state, keyed by filter name rather than by the
 engine's enum ids (docs/architecture.md §3.1) — so every client here is built
-with no credentials and a control lane pointed at a closed port, and every
-store file lands under pytest's ``tmp_path``, never in the repo's state dir.
+on both fake daemons and what they were sent is compared across the requests,
+and every store file lands under pytest's ``tmp_path``, never in the repo's
+state dir.
 
 The on-disk stamp (`{"schema": N, "filters": [...]}`) is the layout contract a
 DIFFERENT HQPTuner version reads. A test writes a stamped file by hand for the
@@ -20,11 +21,11 @@ from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
-from apps import unserved_login
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
+from fixtures_clients import Wire
 from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.presets.store.favorites import FavoriteError, FavoriteSchemaError, FavoriteStore
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 
@@ -50,29 +51,19 @@ def seed(tmp_path: Path, content: str) -> Path:
 
 
 @pytest.fixture
-def favorites_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a favorites file in ``tmp_path``, daemonless.
+def favorites_api(tmp_path: Path, wire: Wire) -> Iterator[Callable[[], TestClient]]:
+    """The REST surface over a favorites file in ``tmp_path``, on both fake daemons.
 
     `api_client` is the right shape but builds a bare `Config()`, whose
     `favorites_file` points into the repo's own state dir; a test writing there
     would outlive the run. A factory rather than a plain client so a case can
     hand-write a file another HQPTuner version stamped and then open the app
-    over it.
-
-    Every client is built with no credentials and a control lane pointed at
-    `closed_port`, a port nothing listens on: nothing here can reach hqplayerd,
-    so a route that answers at all answered without it."""
+    over it. Every client is ready on both lanes when handed over."""
     with ExitStack() as stack:
 
         def build() -> TestClient:
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
-                hqp_username="",
-                hqp_password="",
-                favorites_file=tmp_path / "favorites.json",
-            )
-            return stack.enter_context(unserved_login(cfg, VirtualClock()))
+            cfg = wire.config(favorites_file=tmp_path / "favorites.json")
+            return log_in(stack.enter_context(ready_app(cfg, VirtualClock())))
 
         yield build
 
@@ -294,7 +285,8 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert favorites_api().put("/api/favorites", json={"filters": ["alpha"]}).status_code == 409
 
 
-# With hqplayerd unreachable (see `favorites_api`), writing favorites still
-# answers; the read direction is `test_a_fresh_install_answers_get_with_200`.
-def test_favorites_are_written_with_no_daemon_reachable(fav_client: TestClient) -> None:
-    assert fav_client.put("/api/favorites", json={"filters": ["alpha"]}).status_code == 200
+def test_favorites_are_read_and_written_without_a_request_to_either_daemon(fav_client: TestClient, wire: Wire) -> None:
+    before = wire.sent()
+    fav_client.put("/api/favorites", json={"filters": ["alpha"]})
+    fav_client.get("/api/favorites")
+    assert wire.sent() == before

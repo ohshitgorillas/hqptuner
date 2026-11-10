@@ -11,9 +11,8 @@ A description is keyed by profile NAME, the stable join key
 (docs/architecture.md §3.1) — `<matrix_profile>` carries exactly one attribute,
 `name` (hqplayerd-readme.txt §1.12), so there is nowhere in the config XML for
 prose to live and the store is HQPTuner's own state. The REST pair therefore
-never touches hqplayerd: those clients are built with no credentials and a
-control lane pointed at a closed port, so a route that answers at all answered
-without the daemon. The carriage cases DO talk to the daemon, through the
+never touches hqplayerd: those clients are built on both fake daemons, and what
+they were sent is compared across the requests. The carriage cases DO talk to the daemon, through the
 faithful fake 8088 daemon, because "the daemon's own members survive
 byte-for-byte" is a claim about a real archive and the reference for it has to
 come off the daemon's own `GET /backup`.
@@ -37,14 +36,13 @@ from typing import Any
 
 import httpx
 import pytest
-from apps import log_in, unserved_login
-from fake_network import NETWORK, http_transport
+from apps import log_in, ready_app
+from fake_network import http_transport
 from fastapi.testclient import TestClient
+from fixtures_clients import Wire
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.conf.presetzip import DESCRIPTIONS_MEMBER, embed_descriptions, take_descriptions
-from hqptuner.config import Config
 from hqptuner.presets.store.descriptions import DescriptionStore
 
 #: A stamp no released HQPTuner can claim to understand.
@@ -82,24 +80,17 @@ def members(zip_bytes: bytes) -> dict[str, bytes]:
 
 
 @pytest.fixture
-def descriptions_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a description file in ``tmp_path``, daemonless.
+def descriptions_api(tmp_path: Path, wire: Wire) -> Iterator[Callable[[], TestClient]]:
+    """The REST surface over a description file in ``tmp_path``, on both fake daemons.
 
     A factory rather than a plain client so a case can hand-write a file another
-    HQPTuner version stamped and then open the app over it. Nothing here can
-    reach hqplayerd — the control lane points at `closed_port`, which nothing
-    listens on — so a route that answers at all answered without the daemon."""
+    HQPTuner version stamped and then open the app over it. Every client is
+    ready on both lanes when handed over."""
     with ExitStack() as stack:
 
         def build() -> TestClient:
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
-                hqp_username="",
-                hqp_password="",
-                description_file=tmp_path / "descriptions.json",
-            )
-            return stack.enter_context(unserved_login(cfg, VirtualClock(now=STAMPED_AT)))
+            cfg = wire.config(description_file=tmp_path / "descriptions.json")
+            return log_in(stack.enter_context(ready_app(cfg, VirtualClock(now=STAMPED_AT))))
 
         yield build
 
@@ -110,27 +101,15 @@ def desc_client(descriptions_api: Callable[[], TestClient]) -> TestClient:
 
 
 @pytest.fixture
-def carriage_client(
-    http_daemon: dict[str, Any], tmp_path: Path, closed_port: int
-) -> Iterator[tuple[TestClient, DescriptionStore]]:
-    """The backup/restore routes wired to the fake 8088 daemon, over a
-    description store in ``tmp_path``. The store is handed back alongside the
-    client so a case can state what was stored before a backup and read what a
-    restore left behind, without going through the REST pair it is not testing."""
-    cfg = Config(
-        hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_http_port=http_daemon["_port"],
-        hqp_username="u",
-        hqp_password="p",
-        alarm_threshold=1.0,
-        backup_dir=tmp_path,
-        preset_dir=tmp_path / "presets",
-        description_file=tmp_path / "descriptions.json",
-    )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
+def carriage_client(wire: Wire) -> Iterator[tuple[TestClient, DescriptionStore]]:
+    """The backup/restore routes wired to the fake 8088 daemon and the fake 4321
+    daemon, over a description store in ``tmp_path``. The store is handed back
+    alongside the client so a case can state what was stored before a backup and
+    read what a restore left behind, without going through the REST pair it is not testing."""
+    cfg = wire.config(alarm_threshold=1.0, description_file=wire.tmp_path / "descriptions.json")
+    with ready_app(cfg) as test_client:
         log_in(test_client)
-        yield test_client, DescriptionStore(tmp_path / "descriptions.json")
+        yield test_client, DescriptionStore(wire.tmp_path / "descriptions.json")
 
 
 def upload(client: TestClient, data: bytes) -> httpx.Response:
@@ -212,10 +191,13 @@ def test_put_against_a_store_stamped_by_a_newer_hqptuner_answers_409(
     assert answer.status_code == 409
 
 
-# The read direction is pinned by every GET case above, all of which run against
-# this same daemonless client; what is left to say is that a WRITE lands too.
-def test_a_description_is_written_with_no_daemon_reachable(desc_client: TestClient) -> None:
-    assert desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT}).status_code == 200
+def test_descriptions_are_read_and_written_without_a_request_to_either_daemon(
+    desc_client: TestClient, wire: Wire
+) -> None:
+    before = wire.sent()
+    desc_client.put("/api/descriptions", json={"name": NAME, "text": TEXT})
+    desc_client.get("/api/descriptions")
+    assert wire.sent() == before
 
 
 # --- the two zip helpers -------------------------------------------------------------

@@ -5,6 +5,7 @@ case gets the client."""
 
 from collections.abc import Callable, Iterator
 from contextlib import ExitStack
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +13,7 @@ import fake_control
 import pytest
 from apps import live_app, log_in, ready_app
 from conftest import spawn_threaded_daemon
+from fake_control import CommandLog
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
@@ -96,6 +98,48 @@ def chain_api(tmp_path: Path) -> Iterator[Callable[..., TestClient]]:
         next(app, None)
     for daemon in daemons:
         next(daemon, None)
+
+
+@dataclass(frozen=True)
+class Wire:
+    """The two fake daemons an app runs on, and what they have been sent.
+
+    ``sent`` is the count of Control API commands the 4321 fake has logged and of requests the 8088 fake has answered,
+    so a case that must not reach hqplayerd compares it across the request under test.
+    """
+
+    control_port: int
+    control_log: CommandLog
+    http_daemon: dict[str, Any]
+    tmp_path: Path
+
+    def sent(self) -> tuple[int, int]:
+        return len(self.control_log), int(self.http_daemon.get("_requests", 0))
+
+    def config(self, **fields: object) -> Config:
+        """A config for an app on both fakes, with credentials, every state path under ``tmp_path``, and ``fields`` on
+        top."""
+        defaults: dict[str, Any] = {
+            "hqp_host": "127.0.0.1",
+            "hqp_control_port": self.control_port,
+            "hqp_http_port": self.http_daemon["_port"],
+            "hqp_username": "u",
+            "hqp_password": "p",
+            "backup_dir": self.tmp_path,
+            "preset_dir": self.tmp_path / "presets",
+            "live_preset_file": self.tmp_path / "live-presets.json",
+            "autopilot_file": self.tmp_path / "autopilot.json",
+        }
+        return Config(**{**defaults, **fields})
+
+
+@pytest.fixture
+def wire(http_daemon: dict[str, Any], tmp_path: Path) -> Iterator[Wire]:
+    """Both fake daemons for an app, the 4321 one logging every command it receives."""
+    log: CommandLog = []
+    daemon = spawn_threaded_daemon(log=log)
+    yield Wire(next(daemon), log, http_daemon, tmp_path)
+    next(daemon, None)
 
 
 def gated_config(

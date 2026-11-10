@@ -9,9 +9,8 @@ store file does.
 A mode is keyed by preset NAME, the stable join key (docs/architecture.md §3.1),
 and lives in HQPTuner's own state because hqplayerd re-serializes its config from
 its own model and would drop an attribute of ours (docs/matrix-spec.md:31). So
-the pair never touches hqplayerd: the client below is built with no credentials
-and a control lane pointed at a closed port, and a route that answers at all
-answered without the daemon.
+the pair never touches hqplayerd: the client below is built on both fake daemons,
+and what they were sent is compared across the requests.
 
 Every store file lands under pytest's ``tmp_path``, never in the repo's state
 dir, and that goes for the preset store the mode map joins against as well as
@@ -28,11 +27,11 @@ from contextlib import ExitStack
 from pathlib import Path
 
 import pytest
-from apps import unserved_login
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
+from fixtures_clients import Wire
 from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.presets.store.presets import PresetStore
 
 #: A stamp no released HQPTuner can claim to understand.
@@ -60,28 +59,21 @@ def preset_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def joined_api(tmp_path: Path, preset_dir: Path, closed_port: int) -> Iterator[Callable[..., TestClient]]:
-    """The REST surface over a mode file AND a preset store, both in ``tmp_path``.
+def joined_api(tmp_path: Path, preset_dir: Path, wire: Wire) -> Iterator[Callable[..., TestClient]]:
+    """The REST surface over a mode file AND a preset store, both in ``tmp_path``, on both fake daemons.
 
     A factory taking the preset names to seed, so a case can decide what exists
     before the app opens — including nothing at all, over a preset store
     directory the case hand-wrote itself, or over a mode file another HQPTuner
-    version stamped."""
+    version stamped. Every client is ready on both lanes when handed over."""
     with ExitStack() as stack:
 
         def build(names: Sequence[str] = ()) -> TestClient:
             store = PresetStore(preset_dir)
             for name in names:
                 store.save(name, PRESET_PAYLOAD)
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
-                hqp_username="",
-                hqp_password="",
-                matrix_mode_file=tmp_path / "matrixmodes.json",
-                preset_dir=preset_dir,
-            )
-            return stack.enter_context(unserved_login(cfg, VirtualClock()))
+            cfg = wire.config(matrix_mode_file=tmp_path / "matrixmodes.json", preset_dir=preset_dir)
+            return log_in(stack.enter_context(ready_app(cfg, VirtualClock())))
 
         yield build
 
@@ -103,6 +95,15 @@ def test_a_fresh_install_answers_get_with_200(modes_client: TestClient) -> None:
 
 
 # --- the round trip ----------------------------------------------------------------
+
+
+def test_the_modes_are_read_and_written_without_a_request_to_either_daemon(
+    modes_client: TestClient, wire: Wire
+) -> None:
+    before = wire.sent()
+    modes_client.put(PATH, json={"name": NAME, "mode": "speakers"})
+    modes_client.get(PATH)
+    assert wire.sent() == before
 
 
 @pytest.mark.parametrize("mode", [pytest.param("speakers", id="speakers"), pytest.param("headphones", id="headphones")])

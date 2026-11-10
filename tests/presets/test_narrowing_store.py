@@ -4,8 +4,9 @@ Two surfaces, one behavior: `NarrowingStore` over a JSON file, and the GET/PUT
 `/api/narrowing` pair over that store. Narrowing is purely presentational —
 it picks which filters a dropdown offers and never stages a value or reaches
 hqplayerd (docs/architecture.md, "Filter narrowing") — so every client here is
-built with no credentials and a control lane pointed at a closed port, and every
-store file lands under pytest's ``tmp_path``, never in the repo's state dir.
+built on both fake daemons and what they were sent is compared across the
+requests, and every store file lands under pytest's ``tmp_path``, never in the
+repo's state dir.
 
 The facets and their defaults are the contract this file is written against;
 `DEFAULTS` below is that table, not a snapshot of anything. The rate half is
@@ -34,11 +35,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import unserved_login
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
+from fixtures_clients import Wire
 from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.presets.store.jsonfile import StoreCorruptError
 from hqptuner.presets.store.narrowing import Facets, NarrowingError, NarrowingSchemaError, NarrowingStore
 
@@ -191,25 +192,17 @@ def unstamp(path: Path) -> None:
 
 
 @pytest.fixture
-def narrowing_api(tmp_path: Path, closed_port: int) -> Iterator[Callable[[], TestClient]]:
-    """The REST surface over a narrowing file in ``tmp_path``, daemonless.
+def narrowing_api(tmp_path: Path, wire: Wire) -> Iterator[Callable[[], TestClient]]:
+    """The REST surface over a narrowing file in ``tmp_path``, on both fake daemons.
 
     A factory rather than a plain client so a case can hand a file another
-    HQPTuner version stamped to a freshly opened app. Every client is built with
-    no credentials and a control lane pointed at `closed_port`, a port nothing
-    listens on: nothing here can reach hqplayerd, so a route that answers at all
-    answered without it."""
+    HQPTuner version stamped to a freshly opened app. Every client is ready on
+    both lanes when handed over."""
     with ExitStack() as stack:
 
         def build() -> TestClient:
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=closed_port,
-                hqp_username="",
-                hqp_password="",
-                narrowing_file=tmp_path / "narrowing.json",
-            )
-            return stack.enter_context(unserved_login(cfg, VirtualClock()))
+            cfg = wire.config(narrowing_file=tmp_path / "narrowing.json")
+            return log_in(stack.enter_context(ready_app(cfg, VirtualClock())))
 
         yield build
 
@@ -679,6 +672,13 @@ def test_put_answers_200(nar_client: TestClient) -> None:
 
 def test_put_answers_with_the_stored_facets_so_no_follow_up_get_is_needed(nar_client: TestClient) -> None:
     assert nar_client.put("/api/narrowing", json={"facets": SET}).json()["facets"] == SET
+
+
+def test_the_facets_are_read_and_written_without_a_request_to_either_daemon(nar_client: TestClient, wire: Wire) -> None:
+    before = wire.sent()
+    nar_client.put("/api/narrowing", json={"facets": SET})
+    nar_client.get("/api/narrowing")
+    assert wire.sent() == before
 
 
 def test_put_then_get_answers_with_the_stored_facets(nar_client: TestClient) -> None:
