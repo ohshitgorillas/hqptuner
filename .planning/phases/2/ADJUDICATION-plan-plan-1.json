@@ -1,0 +1,50 @@
+{
+  "phase": "2",
+  "trigger": "plan",
+  "discriminator": "plan-1",
+  "round": 1,
+  "base": "e792caca",
+  "head": "e792caca",
+  "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+  "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+  "voices": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus"
+    }
+  ],
+  "citations": {
+    "checked": true
+  },
+  "entries": [
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN-1.md",
+      "line": 34,
+      "severity": "high",
+      "claim": "The plan leaves one way to pick an above-floor modulator: the Setting Switcher slot tap. That breaks ROADMAP Phase 2 SC1 ('cannot be picked') and AC1 ('tapping it sends no write'), and the plan does not fix it. It only parks the case with the owner (line 34, Notes line 94).",
+      "failure_scenario": "The Switcher target is Modulator and a slot remembers AHM7EC8B (floor 40960000). The slot was filled while running DSD1024, or before this phase. The running SDM rate is now DSD256 (12288000). The user taps that slot. switcher.js:267-273 slotLive calls pickOption(v.key, s.name), and conversion.js:221 calls writeLive on the modulator ID. The above-floor modulator goes live mid-play and playback stops. The modulator was picked even though every list shows it grayed. No task in either plan gates slotLive or grays the slot face, so SC1 still fails after both plans run as written.",
+      "ruling": "survived",
+      "convergent": false,
+      "fix_commit": "8482b73c",
+      "citation_missing": true,
+      "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+      "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6"
+    },
+    {
+      "voice": "claude-subagent",
+      "model": "opus",
+      "file": ".planning/phases/2/PLAN-1.md",
+      "line": 35,
+      "severity": "low",
+      "claim": "The plan says it resolves CONTEXT's second flagged assumption by graying nothing when no SDM rate is in force (Notes line 93). Its rule (no SDM pin, then the running sdm_rate limit) does not do that for the cases CONTEXT names: PCM output, stopped, and rate on auto.",
+      "failure_scenario": "Output mode is PCM. The pin is a PCM rate, so isDsdRate is false. defaults_bitrate is running at 12288000. Task 2's rule falls back to runningValue('sdm_rate') = 12288000 and grays every modulator with a floor of 20480000 or more. CONTEXT's flagged assumption lists 'PCM output, stopped, rate on auto' as no-SDM-rate cases, and the plan tells the owner it grays nothing in them. The owner approves the plan on a description its rule does not match. The same mismatch holds for stopped and auto, where the limit is always present (DSD_RATES has no 0 entry).",
+      "ruling": "survived",
+      "convergent": false,
+      "citation_missing": true,
+      "base_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6",
+      "head_id": "e792caca5c13d64d7ea7ec489a1013004f3595f6"
+    }
+  ]
+}
