@@ -119,8 +119,9 @@ export function isDirty(ref, dirtyNow) {
 }
 
 /**
- * Write the record Save planned: one PUT, the old record's DELETE where it moved or was renamed, a re-read of the
- * book, then the record edited moves to where it landed and both its old and new staged edits are spent.
+ * Write the record Save planned: one PUT, the old name's DELETE only for a rename in its own station while that
+ * station stays ticked, a re-read of the book, then the record edited moves to where it landed and both its old and new
+ * staged edits are spent. A station not ticked keeps what it held.
  *
  * @param {{ book: Book<unknown>, name: string, to: string[], fields: string[], values: Record<string, string> }} o
  * @returns {Promise<void>}
@@ -128,7 +129,7 @@ export function isDirty(ref, dirtyNow) {
 async function write({ book, name, to, fields, values }) {
   const from = cur.value;
   const landed = savedTo(book, from, { name, to, rec: /** @type {unknown} */ (null), keep: false }).cur;
-  const gone = from.name !== NEW && (from.name !== name || !to.includes(from.st));
+  const gone = from.name !== NEW && from.name !== name && to.includes(from.st);
   try {
     await api.saveLivePreset(name, fields, to, values);
     if (gone) await api.deleteLivePreset(from.name, from.st);
@@ -144,7 +145,8 @@ async function write({ book, name, to, fields, values }) {
 
 /**
  * Save the record being edited as `name` to every station in `to`: refuse with no name, nothing with no station, ask
- * before overwriting, else one PUT, the old record's DELETE where it moved or was renamed, and a re-read of the book.
+ * before overwriting, else one PUT, the old name's DELETE for a rename in a station that stays ticked, and a re-read of
+ * the book. A station not ticked keeps what it held.
  *
  * @param {{
  *   book: Book<unknown>,

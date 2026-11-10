@@ -269,10 +269,34 @@ test("test_renaming_a_saved_record_deletes_the_old_name_in_its_station", async (
   assert.equal(callCount("DELETE", "/api/livepresets/Warm?station=Day"), 1);
 });
 
-test("test_moving_a_saved_record_out_of_its_station_deletes_it_there", async () => {
+test("test_saving_to_another_station_leaves_the_record_on_its_own", async () => {
   await save(saving("Warm", ["Night"]));
   await settle();
-  assert.equal(callCount("DELETE", "/api/livepresets/Warm?station=Day"), 1);
+  assert.deepEqual(bookNames("Day"), ["Warm", "Bright"]);
+});
+
+test("test_saving_to_another_station_puts_the_record_on_it", async () => {
+  await save(saving("Warm", ["Night"]));
+  await settle();
+  assert.deepEqual(bookNames("Night"), ["Quiet", "Warm"]);
+});
+
+test("test_renaming_while_saving_to_another_station_keeps_the_old_name_on_its_own", async () => {
+  await save(saving("Cosy", ["Night"]));
+  await settle();
+  assert.deepEqual(bookNames("Day"), ["Warm", "Bright"]);
+});
+
+test("test_renaming_while_saving_to_another_station_puts_the_new_name_on_it", async () => {
+  await save(saving("Cosy", ["Night"]));
+  await settle();
+  assert.deepEqual(bookNames("Night"), ["Quiet", "Cosy"]);
+});
+
+test("test_a_save_leaves_a_station_it_was_not_ticked_for_as_it_was", async () => {
+  await save(saving("Cosy", ["Day"]));
+  await settle();
+  assert.deepEqual(bookNames("Night"), ["Quiet"]);
 });
 
 test("test_resaving_a_record_in_place_puts_and_rereads_without_deleting", async () => {

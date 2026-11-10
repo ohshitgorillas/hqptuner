@@ -12,12 +12,14 @@
 // The fake answers the real REST paths with the real shapes —
 // GET /api/livepresets -> {station, presets, stations}, PUT /api/livepresets/{name}
 // -> the record, POST /api/livepresets/{name}/apply -> {report: {live, stored}},
-// DELETE -> {deleted} — and it HOLDS the list the way the backend does, so "a save
-// re-reads the list" is observable as the list having moved. `presets` is the
-// loaded station's list; `others` holds every other station's, and the book
-// (`stations`) is both. A query string (`?station=`) is recorded with the call
-// and does not change which preset a path names. No store function is ever
-// stubbed.
+// DELETE -> {deleted} — and it HOLDS each station's list the way the backend's
+// `LivePresetStore` does, so "a save re-reads the list" is observable as the
+// list having moved. `presets` is the loaded station's list; `others` holds every
+// other station's, and the book (`stations`) is both. A PUT writes the record to
+// every station its body names (the loaded station when it names none) and
+// touches no other; a DELETE removes the name only from the station its
+// `?station=` query names (the loaded station when it names none). No store
+// function is ever stubbed.
 
 import { ok, bad } from "./wire.js";
 
@@ -128,29 +130,58 @@ const ENUMS = {
   mode: { name: "PCM" },
 };
 
-// PUT and DELETE move the list the fake HOLDS, the way the backend's store
-// does, so a following GET answers differently — the only way "a save re-reads
-// the list" can be told apart from a save that quietly kept the old one.
+// PUT and DELETE move the lists the fake HOLDS, the way the backend's store does:
+// a PUT writes only the stations its body names, a DELETE removes only the
+// station its query names, and every other station's list stays as it was. A
+// following GET answers differently, the only way "a save re-reads the list" can
+// be told apart from a save that quietly kept the old one.
+/**
+ * @param {PresetWire} w
+ * @param {string} station
+ * @returns {PresetRecord[]}
+ */
+const heldAt = (w, station) => (station === w.station ? w.presets : (w.others[station] ?? []));
+
+/**
+ * @param {PresetWire} w
+ * @param {string} station
+ * @param {PresetRecord[]} list
+ * @returns {void}
+ */
+function hold(w, station, list) {
+  if (station === w.station) w.presets = list;
+  else w.others = { ...w.others, [station]: list };
+}
+
 /**
  * @param {PresetWire} w
  * @param {PresetWireState} c
  * @param {string} name
+ * @param {string | undefined} body  the PUT's JSON body, whose `stations` names where the record lands
  * @returns {FakeResponse}
  */
-function storeSave(w, c, name) {
+function storeSave(w, c, name, body) {
   if (c.saveStatus !== 200) return bad(c.saveStatus, c.saveDetail);
   const saved = rec(name, c.chain);
-  w.presets = [...w.presets.filter((p) => p.name !== name), saved];
+  /** @type {string[]} */
+  const stations = (body ? JSON.parse(body).stations : undefined) ?? [w.station];
+  for (const station of stations) hold(w, station, [...heldAt(w, station).filter((p) => p.name !== name), saved]);
   return ok(saved);
 }
 
 /**
  * @param {PresetWire} w
  * @param {string} name
+ * @param {string | undefined} query  the DELETE's query string, whose `station` names where the record goes
  * @returns {FakeResponse}
  */
-function storeDelete(w, name) {
-  w.presets = w.presets.filter((p) => p.name !== name);
+function storeDelete(w, name, query) {
+  const station = new URLSearchParams(query).get("station") ?? w.station;
+  hold(
+    w,
+    station,
+    heldAt(w, station).filter((p) => p.name !== name),
+  );
   return ok({ deleted: name });
 }
 
@@ -159,13 +190,13 @@ function storeDelete(w, name) {
  *
  * @param {PresetWire} w
  * @param {PresetWireState} c
- * @param {{ name: string, isApply: boolean, method: string }} req
+ * @param {{ name: string, isApply: boolean, method: string, query?: string, body?: string }} req
  * @returns {FakeResponse}
  */
-function onePreset(w, c, { name, isApply, method }) {
+function onePreset(w, c, { name, isApply, method, query, body }) {
   if (isApply) return c.applyStatus === 200 ? ok({ report: c.report }) : bad(c.applyStatus, c.applyDetail);
-  if (method === "PUT") return storeSave(w, c, name);
-  if (method === "DELETE") return storeDelete(w, name);
+  if (method === "PUT") return storeSave(w, c, name, body);
+  if (method === "DELETE") return storeDelete(w, name, query);
   return ok({});
 }
 
@@ -228,7 +259,7 @@ export function presetWire(cfg = {}) {
   const answer = async (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
     const method = opts.method || "GET";
     w.calls.push({ path, method, body: opts.body });
-    const bare = path.split("?")[0];
+    const [bare, query] = path.split("?");
     if (bare === "/api/livepresets") {
       return c.listStatus === 200
         ? ok({ station: w.station, presets: w.presets, stations: bookOf(w) })
@@ -236,7 +267,7 @@ export function presetWire(cfg = {}) {
     }
     const one = ONE.exec(bare);
     return one
-      ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method })
+      ? onePreset(w, c, { name: decodeURIComponent(one[1]), isApply: Boolean(one[2]), method, query, body: opts.body })
       : ambient(bare, c);
   };
   env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) => {
