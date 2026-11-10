@@ -6,7 +6,7 @@
 // nothing here depends on them: it is the bottom of the lane.
 
 import { signal } from "@preact/signals";
-import { liveFailureText } from "../ui/wirelabels.js";
+import { liveFailureText, PLAYBACK_STOPPED } from "../ui/wirelabels.js";
 
 // How many live writes have not settled: up from a write's start until its
 // re-mirror is in, so the mirrors are current only while it reads 0.
@@ -22,6 +22,7 @@ export const RATE_MIRRORED = new Set(["mode"]);
  * @property {{ ok: boolean, setting: string, error?: string, code?: string }[]} [live]
  * @property {Record<string, string>} [stored] edits HELD for a chain not loaded
  * @property {boolean} [reenumerated] the server re-read the engine's enumerations for this batch
+ * @property {boolean} [playback_stopped] playback went from playing to stopped under the batch
  *
  * @typedef {object} LiveAnswer
  *   What a live write answers with: the report.
@@ -30,14 +31,18 @@ export const RATE_MIRRORED = new Set(["mode"]);
 
 // A 200 still carries failures: the backend verifies each setter by State
 // readback and reports per setting, so an entry that did not verify is an error
-// just as much as a thrown 409 is.
+// just as much as a thrown 409 is. So is a batch under which playback stopped,
+// and a report carrying both says both.
 /**
  * The message for the settings in a report that did not verify, each named by its
- * UI label, "" when every one of them did.
+ * UI label, then the stop line when playback stopped under the batch. "" when
+ * every setting verified and playback did not stop.
  * @param {LiveReport} report
  * @returns {string}
  */
 export function reportError(report) {
   const fails = ((report && report.live) || []).filter((e) => !e.ok);
-  return fails.length ? liveFailureText(fails) : "";
+  const lines = fails.length ? [liveFailureText(fails)] : [];
+  if (report && report.playback_stopped) lines.push(PLAYBACK_STOPPED);
+  return lines.join(" ");
 }

@@ -47,6 +47,9 @@ export function wireLabel(key) {
  */
 export const engineStopped = (fails) => fails.some((f) => f.code === "daemon_unavailable");
 
+// The line for a live apply during which the engine went from playing to stopped.
+export const PLAYBACK_STOPPED = "HQPlayer stopped playback while applying this.";
+
 // A failed live write in the page's words, shared by the apply verdict and the
 // live lane's live-snapshot error (store/live/state.js). An engine that is not
 // answering explains every other failure in the same write, so one such entry
