@@ -50,7 +50,7 @@ RESET_TEXT = os.strerror(errno.ECONNRESET)
 PARKED_POLL_INTERVAL = 3600.0
 
 #: The last Control API command of both the connect-and-load and the poll in a
-#: control-only app; its second appearance in the daemon's log is the first
+#: two-lane app; its second appearance in the daemon's log is the first
 #: background poll finishing, after which a knob flipped on the daemon is seen by
 #: the case's request alone.
 FIRST_POLL_SENTINEL = "MatrixListProfiles"
@@ -106,7 +106,7 @@ def _await_first_poll(client: TestClient, log: CommandLog) -> None:
 
 
 def _resetting_app(tmp_path: Path, command: str) -> Iterator[tuple[TestClient, int]]:
-    """The control-only app on a daemon that answers until the app has loaded,
+    """The two-lane app on a control daemon that answers until the app has loaded,
     then resets the connection under ``command`` without answering it."""
     state = dict(DEFAULTS)
     log: CommandLog = []

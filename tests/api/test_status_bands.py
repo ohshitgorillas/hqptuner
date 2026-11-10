@@ -15,14 +15,13 @@ from __future__ import annotations
 import contextlib
 import functools
 import struct
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import fake_metering
 import fake_network
 import pytest
-from apps import advance_app, app_manager, unserved_login, wait_for_api
+from apps import advance_app, app_manager, log_in, ready_app
 from conftest import METADATA_MIN, spawn_threaded_daemon
-from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 
@@ -66,14 +65,8 @@ def _frame(tone_hz: float) -> bytes:
     return header + channel * CHANNELS
 
 
-def _status_served(client: TestClient) -> bool:
-    """The app answers `/api/status`, whatever the reader has read so far."""
-    status: int = client.get("/api/status").status_code
-    return status == 200
-
-
 @pytest.fixture
-def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
+def bands_api(tmp_path: Path, http_daemon: dict[str, Any]) -> Iterator[Callable[[float], TestClient]]:
     """Apps reading a 4322 stream of one tone, torn down in step: the clients
     first, so each app's reader hangs up, then the fakes behind them."""
     closing = contextlib.ExitStack()
@@ -86,9 +79,10 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=next(daemon),
+            hqp_http_port=http_daemon["_port"],
             hqp_metering_port=closing.enter_context(stream),
-            hqp_username="",
-            hqp_password="",
+            hqp_username="u",
+            hqp_password="p",
             data_dir=METADATA_MIN,
             backup_dir=tmp_path,
             preset_dir=tmp_path / "presets",
@@ -96,9 +90,7 @@ def bands_api(tmp_path: Path) -> Iterator[Callable[[float], TestClient]]:
             autopilot_file=tmp_path / "autopilot.json",
             advisor_enabled=True,
         )
-        client = closing.enter_context(unserved_login(cfg, VirtualClock()))
-        wait_for_api(client, _status_served)
-        return client
+        return log_in(closing.enter_context(ready_app(cfg)))
 
     yield build
     closing.close()

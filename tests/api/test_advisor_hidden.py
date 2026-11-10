@@ -20,20 +20,19 @@ preview, which reads the same value the save records and cannot fail on its own.
 from __future__ import annotations
 
 import json
+from contextlib import ExitStack
 from typing import TYPE_CHECKING, Any, Protocol
 
 import pytest
-from apps import log_in, wait_for_api
-from fake_network import NETWORK
-from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
+from apps import log_in, ready_app
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 if TYPE_CHECKING:
     from collections.abc import Iterator
     from pathlib import Path
+
+    from fastapi.testclient import TestClient
 
 SEEDED_ON = {"schema": 1, "enabled": True, "presets": {}}
 
@@ -47,34 +46,27 @@ class AdvisorClient(Protocol):
 @pytest.fixture
 def advisor_client(http_daemon: dict[str, Any], threaded_daemon_port: int, tmp_path: Path) -> Iterator[AdvisorClient]:
     """The REST surface on both fakes, the auto-pilot store seeded on, built for one setting of the advisor flag."""
-    opened: list[TestClient] = []
+    with ExitStack() as opened:
 
-    def build(*, advisor: bool) -> TestClient:
-        (tmp_path / "autopilot.json").write_text(json.dumps(SEEDED_ON))
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=threaded_daemon_port,
-            hqp_http_port=http_daemon["_port"],
-            hqp_username="u",
-            hqp_password="p",
-            alarm_threshold=1.0,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-            hqp_home="/x/home",
-            advisor_enabled=advisor,
-        )
-        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
-        log_in(client)
-        client.__enter__()
-        opened.append(client)
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
-        return client
+        def build(*, advisor: bool) -> TestClient:
+            (tmp_path / "autopilot.json").write_text(json.dumps(SEEDED_ON))
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=threaded_daemon_port,
+                hqp_http_port=http_daemon["_port"],
+                hqp_username="u",
+                hqp_password="p",
+                alarm_threshold=1.0,
+                backup_dir=tmp_path,
+                preset_dir=tmp_path / "presets",
+                live_preset_file=tmp_path / "live-presets.json",
+                autopilot_file=tmp_path / "autopilot.json",
+                hqp_home="/x/home",
+                advisor_enabled=advisor,
+            )
+            return log_in(opened.enter_context(ready_app(cfg)))
 
-    yield build
-    for client in opened:
-        client.__exit__(None, None, None)
+        yield build
 
 
 def stored_enabled(tmp_path: Path) -> bool | None:

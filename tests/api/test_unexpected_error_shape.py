@@ -13,13 +13,13 @@ do that, so the ring fixture attaches it the same way for the length of a case.
 import logging
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import pytest
-from apps import unserved_login
+from apps import log_in, ready_app
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import Response
-from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
 from hqptuner.logbuffer import RECENT
@@ -39,12 +39,13 @@ def raise_a_fault_no_handler_maps() -> None:
 
 
 @pytest.fixture
-def faulting_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def faulting_client(tmp_path: Path, threaded_daemon_port: int, http_daemon: dict[str, Any]) -> Iterator[TestClient]:
     cfg = Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
-        hqp_username="",
-        hqp_password="",
+        hqp_control_port=threaded_daemon_port,
+        hqp_http_port=http_daemon["_port"],
+        hqp_username="u",
+        hqp_password="p",
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
@@ -53,8 +54,8 @@ def faulting_client(tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
         app.add_api_route(FAULT_PATH, raise_a_fault_no_handler_maps, methods=["GET"])
 
     # the server's own re-raise is not the contract; the response is
-    with unserved_login(cfg, VirtualClock(), raise_server_exceptions=False, setup=plant_the_fault) as client:
-        yield client
+    with ready_app(cfg, raise_server_exceptions=False, setup=plant_the_fault) as client:
+        yield log_in(client)
 
 
 @pytest.fixture

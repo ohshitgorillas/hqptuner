@@ -20,10 +20,9 @@ from typing import TYPE_CHECKING, Any
 import fake_metering
 import fake_network
 import pytest
-from apps import advance_app, unserved_login, wait_for_api
+from apps import advance_app, log_in, ready_app
 from conftest import METADATA_MIN, spawn_threaded_daemon
 from narrow import FixtureError
-from virtual_clock import VirtualClock
 
 from hqptuner.api.gate import LOGIN_COOKIE
 from hqptuner.config import Config
@@ -177,7 +176,7 @@ def _first_event_channels(client: TestClient) -> object:
 
 
 @pytest.fixture
-def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
+def feed_api(tmp_path: Path, http_daemon: dict[str, Any]) -> Iterator[Callable[[int], TestClient]]:
     """Apps reading a 4322 stream of ``channels``-channel frames, torn down in
     step: the clients first, so each app's reader hangs up, then the fakes."""
     closing = contextlib.ExitStack()
@@ -190,10 +189,11 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
         cfg = Config(
             hqp_host="127.0.0.1",
             hqp_control_port=next(daemon),
+            hqp_http_port=http_daemon["_port"],
             hqp_metering_port=closing.enter_context(stream),
             metering_enabled=True,
-            hqp_username="",
-            hqp_password="",
+            hqp_username="u",
+            hqp_password="p",
             data_dir=METADATA_MIN,
             backup_dir=tmp_path,
             preset_dir=tmp_path / "presets",
@@ -201,10 +201,9 @@ def feed_api(tmp_path: Path) -> Iterator[Callable[[int], TestClient]]:
             autopilot_file=tmp_path / "autopilot.json",
             advisor_enabled=True,
         )
-        client = closing.enter_context(unserved_login(cfg, VirtualClock()))
-        # connected, then one idle recheck of the reader's, which is when it
+        client = log_in(closing.enter_context(ready_app(cfg)))
+        # ready, then one idle recheck of the reader's, which is when it
         # sees the engine playing and dials the stream
-        wait_for_api(client, lambda c: bool(c.get("/api/health").json()["reachable"]))
         advance_app(client, IDLE_RECHECK)
         return client
 

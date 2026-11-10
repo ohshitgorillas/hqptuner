@@ -11,14 +11,11 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from apps import log_in
+from apps import log_in, ready_app
 from conftest import minimal_wave
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
 from httpx import Response
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The per-file limit the capped client is built with, in bytes; small so the
@@ -50,11 +47,11 @@ def _code(resp: Response) -> object:
 
 
 @pytest.fixture
-def capped_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int) -> Iterator[TestClient]:
+def capped_client(http_daemon: dict[str, Any], tmp_path: Path, threaded_daemon_port: int) -> Iterator[TestClient]:
     """`http_client` with `filter_max_bytes` pinned to FILE_LIMIT."""
     cfg = Config(
         hqp_host="127.0.0.1",
-        hqp_control_port=closed_port,
+        hqp_control_port=threaded_daemon_port,
         hqp_http_port=http_daemon["_port"],
         hqp_username="u",
         hqp_password="p",
@@ -70,7 +67,7 @@ def capped_client(http_daemon: dict[str, Any], tmp_path: Path, closed_port: int)
         hqp_home="/x/home",
         filter_max_bytes=FILE_LIMIT,
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as test_client:
+    with ready_app(cfg) as test_client:
         log_in(test_client)
         yield test_client
 

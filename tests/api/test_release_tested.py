@@ -4,21 +4,20 @@ tested releases the configured data directory ships as tested-releases.json.
 The app runs on both lanes, the threaded 4321 fake plus the fake 8088 daemon,
 against a data directory each case writes its own record into."""
 
+import contextlib
 import json
 import shutil
 from collections.abc import Callable, Iterator
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Any
 
 import fake_http
 import pytest
-from apps import METADATA_MIN, log_in, wait_for_api
+from apps import METADATA_MIN, log_in, ready_app
 from conftest import spawn_threaded_daemon
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: The DSP engine build the fake 4321 daemon's GetInfo answers with; it is
@@ -34,17 +33,9 @@ RECORD_FILE = "tested-releases.json"
 Build = Callable[..., TestClient]
 
 
-def _reachable(client: TestClient) -> bool:
-    return bool(client.get("/api/health").json()["reachable"])
-
-
-def _settled_health(client: TestClient, passes: int = 50) -> dict[str, Any]:
-    """The health payload once the app is connected and has had enough request
-    round-trips for its best-effort 8088 loads, the release fetch among them,
-    to have run."""
-    wait_for_api(client, _reachable)
-    for _ in range(passes):
-        client.get("/api/health")
+def _settled_health(client: TestClient) -> dict[str, Any]:
+    """The health payload of an app that has read ready, so its best-effort 8088 loads, the release fetch among them,
+    have run."""
     payload: dict[str, Any] = client.get("/api/health").json()
     return payload
 
@@ -54,43 +45,33 @@ def tested_client(tmp_path: Path) -> Iterator[Build]:
     """Build the REST app on both fakes with a data directory holding the
     minimal metadata plus ``record`` as the tested-release record; keyword
     arguments are the 8088 daemon's state overrides."""
-    daemons: list[Iterator[int]] = []
-    https: list[Iterator[dict[str, Any]]] = []
-    apps: list[TestClient] = []
+    built = 0
+    with ExitStack() as served:
 
-    def build(record: list[str], **overrides: object) -> TestClient:
-        data_dir = tmp_path / f"data-{len(apps)}"
-        shutil.copytree(METADATA_MIN, data_dir)
-        (data_dir / RECORD_FILE).write_text(json.dumps(record))
-        daemon = spawn_threaded_daemon()
-        daemons.append(daemon)
-        http = fake_http.spawn(fake_http.state(**overrides), in_process=True)
-        https.append(http)
-        cfg = Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=next(daemon),
-            hqp_http_port=next(http)["_port"],
-            hqp_username="u",
-            hqp_password="p",
-            data_dir=data_dir,
-            backup_dir=tmp_path,
-            preset_dir=tmp_path / "presets",
-            live_preset_file=tmp_path / "live-presets.json",
-            autopilot_file=tmp_path / "autopilot.json",
-        )
-        client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
-        log_in(client)
-        client.__enter__()
-        apps.append(client)
-        return client
+        def build(record: list[str], **overrides: object) -> TestClient:
+            nonlocal built
+            data_dir = tmp_path / f"data-{built}"
+            built += 1
+            shutil.copytree(METADATA_MIN, data_dir)
+            (data_dir / RECORD_FILE).write_text(json.dumps(record))
+            port = served.enter_context(contextlib.contextmanager(spawn_threaded_daemon)())
+            spawned = fake_http.state(**overrides)
+            http = served.enter_context(contextlib.contextmanager(fake_http.spawn)(spawned, in_process=True))
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=port,
+                hqp_http_port=http["_port"],
+                hqp_username="u",
+                hqp_password="p",
+                data_dir=data_dir,
+                backup_dir=tmp_path,
+                preset_dir=tmp_path / "presets",
+                live_preset_file=tmp_path / "live-presets.json",
+                autopilot_file=tmp_path / "autopilot.json",
+            )
+            return log_in(served.enter_context(ready_app(cfg)))
 
-    yield build
-    for client in apps:
-        client.__exit__(None, None, None)
-    for http in https:
-        next(http, None)
-    for daemon in daemons:
-        next(daemon, None)
+        yield build
 
 
 #: The release /about reports, the record shipped beside it, and the verdict.

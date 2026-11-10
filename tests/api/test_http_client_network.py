@@ -10,13 +10,10 @@ from pathlib import Path
 import fake_http
 import fake_network
 import pytest
-from apps import METADATA_MIN, settle_app
+from apps import METADATA_MIN, advance_app, app_manager, ready_app
 from conftest import HttpLanes, LiveManager
 from fake_control import DEFAULTS, serve_shared
-from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.api.routes.connection import apply_connection
 from hqptuner.config import Config
 from hqptuner.core.connection import ConnectionRecord, ConnectionStore
@@ -29,7 +26,7 @@ def test_an_app_handed_the_network_reports_the_verdict_the_in_process_8088_fake_
     tmp_path: Path, *, refuses: bool, verdict: bool
 ) -> None:
     with fake_network.serving(functools.partial(serve_shared, state=dict(DEFAULTS))) as control_port:
-        daemon = fake_http.spawn(fake_http.state(_refuse_auth=refuses), in_process=True)
+        daemon = fake_http.spawn(fake_http.state(), in_process=True)
         http = next(daemon)
         cfg = Config(
             hqp_host="127.0.0.1",
@@ -43,8 +40,9 @@ def test_an_app_handed_the_network_reports_the_verdict_the_in_process_8088_fake_
             live_preset_file=tmp_path / "live-presets.json",
             autopilot_file=tmp_path / "autopilot.json",
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
-            settle_app(client)
+        with ready_app(cfg) as client:
+            http["_refuse_auth"] = refuses
+            advance_app(client, app_manager(client).cfg.poll_interval)
             assert client.get("/api/health").json()["credentials_ok"] is verdict
         next(daemon, None)
 

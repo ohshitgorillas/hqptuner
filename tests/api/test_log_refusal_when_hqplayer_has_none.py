@@ -8,23 +8,18 @@ every other way the read fails: HQPlayer erroring on the page, and HQPlayer not
 reachable at all. Which identifier each case gets is HQPTuner's to choose; what
 is pinned is that the no-log case does not share one with the others.
 
-The 8088 daemon here is a table: one status for `/log`, 404 for every other
-page, served through `fake_http.spawn` so its teardown is the suite's own. It
-answers `/config` 200 for the login alone and drops that row before the app
-starts, so from the app's first read on every page but `/log` is 404.
+The app runs on both lanes, the threaded 4321 fake plus an in-process 8088 fake, and is ready before the case reads the
+log. The 8088 fake answers `/log` with the status the case sets; the unreachable case takes the 8088 lane away after the
+app is ready.
 """
 
-from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 
 import fake_http
 import pytest
-from apps import log_in, unserved_login
-from fake_network import NETWORK
+from apps import log_in, ready_app
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 
 #: HQPlayer's own answer when it has no log to serve.
@@ -34,43 +29,28 @@ NO_LOG = 404
 ERRORING = (500, 503)
 
 
-def _log_page_answering(table: dict[str, int]) -> type[BaseHTTPRequestHandler]:
-    """An 8088 daemon that answers each page in ``table`` with its status and every other page 404."""
-
-    class Handler(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            self.send_response(table.get(self.path.split("?", 1)[0], NO_LOG))
-            self.send_header("Content-Length", "0")
-            self.end_headers()
-
-        def log_message(self, *_: object) -> None:
-            pass
-
-    return Handler
-
-
-def _log_refusal_code(http_port: int, control_port: int, tmp_path: Path, pages: dict[str, int] | None = None) -> str:
-    """The `code` `GET /api/log` refuses with, from an app whose 8088 lane is at
-    ``http_port``, a daemon serving ``pages`` (None: nothing serves it); the
-    control lane is at a port nothing listens on."""
+def _log_refusal_code(control_port: int, tmp_path: Path, *, log_status: int | None) -> str:
+    """The `code` `GET /api/log` refuses with, from a ready app whose 8088 daemon answers the log page ``log_status``,
+    or (None) whose 8088 lane is taken away after the app is ready."""
+    daemon = fake_http.spawn(fake_http.state(_log_status=log_status or 200), in_process=True)
+    st = next(daemon)
     cfg = Config(
         hqp_host="127.0.0.1",
         hqp_control_port=control_port,
-        hqp_http_port=http_port,
+        hqp_http_port=st["_port"],
         hqp_username="u",
         hqp_password="p",
         alarm_threshold=1.0,
         backup_dir=tmp_path,
         preset_dir=tmp_path / "presets",
     )
-    if pages is None:
-        with unserved_login(cfg, VirtualClock()) as client:
-            return _refusal_code(client)
-    client = TestClient(create_app(cfg, VirtualClock(), NETWORK))
-    log_in(client)
-    del pages["/config"]
-    with client:
-        return _refusal_code(client)
+    with ready_app(cfg) as client:
+        log_in(client)
+        if log_status is None:
+            st["_take_lane_down"]()
+        code = _refusal_code(client)
+    next(daemon, None)
+    return code
 
 
 def _refusal_code(client: TestClient) -> str:
@@ -78,25 +58,18 @@ def _refusal_code(client: TestClient) -> str:
     return code
 
 
-def _code_when_log_page_answers(status: int, closed_port: int, tmp_path: Path) -> str:
-    pages = {"/log": status, "/config": 200}
-    daemon = fake_http.spawn({}, handler=_log_page_answering(pages), in_process=True)
-    st = next(daemon)
-    code = _log_refusal_code(int(st["_port"]), closed_port, tmp_path / str(status), pages)
-    next(daemon, None)
-    return code
-
-
 @pytest.mark.parametrize("status", ERRORING)
 def test_hqplayer_having_no_log_is_refused_apart_from_hqplayer_erroring(
-    status: int, closed_port: int, tmp_path: Path
+    status: int, threaded_daemon_port: int, tmp_path: Path
 ) -> None:
-    no_log = _code_when_log_page_answers(NO_LOG, closed_port, tmp_path)
-    erroring = _code_when_log_page_answers(status, closed_port, tmp_path)
+    no_log = _log_refusal_code(threaded_daemon_port, tmp_path / "no-log", log_status=NO_LOG)
+    erroring = _log_refusal_code(threaded_daemon_port, tmp_path / str(status), log_status=status)
     assert no_log != erroring
 
 
-def test_hqplayer_having_no_log_is_refused_apart_from_hqplayer_unreachable(closed_port: int, tmp_path: Path) -> None:
-    no_log = _code_when_log_page_answers(NO_LOG, closed_port, tmp_path)
-    unreachable = _log_refusal_code(closed_port, closed_port, tmp_path / "unreachable")
+def test_hqplayer_having_no_log_is_refused_apart_from_hqplayer_unreachable(
+    threaded_daemon_port: int, tmp_path: Path
+) -> None:
+    no_log = _log_refusal_code(threaded_daemon_port, tmp_path / "no-log", log_status=NO_LOG)
+    unreachable = _log_refusal_code(threaded_daemon_port, tmp_path / "unreachable", log_status=None)
     assert no_log != unreachable

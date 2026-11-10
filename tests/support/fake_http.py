@@ -289,7 +289,7 @@ def _http_get_response(st: dict[str, Any], path: str) -> tuple[int, bytes]:
         _refresh_devices(st)
         return 200, b""
     if path == "/log":
-        return 200, st["_log"].encode()
+        return st.get("_log_status", 200), st["_log"].encode()
     if path == "/about":
         return 200, _about_render(st).encode()
     if path == "/config":
@@ -777,6 +777,8 @@ def state(**extra: object) -> dict[str, Any]:
         "_restore_attempts": 0,
         # Running count of GET /log arrivals, same bookkeeping shape.
         "_log_reads": 0,
+        # The status GET /log answers with; 200 serves the log, 404 is a daemon with no log to serve.
+        "_log_status": 200,
         # Refuse authentication on every page (401 challenge, then 403 to the
         # digest), and the running count of arrivals at the lane. Both default to
         # the healthy daemon: credentials are accepted and the count is

@@ -10,26 +10,11 @@ from typing import Any
 
 import fake_control
 import pytest
-from apps import advance_app, app_manager, live_app, log_in, wait_for_api
+from apps import advance_app, app_manager, live_app, log_in, ready_app
 from conftest import spawn_threaded_daemon
-from fake_network import NETWORK
 from fastapi.testclient import TestClient
-from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-
-
-def _config_loaded(client: TestClient) -> bool:
-    """Connect-and-load has finished: the /config form is served, the file view
-    is grounded, and the daemon's data/cfgs/Test.xml migrated into the store —
-    the last steps of the manager's connect sequence, in that order."""
-    resp = client.get("/api/config")
-    if resp.status_code != 200:
-        return False
-    data = resp.json()["data"]
-    options = [o["value"] for o in data["profiles"]["options"]]
-    return "title" in data["file"] and "Test" in options
 
 
 @pytest.fixture
@@ -46,9 +31,8 @@ def wired_api(threaded_daemon_port: int, http_daemon: dict[str, Any], tmp_path: 
         preset_dir=tmp_path / "presets",
         live_preset_file=tmp_path / "live-presets.json",
     )
-    with TestClient(create_app(cfg, VirtualClock(), NETWORK)) as client:
+    with ready_app(cfg) as client:
         log_in(client)
-        wait_for_api(client, _config_loaded)
         yield client
 
 

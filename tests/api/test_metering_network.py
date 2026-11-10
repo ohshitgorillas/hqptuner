@@ -14,12 +14,11 @@ import fake_metering
 import fake_network
 import junkcal_rig
 import pytest
-from apps import METADATA_MIN, advance_app, advanced, app_manager, closed_port, log_in, wait_for_api
+from apps import METADATA_MIN, advance_app, advanced, app_manager, closed_port, log_in, ready_app
 from fake_control import DEFAULTS, serve_shared
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
-from hqptuner.api.factory import create_app
 from hqptuner.config import Config
 from hqptuner.engine.metering import IDLE_RECHECK, MeteringReader
 from hqptuner.engine.trackcontext import TrackContext
@@ -93,18 +92,11 @@ def test_an_app_handed_the_network_serves_the_bands_of_the_in_process_stream(tmp
             autopilot_file=tmp_path / "autopilot.json",
             advisor_enabled=True,
         )
-        with TestClient(create_app(cfg, VirtualClock(), fake_network.NETWORK)) as client:
+        with ready_app(cfg) as client:
             log_in(client)
-            wait_for_api(client, _status_served)
             bands = _served_bands(client)
     next(daemon, None)
     assert bool(bands) is served
-
-
-def _status_served(client: TestClient) -> bool:
-    """The app answers `/api/status`, whatever the reader has read so far."""
-    status: int = client.get("/api/status").status_code
-    return status == 200
 
 
 def _served_bands(client: TestClient) -> list[float]:
