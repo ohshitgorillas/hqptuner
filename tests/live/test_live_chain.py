@@ -1,8 +1,8 @@
 """The per-chain filter/shaper memory LIVE keeps for the engine.
 
 `GetFilters`/`GetShapers` enumerate the ACTIVE mode's chain only, and the two
-chains number the same names differently — `poly-sinc-gauss-long` is enum ID 40
-under PCM `filter` and 38 under SDM `oversampling` (protocol.md §4, readme
+chains number the same names differently — `poly-sinc-gauss-long` is enum ID 37
+under PCM `filter` and 40 under SDM `oversampling` (protocol.md §4, readme
 §1.5/§1.6). So the engine can only be told about the chain it has loaded, while
 the LIVE page shows both: an edit to the dormant chain is HELD rather than
 refused (the config form and hqplayerd.xml speak enum IDs, `Set*` speaks list
@@ -100,18 +100,18 @@ def test_an_edit_to_the_dormant_pcm_chain_is_reported_as_held(
 
 
 def test_a_held_filter_edit_leaves_the_running_filter_alone(chain_api: Callable[..., TestClient]) -> None:
-    # enum 23 is `sinc-M` on the SDM chain and index 1 there; the PCM chain the
-    # engine is running has `sinc-M` at index 2. A held edit that leaked onto the
+    # enum 23 is `sinc-M` on the SDM chain and index 64 there; the PCM chain the
+    # engine is running has `sinc-M` at index 54. A held edit that leaked onto the
     # wire would move the filter the listener is hearing, either way.
-    client = chain_api(mode="1", filterNx="2")
+    client = chain_api(mode="1", filterNx="54")
     client.post("/api/config/live", json={"fields": {"oversampling": "23"}})
-    assert client.get("/api/state").json()["data"]["filterNx"] == "2"
+    assert client.get("/api/state").json()["data"]["filterNx"] == "54"
 
 
 def test_a_held_shaper_edit_leaves_the_running_shaper_alone(chain_api: Callable[..., TestClient]) -> None:
-    # enum 5 is `NS9`, index 1 of the dormant PCM shaper list and absent from the
-    # SDM list the engine is running. The engine sits at index 0, so a leak
-    # resolved against either chain's list moves it.
+    # enum 5 is `TPDF`, index 7 of the dormant PCM shaper list, and `ASDM5` at
+    # index 4 of the SDM list the engine is running. The engine sits at index 0,
+    # so a leak resolved against either chain's list moves it.
     client = chain_api(mode="2", shaper="0")
     client.post("/api/config/live", json={"fields": {"dither": "5"}})
     assert client.get("/api/state").json()["data"]["shaper"] == "0"

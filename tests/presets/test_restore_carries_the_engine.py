@@ -109,8 +109,8 @@ def _route_live(client: TestClient, fields: dict[str, str], state_key: str, land
 
 #: (field, live value, stored value, State attribute, landed index) per live-only
 #: field the restore has to carry. ``mode`` is the switch itself; ``modulator`` is
-#: routed on top of it, on the SDM chain that switch loads — enum 3 is ASDM7EC at
-#: SDM shaper index 1, against a config file whose modulator is 0. Each row's
+#: routed on top of it, on the SDM chain that switch loads — enum 11 is ASDM7EC at
+#: SDM shaper index 19, against a config file whose modulator is 0. Each row's
 #: engine value, stored value and file value are three distinct values, so the
 #: restored one names its own source.
 class EngineCase(NamedTuple):
@@ -127,7 +127,7 @@ class EngineCase(NamedTuple):
 
 ENGINE_WINS = [
     EngineCase("mode", "sdm", "auto", "mode", "2"),
-    EngineCase("modulator", "3", "7", "shaper", "1"),
+    EngineCase("modulator", "11", "7", "shaper", "19"),
 ]
 
 

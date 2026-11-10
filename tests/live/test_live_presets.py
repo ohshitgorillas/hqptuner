@@ -26,17 +26,17 @@ def _seed_presets(tmp_path: Path, store: dict[str, Any]) -> None:
 
 def test_a_saved_live_preset_holds_the_engines_current_filter(chain_api: Callable[..., TestClient]) -> None:
     # State reports the list INDEX, the preset stores the enum ID — which is what
-    # the live lane translates back on apply. Index 1 is enum ID 40 on the PCM
+    # the live lane translates back on apply. Index 54 is enum ID 25 on the PCM
     # chain, so a snapshot that skipped the join would store a different filter.
-    client = chain_api(filterNx="1")
-    assert client.put("/api/livepresets/Warm").json()["fields"]["filter"] == "40"
+    client = chain_api(filterNx="54")
+    assert client.put("/api/livepresets/Warm").json()["fields"]["filter"] == "25"
 
 
 def test_a_saved_live_preset_labels_its_values_with_display_names(chain_api: Callable[..., TestClient]) -> None:
     # The enumerations are engine-built and can shift under a stored preset, so
     # the card shows the name saved with it rather than re-resolving the ID.
-    client = chain_api(filterNx="1")
-    assert client.put("/api/livepresets/Warm").json()["names"]["filter"] == "poly-sinc-gauss-long"
+    client = chain_api(filterNx="54")
+    assert client.put("/api/livepresets/Warm").json()["names"]["filter"] == "sinc-M"
 
 
 def test_a_saved_live_preset_records_the_loaded_chain(live_api: TestClient) -> None:
@@ -71,11 +71,11 @@ def test_a_live_preset_does_not_record_the_playback_volume(live_api: TestClient)
 
 
 def test_applying_a_live_preset_lands_on_the_engine(chain_api: Callable[..., TestClient]) -> None:
-    client = chain_api(filterNx="1")
+    client = chain_api(filterNx="54")
     client.put("/api/livepresets/Warm")
-    client.post("/api/config/live", json={"fields": {"filter": "25"}})
+    client.post("/api/config/live", json={"fields": {"filter": "37"}})
     client.post("/api/livepresets/Warm/apply")
-    assert client.get("/api/state").json()["data"]["filterNx"] == "1"
+    assert client.get("/api/state").json()["data"]["filterNx"] == "54"
 
 
 def test_applying_a_live_preset_reports_each_setting_it_applied(live_api: TestClient) -> None:
@@ -101,13 +101,13 @@ def test_applying_a_preset_puts_the_engine_in_its_saved_mode(chain_api: Callable
 
 
 def test_applying_a_preset_from_the_other_chain_lands_its_filter(chain_api: Callable[..., TestClient]) -> None:
-    # sinc-M is enum 23 on the SDM chain and 25 on the PCM one, at index 1 and 2
+    # sinc-M is enum 23 on the SDM chain and 25 on the PCM one, at index 64 and 54
     # respectively: the mode has to be written first and the rest resolved against
     # the lists it swaps in, or the stored ID lands on the wrong chain's filter.
-    chain_api(mode="2", filterNx="1").put("/api/livepresets/Dark")
-    client = chain_api(mode="1", filterNx="2")
+    chain_api(mode="2", filterNx="64").put("/api/livepresets/Dark")
+    client = chain_api(mode="1", filterNx="54")
     client.post("/api/livepresets/Dark/apply")
-    assert client.get("/api/state").json()["data"]["filterNx"] == "1"
+    assert client.get("/api/state").json()["data"]["filterNx"] == "64"
 
 
 def test_a_listed_preset_reads_the_same_whichever_chain_the_engine_runs(

@@ -40,11 +40,13 @@ reaching it with no tab switch is itself part of the pinned behavior.
 """
 
 import re
+from pathlib import Path
 
 import pytest
 from playwright.sync_api import Locator, Page
 
 from e2e.support.stack import Stack
+from hqptuner.conf.formparse import parse_config_form
 
 #: Bounded waits, in ms. Generous: they are ceilings on a condition poll, never
 #: a duration anything is expected to take.
@@ -89,10 +91,18 @@ OK_NOTE = "footer.pending-bar .note.ok"
 FAIL_NOTE = "footer.pending-bar .note.err"
 RESULT_NOTE = f"{OK_NOTE}, {FAIL_NOTE}"
 
-#: The filter names the control fake's PCM chain enumerates over GetFilters. The
-#: running engine is the enumeration authority (architecture §3.1), so this is the
-#: list the LIVE filter selector must be offering.
-PCM_FILTER_NAMES = ["none", "poly-sinc-gauss-long", "sinc-M", "poly-sinc-short-mp"]
+#: The captured 6.0.4 config page, which the control fake's PCM chain mirrors over GetFilters.
+CAPTURE = Path(__file__).parent.parent / "support" / "fixtures" / "config-form-6.0.4.html"
+
+#: The filter names the page's `filter` select lists, in its order. The running
+#: engine is the enumeration authority (architecture §3.1), so this is the list
+#: the LIVE filter selector must be offering.
+PCM_FILTER_NAMES = [
+    option["label"]
+    for form_field in parse_config_form(CAPTURE.read_text())["fields"]
+    if form_field["name"] == "filter"
+    for option in form_field["options"]
+]
 
 #: The tabs the shell puts up, by their `data-testid`. Pinning these is what
 #: makes "the shell rendered" mean something: a skeleton carrying the right class
@@ -383,6 +393,6 @@ def test_an_engine_change_sent_by_no_command_shows_in_the_live_view(page: Page, 
     enter_live(page)
     wait_for_combobox_text(page, PCM_NX_KEY, PCM_FILTER_NAMES[0])
     before = combobox_value(page, PCM_NX_KEY)
-    stack.control_state["filterNx"] = "2"
+    stack.control_state["filterNx"] = "54"
     wait_for_combobox_change(page, PCM_NX_KEY, before)
     assert combobox_value(page, PCM_NX_KEY) == "sinc-M"

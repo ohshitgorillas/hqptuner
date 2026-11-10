@@ -48,9 +48,9 @@ XML1 = (
     b"</matrix></engine></hqplayerd>"
 )
 
-#: The live field the fake's PCM shaper list resolves: enum ID "5" is NS9 at
-#: list index "1"; enum ID "0" is none at index "0"; "999" is on no list.
-DITHER_NS9 = {"dither": "5"}
+#: The live field the fake's PCM shaper list resolves: enum ID "5" is TPDF at
+#: list index "7"; enum ID "0" is none at index "0"; "999" is on no list.
+DITHER_TPDF = {"dither": "5"}
 
 
 # --- matrixscope ---------------------------------------------------------------
@@ -152,7 +152,7 @@ async def _loaded(manager: ConnectionManager) -> dict[str, Any]:
 
 
 async def test_a_replay_with_no_daemon_says_the_engine_is_gone(dead_manager: ConnectionManager) -> None:
-    assert (await replay(dead_manager, dict(DITHER_NS9))).outcome is ReplayOutcome.UNREACHABLE
+    assert (await replay(dead_manager, dict(DITHER_TPDF))).outcome is ReplayOutcome.UNREACHABLE
 
 
 async def _replayed(live_manager: LiveManager, overrides: dict[str, str], fields: dict[str, str]) -> ReplayResult:
@@ -167,11 +167,11 @@ async def test_a_replay_of_fields_the_engine_already_holds_warns_of_nothing(live
 
 
 async def test_a_replay_the_daemon_refuses_warns_of_the_loss(live_manager: LiveManager) -> None:
-    assert (await _replayed(live_manager, {"_error": "SetShaping"}, DITHER_NS9)).outcome is ReplayOutcome.WRITE_FAILED
+    assert (await _replayed(live_manager, {"_error": "SetShaping"}, DITHER_TPDF)).outcome is ReplayOutcome.WRITE_FAILED
 
 
 async def test_a_replay_whose_readback_disagrees_warns_of_the_loss(live_manager: LiveManager) -> None:
-    assert (await _replayed(live_manager, {"_deaf": "SetShaping"}, DITHER_NS9)).outcome is ReplayOutcome.WRITE_FAILED
+    assert (await _replayed(live_manager, {"_deaf": "SetShaping"}, DITHER_TPDF)).outcome is ReplayOutcome.WRITE_FAILED
 
 
 async def _replayed_on(
@@ -188,11 +188,11 @@ async def _replayed_on(
 #: where the daemon is gone, or the engine already held it, refused it, or read
 #: back something else.
 RESTORED_FIELDS = [
-    pytest.param({}, DITHER_NS9, DITHER_NS9, id="verified"),
-    pytest.param(None, DITHER_NS9, {}, id="no-daemon"),
+    pytest.param({}, DITHER_TPDF, DITHER_TPDF, id="verified"),
+    pytest.param(None, DITHER_TPDF, {}, id="no-daemon"),
     pytest.param({}, {"dither": "0"}, {}, id="already-held"),
-    pytest.param({"_error": "SetShaping"}, DITHER_NS9, {}, id="refused"),
-    pytest.param({"_deaf": "SetShaping"}, DITHER_NS9, {}, id="readback-disagrees"),
+    pytest.param({"_error": "SetShaping"}, DITHER_TPDF, {}, id="refused"),
+    pytest.param({"_deaf": "SetShaping"}, DITHER_TPDF, {}, id="readback-disagrees"),
 ]
 
 
@@ -218,7 +218,7 @@ async def test_a_replay_reports_restored_only_the_fields_whose_setter_verified(
             ([], {}, {"mode": "pcm", "not_routable_field": "x"}),
             id="mode-stays-in-the-remainder",
         ),
-        pytest.param({"mode": "pcm", "dither": "5"}, ([], {"shaper": {"value": "1"}}, {}), id="routable-field-splits"),
+        pytest.param({"mode": "pcm", "dither": "5"}, ([], {"shaper": {"value": "7"}}, {}), id="routable-field-splits"),
     ],
 )
 async def test_a_mode_the_engine_already_runs_is_skipped_and_the_rest_is_split(
@@ -328,7 +328,7 @@ async def test_routed_fields_are_remembered_under_the_active_chain_only(
 ) -> None:
     manager, _log, _state = await live_manager()
     await _loaded(manager)
-    remember_routed(reshape(manager), [LiveWriteOk(setting="shaper")], dict(DITHER_NS9))
+    remember_routed(reshape(manager), [LiveWriteOk(setting="shaper")], dict(DITHER_TPDF))
     assert manager.readings.live.chain == expected
 
 

@@ -87,12 +87,12 @@ def _await_first_poll(client: TestClient, log: CommandLog) -> None:
 HOUSEKEEPING_COMMAND = "GetShapers"
 
 #: A live field on the chain the fake has loaded (PCM by default), written by
-#: value: enum 40 is `poly-sinc-gauss-long`, index 1 of the fake's PCM list, so
-#: `State.filterNx` moving to "1" is the engine's own word that it landed.
+#: value: enum 25 is `sinc-M`, index 54 of the fake's PCM list, so
+#: `State.filterNx` moving to "54" is the engine's own word that it landed.
 CLOSING_FIELD = "filter"
-CLOSING_VALUE = "40"
+CLOSING_VALUE = "25"
 CLOSING_STATE_ATTR = "filterNx"
-CLOSING_STATE_VALUE = "1"
+CLOSING_STATE_VALUE = "54"
 
 
 def _closing_app(tmp_path: Path) -> Iterator[tuple[TestClient, dict[str, str]]]:

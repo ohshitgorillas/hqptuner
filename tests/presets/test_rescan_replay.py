@@ -47,15 +47,15 @@ from hqptuner.lanes.rescan import ReplayOutcome
 from hqptuner.presets.store.presets import PresetStore
 
 #: What the engine holds before the rescan: PCM loaded, both filter slots at
-#: index 1 (poly-sinc-gauss-long), the NS9 shaper, adaptive volume on, the rate
+#: index 54 (sinc-M), the TPDF shaper, adaptive volume on, the rate
 #: pinned at PCM index 2 (352800 Hz), the 20k junk filter engaged and a matrix
 #: profile loaded. Every one of them differs from what the stopped engine comes
 #: back at, below.
 ENGINE_HELD = {
     "mode": "1",
-    "filter1x": "1",
-    "filterNx": "1",
-    "shaper": "1",
+    "filter1x": "54",
+    "filterNx": "54",
+    "shaper": "7",
     "adaptive": "1",
     "rate": "2",
     "filter_junk": "1",
@@ -94,12 +94,12 @@ HELD_SETTERS = [
 ]
 
 #: The same settings as the engine's live record names them: the enum ID the
-#: fake's enumeration gives index 1 on the PCM chain (filter 40, dither 5), the
+#: fake's enumeration gives indices 54 and 7 on the PCM chain (filter 25, dither 5), the
 #: form's word for the mode, and the bare flags.
 HELD_RESTORED = {
     "mode": "pcm",
-    "filter": "40",
-    "filter1x": "40",
+    "filter": "25",
+    "filter1x": "25",
     "dither": "5",
     "adaptive_volume": ENGINE_HELD["adaptive"],
     "junk_filter": ENGINE_HELD["filter_junk"],

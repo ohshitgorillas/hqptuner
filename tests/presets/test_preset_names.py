@@ -29,7 +29,7 @@ PAYLOAD = b"<hqplayerd/>"
 
 # The shape a live snapshot record has on the wire (see tests/live/test_live_presets.py);
 # the store treats it as opaque, so the contents only need to survive a round trip.
-RECORD = LiveRecord(chain="pcm", fields={"filter": "40"}, names={"filter": "poly-sinc-gauss-long"})
+RECORD = LiveRecord(chain="pcm", fields={"filter": "37"}, names={"filter": "poly-sinc-gauss-long"})
 
 # Names that break nothing and must therefore be accepted verbatim. Measured
 # against hqplayerd 6.0.4 on 2026-08-02: every one of these round-trips

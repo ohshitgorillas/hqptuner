@@ -3,7 +3,7 @@
 A field routes live only when the whole translation succeeds (``hqptuner/lanes/live/routing.py``): a mode the form
 does not name, a one-sided filter edit whose sibling the daemon's State cannot supply, and a field neither live
 table carries each fall back instead of reaching a setter. The manager is connected to the real-socket fake; the
-fake's State is moved between polls by writing to its shared dict. Enum 40 is poly-sinc-gauss-long at PCM index 1
+fake's State is moved between polls by writing to its shared dict. Enum 25 is sinc-M at PCM index 54
 and both filter slots start at index 0.
 """
 
@@ -47,14 +47,14 @@ async def test_a_mode_the_form_does_not_name_stays_on_the_restore_lane(live_mana
     assert rest == {"mode": "stereo"}
 
 
-@pytest.mark.parametrize(("sibling_known", "rest"), [(True, {}), (False, {"filter1x": "40"})])
+@pytest.mark.parametrize(("sibling_known", "rest"), [(True, {}), (False, {"filter1x": "25"})])
 async def test_a_one_sided_filter_edit_routes_live_only_while_state_carries_its_sibling(
     live_manager: LiveManager, clock: VirtualClock, *, sibling_known: bool, rest: dict[str, str]
 ) -> None:
     mgr, _log, state = await live_manager()
     if not sibling_known:
         await _state_read_without(mgr, state, clock, "filterNx")
-    _, left = routing.split_live(mgr, {"filter1x": "40"}, {})
+    _, left = routing.split_live(mgr, {"filter1x": "25"}, {})
     assert left == rest
 
 
@@ -63,7 +63,7 @@ async def test_a_one_sided_filter_edit_is_refused_live_while_state_lacks_its_sib
 ) -> None:
     mgr, _log, state = await live_manager()
     await _state_read_without(mgr, state, clock, "filterNx")
-    assert _refusal(mgr, {"filter1x": "40"}).reasons.keys() == {"filter1x"}
+    assert _refusal(mgr, {"filter1x": "25"}).reasons.keys() == {"filter1x"}
 
 
 async def test_a_field_neither_live_table_carries_is_refused(live_manager: LiveManager) -> None:
@@ -73,13 +73,13 @@ async def test_a_field_neither_live_table_carries_is_refused(live_manager: LiveM
 
 @pytest.mark.parametrize(
     ("sibling_known", "edits"),
-    [(True, {"filter": {"value1x": "1", "value": "0"}}), (False, {})],
+    [(True, {"filter": {"value1x": "54", "value": "0"}}), (False, {})],
 )
 async def test_a_remembered_chain_reasserts_a_filter_only_while_state_carries_the_other_half(
     live_manager: LiveManager, clock: VirtualClock, *, sibling_known: bool, edits: dict[str, dict[str, str]]
 ) -> None:
     mgr, _log, state = await live_manager()
-    mgr.readings.live.chain[PCM] = {"filter1x": "40"}
+    mgr.readings.live.chain[PCM] = {"filter1x": "25"}
     if not sibling_known:
         await _state_read_without(mgr, state, clock, "filterNx")
     assert routing.resolve_chain(mgr, PCM)[0] == edits

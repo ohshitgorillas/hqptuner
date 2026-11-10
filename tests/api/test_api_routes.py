@@ -172,12 +172,12 @@ def test_a_live_write_reports_each_setting_it_applied(live_api: TestClient) -> N
 
 
 def test_a_filter_value_is_translated_from_the_config_domain(chain_api: Callable[..., TestClient]) -> None:
-    # enum ID 23 is `sinc-M`, which sits at list INDEX 1 on the SDM chain. 23 is a
+    # enum ID 23 is `sinc-M`, which sits at list INDEX 64 on the SDM chain. 23 is a
     # plausible index as well, so a write that skipped the translation would land
     # on a different filter rather than fail (protocol.md §4 — never mix domains).
     client = chain_api(mode="2")
     client.post("/api/config/live", json={"fields": {"oversampling": "23"}})
-    assert client.get("/api/state").json()["data"]["filterNx"] == "1"
+    assert client.get("/api/state").json()["data"]["filterNx"] == "64"
 
 
 def test_a_one_sided_filter_write_keeps_its_sibling(chain_api: Callable[..., TestClient]) -> None:

@@ -1,6 +1,7 @@
 """The fake 8088 `/config` page is the captured 6.0.4 page (docs/testing.md rule 13).
 
-A test's choices come from the page, so the fake serves the capture whole. Both pages are read by
+A test's choices come from the page, so the fake serves the capture whole and the fake 4321
+enumerates the same filter, oversampling, dither and modulator IDs. Both pages are read by
 `parse_config_form`, so the comparison is select for select and option for option.
 """
 
@@ -11,6 +12,8 @@ from pathlib import Path
 import fake_http
 import httpx
 import pytest
+from defusedxml.ElementTree import fromstring
+from fake_control import DEFAULTS, handle
 from fake_network import http_transport
 
 from hqptuner.conf.formparse import parse_config_form
@@ -18,6 +21,13 @@ from hqptuner.conf.httpforms import ConfigForm, FormField
 
 FIXTURE = Path(__file__).parent.parent.parent / "support" / "fixtures" / "config-form-6.0.4.html"
 HOST = "127.0.0.1"
+#: (the page's select, the fake 4321 command that enumerates it, the mode it answers in: 1 is PCM, 2 is SDM)
+LISTS = (
+    ("filter", "GetFilters", "1"),
+    ("oversampling", "GetFilters", "2"),
+    ("dither", "GetShapers", "1"),
+    ("modulator", "GetShapers", "2"),
+)
 FIELD_TYPES = (("filter", "select"), ("samplerate", "select"), ("bitrate", "select"), ("channels", "number"))
 
 _serving = contextlib.contextmanager(fake_http.spawn)
@@ -53,6 +63,13 @@ def _field(form: ConfigForm, name: str) -> FormField:
     return next(f for f in form["fields"] if f["name"] == name)
 
 
+def _enumerated_ids(command: str, mode: str) -> list[str]:
+    reply = handle(f"<{command}/>", {**DEFAULTS, "mode": mode})
+    if not isinstance(reply, str):
+        raise TypeError(command)
+    return [item.get("value", "") for item in fromstring(reply)]
+
+
 def test_fake_page_carries_the_same_select_fields_as_the_capture() -> None:
     assert _selects(_served()).keys() == _selects(_captured()).keys()
 
@@ -60,6 +77,11 @@ def test_fake_page_carries_the_same_select_fields_as_the_capture() -> None:
 @pytest.mark.parametrize("name", sorted(_selects(_captured())))
 def test_fake_page_select_carries_the_captures_options(name: str) -> None:
     assert _selects(_served()).get(name) == _selects(_captured())[name]
+
+
+@pytest.mark.parametrize(("select", "command", "mode"), LISTS)
+def test_fake_control_enumerates_the_pages_ids(select: str, command: str, mode: str) -> None:
+    assert _enumerated_ids(command, mode) == _selects(_captured())[select]
 
 
 @pytest.mark.parametrize(("name", "kind"), FIELD_TYPES)

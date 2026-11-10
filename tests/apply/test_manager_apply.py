@@ -38,17 +38,17 @@ async def test_http_edit_without_credentials_reports_error() -> None:
 # --- live routing of persistent form fields (lanes/live/routing.py) ---------------
 # Seven /config fields have exact Control API equivalents, so they apply live
 # instead of riding a restart. The fake daemon starts in PCM (mode="1") with
-# both filter slots at index 0, and enum 40 is poly-sinc-gauss-long at PCM index 1.
+# both filter slots at index 0, and enum 37 is poly-sinc-gauss-long on the PCM chain (enum 40 on the SDM one).
 
 
 def test_a_dormant_chains_field_stays_on_the_restore_lane(running_manager: ConnectionManager) -> None:
-    _, rest = routing.split_live(running_manager, {"oversampling": "38"}, {})
-    assert rest == {"oversampling": "38"}
+    _, rest = routing.split_live(running_manager, {"oversampling": "40"}, {})
+    assert rest == {"oversampling": "40"}
 
 
 def test_a_mode_change_beside_a_filter_defers_the_whole_batch(running_manager: ConnectionManager) -> None:
-    _, rest = routing.split_live(running_manager, {"mode": "sdm", "filter": "40"}, {})
-    assert rest == {"mode": "sdm", "filter": "40"}
+    _, rest = routing.split_live(running_manager, {"mode": "sdm", "filter": "37"}, {})
+    assert rest == {"mode": "sdm", "filter": "37"}
 
 
 def test_a_save_omits_the_dormant_chains_fields(running_manager: ConnectionManager) -> None:

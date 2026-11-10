@@ -15,8 +15,8 @@ applied shaper index.
 
 The control fake starts with the PCM chain loaded (mode="1"); the 8088 fake's
 config file is pinned to agree (mode "pcm", dither enum "0"). On the fake's PCM
-shaper list enum ID "5" (NS9) sits at list index "1", so a correctly translated
-`SetShaping` carries value="1" and `State` reads shaper="1" back.
+shaper list enum ID "5" (TPDF) sits at list index "7", so a correctly translated
+`SetShaping` carries value="7" and `State` reads shaper="7" back.
 """
 
 from collections.abc import Iterator
@@ -158,13 +158,13 @@ def test_a_pure_live_dither_apply_never_restarts_the_daemon(
 
 @pytest.mark.parametrize(
     ("fields", "expected"),
-    [({"dither": "5"}, ["1"]), ({"dither": "5", "title": "Renamed"}, [])],
+    [({"dither": "5"}, ["7"]), ({"dither": "5", "title": "Renamed"}, [])],
     ids=["alone", "beside_restart"],
 )
 def test_a_dither_beside_a_restart_field_sends_no_setshaping_but_alone_it_does(
     client: TestClient, control_log: CommandLog, fields: dict[str, str], expected: list[str]
 ) -> None:
-    # enum ID "5" is NS9 at PCM list index "1": the setter speaks indices, the
+    # enum ID "5" is TPDF at PCM list index "7": the setter speaks indices, the
     # file speaks enum IDs, and the two must never mix (protocol.md §4) — so
     # applied alone exactly one SetShaping goes out and it carries the index,
     # never the ID; sharing the batch with a restart field defers it entirely.
@@ -193,11 +193,11 @@ def test_the_shared_restore_carries_the_restart_field_too(client: TestClient, pc
 
 def test_the_config_file_view_reports_the_restored_dither(client: TestClient) -> None:
     # the restore self-restarted the daemon, whose State now reports the
-    # restored file (shaper index "1" = enum "5" on the PCM list); once the
+    # restored file (shaper index "7" = enum "5" on the PCM list); once the
     # manager's poll has caught up with the restarted engine, the file view's
     # live overlay must agree with the file instead of shadowing it
     _apply_staged(client, {"dither": "5", "title": "Renamed"})
-    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["shaper"] == "1")
+    wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["shaper"] == "7")
     assert client.get("/api/config").json()["data"]["file"]["dither"] == "5"
 
 
@@ -240,11 +240,11 @@ def test_autosave_keeps_the_applied_dither_across_a_live_mode_switch(client: Tes
 def test_a_live_mode_round_trip_ends_on_the_applied_shaper_index(client: TestClient) -> None:
     # SetMode swaps the shaper enumeration wholesale (protocol.md §SetMode), so
     # coming back to PCM must land the engine on the dither the user applied —
-    # index "1" is where enum "5" sits on the fake's PCM list
+    # index "7" is where enum "5" sits on the fake's PCM list
     _apply_staged(client, {"dither": "5"})
     client.post("/api/config/live", json={"fields": {"mode": "sdm"}})
     # prove the switch LANDED before coming back: a live route that no-ops
     # would leave the engine in PCM and the round trip would never happen
     wait_for_api(client, lambda c: c.get("/api/state").json()["data"]["mode"] == "2")
     client.post("/api/config/live", json={"fields": {"mode": "pcm"}})
-    assert client.get("/api/state").json()["data"]["shaper"] == "1"
+    assert client.get("/api/state").json()["data"]["shaper"] == "7"

@@ -60,7 +60,7 @@ PCM_NX_KEY = "pcm_filter_nx"
 #: serves for the PCM chain, not the row index.
 NONE = "0"
 SINC_M = "25"
-SHORT_MP = "57"
+SHORT_MP = "9"
 
 
 def open_live_filters(page: Page, stack: Stack) -> None:
