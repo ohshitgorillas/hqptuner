@@ -4,6 +4,9 @@ HQPTuner needs the 4321 control lane and the 8088 config lane together. This mod
 makes: which requests it holds (`decide`) and the refusal a not-ready app answers (`refusal`).
 """
 
+from fastapi.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
+
 from hqptuner.api.crosssite import STATE_CHANGING
 from hqptuner.api.deps import GetFormFailedError
 from hqptuner.api.errors import ApiError, refuse
@@ -65,3 +68,26 @@ def decide(path: str, method: str) -> Access:
         return Access.ALLOW
     open_write = (method, path) in OPEN_WRITES or _is_own_preset_write(method, path)
     return Access.ALLOW if open_write else Access.DENY
+
+
+class ReadyGate:
+    """ASGI wrapper that refuses a held request while the app is not ready, in the API's shared error shape.
+
+    It reads `ConnectionManager.ready` and nothing else, so no flag can drift from the two lanes' state. It sits behind
+    the login gate: an unauthenticated write answers `login_required`.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        """Wrap ``app``."""
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Pass the request on unchanged, or answer the not-ready refusal instead."""
+        if scope["type"] == "http" and decide(scope["path"], scope["method"]) is Access.DENY:
+            manager: ConnectionManager = scope["app"].state.manager
+            if not manager.ready:
+                refused = refusal(manager)
+                body = {"detail": refused.detail, "code": refused.code}
+                await JSONResponse(body, status_code=refused.status_code)(scope, receive, send)
+                return
+        await self.app(scope, receive, send)

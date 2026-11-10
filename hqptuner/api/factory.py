@@ -8,6 +8,7 @@ from hqptuner.api import errors, login
 from hqptuner.api.crosssite import CrossSiteGuard
 from hqptuner.api.gate import LoginGate
 from hqptuner.api.lifespan import make_lifespan
+from hqptuner.api.readygate import ReadyGate
 from hqptuner.api.routes import (
     apply,
     autopilot,
@@ -72,6 +73,8 @@ def create_app(cfg: Config | None = None, clock: Clock | None = None, network: N
         title="HQPTuner", lifespan=make_lifespan(cfg, manager), docs_url=None, redoc_url=None, openapi_url=None
     )
     errors.install(app)
+    # Behind the login gate (installed first, so it runs after it): an unauthenticated write answers `login_required`.
+    app.add_middleware(ReadyGate)
     app.add_middleware(LoginGate)
     # Outermost, so a cross-site request is refused whatever cookie it carries.
     app.add_middleware(CrossSiteGuard)
