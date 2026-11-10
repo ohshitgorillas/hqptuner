@@ -5,33 +5,24 @@ connects on its own, applies a live edit, and the report reflects the
 State readback the daemon actually returns."""
 
 import dataclasses
-from collections.abc import AsyncIterator
 
 import pytest
 from conftest import LiveManager
-from fake_network import NETWORK
-from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
+from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.live import overrides, routing
 
 
 @pytest.fixture
-async def running_manager(live_daemon_port: int) -> AsyncIterator[ConnectionManager]:
-    manager = ConnectionManager(
-        Config(hqp_host="127.0.0.1", hqp_control_port=live_daemon_port), clock=VirtualClock(), network=NETWORK
-    )
-    task = manager.clock.spawn(manager.run())
-    yield manager
-    manager.stop()
-    await task
-    await manager.aclose()
+async def running_manager(live_manager: LiveManager) -> ConnectionManager:
+    manager, _log, _state = await live_manager()
+    return manager
 
 
-async def test_http_edit_without_credentials_reports_error() -> None:
-    manager = ConnectionManager(Config(), clock=VirtualClock(), network=NETWORK)  # no http client configured
-    report = await manager.applyops.apply({}, {"channels": "2"})
+async def test_http_edit_without_credentials_reports_error(running_manager: ConnectionManager) -> None:
+    running_manager.http_client = None  # the 8088 client is gone: no credentials are configured
+    report = await running_manager.applyops.apply({}, {"channels": "2"})
     assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"
 
 
@@ -90,7 +81,8 @@ async def test_a_mode_batch_with_a_leftover_field_keeps_the_chain_field_off_the_
 
 
 async def test_the_leftover_field_rides_the_persistent_lane(running_manager: ConnectionManager) -> None:
-    # running_manager has no HTTP credentials, so the restore lane reports the
-    # submission it could not make rather than staying silent (persistent None).
+    # the 8088 lane stands, so the restore lane submits the batch rather than declining it (persistent None is no lane)
     report = await running_manager.applyops.apply({}, {"mode": "sdm", "modulator": "3", "channels": "2"})
-    assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"
+    persistent = report.persistent
+    assert persistent is not None
+    assert persistent.outcome is not RestoreOutcome.NOT_SUBMITTED

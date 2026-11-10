@@ -9,21 +9,14 @@ refuse every `State` from that point on through its `_error` knob. The claim is 
 ``manager.readings.state`` after the refusal, which only the earlier, good reading could have supplied.
 """
 
-from collections.abc import AsyncIterator, Awaitable, Callable
-from dataclasses import replace
-from typing import TYPE_CHECKING
+from collections.abc import Awaitable, Callable
 
 import pytest
-from apps import advanced, settled
-from conftest import DaemonFactory
-from fake_network import NETWORK
+from apps import advanced
+from conftest import LiveManager
 from virtual_clock import VirtualClock
 
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
-
-if TYPE_CHECKING:
-    import asyncio
 
 #: The `State` attribute the claim reads, and the index the fake engine holds it at before and after the refusal.
 HELD_FIELD, HELD_INDEX = "filterNx", "2"
@@ -41,25 +34,13 @@ Started = Callable[[float | None], Awaitable[tuple[ConnectionManager, dict[str, 
 
 
 @pytest.fixture
-async def started(daemon: DaemonFactory, clock: VirtualClock) -> AsyncIterator[Started]:
-    runs: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
-
+def started(live_manager: LiveManager) -> Started:
     async def start(poll_interval: float | None) -> tuple[ConnectionManager, dict[str, str]]:
-        port, _log, state = await daemon(**{HELD_FIELD: HELD_INDEX})
-        cfg = Config(hqp_host="127.0.0.1", hqp_control_port=port)
-        if poll_interval is not None:
-            cfg = replace(cfg, poll_interval=poll_interval)
-        manager = ConnectionManager(cfg, clock=clock, network=NETWORK)
-        task = clock.spawn(manager.run())
-        runs.append((manager, task))
-        await settled(clock)
+        config = {} if poll_interval is None else {"poll_interval": poll_interval}
+        manager, _log, state = await live_manager(config=config, **{HELD_FIELD: HELD_INDEX})
         return manager, state
 
-    yield start
-    for manager, task in runs:
-        manager.stop()
-        await task
-        await manager.aclose()
+    return start
 
 
 def _refuse_state(state: dict[str, str]) -> None:

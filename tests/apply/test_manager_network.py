@@ -8,17 +8,18 @@ import contextlib
 import functools
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
 import fake_network
 import pytest
 from apps import METADATA_MIN, closed_port, settle_app, settled
+from conftest import StartManager
 from fake_control import DEFAULTS, serve_shared
 from fastapi.testclient import TestClient
 from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.config import Config
-from hqptuner.core.manager import ConnectionManager
 
 
 @contextlib.contextmanager
@@ -32,19 +33,15 @@ def _control_port(*, served: bool) -> Iterator[int]:
 
 
 @pytest.mark.parametrize("served", [True, False])
-async def test_a_manager_handed_the_network_is_reachable_where_a_daemon_is_served(*, served: bool) -> None:
-    clock = VirtualClock()
-    with _control_port(served=served) as port:
-        manager = ConnectionManager(
-            Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock, network=fake_network.NETWORK
-        )
-        task = clock.spawn(manager.run())
+async def test_a_manager_handed_the_network_is_reachable_where_a_daemon_is_served(
+    start_manager: StartManager, http_daemon: dict[str, Any], clock: VirtualClock, *, served: bool
+) -> None:
+    manager = await start_manager(http_daemon["_port"])
+    if not served:
+        manager.cfg.hqp_control_port = closed_port()
+        await manager.retarget()
         await settled(clock)
-        reachable = manager.reachable
-        manager.stop()
-        await task
-        await manager.aclose()
-    assert reachable is served
+    assert manager.reachable is served
 
 
 @pytest.mark.parametrize("served", [True, False])

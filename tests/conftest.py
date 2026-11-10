@@ -241,7 +241,8 @@ async def live_manager(
 
     Every manager reads its own fake 8088 daemon (``http_lanes`` holds its state), so
     ``ready`` is true on handover or the builder raises. Keyword arguments are the
-    4321 daemon's State overrides — ``rate="2"`` starts the engine already pinned,
+    4321 daemon's State overrides (``config`` is the one exception: a mapping of
+    ``Config`` fields for the manager) — ``rate="2"`` starts the engine already pinned,
     ``mode="2"`` starts it with the SDM chain loaded, ``_deaf="SetMode"`` starts one
     whose ``SetMode`` answers OK without applying (protocol.md §4: OK is not proof).
     A case that waits on the manager's own poll loop advances the clock by a
@@ -250,16 +251,17 @@ async def live_manager(
     runs = Runs(clock)
     with contextlib.ExitStack() as served:
 
-        async def build(**overrides: str) -> LiveBuilt:
+        async def build(*, config: Mapping[str, object] = MappingProxyType({}), **overrides: str) -> LiveBuilt:
             port, log, state = await daemon(**overrides)
             http_state = serve_http_lane(served)
-            cfg = Config(
-                hqp_host="127.0.0.1",
-                hqp_control_port=port,
-                hqp_http_port=http_state["_port"],
-                backup_dir=tmp_path / "backups",
-                preset_dir=tmp_path / "presets",
-            )
+            defaults: dict[str, Any] = {
+                "hqp_host": "127.0.0.1",
+                "hqp_control_port": port,
+                "hqp_http_port": http_state["_port"],
+                "backup_dir": tmp_path / "backups",
+                "preset_dir": tmp_path / "presets",
+            }
+            cfg = Config(**{**defaults, **config})
             manager = await runs.start(cfg, http_client_of(http_state["_port"]))
             http_lanes[manager] = http_state
             return manager, log, state

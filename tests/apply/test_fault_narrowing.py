@@ -13,7 +13,7 @@ construct for either fake produces such a fault. Empty bodies, non-form pages,
 non-numeric values in a ``type="number"`` input and a State carrying a non-numeric
 volume, mode, filter index or ``RatesItem`` were all tried and all parse clean.
 That is a statement about what we could build, not a pinned property of the
-parsers. Those cases are injected through the manager's public constructor seam
+parsers. Those cases are injected through the manager's public ``http_client`` seam
 instead — see
 ``FaultingMatrixClient`` at the foot of this file, and the reading of
 docs/testing.md rule 4 recorded above it.
@@ -29,11 +29,9 @@ import pytest
 from conftest import ManagerFactory, StartManager
 from fake_network import NETWORK
 from narrow import present
-from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.conf.httpforms import MatrixForm
-from hqptuner.config import Config
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http import forms
 from hqptuner.lanes.http.forms import FormsOutcome
@@ -176,8 +174,8 @@ async def test_a_healthy_pass_records_no_error_but_a_refusing_route_does(
 # --- the other half: an UNEXPECTED fault must not be swallowed ----------------
 # Neither fake can serve a body that makes a parser raise (see the module
 # docstring), so the fault is injected where a caller could inject it: the 8088
-# client is a public constructor argument of ConnectionManager, and this subclass
-# is passed as that argument. docs/testing.md rule 4 forbids stubbing a client's
+# client is a public attribute of ConnectionManager, and this subclass is set as
+# that attribute on a ready manager. docs/testing.md rule 4 forbids stubbing a client's
 # own methods in order to test THAT client; here the client is a collaborator
 # handed in through a documented public seam and the subject under test is the
 # manager's own fault classification. Nothing else is patched: no manager method,
@@ -197,28 +195,16 @@ class FaultingMatrixClient(HttpConfigClient):
 
 @pytest.fixture
 async def faulting_matrix(
-    live_daemon_port: int, http_daemon: dict[str, Any], tmp_path: Path
+    start_manager: StartManager, http_daemon: dict[str, Any]
 ) -> AsyncIterator[tuple[ConnectionManager, FaultingMatrixClient]]:
-    """A manager on a HEALTHY 4321 fake whose 8088 lane raises an unexpected
-    fault. Built by hand rather than from ``start_manager``: that fixture builds
-    its own client and waits for a completed poll, which a client that always
-    raises never delivers."""
+    """A ready manager on a HEALTHY 4321 fake whose 8088 client is then replaced,
+    mid-run, by one that raises an unexpected fault."""
+    manager = await start_manager(http_daemon["_port"])
     client = FaultingMatrixClient(
         "127.0.0.1", http_daemon["_port"], "u", "p", NETWORK.http_options("127.0.0.1", http_daemon["_port"])
     )
-    manager = ConnectionManager(
-        Config(
-            hqp_host="127.0.0.1",
-            hqp_control_port=live_daemon_port,
-            backup_dir=tmp_path / "backups",
-            preset_dir=tmp_path / "presets",
-        ),
-        client,
-        VirtualClock(),
-        NETWORK,
-    )
+    manager.http_client = client
     yield manager, client
-    await manager.aclose()
     await client.aclose()
 
 
