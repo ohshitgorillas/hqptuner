@@ -22,6 +22,7 @@ from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 import apps
+import fake_http
 import fake_network
 import pytest
 from apps import settled
@@ -179,33 +180,74 @@ DaemonFactory = Callable[..., Awaitable[tuple[int, CommandLog, dict[str, str]]]]
 LiveBuilt = tuple[ConnectionManager, CommandLog, dict[str, str]]
 LiveManager = Callable[..., Awaitable[LiveBuilt]]
 
+#: Each manager the builders below hand over, and the state of the fake 8088 daemon it reads: writing to that state,
+#: or calling its ``_take_lane_down``, is how a case says the configuration lane changed mid-run.
+HttpLanes = dict[ConnectionManager, dict[str, Any]]
+
 
 @pytest.fixture
-async def live_manager(daemon: DaemonFactory, clock: VirtualClock) -> AsyncIterator[LiveManager]:
-    """Build managers on fake daemons, each connected and idle on the clock
-    when handed over, stopping each at teardown.
+def http_lanes() -> HttpLanes:
+    return {}
 
-    Keyword arguments are the daemon's State overrides — ``rate="2"`` starts the
-    engine already pinned, ``mode="2"`` starts it with the SDM chain loaded,
-    ``_deaf="SetMode"`` starts one whose ``SetMode`` answers OK without applying
-    (protocol.md §4: OK is not proof). A case that waits on the manager's own
-    poll loop advances the clock by a ``poll_interval``.
+
+def serve_http_lane(served: contextlib.ExitStack, **extra: object) -> dict[str, Any]:
+    """A fake 8088 daemon on the in-process network until ``served`` closes; ``extra`` overrides its state."""
+    return served.enter_context(contextlib.contextmanager(fake_http.spawn)(fake_http.state(**extra), in_process=True))
+
+
+def ready_or_raise(manager: ConnectionManager) -> ConnectionManager:
+    """``manager``, which a builder hands over only once both lanes stand; a builder that cannot get there raises."""
+    if not manager.ready:
+        raise FixtureError(
+            reason=f"the manager is not ready: connected={manager.connected.is_set()}, "
+            f"http_ok={manager.readings.http_ok}, config_error={manager.readings.config_error!r}"
+        )
+    return manager
+
+
+@pytest.fixture
+async def live_manager(
+    daemon: DaemonFactory, clock: VirtualClock, tmp_path: Path, http_lanes: HttpLanes
+) -> AsyncIterator[LiveManager]:
+    """Build managers on fake daemons, each connected on both lanes and idle on the
+    clock when handed over, stopping each at teardown.
+
+    Every manager reads its own fake 8088 daemon (``http_lanes`` holds its state), so
+    ``ready`` is true on handover or the builder raises. Keyword arguments are the
+    4321 daemon's State overrides — ``rate="2"`` starts the engine already pinned,
+    ``mode="2"`` starts it with the SDM chain loaded, ``_deaf="SetMode"`` starts one
+    whose ``SetMode`` answers OK without applying (protocol.md §4: OK is not proof).
+    A case that waits on the manager's own poll loop advances the clock by a
+    ``poll_interval``.
     """
-    started: list[tuple[ConnectionManager, asyncio.Task[None]]] = []
+    started: list[tuple[ConnectionManager, asyncio.Task[None], HttpConfigClient]] = []
+    with contextlib.ExitStack() as served:
 
-    async def build(**overrides: str) -> LiveBuilt:
-        port, log, state = await daemon(**overrides)
-        manager = ConnectionManager(Config(hqp_host="127.0.0.1", hqp_control_port=port), clock=clock, network=NETWORK)
-        task = clock.spawn(manager.run())
-        started.append((manager, task))
-        await settled(clock)
-        return manager, log, state
+        async def build(**overrides: str) -> LiveBuilt:
+            port, log, state = await daemon(**overrides)
+            http_state = serve_http_lane(served)
+            http_port = http_state["_port"]
+            http = HttpConfigClient("127.0.0.1", http_port, "u", "p", NETWORK.http_options("127.0.0.1", http_port))
+            cfg = Config(
+                hqp_host="127.0.0.1",
+                hqp_control_port=port,
+                hqp_http_port=http_port,
+                backup_dir=tmp_path / "backups",
+                preset_dir=tmp_path / "presets",
+            )
+            manager = ConnectionManager(cfg, http, clock, NETWORK)
+            task = clock.spawn(manager.run())
+            started.append((manager, task, http))
+            await settled(clock)
+            http_lanes[manager] = http_state
+            return ready_or_raise(manager), log, state
 
-    yield build
-    for manager, task in started:
-        manager.stop()
-        await task
-        await manager.aclose()
+        yield build
+        for manager, task, http in started:
+            manager.stop()
+            await task
+            await manager.aclose()
+            await http.aclose()
 
 
 # --- a manager running BOTH lanes, 4321 and 8088 ----------------------------
