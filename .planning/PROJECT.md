@@ -28,11 +28,12 @@ Configuring HQPlayer Embedded is easier to learn and use than the stock UI, and 
 
 ### Active
 
-Milestone v2.0.0. This roadmap covers landing the rebuild-integrate design (`docs/superpowers/specs/rebuild-integrate-design.md`, steps 12 and 13) under the accepted testing policy.
+Milestone v2.0.0-dev.2, a work-in-progress cycle on `v2`; release 2.0.0 stays with the cutover (CUT-01). The previous cycle (v2.0.0, closed 2026-11-09, no release) landed the rebuild-integrate design and the meter playhead; its rows are under `REQUIREMENTS.md` `## Shipped` and its record in `.planning/ARCHIVE.md` and `.planning/_archive-v2.0.0/`.
 
-- [ ] The JS test baseline in the integration worktree is recovered to zero failures
-- [ ] Every remaining test and support under `tests/js/` is ported off retired shapes
-- [ ] `make check` is green on `rebuild/integrate`, and it merges into `v2`
+- [ ] The six deferred defects (BUG-01 to BUG-06) are fixed
+- [ ] Each triaged untested behavior in `todo.txt` is covered by a test or struck (TEST-01)
+- [ ] The new "aclean" filters have entries in the shipped filter data (FILT-01)
+- [ ] The trace is gone from the visualizer effects other than the spectrum, such as Borealis (SPEC-02)
 
 ### Out of Scope
 
@@ -76,4 +77,4 @@ Milestone v2.0.0. This roadmap covers landing the rebuild-integrate design (`doc
 
 ---
 
-*Last updated: 2026-11-05 after /cad-adopt*
+*Last updated: 2026-11-09 after /cad-milestone (v2.0.0 closed, v2.0.0-dev.2 opened)*

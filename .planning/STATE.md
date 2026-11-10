@@ -1,6 +1,6 @@
 # State
 
-Phase: 4 of 5 (Integrate into v2)
-Status: phase complete
-Next: /cad-milestone (audit gate precedes any ship)
+Phase: 1 of 0 (no active cycle)
+Status: ready to plan
+Next: /cad-phase add
 Updated: 2026-11-10

@@ -8,18 +8,30 @@
 
 Committed scope. Each maps to exactly one roadmap phase.
 
-### Integration
+### Defects
 
+- **BUG-01**: User can save a snapshot to one station without it disappearing from another station.
+- **BUG-02**: User is offered only modulators the running output rate supports, and a live apply that stops playback reports the stop instead of ok.
+- **BUG-03**: User sees the HF filter lamp lit only for content the filter acts on.
+- **BUG-04**: User can apply PCM filters while in SDM output mode without the engine resetting.
+- **BUG-05**: User sees the app dimmed while HQPlayer is unavailable or disconnected.
+- **BUG-06**: User who clicks "Open HQPTuner" in a packaged build gets the app in the browser.
 
-### Metering
+### Filters
 
+- **FILT-01**: User finds an entry for each new "aclean" filter in the shipped filter data, with an empty description and no simplified name.
+
+### Visualizer
+
+- **SPEC-02**: User sees no trace on the visualizer effects other than the spectrum, such as Borealis.
+
+### Test debt
+
+- **TEST-01**: Owner can find each behavior on `todo.txt`'s triaged "untested behaviors" list covered by a test, or struck from the list.
 
 ## Shipped
 
-Delivered and verified. Kept as rows for shipped-scope trace; git history
-holds the full requirement text. Archived out of `## Traceability` so a new
-milestone's audit starts clean (the audit seam parses only the Traceability
-table).
+Delivered and verified. Kept as rows for shipped-scope trace; git history holds the full requirement text. Archived out of `## Traceability` so a new milestone's audit starts clean (the audit seam parses only the Traceability table).
 
 | Requirement | Phase | Status | Milestone |
 |-------------|-------|--------|-----------|
@@ -39,23 +51,10 @@ Deferred. Tracked, not in the current roadmap.
 - **STAT-01**: User can build a station from scratch through the Station builder's Overview and ten steps, backed by NAA bring-up, IPv6 detection, USB listing, Connection check and 48k-family DSD probes that each idle-gate, restore and verify by readback.
 - **STAT-02**: User can delete a preset from the Station builder.
 
-### Defects
-
-- **BUG-01**: User can save a snapshot to one station without it disappearing from another station.
-- **BUG-02**: User is offered only modulators the running output rate supports, and a live apply that stops playback reports the stop instead of ok.
-- **BUG-03**: User sees the HF filter lamp lit only for content the filter acts on.
-- **BUG-04**: User can apply PCM filters while in SDM output mode without the engine resetting.
-- **BUG-05**: User sees the app dimmed while HQPlayer is unavailable or disconnected.
-- **BUG-06**: User who clicks "Open HQPTuner" in a packaged build gets the app in the browser.
-
 ### Features
 
 - **HF-01**: User gets HF filter recommendations only; the HF auto-pilot no longer engages a filter.
 - **SPEC-01**: User can switch the spectrum between sum, left and right.
-
-### Test debt
-
-- **TEST-01**: Owner can find each behavior on `todo.txt`'s triaged "untested behaviors" list covered by a test, or struck from the list.
 
 ### Held
 
@@ -88,4 +87,4 @@ Bare headers - `/cad-plan` seeds a row per requirement when its phase is planned
 
 ---
 
-*Last updated: 2026-11-05 after /cad-adopt*
+*Last updated: 2026-11-09 after /cad-milestone (v2.0.0-dev.2 opened)*
