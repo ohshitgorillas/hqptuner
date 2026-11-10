@@ -8,8 +8,10 @@ from typing import Any
 
 import httpx
 import pytest
+from apps import blank_the_managers_pair
 from conftest import ManagerFactory
 from narrow import present
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.core.manager import ConnectionManager
@@ -52,8 +54,10 @@ async def test_reading_the_default_preset_serves_the_running_config(http_manager
 # --- apply_engine error returns ------------------------------------------------
 
 
-async def test_apply_engine_without_credentials_declines_the_http_lane(http_manager: ConnectionManager) -> None:
-    http_manager.http_client = None
+async def test_apply_engine_without_credentials_declines_the_http_lane(
+    http_manager: ConnectionManager, clock: VirtualClock, tmp_path: Path
+) -> None:
+    await blank_the_managers_pair(http_manager, clock, tmp_path / "connection.json")
     with pytest.raises(HttpLaneDeclinedError):
         await http_manager.applyops.apply_engine({"cuda": "0"})
 

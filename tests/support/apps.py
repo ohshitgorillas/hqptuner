@@ -20,8 +20,10 @@ from virtual_clock import VirtualClock
 
 from hqptuner.api.factory import create_app
 from hqptuner.api.gate import LOGIN_COOKIE
+from hqptuner.api.routes.connection import apply_connection
 from hqptuner.config import Config
 from hqptuner.core.clock import Clock
+from hqptuner.core.connection import ConnectionRecord, ConnectionStore
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.metadata import StaticMetadata
 
@@ -146,6 +148,19 @@ def blank_the_pair(client: TestClient) -> None:
     if response.status_code != 200:
         raise FixtureError(reason=f"the blank pair was refused with HTTP {response.status_code}: {response.text}")
     wait_for_api(client, lambda c: not _ready(c))
+
+
+async def blank_the_managers_pair(manager: ConnectionManager, clock: VirtualClock, connection_file: Path) -> None:
+    """Save a blank username and password onto ``manager`` the way the connection route does, with no app around it.
+
+    The save installs no 8088 client, takes the lanes down and wakes the poll loop; returns once the loop has settled
+    again on the clock, so the manager reads unready. ``connection_file`` is where the save lands.
+    """
+    record = ConnectionRecord(host=manager.cfg.hqp_host, username="", password="", remember=False)
+    await apply_connection(manager.cfg, ConnectionStore(connection_file), manager, record)
+    await settled(clock)
+    if manager.ready:
+        raise FixtureError(reason="the manager still reads ready after its pair was blanked")
 
 
 def log_in(client: TestClient, *, remember: bool = False) -> TestClient:

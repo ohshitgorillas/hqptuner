@@ -5,9 +5,12 @@ connects on its own, applies a live edit, and the report reflects the
 State readback the daemon actually returns."""
 
 import dataclasses
+from pathlib import Path
 
 import pytest
+from apps import blank_the_managers_pair
 from conftest import LiveManager
+from virtual_clock import VirtualClock
 
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.restore import RestoreOutcome
@@ -20,8 +23,10 @@ async def running_manager(live_manager: LiveManager) -> ConnectionManager:
     return manager
 
 
-async def test_http_edit_without_credentials_reports_error(running_manager: ConnectionManager) -> None:
-    running_manager.http_client = None  # the 8088 client is gone: no credentials are configured
+async def test_http_edit_without_credentials_reports_error(
+    running_manager: ConnectionManager, clock: VirtualClock, tmp_path: Path
+) -> None:
+    await blank_the_managers_pair(running_manager, clock, tmp_path / "connection.json")
     report = await running_manager.applyops.apply({}, {"channels": "2"})
     assert dataclasses.asdict(report)["persistent"]["code"] == "no_http_client"
 

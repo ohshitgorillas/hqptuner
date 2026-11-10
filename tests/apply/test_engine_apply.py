@@ -6,10 +6,13 @@ unrelated engine settings survive."""
 
 import io
 import zipfile
+from pathlib import Path
 from typing import Any
 
 import pytest
+from apps import blank_the_managers_pair
 from conftest import HttpLanes, LiveManager
+from virtual_clock import VirtualClock
 
 from hqptuner.conf.httpauth import HttpLaneDeclinedError
 from hqptuner.core.manager import ConnectionManager
@@ -66,12 +69,16 @@ async def test_restored_archive_is_reflected_in_readback(http_manager: Connectio
 
 @pytest.fixture(params=[("refused credential", "no_credentials"), ("no http lane", "no_http_client")], ids=str)
 async def declining(
-    request: pytest.FixtureRequest, live_manager: LiveManager, http_lanes: HttpLanes
+    request: pytest.FixtureRequest,
+    live_manager: LiveManager,
+    http_lanes: HttpLanes,
+    clock: VirtualClock,
+    tmp_path: Path,
 ) -> tuple[ConnectionManager, str]:
     """A ready two-lane manager whose http lane then becomes unusable, and the code its decline carries.
 
     The refused credential is earned off the wire: the fake 8088 starts rejecting the pair and a forms refresh records
-    what it answered. The no-client case sets the manager's client to None.
+    what it answered. The no-client case saves a blank pair, as the connection route does.
     """
     case, code = request.param
     manager, _log, _state = await live_manager()
@@ -79,7 +86,7 @@ async def declining(
         http_lanes[manager]["_refuse_auth"] = True
         await forms.refresh(manager)
     else:
-        manager.http_client = None
+        await blank_the_managers_pair(manager, clock, tmp_path / "connection.json")
     return manager, code
 
 
