@@ -10,7 +10,7 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, enums } from "../../../../hqptuner/static/store/signals.js";
+import { engineState, engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
 import { hfNow } from "../../../../hqptuner/static/store/faceplate/hf.js";
 
 /** The `junk_filters` names, in the engine's order, which is not their sorted order. */
@@ -79,4 +79,58 @@ test("test_only_the_hf_option_at_running_index_1_is_current", () => {
 
 test("test_only_the_hf_option_at_running_index_2_is_current", () => {
   assert.deepEqual(current("2"), ["2"]);
+});
+
+/** Every `junk_filters` name the engine offers, in its order. */
+const ALL = ["none", "20k", "30k", "40k", "50k", "2x", "4x", "8x"];
+
+/**
+ * The names of the options grayed while a source plays, or sits in the transport `state`, at a rate.
+ *
+ * @param {string} rate  the source rate in hertz
+ * @param {{ sdm?: string, state?: string }} [over]  the source's DSD flag; the Status `state`, "2" playing
+ * @returns {string[]}
+ */
+function grayedAt(rate, over = {}) {
+  health.value = { phase: "Ready" };
+  engineState.value = { state: "2", active_chain: "pcm", filter_junk: "1" };
+  enums.value = { junk_filters: ALL.map((name, i) => ({ index: String(i), value: String(i), name })) };
+  engineStatus.value = { status: { state: over.state ?? "2" }, metadata: { samplerate: rate, sdm: over.sdm ?? "0" } };
+  return hfNow()
+    .options.filter((o) => o.grayed)
+    .map((o) => o.label);
+}
+
+test("test_a_44_1_source_grays_every_option_but_none", () => {
+  assert.deepEqual(grayedAt("44100"), ALL.slice(1));
+});
+
+test("test_a_dsd64_source_grays_every_option_but_none", () => {
+  assert.deepEqual(grayedAt("2822400", { sdm: "1" }), ALL.slice(1));
+});
+
+test("test_an_88_2_source_grays_50k_2x_4x_and_8x", () => {
+  assert.deepEqual(grayedAt("88200"), ["50k", "2x", "4x", "8x"]);
+});
+
+test("test_a_176_4_source_grays_4x_and_8x_only", () => {
+  assert.deepEqual(grayedAt("176400"), ["4x", "8x"]);
+});
+
+test("test_a_paused_source_is_judged_like_a_playing_one", () => {
+  assert.deepEqual(grayedAt("88200", { state: "1" }), ["50k", "2x", "4x", "8x"]);
+});
+
+test("test_a_stopped_engine_with_stale_44_1_metadata_grays_nothing", () => {
+  assert.deepEqual(grayedAt("44100", { state: "0" }), []);
+});
+
+test("test_a_grayed_running_option_is_still_current", () => {
+  grayedAt("44100");
+  assert.deepEqual(
+    hfNow()
+      .options.filter((o) => o.grayed && o.cur)
+      .map((o) => o.label),
+    ["20k"],
+  );
 });
