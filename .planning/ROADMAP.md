@@ -7,7 +7,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 ## Phases
 
 - [x] **Phase 1: Snapshots stay on their stations** - saving a snapshot to one station no longer erases it from another
-- [ ] **Phase 2: Modulators fit the output rate** - the picker offers only modulators the running output rate supports, and a live apply that stops playback says so
+- [x] **Phase 2: Modulators fit the output rate** - the picker offers only modulators the running output rate supports, and a live apply that stops playback says so
 - [ ] **Phase 3: HF filter lamp follows the content** - the HF filter lamp lights only for content the filter acts on
 - [ ] **Phase 4: PCM filters in SDM output mode** - applying PCM filters while in SDM output mode does not reset the engine
 - [ ] **Phase 5: Dimmed while HQPlayer is away** - the app is dimmed while HQPlayer is unavailable or disconnected
