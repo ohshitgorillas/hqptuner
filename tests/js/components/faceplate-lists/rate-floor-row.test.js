@@ -19,7 +19,7 @@ import { openList } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
 import { favoritesWire, settle } from "../../support/wire/favoriteswire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { attr, elements } from "../../support/markup.js";
+import { attr, classes, elements } from "../../support/markup.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 
 const ABOVE_FLOOR = "ASDM7EC 512+fs";
@@ -58,6 +58,13 @@ const rowAttr = (name, a) => {
   return row && attr(row, a);
 };
 
+/** The row of an engine name, as markup, or undefined. @param {string} name */
+const rowOf = (name) =>
+  elements(render(html`<${OptionList} />`)).find((e) => attr(e, "role") === "option" && attr(e, "data-v") === name);
+
+/** Every class token inside the row of an engine name. @param {string} name */
+const innerClasses = (name) => elements(rowOf(name)?.html ?? "").flatMap((e) => classes(e));
+
 /** Tap the row of an engine name. @param {string} name */
 async function tap(name) {
   const { seen } = renderTree(html`<${OptionList} />`);
@@ -70,6 +77,21 @@ async function tap(name) {
 test("test_a_modulator_row_above_the_rate_in_force_carries_the_disabled_state", async () => {
   await openUnder(DSD256);
   assert.equal(rowAttr(ABOVE_FLOOR, "aria-disabled"), "true");
+});
+
+test("test_a_grayed_modulator_row_has_no_reason_description", async () => {
+  await openUnder(DSD256);
+  assert.equal(rowAttr(ABOVE_FLOOR, "aria-description"), undefined);
+});
+
+test("test_a_grayed_modulator_row_has_no_reason_element", async () => {
+  await openUnder(DSD256);
+  assert.equal(innerClasses(ABOVE_FLOOR).includes("rsn"), false);
+});
+
+test("test_a_grayed_modulator_row_still_shows_its_tier_badge", async () => {
+  await openUnder(DSD256);
+  assert.equal(innerClasses(ABOVE_FLOOR).includes("otier"), true);
 });
 
 test("test_a_modulator_row_the_rate_runs_carries_no_disabled_state", async () => {

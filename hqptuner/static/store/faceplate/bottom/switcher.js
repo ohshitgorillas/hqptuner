@@ -36,7 +36,6 @@ import { profileChoices, profileUnsettled, switchProfile } from "../page/profile
  * @property {boolean} lit
  * @property {boolean} empty
  * @property {boolean} [disabled]
- * @property {string} [reason]
  */
 
 /**
@@ -176,7 +175,6 @@ function listSlots(t, key, names) {
       lit: on && runs,
       empty: names[i] === "",
       disabled: mark?.disabled === true,
-      ...(mark?.reason ? { reason: mark.reason } : {}),
     };
   });
 }

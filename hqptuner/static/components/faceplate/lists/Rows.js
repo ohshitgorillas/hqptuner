@@ -1,8 +1,8 @@
 // An option list's rows: one option's name, its marks and its heart, and the key to the rows' marks. Any row that is
 // HQPlayer's factory default for its setting carries ⌂ after its name. A filter row marks its apodizing (a circled A or
 // ½) and its quality stars, a modulator row the DSD rate floor it needs, a dither or DSD row nothing more. A row the list
-// marks disabled (a modulator the SDM output rate in force cannot run) is aria-disabled, says its reason on the row and
-// takes no pick. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking, on the kinds
+// marks disabled (a modulator the SDM output rate in force cannot run) is aria-disabled, shows the tier badge it already
+// carries as its reason, and takes no pick. Hover or focus shows the row's tip, a tap picks it, the heart stars it without picking, on the kinds
 // that keep favorites.
 
 import { html } from "../../../lib/dom.js";
@@ -73,7 +73,6 @@ export function Row({ o, req, kind, std }) {
       data-v=${o.v}
       aria-selected=${String(o.v === req.value)}
       aria-disabled=${gray ? "true" : undefined}
-      aria-description=${gray ? o.reason : undefined}
       onClick=${gray ? undefined : () => pickFromList(o.v)}
       onPointerEnter=${(/** @type {PointerEvent} */ e) => e.pointerType !== "touch" && showTip(o.v)}
       onPointerLeave=${() => hideTip(o.v)}
@@ -83,7 +82,6 @@ export function Row({ o, req, kind, std }) {
       <span class="onm">
         <span class="nm">${std ? o.v : o.leaf}</span>
         ${o.def ? html`<span class="dmk" data-mark="default" role="img" aria-label="Default">⌂</span>` : null}
-        ${gray ? html`<span class="rsn" aria-hidden="true">${o.reason}</span>` : null}
       </span>
       ${marks(kind, o)} ${hasFavorites(kind) ? heart(req, o) : null}
     </div>

@@ -83,8 +83,6 @@ function shaperMarks(name) {
   return { ...(tier ? { tier } : {}), ...(gen ? { gen } : {}) };
 }
 
-const RATE_FLOOR_REASON = "Needs DSD512 or higher";
-
 /**
  * The SDM output rate in force, in Hz, 0 when none is: the pin when it names an SDM rate, else the SDM rate limit the
  * engine runs while the chain that runs is SDM. A staged limit is not in force until Apply restarts the engine, and the
@@ -103,11 +101,11 @@ function sdmRateInForce() {
  *
  * @param {string} name
  * @param {number} rate  the SDM output rate in force, 0 when none
- * @returns {{ disabled: true, reason: string } | {}}
+ * @returns {{ disabled: true } | {}}
  */
 function floorMark(name, rate) {
   const floor = metadata.value?.shapers?.sdm_modulators?.[name]?.min_rate_hz;
-  return rate > 0 && floor > rate ? { disabled: true, reason: RATE_FLOOR_REASON } : {};
+  return rate > 0 && floor > rate ? { disabled: true } : {};
 }
 
 /**

@@ -109,9 +109,9 @@ test("test_a_modulator_with_no_floor_is_not_grayed", async () => {
   assert.equal(grayed(MOD_NO_FLOOR), false);
 });
 
-test("test_a_grayed_modulator_carries_a_reason", async () => {
+test("test_a_grayed_modulator_carries_no_reason", async () => {
   await serve({ readings: { defaults_bitrate: DSD256 } });
-  assert.equal(typeof option(MOD_512).reason, "string");
+  assert.equal("reason" in option(MOD_512), false);
 });
 
 test("test_an_sdm_pin_below_the_floor_grays_a_modulator_the_limit_would_allow", async () => {

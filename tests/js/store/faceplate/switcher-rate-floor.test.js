@@ -13,12 +13,17 @@
 import { test, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
+import { render } from "preact-render-to-string";
+
 import { useStorage } from "../../support/storage.js";
+import { attr, classes, elements } from "../../support/markup.js";
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
 
 useStorage();
 
+const { html } = await import("../../../../hqptuner/static/lib/dom.js");
+const { Switcher } = await import("../../../../hqptuner/static/components/faceplate/bottom/Switcher.js");
 const { engineState } = await import("../../../../hqptuner/static/store/signals.js");
 const { readings } = await import("../../../../hqptuner/static/store/core/readings.js");
 const { setBottomBar } = await import("../../../../hqptuner/static/store/ui/prefs.js");
@@ -49,6 +54,18 @@ async function answer(path, opts = {}) {
   return ok({ report: { live: [], stored: {} } });
 }
 
+/** The rendered disabled slot body: its attribute reader and every class token inside it. */
+function disabledBody() {
+  const body = elements(render(html`<${Switcher} />`)).find(
+    (e) => classes(e).includes("sbody") && attr(e, "aria-disabled") === "true",
+  );
+  if (!body) return null;
+  return {
+    attr: (/** @type {string} */ name) => attr(body, name),
+    inner: elements(body.html).flatMap((e) => classes(e)),
+  };
+}
+
 beforeEach(async () => {
   useStorage();
   await loadLists({ plain: true, readings: { defaults_bitrate: DSD256 } });
@@ -64,6 +81,18 @@ beforeEach(async () => {
 
 test("test_a_slot_remembering_a_modulator_above_the_rate_in_force_is_marked_disabled", () => {
   assert.equal(switcherView()?.slots[0].disabled, true);
+});
+
+test("test_a_disabled_slot_carries_no_reason", () => {
+  assert.equal("reason" in (switcherView()?.slots[0] ?? {}), false);
+});
+
+test("test_a_disabled_slot_body_has_no_reason_description", () => {
+  assert.equal(disabledBody()?.attr("aria-description"), undefined);
+});
+
+test("test_a_disabled_slot_body_has_no_reason_element", () => {
+  assert.equal(disabledBody()?.inner.includes("rsn"), false);
 });
 
 test("test_tapping_a_disabled_slot_sends_no_write", async () => {

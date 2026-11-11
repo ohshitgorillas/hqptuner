@@ -60,9 +60,7 @@
 .orow[aria-selected="true"]::before{content:"";position:absolute;left:0;top:var(--sp-1);bottom:var(--sp-1);width:var(--stroke);border-radius:var(--hair);background:var(--acc)}   /* left-hand selection bar, as everywhere */
 .orow .mk{display:flex;align-items:center;justify-content:center}
 .orow[aria-disabled="true"]{cursor:default}
-.orow[aria-disabled="true"] .nm{flex:0 0 auto;color:var(--ink-3)}
-.rsn{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-1);line-height:var(--lh-text);color:var(--ink-2)}   /* why a row or a Switcher slot is disabled */
-.orow .rsn{line-height:var(--orow-h)}
+.orow[aria-disabled="true"] .nm{color:var(--ink-3)}
 .sbody[aria-disabled="true"]{cursor:default}
 .sbody[aria-disabled="true"] .sface{opacity:var(--op-1)}
 /* The name's cell: the name, then ⌂ on the factory default's row one gap after it (never the name's own spacing), the
@@ -163,7 +161,6 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .osheet[data-style="standard"] .ocol.flat{width:auto}
 .osheet[data-style="standard"] .orow{height:var(--fold-h);padding-left:var(--sp-5)}
 .osheet[data-style="standard"] .orow .nm{font-size:var(--fs-4);line-height:var(--fold-h);overflow:hidden;text-overflow:ellipsis}
-.osheet[data-style="standard"] .orow .rsn{line-height:var(--fold-h)}
 .osheet[data-style="standard"] .orow .qst,.osheet[data-style="standard"] .fav{height:var(--fold-h)}
 .osheet[data-style="standard"] .orow .qst{font-size:var(--fs-1)}
 .osheet[data-style="standard"] .fav{width:var(--fav-w-touch);font-size:var(--fs-4)}
@@ -181,7 +178,7 @@ button.vfd.vpick.dim{color:var(--ink-2)}
 .opanel .ocols{position:static;inset:auto;padding:var(--sp-4) var(--sp-7) var(--sp-6);justify-content:flex-start;gap:0 var(--sp-8)}
 .opanel .osubs{gap:0 var(--sp-6)}
 .opanel .orow{height:var(--fold-h)}
-.opanel .orow .nm,.opanel .orow .rsn{line-height:var(--fold-h)}
+.opanel .orow .nm{line-height:var(--fold-h)}
 .opanel .fav{width:var(--fav-w-touch);height:var(--fold-h);font-size:var(--fs-4)}
 .opanel .osub{line-height:var(--lh-variant-panel)}
 .osheet.opanel[data-kind="modulators"] .orow{grid-template-columns:1fr var(--optkey-w) var(--fav-w-touch)}
