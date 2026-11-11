@@ -36,7 +36,6 @@ import { profileChoices, profileUnsettled, switchProfile } from "../page/profile
  * @property {boolean} lit
  * @property {boolean} empty
  * @property {boolean} [disabled]
- * @property {string} [reason]  why a disabled slot is, shown in its body
  */
 
 /**
@@ -149,9 +148,6 @@ function runningName(key) {
   return c?.optionsRaw.find((o) => String(o.value) === id)?.label ?? "";
 }
 
-/** Why a Switcher slot remembering a modulator the SDM output rate in force cannot run is grayed. */
-const RATE_FLOOR_REASON = "Unavailable for this output rate";
-
 /**
  * A list target's slots: each remembered name broken down as the nameplate breaks it, its plain family, variant and
  * leaf, the running name in the first while both are empty, the running one lit while this track's path runs its
@@ -179,7 +175,6 @@ function listSlots(t, key, names) {
       lit: on && runs,
       empty: names[i] === "",
       disabled: mark?.disabled === true,
-      ...(mark?.disabled === true ? { reason: RATE_FLOOR_REASON } : {}),
     };
   });
 }

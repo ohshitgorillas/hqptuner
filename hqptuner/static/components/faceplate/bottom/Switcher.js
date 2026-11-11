@@ -1,9 +1,9 @@
 // The Setting Switcher bar at the foot of the plate: the target button with its menu of the targets, and the target's
 // two slots, or the volume bar while the target is Volume. A slot's body sends it live unless it already runs and no
-// write to it is still settling, or its list marks it disabled, which its face grays and gives the reason beside it; an
-// arrow key sends the other one live, and its ▾ opens its list; under Matrix profile that list is a menu of the
-// profiles, under Output mode the two slots are the fixed modes with no ▾. Every menu is the plate's own, parked at its
-// button and flipped above it when the foot is too near.
+// write to it is still settling, or its list marks it disabled, which its face grays; an arrow key sends
+// the other one live, and its ▾ opens its list; under Matrix profile that list is a menu of the profiles, under Output
+// mode the two slots are the fixed modes with no ▾. Every menu is the plate's own, parked at its button and flipped
+// above it when the foot is too near.
 
 import { useRef } from "preact/hooks";
 import { html } from "../../../lib/dom.js";
@@ -123,7 +123,7 @@ function arrow(e, i, bodies) {
 const disabledProps = (s) => (s.disabled ? { "aria-disabled": "true" } : {});
 
 /**
- * A list target's slot body: the name face of its name, and the reason beside it while the name is disabled.
+ * A list target's slot body: the name face of its name.
  *
  * @param {Slot} s
  */
@@ -131,7 +131,6 @@ const listFace = (s) => html`
   <span class="sface"
     ><${NameFace} fam=${s.fam ?? ""} variant=${s.variant ?? null} leaf=${s.leaf ?? ""} tier=${s.tier ?? ""}
   /></span>
-  ${s.disabled ? html`<span class="gr">${s.reason}</span>` : null}
 `;
 
 /**

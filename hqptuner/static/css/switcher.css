@@ -18,7 +18,6 @@
 .sbody .aka:empty{display:none}
 /* A list target's slot: the nameplate's face (family › variant over the leaf) at the page's sizes. */
 .sbody .sface{flex:1 1 auto;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0}
-.sbody .gr{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-1);line-height:var(--lh-text)}   /* why a Switcher slot is disabled; outside .sface so its dimming leaves it alone */
 .sbody .cpl{color:var(--ink-2)}
 .slot.on .sbody .cpl{color:var(--acc)}
 /* Output mode target: the two modes spelled out, centered, no ▾. */
