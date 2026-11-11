@@ -1,6 +1,7 @@
 // Behavioral suite for the Setting Switcher's rate gate (hqptuner/static/store/faceplate/bottom/switcher.js): on the
 // Modulator target a slot remembering a modulator whose rate floor is above the SDM output rate in force is marked
-// disabled and its tap sends nothing; a slot remembering a modulator the rate runs taps as it always did, and the
+// disabled, its body says "Unavailable for this output rate" under either option style, and its tap sends nothing; a
+// slot remembering a modulator the rate runs taps as it always did, and the
 // remembered name outlives a rate change, so the slot taps again once the rate supports it.
 //
 // Driven at the wire, as the Switcher suite is (tests/js/store/faceplate/switcher.test.js): the fixture of
@@ -16,7 +17,7 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { useStorage } from "../../support/storage.js";
-import { attr, classes, elements } from "../../support/markup.js";
+import { attr, classes, elements, text } from "../../support/markup.js";
 import { ok } from "../../support/wire/wire.js";
 import { settle } from "../../support/wire/livepresetwire.js";
 
@@ -33,6 +34,7 @@ const { setSwitcherTarget, switcherView, setSlot, slotLive } =
   await import("../../../../hqptuner/static/store/faceplate/bottom/switcher.js");
 
 const ABOVE_FLOOR = "ASDM7EC 512+fs";
+const UNAVAILABLE = "Unavailable for this output rate";
 const DSD256 = "12288000";
 const DSD512 = "24576000";
 
@@ -54,16 +56,11 @@ async function answer(path, opts = {}) {
   return ok({ report: { live: [], stored: {} } });
 }
 
-/** The rendered disabled slot body: its attribute reader and every class token inside it. */
-function disabledBody() {
-  const body = elements(render(html`<${Switcher} />`)).find(
-    (e) => classes(e).includes("sbody") && attr(e, "aria-disabled") === "true",
-  );
-  if (!body) return null;
-  return {
-    attr: (/** @type {string} */ name) => attr(body, name),
-    inner: elements(body.html).flatMap((e) => classes(e)),
-  };
+/** The rendered slot body at index `i`: its attribute reader and what a reader sees inside it. */
+function body(i = 0) {
+  const found = elements(render(html`<${Switcher} />`)).filter((e) => classes(e).includes("sbody"))[i];
+  if (!found) return null;
+  return { attr: (/** @type {string} */ name) => attr(found, name), text: text(found) };
 }
 
 beforeEach(async () => {
@@ -83,16 +80,22 @@ test("test_a_slot_remembering_a_modulator_above_the_rate_in_force_is_marked_disa
   assert.equal(switcherView()?.slots[0].disabled, true);
 });
 
-test("test_a_disabled_slot_carries_no_reason", () => {
-  assert.equal("reason" in (switcherView()?.slots[0] ?? {}), false);
+test("test_a_disabled_slot_body_says_it_is_unavailable_for_the_output_rate", () => {
+  assert.equal(body()?.text.includes(UNAVAILABLE), true);
 });
 
-test("test_a_disabled_slot_body_has_no_reason_description", () => {
-  assert.equal(disabledBody()?.attr("aria-description"), undefined);
+test("test_a_disabled_slot_body_says_it_is_unavailable_under_standard_names", async () => {
+  await loadLists({ plain: false, readings: { defaults_bitrate: DSD256 } });
+  assert.equal(body()?.text.includes(UNAVAILABLE), true);
 });
 
-test("test_a_disabled_slot_body_has_no_reason_element", () => {
-  assert.equal(disabledBody()?.inner.includes("rsn"), false);
+test("test_a_disabled_slot_body_is_marked_disabled", () => {
+  assert.equal(body()?.attr("aria-disabled"), "true");
+});
+
+test("test_a_slot_remembering_a_modulator_the_rate_runs_says_nothing_of_the_output_rate", async () => {
+  await seedReadings({ ...readings.value?.fields, defaults_bitrate: DSD512 });
+  assert.equal(body()?.text.includes(UNAVAILABLE), false);
 });
 
 test("test_tapping_a_disabled_slot_sends_no_write", async () => {
