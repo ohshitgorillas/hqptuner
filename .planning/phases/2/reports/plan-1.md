@@ -1,0 +1,24 @@
+PLAN COMPLETE
+
+Plan: /home/atom/dev/hqptuner2/.planning/phases/2/PLAN-1.md
+
+Tasks: 6 of 6
+
+| Task | Commit | Note |
+|---|---|---|
+| 1 - spec states gate, owner's reason copy | b31c4717 | Owner-approved string "Needs DSD512 or higher" in docs/spec/faceplate.md Shaping line. check_docs and md-softwrap exit=0. |
+| 2 - modulator list grays above-floor | d9ee0e41 | Opt gains `disabled`, `reason`; mark in listOptions via floorMark/sdmRateInForce (pin if DSD rate, else runningValue("sdm_rate") while runningChain()=="sdm"). Red at parent: 5 of 14 fail, e.g. `false !== true` on test_output_mode_on_auto_while_an_sdm_chain_runs_grays_as_sdm_does. Green with 3 pins. eslint, prettier, tsc, knip exit=0. loadLists gained `readings` and `pin` options. |
+| 3 - grayed row shows reason, tap does nothing | 74240ee6 | Rows.js: aria-disabled, aria-description, visible `.rsn` span, no onClick when disabled; sheets.css `.rsn` and disabled rules with existing tokens. Red at parent: 3 of 5 fail by assertion (disabled attr, pick, list open). Pins green; eslint, prettier, tsc, knip, css gates exit=0. |
+| 4 - four pickers same gated list | d062e942 | Test across chain, switcher, drawer, builder. No surface file changed. Bite: with the four Task 2/3 production files at 756b2a79, 8 of 12 fail (gray and tap tests on every surface; the 4 no-floor-pickable ones pass at base, as they should), e.g. `+ '["POST /api/config/live",...]' - '[]'` chain, `+ '["ASDM7EC 512+fs",""]' - '["ASDM5",""]'` switcher, `+ '["POST /api/config/stage"]' - '[]'` drawer. Files restored, status clean. |
+| 5 - remembered above-floor Switcher slot grayed | a6f8b3c3 | Slot gains `disabled`, `reason` read from listOptions (kindOf modulators only); slotLive returns null when disabled; sbody gets aria-disabled and aria-description, listFace shows `.rsn`. Red at parent: 3 of 5 fail by assertion (e.g. `+ undefined - true`; tap sent `modulator: '3'`). Green with 2 pins (80 pass across the switcher, surface suites). CSS: shared `.rsn` generalized in sheets.css and `.sbody[aria-disabled]` rules added there, since switcher.css is outside the lease. |
+| 6 - gate green, owner has the hand-back | none | `PYTHONPATH=$(pwd) scripts/gate.sh make check` prints `exit=0` (the one full-suite run; coverage all files 97.21 lines, 91.82 branches). `bash .claude/task-check.sh` NOT run: its step 2 writes the rebuild trigger file at $HQPTUNER_REBUILD_TRIGGER, outside the repository. The owner has not seen the grayed rows. |
+| 6a - fix pass: grayed row carries no reason text | f0c2e12f | Owner ruling: the tier badge is the reason. Removed RATE_FLOOR_REASON, `reason` from Opt and Slot, the `.rsn` span and `aria-description` in Rows.js and Switcher.js, and the `.rsn` rules in sheets.css (also dropped `flex:0 0 auto` from `.orow[aria-disabled] .nm`, which only served the reason beside it). Disabled state, tier badge and no-op tap kept on all four surfaces and the Switcher slot. Spec faceplate.md:159 now says grayed with no separate reason text, the rate badge is the reason; rest of line unchanged. Old spec replaced, not edited to pass: `test_a_grayed_modulator_carries_a_reason` (rate-floor.test.js) became `test_a_grayed_modulator_carries_no_reason`. New tests: row has no aria-description, no `.rsn` element, still has `otier` badge (rate-floor-row.test.js); disabled Switcher slot has no reason field, aria-description or `.rsn` (switcher-rate-floor.test.js). Red at prior code: 1 of 14, 1 of 7, 2 of 7 fail by assertion, e.g. `+ 'Needs DSD512 or higher' - undefined`; the badge-kept test passes at base by design. `PYTHONPATH=$(pwd) scripts/gate.sh make check` exit=0. `.opanel .orow` rule kept minus `.rsn`. |
+| 6 - hand-back accepted | none | Orchestrator ran `PYTHONPATH=$(pwd) scripts/gate.sh bash .claude/task-check.sh` at f0c2e12f: PASS, `hqptuner:dev` rebuilt and serving. Owner looked at the hand-back URL and answered "pass". |
+
+Deviations:
+- Task 1's approved reason copy "Needs DSD512 or higher" was dispatched as a fixed string, so every grayed row read 512 whatever its floor. At hand-back the owner ruled the tier badge already states the floor; fix pass 6a removed the reason text (f0c2e12f) and docs/spec/faceplate.md:159 now names the badge as the reason.
+
+Open items:
+- The first `make check` run (without PYTHONPATH) went red at lint on check_openapi.py: `.venv`'s editable install resolves `hqptuner` to a stale `.claude/worktrees/integrate` tree, so the gate compared the committed openapi.json (which has `playback_stopped`, plan 2) against old code. Environmental; the repo rule `PYTHONPATH=$(pwd)` fixed it. The venv's editable path is still stale.
+- `.sbody[aria-disabled]` rules sit in sheets.css, not switcher.css, because switcher.css is outside this plan's lease.
+- Rate in force follows the plan: pin when a DSD rate, else running `defaults_bitrate` while `runningChain()` is SDM. With the PCM chain loaded and stopped, a lingering SDM limit grays nothing.
