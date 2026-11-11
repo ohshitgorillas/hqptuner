@@ -101,8 +101,59 @@ test("test_a_playing_source_reads_differently_from_an_idle_one", () => {
   assert.notEqual(stage({}, "source").value, stage({ path: "idle" }, "source").value);
 });
 
-test("test_a_running_hf_filter_shows_its_engine_name", () => {
-  assert.equal(stage({ hf: "20k" }, "hf").value, "20k");
+/** A source rate the 20k, 30k and 40k filters act on and the 50k and Nx filters do not. */
+const AT_88K = { samplerate: "88200", bits: "24" };
+
+/** Content a DSD source plays as through conversion: DSD128, which counts at 88.2 kHz, and DSD64, at 44.1 kHz. */
+const DSD128 = { samplerate: "5644800", sdm: "1" };
+const DSD64 = { samplerate: "2822400", sdm: "1" };
+
+test("test_a_running_hf_filter_shows_its_engine_name_on_content_it_acts_on", () => {
+  assert.equal(stage({ hf: "20k", metadata: AT_88K }, "hf").value, "20k");
+});
+
+test("test_an_engaged_hf_filter_on_a_44_1_source_reads_unlit", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").on, false);
+});
+
+test("test_an_engaged_hf_filter_on_a_44_1_source_prints_no_value", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").value, "");
+});
+
+test("test_an_engaged_hf_filter_on_content_it_does_not_act_on_is_not_bypassed", () => {
+  assert.equal(stage({ hf: "20k" }, "hf").byp, false);
+});
+
+test("test_the_50k_filter_on_an_88_2_source_reads_unlit", () => {
+  assert.equal(stage({ hf: "50k", metadata: AT_88K }, "hf").on, false);
+});
+
+test("test_the_30k_filter_on_an_88_2_source_reads_lit", () => {
+  assert.equal(stage({ hf: "30k", metadata: AT_88K }, "hf").on, true);
+});
+
+test("test_the_50k_and_2x_filters_on_a_176_4_source_read_lit", () => {
+  const md = { samplerate: "176400", bits: "24" };
+  assert.deepEqual(
+    ["50k", "2x"].map((hf) => stage({ hf, metadata: md }, "hf").on),
+    [true, true],
+  );
+});
+
+test("test_the_30k_filter_on_a_dsd128_source_converted_to_pcm_reads_lit", () => {
+  assert.equal(stage({ hf: "30k", path: "dsd-pcm", metadata: DSD128 }, "hf").on, true);
+});
+
+test("test_the_50k_filter_on_a_dsd128_source_converted_to_pcm_reads_unlit", () => {
+  assert.equal(stage({ hf: "50k", path: "dsd-pcm", metadata: DSD128 }, "hf").on, false);
+});
+
+test("test_the_30k_filter_on_a_dsd64_source_converted_to_pcm_reads_unlit", () => {
+  assert.equal(stage({ hf: "30k", path: "dsd-pcm", metadata: DSD64 }, "hf").on, false);
+});
+
+test("test_direct_sdm_still_marks_the_hf_stage_bypassed", () => {
+  assert.equal(stage({ hf: "30k", path: "direct", metadata: DSD128 }, "hf").byp, true);
 });
 
 test("test_the_hf_filter_at_none_is_unlit", () => {
@@ -408,7 +459,7 @@ const showing = (over, transport) =>
     .map((s) => s.id);
 
 test("test_a_running_stage_reads_lit_while_the_source_plays", () => {
-  assert.equal(railLamp(stage({ hf: "20k" }, "hf"), false, "playing"), "on");
+  assert.equal(railLamp(stage({ hf: "20k", metadata: AT_88K }, "hf"), false, "playing"), "on");
 });
 
 test("test_a_stage_the_playing_path_bypasses_reads_unlit", () => {

@@ -46,7 +46,7 @@ async function playing(junk, state = "2") {
   health.value = { phase: "Ready" };
   engineState.value = { active_chain: "pcm", filter_junk: junk };
   enums.value = { junk_filters: ["none", "30k"].map((name, i) => ({ index: String(i), name })) };
-  engineStatus.value = { status: { state, active_rate: "176400" }, metadata: { samplerate: "44100", bits: "16" } };
+  engineStatus.value = { status: { state, active_rate: "176400" }, metadata: { samplerate: "88200", bits: "24" } };
   config.value = { fields: [] };
   matrixConfig.value = { fields: [{ name: "enabled" }] };
   await seedReadings({ matrix_enabled: true });

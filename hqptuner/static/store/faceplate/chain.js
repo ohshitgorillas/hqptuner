@@ -3,7 +3,8 @@
 // from the source rate: through a running PCM resampling filter other than none on PCM to PCM, PCM to SDM and DSD to PCM,
 // and through the SDM to SDM conversion on a remodulated DSD source, whatever the filter. It reads Resampling only while
 // lit on a resampling path, Rate conversion otherwise. Direct SDM runs none of the processing stages, and the rate stage
-// and Shaping leave the chain while it plays.
+// and Shaping leave the chain while it plays. The HF stage is lit only for content its filter acts on, judged against
+// the source rate (DSD at rate / 64), never the output rate.
 
 import { computed } from "@preact/signals";
 import { engineStatus, stable, volumeShown } from "../signals.js";
@@ -19,6 +20,7 @@ import { structuralBlock } from "../xfeed/mode.js";
 import { passesThrough } from "../../model/shell/pipelines.js";
 import { modeName } from "../../model/gauges/crossfeed.js";
 import { rateStage } from "../../model/shell/conversion.js";
+import { actsOn, contentRate } from "../../model/shell/hf-reach.js";
 import { playbackPath, runningChain, outputIsSdm } from "./path.js";
 import { volumeNow } from "./volume.js";
 import { truthy } from "../../lib/coerce.js";
@@ -210,6 +212,18 @@ function conversion(r) {
   };
 }
 
+/** The paths whose source is a DSD bitstream. */
+const DSD_SOURCE_PATHS = ["dsd-pcm", "sdm-sdm", "direct"];
+
+/**
+ * Whether the engaged HF filter acts on the content playing: none, or no filter, never does.
+ *
+ * @param {Running} r
+ * @returns {boolean}
+ */
+const hfActs = (r) =>
+  r.hf !== "" && r.hf !== "none" && actsOn(r.hf, contentRate(r.metadata.samplerate, DSD_SOURCE_PATHS.includes(r.path)));
+
 /**
  * A Matrix engine part: lit while it is engaged and the matrix engine runs.
  *
@@ -229,7 +243,7 @@ const part = (r, engaged, value) => ({ value, on: engaged && r.matrix });
 const READ = {
   source: (r) => ({ value: r.path === "idle" ? DASH : sourceLabel(r.metadata), on: true }),
   hf: (r) => {
-    const on = r.hf !== "" && r.hf !== "none";
+    const on = hfActs(r);
     return { value: on ? r.hf : "", on };
   },
   dsd: (_r, p) => ({ value: p.dsd, on: true }),
