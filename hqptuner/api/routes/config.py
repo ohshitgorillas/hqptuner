@@ -162,6 +162,16 @@ class ArchiveUnreadableError(ErrorBody):
         super().__init__(str(error))
 
 
+class RestoreUploadTooLargeError(ErrorBody):
+    """A restore upload is larger than a settings file can be."""
+
+    code = "invalid_input"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("The settings file is too large to restore.")
+
+
 class RestoreFailedError(ErrorBody):
     """A restore upload failed on the wire, naming the underlying error."""
 
@@ -312,6 +322,17 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
     return await deps.with_autosave(result, manager)
 
 
+async def _read_upload(cfgfile: UploadFile) -> bytes:
+    """Return the upload's bytes, refusing one past ``RESTORE_UPLOAD_CEILING`` without reading past it."""
+    limit = presetzip.RESTORE_UPLOAD_CEILING
+    if cfgfile.size is not None and cfgfile.size > limit:
+        raise refuse(RestoreUploadTooLargeError())
+    data = await cfgfile.read(limit + 1)
+    if len(data) > limit:
+        raise refuse(RestoreUploadTooLargeError())
+    return data
+
+
 @router.post("/restore")
 async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, request: Request) -> RestoreAnswer:
     """Push a user-uploaded settings archive to the daemon, recording its name, size, and SHA-256 first.
@@ -321,7 +342,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     and never handed to hqplayerd, which did not write it and has no idea what it is. Everything else — including a
     bare XML upload, which is not an archive at all — reaches the daemon exactly as the user sent it.
     """
-    data = await cfgfile.read()
+    data = await _read_upload(cfgfile)
     manager.audit.restore_upload(cfgfile.filename or "", len(data), hashlib.sha256(data).hexdigest())
     # a bare XML upload is not an archive and carries no descriptions: checked, not caught
     taken: tuple[bytes, bytes | None] = (data, None)

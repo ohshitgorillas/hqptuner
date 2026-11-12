@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from hqptuner.conf import engineconf
+from hqptuner.conf.httpconf import BACKUP_CEILING
 from hqptuner.conf.presetconf import apply_edits
 from hqptuner.conf.xmledit import GroundingError
 
@@ -141,6 +142,15 @@ def restore_zip_with_working(
 #: collide with a member hqplayerd writes, and stripped again before any archive is handed back to the daemon —
 #: what the user downloads carries it, what the daemon restores does not.
 DESCRIPTIONS_MEMBER = "hqptuner/descriptions.json"
+
+#: The most the descriptions member can weigh. ``conf`` cannot import the store, so its limits are restated here:
+#: 256 profiles, each a name of up to 128 characters and a text of up to 2000, the store writing them with
+#: ``json.dumps``, which spells a character outside the Basic Multilingual Plane as a 12-byte surrogate pair
+#: (a raw UTF-8 member from another tool needs 4), plus 256 bytes of framing per entry and 1 KiB for the envelope.
+DESCRIPTIONS_CEILING = 256 * (12 * (128 + 2000) + 256) + 1024
+
+#: The most a restore upload may be: a backup of the size the 8088 lane itself reads, plus the descriptions member.
+RESTORE_UPLOAD_CEILING = BACKUP_CEILING + DESCRIPTIONS_CEILING
 
 
 def embed_descriptions(zip_bytes: bytes, payload: bytes) -> bytes:
