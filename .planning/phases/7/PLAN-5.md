@@ -67,6 +67,7 @@ HQPTuner requires both the 4321 control lane and the 8088 config lane. While not
 
 ## Notes
 
+- Superseded by the D-08 amendment of 2026-11-11 (owner ruling after this plan's risk review): Task 1's LIVE hold is removed; a LIVE write made while not ready is sent, refused by the server's readiness gate, and reported on that control through the existing refused-write error path. Apply stays inert while not ready. The two notes below on held edits no longer apply.
 - Held LIVE edits live in the browser store and do not survive a reload; CONTEXT's flagged assumption 1 left that to the planner. If the owner wants them to survive a reload, the hold moves to session storage, still in `store/live/write.js`.
 - Not held, because D-08 names LIVE edits only: the playback volume knob (`POST /api/volume`), a live-snapshot apply and a matrix profile switch. While not ready the server refuses those (Plan 4) and the page reports it through its existing error paths.
 - Open for the owner: what a LIVE control shows while its edit is held. CONTEXT does not say; this plan adds no text, and the control may show the engine's value until the held edit is sent.
