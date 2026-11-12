@@ -285,6 +285,16 @@ test("test_a_simplified_filter_window_with_polyphase_sinc_narrowed_out_keeps_the
   );
 });
 
+test("test_a_default_narrowed_out_of_the_list_drops_from_the_legend_while_one_still_listed_keeps_its_entry", async () => {
+  favoritesWire({ filters: ["sinc-M", "IIR"] });
+  await hydrateFavorites();
+  nFavOnly.value = true;
+  open("sdm_filter_1x", "IIR");
+  const narrowedOut = defaultEntries();
+  open("sdm_filter_nx", "IIR");
+  assert.deepEqual([narrowedOut, defaultEntries()], [0, 1]);
+});
+
 test("test_the_filter_legend_keeps_its_own_entries_beside_the_default", () => {
   open("sdm_filter_1x", "IIR");
   assert.deepEqual(
