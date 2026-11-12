@@ -145,6 +145,10 @@ function railAgainst(id, value) {
 
 // --- the apply group ---------------------------------------------------------------------------------------------
 
+test("test_the_hardware_drawers_own_apply_group_is_not_live_before_an_edit", () => {
+  assert.equal(applyLive(), false);
+});
+
 for (const { id, other } of SETTINGS) {
   test(`test_an_edit_to_${id}_lights_the_hardware_drawers_own_apply_group`, () => {
     setHardware(id, other);

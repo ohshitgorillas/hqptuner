@@ -59,6 +59,22 @@ function select() {
   if (!isSelected()) click(hit());
 }
 
+/** Presses the selection strip's Clear: the last clickable of a fresh render, found by position, not by wording. */
+function pressClear() {
+  const clear = clickables(draw(() => {})).at(-1);
+  if (!clear) throw new Error("the picker rendered nothing to press");
+  click(clear);
+}
+
+test("test_pressing_clear_drops_the_selected_hit", async () => {
+  const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
+  draw(() => {});
+  await quiesce(wire);
+  select();
+  pressClear();
+  assert.equal(isSelected(), false);
+});
+
 test("test_a_selected_hit_carries_the_selected_state", async () => {
   const wire = stagingWire({ routes: (path) => (path === "/api/autoeq" ? ok(LIBRARY) : undefined) });
   draw(() => {});
