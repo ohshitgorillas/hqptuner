@@ -77,6 +77,19 @@ class RestoreWriteFailedError(HQPTunerError):
         )
 
 
+class RestoreRefusedAfterAnswerError(HQPTunerError):
+    """The daemon answered a request of this apply normally, then refused the next: it is restarting."""
+
+    code = "daemon_write_failed"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__(
+            "HQPlayer stopped accepting requests partway through applying the settings, as it does while it "
+            "restarts. Check that HQPlayer is running, then apply again."
+        )
+
+
 @dataclass(frozen=True)
 class UnfixableDevice:
     """An intended output endpoint absent from the daemon's offered endpoints, beside the endpoints it offers."""
@@ -192,6 +205,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     no longer offers (endpoint gone) → unfixable: surface and stop, since no
     restart conjures absent hardware.
 
+    Raises ``RestoreRefusedAfterAnswerError`` when the daemon refuses a request after answering one of this apply.
     Raises ``HttpLaneDeclinedError`` when the lane is not usable, settled before the
     first pass: every pass opens with ``await_http_ready``, which polls to the alarm
     deadline, so a daemon that has already refused us would cost three deadlines to
@@ -202,6 +216,8 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     declined = httpauth.decline_error(mgr)
     if declined is not None:
         raise declined
+    http = mgr.require_http()
+    answered, accepted = http.answered, mgr.readings.credentials_ok
     # the restore restarts the daemon onto the config it carries, and a live edit
     # never reached that file — so the running values for those settings ride
     # along (store as fallback), under the staged edits, which win (presetfields)
@@ -223,6 +239,13 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
         try:
             intended = await _restore_once(mgr, merged, active_profile, mark=mark)
         except httpauth.AuthRefused as exc:
+            if http.answered > answered:
+                # the daemon answered this apply normally and then refused: it is restarting, which says
+                # nothing about the password, so the verdict the 401 recorded, on the client and in the readings
+                # a refresh copied it into, is taken back
+                http.retract_refusal()
+                mgr.readings.credentials_ok = accepted
+                raise RestoreRefusedAfterAnswerError from exc
             # Terminal, not retryable: two more passes cannot turn a refused
             # password into an accepted one. Reached only when the refusal began
             # inside the window between two polls; recorded here, so the guard

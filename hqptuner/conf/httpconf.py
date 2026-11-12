@@ -203,6 +203,16 @@ class HttpConfigClient:
         #: than the credentials (a plain wire fault leaves whatever verdict is
         #: already here standing).
         self.credentials_ok: bool | None = None
+        #: How many responses this client has received with a 2xx status, so a caller can tell whether anything
+        #: answered normally between two points.
+        self.answered = 0
+
+    def retract_refusal(self) -> None:
+        """Take back the credential verdict a 401 just recorded, for a refusal that followed a normal answer.
+
+        A daemon that answered and then refuses is restarting; that is no verdict on the password.
+        """
+        self.credentials_ok = True
 
     def _mark(self, resp: httpx.Response) -> None:
         """Raise on any non-2xx, recording what this response proved about the credentials.
@@ -218,6 +228,7 @@ class HttpConfigClient:
             self.credentials_ok = False
             raise
         self.credentials_ok = True
+        self.answered += 1
 
     async def _get(self, path: str) -> httpx.Response:
         """GET, raising on any non-2xx.
