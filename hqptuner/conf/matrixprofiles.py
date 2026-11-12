@@ -23,7 +23,7 @@ from typing import TypedDict
 
 from hqptuner.conf.matrixconf import PLUGIN_MAP, live_post_process, pipeline_tag, rows_of
 from hqptuner.conf.matrixpayload import parse_save, validate_name
-from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_element, in_comment
+from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_element, in_comment, lead_start
 
 
 class MatrixAbsentError(GroundingError):
@@ -45,18 +45,20 @@ MATRIX_PROFILES = "matrix_profiles"
 _PLUGIN_FIELDS: dict[tuple[str, str], str] = {loc: field for field, loc in PLUGIN_MAP.items()}
 
 
-def _profile_re(name: str) -> re.Pattern[bytes]:
-    """Match the whole ``<matrix_profile>`` element for one name, self-closing or not.
+def _profile_span(xml: bytes, name: str) -> tuple[int, int] | None:
+    """(start, end) of the whole ``<matrix_profile>`` element for one name, self-closing or not, or None.
 
-    The match includes the newline and indentation in front of the element so a
+    The span includes the newline and indentation in front of the element so a
     delete leaves no blank line behind. The closing quote is part of the pattern,
     so ``Auteur`` never matches ``Auteur Classic``.
     """
     escaped = re.escape(attr_escape(name).encode())
-    return re.compile(
-        rb"\n?[ \t]*<matrix_profile\b[^>]*name=\"" + escaped + rb"\"(?:[^>]*/>|[^>]*>.*?</matrix_profile>)",
+    found = re.search(
+        rb"<matrix_profile\b[^>]*name=\"" + escaped + rb"\"(?:[^>]*/>|[^>]*>.*?</matrix_profile>)",
+        xml,
         re.DOTALL,
     )
+    return None if found is None else (lead_start(xml, found.start()), found.end())
 
 
 def _profile_anchor(xml: bytes) -> tuple[int, bytes]:
@@ -120,9 +122,9 @@ def write_profile(xml: bytes, value: str) -> bytes:
     xml, _ = ensure_element(xml, "matrix")
     at, lead = _profile_anchor(xml)
     block = _profile_block(payload.name, payload.rows, lead, post)
-    existing = _profile_re(payload.name).search(xml)
+    existing = _profile_span(xml, payload.name)
     if existing is not None:
-        return xml[: existing.start()] + block + xml[existing.end() :]
+        return xml[: existing[0]] + block + xml[existing[1] :]
     return xml[:at] + block + xml[at:]
 
 
@@ -135,8 +137,8 @@ def delete_profile(xml: bytes, name: str) -> bytes:
     (every profile saved through the daemon's own ``/matrix/save``) is exactly
     that case.
     """
-    match = _profile_re(validate_name(name)).search(xml)
-    return xml if match is None else xml[: match.start()] + xml[match.end() :]
+    span = _profile_span(xml, validate_name(name))
+    return xml if span is None else xml[: span[0]] + xml[span[1] :]
 
 
 def _post_of(body: bytes) -> dict[str, str]:

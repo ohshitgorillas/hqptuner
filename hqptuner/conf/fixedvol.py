@@ -4,7 +4,15 @@ from __future__ import annotations
 
 import re
 
-from hqptuner.conf.xmledit import GroundingError, attr_escape, find_element, get_attr, open_tag_re
+from hqptuner.conf.xmledit import (
+    GroundingError,
+    attr_escape,
+    find_element,
+    get_attr,
+    lead_start,
+    open_tag_re,
+    strip_with_lead,
+)
 
 
 class RootAbsentError(GroundingError):
@@ -28,7 +36,7 @@ _TRUTHY = frozenset({"1", "on", "true", "yes"})
 _HYPHEN_REF = b"&#45;"
 
 # the daemon's parked memory for a disabled fixed volume; HQPTuner writes this same commented line too
-_COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
+_COMMENTED_FIXED_RE = re.compile(rb"<!--\s*<fixed\b[^>]*/>\s*-->")
 
 
 def find_active_fixed(xml: bytes) -> re.Match[bytes] | None:
@@ -90,12 +98,7 @@ def _strip_active_fixed(xml: bytes, active: re.Match[bytes]) -> bytes:
 
     Taking the indentation too is what stops toggling the feature accreting blank lines.
     """
-    start = active.start()
-    while start > 0 and xml[start - 1 : start] in (b" ", b"\t"):
-        start -= 1
-    if start > 0 and xml[start - 1 : start] == b"\n":
-        start -= 1
-    return xml[:start] + xml[active.end() :]
+    return xml[: lead_start(xml, active.start())] + xml[active.end() :]
 
 
 def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
@@ -143,5 +146,5 @@ def reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
         xml = _strip_active_fixed(xml, active)
     # whichever way this goes, the previous memory is superseded — leaving it would
     # stack a fresh comment on every toggle and give _remembered_level a stale first hit
-    xml = _COMMENTED_FIXED_RE.sub(b"", xml)
+    xml = strip_with_lead(_COMMENTED_FIXED_RE, xml)
     return _insert_fixed(xml, level) if enabled else _remember_fixed(xml, level)

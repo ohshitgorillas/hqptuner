@@ -24,7 +24,7 @@ import re
 
 from hqptuner.conf.matrixpayload import rows_from_list
 from hqptuner.conf.matrixscope import find_matrix_body_span, matrix_body_span, matrix_scope
-from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_body
+from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_body, strip_with_lead
 
 
 class PipelinesBadJsonError(GroundingError):
@@ -131,7 +131,7 @@ def _replace_pipelines_here(xml: bytes, rows: list[dict[str, str]]) -> bytes:
     body = xml[start:close]
     indent_m = re.search(rb"\n([ \t]*)<pipeline\b", body)
     indent = indent_m.group(1) if indent_m else b"\t\t\t"
-    stripped = re.sub(rb"\n?[ \t]*<pipeline\b[^>]*/>", b"", body)
+    stripped = strip_with_lead(re.compile(rb"<pipeline\b[^>]*/>"), body)
     block = b"".join(b"\n" + indent + pipeline_tag(i, row) for i, row in enumerate(rows))
     return xml[:start] + block + stripped + xml[close:]
 
@@ -168,7 +168,7 @@ def _replace_post_process(xml: bytes, post: bytes) -> bytes:
     xml, _ = ensure_body(xml, "matrix")
     start, close = matrix_body_span(xml)
     body = xml[start:close]
-    stripped = re.sub(rb"\n?[ \t]*<post_process\b[^>]*>.*?</post_process>", b"", body, flags=re.DOTALL)
+    stripped = strip_with_lead(re.compile(rb"<post_process\b[^>]*>.*?</post_process>", re.DOTALL), body)
     if not post:
         return xml[:start] + stripped + xml[close:]
     indent_m = re.search(rb"\n([ \t]*)<pipeline\b", stripped)

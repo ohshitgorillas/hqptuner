@@ -223,7 +223,39 @@ def set_attr(tag: bytes, attr: str, value: str) -> bytes:
 
 def drop_attr(tag: bytes, attr: str) -> bytes:
     """Remove ``attr="value"`` and the whitespace before it from an element's open-tag bytes; unchanged when absent."""
-    return re.sub(rb"\s+" + attr_re(attr).pattern, b"", tag, count=1)
+    for m in attr_re(attr).finditer(tag):
+        start = m.start()
+        if not tag[start - 1 : start].isspace():
+            continue
+        while start > 0 and tag[start - 1 : start].isspace():
+            start -= 1
+        return tag[:start] + tag[m.end() :]
+    return tag
+
+
+def lead_start(xml: bytes, pos: int) -> int:
+    """Offset where the indentation and the one newline in front of the element at ``pos`` begin.
+
+    Taking them with the element is what stops a delete leaving a blank line. The search for an element starts on its
+    own literal, so this walk back is the only work the leading whitespace costs.
+    """
+    start = pos
+    while start > 0 and xml[start - 1 : start] in (b" ", b"\t"):
+        start -= 1
+    if start > 0 and xml[start - 1 : start] == b"\n":
+        start -= 1
+    return start
+
+
+def strip_with_lead(pattern: re.Pattern[bytes], xml: bytes) -> bytes:
+    """Remove every match of ``pattern`` together with the newline and indentation in front of it."""
+    parts: list[bytes] = []
+    done = 0
+    for m in pattern.finditer(xml):
+        parts.append(xml[done : lead_start(xml, m.start())])
+        done = m.end()
+    parts.append(xml[done:])
+    return b"".join(parts)
 
 
 def splice(xml: bytes, span: tuple[int, int], tag: bytes) -> bytes:
