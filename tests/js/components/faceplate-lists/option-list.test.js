@@ -147,6 +147,12 @@ test("test_a_closed_list_is_marked_closed", () => {
   assert.equal(mark(closed), true);
 });
 
+test("test_an_open_list_is_not_marked_closed", () => {
+  open("sdm_filter_1x", "IIR");
+  const opened = sheet();
+  assert.equal(opened ? hasAttr(opened, "data-closed") : null, false);
+});
+
 test("test_a_narrowed_out_option_draws_no_row", () => {
   setFacet("quality", 3);
   open("sdm_filter_1x", "IIR");
@@ -228,6 +234,16 @@ test("test_a_filter_row_carries_a_heart", () => {
   open("sdm_filter_1x", "IIR");
   const filters = hearts();
   assert.equal(filters, 3);
+});
+
+/** How many hearts the list draws. */
+const heartCount = () => markup().filter((e) => attr(e, "data-fav") !== undefined).length;
+
+test("test_dither_rows_carry_no_heart_while_filter_rows_each_carry_one", () => {
+  open("pcm_dither", "none");
+  const dither = heartCount();
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual([dither, heartCount()], [0, rows().length]);
 });
 
 test("test_a_modulator_panel_draws_no_close_button", () => {

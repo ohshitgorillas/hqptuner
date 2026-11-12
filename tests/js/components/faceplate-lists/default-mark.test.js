@@ -224,6 +224,13 @@ test("test_a_stage_marks_its_own_default_while_its_sibling_stage_records_none", 
   assert.deepEqual(markedRows(), [DEFAULTS.filter_nx]);
 });
 
+test("test_a_setting_with_no_recorded_default_marks_no_option", async () => {
+  const { filter_1x: _none, ...rest } = DEFAULTS;
+  await serve(rest);
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual(markedRows(), []);
+});
+
 /** One window of each list kind: filters, dither, modulator, DSD processing. */
 const KINDS = WINDOWS.filter((w) => ["sdm_filter_1x", "pcm_dither", "sdm_modulator", "noise_filter"].includes(w.key));
 
@@ -276,6 +283,16 @@ test("test_a_simplified_filter_window_with_polyphase_sinc_narrowed_out_keeps_the
     legendMarks().filter((m) => m !== DEFAULT_MARK),
     FILTER_MARKS,
   );
+});
+
+test("test_a_default_narrowed_out_of_the_list_drops_from_the_legend_while_one_still_listed_keeps_its_entry", async () => {
+  favoritesWire({ filters: ["sinc-M", "IIR"] });
+  await hydrateFavorites();
+  nFavOnly.value = true;
+  open("sdm_filter_1x", "IIR");
+  const narrowedOut = defaultEntries();
+  open("sdm_filter_nx", "IIR");
+  assert.deepEqual([narrowedOut, defaultEntries()], [0, 1]);
 });
 
 test("test_the_filter_legend_keeps_its_own_entries_beside_the_default", () => {

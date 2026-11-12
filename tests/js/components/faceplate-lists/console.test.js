@@ -180,3 +180,10 @@ test("test_a_modulator_rate_cap_chip_counts_the_modulators_it_keeps", () => {
   open("sdm_modulator");
   assert.equal(countOf("modTier", CAP_128), KEPT_UNDER_128);
 });
+
+test("test_tapping_reset_returns_a_moved_facet_to_unmoved", () => {
+  setFacet("quality", 3);
+  fire((p) => p["data-testid"] === "narrow-reset");
+  const el = reset();
+  assert.equal(el ? classes(el).includes("idle") : null, true);
+});
