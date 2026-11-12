@@ -219,6 +219,10 @@ test("test_the_needle_follows_the_live_level_while_the_engine_reports_the_contro
   assert.equal((await rangeWith({})).level, -12.5);
 });
 
+test("test_the_needle_is_hidden_while_the_engine_holds_the_volume_control", async () => {
+  assert.equal((await rangeWith({ report: { enabled: "0", min: "-60", max: "0" } })).level, null);
+});
+
 test("test_a_knob_drag_in_flight_moves_the_needle", async () => {
   await load({});
   volumeDrag.value = -30;

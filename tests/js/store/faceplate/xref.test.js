@@ -98,6 +98,10 @@ test("test_the_dsd_meter_line_on_the_page_names_the_matrix_engine", () => {
   assert.equal(reasonXref(METER_NOTES.matrix, null), "matrix");
 });
 
+test("test_a_reason_naming_no_place_carries_no_link", () => {
+  assert.equal(reasonXref("Held back by something this page has no link for.", { drawer: "crossfeed" }), null);
+});
+
 /** @type {[string, string, string | null][]} */
 const FIXED_VOLUME_ON = [
   ["a_fixed_volume_reason_on_the_gain_tab_of_its_drawer_names_the_level_tab", "gain", "volume-level"],
