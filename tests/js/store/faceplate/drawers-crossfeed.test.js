@@ -127,6 +127,11 @@ test("test_the_folded_bauer_line_carries_the_installed_compensation", async () =
   assert.equal(crossfeedView().folded.values[2], 60);
 });
 
+test("test_the_folded_bauer_line_reads_no_compensation_with_none_installed", async () => {
+  await load({ picked: "structural" });
+  assert.equal(crossfeedView().folded.values[2], 0);
+});
+
 test("test_the_folded_structural_line_summarizes_the_installed_block", async () => {
   await load({ rows: structural({ angle: 22, headRadius: 0.09, lambda: 0.5 }), picked: "bauer" });
   assert.deepEqual(crossfeedView().folded.values.map(r2), [22, 56.55, 50]);
@@ -140,6 +145,30 @@ test("test_a_bypassed_matrix_engine_gives_one_reason_whatever_the_switch", async
   assert.equal(bypassedOff, bypassedOn);
 });
 
+test("test_the_structural_gray_reason_ignores_the_bauer_switch", async () => {
+  await load({ rows: structural(), enabled: "1", picked: "structural" });
+  const bauerOn = crossfeedView().gray;
+  await load({ rows: structural(), enabled: "0", picked: "structural" });
+  const bauerOff = crossfeedView().gray;
+  assert.equal(bauerOn, bauerOff);
+});
+
+test("test_the_bauer_gray_reason_follows_the_bauer_switch", async () => {
+  await load({ enabled: "1", picked: "bauer" });
+  const switchedOn = crossfeedView().gray;
+  await load({ enabled: "0", picked: "bauer" });
+  const switchedOff = crossfeedView().gray;
+  assert.notEqual(switchedOn, switchedOff);
+});
+
+test("test_a_bypassed_matrix_engine_reads_a_different_reason_from_a_switched_off_crossfeed", async () => {
+  await load({ matrix: false, enabled: "0", picked: "bauer" });
+  const bypassed = crossfeedView().gray;
+  await load({ matrix: true, enabled: "0", picked: "bauer" });
+  const switchedOff = crossfeedView().gray;
+  assert.notEqual(bypassed, switchedOff);
+});
+
 // --- the gate and the pick ----------------------------------------------------
 
 test("test_the_bauer_gate_stages_the_post_process_switch", async () => {
@@ -147,6 +176,12 @@ test("test_the_bauer_gate_stages_the_post_process_switch", async () => {
   setGate("1");
   await settle();
   assert.equal(effective("crossfeed_enabled"), "1");
+});
+
+test("test_the_structural_gate_is_not_engaged_before_it_is_thrown", async () => {
+  await load({ enabled: "1", picked: "structural" });
+  const before = crossfeedView().engaged;
+  assert.equal(before, false);
 });
 
 test("test_engaging_the_structural_gate_installs_the_block", async () => {
@@ -164,10 +199,22 @@ test("test_compensation_is_ready_over_a_symmetric_stereo_pair", async () => {
   assert.equal(symmetric, true);
 });
 
+test("test_compensation_is_not_ready_over_an_asymmetric_pair", async () => {
+  await load({ rows: [row("0", "0"), row("1", "1", "-6")], enabled: "1", picked: "bauer" });
+  const asymmetric = compView().ready;
+  assert.equal(asymmetric, false);
+});
+
 // --- the Structural controls --------------------------------------------------
 
 test("test_structural_names_the_settings_an_install_would_change", async () => {
   await load({ iir2fir: "2", enabled: "0", picked: "structural" });
   const linear = structuralView().conflicts.map((c) => c.key);
   assert.deepEqual(linear, ["matrix_iir2fir"]);
+});
+
+test("test_structural_names_no_settings_at_iir2fir_zero", async () => {
+  await load({ iir2fir: "0", enabled: "0", picked: "structural" });
+  const none = structuralView().conflicts.map((c) => c.key);
+  assert.deepEqual(none, []);
 });
