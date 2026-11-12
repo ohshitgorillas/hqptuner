@@ -204,6 +204,13 @@ test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
   assert.equal(outputBufferApplies.value, true);
 });
 
+// A low reading on a buffer that does apply raises nothing: the only slow-speed alerts are about speed.
+test("test_a_low_buffer_at_a_healthy_speed_raises_no_alert", () => {
+  reset();
+  const held = hold(HOLD_MS, { output_fill: "0.05", input_fill: "0.05" });
+  assert.deepEqual([outputBufferApplies.value, sevs(held)], [true, []]);
+});
+
 // --- clipping counters ------------------------------------------------------
 
 test("test_clipping_within_a_track_raises_a_clipping_alert", () => {
