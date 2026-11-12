@@ -39,6 +39,7 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    from pathlib import PurePath
 
     from hqptuner.errors import HQPTunerError
 
@@ -57,6 +58,9 @@ _SUFFIX = ".xml"
 _CONFUSABLE_SCRIPTS = frozenset({"LATIN", "CYRILLIC"})
 
 MIXED_SCRIPTS = "mixing Latin and Cyrillic characters is forbidden."
+
+# The reason a refusal states when a name resolves to a path beyond the store that holds it.
+OUTSIDE_STORE = "resolves outside the store."
 
 
 def _has_control_char(name: str) -> bool:
@@ -191,6 +195,11 @@ def validate_stored_name(name: str, error: InvalidNameErrorType, label: str, pla
         if reason is not None:
             raise error(label=label, reason=reason)
     return name
+
+
+def lies_inside(directory: PurePath, path: PurePath) -> bool:
+    """Whether ``path`` is ``directory`` or lies beneath it, both already resolved."""
+    return path.is_relative_to(directory)
 
 
 def validate_new_name(name: str, error: InvalidNameErrorType, mixed: MixedScriptsErrorType, label: str) -> str:

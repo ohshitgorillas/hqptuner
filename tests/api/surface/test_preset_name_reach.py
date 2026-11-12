@@ -5,14 +5,15 @@ while the Linux and macOS builds accept both. The platform is handed in, so no t
 already in a store stay readable and deletable on every platform: the checks apply where a name enters a store.
 """
 
-from pathlib import Path
+import contextlib
+from pathlib import Path, PureWindowsPath
 
 import pytest
 from fastapi.testclient import TestClient
 
 from hqptuner.presets import names
 from hqptuner.presets.store.live import InvalidSnapshotNameError, LivePresetStore, LiveRecord
-from hqptuner.presets.store.presets import InvalidPresetNameError, PresetStore
+from hqptuner.presets.store.presets import InvalidPresetNameError, PresetError, PresetStore
 
 WINDOWS = "win32"
 LINUX = "linux"
@@ -82,3 +83,55 @@ def test_a_windows_first_connect_migration_skips_a_colon_name_and_imports_the_re
 def test_a_preset_saved_under_a_colon_name_on_this_platform_reads_back(http_client: TestClient) -> None:
     http_client.post("/api/profile/save", json={"name": "a:b"})
     assert http_client.get("/api/preset/a:b").status_code == 200
+
+
+# --- a preset path stays inside its store ---------------------------------------
+
+OUTSIDE = b"<outside/>"
+PAYLOAD = b"<hqplayerd/>"
+
+
+@pytest.fixture
+def store_with_a_link_out(tmp_path: Path) -> tuple[PresetStore, Path]:
+    """A store whose directory holds ``evil.xml``, a symlink to a file that lies outside the store."""
+    outside = tmp_path / "outside.xml"
+    outside.write_bytes(OUTSIDE)
+    directory = tmp_path / "presets"
+    directory.mkdir()
+    (directory / "evil.xml").symlink_to(outside)
+    return PresetStore(directory), outside
+
+
+def test_reading_a_preset_that_links_outside_the_store_is_refused(
+    store_with_a_link_out: tuple[PresetStore, Path],
+) -> None:
+    store, _outside = store_with_a_link_out
+    with pytest.raises(InvalidPresetNameError):
+        store.read("evil")
+
+
+def test_saving_over_a_preset_that_links_outside_the_store_leaves_the_outside_file_alone(
+    store_with_a_link_out: tuple[PresetStore, Path],
+) -> None:
+    store, outside = store_with_a_link_out
+    with contextlib.suppress(PresetError):
+        store.save("evil", PAYLOAD)
+    assert outside.read_bytes() == OUTSIDE
+
+
+def test_a_store_reached_through_a_symlinked_directory_still_saves_and_reads(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real)
+    store = PresetStore(link)
+    store.save("Studio", PAYLOAD)
+    assert store.read("Studio") == PAYLOAD
+
+
+@pytest.mark.parametrize(("file", "inside"), [("foo.xml", True), ("D:foo.xml", False)])
+def test_a_name_joined_under_windows_lies_inside_the_store_unless_it_names_another_drive(
+    file: str, *, inside: bool
+) -> None:
+    store = PureWindowsPath("C:\\store")
+    assert names.lies_inside(store, store / file) is inside

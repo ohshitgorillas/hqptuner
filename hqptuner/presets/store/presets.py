@@ -171,7 +171,15 @@ class PresetStore:
         return names.validate_stored_name(name, InvalidPresetNameError, "preset", self._platform)
 
     def _path(self, name: str) -> Path:
-        return self._dir / f"{canonical_name(name)}.xml"
+        """Return the file ``name`` is stored in, refusing a name whose file resolves beyond the store directory.
+
+        Both sides are resolved, so a store directory reached through a symlink works and a symlink inside it that
+        points out does not. Whatever the name rule misses, the file this returns lies inside the store.
+        """
+        path = self._dir / f"{canonical_name(name)}.xml"
+        if not names.lies_inside(self._dir.resolve(), path.resolve()):
+            raise InvalidPresetNameError(label="preset", reason=names.OUTSIDE_STORE)
+        return path
 
     def _meta(self) -> PresetStoreFile:
         """Return ``store.json``'s envelope, validated by ``_clean``, empty when absent.
