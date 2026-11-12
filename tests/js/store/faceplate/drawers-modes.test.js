@@ -90,6 +90,11 @@ test("test_dac_bits_of_zero_read_as_the_auto_detect_line_a_combo_backend_also_re
   assert.equal(zero, combo);
 });
 
+test("test_dac_bits_of_zero_name_no_bit_depth", async () => {
+  await load("alsa", 0, 24);
+  assert.equal(ditherNote().includes("0"), false);
+});
+
 test("test_the_dither_line_names_staged_dac_bits", async () => {
   await load("alsa", 24, 24);
   await edit("alsa_bits", "16");
