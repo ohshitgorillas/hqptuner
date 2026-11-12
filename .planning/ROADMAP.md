@@ -9,12 +9,11 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 - [x] **Phase 1: Snapshots stay on their stations** - saving a snapshot to one station no longer erases it from another
 - [x] **Phase 2: Modulators fit the output rate** - the picker offers only modulators the running output rate supports, and a live apply that stops playback says so
 - [x] **Phase 3: HF filter lamp follows the content** - the HF filter lamp lights only for content the filter acts on
-- [ ] **Phase 4: PCM filters in SDM output mode** - applying PCM filters while in SDM output mode does not reset the engine
-- [ ] **Phase 5: Dimmed while HQPlayer is away** - the app is dimmed while HQPlayer is unavailable or disconnected
-- [ ] **Phase 6: Packaged builds open in the browser** - "Open HQPTuner" in a packaged build opens the app in the browser
-- [ ] **Phase 7: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
-- [ ] **Phase 8: aclean filter entries** - each new "aclean" filter has an entry in the shipped filter data
-- [ ] **Phase 9: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect
+- [ ] **Phase 4: Dimmed while HQPlayer is away** - the app is dimmed while HQPlayer is unavailable or disconnected
+- [ ] **Phase 5: Packaged builds open in the browser** - "Open HQPTuner" in a packaged build opens the app in the browser
+- [ ] **Phase 6: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
+- [ ] **Phase 7: aclean filter entries** - each new "aclean" filter has an entry in the shipped filter data
+- [ ] **Phase 8: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect
 
 ## Phase Details
 
@@ -59,21 +58,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 2. The lamp stays dark for a filter on content below the rates it acts on (e.g. the 50k filter on 2x content, the 2x-8x filter on 2x content).
 3. The lamp lights for a filter on content it acts on.
 
-### Phase 4: PCM filters in SDM output mode
-
-**Goal:** A user in SDM output mode can apply PCM filters without the engine resetting.
-
-**Depends on:** Nothing
-
-**Requirements:** BUG-04
-
-**Success Criteria:**
-
-1. The cause of the reset is found and recorded before any fix lands.
-2. Applying a PCM filter while in SDM output mode does not reset the engine.
-3. Applying a PCM filter in PCM output mode behaves as it does today.
-
-### Phase 5: Dimmed while HQPlayer is away
+### Phase 4: Dimmed while HQPlayer is away
 
 **Goal:** The app is dimmed while HQPlayer is unavailable or disconnected, and undimmed once it is back.
 
@@ -87,7 +72,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 2. Once HQPlayer is reachable again, the app is no longer dimmed.
 3. Every user action still proceeds while the app is dimmed.
 
-### Phase 6: Packaged builds open in the browser
+### Phase 5: Packaged builds open in the browser
 
 **Goal:** Clicking "Open HQPTuner" in a packaged build opens the app in the user's browser, not in a window of its own.
 
@@ -100,7 +85,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 1. In each packaged build that offers "Open HQPTuner", clicking it opens the app in the default browser.
 2. No packaged build opens the app in a window of its own.
 
-### Phase 7: Untested behaviors covered
+### Phase 6: Untested behaviors covered
 
 **Goal:** Every behavior on `todo.txt`'s triaged "untested behaviors" list is covered by a test, or struck from the list.
 
@@ -115,7 +100,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 3. No existing assertion is edited to pass.
 4. `scripts/gate.sh make check` prints `exit=0`.
 
-### Phase 8: aclean filter entries
+### Phase 7: aclean filter entries
 
 **Goal:** The shipped filter data has an entry for each new "aclean" filter, with an empty description and no simplified name.
 
@@ -128,7 +113,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 1. Every "aclean" filter the running engine enumerates has an entry in the shipped filter data, joined by name.
 2. Each of those entries has an empty description and no simplified name.
 
-### Phase 9: No trace on the other visualizer effects
+### Phase 8: No trace on the other visualizer effects
 
 **Goal:** The trace is drawn on the spectrum only, and on none of the other visualizer effects, such as Borealis.
 

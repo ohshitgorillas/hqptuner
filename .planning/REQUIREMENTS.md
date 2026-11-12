@@ -85,7 +85,7 @@ Deferred. Tracked, not in the current roadmap.
 | BUG-01 | Phase 1 | Complete |
 | BUG-02 | Phase 2 | Complete |
 | BUG-03 | Phase 3 | Complete |
-| BUG-04 | Phase 4 | Pending |
+| BUG-04 |  | Deferred |
 
 Bare headers - `/cad-plan` seeds a row per requirement when its phase is planned (`references/req-traceability.md`).
 
