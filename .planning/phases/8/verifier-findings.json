@@ -1,0 +1,176 @@
+{
+  "status": "gaps",
+  "score": "13/14",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "A staged value containing \", <, & or ' lands in hqplayerd.xml as entity text and reads back as the original value",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "hqptuner/conf/xmledit.py:179-193 attr_escape/attr_unescape; set_attr (xmledit.py:212) escapes, get_attr (xmledit.py:207) unescapes; presetconf._route (presetconf.py:211-220) writes every field through edit_element/edit_plugin, net_device included; fixedvol.py:118,131-134 and matrixconf.py:88 escape level and process. Spot-check: apply_edits on title 'a\"b<c>d&e'f &amp;' wrote value=\"a&quot;b&lt;c&gt;d&amp;e&apos;f &amp;amp;\" and both read_config and minidom read back the original (True, True). Bite: the pre-2665a322 set_attr, exec'd from git show, turned 'x\"/><foo bar=\"baz' into '<title value=\"x\"/><foo bar=\"baz\"/>'. tests/engine/http/test_xml_escaping.py passes."
+    },
+    {
+      "n": 2,
+      "truth": "A Control API command with &, < or ' in a value is sent unchanged; one with \" is refused before any byte is written",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "hqptuner/engine/control.py:334-345 ControlClient.send refuses a value holding '\"' with AttributeValueRefusedError (controlerrors.py, code invalid_input) before request(); otherwise interpolates raw. The only other interpolated request (control.py:327) carries a command name, not a value. tests/engine/http/test_control_attr_quote.py (ampersand/apostrophe/angle-bracket unchanged on the wire; quote refused; next command the only one written) passes against a recording fake that parses nothing."
+    },
+    {
+      "n": 3,
+      "truth": "A staged matrix_enabled of on, or any value not among its page's choices, is refused at /api/config/stage and /api/config/live with nothing written",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "presetconf.check_choices (presetconf.py:400-421) reads choices from readings.config_form/matrix_form; pending.check_offered (pending.py) answers 503/502 via deps.ensure_form when the page is unloaded; stage() (pending.py) refuses before store.stage; config_live (apply.py:163-168) refuses before _stand_autopilot_down and lane.apply_now. tests/api/surface/test_staged_choices.py (flag spelled on refused, buffer unchanged, apply after refusal sends no restore, unloaded page answers not_loaded, held value refused at live and not held, engine sent nothing extra) and tests/engine/http/test_page_choices.py pass."
+    },
+    {
+      "n": 4,
+      "truth": "A 401 following a normal answer in the same apply is reported as an engine fault and credentials_ok is unchanged",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "httpconf.py HttpConfigClient.answered counter incremented on each 2xx in _mark, retract_refusal(); lanes/http/restore.py apply() snapshots answered and readings.credentials_ok at start and on AuthRefused after an answer retracts the verdict, restores readings.credentials_ok and raises RestoreRefusedAfterAnswerError (daemon_write_failed). tests/engine/http/test_engine_fault_after_answer.py: code daemon_write_failed, credentials_ok True after, and still True after the next poll with the lane down - all pass."
+    },
+    {
+      "n": 5,
+      "truth": "A restore upload over its ceiling, a member whose declared decompressed size is over its ceiling, and a member name that is absolute, contains .. or a backslash are each refused with nothing sent to the daemon",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "routes/config.py _read_upload checks UploadFile.size then read(limit+1) against presetzip.RESTORE_UPLOAD_CEILING; _refuse_unfit_archive runs presetzip.check_sizes (declared file_size vs MEMBER_CEILING 64 MiB / TOTAL_CEILING 128 MiB) and check_names (presetzip.py:254-273: leading /, '..', backslash, drive prefix, root members other than the working config, hqplayerd-auth.xml) before take_descriptions and settle.restore. First-connect snapshot_members carries the same size check (762e8034). tests/api/surface/test_restore_limits.py and test_restore_members.py (_BAD_NAMES = /etc/x, data/../x, data\\x, C:x.xml, hqplayerd-auth.xml, run.sh; each with a no-restore-sent case) and tests/engine/http/test_snapshot_member_ceiling.py pass. Residual recorded in PLAN-2.md:83: Starlette spools the upload to disk before the route's ceiling applies."
+    },
+    {
+      "n": 6,
+      "truth": "An over-limit description entry in an accepted archive is dropped and the other entries merge",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "presets/store/descriptions.py _storable runs _validate_name and _validate_text per carried entry, logs and drops a failure; merge() uses it. tests/api/surface/test_restore_descriptions.py (text-too-long, control, name-long dropped; valid entry merges) passes."
+    },
+    {
+      "n": 7,
+      "truth": "A staged value over the length ceiling is refused",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "pending.py MAX_VALUE_LENGTH 262144, MAX_STAGED_KEYS 256; refuse_long_values called first in stage() and in config_live (apply.py:163); key ceiling counted on the merged buffer in stage(). tests/api/surface/test_stage_ceiling.py (1 MiB value at stage and at live, live argument, 10000 keys, flood in small requests, realistic 128-row matrix still stages, refused live value sends no setter) passes."
+    },
+    {
+      "n": 8,
+      "truth": "/api/audit with a limit over its cap answers at most the cap",
+      "status": "VERIFIED",
+      "uat_item": 8,
+      "evidence": "hqptuner/api/routes/audit.py MAX_LIMIT = 1000, audit.tail(min(limit, MAX_LIMIT)); pre-fix (git show 6419c0dc^) was audit.tail(limit). tests/audit/test_audit_limit_cap.py::test_a_limit_far_above_the_cap_answers_exactly_the_cap passes."
+    },
+    {
+      "n": 9,
+      "truth": "A profile switch naming a profile absent from a fresh MatrixListProfiles read is refused and no switch command is sent",
+      "status": "VERIFIED",
+      "uat_item": 9,
+      "evidence": "lanes/matrixlane.py switch_profile: a non-empty name not in await client.get_matrix_profiles() raises UnknownProfileError (invalid_input) before client.set_matrix_profile (matrixlane.py:57); routes/matrix/matrix.py:189-193 maps it to a refusal. switch_profile is the only caller of set_matrix_profile. Pre-fix matrixlane.py had no get_matrix_profiles call. tests/matrix/test_profile_switch_known.py (refused, no switch sent, listed name with spaces switches, empty name switches to default) passes."
+    },
+    {
+      "n": 10,
+      "truth": "A preset, snapshot or mode name resolving outside its store is refused on every platform; under the Windows build a:b and CON are refused while on Linux a:b saves",
+      "status": "VERIFIED",
+      "uat_item": 10,
+      "evidence": "presets/store/presets.py _path resolves store and file and refuses via names.lies_inside with OUTSIDE_STORE; snapshot (live.py:234-263) and mode (matrixmode.py:148-173) stores are single JSON files keyed by name, so no name reaches a path; shared rule (names.py:85-93) already refuses separators and '..'. names.validate_stored_name adds the win32 colon and device-name checks at PresetStore.save/import_missing, LivePresetStore.save, MatrixModeStore.write, defaulting to sys.platform. tests/api/surface/test_preset_name_reach.py (win32 refusals incl. a:b, CON, NUL.txt, LPT superscript; Linux accepts a:b and CON; Linux save of a:b reads back over HTTP; symlink-out read and save refused) passes."
+    },
+    {
+      "n": 11,
+      "truth": "A daemon option labelled constructor renders in Simplified mode without error",
+      "status": "VERIFIED",
+      "uat_item": 11,
+      "evidence": "hqptuner/static/store/plainnames.js:51 own() via Object.hasOwn used for entries, families, variants (plainnames.js:75,128,147-148); ranks() is Map-keyed; narrow/match.js:97 facetOf uses Object.hasOwn. node --test tests/js/store/narrow/inherited-labels.test.js: 5 pass, 0 fail."
+    },
+    {
+      "n": 12,
+      "truth": ".planning/security/DISPOSITIONS.md lists all 13 findings, each fixed one naming its commit and a proof that fails against the pre-fix code, each declined or deferred one quoting the owner's ruling",
+      "status": "VERIFIED",
+      "uat_item": 12,
+      "evidence": "One '- Disposition:' line under each of ### F-006, F-007, F-010, F-011, F-012, F-013, F-014, F-016, F-018, F-019, F-026, F-032, F-033. All 22 cited commit hashes are ancestors of HEAD (git merge-base --is-ancestor). All 32 cited pytest node ids exist and the 16 proof files pass (153 passed, 5.43s); the JS proof passes. Declined/partial entries quote rulings: F-012 verbatim owner quote, F-007 'smells like scope expansion', F-011/F-018/F-033 quote CONTEXT D-05/D-06/D-07 and Q3 as the owner ruled in PLAN-1.md:117 (item 13). Bite evidence: reports/plan-2.md:11-15, plan-3.md:9-11, plan-4.md:6-9, plan-1.md:13-20 record red-before runs; independently confirmed for F-006 (pre-fix set_attr injects an element) and F-014/F-018 (pre-fix code lacks the check). F-019 anchoring is characterization-only per D-09, its ceiling proof fails pre-fix."
+    },
+    {
+      "n": 13,
+      "truth": "Every Critical and High finding in the phase is fixed, or declined or deferred only by an owner ruling",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "REPORT.md table rates F-006, F-007, F-013, F-016, F-019 High; none Critical. DISPOSITIONS.md: F-006, F-013, F-016, F-019 Fixed; F-007 Fixed by member-name rule and ceilings with the safety copy declined on the owner's quoted ruling (CONTEXT D-04). Code for each verified under truths 1, 3, 4, 5, 7."
+    },
+    {
+      "n": 14,
+      "truth": "The normative error table in docs/architecture.md matches what the restore route now answers for an unreadable uploaded archive",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "docs/architecture.md:286 reads '| `archive_unreadable` | 500 | an uploaded backup archive that is not a readable zip, or whose descriptions will not parse |'. Since 56b41122 the restore route raises ArchiveUnreadableError with code invalid_input (422) for an uploaded archive (hqptuner/api/routes/config.py:155-166), and unreadable carried descriptions are logged, not refused (config.py:391-396). archive_unreadable (errors.py:60) now covers only daemon-served archives (engineconf.py:210-211). SUMMARY open item 1 acknowledges it; no commit fixes it."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Staged XML values escape and round-trip",
+      "evidence": "xmledit.py:179-193,207-230; spot-check round-trip True/True; pre-fix set_attr injected <foo>; tests/engine/http/test_xml_escaping.py passes"
+    },
+    {
+      "k": 2,
+      "name": "Control API values sent raw, double quote refused",
+      "evidence": "control.py:334-345 refuses '\"' before request(); tests/engine/http/test_control_attr_quote.py passes"
+    },
+    {
+      "k": 3,
+      "name": "Values outside page choices refused",
+      "evidence": "presetconf.check_choices; pending.stage and apply.config_live refuse before any merge, hold or send; tests/api/surface/test_staged_choices.py and tests/engine/http/test_page_choices.py pass"
+    },
+    {
+      "k": 4,
+      "name": "401 after a normal answer is an engine fault",
+      "evidence": "restore.py apply() answered-counter check, retract_refusal, readings restored; tests/engine/http/test_engine_fault_after_answer.py passes (3 cases)"
+    },
+    {
+      "k": 5,
+      "name": "Restore upload ceilings and member names",
+      "evidence": "routes/config.py _read_upload and _refuse_unfit_archive; presetzip.check_sizes/check_names; tests/api/surface/test_restore_limits.py, test_restore_members.py, tests/engine/http/test_snapshot_member_ceiling.py pass, each with a no-restore-sent case"
+    },
+    {
+      "k": 6,
+      "name": "Over-limit archive description dropped",
+      "evidence": "descriptions._storable called from merge; tests/api/surface/test_restore_descriptions.py passes"
+    },
+    {
+      "k": 7,
+      "name": "Staged value length ceiling",
+      "evidence": "pending.MAX_VALUE_LENGTH/MAX_STAGED_KEYS, refuse_long_values at stage and live; tests/api/surface/test_stage_ceiling.py passes"
+    },
+    {
+      "k": 8,
+      "name": "Audit limit cap",
+      "evidence": "audit.py tail(min(limit, MAX_LIMIT=1000)); tests/audit/test_audit_limit_cap.py passes"
+    },
+    {
+      "k": 9,
+      "name": "Profile switch checks a fresh profile list",
+      "evidence": "matrixlane.switch_profile re-reads get_matrix_profiles before set_matrix_profile; tests/matrix/test_profile_switch_known.py passes"
+    },
+    {
+      "k": 10,
+      "name": "Stored names stay in their store; Windows name refusals",
+      "evidence": "PresetStore._path containment, names.validate_stored_name win32 checks wired at every save site; tests/api/surface/test_preset_name_reach.py passes"
+    },
+    {
+      "k": 11,
+      "name": "constructor option label in Simplified mode",
+      "evidence": "plainnames.js own() and match.js facetOf via Object.hasOwn; tests/js/store/narrow/inherited-labels.test.js 5/5 pass"
+    },
+    {
+      "k": 12,
+      "name": "Dispositions record covers all 13 findings",
+      "evidence": "13 Disposition lines; 22 commits on HEAD; 32 proof node ids collect and pass; rulings quoted; bite runs recorded in reports and spot-confirmed"
+    }
+  ],
+  "gaps": [
+    {
+      "name": "docs/architecture.md error table describes the restore route's unreadable-archive answer as it was before 56b41122",
+      "reason": "behavior wrong (normative doc contradicts code) - Plan 2 Task 2 moved an unreadable uploaded archive from archive_unreadable/500 to invalid_input/422 and left the architecture error row unchanged, so the normative rule now names a status the route never answers for an upload",
+      "evidence": "docs/architecture.md:286 still maps `archive_unreadable` 500 to 'an uploaded backup archive that is not a readable zip, or whose descriptions will not parse'; hqptuner/api/routes/config.py:155-166 ArchiveUnreadableError carries code invalid_input; config.py:391-396 logs, not refuses, unreadable carried descriptions; hqptuner/api/errors.py:60 and engineconf.py:210-211 keep archive_unreadable for daemon-served archives only",
+      "severity": "minor",
+      "missing": "Reword the docs/architecture.md:286 row so archive_unreadable names an archive the daemon served that is not a readable zip, and state that an unreadable uploaded archive answers invalid_input (422); soft-wrapped, via Edit"
+    }
+  ],
+  "human_checks": []
+}
