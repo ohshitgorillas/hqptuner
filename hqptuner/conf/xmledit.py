@@ -193,6 +193,19 @@ def attr_unescape(value: str) -> str:
     return value
 
 
+# XML 1.0's Char production leaves out the surrogates and these two noncharacters, so the file cannot hold one.
+_SURROGATES = range(0xD800, 0xE000)
+_NONCHARACTERS = (0xFFFE, 0xFFFF)
+# Below this code point a character is a control character: the file cannot hold one that is not tab, line feed or
+# carriage return, and an XML parser reads those three back as spaces.
+_FIRST_PRINTABLE = 0x20
+
+
+def attr_cannot_carry(value: str) -> bool:
+    """Return whether ``value`` holds a character an XML attribute cannot carry back unchanged, escaped or not."""
+    return any(ord(c) < _FIRST_PRINTABLE or ord(c) in _SURROGATES or ord(c) in _NONCHARACTERS for c in value)
+
+
 def get_attr(tag: bytes, attr: str) -> str | None:
     """Read ``attr`` off an element's open-tag bytes, entities turned back into characters; None when absent."""
     m = attr_re(attr).search(tag)

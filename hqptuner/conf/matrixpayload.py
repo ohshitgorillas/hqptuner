@@ -13,12 +13,11 @@ import json
 import re
 from typing import Any, NamedTuple
 
-from hqptuner.conf.xmledit import GroundingError
+from hqptuner.conf.xmledit import GroundingError, attr_cannot_carry
 
 _GAIN_RE = re.compile(r"^-?\d+(\.\d+)?$")
 _MAX_CHANNELS = 128
 _NAME_MAX = 128
-_FIRST_PRINTABLE = 0x20  # anything below is a control character the config XML cannot carry
 
 
 class RowNotObjectError(GroundingError):
@@ -62,7 +61,7 @@ class RowBadGainUnitError(GroundingError):
 
 
 class RowControlCharsError(GroundingError):
-    """A row's ``process`` string carried a control character."""
+    """A row's ``process`` string carried a character the config file cannot carry back."""
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
@@ -102,7 +101,7 @@ class NameTooLongError(GroundingError):
 
 
 class NameControlCharsError(GroundingError):
-    """A staged profile name carried a control character."""
+    """A staged profile name carried a character the config file cannot carry back."""
 
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
@@ -165,7 +164,7 @@ def _validate_row(row: object) -> dict[str, str]:
     if unit not in ("dB", "Lin"):
         raise RowBadGainUnitError(unit=unit)
     process = str(row.get("process", ""))
-    if any(ord(c) < _FIRST_PRINTABLE for c in process):
+    if attr_cannot_carry(process):
         raise RowControlCharsError()
     return {"source": str(source), "gain": gain, "gainunit": unit, "mixdown": str(mixdown), "process": process}
 
@@ -195,7 +194,7 @@ def validate_name(name: object) -> str:
         raise NameEmptyError()
     if len(cleaned) > _NAME_MAX:
         raise NameTooLongError(limit=_NAME_MAX)
-    if any(ord(c) < _FIRST_PRINTABLE for c in cleaned):
+    if attr_cannot_carry(cleaned):
         raise NameControlCharsError()
     return cleaned
 

@@ -177,6 +177,10 @@ def test_a_control_character_in_the_process_string_is_refused() -> None:
     assert refusal_code(lambda: pipelines(rows({"process": "eq\x07more"}))) == "row-control-chars"
 
 
+def test_a_noncharacter_in_the_process_string_is_refused() -> None:
+    assert refusal_code(lambda: pipelines(rows({"process": "eq\ufffemore"}))) == "row-control-chars"
+
+
 # --- 7/8/9. the row list itself -----------------------------------------------
 
 BAD_ROW_LISTS = [
@@ -235,6 +239,10 @@ def test_a_profile_name_exactly_at_the_length_ceiling_is_accepted() -> None:
 
 def test_a_control_character_in_the_profile_name_is_refused() -> None:
     assert refusal_code(lambda: profile(save_payload(name="bad\x07name"))) == "name-control-chars"
+
+
+def test_a_lone_surrogate_in_the_profile_name_is_refused() -> None:
+    assert refusal_code(lambda: profile(save_payload(name="bad\ud800name"))) == "name-control-chars"
 
 
 # --- 15. the save payload is not JSON -----------------------------------------

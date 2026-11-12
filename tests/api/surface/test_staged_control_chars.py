@@ -4,6 +4,8 @@ A C0 control character other than tab, line feed and carriage return is not allo
 three are allowed but the daemon's parser reads each back as a space.
 """
 
+import json
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -16,6 +18,14 @@ def _pending(client: TestClient) -> dict[str, dict[str, str]]:
 @pytest.mark.parametrize("char", ["\x01", "\x00", "\x1f", "\t", "\n", "\r"])
 def test_a_text_value_with_a_control_character_is_refused(http_client: TestClient, char: str) -> None:
     resp = http_client.post("/api/config/stage", json={"http": {"title": f"a{char}b"}})
+    assert resp.json()["code"] == "invalid_input"
+
+
+@pytest.mark.parametrize("char", ["\ufffe", "\uffff", "\ud800", "\udfff"])
+def test_a_text_value_with_a_character_xml_excludes_is_refused(http_client: TestClient, char: str) -> None:
+    # Sent ASCII-escaped: a lone surrogate has no UTF-8 form, and JSON's \\u escape is how a client carries one.
+    body = json.dumps({"http": {"title": f"a{char}b"}})
+    resp = http_client.post("/api/config/stage", content=body, headers={"content-type": "application/json"})
     assert resp.json()["code"] == "invalid_input"
 
 

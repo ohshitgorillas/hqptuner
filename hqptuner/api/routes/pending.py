@@ -12,7 +12,7 @@ from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
-from hqptuner.conf import presetconf
+from hqptuner.conf import presetconf, xmledit
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.restore import RestoreOutcome
@@ -29,9 +29,6 @@ MAX_VALUE_LENGTH = 262_144
 # ``matrix_pipelines``, the two profile verbs, ``net_device`` and the fixed-volume pair: under a hundred keys together.
 # 256 leaves room for fields still to come and stays far under what a flood needs.
 MAX_STAGED_KEYS = 256
-# Below this code point a character is a control character: the config file cannot hold one that is not tab, line feed
-# or carriage return, and the daemon's parser reads those three back as spaces, so none of them round-trips.
-_FIRST_PRINTABLE = 0x20
 
 
 @dataclass(frozen=True)
@@ -140,7 +137,7 @@ class StagedValueTooLongError(ErrorBody):
 
 
 class StagedValueControlCharsError(ErrorBody):
-    """A staged value carries a control character, which the config file cannot hold and read back."""
+    """A staged value carries a character the config file cannot hold and read back."""
 
     code = "invalid_input"
 
@@ -202,12 +199,12 @@ def refuse_long_values(http: dict[str, str], live: dict[str, dict[str, str]]) ->
 
 
 def refuse_control_chars(http: dict[str, str]) -> None:
-    """Refuse a request any of whose ``http`` values holds a control character.
+    """Refuse a request any of whose ``http`` values holds a character the config file cannot carry back.
 
     Every ``http`` value lands in ``hqplayerd.xml``; ``live`` arguments go to the Control API and are not checked here.
     """
     for field, value in http.items():
-        if any(ord(c) < _FIRST_PRINTABLE for c in value):
+        if xmledit.attr_cannot_carry(value):
             raise refuse(StagedValueControlCharsError(field=field))
 
 
@@ -215,10 +212,11 @@ def refuse_control_chars(http: dict[str, str]) -> None:
 def stage(body: StageBody, request: Request, manager: Mgr) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a value is over the length ceiling, when an ``http`` value holds a control character, when the merge would
-    take the buffer past the key ceiling, when a value is outside the choices its own page lists (503 or 502 when that
-    page is not loaded), and when a live key is not a known live setting — the daemon would have no setter to call for
-    it. A refused request merges nothing. Nothing is written to the daemon here; apply is a separate call.
+    422 when a value is over the length ceiling, when an ``http`` value holds a character the config file cannot carry
+    back, when the merge would take the buffer past the key ceiling, when a value is outside the choices its own page
+    lists (503 or 502 when that page is not loaded), and when a live key is not a known live setting — the daemon would
+    have no setter to call for it. A refused request merges nothing. Nothing is written to the daemon here; apply is a
+    separate call.
     """
     refuse_long_values(body.http, body.live)
     refuse_control_chars(body.http)

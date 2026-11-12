@@ -110,7 +110,7 @@ HQPTuner never refuses a user action because the daemon is playing; see the bind
 
 ### 4.7 A staged value is one its page offers, and is written escaped
 
-A staged value outside the choices its own page lists (a select's options, a checkbox's `0` and `1`, with `volume_fixed` also taking `2`) is refused at stage and at live, before anything is staged, held or written; a number or text input, or a field the page does not render, is not checked this way. Every value HQPTuner writes into `hqplayerd.xml` is escaped as an XML attribute value and read back unescaped. A staged `http` value holding a control character (below U+0020, tab, line feed and carriage return included) is refused at stage, since the file cannot hold the others and the daemon's parser reads those three back as spaces.
+A staged value outside the choices its own page lists (a select's options, a checkbox's `0` and `1`, with `volume_fixed` also taking `2`) is refused at stage and at live, before anything is staged, held or written; a number or text input, or a field the page does not render, is not checked this way. Every value HQPTuner writes into `hqplayerd.xml` is escaped as an XML attribute value and read back unescaped. A staged `http` value, a matrix row's `process` string or a profile name holding a character the file cannot carry back is refused before anything is written: a control character (below U+0020, tab, line feed and carriage return included), a surrogate, U+FFFE or U+FFFF. XML cannot hold the surrogates, the two noncharacters or the control characters other than those three, and the daemon's parser reads those three back as spaces.
 
 ## 5. HQPTuner-owned state
 

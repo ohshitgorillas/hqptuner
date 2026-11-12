@@ -7,7 +7,9 @@ would pass for any table, right or wrong.
 from io import BytesIO
 from xml.parsers import expat
 
-from hqptuner.conf import fixedvol, presetconf
+import pytest
+
+from hqptuner.conf import fixedvol, presetconf, xmledit
 
 _TITLE = b'<hqplayerd><title value="old"/></hqplayerd>'
 _ROOT = b"<hqplayerd></hqplayerd>"
@@ -62,3 +64,12 @@ def test_a_parked_fixed_level_typed_as_a_character_reference_reads_back_as_typed
 def test_a_parked_fixed_level_without_a_double_hyphen_keeps_the_daemons_bytes() -> None:
     edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "0", "fixed_volume": "-3"})
     assert b'<!--<fixed volume="-3"/>-->' in edited
+
+
+_CANNOT_CARRY = ["\x00", "\x1f", "\t", "\n", "\r", "\ud800", "\udfff", "\ufffe", "\uffff"]
+_CARRIES = [" ", "\ud7ff", "\ue000", "\ufffd", "\U00010000", "\U0010ffff", "&"]
+
+
+@pytest.mark.parametrize(("char", "flagged"), [(c, True) for c in _CANNOT_CARRY] + [(c, False) for c in _CARRIES])
+def test_a_value_is_flagged_exactly_when_an_attribute_cannot_carry_it_back(char: str, *, flagged: bool) -> None:
+    assert xmledit.attr_cannot_carry(f"a{char}b") is flagged
