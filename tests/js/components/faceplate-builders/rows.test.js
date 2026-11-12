@@ -338,6 +338,16 @@ test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_fro
   assert.equal(diff.adaptive, true);
 });
 
+test("test_the_live_cell_marks_no_difference_on_a_row_that_is_off", async () => {
+  await wire({ f1x: "0", adaptive: "0" });
+  editing("Headphones", "Bed");
+  const diff = byId((r) => {
+    const live = first(r, "div", "vfd", "blive");
+    return live && classes(live).includes("diff");
+  });
+  assert.equal(diff["1x"], false);
+});
+
 /** @param {MarkupElement} r */
 const liveName = (r) => {
   const t = first(first(first(r, "div", "vfd", "blive"), "span", "v"), "span", "bt");
