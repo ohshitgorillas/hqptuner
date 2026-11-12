@@ -364,6 +364,13 @@ test("test_under_auto_the_rate_row_carries_the_restart_mark", () => {
   assert.deepEqual(underAuto, true);
 });
 
+for (const fam of ["f44", "f48"]) {
+  test(`test_picking_${fam}_takes_the_restart_mark_off_the_rate_row`, async () => {
+    await pick(fam);
+    assert.deepEqual(rateRowMarked(), false);
+  });
+}
+
 test("test_picking_auto_after_a_family_puts_the_restart_mark_back_on_the_rate_row", async () => {
   await pick("f48");
   await pick("auto");
