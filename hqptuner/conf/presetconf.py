@@ -382,7 +382,7 @@ _FLAG_CHOICES = frozenset({"0", "1"})
 _ISO_CHOICES = frozenset({"0", "1", "2"})
 #: Staged field -> the name its control carries on the ``/matrix`` page: the attribute for the matrix element's own
 #: fields, the field's own name for a post-process plugin's. Every other staged field is read on ``/config``.
-_MATRIX_PAGE_NAME = {
+MATRIX_PAGE_NAME = {
     **{field: attr for field, (tag, attr) in FIELD_MAP.items() if tag == "matrix"},
     **{field: field for field in PLUGIN_MAP},
 }
@@ -409,7 +409,7 @@ def check_choices(
     refused: list[str] = []
     not_loaded: list[str] = []
     for field, value in values.items():
-        name = _MATRIX_PAGE_NAME.get(field)
+        name = MATRIX_PAGE_NAME.get(field)
         form = config_form if name is None else matrix_form
         if form is None:
             not_loaded.append(field)

@@ -108,6 +108,10 @@ Post-process chain and pipeline rows are a property of a matrix context, not of 
 
 HQPTuner never refuses a user action because the daemon is playing; see the binding rule in `CLAUDE.md`.
 
+### 4.7 A staged value is one its page offers, and is written escaped
+
+A staged value outside the choices its own page lists (a select's options, a checkbox's `0` and `1`, with `volume_fixed` also taking `2`) is refused at stage and at live, before anything is staged, held or written; a number or text input, or a field the page does not render, is not checked this way. Every value HQPTuner writes into `hqplayerd.xml` is escaped as an XML attribute value and read back unescaped.
+
 ## 5. HQPTuner-owned state
 
 ### 5.1 HQPTuner owns its preset store

@@ -7,11 +7,14 @@ from dataclasses import dataclass
 
 from fastapi import APIRouter, Request
 
+from hqptuner.api import deps
 from hqptuner.api.deps import Mgr
 from hqptuner.api.errors import ErrorBody, refuse
 from hqptuner.api.models import AutosaveBody, StageBody
 from hqptuner.audit import AuditLog
+from hqptuner.conf import presetconf
 from hqptuner.core.applyops import ApplyReport
+from hqptuner.core.manager import ConnectionManager
 from hqptuner.lanes.http.restore import RestoreOutcome
 from hqptuner.lanes.writer import LiveWriteFailed, known_live_settings
 
@@ -143,6 +146,37 @@ class StagedBufferFullError(ErrorBody):
         super().__init__("too many settings are staged")
 
 
+#: Why one field's value is refused when its page does not list it; the live route renders it per field.
+NOT_OFFERED_REASON = "the value is not one HQPlayer offers"
+
+
+class StagedValueNotOfferedError(ErrorBody):
+    """A staged value is outside the choices its own page lists."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, fields: tuple[str, ...]) -> None:
+        """Render the wording naming the refused ``fields``."""
+        super().__init__(f"{', '.join(sorted(fields))}: {NOT_OFFERED_REASON}")
+
+
+def check_offered(manager: ConnectionManager, values: dict[str, str]) -> presetconf.ChoiceCheck:
+    """Check ``values`` against the pages the daemon last served, answering a page not yet loaded as the 8088 lane does.
+
+    A page that has not loaded answers through ``deps.ensure_form``: 503 before the first read, 502 when the read
+    failed, which is what ``GET /api/config`` and ``GET /api/matrix`` answer until it loads. Returns the check, whose
+    ``refused`` names the fields outside their page's choices.
+    """
+    readings = manager.readings
+    check = presetconf.check_choices(readings.config_form, readings.matrix_form, values)
+    for field in check.not_loaded:
+        if field in presetconf.MATRIX_PAGE_NAME:
+            deps.ensure_form(readings.matrix_form, readings.matrix_error)
+        else:
+            deps.ensure_form(readings.config_form, readings.config_error)
+    return check
+
+
 def refuse_long_values(http: dict[str, str], live: dict[str, dict[str, str]]) -> None:
     """Refuse a request any of whose values (every ``http`` value, every live argument value) is over the ceiling."""
     for field, value in http.items():
@@ -155,17 +189,21 @@ def refuse_long_values(http: dict[str, str], live: dict[str, dict[str, str]]) ->
 
 
 @router.post("/config/stage")
-def stage(body: StageBody, request: Request) -> PendingSnapshot:
+def stage(body: StageBody, request: Request, manager: Mgr) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a value is over the length ceiling or the merge would take the buffer past the key ceiling, and when a
-    live key is not a known live setting — the daemon would have no setter to call for it. A refused request merges
-    nothing. Nothing is written to the daemon here; apply is a separate call.
+    422 when a value is over the length ceiling or the merge would take the buffer past the key ceiling, when a value
+    is outside the choices its own page lists (503 or 502 when that page is not loaded), and when a live key is not a
+    known live setting — the daemon would have no setter to call for it. A refused request merges nothing. Nothing is
+    written to the daemon here; apply is a separate call.
     """
     refuse_long_values(body.http, body.live)
     store = pending_store(request)
     if len(store.http.keys() | body.http.keys()) + len(store.live.keys() | body.live.keys()) > MAX_STAGED_KEYS:
         raise refuse(StagedBufferFullError())
+    check = check_offered(manager, body.http)
+    if check.refused:
+        raise refuse(StagedValueNotOfferedError(fields=check.refused))
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
