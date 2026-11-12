@@ -3,6 +3,7 @@ version = 1
 
 [allowance]
 "hqptuner/audit.py" = { lines = 406 }
+"hqptuner/conf/presetconf.py" = { lines = 421 }
 "hqptuner/engine/control.py" = { lines = 404 }
 "hqptuner/static/components/xfeed/Card.js" = { lines = 483 }
 "hqptuner/static/css/features/volume.css" = { lines = 407 }

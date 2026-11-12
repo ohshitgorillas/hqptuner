@@ -30,6 +30,8 @@ existed simply could not reach that half of its own form.
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from hqptuner.audit import AuditLog
 from hqptuner.conf.fixedvol import (
@@ -59,6 +61,11 @@ from hqptuner.conf.matrixprofiles import (
     write_profile,
 )
 from hqptuner.conf.xmledit import GroundingError, edit_element, edit_plugin, find_element, find_plugin, get_attr
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping
+
+    from hqptuner.conf.httpforms import ConfigForm, FormField, MatrixForm
 
 
 class FieldEditFailedError(GroundingError):
@@ -355,3 +362,60 @@ def _read_special(xml: bytes) -> dict[str, str]:
     if level is not None:
         out[FIXED_LEVEL] = level
     return out
+
+
+@dataclass(frozen=True)
+class ChoiceCheck:
+    """``check_choices``'s answer.
+
+    ``refused`` names the staged fields whose value their page does not offer; ``not_loaded`` names those whose page
+    is not loaded yet, so there is nothing to check them against.
+    """
+
+    refused: tuple[str, ...]
+    not_loaded: tuple[str, ...]
+
+
+#: A checkbox lists no options and submits ``1``. ``0`` and ``1`` are the two encodings the restore lane writes.
+_FLAG_CHOICES = frozenset({"0", "1"})
+#: ``volume_fixed`` is a bare checkbox on the daemon's page, but its XML domain is 0, 1 and 2 (Optimal ISO at -6 dB).
+_ISO_CHOICES = frozenset({"0", "1", "2"})
+#: Staged field -> the name its control carries on the ``/matrix`` page: the attribute for the matrix element's own
+#: fields, the field's own name for a post-process plugin's. Every other staged field is read on ``/config``.
+_MATRIX_PAGE_NAME = {
+    **{field: attr for field, (tag, attr) in FIELD_MAP.items() if tag == "matrix"},
+    **{field: field for field in PLUGIN_MAP},
+}
+
+
+def _choices_of(field: str, control: FormField) -> frozenset[str] | None:
+    """Return the values a page control offers: a select's options, a checkbox's flags, else None (free input)."""
+    options = control.get("options")
+    if options is not None:
+        return frozenset(option["value"] for option in options)
+    if control["type"] == "checkbox":
+        return _ISO_CHOICES if field == "volume_fixed" else _FLAG_CHOICES
+    return None
+
+
+def check_choices(
+    config_form: ConfigForm | None, matrix_form: MatrixForm | None, values: Mapping[str, str]
+) -> ChoiceCheck:
+    """Say which staged ``values`` fall outside their page's choices, and which have no loaded page to check against.
+
+    The polled ``/config`` and ``/matrix`` forms are ``None`` until read. A number or text input, and a field the
+    loaded page does not render, offers no choices and is never refused; it is only escaped when written.
+    """
+    refused: list[str] = []
+    not_loaded: list[str] = []
+    for field, value in values.items():
+        name = _MATRIX_PAGE_NAME.get(field)
+        form = config_form if name is None else matrix_form
+        if form is None:
+            not_loaded.append(field)
+            continue
+        control = next((c for c in form["fields"] if c["name"] == (name or field)), None)
+        choices = None if control is None else _choices_of(field, control)
+        if choices is not None and value not in choices:
+            refused.append(field)
+    return ChoiceCheck(refused=tuple(refused), not_loaded=tuple(not_loaded))
