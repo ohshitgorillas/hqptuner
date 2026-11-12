@@ -16,7 +16,7 @@ import { test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import { NEW, keyOf, stateOf } from "../../../../hqptuner/static/model/builders/builder.js";
-import { liveBook, bookWanted } from "../../../../hqptuner/static/store/live/presets.js";
+import { liveBook, bookWanted, livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
 import {
   cur,
   staged,
@@ -34,6 +34,7 @@ import {
   remove,
   stateNow,
 } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
+import { bad } from "../../support/wire/wire.js";
 import { rec, presetWire, settle } from "../../support/wire/livepresetwire.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/builders/builder.js").Ref} Ref */
@@ -60,6 +61,7 @@ let w;
 
 beforeEach(() => {
   bookWanted.value = false;
+  livePresetError.value = "";
   liveBook.value = null;
   cur.value = { ...WARM };
   staged.value = new Map();
@@ -391,4 +393,30 @@ test("test_a_clean_record_reads_the_line_of_a_record_the_engine_is_not_running",
 
 test("test_save_is_on_for_an_edit_with_a_station_ticked", () => {
   assert.equal(stateNow({ dirty: true, ticked: true })?.saveOff, false);
+});
+
+// --- a write the wire refuses raises the snapshot failure line ---------------------
+
+/** A refusal's `detail`, the fixture's own. */
+const REFUSED = "The snapshot store is read-only.";
+
+/** Answer every DELETE with a refusal, and every other request as the wire in place does. */
+function refuseDeletes() {
+  const inner = /** @type {(path: string, opts?: { method?: string }) => Promise<unknown>} */ (env.fetch);
+  env.fetch = (/** @type {string} */ path, /** @type {{ method?: string }} */ opts = {}) =>
+    opts.method === "DELETE" ? Promise.resolve(bad(500, REFUSED)) : inner(path, opts);
+}
+
+test("test_a_snapshot_save_the_wire_refuses_raises_the_snapshot_failure_line", async () => {
+  w = presetWire({ station: "Day", presets: [rec("Warm", "pcm")], saveStatus: 500, saveDetail: REFUSED });
+  await save(saving("Cosy", ["Day"]));
+  await settle();
+  assert.ok(livePresetError.value.includes(REFUSED), livePresetError.value);
+});
+
+test("test_a_snapshot_delete_the_wire_refuses_raises_the_snapshot_failure_line", async () => {
+  refuseDeletes();
+  await remove({ book: BOOK() });
+  await settle();
+  assert.ok(livePresetError.value.includes(REFUSED), livePresetError.value);
 });
