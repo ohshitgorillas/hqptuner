@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sys
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
@@ -154,12 +155,20 @@ class PresetStore:
     The directory is created lazily on the first write, so an unconfigured install reads as simply empty.
     """
 
-    def __init__(self, directory: Path, audit: AuditLog | None = None) -> None:
-        """Bind the store to ``directory`` and to an audit log, substituting a no-op log when none is given."""
+    def __init__(self, directory: Path, audit: AuditLog | None = None, *, platform: str = sys.platform) -> None:
+        """Bind the store to ``directory`` and to an audit log, substituting a no-op log when none is given.
+
+        ``platform`` is the ``sys.platform`` value whose naming limits a name being saved is held to.
+        """
         self._dir = directory
+        self._platform = platform
         # A store built without one still works; it just records nothing, which
         # is what every offline test that does not care about the log wants.
         self._audit = audit or AuditLog(None)
+
+    def _stored_name(self, name: str) -> str:
+        """Return the key ``name`` is saved under, raising ``PresetError`` when this platform cannot hold it."""
+        return names.validate_stored_name(name, InvalidPresetNameError, "preset", self._platform)
 
     def _path(self, name: str) -> Path:
         return self._dir / f"{canonical_name(name)}.xml"
@@ -230,7 +239,7 @@ class PresetStore:
         asks.
         """
         self._ensure_dir()
-        name = canonical_name(name)
+        name = self._stored_name(name)
         path = self._path(name)
         overwrote = path.is_file()  # asked before the write, which erases the answer
         if not overwrote and trigger != "migration":
@@ -309,7 +318,7 @@ class PresetStore:
         imported: list[str] = []
         for name, xml in snapshots.items():
             try:
-                valid = canonical_name(name)
+                valid = self._stored_name(name)
             except PresetError:
                 continue
             if not self.exists(valid):

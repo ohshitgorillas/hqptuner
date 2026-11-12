@@ -42,6 +42,7 @@ that same omission for the switch — applied, it moves nothing.
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
@@ -225,9 +226,13 @@ class LivePresetStore:
     empty.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+    def __init__(self, path: Path, *, platform: str = sys.platform) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write.
+
+        ``platform`` is the ``sys.platform`` value whose naming limits a name being saved is held to.
+        """
         self._path = path
+        self._platform = platform
 
     def _read_file(self) -> LiveFile:
         """Return the file as a dict, empty when absent.
@@ -272,7 +277,7 @@ class LivePresetStore:
     def save(self, name: str, record: LiveRecord) -> None:
         """Write (or overwrite) a preset. A name new to the store takes the stricter first-save rule."""
         presets = self._presets()
-        key = canonical_name(name)
+        key = names.validate_stored_name(name, InvalidSnapshotNameError, "snapshot", self._platform)
         if key not in presets:
             names.validate_new_name(key, InvalidSnapshotNameError, MixedScriptSnapshotNameError, "snapshot")
         presets[key] = record.to_json()

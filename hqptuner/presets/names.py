@@ -33,6 +33,7 @@ owner's words, one per check, under the one code ``name_invalid``.
 from __future__ import annotations
 
 import re
+import sys
 import unicodedata
 from typing import TYPE_CHECKING, Protocol
 
@@ -85,6 +86,32 @@ _CHECKS: tuple[tuple[Callable[[str], bool], str], ...] = (
     (lambda name: ".." in name, "double dots."),
     (_has_control_char, "invalid (control) character."),
     (_too_long, "too long."),
+)
+
+
+# The Windows build refuses two more names than the shared rule: a colon (NTFS reads ``name:stream`` as an alternate
+# data stream) and a reserved device name, with or without an extension (``NUL.txt`` is ``NUL``). They apply where a
+# name is stored (``validate_stored_name``), never where an existing one is read, applied or deleted, so a name an
+# earlier build saved stays usable.
+#
+# The device names Microsoft's naming page lists, superscript digits included. A name is one of them when the part
+# before its first period matches, in any case.
+_DEVICE_NAMES = frozenset(
+    {"CON", "PRN", "AUX", "NUL"}
+    | {f"{device}{digit}" for device in ("COM", "LPT") for digit in "123456789\u00b9\u00b2\u00b3"}
+)
+
+
+def _is_device_name(name: str) -> bool:
+    """Whether ``name`` is a Windows device name, or one followed by an extension."""
+    return name.split(".", 1)[0].upper() in _DEVICE_NAMES
+
+
+# The checks the Windows build adds for a name being stored, in the order they run, each with the reason a
+# refusal states.
+_WINDOWS_CHECKS: tuple[tuple[Callable[[str], bool], str], ...] = (
+    (lambda name: ":" in name, "contains colon."),
+    (_is_device_name, "reserved device name."),
 )
 
 
@@ -149,6 +176,20 @@ def validate_name(name: str, error: InvalidNameErrorType, label: str) -> str:
     reason = _reason_refused(name)
     if reason is not None:
         raise error(label=label, reason=reason)
+    return name
+
+
+def validate_stored_name(name: str, error: InvalidNameErrorType, label: str, platform: str = sys.platform) -> str:
+    """``validate_name`` plus the checks ``platform`` adds for a name entering a store.
+
+    Only the Windows build adds any. Called wherever a name is stored, whatever the first-save, migration or overwrite
+    branch the caller is on; reading, applying and deleting keep calling ``validate_name``.
+    """
+    name = validate_name(name, error, label)
+    if platform == "win32":
+        reason = next((reason for check, reason in _WINDOWS_CHECKS if check(name)), None)
+        if reason is not None:
+            raise error(label=label, reason=reason)
     return name
 
 

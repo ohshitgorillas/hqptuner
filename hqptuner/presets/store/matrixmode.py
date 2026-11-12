@@ -19,6 +19,7 @@ preset with no recorded mode is one nobody has said anything about, not one that
 from __future__ import annotations
 
 import json
+import sys
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__
@@ -139,9 +140,13 @@ class MatrixModeStore:
     empty.
     """
 
-    def __init__(self, path: Path) -> None:
-        """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
+    def __init__(self, path: Path, *, platform: str = sys.platform) -> None:
+        """Bind the store to the JSON file at ``path``, which is not touched until the first write.
+
+        ``platform`` is the ``sys.platform`` value whose naming limits a name being written is held to.
+        """
         self._path = path
+        self._platform = platform
 
     def _read_file(self) -> MatrixModeFile:
         """Return the file as a dict, empty when absent.
@@ -192,7 +197,7 @@ class MatrixModeStore:
         at and a partial answer would leave it guessing about the rest. Guards the schema first — a store we cannot
         read is not one we should be writing into.
         """
-        key = names.validate_name(name, InvalidPresetNameError, "preset")
+        key = names.validate_stored_name(name, InvalidPresetNameError, "preset", self._platform)
         value = validate_mode(mode)
         presets = self._read_file().get("presets", {})
         presets[key] = value
