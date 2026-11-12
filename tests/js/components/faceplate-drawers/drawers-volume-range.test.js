@@ -160,6 +160,20 @@ test("test_the_block_grays_whole_while_fixed_volume_is_on", async () => {
   assert.equal(await grayed({ fixed: true }), true);
 });
 
+test("test_the_block_is_not_grayed_while_fixed_volume_is_off", async () => {
+  const grayed = async (/** @type {Running} */ r) => {
+    const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
+    return root && classes(root).includes("grayed-range");
+  };
+  assert.equal(await grayed({ fixed: false }), false);
+});
+
+test("test_the_boxes_are_enabled_while_fixed_volume_is_off", async () => {
+  const els = await markupWith({ fixed: false });
+  const disabled = KEYS.map((k) => keyed(els, "input", k)).map((el) => el && hasAttr(el, "disabled"));
+  assert.deepEqual(disabled, [false, false, false]);
+});
+
 for (const key of KEYS) {
   test(`test_the_${key}_box_disables_while_the_block_is_grayed`, async () => {
     assert.equal(boxHas(await markupWith({ fixed: true }), key, "disabled"), true);
