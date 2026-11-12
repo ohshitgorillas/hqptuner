@@ -160,6 +160,16 @@ for (const speed of ["0", "-1", "n/a"]) {
   });
 }
 
+// The warn line sits at 1.05: a speed on it is not below it. The pair differs only in which side of the line the speed
+// holds.
+test("test_the_warn_threshold_is_exclusive", () => {
+  reset();
+  const onTheLine = sevs(hold(HOLD_MS, { process_speed: "1.05" }));
+  reset();
+  const justUnder = sevs(hold(HOLD_MS, { process_speed: "1.04" }));
+  assert.deepEqual([onTheLine, justUnder], [[], ["warn"]]);
+});
+
 // --- the connection phase --------------------------------------------------
 // While the connection is not Ready the engine counts as not playing, even though the last Status frame said it was,
 // and engine health alerts fire only while it plays.
