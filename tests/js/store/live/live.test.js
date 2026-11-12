@@ -17,7 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { engineState, enums, config, health } from "../../../../hqptuner/static/store/signals.js";
+import { engineState, enums, config } from "../../../../hqptuner/static/store/signals.js";
 import { liveModel } from "../../../../hqptuner/static/store/live/model.js";
 import { liveErrors, liveBusy } from "../../../../hqptuner/static/store/live/state.js";
 import { writeLive } from "../../../../hqptuner/static/store/live/write.js";
@@ -191,8 +191,6 @@ function liveWire({ status = 200, detail, report = { live: [] }, fresh, mirrored
 // source signals a rate control reads; the rest goes to the wire.
 /** @param {ResetSeams} [seams] */
 function reset({ state, lists, file = FILE(), ...wire } = {}) {
-  // A live write goes out only once both daemon lanes are ready (store/live/write.js).
-  health.value = { reachable: true, ready: true, connected: true };
   engineState.value = state || STATE();
   enums.value = lists || ENUMS();
   config.value = { fields: [], file, active: "", profiles: null };
