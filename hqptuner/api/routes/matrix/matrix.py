@@ -21,7 +21,7 @@ from hqptuner.engine.controlerrors import ControlError
 from hqptuner.lanes import matrixlane
 from hqptuner.lanes.http import speakerprocessing
 from hqptuner.lanes.http.speakerprocessing import SpeakerApplyResult
-from hqptuner.lanes.matrixlane import MatrixProfileSwitch
+from hqptuner.lanes.matrixlane import MatrixProfileSwitch, UnknownProfileError
 from hqptuner.paths import bundled
 
 router = APIRouter(prefix="/api")
@@ -189,6 +189,8 @@ async def matrix_profile(body: MatrixProfileBody, manager: Mgr) -> MatrixProfile
         raise refuse(UnknownMatrixProfileActionError(action=body.action))
     try:
         return await matrixlane.switch_profile(manager, body.name)
+    except UnknownProfileError as exc:
+        raise refuse(exc) from exc
     except ControlError as exc:
         raise refuse(MatrixSwitchRefusedError(error=exc)) from exc
 

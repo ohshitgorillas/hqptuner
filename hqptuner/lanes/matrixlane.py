@@ -22,6 +22,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from hqptuner.errors import HQPTunerError
+
 if TYPE_CHECKING:  # avoid a circular import at runtime
     from hqptuner.core.manager import ConnectionManager
 
@@ -33,9 +35,25 @@ class MatrixProfileSwitch:
     active: str
 
 
+class UnknownProfileError(HQPTunerError):
+    """A switch named a profile the daemon does not list, refused before any command is sent."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, name: str) -> None:
+        """Render the wording naming the profile that is not in the daemon's list."""
+        super().__init__(f"HQPlayer has no matrix profile named {name}.")
+
+
 async def switch_profile(mgr: ConnectionManager, name: str) -> MatrixProfileSwitch:
-    """Live switch + State readback + form resync. Empty name = ``[Default]``."""
+    """Live switch + State readback + form resync. Empty name = ``[Default]``.
+
+    A non-empty name must be in a fresh ``MatrixListProfiles`` read: the daemon answers OK for an unknown name and
+    then loops its engine, so the switch's own readback proves nothing (matrix-spec.md "Profiles").
+    """
     client = mgr.require_control()
+    if name and name not in await client.get_matrix_profiles():
+        raise UnknownProfileError(name=name)
     await client.set_matrix_profile(name)
     mgr.readings.state = await client.get_state()
     await mgr.refresh_http_forms()
