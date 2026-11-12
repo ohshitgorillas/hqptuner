@@ -1,6 +1,6 @@
 # State
 
 Phase: 6 of 8 (aclean filter entries)
-Status: executed
-Next: /cad-verify 6
+Status: phase complete
+Next: /cad-context 5
 Updated: 2026-11-12
