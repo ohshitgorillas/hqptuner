@@ -1,6 +1,6 @@
 # State
 
-Phase: 3 of 9 (HF filter lamp follows the content)
-Status: phase complete
-Next: /cad-context 4
+Phase: 4 of 9 (PCM filters in SDM output mode)
+Status: context gathered
+Next: /cad-plan 4
 Updated: 2026-11-12
