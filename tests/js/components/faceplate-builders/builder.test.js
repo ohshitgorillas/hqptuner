@@ -261,6 +261,10 @@ test("test_the_confirm_line_shows_while_a_question_is_asked", () => {
   assert.equal(askLines().length, 1);
 });
 
+test("test_the_confirm_line_is_absent_while_nothing_is_asked", () => {
+  assert.equal(askLines().length, 0);
+});
+
 test("test_the_confirm_line_shows_the_question_asked", () => {
   asking();
   const said = kids(askLines()[0])
