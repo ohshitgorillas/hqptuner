@@ -2,7 +2,8 @@
 // order with its count, the loaded station and a station holding a staged edit marked on its fold, a tapped fold opening
 // and the open one shutting, the open station's entries on its page, the entry lit with the edit and the same-named one
 // in a ticked station, a staged entry, the blank lines a short last page keeps, the pager only past one page, a tapped
-// entry and New snapshot going to their record, and a page holding more entries on a taller rail.
+// entry and New snapshot going to their record, a page holding more entries on a taller rail, and the stations menu
+// beside the rail in the builder's head opening when its trigger is tapped.
 //
 // The seam is the wire the store reads, stated as tests/js/store/faceplate-builders/snapshot.test.js states it: the
 // engine on `engineState` and `enums`, the stations and the loaded one on `config`, the book on `liveBook`; the record
@@ -18,11 +19,13 @@ import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { SnapshotRail } from "../../../../hqptuner/static/components/faceplate/builders/SnapshotRail.js";
+import { StationsMenu } from "../../../../hqptuner/static/components/faceplate/builders/StationsMenu.js";
+import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { cur, staged } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 import { config, engineState, engineStatus, enums } from "../../../../hqptuner/static/store/signals.js";
 import { liveBook } from "../../../../hqptuner/static/store/live/presets.js";
 import { NEW, keyOf } from "../../../../hqptuner/static/model/builders/builder.js";
-import { elements, attr, classes, text } from "../../support/markup.js";
+import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
 import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { formField } from "../../support/chainenums.js";
 import { seedReadings } from "../../support/readings.js";
@@ -105,6 +108,7 @@ beforeEach(async () => {
   liveBook.value = book();
   staged.value = new Map();
   cur.value = DESK;
+  openPopover.value = null;
 });
 
 /** @param {number} height */
@@ -316,4 +320,30 @@ test("test_a_taller_rail_lists_more_entries_a_page", () => {
   const short = entries(SHORT).length;
   openOn("Speakers", TALL);
   assert.ok(entries(TALL).length > short, "a taller rail lists more entries a page");
+});
+
+/** The stations menu over a book where Headphones holds Desk, with Speakers ticked. */
+const stationsMenu = () => html`
+  <${StationsMenu}
+    stations=${["Speakers", "Headphones"]}
+    ticked=${["Speakers"]}
+    name="Desk"
+    book=${book()}
+    cur=${DESK}
+    pick=${() => undefined}
+  />
+`;
+
+/** Whether the stations menu's panel is hidden in one render. */
+const menuHidden = () => {
+  const panel = elements(render(stationsMenu())).find((e) => attr(e, "role") === "menu");
+  return panel ? hasAttr(panel, "hidden") : null;
+};
+
+test("test_tapping_the_stations_trigger_opens_its_menu", () => {
+  const before = menuHidden();
+  const { seen } = renderTree(stationsMenu());
+  const trigger = /** @type {VNode[]} */ (seen).find((v) => isTagged(v, "button", "bstn"));
+  if (trigger && typeof trigger.props.onClick === "function") trigger.props.onClick();
+  assert.deepEqual([before, menuHidden()], [true, false]);
 });
