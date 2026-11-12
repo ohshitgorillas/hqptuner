@@ -67,6 +67,17 @@ test("test_the_hf_options_are_labeled_by_name_in_engine_order", () => {
 });
 
 /**
+ * A running engine that lost its State or its enumeration.
+ *
+ * @param {"state" | "enums"} lost  the wire side that went missing
+ */
+function lose(lost) {
+  wire(RUNNING);
+  if (lost === "state") engineState.value = null;
+  else enums.value = null;
+}
+
+/**
  * The HF filter's name for a running engine that lost its State or its enumeration, beside the name when the engine
  * has neither; what reads as no filter is whatever the row shows with nothing known at all.
  *
@@ -74,9 +85,7 @@ test("test_the_hf_options_are_labeled_by_name_in_engine_order", () => {
  * @returns {[string, string]}
  */
 function namedWithout(lost) {
-  wire(RUNNING);
-  if (lost === "state") engineState.value = null;
-  else enums.value = null;
+  lose(lost);
   const named = hfNow().txt;
   engineState.value = null;
   enums.value = null;
@@ -89,6 +98,16 @@ test("test_the_hf_filter_names_no_filter_without_engine_state", () => {
 
 test("test_the_hf_filter_names_no_filter_without_an_enumeration", () => {
   assert.equal(...namedWithout("enums"));
+});
+
+test("test_hf_offers_no_options_without_engine_state", () => {
+  lose("state");
+  assert.deepEqual(hfNow().options, []);
+});
+
+test("test_hf_offers_no_options_without_an_enumeration", () => {
+  lose("enums");
+  assert.deepEqual(hfNow().options, []);
 });
 
 const current = (/** @type {string} */ junk) => {
