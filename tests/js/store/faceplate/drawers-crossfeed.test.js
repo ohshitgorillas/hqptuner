@@ -127,6 +127,11 @@ test("test_the_folded_bauer_line_carries_the_installed_compensation", async () =
   assert.equal(crossfeedView().folded.values[2], 60);
 });
 
+test("test_the_folded_bauer_line_reads_no_compensation_with_none_installed", async () => {
+  await load({ picked: "structural" });
+  assert.equal(crossfeedView().folded.values[2], 0);
+});
+
 test("test_the_folded_structural_line_summarizes_the_installed_block", async () => {
   await load({ rows: structural({ angle: 22, headRadius: 0.09, lambda: 0.5 }), picked: "bauer" });
   assert.deepEqual(crossfeedView().folded.values.map(r2), [22, 56.55, 50]);
