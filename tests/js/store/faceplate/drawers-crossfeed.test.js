@@ -193,6 +193,12 @@ test("test_compensation_is_ready_over_a_symmetric_stereo_pair", async () => {
   assert.equal(symmetric, true);
 });
 
+test("test_compensation_is_not_ready_over_an_asymmetric_pair", async () => {
+  await load({ rows: [row("0", "0"), row("1", "1", "-6")], enabled: "1", picked: "bauer" });
+  const asymmetric = compView().ready;
+  assert.equal(asymmetric, false);
+});
+
 // --- the Structural controls --------------------------------------------------
 
 test("test_structural_names_the_settings_an_install_would_change", async () => {
