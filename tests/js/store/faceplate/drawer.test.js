@@ -193,6 +193,12 @@ test("test_the_apply_time_question_belongs_to_every_drawer", () => {
   assert.equal(drawerQuestion(oneTab("d12", "volume_max"))?.owner, "pending");
 });
 
+test("test_a_rows_question_is_pinned_under_its_own_drawer_only", () => {
+  askWarn("volume_max", "q");
+  const pinned = [drawerQuestion(oneTab("d13", "volume_max"))?.owner, drawerQuestion(oneTab("d14", "quick_pause"))];
+  assert.deepEqual(pinned, ["volume_max", null]);
+});
+
 test("test_picking_a_mode_persists_it_under_its_storage_key", () => {
   const storage = useStorage();
   pickApplyMode("save");
