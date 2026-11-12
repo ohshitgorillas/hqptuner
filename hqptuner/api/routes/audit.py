@@ -6,6 +6,10 @@ from fastapi import APIRouter
 
 from hqptuner.audit import AuditLog, AuditRecord
 
+# The most records one request answers. Without it the ``limit`` is the caller's, and a huge one has the whole
+# current log serialized into one response. At least the default ``limit`` of 200, so the default is never clamped.
+MAX_LIMIT = 1000
+
 
 @dataclass(frozen=True)
 class AuditRecords:
@@ -25,6 +29,6 @@ def audit_router(audit: AuditLog) -> APIRouter:
     @audit_api.get("/audit")
     def records(limit: int = 200) -> AuditRecords:
         """Return the last ``limit`` audit records, newest last, read straight off the log file."""
-        return AuditRecords(records=audit.tail(limit))
+        return AuditRecords(records=audit.tail(min(limit, MAX_LIMIT)))
 
     return audit_api
