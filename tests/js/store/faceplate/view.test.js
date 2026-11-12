@@ -104,11 +104,33 @@ test("test_escape_with_the_setup_panel_over_a_drawer_keeps_the_drawer", () => {
   assert.equal(openStage.value, "volume");
 });
 
+test("test_escape_with_the_setup_panel_over_a_drawer_closes_the_panel", () => {
+  toggleStage("volume");
+  panelOpen.value = true;
+  closeTop();
+  assert.equal(panelOpen.value, false);
+});
+
 test("test_escape_with_a_popover_over_the_setup_panel_keeps_the_panel_open", () => {
   panelOpen.value = true;
   togglePopover("stations");
   closeTop();
   assert.equal(panelOpen.value, true);
+});
+
+test("test_escape_with_a_popover_over_the_setup_panel_closes_the_popover", () => {
+  panelOpen.value = true;
+  togglePopover("stations");
+  closeTop();
+  assert.equal(openPopover.value, null);
+});
+
+test("test_a_second_escape_with_a_popover_over_the_setup_panel_closes_the_panel", () => {
+  panelOpen.value = true;
+  togglePopover("stations");
+  closeTop();
+  closeTop();
+  assert.equal(panelOpen.value, false);
 });
 
 test("test_a_body_swap_closes_the_open_drawer", () => {
@@ -181,6 +203,13 @@ test("test_escape_with_a_list_over_a_drawer_keeps_the_drawer", () => {
   openOptionList(list("pcm_filter_1x"));
   closeTop();
   assert.equal(openStage.value, "resampling");
+});
+
+test("test_escape_with_a_list_over_a_drawer_closes_the_list", () => {
+  toggleStage("resampling");
+  openOptionList(list("pcm_filter_1x"));
+  closeTop();
+  assert.equal(openList.value, null);
 });
 
 test("test_a_body_swap_closes_the_open_list", () => {
