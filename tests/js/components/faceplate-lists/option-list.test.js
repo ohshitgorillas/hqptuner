@@ -147,6 +147,12 @@ test("test_a_closed_list_is_marked_closed", () => {
   assert.equal(mark(closed), true);
 });
 
+test("test_an_open_list_is_not_marked_closed", () => {
+  open("sdm_filter_1x", "IIR");
+  const opened = sheet();
+  assert.equal(opened ? hasAttr(opened, "data-closed") : null, false);
+});
+
 test("test_a_narrowed_out_option_draws_no_row", () => {
   setFacet("quality", 3);
   open("sdm_filter_1x", "IIR");
