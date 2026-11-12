@@ -2,7 +2,7 @@
 //
 // Two signals, because a write and a restart are not the same fact. `engineBusy`
 // is "a write is in flight" and drives the brand knob's Applying… state; `engineRestarting`
-// is "the daemon is going away for this one" and drives the page dim. A staged apply
+// is "the daemon is going away for this one" and drives one cause of the page dim. A staged apply
 // routed entirely live raises the first and not the second: the engine never leaves,
 // so a dim would be telling the user something untrue.
 
@@ -13,8 +13,9 @@ import { refreshHealth } from "./sync.js";
 // brand knob reads this (store/faceplate/conn.js).
 export const engineBusy = signal(false);
 
-// The subset of those writes that actually takes the daemon down. The page dim reads
-// this alone, so the dim keeps one meaning: the engine is not there right now.
+// The subset of those writes that actually takes the daemon down. One of the page dim's two
+// causes; the other is HQPlayer being away (store/faceplate/conn.js), so the dim keeps one
+// meaning: the engine is not there right now.
 export const engineRestarting = signal(false);
 
 /**

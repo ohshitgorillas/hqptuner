@@ -12,7 +12,7 @@ import assert from "node:assert/strict";
 import { health } from "../../../../hqptuner/static/store/signals.js";
 import { applyOp } from "../../../../hqptuner/static/store/actions.js";
 import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
-import { connState } from "../../../../hqptuner/static/store/faceplate/conn.js";
+import { connState, hqplayerAway } from "../../../../hqptuner/static/store/faceplate/conn.js";
 
 /** A health reading as the poll writes it: fresh each time, so the signal notifies. */
 const reading = (/** @type {boolean} */ ready) => ({ phase: ready ? "Ready" : "Reachable", info: {} });
@@ -69,4 +69,34 @@ test("test_an_apply_while_the_engine_is_down_reads_busy", () => {
   health.value = reading(false);
   hold(applyOp);
   assert.equal(connState(), "busy");
+});
+
+const awayFor = (/** @type {string | null} */ ph) => {
+  health.value = ph === null ? null : { phase: ph, info: {} };
+  return hqplayerAway.value;
+};
+
+test("test_a_down_engine_reads_away", () => {
+  assert.equal(awayFor("Down"), true);
+});
+
+test("test_an_alarmed_engine_reads_away", () => {
+  assert.equal(awayFor("Alarm"), true);
+});
+
+test("test_a_reachable_engine_does_not_read_away", () => {
+  assert.equal(awayFor("Reachable"), false);
+});
+
+test("test_a_ready_engine_does_not_read_away", () => {
+  assert.equal(awayFor("Ready"), false);
+});
+
+test("test_no_health_reading_yet_does_not_read_away", () => {
+  assert.equal(awayFor(null), false);
+});
+
+test("test_a_write_in_flight_on_a_ready_engine_does_not_read_away", () => {
+  hold(applyOp);
+  assert.equal(awayFor("Ready"), false);
 });

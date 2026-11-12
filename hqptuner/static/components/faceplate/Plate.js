@@ -8,6 +8,7 @@ import { closeTop, closeOutside } from "../../store/faceplate/view.js";
 import { plate, viewport } from "../../store/faceplate/plate.js";
 import { plateBottom } from "../../store/faceplate/bottom/switcher.js";
 import { engineRestarting } from "../../store/enginewrite.js";
+import { hqplayerAway } from "../../store/faceplate/conn.js";
 
 /**
  * Read the window's size into the store, where it differs from the size the store holds. The size is the stage's own
@@ -75,6 +76,7 @@ export function Plate({ children }) {
   const b = plateBottom();
   const style = `--plate-w:${p.w}px;--plate-h:${p.h}px`;
   const restarting = engineRestarting.value ? "" : undefined;
+  const away = hqplayerAway.value ? "" : undefined;
   return html`
     <div id="stage" ref=${stage}>
       <div
@@ -83,6 +85,7 @@ export function Plate({ children }) {
         data-bottom=${b?.bottom}
         data-sw=${b?.sw}
         data-restarting=${restarting}
+        data-away=${away}
         style=${style}
       >
         ${children}
