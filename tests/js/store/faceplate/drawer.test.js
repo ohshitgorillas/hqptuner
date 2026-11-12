@@ -144,6 +144,12 @@ test("test_the_dot_goes_on_the_title_of_a_one_tab_drawer", async () => {
   assert.equal(single, true);
 });
 
+test("test_the_dot_of_a_multi_tab_drawer_goes_on_its_tab_and_not_on_its_title", async () => {
+  await edit("volume_max", "-6");
+  const { dirty, titleDot } = drawerHead(twoTabs("d3"), "range");
+  assert.deepEqual({ dirty, titleDot }, { dirty: ["range"], titleDot: false });
+});
+
 test("test_the_apply_group_shows_on_a_restart_tab_with_nothing_staged", () => {
   assert.equal(drawerHead(twoTabs("d4"), "range").apply.shown, true);
 });
