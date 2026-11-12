@@ -277,13 +277,13 @@ Every refusal the REST API sends is `{"detail": ..., "code": ...}`. `detail` is 
 | `daemon_refused` | 503 | daemon answered `result="Error"` |
 | `not_found` | 404 | no preset, profile, action or library under that name |
 | `name_invalid` | 422 | a preset name the shared name rule rejects |
-| `invalid_input` | 422 | a value a store or the config editor rejects |
+| `invalid_input` | 422 | a value a store or the config editor rejects, or an uploaded backup archive that will not list or decompress |
 | `nothing_staged` | 400 | apply with nothing to apply |
 | `fields_unknown` | 422 | a field no lane accepts |
 | `store_too_new` | 409 | a JSON store stamped by a newer HQPTuner |
 | `store_corrupt` | 500 | a store file that exists but does not read as a JSON object |
 | `store_unwritable` | 500 | a store read, write or delete the filesystem refused |
-| `archive_unreadable` | 500 | an uploaded backup archive that is not a readable zip, or whose descriptions will not parse |
+| `archive_unreadable` | 500 | an archive the daemon served that is not a readable zip |
 | `chain_unknown` | 409 | engine's active chain unknown, no live state to snapshot |
 | `route_refused` | 409 | live lane refused the batch; `detail` names each field's reason |
 | `route_unknown` | 404 | no route at that path |
