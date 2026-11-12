@@ -18,6 +18,7 @@ zip member and a stray byte there is a corrupt archive rather than a funny-looki
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, TypedDict
@@ -47,6 +48,8 @@ _MAX_NAME_LEN = 128
 # measurement header is made of.
 _KEPT_CONTROLS = ("\n", "\t")
 _FIRST_PRINTABLE = 0x20
+
+log = logging.getLogger(__name__)
 
 # The store's default clock, a module-level singleton a constructor default reads.
 _DEFAULT_NOW = partial(datetime.now, UTC)
@@ -232,6 +235,21 @@ def _clean(stored: object) -> DescriptionsFile:
     return out
 
 
+def _storable(profiles: dict[str, DescriptionEntry]) -> dict[str, DescriptionEntry]:
+    """Return the carried entries that meet the limits a ``write`` holds, keyed as ``write`` keys them.
+
+    An entry whose name or text fails ``_validate_name`` or ``_validate_text`` is dropped and logged, so one bad entry
+    in a carried payload does not take the others down with it.
+    """
+    kept: dict[str, DescriptionEntry] = {}
+    for name, entry in profiles.items():
+        try:
+            kept[_validate_name(name)] = {"text": _validate_text(entry["text"]), "updated": entry["updated"]}
+        except DescriptionError as exc:
+            log.warning("carried description for %r dropped: %s", name[:40], exc)
+    return kept
+
+
 class DescriptionStore:
     """Profile descriptions in one JSON file.
 
@@ -295,7 +313,7 @@ class DescriptionStore:
 
         A name in both takes the PAYLOAD's entry: the payload is the thing being restored, and a restore that lost to
         whatever happened to be on disk would not be one. A payload that is not our record is refused whole rather
-        than merged in part.
+        than merged in part; an entry in it that a ``write`` would refuse is dropped, and the others merge.
         """
         try:
             data = json.loads(payload)
@@ -303,7 +321,7 @@ class DescriptionStore:
             raise CarriedNotReadableError(error=exc) from exc
         if not isinstance(data, dict) or not isinstance(data.get("profiles", {}), dict):
             raise CarriedNotAStoreError()
-        incoming = _clean(data).get("profiles", {})
+        incoming = _storable(_clean(data).get("profiles", {}))
         if not incoming:
             return self.read()
         return self._save({**self.read(), **incoming})
