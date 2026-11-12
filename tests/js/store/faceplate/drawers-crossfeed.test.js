@@ -178,6 +178,12 @@ test("test_the_bauer_gate_stages_the_post_process_switch", async () => {
   assert.equal(effective("crossfeed_enabled"), "1");
 });
 
+test("test_the_structural_gate_is_not_engaged_before_it_is_thrown", async () => {
+  await load({ enabled: "1", picked: "structural" });
+  const before = crossfeedView().engaged;
+  assert.equal(before, false);
+});
+
 test("test_engaging_the_structural_gate_installs_the_block", async () => {
   await load({ picked: "structural" });
   setGate("1");
