@@ -94,6 +94,11 @@ test("test_a_staged_fixed_level_dots_the_level_tab", async () => {
   assert.equal(levelDot(), true);
 });
 
+test("test_the_level_tab_carries_no_dot_before_an_edit_while_fixed_volume_runs", async () => {
+  await load({ fixed: true });
+  assert.equal(levelDot(), false);
+});
+
 test("test_the_range_tab_mounts_the_range_block", () => {
   const block = markup().find((el) => attr(el, "data-block") === "range");
   const inner = block ? elements(block.html).some((el) => classes(el).includes("vrange")) : undefined;

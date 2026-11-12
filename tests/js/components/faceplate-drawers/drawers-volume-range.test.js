@@ -160,6 +160,20 @@ test("test_the_block_grays_whole_while_fixed_volume_is_on", async () => {
   assert.equal(await grayed({ fixed: true }), true);
 });
 
+test("test_the_block_is_not_grayed_while_fixed_volume_is_off", async () => {
+  const grayed = async (/** @type {Running} */ r) => {
+    const root = (await markupWith(r)).find((el) => classes(el).includes("vrange"));
+    return root && classes(root).includes("grayed-range");
+  };
+  assert.equal(await grayed({ fixed: false }), false);
+});
+
+test("test_the_boxes_are_enabled_while_fixed_volume_is_off", async () => {
+  const els = await markupWith({ fixed: false });
+  const disabled = KEYS.map((k) => keyed(els, "input", k)).map((el) => el && hasAttr(el, "disabled"));
+  assert.deepEqual(disabled, [false, false, false]);
+});
+
 for (const key of KEYS) {
   test(`test_the_${key}_box_disables_while_the_block_is_grayed`, async () => {
     assert.equal(boxHas(await markupWith({ fixed: true }), key, "disabled"), true);
@@ -185,6 +199,13 @@ test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control"
   assert.equal(await needle({}), "-12.5");
 });
 
+test("test_the_needle_is_absent_while_the_engine_does_not_report_the_control", async () => {
+  const needle = async (/** @type {Running} */ r) => marksAt(await markupWith(r), ["needle"])[0];
+  const reported = await needle({});
+  const unreported = await needle({ report: { enabled: "0", min: "-60", max: "0" } });
+  assert.deepEqual([reported, unreported], ["-12.5", undefined]);
+});
+
 // --- the loudness readouts and the manual ------------------------------------------------------------------------
 
 test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
@@ -193,4 +214,12 @@ test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
     return row && hasAttr(row, "hidden");
   };
   assert.equal(await hidden({}), true);
+});
+
+test("test_the_loudness_readouts_show_while_loudness_runs", async () => {
+  const hidden = async (/** @type {Running} */ r) => {
+    const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
+    return row && hasAttr(row, "hidden");
+  };
+  assert.equal(await hidden({ loudness: true }), false);
 });

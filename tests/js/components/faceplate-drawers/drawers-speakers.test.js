@@ -21,9 +21,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { SpeakersBody } from "../../../../hqptuner/static/components/faceplate/drawers/Speakers.js";
-import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
-import { config } from "../../../../hqptuner/static/store/signals.js";
+import {
+  SPEAKERS_BLOCKS,
+  SPEAKERS_DRAWER,
+} from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
+import { config, engineStatus } from "../../../../hqptuner/static/store/signals.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import {
   SETS,
@@ -56,6 +60,9 @@ const LAST = SETS[SETS.length - 1];
 //: The drawer schema the block sits in; its own form is what the restart mark derives from.
 const SCHEMA = SPEAKERS_DRAWER;
 
+//: The status frame's state for a stopped engine (0 Stopped, 1 Paused, 2 Playing, 3 Stopping).
+const STOPPED = 0;
+
 /** The restart mark's test handle, shared by every surface that carries it. */
 const MARK = "restart-mark";
 
@@ -68,6 +75,7 @@ async function reset({ direct = false, form = FORM } = {}) {
   await loadSpeakers();
   config.value = { fields: [{ name: "direct_sdm" }] };
   await seedReadings({ direct_sdm: direct });
+  engineStatus.value = null;
   discardDraft();
   pickSpeakerSet(FIRST.id);
 }
@@ -184,6 +192,35 @@ test("test_an_apply_in_flight_disables_every_control", async () => {
   finish(ok({ report: { applied: true, speakers: FORM } }));
   await applying;
   assert.equal(busy, FIRST.channels.length * 2 + 1);
+});
+
+test("test_no_control_is_disabled_while_the_engine_is_idle", async () => {
+  await reset();
+  engineStatus.value = { status: { state: STOPPED } };
+  const controls = all().filter((e) => ["input", "select"].includes(e.name));
+  assert.deepEqual(
+    [controls.length, controls.filter((e) => hasAttr(e, "disabled")).length],
+    [FIRST.channels.length * 2 + 1, 0],
+  );
+});
+
+// --- the discard -------------------------------------------------------------------------------------------------
+
+/** The discard button's disabled flag in the drawer the block sits in, before and after an edit to a channel's distance. */
+function discardDisabledAcrossAnEdit() {
+  const drawn = () => renderTree(html`<${Drawer} schema=${SPEAKERS_DRAWER} blocks=${SPEAKERS_BLOCKS} />`).out;
+  const disabled = () =>
+    elements(drawn())
+      .filter((e) => attr(e, "data-testid") === "discard")
+      .map((e) => hasAttr(e, "disabled"));
+  const before = disabled();
+  setChannelDistance(1, "333");
+  return [before, disabled()];
+}
+
+test("test_the_discard_goes_live_after_an_edit", async () => {
+  await reset();
+  assert.deepEqual(discardDisabledAcrossAnEdit(), [[true], [false]]);
 });
 
 // --- the restart mark -------------------------------------------------------------------------------------------
