@@ -13,7 +13,7 @@ expected: A fresh install started from clean state boots, the service comes up a
 origin: smoke
 status: pending_ci
 job: smoke
-commit: 6cbe36224d83dc6bcb005a401fff3172f194ed3b
+commit: 1044eb6ab9ca68ff79b7288e4b2f66ffaf54b4f0
 source: model
 evidence: packaging/linux/smoke.sh installs the built package on clean distro images in release.yml; it needs the CI build artifacts and containers, not runnable in this session
 
