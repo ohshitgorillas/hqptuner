@@ -12,11 +12,13 @@
 
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
 import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import {
   BEHAVIOR_DRAWER,
+  TIMING_DRAWER,
   TIMING_READOUTS,
   UPNP_READOUTS,
 } from "../../../../hqptuner/static/components/faceplate/settings/engine-rows.js";
@@ -37,7 +39,8 @@ import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { seedReadings } from "../../support/readings.js";
+import { elements, classes } from "../../support/markup.js";
+import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
 /** @typedef {import("../../support/vnodeseam.js").VNode} VNode */
@@ -117,6 +120,25 @@ async function tapPinned(value) {
   if (fn) await fn();
 }
 
+/** Serve the idle time as a reading that restarts the engine, the lane that dots a title. */
+const loadRestartingIdle = () =>
+  seedReadings({
+    idle_time: fieldReading("0", { restarts: true }),
+    quick_pause: false,
+    short_buffer: "0",
+    upnp_freewheel: false,
+  });
+
+/**
+ * Whether the Timing drawer's title carries the dirty dot.
+ *
+ * @returns {boolean}
+ */
+const timingTitleDotted = () =>
+  elements(render(html`<${Drawer} schema=${TIMING_DRAWER} />`)).some(
+    (e) => e.name === "span" && classes(e).includes("t") && classes(e).includes("dirty"),
+  );
+
 /**
  * The text the rail prints for the first readout of a set.
  *
@@ -127,6 +149,17 @@ function railText(readouts) {
   const plan = alertPlan([], {});
   return settingsRail([{ id: "c", name: "C", readouts }], plan, null, [])[0]?.rows[0]?.text;
 }
+
+test("test_the_timing_title_has_no_dot_before_an_idle_time_is_staged", async () => {
+  await loadRestartingIdle();
+  assert.equal(timingTitleDotted(), false);
+});
+
+test("test_staging_an_idle_time_dots_the_timing_title", async () => {
+  await loadRestartingIdle();
+  await edit("idle_time", "10000");
+  assert.equal(timingTitleDotted(), true);
+});
 
 test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
   await tapPinned("1");
