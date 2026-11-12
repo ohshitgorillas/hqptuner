@@ -224,6 +224,13 @@ test("test_a_stage_marks_its_own_default_while_its_sibling_stage_records_none", 
   assert.deepEqual(markedRows(), [DEFAULTS.filter_nx]);
 });
 
+test("test_a_setting_with_no_recorded_default_marks_no_option", async () => {
+  const { filter_1x: _none, ...rest } = DEFAULTS;
+  await serve(rest);
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual(markedRows(), []);
+});
+
 /** One window of each list kind: filters, dither, modulator, DSD processing. */
 const KINDS = WINDOWS.filter((w) => ["sdm_filter_1x", "pcm_dither", "sdm_modulator", "noise_filter"].includes(w.key));
 
