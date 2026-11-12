@@ -11,6 +11,7 @@ import { html } from "../../lib/dom.js";
 import { api } from "../../lib/api.js";
 import { failText } from "../../lib/errtext.js";
 import { expireIf } from "../../lib/expiry.js";
+import { keepEdits } from "../../lib/keepedits.js";
 import { metadata } from "../../store/signals.js";
 import { duringEngineWrite } from "../../store/enginewrite.js";
 import { notesVisible } from "../../store/ui/prefs.js";
@@ -165,16 +166,28 @@ function revert() {
   say("", "");
 }
 
+// A setting the user moved while the read was out keeps their choice; the
+// snapshot is what the daemon reported, so that setting reads as a change.
 async function load() {
+  const before = current();
   const r = await api.engine();
   const e = (r && r.engine) || {};
-  cuda.value = e.cuda ?? DEFAULTS.cuda;
-  multicore.value = e.multicore ?? DEFAULTS.multicore;
-  ecores.value = e.ecores ?? DEFAULTS.ecores;
-  nblocks.value = e.nblocks ?? DEFAULTS.nblocks;
-  cudaDev.value = e.cuda_dev ?? DEFAULTS.cuda_dev;
-  cudaCdev.value = e.cuda_cdev ?? DEFAULTS.cuda_cdev;
-  base.value = current();
+  const reported = {
+    cuda: e.cuda ?? DEFAULTS.cuda,
+    multicore: e.multicore ?? DEFAULTS.multicore,
+    ecores: e.ecores ?? DEFAULTS.ecores,
+    nblocks: e.nblocks ?? DEFAULTS.nblocks,
+    cuda_dev: e.cuda_dev ?? DEFAULTS.cuda_dev,
+    cuda_cdev: e.cuda_cdev ?? DEFAULTS.cuda_cdev,
+  };
+  const shown = keepEdits(before, current(), reported);
+  cuda.value = shown.cuda;
+  multicore.value = shown.multicore;
+  ecores.value = shown.ecores;
+  nblocks.value = shown.nblocks;
+  cudaDev.value = shown.cuda_dev;
+  cudaCdev.value = shown.cuda_cdev;
+  base.value = reported;
   loaded.value = true;
 }
 
