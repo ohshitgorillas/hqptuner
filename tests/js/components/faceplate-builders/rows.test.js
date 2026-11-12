@@ -297,6 +297,12 @@ test("test_the_profile_select_is_disabled_while_the_row_is_off", () => {
   assert.equal(off ? hasAttr(off, "disabled") : null, true);
 });
 
+test("test_the_profile_select_is_enabled_once_the_row_is_held", async () => {
+  await fire(rowControl("binc", "profile"));
+  const held = profileSelect();
+  assert.equal(held ? hasAttr(held, "disabled") : null, false);
+});
+
 test("test_changing_the_profile_select_writes_the_edit", async () => {
   await fire(rowControl("binc", "profile"));
   await fire(controls("select", "vfd")[0], "onChange", { currentTarget: { value: "Desk" } });
