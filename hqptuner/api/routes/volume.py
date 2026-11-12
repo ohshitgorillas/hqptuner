@@ -8,10 +8,11 @@ from dataclasses import dataclass
 from fastapi import APIRouter
 
 from hqptuner.api.deps import Mgr
-from hqptuner.api.errors import ControlFailedError, refuse
+from hqptuner.api.errors import ControlFailedError, ErrorBody, refuse
 from hqptuner.api.models import VolumeBody
 from hqptuner.core.applyops import VolumeReport
 from hqptuner.engine.controlerrors import ControlError
+from hqptuner.lanes.writer import not_a_number
 
 router = APIRouter(prefix="/api")
 
@@ -20,6 +21,12 @@ class VolumeFailedError(ControlFailedError):
     """A Control API error that stopped or refused a volume write."""
 
     template = "Changing the volume failed: {error}"
+
+
+class VolumeLevelRefusedError(ErrorBody):
+    """A volume level that is not a number, refused before anything is sent."""
+
+    code = "invalid_input"
 
 
 @dataclass(frozen=True)
@@ -55,6 +62,8 @@ async def volume_set(body: VolumeBody, manager: Mgr) -> VolumeReport:
 
     503 when volume control is disabled (the slider grays on that state, so this is the race backstop).
     """
+    if (reason := not_a_number(body.level)) is not None:
+        raise refuse(VolumeLevelRefusedError(reason))
     try:
         return await manager.applyops.set_volume(body.level)
     except ControlError as exc:

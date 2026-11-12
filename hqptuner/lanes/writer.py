@@ -179,6 +179,13 @@ async def _apply_uniform(client: ControlClient, spec: LiveSetting, params: dict[
     return await _verified(client, reply, {spec.state: value})
 
 
+def not_a_number(text: str) -> str | None:
+    """Return why ``text`` cannot be a volume level, or None when it parses as a number."""
+    if _NUMBER.fullmatch(text) is None:
+        return f"could not convert string to float: {text!r}"
+    return None
+
+
 def _malformed(setting: str, params: dict[str, str]) -> str | None:
     """Return why an edit cannot be sent at all, or None when it is well formed.
 
@@ -186,8 +193,8 @@ def _malformed(setting: str, params: dict[str, str]) -> str | None:
     """
     if "value" not in params:
         return str(KeyError("value"))
-    if setting == "volume" and _NUMBER.fullmatch(params["value"]) is None:
-        return f"could not convert string to float: {params['value']!r}"
+    if setting == "volume":
+        return not_a_number(params["value"])
     return None
 
 
