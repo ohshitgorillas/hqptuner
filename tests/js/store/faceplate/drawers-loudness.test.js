@@ -16,11 +16,13 @@ import { effective } from "../../../../hqptuner/static/store/resolve.js";
 import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { loudnessSide } from "../../../../hqptuner/static/store/ui/ui.js";
 import {
+  dragHandle,
   dropBound,
   dropHandle,
   grabHandle,
   loudnessBar,
   moveBound,
+  showSide,
   sideDots,
 } from "../../../../hqptuner/static/store/faceplate/drawers/loudness.js";
 import { ok, quiesce, stagingWire } from "../../support/wire/wire.js";
@@ -84,6 +86,11 @@ test("test_the_needle_returns_once_the_engine_reports_a_volume_again", () => {
   assert.equal(loudnessBar().needle, -30);
 });
 
+test("test_no_reported_volume_leaves_the_bar_without_a_needle", () => {
+  volume.value = null;
+  assert.equal(loudnessBar().needle, null);
+});
+
 // --- dragging and typing a bound ----------------------------------------------
 
 test("test_a_dropped_drag_stages_its_bound_in_whole_db", async () => {
@@ -98,6 +105,13 @@ test("test_a_drag_marks_its_bound_active", () => {
   assert.equal(loudnessBar().active, "high");
 });
 
+test("test_no_bound_reads_active_after_a_drop", async () => {
+  moveBound("high", -30);
+  dropBound();
+  await settle();
+  assert.equal(loudnessBar().active, null);
+});
+
 // --- the Bass | Treble switch -------------------------------------------------
 
 test("test_only_the_hidden_side_holding_an_edit_carries_a_dot", async () => {
@@ -105,9 +119,21 @@ test("test_only_the_hidden_side_holding_an_edit_carries_a_dot", async () => {
   assert.deepEqual(sideDots(), { low: false, high: true });
 });
 
+test("test_the_shown_side_holding_an_edit_carries_no_dot", async () => {
+  await edit("loudness_high_freq", "4000");
+  showSide("high");
+  assert.equal(sideDots().high, false);
+});
+
 test("test_grabbing_a_plot_handle_points_the_switch_at_its_side", () => {
   grabHandle("high");
   assert.equal(loudnessSide.value, "high");
+});
+
+test("test_dragging_a_plot_handle_stages_nothing", async () => {
+  dragHandle("high", 4321.6, 3.27);
+  await settle();
+  assert.equal(wire.stages.length, 0);
 });
 
 test("test_dropping_a_plot_handle_stages_its_whole_hertz", async () => {
