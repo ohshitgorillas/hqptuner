@@ -212,3 +212,9 @@ test("test_structural_names_the_settings_an_install_would_change", async () => {
   const linear = structuralView().conflicts.map((c) => c.key);
   assert.deepEqual(linear, ["matrix_iir2fir"]);
 });
+
+test("test_structural_names_no_settings_at_iir2fir_zero", async () => {
+  await load({ iir2fir: "0", enabled: "0", picked: "structural" });
+  const none = structuralView().conflicts.map((c) => c.key);
+  assert.deepEqual(none, []);
+});
