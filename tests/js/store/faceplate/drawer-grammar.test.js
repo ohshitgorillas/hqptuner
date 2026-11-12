@@ -142,6 +142,12 @@ test("test_a_restart_row_kept_in_by_when_makes_its_tab_a_restart_tab", () => {
   assert.equal(shown(true), true);
 });
 
+test("test_a_restart_row_left_out_by_when_leaves_its_tab_a_live_tab", () => {
+  const shown = (/** @type {boolean} */ on) =>
+    drawerHead(drawerOf("g7", [{ row: { key: "volume_max", when: () => on } }]), "a").apply.shown;
+  assert.deepEqual([shown(true), shown(false)], [true, false]);
+});
+
 test("test_an_own_forms_staged_state_makes_the_apply_buttons_live", () => {
   const live = [drawerHead(ownForm("o1", false), "a").apply.live, drawerHead(ownForm("o1", true), "a").apply.live];
   assert.deepEqual(live, [false, true]);
