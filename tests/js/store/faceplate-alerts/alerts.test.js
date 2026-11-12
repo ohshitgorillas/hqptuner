@@ -18,14 +18,16 @@ import assert from "node:assert/strict";
 import { health, engineStatus, lastApply } from "../../../../hqptuner/static/store/signals.js";
 import { liveOp } from "../../../../hqptuner/static/store/live/write.js";
 import { livePresetError } from "../../../../hqptuner/static/store/live/presets.js";
-import { descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
-import { favoritesError } from "../../../../hqptuner/static/store/narrow/favorites.js";
-import { narrowingError } from "../../../../hqptuner/static/store/narrow/persist.js";
+import { descriptionError, hydrateDescriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
+import { favoritesError, hydrateFavorites } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { narrowingError, hydrateNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
+import { failureAlerts } from "../../../../hqptuner/static/store/alerts/failures.js";
 import { initHealth } from "../../../../hqptuner/static/store/health.js";
 import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/static/store/faceplate/alerts.js";
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
 import { reset, DSD512, DSD1024, PCM_4X, PCM_8X } from "../../support/shaperfit-fixtures.js";
 import { fakeClock } from "../../support/clock.js";
+import { stagingWire, bad } from "../../support/wire/wire.js";
 import { unreadWire } from "../../support/wire/unreadwire.js";
 import { fail } from "../../support/unreadareas.js";
 
@@ -284,3 +286,27 @@ test("test_the_gauges_popover_holds_only_the_alerts_homed_on_it", async () => {
   sustain({ process_speed: "0.5" });
   assert.deepEqual(kindsOf(alertNotes("gauge")), ["speed"]);
 });
+
+// --- a load that fails on the wire raises its own line -----------------------------
+
+/** The status the failing load is answered with, and a detail that is the fixture's own. */
+const LOAD_REFUSAL = 500;
+const LOAD_DETAIL = "State directory is unreadable.";
+
+const LOADS = [
+  { area: "description", kind: "description-failed", path: "/api/descriptions", hydrate: hydrateDescriptions },
+  { area: "favorite", kind: "favorite-failed", path: "/api/favorites", hydrate: hydrateFavorites },
+  { area: "narrowing", kind: "narrowing-failed", path: "/api/narrowing", hydrate: hydrateNarrowing },
+];
+
+for (const load of LOADS) {
+  test(`test_a_failed_${load.area}_load_raises_its_own_line`, async () => {
+    await quiet();
+    stagingWire({ routes: (path) => (path === load.path ? bad(LOAD_REFUSAL, LOAD_DETAIL) : undefined) });
+    await load.hydrate();
+    assert.deepEqual(
+      failureAlerts.value.map((a) => a.kind),
+      [load.kind],
+    );
+  });
+}
