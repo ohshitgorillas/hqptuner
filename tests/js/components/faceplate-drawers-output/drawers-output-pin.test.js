@@ -192,6 +192,11 @@ test("test_the_dial_carries_the_picker_while_pinned_rates_are_allowed", () => {
   assert.deepEqual(allowed, ["auto", "f44", "f48"]);
 });
 
+test("test_the_dial_carries_no_picker_while_pinned_rates_are_off", () => {
+  setAllowPinnedRates(false);
+  assert.deepEqual(options(), []);
+});
+
 // --- a tap under a picked family -----------------------------------------------------------------------------------
 
 for (const { fam, chain, output, list, band, tier, hz } of [
