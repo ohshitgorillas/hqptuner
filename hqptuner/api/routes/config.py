@@ -153,9 +153,13 @@ class EngineControlFailedError(ControlFailedError):
 
 
 class ArchiveUnreadableError(ErrorBody):
-    """A restore upload's own descriptions member would not parse, whose own message is the whole refusal."""
+    """A restore upload is a zip that will not list or decompress, whose own message is the whole refusal.
 
-    code = "archive_unreadable"
+    A client error: the file is the user's, so it answers ``invalid_input``, not ``archive_unreadable`` (a 500, for an
+    archive the daemon served).
+    """
+
+    code = "invalid_input"
 
     def __init__(self, *, error: Exception) -> None:
         """Render ``error``'s own message, naming no further fact."""
@@ -170,6 +174,16 @@ class RestoreUploadTooLargeError(ErrorBody):
     def __init__(self) -> None:
         """Render the fixed wording; this template carries no interpolated fact."""
         super().__init__("The settings file is too large to restore.")
+
+
+class ArchiveTooLargeError(ErrorBody):
+    """A restore archive declares more decompressed bytes than a settings archive can hold."""
+
+    code = "invalid_input"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("The settings file holds more data than a settings file can.")
 
 
 class RestoreFailedError(ErrorBody):
@@ -348,6 +362,8 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     taken: tuple[bytes, bytes | None] = (data, None)
     if presetzip.is_archive(data):
         try:
+            if not presetzip.check_sizes(presetzip.list_members(data)).ok:
+                raise refuse(ArchiveTooLargeError())
             taken = presetzip.take_descriptions(data)
         except UnreadableArchiveError as exc:
             raise refuse(ArchiveUnreadableError(error=exc)) from exc

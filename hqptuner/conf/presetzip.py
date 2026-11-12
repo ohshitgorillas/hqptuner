@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import io
+import lzma
+import struct
 import zipfile
+import zlib
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -149,6 +152,29 @@ DESCRIPTIONS_MEMBER = "hqptuner/descriptions.json"
 #: (a raw UTF-8 member from another tool needs 4), plus 256 bytes of framing per entry and 1 KiB for the envelope.
 DESCRIPTIONS_CEILING = 256 * (12 * (128 + 2000) + 256) + 1024
 
+#: What decompressing or listing an archive member can raise, whatever the archive claims to be: a damaged
+#: directory or stream (``BadZipFile``, ``zlib.error``, ``lzma.LZMAError``, ``EOFError``), a member it cannot open
+#: (``RuntimeError`` for an encrypted one, ``NotImplementedError`` for an unsupported method, ``LargeZipFile``), a
+#: malformed field (``ValueError``, ``struct.error``) and the file layer (``OSError``, which ``bz2`` raises).
+ARCHIVE_FAULTS = (
+    zipfile.BadZipFile,
+    zipfile.LargeZipFile,
+    zlib.error,
+    lzma.LZMAError,
+    struct.error,
+    EOFError,
+    NotImplementedError,
+    RuntimeError,
+    ValueError,
+    OSError,
+)
+
+#: The most one archive member may declare it decompresses to, and the most all of them together may. A settings
+#: archive is a few small config files and the parked filters, which ride it as ``data/`` members and are held to
+#: 32 MiB each by default (``Config.filter_max_bytes``): the member ceiling is twice that, the total twice again.
+MEMBER_CEILING = 64 * 2**20
+TOTAL_CEILING = 128 * 2**20
+
 #: The most a restore upload may be: a backup of the size the 8088 lane itself reads, plus the descriptions member.
 RESTORE_UPLOAD_CEILING = BACKUP_CEILING + DESCRIPTIONS_CEILING
 
@@ -169,19 +195,54 @@ def is_archive(data: bytes) -> bool:
     return zipfile.is_zipfile(io.BytesIO(data))
 
 
+def list_members(zip_bytes: bytes) -> list[zipfile.ZipInfo]:
+    """Every member's directory entry, read from the directory alone; ``UnreadableArchiveError`` when it won't list."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            return z.infolist()
+    except ARCHIVE_FAULTS as exc:
+        raise engineconf.UnreadableArchiveError(zip_bytes) from exc
+
+
+@dataclass(frozen=True)
+class SizeCheck:
+    """``check_sizes``'s answer.
+
+    ``oversize_member`` names the first member declaring more than ``MEMBER_CEILING``, ``total_over`` says the declared
+    total is more than ``TOTAL_CEILING``.
+    """
+
+    oversize_member: str | None
+    total_over: bool
+
+    @property
+    def ok(self) -> bool:
+        """Whether the archive declares nothing past either ceiling."""
+        return self.oversize_member is None and not self.total_over
+
+
+def check_sizes(members: list[zipfile.ZipInfo]) -> SizeCheck:
+    """Judge an archive by the decompressed sizes its directory declares, before any member is read.
+
+    ``zipfile`` stops a member's read at its declared size, so what is declared bounds what any later read produces.
+    """
+    oversize = next((m.filename for m in members if m.file_size > MEMBER_CEILING), None)
+    return SizeCheck(oversize, sum(m.file_size for m in members) > TOTAL_CEILING)
+
+
 def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:
     """Split an uploaded archive into (archive without our member, the member's bytes or None).
 
     The daemon never sees the member: it is not a member hqplayerd wrote, and a restore is not the place to find out
-    what it does with one. A payload that is not a zip at all raises ``UnreadableArchiveError``; the caller decides
-    what that means.
+    what it does with one. A payload that is not a readable zip, or whose members will not decompress, raises
+    ``UnreadableArchiveError``; the caller decides what that means.
     """
     try:
         with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zin:
             payload = zin.read(DESCRIPTIONS_MEMBER) if DESCRIPTIONS_MEMBER in zin.namelist() else None
             carried = zin.infolist() if payload is not None else []
             kept = [(item, zin.read(item.filename)) for item in carried if item.filename != DESCRIPTIONS_MEMBER]
-    except (zipfile.BadZipFile, OSError) as exc:
+    except ARCHIVE_FAULTS as exc:
         raise engineconf.UnreadableArchiveError(zip_bytes) from exc
     if payload is None:
         return zip_bytes, None
