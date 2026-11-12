@@ -17,6 +17,16 @@ from hqptuner.lanes.writer import LiveWriteFailed, known_live_settings
 
 router = APIRouter(prefix="/api")
 
+# The longest value a staged field carries is a ``matrix_pipelines`` or ``matrix_profile_save`` JSON of 128 rows, the
+# most pipelines the daemon's table holds. A row is about 110 characters of JSON around a ``process`` string of up to
+# 1900 characters for a multi-filter absolute path, so it stays under 2048, and 128 * 2048 = 262144 characters. Every
+# other field is a short scalar.
+MAX_VALUE_LENGTH = 262_144
+# The write path routes each field of ``FIELD_MAP``, ``LOCAL_BACKEND_MAP`` and ``PLUGIN_MAP``, the live settings, and
+# ``matrix_pipelines``, the two profile verbs, ``net_device`` and the fixed-volume pair: under a hundred keys together.
+# 256 leaves room for fields still to come and stays far under what a flood needs.
+MAX_STAGED_KEYS = 256
+
 
 @dataclass(frozen=True)
 class PendingSnapshot:
@@ -113,17 +123,52 @@ class UnknownLiveSettingsError(ErrorBody):
         super().__init__(f"unknown live settings: {sorted(unknown)}")
 
 
+class StagedValueTooLongError(ErrorBody):
+    """A staged or live value is longer than the ceiling every real value stays under."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, field: str) -> None:
+        """Render the wording naming the ``field`` whose value is too long."""
+        super().__init__(f"the value of {field} is too long")
+
+
+class StagedBufferFullError(ErrorBody):
+    """A stage request would take the buffer past the number of fields the write path routes."""
+
+    code = "invalid_input"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("too many settings are staged")
+
+
+def refuse_long_values(http: dict[str, str], live: dict[str, dict[str, str]]) -> None:
+    """Refuse a request any of whose values (every ``http`` value, every live argument value) is over the ceiling."""
+    for field, value in http.items():
+        if len(value) > MAX_VALUE_LENGTH:
+            raise refuse(StagedValueTooLongError(field=field))
+    for key, args in live.items():
+        for arg, value in args.items():
+            if len(value) > MAX_VALUE_LENGTH:
+                raise refuse(StagedValueTooLongError(field=f"{key} {arg}"))
+
+
 @router.post("/config/stage")
 def stage(body: StageBody, request: Request) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a live key is not a known live setting — the daemon would have no setter to call for it. Nothing is
-    written to the daemon here; apply is a separate call.
+    422 when a value is over the length ceiling or the merge would take the buffer past the key ceiling, and when a
+    live key is not a known live setting — the daemon would have no setter to call for it. A refused request merges
+    nothing. Nothing is written to the daemon here; apply is a separate call.
     """
+    refuse_long_values(body.http, body.live)
+    store = pending_store(request)
+    if len(store.http.keys() | body.http.keys()) + len(store.live.keys() | body.live.keys()) > MAX_STAGED_KEYS:
+        raise refuse(StagedBufferFullError())
     unknown = set(body.live) - set(known_live_settings())
     if unknown:
         raise refuse(UnknownLiveSettingsError(unknown=unknown))
-    store = pending_store(request)
     # merge, THEN drop: one request both re-stages a field and reports it clean
     # when an edit lands back on its baseline, and the drop is the later word.
     store.stage(body.live, body.http)

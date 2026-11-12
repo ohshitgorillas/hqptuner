@@ -11,7 +11,7 @@ from fastapi import APIRouter, Request
 from hqptuner.api.deps import Mgr, SavedPreset, WithAutosave, WithSaved, preset_refusals, with_autosave
 from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError, refuse
 from hqptuner.api.models import ApplyBody, LiveBody
-from hqptuner.api.routes.pending import apply_succeeded, pending_store
+from hqptuner.api.routes.pending import apply_succeeded, pending_store, refuse_long_values
 from hqptuner.conf.xmledit import GroundingError
 from hqptuner.core.applyops import ApplyReport
 from hqptuner.core.manager import ConnectionManager
@@ -154,6 +154,7 @@ async def config_live(body: LiveBody, manager: Mgr) -> WithAutosave[LiveApplyRep
     unknown = sorted(set(fields) - set(routing.live_fields()))
     if unknown:
         raise refuse(UnknownLiveFieldsError(unknown=unknown))
+    refuse_long_values(fields, {})
     _stand_autopilot_down(manager, fields)
     try:
         report = await lane.apply_now(manager, fields)
