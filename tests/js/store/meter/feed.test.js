@@ -117,6 +117,11 @@ test("test_meter_feed_open_is_true_while_metering_runs", () => {
   assert.equal(meterFeedOpen.value, true);
 });
 
+test("test_meter_feed_open_is_false_once_metering_is_switched_off", () => {
+  engineStatus.value = { metering: false };
+  assert.equal(meterFeedOpen.value, false);
+});
+
 test("test_a_geometry_event_sets_the_nyquist_channel_count_and_bin_count", () => {
   lastStream()?.emit("geometry", { rate: 192000, nyquist: 96000, channels: 2, bins: 1025 });
   const geo = meterGeometry.value;
