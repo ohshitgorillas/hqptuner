@@ -20,7 +20,7 @@ import { isDeepStrictEqual } from "node:util";
 
 import { effective, effectivePipelines } from "../../../../hqptuner/static/store/resolve.js";
 import { edit, discardAll } from "../../../../hqptuner/static/store/actions.js";
-import { descriptions } from "../../../../hqptuner/static/store/matrix/descriptions.js";
+import { descriptions, descriptionError } from "../../../../hqptuner/static/store/matrix/descriptions.js";
 import { NEW } from "../../../../hqptuner/static/model/builders/builder.js";
 import { cur, staged, ask, refused } from "../../../../hqptuner/static/store/faceplate/builders/shell.js";
 import { LISTEN, PB_STEPS, PROFILE_COPY } from "../../../../hqptuner/static/store/faceplate/builders/profile-data.js";
@@ -46,7 +46,7 @@ import {
 } from "../../../../hqptuner/static/store/faceplate/builders/profile.js";
 import { ROW, PROF, profileReading } from "../../support/profile-fixtures.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
-import { stagingWire, ok, quiesce } from "../../support/wire/wire.js";
+import { stagingWire, ok, bad, quiesce } from "../../support/wire/wire.js";
 
 /** @typedef {import("../../support/profile-fixtures.js").PipelineRow} PipelineRow */
 /** @typedef {import("../../support/wire/wire.js").StagingWire} StagingWire */
@@ -272,6 +272,7 @@ beforeEach(async () => {
   enums.value = { matrix_profiles: ["Warm"] };
   await load();
   descriptions.value = { Flat: { text: FLAT_NOTE, updated: "2026-01-01T00:00:00Z" } };
+  descriptionError.value = "";
   await discardAll();
   staged.value = new Map();
   ask.value = null;
@@ -645,6 +646,22 @@ test("test_a_fresh_save_writes_its_description_under_its_name", async () => {
 test("test_a_fresh_save_edits_the_saved_profile_in_the_loaded_station", async () => {
   await freshSave();
   assert.deepEqual(cur.value, { st: LOADED, name: "Dusk" });
+});
+
+/** A refusal's `detail`, the fixture's own. */
+const REFUSED = "The description store is read-only.";
+
+/** Answer every description save with a refusal, and every other request as the wire in place does. */
+function refuseDescriptionSaves() {
+  const inner = /** @type {(path: string, opts?: FakeRequest) => Promise<unknown>} */ (env.fetch);
+  env.fetch = (/** @type {string} */ path, /** @type {FakeRequest} */ opts = {}) =>
+    path === "/api/descriptions" && opts.method === "PUT" ? Promise.resolve(bad(500, REFUSED)) : inner(path, opts);
+}
+
+test("test_a_description_the_wire_refuses_after_the_apply_landed_raises_the_description_failure_line", async () => {
+  refuseDescriptionSaves();
+  await freshSave();
+  assert.ok(descriptionError.value.includes(REFUSED), descriptionError.value);
 });
 
 // --- remove ----------------------------------------------------------------------------------------
