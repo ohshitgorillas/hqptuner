@@ -127,6 +127,49 @@ test("test_the_critical_threshold_is_exclusive", () => {
   assert.deepEqual(sevs(hold(HOLD_MS, { process_speed: "1.00" })), ["warn"]);
 });
 
+// A wait just short of the six seconds raises nothing yet. It kills a store that alerts on the first slow frame.
+test("test_a_slow_speed_holds_off_until_the_full_wait_has_run", () => {
+  reset();
+  assert.deepEqual(sevs(hold(HOLD_MS - CADENCE, { process_speed: "1.02" })), []);
+});
+
+// A frame that does not qualify starts the wait over. After one, the clock runs past the point where the first slow
+// frame's wait would have run out, with no frame in between, and the next slow frame finds no alert raised. The
+// three triggers differ only in the frame that interrupts, so the shape is held here.
+/** @param {Record<string, unknown>} interruption */
+const alertsAfterAnInterruptedWait = (interruption) => {
+  reset();
+  hold(HOLD_MS / 2, { process_speed: "1.02" });
+  poll(interruption);
+  fake.advance(HOLD_MS / 2 + CADENCE);
+  return sevs(poll({ process_speed: "1.02" }));
+};
+
+test("test_a_recovering_frame_starts_the_slow_speed_wait_over", () => {
+  assert.deepEqual(alertsAfterAnInterruptedWait({ process_speed: "1.5" }), []);
+});
+
+test("test_the_engine_stopping_starts_the_slow_speed_wait_over", () => {
+  assert.deepEqual(alertsAfterAnInterruptedWait({ state: "0", process_speed: "1.02" }), []);
+});
+
+// 0 and negatives are "no reading", and an unparseable speed reads as 0. None of them is a slow frame.
+for (const speed of ["0", "-1", "n/a"]) {
+  test(`test_an_unusable_speed_starts_the_slow_speed_wait_over: ${speed}`, () => {
+    assert.deepEqual(alertsAfterAnInterruptedWait({ process_speed: speed }), []);
+  });
+}
+
+// The warn line sits at 1.05: a speed on it is not below it. The pair differs only in which side of the line the speed
+// holds.
+test("test_the_warn_threshold_is_exclusive", () => {
+  reset();
+  const onTheLine = sevs(hold(HOLD_MS, { process_speed: "1.05" }));
+  reset();
+  const justUnder = sevs(hold(HOLD_MS, { process_speed: "1.04" }));
+  assert.deepEqual([onTheLine, justUnder], [[], ["warn"]]);
+});
+
 // --- the connection phase --------------------------------------------------
 // While the connection is not Ready the engine counts as not playing, even though the last Status frame said it was,
 // and engine health alerts fire only while it plays.
@@ -159,6 +202,13 @@ test("test_output_buffer_applies_once_a_positive_fill_is_seen", () => {
   poll({ output_fill: "0" });
   poll({ output_fill: "0.5" }); // buffer populates → applies
   assert.equal(outputBufferApplies.value, true);
+});
+
+// A low reading on a buffer that does apply raises nothing: the only slow-speed alerts are about speed.
+test("test_a_low_buffer_at_a_healthy_speed_raises_no_alert", () => {
+  reset();
+  const held = hold(HOLD_MS, { output_fill: "0.05", input_fill: "0.05" });
+  assert.deepEqual([outputBufferApplies.value, sevs(held)], [true, []]);
 });
 
 // --- clipping counters ------------------------------------------------------

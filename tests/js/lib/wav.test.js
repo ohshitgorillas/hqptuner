@@ -40,3 +40,9 @@ test("wavRateFromHeader reads the fmt-chunk rate", () => {
   const good = wavHeader(48000);
   assert.equal(wavRateFromHeader(new DataView(good.buffer)), 48000);
 });
+
+test("wavRateFromHeader reads no rate from a corrupted RIFF tag", () => {
+  const bad = wavHeader(48000);
+  bad[0] = 0x58;
+  assert.equal(wavRateFromHeader(new DataView(bad.buffer)), null);
+});

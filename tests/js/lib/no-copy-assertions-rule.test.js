@@ -123,6 +123,11 @@ function seedFixture() {
   return { root, seeded, unseeded };
 }
 
+test("with the seed import a literal composed of the seeds is not reported", () => {
+  const { root, seeded } = seedFixture();
+  assert.equal(reportedLines(seeded, root).filter((line) => line === lineOf(seeded, composed)).length, 0);
+});
+
 test("a literal adding a word to the imported seeds is reported once", () => {
   const { root, seeded } = seedFixture();
   assert.equal(reportedLines(seeded, root).filter((line) => line === lineOf(seeded, extraWord)).length, 1);
