@@ -9,7 +9,7 @@ from pathlib import Path
 import pytest
 from apps import unserved_login
 from fastapi.testclient import TestClient
-from fixtures_clients import Lanes
+from fixtures_clients import Lanes, serve_lanes
 from virtual_clock import VirtualClock
 
 from hqptuner.config import Config
@@ -64,3 +64,30 @@ def test_a_value_the_page_offers_is_staged(lanes: Lanes) -> None:
 def test_a_staged_value_before_its_page_is_loaded_answers_not_loaded(unloaded_client: TestClient) -> None:
     resp = unloaded_client.post("/api/config/stage", json={"http": {"title": "x"}})
     assert resp.json().get("code") == "not_loaded"
+
+
+@pytest.fixture
+def pcm_lanes(tmp_path: Path) -> Iterator[Lanes]:
+    """Both lanes standing with the engine running the PCM chain, so the SDM chain's fields are held."""
+    yield from serve_lanes(tmp_path, {"mode": "1"})
+
+
+def _live(lanes: Lanes, **fields: str) -> dict[str, str]:
+    answer: dict[str, str] = lanes.post("/api/config/live", {"fields": fields}).json()
+    return answer
+
+
+def test_a_held_value_the_page_does_not_offer_is_refused_at_live(pcm_lanes: Lanes) -> None:
+    assert _live(pcm_lanes, oversampling="999999").get("code") == "route_refused"
+
+
+def test_a_refused_held_value_sends_the_engine_what_a_refused_unknown_field_sends(pcm_lanes: Lanes) -> None:
+    unknown = pcm_lanes.commands_sent_by("/api/config/live", {"fields": {"no_such_field": "1"}})
+    refused = pcm_lanes.commands_sent_by("/api/config/live", {"fields": {"oversampling": "999999"}})
+    assert refused == unknown
+
+
+def test_a_refused_held_value_is_not_held(pcm_lanes: Lanes) -> None:
+    before = pcm_lanes.client.get("/api/config").json()["data"]["file"].get("oversampling")
+    _live(pcm_lanes, oversampling="999999")
+    assert pcm_lanes.client.get("/api/config").json()["data"]["file"].get("oversampling") == before
