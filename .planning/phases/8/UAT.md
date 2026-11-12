@@ -159,7 +159,7 @@ expected: Required job smoke-macos concludes success on the phase's last dev com
 criterion: AC6
 status: pending_ci
 job: smoke-macos
-commit: 7e5ff6811d8a4134de5d3b309128ea48a1c878ac
+commit: 73be25edc50a7ed2d382d4c5b171faf511f1f4a1
 source: model
 evidence: required CI job; runs only on the forge, not on this host
 
