@@ -257,3 +257,13 @@ test("test_a_staged_device_dots_the_device_tab", async () => {
   await edit("net_device", "naa-other/hw:CARD=X,DEV=0");
   assert.deepEqual(tabDirty("device"), true);
 });
+
+test("test_a_staged_rate_leaves_the_device_tab_undotted", async () => {
+  await edit("sdm_rate", "24576000");
+  assert.deepEqual(tabDirty("device"), false);
+});
+
+test("test_a_staged_device_leaves_the_format_tab_undotted", async () => {
+  await edit("net_device", "naa-other/hw:CARD=X,DEV=0");
+  assert.deepEqual(tabDirty("format"), false);
+});
