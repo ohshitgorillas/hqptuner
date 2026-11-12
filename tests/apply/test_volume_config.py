@@ -13,6 +13,7 @@ stand in for the poll loop that normally fills it; it is the manager's public
 snapshot of the engine, the same seam ``virtual_clock`` uses for the clock.
 """
 
+import re
 from typing import Any
 
 import pytest
@@ -42,6 +43,31 @@ _NEVER_FIXED_XML = (
     b'<engine channels="2" volume_fixed="0"><defaults volume="-3"/></engine>'
     b"</hqplayerd>"
 )
+
+# fixed volume ON: the line is live, which is all "enabled" means
+_LIVE_XML = (
+    b'<?xml version="1.0" encoding="UTF-8"?>\n<hqplayerd>'
+    b'<fixed volume="-9"/>'
+    b'<title value="Opal"/>'
+    b'<engine channels="2" volume_fixed="1"><defaults volume="-3"/></engine>'
+    b"</hqplayerd>"
+)
+
+_COMMENT_RE = re.compile(rb"<!--.*?-->", re.DOTALL)
+_LIVE_LEVEL_RE = re.compile(rb'<fixed volume="([^"]*)"/>')
+_PARKED_LEVEL_RE = re.compile(rb'<!--\s*<fixed volume="([^"]*)"/>\s*-->')
+
+
+def _live_level(xml: bytes) -> str | None:
+    """The level on the live ``<fixed>`` element, found once every comment is cut away."""
+    live = _LIVE_LEVEL_RE.search(_COMMENT_RE.sub(b"", xml))
+    return None if live is None else live.group(1).decode()
+
+
+def _parked_level(xml: bytes) -> str | None:
+    """The level in the commented ``<fixed>`` line, or None when no level is parked."""
+    parked = _PARKED_LEVEL_RE.search(xml)
+    return None if parked is None else parked.group(1).decode()
 
 
 #: The rows the fake daemon re-reads on restore for the fields applied here:
@@ -82,6 +108,29 @@ def test_toggling_fixed_volume_leaves_exactly_one_parked_line() -> None:
     for enabled in ("1", "0", "1", "0"):
         xml = presetconf.apply_edits(xml, {"fixed_volume_enabled": enabled})
     assert xml.count(b"<!--<fixed") == 1
+
+
+def test_enabling_fixed_volume_stores_the_staged_level_on_the_live_element() -> None:
+    edits = {"fixed_volume_enabled": "1", "fixed_volume": "-6"}
+    assert _live_level(presetconf.apply_edits(_NEVER_FIXED_XML, edits)) == "-6"
+
+
+def test_disabling_fixed_volume_parks_the_level_instead_of_dropping_it() -> None:
+    assert _parked_level(presetconf.apply_edits(_LIVE_XML, {"fixed_volume_enabled": "0"})) == "-9"
+
+
+def test_staging_the_level_alone_turns_fixed_volume_on() -> None:
+    assert _live_level(presetconf.apply_edits(_PARKED_XML, {"fixed_volume": "-6"})) == "-6"
+
+
+def test_an_explicit_untick_wins_over_a_level_staged_beside_it() -> None:
+    edits = {"fixed_volume_enabled": "0", "fixed_volume": "-12"}
+    assert _parked_level(presetconf.apply_edits(_LIVE_XML, edits)) == "-12"
+
+
+def test_re_enabling_fixed_volume_after_a_disable_restores_the_parked_level() -> None:
+    off = presetconf.apply_edits(_LIVE_XML, {"fixed_volume_enabled": "0"})
+    assert _live_level(presetconf.apply_edits(off, {"fixed_volume_enabled": "1"})) == "-9"
 
 
 def test_a_config_that_never_had_a_fixed_volume_reports_no_level() -> None:
