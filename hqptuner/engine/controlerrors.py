@@ -11,6 +11,16 @@ class ControlError(HQPTunerError):
     code = "daemon_unavailable"
 
 
+class AttributeValueRefusedError(ControlError):
+    """HQPTuner's own refusal of an attribute value holding ``"``, made before the socket is touched."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, element_name: str, attribute: str) -> None:
+        """Render the refusal wording: which command and which of its values held the quote."""
+        super().__init__(f"HQPTuner did not send {element_name}: its {attribute} value contains a double quote.")
+
+
 class CommandError(ControlError):
     """Daemon answered result="Error"."""
 

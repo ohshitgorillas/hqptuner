@@ -18,6 +18,8 @@ XML messages, unauthenticated. Carries the runtime-switchable settings (filters,
 
 A response document is bounded twice. Each read waits at most the request timeout, and a document still incomplete six request timeouts after its first chunk arrives is given up on as no answer, naming the total's seconds, with the connection dropped as for any timeout. A document over 4 MiB without ending is refused.
 
+Attribute values on 4321 are sent raw, because the daemon does not decode `&quot;`, `&amp;` or `&apos;`, so a profile named `Bob's EQ` is selected by exactly that name. A value containing `"` is the one value refused, before a byte is written, with code `invalid_input`, since inside the double quotes the client writes it alone can end the attribute.
+
 ### 2.2 HTTP lane and the restore path (TCP 8088)
 
 Digest auth. `GET /config` is the read side for persistent settings and their constraints. Persistent **writes** ride the **restore lane**: fetch `/backup`, surgically edit the field in the config XML, push it with `POST /restore` (`scope=system`), on which the daemon self-restarts in about 5.6 s.

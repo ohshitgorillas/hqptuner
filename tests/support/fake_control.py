@@ -662,3 +662,21 @@ async def serve_shared(
         writer.write(f"{XML}{answer}\n".encode())
         await writer.drain()
     writer.close()
+
+
+async def serve_recording(
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
+    wire: list[bytes],
+    answer: str,
+) -> None:
+    """A daemon that parses nothing: each command's bytes, as they arrived, go on ``wire`` and ``answer`` goes back.
+
+    The real daemon's parser takes a bare `&` or `<` inside an attribute value, which a conforming XML parser (the
+    one `serve_shared` runs the body through) refuses, so only this fake can show what a value looked like on the wire.
+    """
+    while data := await reader.read(4096):
+        wire.append(data)
+        writer.write(f"{XML}{answer}\n".encode())
+        await writer.drain()
+    writer.close()

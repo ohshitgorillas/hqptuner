@@ -21,6 +21,7 @@ from typing import Protocol
 
 from hqptuner.conf.noanswer import TOTAL_TIMEOUTS
 from hqptuner.engine.controlerrors import (
+    AttributeValueRefusedError,
     CommandError,
     CommandRefusedError,
     ConnectionClosedError,
@@ -335,6 +336,10 @@ class ControlClient:
 
         Note result="OK" is not proof of application — callers verify by State readback (protocol.md §6 caveat).
         """
+        for name, value in attrs.items():
+            # Values go out raw (the daemon decodes no entities on 4321) inside double quotes, so `"` alone can end one.
+            if '"' in value:
+                raise AttributeValueRefusedError(element_name=element_name, attribute=name)
         attr_str = "".join(f' {k}="{v}"' for k, v in attrs.items())
         root = await self.request(f"<{element_name}{attr_str}/>")
         return _reply(element_name, root)
