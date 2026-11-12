@@ -236,6 +236,16 @@ test("test_a_filter_row_carries_a_heart", () => {
   assert.equal(filters, 3);
 });
 
+/** How many hearts the list draws. */
+const heartCount = () => markup().filter((e) => attr(e, "data-fav") !== undefined).length;
+
+test("test_dither_rows_carry_no_heart_while_filter_rows_each_carry_one", () => {
+  open("pcm_dither", "none");
+  const dither = heartCount();
+  open("sdm_filter_1x", "IIR");
+  assert.deepEqual([dither, heartCount()], [0, rows().length]);
+});
+
 test("test_a_modulator_panel_draws_no_close_button", () => {
   open("sdm_modulator", "ASDM5");
   assert.deepEqual(closeButtons(), []);
