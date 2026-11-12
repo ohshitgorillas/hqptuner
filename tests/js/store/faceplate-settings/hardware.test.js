@@ -175,6 +175,13 @@ test("test_a_value_off_a_numeric_base_differs", async () => {
   assert.equal(hardwareDraft().differs, true);
 });
 
+// Break: the differ list keeps every key the draft was ever given an edit for.
+test("test_an_edit_set_back_to_the_base_value_stops_differing", () => {
+  setHardware("cuda_dev", "2");
+  setHardware("cuda_dev", ENGINE.cuda_dev);
+  assert.equal(hardwareDraft().differs, false);
+});
+
 test("test_staged_reads_true_once_the_draft_differs", () => {
   setHardware("multicore", "1");
   assert.equal(staged.value, true);
