@@ -18,13 +18,14 @@ import { discardAll, edit } from "../../../../hqptuner/static/store/actions.js";
 import { cancel } from "../../../../hqptuner/static/store/ask.js";
 import { openPopover, openStage } from "../../../../hqptuner/static/store/faceplate/view.js";
 import {
+  applyDrawer,
   drawerHead,
   rowLines,
   rowOptions,
   showTab,
   shownTab,
 } from "../../../../hqptuner/static/store/faceplate/drawer.js";
-import { stagingWire } from "../../support/wire/wire.js";
+import { ok, stagingWire } from "../../support/wire/wire.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/drawer.js").DrawerSchema} DrawerSchema */
@@ -43,8 +44,19 @@ const FIELDS = [
   },
 ];
 
+/** The staged set's apply POSTs the wire has seen. @type {string[]} */
+let applies = [];
+
+/** @param {string} path @param {{ body?: string }} opts */
+function routes(path, opts) {
+  if (path !== "/api/config/apply") return undefined;
+  applies.push(String(opts.body ?? "{}"));
+  return ok({ report: {} });
+}
+
 beforeEach(async () => {
-  stagingWire();
+  applies = [];
+  stagingWire({ routes });
   config.value = { fields: FIELDS };
   await seedReadings({
     volume_max: fieldReading(-3, { show: "file", restarts: true }),
@@ -85,9 +97,10 @@ const drawerOf = (id, body, extra = {}) => ({
  *
  * @param {string} id
  * @param {boolean} staged
+ * @param {() => void} [apply]  what the form's Apply runs
  * @returns {DrawerSchema}
  */
-const ownForm = (id, staged) => ({
+const ownForm = (id, staged, apply = () => {}) => ({
   id,
   title: id,
   aria: id,
@@ -98,7 +111,7 @@ const ownForm = (id, staged) => ({
       body: [{ field: { id: "f", label: "f", man: [], options: [], value: () => "", set: () => {} } }],
     },
   ],
-  own: { staged: () => staged, apply: () => {}, discard: () => {} },
+  own: { staged: () => staged, apply, discard: () => {} },
 });
 
 /** A choice whose first line's detail control is volume_max. @type {BodyItem} */
@@ -142,9 +155,22 @@ test("test_a_restart_row_kept_in_by_when_makes_its_tab_a_restart_tab", () => {
   assert.equal(shown(true), true);
 });
 
+test("test_a_restart_row_left_out_by_when_leaves_its_tab_a_live_tab", () => {
+  const shown = (/** @type {boolean} */ on) =>
+    drawerHead(drawerOf("g7", [{ row: { key: "volume_max", when: () => on } }]), "a").apply.shown;
+  assert.deepEqual([shown(true), shown(false)], [true, false]);
+});
+
 test("test_an_own_forms_staged_state_makes_the_apply_buttons_live", () => {
   const live = [drawerHead(ownForm("o1", false), "a").apply.live, drawerHead(ownForm("o1", true), "a").apply.live];
   assert.deepEqual(live, [false, true]);
+});
+
+test("test_an_own_forms_apply_writes_through_the_form_and_posts_no_staged_set", async () => {
+  await edit("volume_max", "-6");
+  let formApplies = 0;
+  await applyDrawer(ownForm("o2", true, () => void (formApplies += 1)));
+  assert.deepEqual([formApplies, applies.length], [1, 0]);
 });
 
 test("test_an_own_forms_apply_group_shows_with_nothing_staged", () => {

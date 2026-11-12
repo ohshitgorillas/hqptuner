@@ -144,6 +144,12 @@ test("test_the_dot_goes_on_the_title_of_a_one_tab_drawer", async () => {
   assert.equal(single, true);
 });
 
+test("test_the_dot_of_a_multi_tab_drawer_goes_on_its_tab_and_not_on_its_title", async () => {
+  await edit("volume_max", "-6");
+  const { dirty, titleDot } = drawerHead(twoTabs("d3"), "range");
+  assert.deepEqual({ dirty, titleDot }, { dirty: ["range"], titleDot: false });
+});
+
 test("test_the_apply_group_shows_on_a_restart_tab_with_nothing_staged", () => {
   assert.equal(drawerHead(twoTabs("d4"), "range").apply.shown, true);
 });
@@ -185,6 +191,12 @@ test("test_a_drawer_nobody_picked_a_tab_in_shows_its_first", () => {
 test("test_the_apply_time_question_belongs_to_every_drawer", () => {
   askWarn("pending", "q");
   assert.equal(drawerQuestion(oneTab("d12", "volume_max"))?.owner, "pending");
+});
+
+test("test_a_rows_question_is_pinned_under_its_own_drawer_only", () => {
+  askWarn("volume_max", "q");
+  const pinned = [drawerQuestion(oneTab("d13", "volume_max"))?.owner, drawerQuestion(oneTab("d14", "quick_pause"))];
+  assert.deepEqual(pinned, ["volume_max", null]);
 });
 
 test("test_picking_a_mode_persists_it_under_its_storage_key", () => {

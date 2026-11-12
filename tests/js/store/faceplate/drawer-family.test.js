@@ -112,3 +112,9 @@ for (const { member: owner, stage } of MEMBER_EDITS) {
     assert.equal(lit(), true);
   });
 }
+
+test("test_a_matrix_family_drawers_apply_group_is_unlit_until_a_family_key_is_staged", async () => {
+  const before = lit();
+  await edit("matrix_enabled", "0");
+  assert.deepEqual([before, lit()], [false, true]);
+});
