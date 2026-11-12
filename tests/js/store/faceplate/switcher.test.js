@@ -195,6 +195,16 @@ test("test_a_filter_slot_carries_the_plain_leaf_of_a_name_with_a_variant", () =>
   assert.equal(switcherView()?.slots[1]?.leaf, PLAIN_FILTERS["sinc-M"].leaf);
 });
 
+test("test_a_filter_slot_reads_a_null_variant_only_for_the_name_with_none", () => {
+  setSwitcherTarget("1x filter");
+  setSlot(0, "IIR");
+  setSlot(1, "sinc-M");
+  assert.deepEqual(
+    switcherView()?.slots.map((s) => s.variant),
+    [PLAIN_FILTERS.IIR.variant, PLAIN_FILTERS["sinc-M"].variant],
+  );
+});
+
 test("test_a_list_slot_carries_no_aka", () => {
   setSlot(0, "ASDM5");
   assert.equal(switcherView()?.slots[0]?.aka, "");
@@ -226,6 +236,11 @@ test("test_output_mode_marks_its_pcm_slot_on_while_the_pcm_chain_runs", async ()
   setSwitcherTarget("Output mode");
   await loadLists({ chain: "pcm", plain: true });
   assert.equal(slotField("on")?.[0], true);
+});
+
+test("test_output_mode_marks_only_the_running_chains_slot_on", () => {
+  setSwitcherTarget("Output mode");
+  assert.deepEqual(slotField("on"), [false, true]);
 });
 
 // --- matrix profile slots ------------------------------------------------------------------------------------------
@@ -350,6 +365,41 @@ test("test_tapping_the_running_slot_while_a_write_is_unsettled_sends_it_under_ou
   assert.deepEqual(sent("/api/config/live")[1], { fields: { mode: "sdm" } });
 });
 
+/** The slots each target's taps address, the path its writes post to, and the names its slots remember. */
+const TAP_TARGETS = [
+  { target: "Modulator", path: "/api/config/live", idle: 1, running: 0, names: ["ASDM7EC 512+fs", "ASDM5"] },
+  { target: "Output mode", path: "/api/config/live", idle: 0, running: 1, names: null },
+  { target: "Matrix profile", path: "/api/matrix/profile", idle: 0, running: 1, names: ["Desk", "Lounge"] },
+];
+
+/** The taps each scenario makes, in order, all in before any write answers, and the posts it owes. */
+const TAP_SCENARIOS = [
+  { name: "one_tap_on_the_idle_slot", taps: ["idle"], owed: 1 },
+  { name: "a_tap_on_the_running_slot_with_nothing_unsettled", taps: ["running"], owed: 0 },
+  { name: "a_tap_on_the_running_slot_while_the_idle_slot_write_is_unsettled", taps: ["idle", "running"], owed: 2 },
+  { name: "a_repeated_tap_on_the_idle_slot_before_the_first_settles", taps: ["idle", "idle"], owed: 2 },
+];
+
+for (const { target, path, idle, running, names } of TAP_TARGETS) {
+  for (const { name, taps, owed } of TAP_SCENARIOS) {
+    test(`test_under_${target.replace(" ", "_")}_${name}_posts_${owed}`, async () => {
+      setSwitcherTarget(target);
+      names?.forEach((n, i) => setSlot(i, n));
+      /** @type {Record<string, number>} */
+      const slotOf = { idle, running };
+      const release = hold();
+      const calls = [];
+      for (const tap of taps) {
+        calls.push(slotLive(slotOf[tap]));
+        await settle();
+      }
+      release();
+      await Promise.all(calls);
+      assert.equal(sent(path).length, owed);
+    });
+  }
+}
+
 // --- lit -----------------------------------------------------------------------------------------------------------
 
 const CD = "44100";
@@ -445,6 +495,12 @@ test("test_a_profile_slots_list_omits_the_profile_the_other_slot_holds", () => {
   );
 });
 
+test("test_a_slots_list_under_volume_opens_no_option_list", () => {
+  setSwitcherTarget("Volume");
+  slotList(0);
+  assert.equal(openList.value, null);
+});
+
 // --- plate bottom --------------------------------------------------------------------------------------------------
 
 test("test_the_plate_bottom_reads_the_switcher_bar_preference", () => {
@@ -459,4 +515,14 @@ test("test_the_plate_bottom_reads_a_changed_bar_preference", () => {
 test("test_the_plate_bottom_marks_volume_under_the_volume_target", () => {
   setSwitcherTarget("Volume");
   assert.equal(plateBottom()?.sw, "volume");
+});
+
+test("test_the_plate_bottom_marks_volume_under_no_other_target", () => {
+  assert.deepEqual(
+    ALL.map((t) => {
+      setSwitcherTarget(t);
+      return plateBottom()?.sw;
+    }),
+    ["", "", "", "", "", "volume"],
+  );
 });
