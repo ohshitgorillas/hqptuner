@@ -94,6 +94,11 @@ test("test_the_log_path_row_grays_while_logging_is_off", () => {
   assert.equal(pathGrayLines(), 1);
 });
 
+test("test_the_log_path_row_is_not_grayed_while_logging_is_on", async () => {
+  await load(true);
+  assert.equal(pathGrayLines(), 0);
+});
+
 test("test_the_log_path_readout_prints_the_running_path_not_a_staged_one", async () => {
   await edit("log_file", "/tmp/staged.log");
   assert.equal(railText("logpath"), RUNNING_PATH);
