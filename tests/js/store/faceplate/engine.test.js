@@ -83,6 +83,27 @@ test("test_a_counter_whose_track_delta_equals_the_total_reads_no_track_count", (
   });
 });
 
+// --- readings that read none ---------------------------------------------------------------------------------------
+
+/** @typedef {import("../../../../hqptuner/static/store/faceplate/engine.js").EngineReadings} EngineReadings */
+
+/** @type {[string, Frame, boolean, (r: EngineReadings) => number | null][]} */
+const READS_NONE = [
+  ["a_stopped_engine_reads_no_speed", { ...PLAYING, state: "0" }, true, (r) => r.speed],
+  ["a_stopped_engine_reads_no_input_buffer", { ...PLAYING, state: "0" }, true, (r) => r.input],
+  ["a_stopped_engine_reads_no_output_buffer", { ...PLAYING, state: "0" }, true, (r) => r.output],
+  ["an_empty_speed_reads_none", { ...PLAYING, process_speed: "" }, true, (r) => r.speed],
+  ["a_minus_1_buffer_reads_none", { ...PLAYING, input_fill: "-1" }, true, (r) => r.input],
+  ["an_output_buffer_that_does_not_apply_reads_none", PLAYING, false, (r) => r.output],
+  ["an_unreadable_total_reads_none", { ...PLAYING, clips: "n/a" }, true, (r) => r.clips.total],
+];
+
+for (const [name, frame, applies, field] of READS_NONE) {
+  test(`test_${name}`, () => {
+    assert.equal(field(read(frame, applies)), null);
+  });
+}
+
 // --- the connection phase: while it is not Ready the engine counts as not playing, whatever the last frame said ---
 
 for (const phase of NOT_READY) {
