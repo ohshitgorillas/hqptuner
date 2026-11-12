@@ -114,6 +114,19 @@ test("test_the_draft_reads_loaded_once_the_engine_is_read", () => {
   assert.equal(hardwareDraft().loaded, true);
 });
 
+//: A second instance of the store, so its first read has not landed; the instance the other cases share is loaded by
+//: `beforeEach`.
+const UNREAD_STORE = new URL(
+  "../../../../hqptuner/static/store/faceplate/settings/hardware.js?unread",
+  import.meta.url,
+);
+
+// Break: the draft reads loaded with the empty base it holds before its first read.
+test("test_the_draft_reads_unloaded_before_the_engine_is_read", async () => {
+  const unread = await import(UNREAD_STORE.href);
+  assert.equal(unread.hardwareDraft().loaded, false);
+});
+
 test("test_a_load_reads_the_engines_attributes_into_the_draft", () => {
   assert.deepEqual(hardwareDraft().values, ENGINE);
 });
