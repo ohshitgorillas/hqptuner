@@ -174,13 +174,18 @@ test("test_the_pcm_family_ends_at_the_sixth_tier", () => {
   assert.equal(fams.lastIndexOf("pcm"), 5);
 });
 
+const hatched = () =>
+  dialView()
+    .tiers.filter((t) => t.unavailable)
+    .map((t) => t.value);
+
 test("test_only_a_tier_the_device_did_not_announce_is_hatched", async () => {
-  const hatched = () =>
-    dialView()
-      .tiers.filter((t) => t.unavailable)
-      .map((t) => t.value);
   await load({ caps: CAPS });
   assert.deepEqual(hatched(), ["98304000"]);
+});
+
+test("test_no_tier_is_hatched_while_no_device_caps_are_known", () => {
+  assert.deepEqual(hatched(), []);
 });
 
 const at = (/** @type {string} */ rate) => {
