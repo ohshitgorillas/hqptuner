@@ -1,6 +1,8 @@
 // The engine row's HF filter, between the counters and the volume: a readout naming the playback filter that runs, and
 // the menu of the engine's playback filters it opens, the running one ticked. The lane is live: a pick writes at once,
-// nothing stages, and the menu closes. What runs and what is offered are store/faceplate/hf.js's.
+// nothing stages, and the menu closes. A grayed row (an option that does nothing on the content playing) is drawn
+// disabled and does nothing when tapped: no write, and the menu stays open. What runs, what is offered and what is
+// grayed are store/faceplate/hf.js's.
 
 import { html } from "../../lib/dom.js";
 import { openPopover } from "../../store/faceplate/view.js";
@@ -54,7 +56,14 @@ export function HfFilterPopover() {
     <${Popover} id=${ID} cls="pmenu amenu hfpop" role="menu" label=${LABEL} park=${park}>
       ${hfNow().options.map(
         (o) => html`
-          <button type="button" class="pmrow" role="menuitemradio" aria-checked=${String(o.cur)} onClick=${() => pick(o)}>
+          <button
+            type="button"
+            class="pmrow"
+            role="menuitemradio"
+            aria-checked=${String(o.cur)}
+            disabled=${o.grayed}
+            onClick=${() => !o.grayed && pick(o)}
+          >
             ${o.label}
           </button>
         `,

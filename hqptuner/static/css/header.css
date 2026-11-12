@@ -70,6 +70,9 @@ button.tree{flex:1 1 var(--tree-w);min-width:var(--tree-w);height:var(--ctl-h-hd
 /* HF filter menu: a check menu (drawer.css .amenu), the running filter ticked. Each row is the engine's name for the
    filter, so it reads in the engine-string face, on one line in the menu's fixed row height. */
 .hfpop .pmrow{font-family:var(--f-mono);line-height:var(--lh-text);white-space:nowrap}
+/* A filter that does nothing on the content playing: dead ink, a plain cursor and no hover wash. */
+.hfpop .pmrow:disabled{color:var(--ink-3);cursor:default}
+.hfpop .pmrow:disabled:hover{background:none}
 
 /* Alerts on the header homes: the knob's ring, the gear's glyph, the speed figure
    blink red (crit) or amber (warn), dark between blinks. The knob's blink (credentials rejected) never reads as its steady red

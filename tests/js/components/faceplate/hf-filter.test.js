@@ -17,7 +17,8 @@ import assert from "node:assert/strict";
 import { render } from "preact-render-to-string";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
-import { engineState, enums } from "../../../../hqptuner/static/store/signals.js";
+import { engineState, engineStatus, enums, health } from "../../../../hqptuner/static/store/signals.js";
+import { openPopover } from "../../../../hqptuner/static/store/faceplate/view.js";
 import { HfFilter, HfFilterPopover } from "../../../../hqptuner/static/components/faceplate/HfFilter.js";
 import { ok, quiesce } from "../../support/wire/wire.js";
 import { elements, attr, classes, hasAttr, text } from "../../support/markup.js";
@@ -25,6 +26,9 @@ import { renderTree, textOf } from "../../support/vnodeseam.js";
 import { propsOf } from "../../support/wheel.js";
 
 /** @typedef {import("../../support/markup.js").MarkupElement} MarkupElement */
+
+/** The popover's id. */
+const ID = "hf";
 
 /** The `junk_filters` names, in the engine's order. */
 const NAMES = ["none", "20k", "2x"];
@@ -93,6 +97,9 @@ const sent = (path) => posts.filter((p) => p.path === path).map((p) => p.body);
 beforeEach(() => {
   env.fetch = tracked;
   running("1");
+  engineStatus.value = null;
+  health.value = null;
+  openPopover.value = null;
   posts = [];
 });
 
@@ -160,4 +167,63 @@ test("test_picking_a_row_sends_that_rows_index_live_as_the_junk_filter", async (
   if (typeof pick === "function") await pick({ preventDefault: () => {} });
   await quiesce(wire);
   assert.deepEqual(sent("/api/config/live"), [{ fields: { junk_filter: "2" } }]);
+});
+
+/** A 44.1 kHz source playing: every option but none does nothing on it. */
+function play44() {
+  health.value = { phase: "Ready" };
+  engineStatus.value = { status: { state: "2" }, metadata: { samplerate: "44100", sdm: "0" } };
+}
+
+/** The rendered popover row showing `name`, as the vnode seam sees it. @param {string} name */
+const seamRow = (name) =>
+  renderTree(html`<${HfFilterPopover} />`).seen.find((v) => "aria-checked" in propsOf(v) && textOf(v).trim() === name);
+
+/** Fire a row's tap as the renderer's seam hands it over. @param {string} name */
+async function tap(name) {
+  const row = seamRow(name);
+  const onClick = row ? propsOf(row).onClick : undefined;
+  if (typeof onClick === "function") await onClick({ preventDefault: () => {} });
+  await quiesce(wire);
+}
+
+test("test_with_a_44_1_source_playing_every_row_but_none_is_disabled", () => {
+  play44();
+  assert.deepEqual(
+    rows()
+      .filter((r) => hasAttr(r, "disabled"))
+      .map((r) => text(r).trim()),
+    ["20k", "2x"],
+  );
+});
+
+test("test_a_disabled_row_that_runs_is_still_ticked", () => {
+  play44();
+  assert.deepEqual(
+    rows()
+      .filter((r) => hasAttr(r, "disabled") && attr(r, "aria-checked") === "true")
+      .map((r) => text(r).trim()),
+    ["20k"],
+  );
+});
+
+test("test_a_grayed_row_carries_no_title", () => {
+  play44();
+  assert.deepEqual(
+    rows().filter((r) => hasAttr(r, "title")),
+    [],
+  );
+});
+
+test("test_tapping_a_grayed_row_writes_nothing", async () => {
+  play44();
+  await tap("2x");
+  assert.deepEqual(sent("/api/config/live"), []);
+});
+
+test("test_tapping_a_grayed_row_leaves_the_menu_open", async () => {
+  play44();
+  openPopover.value = ID;
+  await tap("2x");
+  assert.equal(openPopover.value, ID);
 });
