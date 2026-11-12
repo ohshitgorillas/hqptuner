@@ -19,7 +19,7 @@ Committed scope. Each maps to exactly one roadmap phase.
 
 ### Filters
 
-- **FILT-01**: User finds an entry for each new "aclean" filter in the shipped filter data, with an empty description and no simplified name.
+- **FILT-01**: User finds an entry for each new "aclean" filter in the shipped filter data, ported from v1 with its description and simplified name.
 
 ### Visualizer
 

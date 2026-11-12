@@ -89,7 +89,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 
 ### Phase 6: aclean filter entries
 
-**Goal:** The shipped filter data has an entry for each new "aclean" filter, with an empty description and no simplified name.
+**Goal:** The shipped filter data has an entry for each new "aclean" filter, ported from v1 with its description and simplified name.
 
 **Depends on:** Nothing
 
@@ -98,7 +98,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 **Success Criteria:**
 
 1. Every "aclean" filter the running engine enumerates has an entry in the shipped filter data, joined by name.
-2. Each of those entries has an empty description and no simplified name.
+2. Each of those entries carries v1's description and simplified name.
 
 ### Phase 7: No trace on the other visualizer effects
 

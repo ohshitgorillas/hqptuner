@@ -26,7 +26,7 @@ import { loadedChain } from "./rates.js";
 
 // Filter narrowing reads the one narrowing state (store/narrow/state.js): one
 // set of facets narrows every list of a control, because the narrowing is the
-// user's standing answer to "which of these 77 filters am I willing to look at".
+// user's standing answer to "which of these 80 filters am I willing to look at".
 // Presentational only — a running value the facets exclude drops off its own
 // dropdown and stays selected and named on the closed control.
 // Shapers carry `narrow` nowhere and are left whole.

@@ -320,6 +320,16 @@
       "ratio": "any",
       "description": "Minimum phase polyphase sinc filter for hi-res content, with very high stop-band attenuation. Also suitable for playback of lossy compression such as MP3 or MQA."
     },
+    "poly-sinc-aclean-ext2": {
+      "genre": ["classical", "jazz"],
+      "quality": 5,
+      "focus": ["timbre", "space"],
+      "apodizing": "full",
+      "ratio": "any",
+      "upsample_only": true,
+      "phase": "linear",
+      "description": "Single stage adaptive cleanup Extended 2 polyphase sinc filter. Designed specifically for maximal ADC error correction and distortion reduction. Recommended for 1x and Nx."
+    },
     "poly-sinc-mqa/mp3-lp": {
       "genre": ["classical", "jazz"],
       "quality": 4,
@@ -371,6 +381,16 @@
       "apodizing": "full",
       "ratio": "any",
       "description": "Short minimum phase polyphase sinc filter with extreme roll-off and attenuation."
+    },
+    "poly-sinc-aclean-xtr": {
+      "genre": [],
+      "quality": 5,
+      "focus": [],
+      "apodizing": "full",
+      "ratio": "any",
+      "upsample_only": true,
+      "phase": "linear",
+      "description": "Single stage adaptive cleanup Extreme polyphase sinc filter. Designed specifically for maximal ADC error correction and distortion reduction. Recommended for 1x and Nx."
     },
     "poly-sinc-gauss-short": {
       "genre": ["electronic", "jazz", "pop"],
@@ -467,6 +487,16 @@
       "description": "Short linear phase half-band Gaussian filter. Leaky around Nyquist, but high attenuation.",
       "notes": "Only suitable for highest technical quality source materials.",
       "length": "short"
+    },
+    "poly-sinc-aclean-gauss": {
+      "genre": ["any"],
+      "quality": 5,
+      "focus": ["transients", "timbre", "space"],
+      "apodizing": "full",
+      "ratio": "any",
+      "upsample_only": true,
+      "phase": "linear",
+      "description": "Single stage adaptive cleanup Gaussian polyphase sinc filter. Designed specifically for maximal ADC error correction and distortion reduction. Recommended for 1x and Nx."
     },
     "ASRC": {
       "genre": [],
