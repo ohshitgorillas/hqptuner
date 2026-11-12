@@ -171,19 +171,42 @@ def find_plugin(xml: bytes, plugin_type: str) -> re.Match[bytes] | None:
     return next((m for m in live_tags(xml, "plugin") if needle in m.group(0)), None)
 
 
+# minimal XML attribute escaping for the process string (order matters on unescape)
+# ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
+# process string or a profile name comes back as the entity, and a table that
+# cannot unescape it reads the literal "&apos;" as the value — which then never
+# matches what was written, so the apply can never converge.
+_ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
+
+
+def attr_escape(value: str) -> str:
+    """Escape ``value`` for a double-quoted XML attribute, ampersand first so the later entities survive."""
+    for ch, ent in _ATTR_ESCAPES:
+        value = value.replace(ch, ent)
+    return value
+
+
+def attr_unescape(value: str) -> str:
+    """Turn XML attribute entities back into their characters — ``attr_escape`` inverted, ampersand last."""
+    for ch, ent in reversed(_ATTR_ESCAPES):
+        value = value.replace(ent, ch)
+    return value
+
+
 def get_attr(tag: bytes, attr: str) -> str | None:
-    """Read ``attr`` off an element's open-tag bytes; None when absent."""
+    """Read ``attr`` off an element's open-tag bytes, entities turned back into characters; None when absent."""
     m = attr_re(attr).search(tag)
-    return m.group(1).decode() if m else None
+    return attr_unescape(m.group(1).decode()) if m else None
 
 
 def set_attr(tag: bytes, attr: str, value: str) -> bytes:
     """Set ``attr="value"`` on an element's open-tag bytes.
 
+    ``value`` is the character string and is escaped here, so no value can close the attribute.
     Replaces in place when present, inserting right after the tag name otherwise.
     Byte-faithful: nothing else in the tag moves.
     """
-    replacement = f'{attr}="{value}"'.encode()
+    replacement = f'{attr}="{attr_escape(value)}"'.encode()
     pat = attr_re(attr)
     if pat.search(tag):
         # a function replacement, never the bytes directly: re.sub reads escapes

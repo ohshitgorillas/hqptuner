@@ -23,8 +23,7 @@ from typing import TypedDict
 
 from hqptuner.conf.matrixconf import PLUGIN_MAP, live_post_process, pipeline_tag, rows_of
 from hqptuner.conf.matrixpayload import parse_save, validate_name
-from hqptuner.conf.matrixscope import attr_escape, attr_unescape
-from hqptuner.conf.xmledit import GroundingError, ensure_element, in_comment
+from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_element, in_comment
 
 
 class MatrixAbsentError(GroundingError):

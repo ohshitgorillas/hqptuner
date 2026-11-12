@@ -14,6 +14,7 @@ Notable changes to HQPTuner. Format follows [Keep a Changelog](https://keepachan
 
 - **Every browser or device** needs to enter HQPlayer's username and password separately.
 - **Changing HQPlayer's address asks for the username and password again** to prevent credential leaks.
+- **Settings, restore archives and preset names HQPlayer can't use are refused**, and special characters in names save correctly.
 
 ## [1.20.1] — 2026-11-03
 

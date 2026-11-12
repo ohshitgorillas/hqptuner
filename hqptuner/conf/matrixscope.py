@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import re
 
-from hqptuner.conf.xmledit import GroundingError, in_comment
+from hqptuner.conf.xmledit import GroundingError, attr_escape, in_comment
 
 
 class MatrixNoBodyError(GroundingError):
@@ -40,28 +40,6 @@ class ProfileNoBodyError(GroundingError):
     def __init__(self, *, name: str) -> None:
         """Render the wording naming the bodyless profile."""
         super().__init__(f"the matrix profile {name} has no body in this snapshot")
-
-
-# minimal XML attribute escaping for the process string (order matters on unescape)
-# ``&apos;`` is in the table because the DAEMON writes it: an apostrophe in a
-# process string or a profile name comes back as the entity, and a table that
-# cannot unescape it reads the literal "&apos;" as the value — which then never
-# matches what was written, so the apply can never converge.
-_ATTR_ESCAPES = (("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ('"', "&quot;"), ("'", "&apos;"))
-
-
-def attr_escape(value: str) -> str:
-    """Escape ``value`` for a double-quoted XML attribute, ampersand first so the later entities survive."""
-    for ch, ent in _ATTR_ESCAPES:
-        value = value.replace(ch, ent)
-    return value
-
-
-def attr_unescape(value: str) -> str:
-    """Turn XML attribute entities back into their characters — ``attr_escape`` inverted, ampersand last."""
-    for ch, ent in reversed(_ATTR_ESCAPES):
-        value = value.replace(ent, ch)
-    return value
 
 
 def find_matrix_body_span(xml: bytes) -> tuple[int, int] | None:

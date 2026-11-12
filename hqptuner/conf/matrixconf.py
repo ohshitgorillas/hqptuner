@@ -23,14 +23,8 @@ import json
 import re
 
 from hqptuner.conf.matrixpayload import rows_from_list
-from hqptuner.conf.matrixscope import (
-    attr_escape,
-    attr_unescape,
-    find_matrix_body_span,
-    matrix_body_span,
-    matrix_scope,
-)
-from hqptuner.conf.xmledit import GroundingError, ensure_body
+from hqptuner.conf.matrixscope import find_matrix_body_span, matrix_body_span, matrix_scope
+from hqptuner.conf.xmledit import GroundingError, attr_escape, attr_unescape, ensure_body
 
 
 class PipelinesBadJsonError(GroundingError):
