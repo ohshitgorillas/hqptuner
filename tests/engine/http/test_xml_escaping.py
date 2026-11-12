@@ -4,9 +4,13 @@ The expected bytes are written out by hand: escaping through the helper under te
 would pass for any table, right or wrong.
 """
 
-from hqptuner.conf import presetconf
+from io import BytesIO
+from xml.parsers import expat
+
+from hqptuner.conf import fixedvol, presetconf
 
 _TITLE = b'<hqplayerd><title value="old"/></hqplayerd>'
+_ROOT = b"<hqplayerd></hqplayerd>"
 _NETWORK = b'<hqplayerd><network address="a" device="b"/></hqplayerd>'
 
 
@@ -33,3 +37,28 @@ def test_a_title_inserted_on_a_bare_element_is_escaped_too() -> None:
 def test_a_title_carrying_entities_is_read_as_the_characters() -> None:
     xml = b'<hqplayerd><title value="R&amp;B &apos;76&quot;"/></hqplayerd>'
     assert presetconf.read_config(xml)["title"] == "R&B '76\""
+
+
+def test_a_fixed_level_that_closes_the_attribute_adds_no_element() -> None:
+    edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "1", "fixed_volume": '-3"/><x a="'})
+    assert b"<x" not in edited
+
+
+def test_a_parked_fixed_level_holding_a_double_hyphen_is_well_formed_xml() -> None:
+    edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "0", "fixed_volume": "1--2"})
+    assert expat.ParserCreate().ParseFile(BytesIO(edited)) == 1
+
+
+def test_a_parked_fixed_level_holding_a_comment_end_reads_back_as_typed() -> None:
+    edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "0", "fixed_volume": "1-->"})
+    assert fixedvol.any_fixed_level(edited) == "1-->"
+
+
+def test_a_parked_fixed_level_typed_as_a_character_reference_reads_back_as_typed() -> None:
+    edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "0", "fixed_volume": "--&#45;"})
+    assert fixedvol.any_fixed_level(edited) == "--&#45;"
+
+
+def test_a_parked_fixed_level_without_a_double_hyphen_keeps_the_daemons_bytes() -> None:
+    edited = fixedvol.reconcile_fixed(_ROOT, {"fixed_volume_enabled": "0", "fixed_volume": "-3"})
+    assert b'<!--<fixed volume="-3"/>-->' in edited

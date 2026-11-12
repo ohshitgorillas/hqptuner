@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from hqptuner.conf.xmledit import GroundingError, find_element, get_attr, open_tag_re
+from hqptuner.conf.xmledit import GroundingError, attr_escape, find_element, get_attr, open_tag_re
 
 
 class RootAbsentError(GroundingError):
@@ -23,6 +23,10 @@ FIXED_LEVEL = "fixed_volume"
 _TRUTHY = frozenset({"1", "on", "true", "yes"})
 
 
+# XML forbids ``--`` inside a comment, which an entity escape of the attribute never removes, so a parked level holding
+# one carries every ``-`` as this reference. A typed ``&#45;`` is escaped to ``&amp;#45;`` first and never matches.
+_HYPHEN_REF = b"&#45;"
+
 # the daemon's parked memory for a disabled fixed volume; HQPTuner writes this same commented line too
 _COMMENTED_FIXED_RE = re.compile(rb"\n?[ \t]*<!--\s*<fixed\b[^>]*/>\s*-->")
 
@@ -40,7 +44,7 @@ def fixed_level_of(tag: bytes) -> str | None:
 
     An empty ``volume`` carries no level, so it reads as None too.
     """
-    return get_attr(tag, "volume") or None
+    return get_attr(tag.replace(_HYPHEN_REF, b"-"), "volume") or None
 
 
 def any_fixed_level(xml: bytes) -> str | None:
@@ -108,7 +112,7 @@ def _insert_root_child(xml: bytes, tag: bytes) -> bytes:
 
 def _insert_fixed(xml: bytes, level: str) -> bytes:
     """Insert the live ``<fixed volume="level"/>`` — its presence is what "enabled" means."""
-    return _insert_root_child(xml, f'<fixed volume="{level}"/>'.encode())
+    return _insert_root_child(xml, f'<fixed volume="{attr_escape(level)}"/>'.encode())
 
 
 def _remember_fixed(xml: bytes, level: str) -> bytes:
@@ -121,7 +125,10 @@ def _remember_fixed(xml: bytes, level: str) -> bytes:
     shows the daemon's own remembered value instead of the user's — a disable
     lossier than hqplayerd's.
     """
-    return _insert_root_child(xml, f'<!--<fixed volume="{level}"/>-->'.encode())
+    escaped = attr_escape(level)
+    if "--" in escaped:
+        escaped = escaped.replace("-", _HYPHEN_REF.decode())
+    return _insert_root_child(xml, f'<!--<fixed volume="{escaped}"/>-->'.encode())
 
 
 def reconcile_fixed(xml: bytes, fixed_edits: dict[str, str]) -> bytes:
