@@ -127,6 +127,12 @@ test("test_the_critical_threshold_is_exclusive", () => {
   assert.deepEqual(sevs(hold(HOLD_MS, { process_speed: "1.00" })), ["warn"]);
 });
 
+// A wait just short of the six seconds raises nothing yet. It kills a store that alerts on the first slow frame.
+test("test_a_slow_speed_holds_off_until_the_full_wait_has_run", () => {
+  reset();
+  assert.deepEqual(sevs(hold(HOLD_MS - CADENCE, { process_speed: "1.02" })), []);
+});
+
 // --- the connection phase --------------------------------------------------
 // While the connection is not Ready the engine counts as not playing, even though the last Status frame said it was,
 // and engine health alerts fire only while it plays.
