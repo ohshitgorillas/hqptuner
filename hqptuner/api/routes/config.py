@@ -186,6 +186,16 @@ class ArchiveTooLargeError(ErrorBody):
         super().__init__("The settings file holds more data than a settings file can.")
 
 
+class ArchiveMemberNameError(ErrorBody):
+    """A restore archive holds a file a settings backup does not."""
+
+    code = "invalid_input"
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("The settings file holds a file that does not belong in a settings backup.")
+
+
 class RestoreFailedError(ErrorBody):
     """A restore upload failed on the wire, naming the underlying error."""
 
@@ -336,6 +346,15 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
     return await deps.with_autosave(result, manager)
 
 
+def _refuse_unfit_archive(data: bytes) -> None:
+    """Refuse an archive upload that declares more than its ceilings or holds a member a backup does not have."""
+    members = presetzip.list_members(data)
+    if not presetzip.check_sizes(members).ok:
+        raise refuse(ArchiveTooLargeError())
+    if presetzip.check_names([member.filename for member in members]).refused:
+        raise refuse(ArchiveMemberNameError())
+
+
 async def _read_upload(cfgfile: UploadFile) -> bytes:
     """Return the upload's bytes, refusing one past ``RESTORE_UPLOAD_CEILING`` without reading past it."""
     limit = presetzip.RESTORE_UPLOAD_CEILING
@@ -362,8 +381,7 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
     taken: tuple[bytes, bytes | None] = (data, None)
     if presetzip.is_archive(data):
         try:
-            if not presetzip.check_sizes(presetzip.list_members(data)).ok:
-                raise refuse(ArchiveTooLargeError())
+            _refuse_unfit_archive(data)
             taken = presetzip.take_descriptions(data)
         except UnreadableArchiveError as exc:
             raise refuse(ArchiveUnreadableError(error=exc)) from exc

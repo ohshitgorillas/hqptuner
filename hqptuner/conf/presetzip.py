@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import lzma
+import re
 import struct
 import zipfile
 import zlib
@@ -236,6 +237,40 @@ def check_sizes(members: list[zipfile.ZipInfo]) -> SizeCheck:
     """
     oversize = next((m.filename for m in members if m.file_size > MEMBER_CEILING), None)
     return SizeCheck(oversize, sum(m.file_size for m in members) > TOTAL_CEILING)
+
+
+#: The daemon's credential store, which a backup never carries at its root (docs/protocol.md §3.5).
+_AUTH_MEMBER = "hqplayerd-auth.xml"
+_DRIVE_PREFIX = re.compile(r"[A-Za-z]:")
+
+
+@dataclass(frozen=True)
+class NameCheck:
+    """``check_names``'s answer: the member names the daemon's own backups do not have."""
+
+    refused: tuple[str, ...]
+
+
+def check_names(names: list[str]) -> NameCheck:
+    """Judge an archive's member names by the shape of the daemon's own backups.
+
+    A name that is absolute, holds ``..`` or a backslash, or starts with a drive letter and a colon could land outside
+    the daemon's data directory. At the archive root (a name with no ``/``) only the working config belongs:
+    ``hqplayerd.xml``, else the sole root-level ``.xml`` a named preset renames it to (docs/protocol.md §3.6), never
+    the credential store.
+    """
+    working = engineconf.running_config_name(names)
+    root_ok = None if working == _AUTH_MEMBER else working
+    refused = tuple(
+        name
+        for name in names
+        if name.startswith("/")
+        or ".." in name
+        or "\\" in name
+        or _DRIVE_PREFIX.match(name)
+        or ("/" not in name and name != root_ok)
+    )
+    return NameCheck(refused)
 
 
 def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:

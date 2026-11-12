@@ -2,6 +2,7 @@
 version = 1
 
 [allowance]
+"hqptuner/api/routes/config.py" = { lines = 406 }
 "hqptuner/audit.py" = { lines = 406 }
 "hqptuner/conf/presetconf.py" = { lines = 421 }
 "hqptuner/engine/control.py" = { lines = 404 }
