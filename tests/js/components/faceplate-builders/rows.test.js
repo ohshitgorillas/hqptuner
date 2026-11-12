@@ -297,6 +297,12 @@ test("test_the_profile_select_is_disabled_while_the_row_is_off", () => {
   assert.equal(off ? hasAttr(off, "disabled") : null, true);
 });
 
+test("test_the_profile_select_is_enabled_once_the_row_is_held", async () => {
+  await fire(rowControl("binc", "profile"));
+  const held = profileSelect();
+  assert.equal(held ? hasAttr(held, "disabled") : null, false);
+});
+
 test("test_changing_the_profile_select_writes_the_edit", async () => {
   await fire(rowControl("binc", "profile"));
   await fire(controls("select", "vfd")[0], "onChange", { currentTarget: { value: "Desk" } });
@@ -330,6 +336,16 @@ test("test_the_live_cell_marks_a_difference_on_a_held_row_the_engine_differs_fro
     return live && classes(live).includes("diff");
   });
   assert.equal(diff.adaptive, true);
+});
+
+test("test_the_live_cell_marks_no_difference_on_a_row_that_is_off", async () => {
+  await wire({ f1x: "0", adaptive: "0" });
+  editing("Headphones", "Bed");
+  const diff = byId((r) => {
+    const live = first(r, "div", "vfd", "blive");
+    return live && classes(live).includes("diff");
+  });
+  assert.equal(diff["1x"], false);
 });
 
 /** @param {MarkupElement} r */
