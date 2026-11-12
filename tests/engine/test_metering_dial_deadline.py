@@ -1,4 +1,4 @@
-"""A metering dial that never completes is given up once its timeout has passed.
+"""A metering dial that never completes: given up at its timeout, and dialed again after the backoff.
 
 The reader runs directly on a ``VirtualClock`` the test has told to fall silent, so a dial to the 4322 stream waits
 on the clock for the deadline it began with and never fails at once, the way a refused port would. The engine plays and
@@ -12,7 +12,7 @@ import asyncio
 import pytest
 from virtual_clock import VirtualClock
 
-from hqptuner.engine.metering import MeteringReader
+from hqptuner.engine.metering import RECONNECT_DELAY, MeteringReader
 from hqptuner.engine.trackcontext import TrackContext
 
 #: The reader's request timeout, wall seconds.
@@ -55,3 +55,14 @@ async def test_a_dial_that_never_completes_is_given_up_once_its_timeout_has_pass
     seconds: float, *, ended: bool
 ) -> None:
     assert await _ended_when_asked_to_stop_after(seconds) is ended
+
+
+async def test_a_dial_given_up_is_followed_by_another_after_the_reconnect_backoff() -> None:
+    clock, reader = _silent_reader()
+    task = clock.spawn(reader.run())
+    await clock.advance(TIMEOUT + RECONNECT_DELAY)
+    began = clock.reply_waits_began()
+    reader.stop()
+    await clock.advance(TIMEOUT)
+    await asyncio.gather(task, return_exceptions=True)
+    assert began == (0.0, TIMEOUT + RECONNECT_DELAY)
