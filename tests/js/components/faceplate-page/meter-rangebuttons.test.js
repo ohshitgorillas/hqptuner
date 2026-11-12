@@ -67,3 +67,42 @@ test("test_hidden_range_buttons_draw_none", () => {
   const hidden = rangeButtonCount();
   assert.equal(hidden, 0);
 });
+
+// The Ranges the page offers by span, narrowest first, and the two ends the dimming turns on.
+const SPANS = [...METER_RANGES].sort((a, b) => Number(a) - Number(b));
+const NARROWEST = SPANS[0] ?? "";
+const WIDEST = SPANS[SPANS.length - 1] ?? "";
+
+/**
+ * Whether the Range control's `testid` button shows dimmed, once per button the section draws, with the page at `range`.
+ *
+ * @param {string} range
+ * @param {string} testid
+ * @returns {boolean[]}
+ */
+function dimmedAt(range, testid) {
+  setPageRange(range);
+  return elements(render(html`<${SourceMeter} />`))
+    .filter((e) => attr(e, "data-testid") === testid)
+    .map((e) => attr(e, "aria-disabled") === "true");
+}
+
+test("test_wider_is_dimmed_at_the_widest_range", () => {
+  assert.deepEqual(dimmedAt(WIDEST, "range-wider"), [true]);
+});
+
+test("test_narrower_is_dimmed_at_the_narrowest_range", () => {
+  assert.deepEqual(dimmedAt(NARROWEST, "range-narrower"), [true]);
+});
+
+for (const range of SPANS.filter((r) => r !== WIDEST)) {
+  test(`test_wider_is_not_dimmed_at_the_${range}_range_below_the_widest`, () => {
+    assert.deepEqual(dimmedAt(range, "range-wider"), [false]);
+  });
+}
+
+for (const range of SPANS.filter((r) => r !== NARROWEST)) {
+  test(`test_narrower_is_not_dimmed_at_the_${range}_range_above_the_narrowest`, () => {
+    assert.deepEqual(dimmedAt(range, "range-narrower"), [false]);
+  });
+}
