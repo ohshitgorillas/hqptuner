@@ -1,5 +1,6 @@
 // Behavioral suite for the Range buttons preference in store/ui/prefs.js: whether the page's spectrum draws its −/+
-// Range buttons, a browser-held choice the Display popover sets. The setter stores the choice.
+// Range buttons, a browser-held choice the Display popover sets. The setter stores the choice and moves the signal the
+// page reads. A choice stored before load is tests/js/store/prefs/prefs-rangebuttons-load.test.js.
 //
 // The module reads its keys once, when it is first imported, so the fake storage is installed at file scope, and only
 // then is the module pulled in. The storage key is named because it is the contract a persisted preference makes with
@@ -34,4 +35,10 @@ test("test_setting_the_range_buttons_shown_stores_the_shown_choice", () => {
   prefs.setRangeButtons(false);
   prefs.setRangeButtons(true);
   assert.equal(storage.getItem(KEY), SHOWN);
+});
+
+test("test_setting_the_range_buttons_shown_moves_the_signal_the_page_reads", () => {
+  prefs.rangeButtons.value = false;
+  prefs.setRangeButtons(true);
+  assert.equal(prefs.rangeButtons.value, true);
 });
