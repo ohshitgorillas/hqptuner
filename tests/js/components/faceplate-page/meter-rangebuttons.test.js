@@ -61,3 +61,9 @@ test("test_shown_range_buttons_draw_both", () => {
   const shown = rangeButtonCount();
   assert.equal(shown, BUTTONS.length);
 });
+
+test("test_hidden_range_buttons_draw_none", () => {
+  rangeButtons.value = false;
+  const hidden = rangeButtonCount();
+  assert.equal(hidden, 0);
+});
