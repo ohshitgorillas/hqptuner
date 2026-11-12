@@ -27,6 +27,14 @@ class NoWorkingConfigError(GroundingError):
         )
 
 
+class ArchiveOverCeilingError(GroundingError):
+    """A backup archive declares more decompressed bytes than a settings archive can hold."""
+
+    def __init__(self) -> None:
+        """Render the fixed wording; this template carries no interpolated fact."""
+        super().__init__("backup archive declares more data than a settings archive can hold")
+
+
 if TYPE_CHECKING:
     from hqptuner.audit import AuditLog
 
@@ -256,12 +264,20 @@ def take_descriptions(zip_bytes: bytes) -> tuple[bytes, bytes | None]:
 def snapshot_members(zip_bytes: bytes) -> dict[str, bytes]:
     """Every named preset snapshot in a ``/backup`` archive, keyed by preset name.
 
-    Those are the ``data/cfgs/<name>.xml`` members.
+    Those are the ``data/cfgs/<name>.xml`` members. An archive declaring more than its ceilings raises
+    ``ArchiveOverCeilingError`` before any member is read; one that will not list or decompress raises
+    ``UnreadableArchiveError``.
     """
+    members = list_members(zip_bytes)
+    if not check_sizes(members).ok:
+        raise ArchiveOverCeilingError()
     out: dict[str, bytes] = {}
-    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        for name in z.namelist():
-            stem = engineconf.snapshot_name(name)
-            if stem is not None:
-                out[stem] = z.read(name)
+    try:
+        with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+            for member in members:
+                stem = engineconf.snapshot_name(member.filename)
+                if stem is not None:
+                    out[stem] = z.read(member)
+    except ARCHIVE_FAULTS as exc:
+        raise engineconf.UnreadableArchiveError(zip_bytes) from exc
     return out

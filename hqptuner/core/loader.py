@@ -8,12 +8,12 @@ snapshot current between connects.
 import contextlib
 import logging
 import time
-import zipfile
 from typing import TYPE_CHECKING
 
 import httpx
 
 from hqptuner import voltrace
+from hqptuner.conf import engineconf, presetzip
 from hqptuner.core import engineread
 from hqptuner.engine import release
 from hqptuner.engine.control import ControlClient
@@ -140,9 +140,15 @@ async def _load_http_lane(mgr: "ConnectionManager") -> None:
         log.warning("file-config read failed: %s", exc)
     try:
         await mgr.presetops.migrate_once(mgr.readings.active_config)
-    except (httpx.HTTPError, PresetError, OSError, zipfile.BadZipFile) as exc:
+    except (
+        httpx.HTTPError,
+        PresetError,
+        OSError,
+        engineconf.UnreadableArchiveError,
+        presetzip.ArchiveOverCeilingError,
+    ) as exc:
         # the daemon's own snapshots stay unimported; the store keeps whatever it had.
-        # BadZipFile belongs here and not above: presetzip.snapshot_members opens the
+        # The two archive errors belong here and not above: presetzip.snapshot_members opens the
         # archive itself, with no empty-bytes fallback under it.
         log.warning("preset migration skipped: %s", exc)
 
