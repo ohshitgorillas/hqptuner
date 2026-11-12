@@ -1,0 +1,128 @@
+{
+  "status": "gaps",
+  "score": "9/10",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "A fresh app started from clean state boots and answers its health route",
+      "status": "VERIFIED",
+      "uat_item": 1,
+      "evidence": "tests/support/apps.py:120-138 ready_app runs create_app over empty tmp_path stores and hands over only once /api/health reads ready (raises FixtureError otherwise). Exercised by every lanes-fixture case: scripts/gate.sh .venv/bin/pytest on the four tests/api/surface phase files plus tests/live/test_background_writes_wait.py -> exit=0, 67 passed; tests/api/surface/test_connection_host_rule.py::test_a_file_written_under_a_pin_starts_the_app_once_the_pin_is_gone (asserts /api/health 200 on a fresh start) plus tests/api/test_connection.py -> exit=0, 19 passed. The packaged smoke (.github/workflows/release.yml:76-112, packaging/linux/smoke.sh) runs in CI only and was not run here."
+    },
+    {
+      "n": 2,
+      "truth": "With the 8088 lane down, credentials refused or /config unread, the six engine writes each answer a refusal and the fake 4321 receives no command",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "hqptuner/api/readygate.py:62-101 (decide holds every POST/PUT/PATCH/DELETE under /api outside OPEN_WRITES; ReadyGate answers refusal(manager) without calling the app while manager.ready is false); installed at hqptuner/api/factory.py:78 before LoginGate. ready = connected and readings.http_ok (hqptuner/core/manager.py:153), http_ok false with no client or any config_error (hqptuner/core/loader.py:123); AuthRefused is an httpx.HTTPError so a refused pair records config_error (hqptuner/lanes/http/forms.py:84-86). tests/api/surface/test_writes_refused_not_ready.py passes (6 routes x 3 causes, plus restart window). Its silence case is only a relation (fewer commands than when ready), so a spot-check instrumented Lanes.commands_sent_by in that test: while ready the routes sent 3/2/14/2/0/3 commands; after each of 8088-down, credentials-refused and config-unread every one of the six answered 502 daemon_read_failed or 503 no_credentials with cmds=0 and an empty command log slice."
+    },
+    {
+      "n": 3,
+      "truth": "Server-started engine writes (auto-pilot junk-filter move, LIVE re-assert on a chain change) send nothing while not ready and act once ready returns",
+      "status": "VERIFIED",
+      "uat_item": null,
+      "evidence": "hqptuner/core/autopilotops.py:50 returns early unless mgr.ready; hqptuner/lanes/live/lane.py:185-188 keeps reassert_pending while not ready and re-asserts only when ready. tests/live/test_background_writes_wait.py passed in the targeted run (exit=0). hqptuner/core/junkcal.py:3-5 is the only other lifespan task and writes files only."
+    },
+    {
+      "n": 4,
+      "truth": "In that state a stage succeeds and shows in pending, Apply is inert, and a LIVE edit is sent, refused by the gate, and the refusal shows on that control (D-08 as amended)",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "Server: OPEN_WRITES includes POST /api/config/stage and DELETE /api/config/pending (readygate.py:20-32); tests/api/surface/test_not_ready_reads.py::test_a_staged_edit_is_accepted_while_the_8088_lane_is_down passes. Page: PendingBar reads ready (hqptuner/static/components/PendingBar.js:225) and inert() disables apply/save/saveNew when !reach (PendingBar.js:186-193, buttons at 237-246); tests/js/components/pendingbar.test.js test_apply_is_inert_with_the_configuration_lane_down_and_the_control_lane_up. LIVE: writeLive has no hold (hqptuner/static/store/live/write.js:69-87, error via setError(field, errText(e))); tests/js/store/live/live-not-ready.test.js asserts the edit is sent while not ready and during the app's own restart, and that liveErrors.filter equals the server's refusal. scripts/gate.sh node --test on both JS files -> exit=0, 48 pass, 0 fail."
+    },
+    {
+      "n": 5,
+      "truth": "In that state the 4321 reads are answered by their own routes, not the gate, and return within their deadline when the fake 4321 stalls",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "decide() passes every GET/HEAD (readygate.py:70-71); loader.poll keeps querying 4321 (State, Status, VolumeRange, profiles) with no readiness check (hqptuner/core/loader.py:150-190), so the snapshot reads are still attempted. tests/api/surface/test_not_ready_reads.py passes: seven reads answer their own route's status with 8088 down; six take less than cfg.request_timeout on the silent virtual clock with every 4321 query stalled; /api/log is held to 'answered' (502 from its own 8088 read) on the ordinary clock, since the silent clock runs its 8088 deadline out too (plan-4 report open item 4)."
+    },
+    {
+      "n": 6,
+      "truth": "Every builder in tests/support and tests/conftest.py starts both lanes with the 8088 forms loaded, except unserved_login, and no test asserts a feature succeeding with 8088 down",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "The only create_app calls in tests/support are ready_app (apps.py:133, waits for ready) and unserved_login (apps.py:207, the exempt not-working builder); every fixtures_clients builder goes through ready_app (fixtures_clients.py:57,189,231,285). The only ConnectionManager( in tests is Runs.start (tests/conftest.py:217-220), which returns ready_or_raise(manager). Per-file create_app sites (test_startup_bad_host.py:102, test_alias_marker.py:55, test_connection_host_rule.py:225, test_login_route.py:76, test_connection.py:69) are startup or first-run subjects that assert a not-working or health-only answer. Reviewed every test file using _take_lane_down/_refuse_auth/_fail_paths/blank_the_pair: assertions are refusal codes, not-ready readings, or form-snapshot retention on a non-/config page; none asserts a feature succeeding with 8088 down."
+    },
+    {
+      "n": 7,
+      "truth": "The fake 8088 /config page parses to the captured 6.0.4 page's select fields and options, and the fake 4321 lists the page's filter, oversampling, dither and modulator IDs",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "tests/support/fake_http.py:125-179 serves fixtures/config-form-6.0.4.html with only selected options and input values moved (net_device follows the fake's endpoint state). tests/engine/http/test_fake_config_page.py compares parse_config_form of both pages select for select and option for option, and the fake 4321 GetFilters/GetShapers IDs in PCM and SDM modes to the page's lists: scripts/gate.sh .venv/bin/pytest on that file -> exit=0, 36 passed."
+    },
+    {
+      "n": 8,
+      "truth": "None of the comment and docstring lines listed in D-15 describes a 4321-only mode as supported",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "Read each site: signals.js:59-64 (connected computed gone, ready comment), PendingBar.js:223-225, status.py:38-43 (HealthReport.connected as the control connection, latch only), factory.py:49-54,64-66, deps.py:72-80, matrix.py:177-187, resolve.js:186-188, Playback.js:71-80, tests/support/apps.py:1-3,170-176, fixtures_clients.py:118-137, tests/live/test_live_chain.py:25-66, pendingbar.test.js:351-352, and the favorites, narrowing, descriptions and matrixmodes suite docstrings (tests/presets/). Plan-5 Task 3 sweep grep rerun over hqptuner/ tests/ docs/ README.md CONTRIBUTING.md: every hit is a wire fact, a refusal, or unrelated wording."
+    },
+    {
+      "n": 9,
+      "truth": "No documentation anywhere describes a 4321-only mode as supported (ROADMAP SC4)",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "docs/guide/sections/orientation.tex:6 says: 'Without them, everything read-only and every live setting still works, though the app reads ``Unreachable'' and runs dimmed'. docs/guide/ is gitignored (.gitignore:112, 'LaTeX user guide ... lands when that does'), so no commit carries it, but it is the user guide in this tree and states the removed mode as supported. The plan-5 sweep grep has no pattern for 'still works', so it missed this line."
+    },
+    {
+      "n": 10,
+      "truth": "scripts/gate.sh make check exits 0 on the phase's last dev commit",
+      "status": "VERIFIED",
+      "uat_item": 8,
+      "evidence": "Not run here (main session owns the full suite). Saved log /tmp/gate-make-qJf2HeIE.log, 2026-11-11 17:50, tree /home/atom/dev/hqptuner, after HEAD 6cbe3622 (17:07), with no uncommitted changes under hqptuner/ tests/ docs/ scripts/: ruff through filepawl, eslint, prettier, tsc, knip, jscpd all ran; pytest '3029 passed, 180 deselected'; JS '# tests 4901 / # pass 4901 / # fail 0'; log ends at the JS coverage report with no 'make: ***' or failed line. The log does not record the exit status; the main session's own run is the authority."
+    }
+  ],
+  "passes": [
+    {
+      "k": 1,
+      "name": "Clean start boots the app",
+      "evidence": "ready_app (tests/support/apps.py:120-138) boots create_app over empty tmp stores and waits for /api/health ready; 67 + 19 targeted cases passed, including test_a_file_written_under_a_pin_starts_the_app_once_the_pin_is_gone. Packaged CI smoke (release.yml:76-112) not run here."
+    },
+    {
+      "k": 2,
+      "name": "Engine writes refused while the 8088 lane is not ready",
+      "evidence": "readygate.py:62-101 installed at factory.py:78; test_writes_refused_not_ready.py passes; instrumented spot-check: all six routes cmds=0 with refusal codes under each of the three causes, versus 3/2/14/2/0/3 commands while ready."
+    },
+    {
+      "k": 3,
+      "name": "Edits stage, Apply is inert, a LIVE edit's refusal shows",
+      "evidence": "Stage open in readygate.py OPEN_WRITES and test_a_staged_edit_is_accepted_while_the_8088_lane_is_down passes; PendingBar.js:186-193,225 inert on !ready with test_apply_is_inert_with_the_configuration_lane_down_and_the_control_lane_up; live-not-ready.test.js (sent, sent during own restart, refusal on the control) passes, 48/48 JS."
+    },
+    {
+      "k": 4,
+      "name": "4321 reads attempted and bounded",
+      "evidence": "GET passes the gate (readygate.py:70-71), loader.poll keeps reading 4321; test_not_ready_reads.py passes: seven reads answered by their own routes, six under the control deadline on the silent virtual clock, /api/log answered on the ordinary clock."
+    },
+    {
+      "k": 5,
+      "name": "Every test builder starts both lanes",
+      "evidence": "tests/support create_app only via ready_app and unserved_login (apps.py:133,207); conftest Runs.start returns ready_or_raise (conftest.py:217-220); per-file non-ready builders are startup or first-run subjects; no lane-down test asserts a feature succeeding."
+    },
+    {
+      "k": 6,
+      "name": "Fake 8088 page matches the captured 6.0.4 page",
+      "evidence": "fake_http.py:125-179 serves the capture; tests/engine/http/test_fake_config_page.py 36 passed (selects, options, 4321 IDs per mode, wire types)."
+    },
+    {
+      "k": 7,
+      "name": "No comment describes a 4321-only mode",
+      "evidence": "Every D-15 site read and rewritten to the two-lane app (signals.js, PendingBar.js, status.py, factory.py, deps.py, matrix.py, resolve.js, Playback.js, tests/support, test_live_chain.py, pendingbar.test.js, tests/presets suite docstrings); plan-5 sweep grep rerun shows only wire facts and refusals."
+    },
+    {
+      "k": 8,
+      "name": "make check green on the last dev commit",
+      "evidence": "/tmp/gate-make-qJf2HeIE.log (2026-11-11 17:50, this tree, after HEAD): every gate ran, pytest 3029 passed, JS 4901 pass 0 fail, no failure line; exit status not in the log, main session's run is authoritative."
+    }
+  ],
+  "gaps": [
+    {
+      "name": "No documentation describes a 4321-only mode as supported (user guide)",
+      "reason": "behavior wrong - the user guide still states that live settings work without the 8088 credentials, which is the removed 4321-only mode (ROADMAP SC4)",
+      "evidence": "docs/guide/sections/orientation.tex:6: 'Without them, everything read-only and every live setting still works, though the app reads ``Unreachable'' and runs dimmed'. docs/guide/ is gitignored (.gitignore:112) and lands with the wizard feature, so the sentence is in no commit yet but would ship as written. The plan-5 Task 3 sweep pattern does not match 'still works'.",
+      "severity": "minor",
+      "missing": "Owner-approved replacement wording for that paragraph, stating that without the credentials the app does not work (user-facing copy, owner-verbatim rule); or an owner ruling that the unlanded guide is outside phase 7."
+    }
+  ],
+  "human_checks": []
+}
