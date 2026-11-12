@@ -199,6 +199,13 @@ test("test_the_needle_rides_the_live_level_while_the_engine_reports_the_control"
   assert.equal(await needle({}), "-12.5");
 });
 
+test("test_the_needle_is_absent_while_the_engine_does_not_report_the_control", async () => {
+  const needle = async (/** @type {Running} */ r) => marksAt(await markupWith(r), ["needle"])[0];
+  const reported = await needle({});
+  const unreported = await needle({ report: { enabled: "0", min: "-60", max: "0" } });
+  assert.deepEqual([reported, unreported], ["-12.5", undefined]);
+});
+
 // --- the loudness readouts and the manual ------------------------------------------------------------------------
 
 test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
