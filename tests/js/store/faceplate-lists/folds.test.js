@@ -27,3 +27,14 @@ test("test_a_group_v1_folded_reads_folded_here", () => {
   toggleCollapsedGroup("filters|Fam A|Var A");
   assert.equal(isFolded("filters", "Fam A", "Var A"), true);
 });
+
+test("test_a_second_tap_on_a_folded_variant_opens_it_again", () => {
+  toggleFold("filters", "Fam A", "Var A");
+  toggleFold("filters", "Fam A", "Var A");
+  assert.equal(isFolded("filters", "Fam A", "Var A"), false);
+});
+
+test("test_a_fold_in_one_list_kind_does_not_fold_the_same_variant_in_another", () => {
+  toggleFold("filters", "Fam A", "Var A");
+  assert.equal(isFolded("modulators", "Fam A", "Var A"), false);
+});
