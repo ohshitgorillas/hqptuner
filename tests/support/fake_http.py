@@ -69,6 +69,18 @@ def _count_request(st: dict[str, Any], path: str, refusal: _Refusal | None) -> N
             st["_backup_reads"] = st.get("_backup_reads", 0) + 1
 
 
+def _count_post(st: dict[str, Any], path: str, refusal: _Refusal | None) -> None:
+    """Bookkeeping on POST arrivals, the same shape as `_backup_reads`.
+
+    `_form_posts` counts every POST that is not `/restore`, which `_restore_attempts`
+    counts alone: the arrival that says a caller wrote a config form. The 401 digest
+    challenge is the first leg of a handshake, so only the authenticated retry is counted."""
+    challenged = refusal is not None and refusal[0] == HTTP_UNAUTHORIZED
+    if path != "/restore" and not challenged:
+        with _STATE:
+            st["_form_posts"] = st.get("_form_posts", 0) + 1
+
+
 def _auth_refusal(st: dict[str, Any], path: str, authorization: str) -> _Refusal | None:
     """The credential wire on 8088, verified against hqplayerd 6.0.4.
 
@@ -432,6 +444,7 @@ def _http_handler(st: dict[str, Any]) -> type[BaseHTTPRequestHandler]:
         def do_POST(self) -> None:
             refusal = _auth_refusal(st, self.path, self.headers.get("Authorization", ""))
             _count_request(st, self.path, refusal)
+            _count_post(st, self.path, refusal)
             length = int(self.headers.get("Content-Length", "0"))
             raw = self.rfile.read(length)
             if _serve_refusal(self, refusal):
@@ -672,6 +685,8 @@ def state(**extra: object) -> dict[str, Any]:
         # running count of arrivals. The default refuses nothing.
         "_restore_refusals": 0,
         "_restore_attempts": 0,
+        # Running count of POST arrivals other than /restore, same bookkeeping shape.
+        "_form_posts": 0,
         # Running count of GET /log arrivals, same bookkeeping shape.
         "_log_reads": 0,
         # Refuse authentication on every page (401 challenge, then 403 to the
