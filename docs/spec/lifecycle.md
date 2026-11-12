@@ -101,6 +101,7 @@ Each hop owns one decision. A diff that makes a decision outside its owner is re
 | Health | Reporting the phase | `api/routes/status.py` |
 | Page signals | Picking the phase off health | `store/signals.js` |
 | Brand knob | Drawing the phase and the page's own in-flight write | `store/faceplate/conn.js` |
+| Page dim | Drawing the phase (Down or Alarm dims the plate) and the page's own restart write | `store/faceplate/conn.js`, `components/faceplate/Plate.js` |
 | Connection panel | Opening on refused credentials or an address not found, and the verdict on a saved address | `store/connpanel.js` |
 
 ## Measured facts
