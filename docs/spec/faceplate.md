@@ -38,7 +38,7 @@ The control set is **not enumerated in prose**.
   - DAC correction and Volume are part of shaping. DAC correction runs at the output rate and needs the matrix (its lamp goes dark with it). Volume's order against DAC correction is undocumented.
 - A stage whose drawer holds a staged, unapplied edit carries an accent dot after its name, hover text `Staged changes`. Only that drawer's stage carries it, never its family's other members.
 - Every stage always shows. Off is the name under an unlit lamp, never grayed. Stages flex to fill the rail.
-- A stage whose lamp reads unlit prints no value: off, bypassed on the playing path, or darkened by an alert.
+- A stage whose lamp reads unlit prints no value: off, bypassed on the playing path, darkened by an alert, or (HF filter) engaged on content it does not act on.
 - Drawers open only from the rail. One open at a time, one wipe at a time.
 - Open stage: name in accent + left bar. One stage, one drawer.
 - Matrix bypassed: the children's lamps go dark, the page section leaves.
@@ -118,6 +118,9 @@ The control set is **not enumerated in prose**.
   - PCM ditherer below its rate floor (warn) → Shaping lamp + the page's Shaping header.
   - Roon at default idle time (warn) → gear, and Settings → Timing.
   - Junk / HF filter advice (advice) → HF filter lamp. Nx PCM content only: the HF filter can't be engaged at 1x rates.
+  - **The HF filter acts on content, not on the output.** Content is the source rate (`metadata.samplerate`, never the upsampled output rate); a DSD source through conversion counts at rate / 64, and Direct SDM reads bypassed. Nothing acts below 50 kHz (manual §4.6 p27: 1x rates cover source rates below 50 kHz). 20k, 30k, 40k and 50k act when the content's Nyquist is above the corner. 2x, 4x and 8x act above that multiple of the 44.1 or 48 kHz base rate (manual §8 p52).
+  - The rail's HF lamp is lit only while the engaged filter acts on the playing content and prints no value otherwise.
+  - The engine-row HF menu grays every option that does nothing on the playing content, none never; a grayed row carries no text and a tap on it does nothing.
 - **Tap a stage:** its drawer opens with the alert line pinned under the head (glyph, v1's sentence). The row that fixes it reads in the alert's color with the glyph before its label.
 - **Running chain's filter / modulator / ditherer:** the page holds those fields and the drawer drops them, so the alert line (glyph, v1's sentence) sits in that page section's header beside the title, never in the drawer.
 - **Tap a header home:** knob and speed figure open the alert in a popover; the gear's Settings rail category blinks and its drawer carries the line.
