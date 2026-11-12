@@ -66,6 +66,31 @@ test("test_the_hf_options_are_labeled_by_name_in_engine_order", () => {
   );
 });
 
+/**
+ * The HF filter's name for a running engine that lost its State or its enumeration, beside the name when the engine
+ * has neither; what reads as no filter is whatever the row shows with nothing known at all.
+ *
+ * @param {"state" | "enums"} lost  the wire side that went missing
+ * @returns {[string, string]}
+ */
+function namedWithout(lost) {
+  wire(RUNNING);
+  if (lost === "state") engineState.value = null;
+  else enums.value = null;
+  const named = hfNow().txt;
+  engineState.value = null;
+  enums.value = null;
+  return [named, hfNow().txt];
+}
+
+test("test_the_hf_filter_names_no_filter_without_engine_state", () => {
+  assert.equal(...namedWithout("state"));
+});
+
+test("test_the_hf_filter_names_no_filter_without_an_enumeration", () => {
+  assert.equal(...namedWithout("enums"));
+});
+
 const current = (/** @type {string} */ junk) => {
   wire(junk);
   return hfNow()
