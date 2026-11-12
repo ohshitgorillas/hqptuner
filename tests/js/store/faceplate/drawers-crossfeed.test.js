@@ -140,6 +140,30 @@ test("test_a_bypassed_matrix_engine_gives_one_reason_whatever_the_switch", async
   assert.equal(bypassedOff, bypassedOn);
 });
 
+test("test_the_structural_gray_reason_ignores_the_bauer_switch", async () => {
+  await load({ rows: structural(), enabled: "1", picked: "structural" });
+  const bauerOn = crossfeedView().gray;
+  await load({ rows: structural(), enabled: "0", picked: "structural" });
+  const bauerOff = crossfeedView().gray;
+  assert.equal(bauerOn, bauerOff);
+});
+
+test("test_the_bauer_gray_reason_follows_the_bauer_switch", async () => {
+  await load({ enabled: "1", picked: "bauer" });
+  const switchedOn = crossfeedView().gray;
+  await load({ enabled: "0", picked: "bauer" });
+  const switchedOff = crossfeedView().gray;
+  assert.notEqual(switchedOn, switchedOff);
+});
+
+test("test_a_bypassed_matrix_engine_reads_a_different_reason_from_a_switched_off_crossfeed", async () => {
+  await load({ matrix: false, enabled: "0", picked: "bauer" });
+  const bypassed = crossfeedView().gray;
+  await load({ matrix: true, enabled: "0", picked: "bauer" });
+  const switchedOff = crossfeedView().gray;
+  assert.notEqual(bypassed, switchedOff);
+});
+
 // --- the gate and the pick ----------------------------------------------------
 
 test("test_the_bauer_gate_stages_the_post_process_switch", async () => {
