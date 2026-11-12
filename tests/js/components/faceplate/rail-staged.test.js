@@ -32,7 +32,7 @@ import {
   volume,
 } from "../../../../hqptuner/static/store/signals.js";
 import { readings } from "../../../../hqptuner/static/store/core/readings.js";
-import { discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
+import { applyAll, discardAll, edit, stagePipelines } from "../../../../hqptuner/static/store/actions.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import { discardDraft, setChannelDistance } from "../../../../hqptuner/static/store/faceplate/drawers/speakers.js";
 import { setGate, xfRefusal } from "../../../../hqptuner/static/store/faceplate/drawers/crossfeed.js";
@@ -211,4 +211,22 @@ test("test_an_iir_to_fir_edit_marks_the_matrix_engine_stage_and_not_crossfeed", 
 test("test_an_edit_held_in_the_speakers_form_marks_the_speakers_stage", () => {
   setChannelDistance(1, "350");
   assert.deepEqual(marked(), ["speakers"]);
+});
+
+/** The marked stages with an edit staged, then after `settle` has run: the mark's life across one transition. @param {() => unknown} settle */
+async function markedAcross(settle) {
+  await edit("matrix_enabled", "0");
+  await quiesce(wire);
+  const staged = marked();
+  await settle();
+  await quiesce(wire);
+  return [staged, marked()];
+}
+
+test("test_a_stage_loses_its_staged_mark_once_the_edit_is_discarded", async () => {
+  assert.deepEqual(await markedAcross(discardAll), [["matrix"], []]);
+});
+
+test("test_a_stage_loses_its_staged_mark_once_the_edit_is_applied", async () => {
+  assert.deepEqual(await markedAcross(applyAll), [["matrix"], []]);
 });
