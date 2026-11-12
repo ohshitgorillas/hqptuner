@@ -88,6 +88,14 @@ function ratioOf(f, fam) {
  */
 const limitedRatio = (f, fam) => ratioOf(f, fam) === "2x" || ratioOf(f, fam) === "integer";
 
+// A facet record by filter name, own keys only: a daemon label such as "constructor" has no record.
+/**
+ * @param {Record<string, FilterFacet>} facets
+ * @param {string} name
+ * @returns {FilterFacet}
+ */
+const facetOf = (facets, name) => /** @type {FilterFacet} */ (Object.hasOwn(facets, name) ? facets[name] : undefined);
+
 /**
  * Whether a filter NAME is rate-limited on one chain. The name-keyed peer of
  * the check above, for callers holding a filter name rather than a facet — a
@@ -98,7 +106,7 @@ const limitedRatio = (f, fam) => ratioOf(f, fam) === "2x" || ratioOf(f, fam) ===
  * @returns {boolean}
  */
 export function rateLimited(name, fam) {
-  const f = filterFacets.value[name];
+  const f = facetOf(filterFacets.value, name);
   return !!f && limitedRatio(f, fam);
 }
 
@@ -307,7 +315,7 @@ export function narrowOptions(options, stage, field) {
   const sel = buildSel(stage, field);
   if (!anyEngaged(sel)) return options;
   const facets = filterFacets.value;
-  return options.filter((o) => favPass(o.label, sel) && facetPass(o.label, facets[o.label], sel));
+  return options.filter((o) => favPass(o.label, sel) && facetPass(o.label, facetOf(facets, o.label), sel));
 }
 
 // ---- result counts (narrowing UI) -----------------------------------------
@@ -322,7 +330,10 @@ export function narrowOptions(options, stage, field) {
 function countPass(options, sel) {
   if (!anyEngaged(sel)) return options.length;
   const facets = filterFacets.value;
-  return options.reduce((n, o) => (favPass(o.label, sel) && facetPass(o.label, facets[o.label], sel) ? n + 1 : n), 0);
+  return options.reduce(
+    (n, o) => (favPass(o.label, sel) && facetPass(o.label, facetOf(facets, o.label), sel) ? n + 1 : n),
+    0,
+  );
 }
 
 // Live badge for one filter dropdown: { n, total } against the ACTIVE facets.
