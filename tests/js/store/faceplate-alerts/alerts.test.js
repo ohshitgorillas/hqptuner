@@ -26,6 +26,8 @@ import { faceplateAlerts, alertsNow, alertNotes } from "../../../../hqptuner/sta
 import { railNow, railStages } from "../../../../hqptuner/static/store/faceplate/chain.js";
 import { reset, DSD512, DSD1024, PCM_4X, PCM_8X } from "../../support/shaperfit-fixtures.js";
 import { fakeClock } from "../../support/clock.js";
+import { unreadWire } from "../../support/wire/unreadwire.js";
+import { fail } from "../../support/unreadareas.js";
 
 /** @typedef {import("../../../../hqptuner/static/model/shell/alerts.js").Alert} Alert */
 /** @typedef {import("../../support/shaperfit-fixtures.js").Scenario} Scenario */
@@ -102,6 +104,9 @@ const refuse = () => {
   health.value = { ...HEALTHY, credentials_ok: false };
 };
 
+/** A live write failing on a control connection the daemon reset, the wire answering 503 as the backend does. */
+const resetConnection = () => fail(unreadWire(), "a_live_write_that_threw");
+
 /** @param {Alert[]} list */
 const kindsOf = (list) => list.map((a) => a.kind);
 const kinds = () => kindsOf(faceplateAlerts());
@@ -115,6 +120,12 @@ test("test_refused_credentials_raise_the_credentials_kind", async () => {
   await quiet();
   refuse();
   assert.deepEqual(kinds(), ["credentials"]);
+});
+
+test("test_a_live_write_on_a_reset_control_connection_raises_a_line_of_its_own", async () => {
+  await quiet();
+  await resetConnection();
+  assert.deepEqual(kinds(), ["engine"]);
 });
 
 test("test_a_sustained_below_realtime_speed_raises_the_speed_kind", async () => {
