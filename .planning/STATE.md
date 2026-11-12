@@ -1,6 +1,6 @@
 # State
 
-Phase: 6 of 8 (aclean filter entries)
-Status: phase complete
-Next: /cad-context 5
+Phase: 5 of 8 (Untested behaviors covered)
+Status: context gathered
+Next: /cad-plan 5
 Updated: 2026-11-12
