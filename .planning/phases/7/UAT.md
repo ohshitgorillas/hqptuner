@@ -11,11 +11,12 @@ updated: 2026-11-12
 ### 1. Clean start boots the app
 expected: A fresh install started from clean state boots, the service comes up and answers its health route (ci: smoke)
 origin: smoke
-status: pending_ci
+status: pass
 job: smoke
 commit: 1044eb6ab9ca68ff79b7288e4b2f66ffaf54b4f0
+first_pass: pass
 source: model
-evidence: packaging/linux/smoke.sh installs the built package on clean distro images in release.yml; it needs the CI build artifacts and containers, not runnable in this session
+evidence: Run locally at 1044eb6ab9ca68ff79b7288e4b2f66ffaf54b4f0, not CI: release.yml build steps in podman almalinux:8 from git archive HEAD gave hqptuner_1.20.1_amd64.deb and hqptuner-1.20.1-1.x86_64.rpm; bash packaging/linux/smoke.sh dist/*.<ext> in podman debian:12, ubuntu:22.04, almalinux:8, fedora:latest each printed 'smoke: OK' rc=0. arm64 half of the matrix not run (amd64 host).
 
 ### 2. Engine writes refused while the 8088 lane is not ready
 expected: With the 8088 lane taken down, its credentials refused or its /config page unread, POST /api/config/live, POST /api/volume, POST /api/livepresets/{name}/apply, POST /api/matrix/profile, POST /api/autopilot and POST /api/config/apply each answer a refusal, and the fake 4321 receives no command
@@ -88,10 +89,9 @@ fix: uncommitted edit to gitignored docs/guide/sections/orientation.tex:6, owner
 ## Summary
 
 total: 9
-passed: 8
+passed: 9
 failed: 0
 pending: 0
-pending_ci: 1
 skipped: 0
 blocked: 0
 reworked: 1
