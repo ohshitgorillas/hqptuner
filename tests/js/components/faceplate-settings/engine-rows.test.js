@@ -39,7 +39,7 @@ import { alertPlan } from "../../../../hqptuner/static/model/shell/alerts.js";
 import { settingsRail } from "../../../../hqptuner/static/store/faceplate/settings/rail.js";
 import { stagingWire } from "../../support/wire/wire.js";
 import { renderTree } from "../../support/vnodeseam.js";
-import { elements, classes } from "../../support/markup.js";
+import { elements, attr, classes } from "../../support/markup.js";
 import { fieldReading, seedReadings } from "../../support/readings.js";
 
 /** @typedef {import("../../../../hqptuner/static/store/faceplate/settings/rail.js").SettingsReadout} SettingsReadout */
@@ -140,6 +140,18 @@ const timingTitleDotted = () =>
   );
 
 /**
+ * The option value the pinned-rates field lights, or undefined when none is lit.
+ *
+ * @returns {string | undefined}
+ */
+function litPinned() {
+  const marks = elements(render(html`<${Drawer} schema=${BEHAVIOR_DRAWER} />`));
+  const field = marks.find((e) => attr(e, "data-field") === "pinallow");
+  const on = elements(field?.html ?? "").find((e) => e.name === "button" && classes(e).includes("on"));
+  return on && attr(on, "data-v");
+}
+
+/**
  * The text the rail prints for the first readout of a set.
  *
  * @param {readonly SettingsReadout[]} readouts
@@ -159,6 +171,12 @@ test("test_staging_an_idle_time_dots_the_timing_title", async () => {
   await loadRestartingIdle();
   await edit("idle_time", "10000");
   assert.equal(timingTitleDotted(), true);
+});
+
+test("test_the_pinned_rates_field_lights_off_until_it_is_tapped_on", async () => {
+  const before = litPinned();
+  await tapPinned("1");
+  assert.deepEqual([before, litPinned()], ["0", "1"]);
 });
 
 test("test_tapping_pinned_rates_on_writes_the_preference", async () => {
