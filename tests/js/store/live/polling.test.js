@@ -19,6 +19,7 @@ import test, { after, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  health,
   volume,
   volumeRange,
   matrixConfig,
@@ -90,10 +91,16 @@ test("test_sync_opens_its_stream_on_the_push_route", () => {
 
 // --- each push event lands in its signal ------------------------------------------
 // The state, status, enumerations and matrix events arrive wrapped as
-// {stale, loaded_at, data} and land as their `data`; the pending and volume events
-// arrive unwrapped. The volume event feeds both the level and the range signal.
+// {stale, loaded_at, data} and land as their `data`; the health, pending and volume
+// events arrive unwrapped. The volume event feeds both the level and the range signal.
 
 const EVENTS = [
+  {
+    event: "health",
+    body: { phase: "Ready", generation: 7 },
+    read: () => health.value?.generation,
+    want: 7,
+  },
   {
     event: "state",
     body: { stale: false, loaded_at: 1, data: { adaptive: "1" } },
