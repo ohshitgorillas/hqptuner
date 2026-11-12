@@ -192,6 +192,11 @@ test("test_the_dial_carries_the_picker_while_pinned_rates_are_allowed", () => {
   assert.deepEqual(allowed, ["auto", "f44", "f48"]);
 });
 
+test("test_the_dial_carries_no_picker_while_pinned_rates_are_off", () => {
+  setAllowPinnedRates(false);
+  assert.deepEqual(options(), []);
+});
+
 // --- a tap under a picked family -----------------------------------------------------------------------------------
 
 for (const { fam, chain, output, list, band, tier, hz } of [
@@ -358,6 +363,13 @@ test("test_under_auto_the_rate_row_carries_the_restart_mark", () => {
   const underAuto = rateRowMarked();
   assert.deepEqual(underAuto, true);
 });
+
+for (const fam of ["f44", "f48"]) {
+  test(`test_picking_${fam}_takes_the_restart_mark_off_the_rate_row`, async () => {
+    await pick(fam);
+    assert.deepEqual(rateRowMarked(), false);
+  });
+}
 
 test("test_picking_auto_after_a_family_puts_the_restart_mark_back_on_the_rate_row", async () => {
   await pick("f48");

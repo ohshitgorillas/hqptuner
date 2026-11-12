@@ -226,14 +226,21 @@ test("test_the_mode_row_offers_pcm_and_sdm_only", () => {
   assert.deepEqual(values, ["pcm", "sdm"]);
 });
 
+/** Whether the channel number is disabled, or null when the row carries no number box. */
+const channelBoxDisabled = () => {
+  const row = markup().find((e) => classes(e).includes("drow") && attr(e, "data-k") === "channels");
+  const box = elements(row?.html ?? "").find((e) => e.name === "input");
+  return box ? hasAttr(box, "disabled") : null;
+};
+
 test("test_the_channel_number_is_grayed_under_the_stereo_layout", () => {
-  const disabled = () => {
-    const row = markup().find((e) => classes(e).includes("drow") && attr(e, "data-k") === "channels");
-    const box = elements(row?.html ?? "").find((e) => e.name === "input");
-    return box ? hasAttr(box, "disabled") : null;
-  };
-  const atStereo = disabled();
+  const atStereo = channelBoxDisabled();
   assert.deepEqual(atStereo, true);
+});
+
+test("test_the_channel_number_is_not_grayed_under_the_manual_layout", async () => {
+  await pickChannelLayout("manual");
+  assert.deepEqual(channelBoxDisabled(), false);
 });
 
 test("test_a_layout_tap_stages_its_channel_count", async () => {
@@ -249,4 +256,14 @@ test("test_a_staged_rate_dots_the_format_tab", async () => {
 test("test_a_staged_device_dots_the_device_tab", async () => {
   await edit("net_device", "naa-other/hw:CARD=X,DEV=0");
   assert.deepEqual(tabDirty("device"), true);
+});
+
+test("test_a_staged_rate_leaves_the_device_tab_undotted", async () => {
+  await edit("sdm_rate", "24576000");
+  assert.deepEqual(tabDirty("device"), false);
+});
+
+test("test_a_staged_device_leaves_the_format_tab_undotted", async () => {
+  await edit("net_device", "naa-other/hw:CARD=X,DEV=0");
+  assert.deepEqual(tabDirty("format"), false);
 });

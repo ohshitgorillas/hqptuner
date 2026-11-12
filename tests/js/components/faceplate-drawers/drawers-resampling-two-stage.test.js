@@ -124,3 +124,7 @@ test("test_a_two_stage_filter_row_reads_the_see_more_trigger_right_after_the_not
 test("test_a_two_stage_filter_rows_popover_holds_the_two_stage_note_alone", () => {
   assert.deepEqual(popoverTexts(row()).map(wordsOf), [wordsOf(NOTE)]);
 });
+
+test("test_a_two_stage_filter_row_shows_nothing_of_the_note_after_the_see_more_trigger", () => {
+  assert.deepEqual(wordsAfter(row(), PROSE)?.slice(wordsOf(NOTE_LEAD).length + 1), []);
+});

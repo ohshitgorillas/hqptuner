@@ -364,3 +364,56 @@ test("test_at_the_half_span_content_above_three_quarters_of_the_band_leaves_the_
   const newest = region && first ? region.x + region.width - NEWEST_FROM_RIGHT - first.x : NaN;
   assert.equal(first ? colorsDown(first.image, newest) : NaN, 1);
 });
+
+// --- the puts and draws each step owes -----------------------------------------------------------------------------
+
+/**
+ * How many image puts and how many draws the spectrogram canvas has made.
+ *
+ * @param {FakeCanvas} spec
+ */
+const made = (spec) => ({ puts: spec.puts.length, draws: spec.draws.length });
+
+// Each step is taken after the first paint, which is one put and no draw. A move of the playhead while open scrolls
+// once and puts the seam and the uncovered columns. A change of range and a reopen repaint the full width once and
+// scroll none. A close, and the moves while closed, make none.
+for (const { step, owes, run } of [
+  {
+    step: "a_playhead_move_while_open",
+    owes: { puts: 2, draws: 1 },
+    run: () => {
+      playhead.value = STANDING_MS + MOVE_MS;
+    },
+  },
+  {
+    step: "a_change_of_range",
+    owes: { puts: 2, draws: 0 },
+    run: () => setMeterRange(LAST_RANGE),
+  },
+  {
+    step: "a_close_and_the_moves_while_closed",
+    owes: { puts: 1, draws: 0 },
+    run: () => {
+      openStage.value = null;
+      playhead.value = STANDING_MS + WHOLE_COLUMNS_MS;
+      playhead.value = STANDING_MS + 2 * WHOLE_COLUMNS_MS;
+    },
+  },
+  {
+    step: "a_reopen_after_moves_while_closed",
+    owes: { puts: 2, draws: 0 },
+    run: () => {
+      openStage.value = null;
+      playhead.value = STANDING_MS + WHOLE_COLUMNS_MS;
+      playhead.value = STANDING_MS + 2 * WHOLE_COLUMNS_MS;
+      openStage.value = "source";
+    },
+  },
+]) {
+  test(`test_the_spectrogram_makes_exactly_the_puts_and_draws_${step}_owes`, (t) => {
+    standAt(t, STANDING_MS);
+    const { spec } = mounted();
+    run();
+    assert.deepEqual(made(spec), owes);
+  });
+}
