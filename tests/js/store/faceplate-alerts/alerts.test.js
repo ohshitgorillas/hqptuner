@@ -128,6 +128,13 @@ test("test_a_live_write_on_a_reset_control_connection_raises_a_line_of_its_own",
   assert.deepEqual(kinds(), ["engine"]);
 });
 
+test("test_a_reset_control_connection_and_a_refused_credential_each_keep_a_line", async () => {
+  await quiet();
+  refuse();
+  await resetConnection();
+  assert.deepEqual([...kinds()].sort(), ["credentials", "engine"]);
+});
+
 test("test_a_sustained_below_realtime_speed_raises_the_speed_kind", async () => {
   await quiet();
   sustain({ process_speed: "0.5" });
