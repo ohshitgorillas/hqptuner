@@ -4,6 +4,7 @@
 // source is content it does nothing on (model/shell/hf-reach.js, judged against the source rate, a DSD source at
 // rate / 64); with the transport off, or no rate known, nothing is grayed. A pick is written live and nothing stages.
 
+import { computed } from "@preact/signals";
 import { stateOf } from "../live/derive.js";
 import { writeLive } from "../live/write.js";
 import { enumOptions } from "../ui/options.js";
@@ -27,15 +28,15 @@ const DASH = "—";
 
 /**
  * The content rate the options are judged against: the playing or paused source's, null while the transport is off or
- * no rate is known.
+ * no rate is known. A computed over plain numbers, so a status push that leaves the rate alone wakes no reader.
  *
- * @returns {number | null}
+ * @type {{ readonly value: number | null }}
  */
-function judgedRate() {
+const judgedRate = computed(() => {
   if (transportNow() === "off") return null;
   const md = (engineStatus.value || {}).metadata || {};
   return contentRate(md.samplerate, sourceIsDsd(md));
-}
+});
 
 /**
  * The running HF filter's name and the options, none while engine state or the enumeration is missing.
@@ -44,7 +45,7 @@ function judgedRate() {
  */
 export function hfNow() {
   const at = stateOf("filter_junk");
-  const rate = judgedRate();
+  const rate = judgedRate.value;
   const options =
     at == null
       ? []
