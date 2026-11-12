@@ -19,7 +19,8 @@ import assert from "node:assert/strict";
 import { readings } from "../../../../hqptuner/static/store/core/readings.js";
 import { config, metadata } from "../../../../hqptuner/static/store/signals.js";
 import { flushNarrowing } from "../../../../hqptuner/static/store/narrow/persist.js";
-import { listOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
+import { toggleFavorite } from "../../../../hqptuner/static/store/narrow/favorites.js";
+import { isListFavorite, listOptions } from "../../../../hqptuner/static/store/faceplate/lists/options.js";
 import { favoritesWire } from "../../support/wire/favoriteswire.js";
 import { loadLists, resetLists } from "../../support/listsfixture.js";
 import { seedReadings } from "../../support/readings.js";
@@ -115,8 +116,17 @@ test("test_a_filter_list_has_a_console", () => {
   assert.equal(open.hasConsole?.("filters"), true);
 });
 
+test("test_a_dsd_list_has_no_console", () => {
+  assert.equal(open.hasConsole?.("dsd"), false);
+});
+
 test("test_a_filter_list_has_favorites", () => {
   assert.equal(open.hasFavorites?.("filters"), true);
+});
+
+test("test_no_option_of_a_dsd_list_reads_as_a_favorite_whatever_the_filter_favorites_hold", async () => {
+  await toggleFavorite(NOISE_OPTIONS[0][1]);
+  assert.equal(isListFavorite("noise_filter", NOISE_OPTIONS[0][1]), false);
 });
 
 test("test_a_simplified_noise_filter_row_carries_its_family_from_the_noise_filter_overlay", async () => {

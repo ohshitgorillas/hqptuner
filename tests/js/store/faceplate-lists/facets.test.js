@@ -121,6 +121,14 @@ test("test_a_facet_set_on_the_console_reads_moved", () => {
   assert.equal(facetsMoved(["lossy"]), true);
 });
 
+test("test_a_facet_never_set_on_the_console_reads_unmoved", () => {
+  assert.equal(facetsMoved(["lossy"]), false);
+});
+
+test("test_the_unset_rate_rule_reads_unmoved", () => {
+  assert.equal(facetsMoved(["hideLimited"]), false);
+});
+
 test("test_the_rate_rule_reads_moved_once_the_user_sets_it_off", () => {
   setFacet("hideLimited", false);
   assert.equal(facetsMoved(["hideLimited"]), true);
@@ -130,6 +138,12 @@ test("test_a_quality_floor_and_genres_set_on_the_console_read_moved", () => {
   setFacet("quality", 4);
   setFacet("genre", ["jazz"]);
   assert.equal(facetsMoved(["quality", "genre"]), true);
+});
+
+test("test_reset_returns_a_moved_facet_to_unmoved", () => {
+  setFacet("lossy", "lossy");
+  resetFacets(["lossy"]);
+  assert.equal(facetsMoved(["lossy"]), false);
 });
 
 test("test_reset_leaves_a_facet_it_does_not_name_alone", () => {
