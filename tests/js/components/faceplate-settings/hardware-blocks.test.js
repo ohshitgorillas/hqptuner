@@ -97,6 +97,12 @@ test("test_the_slider_is_disabled_while_automatic", async () => {
   assert.equal(rangeDisabled(), true);
 });
 
+test("test_the_slider_is_enabled_once_set_manually_is_ticked", async () => {
+  await load({ nblocks: "0" });
+  change(NblocksBlock, (p) => p.type === "checkbox", { checked: true });
+  assert.equal(rangeDisabled(), false);
+});
+
 test("test_the_cuda_dev_box_drafts_its_own_key", () => {
   typeInto("cuda_dev", "5");
   typeInto("cuda_cdev", "3");
