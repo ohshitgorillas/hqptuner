@@ -25,7 +25,7 @@
 import test, { beforeEach } from "node:test";
 import assert from "node:assert/strict";
 
-import { initMeterLoop } from "../../../../hqptuner/static/store/meter/loop.js";
+import { initMeterLoop, onMeterPaint } from "../../../../hqptuner/static/store/meter/loop.js";
 import { feedEdge, initMeterFeed } from "../../../../hqptuner/static/store/meter/feed.js";
 import { playhead } from "../../../../hqptuner/static/store/meter/playhead.js";
 import { setSpectrumOffset } from "../../../../hqptuner/static/store/meter/delay.js";
@@ -258,4 +258,33 @@ test("test_when_the_engine_stops_playing_the_playhead_goes_null", () => {
   poll({ state: STOPPED });
   settle();
   assert.deepEqual([before !== null, playhead.value], [true, null]);
+});
+
+/** The delay, in seconds, the cases about a feed that has not yet covered it run at. */
+const SHORT_DELAY_S = 0.1;
+
+/**
+ * The finite peaks, dBFS, a painter subscribed through onMeterPaint is handed over the one paint after `rows` arrive at
+ * a SHORT_DELAY_S delay; a scene that shows nothing heard contributes none.
+ *
+ * @param {import("../../support/meterfeed.js").Stamp[]} rows
+ * @returns {number[]}
+ */
+function heardAtFirstPaint(rows) {
+  setSpectrumOffset(String(SHORT_DELAY_S));
+  /** @type {number[]} */
+  const heard = [];
+  const off = onMeterPaint((scene) => heard.push(...scene.channels.map((c) => c.peak).filter(Number.isFinite)));
+  feed(rows);
+  advance(PAINT_MS);
+  off();
+  return heard;
+}
+
+test("test_a_paint_before_the_feed_covers_the_delay_hands_the_painters_a_scene_with_nothing_heard", () => {
+  assert.deepEqual(heardAtFirstPaint(CONTIGUOUS_44K.slice(0, 4)), []);
+});
+
+test("test_a_paint_once_the_feed_covers_the_delay_hands_the_painters_the_peak_it_heard", () => {
+  assert.deepEqual(heardAtFirstPaint(CONTIGUOUS_44K), [-3.1]);
 });

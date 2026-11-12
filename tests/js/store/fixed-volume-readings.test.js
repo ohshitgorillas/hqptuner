@@ -17,7 +17,7 @@ import assert from "node:assert/strict";
 
 import { config, matrixConfig, volume, volumeDrag, volumeRange } from "../../../hqptuner/static/store/signals.js";
 import { discardAll, edit } from "../../../hqptuner/static/store/actions.js";
-import { fixedMode } from "../../../hqptuner/static/store/faceplate/drawers/volume.js";
+import { fixedMode, volumeRangeNow } from "../../../hqptuner/static/store/faceplate/drawers/volume.js";
 import { quiesce, stagingWire } from "../support/wire/wire.js";
 import { fieldReading, seedReadings } from "../support/readings.js";
 
@@ -87,4 +87,11 @@ test("test_unchecking_auto_headroom_over_a_running_manual_moves_the_drawers_line
   fixedMode(); // read under Auto headroom, so the uncheck has to reach a line already read
   await uncheckAutoHeadroom(true);
   assert.equal(fixedMode(), "manual");
+});
+
+test("test_unchecking_auto_headroom_with_manual_off_stops_the_range_tab_graying", async () => {
+  await load(false);
+  const before = volumeRangeNow().gray;
+  await uncheckAutoHeadroom(false);
+  assert.deepEqual([before !== "", volumeRangeNow().gray], [true, ""]);
 });
