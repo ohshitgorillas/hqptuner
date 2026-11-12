@@ -215,3 +215,11 @@ test("test_the_loudness_readouts_hide_while_loudness_is_off", async () => {
   };
   assert.equal(await hidden({}), true);
 });
+
+test("test_the_loudness_readouts_show_while_loudness_runs", async () => {
+  const hidden = async (/** @type {Running} */ r) => {
+    const row = (await markupWith(r)).find((el) => classes(el).includes("inl"));
+    return row && hasAttr(row, "hidden");
+  };
+  assert.equal(await hidden({ loudness: true }), false);
+});
