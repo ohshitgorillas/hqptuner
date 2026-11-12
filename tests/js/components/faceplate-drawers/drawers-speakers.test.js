@@ -21,8 +21,12 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 import { html } from "../../../../hqptuner/static/lib/dom.js";
+import { Drawer } from "../../../../hqptuner/static/components/faceplate/drawer/Drawer.js";
 import { SpeakersBody } from "../../../../hqptuner/static/components/faceplate/drawers/Speakers.js";
-import { SPEAKERS_DRAWER } from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
+import {
+  SPEAKERS_BLOCKS,
+  SPEAKERS_DRAWER,
+} from "../../../../hqptuner/static/components/faceplate/drawers/speakers-drawer.js";
 import { config } from "../../../../hqptuner/static/store/signals.js";
 import { loadSpeakers } from "../../../../hqptuner/static/store/matrix/speakers.js";
 import {
@@ -184,6 +188,25 @@ test("test_an_apply_in_flight_disables_every_control", async () => {
   finish(ok({ report: { applied: true, speakers: FORM } }));
   await applying;
   assert.equal(busy, FIRST.channels.length * 2 + 1);
+});
+
+// --- the discard -------------------------------------------------------------------------------------------------
+
+/** The discard button's disabled flag in the drawer the block sits in, before and after an edit to a channel's distance. */
+function discardDisabledAcrossAnEdit() {
+  const drawn = () => renderTree(html`<${Drawer} schema=${SPEAKERS_DRAWER} blocks=${SPEAKERS_BLOCKS} />`).out;
+  const disabled = () =>
+    elements(drawn())
+      .filter((e) => attr(e, "data-testid") === "discard")
+      .map((e) => hasAttr(e, "disabled"));
+  const before = disabled();
+  setChannelDistance(1, "333");
+  return [before, disabled()];
+}
+
+test("test_the_discard_goes_live_after_an_edit", async () => {
+  await reset();
+  assert.deepEqual(discardDisabledAcrossAnEdit(), [[true], [false]]);
 });
 
 // --- the restart mark -------------------------------------------------------------------------------------------
