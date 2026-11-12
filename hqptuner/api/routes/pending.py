@@ -29,6 +29,9 @@ MAX_VALUE_LENGTH = 262_144
 # ``matrix_pipelines``, the two profile verbs, ``net_device`` and the fixed-volume pair: under a hundred keys together.
 # 256 leaves room for fields still to come and stays far under what a flood needs.
 MAX_STAGED_KEYS = 256
+# Below this code point a character is a control character: the config file cannot hold one that is not tab, line feed
+# or carriage return, and the daemon's parser reads those three back as spaces, so none of them round-trips.
+_FIRST_PRINTABLE = 0x20
 
 
 @dataclass(frozen=True)
@@ -136,6 +139,16 @@ class StagedValueTooLongError(ErrorBody):
         super().__init__(f"the value of {field} is too long")
 
 
+class StagedValueControlCharsError(ErrorBody):
+    """A staged value carries a control character, which the config file cannot hold and read back."""
+
+    code = "invalid_input"
+
+    def __init__(self, *, field: str) -> None:
+        """Render the wording naming the ``field`` whose value carries a control character."""
+        super().__init__(f"the value of {field} has a control character")
+
+
 class StagedBufferFullError(ErrorBody):
     """A stage request would take the buffer past the number of fields the write path routes."""
 
@@ -188,16 +201,27 @@ def refuse_long_values(http: dict[str, str], live: dict[str, dict[str, str]]) ->
                 raise refuse(StagedValueTooLongError(field=f"{key} {arg}"))
 
 
+def refuse_control_chars(http: dict[str, str]) -> None:
+    """Refuse a request any of whose ``http`` values holds a control character.
+
+    Every ``http`` value lands in ``hqplayerd.xml``; ``live`` arguments go to the Control API and are not checked here.
+    """
+    for field, value in http.items():
+        if any(ord(c) < _FIRST_PRINTABLE for c in value):
+            raise refuse(StagedValueControlCharsError(field=field))
+
+
 @router.post("/config/stage")
 def stage(body: StageBody, request: Request, manager: Mgr) -> PendingSnapshot:
     """Merge the request's edits into the staged buffer, drop what it reports clean, and return the whole buffer.
 
-    422 when a value is over the length ceiling or the merge would take the buffer past the key ceiling, when a value
-    is outside the choices its own page lists (503 or 502 when that page is not loaded), and when a live key is not a
-    known live setting — the daemon would have no setter to call for it. A refused request merges nothing. Nothing is
-    written to the daemon here; apply is a separate call.
+    422 when a value is over the length ceiling, when an ``http`` value holds a control character, when the merge would
+    take the buffer past the key ceiling, when a value is outside the choices its own page lists (503 or 502 when that
+    page is not loaded), and when a live key is not a known live setting — the daemon would have no setter to call for
+    it. A refused request merges nothing. Nothing is written to the daemon here; apply is a separate call.
     """
     refuse_long_values(body.http, body.live)
+    refuse_control_chars(body.http)
     store = pending_store(request)
     if len(store.http.keys() | body.http.keys()) + len(store.live.keys() | body.live.keys()) > MAX_STAGED_KEYS:
         raise refuse(StagedBufferFullError())
