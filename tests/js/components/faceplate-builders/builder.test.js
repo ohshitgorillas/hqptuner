@@ -250,6 +250,10 @@ test("test_the_caption_holds_the_refusal_while_refused", () => {
   assert.equal(every(inside(caption()), "span", "bref").length, 1);
 });
 
+test("test_the_caption_holds_no_refusal_while_idle", () => {
+  assert.equal(every(inside(caption()), "span", "bref").length, 0);
+});
+
 // --- the confirm line --------------------------------------------------------------------------------------------
 
 test("test_the_confirm_line_shows_while_a_question_is_asked", () => {
