@@ -1,0 +1,112 @@
+{
+  "status": "gaps",
+  "score": "6/8",
+  "truths": [
+    {
+      "n": 1,
+      "truth": "todo.txt's triaged untested list is empty: each behavior covered by a biting test or struck with the owner's say-so",
+      "status": "FAILED",
+      "uat_item": 1,
+      "evidence": "todo.txt still holds the bullet '*untested behaviors (triaged)' with one claim: '  - presets/store/live.py:311 creates missing parent directories'. Code: hqptuner/presets/store/live.py:306 `self._path.parent.mkdir(parents=True, exist_ok=True)`. Only test: tests/presets/stores/test_store_first_save.py:129 `test_a_first_save_lands_where_neither_the_directory_nor_its_parent_exists[live-snapshots]`; reports/plan-19.md Task 2: mutants _write__mutmut_5/_7/_9 turn it red only through StoreUnwritableError raised in save() before the assertion, and _6/_10 (exist_ok) survive all 8 cases. Owner ruling (SUMMARY Open items, commit 7ecb1e49): not bite, claim stays uncovered. SUMMARY Goal check itself says 'Not fully delivered'."
+    },
+    {
+      "n": 2,
+      "truth": "Each new Python test kills a recorded mutant (or, for a behavior fix, is red against the pre-change code)",
+      "status": "VERIFIED",
+      "uat_item": 2,
+      "evidence": "New Python tests: tests/matrix/test_matrix_scope.py (2 cases), tests/engine/test_metering_dial_deadline.py (3 cases), tests/apply/test_volume_config.py (5 tests), tests/apply/manager/test_manager_control_down.py (1 test), tests/e2e/test_abuse_bracket.py (7 cases). reports/plan-1.md records mutants per task (x__profile_body_span__mutmut_18/_20/_14; _stream__mutmut_3, run__mutmut_22, run__mutmut_17; fixedvol _fixed_target 4/5/8/9/17/18, reconcile_fixed 23/27, _remembered_level 1). reports/plan-2.md records red-before-fix for the manager and e2e tests. Spot-check in a /tmp copy of HEAD: dropping `m.group(0).endswith(b\"/>\") or` in _profile_body_span -> 'FAILED tests/matrix/test_matrix_scope.py::test_scoping_a_read_to_a_named_profile_with_no_body_is_refused[self-closing]'. All 29 tests in the four offline files pass at HEAD (scripts/gate.sh exit=0, '29 passed')."
+    },
+    {
+      "n": 3,
+      "truth": "Each new JS test has a recorded red run against a deliberate break, and the break is not in HEAD",
+      "status": "VERIFIED",
+      "uat_item": 3,
+      "evidence": "reports/plan-3.md to plan-18.md: every task row names its break and the case it turned red, or records 'none' with a strike/already-covered reason (Plan 5 Task 6, Plan 6 Task 2, Plan 7 Task 5). `git diff --name-status 7ac93e5b..HEAD -- hqptuner/` lists only conf/matrixscope.py and core/manager.py, so no hqptuner/static break is in HEAD. Spot-check in a /tmp copy: wireNum body set to `Number(v) || d` -> 'not ok 6 - test_a_wire_zero_is_read_as_zero_not_the_default' ('-60 !== 0')."
+    },
+    {
+      "n": 4,
+      "truth": "The phase diff removes or changes no pre-existing assertion line in tests/",
+      "status": "VERIFIED",
+      "uat_item": 4,
+      "evidence": "`git diff 7ac93e5b..HEAD -U0 -- tests/` removed lines are imports, comments and helper bodies hoisted to module level (e.g. drawers-output-schema.test.js `disabled` closure -> `channelBoxDisabled`, its `assert.deepEqual(atStereo, true)` line unchanged); no removed line carries assert/expect."
+    },
+    {
+      "n": 5,
+      "truth": "matrix_scope carries no 'no active profile' branch",
+      "status": "VERIFIED",
+      "uat_item": 5,
+      "evidence": "hqptuner/conf/matrixscope.py:142 `def matrix_scope(xml: bytes, profile: str) -> bytes:`; `grep 'if not profile'` finds nothing; commit 4eda6128 deletes `if not profile: return xml`. Only caller hqptuner/conf/matrixconf.py:130 passes a name."
+    },
+    {
+      "n": 6,
+      "truth": "make check and the e2e abuse bracket are green on the phase's final code tree",
+      "status": "VERIFIED",
+      "uat_item": 6,
+      "evidence": "Last code commit d5d3ac43 at 19:05:40; later commits touch .planning only. Plan 19 closing logs written after it: /tmp/gate-make-tTnYfFsg.log (19:19:43) shows ruff 'All checks passed!', '3675 passed, 162 deselected', JS '# pass 5588' '# fail 0', 0 'not ok' lines; /tmp/gate-pytest-lpGdeLkK.log (19:20:06) '14 passed, 1 warning in 15.72s'. Not re-run here per dispatch; the main session's run is the authority."
+    },
+    {
+      "n": 7,
+      "truth": "abuse.sh close uploads the baseline from audit fields, control redials at once after a restart, close reads back only once Ready; tests go red without them",
+      "status": "VERIFIED",
+      "uat_item": 7,
+      "evidence": "scripts/abuse.sh close reads `.fields.ok`/`.fields.http` (applied, lived, keys) and polls `/api/health` for phase Ready after each refresh; hqptuner/core/manager.py:192 `self._supervisor.redial()` in take_control_down. Bites: reports/plan-2.md (apply and live params red on 'assert 0 == 1' against the unfixed script; health wait red only when removed together with the redial, 3 failed, owner ruling accepts the pair bite). Spot-check in a /tmp copy: removing the redial -> 'FAILED tests/apply/manager/test_manager_control_down.py::test_taking_the_control_connection_down_is_followed_at_once_by_a_redial'."
+    },
+    {
+      "n": 8,
+      "truth": "The phase adds no gate exemption without owner approval of that specific site (repo hard rule)",
+      "status": "FAILED",
+      "uat_item": null,
+      "evidence": "Commit e3200241 adds four inline `# noqa: S310` sites to tests/e2e/test_abuse_bracket.py (`_get_bytes` Request and urlopen, `_import_state` Request and urlopen); the file held 4 before the phase and holds 8 now. No approval is recorded in PLAN-2.md, reports/plan-2*.md, CONTEXT.md, the adjudication files or any phase commit message (grep for noqa/exempt finds none)."
+    }
+  ],
+  "passes": [
+    {
+      "k": 2,
+      "name": "New Python tests kill a recorded mutant",
+      "evidence": "reports/plan-1.md mutant ids per task; reports/plan-2.md red-before-fix; independent spot-check: _profile_body_span mutant turns test_scoping_a_read_to_a_named_profile_with_no_body_is_refused[self-closing] red; 29 passed at HEAD."
+    },
+    {
+      "k": 3,
+      "name": "New JS tests shown red against a deliberate break",
+      "evidence": "reports/plan-3..18 name a break and red case per task; no hqptuner/static change in 7ac93e5b..HEAD; spot-check: wireNum `Number(v) || d` reds test_a_wire_zero_is_read_as_zero_not_the_default."
+    },
+    {
+      "k": 4,
+      "name": "No existing assertion line changed in tests/",
+      "evidence": "git diff 7ac93e5b..HEAD -U0 -- tests/: removed lines are imports, comments and hoisted helper bodies only; no assert/expect line removed."
+    },
+    {
+      "k": 5,
+      "name": "matrix_scope has no 'no active profile' branch",
+      "evidence": "hqptuner/conf/matrixscope.py:142 signature `profile: str`, no `if not profile` (commit 4eda6128)."
+    },
+    {
+      "k": 6,
+      "name": "make check and the e2e abuse bracket are green",
+      "evidence": "/tmp/gate-make-tTnYfFsg.log after last code commit: 3675 passed, JS fail 0; /tmp/gate-pytest-lpGdeLkK.log: 14 passed. Main session re-runs both."
+    },
+    {
+      "k": 7,
+      "name": "abuse.sh close and control redial fixes hold",
+      "evidence": "scripts/abuse.sh `.fields.ok`/`.fields.http` reads and Ready poll; manager.py:192 redial; plan-2 bites; spot-check: removing the redial reds test_taking_the_control_connection_down_is_followed_at_once_by_a_redial."
+    }
+  ],
+  "gaps": [
+    {
+      "k": 1,
+      "name": "Every triaged untested behavior is covered or struck",
+      "reason": "behavior wrong - one claim remains on the list neither covered nor struck; no automated check fails on its assertion when the parent-directory creation breaks",
+      "evidence": "todo.txt: '  - presets/store/live.py:311 creates missing parent directories' still under '*untested behaviors (triaged)'. hqptuner/presets/store/live.py:306 mkdir(parents=True, exist_ok=True). tests/presets/stores/test_store_first_save.py:129 [live-snapshots] goes red on mutants 5/7/9 only via StoreUnwritableError before `assert read(tmp_path) == expected`; exist_ok mutants 6/10 survive (reports/plan-19.md Task 2). Owner ruled that not bite (SUMMARY Open items, 7ecb1e49).",
+      "severity": "major",
+      "missing": "Either one test for the live store's first save into a missing parent whose assertion (not an exception raised in the test body) fails when `parents=True` is dropped, killing mutants _write__mutmut_5/_7/_9 on an AssertionError; or the owner's strike of the claim, then its removal from todo.txt."
+    },
+    {
+      "name": "Four new inline noqa: S310 sites in tests/e2e/test_abuse_bracket.py lack recorded owner approval",
+      "reason": "behavior wrong - repo hard rule 'Gate exemptions are owner-approved' requires approval of each inline noqa site before it is written; none is recorded",
+      "evidence": "Commit e3200241 adds `# noqa: S310` at the Request and urlopen calls in `_get_bytes` and `_import_state` (tests/e2e/test_abuse_bracket.py, 4 sites before the phase, 8 at HEAD). No approval in PLAN-2.md, reports/plan-2.md, plan-2.1.md, plan-2.2.md, CONTEXT.md or any 7ac93e5b..HEAD commit message.",
+      "severity": "major",
+      "missing": "Owner approval of these four sites recorded, or the two helpers rewritten to reuse the file's existing approved `_call`/request path so no new noqa site is added."
+    }
+  ],
+  "human_checks": []
+}
