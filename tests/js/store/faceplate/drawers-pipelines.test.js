@@ -109,6 +109,13 @@ test("test_a_plain_pipeline_set_marks_no_crosspoint_generated", async () => {
   assert.equal(pipelinesView().grid[0]?.[0]?.gen, undefined);
 });
 
+test("test_a_bypassed_matrix_engine_grays_the_set_a_running_one_does_not", async () => {
+  await load(STEREO, { engaged: false });
+  const bypassed = pipelinesView().gray;
+  await load(STEREO, { engaged: true });
+  assert.notEqual(bypassed, pipelinesView().gray);
+});
+
 test("test_a_crossfeed_blocks_rows_hold_every_stage_locked", async () => {
   await load(STRUCTURAL);
   const flags = new Set(pipelinesView().pipes.flatMap((p) => p.stages.map((st) => st.blk === true)));
