@@ -6,13 +6,14 @@ The daemon-driving operations delegate to the preset lane with the manager;
 this class owns the state.
 """
 
+import contextlib
 import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from hqptuner.conf import matrixpayload, matrixprofiles, presetconf, xmledit
+from hqptuner.conf import engineconf, matrixpayload, matrixprofiles, presetconf, presetzip, xmledit
 from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import settle
 from hqptuner.lanes.http.restore import RestoreOutcome, RestoreResult
@@ -107,6 +108,17 @@ async def after_restore(
     ops.release_parked_filters(carried)
     ops.backfill_profiles()
     return PresetAftermath(ops.fanout_profiles(http_fields))
+
+
+def is_settings_archive(data: bytes) -> bool:
+    """Whether ``data`` is a zip whose directory lists: the only bytes worth keeping as a safety copy.
+
+    An empty body and a non-zip, such as the error page a restarting daemon serves, are not.
+    """
+    with contextlib.suppress(engineconf.UnreadableArchiveError):
+        presetzip.list_members(data)
+        return True
+    return False
 
 
 def _failure_code(exc: Exception) -> str:
@@ -244,7 +256,7 @@ class PresetOps:
 
     # --- backup persistence ------------------------------------------------
 
-    def persist_backup_for_load(self, data: bytes, name: str) -> Path:
+    def persist_backup_for_load(self, data: bytes, name: str) -> Path | None:
         """Write the pre-apply settings backup to disk ahead of loading preset ``name`` onto the daemon.
 
         Raises ``BackupBeforeLoadFailedError`` on a write failure — see ``_write_backup``.
@@ -254,7 +266,7 @@ class PresetOps:
         except OSError as exc:
             raise BackupBeforeLoadFailedError(name=name, directory=self._cfg.backup_dir) from exc
 
-    def persist_backup_for_apply(self, data: bytes) -> Path:
+    def persist_backup_for_apply(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk ahead of applying hardware-acceleration engine attributes.
 
         Raises ``BackupBeforeApplyFailedError`` on a write failure — see ``_write_backup``.
@@ -264,7 +276,7 @@ class PresetOps:
         except OSError as exc:
             raise BackupBeforeApplyFailedError(directory=self._cfg.backup_dir) from exc
 
-    def persist_backup_for_restore(self, data: bytes) -> Path:
+    def persist_backup_for_restore(self, data: bytes) -> Path | None:
         """Write the pre-apply settings backup to disk ahead of pushing a persistent-lane restore.
 
         Raises ``BackupBeforeRestoreFailedError`` on a write failure — see ``_write_backup``.
@@ -274,8 +286,11 @@ class PresetOps:
         except OSError as exc:
             raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
 
-    def _write_backup(self, data: bytes) -> Path:
-        """Write the pre-apply settings backup to disk, returning its path.
+    def _write_backup(self, data: bytes) -> Path | None:
+        """Write the pre-apply settings backup to disk, returning its path, or ``None`` when ``data`` is no archive.
+
+        Bytes that are not a readable settings archive are never stored: they would replace a copy that is. The
+        operation goes on and meets its own refusal of those bytes further down.
 
         A crash mid-apply then still leaves a recoverable copy (memory-only last_backup does not survive one). The
         backup is taken before a destructive restore, so a caller that proceeded on a failed write would be writing
@@ -283,6 +298,9 @@ class PresetOps:
         failed write; each public caller turns that into its own ``BackupFailedError`` subclass, naming the backup
         directory.
         """
+        if not is_settings_archive(data):
+            log.warning("pre-apply backup not stored: the daemon's /backup answer is not a settings archive")
+            return None
         path = self._cfg.backup_dir / "pre-apply-settings.zip"
         try:
             path.parent.mkdir(parents=True, exist_ok=True)

@@ -3,6 +3,8 @@
 public API against the faithful fake daemon (docs/testing.md)."""
 
 import contextlib
+import io
+import zipfile
 from pathlib import Path
 from typing import Any
 
@@ -83,9 +85,18 @@ async def test_a_save_that_cannot_reach_the_daemon_reports_its_failure(dead_lane
 # --- failed write must abort rather than let the restore proceed uncovered --
 
 
+def readable_archive() -> bytes:
+    """A settings archive whose directory lists: what the daemon's ``/backup`` serves, in miniature."""
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as archive:
+        archive.writestr("hqplayerd.xml", b"<config/>")
+    return out.getvalue()
+
+
 def test_persist_backup_writes_the_archive_to_disk(http_manager: ConnectionManager) -> None:
-    path = http_manager.presetops.persist_backup_for_apply(b"archive-bytes")
-    assert present(path).read_bytes() == b"archive-bytes"
+    archive = readable_archive()
+    path = http_manager.presetops.persist_backup_for_apply(archive)
+    assert present(path).read_bytes() == archive
 
 
 async def test_persist_backup_raises_when_the_directory_is_unwritable(
@@ -95,7 +106,7 @@ async def test_persist_backup_raises_when_the_directory_is_unwritable(
     blocker.write_text("a file where the backup dir should be")
     manager = await http_manager_factory(http_daemon, backup_dir=blocker / "backups")
     with pytest.raises(BackupFailedError):
-        manager.presetops.persist_backup_for_apply(b"archive-bytes")
+        manager.presetops.persist_backup_for_apply(readable_archive())
 
 
 async def test_a_failed_backup_aborts_a_load_before_any_restore(
