@@ -166,6 +166,15 @@ test("test_a_refused_switch_shows_the_engines_refusal", async () => {
   assert.equal(refused, "MatrixSetProfile failed");
 });
 
+test("test_the_next_switch_clears_a_refusal", async () => {
+  switchAnswer = bad(502, "MatrixSetProfile failed");
+  await switchProfile("Desk");
+  const standing = profileChoices().error !== "";
+  switchAnswer = undefined;
+  await switchProfile("Desk");
+  assert.deepEqual([standing, profileChoices().error !== ""], [true, false]);
+});
+
 test("test_the_description_is_the_running_profiles", () => {
   descriptions.value = {
     Lounge: { text: "Mains at the sofa.", updated: "2026-10-01T00:00:00+00:00" },
