@@ -19,6 +19,7 @@ files:
   - tests/test_atomic_write.py
   - tests/presets/integrity/test_atomic_writes.py
   - .filepawl.toml
+  - CHANGELOG.md
 ---
 
 # Phase 9: Apply and store integrity - Plan 3: The atomic store writes
@@ -64,11 +65,11 @@ Findings F-029, F-030 and F-031 are each fixed or carry an owner ruling. This pl
 
 ### Task 3: The preset store writes its XML, `store.json` and `active.json` through the helper
 
-- **Files:** hqptuner/presets/store/presets.py, tests/presets/integrity/test_atomic_writes.py, .filepawl.toml
+- **Files:** hqptuner/presets/store/presets.py, tests/presets/integrity/test_atomic_writes.py, .filepawl.toml, CHANGELOG.md
 - **Reads:** hqptuner/presets/store/presets.py#PresetStore.save, hqptuner/presets/store/presets.py#PresetStore._ensure_dir, hqptuner/presets/store/presets.py#PresetStore.set_autosave, hqptuner/presets/store/presets.py#PresetStore.set_active, hqptuner/presets/store/presets.py#PresetStore.names
 - **Decisions:** D-06, D-11
 - **Pins:** tests/presets/test_autosave.py
-- **Action:** The four write sites of `PresetStore` (the stamp in `_ensure_dir`, the XML in `save`, `store.json` in `set_autosave`, `active.json` in `set_active`) go through the helper, each inside its existing `saving(...)` block. `names()` lists `*.xml` files and must never list a helper temp file. The helper's temp names never end in `.xml` (Task 1), so the glob stays as it is. Audit records are unchanged. `delete`'s unlink is not a write and stays as it is.
+- **Action:** The four write sites of `PresetStore` (the stamp in `_ensure_dir`, the XML in `save`, `store.json` in `set_autosave`, `active.json` in `set_active`) go through the helper, each inside its existing `saving(...)` block. `names()` lists `*.xml` files and must never list a helper temp file. The helper's temp names never end in `.xml` (Task 1), so the glob stays as it is. Audit records are unchanged. `delete`'s unlink is not a write and stays as it is. In the same commit, land Plan 3's owner-approved `### Security` bullet in `CHANGELOG.md` verbatim (Plan 1 Notes).
 - **Verify:** Testing scope: AC4 for the preset store. Add to `tests/presets/integrity/test_atomic_writes.py`, parametrized over a preset save, `set_autosave` and `set_active`: a write whose rename fails leaves the store answering the previous value (the preset bytes, the flag, the active name). Each goes red against the pre-change code. Stop there. `scripts/gate.sh make check` prints `exit=0`; `filepawl accept` was run if filepawl printed it.
 
 ### Task 4: The park and the safety copy write through the helper, and the park never lists a temp file
