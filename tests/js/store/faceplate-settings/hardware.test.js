@@ -201,6 +201,12 @@ test("test_setting_all_stations_turns_it_on", () => {
   assert.equal(allStations.value, true);
 });
 
+// Break: the differ list counts the all-stations switch as an edit.
+test("test_all_stations_alone_does_not_differ", () => {
+  setAllStations(true);
+  assert.equal(hardwareDraft().differs, false);
+});
+
 test("test_an_edit_with_all_stations_on_differs", () => {
   setAllStations(true);
   setHardware("cuda_cdev", "3");
