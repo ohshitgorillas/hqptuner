@@ -233,6 +233,12 @@ test("test_an_apply_sends_the_draft_as_its_overrides", async () => {
   );
 });
 
+// Break: the apply sends all_presets true whatever the switch holds.
+test("test_an_apply_with_all_stations_off_sends_all_presets_false", async () => {
+  const off = (await apply({ verified: { applied: true } })).map((b) => b.all_presets);
+  assert.deepEqual(off, [false]);
+});
+
 test("test_an_apply_with_all_stations_on_sends_all_presets_true", async () => {
   await apply({ verified: { applied: true } });
   setAllStations(true);
