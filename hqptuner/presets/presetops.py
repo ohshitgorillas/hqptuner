@@ -16,6 +16,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from hqptuner import atomicwrite
 from hqptuner.conf import engineconf, matrixpayload, matrixprofiles, presetconf, presetzip, xmledit
 from hqptuner.errors import HQPTunerError
 from hqptuner.lanes import settle
@@ -139,21 +140,17 @@ def copies_to_prune(names: Iterable[str]) -> list[str]:
 
 
 def _write_new_copy(directory: Path, at: datetime, data: bytes) -> Path:
-    """Write ``data`` under the first dated name free at ``at``, never over an existing copy; ``OSError`` on failure."""
+    """Write ``data`` under the first dated name free at ``at``, never over an existing copy; ``OSError`` on failure.
+
+    The copy appears whole or not at all, so a write that fails or is killed leaves no half copy standing as the newest.
+    """
     serial = 0
     while True:
         path = directory / f"{_BACKUP_STEM}{at.astimezone(UTC):%Y%m%dT%H%M%SZ}-{serial:04d}.zip"
-        try:
-            with path.open("xb") as out:
-                out.write(data)
-        except FileExistsError:
-            serial += 1
-        except OSError:
-            with contextlib.suppress(OSError):
-                path.unlink(missing_ok=True)  # a half-written copy would stand as the newest
-            raise
-        else:
+        if not path.exists():
+            atomicwrite.write(path, data, mode=atomicwrite.SHARED_MODE)
             return path
+        serial += 1
 
 
 def _failure_code(exc: Exception) -> str:

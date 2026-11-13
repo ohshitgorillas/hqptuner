@@ -20,6 +20,7 @@ import struct
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from hqptuner import atomicwrite
 from hqptuner.unwritable import deleting, reading, saving
 
 if TYPE_CHECKING:
@@ -162,22 +163,26 @@ class FilterPark:
                 serial += 1
         with saving(_WHAT, self._dir):
             self._dir.mkdir(parents=True, exist_ok=True)
-            target.write_bytes(data)
+            atomicwrite.write(target, data, mode=atomicwrite.SHARED_MODE)
         return {"name": target.name, "path": f"{self._home}/{target.name}"}
+
+    def _parked(self) -> Iterator[Path]:
+        """Yield the parked uploads on disk: the files in the directory, a temp file a killed write left excluded."""
+        return (p for p in self._dir.iterdir() if p.is_file() and not atomicwrite.is_temp(p.name))
 
     def _parked_bytes(self) -> int:
         """Bytes already parked, by size on disk; zero when the park has never been written."""
         with reading(_WHAT, self._dir):
             if not self._dir.is_dir():
                 return 0
-            return sum(p.stat().st_size for p in self._dir.iterdir() if p.is_file())
+            return sum(p.stat().st_size for p in self._parked())
 
     def files(self) -> dict[str, bytes]:
         """Return every parked upload's bytes keyed by filename, sorted; empty when nothing is parked."""
         with reading(_WHAT, self._dir):
             if not self._dir.is_dir():
                 return {}
-            return {p.name: p.read_bytes() for p in sorted(self._dir.iterdir()) if p.is_file()}
+            return {p.name: p.read_bytes() for p in sorted(self._parked())}
 
     def members(self) -> dict[str, bytes]:
         """Parked uploads as restore-archive members (``data/<name>``)."""
