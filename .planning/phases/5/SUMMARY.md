@@ -6,7 +6,7 @@ completed: 2026-11-12
 
 # Phase 5: Untested behaviors covered - Summary
 
-Pinned tests, each with a recorded bite, for every claim on `todo.txt`'s triaged untested list except three left to the owner, plus three fixes the tests exposed: `scripts/abuse.sh close` reads audit `fields`, the control connection redials at once after a restart, and `close` waits for Ready before its readback.
+Pinned tests, each with a recorded bite, for every claim on `todo.txt`'s triaged untested list but one (two more struck by the owner), plus three fixes the tests exposed: `scripts/abuse.sh close` reads audit `fields`, the control connection redials at once after a restart, and `close` waits for Ready before its readback.
 
 ## What shipped
 
@@ -56,7 +56,8 @@ Each task's bite (mutant id or deliberate break, and the test it turned red) is 
 
 ## Open items
 
-- Owner ruling needed on three claims still on `todo.txt`: (1) `presets/store/live.py` creates missing parent directories - mutants 5, 7, 9 turn the first-save case red only through `StoreUnwritableError`, not an assertion, and the `exist_ok` mutants survive; accept, reshape or strike? (2) the modes alsa line names no net bits and the network line no alsa bits (Plan 7) - strike? (3) shaperfit source mode raises no third row (Plan 5) - strike?
+- Uncovered: `presets/store/live.py` creates missing parent directories. Owner ruling 2026-11-12: a case red by `StoreUnwritableError` (mutants 5, 7, 9) is not bite, and the `exist_ok` mutants 6 and 10 survive, so the claim stays on `todo.txt` and needs a test that fails on its assertion.
+- Struck by owner ruling 2026-11-12: "modes alsa line does not name the net bits nor the network line the alsa bits" (Plan 7) and "shaperfit source mode raises no third row" (Plan 5).
 - mutmut 3.8.0 crashes its stats pass against pytest 9.2.0 (`'Function' object has no attribute '_nodeid'`); Plans 1 and 19 worked around it outside the repo. A pin or a repo-side plugin is the owner's call.
 - `refresh_devices` ignores `await_ready`'s result (`hqptuner/core/engineread.py`).
 - `_fixed_target`'s `or active is not None` clause cannot change the result (Plan 1); the owner may want it struck as dead code.
@@ -67,6 +68,6 @@ Each task's bite (mutant id or deliberate break, and the test it turned red) is 
 
 ## Goal check
 
-Not fully delivered. Plans 1 to 18 landed a test for each claim they covered, each with a bite recorded in its commit (e.g. Plan 19's `x__reenumerates__mutmut_2` failing 5 cases of `test_live_reenumeration_report.py`), and Plan 19 reports both closing gates at `exit=0` (`make check`, and the e2e abuse bracket with 14 passed) and no removed `assert` line in `git diff 7ac93e5b..HEAD -U0 -- tests/`. But three claims stay on `todo.txt` neither covered nor struck, waiting on the owner (Open items), so the goal's "covered or struck" holds for every claim except those three.
+Not fully delivered. Plans 1 to 18 landed a test for each claim they covered, each with a bite recorded in its commit (e.g. Plan 19's `x__reenumerates__mutmut_2` failing 5 cases of `test_live_reenumeration_report.py`), and Plan 19 reports both closing gates at `exit=0` (`make check`, and the e2e abuse bracket with 14 passed) and no removed `assert` line in `git diff 7ac93e5b..HEAD -U0 -- tests/`. The owner struck two of the three claims left over, and the third, `presets/store/live.py` creating missing parent directories, stays on `todo.txt` with no assertion-bite (Open items), so the goal's "covered or struck" holds for every claim except that one.
 
 complete locally, not CI-verified
