@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import contextlib
 import struct
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -139,10 +140,16 @@ def _check_body(name: str, data: bytes) -> None:
 class FilterPark:
     """Uploaded convolution filters held under ``directory`` until an apply ships them to the daemon."""
 
-    def __init__(self, directory: Path, hqp_home: str) -> None:
-        """Bind the park to ``directory`` on disk and to the daemon home dir the parked paths are reported against."""
+    def __init__(
+        self, directory: Path, hqp_home: str, *, lock: contextlib.AbstractContextManager[object] | None = None
+    ) -> None:
+        """Bind the park to ``directory`` on disk and to the daemon home dir the parked paths are reported against.
+
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
+        """
         self._dir = directory
         self._home = hqp_home
+        self._lock = threading.Lock() if lock is None else lock
 
     def park(self, name: str, data: bytes) -> dict[str, str]:
         """Store one upload.
@@ -153,17 +160,18 @@ class FilterPark:
         """
         _check_name(name)
         _check_body(name, data)
-        if self._parked_bytes() + len(data) > PARK_MAX_BYTES:
-            raise ParkAtCapacityError()
-        target = self._dir / name
-        serial = 1
-        with reading(_WHAT, self._dir):
-            while target.exists():
-                target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
-                serial += 1
-        with saving(_WHAT, self._dir):
-            self._dir.mkdir(parents=True, exist_ok=True)
-            atomicwrite.write(target, data, mode=atomicwrite.SHARED_MODE)
+        with self._lock:
+            if self._parked_bytes() + len(data) > PARK_MAX_BYTES:
+                raise ParkAtCapacityError()
+            target = self._dir / name
+            serial = 1
+            with reading(_WHAT, self._dir):
+                while target.exists():
+                    target = self._dir / f"{Path(name).stem}-{serial}{Path(name).suffix}"
+                    serial += 1
+            with saving(_WHAT, self._dir):
+                self._dir.mkdir(parents=True, exist_ok=True)
+                atomicwrite.write(target, data, mode=atomicwrite.SHARED_MODE)
         return {"name": target.name, "path": f"{self._home}/{target.name}"}
 
     def _parked(self) -> Iterator[Path]:
@@ -194,7 +202,7 @@ class FilterPark:
         A file a discard already removed is skipped, and so is one a later upload re-parked under the same name: it
         holds other bytes and belongs to the next apply.
         """
-        with deleting(_WHAT, self._dir):
+        with self._lock, deleting(_WHAT, self._dir):
             for member, data in carried.items():
                 path = self._dir / member.removeprefix(MEMBER_DIR)
                 with contextlib.suppress(FileNotFoundError):
@@ -203,7 +211,7 @@ class FilterPark:
 
     def clear(self) -> None:
         """Delete every parked upload, leaving the directory itself in place."""
-        with deleting(_WHAT, self._dir):
+        with self._lock, deleting(_WHAT, self._dir):
             if self._dir.is_dir():
                 for p in self._dir.iterdir():
                     if p.is_file():

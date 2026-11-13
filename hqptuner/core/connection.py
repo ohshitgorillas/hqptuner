@@ -31,6 +31,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -86,6 +87,7 @@ class ConnectionStore:
     def __init__(self, path: Path) -> None:
         """Bind the store to the JSON file at ``path``, which is not touched until the first write."""
         self._path = path
+        self._lock = threading.Lock()
 
     def read(self) -> ConnectionRecord | None:
         """Return the stored record, or None when nothing has been saved.
@@ -125,7 +127,7 @@ class ConnectionStore:
             "remember": record.remember,
         }
         text = json.dumps(payload, indent=2) + "\n"
-        with saving(CONNECTION_STORE.what, self._path):
+        with self._lock, saving(CONNECTION_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
             # Mode 0600 is the protection on POSIX; on Windows ``os.open``'s mode sets only the read-only bit, so there
             # the per-user data directory's ACL is the protection.

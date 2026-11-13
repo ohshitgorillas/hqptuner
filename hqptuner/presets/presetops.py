@@ -10,6 +10,7 @@ import contextlib
 import json
 import logging
 import re
+import threading
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -187,6 +188,7 @@ class PresetOps:
         self.matrix_modes = MatrixModeStore(cfg.matrix_mode_file)
         self._filters = FilterPark(cfg.backup_dir / PARK_DIR, cfg.hqp_home)
         self._migrated = False
+        self._backup_lock = threading.Lock()
 
     # --- convolution uploads (store.filterpark, matrix-spec.md "Filter upload") --
 
@@ -339,13 +341,14 @@ class PresetOps:
             log.warning("pre-apply backup not stored: the daemon's /backup answer is not a settings archive")
             return None
         directory = self._cfg.backup_dir
-        try:
-            directory.mkdir(parents=True, exist_ok=True)
-            path = _write_new_copy(directory, self._mgr.clock.now(), data)
-        except OSError as exc:
-            log.warning("could not persist pre-apply backup to %s: %s", directory, exc)
-            raise
-        self._prune_backups()
+        with self._backup_lock:
+            try:
+                directory.mkdir(parents=True, exist_ok=True)
+                path = _write_new_copy(directory, self._mgr.clock.now(), data)
+            except OSError as exc:
+                log.warning("could not persist pre-apply backup to %s: %s", directory, exc)
+                raise
+            self._prune_backups()
         return path
 
     def _prune_backups(self) -> None:

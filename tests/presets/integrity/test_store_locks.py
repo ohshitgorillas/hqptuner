@@ -19,6 +19,7 @@ import pytest
 from hqptuner.presets.store.autopilot import AutopilotStore
 from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
+from hqptuner.presets.store.filterpark import FilterPark
 from hqptuner.presets.store.live import LivePresetStore, LiveRecord
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.presets import PresetStore
@@ -160,3 +161,10 @@ def test_a_first_save_overlapping_an_autosave_toggle_leaves_autosave_on(tmp_path
     store = PresetStore(seam_path(overlap, tmp_path / "presets"), lock=SpyLock(overlap))
     overlapped(overlap, lambda: store.save("alpha", b"<hqplayerd/>"), lambda: store.set_autosave(enabled=True))
     assert store.autosave is True
+
+
+def test_two_uploads_under_one_name_both_stay_parked(tmp_path: Path) -> None:
+    overlap = Overlap()
+    park = FilterPark(seam_path(overlap, tmp_path / "park"), "/home/hqplayer", lock=SpyLock(overlap))
+    overlapped(overlap, lambda: park.park("same.txt", b"first\n"), lambda: park.park("same.txt", b"second\n"))
+    assert set(park.files().values()) == {b"first\n", b"second\n"}
