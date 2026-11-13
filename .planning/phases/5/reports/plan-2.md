@@ -1,33 +1,22 @@
-PLAN CHECKPOINT: structural
+PLAN COMPLETE
 
-Plan: /home/atom/dev/hqptuner2/.planning/phases/5/PLAN-2.md
+Plan: .planning/phases/5/PLAN-2.md
 
-Tasks: 0 of 2
+Tasks: 4 of 4
 
 | Task | Commit | Note |
 |---|---|---|
-| 1 - Pin the close's baseline upload on each landed-write trigger | none | four cases written and run (apply red, live red, preset green, none green, as Task 1 wants); not committed, see deviation; draft kept in plan-2-draft.patch |
-| 2 - Read the audit record's fields in close | none | fix written and verified to turn apply and live green; not committed, same deviation |
-
-Worktree: scripts/abuse.sh and tests/e2e/test_abuse_bracket.py reverted to HEAD (6b0a1e0e). The full draft of both edits is `.planning/phases/5/reports/plan-2-draft.patch` (apply with `git apply`). The earlier dispatch's report is `plan-2.1.md`.
+| 1 - Pin the close's baseline upload on each landed-write trigger | e3200241 | one parametrized claim over four runs (apply, live write, preset store write, none); against unfixed abuse.sh the apply and live params are red on `assert 0 == 1`, preset and none green. A first form with a separate no-write test was refused by the filepawl absence gate (asserts only an absent value), so the four runs are one parametrized test |
+| 2 - Read the audit record's fields in close | 8b949cf9 | four jq reads moved under `.fields`; the four cases pass; breaks dropping the applied, lived and presetted arm each turn only their own param red, `true` turns no-write-landed red; script restored to the fixed form after each |
+| 3 - Reconnect at once when control is taken down for a restart | 6a1c14d5 | `take_control_down` now calls `self._supervisor.redial()`; new offline test red before (control None, phase Down) and green after; `make check` exit=0. Host safety checked: only the first dial moves up, a refused dial still waits `poll_interval`, and `RECONNECT_FAST`/`RECONNECT_SLOW` belong to a loop that ended on a fault and are untouched |
+| 4 - Close reads state back only once the app is ready again | d5d3ac43 | committed by the orchestrator on the owner's ruling to accept the wait with the pair bite only, see deviation. `scripts/abuse.sh` gains a bounded `/api/health` Ready poll after each refresh; `tests/e2e/test_abuse_bracket.py` gains `_close_after` (counts refreshes at the 8088 fake's `_on_refresh` hook) and `test_close_reads_state_back_on_its_first_turn_once_a_write_landed`. `pytest -m e2e tests/e2e/test_abuse_bracket.py` 14 passed in about 15 s (was about 110 s before Tasks 3 and 4); `make check` exit=0 on this tree; no assert line removed from the e2e file; no alarm-threshold override and no monkeypatch of the stack |
 
 Deviations:
 
-- [deviation] Task 2's Verify asserts each positive case's call phase is within 2 s of `test_close_leaves_every_store_as_open_found_it`'s (0.19 s), "so the readback loop took no second turn". Actually true in this e2e stack: no positive case can meet that bound, and at the stack's own settings each takes about 31 s. Evidence (all runs with the Task 2 fix applied, `--durations=0`):
-  - Default stack (`HQPTUNER_ALARM_THRESHOLD=0.05`, `tests/e2e/support/stack.py:_app_env`): apply case 31.61 s, preset case 31.61 s, live case 32.54 s. A `bash -x` trace of close shows 17 turns of the readback loop (`livenow=` empty, `sleep 2`), then success.
-  - Cause: close's readback loop POSTs `/api/config/refresh` and reads `GET /api/state` straight after. `refresh_devices` calls `settle.restart`, which takes the control socket down (`take_control_down` then `readings.break_engine()`), so `/api/state` answers 503 `not_loaded` until the app reconnects (about 1 s). `settle.await_ready` waits for Ready only up to `alarm_threshold`; at 0.05 s it returns at once, so the read lands in the 503 window on every turn. Probe: five refreshes 2 s apart, each followed by a state read, give 503 each time at 0.05, and give 200 only when the threshold is 1.5 s or more. It settles in the end by timing luck, which is the 31 s.
-  - Production is not affected (alarm 15 s, and a real rescan blocks until the engine is back). This is the e2e stack's 0.05 s threshold meeting a loop that refreshes before every read.
-  - With the threshold raised to 1.0 s in a test-local override of `stack_support._app_env`: apply 2.21 s, preset 2.22 s, live 3.14 s, baseline 0.19 s; all five cases pass. Each of the restore and the refresh then blocks for about the threshold (`until_ready` returns near the deadline, not at the reconnect: refresh took 1.52 s at 1.5, 3.02 s at 3.0). So the floor for one positive case is about 2 x threshold, and a threshold below the reconnect (about 0.5 to 1 s) is racy (0.5 s: 503 twice, 200 on the third). The 2 s bound is unreachable with a robust threshold; the live case also pays about 0.9 s for the live write route.
-  - The Task 1 Action says a case taking a second loop turn is a slow test, not a passing one. Committing the cases at the stack's default settings would commit three 31 s tests; committing with the override commits a test-local monkeypatch of a private stack function and a bound the plan did not state.
-  - Not touched by this: the owner's fields ruling. The Task 2 fix (read `.fields.ok`, `.fields.http`, `.fields.live` in the diagnostic line, `applied`, `lived`, `keys`) works: against the unfixed script the apply and live cases fail on `assert 0 == 1` (no upload), the preset and no-landed-write cases pass; with the fix all four pass and apply and live upload exactly once (`_restore_attempts` 1; none-case 0).
+- [deviation] Task 4's Verify says removing the health wait (a break, reverted after) makes a positive case show more than one readback turn or go red. Actually true: with Task 3 in place, removing only the health wait leaves all 14 e2e tests green (log /tmp/gate-pytest-gbaFjr6B.log, 14 passed), because the redial now completes before `refresh_devices` finishes its own form refetch, so the readback's first turn already finds the app serving. The new first-turn test goes red (3 failed, about 100 s, `/tmp/gate-pytest-RsUYDZLm.log`) only when BOTH the health wait and the Task 3 redial are removed, so it bites the pair and not the wait alone. No stack seam in the plan's lease can slow the reconnect (`tests/e2e/support/stack.py` is outside the lease, and the alarm-threshold and monkeypatch routes are barred by rule 3). The health wait is therefore redundant in this stack today and only guards a slower reconnect.
 
 Open items:
 
-- Owner decision needed, one of:
-  1. Allow `tests/e2e/support/stack.py` into the lease so `stack()` takes an alarm threshold (default unchanged), and have the abuse-bracket `app` fixture pass 1.0; and restate the Task 2 timing bar as a floor-aware bound (for example each positive case within 4 s, or about 2 x threshold plus 1 s of the baseline case).
-  2. Keep the lease and let the draft's test-local `monkeypatch.setattr(stack_support, "_app_env", ...)` stand (private-name patch inside the test module), with the same restated bound.
-  3. Change `scripts/abuse.sh` close's readback loop to wait for `/api/state` to serve again (not just sleep 2 between refreshes), so it is correct against any reconnect time; this stays inside the lease and removes the dependence on the threshold, but changes the script beyond the owner's fields ruling.
-  4. Strike the timing clause of Task 2's Verify.
-- Spec check: `docs/spec/testing.md` rule 7 (no fixed sleeps in tests) is respected by every draft case; no sleep was added to the test file.
-- Unverified: `make check` (lint, jscpd) was not run on the draft. The draft imports `Callable` and adds about 90 lines to the test file.
-- Process footprint: every pytest run and its app subprocess exited; the `python -m hqptuner` processes in `ps` (pids 1890114, 3745217) predate this dispatch and are not mine.
+- Owner ruling 2026-11-12: Task 4's health wait is accepted as a guard whose bite is shown by the pair break (wait plus redial) only; committed as is.
+- `refresh_devices` ignores `await_ready`'s result (`hqptuner/core/engineread.py`); still observable in code, left alone as the plan says.
+- The earlier report was rotated to `.planning/phases/5/reports/plan-2.2.md` (git shows `plan-2.md` as modified/deleted until the orchestrator stages it).
