@@ -12,8 +12,9 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 - [x] **Phase 4: Dimmed while HQPlayer is away** - the app is dimmed while HQPlayer is unavailable or disconnected
 - [ ] **Phase 5: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
 - [x] **Phase 6: aclean filter entries** - each new "aclean" filter has an entry in the shipped filter data
-- [ ] **Phase 7: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect
-- [ ] **Phase 8: Packaged builds open in the browser** - "Open HQPTuner" in a packaged build opens the app in the browser
+- [ ] **Phase 7: Visuals stay in sync after a track starts** - the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate
+- [ ] **Phase 8: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect
+- [ ] **Phase 9: Packaged builds open in the browser** - "Open HQPTuner" in a packaged build opens the app in the browser
 
 ## Phase Details
 
@@ -100,7 +101,21 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 1. Every "aclean" filter the running engine enumerates has an entry in the shipped filter data, joined by name.
 2. Each of those entries carries v1's description and simplified name.
 
-### Phase 7: No trace on the other visualizer effects
+### Phase 7: Visuals stay in sync after a track starts
+
+**Goal:** After a track starts, the visuals keep the same lag behind the sound that they hold for the rest of the track, whatever the track's sample rate.
+
+**Depends on:** Nothing
+
+**Bug:** When a track starts, the player works through the first stretch of music faster than real time, so the visuals set their lag behind the sound during that rush and never correct it afterward, and because the size of the rush depends on the track's sample rate, the gap between what you see and what you hear changes every time the rate changes (this is the most likely cause and has not yet been confirmed on the live system).
+
+**Success Criteria:**
+
+1. The lag between the visuals and the sound, once a track has started, matches the lag later in the same track, and is not fixed by the opening rush.
+2. Tracks at different sample rates show the same lag between the visuals and the sound.
+3. The cause is confirmed or refuted on the live system before a fix is planned against it.
+
+### Phase 8: No trace on the other visualizer effects
 
 **Goal:** The trace is drawn on the spectrum only, and on none of the other visualizer effects, such as Borealis.
 
@@ -113,7 +128,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 1. Borealis and every other visualizer effect except the spectrum draw no trace.
 2. The spectrum still draws its trace.
 
-### Phase 8: Packaged builds open in the browser
+### Phase 9: Packaged builds open in the browser
 
 **Goal:** Clicking "Open HQPTuner" in a packaged build opens the app in the user's browser, not in a window of its own.
 

@@ -1,6 +1,6 @@
 # State
 
-Phase: 5 of 8 (Untested behaviors covered)
+Phase: 5 of 9 (Untested behaviors covered)
 Plan: 2 of 19 (abuse.sh baseline upload)
 Status: planned
 Next: /cad-execute 5
