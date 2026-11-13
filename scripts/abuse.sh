@@ -177,10 +177,10 @@ case "$CMD" in
     say "audit since seq $since"
     records=$(get "/api/audit?limit=100000" | jq -c --argjson s "$since" '[.records[] | select(.seq > $s)]') \
       || die "GET /api/audit failed"
-    echo "$records" | jq -c '.[] | {seq, event, http, live, ok}'
-    applied=$(echo "$records" | jq '[.[] | select(.event == "apply" and .ok == true)] | length')
+    echo "$records" | jq -c '.[] | {seq, event, http: .fields.http, live: .fields.live, ok: .fields.ok}'
+    applied=$(echo "$records" | jq '[.[] | select(.event == "apply" and .fields.ok == true)] | length')
     echo "  applies landed: $applied"
-    lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .ok == true)] | length')
+    lived=$(echo "$records" | jq '[.[] | select(.event == "live.write" and .fields.ok == true)] | length')
     echo "  live writes landed: $lived"
     # A preset write, load or delete mirrors into the daemon's own data/cfgs, so
     # it needs the baseline upload too. Those records carry no ok field, unlike
@@ -200,7 +200,7 @@ case "$CMD" in
       # the restore took: the upload is retried until 8088 accepts it, and the
       # restore is proven by readback, the fields the run applied reading their
       # baseline values again, the way HQPTuner's own persistent lane verifies.
-      keys=$(echo "$records" | jq -c '[.[] | select(.event == "apply" and .ok == true) | .http | keys[]] | unique')
+      keys=$(echo "$records" | jq -c '[.[] | select(.event == "apply" and .fields.ok == true) | .fields.http | keys[]] | unique')
       echo "  fields to read back: $keys"
       uploaded=""
       for _ in $(seq "$TRIES"); do
