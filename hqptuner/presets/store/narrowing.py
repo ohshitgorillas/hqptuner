@@ -23,7 +23,7 @@ import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import NARROWING_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -310,5 +310,6 @@ class NarrowingStore:
         self._read_file()
         with saving(NARROWING_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2))
+            text = json.dumps({"schema": _SCHEMA, "facets": stored.to_json()}, indent=2)
+            atomicwrite.write(self._path, text.encode(), mode=atomicwrite.SHARED_MODE)
         return stored

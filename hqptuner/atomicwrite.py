@@ -23,6 +23,10 @@ if TYPE_CHECKING:
 TEMP_SUFFIX = ".atomictmp"
 
 
+#: The mode a file is created with when the umask is the only restriction: what ``Path.write_text`` gives.
+SHARED_MODE = 0o666
+
+
 def is_temp(name: str) -> bool:
     """Report whether the filename ``name`` is a temp file this module wrote."""
     return name.endswith(TEMP_SUFFIX)

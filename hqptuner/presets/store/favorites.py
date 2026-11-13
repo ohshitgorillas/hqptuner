@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 from typing import TYPE_CHECKING, Literal, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import FAVORITES_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -170,7 +170,11 @@ class FavoriteStore:
         keep = {k: data[k] for k in _KINDS if k != kind and k in data}
         with saving(FAVORITES_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2))
+            atomicwrite.write(
+                self._path,
+                json.dumps({"schema": _SCHEMA, kind: stored, **keep}, indent=2).encode(),
+                mode=atomicwrite.SHARED_MODE,
+            )
         return stored
 
     def read(self) -> list[str]:

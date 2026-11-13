@@ -46,7 +46,7 @@ import sys
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import LIVE_PRESET_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
@@ -260,7 +260,11 @@ class LivePresetStore:
         self._read_file()
         with saving(LIVE_PRESET_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2))
+            atomicwrite.write(
+                self._path,
+                json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2).encode(),
+                mode=atomicwrite.SHARED_MODE,
+            )
 
     def all(self) -> dict[str, LiveRecord]:
         """Every preset, name -> record, sorted by name."""

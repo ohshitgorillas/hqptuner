@@ -24,7 +24,7 @@ import json
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import AUTOPILOT_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -135,7 +135,7 @@ class AutopilotStore:
     def _write(self, state: AutopilotState) -> None:
         with saving(AUTOPILOT_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps(state.to_json(), indent=2))
+            atomicwrite.write(self._path, json.dumps(state.to_json(), indent=2).encode(), mode=atomicwrite.SHARED_MODE)
 
     def read(self) -> AutopilotState:
         """Auto-pilot's whole recorded state."""

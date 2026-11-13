@@ -23,7 +23,7 @@ from datetime import UTC, datetime
 from functools import partial
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import DESCRIPTION_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets.store.jsonfile import read_stamped
@@ -285,7 +285,8 @@ class DescriptionStore:
             raise TooManyProfilesError(count=len(profiles), limit=_MAX_PROFILES)
         with saving(DESCRIPTION_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps({"schema": _SCHEMA, "profiles": profiles}, indent=2, sort_keys=True))
+            text = json.dumps({"schema": _SCHEMA, "profiles": profiles}, indent=2, sort_keys=True)
+            atomicwrite.write(self._path, text.encode(), mode=atomicwrite.SHARED_MODE)
         return profiles
 
     def read(self) -> dict[str, DescriptionEntry]:

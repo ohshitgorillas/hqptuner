@@ -22,7 +22,7 @@ import json
 import sys
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.config import MATRIX_MODE_STORE
 from hqptuner.errors import HQPTunerError
 from hqptuner.presets import names
@@ -170,7 +170,8 @@ class MatrixModeStore:
         """Write ``presets`` out as the whole file, creating the directory on the way."""
         with saving(MATRIX_MODE_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            self._path.write_text(json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True))
+            text = json.dumps({"schema": _SCHEMA, "presets": presets}, indent=2, sort_keys=True)
+            atomicwrite.write(self._path, text.encode(), mode=atomicwrite.SHARED_MODE)
 
     def forget(self, name: str) -> bool:
         """Drop ``name``'s stored mode, answering whether there was one to drop.
