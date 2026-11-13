@@ -10,7 +10,7 @@ Milestone v2.0.0-dev.2 is a work-in-progress cycle on `v2`: the six deferred def
 - [x] **Phase 2: Modulators fit the output rate** - the picker offers only modulators the running output rate supports, and a live apply that stops playback says so
 - [x] **Phase 3: HF filter lamp follows the content** - the HF filter lamp lights only for content the filter acts on
 - [x] **Phase 4: Dimmed while HQPlayer is away** - the app is dimmed while HQPlayer is unavailable or disconnected
-- [ ] **Phase 5: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
+- [x] **Phase 5: Untested behaviors covered** - every behavior on `todo.txt`'s triaged untested list is covered by a test or struck
 - [x] **Phase 6: aclean filter entries** - each new "aclean" filter has an entry in the shipped filter data
 - [ ] **Phase 7: Visuals stay in sync after a track starts** - the gap between what you see and what you hear holds steady after a track starts and does not change with the sample rate
 - [ ] **Phase 8: No trace on the other visualizer effects** - the trace shows on the spectrum only, not on Borealis or any other effect

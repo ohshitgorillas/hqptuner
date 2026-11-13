@@ -4,6 +4,7 @@ phase: 5
 fields_version: 1
 started: 2026-11-13
 updated: 2026-11-13
+ci: b955d469ba5188f11fcf1a6fccfebd398260d54a
 ---
 
 ## Items
@@ -55,12 +56,12 @@ evidence: hqptuner/conf/matrixscope.py:142 signature `profile: str`, no `if not 
 ### 6. make check and the e2e abuse bracket are green
 expected: `scripts/gate.sh make check` and `scripts/gate.sh .venv/bin/pytest -m e2e tests/e2e/test_abuse_bracket.py` both print exit=0 (ci: check, e2e)
 criterion: AC6
-status: pending_ci
+status: pass
 job: check
-commit: 04bbbc80fb2764e25bc559d17f5248afdbe47ed7
+commit: b955d469ba5188f11fcf1a6fccfebd398260d54a
 first_pass: pass
 source: model
-evidence: Required jobs check and e2e run in GitHub Actions. Locally at 04bbbc80fb2764e25bc559d17f5248afdbe47ed7: scripts/gate.sh make check -> exit=0 log=/tmp/gate-make-vJxc8KVM.log; e2e bracket -> exit=0, 14 passed, log=/tmp/gate-pytest-lJbSvXyC.log
+evidence: check concluded success at b955d469ba5188f11fcf1a6fccfebd398260d54a; e2e concluded success at b955d469ba5188f11fcf1a6fccfebd398260d54a
 
 ### 7. abuse.sh close and control redial fixes hold
 expected: `scripts/abuse.sh close` uploads the baseline from audit `fields`, the control connection redials at once after a restart, and close reads state back only once the app is Ready; the e2e bracket goes red without them
@@ -84,10 +85,9 @@ fix: 45550f02, retest
 ## Summary
 
 total: 8
-passed: 7
+passed: 8
 failed: 0
 pending: 0
-pending_ci: 1
 skipped: 0
 blocked: 0
 reworked: 2
