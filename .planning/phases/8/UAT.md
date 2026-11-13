@@ -3,7 +3,8 @@ status: testing
 phase: 8
 fields_version: 1
 started: 2026-11-12
-updated: 2026-11-12
+updated: 2026-11-13
+ci: ffb6f9d774b4a6cfdafc6124bb6c0e8a8344faf9
 ---
 
 ## Items
@@ -157,11 +158,12 @@ evidence: lifecycle-rpm concluded success at 7e5ff6811d8a4134de5d3b309128ea48a1c
 ### 18. CI job smoke-macos passes
 expected: Required job smoke-macos concludes success on the phase's last dev commit (ci: smoke-macos)
 criterion: AC6
-status: pending_ci
+status: pass
 job: smoke-macos
-commit: 73be25edc50a7ed2d382d4c5b171faf511f1f4a1
+commit: ffb6f9d774b4a6cfdafc6124bb6c0e8a8344faf9
+first_pass: pass
 source: model
-evidence: required CI job; runs only on the forge, not on this host
+evidence: smoke-macos concluded success at ffb6f9d774b4a6cfdafc6124bb6c0e8a8344faf9
 
 ### 19. CI job smoke-windows passes
 expected: Required job smoke-windows concludes success on the phase's last dev commit (ci: smoke-windows)
@@ -188,10 +190,9 @@ fix: 7e5ff681, retest
 ## Summary
 
 total: 20
-passed: 19
+passed: 20
 failed: 0
 pending: 0
-pending_ci: 1
 skipped: 0
 blocked: 0
 reworked: 1

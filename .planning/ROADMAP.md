@@ -13,7 +13,7 @@ v1.20.2 fixes the two Windows app problems reported against v1.20.1. The coverag
 - [x] **Phase 5: Offline tests reach their fake daemons in-process** - no offline test opens a real network connection to a fake daemon
 - [x] **Phase 6: Connection host and stored credential** - the stored daemon credential reaches only the daemon the user chose
 - [x] **Phase 7: Remove the 4321-only mode** - with the 8088 lane logged out, refused or down, the app does not work, and no code pretends it does
-- [ ] **Phase 8: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
+- [x] **Phase 8: Config write path and input validation** - client input reaches the daemon and its files only in the shapes the allowlist names
 - [ ] **Phase 9: Apply and store integrity** - concurrent applies and interrupted writes leave config and stores whole
 - [ ] **Phase 10: Release pipeline supply chain** - what ships is what was tested, and signing secrets meet only pinned code
 - [ ] **Phase 11: Agent tooling and repo guards** - the repo's agent tooling and rules hold against a hostile branch or injected content
