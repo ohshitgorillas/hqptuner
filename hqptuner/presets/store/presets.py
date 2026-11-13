@@ -21,7 +21,7 @@ import json
 import sys
 from typing import TYPE_CHECKING, TypedDict
 
-from hqptuner import __version__
+from hqptuner import __version__, atomicwrite
 from hqptuner.audit import AuditLog
 from hqptuner.config import PRESET_STORE
 from hqptuner.errors import HQPTunerError
@@ -211,7 +211,7 @@ class PresetStore:
         with saving(PRESET_STORE.what, self._dir):
             self._dir.mkdir(parents=True, exist_ok=True)
             if not path.is_file():
-                path.write_text(json.dumps({"schema": _SCHEMA}))
+                atomicwrite.write(path, json.dumps({"schema": _SCHEMA}).encode(), mode=atomicwrite.SHARED_MODE)
 
     def names(self) -> list[str]:
         """Every stored preset name, sorted.
@@ -255,7 +255,7 @@ class PresetStore:
             # daemon already holds rather than creating one, so it is exempt.
             names.validate_new_name(name, InvalidPresetNameError, MixedScriptPresetNameError, "preset")
         with saving(PRESET_STORE.what, self._dir):
-            path.write_bytes(xml)
+            atomicwrite.write(path, xml, mode=atomicwrite.SHARED_MODE)
         self._audit.preset_write(name, trigger, len(xml), hashlib.sha256(xml).hexdigest(), overwrote=overwrote)
 
     def delete(self, name: str) -> None:
@@ -289,7 +289,8 @@ class PresetStore:
         previous = self._meta().get("autosave", False)
         self._ensure_dir()
         with saving(PRESET_STORE.what, self._dir):
-            (self._dir / _STORE_FILE).write_text(json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)}))
+            text = json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)})
+            atomicwrite.write(self._dir / _STORE_FILE, text.encode(), mode=atomicwrite.SHARED_MODE)
         self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
@@ -313,7 +314,9 @@ class PresetStore:
         previous = self.active  # the write below is what makes it unreadable
         self._ensure_dir()
         with saving(PRESET_STORE.what, self._dir):
-            (self._dir / _ACTIVE_FILE).write_text(json.dumps({"active": name}))
+            atomicwrite.write(
+                self._dir / _ACTIVE_FILE, json.dumps({"active": name}).encode(), mode=atomicwrite.SHARED_MODE
+            )
         self._audit.active_set(name, previous)
 
     def import_missing(self, snapshots: dict[str, bytes]) -> list[str]:

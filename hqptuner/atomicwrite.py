@@ -38,7 +38,8 @@ def write(target: Path, data: bytes, *, mode: int, platform: str = sys.platform)
     ``OSError`` propagates unchanged; the temp file is gone by then and ``target`` is untouched. ``platform`` is the
     ``sys.platform`` value deciding whether the directory flush runs: Windows cannot open a directory.
     """
-    temp = target.with_name(f".{target.name}.{secrets.token_hex(8)}{TEMP_SUFFIX}")
+    # Named by its token alone: a name derived from the target could pass the filesystem's name length limit.
+    temp = target.with_name(f".{secrets.token_hex(8)}{TEMP_SUFFIX}")
     # Exclusive create: a leftover or a link planted at the name is refused, never reopened. Binary on every
     # platform: without ``O_BINARY`` a Windows descriptor is text mode and rewrites every line feed.
     flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)

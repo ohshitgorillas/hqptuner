@@ -79,7 +79,7 @@ def test_bytes_with_line_feeds_land_unchanged(target: Path) -> None:
 
 
 @pytest.mark.parametrize(
-    ("name", "expected"), [("store.json", False), ("preset.xml", False), (f".store.json.ab12{TEMP_SUFFIX}", True)]
+    ("name", "expected"), [("store.json", False), ("preset.xml", False), (f".ab12{TEMP_SUFFIX}", True)]
 )
 def test_only_a_file_the_write_names_as_temp_is_a_temp_file(name: str, *, expected: bool) -> None:
     assert is_temp(name) is expected

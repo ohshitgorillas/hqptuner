@@ -18,6 +18,7 @@ from hqptuner.presets.store.favorites import FavoriteStore
 from hqptuner.presets.store.live import LivePresetStore, LiveRecord
 from hqptuner.presets.store.matrixmode import MatrixModeStore
 from hqptuner.presets.store.narrowing import NarrowingStore
+from hqptuner.presets.store.presets import PresetStore
 
 #: One store's write, and its read of everything that write stored.
 Driver = tuple[Callable[[], object], Callable[[], object]]
@@ -69,5 +70,37 @@ def test_a_write_killed_partway_leaves_the_store_reading_the_first_write(
     write()
     first = read()
     with file_growth_refused(path.stat().st_size - 1), pytest.raises(OSError):
+        write()
+    assert read() == first
+
+
+#: The bytes of the one preset the preset-store cases save.
+XML = b"<hqplayerd/>"
+
+
+def preset_save(root: Path) -> Driver:
+    store = PresetStore(root)
+    return lambda: store.save("alpha", XML), lambda: store.read("alpha")
+
+
+def autosave(root: Path) -> Driver:
+    store = PresetStore(root)
+    return lambda: store.set_autosave(enabled=True), lambda: store.autosave
+
+
+def active(root: Path) -> Driver:
+    store = PresetStore(root)
+    return lambda: store.set_active("alpha"), lambda: store.active
+
+
+@pytest.mark.parametrize("driver", [preset_save, autosave, active], ids=lambda d: d.__name__)
+def test_a_preset_store_write_killed_partway_leaves_the_store_answering_the_first_write(
+    driver: Callable[[Path], Driver], tmp_path: Path
+) -> None:
+    write, read = driver(tmp_path)
+    write()
+    first = read()
+    smallest = min(p.stat().st_size for p in tmp_path.rglob("*") if p.is_file())
+    with file_growth_refused(smallest - 1), pytest.raises(OSError):
         write()
     assert read() == first
