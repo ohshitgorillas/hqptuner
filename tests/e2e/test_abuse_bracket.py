@@ -75,24 +75,33 @@ JUNK = b"junk the hostile run left behind"
 OBSERVE_TIMEOUT = 30.0
 
 
-def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, Any] | None = None) -> None:
-    """Drive one of the app's write routes, raising on anything but a 2xx."""
-    data = None if body is None else json.dumps(body).encode()
+def _request(
+    app: stack_support.Stack,
+    method: str,
+    path: str,
+    data: bytes | None,
+    headers: dict[str, str],
+) -> bytes:
+    """The raw body of one request against the app, raising on anything but a 2xx."""
     request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
-        f"{stack.base_url}{path}",
+        f"{app.base_url}{path}",
         data=data,
-        headers={"Content-Type": "application/json"},
+        headers=headers,
         method=method,
     )
     with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        response.read()
+        return bytes(response.read())
+
+
+def _call(stack: stack_support.Stack, method: str, path: str, body: dict[str, Any] | None = None) -> None:
+    """Drive one of the app's write routes, raising on anything but a 2xx."""
+    data = None if body is None else json.dumps(body).encode()
+    _request(stack, method, path, data, {"Content-Type": "application/json"})
 
 
 def _live_active(app: stack_support.Stack) -> str:
     """The active matrix profile as the app serves it, `.data.live_active` of `GET /api/matrix`."""
-    request = urllib.request.Request(f"{app.base_url}/api/matrix", method="GET")  # noqa: S310 — loopback http URL
-    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        payload = json.loads(response.read())
+    payload = json.loads(_request(app, "GET", "/api/matrix", None, {}))
     return str(payload["data"]["live_active"])
 
 
@@ -318,30 +327,16 @@ BOUNDARY = "abuse-bracket-boundary"
 PRESET = "kept preset"
 
 
-def _get_bytes(app: stack_support.Stack, path: str) -> bytes:
-    """The raw body of one GET against the app."""
-    request = urllib.request.Request(f"{app.base_url}{path}", method="GET")  # noqa: S310 — loopback http URL
-    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        return bytes(response.read())
-
-
 def _import_state(app: stack_support.Stack, archive: bytes) -> None:
     """Upload a state archive to `POST /api/state-import`, the one route that writes a preset with no apply."""
     head = f'--{BOUNDARY}\r\nContent-Disposition: form-data; name="statefile"; filename="state.zip"\r\n'
     body = f"{head}Content-Type: application/zip\r\n\r\n".encode() + archive + f"\r\n--{BOUNDARY}--\r\n".encode()
-    request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
-        f"{app.base_url}/api/state-import",
-        data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={BOUNDARY}"},
-        method="POST",
-    )
-    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
-        response.read()
+    _request(app, "POST", "/api/state-import", body, {"Content-Type": f"multipart/form-data; boundary={BOUNDARY}"})
 
 
 def _live_junk_filter(app: stack_support.Stack) -> str:
     """The junk filter reading as the app serves it, `.data.filter_junk` of `GET /api/state`."""
-    return str(json.loads(_get_bytes(app, "/api/state"))["data"]["filter_junk"])
+    return str(json.loads(_request(app, "GET", "/api/state", None, {}))["data"]["filter_junk"])
 
 
 def _await_junk_filter(app: stack_support.Stack, value: str) -> None:
@@ -395,7 +390,7 @@ def _run_with_a_live_write(app: stack_support.Stack) -> Callable[[], None]:
 def _run_with_a_preset_store_write(app: stack_support.Stack) -> Callable[[], None]:
     """A run whose only write is a preset re-imported with no apply and no live write."""
     _call(app, "POST", "/api/config/apply", {"switch_to": "", "save": {"name": PRESET}})
-    archive = _get_bytes(app, "/api/state-export")
+    archive = _request(app, "GET", "/api/state-export", None, {})
     return lambda: _import_state(app, archive)
 
 
