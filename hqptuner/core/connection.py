@@ -34,6 +34,7 @@ import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from hqptuner import atomicwrite
 from hqptuner.conf.httpauth import check_host
 from hqptuner.conf.httpconf import HttpConfigClient
 from hqptuner.config import CONNECTION_STORE, DEFAULT_HQP_HOST, DEFAULT_HQP_USERNAME
@@ -123,20 +124,12 @@ class ConnectionStore:
             "password": record.password if record.remember else "",
             "remember": record.remember,
         }
-        tmp = self._path.with_suffix(self._path.suffix + ".tmp")
+        text = json.dumps(payload, indent=2) + "\n"
         with saving(CONNECTION_STORE.what, self._path):
             self._path.parent.mkdir(parents=True, exist_ok=True)
-            # A leftover from a crash is removed, not reopened: reopening keeps its mode, and an exclusive create
-            # refuses a link planted at the name. Mode 0600 is the protection on POSIX; on Windows ``os.open``'s
-            # mode sets only the read-only bit, so there the per-user data directory's ACL is the protection.
-            tmp.unlink(missing_ok=True)
-            try:
-                descriptor = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
-                with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
-                    handle.write(json.dumps(payload, indent=2) + "\n")
-                tmp.replace(self._path)
-            finally:
-                tmp.unlink(missing_ok=True)
+            # Mode 0600 is the protection on POSIX; on Windows ``os.open``'s mode sets only the read-only bit, so there
+            # the per-user data directory's ACL is the protection.
+            atomicwrite.write(self._path, text.encode("utf-8"), mode=0o600)
 
 
 def _pinned(name: str) -> bool:
