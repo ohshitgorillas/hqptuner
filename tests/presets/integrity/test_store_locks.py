@@ -21,6 +21,7 @@ from hqptuner.presets.store.descriptions import DescriptionStore
 from hqptuner.presets.store.favorites import FavoriteStore
 from hqptuner.presets.store.live import LivePresetStore, LiveRecord
 from hqptuner.presets.store.matrixmode import MatrixModeStore
+from hqptuner.presets.store.presets import PresetStore
 
 
 class Overlap:
@@ -152,3 +153,10 @@ def test_two_writes_to_one_json_store_both_land(driver: Callable[[Path, SpyLock]
     first, second, stored = driver(seam_path(overlap, tmp_path / "store.json"), SpyLock(overlap))
     overlapped(overlap, first, second)
     assert stored() == {"alpha", "bravo"}
+
+
+def test_a_first_save_overlapping_an_autosave_toggle_leaves_autosave_on(tmp_path: Path) -> None:
+    overlap = Overlap()
+    store = PresetStore(seam_path(overlap, tmp_path / "presets"), lock=SpyLock(overlap))
+    overlapped(overlap, lambda: store.save("alpha", b"<hqplayerd/>"), lambda: store.set_autosave(enabled=True))
+    assert store.autosave is True

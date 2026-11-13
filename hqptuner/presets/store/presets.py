@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import json
 import sys
+import threading
 from typing import TYPE_CHECKING, TypedDict
 
 from hqptuner import __version__, atomicwrite
@@ -30,6 +31,7 @@ from hqptuner.presets.store.jsonfile import read_stamped
 from hqptuner.unwritable import reading, saving
 
 if TYPE_CHECKING:
+    from contextlib import AbstractContextManager
     from pathlib import Path
 
 _ACTIVE_FILE = "active.json"
@@ -155,16 +157,26 @@ class PresetStore:
     The directory is created lazily on the first write, so an unconfigured install reads as simply empty.
     """
 
-    def __init__(self, directory: Path, audit: AuditLog | None = None, *, platform: str = sys.platform) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        audit: AuditLog | None = None,
+        *,
+        platform: str = sys.platform,
+        lock: AbstractContextManager[object] | None = None,
+    ) -> None:
         """Bind the store to ``directory`` and to an audit log, substituting a no-op log when none is given.
 
         ``platform`` is the ``sys.platform`` value whose naming limits a name being saved is held to.
+        ``lock`` stands in for the store's own ``threading.Lock``; a test passes one that reports contention.
         """
         self._dir = directory
         self._platform = platform
         # A store built without one still works; it just records nothing, which
         # is what every offline test that does not care about the log wants.
         self._audit = audit or AuditLog(None)
+        # One lock for the directory: the XML files, store.json and active.json are written together.
+        self._lock = threading.Lock() if lock is None else lock
 
     def _stored_name(self, name: str) -> str:
         """Return the key ``name`` is saved under, raising ``PresetError`` when this platform cannot hold it."""
@@ -246,6 +258,11 @@ class PresetStore:
         "which of those wrote over my preset" is the first question an incident
         asks.
         """
+        with self._lock:
+            self._save(name, xml, trigger)
+
+    def _save(self, name: str, xml: bytes, trigger: str) -> None:
+        """Write one preset; the caller holds the lock."""
         self._ensure_dir()
         name = self._stored_name(name)
         path = self._path(name)
@@ -265,14 +282,15 @@ class PresetStore:
         """
         name = canonical_name(name)
         path = self._path(name)
-        if not path.is_file():
-            raise PresetNotFoundError(name=name)
-        was_active = self.active == name  # unlinking does not touch the pointer
-        with saving(PRESET_STORE.what, self._dir):
-            path.unlink()
-        self._audit.preset_delete(name, was_active=was_active)
-        if was_active:
-            self.set_active(None)
+        with self._lock:
+            if not path.is_file():
+                raise PresetNotFoundError(name=name)
+            was_active = self.active == name  # unlinking does not touch the pointer
+            with saving(PRESET_STORE.what, self._dir):
+                path.unlink()
+            self._audit.preset_delete(name, was_active=was_active)
+            if was_active:
+                self._set_active(None)
 
     @property
     def autosave(self) -> bool:
@@ -286,12 +304,13 @@ class PresetStore:
 
     def set_autosave(self, *, enabled: bool) -> None:
         """Record the autosave flag in ``store.json`` beside the schema stamp, and audit the change."""
-        previous = self._meta().get("autosave", False)
-        self._ensure_dir()
-        with saving(PRESET_STORE.what, self._dir):
-            text = json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)})
-            atomicwrite.write(self._dir / _STORE_FILE, text.encode(), mode=atomicwrite.SHARED_MODE)
-        self._audit.autosave_set(enabled=bool(enabled), previous=previous)
+        with self._lock:
+            previous = self._meta().get("autosave", False)
+            self._ensure_dir()
+            with saving(PRESET_STORE.what, self._dir):
+                text = json.dumps({"schema": _SCHEMA, "autosave": bool(enabled)})
+                atomicwrite.write(self._dir / _STORE_FILE, text.encode(), mode=atomicwrite.SHARED_MODE)
+            self._audit.autosave_set(enabled=bool(enabled), previous=previous)
 
     @property
     def active(self) -> str | None:
@@ -309,6 +328,11 @@ class PresetStore:
 
         The name is validated but not required to exist.
         """
+        with self._lock:
+            self._set_active(name)
+
+    def _set_active(self, name: str | None) -> None:
+        """Point ``active.json`` at ``name``; the caller holds the lock."""
         if name is not None:
             name = canonical_name(name)
         previous = self.active  # the write below is what makes it unreadable
@@ -327,12 +351,13 @@ class PresetStore:
         than raising. Returns the names imported, sorted.
         """
         imported: list[str] = []
-        for name, xml in snapshots.items():
-            try:
-                valid = self._stored_name(name)
-            except PresetError:
-                continue
-            if not self.exists(valid):
-                self.save(valid, xml, trigger="migration")
-                imported.append(valid)
+        with self._lock:
+            for name, xml in snapshots.items():
+                try:
+                    valid = self._stored_name(name)
+                except PresetError:
+                    continue
+                if not self.exists(valid):
+                    self._save(valid, xml, "migration")
+                    imported.append(valid)
         return sorted(imported)
