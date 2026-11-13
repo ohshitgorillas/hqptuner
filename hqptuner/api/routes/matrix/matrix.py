@@ -230,13 +230,14 @@ async def speakers_apply(body: SpeakersBody, manager: HttpMgr) -> deps.WithAutos
     Reloads the engine (~3 s), interrupting playback — never refused for it. The write is checkbox-safe and
     range-validated in ``httpconf.apply_speakers``.
     """
-    try:
-        result = await speakerprocessing.apply(manager, body.channels, enabled=body.enabled)
-    except ValueError as exc:
-        raise refuse(InvalidInputError(error=exc)) from exc
-    except (ControlError, httpx.HTTPError) as exc:
-        raise refuse(SpeakersApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    async with manager.applyops.write_lock:
+        try:
+            result = await speakerprocessing.apply(manager, body.channels, enabled=body.enabled)
+        except ValueError as exc:
+            raise refuse(InvalidInputError(error=exc)) from exc
+        except (ControlError, httpx.HTTPError) as exc:
+            raise refuse(SpeakersApplyFailedError(error=exc)) from exc
+        return await deps.with_autosave(result, manager)
 
 
 def _limit_text(limit: int) -> str:

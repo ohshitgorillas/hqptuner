@@ -56,9 +56,12 @@ async def profile(action: str, body: ProfileBody, manager: Mgr) -> PresetActivat
     """
     if action not in ("load", "save", "delete"):
         raise refuse(UnknownProfileActionError(action=action))
-    if action == "load":
-        return await _load(manager, body.name)
-    return await _mutate(manager, action, body.name)
+    if action == "delete":
+        return await _mutate(manager, action, body.name)
+    async with manager.applyops.write_lock:
+        if action == "load":
+            return await _load(manager, body.name)
+        return await _mutate(manager, action, body.name)
 
 
 @router.delete("/preset/{name:path}")

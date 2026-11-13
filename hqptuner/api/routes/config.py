@@ -335,15 +335,16 @@ async def engine_apply(body: EngineBody, manager: HttpMgr) -> deps.WithAutosave[
     """
     if not body.overrides:
         raise refuse(NoEngineOverridesError())
-    try:
-        result = await manager.applyops.apply_engine(body.overrides, all_presets=body.all_presets)
-    except ValueError as exc:
-        raise refuse(InvalidInputError(error=exc)) from exc
-    except ControlError as exc:
-        raise refuse(EngineControlFailedError(error=exc)) from exc
-    except httpx.HTTPError as exc:
-        raise refuse(EngineApplyFailedError(error=exc)) from exc
-    return await deps.with_autosave(result, manager)
+    async with manager.applyops.write_lock:
+        try:
+            result = await manager.applyops.apply_engine(body.overrides, all_presets=body.all_presets)
+        except ValueError as exc:
+            raise refuse(InvalidInputError(error=exc)) from exc
+        except ControlError as exc:
+            raise refuse(EngineControlFailedError(error=exc)) from exc
+        except httpx.HTTPError as exc:
+            raise refuse(EngineApplyFailedError(error=exc)) from exc
+        return await deps.with_autosave(result, manager)
 
 
 def _refuse_unfit_archive(data: bytes) -> None:
@@ -394,13 +395,14 @@ async def restore(cfgfile: Annotated[UploadFile, File()], manager: HttpMgr, requ
             # A restore is about the daemon's config; descriptions we cannot read are a note in the log, not a 4xx
             # in front of the user's restore.
             log.warning("carried descriptions not restored: %s", exc)
-    mark = settle.mark_connect(manager)
-    try:
-        await settle.restore(manager, data, mark=mark)
-    except (ControlError, httpx.HTTPError) as exc:
-        raise refuse(RestoreFailedError(error=exc)) from exc
-    # The restore restarted the daemon under us. Answering here would report a restore
-    # done while both lanes are still down, and the page would read Unreachable a moment
-    # after being told it succeeded; the answer waits for the daemon to come back whole.
-    await settle.await_ready(manager, mark)
+    async with manager.applyops.write_lock:
+        mark = settle.mark_connect(manager)
+        try:
+            await settle.restore(manager, data, mark=mark)
+        except (ControlError, httpx.HTTPError) as exc:
+            raise refuse(RestoreFailedError(error=exc)) from exc
+        # The restore restarted the daemon under us. Answering here would report a restore
+        # done while both lanes are still down, and the page would read Unreachable a moment
+        # after being told it succeeded; the answer waits for the daemon to come back whole.
+        await settle.await_ready(manager, mark)
     return RestoreAnswer(bytes=len(data))

@@ -29,14 +29,14 @@ class RestoreHold:
     """The first ``POST /restore`` of an app, held after it reaches the daemon until ``release`` is set.
 
     ``entered`` is set when that push arrives, and ``posts`` is the path of every ``POST`` that reached the daemon, in
-    arrival order, held or not.
+    arrival order, held or not. ``armed`` is off for a setup step that must push a restore through unheld.
     """
 
     def __init__(self) -> None:
         self.entered = asyncio.Event()
         self.release = asyncio.Event()
         self.posts: list[str] = []
-        self._held = False
+        self.armed = True
 
     def network(self, base: Network) -> Network:
         """``base`` with its 8088 transports answering through the hold."""
@@ -49,8 +49,8 @@ class RestoreHold:
             async def answer_through(request: httpx.Request) -> httpx.Response:
                 if request.method == "POST":
                     self.posts.append(request.url.path)
-                if request.method == "POST" and request.url.path == "/restore" and not self._held:
-                    self._held = True
+                if request.method == "POST" and request.url.path == "/restore" and self.armed:
+                    self.armed = False
                     self.entered.set()
                     await self.release.wait()
                 return await inner.handle_async_request(request)

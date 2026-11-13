@@ -5,9 +5,11 @@ What reached the daemon while the first was held says whether the second waited 
 """
 
 import asyncio
-from collections.abc import Iterator
+from collections.abc import Callable, Coroutine, Iterator
 from dataclasses import dataclass
+from typing import Any
 
+import httpx
 import pytest
 from fixtures_clients import Wire
 
@@ -52,3 +54,73 @@ def test_a_second_apply_pushes_nothing_while_the_first_is_held_at_the_daemon(ove
 
 def test_a_second_apply_that_waited_answers_success(overlap: Overlap) -> None:
     assert overlap.statuses == [200, 200]
+
+
+# --- every other lane that restores or reloads the engine takes its turn too ---
+
+
+@dataclass(frozen=True)
+class Lane:
+    """One write lane, as the request a client sends it."""
+
+    send: Callable[[httpx.AsyncClient], Coroutine[Any, Any, httpx.Response]]
+
+
+def _post(path: str, sent: dict[str, object]) -> Lane:
+    async def send(session: httpx.AsyncClient) -> httpx.Response:
+        return await session.post(path, json=sent)
+
+    return Lane(send)
+
+
+async def _upload(session: httpx.AsyncClient) -> httpx.Response:
+    archive = (await session.get("/api/backup")).content
+    return await session.post("/api/restore", files={"cfgfile": ("settings.zip", archive, "application/zip")})
+
+
+LANES = {
+    "preset load": _post("/api/profile/load", {"name": "Kept"}),
+    "preset save": _post("/api/profile/save", {"name": "Saved"}),
+    "engine apply": _post("/api/engine", {"overrides": {"cuda": "0"}}),
+    "uploaded restore": Lane(_upload),
+    "speaker apply": _post("/api/speakers", {"enabled": True, "channels": {}}),
+}
+
+
+@dataclass(frozen=True)
+class LaneOverlap:
+    """What a lane sent while a staged apply was held at the daemon, and how both answered."""
+
+    posts_when_held: list[str]
+    posts_after_a_lull: list[str]
+    statuses: list[int]
+
+
+async def _apply_then_lane(held: Held, lane: Lane) -> LaneOverlap:
+    async with held.session() as session:
+        first = asyncio.create_task(session.post("/api/config/apply"))
+        await held.hold.entered.wait()
+        held_at = list(held.hold.posts)
+        second = asyncio.create_task(lane.send(session))
+        await lull()
+        lulled = list(held.hold.posts)
+        held.hold.release.set()
+        answers = await asyncio.gather(first, second)
+    return LaneOverlap(held_at, lulled, [answer.status_code for answer in answers])
+
+
+@pytest.fixture(params=LANES, ids=list(LANES))
+def lane_overlap(held: Held, request: pytest.FixtureRequest) -> LaneOverlap:
+    held.hold.armed = False
+    held.client.post("/api/profile/save", json={"name": "Kept"})
+    held.hold.armed = True
+    held.client.post("/api/config/stage", json={"http": {"title": "Renamed"}})
+    return held.run(lambda app: _apply_then_lane(app, LANES[request.param]))
+
+
+def test_a_lane_sends_nothing_to_the_daemon_while_an_apply_is_held(lane_overlap: LaneOverlap) -> None:
+    assert lane_overlap.posts_after_a_lull == lane_overlap.posts_when_held
+
+
+def test_a_lane_that_waited_answers_success(lane_overlap: LaneOverlap) -> None:
+    assert lane_overlap.statuses == [200, 200]
