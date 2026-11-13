@@ -46,6 +46,32 @@ class AutosaveState:
     autosave: bool
 
 
+@dataclass(frozen=True)
+class Applied:
+    """The buffer entries an apply took: ``http`` field names and live keys still staged at the applied value."""
+
+    http: list[str]
+    live: list[str]
+
+
+def applied_entries(
+    http: dict[str, str],
+    live: dict[str, dict[str, str]],
+    buffered_http: dict[str, str],
+    buffered_live: dict[str, dict[str, str]],
+) -> Applied:
+    """Decide which entries of an apply's own copy (``http``, ``live``) the buffer should lose.
+
+    An entry goes only where the buffer still holds the value the apply carried: an ``http`` field by its value, a live
+    key by its whole argument bucket, since staging replaces a live bucket whole. A field staged or re-staged while the
+    apply ran holds a different value, or none, and stays.
+    """
+    return Applied(
+        http=[field for field, value in http.items() if buffered_http.get(field) == value],
+        live=[key for key, args in live.items() if buffered_live.get(key) == args],
+    )
+
+
 class PendingStore:
     """Server-side staged-changes buffer.
 
@@ -87,6 +113,14 @@ class PendingStore:
         """Throw the whole buffer away — what a clean apply and an explicit discard both end with."""
         self.live = {}
         self.http = {}
+
+    def clear_applied(self, http: dict[str, str], live: dict[str, dict[str, str]]) -> None:
+        """Remove what an apply of the copy (``http``, ``live``) took, and leave whatever was staged while it ran."""
+        taken = applied_entries(http, live, self.http, self.live)
+        for field in taken.http:
+            del self.http[field]
+        for key in taken.live:
+            del self.live[key]
 
     def snapshot(self) -> PendingSnapshot:
         """Return both buckets as the wire shape every staging route answers with."""

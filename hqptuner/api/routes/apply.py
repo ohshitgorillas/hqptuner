@@ -126,16 +126,17 @@ async def _apply_held(
     manager: ConnectionManager, store: PendingStore, switch_to: str | None, save: str | None
 ) -> WithSaved[ApplyReport] | WithAutosave[ApplyReport]:
     """Run one apply with the write lock held, on the staged set as it stands now."""
-    # the staged set as it stands NOW — a clean apply clears the buffer below, so
-    # nothing captured after this point can say what was applied
-    staged_http, staged_live = dict(store.http), dict(store.live)
-    report = await _apply_staged(manager, store.live, store.http, switch_to)
+    # the staged set as it stands NOW, as the apply's own copy: a stage that lands while the apply runs mutates the
+    # buffer, never what is being applied, and the clear below takes out only what this copy carried
+    staged_http = dict(store.http)
+    staged_live = {key: dict(args) for key, args in store.live.items()}
+    report = await _apply_staged(manager, staged_live, staged_http, switch_to)
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)
     if not ok:
         return WithAutosave(report, None)  # soft failure — keep staging so the user can retry
     # cleared before the save: the edits are on the daemon now, so a save that fails leaves nothing to re-apply
-    store.clear()
+    store.clear_applied(staged_http, staged_live)
     return await _persist_after_apply(manager, save, report)
 
 
