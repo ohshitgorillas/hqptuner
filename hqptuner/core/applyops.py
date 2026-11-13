@@ -65,7 +65,7 @@ class ApplyReport:
 
 
 async def _persistent_apply(
-    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None
+    mgr: "ConnectionManager", http_fields: dict[str, str], switch_to: str | None, carried: dict[str, bytes]
 ) -> RestoreResult:
     """Return the persistent lane's outcome: declined as data, or the restore lane's own answer.
 
@@ -75,7 +75,7 @@ async def _persistent_apply(
     declined = httpauth.decline_error(mgr)
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
-    return await restore.apply(mgr, http_fields, switched=switch_to is not None)
+    return await restore.apply(mgr, http_fields, switched=switch_to is not None, carried=carried)
 
 
 async def _write_live(
@@ -170,8 +170,10 @@ class ApplyOps:
         if plan.live_edits:
             live = live + await _write_live(mgr, plan.live_edits, dict(http_fields))
         restore_fields = plan.restore_fields
-        persistent = await _persistent_apply(mgr, restore_fields, switch_to) if restore_fields else None
-        aftermath = await after_restore(mgr, persistent, restore_fields)
+        # the park is read once: every restore pass carries this set, and only this set is released afterwards
+        carried = mgr.presetops.parked_filter_members() if restore_fields else {}
+        persistent = await _persistent_apply(mgr, restore_fields, switch_to, carried) if restore_fields else None
+        aftermath = await after_restore(mgr, persistent, restore_fields, carried)
         # after all of it: a preset load is the FIRST step of an apply, so every
         # checkpoint inside the load reads state the live setters and the restore
         # have not touched yet. This one reads on a live-only apply too —

@@ -15,6 +15,7 @@ the body); the ceiling is here because only the park knows what it holds.
 
 from __future__ import annotations
 
+import contextlib
 import struct
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -38,6 +39,8 @@ _CONTROL_END = 0x20
 _DEL = 0x7F
 # What a refused read, write or delete says it was handling.
 _WHAT = "the uploaded filter"
+# Where the daemon lands a parked upload, as a restore-archive member name.
+MEMBER_DIR = "data/"
 
 
 class FilterExtensionRefusedError(ValueError):
@@ -178,7 +181,20 @@ class FilterPark:
 
     def members(self) -> dict[str, bytes]:
         """Parked uploads as restore-archive members (``data/<name>``)."""
-        return {f"data/{name}": data for name, data in self.files().items()}
+        return {f"{MEMBER_DIR}{name}": data for name, data in self.files().items()}
+
+    def release(self, carried: dict[str, bytes]) -> None:
+        """Delete the uploads an apply carried (``members`` of an earlier read), each only if its bytes are unchanged.
+
+        A file a discard already removed is skipped, and so is one a later upload re-parked under the same name: it
+        holds other bytes and belongs to the next apply.
+        """
+        with deleting(_WHAT, self._dir):
+            for member, data in carried.items():
+                path = self._dir / member.removeprefix(MEMBER_DIR)
+                with contextlib.suppress(FileNotFoundError):
+                    if path.read_bytes() == data:
+                        path.unlink()
 
     def clear(self) -> None:
         """Delete every parked upload, leaving the directory itself in place."""

@@ -88,13 +88,14 @@ class PresetAftermath:
 
 
 async def after_restore(
-    mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str]
+    mgr: "ConnectionManager", persistent: RestoreResult | None, http_fields: dict[str, str], carried: dict[str, bytes]
 ) -> PresetAftermath:
     """Settle what an applied restore leaves behind, and land its profile verbs in the stored presets.
 
     An empty fan-out unless the restore converged. It restarted the daemon, so every live reading
     belongs to the process it replaced — and the auto-save that follows reads exactly those.
-    The parked filter files it carried live on the daemon now.
+    The parked filter files it carried (``carried``) live on the daemon now, and are released from the park; an
+    upload parked while the apply ran stays for the next one.
     Backfill runs BEFORE the fan-out: it migrates profiles saved earlier, and the user's own
     save is the write that should land last on any preset both touch. A refused apply fans out
     nothing.
@@ -103,7 +104,7 @@ async def after_restore(
         return PresetAftermath({})
     await settle.resync_engine_state(mgr)
     ops = mgr.presetops
-    ops.clear_parked_filters()
+    ops.release_parked_filters(carried)
     ops.backfill_profiles()
     return PresetAftermath(ops.fanout_profiles(http_fields))
 
@@ -158,8 +159,12 @@ class PresetOps:
         """Return the parked uploads as ``data/<name>`` members to fold into a restore archive."""
         return self._filters.members()
 
+    def release_parked_filters(self, carried: dict[str, bytes]) -> None:
+        """Release the parked uploads an apply carried, as ``parked_filter_members`` read them, once it shipped them."""
+        self._filters.release(carried)
+
     def clear_parked_filters(self) -> None:
-        """Discard every parked upload, called once an apply has shipped them to the daemon."""
+        """Discard every parked upload, the whole park, as a discard of the staged edits does."""
         self._filters.clear()
 
     # --- matrix-profile fan-out (matrix-spec.md "Profiles") ----------------

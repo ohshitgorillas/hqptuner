@@ -190,7 +190,9 @@ class PassVerdict:
         return not self.diff or self.unfixable is not None
 
 
-async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False) -> RestoreResult:
+async def apply(
+    mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False, carried: dict[str, bytes] | None = None
+) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
     ``switched`` marks an apply that just loaded a different preset: the restart
@@ -229,6 +231,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
     # taken before the first pass, not inside it: a pass refused with 503 and the
     # next one adopted are one restore the caller has to outlast
     mark = settle.mark_connect(mgr)
+    carried = mgr.presetops.parked_filter_members() if carried is None else carried
     verdict: PassVerdict | None = None
     attempts = 0
     for attempt in range(1, _PERSIST_RETRIES + 2):
@@ -237,7 +240,7 @@ async def apply(mgr: ConnectionManager, edits: dict[str, str], *, switched: bool
         # to actually serve before writing, rather than racing it
         await settle.await_http_ready(mgr)
         try:
-            intended = await _restore_once(mgr, merged, active_profile, mark=mark)
+            intended = await _restore_once(mgr, merged, active_profile, carried, mark=mark)
         except httpauth.AuthRefused as exc:
             if http.answered > answered:
                 # the daemon answered this apply normally and then refused: it is restarting, which says
@@ -317,7 +320,12 @@ async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[
 
 
 async def _restore_once(
-    mgr: ConnectionManager, merged: dict[str, str], active_profile: str = "", *, mark: settle.Mark | None
+    mgr: ConnectionManager,
+    merged: dict[str, str],
+    active_profile: str,
+    carried: dict[str, bytes],
+    *,
+    mark: settle.Mark | None,
 ) -> dict[str, str]:
     """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
 
@@ -340,7 +348,7 @@ async def _restore_once(
             active=mgr.readings.active_config,
             matrix_profile=adopt,
             audit=mgr.audit,
-            extra_members=mgr.presetops.parked_filter_members(),
+            extra_members=carried,
         ),
     )
     # under auto-save the daemon's data/cfgs mirror is only ever refreshed by a
