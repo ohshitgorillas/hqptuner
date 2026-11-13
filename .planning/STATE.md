@@ -1,6 +1,6 @@
 # State
 
-Phase: 8 of 11 (Config write path and input validation)
-Status: phase complete
-Next: /cad-context 9
+Phase: 9 of 11 (Apply and store integrity)
+Status: context gathered
+Next: /cad-plan 9
 Updated: 2026-11-13
