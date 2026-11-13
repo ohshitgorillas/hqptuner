@@ -219,6 +219,11 @@ test("test_the_frequency_axis_runs_from_zero_at_the_bottom", () => {
   assert.equal(ticks.find((t) => t.khz === 0)?.at, 1);
 });
 
+test("test_at_the_whole_band_the_source_nyquists_tick_sits_at_the_top_edge", () => {
+  stream({ geometry: geo(48000, 2) });
+  assert.equal(sourceMeter().freq.nyq.at, 0);
+});
+
 test("test_the_frequency_axis_is_linear", () => {
   stream({ geometry: geo(48000, 2) });
   const at = sourceMeter().freq.ticks.find((t) => t.khz === 20)?.at;
