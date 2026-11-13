@@ -15,7 +15,7 @@ Every behavior on `todo.txt`'s triaged "untested behaviors" list is covered by a
 ## Must be true when done
 
 - The hardware draft is unloaded before its first read.
-- An edit back to base stops differing, and a string equal to a numeric base does not differ.
+- An edit back to base stops differing. (The string-over-numeric-base case is struck: owner ruling below.)
 - `staged` reads false while every edit matches the base.
 - All-stations alone does not differ, and an apply with all-stations off sends `all_presets` false.
 - Each new test was seen red against a deliberate break, the break reverted, and no existing assertion line changed.
@@ -27,6 +27,7 @@ Every behavior on `todo.txt`'s triaged "untested behaviors" list is covered by a
 - D-05: "all-stations starts off" is struck; nothing here tests the default. D-10 and `docs/spec/testing.md` (read it first): one assertion per test; fakes at the wire; signals reset every case; jscpd at 2.3%: reuse the file's own fixtures.
 - Every task's gate: `scripts/gate.sh node --import ./tests/js/support/vendor-resolve.js --test <file>` and `scripts/gate.sh npx eslint <file>` print exit=0, and `git diff -U0 -- <file>` removes no line holding an assertion (AC4).
 - All five tasks write the one hardware store test file, so they run in order in one plan.
+- Owner ruling 2026-11-12 (wave 1 checkpoint): Task 2's string-over-numeric-base case is struck. `readEngine` in `hqptuner/static/store/faceplate/settings/hardware.js` stringifies every engine value before it becomes the base, so no single plausible break turns the case red (D-01). Task 2 is done at its first case (2538815e); Plan 19 strikes the claim from `todo.txt`.
 
 ## Tasks
 
