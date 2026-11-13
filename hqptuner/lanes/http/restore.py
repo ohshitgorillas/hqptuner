@@ -191,29 +191,26 @@ class PassVerdict:
 
 
 async def apply(
-    mgr: ConnectionManager, edits: dict[str, str], *, switched: bool = False, carried: dict[str, bytes] | None = None
+    mgr: ConnectionManager, edits: dict[str, str], *, switch: str | None = None, carried: dict[str, bytes] | None = None
 ) -> RestoreResult:
     """Apply ``edits`` to the running config via POST /restore, then verify and self-correct.
 
-    ``switched`` marks an apply that just loaded a different preset: the restart
-    dropped the live matrix profile (the daemon persists the selection nowhere,
-    readme §1.12), and the cached state still names the OLD preset's profile —
-    adopting it would install that profile into the preset just switched to.
+    ``switch`` is the preset an apply just switched to: empty for an unload, None for no switch. A load wrote the
+    apply's safety copy before its own restore, so its passes write none; an unload restores nothing, so the first pass
+    writes the copy. After a switch the restart dropped the live matrix profile (the daemon persists the selection
+    nowhere, readme §1.12), and the cached state still names the OLD preset's profile — adopting it would install that
+    profile into the preset just switched to.
 
-    Each pass: fetch a fresh /backup, build a restore archive whose
-    working config is the running config with edits applied (plus the forced
-    auto-family fields), restore, and read the running config back. Converged →
-    done. Diverged but correctable → retry. Diverged on a net_device the daemon
-    no longer offers (endpoint gone) → unfixable: surface and stop, since no
-    restart conjures absent hardware.
+    Each pass: fetch a fresh /backup, build a restore archive whose working config is the running config with edits
+    applied (plus the forced auto-family fields), restore, and read the running config back. Converged → done. Diverged
+    but correctable → retry. Diverged on a net_device the daemon no longer offers (endpoint gone) → unfixable: surface
+    and stop, since no restart conjures absent hardware.
 
     Raises ``RestoreRefusedAfterAnswerError`` when the daemon refuses a request after answering one of this apply.
-    Raises ``HttpLaneDeclinedError`` when the lane is not usable, settled before the
-    first pass: every pass opens with ``await_http_ready``, which polls to the alarm
-    deadline, so a daemon that has already refused us would cost three deadlines to
-    say what the poll loop established long ago. Raises ``RestoreWriteFailedError``
-    when no pass got a write through at all, and ``GroundingError`` for an edit that
-    cannot be built against the running config.
+    Raises ``HttpLaneDeclinedError`` when the lane is not usable, settled before the first pass: every pass opens with
+    ``await_http_ready``, which polls to the alarm deadline, so a daemon that has already refused us would cost three
+    deadlines to say what the poll loop established long ago. Raises ``RestoreWriteFailedError`` when no pass got a
+    write through at all, and ``GroundingError`` for an edit that cannot be built against the running config.
     """
     declined = httpauth.decline_error(mgr)
     if declined is not None:
@@ -227,11 +224,12 @@ async def apply(
     # the profile the listener is on: the restart comes up on <matrix>, so that
     # profile's matrix is what <matrix> has to become — unless a preset switch
     # already dropped it (profiles do not follow the listener across presets)
-    active_profile = "" if switched else _active_profile(mgr, edits)
+    active_profile = "" if switch is not None else _active_profile(mgr, edits)
     # taken before the first pass, not inside it: a pass refused with 503 and the
     # next one adopted are one restore the caller has to outlast
     mark = settle.mark_connect(mgr)
     carried = mgr.presetops.parked_filter_members() if carried is None else carried
+    copied = bool(switch)
     verdict: PassVerdict | None = None
     attempts = 0
     for attempt in range(1, _PERSIST_RETRIES + 2):
@@ -240,7 +238,10 @@ async def apply(
         # to actually serve before writing, rather than racing it
         await settle.await_http_ready(mgr)
         try:
-            intended = await _restore_once(mgr, merged, active_profile, carried, mark=mark)
+            backup = await http.backup()
+            # survives a crash mid-apply; the first backup that arrives is the state before any restore
+            copied = mgr.presetops.persist_backup_for_restore(backup, held=copied)
+            intended = await _restore_once(mgr, backup, merged, active_profile, carried, mark=mark)
         except httpauth.AuthRefused as exc:
             if http.answered > answered:
                 # the daemon answered this apply normally and then refused: it is restarting, which says
@@ -321,20 +322,19 @@ async def _judge(mgr: ConnectionManager, merged: dict[str, str], intended: dict[
 
 async def _restore_once(
     mgr: ConnectionManager,
+    backup: bytes,
     merged: dict[str, str],
     active_profile: str,
     carried: dict[str, bytes],
     *,
     mark: settle.Mark | None,
 ) -> dict[str, str]:
-    """Build a restore archive from a fresh backup, push it, and return the intended config it should produce.
+    """Build a restore archive from ``backup``, push it, and return the intended config it should produce.
 
     The archive's working config is the running config ⊕ edits. ``mark`` is the caller's connect mark.
 
     Raises GroundingError (bad edit, or an unusable backup) or httpx.HTTPError (daemon dropped mid-write).
     """
-    backup = await mgr.require_http().backup()
-    mgr.presetops.persist_backup_for_restore(backup)  # survives a crash mid-apply
     # a profile the daemon holds in memory only is live but absent from the file:
     # there is no stored matrix to adopt, so the live one is left as it is
     running = presetzip.snapshot_member(backup, None, mgr.readings.active_config)

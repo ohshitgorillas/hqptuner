@@ -311,13 +311,18 @@ class PresetOps:
         except OSError as exc:
             raise BackupBeforeApplyFailedError(directory=self._cfg.backup_dir) from exc
 
-    def persist_backup_for_restore(self, data: bytes) -> Path | None:
-        """Write the pre-apply settings backup to disk ahead of pushing a persistent-lane restore.
+    def persist_backup_for_restore(self, data: bytes, *, held: bool) -> bool:
+        """Write the pre-apply settings backup to disk ahead of a restore pass, unless the operation ``held`` its copy.
+
+        Answers whether the operation holds its copy now. A backup that is no archive writes nothing, so a later
+        pass is still owed the copy.
 
         Raises ``BackupBeforeRestoreFailedError`` on a write failure — see ``_write_backup``.
         """
+        if held:
+            return True
         try:
-            return self._write_backup(data)
+            return self._write_backup(data) is not None
         except OSError as exc:
             raise BackupBeforeRestoreFailedError(directory=self._cfg.backup_dir) from exc
 

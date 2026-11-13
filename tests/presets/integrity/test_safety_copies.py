@@ -14,6 +14,7 @@ import pytest
 from conftest import ManagerFactory
 from virtual_clock import VirtualClock
 
+from hqptuner.conf import presetconf
 from hqptuner.conf.engineconf import UnreadableArchiveError
 from hqptuner.core.manager import ConnectionManager
 
@@ -100,3 +101,57 @@ def test_the_later_of_two_copies_at_one_instant_survives_the_prune(
     take_copies(http_manager, clock, range(5), apart=1)
     take_copies(http_manager, clock, range(5, 7), apart=0)
     assert kept_payloads(tmp_path) == [numbered_archive(number) for number in range(2, 7)]
+
+
+# --- one operation, one copy: the daemon's state before its first restore ---------------------------------------
+
+#: The title every staged apply below sets.
+STAGED_TITLE = "Renamed"
+
+
+def title_of(copy: Path) -> str | None:
+    """The title the working config of the copy at ``copy`` carries."""
+    with zipfile.ZipFile(copy) as archive:
+        return presetconf.read_config(archive.read("hqplayerd.xml")).get("title")
+
+
+def newest_copy_in(directory: Path) -> Path | None:
+    """The copy that sorts last in ``directory``, or ``None`` when it holds none."""
+    return max(directory.glob("pre-apply-settings*.zip"), default=None)
+
+
+@pytest.fixture
+def diverging_manager(http_manager: ConnectionManager, http_daemon: dict[str, Any]) -> ConnectionManager:
+    """A manager whose daemon comes back from its first restore of ``STAGED_TITLE`` on another title.
+
+    The apply then takes a second pass, which the daemon adopts as written.
+    """
+    drifted: list[bool] = []
+
+    def drift() -> None:
+        if http_daemon["title"] == STAGED_TITLE and not drifted:
+            drifted.append(True)
+            http_daemon["title"] = "Drifted"
+
+    http_daemon["_on_restore"] = drift
+    return http_manager
+
+
+@pytest.mark.parametrize("switch_to", [None, "Base", ""], ids=["plain", "loaded-preset", "unloaded"])
+async def test_an_apply_that_takes_two_restore_passes_leaves_one_new_copy(
+    diverging_manager: ConnectionManager, tmp_path: Path, switch_to: str | None
+) -> None:
+    await diverging_manager.presetops.save_preset("Base")
+    before = stored_copies(tmp_path).keys()
+    await diverging_manager.applyops.apply({}, {"title": STAGED_TITLE}, switch_to=switch_to)
+    assert len(stored_copies(tmp_path).keys() - before) == 1
+
+
+async def test_the_copy_an_apply_leaves_holds_the_state_before_its_first_restore(
+    diverging_manager: ConnectionManager, http_daemon: dict[str, Any], tmp_path: Path
+) -> None:
+    held_before = http_daemon["title"]
+    await diverging_manager.applyops.apply({}, {"title": STAGED_TITLE})
+    newest = newest_copy_in(tmp_path)
+    assert newest is not None
+    assert title_of(newest) == held_before

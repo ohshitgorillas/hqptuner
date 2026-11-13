@@ -75,7 +75,7 @@ async def _persistent_apply(
     declined = httpauth.decline_error(mgr)
     if declined is not None:
         return RestoreDeclined(str(declined), declined.code)
-    return await restore.apply(mgr, http_fields, switched=switch_to is not None, carried=carried)
+    return await restore.apply(mgr, http_fields, switch=switch_to, carried=carried)
 
 
 async def _write_live(
