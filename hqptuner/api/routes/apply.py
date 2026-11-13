@@ -13,6 +13,7 @@ from hqptuner.api.errors import ControlFailedError, ErrorBody, InvalidInputError
 from hqptuner.api.models import ApplyBody, LiveBody
 from hqptuner.api.routes.pending import (
     NOT_OFFERED_REASON,
+    PendingStore,
     apply_succeeded,
     check_offered,
     pending_store,
@@ -116,10 +117,18 @@ async def apply(
     switch_to = body.switch_to if body else None
     if not store.live and not store.http and switch_to is None:
         raise refuse(NothingStagedError())
+    save = body.save.name if body is not None and body.save is not None else None
+    async with manager.applyops.write_lock:
+        return await _apply_held(manager, store, switch_to, save)
+
+
+async def _apply_held(
+    manager: ConnectionManager, store: PendingStore, switch_to: str | None, save: str | None
+) -> WithSaved[ApplyReport] | WithAutosave[ApplyReport]:
+    """Run one apply with the write lock held, on the staged set as it stands now."""
     # the staged set as it stands NOW — a clean apply clears the buffer below, so
     # nothing captured after this point can say what was applied
     staged_http, staged_live = dict(store.http), dict(store.live)
-    save = body.save.name if body is not None and body.save is not None else None
     report = await _apply_staged(manager, store.live, store.http, switch_to)
     ok = apply_succeeded(report)
     manager.audit.apply(staged_http, staged_live, switch_to, save, ok=ok)

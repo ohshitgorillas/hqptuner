@@ -9,6 +9,7 @@ profile switch and the speaker apply were one-line pass-throughs, so their
 routes call ``lanes.matrixlane`` and ``lanes.http.speakerprocessing`` directly.
 """
 
+import asyncio
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -106,11 +107,17 @@ class VolumeReport:
 
 
 class ApplyOps:
-    """Dispatch the manager's three write operations to their lanes."""
+    """Dispatch the manager's three write operations to their lanes.
+
+    ``write_lock`` is the one lock of every lane that pushes ``POST /restore`` or reloads the engine. A route takes it
+    once, at its outermost user operation, and waits its turn; nothing below a route takes it, because the lock is
+    not reentrant. The live lane's writes stay outside it.
+    """
 
     def __init__(self, mgr: "ConnectionManager") -> None:
         """Bind the operations to the manager whose clients, caches and lanes they write through."""
         self._mgr = mgr
+        self.write_lock = asyncio.Lock()
 
     async def set_volume(self, db: str) -> VolumeReport:
         """Write the playback volume live, immediately, outside the staged-config apply flow.
