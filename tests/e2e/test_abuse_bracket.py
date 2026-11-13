@@ -5,6 +5,10 @@ writes into every store HQPTuner owns, and `close` has to leave those stores as
 `open` found them, refusing and touching none of them when the snapshot manifest
 is gone.
 
+A run whose apply, live write or preset store write landed has changed the
+daemon's own configuration or its running state, so `close` uploads the baseline
+back; a run in which none of the three landed makes no upload.
+
 A run is also free to switch the engine's live matrix profile, and `close` has
 to put back the profile the daemon was on when `open` ran — unless the daemon no
 longer offers that profile, in which case `close` refuses rather than installing
@@ -29,7 +33,7 @@ import json
 import os
 import subprocess
 import urllib.request
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
 
@@ -302,3 +306,102 @@ def test_a_close_refused_for_a_vanished_profile_leaves_the_run_profile_engaged(
 ) -> None:
     _close_after_the_baseline_vanished(app, state)
     assert app.control_state["matrix_profile"] == RUN_PROFILE
+
+
+#: The control fake's starting junk filter, which a live write moves and the run puts back.
+DEFAULT_JUNK_FILTER = "0"
+
+#: The multipart boundary the state-import upload below is framed with.
+BOUNDARY = "abuse-bracket-boundary"
+
+#: A preset name the store holds before `open`, so a run that re-imports it overwrites it.
+PRESET = "kept preset"
+
+
+def _get_bytes(app: stack_support.Stack, path: str) -> bytes:
+    """The raw body of one GET against the app."""
+    request = urllib.request.Request(f"{app.base_url}{path}", method="GET")  # noqa: S310 — loopback http URL
+    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
+        return bytes(response.read())
+
+
+def _import_state(app: stack_support.Stack, archive: bytes) -> None:
+    """Upload a state archive to `POST /api/state-import`, the one route that writes a preset with no apply."""
+    head = f'--{BOUNDARY}\r\nContent-Disposition: form-data; name="statefile"; filename="state.zip"\r\n'
+    body = f"{head}Content-Type: application/zip\r\n\r\n".encode() + archive + f"\r\n--{BOUNDARY}--\r\n".encode()
+    request = urllib.request.Request(  # noqa: S310 — literal loopback http URL
+        f"{app.base_url}/api/state-import",
+        data=body,
+        headers={"Content-Type": f"multipart/form-data; boundary={BOUNDARY}"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=CALL_TIMEOUT) as response:  # noqa: S310 — same URL
+        response.read()
+
+
+def _live_junk_filter(app: stack_support.Stack) -> str:
+    """The junk filter reading as the app serves it, `.data.filter_junk` of `GET /api/state`."""
+    return str(json.loads(_get_bytes(app, "/api/state"))["data"]["filter_junk"])
+
+
+def _await_junk_filter(app: stack_support.Stack, value: str) -> None:
+    """Wait until the app reports `value` for the junk filter, so close's live readback reads baseline at once."""
+    if app.wait_for_command(lambda: _live_junk_filter(app) == value, OBSERVE_TIMEOUT):
+        return
+    raise _ActiveProfileMismatchError(reported=_live_junk_filter(app), expected=value)
+
+
+def _uploads_after(app: stack_support.Stack, state: Path, run: Callable[[], None]) -> int:
+    """Open the bracket, let `run` do its writes, close, and answer how many baseline uploads reached the daemon.
+
+    Read from the HTTP fake's own restore bookkeeping once `close` has returned,
+    never from what the script prints.
+    """
+    _bracket("open", state)
+    run()
+    _bracket("close", state)
+    return int(app.http_state.get("_restore_attempts", 0))
+
+
+def _run_with_an_apply(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose apply lands."""
+    return lambda: _call(app, "POST", "/api/config/apply", {"switch_to": ""})
+
+
+def _run_with_a_live_write(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose live write lands, with the fake's junk filter then back at baseline for close's readback."""
+
+    def write_live() -> None:
+        _call(app, "POST", "/api/config/live", {"fields": {"junk_filter": "1"}})
+        app.control_state["filter_junk"] = DEFAULT_JUNK_FILTER
+        _await_junk_filter(app, DEFAULT_JUNK_FILTER)
+
+    return write_live
+
+
+def _run_with_a_preset_store_write(app: stack_support.Stack) -> Callable[[], None]:
+    """A run whose only write is a preset re-imported with no apply and no live write."""
+    _call(app, "POST", "/api/config/apply", {"switch_to": "", "save": {"name": PRESET}})
+    archive = _get_bytes(app, "/api/state-export")
+    return lambda: _import_state(app, archive)
+
+
+def _run_with_no_write(_app: stack_support.Stack) -> Callable[[], None]:
+    """A run in which nothing lands."""
+    return lambda: None
+
+
+@pytest.mark.parametrize(
+    ("make_run", "uploads"),
+    [
+        pytest.param(_run_with_an_apply, 1, id="an-apply-landed"),
+        pytest.param(_run_with_a_live_write, 1, id="a-live-write-landed"),
+        pytest.param(_run_with_a_preset_store_write, 1, id="a-preset-store-write-landed"),
+        pytest.param(_run_with_no_write, 0, id="no-write-landed"),
+    ],
+)
+def test_close_uploads_the_baseline_once_when_a_write_landed_and_never_when_none_did(
+    app: stack_support.Stack, state: Path, make_run: Callable[[stack_support.Stack], Callable[[], None]], uploads: int
+) -> None:
+    """A landed write changed the daemon, so close uploads the baseline once; a run that wrote nothing uploads none."""
+    assert _uploads_after(app, state, make_run(app)) == uploads
